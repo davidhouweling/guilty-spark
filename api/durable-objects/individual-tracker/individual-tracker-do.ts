@@ -40,7 +40,9 @@ import type {
   IndividualTrackerStartSeriesRequest,
   IndividualTrackerStartSeriesResponse,
   IndividualTrackerNudgeResponse,
-  NeatQueueSeriesContext,
+  ActiveSeries,
+  SeriesContextPayload,
+  SeriesTeam,
   TopBarStatItem,
 } from "./types";
 import { accumulatePlayerStats, computeTopBarStats, getActiveMatchIds } from "./top-bar-stats";
@@ -256,9 +258,12 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       discoveredNewMatch = true;
     }
 
-    if (trackerState.activeNeatQueueSeries != null && newlyDiscovered.size > 0) {
+    if (trackerState.activeSeries != null && newlyDiscovered.size > 0) {
+      const existingSeriesMatchIds = new Set(trackerState.activeSeries.matchIds);
       for (const matchId of newlyDiscovered) {
-        trackerState.activeNeatQueueSeries.matchIds.push(matchId);
+        if (!existingSeriesMatchIds.has(matchId)) {
+          trackerState.activeSeries.matchIds.push(matchId);
+        }
       }
     }
 
@@ -578,12 +583,20 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     const body = await request.json<IndividualTrackerStartSeriesRequest>();
 
-    trackerState.manualSeries = {
-      titleOverride: body.titleOverride,
-      subtitleOverride: body.subtitleOverride,
-      teams: body.teams,
+    const teams: SeriesTeam[] = body.teams.map((team) => ({
+      name: team.name,
+      players: team.members.map((gamertag) => ({ discordId: null, discordName: null, gamertag, xboxId: null })),
+    }));
+
+    this.retireActiveSeries(trackerState);
+    trackerState.activeSeries = {
+      title: body.titleOverride ?? getDefaultSeriesGroupTitle(),
+      subtitle: body.subtitleOverride,
+      guildIconUrl: null,
+      teams,
+      matchIds: body.matchIds ?? [],
       startedAt: new Date().toISOString(),
-      ...(body.matchIds != null && body.matchIds.length > 0 ? { backfillMatchIds: body.matchIds } : {}),
+      isActive: true,
     };
     trackerState.lastUpdateTime = new Date().toISOString();
 
@@ -597,14 +610,14 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private async handleEndSeries(): Promise<Response> {
     const trackerState = await this.getState();
     if (trackerState == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    if (trackerState.activeSeries == null) {
       return new Response("No active series", { status: 409 });
     }
 
-    if (trackerState.manualSeries == null) {
-      return new Response("No active series", { status: 409 });
-    }
-
-    delete trackerState.manualSeries;
+    this.retireActiveSeries(trackerState);
     trackerState.lastUpdateTime = new Date().toISOString();
 
     await this.setState(trackerState);
@@ -619,22 +632,21 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Not Found", { status: 404 });
     }
 
-    let context: NeatQueueSeriesContext | null = null;
-    const text = await request.text();
-    if (text.length > 0) {
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        return new Response("Bad Request", { status: 400 });
-      }
-      context = parsed as NeatQueueSeriesContext | null;
+    let payload: SeriesContextPayload | null = null;
+    try {
+      payload = await request.json<SeriesContextPayload | null>();
+    } catch {
+      return new Response("Bad Request", { status: 400 });
     }
 
-    if (context != null) {
-      trackerState.activeNeatQueueSeries = { ...context, matchIds: [] };
-    } else {
-      delete trackerState.activeNeatQueueSeries;
+    this.retireActiveSeries(trackerState);
+    if (payload != null) {
+      trackerState.activeSeries = {
+        ...payload,
+        matchIds: [],
+        startedAt: new Date().toISOString(),
+        isActive: true,
+      };
     }
 
     trackerState.lastUpdateTime = new Date().toISOString();
@@ -744,6 +756,14 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.state.storage.put(STATE_STORAGE_KEY, state);
   }
 
+  private retireActiveSeries(state: IndividualTrackerInternalState): void {
+    if (state.activeSeries == null) {
+      return;
+    }
+    state.completedSeries = [...(state.completedSeries ?? []), { ...state.activeSeries, isActive: false }];
+    delete state.activeSeries;
+  }
+
   private sanitizeState(state: IndividualTrackerInternalState): IndividualTrackerState {
     return {
       userId: state.userId,
@@ -755,7 +775,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       startTime: state.startTime,
       lastUpdateTime: state.lastUpdateTime,
       idleTimeoutHours: state.idleTimeoutHours,
-      hasActiveSeries: state.manualSeries != null,
+      hasActiveSeries: state.activeSeries != null,
     };
   }
 
@@ -777,13 +797,18 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       })),
     );
 
-    const backfillMatchIds = state.manualSeries?.backfillMatchIds;
+    const activeSeriesMatchIds = state.activeSeries?.matchIds ?? [];
+    const activeSeriesMatchIdSet = new Set(activeSeriesMatchIds);
     const groupings =
-      backfillMatchIds != null && backfillMatchIds.length >= 2 ? [backfillMatchIds, ...autoGroupings] : autoGroupings;
+      activeSeriesMatchIds.length >= 2
+        ? [activeSeriesMatchIds, ...autoGroupings.filter((g) => !g.some((id) => activeSeriesMatchIdSet.has(id)))]
+        : autoGroupings;
 
-    const activeNeatQueueMatchIds = new Set(state.activeNeatQueueSeries?.matchIds ?? []);
+    const allSeriesContexts: ActiveSeries[] = [
+      ...(state.activeSeries != null ? [state.activeSeries] : []),
+      ...(state.completedSeries ?? []),
+    ];
 
-    let visibleSeriesIndex = 0;
     const series = groupings.map((matchIds): IndividualTrackerSeriesGroup => {
       const groupSummaries = matchIds
         .map((matchId) => summariesById.get(matchId))
@@ -810,19 +835,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         })),
       );
 
-      const isMultiMatch = matchIds.length >= 2;
-      const manualSeries = isMultiMatch && visibleSeriesIndex === 0 ? state.manualSeries : undefined;
-      const isNeatQueueSeries =
-        activeNeatQueueMatchIds.size > 0 && matchIds.some((id) => activeNeatQueueMatchIds.has(id));
-      const neatQueueContext = isNeatQueueSeries ? state.activeNeatQueueSeries : undefined;
-      const title = manualSeries?.titleOverride ?? neatQueueContext?.title ?? defaultTitle;
-      const subtitle = manualSeries?.subtitleOverride ?? neatQueueContext?.subtitle ?? defaultSubtitle;
-      const guildIconUrl = neatQueueContext?.guildIconUrl ?? null;
-      const teams = neatQueueContext?.teams;
+      const matchIdSet = new Set(matchIds);
+      const seriesContext = allSeriesContexts.find((ctx) => ctx.matchIds.some((id) => matchIdSet.has(id)));
 
-      if (isMultiMatch) {
-        visibleSeriesIndex += 1;
-      }
+      const title = seriesContext?.title ?? defaultTitle;
+      const subtitle = seriesContext?.subtitle ?? defaultSubtitle;
+      const guildIconUrl = seriesContext?.guildIconUrl ?? null;
+      const teams = seriesContext?.teams;
 
       return {
         id: `series:${buildSeriesGroupKey(matchIds)}`,

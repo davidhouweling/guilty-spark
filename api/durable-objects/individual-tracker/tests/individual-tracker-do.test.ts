@@ -26,7 +26,8 @@ import type {
   IndividualTrackerViewStateResponse,
   IndividualTrackerSelectMatchesResponse,
   IndividualTrackerStartSeriesRequest,
-  NeatQueueSeriesContext,
+  ActiveSeries,
+  SeriesContextPayload,
 } from "../types";
 import {
   aFakeIndividualTrackerInternalStateWith,
@@ -1373,7 +1374,7 @@ describe("IndividualTrackerDO", () => {
       expect(response.status).toBe(404);
     });
 
-    it("persists manualSeries to state and broadcasts view", async () => {
+    it("persists activeSeries to state and broadcasts view", async () => {
       storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ userId: "user-1" }));
 
       const webSocketAdapter = aFakeWebSocketHibernationAdapter();
@@ -1395,25 +1396,63 @@ describe("IndividualTrackerDO", () => {
       expect(result.success).toBe(true);
 
       const persisted = lastPersistedState(storagePutSpy);
-      expect(persisted.manualSeries).toMatchObject({
-        titleOverride: "Eagle vs Cobra",
-        subtitleOverride: "Bo5",
-        teams: body.teams,
+      expect(persisted.activeSeries).toMatchObject({
+        title: "Eagle vs Cobra",
+        subtitle: "Bo5",
+        isActive: true,
+        teams: [
+          { name: "Eagle", players: [{ gamertag: "Alpha" }, { gamertag: "Bravo" }] },
+          { name: "Cobra", players: [{ gamertag: "Charlie" }] },
+        ],
       });
       expect(webSocketAdapter.broadcasts).toHaveLength(1);
+    });
+
+    it("stores null subtitle when subtitleOverride is null", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
+
+      await individualTrackerDO.fetch(
+        startSeriesRequest({ titleOverride: null, subtitleOverride: null, teams: [] }),
+      );
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.subtitle).toBeNull();
+    });
+
+    it("moves existing activeSeries to completedSeries when starting a new one", async () => {
+      const existingSeries: ActiveSeries = {
+        title: "Old Series",
+        subtitle: "",
+        guildIconUrl: null,
+        teams: [],
+        matchIds: ["match-old-1"],
+        startedAt: new Date().toISOString(),
+        isActive: true,
+      };
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ activeSeries: existingSeries }));
+
+      const response = await individualTrackerDO.fetch(
+        startSeriesRequest({ titleOverride: "New Series", subtitleOverride: null, teams: [] }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.completedSeries).toHaveLength(1);
+      expect(persisted.completedSeries?.[0]).toMatchObject({ title: "Old Series", isActive: false });
+      expect(persisted.activeSeries).toMatchObject({ title: "New Series", isActive: true });
     });
   });
 
   describe("handleEndSeries()", () => {
-    it("returns 409 when no state exists", async () => {
+    it("returns 404 when no state exists", async () => {
       storageGetSpy.mockResolvedValue(null);
 
       const response = await individualTrackerDO.fetch(new Request("http://do/end-series", { method: "POST" }));
 
-      expect(response.status).toBe(409);
+      expect(response.status).toBe(404);
     });
 
-    it("returns 409 when no active manualSeries exists", async () => {
+    it("returns 409 when no activeSeries exists", async () => {
       storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
 
       const response = await individualTrackerDO.fetch(new Request("http://do/end-series", { method: "POST" }));
@@ -1421,17 +1460,17 @@ describe("IndividualTrackerDO", () => {
       expect(response.status).toBe(409);
     });
 
-    it("clears manualSeries, persists state, and broadcasts view", async () => {
-      storageGetSpy.mockResolvedValue(
-        aFakeIndividualTrackerInternalStateWith({
-          manualSeries: {
-            titleOverride: "Eagle vs Cobra",
-            subtitleOverride: "Bo5",
-            teams: [],
-            startedAt: new Date().toISOString(),
-          },
-        }),
-      );
+    it("moves activeSeries to completedSeries, clears activeSeries, and broadcasts view", async () => {
+      const activeSeries: ActiveSeries = {
+        title: "Eagle vs Cobra",
+        subtitle: "Bo5",
+        guildIconUrl: null,
+        teams: [],
+        matchIds: [],
+        startedAt: new Date().toISOString(),
+        isActive: true,
+      };
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ activeSeries }));
 
       const webSocketAdapter = aFakeWebSocketHibernationAdapter();
       const do2 = new IndividualTrackerDO(mockState, env, () => services, webSocketAdapter);
@@ -1443,17 +1482,18 @@ describe("IndividualTrackerDO", () => {
       expect(result.success).toBe(true);
 
       const persisted = lastPersistedState(storagePutSpy);
-      expect(persisted.manualSeries).toBeUndefined();
+      expect(persisted.activeSeries).toBeUndefined();
+      expect(persisted.completedSeries).toHaveLength(1);
+      expect(persisted.completedSeries?.[0]).toMatchObject({ title: "Eagle vs Cobra", isActive: false });
       expect(webSocketAdapter.broadcasts).toHaveLength(1);
     });
   });
 
   describe("handleNudge()", () => {
-    const aNeatQueueContext = (): NeatQueueSeriesContext => ({
+    const aSeriesPayload = (): SeriesContextPayload => ({
       title: "Guilty Spark",
       subtitle: "Queue #1",
       guildIconUrl: "https://cdn.discordapp.com/icons/guild-id/icon.webp",
-      matchIds: [],
       teams: [
         {
           name: "Eagle",
@@ -1466,25 +1506,36 @@ describe("IndividualTrackerDO", () => {
       ],
     });
 
+    const anActiveSeries = (overrides: Partial<ActiveSeries> = {}): ActiveSeries => ({
+      title: "Guilty Spark",
+      subtitle: "Queue #1",
+      guildIconUrl: "https://cdn.discordapp.com/icons/guild-id/icon.webp",
+      teams: [],
+      matchIds: [],
+      startedAt: new Date().toISOString(),
+      isActive: true,
+      ...overrides,
+    });
+
     it("returns 404 when no state exists", async () => {
       storageGetSpy.mockResolvedValue(null);
 
       const response = await individualTrackerDO.fetch(
-        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aNeatQueueContext()) }),
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aSeriesPayload()) }),
       );
 
       expect(response.status).toBe(404);
     });
 
-    it("sets activeNeatQueueSeries, triggers immediate alarm, broadcasts view, and returns success", async () => {
+    it("sets activeSeries, triggers immediate alarm, broadcasts view, and returns success", async () => {
       storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
 
       const webSocketAdapter = aFakeWebSocketHibernationAdapter();
       const do2 = new IndividualTrackerDO(mockState, env, () => services, webSocketAdapter);
 
-      const context = aNeatQueueContext();
+      const payload = aSeriesPayload();
       const response = await do2.fetch(
-        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(context) }),
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(payload) }),
       );
 
       expect(response.status).toBe(200);
@@ -1492,12 +1543,13 @@ describe("IndividualTrackerDO", () => {
       expect(result.success).toBe(true);
 
       const persisted = lastPersistedState(storagePutSpy);
-      expect(persisted.activeNeatQueueSeries).toMatchObject({
-        title: context.title,
-        subtitle: context.subtitle,
-        guildIconUrl: context.guildIconUrl,
-        teams: context.teams,
+      expect(persisted.activeSeries).toMatchObject({
+        title: payload.title,
+        subtitle: payload.subtitle,
+        guildIconUrl: payload.guildIconUrl,
+        teams: payload.teams,
         matchIds: [],
+        isActive: true,
       });
 
       expect(storageSetAlarmSpy).toHaveBeenCalledWith(Date.now());
@@ -1514,10 +1566,10 @@ describe("IndividualTrackerDO", () => {
       expect(response.status).toBe(400);
     });
 
-    it("clears activeNeatQueueSeries when called with null body", async () => {
+    it("moves existing activeSeries to completedSeries when nudging with null", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
-          activeNeatQueueSeries: { ...aNeatQueueContext(), matchIds: ["match-1"] },
+          activeSeries: anActiveSeries({ matchIds: ["match-1"] }),
         }),
       );
 
@@ -1528,30 +1580,33 @@ describe("IndividualTrackerDO", () => {
       expect(response.status).toBe(200);
 
       const persisted = lastPersistedState(storagePutSpy);
-      expect(persisted.activeNeatQueueSeries).toBeUndefined();
+      expect(persisted.activeSeries).toBeUndefined();
+      expect(persisted.completedSeries).toHaveLength(1);
       expect(storageSetAlarmSpy).toHaveBeenCalledWith(Date.now());
     });
 
-    it("resets matchIds to empty when setting a new series context", async () => {
+    it("moves existing activeSeries to completedSeries when starting a new one via nudge", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
-          activeNeatQueueSeries: { ...aNeatQueueContext(), matchIds: ["stale-match-id"] },
+          activeSeries: anActiveSeries({ title: "Old Queue", matchIds: ["stale-match-id"] }),
         }),
       );
 
       const response = await individualTrackerDO.fetch(
-        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aNeatQueueContext()) }),
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aSeriesPayload()) }),
       );
 
       expect(response.status).toBe(200);
 
       const persisted = lastPersistedState(storagePutSpy);
-      expect(persisted.activeNeatQueueSeries?.matchIds).toEqual([]);
+      expect(persisted.completedSeries).toHaveLength(1);
+      expect(persisted.completedSeries?.[0]).toMatchObject({ title: "Old Queue", isActive: false });
+      expect(persisted.activeSeries).toMatchObject({ title: "Guilty Spark", matchIds: [], isActive: true });
     });
   });
 
-  describe("toViewState() NeatQueue series metadata", () => {
-    const makeNeatQueueMatches = (
+  describe("toViewState() series metadata", () => {
+    const makeSeriesMatches = (
       ids: string[],
     ): {
       matchIds: string[];
@@ -1568,23 +1623,25 @@ describe("IndividualTrackerDO", () => {
       ),
     });
 
-    it("applies NeatQueue title, subtitle, guildIconUrl, and teams to the matching series group", async () => {
+    it("applies activeSeries title, subtitle, guildIconUrl, and teams to the matching series group", async () => {
       const ids = ["match-nq-1", "match-nq-2"];
       const teams = [
         { name: "Eagle", players: [{ discordId: "d-1", discordName: "Alice", gamertag: "AliceGT", xboxId: "x-1" }] },
         { name: "Cobra", players: [{ discordId: "d-2", discordName: "Bob", gamertag: "BobGT", xboxId: "x-2" }] },
       ];
-      const context = {
+      const activeSeries: ActiveSeries = {
         title: "Guilty Spark",
         subtitle: "Queue #5",
         guildIconUrl: "https://cdn.discordapp.com/icons/guild-id/icon.webp",
         matchIds: ids,
         teams,
+        startedAt: new Date().toISOString(),
+        isActive: true,
       };
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
-          ...makeNeatQueueMatches(ids),
-          activeNeatQueueSeries: context,
+          ...makeSeriesMatches(ids),
+          activeSeries,
         }),
       );
 
@@ -1602,9 +1659,96 @@ describe("IndividualTrackerDO", () => {
       expect(group?.teams).toEqual(teams);
     });
 
-    it("falls back to computed defaults when activeNeatQueueSeries is not set", async () => {
+    it("applies completedSeries metadata to a matching group after the series ends", async () => {
+      const ids = ["match-c-1", "match-c-2"];
+      const completedSeries: ActiveSeries = {
+        title: "Completed Queue",
+        subtitle: "Queue #3",
+        guildIconUrl: null,
+        matchIds: ids,
+        teams: [],
+        startedAt: new Date().toISOString(),
+        isActive: false,
+      };
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          ...makeSeriesMatches(ids),
+          completedSeries: [completedSeries],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+
+      expect(response.status).toBe(200);
+      const body = await response.json<{ state: { series: { title: string; subtitle: string }[] } }>();
+      const [group] = body.state.series;
+      expect(group?.title).toBe("Completed Queue");
+      expect(group?.subtitle).toBe("Queue #3");
+    });
+
+    it("activeSeries title takes priority over completedSeries on overlapping matchIds", async () => {
+      const ids = ["match-overlap-1", "match-overlap-2"];
+      const completedSeries: ActiveSeries = {
+        title: "Old Queue",
+        subtitle: "Queue #1",
+        guildIconUrl: null,
+        matchIds: ids,
+        teams: [],
+        startedAt: new Date().toISOString(),
+        isActive: false,
+      };
+      const activeSeries: ActiveSeries = {
+        title: "New Queue",
+        subtitle: "Queue #2",
+        guildIconUrl: null,
+        matchIds: ids,
+        teams: [],
+        startedAt: new Date().toISOString(),
+        isActive: true,
+      };
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          ...makeSeriesMatches(ids),
+          activeSeries,
+          completedSeries: [completedSeries],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+
+      expect(response.status).toBe(200);
+      const body = await response.json<{ state: { series: { title: string; subtitle: string }[] } }>();
+      const [group] = body.state.series;
+      expect(group?.title).toBe("New Queue");
+      expect(group?.subtitle).toBe("Queue #2");
+    });
+
+    it("uses computed default subtitle when activeSeries subtitle is null", async () => {
+      const ids = ["match-sub-1", "match-sub-2"];
+      const activeSeries: ActiveSeries = {
+        title: "Eagle vs Cobra",
+        subtitle: null,
+        guildIconUrl: null,
+        matchIds: ids,
+        teams: [],
+        startedAt: new Date().toISOString(),
+        isActive: true,
+      };
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ ...makeSeriesMatches(ids), activeSeries }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+
+      expect(response.status).toBe(200);
+      const body = await response.json<{ state: { series: { subtitle: string }[] } }>();
+      const [group] = body.state.series;
+      expect(group?.subtitle).toBe("Best of 1");
+    });
+
+    it("falls back to computed defaults when no activeSeries or completedSeries set", async () => {
       const ids = ["match-default-1", "match-default-2"];
-      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ ...makeNeatQueueMatches(ids) }));
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ ...makeSeriesMatches(ids) }));
 
       const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
 

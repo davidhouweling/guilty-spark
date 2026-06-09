@@ -18,8 +18,8 @@ export const trackerMatchSummarySchema = z.object({
 export type TrackerMatchSummary = z.infer<typeof trackerMatchSummarySchema>;
 
 export const trackerSeriesPlayerSchema = z.object({
-  discordId: z.string(),
-  discordName: z.string(),
+  discordId: z.string().nullable(),
+  discordName: z.string().nullable(),
   gamertag: z.string().nullable(),
   xboxId: z.string().nullable(),
 });

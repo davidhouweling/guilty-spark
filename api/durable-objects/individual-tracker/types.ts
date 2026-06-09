@@ -51,24 +51,33 @@ export interface IndividualTrackerViewMatch {
   score: string;
 }
 
-export interface NeatQueueSeriesPlayer {
-  discordId: string;
-  discordName: string;
+export interface SeriesPlayer {
+  discordId: string | null;
+  discordName: string | null;
   gamertag: string | null;
   xboxId: string | null;
 }
 
-export interface NeatQueueSeriesTeam {
+export interface SeriesTeam {
   name: string;
-  players: NeatQueueSeriesPlayer[];
+  players: SeriesPlayer[];
 }
 
-export interface NeatQueueSeriesContext {
+export interface ActiveSeries {
+  title: string;
+  subtitle: string | null;
+  guildIconUrl: string | null;
+  teams: SeriesTeam[];
+  matchIds: string[];
+  startedAt: string;
+  isActive: boolean;
+}
+
+export interface SeriesContextPayload {
   title: string;
   subtitle: string;
   guildIconUrl: string | null;
-  matchIds: string[];
-  teams: NeatQueueSeriesTeam[];
+  teams: SeriesTeam[];
 }
 
 export interface IndividualTrackerSeriesGroup {
@@ -78,7 +87,7 @@ export interface IndividualTrackerSeriesGroup {
   title: string;
   subtitle: string;
   guildIconUrl?: string | null;
-  teams?: NeatQueueSeriesTeam[];
+  teams?: SeriesTeam[];
 }
 
 export interface AccumulatedPlayerTotals {
@@ -100,14 +109,6 @@ export interface TopBarStatItem {
   value: string;
 }
 
-export interface IndividualTrackerManualSeries {
-  titleOverride: string | null;
-  subtitleOverride: string | null;
-  teams: IndividualTrackerSeriesTeam[];
-  startedAt: string;
-  backfillMatchIds?: string[];
-}
-
 export interface IndividualTrackerInternalState extends IndividualTrackerState {
   searchStartTime: string;
   lastMatchDiscoveredAt: string | undefined;
@@ -117,8 +118,8 @@ export interface IndividualTrackerInternalState extends IndividualTrackerState {
   selectedMatchIds: string[];
   accumulatedPlayerTotals?: AccumulatedPlayerTotals;
   accumulatedMatchIds?: string[];
-  manualSeries?: IndividualTrackerManualSeries;
-  activeNeatQueueSeries?: NeatQueueSeriesContext;
+  activeSeries?: ActiveSeries;
+  completedSeries?: ActiveSeries[];
   errorState: {
     consecutiveErrors: number;
     backoffMinutes: number;
@@ -233,7 +234,7 @@ export interface IndividualTrackerApiMap {
     response: IndividualTrackerSelectMatchesResponse;
   };
   nudge: {
-    request: NeatQueueSeriesContext | null;
+    request: SeriesContextPayload | null;
     response: IndividualTrackerNudgeResponse;
   };
 }
