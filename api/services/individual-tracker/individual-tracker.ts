@@ -4,10 +4,10 @@ import { parseStreamerViewSettings } from "@guilty-spark/shared/individual-track
 import type { DatabaseService } from "../database/database";
 import type { IndividualTrackerProfilesRow } from "../database/types/individual_tracker_profiles";
 import type { IndividualTrackerStatus, IndividualTrackersRow } from "../database/types/individual_trackers";
-import { IdentityNotOwnedError, ProfileNotFoundError, TrackerLimitReachedError, TrackerNotFoundError } from "./errors";
-import type { CreateTrackerOptions, UpdateProfileOptions } from "./types";
 import type { SeriesContextPayload } from "../../durable-objects/individual-tracker/types";
 import type { LogService } from "../log/types";
+import { IdentityNotOwnedError, ProfileNotFoundError, TrackerLimitReachedError, TrackerNotFoundError } from "./errors";
+import type { CreateTrackerOptions, UpdateProfileOptions } from "./types";
 
 export const MAX_TRACKERS_PER_USER = 5;
 
@@ -184,7 +184,13 @@ export class IndividualTrackerService {
             body: JSON.stringify(payload),
           });
         } catch (error) {
-          this.logService.warn(error as Error, new Map([["reason", "nudgeTrackers: failed to nudge tracker"], ["trackerId", tracker.TrackerId]]));
+          this.logService.warn(
+            error as Error,
+            new Map([
+              ["reason", "nudgeTrackers: failed to nudge tracker"],
+              ["trackerId", tracker.TrackerId],
+            ]),
+          );
         }
       }),
     );

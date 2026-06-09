@@ -39,6 +39,8 @@ import { DiscordError } from "../discord/discord-error";
 import { MapsEmbed } from "../../embeds/maps-embed";
 import { isSuccessResponse } from "../../durable-objects/live-tracker/types";
 import { NeatQueuePlayersEmbed } from "../../embeds/neatqueue/neatqueue-players-embed";
+import type { SeriesContextPayload, SeriesPlayer, SeriesTeam } from "../../durable-objects/individual-tracker/types";
+import type { IndividualTrackerService } from "../individual-tracker/individual-tracker";
 import type {
   VerifyNeatQueueResponse,
   NeatQueueRequest,
@@ -54,8 +56,6 @@ import type {
   FetchedPlayersData,
   PlayersEmbedData,
 } from "./types";
-import type { SeriesContextPayload, SeriesPlayer, SeriesTeam } from "../../durable-objects/individual-tracker/types";
-import type { IndividualTrackerService } from "../individual-tracker/individual-tracker";
 
 export interface NeatQueueServiceOpts {
   env: Env;

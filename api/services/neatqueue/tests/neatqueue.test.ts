@@ -12,6 +12,7 @@ import type { MatchStats } from "halo-infinite-api";
 import { sub } from "date-fns";
 import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import type { SeriesPlayer, SeriesTeam } from "../../../durable-objects/individual-tracker/types";
 import { NeatQueueService } from "../neatqueue";
 import type { DatabaseService } from "../../database/database";
 import {
@@ -1963,9 +1964,16 @@ describe("NeatQueueService", () => {
           discord_user_01: createSamplePlayerAssociationData("discord_user_01", "soundmanD", "SoundmanD"),
           discord_user_02: createSamplePlayerAssociationData("discord_user_02", "discord_user_02", "User02"),
         };
-        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith({ playersAssociationData }));
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(
+          aFakeNeatQueueStateWith({ playersAssociationData }),
+        );
         vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
-        vi.spyOn(discordService, "getGuild").mockResolvedValue({ ...guild, id: "guild-1", name: "Test Server", icon: null });
+        vi.spyOn(discordService, "getGuild").mockResolvedValue({
+          ...guild,
+          id: "guild-1",
+          name: "Test Server",
+          icon: null,
+        });
         vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
           aFakeGuildConfigRow({ NeatQueueInformerLiveTracking: "N" }),
         );
@@ -1982,13 +1990,16 @@ describe("NeatQueueService", () => {
           title: "Test Server",
           subtitle: `Queue #${teamsCreatedRequest.match_number.toString()}`,
           guildIconUrl: null,
-          teams: expect.arrayContaining([
-            expect.objectContaining({
-              players: expect.arrayContaining([
-                expect.objectContaining({ discordId: "discord_user_01", gamertag: "SoundmanD" }),
-              ]),
-            }),
-          ]),
+          teams: expect.arrayContaining<SeriesTeam>([
+            expect.objectContaining<Partial<SeriesTeam>>({
+              players: expect.arrayContaining<SeriesPlayer>([
+                expect.objectContaining<Partial<SeriesPlayer>>({
+                  discordId: "discord_user_01",
+                  gamertag: "SoundmanD",
+                }) as SeriesPlayer,
+              ]) as SeriesPlayer[],
+            }) as SeriesTeam,
+          ]) as SeriesTeam[],
         });
       });
 
@@ -2018,7 +2029,12 @@ describe("NeatQueueService", () => {
             {
               name: "Team 1",
               players: [
-                { discordId: "discord_user_01", discordName: "soundmanD", gamertag: "SoundmanD", xboxId: "xuid_discord_user_01" },
+                {
+                  discordId: "discord_user_01",
+                  discordName: "soundmanD",
+                  gamertag: "SoundmanD",
+                  xboxId: "xuid_discord_user_01",
+                },
               ],
             },
           ],
@@ -2060,11 +2076,11 @@ describe("NeatQueueService", () => {
           title: "Test Server",
           subtitle: "Queue #3",
           teams: [
-            expect.objectContaining({
-              players: expect.arrayContaining([
-                expect.objectContaining({ discordId: "discord_user_03" }),
-              ]),
-            }),
+            expect.objectContaining<Partial<SeriesTeam>>({
+              players: expect.arrayContaining<SeriesPlayer>([
+                expect.objectContaining<Partial<SeriesPlayer>>({ discordId: "discord_user_03" }) as SeriesPlayer,
+              ]) as SeriesPlayer[],
+            }) as SeriesTeam,
           ],
         });
       });
