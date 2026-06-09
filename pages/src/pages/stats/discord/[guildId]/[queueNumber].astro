@@ -19,6 +19,14 @@ const hasInvalidParams = !isSnowflake || !isStrictPositiveInteger || !isSafeQueu
 let responseState: DiscordSeriesStats | null = null;
 let loadError: string | null = null;
 
+function getPendingRetryAfterSeconds(responseRetryAfterSeconds: number | null, dataRetryAfterSeconds: number): number {
+  if (responseRetryAfterSeconds == null) {
+    return Math.ceil(dataRetryAfterSeconds);
+  }
+
+  return Math.ceil(responseRetryAfterSeconds);
+}
+
 if (hasInvalidParams) {
   Astro.response.status = 404;
   loadError = "Queue not found";
@@ -27,6 +35,14 @@ if (hasInvalidParams) {
     const response = await fetchDiscordSeriesStats(`${API_HOST}/api/stats/discord/${guildId}/${queueNumber}`);
     Astro.response.status = response.status;
     responseState = response.data;
+
+    if (response.data.status === "pending-index") {
+      Astro.response.headers.set("Cache-Control", "no-store");
+      Astro.response.headers.set(
+        "Retry-After",
+        getPendingRetryAfterSeconds(response.retryAfterSeconds, response.data.retryAfterSeconds).toString(),
+      );
+    }
   } catch {
     Astro.response.status = 500;
     loadError = "Failed to load stats";
