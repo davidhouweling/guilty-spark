@@ -457,11 +457,19 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
       return new Map();
     }
 
+    const xuidList = Array.from(xuids);
+    const chunks: string[][] = [];
+    for (let i = 0; i < xuidList.length; i += 24) {
+      chunks.push(xuidList.slice(i, i + 24));
+    }
+
     try {
-      const users = await this.haloInfiniteClient.getUsers(Array.from(xuids));
+      const results = await Promise.all(chunks.map((chunk) => this.haloInfiniteClient.getUsers(chunk)));
       const map = new Map<string, string>();
-      for (const user of users) {
-        map.set(user.xuid, user.gamertag);
+      for (const users of results) {
+        for (const user of users) {
+          map.set(user.xuid, user.gamertag);
+        }
       }
       return map;
     } catch {
