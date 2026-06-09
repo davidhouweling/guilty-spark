@@ -485,7 +485,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
       }));
     }
 
-    const promise = this.haloInfiniteClient.getAsset(AssetKind.Map, assetId).catch((error: unknown) => {
+    const promise = this.haloInfiniteClient.getSpecificAssetVersion(AssetKind.Map, assetId, versionId).catch((error: unknown) => {
       this.mapCache.delete(key);
       throw error;
     });
@@ -502,7 +502,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
       return existing.then((variant) => variant.PublicName);
     }
 
-    const promise = this.haloInfiniteClient.getAsset(AssetKind.UgcGameVariant, assetId).catch((error: unknown) => {
+    const promise = this.haloInfiniteClient.getSpecificAssetVersion(AssetKind.UgcGameVariant, assetId, versionId).catch((error: unknown) => {
       this.modeNameCache.delete(key);
       throw error;
     });
