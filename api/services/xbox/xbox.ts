@@ -114,7 +114,7 @@ export class XboxService {
     }
 
     await this.maybeRefreshXstsToken();
-    return this.withUnauthorizedRetry(() => this.fetchUserByGamertag(gamertag));
+    return this.withUnauthorizedRetry(async () => this.fetchUserByGamertag(gamertag));
   }
 
   private async fetchUserByGamertag(gamertag: string): Promise<XboxUserInfo> {
@@ -155,7 +155,7 @@ export class XboxService {
     }
 
     await this.maybeRefreshXstsToken();
-    return this.withUnauthorizedRetry(() => this.fetchUsersByXuids(xuids));
+    return this.withUnauthorizedRetry(async () => this.fetchUsersByXuids(xuids));
   }
 
   private async fetchUsersByXuids(xuids: string[]): Promise<XboxUserInfo[]> {
