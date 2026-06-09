@@ -1,5 +1,5 @@
 import React from "react";
-import type { ReactElement } from "react";
+import type { CSSProperties, ReactElement } from "react";
 import type { MatchStats } from "halo-infinite-api";
 import classNames from "classnames";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
@@ -174,7 +174,11 @@ export function DiscordSeriesStatsApp({ data }: DiscordSeriesStatsAppProps): Rea
               <ul className={styles.seriesScoresList}>
                 {renderData.matches.map((match) => {
                   return (
-                    <li key={match.matchId} className={styles.seriesScore}>
+                    <li
+                      key={match.matchId}
+                      className={styles.seriesScore}
+                      style={{ "--series-score-bg": `url(${match.gameMapThumbnailUrl})` } as CSSProperties}
+                    >
                       <a href={`#${match.matchId}`} className={styles.seriesScoreLink}>
                         <img
                           src={gameModeIconSrc(match.gameType)}
