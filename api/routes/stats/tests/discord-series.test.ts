@@ -3,7 +3,10 @@ import { EmbedType } from "discord-api-types/v10";
 import type { APIEmbed, APIMessage } from "discord-api-types/v10";
 import type { MockInstance } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { DiscordSeriesStatsResponse } from "@guilty-spark/shared/contracts/stats/discord-series";
+import type {
+  DiscordSeriesStatsResolved,
+  DiscordSeriesStatsResponse,
+} from "@guilty-spark/shared/contracts/stats/discord-series";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { EmbedColors } from "../../../embeds/colors";
@@ -55,6 +58,32 @@ function aFakeMessageWith(opts: {
   } as unknown as APIMessage;
 }
 
+function aFakeRenderDataWith(matchIds: string[]): DiscordSeriesStatsResolved["renderData"] {
+  return {
+    title: "Queue #7777 Series Stats",
+    subtitle: "Guild 123456789012345678",
+    seriesScore: "1:0",
+    teams: [
+      { name: "Eagle", players: ["Player One"] },
+      { name: "Cobra", players: ["Player Two"] },
+    ],
+    matches: matchIds.map((matchId, index) => ({
+      matchId,
+      gameTypeAndMap: "Slayer: Live Fire",
+      gameType: "Slayer",
+      gameMap: "Live Fire",
+      gameMapThumbnailUrl: "data:,",
+      duration: "10m 00s",
+      gameScore: "50:45",
+      gameSubScore: null,
+      startTime: new Date(`2026-01-01T00:0${index.toString()}:00.000Z`).toISOString(),
+      endTime: new Date(`2026-01-01T00:1${index.toString()}:00.000Z`).toISOString(),
+      playerXuidToGametag: {},
+      rawMatch: {},
+    })),
+  };
+}
+
 describe("/api/stats/discord/:guildId/:queueNumber", () => {
   let env: Env;
   let router: AutoRouterType;
@@ -65,6 +94,10 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
   });
 
   it("returns resolved payload when a blue overview embed with match ids exists", async () => {
+    const ctfMatchId = "d81554d7-ddfe-44da-a6cb-000000000ctf";
+    const slayerMatchId = "9535b946-f30c-4a43-b852-000000slayer";
+    const matchIds = [ctfMatchId, slayerMatchId];
+
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
       vi.spyOn(services.discordService, "searchGuildMessages").mockResolvedValue({
@@ -76,8 +109,7 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
               id: "m-1",
               color: EmbedColors.INFO,
               title: "Series stats for queue #7777 (2-1)",
-              gameFieldValue:
-                "[CTF](https://halodatahive.com/Infinite/Match/match-1)\n[Slayer](https://halodatahive.com/Infinite/Match/match-2)",
+              gameFieldValue: `[CTF](https://halodatahive.com/Infinite/Match/${ctfMatchId})\n[Slayer](https://halodatahive.com/Infinite/Match/${slayerMatchId})`,
             }),
           ],
         ],
@@ -94,11 +126,15 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=86400, stale-while-revalidate=300");
     const body = await res.json<DiscordSeriesStatsResponse>();
-    expect(body).toEqual({
+    expect(body).toMatchObject({
       status: "resolved",
       guildId: "123456789012345678",
       queueNumber: 7777,
-      matchIds: ["match-1", "match-2"],
+      matchIds,
+      renderData: {
+        title: "Queue #7777 Series Stats",
+        subtitle: "Guild 123456789012345678",
+      },
     });
   });
 
@@ -162,6 +198,7 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
         guildId: "123456789012345678",
         queueNumber: 7777,
         matchIds: ["cached-match-1"],
+        renderData: aFakeRenderDataWith(["cached-match-1"]),
       }),
     );
 
@@ -189,6 +226,7 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
       guildId: "123456789012345678",
       queueNumber: 7777,
       matchIds: ["cached-match-1"],
+      renderData: aFakeRenderDataWith(["cached-match-1"]),
     });
     expect(appDataGetSpy).toHaveBeenCalledWith(cacheKey, { type: "json" });
   });
@@ -259,6 +297,8 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
   });
 
   it("treats invalid cached payload as cache miss and resolves via Discord search", async () => {
+    const matchId = "d81554d7-ddfe-44da-a6cb-000000000ctf";
+
     const appDataGetSpy: MockInstance<typeof env.APP_DATA.get> = vi.spyOn(env.APP_DATA, "get");
     appDataGetSpy.mockResolvedValue(new Map<string, unknown>());
 
@@ -273,7 +313,7 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
               id: "m-after-invalid-cache",
               color: EmbedColors.INFO,
               title: "Series stats for queue #7777",
-              gameFieldValue: "[Slayer](https://halodatahive.com/Infinite/Match/match-after-invalid-cache)",
+              gameFieldValue: `[Slayer](https://halodatahive.com/Infinite/Match/${matchId})`,
             }),
           ],
         ],
@@ -289,11 +329,14 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
 
     expect(res.status).toBe(200);
     const body = await res.json<DiscordSeriesStatsResponse>();
-    expect(body).toEqual({
+    expect(body).toMatchObject({
       status: "resolved",
       guildId: "123456789012345678",
       queueNumber: 7777,
-      matchIds: ["match-after-invalid-cache"],
+      matchIds: [matchId],
+      renderData: {
+        title: "Queue #7777 Series Stats",
+      },
     });
   });
 
@@ -408,6 +451,42 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
       vi.spyOn(services.discordService, "searchGuildMessages").mockRejectedValue(new Error("boom"));
+      return services;
+    });
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777"),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(500);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toEqual({
+      error: "Failed to resolve discord series stats",
+    });
+  });
+
+  it("returns internal error response when render data build fails", async () => {
+    const matchId = "d81554d7-ddfe-44da-a6cb-000000000ctf";
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.discordService, "searchGuildMessages").mockResolvedValue({
+        doing_deep_historical_index: false,
+        total_results: 1,
+        messages: [
+          [
+            aFakeMessageWith({
+              id: "m-render-failure",
+              color: EmbedColors.INFO,
+              title: "Series stats for queue #7777",
+              gameFieldValue: `[Slayer](https://halodatahive.com/Infinite/Match/${matchId})`,
+            }),
+          ],
+        ],
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([]);
       return services;
     });
     statsRoutesRegisterHandler(router, localInstallServices);

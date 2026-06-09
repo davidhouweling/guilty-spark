@@ -1,17 +1,22 @@
 import type { APIEmbed, APIMessage } from "discord-api-types/v10";
 import { EmbedType, MessageSearchAuthorType, MessageSearchSortMode } from "discord-api-types/v10";
+import type { MatchStats } from "halo-infinite-api";
 import { parsePathParams } from "@guilty-spark/shared/base/request-parsing";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import {
   discordSeriesStatsContract,
   discordSeriesStatsParamsSchema,
   type DiscordSeriesStats,
+  type DiscordSeriesStatsResolved,
 } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { DiscordError } from "../../services/discord/discord-error";
 import { EmbedColors } from "../../embeds/colors";
 import type { RoutesRegisterHandler } from "../base/types";
+import type { HaloService } from "../../services/halo/halo";
 
 const DEFAULT_PENDING_RETRY_SECONDS = 2;
 const PENDING_CACHE_TTL_SECONDS = 60 * 5;
@@ -104,6 +109,114 @@ function sanitizeRetryAfterSeconds(retryAfterValue: unknown): number {
   }
 
   return retryAfterValue;
+}
+
+function splitGameTypeAndMap(gameTypeAndMap: string): { gameType: string; gameMap: string } {
+  const colonSplit = gameTypeAndMap.split(":");
+  if (colonSplit.length > 1) {
+    const gameType = (colonSplit[0] ?? "*Unknown Game Type*").trim();
+    const gameMap = colonSplit.slice(1).join(":").trim() || "*Unknown Map*";
+    return { gameType, gameMap };
+  }
+
+  const separator = " on ";
+  const onIndex = gameTypeAndMap.indexOf(separator);
+  if (onIndex > 0) {
+    const gameType = gameTypeAndMap.slice(0, onIndex).trim();
+    const gameMap = gameTypeAndMap.slice(onIndex + separator.length).trim();
+    return {
+      gameType: gameType || "*Unknown Game Type*",
+      gameMap: gameMap || "*Unknown Map*",
+    };
+  }
+
+  return { gameType: "*Unknown Game Type*", gameMap: "*Unknown Map*" };
+}
+
+function getTeamPlayersFromMatch(match: MatchStats, teamId: number): MatchStats["Players"] {
+  return match.Players.filter((player) => {
+    if (!player.ParticipationInfo.PresentAtBeginning) {
+      return false;
+    }
+
+    return player.PlayerTeamStats.some((teamStats) => teamStats.TeamId === teamId);
+  });
+}
+
+async function tryBuildRenderData({
+  guildId,
+  queueNumber,
+  matchIds,
+  haloService,
+}: {
+  guildId: string;
+  queueNumber: number;
+  matchIds: string[];
+  haloService: HaloService;
+}): Promise<DiscordSeriesStatsResolved["renderData"]> {
+  const matches = await haloService.getMatchDetails(matchIds);
+  if (matches.length === 0) {
+    throw new Error("No Halo match details were found for discovered match IDs");
+  }
+
+  const playerXuidToGametagMap = await haloService.getPlayerXuidsToGametags(matches);
+  const renderMatches: DiscordSeriesStatsResolved["renderData"]["matches"] = [];
+
+  for (const match of matches) {
+    const gameTypeAndMap = await haloService.getGameTypeAndMap(match.MatchInfo);
+    const { gameType, gameMap } = splitGameTypeAndMap(gameTypeAndMap);
+    const { gameScore, gameSubScore } = haloService.getMatchScore(match, "en-US");
+    const mapThumbnailUrl = await haloService.getMapThumbnailUrl(
+      match.MatchInfo.MapVariant.AssetId,
+      match.MatchInfo.MapVariant.VersionId,
+    );
+
+    const playerXuidToGametag: Record<string, string> = {};
+    for (const player of match.Players) {
+      if (!player.ParticipationInfo.PresentAtBeginning || player.PlayerType !== 1) {
+        continue;
+      }
+
+      const xuid = getPlayerXuid(player);
+      playerXuidToGametag[xuid] = playerXuidToGametagMap.get(xuid) ?? "*Unknown*";
+    }
+
+    renderMatches.push({
+      matchId: match.MatchId,
+      gameTypeAndMap,
+      gameType,
+      gameMap,
+      gameMapThumbnailUrl: mapThumbnailUrl ?? "data:,",
+      duration: getReadableDuration(match.MatchInfo.Duration, "en-US"),
+      gameScore,
+      gameSubScore,
+      startTime: new Date(match.MatchInfo.StartTime).toISOString(),
+      endTime: new Date(match.MatchInfo.EndTime).toISOString(),
+      playerXuidToGametag,
+      rawMatch: match,
+    });
+  }
+
+  const lastMatch = Preconditions.checkExists(matches[matches.length - 1]);
+  const teams = lastMatch.Teams.map((team) => ({
+    name: haloService.getTeamName(team.TeamId),
+    players: getTeamPlayersFromMatch(lastMatch, team.TeamId).map((player) => {
+      if (player.PlayerType !== 1) {
+        return "Bot";
+      }
+
+      const xuid = getPlayerXuid(player);
+      return playerXuidToGametagMap.get(xuid) ?? "*Unknown*";
+    }),
+  }));
+
+  return {
+    title: `Queue #${queueNumber.toString()} Series Stats`,
+    subtitle: `Guild ${guildId}`,
+    seriesScore: haloService.getSeriesScore(matches, "en-US"),
+    teams,
+    matches: renderMatches,
+  };
 }
 
 export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installServices) => {
@@ -200,11 +313,19 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
         return discordSeriesStatsContract.toResponse(notFoundResponse, { status: 404 });
       }
 
+      const renderData = await tryBuildRenderData({
+        guildId,
+        queueNumber,
+        matchIds,
+        haloService: services.haloService,
+      });
+
       const resolvedResponse: DiscordSeriesStats = {
         status: "resolved",
         guildId,
         queueNumber,
         matchIds,
+        renderData,
       };
 
       await env.APP_DATA.put(cacheKey, JSON.stringify(resolvedResponse), { expirationTtl: RESOLVED_CACHE_TTL_SECONDS });
