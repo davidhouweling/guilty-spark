@@ -11,6 +11,7 @@ import type {
   IndividualTrackerViewStateResponse,
   IndividualTrackerSelectMatchesResponse,
   IndividualTrackerStartSeriesResponse,
+  IndividualTrackerNudgeResponse,
 } from "../types";
 import type { IndividualTrackerDO } from "../individual-tracker-do";
 import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
@@ -25,6 +26,7 @@ export interface FakeIndividualTrackerDOOpts {
   selectMatchesResponse?: IndividualTrackerSelectMatchesResponse;
   startSeriesResponse?: IndividualTrackerStartSeriesResponse;
   endSeriesResponse?: { success: true };
+  nudgeResponse?: IndividualTrackerNudgeResponse;
   shouldThrowError?: boolean;
   errorMessage?: string;
 }
@@ -125,6 +127,7 @@ export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts =
   const selectMatchesResponse: IndividualTrackerSelectMatchesResponse = opts.selectMatchesResponse ?? { success: true };
   const startSeriesResponse: IndividualTrackerStartSeriesResponse = opts.startSeriesResponse ?? { success: true };
   const endSeriesResponse: { success: true } = opts.endSeriesResponse ?? { success: true };
+  const nudgeResponse: IndividualTrackerNudgeResponse = opts.nudgeResponse ?? { success: true };
   const { shouldThrowError = false, errorMessage = "Fake DO error" } = opts;
 
   const fetchMock: FakeIndividualTrackerDO["fetch"] = async (input) => {
@@ -172,6 +175,9 @@ export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts =
         break;
       case "/end-series":
         responseBody = JSON.stringify(endSeriesResponse);
+        break;
+      case "/nudge":
+        responseBody = JSON.stringify(nudgeResponse);
         break;
       case "/websocket":
         return Promise.resolve(new Response(null, { status: 200, headers: { "x-fake-upgrade": "websocket" } }));
