@@ -14,6 +14,7 @@ import { Container } from "../../components/container/container";
 import { Alert } from "../../components/alert/alert";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault, type TeamColor } from "../../components/team-colors/team-colors";
 import styles from "../../components/live-tracker/live-tracker.module.css";
+import { Button } from "../../components/button/button";
 import localStyles from "./create.module.css";
 
 interface DiscordSeriesStatsAppProps {
@@ -151,16 +152,16 @@ export function DiscordSeriesStatsApp({ data }: DiscordSeriesStatsAppProps): Rea
             <div className={styles.headerSubtitle}>{renderData.subtitle}</div>
           </div>
           <div className={styles.headerRight}>
-            <button
-              type="button"
+            <Button
+              size="small"
+              variant="secondary"
               aria-pressed={viewMode === "wide"}
-              className={classNames(styles.detailsButton, localStyles.viewModeToggleButton)}
               onClick={(): void => {
                 setViewMode((current) => (current === "standard" ? "wide" : "standard"));
               }}
             >
               {viewMode === "standard" ? "Switch to wide view" : "Switch to standard view"}
-            </button>
+            </Button>
           </div>
         </div>
       </Container>
