@@ -39,7 +39,7 @@ describe("fetchDiscordSeriesStats", () => {
     expect(result.data.status).toBe("pending-index");
   });
 
-  it("returns null Retry-After when missing or invalid", async () => {
+  it("returns null Retry-After when invalid", async () => {
     fetchSpy.mockResolvedValueOnce(
       new Response(
         JSON.stringify({
@@ -53,6 +53,31 @@ describe("fetchDiscordSeriesStats", () => {
           headers: {
             "Content-Type": "application/json",
             "Retry-After": "invalid",
+          },
+        },
+      ),
+    );
+
+    const result = await fetchDiscordSeriesStats("https://api.example.com/api/stats/discord/123456789012345678/7777");
+
+    expect(result.status).toBe(503);
+    expect(result.retryAfterSeconds).toBeNull();
+    expect(result.data.status).toBe("pending-index");
+  });
+
+  it("returns null Retry-After when header is missing", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          status: "pending-index",
+          guildId: "123456789012345678",
+          queueNumber: 7777,
+          retryAfterSeconds: 3,
+        }),
+        {
+          status: 503,
+          headers: {
+            "Content-Type": "application/json",
           },
         },
       ),
