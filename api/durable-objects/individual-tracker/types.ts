@@ -19,6 +19,7 @@ export interface IndividualTrackerState {
   startTime: string;
   lastUpdateTime: string;
   idleTimeoutHours: number;
+  hasActiveSeries?: boolean;
 }
 
 export interface IndividualTrackerMatchSummary {

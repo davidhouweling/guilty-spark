@@ -21,11 +21,11 @@ describe("buildIndividualTrackerActiveViewPath", () => {
 
 describe("buildIndividualTrackerTrackerViewPath", () => {
   it("encodes the tracker id into the path", () => {
-    expect(buildIndividualTrackerTrackerViewPath("abc-123")).toBe("/tracker/abc-123");
+    expect(buildIndividualTrackerTrackerViewPath("abc-123")).toBe("/individual-tracker/abc-123");
   });
 
   it("percent-encodes special characters in the tracker id", () => {
-    expect(buildIndividualTrackerTrackerViewPath("id with spaces")).toBe("/tracker/id%20with%20spaces");
+    expect(buildIndividualTrackerTrackerViewPath("id with spaces")).toBe("/individual-tracker/id%20with%20spaces");
   });
 });
 

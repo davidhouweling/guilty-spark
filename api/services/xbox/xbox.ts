@@ -6,7 +6,6 @@ import type { TokenInfo, XboxUserInfo, ProfileUser } from "./types";
 const HALO_XSTS_RELYING_PARTY = "https://prod.xsts.halowaypoint.com/";
 const XBOX_LIVE_XSTS_RELYING_PARTY = "http://xboxlive.com";
 const XBOX_LIVE_SANDBOX_ID = "RETAIL";
-const MICROSOFT_ACCESS_TOKEN_RPS_PREAMBLE = "t";
 const MICROSOFT_OAUTH_RPS_PREAMBLE = "d";
 
 export interface XboxServiceOpts {
@@ -60,10 +59,7 @@ export class XboxService {
    * exchanging that user token for an XSTS token for Halo Waypoint.
    */
   async exchangeMicrosoftAccessTokenForXstsToken(accessToken: string): Promise<TokenInfo> {
-    const userTokenResponse = await xnet.exchangeRpsTicketForUserToken(
-      accessToken,
-      MICROSOFT_ACCESS_TOKEN_RPS_PREAMBLE,
-    );
+    const userTokenResponse = await xnet.exchangeRpsTicketForUserToken(accessToken, MICROSOFT_OAUTH_RPS_PREAMBLE);
     const xstsTokenResponse = await xnet.exchangeTokenForXSTSToken(userTokenResponse.Token, {
       XSTSRelyingParty: HALO_XSTS_RELYING_PARTY,
     });
@@ -117,28 +113,37 @@ export class XboxService {
       throw new Error("Gamertag cannot be empty");
     }
 
-    if (!this.tokenInfo) {
-      await this.maybeRefreshXstsToken();
-    }
-    const tokenInfo = Preconditions.checkExists(this.tokenInfo, "Xbox token info is not loaded");
+    await this.maybeRefreshXstsToken();
 
+    try {
+      return await this.fetchUserByGamertag(gamertag);
+    } catch (err) {
+      if (this.isUnauthorizedError(err)) {
+        await this.clearToken();
+        await this.updateCredentials();
+        return this.fetchUserByGamertag(gamertag);
+      }
+      throw err;
+    }
+  }
+
+  private async fetchUserByGamertag(gamertag: string): Promise<XboxUserInfo> {
+    const tokenInfo = Preconditions.checkExists(this.tokenInfo, "Xbox token info is not loaded");
     const response = await XSAPIClient.get<{ profileUsers: ProfileUser[] }>(
       `https://profile.xboxlive.com/users/gt(${gamertag})/profile/settings?settings=Gamertag`,
       {
         options: { contractVersion: 2, userHash: tokenInfo.userHash, XSTSToken: tokenInfo.XSTSToken },
       },
     );
-
-    if (response.statusCode !== 200) {
-      throw new Error(`Failed to fetch user with gamertag ${gamertag}: ${response.statusCode.toString()}`);
-    }
-
     const [profileUser] = response.data.profileUsers;
     if (!profileUser) {
       throw new Error(`User with gamertag ${gamertag} not found`);
     }
-
     return profileUserToXboxUserInfo(profileUser);
+  }
+
+  private isUnauthorizedError(err: unknown): boolean {
+    return err instanceof Error && err.name === "XRFetchClientException" && err.message === "Unauthorized";
   }
 
   async getUsersByXuids(xuids: string[]): Promise<XboxUserInfo[]> {
@@ -146,9 +151,21 @@ export class XboxService {
       return [];
     }
 
-    if (!this.tokenInfo) {
-      await this.maybeRefreshXstsToken();
+    await this.maybeRefreshXstsToken();
+
+    try {
+      return await this.fetchUsersByXuids(xuids);
+    } catch (err) {
+      if (this.isUnauthorizedError(err)) {
+        await this.clearToken();
+        await this.updateCredentials();
+        return this.fetchUsersByXuids(xuids);
+      }
+      throw err;
     }
+  }
+
+  private async fetchUsersByXuids(xuids: string[]): Promise<XboxUserInfo[]> {
     const tokenInfo = Preconditions.checkExists(this.tokenInfo, "Xbox token info is not loaded");
 
     const response = await Promise.allSettled(
@@ -161,6 +178,13 @@ export class XboxService {
         ),
       ),
     );
+
+    const unauthorizedResult = response.find(
+      (r): r is PromiseRejectedResult => r.status === "rejected" && this.isUnauthorizedError(r.reason),
+    );
+    if (unauthorizedResult != null) {
+      throw unauthorizedResult.reason;
+    }
 
     return response
       .map((res) => {
@@ -182,7 +206,8 @@ export class XboxService {
       this.env.XBOX_USERNAME as `${string}@${string}.${string}`,
       this.env.XBOX_PASSWORD,
       {
-        XSTSRelyingParty: HALO_XSTS_RELYING_PARTY,
+        sandboxId: XBOX_LIVE_SANDBOX_ID,
+        XSTSRelyingParty: XBOX_LIVE_XSTS_RELYING_PARTY,
       },
     );
 

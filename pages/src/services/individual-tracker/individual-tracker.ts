@@ -457,16 +457,22 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
       return new Map();
     }
 
-    try {
-      const users = await this.haloInfiniteClient.getUsers(Array.from(xuids));
-      const map = new Map<string, string>();
-      for (const user of users) {
-        map.set(user.xuid, user.gamertag);
-      }
-      return map;
-    } catch {
-      return new Map();
+    const xuidList = Array.from(xuids);
+    const chunks: string[][] = [];
+    for (let i = 0; i < xuidList.length; i += 24) {
+      chunks.push(xuidList.slice(i, i + 24));
     }
+
+    const results = await Promise.allSettled(chunks.map(async (chunk) => this.haloInfiniteClient.getUsers(chunk)));
+    const map = new Map<string, string>();
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        for (const user of result.value) {
+          map.set(user.xuid, user.gamertag);
+        }
+      }
+    }
+    return map;
   }
 
   private async getMapDetails(assetId: string, versionId: string): Promise<{ name: string; thumbnailUrl: string }> {
@@ -479,10 +485,12 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
       }));
     }
 
-    const promise = this.haloInfiniteClient.getAsset(AssetKind.Map, assetId).catch((error: unknown) => {
-      this.mapCache.delete(key);
-      throw error;
-    });
+    const promise = this.haloInfiniteClient
+      .getSpecificAssetVersion(AssetKind.Map, assetId, versionId)
+      .catch((error: unknown) => {
+        this.mapCache.delete(key);
+        throw error;
+      });
     this.mapCache.set(key, promise);
 
     const asset = await promise;
@@ -496,10 +504,12 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
       return existing.then((variant) => variant.PublicName);
     }
 
-    const promise = this.haloInfiniteClient.getAsset(AssetKind.UgcGameVariant, assetId).catch((error: unknown) => {
-      this.modeNameCache.delete(key);
-      throw error;
-    });
+    const promise = this.haloInfiniteClient
+      .getSpecificAssetVersion(AssetKind.UgcGameVariant, assetId, versionId)
+      .catch((error: unknown) => {
+        this.modeNameCache.delete(key);
+        throw error;
+      });
     this.modeNameCache.set(key, promise);
     const variant = await promise;
     return variant.PublicName;

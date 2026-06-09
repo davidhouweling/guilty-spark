@@ -1,89 +1,80 @@
 import React, { useEffect, useMemo, useSyncExternalStore } from "react";
+import type { AuthService } from "../../services/auth/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
-import { ComponentLoader } from "../component-loader/component-loader";
-import { ErrorState } from "../error-state/error-state";
-import { LoadingState } from "../loading-state/loading-state";
-import { IndividualTrackerManagerPresenter } from "./individual-tracker-manager-presenter";
-import { IndividualTrackerManagerStore } from "./individual-tracker-manager-store";
-import { IndividualTrackerManagerProvider } from "./individual-tracker-manager-context";
-import { IndividualTrackerManagerView } from "./individual-tracker-manager";
-import type { TrackerRowAction } from "./manager-model";
+import { IndividualTrackerPresenter } from "./individual-tracker-presenter";
+import { IndividualTrackerStore } from "./individual-tracker-store";
+import { IndividualTrackerShell } from "./individual-tracker";
+import { createLiveTrackersSection } from "./live-trackers/create";
+import { StreamerConnectionsSection } from "./streamer-connections/create";
 
 interface IndividualTrackerManagerPageProps {
+  readonly authService: AuthService;
   readonly individualTrackerService: IndividualTrackerService;
   readonly settingsService: IndividualTrackerSettingsService;
 }
 
 export function IndividualTrackerManagerPage({
+  authService,
   individualTrackerService,
   settingsService,
 }: IndividualTrackerManagerPageProps): React.ReactElement {
-  const store = useMemo(() => new IndividualTrackerManagerStore(), []);
+  const { controller: liveTrackersController, Component: LiveTrackersComponent } = useMemo(
+    () =>
+      createLiveTrackersSection({
+        individualTrackerService,
+        navigateTo: (url): void => {
+          window.location.assign(url);
+        },
+        confirmDelete: (message): boolean => window.confirm(message),
+      }),
+    [individualTrackerService],
+  );
 
-  const presenter = useMemo(() => {
-    return new IndividualTrackerManagerPresenter({ individualTrackerService, settingsService, store });
-  }, [individualTrackerService, settingsService, store]);
+  const store = useMemo(() => new IndividualTrackerStore(), []);
+
+  const presenter = useMemo(
+    () =>
+      new IndividualTrackerPresenter({
+        authService,
+        settingsService,
+        store,
+        liveTrackersController,
+      }),
+    [authService, settingsService, store, liveTrackersController],
+  );
 
   useEffect(() => {
     presenter.start();
-
     return (): void => {
       presenter.dispose();
     };
   }, [presenter]);
 
   const snapshot = useSyncExternalStore(
-    (listener) => store.subscribe(listener),
-    () => store.getSnapshot(),
-    () => store.getSnapshot(),
-  );
-
-  const model = useMemo(() => IndividualTrackerManagerPresenter.present(snapshot), [snapshot]);
-
-  const actions = useMemo(
-    () => ({
-      onOpenAddDialog: (): void => {
-        presenter.openAddDialog();
-      },
-      onCloseAddDialog: (): void => {
-        presenter.closeAddDialog();
-      },
-      onGamertagInputChange: (value: string): void => {
-        presenter.setGamertagInput(value);
-      },
-      onSearchStartTimeChange: (value: string): void => {
-        presenter.setSearchStartTime(value);
-      },
-      onIdleTimeoutHoursChange: (value: string): void => {
-        presenter.setIdleTimeoutHours(value);
-      },
-      onAddTracker: (): void => {
-        presenter.addTracker();
-      },
-      onRowAction: (trackerId: string, action: TrackerRowAction): void => {
-        presenter.runRowAction(trackerId, action);
-      },
-    }),
-    [presenter],
+    (listener) => presenter.subscribe(listener),
+    () => presenter.getSnapshot(),
+    () => presenter.getSnapshot(),
   );
 
   return (
-    <ComponentLoader
-      status={snapshot.status}
-      loading={<LoadingState text="Loading your trackers..." />}
-      error={
-        <ErrorState
-          message={snapshot.errorMessage ?? "Failed to load trackers"}
-          onRetry={() => {
-            presenter.start();
-          }}
+    <IndividualTrackerShell
+      authState={snapshot.authState}
+      errorMessage={snapshot.errorMessage}
+      activeSection={snapshot.activeSection}
+      onSignIn={(): void => {
+        presenter.signIn();
+      }}
+      onSectionChange={(id): void => {
+        presenter.setActiveSection(id);
+      }}
+      liveTrackersContent={<LiveTrackersComponent />}
+      streamerSettingsContent={
+        <StreamerConnectionsSection
+          settings={snapshot.streamerSettings}
+          settingsService={settingsService}
+          gamertag={snapshot.gamertag}
         />
-      }
-      loaded={
-        <IndividualTrackerManagerProvider model={model} actions={actions} settingsService={settingsService}>
-          <IndividualTrackerManagerView />
-        </IndividualTrackerManagerProvider>
       }
     />
   );

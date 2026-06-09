@@ -65,7 +65,9 @@ export class GameSelectionDialogPresenter {
         if (this.isDisposed) {
           return;
         }
-        store.setErrorMessage(err instanceof Error ? err.message : "Failed to load matches.");
+        store.batchUpdate({
+          errorMessage: err instanceof Error ? err.message : "Failed to load matches.",
+        });
       });
   }
 

@@ -75,13 +75,10 @@ async function resolveHaloProxyClient(request: Request, services: Services): Pro
   return { ok: true, resolved: { client: services.haloInfiniteClient } };
 }
 
-function toCacheKeyRequest(request: Request): Request {
+function toCacheKey(request: Request): string {
   const url = new URL(request.url);
-  if (!url.searchParams.has("gamertag")) {
-    return request;
-  }
   url.searchParams.delete("gamertag");
-  return new Request(url.toString(), request);
+  return url.toString();
 }
 
 function readHaloProxyArgs(request: Request): { ok: true; args: unknown[] } | { ok: false; response: Response } {
@@ -103,6 +100,8 @@ function callHaloProxyOperation(
 
 export const haloProxyRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices: InstallServices) => {
   router.all("/proxy/halo-infinite/:operation", async (request, env: Env, ctx: ExecutionContext) => {
+    const services = installServices({ env });
+    const { logService } = services;
     try {
       const { operation } = request.params;
       if (operation == null || !isHaloProxyOperationName(operation)) {
@@ -119,8 +118,8 @@ export const haloProxyRoutesRegisterHandler: RoutesRegisterHandler = (router, in
       }
 
       const cache = caches.default;
-      const cacheKeyRequest = toCacheKeyRequest(request);
-      const cached = await cache.match(cacheKeyRequest);
+      const cacheKey = toCacheKey(request);
+      const cached = await cache.match(cacheKey);
       if (cached) {
         return cached;
       }
@@ -130,7 +129,6 @@ export const haloProxyRoutesRegisterHandler: RoutesRegisterHandler = (router, in
         return argsResult.response;
       }
 
-      const services = installServices({ env });
       const clientResult = await resolveHaloProxyClient(request, services);
       if (!clientResult.ok) {
         return clientResult.response;
@@ -143,11 +141,11 @@ export const haloProxyRoutesRegisterHandler: RoutesRegisterHandler = (router, in
         headers: { "Cache-Control": buildHaloProxyCacheControl(operationDefinition) },
       });
 
-      ctx.waitUntil(cache.put(cacheKeyRequest, response.clone()));
+      ctx.waitUntil(cache.put(cacheKey, response.clone()));
 
       return response;
     } catch (error) {
-      console.error("Halo proxy error:", error instanceof Error ? error.message : String(error));
+      logService.error(error instanceof Error ? error : new Error(String(error)), new Map([["route", "halo-proxy"]]));
       return Response.json({ error: "Proxy request failed" }, { status: 500 });
     }
   });

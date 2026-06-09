@@ -206,7 +206,7 @@ describe("Xbox Service", () => {
 
       expect(JSON.parse(userAuthRequestBody)).toMatchObject({
         Properties: {
-          RpsTicket: "t=microsoft-access-token",
+          RpsTicket: "d=microsoft-access-token",
         },
       });
       expect(JSON.parse(xstsAuthRequestBody)).toMatchObject({
@@ -448,6 +448,31 @@ describe("Xbox Service", () => {
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual({ xuid: "2533274844642438", gamertag: "TestPlayer1" });
     });
+
+    it("retries with fresh credentials on Unauthorized error", async () => {
+      const xuids = ["2533274844642438"];
+      const unauthorizedErr = new Error("Unauthorized");
+      unauthorizedErr.name = "XRFetchClientException";
+
+      authenticate.mockResolvedValueOnce(validAuthenticateResponse);
+
+      xsapiClientGetSpy.mockRejectedValueOnce(unauthorizedErr).mockResolvedValueOnce(
+        createMockXSAPIResponse([
+          {
+            id: "2533274844642438",
+            hostId: "2533274844642438",
+            settings: [{ id: "Gamertag", value: "TestPlayer1" }],
+            isSponsoredUser: false,
+          },
+        ]),
+      );
+
+      const result = await xboxService.getUsersByXuids(xuids);
+
+      expect(authenticate).toHaveBeenCalledTimes(1);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({ xuid: "2533274844642438", gamertag: "TestPlayer1" });
+    });
   });
 
   describe("getUserByGamertag", () => {
@@ -520,17 +545,10 @@ describe("Xbox Service", () => {
 
     it("throws error when API returns non-200 status", async () => {
       const gamertag = "TestPlayer1";
-
-      xsapiClientGetSpy.mockResolvedValueOnce({
-        data: { profileUsers: [] },
-        response: new Response(),
-        headers: {},
-        statusCode: 404,
-      });
-
-      await expect(xboxService.getUserByGamertag(gamertag)).rejects.toThrow(
-        `Failed to fetch user with gamertag ${gamertag}: 404`,
-      );
+      const err = new Error("Not Found");
+      err.name = "XRFetchClientException";
+      xsapiClientGetSpy.mockRejectedValueOnce(err);
+      await expect(xboxService.getUserByGamertag(gamertag)).rejects.toThrow("Not Found");
     });
 
     it("refreshes token if not loaded", async () => {

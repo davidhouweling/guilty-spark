@@ -11,12 +11,6 @@ interface IndividualTrackerManagerAppProps {
   readonly apiHost: string;
 }
 
-function redirectToLogin(): void {
-  const loginUrl = new URL("/login", window.location.origin);
-  loginUrl.searchParams.set("redirect", window.location.pathname);
-  window.location.assign(loginUrl.toString());
-}
-
 export function IndividualTrackerManagerApp({ apiHost }: IndividualTrackerManagerAppProps): ReactElement {
   const [state, setState] = useState(ComponentLoaderStatus.PENDING);
   const [services, setServices] = useState<Services | null>(null);
@@ -28,17 +22,10 @@ export function IndividualTrackerManagerApp({ apiHost }: IndividualTrackerManage
     setState(ComponentLoaderStatus.PENDING);
 
     installServices(apiHost)
-      .then(async (installedServices) => {
-        const session = await installedServices.authService.getSession();
+      .then((installedServices) => {
         if (isCancelled) {
           return;
         }
-
-        if (!session.authenticated) {
-          redirectToLogin();
-          return;
-        }
-
         setServices(installedServices);
         setState(ComponentLoaderStatus.LOADED);
       })
@@ -57,11 +44,12 @@ export function IndividualTrackerManagerApp({ apiHost }: IndividualTrackerManage
   return (
     <ComponentLoader
       status={state}
-      loading={<LoadingState text="Checking current session..." />}
-      error={<ErrorState message="Failed to load trackers" />}
+      loading={<LoadingState text="Loading tracker manager..." />}
+      error={<ErrorState message="Failed to load tracker manager" />}
       loaded={
         services ? (
           <IndividualTrackerManagerPage
+            authService={services.authService}
             individualTrackerService={services.individualTrackerService}
             settingsService={services.settingsService}
           />

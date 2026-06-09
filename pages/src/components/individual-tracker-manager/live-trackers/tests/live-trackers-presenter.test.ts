@@ -13,6 +13,7 @@ function aFakeTrackerState(opts: {
   gamertag: string;
   status: Tracker["status"];
   isLive?: boolean;
+  hasActiveSeries?: boolean;
 }): TrackerState {
   return {
     userId: "u1",
@@ -24,6 +25,7 @@ function aFakeTrackerState(opts: {
     startTime: "2026-01-01T00:00:00.000Z",
     lastUpdateTime: "2026-01-01T00:00:00.000Z",
     idleTimeoutHours: 6,
+    hasActiveSeries: opts.hasActiveSeries ?? false,
   };
 }
 
@@ -114,7 +116,7 @@ describe("LiveTrackersPresenter", () => {
     presenter.dispose();
   });
 
-  it("getActions returns correct actions for an active tracker", async () => {
+  it("getActions returns correct actions for an active tracker with no series", async () => {
     const tracker = aFakeTrackerWith({
       trackerId: "t1",
       gamertag: "Chief",
@@ -134,11 +136,33 @@ describe("LiveTrackersPresenter", () => {
     const actionLabels = presenter.getActions(items[0]).map((a) => a.label);
     expect(actionLabels).toContain("Pause");
     expect(actionLabels).toContain("Stop tracker");
-    expect(actionLabels).toContain("End series");
+    expect(actionLabels).not.toContain("End series");
     expect(actionLabels).toContain("Game selection");
     expect(actionLabels).toContain("Start series");
     expect(actionLabels).not.toContain("Resume");
     expect(actionLabels).not.toContain("Start tracker");
+
+    presenter.dispose();
+  });
+
+  it("getActions includes End series but not Start series when tracker has an active series", async () => {
+    const tracker = aFakeTrackerWith({
+      trackerId: "t1",
+      gamertag: "Chief",
+      status: "active",
+      isLive: true,
+      state: aFakeTrackerState({ trackerId: "t1", gamertag: "Chief", status: "active", hasActiveSeries: true }),
+    });
+    const { presenter } = aHarness({ trackers: [tracker] });
+
+    presenter.start();
+    presenter.setSessionContext("u1", null, null);
+    await presenter.refresh();
+
+    const items = presenter.getTrackerItems();
+    const actionLabels = presenter.getActions(items[0]).map((a) => a.label);
+    expect(actionLabels).toContain("End series");
+    expect(actionLabels).not.toContain("Start series");
 
     presenter.dispose();
   });
@@ -263,6 +287,65 @@ describe("LiveTrackersPresenter", () => {
     await Promise.resolve();
 
     expect(deleteTrackerSpy).toHaveBeenCalledWith("t1");
+
+    presenter.dispose();
+  });
+
+  it("auto-selects as live when only one tracker exists after start", async () => {
+    const { service, presenter } = aHarness({ trackers: [] });
+
+    presenter.start();
+    presenter.setSessionContext("u1", "Chief", "xuid-1");
+    await presenter.refresh();
+
+    const selectActiveSpy = vi.spyOn(service, "selectActive");
+
+    const items = presenter.getTrackerItems();
+    const startAction = presenter.getActions(items[0]).find((a) => a.label === "Start tracker");
+    expect(startAction).toBeDefined();
+    if (startAction == null) {
+      return;
+    }
+
+    startAction.onClick();
+    await vi.waitFor(() => {
+      expect(presenter.getSnapshot().activeTracker).not.toBeNull();
+    });
+
+    expect(selectActiveSpy).toHaveBeenCalledTimes(1);
+
+    presenter.dispose();
+  });
+
+  it("does not auto-select when there are multiple trackers after start", async () => {
+    const existingTracker = aFakeTrackerWith({ trackerId: "t1", gamertag: "Arbiter", isLive: true });
+    const { service, presenter } = aHarness({ trackers: [existingTracker] });
+
+    presenter.start();
+    presenter.setSessionContext("u1", "Chief", "xuid-1");
+    await presenter.refresh();
+
+    const selectActiveSpy = vi.spyOn(service, "selectActive");
+
+    const items = presenter.getTrackerItems();
+    const stoppedItem = items.find((i) => i.gamertag === "Chief");
+    expect(stoppedItem).toBeDefined();
+    if (stoppedItem == null) {
+      return;
+    }
+
+    const startAction = presenter.getActions(stoppedItem).find((a) => a.label === "Start tracker");
+    expect(startAction).toBeDefined();
+    if (startAction == null) {
+      return;
+    }
+
+    startAction.onClick();
+    await vi.waitFor(() => {
+      expect(presenter.getSnapshot().runningTrackers.some((t) => t.gamertag === "Chief")).toBe(true);
+    });
+
+    expect(selectActiveSpy).not.toHaveBeenCalled();
 
     presenter.dispose();
   });
