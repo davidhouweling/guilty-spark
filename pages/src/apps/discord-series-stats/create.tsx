@@ -12,11 +12,7 @@ import { SeriesStats } from "../../components/stats/series-stats";
 import type { MatchStatsData } from "../../components/stats/types";
 import { Container } from "../../components/container/container";
 import { Alert } from "../../components/alert/alert";
-import {
-  DEFAULT_TEAM_COLORS,
-  getTeamColorOrDefault,
-  type TeamColor,
-} from "../../components/team-colors/team-colors";
+import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault, type TeamColor } from "../../components/team-colors/team-colors";
 import styles from "../../components/live-tracker/live-tracker.module.css";
 import localStyles from "./create.module.css";
 
@@ -172,7 +168,10 @@ export function DiscordSeriesStatsApp({ data }: DiscordSeriesStatsAppProps): Rea
         </div>
       </Container>
 
-      <Container mobileDown="0" className={classNames(styles.dataContainer, styles.contentContainer, contentWidthClass)}>
+      <Container
+        mobileDown="0"
+        className={classNames(styles.dataContainer, styles.contentContainer, contentWidthClass)}
+      >
         <Container className={classNames(styles.contentContainer, contentWidthClass)}>
           <h2 className={styles.sectionTitle}>Series overview</h2>
           <div className={localStyles.seriesOverviewWrap}>
@@ -196,7 +195,10 @@ export function DiscordSeriesStatsApp({ data }: DiscordSeriesStatsAppProps): Rea
                           } as CSSProperties
                         }
                       >
-                        <a href={`#${match.matchId}`} className={classNames(styles.seriesScoreLink, localStyles.seriesScoreLink)}>
+                        <a
+                          href={`#${match.matchId}`}
+                          className={classNames(styles.seriesScoreLink, localStyles.seriesScoreLink)}
+                        >
                           <img
                             src={gameModeIconSrc(match.gameVariantCategory)}
                             alt={match.gameType}
@@ -215,8 +217,7 @@ export function DiscordSeriesStatsApp({ data }: DiscordSeriesStatsAppProps): Rea
               </section>
 
               {renderData.teams.map((team, teamIndex) => {
-                const teamColor =
-                  teamIndex < 2 ? teamColors[teamIndex] : getTeamColorOrDefault(undefined, teamIndex);
+                const teamColor = teamIndex < 2 ? teamColors[teamIndex] : getTeamColorOrDefault(undefined, teamIndex);
 
                 return (
                   <section
