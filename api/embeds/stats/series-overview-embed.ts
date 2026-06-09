@@ -1,4 +1,5 @@
-import type { APIEmbed } from "discord-api-types/v10";
+import type { APIEmbed, APIMessageTopLevelComponent } from "discord-api-types/v10";
+import { ButtonStyle, ComponentType } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types";
 import { isBefore } from "date-fns";
@@ -18,6 +19,11 @@ export interface SeriesOverviewEmbedSubstitution {
   playerOut: string;
   playerIn: string;
   team: string;
+}
+
+export interface SeriesOverviewEmbedOutput {
+  embeds: APIEmbed[];
+  components: APIMessageTopLevelComponent[];
 }
 
 export class SeriesOverviewEmbed {
@@ -51,7 +57,7 @@ export class SeriesOverviewEmbed {
     finalTeams: readonly TeamMapping[];
     substitutions: SeriesOverviewEmbedSubstitution[];
     hideTeamsDescription: boolean;
-  }): Promise<APIEmbed[]> {
+  }): Promise<SeriesOverviewEmbedOutput> {
     const titles = ["Game", "Duration", `Score${finalTeams.length === 2 ? " (🦅:🐍)" : ""}`];
     const tableData = [titles];
     const seriesMatches = [...series].sort((a, b) => (isBefore(a.MatchInfo.StartTime, b.MatchInfo.StartTime) ? -1 : 1));
@@ -144,7 +150,7 @@ export class SeriesOverviewEmbed {
 
       if (isFirstEmbed) {
         embed.title = `Series stats for queue #${queue.toString()} (${this.haloService.getSeriesScore(series, locale)})`;
-        embed.description = `${!hideTeamsDescription ? `${teamsDescription}\n\n` : ""}-# Start time: ${startTime} | End time: ${endTime}${internalStatsLink != null ? `\n-# [View web stats](${internalStatsLink})` : ""}`;
+        embed.description = `${!hideTeamsDescription ? `${teamsDescription}\n\n` : ""}-# Start time: ${startTime} | End time: ${endTime}`;
         embed.url = `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
       }
 
@@ -162,6 +168,29 @@ export class SeriesOverviewEmbed {
       embeds.push(embed);
     }
 
-    return embeds;
+    const components: APIMessageTopLevelComponent[] =
+      internalStatsLink != null
+        ? [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.Button,
+                  label: "View stats in browser",
+                  style: ButtonStyle.Link,
+                  emoji: {
+                    name: "📈",
+                  },
+                  url: internalStatsLink,
+                },
+              ],
+            },
+          ]
+        : [];
+
+    return {
+      embeds,
+      components,
+    };
   }
 }

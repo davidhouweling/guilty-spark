@@ -211,14 +211,29 @@ exports[`StatsCommand > execute(): subcommand neatqueue > jobToComplete > calls 
 [
   "fake-token",
   {
+    "components": [
+      {
+        "components": [
+          {
+            "emoji": {
+              "name": "📈",
+            },
+            "label": "View stats in browser",
+            "style": 5,
+            "type": 2,
+            "url": "http://localhost:4321/stats/discord/fake-guild-id/777",
+          },
+        ],
+        "type": 1,
+      },
+    ],
     "embeds": [
       {
         "color": 3447003,
         "description": "**Eagle:** <@000000000000000001> <@000000000000000002> <@000000000000000003> <@000000000000000004>
 **Cobra:** <@000000000000000005> <@000000000000000006> <@000000000000000007> <@000000000000000008>
 
--# Start time: <t:1732617393:f> | End time: <t:1732619665:f>
--# [View web stats](http://localhost:4321/stats/discord/fake-guild-id/777)",
+-# Start time: <t:1732617393:f> | End time: <t:1732619665:f>",
         "fields": [
           {
             "inline": true,
