@@ -114,17 +114,7 @@ export class XboxService {
     }
 
     await this.maybeRefreshXstsToken();
-
-    try {
-      return await this.fetchUserByGamertag(gamertag);
-    } catch (err) {
-      if (this.isUnauthorizedError(err)) {
-        await this.clearToken();
-        await this.updateCredentials();
-        return this.fetchUserByGamertag(gamertag);
-      }
-      throw err;
-    }
+    return this.withUnauthorizedRetry(() => this.fetchUserByGamertag(gamertag));
   }
 
   private async fetchUserByGamertag(gamertag: string): Promise<XboxUserInfo> {
@@ -142,6 +132,19 @@ export class XboxService {
     return profileUserToXboxUserInfo(profileUser);
   }
 
+  private async withUnauthorizedRetry<T>(fetch: () => Promise<T>): Promise<T> {
+    try {
+      return await fetch();
+    } catch (err) {
+      if (this.isUnauthorizedError(err)) {
+        await this.clearToken();
+        await this.updateCredentials();
+        return fetch();
+      }
+      throw err;
+    }
+  }
+
   private isUnauthorizedError(err: unknown): boolean {
     return err instanceof Error && err.name === "XRFetchClientException" && err.message === "Unauthorized";
   }
@@ -152,17 +155,7 @@ export class XboxService {
     }
 
     await this.maybeRefreshXstsToken();
-
-    try {
-      return await this.fetchUsersByXuids(xuids);
-    } catch (err) {
-      if (this.isUnauthorizedError(err)) {
-        await this.clearToken();
-        await this.updateCredentials();
-        return this.fetchUsersByXuids(xuids);
-      }
-      throw err;
-    }
+    return this.withUnauthorizedRetry(() => this.fetchUsersByXuids(xuids));
   }
 
   private async fetchUsersByXuids(xuids: string[]): Promise<XboxUserInfo[]> {
