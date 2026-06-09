@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { DiscordSeriesStatsApp } from "../create";
 
@@ -66,5 +66,16 @@ describe("DiscordSeriesStatsApp", () => {
     render(<DiscordSeriesStatsApp data={aFakeResolvedDataWith()} />);
 
     expect(screen.queryByText("Series Totals")).not.toBeInTheDocument();
+  });
+
+  it("toggles between standard and wide view", () => {
+    render(<DiscordSeriesStatsApp data={aFakeResolvedDataWith()} />);
+
+    const toggleButton = screen.getByRole("button", { name: "Switch to wide view" });
+    expect(toggleButton).toBeInTheDocument();
+
+    fireEvent.click(toggleButton);
+
+    expect(screen.getByRole("button", { name: "Switch to standard view" })).toBeInTheDocument();
   });
 });
