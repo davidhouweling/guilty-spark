@@ -55,7 +55,7 @@ describe("DiscordSeriesStatsApp", () => {
     expect(screen.getByText("Cobra")).toBeInTheDocument();
   });
 
-  it("shows warning when a match cannot be converted to presenter data", () => {
+  it("shows warning when a match has invalid raw match data", () => {
     render(<DiscordSeriesStatsApp data={aFakeResolvedDataWith()} />);
 
     expect(screen.getByText("Failed to load detailed stats for match match-1.")).toBeInTheDocument();
