@@ -76,26 +76,26 @@ export function GameSelectionDialog({
       {errorMessage != null && <Alert variant="error">{errorMessage}</Alert>}
 
       {(errorMessage == null || visibleMatches !== null) && (
-      <div className={styles.matchesContainer}>
-        <MatchHistorySection
-          entries={visibleMatches}
-          loadingCount={5}
-          showGroupings={true}
-          allowManualGrouping={true}
-          groupings={groupings}
-          allowSelection={true}
-          selectedMatchIds={selectedMatchIds}
-          seriesGroups={seriesGroups}
-          hasMore={hasMore}
-          onLoadMore={handleLoadMore}
-          onMatchToggle={onMatchToggle}
-          onBreakFromGroup={onBreakFromGroup}
-          onAddToAboveGroup={onAddToAboveGroup}
-          onAddToBelowGroup={onAddToBelowGroup}
-          onSeriesGroupTitleChange={onSeriesGroupTitleChange}
-          onSeriesGroupSubtitleChange={onSeriesGroupSubtitleChange}
-        />
-      </div>
+        <div className={styles.matchesContainer}>
+          <MatchHistorySection
+            entries={visibleMatches}
+            loadingCount={5}
+            showGroupings={true}
+            allowManualGrouping={true}
+            groupings={groupings}
+            allowSelection={true}
+            selectedMatchIds={selectedMatchIds}
+            seriesGroups={seriesGroups}
+            hasMore={hasMore}
+            onLoadMore={handleLoadMore}
+            onMatchToggle={onMatchToggle}
+            onBreakFromGroup={onBreakFromGroup}
+            onAddToAboveGroup={onAddToAboveGroup}
+            onAddToBelowGroup={onAddToBelowGroup}
+            onSeriesGroupTitleChange={onSeriesGroupTitleChange}
+            onSeriesGroupSubtitleChange={onSeriesGroupSubtitleChange}
+          />
+        </div>
       )}
 
       <Button onClick={onSyncAndClose} disabled={isSyncing}>

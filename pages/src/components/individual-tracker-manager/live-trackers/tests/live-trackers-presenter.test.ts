@@ -303,7 +303,9 @@ describe("LiveTrackersPresenter", () => {
     const items = presenter.getTrackerItems();
     const startAction = presenter.getActions(items[0]).find((a) => a.label === "Start tracker");
     expect(startAction).toBeDefined();
-    if (startAction == null) { return; }
+    if (startAction == null) {
+      return;
+    }
 
     startAction.onClick();
     await vi.waitFor(() => {
@@ -328,11 +330,15 @@ describe("LiveTrackersPresenter", () => {
     const items = presenter.getTrackerItems();
     const stoppedItem = items.find((i) => i.gamertag === "Chief");
     expect(stoppedItem).toBeDefined();
-    if (stoppedItem == null) { return; }
+    if (stoppedItem == null) {
+      return;
+    }
 
     const startAction = presenter.getActions(stoppedItem).find((a) => a.label === "Start tracker");
     expect(startAction).toBeDefined();
-    if (startAction == null) { return; }
+    if (startAction == null) {
+      return;
+    }
 
     startAction.onClick();
     await vi.waitFor(() => {

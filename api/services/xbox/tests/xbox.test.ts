@@ -456,18 +456,16 @@ describe("Xbox Service", () => {
 
       authenticate.mockResolvedValueOnce(validAuthenticateResponse);
 
-      xsapiClientGetSpy
-        .mockRejectedValueOnce(unauthorizedErr)
-        .mockResolvedValueOnce(
-          createMockXSAPIResponse([
-            {
-              id: "2533274844642438",
-              hostId: "2533274844642438",
-              settings: [{ id: "Gamertag", value: "TestPlayer1" }],
-              isSponsoredUser: false,
-            },
-          ]),
-        );
+      xsapiClientGetSpy.mockRejectedValueOnce(unauthorizedErr).mockResolvedValueOnce(
+        createMockXSAPIResponse([
+          {
+            id: "2533274844642438",
+            hostId: "2533274844642438",
+            settings: [{ id: "Gamertag", value: "TestPlayer1" }],
+            isSponsoredUser: false,
+          },
+        ]),
+      );
 
       const result = await xboxService.getUsersByXuids(xuids);
 

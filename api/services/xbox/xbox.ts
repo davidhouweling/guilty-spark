@@ -59,10 +59,7 @@ export class XboxService {
    * exchanging that user token for an XSTS token for Halo Waypoint.
    */
   async exchangeMicrosoftAccessTokenForXstsToken(accessToken: string): Promise<TokenInfo> {
-    const userTokenResponse = await xnet.exchangeRpsTicketForUserToken(
-      accessToken,
-      MICROSOFT_OAUTH_RPS_PREAMBLE,
-    );
+    const userTokenResponse = await xnet.exchangeRpsTicketForUserToken(accessToken, MICROSOFT_OAUTH_RPS_PREAMBLE);
     const xstsTokenResponse = await xnet.exchangeTokenForXSTSToken(userTokenResponse.Token, {
       XSTSRelyingParty: HALO_XSTS_RELYING_PARTY,
     });
