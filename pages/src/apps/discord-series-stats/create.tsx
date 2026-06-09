@@ -21,6 +21,7 @@ interface DiscordSeriesStatsAppProps {
 }
 
 type DiscordSeriesViewMode = "standard" | "wide";
+const WIN_OUTCOME = 2;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value != null;
@@ -79,17 +80,12 @@ function getWinningTeamColor(rawMatch: unknown, teamColors: TeamColor[]): TeamCo
     return null;
   }
 
-  const winningTeam = rawMatch.Teams.find((team) => team.Outcome === 2);
-  if (winningTeam == null) {
+  const winningTeamIndex = rawMatch.Teams.findIndex((team) => team.Outcome === WIN_OUTCOME);
+  if (winningTeamIndex < 0) {
     return null;
   }
 
-  const winningTeamIndex = rawMatch.Teams.indexOf(winningTeam);
-  if (winningTeamIndex < 0 || winningTeamIndex >= teamColors.length) {
-    return null;
-  }
-
-  return teamColors[winningTeamIndex] ?? null;
+  return getTeamColorOrDefault(teamColors[winningTeamIndex], winningTeamIndex);
 }
 
 export function DiscordSeriesStatsApp({ data }: DiscordSeriesStatsAppProps): ReactElement {
@@ -99,7 +95,7 @@ export function DiscordSeriesStatsApp({ data }: DiscordSeriesStatsAppProps): Rea
     getTeamColorOrDefault(DEFAULT_TEAM_COLORS[0], 0),
     getTeamColorOrDefault(DEFAULT_TEAM_COLORS[1], 1),
   ];
-  const contentWidthClass = viewMode === "wide" ? styles.wide : styles.standard;
+  const contentWidthClass = viewMode === "wide" ? styles.wide : undefined;
 
   const allMatchStats = React.useMemo((): { matchId: string; data: MatchStatsData[] | null }[] => {
     return renderData.matches.map((match) => {
@@ -157,6 +153,7 @@ export function DiscordSeriesStatsApp({ data }: DiscordSeriesStatsAppProps): Rea
           <div className={styles.headerRight}>
             <button
               type="button"
+              aria-pressed={viewMode === "wide"}
               className={classNames(styles.detailsButton, localStyles.viewModeToggleButton)}
               onClick={(): void => {
                 setViewMode((current) => (current === "standard" ? "wide" : "standard"));
