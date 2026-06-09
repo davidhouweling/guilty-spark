@@ -66,7 +66,6 @@ export class GameSelectionDialogPresenter {
           return;
         }
         store.batchUpdate({
-          matches: [],
           errorMessage: err instanceof Error ? err.message : "Failed to load matches.",
         });
       });

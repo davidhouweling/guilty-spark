@@ -75,6 +75,7 @@ export function GameSelectionDialog({
 
       {errorMessage != null && <Alert variant="error">{errorMessage}</Alert>}
 
+      {(errorMessage == null || visibleMatches !== null) && (
       <div className={styles.matchesContainer}>
         <MatchHistorySection
           entries={visibleMatches}
@@ -95,6 +96,7 @@ export function GameSelectionDialog({
           onSeriesGroupSubtitleChange={onSeriesGroupSubtitleChange}
         />
       </div>
+      )}
 
       <Button onClick={onSyncAndClose} disabled={isSyncing}>
         {isSyncing ? "Syncing..." : "Close and sync"}

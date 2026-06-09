@@ -47,6 +47,32 @@ function aMatch(
 }
 
 describe("GameSelectionDialogSection", () => {
+  it("shows error alert and hides match list when getMatchHistory fails", async () => {
+    const service = new FakeIndividualTrackerService();
+    vi.spyOn(service, "getMatchHistory").mockRejectedValue(new Error("Network error"));
+
+    render(
+      <GameSelectionDialogSection
+        isOpen={true}
+        trackerId="tracker-1"
+        trackerLabel="Test Player"
+        xuid="xuid-1"
+        initialSelectedMatchIds={[]}
+        initialGroupings={[]}
+        initialSeriesGroups={[]}
+        onClose={vi.fn()}
+        onSynced={vi.fn()}
+        individualTrackerService={service as IndividualTrackerService}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Network error")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Establishing Connection...")).not.toBeInTheDocument();
+    expect(screen.queryByText("No matches found")).not.toBeInTheDocument();
+  });
+
   it("loads and displays matches when opened", async () => {
     const service = new FakeIndividualTrackerService();
     vi.spyOn(service, "getMatchHistory").mockResolvedValue(aResponse({ matches: [aMatch("m1"), aMatch("m2")] }));
