@@ -274,7 +274,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       substitutions: [],
       discoveredMatches: {},
       matchIds: [],
-      seriesScore: "🦅 0:0 🐍",
+      seriesScore: "0:0",
       errorState: {
         consecutiveErrors: 0,
         backoffMinutes: NORMAL_INTERVAL_MINUTES,
@@ -749,7 +749,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private async computeAndUpdateSeriesScore(trackerState: LiveTrackerState): Promise<string> {
     const rawMatches = await this.loadMatchesFromKV(trackerState.matchIds);
     const rawMatchesArray = Object.values(rawMatches);
-    const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US", true);
+    const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
     trackerState.seriesScore = seriesScore;
     return seriesScore;
   }
@@ -1517,7 +1517,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         timestamp: sub.timestamp,
       })),
       matchSummaries: Object.values(state.discoveredMatches),
-      seriesScore: state.seriesScore.replaceAll(/(🦅|🐍)/g, "").trim(),
+      seriesScore: state.seriesScore,
       lastUpdateTime: state.lastUpdateTime,
       medalMetadata,
       playersAssociationData: state.playersAssociationData,
