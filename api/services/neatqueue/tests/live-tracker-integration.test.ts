@@ -21,6 +21,7 @@ import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
 import { getMatchStats } from "../../halo/fakes/data";
 import { aFakeLiveTrackerServiceWith } from "../../live-tracker/fakes/live-tracker.fake";
 import type { LiveTrackerService } from "../../live-tracker/live-tracker";
+import { aFakeIndividualTrackerServiceWith } from "../../individual-tracker/fakes/individual-tracker.fake";
 import type {
   NeatQueueMatchCompletedRequest,
   NeatQueueSubstitutionRequest,
@@ -71,6 +72,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
       discordService,
       haloService,
       liveTrackerService,
+      individualTrackerService: aFakeIndividualTrackerServiceWith(),
     });
 
     // Mock LiveTrackerService methods

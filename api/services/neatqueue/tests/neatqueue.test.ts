@@ -30,9 +30,16 @@ import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeLiveTrackerServiceWith } from "../../live-tracker/fakes/live-tracker.fake";
 import { aFakeLiveTrackerStateWith } from "../../../durable-objects/live-tracker/fakes/live-tracker-do.fake";
 import type { LiveTrackerService } from "../../live-tracker/live-tracker";
+import { aFakeIndividualTrackerServiceWith } from "../../individual-tracker/fakes/individual-tracker.fake";
+import type { IndividualTrackerService } from "../../individual-tracker/individual-tracker";
 import type { NeatQueueConfigRow } from "../../database/types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../../database/types/neat_queue_config";
-import { getFakeNeatQueueData, aFakeNeatQueueStateWith, neatQueueStateFromTimeline } from "../fakes/data";
+import {
+  getFakeNeatQueueData,
+  aFakeNeatQueueStateWith,
+  neatQueueStateFromTimeline,
+  createSamplePlayerAssociationData,
+} from "../fakes/data";
 import type { NeatQueueMatchCompletedRequest, NeatQueueRequest, NeatQueueState } from "../types";
 import { getRankedArenaCsrsData, getMatchStats } from "../../halo/fakes/data";
 import {
@@ -64,6 +71,7 @@ describe("NeatQueueService", () => {
   let discordService: DiscordService;
   let haloService: HaloService;
   let liveTrackerService: LiveTrackerService;
+  let individualTrackerService: IndividualTrackerService;
   let neatQueueService: NeatQueueService;
 
   beforeEach(() => {
@@ -76,6 +84,7 @@ describe("NeatQueueService", () => {
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
     liveTrackerService = aFakeLiveTrackerServiceWith({ logService, discordService, env });
+    individualTrackerService = aFakeIndividualTrackerServiceWith();
     neatQueueService = new NeatQueueService({
       env,
       logService,
@@ -83,6 +92,7 @@ describe("NeatQueueService", () => {
       discordService,
       haloService,
       liveTrackerService,
+      individualTrackerService,
     });
   });
 
@@ -1934,6 +1944,208 @@ describe("NeatQueueService", () => {
       const stateJson = lastPutCall?.[1] as string;
       const savedState = JSON.parse(stateJson) as NeatQueueState;
       expect(savedState.playersMessageId).toBe(newMessageId);
+    });
+  });
+
+  describe("individual tracker nudge fan-out", () => {
+    let neatQueueConfig: NeatQueueConfigRow;
+    let nudgeTrackersSpy: MockInstance<IndividualTrackerService["nudgeTrackers"]>;
+
+    beforeEach(() => {
+      neatQueueConfig = aFakeNeatQueueConfigRow();
+      nudgeTrackersSpy = vi.spyOn(individualTrackerService, "nudgeTrackers").mockResolvedValue(undefined);
+    });
+
+    describe("TEAMS_CREATED nudge", () => {
+      it("nudges all player XUIDs with series context when association data has XUIDs", async () => {
+        const teamsCreatedRequest = getFakeNeatQueueData("teamsCreated");
+        const playersAssociationData = {
+          discord_user_01: createSamplePlayerAssociationData("discord_user_01", "soundmanD", "SoundmanD"),
+          discord_user_02: createSamplePlayerAssociationData("discord_user_02", "discord_user_02", "User02"),
+        };
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith({ playersAssociationData }));
+        vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
+        vi.spyOn(discordService, "getGuild").mockResolvedValue({ ...guild, id: "guild-1", name: "Test Server", icon: null });
+        vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
+          aFakeGuildConfigRow({ NeatQueueInformerLiveTracking: "N" }),
+        );
+
+        const { jobToComplete } = neatQueueService.handleRequest(teamsCreatedRequest, neatQueueConfig);
+        await jobToComplete?.();
+
+        expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
+        const [xuids, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], unknown];
+        expect(xuids).toHaveLength(2);
+        expect(xuids).toContain("xuid_discord_user_01");
+        expect(xuids).toContain("xuid_discord_user_02");
+        expect(payload).toMatchObject({
+          title: "Test Server",
+          subtitle: `Queue #${teamsCreatedRequest.match_number.toString()}`,
+          guildIconUrl: null,
+          teams: expect.arrayContaining([
+            expect.objectContaining({
+              players: expect.arrayContaining([
+                expect.objectContaining({ discordId: "discord_user_01", gamertag: "SoundmanD" }),
+              ]),
+            }),
+          ]),
+        });
+      });
+
+      it("does not throw when getGuild fails", async () => {
+        const teamsCreatedRequest = getFakeNeatQueueData("teamsCreated");
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());
+        vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
+        vi.spyOn(discordService, "getGuild").mockRejectedValue(new Error("Discord API error"));
+        vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
+          aFakeGuildConfigRow({ NeatQueueInformerLiveTracking: "N" }),
+        );
+
+        const { jobToComplete } = neatQueueService.handleRequest(teamsCreatedRequest, neatQueueConfig);
+        await expect(jobToComplete?.()).resolves.toBeUndefined();
+        expect(nudgeTrackersSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("SUBSTITUTION nudge", () => {
+      it("nudges sub-out with null and sub-in with updated context when seriesContext exists", async () => {
+        const substitutionRequest = getFakeNeatQueueData("substitution");
+        const seriesContext = {
+          title: "Test Server",
+          subtitle: "Queue #3",
+          guildIconUrl: null,
+          teams: [
+            {
+              name: "Team 1",
+              players: [
+                { discordId: "discord_user_01", discordName: "soundmanD", gamertag: "SoundmanD", xboxId: "xuid_discord_user_01" },
+              ],
+            },
+          ],
+        };
+        const playersAssociationData = {
+          discord_user_01: createSamplePlayerAssociationData("discord_user_01", "soundmanD", "SoundmanD"),
+        };
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(
+          aFakeNeatQueueStateWith({ seriesContext, playersAssociationData }),
+        );
+        vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
+        vi.spyOn(databaseService, "getDiscordAssociations").mockResolvedValue([
+          aFakeDiscordAssociationsRow({ DiscordId: "discord_user_03", XboxId: "xuid_discord_user_03" }),
+        ]);
+        vi.spyOn(haloService, "getUsersByXuids").mockResolvedValue([]);
+        vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(new Map());
+        vi.spyOn(haloService, "getPlayersEsras").mockResolvedValue(new Map());
+        vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({
+          state: aFakeLiveTrackerStateWith({ status: "active" }),
+        });
+        vi.spyOn(liveTrackerService, "recordSubstitution").mockResolvedValue({
+          success: true,
+          substitution: { playerOutId: "discord_user_01", playerInId: "discord_user_03", teamIndex: 0 },
+        });
+        vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
+          aFakeGuildConfigRow({ NeatQueueInformerPlayerConnections: "N" }),
+        );
+
+        const { jobToComplete } = neatQueueService.handleRequest(substitutionRequest, neatQueueConfig);
+        await jobToComplete?.();
+
+        expect(nudgeTrackersSpy).toHaveBeenCalledTimes(2);
+        const calls = nudgeTrackersSpy.mock.calls as [string[], unknown][];
+        const nullCall = calls.find(([, payload]) => payload === null);
+        const contextCall = calls.find(([, payload]) => payload !== null);
+        expect(nullCall?.[0]).toEqual(["xuid_discord_user_01"]);
+        expect(contextCall?.[0]).toEqual(["xuid_discord_user_03"]);
+        expect(contextCall?.[1]).toMatchObject({
+          title: "Test Server",
+          subtitle: "Queue #3",
+          teams: [
+            expect.objectContaining({
+              players: expect.arrayContaining([
+                expect.objectContaining({ discordId: "discord_user_03" }),
+              ]),
+            }),
+          ],
+        });
+      });
+
+      it("skips nudge when seriesContext is not set", async () => {
+        const substitutionRequest = getFakeNeatQueueData("substitution");
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());
+        vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
+        vi.spyOn(databaseService, "getDiscordAssociations").mockResolvedValue([]);
+        vi.spyOn(haloService, "getUsersByXuids").mockResolvedValue([]);
+        vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(new Map());
+        vi.spyOn(haloService, "getPlayersEsras").mockResolvedValue(new Map());
+        vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({
+          state: aFakeLiveTrackerStateWith({ status: "active" }),
+        });
+        vi.spyOn(liveTrackerService, "recordSubstitution").mockResolvedValue({
+          success: true,
+          substitution: { playerOutId: "discord_user_01", playerInId: "discord_user_03", teamIndex: 0 },
+        });
+        vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
+          aFakeGuildConfigRow({ NeatQueueInformerPlayerConnections: "N" }),
+        );
+
+        const { jobToComplete } = neatQueueService.handleRequest(substitutionRequest, neatQueueConfig);
+        await jobToComplete?.();
+
+        expect(nudgeTrackersSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("MATCH_COMPLETED nudge", () => {
+      it("nudges all player XUIDs with null payload on match completion", async () => {
+        const matchCompletedRequest = getFakeNeatQueueData("matchCompleted");
+        const playersAssociationData = {
+          discord_user_01: createSamplePlayerAssociationData("discord_user_01", "soundmanD", "SoundmanD"),
+          discord_user_02: createSamplePlayerAssociationData("discord_user_02", "discord_user_02", "User02"),
+        };
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(
+          aFakeNeatQueueStateWith({
+            playersAssociationData,
+            timeline: [{ timestamp: new Date().toISOString(), event: getFakeNeatQueueData("teamsCreated") }],
+          }),
+        );
+        vi.spyOn(env.APP_DATA, "delete").mockResolvedValue();
+        vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({
+          state: aFakeLiveTrackerStateWith({ status: "stopped" }),
+        });
+        vi.spyOn(haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+        vi.spyOn(haloService, "updateDiscordAssociations").mockResolvedValue();
+        vi.spyOn(discordService, "getTeamsFromQueueResult").mockResolvedValue(discordNeatQueueData);
+        vi.spyOn(discordService, "getUsers").mockResolvedValue([guildMember]);
+
+        const { jobToComplete } = neatQueueService.handleRequest(matchCompletedRequest, neatQueueConfig);
+        await jobToComplete?.();
+
+        expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
+        const [xuids, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], null];
+        expect(xuids).toHaveLength(2);
+        expect(xuids).toContain("xuid_discord_user_01");
+        expect(xuids).toContain("xuid_discord_user_02");
+        expect(payload).toBeNull();
+      });
+
+      it("nudges with empty array when no players have XUIDs", async () => {
+        const matchCompletedRequest = getFakeNeatQueueData("matchCompleted");
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());
+        vi.spyOn(env.APP_DATA, "delete").mockResolvedValue();
+        vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({
+          state: aFakeLiveTrackerStateWith({ status: "stopped" }),
+        });
+        vi.spyOn(haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+        vi.spyOn(haloService, "updateDiscordAssociations").mockResolvedValue();
+        vi.spyOn(discordService, "getTeamsFromQueueResult").mockResolvedValue(discordNeatQueueData);
+        vi.spyOn(discordService, "getUsers").mockResolvedValue([guildMember]);
+
+        const { jobToComplete } = neatQueueService.handleRequest(matchCompletedRequest, neatQueueConfig);
+        await jobToComplete?.();
+
+        expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
+        expect(nudgeTrackersSpy).toHaveBeenCalledWith([], null);
+      });
     });
   });
 });

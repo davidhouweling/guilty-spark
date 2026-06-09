@@ -10,6 +10,8 @@ import {
 import type { DatabaseService } from "../../database/database";
 import { IndividualTrackerService, MAX_TRACKERS_PER_USER } from "../individual-tracker";
 import { IdentityNotOwnedError, ProfileNotFoundError, TrackerLimitReachedError, TrackerNotFoundError } from "../errors";
+import { aFakeEnvWith } from "../../../base/fakes/env.fake";
+import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 
 describe("IndividualTrackerService", () => {
   let databaseService: DatabaseService;
@@ -17,7 +19,11 @@ describe("IndividualTrackerService", () => {
 
   beforeEach(() => {
     databaseService = aFakeDatabaseServiceWith();
-    service = new IndividualTrackerService({ databaseService });
+    service = new IndividualTrackerService({
+      env: aFakeEnvWith(),
+      logService: aFakeLogServiceWith(),
+      databaseService,
+    });
   });
 
   describe("getOrCreateProfile", () => {

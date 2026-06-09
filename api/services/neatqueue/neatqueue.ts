@@ -54,6 +54,8 @@ import type {
   FetchedPlayersData,
   PlayersEmbedData,
 } from "./types";
+import type { SeriesContextPayload, SeriesPlayer, SeriesTeam } from "../../durable-objects/individual-tracker/types";
+import type { IndividualTrackerService } from "../individual-tracker/individual-tracker";
 
 export interface NeatQueueServiceOpts {
   env: Env;
@@ -62,6 +64,7 @@ export interface NeatQueueServiceOpts {
   discordService: DiscordService;
   haloService: HaloService;
   liveTrackerService: LiveTrackerService;
+  individualTrackerService: IndividualTrackerService;
 }
 
 export class NeatQueueService {
@@ -71,6 +74,7 @@ export class NeatQueueService {
   private readonly discordService: DiscordService;
   private readonly haloService: HaloService;
   private readonly liveTrackerService: LiveTrackerService;
+  private readonly individualTrackerService: IndividualTrackerService;
   private readonly locale = "en-US";
   private readonly queueStateCache = new Map<string, NeatQueueState>();
 
@@ -81,6 +85,7 @@ export class NeatQueueService {
     discordService,
     haloService,
     liveTrackerService,
+    individualTrackerService,
   }: NeatQueueServiceOpts) {
     this.env = env;
     this.logService = logService;
@@ -88,6 +93,7 @@ export class NeatQueueService {
     this.discordService = discordService;
     this.haloService = haloService;
     this.liveTrackerService = liveTrackerService;
+    this.individualTrackerService = individualTrackerService;
   }
 
   hashAuthorizationKey(key: string, guildId: string): string {
@@ -554,87 +560,83 @@ export class NeatQueueService {
       const guildConfig = await databaseService.getGuildConfig(request.guild);
       if (guildConfig.NeatQueueInformerLiveTracking !== "Y") {
         logService.debug("Live tracking is disabled for this guild, skipping auto-start");
-        return;
-      }
-
-      const [guild, channel] = await Promise.all([
-        discordService.getGuild(request.guild),
-        discordService.getChannel(request.channel),
-      ]);
-
-      const appInGuild = await discordService.getGuildMember(request.guild, this.env.DISCORD_APP_ID);
-      const permissions = discordService.hasPermissions(guild, channel, appInGuild, [
-        PermissionFlagsBits.ViewChannel,
-        PermissionFlagsBits.SendMessages,
-      ]);
-      if (!permissions.hasAll) {
-        logService.warn(
-          "Insufficient permissions to start live tracking, disabling auto-start",
-          new Map([
-            ["guildId", request.guild],
-            ["channelId", request.channel],
-            ["missingPermissions", permissions.missing.join(", ")],
-          ]),
-        );
-
-        await this.databaseService.updateGuildConfig(request.guild, {
-          NeatQueueInformerLiveTracking: "N",
-        });
-        return;
-      }
-
-      const playerIds = request.teams.flatMap((players) => players.map((p) => p.id));
-      const players = await discordService.getUsers(request.guild, playerIds);
-      const teams = request.teams.map((team, teamIndex) => ({
-        name: team[0]?.team_name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
-        playerIds: team.map((player) => player.id),
-      }));
-
-      // Start the live tracker using the service
-      const context = {
-        userId: this.env.DISCORD_APP_ID, // Use the bot's ID for auto-started trackers
-        guildId: request.guild,
-        channelId: request.channel,
-        queueNumber: request.match_number,
-      };
-
-      const playersRecord = players.reduce<Record<string, APIGuildMember>>((acc, player) => {
-        acc[player.user.id] = player;
-        return acc;
-      }, {});
-
-      // Fetch player association data from queue state
-      const queueState = await this.getQueueState(request.guild, request.match_number);
-
-      const result = await this.liveTrackerService.startTracker({
-        userId: context.userId,
-        guildId: context.guildId,
-        channelId: context.channelId,
-        queueNumber: context.queueNumber,
-        players: playersRecord,
-        teams,
-        queueStartTime: new Date().toISOString(),
-        playersAssociationData: queueState.playersAssociationData,
-      });
-
-      if (isSuccessResponse(result)) {
-        logService.info(
-          `Auto-started live tracker for queue ${request.match_number.toString()}`,
-          new Map([
-            ["guildId", request.guild],
-            ["channelId", request.channel],
-            ["queueNumber", result.state.queueNumber.toString()],
-          ]),
-        );
       } else {
-        logService.warn(
-          `Failed to start live tracker for queue ${request.match_number.toString()}`,
-          new Map([
-            ["guildId", request.guild],
-            ["channelId", request.channel],
-            ["queueNumber", context.queueNumber.toString()],
-          ]),
-        );
+        const [guild, channel] = await Promise.all([
+          discordService.getGuild(request.guild),
+          discordService.getChannel(request.channel),
+        ]);
+
+        const appInGuild = await discordService.getGuildMember(request.guild, this.env.DISCORD_APP_ID);
+        const permissions = discordService.hasPermissions(guild, channel, appInGuild, [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+        ]);
+        if (!permissions.hasAll) {
+          logService.warn(
+            "Insufficient permissions to start live tracking, disabling auto-start",
+            new Map([
+              ["guildId", request.guild],
+              ["channelId", request.channel],
+              ["missingPermissions", permissions.missing.join(", ")],
+            ]),
+          );
+
+          await this.databaseService.updateGuildConfig(request.guild, {
+            NeatQueueInformerLiveTracking: "N",
+          });
+        } else {
+          const playerIds = request.teams.flatMap((players) => players.map((p) => p.id));
+          const players = await discordService.getUsers(request.guild, playerIds);
+          const teams = request.teams.map((team, teamIndex) => ({
+            name: team[0]?.team_name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
+            playerIds: team.map((player) => player.id),
+          }));
+
+          const context = {
+            userId: this.env.DISCORD_APP_ID,
+            guildId: request.guild,
+            channelId: request.channel,
+            queueNumber: request.match_number,
+          };
+
+          const playersRecord = players.reduce<Record<string, APIGuildMember>>((acc, player) => {
+            acc[player.user.id] = player;
+            return acc;
+          }, {});
+
+          const queueState = await this.getQueueState(request.guild, request.match_number);
+
+          const result = await this.liveTrackerService.startTracker({
+            userId: context.userId,
+            guildId: context.guildId,
+            channelId: context.channelId,
+            queueNumber: context.queueNumber,
+            players: playersRecord,
+            teams,
+            queueStartTime: new Date().toISOString(),
+            playersAssociationData: queueState.playersAssociationData,
+          });
+
+          if (isSuccessResponse(result)) {
+            logService.info(
+              `Auto-started live tracker for queue ${request.match_number.toString()}`,
+              new Map([
+                ["guildId", request.guild],
+                ["channelId", request.channel],
+                ["queueNumber", result.state.queueNumber.toString()],
+              ]),
+            );
+          } else {
+            logService.warn(
+              `Failed to start live tracker for queue ${request.match_number.toString()}`,
+              new Map([
+                ["guildId", request.guild],
+                ["channelId", request.channel],
+                ["queueNumber", context.queueNumber.toString()],
+              ]),
+            );
+          }
+        }
       }
     } catch (error) {
       logService.warn(
@@ -647,6 +649,39 @@ export class NeatQueueService {
         ]),
       );
       // Don't throw - this is a nice-to-have feature, shouldn't break the main flow
+    }
+
+    try {
+      const [guild, queueState] = await Promise.all([
+        discordService.getGuild(request.guild),
+        this.getQueueState(request.guild, request.match_number),
+      ]);
+      const guildIconUrl = discordService.getGuildIconUrl(guild.id, guild.icon ?? null);
+      const seriesTeams: SeriesTeam[] = request.teams.map((team, teamIndex) => ({
+        name: team[0]?.team_name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
+        players: team.map((player) =>
+          this.buildSeriesPlayer(queueState.playersAssociationData[player.id], player.id, player.name),
+        ),
+      }));
+      const seriesContext: SeriesContextPayload = {
+        title: guild.name,
+        subtitle: `Queue #${request.match_number.toString()}`,
+        guildIconUrl,
+        teams: seriesTeams,
+      };
+      queueState.seriesContext = seriesContext;
+      this.setQueueState(request.guild, request.match_number, queueState);
+      const allPlayerXuids = this.extractXuids(queueState.playersAssociationData);
+      await this.individualTrackerService.nudgeTrackers(allPlayerXuids, seriesContext);
+    } catch (error) {
+      logService.warn(
+        "Failed to nudge individual trackers for queue start",
+        new Map([
+          ["guildId", request.guild],
+          ["queueNumber", request.match_number.toString()],
+          ["error", String(error)],
+        ]),
+      );
     }
   }
 
@@ -712,6 +747,29 @@ export class NeatQueueService {
             ["playerIn", substitutionResult.substitution.playerInId],
           ]),
         );
+      }
+
+      if (state.seriesContext != null) {
+        const subOutXuid = state.playersAssociationData[request.player_subbed_out.id]?.xboxId ?? null;
+        const subInAssoc = associationData[request.player_subbed_in.id];
+        const updatedTeams = state.seriesContext.teams.map((team) => ({
+          ...team,
+          players: team.players.map((player) =>
+            player.discordId === request.player_subbed_out.id
+              ? this.buildSeriesPlayer(subInAssoc, request.player_subbed_in.id, request.player_subbed_in.name)
+              : player,
+          ),
+        }));
+        const updatedContext: SeriesContextPayload = { ...state.seriesContext, teams: updatedTeams };
+        state.seriesContext = updatedContext;
+        this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
+        const subInXuid = subInAssoc?.xboxId ?? null;
+        await Promise.all([
+          subOutXuid != null ? this.individualTrackerService.nudgeTrackers([subOutXuid], null) : Promise.resolve(),
+          subInXuid != null
+            ? this.individualTrackerService.nudgeTrackers([subInXuid], updatedContext)
+            : Promise.resolve(),
+        ]);
       }
     } catch (error) {
       logService.warn(
@@ -961,7 +1019,20 @@ export class NeatQueueService {
       await this.handlePostSeriesData(neatQueueConfig.PostSeriesMode, opts);
     }
 
+    const completedQueueState = await this.getQueueState(neatQueueConfig.GuildId, request.match_number);
+    const allPlayerXuids = this.extractXuids(completedQueueState.playersAssociationData);
+
     await Promise.all([
+      this.individualTrackerService.nudgeTrackers(allPlayerXuids, null).catch((error: unknown) => {
+        this.logService.warn(
+          "Failed to nudge individual trackers for match completion",
+          new Map([
+            ["guildId", neatQueueConfig.GuildId],
+            ["queueNumber", request.match_number.toString()],
+            ["error", String(error)],
+          ]),
+        );
+      }),
       this.stopLiveTrackingIfActive(request, neatQueueConfig),
       this.clearTimeline(request, neatQueueConfig),
       this.deletePlayersMessageId(request, neatQueueConfig),
@@ -1011,6 +1082,25 @@ export class NeatQueueService {
       default:
         throw new UnreachableError(mode);
     }
+  }
+
+  private buildSeriesPlayer(
+    assoc: PlayerAssociationData | undefined,
+    fallbackId: string,
+    fallbackName: string,
+  ): SeriesPlayer {
+    return {
+      discordId: assoc?.discordId ?? fallbackId,
+      discordName: assoc?.discordName ?? fallbackName,
+      gamertag: assoc?.gamertag ?? null,
+      xboxId: assoc?.xboxId ?? null,
+    };
+  }
+
+  private extractXuids(data: Record<string, PlayerAssociationData>): string[] {
+    return Object.values(data)
+      .map((d) => d.xboxId)
+      .filter((xuid): xuid is string => xuid != null);
   }
 
   private getQueueStateKey(guildId: string, queueNumber: number): string {
