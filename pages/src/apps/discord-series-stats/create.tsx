@@ -220,7 +220,7 @@ export function DiscordSeriesStatsApp({ data }: DiscordSeriesStatsAppProps): Rea
         </Container>
 
         {renderData.matches.map((match, index) => {
-          const matchStats = allMatchStats.find((item) => item.matchId === match.matchId);
+          const matchStats = allMatchStats[index];
 
           return (
             <Container
