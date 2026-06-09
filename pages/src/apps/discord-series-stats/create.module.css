@@ -1,0 +1,23 @@
+.viewModeToggleButton {
+  min-width: 210px;
+}
+
+.seriesOverviewWrap {
+  overflow-x: auto;
+}
+
+.seriesScoreLink {
+  min-width: 0;
+}
+
+.teamCard {
+  min-width: 0;
+}
+
+.playerList {
+  width: 100%;
+}
+
+.playerList li {
+  overflow-wrap: anywhere;
+}

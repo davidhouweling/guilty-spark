@@ -12,12 +12,16 @@ import { SeriesStats } from "../../components/stats/series-stats";
 import type { MatchStatsData } from "../../components/stats/types";
 import { Container } from "../../components/container/container";
 import { Alert } from "../../components/alert/alert";
-import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault } from "../../components/team-colors/team-colors";
+import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault, type TeamColor } from "../../components/team-colors/team-colors";
 import styles from "../../components/live-tracker/live-tracker.module.css";
+import localStyles from "./create.module.css";
 
 interface DiscordSeriesStatsAppProps {
   readonly data: DiscordSeriesStatsResolved;
 }
+
+type DiscordSeriesViewMode = "standard" | "wide";
+const WIN_OUTCOME = 2;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value != null;
@@ -71,12 +75,27 @@ function calculateSeriesMetadata(
   };
 }
 
+function getWinningTeamColor(rawMatch: unknown, teamColors: TeamColor[]): TeamColor | null {
+  if (!isMatchStats(rawMatch)) {
+    return null;
+  }
+
+  const winningTeamIndex = rawMatch.Teams.findIndex((team) => team.Outcome === WIN_OUTCOME);
+  if (winningTeamIndex < 0) {
+    return null;
+  }
+
+  return getTeamColorOrDefault(teamColors[winningTeamIndex]?.id, winningTeamIndex);
+}
+
 export function DiscordSeriesStatsApp({ data }: DiscordSeriesStatsAppProps): ReactElement {
   const { renderData } = data;
+  const [viewMode, setViewMode] = React.useState<DiscordSeriesViewMode>("standard");
   const teamColors = [
     getTeamColorOrDefault(DEFAULT_TEAM_COLORS[0], 0),
     getTeamColorOrDefault(DEFAULT_TEAM_COLORS[1], 1),
   ];
+  const contentWidthClass = viewMode === "wide" ? styles.wide : undefined;
 
   const allMatchStats = React.useMemo((): { matchId: string; data: MatchStatsData[] | null }[] => {
     return renderData.matches.map((match) => {
@@ -131,59 +150,92 @@ export function DiscordSeriesStatsApp({ data }: DiscordSeriesStatsAppProps): Rea
             <h1 className={styles.headerTitle}>{renderData.title}</h1>
             <div className={styles.headerSubtitle}>{renderData.subtitle}</div>
           </div>
+          <div className={styles.headerRight}>
+            <button
+              type="button"
+              aria-pressed={viewMode === "wide"}
+              className={classNames(styles.detailsButton, localStyles.viewModeToggleButton)}
+              onClick={(): void => {
+                setViewMode((current) => (current === "standard" ? "wide" : "standard"));
+              }}
+            >
+              {viewMode === "standard" ? "Switch to wide view" : "Switch to standard view"}
+            </button>
+          </div>
         </div>
       </Container>
 
-      <Container mobileDown="0" className={classNames(styles.dataContainer, styles.contentContainer, styles.standard)}>
-        <Container className={classNames(styles.contentContainer, styles.standard)}>
+      <Container
+        mobileDown="0"
+        className={classNames(styles.dataContainer, styles.contentContainer, contentWidthClass)}
+      >
+        <Container className={classNames(styles.contentContainer, contentWidthClass)}>
           <h2 className={styles.sectionTitle}>Series overview</h2>
-          <div className={styles.seriesOverview}>
-            <section className={styles.seriesScores}>
-              <h3 className={styles.seriesScoresHeader} aria-label="Series scores">
-                {renderData.seriesScore}
-              </h3>
-              <ul className={styles.seriesScoresList}>
-                {renderData.matches.map((match) => {
-                  return (
-                    <li
-                      key={match.matchId}
-                      className={styles.seriesScore}
-                      style={{ "--series-score-bg": `url(${match.gameMapThumbnailUrl})` } as CSSProperties}
-                    >
-                      <a href={`#${match.matchId}`} className={styles.seriesScoreLink}>
-                        <img
-                          src={gameModeIconSrc(match.gameVariantCategory)}
-                          alt={match.gameType}
-                          className={styles.gameTypeIcon}
-                        />
-                        {match.gameScore}
-                        {match.gameSubScore != null ? (
-                          <span className={styles.seriesSubScore}>({match.gameSubScore})</span>
-                        ) : null}
-                        <span className={styles.gameTypeAndMap}>{match.gameMap}</span>
-                      </a>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
+          <div className={localStyles.seriesOverviewWrap}>
+            <div className={styles.seriesOverview}>
+              <section className={styles.seriesScores}>
+                <h3 className={styles.seriesScoresHeader} aria-label="Series scores">
+                  {renderData.seriesScore}
+                </h3>
+                <ul className={styles.seriesScoresList}>
+                  {renderData.matches.map((match) => {
+                    const teamColor = getWinningTeamColor(match.rawMatch, teamColors);
 
-            {renderData.teams.map((team) => {
-              return (
-                <section key={team.name} className={styles.teamCard}>
-                  <h3 className={styles.teamName}>{team.name}</h3>
-                  <ul className={styles.playerList}>
-                    {team.players.map((player, playerIndex) => (
-                      <li key={`${team.name}:${player}:${playerIndex.toString()}`}>{player}</li>
-                    ))}
-                  </ul>
-                </section>
-              );
-            })}
+                    return (
+                      <li
+                        key={match.matchId}
+                        className={styles.seriesScore}
+                        style={
+                          {
+                            "--series-score-bg": `url(${match.gameMapThumbnailUrl})`,
+                            "--team-color": teamColor?.hex ?? "transparent",
+                          } as CSSProperties
+                        }
+                      >
+                        <a
+                          href={`#${match.matchId}`}
+                          className={classNames(styles.seriesScoreLink, localStyles.seriesScoreLink)}
+                        >
+                          <img
+                            src={gameModeIconSrc(match.gameVariantCategory)}
+                            alt={match.gameType}
+                            className={styles.gameTypeIcon}
+                          />
+                          {match.gameScore}
+                          {match.gameSubScore != null ? (
+                            <span className={styles.seriesSubScore}>({match.gameSubScore})</span>
+                          ) : null}
+                          <span className={styles.gameTypeAndMap}>{match.gameMap}</span>
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+
+              {renderData.teams.map((team, teamIndex) => {
+                const teamColor = teamIndex < 2 ? teamColors[teamIndex] : getTeamColorOrDefault(undefined, teamIndex);
+
+                return (
+                  <section
+                    key={team.name}
+                    className={classNames(styles.teamCard, localStyles.teamCard)}
+                    style={{ "--team-color": teamColor.hex } as CSSProperties}
+                  >
+                    <h3 className={styles.teamName}>{team.name}</h3>
+                    <ul className={classNames(styles.playerList, localStyles.playerList)}>
+                      {team.players.map((player, playerIndex) => (
+                        <li key={`${team.name}:${player}:${playerIndex.toString()}`}>{player}</li>
+                      ))}
+                    </ul>
+                  </section>
+                );
+              })}
+            </div>
           </div>
         </Container>
         {seriesStats != null && (
-          <Container mobileDown="0" className={classNames(styles.contentContainer, styles.standard)}>
+          <Container mobileDown="0" className={classNames(styles.contentContainer, contentWidthClass)}>
             <SeriesStats
               teamData={seriesStats.teamData}
               playerData={seriesStats.playerData}
@@ -194,7 +246,7 @@ export function DiscordSeriesStatsApp({ data }: DiscordSeriesStatsAppProps): Rea
           </Container>
         )}
 
-        <Container className={classNames(styles.contentContainer, styles.standard)}>
+        <Container className={classNames(styles.contentContainer, contentWidthClass)}>
           <h2 className={styles.sectionTitle}>Matches</h2>
         </Container>
 
@@ -205,7 +257,7 @@ export function DiscordSeriesStatsApp({ data }: DiscordSeriesStatsAppProps): Rea
             <Container
               key={match.matchId}
               mobileDown="0"
-              className={classNames(styles.contentContainer, styles.standard)}
+              className={classNames(styles.contentContainer, contentWidthClass)}
             >
               {matchStats.data != null ? (
                 <MatchStatsView

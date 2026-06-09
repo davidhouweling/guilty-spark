@@ -348,7 +348,7 @@ export class NeatQueueService {
         const thread = await discordService.startThreadFromMessage(
           channelId,
           messageId,
-          `Queue #${queue.toString()} series stats (${haloService.getSeriesScore(series, "en-US")})`,
+          `Queue #${queue.toString()} series stats (${haloService.getSeriesScore(series, "en-US", true)})`,
         );
         threadId = thread.id;
       }
@@ -1514,7 +1514,7 @@ export class NeatQueueService {
       thread = await discordService.startThreadFromMessage(
         channelId,
         messageId,
-        `Queue #${request.match_number.toString()} series stats (${this.haloService.getSeriesScore(series, "en-US")})`,
+        `Queue #${request.match_number.toString()} series stats (${this.haloService.getSeriesScore(series, "en-US", true)})`,
       );
       useFallback = false;
 
@@ -1644,7 +1644,7 @@ export class NeatQueueService {
       const thread = await discordService.startThreadFromMessage(
         channelId,
         createdMessage.id,
-        `Queue #${request.match_number.toString()} series stats (${this.haloService.getSeriesScore(series, "en-US")})`,
+        `Queue #${request.match_number.toString()} series stats (${this.haloService.getSeriesScore(series, "en-US", true)})`,
       );
 
       channelId = thread.id;
