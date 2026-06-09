@@ -1411,9 +1411,7 @@ describe("IndividualTrackerDO", () => {
     it("stores null subtitle when subtitleOverride is null", async () => {
       storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
 
-      await individualTrackerDO.fetch(
-        startSeriesRequest({ titleOverride: null, subtitleOverride: null, teams: [] }),
-      );
+      await individualTrackerDO.fetch(startSeriesRequest({ titleOverride: null, subtitleOverride: null, teams: [] }));
 
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries?.subtitle).toBeNull();
