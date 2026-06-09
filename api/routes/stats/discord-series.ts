@@ -182,6 +182,7 @@ async function tryBuildRenderData({
       return {
         matchId: match.MatchId,
         gameTypeAndMap,
+        gameVariantCategory: match.MatchInfo.GameVariantCategory,
         gameType,
         gameMap,
         gameMapThumbnailUrl: mapThumbnailUrl ?? "data:,",

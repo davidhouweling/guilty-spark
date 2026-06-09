@@ -70,6 +70,7 @@ function aFakeRenderDataWith(matchIds: string[]): DiscordSeriesStatsResolved["re
     matches: matchIds.map((matchId, index) => ({
       matchId,
       gameTypeAndMap: "Slayer: Live Fire",
+      gameVariantCategory: 0,
       gameType: "Slayer",
       gameMap: "Live Fire",
       gameMapThumbnailUrl: "data:,",

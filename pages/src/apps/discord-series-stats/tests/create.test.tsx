@@ -27,6 +27,7 @@ function aFakeResolvedDataWith(overrides: Partial<DiscordSeriesStatsResolved> = 
         {
           matchId: "match-1",
           gameTypeAndMap: "Slayer: Live Fire",
+          gameVariantCategory: 0,
           gameType: "Slayer",
           gameMap: "Live Fire",
           gameMapThumbnailUrl: "data:,",

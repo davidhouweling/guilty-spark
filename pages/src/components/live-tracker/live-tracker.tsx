@@ -2,13 +2,6 @@ import React, { useMemo, useState, useEffect, useCallback } from "react";
 import ReactTimeAgo from "react-time-ago";
 import classNames from "classnames";
 import { compareAsc } from "date-fns";
-import type { ImageMetadata } from "astro";
-import assaultPng from "../../assets/game-modes/assault.png";
-import captureTheFlagPng from "../../assets/game-modes/capture-the-flag.png";
-import strongholdsPng from "../../assets/game-modes/strongholds.png";
-import oddballPng from "../../assets/game-modes/oddball.png";
-import slayerPng from "../../assets/game-modes/slayer.png";
-import kingOfTheHillPng from "../../assets/game-modes/king-of-the-hill.png";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
 import { Container } from "../container/container";
@@ -17,6 +10,7 @@ import type { ViewMode } from "../view-mode/view-mode-selector";
 import { PlayerPreSeriesInfo } from "../player-pre-series-info/player-pre-series-info";
 import { PlayerName } from "../player-name/player-name";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault } from "../team-colors/team-colors";
+import { gameModeIconSrc as gameModeIconFromVariantCategory } from "../individual-tracker/game-mode-icon";
 import { SettingsTrigger } from "./settings/settings-trigger";
 import { SettingsDialog } from "./settings/settings-dialog";
 import { useStreamerSettings } from "./settings/use-streamer-settings";
@@ -37,31 +31,6 @@ function hasState(state: LiveTrackerStateRenderModel | null): state is LiveTrack
   return state !== null;
 }
 
-function gameModeIconUrl(gameMode: string): ImageMetadata {
-  // todo: resolve the rest of the game modes
-  switch (gameMode) {
-    case "Capture the Flag": {
-      return captureTheFlagPng;
-    }
-    case "Strongholds": {
-      return strongholdsPng;
-    }
-    case "Oddball": {
-      return oddballPng;
-    }
-    case "King of the Hill": {
-      return kingOfTheHillPng;
-    }
-    case "Neutral Bomb": {
-      return assaultPng;
-    }
-    case "Slayer":
-    default: {
-      return slayerPng;
-    }
-  }
-}
-
 function emojifySeriesScore(seriesScore: string): string {
   const teamScores = seriesScore.split(":").map((s) => s.trim());
   if (teamScores.length !== 2) {
@@ -70,8 +39,8 @@ function emojifySeriesScore(seriesScore: string): string {
   return `🦅${teamScores[0]}:${teamScores[1]}🐍`;
 }
 
-function gameModeIconSrc(gameMode: string): string {
-  return gameModeIconUrl(gameMode).src;
+function gameModeIconSrc(_gameMode: string, gameVariantCategory?: number): string {
+  return gameModeIconFromVariantCategory(gameVariantCategory ?? 0);
 }
 
 export function LiveTrackerView(): React.ReactElement {
@@ -360,7 +329,10 @@ export function LiveTrackerView(): React.ReactElement {
                               >
                                 <a href={`#${match.matchId}`} className={styles.seriesScoreLink}>
                                   <img
-                                    src={gameModeIconUrl(match.gameType).src}
+                                    src={gameModeIconSrc(
+                                      match.gameType,
+                                      match.rawMatchStats?.MatchInfo.GameVariantCategory,
+                                    )}
                                     alt={match.gameType}
                                     className={styles.gameTypeIcon}
                                   />
@@ -472,7 +444,10 @@ export function LiveTrackerView(): React.ReactElement {
                             data={matchStats.data}
                             id={match.matchId}
                             backgroundImageUrl={match.gameMapThumbnailUrl}
-                            gameModeIconUrl={gameModeIconUrl(match.gameType).src}
+                            gameModeIconUrl={gameModeIconSrc(
+                              match.gameType,
+                              match.rawMatchStats?.MatchInfo.GameVariantCategory,
+                            )}
                             gameModeAlt={match.gameType}
                             matchNumber={matchIndex + 1}
                             gameTypeAndMap={match.gameTypeAndMap}

@@ -3,12 +3,7 @@ import type { CSSProperties, ReactElement } from "react";
 import type { MatchStats } from "halo-infinite-api";
 import classNames from "classnames";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
-import captureTheFlagPng from "../../assets/game-modes/capture-the-flag.png";
-import strongholdsPng from "../../assets/game-modes/strongholds.png";
-import oddballPng from "../../assets/game-modes/oddball.png";
-import slayerPng from "../../assets/game-modes/slayer.png";
-import kingOfTheHillPng from "../../assets/game-modes/king-of-the-hill.png";
-import assaultPng from "../../assets/game-modes/assault.png";
+import { gameModeIconSrc } from "../../components/individual-tracker/game-mode-icon";
 import { createMatchStatsPresenter } from "../../components/stats/create";
 import { SeriesTeamStatsPresenter } from "../../components/stats/series-team-stats-presenter";
 import { SeriesPlayerStatsPresenter } from "../../components/stats/series-player-stats-presenter";
@@ -45,30 +40,6 @@ function isMatchStats(value: unknown): value is MatchStats {
     typeof matchInfo.StartTime === "string" &&
     typeof matchInfo.EndTime === "string"
   );
-}
-
-function gameModeIconSrc(gameMode: string): string {
-  switch (gameMode) {
-    case "Capture the Flag": {
-      return captureTheFlagPng.src;
-    }
-    case "Strongholds": {
-      return strongholdsPng.src;
-    }
-    case "Oddball": {
-      return oddballPng.src;
-    }
-    case "King of the Hill": {
-      return kingOfTheHillPng.src;
-    }
-    case "Neutral Bomb": {
-      return assaultPng.src;
-    }
-    case "Slayer":
-    default: {
-      return slayerPng.src;
-    }
-  }
 }
 
 function calculateSeriesMetadata(
@@ -181,7 +152,7 @@ export function DiscordSeriesStatsApp({ data }: DiscordSeriesStatsAppProps): Rea
                     >
                       <a href={`#${match.matchId}`} className={styles.seriesScoreLink}>
                         <img
-                          src={gameModeIconSrc(match.gameType)}
+                          src={gameModeIconSrc(match.gameVariantCategory)}
                           alt={match.gameType}
                           className={styles.gameTypeIcon}
                         />
@@ -241,7 +212,7 @@ export function DiscordSeriesStatsApp({ data }: DiscordSeriesStatsAppProps): Rea
                   data={matchStats.data}
                   id={match.matchId}
                   backgroundImageUrl={match.gameMapThumbnailUrl}
-                  gameModeIconUrl={gameModeIconSrc(match.gameType)}
+                  gameModeIconUrl={gameModeIconSrc(match.gameVariantCategory)}
                   gameModeAlt={match.gameType}
                   matchNumber={index + 1}
                   gameTypeAndMap={match.gameTypeAndMap}

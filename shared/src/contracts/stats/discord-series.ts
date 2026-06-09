@@ -33,6 +33,7 @@ export const discordSeriesStatsResolvedSchema = z.object({
         z.object({
           matchId: z.string(),
           gameTypeAndMap: z.string(),
+          gameVariantCategory: z.number().int().nonnegative(),
           gameType: z.string(),
           gameMap: z.string(),
           gameMapThumbnailUrl: z.string(),
