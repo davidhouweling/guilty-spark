@@ -1842,14 +1842,14 @@ describe("Halo service", () => {
     it("returns default score for empty matches array", () => {
       const result = haloService.getSeriesScore([], "en-US");
 
-      expect(result).toBe("🦅 0:0 🐍");
+      expect(result).toBe("0:0");
     });
 
     it("calculates series score from single match", () => {
       const matches = [Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"))];
       const result = haloService.getSeriesScore(matches, "en-US");
 
-      expect(result).toBe("🦅 1:0 🐍");
+      expect(result).toBe("1:0");
     });
 
     it("calculates series score from multiple matches regardless of input order", () => {
@@ -1860,7 +1860,7 @@ describe("Halo service", () => {
       ];
       const result = haloService.getSeriesScore(matches, "en-US");
 
-      expect(result).toBe("🦅 2:1 🐍");
+      expect(result).toBe("2:1");
     });
 
     it("skips duplicate matches of same map and game type", () => {
@@ -1880,7 +1880,7 @@ describe("Halo service", () => {
       const result = haloService.getSeriesScore(matches, "en-US");
 
       // Should only count the first match (by time), skip the duplicate
-      expect(result).toBe("🦅 1:0 🐍");
+      expect(result).toBe("1:0");
     });
 
     it("counts separate matches of different maps or game types", () => {
@@ -1890,7 +1890,7 @@ describe("Halo service", () => {
       ];
       const result = haloService.getSeriesScore(matches, "en-US");
 
-      expect(result).toBe("🦅 2:0 🐍");
+      expect(result).toBe("2:0");
     });
 
     it("formats score with locale", () => {
@@ -1900,11 +1900,70 @@ describe("Halo service", () => {
       ];
       const result = haloService.getSeriesScore(matches, "de-DE");
 
-      expect(result).toBe("🦅 2:0 🐍");
+      expect(result).toBe("2:0");
     });
 
     it("handles more than 2 teams", () => {
       // Create a mock match with 3 teams where team 1 wins
+      const multiTeamMatch = {
+        ...Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+        Teams: [
+          {
+            ...Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")?.Teams[0]),
+            Outcome: MatchOutcome.Loss,
+          },
+          {
+            ...Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")?.Teams[1]),
+            Outcome: MatchOutcome.Win,
+          },
+          {
+            ...Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")?.Teams[0]),
+            Outcome: MatchOutcome.Loss,
+          },
+        ],
+      };
+
+      const result = haloService.getSeriesScore([multiTeamMatch], "en-US");
+
+      expect(result).toBe("0:1:0");
+    });
+  });
+
+  describe("getSeriesScore() with emoji parameter", () => {
+    it("returns score without emojis by default", () => {
+      const result = haloService.getSeriesScore([], "en-US");
+
+      expect(result).toBe("0:0");
+    });
+
+    it("returns score with emojis when includeEmojis is true", () => {
+      const result = haloService.getSeriesScore([], "en-US", true);
+
+      expect(result).toBe("🦅 0:0 🐍");
+    });
+
+    it("calculates series score from multiple matches without emoji wrappers by default", () => {
+      const matches = [
+        Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+        Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth")),
+      ];
+      const result = haloService.getSeriesScore(matches, "en-US");
+
+      expect(result).toBe("2:1");
+    });
+
+    it("calculates series score with emojis when includeEmojis is true", () => {
+      const matches = [
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+        Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth")),
+      ];
+      const result = haloService.getSeriesScore(matches, "en-US", true);
+
+      expect(result).toBe("🦅 2:0 🐍");
+    });
+
+    it("handles more than 2 teams without emojis", () => {
       const multiTeamMatch = {
         ...Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
         Teams: [
