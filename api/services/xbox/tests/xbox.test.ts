@@ -97,6 +97,13 @@ describe("Xbox Service", () => {
       await xboxService.maybeRefreshXstsToken();
 
       expect(authenticate).toHaveBeenCalled();
+      expect(authenticate).toHaveBeenCalledWith(
+        env.XBOX_USERNAME,
+        env.XBOX_PASSWORD,
+        {
+          XSTSRelyingParty: "https://prod.xsts.halowaypoint.com/",
+        },
+      );
     });
 
     it("does not refresh the token if it is not expired", async () => {
