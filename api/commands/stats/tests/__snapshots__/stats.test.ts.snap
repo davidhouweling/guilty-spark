@@ -211,6 +211,22 @@ exports[`StatsCommand > execute(): subcommand neatqueue > jobToComplete > calls 
 [
   "fake-token",
   {
+    "components": [
+      {
+        "components": [
+          {
+            "emoji": {
+              "name": "📈",
+            },
+            "label": "View stats in browser",
+            "style": 5,
+            "type": 2,
+            "url": "http://localhost:4321/stats/discord/fake-guild-id/777",
+          },
+        ],
+        "type": 1,
+      },
+    ],
     "embeds": [
       {
         "color": 3447003,

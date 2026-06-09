@@ -1,4 +1,5 @@
-import type { APIEmbed } from "discord-api-types/v10";
+import type { APIEmbed, APIMessageTopLevelComponent } from "discord-api-types/v10";
+import { ButtonStyle, ComponentType } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types";
 import { isBefore } from "date-fns";
@@ -20,6 +21,11 @@ export interface SeriesOverviewEmbedSubstitution {
   team: string;
 }
 
+export interface SeriesOverviewEmbedOutput {
+  embeds: APIEmbed[];
+  components: APIMessageTopLevelComponent[];
+}
+
 export class SeriesOverviewEmbed {
   private readonly discordService: DiscordService;
   private readonly haloService: HaloService;
@@ -33,6 +39,7 @@ export class SeriesOverviewEmbed {
     guildId,
     channelId,
     messageId,
+    pagesUrl,
     locale,
     queue,
     series,
@@ -43,13 +50,14 @@ export class SeriesOverviewEmbed {
     guildId: string;
     channelId: string;
     messageId: string;
+    pagesUrl?: string;
     locale: string;
     queue: number;
     series: MatchStats[];
     finalTeams: readonly TeamMapping[];
     substitutions: SeriesOverviewEmbedSubstitution[];
     hideTeamsDescription: boolean;
-  }): Promise<APIEmbed[]> {
+  }): Promise<SeriesOverviewEmbedOutput> {
     const titles = ["Game", "Duration", `Score${finalTeams.length === 2 ? " (🦅:🐍)" : ""}`];
     const tableData = [titles];
     const seriesMatches = [...series].sort((a, b) => (isBefore(a.MatchInfo.StartTime, b.MatchInfo.StartTime) ? -1 : 1));
@@ -94,6 +102,7 @@ export class SeriesOverviewEmbed {
     const endTime = this.discordService.getTimestamp(
       Preconditions.checkExists(seriesMatches[seriesMatches.length - 1]?.MatchInfo.EndTime),
     );
+    const internalStatsLink = pagesUrl != null ? `${pagesUrl}/stats/discord/${guildId}/${queue.toString()}` : null;
 
     const embeds: APIEmbed[] = [];
     const dataRows = tableData.slice(1); // All rows except titles
@@ -159,6 +168,29 @@ export class SeriesOverviewEmbed {
       embeds.push(embed);
     }
 
-    return embeds;
+    const components: APIMessageTopLevelComponent[] =
+      internalStatsLink != null
+        ? [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.Button,
+                  label: "View stats in browser",
+                  style: ButtonStyle.Link,
+                  emoji: {
+                    name: "📈",
+                  },
+                  url: internalStatsLink,
+                },
+              ],
+            },
+          ]
+        : [];
+
+    return {
+      embeds,
+      components,
+    };
   }
 }

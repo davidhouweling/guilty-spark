@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { MatchStats } from "halo-infinite-api";
+import { ButtonStyle, ComponentType } from "discord-api-types/v10";
 import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types";
 import * as haloDuration from "@guilty-spark/shared/halo/duration";
 import { SeriesOverviewEmbed } from "../series-overview-embed";
@@ -47,7 +48,7 @@ describe("SeriesOverviewEmbed", () => {
         },
       ];
 
-      const embeds = await seriesOverviewEmbed.getEmbed({
+      const output = await seriesOverviewEmbed.getEmbed({
         guildId: "guild123",
         channelId: "channel123",
         messageId: "message123",
@@ -59,9 +60,9 @@ describe("SeriesOverviewEmbed", () => {
         hideTeamsDescription: false,
       });
 
-      expect(embeds).toBeDefined();
-      expect(embeds.length).toBeGreaterThan(0);
-      const [firstEmbed] = embeds;
+      expect(output.embeds).toBeDefined();
+      expect(output.embeds.length).toBeGreaterThan(0);
+      const [firstEmbed] = output.embeds;
       expect(firstEmbed?.title).toContain("Series stats for queue #1");
       expect(firstEmbed?.fields).toBeDefined();
       expect(firstEmbed?.description).toContain("Team Alpha");
@@ -89,7 +90,7 @@ describe("SeriesOverviewEmbed", () => {
         },
       ];
 
-      const embeds = await seriesOverviewEmbed.getEmbed({
+      const output = await seriesOverviewEmbed.getEmbed({
         guildId: "guild123",
         channelId: "channel123",
         messageId: "message123",
@@ -101,9 +102,9 @@ describe("SeriesOverviewEmbed", () => {
         hideTeamsDescription: false,
       });
 
-      expect(embeds).toBeDefined();
-      expect(embeds.length).toBeGreaterThan(0);
-      const [firstEmbed] = embeds;
+      expect(output.embeds).toBeDefined();
+      expect(output.embeds.length).toBeGreaterThan(0);
+      const [firstEmbed] = output.embeds;
       expect(firstEmbed?.title).toContain("Series stats for queue #1");
       // The substitution should appear in the embed since it happened before the match
     });
@@ -120,7 +121,7 @@ describe("SeriesOverviewEmbed", () => {
         },
       ];
 
-      const embeds = await seriesOverviewEmbed.getEmbed({
+      const output = await seriesOverviewEmbed.getEmbed({
         guildId: "guild123",
         channelId: "channel123",
         messageId: "message123",
@@ -132,9 +133,9 @@ describe("SeriesOverviewEmbed", () => {
         hideTeamsDescription: true,
       });
 
-      expect(embeds).toBeDefined();
-      expect(embeds.length).toBeGreaterThan(0);
-      const [firstEmbed] = embeds;
+      expect(output.embeds).toBeDefined();
+      expect(output.embeds.length).toBeGreaterThan(0);
+      const [firstEmbed] = output.embeds;
       expect(firstEmbed?.description).not.toContain("Team Alpha");
       expect(firstEmbed?.description).not.toContain("Team Beta");
       expect(firstEmbed?.description).toContain("Start time:");
@@ -152,7 +153,7 @@ describe("SeriesOverviewEmbed", () => {
         },
       ];
 
-      const embeds = await seriesOverviewEmbed.getEmbed({
+      const output = await seriesOverviewEmbed.getEmbed({
         guildId: "guild123",
         channelId: "channel123",
         messageId: "message123",
@@ -164,9 +165,9 @@ describe("SeriesOverviewEmbed", () => {
         hideTeamsDescription: false,
       });
 
-      expect(embeds).toBeDefined();
-      expect(embeds.length).toBeGreaterThan(0);
-      const [firstEmbed] = embeds;
+      expect(output.embeds).toBeDefined();
+      expect(output.embeds.length).toBeGreaterThan(0);
+      const [firstEmbed] = output.embeds;
       expect(firstEmbed?.fields).toBeDefined();
       expect(firstEmbed?.fields?.length).toBeGreaterThan(0);
     });
@@ -187,7 +188,7 @@ describe("SeriesOverviewEmbed", () => {
       const getReadableDurationSpy = vi.spyOn(haloDuration, "getReadableDuration");
       const getMatchScoreSpy = vi.spyOn(haloService, "getMatchScore");
 
-      const embeds = await seriesOverviewEmbed.getEmbed({
+      const output = await seriesOverviewEmbed.getEmbed({
         guildId: "guild123",
         channelId: "channel123",
         messageId: "message123",
@@ -203,12 +204,57 @@ describe("SeriesOverviewEmbed", () => {
       expect(getReadableDurationSpy).toHaveBeenCalledWith(sampleMatchStats.MatchInfo.Duration, "en-US");
       expect(getMatchScoreSpy).toHaveBeenCalledWith(sampleMatchStats, "en-US");
 
-      expect(embeds.length).toBeGreaterThan(0);
-      const [firstEmbed] = embeds;
+      expect(output.embeds.length).toBeGreaterThan(0);
+      const [firstEmbed] = output.embeds;
       expect(firstEmbed?.fields).toBeDefined();
       expect(firstEmbed?.fields?.some((field) => field.name === "Game")).toBe(true);
       expect(firstEmbed?.fields?.some((field) => field.name === "Duration")).toBe(true);
       expect(firstEmbed?.fields?.some((field) => field.name === "Score (🦅:🐍)")).toBe(true);
+    });
+
+    it("includes internal web stats link when pagesUrl is provided", async () => {
+      const finalTeams: TeamMapping[] = [
+        {
+          name: "Team Alpha",
+          playerIds: ["user1", "user2"],
+        },
+        {
+          name: "Team Beta",
+          playerIds: ["user3", "user4"],
+        },
+      ];
+
+      const output = await seriesOverviewEmbed.getEmbed({
+        guildId: "guild123",
+        channelId: "channel123",
+        messageId: "message123",
+        pagesUrl: "https://guilty-spark.app",
+        locale: "en-US",
+        queue: 1,
+        series: [sampleMatchStats],
+        finalTeams,
+        substitutions: [],
+        hideTeamsDescription: false,
+      });
+
+      const [firstEmbed] = output.embeds;
+      expect(firstEmbed?.description).not.toContain("View web stats");
+      expect(output.components).toEqual([
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.Button,
+              label: "View stats in browser",
+              style: ButtonStyle.Link,
+              emoji: {
+                name: "📈",
+              },
+              url: "https://guilty-spark.app/stats/discord/guild123/1",
+            },
+          ],
+        },
+      ]);
     });
 
     it("splits into multiple embeds when data exceeds field character limits", async () => {
@@ -233,7 +279,7 @@ describe("SeriesOverviewEmbed", () => {
       // With 100 characters per game + markdown link, we need about 12 matches to exceed the limit
       const manyMatches = Array.from({ length: 15 }).fill(sampleMatchStats) as MatchStats[];
 
-      const embeds = await seriesOverviewEmbed.getEmbed({
+      const output = await seriesOverviewEmbed.getEmbed({
         guildId: "guild123",
         channelId: "channel123",
         messageId: "message123",
@@ -246,30 +292,30 @@ describe("SeriesOverviewEmbed", () => {
       });
 
       // Should have multiple embeds due to character limit
-      expect(embeds.length).toBeGreaterThan(1);
+      expect(output.embeds.length).toBeGreaterThan(1);
 
       // First embed should have title, description, and URL
-      const [firstEmbed] = embeds;
+      const [firstEmbed] = output.embeds;
       expect(firstEmbed?.title).toBeDefined();
       expect(firstEmbed?.description).toBeDefined();
       expect(firstEmbed?.url).toBeDefined();
       expect(firstEmbed?.color).toBeDefined();
 
       // Subsequent embeds should only have color, not title/description/URL
-      const [, secondEmbed] = embeds;
+      const [, secondEmbed] = output.embeds;
       expect(secondEmbed?.title).toBeUndefined();
       expect(secondEmbed?.description).toBeUndefined();
       expect(secondEmbed?.url).toBeUndefined();
       expect(secondEmbed?.color).toBeDefined();
 
       // All embeds should have fields
-      for (const embed of embeds) {
+      for (const embed of output.embeds) {
         expect(embed.fields).toBeDefined();
         expect(embed.fields?.length).toBe(3); // Game, Duration, Score
       }
 
       // Verify no field value exceeds 1024 characters
-      for (const embed of embeds) {
+      for (const embed of output.embeds) {
         for (const field of embed.fields ?? []) {
           expect(field.value.length).toBeLessThanOrEqual(1024);
         }

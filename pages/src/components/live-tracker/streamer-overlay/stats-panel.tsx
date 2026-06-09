@@ -21,7 +21,7 @@ interface StatsPanelContentProps {
   readonly selectedMatchStats: MatchStatsData[] | null;
   readonly selectedMatch: LiveTrackerMatchRenderModel | null;
   readonly teamColors: TeamColor[];
-  readonly gameModeIconUrl: (gameMode: string) => string;
+  readonly gameModeIconUrl: (gameMode: string, gameVariantCategory?: number) => string;
 }
 
 function StatsPanelContentComponent({
@@ -59,7 +59,10 @@ function StatsPanelContentComponent({
         data={selectedMatchStats}
         id={selectedMatch.matchId}
         backgroundImageUrl={selectedMatch.gameMapThumbnailUrl}
-        gameModeIconUrl={gameModeIconUrl(selectedMatch.gameType)}
+        gameModeIconUrl={gameModeIconUrl(
+          selectedMatch.gameType,
+          selectedMatch.rawMatchStats?.MatchInfo.GameVariantCategory,
+        )}
         gameModeAlt={selectedMatch.gameType}
         matchNumber={selectedTab + 1}
         gameTypeAndMap={selectedMatch.gameTypeAndMap}

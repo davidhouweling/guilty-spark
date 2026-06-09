@@ -18,6 +18,36 @@ export const discordSeriesStatsResolvedSchema = z.object({
   guildId: z.string(),
   queueNumber: z.number().int().positive(),
   matchIds: z.array(z.string()).min(1),
+  renderData: z.object({
+    title: z.string(),
+    subtitle: z.string(),
+    seriesScore: z.string(),
+    teams: z.array(
+      z.object({
+        name: z.string(),
+        players: z.array(z.string()),
+      }),
+    ),
+    matches: z
+      .array(
+        z.object({
+          matchId: z.string(),
+          gameTypeAndMap: z.string(),
+          gameVariantCategory: z.number().int().nonnegative(),
+          gameType: z.string(),
+          gameMap: z.string(),
+          gameMapThumbnailUrl: z.string(),
+          duration: z.string(),
+          gameScore: z.string(),
+          gameSubScore: z.string().nullable(),
+          startTime: z.string(),
+          endTime: z.string(),
+          playerXuidToGametag: z.record(z.string(), z.string()),
+          rawMatch: z.unknown(),
+        }),
+      )
+      .min(1),
+  }),
 });
 export type DiscordSeriesStatsResolved = z.infer<typeof discordSeriesStatsResolvedSchema>;
 

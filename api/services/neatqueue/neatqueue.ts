@@ -3,7 +3,6 @@ import { inspect } from "util";
 import type { MatchStats, GameVariantCategory } from "halo-infinite-api";
 import type {
   RESTPostAPIChannelThreadsResult,
-  APIEmbed,
   APIMessage,
   RESTPostAPIChannelMessageJSONBody,
   APIGuildMember,
@@ -21,7 +20,10 @@ import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_con
 import { NEAT_QUEUE_BOT_USER_ID, type DiscordService } from "../discord/discord";
 import type { HaloService, MatchPlayer } from "../halo/halo";
 import type { LiveTrackerService } from "../live-tracker/live-tracker";
-import type { SeriesOverviewEmbedSubstitution } from "../../embeds/stats/series-overview-embed";
+import type {
+  SeriesOverviewEmbedSubstitution,
+  SeriesOverviewEmbedOutput,
+} from "../../embeds/stats/series-overview-embed";
 import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed";
 import { SeriesTeamsEmbed } from "../../embeds/stats/series-teams-embed";
 import { SeriesPlayersEmbed } from "../../embeds/stats/series-players-embed";
@@ -333,8 +335,8 @@ export class NeatQueueService {
       let threadId = channelId;
       const data: RESTPostAPIChannelMessageJSONBody = {
         content: "",
-        embeds: seriesOverviewEmbed,
-        components: [],
+        embeds: seriesOverviewEmbed.embeds,
+        components: seriesOverviewEmbed.components,
       };
       if (message != null) {
         await discordService.editMessage(channelId, message.id, data);
@@ -1528,7 +1530,8 @@ export class NeatQueueService {
         substitutions,
       });
       await discordService.createMessage(thread.id, {
-        embeds: seriesOverviewEmbed,
+        embeds: seriesOverviewEmbed.embeds,
+        components: seriesOverviewEmbed.components,
       });
 
       await this.postSeriesDetailsToChannel(thread.id, request.guild, series);
@@ -1634,7 +1637,8 @@ export class NeatQueueService {
       });
 
       const createdMessage = await discordService.createMessage(channelId, {
-        embeds: seriesOverviewEmbed,
+        embeds: seriesOverviewEmbed.embeds,
+        components: seriesOverviewEmbed.components,
       });
 
       const thread = await discordService.startThreadFromMessage(
@@ -1779,13 +1783,14 @@ export class NeatQueueService {
     series: MatchStats[];
     finalTeams: TeamMapping[];
     substitutions: SeriesOverviewEmbedSubstitution[];
-  }): Promise<APIEmbed[]> {
+  }): Promise<SeriesOverviewEmbedOutput> {
     const { discordService, haloService } = this;
     const seriesOverviewEmbed = new SeriesOverviewEmbed({ discordService, haloService });
     return await seriesOverviewEmbed.getEmbed({
       guildId,
       channelId,
       messageId,
+      pagesUrl: this.env.PAGES_URL,
       locale: this.locale,
       queue,
       series,

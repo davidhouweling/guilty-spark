@@ -26,6 +26,7 @@ import { NEAT_QUEUE_BOT_USER_ID, type QueueData } from "../../services/discord/d
 import type { BaseMatchEmbed } from "../../embeds/stats/base-match-embed";
 import { SeriesPlayersEmbed } from "../../embeds/stats/series-players-embed";
 import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed";
+import type { SeriesOverviewEmbedOutput } from "../../embeds/stats/series-overview-embed";
 import { SeriesTeamsEmbed } from "../../embeds/stats/series-teams-embed";
 import type { GuildConfigRow } from "../../services/database/types/guild_config";
 import { StatsReturnType } from "../../services/database/types/guild_config";
@@ -238,7 +239,8 @@ export class StatsCommand extends BaseCommand {
       });
 
       await discordService.updateDeferredReply(interaction.token, {
-        embeds: seriesEmbed,
+        embeds: seriesEmbed.embeds,
+        components: seriesEmbed.components,
       });
 
       const message = await discordService.getMessageFromInteractionToken(interaction.token);
@@ -356,7 +358,8 @@ export class StatsCommand extends BaseCommand {
         });
 
         await discordService.updateDeferredReply(interaction.token, {
-          embeds: seriesEmbed,
+          embeds: seriesEmbed.embeds,
+          components: seriesEmbed.components,
         });
 
         await this.postSeriesEmbedsToThread(threadChannelId, series, guildConfig, locale);
@@ -628,13 +631,14 @@ export class StatsCommand extends BaseCommand {
     locale: string;
     queueData: QueueData;
     series: MatchStats[];
-  }): Promise<APIEmbed[]> {
+  }): Promise<SeriesOverviewEmbedOutput> {
     const { discordService, haloService } = this.services;
     const seriesOverview = new SeriesOverviewEmbed({ discordService, haloService });
     const seriesEmbed = await seriesOverview.getEmbed({
       guildId,
       channelId,
       messageId: queueData.message.id,
+      pagesUrl: this.env.PAGES_URL,
       locale,
       queue: queueData.queue,
       series,

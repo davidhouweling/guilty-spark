@@ -5,6 +5,22 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
   [
     "other-channel-id",
     {
+      "components": [
+        {
+          "components": [
+            {
+              "emoji": {
+                "name": "📈",
+              },
+              "label": "View stats in browser",
+              "style": 5,
+              "type": 2,
+              "url": "http://localhost:4321/stats/discord/guild-id/2",
+            },
+          ],
+          "type": 1,
+        },
+      ],
       "embeds": [
         {
           "color": 3447003,
@@ -646,6 +662,22 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
   [
     "other-channel-id",
     {
+      "components": [
+        {
+          "components": [
+            {
+              "emoji": {
+                "name": "📈",
+              },
+              "label": "View stats in browser",
+              "style": 5,
+              "type": 2,
+              "url": "http://localhost:4321/stats/discord/guild-id/2",
+            },
+          ],
+          "type": 1,
+        },
+      ],
       "embeds": [
         {
           "color": 3447003,
@@ -971,6 +1003,22 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
   [
     "other-channel-id",
     {
+      "components": [
+        {
+          "components": [
+            {
+              "emoji": {
+                "name": "📈",
+              },
+              "label": "View stats in browser",
+              "style": 5,
+              "type": 2,
+              "url": "http://localhost:4321/stats/discord/guild-id/2",
+            },
+          ],
+          "type": 1,
+        },
+      ],
       "embeds": [
         {
           "color": 3447003,
@@ -1289,6 +1337,22 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
   [
     "results-channel-1",
     {
+      "components": [
+        {
+          "components": [
+            {
+              "emoji": {
+                "name": "📈",
+              },
+              "label": "View stats in browser",
+              "style": 5,
+              "type": 2,
+              "url": "http://localhost:4321/stats/discord/guild-id/2",
+            },
+          ],
+          "type": 1,
+        },
+      ],
       "embeds": [
         {
           "color": 3447003,
@@ -1930,6 +1994,22 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
   [
     "results-channel-1",
     {
+      "components": [
+        {
+          "components": [
+            {
+              "emoji": {
+                "name": "📈",
+              },
+              "label": "View stats in browser",
+              "style": 5,
+              "type": 2,
+              "url": "http://localhost:4321/stats/discord/guild-id/2",
+            },
+          ],
+          "type": 1,
+        },
+      ],
       "embeds": [
         {
           "color": 3447003,
@@ -2255,6 +2335,22 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
   [
     "results-channel-1",
     {
+      "components": [
+        {
+          "components": [
+            {
+              "emoji": {
+                "name": "📈",
+              },
+              "label": "View stats in browser",
+              "style": 5,
+              "type": 2,
+              "url": "http://localhost:4321/stats/discord/guild-id/2",
+            },
+          ],
+          "type": 1,
+        },
+      ],
       "embeds": [
         {
           "color": 3447003,
@@ -2573,6 +2669,22 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
   [
     "thread-id",
     {
+      "components": [
+        {
+          "components": [
+            {
+              "emoji": {
+                "name": "📈",
+              },
+              "label": "View stats in browser",
+              "style": 5,
+              "type": 2,
+              "url": "http://localhost:4321/stats/discord/guild-id/2",
+            },
+          ],
+          "type": 1,
+        },
+      ],
       "embeds": [
         {
           "color": 3447003,
@@ -3214,6 +3326,22 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
   [
     "thread-id",
     {
+      "components": [
+        {
+          "components": [
+            {
+              "emoji": {
+                "name": "📈",
+              },
+              "label": "View stats in browser",
+              "style": 5,
+              "type": 2,
+              "url": "http://localhost:4321/stats/discord/guild-id/2",
+            },
+          ],
+          "type": 1,
+        },
+      ],
       "embeds": [
         {
           "color": 3447003,
@@ -3475,6 +3603,22 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
 [
   "results-channel-1",
   {
+    "components": [
+      {
+        "components": [
+          {
+            "emoji": {
+              "name": "📈",
+            },
+            "label": "View stats in browser",
+            "style": 5,
+            "type": 2,
+            "url": "http://localhost:4321/stats/discord/guild-id/2",
+          },
+        ],
+        "type": 1,
+      },
+    ],
     "embeds": [
       {
         "color": 3447003,
@@ -3551,6 +3695,22 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
   [
     "thread-id",
     {
+      "components": [
+        {
+          "components": [
+            {
+              "emoji": {
+                "name": "📈",
+              },
+              "label": "View stats in browser",
+              "style": 5,
+              "type": 2,
+              "url": "http://localhost:4321/stats/discord/guild-id/2",
+            },
+          ],
+          "type": 1,
+        },
+      ],
       "embeds": [
         {
           "color": 3447003,
