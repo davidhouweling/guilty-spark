@@ -160,42 +160,41 @@ async function tryBuildRenderData({
   }
 
   const playerXuidToGametagMap = await haloService.getPlayerXuidsToGametags(matches);
-  const renderMatches: DiscordSeriesStatsResolved["renderData"]["matches"] = [];
+  const renderMatches = await Promise.all(
+    matches.map(async (match) => {
+      const [gameTypeAndMap, mapThumbnailUrl] = await Promise.all([
+        haloService.getGameTypeAndMap(match.MatchInfo),
+        haloService.getMapThumbnailUrl(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),
+      ]);
+      const { gameType, gameMap } = splitGameTypeAndMap(gameTypeAndMap);
+      const { gameScore, gameSubScore } = haloService.getMatchScore(match, "en-US");
 
-  for (const match of matches) {
-    const gameTypeAndMap = await haloService.getGameTypeAndMap(match.MatchInfo);
-    const { gameType, gameMap } = splitGameTypeAndMap(gameTypeAndMap);
-    const { gameScore, gameSubScore } = haloService.getMatchScore(match, "en-US");
-    const mapThumbnailUrl = await haloService.getMapThumbnailUrl(
-      match.MatchInfo.MapVariant.AssetId,
-      match.MatchInfo.MapVariant.VersionId,
-    );
+      const playerXuidToGametag: Record<string, string> = {};
+      for (const player of match.Players) {
+        if (!player.ParticipationInfo.PresentAtBeginning || player.PlayerType !== 1) {
+          continue;
+        }
 
-    const playerXuidToGametag: Record<string, string> = {};
-    for (const player of match.Players) {
-      if (!player.ParticipationInfo.PresentAtBeginning || player.PlayerType !== 1) {
-        continue;
+        const xuid = getPlayerXuid(player);
+        playerXuidToGametag[xuid] = playerXuidToGametagMap.get(xuid) ?? "*Unknown*";
       }
 
-      const xuid = getPlayerXuid(player);
-      playerXuidToGametag[xuid] = playerXuidToGametagMap.get(xuid) ?? "*Unknown*";
-    }
-
-    renderMatches.push({
-      matchId: match.MatchId,
-      gameTypeAndMap,
-      gameType,
-      gameMap,
-      gameMapThumbnailUrl: mapThumbnailUrl ?? "data:,",
-      duration: getReadableDuration(match.MatchInfo.Duration, "en-US"),
-      gameScore,
-      gameSubScore,
-      startTime: new Date(match.MatchInfo.StartTime).toISOString(),
-      endTime: new Date(match.MatchInfo.EndTime).toISOString(),
-      playerXuidToGametag,
-      rawMatch: match,
-    });
-  }
+      return {
+        matchId: match.MatchId,
+        gameTypeAndMap,
+        gameType,
+        gameMap,
+        gameMapThumbnailUrl: mapThumbnailUrl ?? "data:,",
+        duration: getReadableDuration(match.MatchInfo.Duration, "en-US"),
+        gameScore,
+        gameSubScore,
+        startTime: new Date(match.MatchInfo.StartTime).toISOString(),
+        endTime: new Date(match.MatchInfo.EndTime).toISOString(),
+        playerXuidToGametag,
+        rawMatch: match,
+      };
+    }),
+  );
 
   const lastMatch = Preconditions.checkExists(matches[matches.length - 1]);
   const teams = lastMatch.Teams.map((team) => ({
