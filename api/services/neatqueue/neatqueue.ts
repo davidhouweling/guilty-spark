@@ -14,6 +14,7 @@ import { sub, isAfter } from "date-fns";
 import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
+import { getTeamName } from "@guilty-spark/shared/halo/team";
 import type { DatabaseService } from "../database/database";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config";
@@ -297,7 +298,7 @@ export class NeatQueueService {
               substitutionsEmbed.push({
                 playerIn: playerInId,
                 playerOut: playerOutId,
-                team: queueMessage.teams[teamIndex]?.name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
+                team: queueMessage.teams[teamIndex]?.name ?? getTeamName(teamIndex),
                 date: startDateTime,
               });
               break;
@@ -592,7 +593,7 @@ export class NeatQueueService {
       const playerIds = request.teams.flatMap((players) => players.map((p) => p.id));
       const players = await discordService.getUsers(request.guild, playerIds);
       const teams = request.teams.map((team, teamIndex) => ({
-        name: team[0]?.team_name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
+        name: team[0]?.team_name ?? getTeamName(teamIndex),
         playerIds: team.map((player) => player.id),
       }));
       const playersRecord = players.reduce<Record<string, APIGuildMember>>((acc, player) => {
@@ -665,7 +666,7 @@ export class NeatQueueService {
       const { title, guildIconUrl } = await this.fetchGuildDisplayInfo(request.guild);
 
       const seriesTeams: SeriesTeam[] = request.teams.map((team, teamIndex) => ({
-        name: team[0]?.team_name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
+        name: team[0]?.team_name ?? getTeamName(teamIndex),
         players: team.map((player) =>
           this.buildSeriesPlayer(queueState.playersAssociationData[player.id], player.id, player.name),
         ),
@@ -1793,7 +1794,7 @@ export class NeatQueueService {
 
   private getTeams(request: NeatQueueMatchCompletedRequest): TeamMapping[] {
     return request.teams.map((team, teamIndex) => ({
-      name: team[0]?.team_name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
+      name: team[0]?.team_name ?? getTeamName(teamIndex),
       playerIds: team.map((player) => player.id),
     }));
   }
@@ -1813,7 +1814,7 @@ export class NeatQueueService {
           team:
             player_subbed_out.team_name ??
             finalTeams[player_subbed_out.team_num - 1]?.name ??
-            `Team ${player_subbed_out.team_num.toLocaleString()}`,
+            getTeamName(player_subbed_out.team_num - 1),
         };
       });
   }

@@ -32,7 +32,7 @@
     "test:update-snapshot": "vitest run -u",
     "test:coverage": "vitest run --coverage.enabled true",
     "format": "prettier . --check",
-    "format:changed:fix": "prettier --write $(git diff --name-only main... --diff-filter=d) $(git diff --name-only HEAD --diff-filter=d)",
+    "format:changed:fix": "prettier --write --ignore-unknown $(git diff --name-only main... --diff-filter=d) $(git diff --name-only HEAD --diff-filter=d)",
     "format:fix": "prettier . --write",
     "lint": "npm run lint:ts && npm run stylelint:pages",
     "lint:fix": "npm run lint:ts:fix && npm run stylelint:pages:fix",

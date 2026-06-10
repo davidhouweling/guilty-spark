@@ -155,11 +155,11 @@ describe("NeatQueueService Live Tracker Integration", () => {
         },
         teams: [
           {
-            name: "Team 1",
+            name: "Eagle",
             playerIds: ["discord_user_01"],
           },
           {
-            name: "Team 2",
+            name: "Cobra",
             playerIds: ["discord_user_02"],
           },
         ],

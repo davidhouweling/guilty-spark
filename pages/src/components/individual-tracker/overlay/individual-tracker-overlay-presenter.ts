@@ -1,4 +1,5 @@
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { TickerMatchGroup } from "../../information-ticker/information-ticker";
@@ -73,7 +74,7 @@ export function buildTickerGroups(matchStatsState: MatchStatsState | null, match
         {
           type: "team" as const,
           teamId: teamData.teamId,
-          name: `Team ${teamData.teamId.toString()}`,
+          name: getTeamName(teamData.teamId),
           stats: teamData.teamStats,
           medals: teamData.teamMedals,
         },

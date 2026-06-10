@@ -15,6 +15,7 @@ import { MatchOutcome, AssetKind, GameVariantCategory, MatchType, RequestError }
 import { differenceInDays, differenceInHours, differenceInMinutes, isAfter, isBefore } from "date-fns";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import { getTeamName } from "@guilty-spark/shared/halo/team";
 import type { SeriesScoreEntry } from "@guilty-spark/shared/halo/series-score";
 import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
@@ -228,9 +229,7 @@ export class HaloService {
   }
 
   getTeamName(teamId: number): string {
-    const teams = ["Eagle", "Cobra", "Hades", "Valkyrie", "Rampart", "Cutlass", "Valor", "Hazard"];
-
-    return teams[teamId] ?? "Unknown";
+    return getTeamName(teamId);
   }
 
   async getPlayerXuidsToGametags(matches: MatchStats | MatchStats[]): Promise<Map<string, string>> {

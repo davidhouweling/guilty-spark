@@ -1,5 +1,6 @@
 import React, { useMemo, useCallback } from "react";
 import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
+import { getTeamName } from "@guilty-spark/shared/halo/team";
 import TimeAgo from "javascript-time-ago";
 import { differenceInHours } from "date-fns";
 import type { TeamColor } from "../../team-colors/team-colors";
@@ -43,7 +44,7 @@ function resolveTeamName(
   if (override !== null && override !== "") {
     return override;
   }
-  return teams[teamId]?.name ?? (teamId === 0 ? "Eagle" : "Cobra");
+  return teams[teamId]?.name ?? getTeamName(teamId);
 }
 
 interface NeatQueueStreamerOverlayProps {
