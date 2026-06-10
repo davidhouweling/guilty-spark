@@ -2007,7 +2007,12 @@ describe("NeatQueueService", () => {
         const teamsCreatedRequest = getFakeNeatQueueData("teamsCreated");
         (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());
         vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
-        vi.spyOn(discordService, "getGuild").mockResolvedValue({ ...guild, id: "guild-1", name: "Test Server", icon: null });
+        vi.spyOn(discordService, "getGuild").mockResolvedValue({
+          ...guild,
+          id: "guild-1",
+          name: "Test Server",
+          icon: null,
+        });
         vi.spyOn(databaseService, "getDiscordAssociations").mockResolvedValue([
           aFakeDiscordAssociationsRow({ DiscordId: "discord_user_01", XboxId: "xuid_discord_user_01" }),
           aFakeDiscordAssociationsRow({ DiscordId: "discord_user_02", XboxId: "xuid_discord_user_02" }),
