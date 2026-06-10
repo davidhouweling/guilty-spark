@@ -199,7 +199,7 @@ function toLookupResponse(lookupResult: DiscordSeriesLookupResult | DiscordSerie
           queueNumber: lookupResult.queueNumber,
           matchIds: lookupResult.matchIds,
         },
-        { status: 200 },
+        { status: 200, headers: { "Cache-Control": RESOLVED_CACHE_CONTROL_HEADER } },
       );
     }
     case "pending-index": {
