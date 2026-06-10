@@ -1,23 +1,35 @@
 import type { DiscordSeriesStats } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { ComponentLoaderStatus } from "../../components/component-loader/component-loader";
+import type { DiscordSeriesStatsService } from "../../services/stats/discord-series-types";
 import type { DiscordSeriesStatsStore } from "./discord-series-stats-store";
 import type { DiscordSeriesStatsSnapshot, DiscordSeriesStatsViewModel } from "./types";
 
 interface DiscordSeriesStatsPresenterDependencies {
   readonly store: DiscordSeriesStatsStore;
-  readonly fetchStats: () => Promise<DiscordSeriesStats>;
+  readonly discordSeriesStatsService: DiscordSeriesStatsService;
+  readonly guildId: string;
+  readonly queueNumber: string;
 }
 
 export class DiscordSeriesStatsPresenter {
   private readonly store: DiscordSeriesStatsStore;
-  private readonly fetchStats: () => Promise<DiscordSeriesStats>;
+  private readonly discordSeriesStatsService: DiscordSeriesStatsService;
+  private readonly guildId: string;
+  private readonly queueNumber: string;
   private isDisposed = false;
   private requestNumber = 0;
 
-  constructor({ store, fetchStats }: DiscordSeriesStatsPresenterDependencies) {
+  constructor({ store, discordSeriesStatsService, guildId, queueNumber }: DiscordSeriesStatsPresenterDependencies) {
     this.store = store;
-    this.fetchStats = fetchStats;
+    this.discordSeriesStatsService = discordSeriesStatsService;
+    this.guildId = guildId;
+    this.queueNumber = queueNumber;
+  }
+
+  private async fetchStats(): Promise<DiscordSeriesStats> {
+    const response = await this.discordSeriesStatsService.getStats(this.guildId, this.queueNumber);
+    return response.data;
   }
 
   start(): void {

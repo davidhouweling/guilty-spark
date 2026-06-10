@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
-import type { DiscordSeriesStats as DiscordSeriesStatsDataResponse } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { ComponentLoader, ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import { ErrorState } from "../../components/error-state/error-state";
 import { LoadingState } from "../../components/loading-state/loading-state";
@@ -33,10 +32,9 @@ function DiscordSeriesStatsData({
   const presenter = useMemo(() => {
     return new DiscordSeriesStatsPresenter({
       store,
-      fetchStats: async (): Promise<DiscordSeriesStatsDataResponse> => {
-        const response = await discordSeriesStatsService.getStats(guildId, queueNumber);
-        return response.data;
-      },
+      discordSeriesStatsService,
+      guildId,
+      queueNumber,
     });
   }, [discordSeriesStatsService, guildId, queueNumber, store]);
 
