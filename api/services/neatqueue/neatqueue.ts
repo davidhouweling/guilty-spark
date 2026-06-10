@@ -654,6 +654,19 @@ export class NeatQueueService {
     try {
       const queueState = await this.getQueueState(request.guild, request.match_number);
 
+      try {
+        const { associationData } = await this.fetchPlayersAssociationData(request.teams.flat());
+        queueState.playersAssociationData = { ...associationData, ...queueState.playersAssociationData };
+      } catch (fetchError) {
+        logService.warn(
+          "Failed to fetch player association data for series context, proceeding with existing data",
+          new Map([
+            ["guildId", request.guild],
+            ["error", String(fetchError)],
+          ]),
+        );
+      }
+
       let title = request.guild;
       let guildIconUrl: string | null = null;
       try {
