@@ -15,7 +15,6 @@ import { MatchOutcome, AssetKind, GameVariantCategory, MatchType, RequestError }
 import { differenceInDays, differenceInHours, differenceInMinutes, isAfter, isBefore } from "date-fns";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
-
 import type { SeriesScoreEntry } from "@guilty-spark/shared/halo/series-score";
 import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
