@@ -400,7 +400,12 @@ describe("IndividualTrackerService", () => {
     });
 
     it("POSTs /nudge to the DO stub for each active tracker with the given payload", async () => {
-      const tracker = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Xuid: "xuid-1", Status: "active" });
+      const tracker = aFakeIndividualTrackersRow({
+        TrackerId: "t1",
+        UserId: "user-1",
+        Xuid: "xuid-1",
+        Status: "active",
+      });
       vi.spyOn(databaseService, "findIndividualTrackersByXuids").mockResolvedValue([tracker]);
       const payload: SeriesContextPayload = {
         title: "Test Server",
