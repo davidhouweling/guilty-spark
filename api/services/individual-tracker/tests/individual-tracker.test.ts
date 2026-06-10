@@ -413,7 +413,7 @@ describe("IndividualTrackerService", () => {
 
       expect(fetchSpy).toHaveBeenCalledOnce();
       const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      expect(url).toBe("https://individual-tracker-do/nudge");
+      expect(url).toBe("http://do/nudge");
       expect(init.method).toBe("POST");
       expect(JSON.parse(init.body as string)).toEqual(payload);
     });
@@ -436,7 +436,7 @@ describe("IndividualTrackerService", () => {
       expect(JSON.parse(init.body as string)).toBeNull();
     });
 
-    it("skips stopped trackers and only nudges active ones", async () => {
+    it("skips stopped trackers and nudges active and paused ones", async () => {
       vi.spyOn(databaseService, "findIndividualTrackersByXuids").mockResolvedValue([
         aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Status: "stopped" }),
         aFakeIndividualTrackersRow({ TrackerId: "t2", UserId: "user-1", Status: "active" }),

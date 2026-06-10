@@ -172,17 +172,20 @@ export class IndividualTrackerService {
 
   async nudgeTrackers(xuids: string[], payload: SeriesContextPayload | null): Promise<void> {
     const trackers = await this.databaseService.findIndividualTrackersByXuids(xuids);
-    const activeTrackers = trackers.filter((t) => t.Status !== "stopped");
+    const nonStoppedTrackers = trackers.filter((t) => t.Status !== "stopped");
     await Promise.all(
-      activeTrackers.map(async (tracker) => {
+      nonStoppedTrackers.map(async (tracker) => {
         try {
           const doId = this.env.INDIVIDUAL_TRACKER_DO.idFromName(`${tracker.UserId}:${tracker.TrackerId}`);
           const stub = this.env.INDIVIDUAL_TRACKER_DO.get(doId);
-          await stub.fetch(`https://individual-tracker-do/nudge`, {
+          const response = await stub.fetch("http://do/nudge", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
+          if (!response.ok) {
+            throw new Error(`nudge returned ${response.status.toString()}`);
+          }
         } catch (error) {
           this.logService.warn(
             error as Error,
