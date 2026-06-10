@@ -746,12 +746,15 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
    * Loads matches from KV and computes the series score, updating trackerState
    * @returns The computed series score
    */
-  private async computeAndUpdateSeriesScore(trackerState: LiveTrackerState): Promise<string> {
+  private async computeAndUpdateSeriesScore(
+    trackerState: LiveTrackerState,
+  ): Promise<{ seriesScore: string; seriesScoreWithEmoji: string }> {
     const rawMatches = await this.loadMatchesFromKV(trackerState.matchIds);
     const rawMatchesArray = Object.values(rawMatches);
     const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
     trackerState.seriesScore = seriesScore;
-    return seriesScore;
+
+    return { seriesScore, seriesScoreWithEmoji: this.haloService.getSeriesScore(rawMatchesArray, "en-US", true) };
   }
 
   /**
@@ -770,7 +773,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   ): Promise<LiveTrackerEmbedData> {
     const currentTime = new Date();
     const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
-    const seriesScore = await this.computeAndUpdateSeriesScore(trackerState);
+    const { seriesScore } = await this.computeAndUpdateSeriesScore(trackerState);
 
     return {
       userId: trackerState.userId,
@@ -966,7 +969,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
     const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
 
-    const seriesScore = await this.computeAndUpdateSeriesScore(trackerState);
+    const { seriesScore, seriesScoreWithEmoji } = await this.computeAndUpdateSeriesScore(trackerState);
 
     const liveTrackerEmbed = new LiveTrackerEmbed(
       { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
@@ -986,7 +989,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       },
     );
 
-    await this.updateChannelName(trackerState, seriesScore, false);
+    await this.updateChannelName(trackerState, seriesScoreWithEmoji, false);
     await this.updateLiveTrackerMessage(trackerState, liveTrackerEmbed);
   }
 
