@@ -1909,12 +1909,12 @@ describe("IndividualTrackerDO", () => {
       expect(response.status).toBe(409);
     });
 
-    it("returns 409 when no completed series exists", async () => {
+    it("returns 422 when no completed series exists", async () => {
       storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
 
       const response = await individualTrackerDO.fetch(new Request("http://do/resume-series", { method: "POST" }));
 
-      expect(response.status).toBe(409);
+      expect(response.status).toBe(422);
     });
 
     it("restores the last completed series as active, preserves matchIds and startedAt, removes it from completedSeries", async () => {

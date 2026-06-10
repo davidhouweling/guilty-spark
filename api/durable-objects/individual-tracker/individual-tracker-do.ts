@@ -681,7 +681,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     if (trackerState.completedSeries == null || trackerState.completedSeries.length === 0) {
-      return new Response("No completed series to resume", { status: 409 });
+      return new Response("No completed series to resume", { status: 422 });
     }
 
     const resumed = Preconditions.checkExists(

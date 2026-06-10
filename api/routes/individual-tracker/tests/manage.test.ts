@@ -729,7 +729,7 @@ describe("/api/individual-tracker manage routes", () => {
 
   it("returns 409 on resume-series when DO has no completed series", async () => {
     const doStub = aFakeIndividualTrackerDOWith();
-    vi.spyOn(doStub, "fetch").mockResolvedValue(new Response("No completed series to resume", { status: 409 }));
+    vi.spyOn(doStub, "fetch").mockResolvedValue(new Response("No completed series to resume", { status: 422 }));
     const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
 
     const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123" });

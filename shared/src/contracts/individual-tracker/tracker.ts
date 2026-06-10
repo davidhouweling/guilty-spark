@@ -93,6 +93,7 @@ export const editSeriesRequestSchema = z
           members: z.array(z.string()),
         }),
       )
+      .nonempty()
       .optional(),
   })
   .refine(

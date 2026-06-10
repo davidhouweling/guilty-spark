@@ -164,10 +164,9 @@ async function resumeSeriesDo(env: Env, userId: string, trackerId: string): Prom
   const stub = trackerDoStub(env, userId, trackerId);
   const response = await stub.fetch("http://do/resume-series", { method: "POST" });
   if (response.status === 409) {
-    const body = await response.text();
-    if (body.includes("Active series")) {
-      throw new ActiveSeriesExistsError();
-    }
+    throw new ActiveSeriesExistsError();
+  }
+  if (response.status === 422) {
     throw new NoCompletedSeriesError();
   }
   assertDoOkWith404(response);
