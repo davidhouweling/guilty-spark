@@ -434,7 +434,7 @@ async function tryBuildRenderData({
 export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/stats/discord/:guildId/:queueNumber", async (request, env: Env) => {
     const services = installServices({ env });
-    const { discordService, logService } = services;
+    const { discordService, logService, haloService } = services;
     const parsedParams = parsePathParams(
       request.params,
       discordSeriesStatsParamsSchema,
@@ -473,12 +473,12 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
       }
 
       const renderData = await tryBuildRenderData({
+        discordService,
+        logService,
+        haloService,
         guildId,
         queueNumber,
         matchIds: lookupResult.matchIds,
-        discordService,
-        logService,
-        haloService: services.haloService,
       });
 
       const resolvedResponse: DiscordSeriesStats = {
