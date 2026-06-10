@@ -1,5 +1,6 @@
 import React, { useEffect, useSyncExternalStore } from "react";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
+import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import { AddTrackerDialogSection } from "../../individual-tracker/add-tracker-dialog/create";
 import { GameSelectionDialogSection } from "../../individual-tracker/game-selection-dialog/create";
 import { ManualSeriesDialogSection } from "../../individual-tracker/manual-series-dialog/create";
@@ -11,11 +12,13 @@ import { LiveTrackersSectionView } from "./live-trackers";
 interface LiveTrackersSectionInternalProps {
   readonly controller: LiveTrackersSectionController;
   readonly individualTrackerService: IndividualTrackerService;
+  readonly individualTrackerViewService: IndividualTrackerViewService;
 }
 
 function LiveTrackersSectionInternal({
   controller,
   individualTrackerService,
+  individualTrackerViewService,
 }: LiveTrackersSectionInternalProps): React.ReactElement {
   useEffect(() => {
     controller.start();
@@ -83,6 +86,7 @@ function LiveTrackersSectionInternal({
                 void controller.refresh();
               }}
               individualTrackerService={individualTrackerService}
+              viewService={individualTrackerViewService}
             />
           )}
         </>
@@ -93,6 +97,7 @@ function LiveTrackersSectionInternal({
 
 interface CreateLiveTrackersSectionConfig {
   readonly individualTrackerService: IndividualTrackerService;
+  readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly navigateTo?: ((url: string) => void) | undefined;
   readonly confirmDelete?: ((message: string) => boolean) | undefined;
 }
@@ -113,7 +118,11 @@ export function createLiveTrackersSection(config: CreateLiveTrackersSectionConfi
   });
 
   const Component = (): React.ReactElement => (
-    <LiveTrackersSectionInternal controller={presenter} individualTrackerService={config.individualTrackerService} />
+    <LiveTrackersSectionInternal
+      controller={presenter}
+      individualTrackerService={config.individualTrackerService}
+      individualTrackerViewService={config.individualTrackerViewService}
+    />
   );
 
   return { controller: presenter, Component };

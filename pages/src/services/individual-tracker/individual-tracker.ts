@@ -36,6 +36,7 @@ import {
 } from "./match-history-helpers";
 import { RealTrackerViewConnection } from "./view-connection";
 import type {
+  EditSeriesRequest,
   IndividualTrackerConnection,
   IndividualTrackerService,
   StartSeriesRequest,
@@ -547,6 +548,34 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
       credentials: "include",
       method: "POST",
     });
+    if (!response.ok) {
+      throw await this.readError(response);
+    }
+  }
+
+  public async editSeries(trackerId: string, request: EditSeriesRequest): Promise<void> {
+    const response = await fetch(
+      this.buildUrl(`/api/individual-tracker/manage/${encodeURIComponent(trackerId)}/series`),
+      {
+        credentials: "include",
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      },
+    );
+    if (!response.ok) {
+      throw await this.readError(response);
+    }
+  }
+
+  public async resumeSeries(trackerId: string): Promise<void> {
+    const response = await fetch(
+      this.buildUrl(`/api/individual-tracker/manage/${encodeURIComponent(trackerId)}/resume-series`),
+      {
+        credentials: "include",
+        method: "POST",
+      },
+    );
     if (!response.ok) {
       throw await this.readError(response);
     }

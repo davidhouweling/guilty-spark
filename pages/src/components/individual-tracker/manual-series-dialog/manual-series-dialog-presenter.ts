@@ -1,80 +1,41 @@
-import type {
-  IndividualTrackerService,
-  TrackerMatchHistoryEntry,
-  TrackerSearchResult,
-} from "../../../services/individual-tracker/types";
-import type {
-  ManualSeriesDialogSnapshot,
-  ManualSeriesDialogStore,
-  ManualSeriesTeamSnapshot,
-} from "./manual-series-dialog-store";
+import type { TrackerMatchSummary } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import type { IndividualTrackerService, TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
+import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
+import type { ManualSeriesDialogSnapshot, ManualSeriesDialogStore } from "./manual-series-dialog-store";
 
 interface Config {
   readonly trackerId: string;
   readonly store: ManualSeriesDialogStore;
   readonly individualTrackerService: IndividualTrackerService;
+  readonly viewService: IndividualTrackerViewService;
   readonly onSeriesStarted: () => void;
+  readonly onSeriesEdited?: (() => void) | undefined;
 }
 
-function collectUniqueTeamMembers(teams: readonly ManualSeriesTeamSnapshot[]): readonly string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const team of teams) {
-    for (const member of team.members) {
-      const normalized = member.trim();
-      if (normalized !== "" && !seen.has(normalized)) {
-        seen.add(normalized);
-        result.push(normalized);
-      }
-    }
-  }
-  return result;
-}
-
-function computeMatchIntersection(histories: readonly { readonly matches: readonly TrackerMatchHistoryEntry[] }[]): {
-  readonly intersection: ReadonlySet<string>;
-  readonly matchById: ReadonlyMap<string, TrackerMatchHistoryEntry>;
-} {
-  const historiesWithData = histories.filter((h) => h.matches.length > 0);
-
-  const matchById = new Map<string, TrackerMatchHistoryEntry>();
-  for (const entry of historiesWithData) {
-    for (const match of entry.matches) {
-      if (!matchById.has(match.matchId)) {
-        matchById.set(match.matchId, match);
-      }
-    }
-  }
-
-  if (historiesWithData.length === 0) {
-    return { intersection: new Set(), matchById };
-  }
-
-  const intersection = new Set(historiesWithData[0].matches.map((m) => m.matchId));
-  for (const entry of historiesWithData.slice(1)) {
-    const entryIds = new Set(entry.matches.map((m) => m.matchId));
-    for (const matchId of intersection) {
-      if (!entryIds.has(matchId)) {
-        intersection.delete(matchId);
-      }
-    }
-  }
-
-  return { intersection, matchById };
-}
-
-function sortCandidateMatches(
-  intersection: ReadonlySet<string>,
-  matchById: ReadonlyMap<string, TrackerMatchHistoryEntry>,
-): readonly TrackerMatchHistoryEntry[] {
-  return Array.from(intersection)
-    .map((matchId) => matchById.get(matchId))
-    .filter((match): match is TrackerMatchHistoryEntry => match != null)
-    .sort((left, right) => {
-      const leftTime = new Date(left.startTimeIso ?? left.startTime).getTime();
-      const rightTime = new Date(right.startTimeIso ?? right.startTime).getTime();
-      return rightTime - leftTime;
-    });
+function summaryToHistoryEntry(summary: TrackerMatchSummary): TrackerMatchHistoryEntry {
+  return {
+    matchId: summary.matchId,
+    startTime: summary.startTime,
+    endTime: summary.endTime,
+    mapAssetId: summary.mapAssetId,
+    mapVersionId: summary.mapVersionId,
+    modeAssetId: summary.modeAssetId,
+    modeVersionId: "",
+    gameVariantCategory: summary.gameVariantCategory,
+    startTimeIso: summary.startTime,
+    endTimeIso: summary.endTime,
+    duration: "",
+    mapName: summary.mapName,
+    modeName: "",
+    outcome: (["Win", "Loss", "Tie", "DNF"].includes(summary.outcome)
+      ? summary.outcome
+      : "Unknown") as TrackerMatchHistoryEntry["outcome"],
+    resultString: summary.outcome,
+    isMatchmaking: summary.isMatchmaking,
+    category: summary.isMatchmaking ? "matchmaking" : "custom",
+    teams: [],
+    mapThumbnailUrl: "data:,",
+  };
 }
 
 export class ManualSeriesDialogPresenter {
@@ -176,69 +137,20 @@ export class ManualSeriesDialogPresenter {
   }
 
   private async runBackfillDiscovery(): Promise<void> {
-    const { teams } = this.config.store.getSnapshot();
-    const memberNames = collectUniqueTeamMembers(teams);
-
-    if (memberNames.length === 0) {
-      this.config.store.setBackfillError("Add at least one player name before searching for shared custom games.");
-      return;
-    }
-
     this.config.store.setBackfillLoading();
-
     try {
-      const resolvedPlayers = await Promise.all(
-        memberNames.map(
-          async (member): Promise<{ member: string; result: TrackerSearchResult | null }> => ({
-            member,
-            result: await this.config.individualTrackerService.searchGamertag(member),
-          }),
-        ),
-      );
-
+      const { view } = await this.config.viewService.getView(this.config.trackerId);
       if (this.checkDisposed()) {
         return;
       }
-
-      const playersWithIdentity = resolvedPlayers.filter(
-        (entry): entry is { member: string; result: TrackerSearchResult } => entry.result != null,
-      );
-
-      if (playersWithIdentity.length === 0) {
-        this.config.store.setBackfillDone([], null, "No player identities were resolved. Check names and try again.");
-        return;
-      }
-
-      const histories = await Promise.all(
-        playersWithIdentity.map(async ({ member, result }) => ({
-          member,
-          matches: (
-            await this.config.individualTrackerService.getMatchHistory(result.xuid, 0, 25, "custom")
-          ).matches.filter((match) => match.category === "custom"),
-        })),
-      );
-
-      if (this.checkDisposed()) {
-        return;
-      }
-
-      const playersWithoutHistory = histories.filter((h) => h.matches.length === 0).map((h) => h.member);
-      const { intersection, matchById } = computeMatchIntersection(histories);
-      const candidates = sortCandidateMatches(intersection, matchById);
-
-      const warning =
-        playersWithoutHistory.length > 0
-          ? `History unavailable for ${playersWithoutHistory.join(", ")}. Shared matches are based on players with available history.`
-          : null;
-
-      const error = candidates.length === 0 ? "No shared custom matches were found across the selected players." : null;
-
-      this.config.store.setBackfillDone(candidates, warning, error);
+      const entries = view.matches.filter((m) => !m.isMatchmaking).map(summaryToHistoryEntry);
+      const error = entries.length === 0 ? "No matches found for this tracker yet." : null;
+      this.config.store.setBackfillDone(entries, null, error);
     } catch (err) {
       if (this.checkDisposed()) {
         return;
       }
-      const message = err instanceof Error ? err.message : "Failed to discover custom-game matches.";
+      const message = err instanceof Error ? err.message : "Failed to load tracker matches.";
       this.config.store.setBackfillError(message);
     }
   }
@@ -281,6 +193,48 @@ export class ManualSeriesDialogPresenter {
         return;
       }
       const message = err instanceof Error ? err.message : "Failed to start series.";
+      this.config.store.setSubmitError(message);
+    } finally {
+      if (!this.checkDisposed()) {
+        this.config.store.setBusy(false);
+      }
+    }
+  }
+
+  public editSeries(): void {
+    if (this.checkDisposed()) {
+      return;
+    }
+    void this.runEditSeries();
+  }
+
+  private async runEditSeries(): Promise<void> {
+    const snapshot = this.config.store.getSnapshot();
+    this.config.store.setBusy(true);
+    this.config.store.setSubmitError(null);
+
+    try {
+      const teams = snapshot.teams.map((team) => ({
+        name: team.name.trim(),
+        members: team.members.map((m) => m.trim()).filter((m) => m !== ""),
+      }));
+
+      await this.config.individualTrackerService.editSeries(this.config.trackerId, {
+        titleOverride: snapshot.titleOverride.trim() || undefined,
+        subtitleOverride: snapshot.subtitleOverride.trim() || null,
+        teams,
+      });
+
+      if (this.checkDisposed()) {
+        return;
+      }
+
+      this.config.onSeriesEdited?.();
+    } catch (err) {
+      if (this.checkDisposed()) {
+        return;
+      }
+      const message = err instanceof Error ? err.message : "Failed to edit series.";
       this.config.store.setSubmitError(message);
     } finally {
       if (!this.checkDisposed()) {

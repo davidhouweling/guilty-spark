@@ -8,6 +8,7 @@ export interface ManualSeriesTeamSnapshot {
 export type BackfillState = "idle" | "loading" | "done" | "error";
 
 export interface ManualSeriesDialogSnapshot {
+  readonly mode: "start" | "edit";
   readonly titleOverride: string;
   readonly subtitleOverride: string;
   readonly teams: readonly ManualSeriesTeamSnapshot[];
@@ -18,6 +19,12 @@ export interface ManualSeriesDialogSnapshot {
   readonly selectedBackfillMatchIds: readonly string[];
   readonly busy: boolean;
   readonly submitError: string | null;
+}
+
+export interface SeriesInitialData {
+  readonly title: string;
+  readonly subtitle: string;
+  readonly teams: readonly ManualSeriesTeamSnapshot[];
 }
 
 const INITIAL_TEAM_MEMBERS: readonly string[] = ["", "", "", ""];
@@ -32,12 +39,20 @@ function buildDefaultTeams(): readonly ManualSeriesTeamSnapshot[] {
 export class ManualSeriesDialogStore {
   private snapshot: ManualSeriesDialogSnapshot;
   private readonly subscribers = new Set<() => void>();
+  private readonly initialData: SeriesInitialData | undefined;
 
-  public constructor() {
+  public constructor(initialData?: SeriesInitialData) {
+    const mode: "start" | "edit" = initialData != null ? "edit" : "start";
+    const teams =
+      initialData?.teams.map((t) => ({
+        name: t.name,
+        members: t.members.length > 0 ? [...t.members] : [""],
+      })) ?? buildDefaultTeams();
     this.snapshot = {
-      titleOverride: "",
-      subtitleOverride: "",
-      teams: buildDefaultTeams(),
+      mode,
+      titleOverride: initialData?.title ?? "",
+      subtitleOverride: initialData?.subtitle ?? "",
+      teams,
       backfillState: "idle",
       backfillError: null,
       backfillWarning: null,
@@ -46,6 +61,7 @@ export class ManualSeriesDialogStore {
       busy: false,
       submitError: null,
     };
+    this.initialData = initialData;
   }
 
   public subscribe(listener: () => void): () => void {
@@ -59,11 +75,18 @@ export class ManualSeriesDialogStore {
     return this.snapshot;
   }
 
-  public reset(): void {
+  public reset(initialData?: SeriesInitialData): void {
+    const data = initialData ?? this.initialData;
+    const teams =
+      data?.teams.map((t) => ({
+        name: t.name,
+        members: t.members.length > 0 ? [...t.members] : [""],
+      })) ?? buildDefaultTeams();
     this.update({
-      titleOverride: "",
-      subtitleOverride: "",
-      teams: buildDefaultTeams(),
+      mode: data != null ? "edit" : "start",
+      titleOverride: data?.title ?? "",
+      subtitleOverride: data?.subtitle ?? "",
+      teams,
       backfillState: "idle",
       backfillError: null,
       backfillWarning: null,

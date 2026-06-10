@@ -10,6 +10,7 @@ import type {
   TrackersResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type {
+  EditSeriesRequest,
   IndividualTrackerConnection,
   IndividualTrackerService,
   StartSeriesRequest,
@@ -267,6 +268,16 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public async endSeries(_trackerId: string): Promise<void> {
+    await Promise.resolve();
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public async editSeries(_trackerId: string, _request: EditSeriesRequest): Promise<void> {
+    await Promise.resolve();
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public async resumeSeries(_trackerId: string): Promise<void> {
     await Promise.resolve();
   }
 

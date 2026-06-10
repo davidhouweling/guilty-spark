@@ -278,4 +278,22 @@ describe("RealIndividualTrackerService", () => {
       expect(result?.customMatchCount).toBeNull();
     });
   });
+
+  it("sends a PATCH request to edit a series", async () => {
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ success: true }));
+    await service.editSeries("tracker-1", { titleOverride: "New Title", teams: [] });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("/api/individual-tracker/manage/tracker-1/series"),
+      expect.objectContaining({ method: "PATCH" }),
+    );
+  });
+
+  it("sends a POST request to resume a series", async () => {
+    fetchSpy.mockResolvedValueOnce(new Response("", { status: 200 }));
+    await service.resumeSeries("tracker-1");
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("/api/individual-tracker/manage/tracker-1/resume-series"),
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
 });

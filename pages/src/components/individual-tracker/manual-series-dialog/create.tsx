@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
+import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import { ManualSeriesDialogPresenter } from "./manual-series-dialog-presenter";
 import { ManualSeriesDialogStore } from "./manual-series-dialog-store";
+import type { SeriesInitialData } from "./manual-series-dialog-store";
 import { ManualSeriesDialog } from "./manual-series-dialog";
 
 interface ManualSeriesDialogSectionProps {
@@ -11,6 +13,9 @@ interface ManualSeriesDialogSectionProps {
   readonly onClose: () => void;
   readonly onSeriesStarted: () => void;
   readonly individualTrackerService: IndividualTrackerService;
+  readonly viewService: IndividualTrackerViewService;
+  readonly initialData?: SeriesInitialData;
+  readonly onSeriesEdited?: () => void;
 }
 
 export function ManualSeriesDialogSection({
@@ -20,28 +25,37 @@ export function ManualSeriesDialogSection({
   onClose,
   onSeriesStarted,
   individualTrackerService,
+  viewService,
+  initialData,
+  onSeriesEdited,
 }: ManualSeriesDialogSectionProps): React.ReactElement | null {
   const onSeriesStartedRef = useRef(onSeriesStarted);
   onSeriesStartedRef.current = onSeriesStarted;
+  const onSeriesEditedRef = useRef(onSeriesEdited);
+  onSeriesEditedRef.current = onSeriesEdited;
 
-  const store = useMemo(() => new ManualSeriesDialogStore(), []);
+  const initialDataRef = useRef(initialData);
+  initialDataRef.current = initialData;
+  const store = useMemo(() => new ManualSeriesDialogStore(initialDataRef.current), []);
   const presenter = useMemo(
     () =>
       new ManualSeriesDialogPresenter({
         trackerId,
         store,
         individualTrackerService,
+        viewService,
         onSeriesStarted: (): void => {
           onSeriesStartedRef.current();
         },
+        onSeriesEdited: (): void => {
+          onSeriesEditedRef.current?.();
+        },
       }),
-    [trackerId, store, individualTrackerService],
+    [trackerId, store, individualTrackerService, viewService],
   );
 
   useEffect(() => {
-    if (!isOpen) {
-      store.reset();
-    }
+    store.reset(initialDataRef.current);
   }, [isOpen, store]);
 
   useEffect(() => {
@@ -55,6 +69,14 @@ export function ManualSeriesDialogSection({
     () => store.getSnapshot(),
     () => store.getSnapshot(),
   );
+
+  const handleSubmit = (): void => {
+    if (snapshot.mode === "edit") {
+      presenter.editSeries();
+    } else {
+      presenter.startSeries();
+    }
+  };
 
   return (
     <ManualSeriesDialog
@@ -86,9 +108,7 @@ export function ManualSeriesDialogSection({
       onBackfillMatchToggle={(matchId): void => {
         presenter.toggleBackfillMatch(matchId);
       }}
-      onStartSeries={(): void => {
-        presenter.startSeries();
-      }}
+      onStartSeries={handleSubmit}
     />
   );
 }
