@@ -646,10 +646,15 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("No active series", { status: 409 });
     }
 
-    const body = await request.json<IndividualTrackerEditSeriesRequest>();
+    let body: IndividualTrackerEditSeriesRequest;
+    try {
+      body = await request.json<IndividualTrackerEditSeriesRequest>();
+    } catch {
+      return new Response("Bad Request", { status: 400 });
+    }
 
     if (body.titleOverride !== undefined) {
-      trackerState.activeSeries.title = body.titleOverride;
+      trackerState.activeSeries.title = body.titleOverride ?? getDefaultSeriesGroupTitle();
     }
     if (body.subtitleOverride !== undefined) {
       trackerState.activeSeries.subtitle = body.subtitleOverride;

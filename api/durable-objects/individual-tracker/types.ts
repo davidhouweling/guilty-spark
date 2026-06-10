@@ -141,7 +141,7 @@ export interface IndividualTrackerStartSeriesRequest {
 }
 
 export interface IndividualTrackerEditSeriesRequest {
-  titleOverride?: string;
+  titleOverride?: string | null;
   subtitleOverride?: string | null;
   teams?: IndividualTrackerSeriesTeam[];
 }

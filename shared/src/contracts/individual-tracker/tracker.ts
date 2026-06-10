@@ -84,7 +84,7 @@ export type EndSeriesResponse = z.infer<typeof endSeriesContract.schema>;
 
 export const editSeriesRequestSchema = z
   .object({
-    titleOverride: z.string().optional(),
+    titleOverride: z.string().nullable().optional(),
     subtitleOverride: z.string().nullable().optional(),
     teams: z
       .array(
