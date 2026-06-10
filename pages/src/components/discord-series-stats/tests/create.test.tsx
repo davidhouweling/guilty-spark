@@ -1,9 +1,10 @@
 import "@testing-library/jest-dom/vitest";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { DiscordSeriesStats } from "../create";
+import { DiscordSeriesStatsPresenter } from "../discord-series-stats-presenter";
 
 afterEach(() => {
   cleanup();
@@ -19,6 +20,7 @@ function aFakeResolvedDataWith(overrides: Partial<DiscordSeriesStatsResolved> = 
       title: "Queue #7777 Series Stats",
       subtitle: "Guild 123456789012345678",
       seriesScore: "1:0",
+      medalMetadata: {},
       teams: [
         { name: "Eagle", players: ["Player One"] },
         { name: "Cobra", players: ["Player Two"] },
@@ -66,6 +68,21 @@ describe("DiscordSeriesStats", () => {
     render(<DiscordSeriesStats data={aFakeResolvedDataWith()} />);
 
     expect(screen.queryByText("Series Totals")).not.toBeInTheDocument();
+  });
+
+  it("passes medal metadata from renderData into the presenter", () => {
+    const medalMetadata = { 3334154676: { name: "Killing Spree", sortingWeight: 1500 } };
+    const presentSpy = vi.spyOn(DiscordSeriesStatsPresenter.prototype, "present");
+
+    render(
+      <DiscordSeriesStats
+        data={aFakeResolvedDataWith({ renderData: { ...aFakeResolvedDataWith().renderData, medalMetadata } })}
+      />,
+    );
+
+    expect(presentSpy).toHaveBeenCalled();
+    const presenterInstance = presentSpy.mock.instances[0] as DiscordSeriesStatsPresenter;
+    expect(presenterInstance.renderData.medalMetadata).toEqual(medalMetadata);
   });
 
   it("toggles between standard and wide view", () => {

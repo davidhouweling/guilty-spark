@@ -6,6 +6,7 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import { getMedalMetadataFromMatches } from "@guilty-spark/shared/halo/medals";
 import {
   discordSeriesStatsContract,
   discordSeriesStatsParamsSchema,
@@ -369,7 +370,15 @@ async function tryBuildRenderData({
     throw new Error("No Halo match details were found for discovered match IDs");
   }
 
-  const playerXuidToGametagMap = await haloService.getPlayerXuidsToGametags(matches);
+  const matchesById: Record<string, MatchStats> = {};
+  for (const match of matches) {
+    matchesById[match.MatchId] = match;
+  }
+
+  const [playerXuidToGametagMap, medalMetadata] = await Promise.all([
+    haloService.getPlayerXuidsToGametags(matches),
+    getMedalMetadataFromMatches(matchesById, async (medalId) => haloService.getMedal(medalId)),
+  ]);
   const renderMatches = await Promise.all(
     matches.map(async (match) => {
       const [gameTypeAndMap, mapThumbnailUrl] = await Promise.all([
@@ -426,6 +435,7 @@ async function tryBuildRenderData({
     title: `Queue #${queueNumber.toString()} Series Stats`,
     subtitle,
     seriesScore: haloService.getSeriesScore(matches, "en-US"),
+    medalMetadata,
     teams,
     matches: renderMatches,
   };
