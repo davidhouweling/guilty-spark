@@ -59,6 +59,7 @@ export class RealDiscordSeriesStatsService implements DiscordSeriesStatsService 
 
   async getLookup(guildId: string, queueNumber: string): Promise<DiscordSeriesStatsLookupResult> {
     const response = await fetch(`${this.apiHost}/api/stats/discord/${guildId}/${queueNumber}/lookup`);
+    await response.arrayBuffer();
 
     return parseDiscordSeriesStatsLookupResponse(response);
   }
