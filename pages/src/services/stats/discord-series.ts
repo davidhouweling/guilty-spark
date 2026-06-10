@@ -44,6 +44,14 @@ function parseDiscordSeriesStatsLookupResponse(response: Response): DiscordSerie
   };
 }
 
+async function discardResponseBody(response: Response): Promise<void> {
+  if (response.body == null) {
+    return;
+  }
+
+  await response.body.cancel().catch(() => undefined);
+}
+
 export class RealDiscordSeriesStatsService implements DiscordSeriesStatsService {
   private readonly apiHost: string;
 
@@ -59,7 +67,7 @@ export class RealDiscordSeriesStatsService implements DiscordSeriesStatsService 
 
   async getLookup(guildId: string, queueNumber: string): Promise<DiscordSeriesStatsLookupResult> {
     const response = await fetch(`${this.apiHost}/api/stats/discord/${guildId}/${queueNumber}/lookup`);
-    await response.arrayBuffer();
+    await discardResponseBody(response);
 
     return parseDiscordSeriesStatsLookupResponse(response);
   }

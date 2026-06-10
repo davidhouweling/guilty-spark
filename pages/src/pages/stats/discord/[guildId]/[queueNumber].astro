@@ -39,10 +39,13 @@ if (hasInvalidParams) {
       retryAfterSeconds = getPendingRetryAfterSeconds(response.retryAfterSeconds);
       Astro.response.headers.set("Cache-Control", "no-store");
       Astro.response.headers.set("Retry-After", retryAfterSeconds.toString());
+    } else if (lookupStatus >= 500) {
+      Astro.response.headers.set("Cache-Control", "no-store");
     }
   } catch {
     Astro.response.status = 500;
     lookupStatus = 500;
+    Astro.response.headers.set("Cache-Control", "no-store");
   }
 }
 ---
