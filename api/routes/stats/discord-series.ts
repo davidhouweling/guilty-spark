@@ -22,6 +22,7 @@ import type { DiscordService } from "../../services/discord/discord";
 import { EmbedColors } from "../../embeds/colors";
 import type { RoutesRegisterHandler } from "../base/types";
 import type { HaloService } from "../../services/halo/halo";
+import type { LogService } from "../../services/log/types";
 
 const DEFAULT_PENDING_RETRY_SECONDS = 2;
 const PENDING_CACHE_TTL_SECONDS = 60 * 5;
@@ -330,16 +331,38 @@ function getTeamPlayersFromMatch(match: MatchStats, teamId: number): MatchStats[
   });
 }
 
+async function getSubtitle(guildId: string, discordService: DiscordService, logService: LogService): Promise<string> {
+  let subtitle = `Guild ${guildId}`;
+  try {
+    const guild = await discordService.getGuild(guildId);
+    const guildName = guild.name.trim();
+    subtitle = guildName === "" ? `Guild ${guildId}` : guildName;
+  } catch (error) {
+    logService.warn(
+      "Failed to fetch guild name for discord series subtitle, falling back to guild id",
+      new Map([
+        ["guildId", guildId],
+        ["error", String(error)],
+      ]),
+    );
+  }
+  return subtitle;
+}
+
 async function tryBuildRenderData({
+  discordService,
+  logService,
+  haloService,
   guildId,
   queueNumber,
   matchIds,
-  haloService,
 }: {
+  discordService: DiscordService;
+  logService: LogService;
+  haloService: HaloService;
   guildId: string;
   queueNumber: number;
   matchIds: string[];
-  haloService: HaloService;
 }): Promise<DiscordSeriesStatsResolved["renderData"]> {
   const matches = await haloService.getMatchDetails(matchIds);
   if (matches.length === 0) {
@@ -397,9 +420,11 @@ async function tryBuildRenderData({
     }),
   }));
 
+  const subtitle = await getSubtitle(guildId, discordService, logService);
+
   return {
     title: `Queue #${queueNumber.toString()} Series Stats`,
-    subtitle: `Guild ${guildId}`,
+    subtitle,
     seriesScore: haloService.getSeriesScore(matches, "en-US"),
     teams,
     matches: renderMatches,
@@ -409,7 +434,7 @@ async function tryBuildRenderData({
 export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/stats/discord/:guildId/:queueNumber", async (request, env: Env) => {
     const services = installServices({ env });
-    const { discordService, logService } = services;
+    const { discordService, logService, haloService } = services;
     const parsedParams = parsePathParams(
       request.params,
       discordSeriesStatsParamsSchema,
@@ -448,10 +473,12 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
       }
 
       const renderData = await tryBuildRenderData({
+        discordService,
+        logService,
+        haloService,
         guildId,
         queueNumber,
         matchIds: lookupResult.matchIds,
-        haloService: services.haloService,
       });
 
       const resolvedResponse: DiscordSeriesStats = {

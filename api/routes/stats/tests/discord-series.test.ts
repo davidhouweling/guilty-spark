@@ -11,6 +11,7 @@ import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { EmbedColors } from "../../../embeds/colors";
 import { DiscordError } from "../../../services/discord/discord-error";
+import { guild } from "../../../services/discord/fakes/data";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { statsRoutesRegisterHandler } from "../stats";
 
@@ -115,6 +116,11 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
           ],
         ],
       });
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue({
+        ...guild,
+        id: "123456789012345678",
+        name: "NeatQueue League",
+      });
       return services;
     });
     statsRoutesRegisterHandler(router, localInstallServices);
@@ -132,6 +138,49 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
       guildId: "123456789012345678",
       queueNumber: 7777,
       matchIds,
+      renderData: {
+        title: "Queue #7777 Series Stats",
+        subtitle: "NeatQueue League",
+      },
+    });
+  });
+
+  it("falls back to guild id subtitle when guild lookup fails", async () => {
+    const matchId = "d81554d7-ddfe-44da-a6cb-000000000ctf";
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.discordService, "searchGuildMessages").mockResolvedValue({
+        doing_deep_historical_index: false,
+        total_results: 1,
+        messages: [
+          [
+            aFakeMessageWith({
+              id: "m-guild-fallback",
+              color: EmbedColors.INFO,
+              title: "Series stats for queue #7777 (1-0)",
+              gameFieldValue: `[Slayer](https://halodatahive.com/Infinite/Match/${matchId})`,
+            }),
+          ],
+        ],
+      });
+      vi.spyOn(services.discordService, "getGuild").mockRejectedValue(new Error("guild fetch failed"));
+      return services;
+    });
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777"),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(200);
+    const body = await res.json<DiscordSeriesStatsResponse>();
+    expect(body).toMatchObject({
+      status: "resolved",
+      guildId: "123456789012345678",
+      queueNumber: 7777,
+      matchIds: [matchId],
       renderData: {
         title: "Queue #7777 Series Stats",
         subtitle: "Guild 123456789012345678",
