@@ -652,11 +652,24 @@ export class NeatQueueService {
     }
 
     try {
-      const [guild, queueState] = await Promise.all([
-        discordService.getGuild(request.guild),
-        this.getQueueState(request.guild, request.match_number),
-      ]);
-      const guildIconUrl = discordService.getGuildIconUrl(guild.id, guild.icon ?? null);
+      const queueState = await this.getQueueState(request.guild, request.match_number);
+
+      let title = request.guild;
+      let guildIconUrl: string | null = null;
+      try {
+        const guild = await discordService.getGuild(request.guild);
+        title = guild.name;
+        guildIconUrl = discordService.getGuildIconUrl(guild.id, guild.icon ?? null);
+      } catch (guildError) {
+        logService.warn(
+          "Failed to fetch guild info for series context, using fallback title",
+          new Map([
+            ["guildId", request.guild],
+            ["error", String(guildError)],
+          ]),
+        );
+      }
+
       const seriesTeams: SeriesTeam[] = request.teams.map((team, teamIndex) => ({
         name: team[0]?.team_name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
         players: team.map((player) =>
@@ -664,7 +677,7 @@ export class NeatQueueService {
         ),
       }));
       const seriesContext: SeriesContextPayload = {
-        title: guild.name,
+        title,
         subtitle: `Queue #${request.match_number.toString()}`,
         guildIconUrl,
         teams: seriesTeams,
@@ -714,7 +727,7 @@ export class NeatQueueService {
       this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
     } catch (error) {
       logService.warn(
-        "Failed to update live tracker with substitution",
+        "Failed to load substitution state",
         new Map([
           ["guildId", request.guild],
           ["channelId", request.channel],

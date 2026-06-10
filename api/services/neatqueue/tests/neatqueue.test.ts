@@ -12,7 +12,7 @@ import type { MatchStats } from "halo-infinite-api";
 import { sub } from "date-fns";
 import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import type { SeriesPlayer, SeriesTeam } from "../../../durable-objects/individual-tracker/types";
+import type { SeriesContextPayload, SeriesPlayer, SeriesTeam } from "../../../durable-objects/individual-tracker/types";
 import { NeatQueueService } from "../neatqueue";
 import type { DatabaseService } from "../../database/database";
 import {
@@ -2003,7 +2003,7 @@ describe("NeatQueueService", () => {
         });
       });
 
-      it("does not throw when getGuild fails", async () => {
+      it("nudges with fallback title when getGuild fails", async () => {
         const teamsCreatedRequest = getFakeNeatQueueData("teamsCreated");
         (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());
         vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
@@ -2014,7 +2014,10 @@ describe("NeatQueueService", () => {
 
         const { jobToComplete } = neatQueueService.handleRequest(teamsCreatedRequest, neatQueueConfig);
         await expect(jobToComplete?.()).resolves.toBeUndefined();
-        expect(nudgeTrackersSpy).not.toHaveBeenCalled();
+        expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
+        const [, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], SeriesContextPayload];
+        expect(payload.title).toBe(teamsCreatedRequest.guild);
+        expect(payload.guildIconUrl).toBeNull();
       });
     });
 
