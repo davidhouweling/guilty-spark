@@ -504,3 +504,105 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
     });
   });
 });
+
+describe("/api/stats/discord/:guildId/:queueNumber/lookup", () => {
+  let env: Env;
+  let router: AutoRouterType;
+
+  beforeEach(() => {
+    env = aFakeEnvWith();
+    router = createApiRouter();
+  });
+
+  it("returns resolved lookup quickly without calling halo match detail lookups", async () => {
+    const matchId = "d81554d7-ddfe-44da-a6cb-000000000ctf";
+    let haloGetMatchDetailsSpy: MockInstance | null = null;
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      haloGetMatchDetailsSpy = vi.spyOn(services.haloService, "getMatchDetails");
+      vi.spyOn(services.discordService, "searchGuildMessages").mockResolvedValue({
+        doing_deep_historical_index: false,
+        total_results: 1,
+        messages: [
+          [
+            aFakeMessageWith({
+              id: "m-lookup",
+              color: EmbedColors.INFO,
+              title: "Series stats for queue #7777",
+              gameFieldValue: `[Slayer](https://halodatahive.com/Infinite/Match/${matchId})`,
+            }),
+          ],
+        ],
+      });
+      return services;
+    });
+
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777/lookup"),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      status: "resolved",
+      guildId: "123456789012345678",
+      queueNumber: 7777,
+      matchIds: [matchId],
+    });
+    expect(haloGetMatchDetailsSpy).not.toBeNull();
+    expect(haloGetMatchDetailsSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns not found when no matching overview embed exists", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.discordService, "searchGuildMessages").mockResolvedValue({
+        doing_deep_historical_index: false,
+        total_results: 1,
+        messages: [[aFakeMessageWith({ id: "m-lookup-404", color: 0xff0000, title: "Error" })]],
+      });
+      return services;
+    });
+
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777/lookup"),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({
+      status: "not-found",
+      guildId: "123456789012345678",
+      queueNumber: 7777,
+      reason: "No matching series overview embeds found",
+    });
+  });
+
+  it("returns pending-index with Retry-After when Discord search is indexing", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.discordService, "searchGuildMessages").mockResolvedValue({
+        code: 110000,
+        documents_indexed: 0,
+        retry_after: 6,
+        message: "Index not yet available. Try again later",
+      });
+      return services;
+    });
+
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777/lookup"),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(503);
+    expect(res.headers.get("retry-after")).toBe("6");
+  });
+});

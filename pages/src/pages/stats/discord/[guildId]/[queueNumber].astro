@@ -1,13 +1,12 @@
 ---
 export const prerender = false;
 
-import type { DiscordSeriesStats } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { API_HOST } from "../../../../constants";
 import Layout from "../../../../layouts/layout.astro";
 import { DiscordSeriesStatsApp } from "../../../../apps/discord-series-stats/create";
 import LoadingState from "../../../../components/loading-state/loading-state.astro";
 import ErrorState from "../../../../components/error-state/error-state.astro";
-import { fetchDiscordSeriesStats } from "../../../../services/stats/discord-series";
+import { installDiscordSeriesStatsService } from "../../../../services/stats/install";
 
 const { guildId = "", queueNumber = "" } = Astro.params;
 
@@ -16,12 +15,12 @@ const isStrictPositiveInteger = /^[1-9]\d*$/.test(queueNumber);
 const parsedQueueNumber = Number(queueNumber);
 const isSafeQueueNumber = Number.isSafeInteger(parsedQueueNumber) && parsedQueueNumber > 0;
 const hasInvalidParams = !isSnowflake || !isStrictPositiveInteger || !isSafeQueueNumber;
-let responseState: DiscordSeriesStats | null = null;
-let loadError: string | null = null;
+let lookupStatus = hasInvalidParams ? 404 : 500;
+let retryAfterSeconds = 2;
 
-function getPendingRetryAfterSeconds(responseRetryAfterSeconds: number | null, dataRetryAfterSeconds: number): number {
+function getPendingRetryAfterSeconds(responseRetryAfterSeconds: number | null): number {
   if (responseRetryAfterSeconds == null) {
-    return Math.ceil(dataRetryAfterSeconds);
+    return 2;
   }
 
   return Math.ceil(responseRetryAfterSeconds);
@@ -29,41 +28,37 @@ function getPendingRetryAfterSeconds(responseRetryAfterSeconds: number | null, d
 
 if (hasInvalidParams) {
   Astro.response.status = 404;
-  loadError = "Queue not found";
 } else {
   try {
-    const response = await fetchDiscordSeriesStats(`${API_HOST}/api/stats/discord/${guildId}/${queueNumber}`);
-    Astro.response.status = response.status;
-    responseState = response.data;
+    const statsService = await installDiscordSeriesStatsService(String(API_HOST));
+    const response = await statsService.getLookup(guildId, queueNumber);
+    lookupStatus = response.status;
+    Astro.response.status = lookupStatus;
 
-    if (response.data.status === "pending-index") {
+    if (lookupStatus === 503) {
+      retryAfterSeconds = getPendingRetryAfterSeconds(response.retryAfterSeconds);
       Astro.response.headers.set("Cache-Control", "no-store");
-      Astro.response.headers.set(
-        "Retry-After",
-        getPendingRetryAfterSeconds(response.retryAfterSeconds, response.data.retryAfterSeconds).toString(),
-      );
+      Astro.response.headers.set("Retry-After", retryAfterSeconds.toString());
     }
   } catch {
     Astro.response.status = 500;
-    loadError = "Failed to load stats";
+    lookupStatus = 500;
   }
 }
 ---
 
 <Layout title={`Queue #${queueNumber} Stats - Guilty Spark`} description="Series stats for a completed queue">
   {
-    responseState?.status === "resolved" ? (
-      <DiscordSeriesStatsApp client:load data={responseState} />
-    ) : responseState?.status === "pending-index" ? (
-      <LoadingState
-        text={`Stats are still indexing. Retry in ${Math.ceil(responseState.retryAfterSeconds).toString()}s.`}
-      />
-    ) : responseState?.status === "forbidden" ? (
-      <ErrorState title="Access forbidden" message={responseState.reason} />
-    ) : responseState?.status === "not-found" ? (
-      <ErrorState title="Queue not found" message={responseState.reason} />
+    hasInvalidParams || lookupStatus === 404 ? (
+      <ErrorState title="Queue not found" message="No matching queue was found for this guild." />
+    ) : lookupStatus === 200 ? (
+      <DiscordSeriesStatsApp client:only="react" apiHost={API_HOST} guildId={guildId} queueNumber={queueNumber} />
+    ) : lookupStatus === 503 ? (
+      <LoadingState text={`Stats are still indexing. Retry in ${retryAfterSeconds.toString()}s.`} />
+    ) : lookupStatus === 403 ? (
+      <ErrorState title="Access forbidden" message="Missing Discord permissions or message content access" />
     ) : (
-      <ErrorState title="Unable to load stats" message={loadError ?? "Unexpected response"} />
+      <ErrorState title="Unable to load stats" message="Failed to validate queue stats" />
     )
   }
 </Layout>

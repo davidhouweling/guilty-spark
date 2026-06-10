@@ -1,12 +1,30 @@
 import "@testing-library/jest-dom/vitest";
 
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import type {
+  DiscordSeriesStats,
+  DiscordSeriesStatsNotFound,
+  DiscordSeriesStatsPending,
+  DiscordSeriesStatsResolved,
+} from "@guilty-spark/shared/contracts/stats/discord-series";
 import { DiscordSeriesStatsApp } from "../create";
+
+const { mockInstallServices } = vi.hoisted(() => {
+  return {
+    mockInstallServices: vi.fn(),
+  };
+});
+
+vi.mock("../services", () => {
+  return {
+    installServices: mockInstallServices,
+  };
+});
 
 afterEach(() => {
   cleanup();
+  mockInstallServices.mockReset();
 });
 
 function aFakeResolvedDataWith(overrides: Partial<DiscordSeriesStatsResolved> = {}): DiscordSeriesStatsResolved {
@@ -45,37 +63,96 @@ function aFakeResolvedDataWith(overrides: Partial<DiscordSeriesStatsResolved> = 
   };
 }
 
+function aFakePendingData(): DiscordSeriesStatsPending {
+  return {
+    status: "pending-index",
+    guildId: "123456789012345678",
+    queueNumber: 7777,
+    retryAfterSeconds: 9,
+  };
+}
+
+function aFakeNotFoundData(): DiscordSeriesStatsNotFound {
+  return {
+    status: "not-found",
+    guildId: "123456789012345678",
+    queueNumber: 7777,
+    reason: "No matching series overview embeds found",
+  };
+}
+
+function aFakeServiceWith(response: DiscordSeriesStats): {
+  getStats: () => Promise<{ status: number; data: DiscordSeriesStats; retryAfterSeconds: number | null }>;
+} {
+  return {
+    getStats: async (): Promise<{ status: number; data: DiscordSeriesStats; retryAfterSeconds: number | null }> => {
+      return Promise.resolve({
+        status: response.status === "pending-index" ? 503 : response.status === "not-found" ? 404 : 200,
+        data: response,
+        retryAfterSeconds: response.status === "pending-index" ? response.retryAfterSeconds : null,
+      });
+    },
+  };
+}
+
 describe("DiscordSeriesStatsApp", () => {
-  it("renders header and top-level sections", () => {
-    render(<DiscordSeriesStatsApp data={aFakeResolvedDataWith()} />);
+  it("loads and renders resolved queue stats", async () => {
+    mockInstallServices.mockResolvedValue({
+      discordSeriesStatsService: aFakeServiceWith(aFakeResolvedDataWith()),
+    });
 
-    expect(screen.getByRole("heading", { name: "Queue #7777 Series Stats" })).toBeInTheDocument();
-    expect(screen.getByText("Series overview")).toBeInTheDocument();
-    expect(screen.getByText("Matches")).toBeInTheDocument();
-    expect(screen.getByText("Eagle")).toBeInTheDocument();
-    expect(screen.getByText("Cobra")).toBeInTheDocument();
+    render(
+      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Queue #7777 Series Stats" })).toBeInTheDocument();
   });
 
-  it("shows warning when a match has invalid raw match data", () => {
-    render(<DiscordSeriesStatsApp data={aFakeResolvedDataWith()} />);
+  it("renders pending message when stats are indexing", async () => {
+    mockInstallServices.mockResolvedValue({
+      discordSeriesStatsService: aFakeServiceWith(aFakePendingData()),
+    });
 
-    expect(screen.getByText("Failed to load detailed stats for match match-1.")).toBeInTheDocument();
+    render(
+      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />,
+    );
+
+    expect(await screen.findByText("Stats are still indexing. Retry in 9s.")).toBeInTheDocument();
   });
 
-  it("does not render series totals when no valid raw match data exists", () => {
-    render(<DiscordSeriesStatsApp data={aFakeResolvedDataWith()} />);
+  it("renders queue not found state", async () => {
+    mockInstallServices.mockResolvedValue({
+      discordSeriesStatsService: aFakeServiceWith(aFakeNotFoundData()),
+    });
 
-    expect(screen.queryByText("Series Totals")).not.toBeInTheDocument();
+    render(
+      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />,
+    );
+
+    expect(await screen.findByText("Queue not found: No matching series overview embeds found")).toBeInTheDocument();
   });
 
-  it("toggles between standard and wide view", () => {
-    render(<DiscordSeriesStatsApp data={aFakeResolvedDataWith()} />);
+  it("renders error state when fetch fails", async () => {
+    mockInstallServices.mockResolvedValue({
+      discordSeriesStatsService: {
+        getStats: async (): Promise<never> => Promise.reject(new Error("boom")),
+      },
+    });
 
-    const toggleButton = screen.getByRole("button", { name: "Switch to wide view" });
-    expect(toggleButton).toBeInTheDocument();
+    render(
+      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />,
+    );
 
-    fireEvent.click(toggleButton);
+    expect(await screen.findByText("Failed to load stats")).toBeInTheDocument();
+  });
 
-    expect(screen.getByRole("button", { name: "Switch to standard view" })).toBeInTheDocument();
+  it("renders service installation error state", async () => {
+    mockInstallServices.mockRejectedValue(new Error("service failed"));
+
+    render(
+      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />,
+    );
+
+    expect(await screen.findByText("Failed to load stats service")).toBeInTheDocument();
   });
 });

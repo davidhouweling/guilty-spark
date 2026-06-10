@@ -10,11 +10,15 @@ import {
   discordSeriesStatsContract,
   discordSeriesStatsParamsSchema,
   type DiscordSeriesStats,
+  type DiscordSeriesStatsForbidden,
+  type DiscordSeriesStatsNotFound,
+  type DiscordSeriesStatsPending,
   type DiscordSeriesStatsResolved,
 } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { DiscordError } from "../../services/discord/discord-error";
+import type { DiscordService } from "../../services/discord/discord";
 import { EmbedColors } from "../../embeds/colors";
 import type { RoutesRegisterHandler } from "../base/types";
 import type { HaloService } from "../../services/halo/halo";
@@ -110,6 +114,107 @@ function sanitizeRetryAfterSeconds(retryAfterValue: unknown): number {
   }
 
   return retryAfterValue;
+}
+
+type DiscordSeriesLookupResult =
+  | {
+      status: "resolved";
+      guildId: string;
+      queueNumber: number;
+      matchIds: string[];
+    }
+  | DiscordSeriesStatsPending
+  | DiscordSeriesStatsNotFound;
+
+async function findDiscordSeriesLookupResult({
+  guildId,
+  queueNumber,
+  discordService,
+  env,
+}: {
+  guildId: string;
+  queueNumber: number;
+  discordService: DiscordService;
+  env: Env;
+}): Promise<DiscordSeriesLookupResult> {
+  const searchResponse = await discordService.searchGuildMessages(guildId, {
+    content: `Series stats for queue #${queueNumber.toString()}`,
+    author_id: [env.DISCORD_APP_ID],
+    author_type: [MessageSearchAuthorType.Bot],
+    sort_by: MessageSearchSortMode.Timestamp,
+    sort_order: "desc",
+    limit: 25,
+  });
+
+  if ("retry_after" in searchResponse) {
+    return {
+      status: "pending-index",
+      guildId,
+      queueNumber,
+      retryAfterSeconds: sanitizeRetryAfterSeconds(searchResponse.retry_after),
+    };
+  }
+
+  const flattenedMessages = searchResponse.messages.flatMap((messages: APIMessage[]): APIMessage[] => messages);
+  const blueOverviewCandidates = flattenedMessages.filter(
+    (message: APIMessage) => getOverviewEmbed(message, queueNumber) != null,
+  );
+
+  if (blueOverviewCandidates.length === 0) {
+    return {
+      status: "not-found",
+      guildId,
+      queueNumber,
+      reason: "No matching series overview embeds found",
+    };
+  }
+
+  const selectedOverviewMessage = Preconditions.checkExists(blueOverviewCandidates[0]);
+  const matchIds = extractMatchIdsFromEmbeds(selectedOverviewMessage.embeds);
+
+  if (matchIds.length === 0) {
+    return {
+      status: "not-found",
+      guildId,
+      queueNumber,
+      reason: "Series overview embed found but no match IDs were discoverable",
+    };
+  }
+
+  return {
+    status: "resolved",
+    guildId,
+    queueNumber,
+    matchIds,
+  };
+}
+
+function toLookupResponse(lookupResult: DiscordSeriesLookupResult | DiscordSeriesStatsForbidden): Response {
+  switch (lookupResult.status) {
+    case "resolved": {
+      return Response.json(
+        {
+          status: "resolved",
+          guildId: lookupResult.guildId,
+          queueNumber: lookupResult.queueNumber,
+          matchIds: lookupResult.matchIds,
+        },
+        { status: 200 },
+      );
+    }
+    case "pending-index": {
+      return discordSeriesStatsContract.toResponse(lookupResult, getResponseOptions(lookupResult));
+    }
+    case "not-found": {
+      return discordSeriesStatsContract.toResponse(lookupResult, { status: 404 });
+    }
+    case "forbidden": {
+      return discordSeriesStatsContract.toResponse(lookupResult, { status: 403 });
+    }
+    default: {
+      throw new UnreachableError(lookupResult);
+    }
+  }
 }
 
 function splitGameTypeAndMap(gameTypeAndMap: string): { gameType: string; gameMap: string } {
@@ -253,71 +358,24 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
         );
       }
 
-      const searchResponse = await discordService.searchGuildMessages(guildId, {
-        content: `Series stats for queue #${queueNumber.toString()}`,
-        author_id: [env.DISCORD_APP_ID],
-        author_type: [MessageSearchAuthorType.Bot],
-        sort_by: MessageSearchSortMode.Timestamp,
-        sort_order: "desc",
-        limit: 25,
-      });
+      const lookupResult = await findDiscordSeriesLookupResult({ guildId, queueNumber, discordService, env });
 
-      if ("retry_after" in searchResponse) {
-        const retryAfterSeconds = sanitizeRetryAfterSeconds(searchResponse.retry_after);
-
-        const pendingResponse: DiscordSeriesStats = {
-          status: "pending-index",
-          guildId,
-          queueNumber,
-          retryAfterSeconds,
-        };
-        await env.APP_DATA.put(cacheKey, JSON.stringify(pendingResponse), { expirationTtl: PENDING_CACHE_TTL_SECONDS });
-
-        return discordSeriesStatsContract.toResponse(pendingResponse, getResponseOptions(pendingResponse));
+      if (lookupResult.status === "pending-index") {
+        await env.APP_DATA.put(cacheKey, JSON.stringify(lookupResult), { expirationTtl: PENDING_CACHE_TTL_SECONDS });
+        return discordSeriesStatsContract.toResponse(lookupResult, getResponseOptions(lookupResult));
       }
 
-      const flattenedMessages = searchResponse.messages.flatMap((messages: APIMessage[]): APIMessage[] => messages);
-      const blueOverviewCandidates = flattenedMessages.filter(
-        (message: APIMessage) => getOverviewEmbed(message, queueNumber) != null,
-      );
-
-      if (blueOverviewCandidates.length === 0) {
-        const notFoundResponse: DiscordSeriesStats = {
-          status: "not-found",
-          guildId,
-          queueNumber,
-          reason: "No matching series overview embeds found",
-        };
-
-        await env.APP_DATA.put(cacheKey, JSON.stringify(notFoundResponse), {
+      if (lookupResult.status === "not-found") {
+        await env.APP_DATA.put(cacheKey, JSON.stringify(lookupResult), {
           expirationTtl: NOT_FOUND_CACHE_TTL_SECONDS,
         });
-
-        return discordSeriesStatsContract.toResponse(notFoundResponse, { status: 404 });
-      }
-
-      const selectedOverviewMessage = Preconditions.checkExists(blueOverviewCandidates[0]);
-      const matchIds = extractMatchIdsFromEmbeds(selectedOverviewMessage.embeds);
-
-      if (matchIds.length === 0) {
-        const notFoundResponse: DiscordSeriesStats = {
-          status: "not-found",
-          guildId,
-          queueNumber,
-          reason: "Series overview embed found but no match IDs were discoverable",
-        };
-
-        await env.APP_DATA.put(cacheKey, JSON.stringify(notFoundResponse), {
-          expirationTtl: NOT_FOUND_CACHE_TTL_SECONDS,
-        });
-
-        return discordSeriesStatsContract.toResponse(notFoundResponse, { status: 404 });
+        return discordSeriesStatsContract.toResponse(lookupResult, { status: 404 });
       }
 
       const renderData = await tryBuildRenderData({
         guildId,
         queueNumber,
-        matchIds,
+        matchIds: lookupResult.matchIds,
         haloService: services.haloService,
       });
 
@@ -325,7 +383,7 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
         status: "resolved",
         guildId,
         queueNumber,
-        matchIds,
+        matchIds: lookupResult.matchIds,
         renderData,
       };
 
@@ -365,6 +423,83 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
       logService.error(error as Error, new Map([["message", "Failed to resolve discord series stats route"]]));
       return errorContract.toResponse(
         { error: "Failed to resolve discord series stats" },
+        { status: 500, noStore: true },
+      );
+    }
+  });
+
+  router.get("/api/stats/discord/:guildId/:queueNumber/lookup", async (request, env: Env) => {
+    const services = installServices({ env });
+    const { discordService, logService } = services;
+    const parsedParams = parsePathParams(
+      request.params,
+      discordSeriesStatsParamsSchema,
+      "Invalid guildId or queueNumber",
+    );
+    if (!parsedParams.success) {
+      return parsedParams.response;
+    }
+
+    const { guildId, queueNumber } = parsedParams.data;
+    const cacheKey = getCacheKey(guildId, queueNumber);
+
+    try {
+      const cached = await env.APP_DATA.get<DiscordSeriesStats>(cacheKey, { type: "json" });
+      if (cached != null && typeof cached === "object") {
+        const cachedParseResult = discordSeriesStatsContract.safeParse(cached);
+        if (cachedParseResult.success) {
+          return toLookupResponse(cachedParseResult.data);
+        }
+
+        logService.warn(
+          "Invalid cached discord series stats payload during lookup, treating as cache miss",
+          new Map([["cacheKey", cacheKey]]),
+        );
+      }
+
+      const lookupResult = await findDiscordSeriesLookupResult({ guildId, queueNumber, discordService, env });
+
+      if (lookupResult.status === "pending-index") {
+        await env.APP_DATA.put(cacheKey, JSON.stringify(lookupResult), { expirationTtl: PENDING_CACHE_TTL_SECONDS });
+      }
+
+      if (lookupResult.status === "not-found") {
+        await env.APP_DATA.put(cacheKey, JSON.stringify(lookupResult), {
+          expirationTtl: NOT_FOUND_CACHE_TTL_SECONDS,
+        });
+      }
+
+      return toLookupResponse(lookupResult);
+    } catch (error) {
+      if (error instanceof DiscordError && error.httpStatus === 429) {
+        const pendingResponse: DiscordSeriesStatsPending = {
+          status: "pending-index",
+          guildId,
+          queueNumber,
+          retryAfterSeconds: sanitizeRetryAfterSeconds((error.restError as { retry_after?: unknown }).retry_after),
+        };
+
+        await env.APP_DATA.put(cacheKey, JSON.stringify(pendingResponse), {
+          expirationTtl: PENDING_CACHE_TTL_SECONDS,
+        });
+
+        return toLookupResponse(pendingResponse);
+      }
+
+      if (error instanceof DiscordError && error.httpStatus === 403) {
+        const forbiddenResponse: DiscordSeriesStatsForbidden = {
+          status: "forbidden",
+          guildId,
+          queueNumber,
+          reason: "Missing Discord permissions or message content access",
+        };
+
+        return toLookupResponse(forbiddenResponse);
+      }
+
+      logService.error(error as Error, new Map([["message", "Failed to resolve discord series stats lookup route"]]));
+      return errorContract.toResponse(
+        { error: "Failed to resolve discord series stats lookup" },
         { status: 500, noStore: true },
       );
     }

@@ -1,7 +1,13 @@
-import {
-  discordSeriesStatsContract,
-  type DiscordSeriesStats,
-} from "@guilty-spark/shared/contracts/stats/discord-series";
+import { discordSeriesStatsContract } from "@guilty-spark/shared/contracts/stats/discord-series";
+import type {
+  DiscordSeriesStatsLookupResult,
+  DiscordSeriesStatsResult,
+  DiscordSeriesStatsService,
+} from "./discord-series-types";
+
+interface RealDiscordSeriesStatsServiceOptions {
+  readonly apiHost: string;
+}
 
 function parseRetryAfterHeader(value: string | null): number | null {
   if (value == null) {
@@ -21,12 +27,7 @@ function parseRetryAfterHeader(value: string | null): number | null {
   return parsed;
 }
 
-export async function fetchDiscordSeriesStats(url: string): Promise<{
-  status: number;
-  data: DiscordSeriesStats;
-  retryAfterSeconds: number | null;
-}> {
-  const response = await fetch(url);
+async function parseDiscordSeriesStatsResponse(response: Response): Promise<DiscordSeriesStatsResult> {
   const data = await discordSeriesStatsContract.fromResponse(response);
 
   return {
@@ -34,4 +35,31 @@ export async function fetchDiscordSeriesStats(url: string): Promise<{
     data,
     retryAfterSeconds: parseRetryAfterHeader(response.headers.get("Retry-After")),
   };
+}
+
+function parseDiscordSeriesStatsLookupResponse(response: Response): DiscordSeriesStatsLookupResult {
+  return {
+    status: response.status,
+    retryAfterSeconds: parseRetryAfterHeader(response.headers.get("Retry-After")),
+  };
+}
+
+export class RealDiscordSeriesStatsService implements DiscordSeriesStatsService {
+  private readonly apiHost: string;
+
+  constructor({ apiHost }: RealDiscordSeriesStatsServiceOptions) {
+    this.apiHost = apiHost;
+  }
+
+  async getStats(guildId: string, queueNumber: string): Promise<DiscordSeriesStatsResult> {
+    const response = await fetch(`${this.apiHost}/api/stats/discord/${guildId}/${queueNumber}`);
+
+    return parseDiscordSeriesStatsResponse(response);
+  }
+
+  async getLookup(guildId: string, queueNumber: string): Promise<DiscordSeriesStatsLookupResult> {
+    const response = await fetch(`${this.apiHost}/api/stats/discord/${guildId}/${queueNumber}/lookup`);
+
+    return parseDiscordSeriesStatsLookupResponse(response);
+  }
 }
