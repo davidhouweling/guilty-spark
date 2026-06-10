@@ -1,4 +1,5 @@
 import type { MatchStats } from "halo-infinite-api";
+import { differenceInSeconds, isValid, parseISO } from "date-fns";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { createMatchStatsPresenter } from "../stats/create";
 import { SeriesTeamStatsPresenter } from "../stats/series-team-stats-presenter";
@@ -59,19 +60,23 @@ function calculateSeriesMetadata(
   const [firstMatch] = matches;
   const lastMatch = matches[matches.length - 1];
 
-  const startMs = new Date(firstMatch.startTime).getTime();
-  const endMs = new Date(lastMatch.endTime).getTime();
-  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs < startMs) {
+  const startDate = parseISO(firstMatch.startTime);
+  const endDate = parseISO(lastMatch.endTime);
+  if (!isValid(startDate) || !isValid(endDate)) {
     return null;
   }
 
-  const totalMs = endMs - startMs;
-  const totalMinutes = Math.floor(totalMs / 60000);
-  const totalSeconds = Math.floor((totalMs % 60000) / 1000);
+  const totalSeconds = differenceInSeconds(endDate, startDate);
+  if (totalSeconds < 0) {
+    return null;
+  }
+
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const remainingSeconds = totalSeconds % 60;
 
   return {
     score: seriesScore,
-    duration: `${totalMinutes.toLocaleString()}m ${totalSeconds.toLocaleString()}s`,
+    duration: `${totalMinutes.toString()}m ${remainingSeconds.toString().padStart(2, "0")}s`,
     startTime: firstMatch.startTime,
     endTime: lastMatch.endTime,
   };

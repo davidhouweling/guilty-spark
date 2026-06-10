@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import type {
   DiscordSeriesStats,
+  DiscordSeriesStatsForbidden,
   DiscordSeriesStatsNotFound,
   DiscordSeriesStatsPending,
   DiscordSeriesStatsResolved,
@@ -81,13 +82,29 @@ function aFakeNotFoundData(): DiscordSeriesStatsNotFound {
   };
 }
 
+function aFakeForbiddenData(): DiscordSeriesStatsForbidden {
+  return {
+    status: "forbidden",
+    guildId: "123456789012345678",
+    queueNumber: 7777,
+    reason: "Missing Discord permissions or message content access",
+  };
+}
+
 function aFakeServiceWith(response: DiscordSeriesStats): {
   getStats: () => Promise<{ status: number; data: DiscordSeriesStats; retryAfterSeconds: number | null }>;
 } {
   return {
     getStats: async (): Promise<{ status: number; data: DiscordSeriesStats; retryAfterSeconds: number | null }> => {
       return Promise.resolve({
-        status: response.status === "pending-index" ? 503 : response.status === "not-found" ? 404 : 200,
+        status:
+          response.status === "pending-index"
+            ? 503
+            : response.status === "not-found"
+              ? 404
+              : response.status === "forbidden"
+                ? 403
+                : 200,
         data: response,
         retryAfterSeconds: response.status === "pending-index" ? response.retryAfterSeconds : null,
       });
@@ -130,6 +147,20 @@ describe("DiscordSeriesStatsApp", () => {
     );
 
     expect(await screen.findByText("Queue not found: No matching series overview embeds found")).toBeInTheDocument();
+  });
+
+  it("renders access forbidden state", async () => {
+    mockInstallServices.mockResolvedValue({
+      discordSeriesStatsService: aFakeServiceWith(aFakeForbiddenData()),
+    });
+
+    render(
+      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />,
+    );
+
+    expect(
+      await screen.findByText("Access forbidden: Missing Discord permissions or message content access"),
+    ).toBeInTheDocument();
   });
 
   it("renders error state when fetch fails", async () => {

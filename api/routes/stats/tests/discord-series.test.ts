@@ -605,4 +605,142 @@ describe("/api/stats/discord/:guildId/:queueNumber/lookup", () => {
     expect(res.status).toBe(503);
     expect(res.headers.get("retry-after")).toBe("6");
   });
+
+  it("returns cached lookup response without calling Discord search", async () => {
+    const storedByKey = new Map<string, string>();
+    const appDataGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+    const appDataPutSpy: MockInstance<(key: string, value: string, options?: KVNamespacePutOptions) => Promise<void>> =
+      vi.spyOn(env.APP_DATA, "put");
+
+    appDataGetSpy.mockImplementation(async (key: string, options?: { type?: string }) => {
+      await Promise.resolve();
+      const value = storedByKey.get(key);
+      if (value == null) {
+        return null;
+      }
+
+      if (options?.type === "json") {
+        return JSON.parse(value) as unknown;
+      }
+
+      return value;
+    });
+    appDataPutSpy.mockImplementation(async (key: string, value: string) => {
+      await Promise.resolve();
+      storedByKey.set(key, value);
+    });
+
+    const cacheKey = "stats:discord:series:123456789012345678:7777";
+    await env.APP_DATA.put(
+      cacheKey,
+      JSON.stringify({
+        status: "resolved",
+        guildId: "123456789012345678",
+        queueNumber: 7777,
+        matchIds: ["cached-match-1"],
+        renderData: aFakeRenderDataWith(["cached-match-1"]),
+      }),
+    );
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      const searchSpy = vi.spyOn(services.discordService, "searchGuildMessages");
+      searchSpy.mockImplementation(() => {
+        throw new Error("searchGuildMessages should not be called when lookup cache hit exists");
+      });
+      return services;
+    });
+
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777/lookup"),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      status: "resolved",
+      guildId: "123456789012345678",
+      queueNumber: 7777,
+      matchIds: ["cached-match-1"],
+    });
+    expect(appDataGetSpy).toHaveBeenCalledWith(cacheKey, { type: "json" });
+  });
+
+  it("returns forbidden when Discord service throws 403", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.discordService, "searchGuildMessages").mockRejectedValue(
+        new DiscordError(403, { code: 50013, message: "Missing Permissions" }),
+      );
+      return services;
+    });
+
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777/lookup"),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({
+      status: "forbidden",
+      guildId: "123456789012345678",
+      queueNumber: 7777,
+      reason: "Missing Discord permissions or message content access",
+    });
+  });
+
+  it("returns pending-index when Discord service throws 429", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.discordService, "searchGuildMessages").mockRejectedValue(
+        new DiscordError(429, {
+          code: 0,
+          message: "You are being rate limited.",
+        }),
+      );
+      return services;
+    });
+
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777/lookup"),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(503);
+    expect(res.headers.get("retry-after")).toBe("2");
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toEqual({
+      status: "pending-index",
+      guildId: "123456789012345678",
+      queueNumber: 7777,
+      retryAfterSeconds: 2,
+    });
+  });
+
+  it("returns internal error response when lookup fails unexpectedly", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.discordService, "searchGuildMessages").mockRejectedValue(new Error("boom"));
+      return services;
+    });
+
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777/lookup"),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(500);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toEqual({
+      error: "Failed to resolve discord series stats lookup",
+    });
+  });
 });
