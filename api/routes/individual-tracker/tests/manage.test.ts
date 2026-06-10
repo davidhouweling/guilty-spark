@@ -560,6 +560,27 @@ describe("/api/individual-tracker manage routes", () => {
     expect(res.status).toBe(409);
   });
 
+  it("returns 400 on edit-series when the body has no fields", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith({ userId: "user-123" }));
+      vi.spyOn(services.individualTrackerService, "getOwnedTracker").mockResolvedValue(
+        aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123" }),
+      );
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const req = new Request("http://localhost/api/individual-tracker/manage/t1/series", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const res = (await router.fetch(req, env)) as Response;
+
+    expect(res.status).toBe(400);
+  });
+
   it("returns 401 on edit-series when not authenticated", async () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });

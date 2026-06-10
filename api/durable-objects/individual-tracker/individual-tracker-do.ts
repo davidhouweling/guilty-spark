@@ -684,7 +684,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("No completed series to resume", { status: 409 });
     }
 
-    const resumed = Preconditions.checkExists(trackerState.completedSeries.pop());
+    const resumed = Preconditions.checkExists(
+      trackerState.completedSeries.pop(),
+      "completedSeries was unexpectedly empty",
+    );
     trackerState.activeSeries = { ...resumed, isActive: true };
     trackerState.lastUpdateTime = new Date().toISOString();
 
@@ -926,7 +929,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const lastMatch = summaries.at(-1);
     const lastCompletedSeries = state.completedSeries?.at(-1);
     const hasRecentCompletedSeries =
-      lastMatch != null && (lastCompletedSeries?.matchIds.includes(lastMatch.matchId) ?? false);
+      state.activeSeries == null &&
+      lastMatch != null &&
+      (lastCompletedSeries?.matchIds.includes(lastMatch.matchId) ?? false);
 
     return {
       trackerId: state.trackerId,

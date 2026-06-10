@@ -82,18 +82,23 @@ export type StartSeriesResponse = z.infer<typeof startSeriesContract.schema>;
 export const endSeriesContract = defineContract(z.object({ success: z.literal(true) }));
 export type EndSeriesResponse = z.infer<typeof endSeriesContract.schema>;
 
-export const editSeriesRequestSchema = z.object({
-  titleOverride: z.string().optional(),
-  subtitleOverride: z.string().nullable().optional(),
-  teams: z
-    .array(
-      z.object({
-        name: z.string(),
-        members: z.array(z.string()),
-      }),
-    )
-    .optional(),
-});
+export const editSeriesRequestSchema = z
+  .object({
+    titleOverride: z.string().optional(),
+    subtitleOverride: z.string().nullable().optional(),
+    teams: z
+      .array(
+        z.object({
+          name: z.string(),
+          members: z.array(z.string()),
+        }),
+      )
+      .optional(),
+  })
+  .refine(
+    (data) => data.titleOverride !== undefined || data.subtitleOverride !== undefined || data.teams !== undefined,
+    { message: "At least one field must be provided" },
+  );
 export type EditSeriesRequest = z.infer<typeof editSeriesRequestSchema>;
 
 export const editSeriesContract = defineContract(z.object({ success: z.literal(true) }));
