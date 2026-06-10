@@ -1882,7 +1882,7 @@ describe("LiveTrackerDO", () => {
     });
 
     describe("during alarm processing", (): void => {
-      it("updates channel name with series score when enabled", async (): Promise<void> => {
+      it("updates channel name with emoji series score when enabled", async (): Promise<void> => {
         const trackerState = aFakeStateWith({
           guildId: "test-guild-id",
           channelId: "test-channel-id",
@@ -1921,7 +1921,11 @@ describe("LiveTrackerDO", () => {
 
         const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
         vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
-        vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
+        const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+        kvGetSpy.mockResolvedValue(mockMatches[0]);
+        const getSeriesScoreSpy = vi
+          .spyOn(services.haloService, "getSeriesScore")
+          .mockImplementation((_matches, _locale, includeEmoji) => (includeEmoji === true ? "🦅 1:0 🐍" : "1:0"));
         vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
         vi.spyOn(haloDuration, "getReadableDuration").mockReturnValue("5:00");
         vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
@@ -1934,10 +1938,21 @@ describe("LiveTrackerDO", () => {
 
         await liveTrackerDO.alarm();
 
+        expect(getSeriesScoreSpy).toHaveBeenNthCalledWith(
+          1,
+          expect.arrayContaining([expect.objectContaining({ MatchId: "9535b946-f30c-4a43-b852-000000slayer" })]),
+          "en-US",
+        );
+        expect(getSeriesScoreSpy).toHaveBeenNthCalledWith(
+          2,
+          expect.arrayContaining([expect.objectContaining({ MatchId: "9535b946-f30c-4a43-b852-000000slayer" })]),
+          "en-US",
+          true,
+        );
         expect(getChannelSpy).toHaveBeenCalledWith("test-channel-id");
         expect(updateChannelSpy).toHaveBeenCalledWith("test-channel-id", {
-          name: "my-queue-channel┊1﹕0",
-          reason: "Live Tracker: Updated series score to 1:0",
+          name: "my-queue-channel┊🦅1﹕0🐍",
+          reason: "Live Tracker: Updated series score to 🦅 1:0 🐍",
         });
       });
 
