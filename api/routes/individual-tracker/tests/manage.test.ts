@@ -747,6 +747,8 @@ describe("/api/individual-tracker manage routes", () => {
     )) as Response;
 
     expect(res.status).toBe(409);
+    const body = await res.json<{ error: string }>();
+    expect(body.error).toBe("No completed series to resume");
   });
 
   it("returns 409 on resume-series when DO has an active series", async () => {
