@@ -2074,6 +2074,36 @@ describe("IndividualTrackerDO", () => {
       expect(body.state.hasRecentCompletedSeries).toBe(false);
     });
 
+    it("hasRecentCompletedSeries is false when post-series matches exist but are deselected", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2", "m3"],
+          selectedMatchIds: ["m1", "m2"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", startTime: "2024-11-26T11:00:00.000Z" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2", startTime: "2024-11-26T12:00:00.000Z" }),
+            m3: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m3", startTime: "2024-11-26T13:00:00.000Z" }),
+          },
+          completedSeries: [
+            {
+              title: "Done",
+              subtitle: null,
+              guildIconUrl: null,
+              teams: [],
+              matchIds: ["m1", "m2"],
+              startedAt: "2024-11-26T11:00:00.000Z",
+              isActive: false,
+            },
+          ],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body = await response.json<{ state: { hasRecentCompletedSeries: boolean } }>();
+
+      expect(body.state.hasRecentCompletedSeries).toBe(false);
+    });
+
     it("activeSeriesContext is present with correct data when activeSeries exists", async () => {
       const teams = [
         { name: "Eagle", players: [{ discordId: null, discordName: null, gamertag: "GT1", xboxId: null }] },

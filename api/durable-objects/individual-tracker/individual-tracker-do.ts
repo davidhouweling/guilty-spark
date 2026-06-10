@@ -931,12 +931,12 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       };
     });
 
-    const lastMatch = summaries.at(-1);
+    const lastTrackedMatchId = state.matchIds.at(-1);
     const lastCompletedSeries = state.completedSeries?.at(-1);
     const hasRecentCompletedSeries =
       state.activeSeries == null &&
-      lastMatch != null &&
-      (lastCompletedSeries?.matchIds.includes(lastMatch.matchId) ?? false);
+      lastTrackedMatchId != null &&
+      (lastCompletedSeries?.matchIds.includes(lastTrackedMatchId) ?? false);
 
     return {
       trackerId: state.trackerId,
