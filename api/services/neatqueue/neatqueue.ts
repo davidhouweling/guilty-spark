@@ -764,12 +764,23 @@ export class NeatQueueService {
         state.seriesContext = updatedContext;
         this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
         const subInXuid = subInAssoc?.xboxId ?? null;
-        await Promise.all([
-          subOutXuid != null ? this.individualTrackerService.nudgeTrackers([subOutXuid], null) : Promise.resolve(),
-          subInXuid != null
-            ? this.individualTrackerService.nudgeTrackers([subInXuid], updatedContext)
-            : Promise.resolve(),
-        ]);
+        try {
+          await Promise.all([
+            subOutXuid != null ? this.individualTrackerService.nudgeTrackers([subOutXuid], null) : Promise.resolve(),
+            subInXuid != null
+              ? this.individualTrackerService.nudgeTrackers([subInXuid], updatedContext)
+              : Promise.resolve(),
+          ]);
+        } catch (nudgeError) {
+          logService.warn(
+            "Failed to nudge individual trackers for substitution",
+            new Map([
+              ["guildId", request.guild],
+              ["queueNumber", matchNumber.toString()],
+              ["error", String(nudgeError)],
+            ]),
+          );
+        }
       }
     } catch (error) {
       logService.warn(
