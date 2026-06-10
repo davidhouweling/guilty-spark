@@ -4,19 +4,27 @@ import { parseStreamerViewSettings } from "@guilty-spark/shared/individual-track
 import type { DatabaseService } from "../database/database";
 import type { IndividualTrackerProfilesRow } from "../database/types/individual_tracker_profiles";
 import type { IndividualTrackerStatus, IndividualTrackersRow } from "../database/types/individual_trackers";
+import type { SeriesContextPayload } from "../../durable-objects/individual-tracker/types";
+import type { LogService } from "../log/types";
 import { IdentityNotOwnedError, ProfileNotFoundError, TrackerLimitReachedError, TrackerNotFoundError } from "./errors";
 import type { CreateTrackerOptions, UpdateProfileOptions } from "./types";
 
 export const MAX_TRACKERS_PER_USER = 5;
 
 export interface IndividualTrackerServiceOpts {
+  env: Env;
+  logService: LogService;
   databaseService: DatabaseService;
 }
 
 export class IndividualTrackerService {
+  private readonly env: Env;
+  private readonly logService: LogService;
   private readonly databaseService: DatabaseService;
 
-  constructor({ databaseService }: IndividualTrackerServiceOpts) {
+  constructor({ env, logService, databaseService }: IndividualTrackerServiceOpts) {
+    this.env = env;
+    this.logService = logService;
     this.databaseService = databaseService;
   }
 
@@ -160,6 +168,35 @@ export class IndividualTrackerService {
     };
     await this.databaseService.upsertStreamerViewSettings(storedRow);
     return parseStreamerViewSettings(storedRow);
+  }
+
+  async nudgeTrackers(xuids: string[], payload: SeriesContextPayload | null): Promise<void> {
+    const trackers = await this.databaseService.findIndividualTrackersByXuids(xuids);
+    const nonStoppedTrackers = trackers.filter((t) => t.Status !== "stopped");
+    await Promise.all(
+      nonStoppedTrackers.map(async (tracker) => {
+        try {
+          const doId = this.env.INDIVIDUAL_TRACKER_DO.idFromName(`${tracker.UserId}:${tracker.TrackerId}`);
+          const stub = this.env.INDIVIDUAL_TRACKER_DO.get(doId);
+          const response = await stub.fetch("http://do/nudge", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!response.ok) {
+            throw new Error(`nudge returned ${response.status.toString()}`);
+          }
+        } catch (error) {
+          this.logService.warn(
+            error as Error,
+            new Map([
+              ["reason", "nudgeTrackers: failed to nudge tracker"],
+              ["trackerId", tracker.TrackerId],
+            ]),
+          );
+        }
+      }),
+    );
   }
 
   private async assertIdentityOwned(userId: string, activeIdentityId: string | null | undefined): Promise<void> {

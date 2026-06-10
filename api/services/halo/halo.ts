@@ -227,12 +227,6 @@ export class HaloService {
     return `xuid(${xuid})`;
   }
 
-  getTeamName(teamId: number): string {
-    const teams = ["Eagle", "Cobra", "Hades", "Valkyrie", "Rampart", "Cutlass", "Valor", "Hazard"];
-
-    return teams[teamId] ?? "Unknown";
-  }
-
   async getPlayerXuidsToGametags(matches: MatchStats | MatchStats[]): Promise<Map<string, string>> {
     const xuidsToResolve = (Array.isArray(matches) ? matches : [matches])
       .flatMap((match) => match.Players)

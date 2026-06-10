@@ -4,6 +4,7 @@ import type { MatchStats } from "halo-infinite-api";
 import { parsePathParams } from "@guilty-spark/shared/base/request-parsing";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import {
   discordSeriesStatsContract,
@@ -199,7 +200,7 @@ async function tryBuildRenderData({
 
   const lastMatch = Preconditions.checkExists(matches[matches.length - 1]);
   const teams = lastMatch.Teams.map((team) => ({
-    name: haloService.getTeamName(team.TeamId),
+    name: getTeamName(team.TeamId),
     players: getTeamPlayersFromMatch(lastMatch, team.TeamId).map((player) => {
       if (player.PlayerType !== 1) {
         return "Bot";

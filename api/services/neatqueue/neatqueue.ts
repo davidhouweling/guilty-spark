@@ -14,6 +14,7 @@ import { sub, isAfter } from "date-fns";
 import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
+import { getTeamName } from "@guilty-spark/shared/halo/team";
 import type { DatabaseService } from "../database/database";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config";
@@ -39,6 +40,8 @@ import { DiscordError } from "../discord/discord-error";
 import { MapsEmbed } from "../../embeds/maps-embed";
 import { isSuccessResponse } from "../../durable-objects/live-tracker/types";
 import { NeatQueuePlayersEmbed } from "../../embeds/neatqueue/neatqueue-players-embed";
+import type { SeriesContextPayload, SeriesPlayer, SeriesTeam } from "../../durable-objects/individual-tracker/types";
+import type { IndividualTrackerService } from "../individual-tracker/individual-tracker";
 import type {
   VerifyNeatQueueResponse,
   NeatQueueRequest,
@@ -62,6 +65,7 @@ export interface NeatQueueServiceOpts {
   discordService: DiscordService;
   haloService: HaloService;
   liveTrackerService: LiveTrackerService;
+  individualTrackerService: IndividualTrackerService;
 }
 
 export class NeatQueueService {
@@ -71,6 +75,7 @@ export class NeatQueueService {
   private readonly discordService: DiscordService;
   private readonly haloService: HaloService;
   private readonly liveTrackerService: LiveTrackerService;
+  private readonly individualTrackerService: IndividualTrackerService;
   private readonly locale = "en-US";
   private readonly queueStateCache = new Map<string, NeatQueueState>();
 
@@ -81,6 +86,7 @@ export class NeatQueueService {
     discordService,
     haloService,
     liveTrackerService,
+    individualTrackerService,
   }: NeatQueueServiceOpts) {
     this.env = env;
     this.logService = logService;
@@ -88,6 +94,7 @@ export class NeatQueueService {
     this.discordService = discordService;
     this.haloService = haloService;
     this.liveTrackerService = liveTrackerService;
+    this.individualTrackerService = individualTrackerService;
   }
 
   hashAuthorizationKey(key: string, guildId: string): string {
@@ -291,7 +298,7 @@ export class NeatQueueService {
               substitutionsEmbed.push({
                 playerIn: playerInId,
                 playerOut: playerOutId,
-                team: queueMessage.teams[teamIndex]?.name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
+                team: queueMessage.teams[teamIndex]?.name ?? getTeamName(teamIndex),
                 date: startDateTime,
               });
               break;
@@ -548,8 +555,11 @@ export class NeatQueueService {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _neatQueueConfig: NeatQueueConfigRow,
   ): Promise<void> {
-    const { databaseService, discordService, logService } = this;
+    await Promise.all([this.autoStartLiveTracking(request), this.buildAndNudgeSeriesContext(request)]);
+  }
 
+  private async autoStartLiveTracking(request: NeatQueueTeamsCreatedRequest): Promise<void> {
+    const { databaseService, discordService, logService } = this;
     try {
       const guildConfig = await databaseService.getGuildConfig(request.guild);
       if (guildConfig.NeatQueueInformerLiveTracking !== "Y") {
@@ -576,41 +586,28 @@ export class NeatQueueService {
             ["missingPermissions", permissions.missing.join(", ")],
           ]),
         );
-
-        await this.databaseService.updateGuildConfig(request.guild, {
-          NeatQueueInformerLiveTracking: "N",
-        });
+        await databaseService.updateGuildConfig(request.guild, { NeatQueueInformerLiveTracking: "N" });
         return;
       }
 
       const playerIds = request.teams.flatMap((players) => players.map((p) => p.id));
       const players = await discordService.getUsers(request.guild, playerIds);
       const teams = request.teams.map((team, teamIndex) => ({
-        name: team[0]?.team_name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
+        name: team[0]?.team_name ?? getTeamName(teamIndex),
         playerIds: team.map((player) => player.id),
       }));
-
-      // Start the live tracker using the service
-      const context = {
-        userId: this.env.DISCORD_APP_ID, // Use the bot's ID for auto-started trackers
-        guildId: request.guild,
-        channelId: request.channel,
-        queueNumber: request.match_number,
-      };
-
       const playersRecord = players.reduce<Record<string, APIGuildMember>>((acc, player) => {
         acc[player.user.id] = player;
         return acc;
       }, {});
 
-      // Fetch player association data from queue state
       const queueState = await this.getQueueState(request.guild, request.match_number);
 
       const result = await this.liveTrackerService.startTracker({
-        userId: context.userId,
-        guildId: context.guildId,
-        channelId: context.channelId,
-        queueNumber: context.queueNumber,
+        userId: this.env.DISCORD_APP_ID,
+        guildId: request.guild,
+        channelId: request.channel,
+        queueNumber: request.match_number,
         players: playersRecord,
         teams,
         queueStartTime: new Date().toISOString(),
@@ -632,7 +629,7 @@ export class NeatQueueService {
           new Map([
             ["guildId", request.guild],
             ["channelId", request.channel],
-            ["queueNumber", context.queueNumber.toString()],
+            ["queueNumber", request.match_number.toString()],
           ]),
         );
       }
@@ -646,7 +643,69 @@ export class NeatQueueService {
           ["error", String(error)],
         ]),
       );
-      // Don't throw - this is a nice-to-have feature, shouldn't break the main flow
+    }
+  }
+
+  private async buildAndNudgeSeriesContext(request: NeatQueueTeamsCreatedRequest): Promise<void> {
+    try {
+      const queueState = await this.getQueueState(request.guild, request.match_number);
+
+      try {
+        const { associationData } = await this.fetchPlayersAssociationData(request.teams.flat());
+        queueState.playersAssociationData = { ...associationData, ...queueState.playersAssociationData };
+      } catch (fetchError) {
+        this.logService.warn(
+          "Failed to fetch player association data for series context, proceeding with existing data",
+          new Map([
+            ["guildId", request.guild],
+            ["error", String(fetchError)],
+          ]),
+        );
+      }
+
+      const { title, guildIconUrl } = await this.fetchGuildDisplayInfo(request.guild);
+
+      const seriesTeams: SeriesTeam[] = request.teams.map((team, teamIndex) => ({
+        name: team[0]?.team_name ?? getTeamName(teamIndex),
+        players: team.map((player) =>
+          this.buildSeriesPlayer(queueState.playersAssociationData[player.id], player.id, player.name),
+        ),
+      }));
+      const seriesContext: SeriesContextPayload = {
+        title,
+        subtitle: `Queue #${request.match_number.toString()}`,
+        guildIconUrl,
+        teams: seriesTeams,
+      };
+      queueState.seriesContext = seriesContext;
+      this.setQueueState(request.guild, request.match_number, queueState);
+      const allPlayerXuids = this.extractXuids(queueState.playersAssociationData);
+      await this.individualTrackerService.nudgeTrackers(allPlayerXuids, seriesContext);
+    } catch (error) {
+      this.logService.warn(
+        "Failed to nudge individual trackers for queue start",
+        new Map([
+          ["guildId", request.guild],
+          ["queueNumber", request.match_number.toString()],
+          ["error", String(error)],
+        ]),
+      );
+    }
+  }
+
+  private async fetchGuildDisplayInfo(guildId: string): Promise<{ title: string; guildIconUrl: string | null }> {
+    try {
+      const guild = await this.discordService.getGuild(guildId);
+      return { title: guild.name, guildIconUrl: this.discordService.getGuildIconUrl(guild.id, guild.icon ?? null) };
+    } catch (error) {
+      this.logService.warn(
+        "Failed to fetch guild info for series context, using fallback title",
+        new Map([
+          ["guildId", guildId],
+          ["error", String(error)],
+        ]),
+      );
+      return { title: guildId, guildIconUrl: null };
     }
   }
 
@@ -654,56 +713,76 @@ export class NeatQueueService {
     request: NeatQueueSubstitutionRequest,
     neatQueueConfig: NeatQueueConfigRow,
   ): Promise<void> {
-    const { logService } = this;
+    const matchNumber = request.match_number;
+    if (matchNumber == null) {
+      this.logService.debug("No match number in substitution request, skipping live tracker update");
+      return;
+    }
 
+    const state = await this.loadSubstitutionState(request, neatQueueConfig, matchNumber);
+    if (state == null) {
+      await this.updatePlayersEmbedForSubstitution(request, neatQueueConfig);
+      return;
+    }
+
+    await Promise.all([
+      this.updateLiveTrackerForSubstitution(request, matchNumber, state),
+      this.nudgeIndividualTrackersForSubstitution(request, neatQueueConfig, matchNumber, state),
+    ]);
+
+    await this.updatePlayersEmbedForSubstitution(request, neatQueueConfig);
+  }
+
+  private async loadSubstitutionState(
+    request: NeatQueueSubstitutionRequest,
+    neatQueueConfig: NeatQueueConfigRow,
+    matchNumber: number,
+  ): Promise<NeatQueueState | null> {
     try {
-      // Get the match number from the request
-      const matchNumber = request.match_number;
-      if (matchNumber == null) {
-        logService.debug("No match number in substitution request, skipping live tracker update");
-        return;
-      }
-
-      const context = {
-        userId: "", // Not needed for substitution
-        guildId: request.guild,
-        channelId: request.channel,
-        queueNumber: matchNumber,
-      };
-
-      // Check if the tracker exists and is active
-      try {
-        const statusResult = await this.liveTrackerService.getTrackerStatus(context);
-        if (
-          !statusResult?.state ||
-          (statusResult.state.status !== "active" && statusResult.state.status !== "paused")
-        ) {
-          logService.debug("Live tracker not found or inactive, skipping substitution update");
-          return;
-        }
-      } catch {
-        logService.debug("Live tracker not found or inactive, skipping substitution update");
-        return;
-      }
-
       const state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
       const { associationData } = await this.fetchPlayersAssociationData([request.player_subbed_in]);
-      state.playersAssociationData = {
-        ...state.playersAssociationData,
-        ...associationData,
-      };
+      state.playersAssociationData = { ...state.playersAssociationData, ...associationData };
       this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
+      return state;
+    } catch (error) {
+      this.logService.warn(
+        "Failed to load substitution state",
+        new Map([
+          ["guildId", request.guild],
+          ["channelId", request.channel],
+          ["error", String(error)],
+        ]),
+      );
+      return null;
+    }
+  }
 
-      // Notify the live tracker about the substitution
+  private async updateLiveTrackerForSubstitution(
+    request: NeatQueueSubstitutionRequest,
+    matchNumber: number,
+    state: NeatQueueState,
+  ): Promise<void> {
+    const context = { userId: "", guildId: request.guild, channelId: request.channel, queueNumber: matchNumber };
+    try {
+      let liveTrackerActive = false;
+      try {
+        const statusResult = await this.liveTrackerService.getTrackerStatus(context);
+        liveTrackerActive = statusResult?.state.status === "active" || statusResult?.state.status === "paused";
+      } catch {
+        // tracker not found or errored
+      }
+      if (!liveTrackerActive) {
+        this.logService.debug("Live tracker not found or inactive, skipping substitution update");
+        return;
+      }
       const substitutionResult = await this.liveTrackerService.recordSubstitution({
         context,
         playerOutId: request.player_subbed_out.id,
         playerInId: request.player_subbed_in.id,
-        playerAssociationData: Preconditions.checkExists(associationData[request.player_subbed_in.id]),
+        playerAssociationData: Preconditions.checkExists(state.playersAssociationData[request.player_subbed_in.id]),
       });
-
       if (isSuccessResponse(substitutionResult)) {
-        logService.info(
+        this.logService.info(
           `Updated live tracker with substitution for queue ${matchNumber.toString()}`,
           new Map([
             ["guildId", request.guild],
@@ -714,7 +793,7 @@ export class NeatQueueService {
         );
       }
     } catch (error) {
-      logService.warn(
+      this.logService.warn(
         "Failed to update live tracker with substitution",
         new Map([
           ["guildId", request.guild],
@@ -722,10 +801,49 @@ export class NeatQueueService {
           ["error", String(error)],
         ]),
       );
-      // Don't throw - this is a nice-to-have feature, shouldn't break the main flow
     }
+  }
 
-    await this.updatePlayersEmbedForSubstitution(request, neatQueueConfig);
+  private async nudgeIndividualTrackersForSubstitution(
+    request: NeatQueueSubstitutionRequest,
+    neatQueueConfig: NeatQueueConfigRow,
+    matchNumber: number,
+    state: NeatQueueState,
+  ): Promise<void> {
+    if (state.seriesContext == null) {
+      return;
+    }
+    try {
+      const subOutXuid = state.playersAssociationData[request.player_subbed_out.id]?.xboxId ?? null;
+      const subInAssoc = state.playersAssociationData[request.player_subbed_in.id];
+      const updatedTeams = state.seriesContext.teams.map((team) => ({
+        ...team,
+        players: team.players.map((player) =>
+          player.discordId === request.player_subbed_out.id
+            ? this.buildSeriesPlayer(subInAssoc, request.player_subbed_in.id, request.player_subbed_in.name)
+            : player,
+        ),
+      }));
+      const updatedContext: SeriesContextPayload = { ...state.seriesContext, teams: updatedTeams };
+      state.seriesContext = updatedContext;
+      this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
+      const subInXuid = subInAssoc?.xboxId ?? null;
+      await Promise.all([
+        subOutXuid != null ? this.individualTrackerService.nudgeTrackers([subOutXuid], null) : Promise.resolve(),
+        subInXuid != null
+          ? this.individualTrackerService.nudgeTrackers([subInXuid], updatedContext)
+          : Promise.resolve(),
+      ]);
+    } catch (nudgeError) {
+      this.logService.warn(
+        "Failed to nudge individual trackers for substitution",
+        new Map([
+          ["guildId", request.guild],
+          ["queueNumber", matchNumber.toString()],
+          ["error", String(nudgeError)],
+        ]),
+      );
+    }
   }
 
   private async updatePlayersEmbedForSubstitution(
@@ -878,76 +996,9 @@ export class NeatQueueService {
     let errorOccurred = false;
 
     try {
-      const context = {
-        userId: "", // Not needed for status check
-        guildId: request.guild,
-        channelId: request.channel,
-        queueNumber: request.match_number,
-      };
-      const liveTrackerStatus = await this.liveTrackerService.getTrackerStatus(context);
-      if (liveTrackerStatus?.state.status === "active") {
-        const refreshResult = await this.liveTrackerService.refreshTracker(context, true);
-        if (isSuccessResponse(refreshResult)) {
-          const { matchIds, teams, players: refreshedPlayers, discoveredMatches } = refreshResult.state;
-          this.logService.info(
-            "MatchCompletedJob: Retrieved series data from live tracker",
-            new Map([
-              ["guildId", request.guild],
-              ["channelId", request.channel],
-              ["queueNumber", request.match_number.toString()],
-              ["matchCount", matchIds.length.toString()],
-            ]),
-          );
-
-          // Get rawMatches from KV via series data endpoint
-          const seriesData = await this.liveTrackerService.getSeriesData(context);
-
-          if (seriesData === null) {
-            throw new Error("Failed to get series data from live tracker");
-          }
-
-          series = Object.values(seriesData.rawMatches) as MatchStats[];
-
-          if (series.length > 0) {
-            const mappedTeamPlayers: MatchPlayer[][] = teams.map((team) =>
-              team.playerIds.map((playerId) => {
-                const guildMember = Preconditions.checkExists(refreshedPlayers[playerId]);
-                return {
-                  id: playerId,
-                  username: guildMember.user.username,
-                  globalName: guildMember.user.global_name,
-                  guildNickname: guildMember.nick ?? null,
-                };
-              }),
-            );
-
-            const playerXuidToGametags = Object.values(discoveredMatches).reduce((acc, match) => {
-              for (const [playerXuid, gamertag] of Object.entries(match.playerXuidToGametag)) {
-                acc.set(playerXuid, gamertag);
-              }
-              return acc;
-            }, new Map<string, string>());
-
-            await this.haloService.validateDiscordAssociationsFromMatches(
-              mappedTeamPlayers,
-              series,
-              playerXuidToGametags,
-            );
-          }
-        }
-      }
-
-      if (series.length === 0) {
-        this.logService.info(
-          "MatchCompletedJob: Falling back to timeline for series data",
-          new Map([
-            ["guildId", request.guild],
-            ["channelId", request.channel],
-            ["queueNumber", request.match_number.toString()],
-          ]),
-        );
-        series = await this.getSeriesDataFromTimeline(timeline, neatQueueConfig);
-      }
+      series =
+        (await this.resolveSeriesFromLiveTracker(request)) ??
+        (await this.getSeriesDataFromTimeline(timeline, neatQueueConfig));
     } catch (error) {
       this.logService.info(error as Error, new Map([["reason", "Failed to get series data from timeline"]]));
       errorOccurred = true;
@@ -961,12 +1012,85 @@ export class NeatQueueService {
       await this.handlePostSeriesData(neatQueueConfig.PostSeriesMode, opts);
     }
 
+    const completedQueueState = await this.getQueueState(neatQueueConfig.GuildId, request.match_number);
+    const allPlayerXuids = this.extractXuids(completedQueueState.playersAssociationData);
+
     await Promise.all([
+      this.individualTrackerService.nudgeTrackers(allPlayerXuids, null).catch((error: unknown) => {
+        this.logService.warn(
+          "Failed to nudge individual trackers for match completion",
+          new Map([
+            ["guildId", neatQueueConfig.GuildId],
+            ["queueNumber", request.match_number.toString()],
+            ["error", String(error)],
+          ]),
+        );
+      }),
       this.stopLiveTrackingIfActive(request, neatQueueConfig),
       this.clearTimeline(request, neatQueueConfig),
       this.deletePlayersMessageId(request, neatQueueConfig),
       this.haloService.updateDiscordAssociations(),
     ]);
+  }
+
+  private async resolveSeriesFromLiveTracker(request: NeatQueueMatchCompletedRequest): Promise<MatchStats[] | null> {
+    const context = {
+      userId: "", // Not needed for status check
+      guildId: request.guild,
+      channelId: request.channel,
+      queueNumber: request.match_number,
+    };
+    const liveTrackerStatus = await this.liveTrackerService.getTrackerStatus(context);
+    if (liveTrackerStatus?.state.status !== "active") {
+      return null;
+    }
+
+    const refreshResult = await this.liveTrackerService.refreshTracker(context, true);
+    if (!isSuccessResponse(refreshResult)) {
+      return null;
+    }
+
+    const { matchIds, teams, players: refreshedPlayers, discoveredMatches } = refreshResult.state;
+    this.logService.info(
+      "MatchCompletedJob: Retrieved series data from live tracker",
+      new Map([
+        ["guildId", request.guild],
+        ["channelId", request.channel],
+        ["queueNumber", request.match_number.toString()],
+        ["matchCount", matchIds.length.toString()],
+      ]),
+    );
+
+    const seriesData = await this.liveTrackerService.getSeriesData(context);
+    if (seriesData === null) {
+      throw new Error("Failed to get series data from live tracker");
+    }
+
+    const series = Object.values(seriesData.rawMatches) as MatchStats[];
+    if (series.length > 0) {
+      const mappedTeamPlayers: MatchPlayer[][] = teams.map((team) =>
+        team.playerIds.map((playerId) => {
+          const guildMember = Preconditions.checkExists(refreshedPlayers[playerId]);
+          return {
+            id: playerId,
+            username: guildMember.user.username,
+            globalName: guildMember.user.global_name,
+            guildNickname: guildMember.nick ?? null,
+          };
+        }),
+      );
+
+      const playerXuidToGametags = Object.values(discoveredMatches).reduce((acc, match) => {
+        for (const [playerXuid, gamertag] of Object.entries(match.playerXuidToGametag)) {
+          acc.set(playerXuid, gamertag);
+        }
+        return acc;
+      }, new Map<string, string>());
+
+      await this.haloService.validateDiscordAssociationsFromMatches(mappedTeamPlayers, series, playerXuidToGametags);
+    }
+
+    return series.length > 0 ? series : null;
   }
 
   private async handlePostSeriesError(
@@ -1011,6 +1135,25 @@ export class NeatQueueService {
       default:
         throw new UnreachableError(mode);
     }
+  }
+
+  private buildSeriesPlayer(
+    assoc: PlayerAssociationData | undefined,
+    fallbackId: string,
+    fallbackName: string,
+  ): SeriesPlayer {
+    return {
+      discordId: assoc?.discordId ?? fallbackId,
+      discordName: assoc?.discordName ?? fallbackName,
+      gamertag: assoc?.gamertag ?? null,
+      xboxId: assoc?.xboxId ?? null,
+    };
+  }
+
+  private extractXuids(data: Record<string, PlayerAssociationData>): string[] {
+    return Object.values(data)
+      .map((d) => d.xboxId)
+      .filter((xuid): xuid is string => xuid != null);
   }
 
   private getQueueStateKey(guildId: string, queueNumber: number): string {
@@ -1662,7 +1805,7 @@ export class NeatQueueService {
 
   private getTeams(request: NeatQueueMatchCompletedRequest): TeamMapping[] {
     return request.teams.map((team, teamIndex) => ({
-      name: team[0]?.team_name ?? `Team ${(teamIndex + 1).toLocaleString()}`,
+      name: team[0]?.team_name ?? getTeamName(teamIndex),
       playerIds: team.map((player) => player.id),
     }));
   }
@@ -1682,7 +1825,7 @@ export class NeatQueueService {
           team:
             player_subbed_out.team_name ??
             finalTeams[player_subbed_out.team_num - 1]?.name ??
-            `Team ${player_subbed_out.team_num.toLocaleString()}`,
+            getTeamName(player_subbed_out.team_num - 1),
         };
       });
   }

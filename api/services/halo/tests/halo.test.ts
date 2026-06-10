@@ -1988,24 +1988,6 @@ describe("Halo service", () => {
     });
   });
 
-  describe("getTeamName()", () => {
-    it.each([
-      { teamId: 0, teamName: "Eagle" },
-      { teamId: 1, teamName: "Cobra" },
-      { teamId: 2, teamName: "Hades" },
-      { teamId: 3, teamName: "Valkyrie" },
-      { teamId: 4, teamName: "Rampart" },
-      { teamId: 5, teamName: "Cutlass" },
-      { teamId: 6, teamName: "Valor" },
-      { teamId: 7, teamName: "Hazard" },
-      { teamId: 8, teamName: "Unknown" },
-    ])("returns the team name for team $teamId", ({ teamId, teamName }) => {
-      const result = haloService.getTeamName(teamId);
-
-      expect(result).toBe(teamName);
-    });
-  });
-
   describe("getPlayerXuidsToGametags()", () => {
     it("returns the xuids to gamertags map for the specified players", async () => {
       const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
