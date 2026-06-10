@@ -730,8 +730,7 @@ export class NeatQueueService {
       let liveTrackerActive = false;
       try {
         const statusResult = await this.liveTrackerService.getTrackerStatus(context);
-        liveTrackerActive =
-          statusResult?.state?.status === "active" || statusResult?.state?.status === "paused";
+        liveTrackerActive = statusResult?.state.status === "active" || statusResult?.state.status === "paused";
       } catch {
         // tracker not found or errored
       }
