@@ -12,6 +12,8 @@ import type {
   IndividualTrackerSelectMatchesResponse,
   IndividualTrackerStartSeriesResponse,
   IndividualTrackerNudgeResponse,
+  IndividualTrackerEditSeriesResponse,
+  IndividualTrackerResumeSeriesResponse,
 } from "../types";
 import type { IndividualTrackerDO } from "../individual-tracker-do";
 import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
@@ -26,6 +28,8 @@ export interface FakeIndividualTrackerDOOpts {
   selectMatchesResponse?: IndividualTrackerSelectMatchesResponse;
   startSeriesResponse?: IndividualTrackerStartSeriesResponse;
   endSeriesResponse?: { success: true };
+  editSeriesResponse?: IndividualTrackerEditSeriesResponse;
+  resumeSeriesResponse?: IndividualTrackerResumeSeriesResponse;
   nudgeResponse?: IndividualTrackerNudgeResponse;
   shouldThrowError?: boolean;
   errorMessage?: string;
@@ -109,6 +113,8 @@ export function aFakeIndividualTrackerViewStateWith(
     series: [],
     lastUpdateTime: new Date().toISOString(),
     lastMatchDiscoveredAt: null,
+    hasActiveSeries: false,
+    hasRecentCompletedSeries: false,
     ...opts,
   };
 }
@@ -127,6 +133,8 @@ export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts =
   const selectMatchesResponse: IndividualTrackerSelectMatchesResponse = opts.selectMatchesResponse ?? { success: true };
   const startSeriesResponse: IndividualTrackerStartSeriesResponse = opts.startSeriesResponse ?? { success: true };
   const endSeriesResponse: { success: true } = opts.endSeriesResponse ?? { success: true };
+  const editSeriesResponse: IndividualTrackerEditSeriesResponse = opts.editSeriesResponse ?? { success: true };
+  const resumeSeriesResponse: IndividualTrackerResumeSeriesResponse = opts.resumeSeriesResponse ?? { success: true };
   const nudgeResponse: IndividualTrackerNudgeResponse = opts.nudgeResponse ?? { success: true };
   const { shouldThrowError = false, errorMessage = "Fake DO error" } = opts;
 
@@ -175,6 +183,12 @@ export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts =
         break;
       case "/end-series":
         responseBody = JSON.stringify(endSeriesResponse);
+        break;
+      case "/edit-series":
+        responseBody = JSON.stringify(editSeriesResponse);
+        break;
+      case "/resume-series":
+        responseBody = JSON.stringify(resumeSeriesResponse);
         break;
       case "/nudge":
         responseBody = JSON.stringify(nudgeResponse);

@@ -19,6 +19,8 @@ const FAKE_VIEW: TrackerViewState = {
   lastUpdateTime: "2100-01-01T00:00:00.000Z",
   lastMatchDiscoveredAt: null,
   isLive: true,
+  hasActiveSeries: false,
+  hasRecentCompletedSeries: false,
 };
 
 describe("RealIndividualTrackerViewService", () => {

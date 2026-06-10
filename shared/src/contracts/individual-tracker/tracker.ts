@@ -82,5 +82,25 @@ export type StartSeriesResponse = z.infer<typeof startSeriesContract.schema>;
 export const endSeriesContract = defineContract(z.object({ success: z.literal(true) }));
 export type EndSeriesResponse = z.infer<typeof endSeriesContract.schema>;
 
+export const editSeriesRequestSchema = z.object({
+  titleOverride: z.string().optional(),
+  subtitleOverride: z.string().nullable().optional(),
+  teams: z
+    .array(
+      z.object({
+        name: z.string(),
+        members: z.array(z.string()),
+      }),
+    )
+    .optional(),
+});
+export type EditSeriesRequest = z.infer<typeof editSeriesRequestSchema>;
+
+export const editSeriesContract = defineContract(z.object({ success: z.literal(true) }));
+export type EditSeriesResponse = z.infer<typeof editSeriesContract.schema>;
+
+export const resumeSeriesContract = defineContract(z.object({ success: z.literal(true) }));
+export type ResumeSeriesResponse = z.infer<typeof resumeSeriesContract.schema>;
+
 export const deleteTrackerContract = defineContract(z.object({ success: z.literal(true) }));
 export type DeleteTrackerResponse = z.infer<typeof deleteTrackerContract.schema>;
