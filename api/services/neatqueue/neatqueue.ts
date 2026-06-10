@@ -796,7 +796,7 @@ export class NeatQueueService {
     if (state.seriesContext != null) {
       try {
         const subOutXuid = state.playersAssociationData[request.player_subbed_out.id]?.xboxId ?? null;
-        const subInAssoc = associationData[request.player_subbed_in.id];
+        const subInAssoc = state.playersAssociationData[request.player_subbed_in.id];
         const updatedTeams = state.seriesContext.teams.map((team) => ({
           ...team,
           players: team.players.map((player) =>
