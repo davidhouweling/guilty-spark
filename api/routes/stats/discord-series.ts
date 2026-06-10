@@ -126,6 +126,87 @@ type DiscordSeriesLookupResult =
   | DiscordSeriesStatsPending
   | DiscordSeriesStatsNotFound;
 
+function getForbiddenResponseData(guildId: string, queueNumber: number): DiscordSeriesStatsForbidden {
+  return {
+    status: "forbidden",
+    guildId,
+    queueNumber,
+    reason: "Missing Discord permissions or message content access",
+  };
+}
+
+async function cachePendingResponse({
+  env,
+  cacheKey,
+  guildId,
+  queueNumber,
+  retryAfterSeconds,
+}: {
+  env: Env;
+  cacheKey: string;
+  guildId: string;
+  queueNumber: number;
+  retryAfterSeconds: number;
+}): Promise<DiscordSeriesStatsPending> {
+  const pendingResponse: DiscordSeriesStatsPending = {
+    status: "pending-index",
+    guildId,
+    queueNumber,
+    retryAfterSeconds,
+  };
+
+  await env.APP_DATA.put(cacheKey, JSON.stringify(pendingResponse), {
+    expirationTtl: PENDING_CACHE_TTL_SECONDS,
+  });
+
+  return pendingResponse;
+}
+
+async function cacheLookupResultWhenNeeded({
+  env,
+  cacheKey,
+  lookupResult,
+}: {
+  env: Env;
+  cacheKey: string;
+  lookupResult: DiscordSeriesLookupResult;
+}): Promise<void> {
+  if (lookupResult.status === "pending-index") {
+    await env.APP_DATA.put(cacheKey, JSON.stringify(lookupResult), { expirationTtl: PENDING_CACHE_TTL_SECONDS });
+  }
+
+  if (lookupResult.status === "not-found") {
+    await env.APP_DATA.put(cacheKey, JSON.stringify(lookupResult), {
+      expirationTtl: NOT_FOUND_CACHE_TTL_SECONDS,
+    });
+  }
+}
+
+async function getValidCachedStats({
+  env,
+  cacheKey,
+  logService,
+  warningMessage,
+}: {
+  env: Env;
+  cacheKey: string;
+  logService: { warn: (message: string, extra?: Map<string, string>) => void };
+  warningMessage: string;
+}): Promise<DiscordSeriesStats | null> {
+  const cached = await env.APP_DATA.get<DiscordSeriesStats>(cacheKey, { type: "json" });
+  if (cached == null || typeof cached !== "object") {
+    return null;
+  }
+
+  const cachedParseResult = discordSeriesStatsContract.safeParse(cached);
+  if (cachedParseResult.success) {
+    return cachedParseResult.data;
+  }
+
+  logService.warn(warningMessage, new Map([["cacheKey", cacheKey]]));
+  return null;
+}
+
 async function findDiscordSeriesLookupResult({
   guildId,
   queueNumber,
@@ -342,33 +423,27 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
     const cacheKey = getCacheKey(guildId, queueNumber);
 
     try {
-      const cached = await env.APP_DATA.get<DiscordSeriesStats>(cacheKey, { type: "json" });
-      if (cached != null && typeof cached === "object") {
-        const cachedParseResult = discordSeriesStatsContract.safeParse(cached);
-        if (cachedParseResult.success) {
-          return discordSeriesStatsContract.toResponse(
-            cachedParseResult.data,
-            getResponseOptions(cachedParseResult.data),
-          );
-        }
-
-        logService.warn(
-          "Invalid cached discord series stats payload, treating as cache miss",
-          new Map([["cacheKey", cacheKey]]),
-        );
+      const cached = await getValidCachedStats({
+        env,
+        cacheKey,
+        logService,
+        warningMessage: "Invalid cached discord series stats payload, treating as cache miss",
+      });
+      if (cached != null) {
+        return discordSeriesStatsContract.toResponse(cached, getResponseOptions(cached));
       }
 
       const lookupResult = await findDiscordSeriesLookupResult({ guildId, queueNumber, discordService, env });
 
+      if (lookupResult.status === "pending-index" || lookupResult.status === "not-found") {
+        await cacheLookupResultWhenNeeded({ env, cacheKey, lookupResult });
+      }
+
       if (lookupResult.status === "pending-index") {
-        await env.APP_DATA.put(cacheKey, JSON.stringify(lookupResult), { expirationTtl: PENDING_CACHE_TTL_SECONDS });
         return discordSeriesStatsContract.toResponse(lookupResult, getResponseOptions(lookupResult));
       }
 
       if (lookupResult.status === "not-found") {
-        await env.APP_DATA.put(cacheKey, JSON.stringify(lookupResult), {
-          expirationTtl: NOT_FOUND_CACHE_TTL_SECONDS,
-        });
         return discordSeriesStatsContract.toResponse(lookupResult, { status: 404 });
       }
 
@@ -393,31 +468,19 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
     } catch (error) {
       if (error instanceof DiscordError && error.httpStatus === 429) {
         const retryAfterSeconds = sanitizeRetryAfterSeconds((error.restError as { retry_after?: unknown }).retry_after);
-
-        const pendingResponse: DiscordSeriesStats = {
-          status: "pending-index",
+        const pendingResponse = await cachePendingResponse({
+          env,
+          cacheKey,
           guildId,
           queueNumber,
           retryAfterSeconds,
-        };
-
-        await env.APP_DATA.put(cacheKey, JSON.stringify(pendingResponse), {
-          expirationTtl: PENDING_CACHE_TTL_SECONDS,
         });
 
         return discordSeriesStatsContract.toResponse(pendingResponse, getResponseOptions(pendingResponse));
       }
 
       if (error instanceof DiscordError && error.httpStatus === 403) {
-        return discordSeriesStatsContract.toResponse(
-          {
-            status: "forbidden",
-            guildId,
-            queueNumber,
-            reason: "Missing Discord permissions or message content access",
-          },
-          { status: 403 },
-        );
+        return discordSeriesStatsContract.toResponse(getForbiddenResponseData(guildId, queueNumber), { status: 403 });
       }
 
       logService.error(error as Error, new Map([["message", "Failed to resolve discord series stats route"]]));
@@ -444,57 +507,38 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
     const cacheKey = getCacheKey(guildId, queueNumber);
 
     try {
-      const cached = await env.APP_DATA.get<DiscordSeriesStats>(cacheKey, { type: "json" });
-      if (cached != null && typeof cached === "object") {
-        const cachedParseResult = discordSeriesStatsContract.safeParse(cached);
-        if (cachedParseResult.success) {
-          return toLookupResponse(cachedParseResult.data);
-        }
-
-        logService.warn(
-          "Invalid cached discord series stats payload during lookup, treating as cache miss",
-          new Map([["cacheKey", cacheKey]]),
-        );
+      const cached = await getValidCachedStats({
+        env,
+        cacheKey,
+        logService,
+        warningMessage: "Invalid cached discord series stats payload during lookup, treating as cache miss",
+      });
+      if (cached != null) {
+        return toLookupResponse(cached);
       }
 
       const lookupResult = await findDiscordSeriesLookupResult({ guildId, queueNumber, discordService, env });
 
-      if (lookupResult.status === "pending-index") {
-        await env.APP_DATA.put(cacheKey, JSON.stringify(lookupResult), { expirationTtl: PENDING_CACHE_TTL_SECONDS });
-      }
-
-      if (lookupResult.status === "not-found") {
-        await env.APP_DATA.put(cacheKey, JSON.stringify(lookupResult), {
-          expirationTtl: NOT_FOUND_CACHE_TTL_SECONDS,
-        });
+      if (lookupResult.status === "pending-index" || lookupResult.status === "not-found") {
+        await cacheLookupResultWhenNeeded({ env, cacheKey, lookupResult });
       }
 
       return toLookupResponse(lookupResult);
     } catch (error) {
       if (error instanceof DiscordError && error.httpStatus === 429) {
-        const pendingResponse: DiscordSeriesStatsPending = {
-          status: "pending-index",
+        const pendingResponse = await cachePendingResponse({
+          env,
+          cacheKey,
           guildId,
           queueNumber,
           retryAfterSeconds: sanitizeRetryAfterSeconds((error.restError as { retry_after?: unknown }).retry_after),
-        };
-
-        await env.APP_DATA.put(cacheKey, JSON.stringify(pendingResponse), {
-          expirationTtl: PENDING_CACHE_TTL_SECONDS,
         });
 
         return toLookupResponse(pendingResponse);
       }
 
       if (error instanceof DiscordError && error.httpStatus === 403) {
-        const forbiddenResponse: DiscordSeriesStatsForbidden = {
-          status: "forbidden",
-          guildId,
-          queueNumber,
-          reason: "Missing Discord permissions or message content access",
-        };
-
-        return toLookupResponse(forbiddenResponse);
+        return toLookupResponse(getForbiddenResponseData(guildId, queueNumber));
       }
 
       logService.error(error as Error, new Map([["message", "Failed to resolve discord series stats lookup route"]]));
