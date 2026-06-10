@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
-import { fetchDiscordSeriesStats } from "../discord-series";
+import { RealDiscordSeriesStatsService } from "../discord-series";
 
-describe("fetchDiscordSeriesStats", () => {
+describe("RealDiscordSeriesStatsService", () => {
   let fetchSpy: MockInstance<typeof globalThis.fetch>;
+  let service: RealDiscordSeriesStatsService;
 
   beforeEach(() => {
     fetchSpy = vi.spyOn(globalThis, "fetch");
+    service = new RealDiscordSeriesStatsService({ apiHost: "https://api.example.com" });
   });
 
   afterEach(() => {
@@ -32,7 +34,7 @@ describe("fetchDiscordSeriesStats", () => {
       ),
     );
 
-    const result = await fetchDiscordSeriesStats("https://api.example.com/api/stats/discord/123456789012345678/7777");
+    const result = await service.getStats("123456789012345678", "7777");
 
     expect(result.status).toBe(503);
     expect(result.retryAfterSeconds).toBe(7);
@@ -58,7 +60,7 @@ describe("fetchDiscordSeriesStats", () => {
       ),
     );
 
-    const result = await fetchDiscordSeriesStats("https://api.example.com/api/stats/discord/123456789012345678/7777");
+    const result = await service.getStats("123456789012345678", "7777");
 
     expect(result.status).toBe(503);
     expect(result.retryAfterSeconds).toBeNull();
@@ -83,7 +85,7 @@ describe("fetchDiscordSeriesStats", () => {
       ),
     );
 
-    const result = await fetchDiscordSeriesStats("https://api.example.com/api/stats/discord/123456789012345678/7777");
+    const result = await service.getStats("123456789012345678", "7777");
 
     expect(result.status).toBe(503);
     expect(result.retryAfterSeconds).toBeNull();
@@ -109,10 +111,42 @@ describe("fetchDiscordSeriesStats", () => {
       ),
     );
 
-    const result = await fetchDiscordSeriesStats("https://api.example.com/api/stats/discord/123456789012345678/7777");
+    const result = await service.getStats("123456789012345678", "7777");
 
     expect(result.status).toBe(503);
     expect(result.retryAfterSeconds).toBeNull();
     expect(result.data.status).toBe("pending-index");
+  });
+
+  it("returns lookup status and Retry-After when present", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(null, {
+        status: 503,
+        headers: {
+          "Retry-After": "5",
+        },
+      }),
+    );
+
+    const result = await service.getLookup("123456789012345678", "7777");
+
+    expect(result.status).toBe(503);
+    expect(result.retryAfterSeconds).toBe(5);
+  });
+
+  it("returns null lookup Retry-After when header is invalid", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(null, {
+        status: 503,
+        headers: {
+          "Retry-After": "invalid",
+        },
+      }),
+    );
+
+    const result = await service.getLookup("123456789012345678", "7777");
+
+    expect(result.status).toBe(503);
+    expect(result.retryAfterSeconds).toBeNull();
   });
 });
