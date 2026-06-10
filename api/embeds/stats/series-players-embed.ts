@@ -2,6 +2,7 @@ import type { MatchStats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import { getTeamName } from "@guilty-spark/shared/halo/team";
 import {
   aggregatePlayerCoreStats,
   getPlayerMatches,
@@ -26,7 +27,7 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
 
     for (const team of firstMatch.Teams) {
       const embed: APIEmbed = {
-        title: `Accumulated Series Stats by Players for ${this.haloService.getTeamName(team.TeamId)}`,
+        title: `Accumulated Series Stats by Players for ${getTeamName(team.TeamId)}`,
         description: "-# Legend: **Best in team** | __**Best overall**__",
         fields: [],
       };

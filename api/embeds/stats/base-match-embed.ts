@@ -2,6 +2,7 @@ import type { GameVariantCategory, MatchStats, Stats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { formatStatValue, StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
+import { getTeamName } from "@guilty-spark/shared/halo/team";
 import type { StatsCollection, StatsValue } from "@guilty-spark/shared/halo/types";
 import { getPlayerSlayerStats as getSharedPlayerSlayerStats } from "@guilty-spark/shared/halo/slayer-stats";
 import { getPlayerXuid, getTeamPlayersFromMatches } from "@guilty-spark/shared/halo/match-stats";
@@ -77,7 +78,7 @@ export abstract class BaseMatchEmbed<TCategory extends GameVariantCategory> {
       const deaths = team.Stats.CoreStats.Deaths.toLocaleString(this.locale);
       const assists = team.Stats.CoreStats.Assists.toLocaleString(this.locale);
       embed.fields?.push({
-        name: this.haloService.getTeamName(team.TeamId),
+        name: getTeamName(team.TeamId),
         value: `Team Score: ${teamScore} | Team K:D:A: ${kills}:${deaths}:${assists}`,
         inline: false,
       });
