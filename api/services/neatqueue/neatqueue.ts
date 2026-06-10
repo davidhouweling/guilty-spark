@@ -713,31 +713,39 @@ export class NeatQueueService {
     request: NeatQueueSubstitutionRequest,
     neatQueueConfig: NeatQueueConfigRow,
   ): Promise<void> {
-    const { logService } = this;
-
     const matchNumber = request.match_number;
     if (matchNumber == null) {
-      logService.debug("No match number in substitution request, skipping live tracker update");
+      this.logService.debug("No match number in substitution request, skipping live tracker update");
       return;
     }
 
-    const context = {
-      userId: "", // Not needed for substitution
-      guildId: request.guild,
-      channelId: request.channel,
-      queueNumber: matchNumber,
-    };
+    const state = await this.loadSubstitutionState(request, neatQueueConfig, matchNumber);
+    if (state == null) {
+      await this.updatePlayersEmbedForSubstitution(request, neatQueueConfig);
+      return;
+    }
 
-    // Fetch shared state needed by both the live-tracker and individual-tracker paths.
-    let state: NeatQueueState;
-    let associationData: Record<string, PlayerAssociationData>;
+    await Promise.all([
+      this.updateLiveTrackerForSubstitution(request, matchNumber, state),
+      this.nudgeIndividualTrackersForSubstitution(request, neatQueueConfig, matchNumber, state),
+    ]);
+
+    await this.updatePlayersEmbedForSubstitution(request, neatQueueConfig);
+  }
+
+  private async loadSubstitutionState(
+    request: NeatQueueSubstitutionRequest,
+    neatQueueConfig: NeatQueueConfigRow,
+    matchNumber: number,
+  ): Promise<NeatQueueState | null> {
     try {
-      state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
-      ({ associationData } = await this.fetchPlayersAssociationData([request.player_subbed_in]));
+      const state = await this.getQueueState(neatQueueConfig.GuildId, matchNumber);
+      const { associationData } = await this.fetchPlayersAssociationData([request.player_subbed_in]);
       state.playersAssociationData = { ...state.playersAssociationData, ...associationData };
       this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
+      return state;
     } catch (error) {
-      logService.warn(
+      this.logService.warn(
         "Failed to load substitution state",
         new Map([
           ["guildId", request.guild],
@@ -745,11 +753,16 @@ export class NeatQueueService {
           ["error", String(error)],
         ]),
       );
-      await this.updatePlayersEmbedForSubstitution(request, neatQueueConfig);
-      return;
+      return null;
     }
+  }
 
-    // Live tracker substitution update (best-effort, gated by status).
+  private async updateLiveTrackerForSubstitution(
+    request: NeatQueueSubstitutionRequest,
+    matchNumber: number,
+    state: NeatQueueState,
+  ): Promise<void> {
+    const context = { userId: "", guildId: request.guild, channelId: request.channel, queueNumber: matchNumber };
     try {
       let liveTrackerActive = false;
       try {
@@ -759,28 +772,28 @@ export class NeatQueueService {
         // tracker not found or errored
       }
       if (!liveTrackerActive) {
-        logService.debug("Live tracker not found or inactive, skipping substitution update");
-      } else {
-        const substitutionResult = await this.liveTrackerService.recordSubstitution({
-          context,
-          playerOutId: request.player_subbed_out.id,
-          playerInId: request.player_subbed_in.id,
-          playerAssociationData: Preconditions.checkExists(associationData[request.player_subbed_in.id]),
-        });
-        if (isSuccessResponse(substitutionResult)) {
-          logService.info(
-            `Updated live tracker with substitution for queue ${matchNumber.toString()}`,
-            new Map([
-              ["guildId", request.guild],
-              ["channelId", request.channel],
-              ["playerOut", substitutionResult.substitution.playerOutId],
-              ["playerIn", substitutionResult.substitution.playerInId],
-            ]),
-          );
-        }
+        this.logService.debug("Live tracker not found or inactive, skipping substitution update");
+        return;
+      }
+      const substitutionResult = await this.liveTrackerService.recordSubstitution({
+        context,
+        playerOutId: request.player_subbed_out.id,
+        playerInId: request.player_subbed_in.id,
+        playerAssociationData: Preconditions.checkExists(state.playersAssociationData[request.player_subbed_in.id]),
+      });
+      if (isSuccessResponse(substitutionResult)) {
+        this.logService.info(
+          `Updated live tracker with substitution for queue ${matchNumber.toString()}`,
+          new Map([
+            ["guildId", request.guild],
+            ["channelId", request.channel],
+            ["playerOut", substitutionResult.substitution.playerOutId],
+            ["playerIn", substitutionResult.substitution.playerInId],
+          ]),
+        );
       }
     } catch (error) {
-      logService.warn(
+      this.logService.warn(
         "Failed to update live tracker with substitution",
         new Map([
           ["guildId", request.guild],
@@ -789,43 +802,48 @@ export class NeatQueueService {
         ]),
       );
     }
+  }
 
-    // Individual tracker nudge (best-effort, independent of live tracker status).
-    if (state.seriesContext != null) {
-      try {
-        const subOutXuid = state.playersAssociationData[request.player_subbed_out.id]?.xboxId ?? null;
-        const subInAssoc = state.playersAssociationData[request.player_subbed_in.id];
-        const updatedTeams = state.seriesContext.teams.map((team) => ({
-          ...team,
-          players: team.players.map((player) =>
-            player.discordId === request.player_subbed_out.id
-              ? this.buildSeriesPlayer(subInAssoc, request.player_subbed_in.id, request.player_subbed_in.name)
-              : player,
-          ),
-        }));
-        const updatedContext: SeriesContextPayload = { ...state.seriesContext, teams: updatedTeams };
-        state.seriesContext = updatedContext;
-        this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
-        const subInXuid = subInAssoc?.xboxId ?? null;
-        await Promise.all([
-          subOutXuid != null ? this.individualTrackerService.nudgeTrackers([subOutXuid], null) : Promise.resolve(),
-          subInXuid != null
-            ? this.individualTrackerService.nudgeTrackers([subInXuid], updatedContext)
-            : Promise.resolve(),
-        ]);
-      } catch (nudgeError) {
-        logService.warn(
-          "Failed to nudge individual trackers for substitution",
-          new Map([
-            ["guildId", request.guild],
-            ["queueNumber", matchNumber.toString()],
-            ["error", String(nudgeError)],
-          ]),
-        );
-      }
+  private async nudgeIndividualTrackersForSubstitution(
+    request: NeatQueueSubstitutionRequest,
+    neatQueueConfig: NeatQueueConfigRow,
+    matchNumber: number,
+    state: NeatQueueState,
+  ): Promise<void> {
+    if (state.seriesContext == null) {
+      return;
     }
-
-    await this.updatePlayersEmbedForSubstitution(request, neatQueueConfig);
+    try {
+      const subOutXuid = state.playersAssociationData[request.player_subbed_out.id]?.xboxId ?? null;
+      const subInAssoc = state.playersAssociationData[request.player_subbed_in.id];
+      const updatedTeams = state.seriesContext.teams.map((team) => ({
+        ...team,
+        players: team.players.map((player) =>
+          player.discordId === request.player_subbed_out.id
+            ? this.buildSeriesPlayer(subInAssoc, request.player_subbed_in.id, request.player_subbed_in.name)
+            : player,
+        ),
+      }));
+      const updatedContext: SeriesContextPayload = { ...state.seriesContext, teams: updatedTeams };
+      state.seriesContext = updatedContext;
+      this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
+      const subInXuid = subInAssoc?.xboxId ?? null;
+      await Promise.all([
+        subOutXuid != null ? this.individualTrackerService.nudgeTrackers([subOutXuid], null) : Promise.resolve(),
+        subInXuid != null
+          ? this.individualTrackerService.nudgeTrackers([subInXuid], updatedContext)
+          : Promise.resolve(),
+      ]);
+    } catch (nudgeError) {
+      this.logService.warn(
+        "Failed to nudge individual trackers for substitution",
+        new Map([
+          ["guildId", request.guild],
+          ["queueNumber", matchNumber.toString()],
+          ["error", String(nudgeError)],
+        ]),
+      );
+    }
   }
 
   private async updatePlayersEmbedForSubstitution(
