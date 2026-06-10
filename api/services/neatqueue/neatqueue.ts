@@ -996,76 +996,9 @@ export class NeatQueueService {
     let errorOccurred = false;
 
     try {
-      const context = {
-        userId: "", // Not needed for status check
-        guildId: request.guild,
-        channelId: request.channel,
-        queueNumber: request.match_number,
-      };
-      const liveTrackerStatus = await this.liveTrackerService.getTrackerStatus(context);
-      if (liveTrackerStatus?.state.status === "active") {
-        const refreshResult = await this.liveTrackerService.refreshTracker(context, true);
-        if (isSuccessResponse(refreshResult)) {
-          const { matchIds, teams, players: refreshedPlayers, discoveredMatches } = refreshResult.state;
-          this.logService.info(
-            "MatchCompletedJob: Retrieved series data from live tracker",
-            new Map([
-              ["guildId", request.guild],
-              ["channelId", request.channel],
-              ["queueNumber", request.match_number.toString()],
-              ["matchCount", matchIds.length.toString()],
-            ]),
-          );
-
-          // Get rawMatches from KV via series data endpoint
-          const seriesData = await this.liveTrackerService.getSeriesData(context);
-
-          if (seriesData === null) {
-            throw new Error("Failed to get series data from live tracker");
-          }
-
-          series = Object.values(seriesData.rawMatches) as MatchStats[];
-
-          if (series.length > 0) {
-            const mappedTeamPlayers: MatchPlayer[][] = teams.map((team) =>
-              team.playerIds.map((playerId) => {
-                const guildMember = Preconditions.checkExists(refreshedPlayers[playerId]);
-                return {
-                  id: playerId,
-                  username: guildMember.user.username,
-                  globalName: guildMember.user.global_name,
-                  guildNickname: guildMember.nick ?? null,
-                };
-              }),
-            );
-
-            const playerXuidToGametags = Object.values(discoveredMatches).reduce((acc, match) => {
-              for (const [playerXuid, gamertag] of Object.entries(match.playerXuidToGametag)) {
-                acc.set(playerXuid, gamertag);
-              }
-              return acc;
-            }, new Map<string, string>());
-
-            await this.haloService.validateDiscordAssociationsFromMatches(
-              mappedTeamPlayers,
-              series,
-              playerXuidToGametags,
-            );
-          }
-        }
-      }
-
-      if (series.length === 0) {
-        this.logService.info(
-          "MatchCompletedJob: Falling back to timeline for series data",
-          new Map([
-            ["guildId", request.guild],
-            ["channelId", request.channel],
-            ["queueNumber", request.match_number.toString()],
-          ]),
-        );
-        series = await this.getSeriesDataFromTimeline(timeline, neatQueueConfig);
-      }
+      series =
+        (await this.resolveSeriesFromLiveTracker(request)) ??
+        (await this.getSeriesDataFromTimeline(timeline, neatQueueConfig));
     } catch (error) {
       this.logService.info(error as Error, new Map([["reason", "Failed to get series data from timeline"]]));
       errorOccurred = true;
@@ -1098,6 +1031,66 @@ export class NeatQueueService {
       this.deletePlayersMessageId(request, neatQueueConfig),
       this.haloService.updateDiscordAssociations(),
     ]);
+  }
+
+  private async resolveSeriesFromLiveTracker(request: NeatQueueMatchCompletedRequest): Promise<MatchStats[] | null> {
+    const context = {
+      userId: "", // Not needed for status check
+      guildId: request.guild,
+      channelId: request.channel,
+      queueNumber: request.match_number,
+    };
+    const liveTrackerStatus = await this.liveTrackerService.getTrackerStatus(context);
+    if (liveTrackerStatus?.state.status !== "active") {
+      return null;
+    }
+
+    const refreshResult = await this.liveTrackerService.refreshTracker(context, true);
+    if (!isSuccessResponse(refreshResult)) {
+      return null;
+    }
+
+    const { matchIds, teams, players: refreshedPlayers, discoveredMatches } = refreshResult.state;
+    this.logService.info(
+      "MatchCompletedJob: Retrieved series data from live tracker",
+      new Map([
+        ["guildId", request.guild],
+        ["channelId", request.channel],
+        ["queueNumber", request.match_number.toString()],
+        ["matchCount", matchIds.length.toString()],
+      ]),
+    );
+
+    const seriesData = await this.liveTrackerService.getSeriesData(context);
+    if (seriesData === null) {
+      throw new Error("Failed to get series data from live tracker");
+    }
+
+    const series = Object.values(seriesData.rawMatches) as MatchStats[];
+    if (series.length > 0) {
+      const mappedTeamPlayers: MatchPlayer[][] = teams.map((team) =>
+        team.playerIds.map((playerId) => {
+          const guildMember = Preconditions.checkExists(refreshedPlayers[playerId]);
+          return {
+            id: playerId,
+            username: guildMember.user.username,
+            globalName: guildMember.user.global_name,
+            guildNickname: guildMember.nick ?? null,
+          };
+        }),
+      );
+
+      const playerXuidToGametags = Object.values(discoveredMatches).reduce((acc, match) => {
+        for (const [playerXuid, gamertag] of Object.entries(match.playerXuidToGametag)) {
+          acc.set(playerXuid, gamertag);
+        }
+        return acc;
+      }, new Map<string, string>());
+
+      await this.haloService.validateDiscordAssociationsFromMatches(mappedTeamPlayers, series, playerXuidToGametags);
+    }
+
+    return series.length > 0 ? series : null;
   }
 
   private async handlePostSeriesError(
