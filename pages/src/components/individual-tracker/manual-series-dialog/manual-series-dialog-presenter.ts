@@ -147,7 +147,10 @@ export class ManualSeriesDialogPresenter {
       if (this.checkDisposed()) {
         return;
       }
-      const entries = view.matches.filter((m) => !m.isMatchmaking).map(summaryToHistoryEntry);
+      const entries = view.matches
+        .filter((m) => !m.isMatchmaking)
+        .map(summaryToHistoryEntry)
+        .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
       const error = entries.length === 0 ? "No matches found for this tracker yet." : null;
       this.config.store.setBackfillDone(entries, null, error);
     } catch (err) {

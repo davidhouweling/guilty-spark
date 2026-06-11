@@ -249,9 +249,10 @@ export class LiveTrackersPresenter {
         },
       });
       if (item.hasActiveSeries) {
+        const hasLiveContext = this.activeLiveView?.trackerId === item.trackerId;
         actions.push({
           label: "Edit series",
-          disabled: snapshot.busy,
+          disabled: snapshot.busy || !hasLiveContext,
           onClick: (): void => {
             this.openManualSeriesDialog(item);
           },
@@ -653,8 +654,8 @@ export class LiveTrackersPresenter {
     }
     const liveView = this.activeLiveView?.trackerId === item.trackerId ? this.activeLiveView : null;
     const activeSeriesContext = liveView?.activeSeriesContext;
-    const initialData: SeriesInitialData | undefined = item.hasActiveSeries
-      ? activeSeriesContext != null
+    const initialData: SeriesInitialData | undefined =
+      activeSeriesContext != null
         ? {
             title: activeSeriesContext.title,
             subtitle: activeSeriesContext.subtitle ?? "",
@@ -663,8 +664,7 @@ export class LiveTrackersPresenter {
               members: t.players.map((p) => p.gamertag ?? "").filter((g): g is string => g !== ""),
             })),
           }
-        : { title: "", subtitle: "", teams: [] }
-      : undefined;
+        : undefined;
     const dialogState: ManualSeriesDialogState = {
       trackerId: item.trackerId,
       trackerLabel: item.gamertag,

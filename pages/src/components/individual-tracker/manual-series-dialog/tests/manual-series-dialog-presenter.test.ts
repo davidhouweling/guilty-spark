@@ -133,6 +133,27 @@ describe("ManualSeriesDialogPresenter", () => {
       expect(store.getSnapshot().backfillMatches[0].matchId).toBe("custom-1");
     });
 
+    it("sorts matches most-recent-first", async () => {
+      const older = aFakeTrackerMatchSummaryWith({ matchId: "old", startTime: "2100-01-01T00:00:00.000Z" });
+      const newer = aFakeTrackerMatchSummaryWith({ matchId: "new", startTime: "2100-01-02T00:00:00.000Z" });
+      const viewService = aFakeIndividualTrackerViewServiceWith({
+        view: aFakeTrackerViewStateWith({ matches: [older, newer] }),
+      });
+      const { presenter, store } = buildPresenter(aFakeIndividualTrackerServiceWith(), vi.fn(), viewService);
+
+      await new Promise<void>((resolve) => {
+        store.subscribe(() => {
+          const s = store.getSnapshot();
+          if (s.backfillState === "done" || s.backfillState === "error") {
+            resolve();
+          }
+        });
+        presenter.discoverBackfillMatches();
+      });
+
+      expect(store.getSnapshot().backfillMatches.map((m) => m.matchId)).toEqual(["new", "old"]);
+    });
+
     it("sets error when tracker has no matches", async () => {
       const viewService = aFakeIndividualTrackerViewServiceWith({
         view: aFakeTrackerViewStateWith({ matches: [] }),
