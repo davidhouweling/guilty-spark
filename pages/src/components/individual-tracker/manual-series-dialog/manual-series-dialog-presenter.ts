@@ -1,6 +1,7 @@
 import type { TrackerMatchSummary } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { IndividualTrackerService, TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
+import { formatDisplayDateTime } from "../../../services/individual-tracker/match-history-helpers";
 import type { ManualSeriesDialogSnapshot, ManualSeriesDialogStore } from "./manual-series-dialog-store";
 
 interface Config {
@@ -15,8 +16,8 @@ interface Config {
 function summaryToHistoryEntry(summary: TrackerMatchSummary): TrackerMatchHistoryEntry {
   return {
     matchId: summary.matchId,
-    startTime: summary.startTime,
-    endTime: summary.endTime,
+    startTime: formatDisplayDateTime(summary.startTime),
+    endTime: formatDisplayDateTime(summary.endTime),
     mapAssetId: summary.mapAssetId,
     mapVersionId: summary.mapVersionId,
     modeAssetId: summary.modeAssetId,
