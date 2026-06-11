@@ -1,6 +1,5 @@
 import { parsePathParams, parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
 import {
-  SUPPORTED_ANALYTICS_MODULES,
   matchAnalyticsContract,
   matchAnalyticsParamsSchema,
   matchAnalyticsQuerySchema,
@@ -29,20 +28,7 @@ export const matchAnalyticsRoute: RoutesRegisterHandler = (router, installServic
     }
 
     const { matchId } = pathParams.data;
-    const modulesRaw = queryParams.data.modules;
-    const modules = Array.from(
-      new Set(
-        modulesRaw
-          .split(",")
-          .map((m: string) => m.trim())
-          .filter((m: string) => m.length > 0),
-      ),
-    );
-
-    const supportedModules = new Set<string>(SUPPORTED_ANALYTICS_MODULES);
-    if (modules.length === 0 || modules.some((m) => !supportedModules.has(m))) {
-      return errorContract.toResponse({ error: "Invalid modules parameter" }, { status: 400, noStore: true });
-    }
+    const { modules } = queryParams.data;
 
     try {
       const analyticsService = createAnalyticsService(env, services.haloService, services.logService);

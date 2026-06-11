@@ -24,8 +24,24 @@ export const matchAnalyticsParamsSchema = z.object({
 });
 export type MatchAnalyticsParams = z.infer<typeof matchAnalyticsParamsSchema>;
 
+const requestedModulesQuerySchema = z
+  .string()
+  .optional()
+  .default("killMatrix")
+  .transform((modulesRaw) => {
+    return Array.from(
+      new Set(
+        modulesRaw
+          .split(",")
+          .map((module) => module.trim())
+          .filter((module) => module.length > 0),
+      ),
+    );
+  })
+  .pipe(z.array(analyticsModuleSchema).min(1));
+
 export const matchAnalyticsQuerySchema = z.object({
-  modules: z.string().optional().default("killMatrix"),
+  modules: requestedModulesQuerySchema,
 });
 export type MatchAnalyticsQuery = z.infer<typeof matchAnalyticsQuerySchema>;
 

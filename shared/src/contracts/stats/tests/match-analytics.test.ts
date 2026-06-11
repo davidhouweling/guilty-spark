@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchAnalyticsContract } from "../../stats/match-analytics";
+import { matchAnalyticsContract, matchAnalyticsQuerySchema } from "../../stats/match-analytics";
 
 describe("matchAnalyticsContract", () => {
   it("accepts kill matrix responses with flat killer/victim keys", () => {
@@ -104,6 +104,35 @@ describe("matchAnalyticsContract", () => {
           perfectCounts: { total: 0, byXuid: {} },
         },
       },
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+});
+
+describe("matchAnalyticsQuerySchema", () => {
+  it("parses modules CSV into deduped analytics module array", () => {
+    const parsed = matchAnalyticsQuerySchema.safeParse({
+      modules: "killMatrix, killMatrix",
+    });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.modules).toEqual(["killMatrix"]);
+    }
+  });
+
+  it("rejects unsupported modules", () => {
+    const parsed = matchAnalyticsQuerySchema.safeParse({
+      modules: "scoreProgression",
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects empty modules after parsing", () => {
+    const parsed = matchAnalyticsQuerySchema.safeParse({
+      modules: " , ",
     });
 
     expect(parsed.success).toBe(false);

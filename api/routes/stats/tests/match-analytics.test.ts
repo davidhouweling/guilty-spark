@@ -101,6 +101,6 @@ describe("/api/stats/match-analytics/:matchId", () => {
 
     expect(response.status).toBe(400);
     const body = await response.json();
-    expect(body).toEqual({ error: "Invalid modules parameter" });
+    expect(body).toEqual({ error: "Invalid query parameters" });
   });
 });
