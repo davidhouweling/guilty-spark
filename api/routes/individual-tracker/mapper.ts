@@ -120,6 +120,9 @@ export function toTrackerView(
           })),
     lastUpdateTime: doState == null ? "" : doState.lastUpdateTime,
     lastMatchDiscoveredAt: doState == null ? null : doState.lastMatchDiscoveredAt,
+    hasActiveSeries: doState?.hasActiveSeries ?? false,
+    hasRecentCompletedSeries: doState?.hasRecentCompletedSeries ?? false,
+    ...(doState?.activeSeriesContext !== undefined ? { activeSeriesContext: doState.activeSeriesContext } : {}),
     ...(doState?.topBarStats != null ? { topBarStats: [...doState.topBarStats] } : {}),
   };
 }

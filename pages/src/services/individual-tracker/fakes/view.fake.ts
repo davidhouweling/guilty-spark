@@ -69,6 +69,9 @@ interface FakeLiveViewOverrides {
   readonly series?: readonly TrackerSeriesGroup[];
   readonly lastUpdateTime?: string;
   readonly lastMatchDiscoveredAt?: string | null;
+  readonly hasActiveSeries?: boolean;
+  readonly hasRecentCompletedSeries?: boolean;
+  readonly activeSeriesContext?: TrackerLiveView["activeSeriesContext"];
 }
 
 export function aFakeTrackerLiveViewWith(overrides: FakeLiveViewOverrides = {}): TrackerLiveView {
@@ -80,6 +83,9 @@ export function aFakeTrackerLiveViewWith(overrides: FakeLiveViewOverrides = {}):
     series: [...(overrides.series ?? [])],
     lastUpdateTime: overrides.lastUpdateTime ?? "2100-01-01T00:10:00.000Z",
     lastMatchDiscoveredAt: overrides.lastMatchDiscoveredAt ?? null,
+    hasActiveSeries: overrides.hasActiveSeries ?? false,
+    hasRecentCompletedSeries: overrides.hasRecentCompletedSeries ?? false,
+    activeSeriesContext: overrides.activeSeriesContext,
   };
 }
 

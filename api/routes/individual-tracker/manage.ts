@@ -1,7 +1,10 @@
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import {
   deleteTrackerContract,
+  editSeriesContract,
+  editSeriesRequestSchema,
   endSeriesContract,
+  resumeSeriesContract,
   selectMatchesContract,
   selectMatchesRequestSchema,
   selectActiveTrackerRequestSchema,
@@ -23,10 +26,13 @@ import type {
   IndividualTrackerStopResponse,
   IndividualTrackerSelectMatchesResponse,
   IndividualTrackerStartSeriesRequest,
+  IndividualTrackerEditSeriesRequest,
 } from "../../durable-objects/individual-tracker/types";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
 import {
+  ActiveSeriesExistsError,
   NoActiveSeriesError,
+  NoCompletedSeriesError,
   TrackerLimitReachedError,
   TrackerNotFoundError,
 } from "../../services/individual-tracker/errors";
@@ -130,6 +136,38 @@ async function endSeriesDo(env: Env, userId: string, trackerId: string): Promise
   const response = await stub.fetch("http://do/end-series", { method: "POST" });
   if (response.status === 409) {
     throw new NoActiveSeriesError();
+  }
+  assertDoOkWith404(response);
+  await response.json<{ success: true }>();
+}
+
+async function editSeriesDo(
+  env: Env,
+  userId: string,
+  trackerId: string,
+  body: IndividualTrackerEditSeriesRequest,
+): Promise<void> {
+  const stub = trackerDoStub(env, userId, trackerId);
+  const response = await stub.fetch("http://do/edit-series", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (response.status === 409) {
+    throw new NoActiveSeriesError();
+  }
+  assertDoOkWith404(response);
+  await response.json<{ success: true }>();
+}
+
+async function resumeSeriesDo(env: Env, userId: string, trackerId: string): Promise<void> {
+  const stub = trackerDoStub(env, userId, trackerId);
+  const response = await stub.fetch("http://do/resume-series", { method: "POST" });
+  if (response.status === 409) {
+    throw new ActiveSeriesExistsError();
+  }
+  if (response.status === 422) {
+    throw new NoCompletedSeriesError();
   }
   assertDoOkWith404(response);
   await response.json<{ success: true }>();
@@ -527,6 +565,99 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
     } catch (error) {
       logService.error(error as Error, new Map([["message", "Individual tracker end series error"]]));
       return errorContract.toResponse({ error: "Failed to end series" }, { status: 500, noStore: true });
+    }
+  });
+
+  router.patch("/api/individual-tracker/manage/:trackerId/series", async (request, env: Env) => {
+    const services = installServices({ env });
+    const { authService, individualTrackerService, logService } = services;
+
+    try {
+      const auth = await requireSession(request, authService);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      const parsedParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
+      if (!parsedParams.success) {
+        return parsedParams.response;
+      }
+      const { trackerId } = parsedParams.data;
+
+      const parsed = await parseJsonBody(request, editSeriesRequestSchema, "Invalid edit series request");
+      if (!parsed.success) {
+        return parsed.response;
+      }
+
+      try {
+        await individualTrackerService.getOwnedTracker(auth.session.userId, trackerId);
+        const editBody: IndividualTrackerEditSeriesRequest = {};
+        if (parsed.data.titleOverride !== undefined) {
+          editBody.titleOverride = parsed.data.titleOverride;
+        }
+        if (parsed.data.subtitleOverride !== undefined) {
+          editBody.subtitleOverride = parsed.data.subtitleOverride;
+        }
+        if (parsed.data.teams !== undefined) {
+          editBody.teams = parsed.data.teams.map((team) => ({ name: team.name, members: Array.from(team.members) }));
+        }
+        await editSeriesDo(env, auth.session.userId, trackerId, editBody);
+      } catch (error) {
+        if (error instanceof TrackerNotFoundError) {
+          return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
+        }
+        if (error instanceof NoActiveSeriesError) {
+          return errorContract.toResponse({ error: "No active series" }, { status: 409, noStore: true });
+        }
+        throw error;
+      }
+
+      return editSeriesContract.toResponse({ success: true }, { noStore: true });
+    } catch (error) {
+      logService.error(error as Error, new Map([["message", "Individual tracker edit series error"]]));
+      return errorContract.toResponse({ error: "Failed to edit series" }, { status: 500, noStore: true });
+    }
+  });
+
+  router.post("/api/individual-tracker/manage/:trackerId/resume-series", async (request, env: Env) => {
+    const services = installServices({ env });
+    const { authService, individualTrackerService, logService } = services;
+
+    try {
+      const auth = await requireSession(request, authService);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      const parsedParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
+      if (!parsedParams.success) {
+        return parsedParams.response;
+      }
+      const { trackerId } = parsedParams.data;
+
+      try {
+        await individualTrackerService.getOwnedTracker(auth.session.userId, trackerId);
+        await resumeSeriesDo(env, auth.session.userId, trackerId);
+      } catch (error) {
+        if (error instanceof TrackerNotFoundError) {
+          return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
+        }
+        if (error instanceof ActiveSeriesExistsError) {
+          return errorContract.toResponse(
+            { error: "End the current series before resuming" },
+            { status: 409, noStore: true },
+          );
+        }
+        if (error instanceof NoCompletedSeriesError) {
+          return errorContract.toResponse({ error: "No completed series to resume" }, { status: 409, noStore: true });
+        }
+        throw error;
+      }
+
+      return resumeSeriesContract.toResponse({ success: true }, { noStore: true });
+    } catch (error) {
+      logService.error(error as Error, new Map([["message", "Individual tracker resume series error"]]));
+      return errorContract.toResponse({ error: "Failed to resume series" }, { status: 500, noStore: true });
     }
   });
 

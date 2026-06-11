@@ -140,6 +140,12 @@ export interface IndividualTrackerStartSeriesRequest {
   matchIds?: string[];
 }
 
+export interface IndividualTrackerEditSeriesRequest {
+  titleOverride?: string | null;
+  subtitleOverride?: string | null;
+  teams?: IndividualTrackerSeriesTeam[];
+}
+
 export interface IndividualTrackerStartSeriesResponse {
   success: true;
 }
@@ -153,6 +159,14 @@ export interface IndividualTrackerSelectMatchesResponse {
 }
 
 export interface IndividualTrackerNudgeResponse {
+  success: true;
+}
+
+export interface IndividualTrackerEditSeriesResponse {
+  success: true;
+}
+
+export interface IndividualTrackerResumeSeriesResponse {
   success: true;
 }
 
@@ -179,6 +193,12 @@ export interface IndividualTrackerStatusResponse {
   state: IndividualTrackerState | null;
 }
 
+export interface ActiveSeriesContext {
+  title: string;
+  subtitle: string | null;
+  teams: SeriesTeam[];
+}
+
 export interface IndividualTrackerViewState {
   trackerId: string;
   gamertag: string;
@@ -187,6 +207,9 @@ export interface IndividualTrackerViewState {
   series: IndividualTrackerSeriesGroup[];
   lastUpdateTime: string;
   lastMatchDiscoveredAt: string | null;
+  hasActiveSeries: boolean;
+  hasRecentCompletedSeries: boolean;
+  activeSeriesContext?: ActiveSeriesContext;
   topBarStats?: readonly TopBarStatItem[];
 }
 

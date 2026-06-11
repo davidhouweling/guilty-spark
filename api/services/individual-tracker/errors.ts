@@ -32,3 +32,17 @@ export class NoActiveSeriesError extends Error {
     this.name = "NoActiveSeriesError";
   }
 }
+
+export class NoCompletedSeriesError extends Error {
+  constructor(message = "No completed series to resume") {
+    super(message);
+    this.name = "NoCompletedSeriesError";
+  }
+}
+
+export class ActiveSeriesExistsError extends Error {
+  constructor(message = "Active series already exists") {
+    super(message);
+    this.name = "ActiveSeriesExistsError";
+  }
+}
