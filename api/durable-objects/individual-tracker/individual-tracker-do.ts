@@ -638,11 +638,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
   private async handleEditSeries(request: Request): Promise<Response> {
     const trackerState = await this.getState();
-    if (trackerState == null) {
-      return new Response("Not Found", { status: 404 });
-    }
-
-    if (trackerState.activeSeries == null) {
+    if (trackerState?.activeSeries == null) {
       return new Response("No active series", { status: 409 });
     }
 
@@ -678,7 +674,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private async handleResumeSeries(): Promise<Response> {
     const trackerState = await this.getState();
     if (trackerState == null) {
-      return new Response("Not Found", { status: 404 });
+      return new Response("No completed series to resume", { status: 422 });
     }
 
     if (trackerState.activeSeries != null) {

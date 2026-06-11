@@ -1787,12 +1787,12 @@ describe("IndividualTrackerDO", () => {
       isActive: true,
     });
 
-    it("returns 404 when no state exists", async () => {
+    it("returns 409 when no state exists", async () => {
       storageGetSpy.mockResolvedValue(null);
 
       const response = await individualTrackerDO.fetch(editSeriesRequest({ titleOverride: "New Title" }));
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(409);
     });
 
     it("returns 409 when no active series exists", async () => {
@@ -1903,12 +1903,12 @@ describe("IndividualTrackerDO", () => {
       ...overrides,
     });
 
-    it("returns 404 when no state exists", async () => {
+    it("returns 422 when no state exists", async () => {
       storageGetSpy.mockResolvedValue(null);
 
       const response = await individualTrackerDO.fetch(new Request("http://do/resume-series", { method: "POST" }));
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(422);
     });
 
     it("returns 409 when an active series already exists", async () => {
