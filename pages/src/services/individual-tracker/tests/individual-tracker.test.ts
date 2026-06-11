@@ -281,7 +281,7 @@ describe("RealIndividualTrackerService", () => {
 
   it("sends a PATCH request to edit a series", async () => {
     fetchSpy.mockResolvedValueOnce(jsonResponse({ success: true }));
-    await service.editSeries("tracker-1", { titleOverride: "New Title", teams: [] });
+    await service.editSeries("tracker-1", { titleOverride: "New Title" });
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining("/api/individual-tracker/manage/tracker-1/series"),
       expect.objectContaining({ method: "PATCH" }),
