@@ -8,8 +8,9 @@ import { errorContract } from "@guilty-spark/shared/contracts/error";
 import type { RoutesRegisterHandler } from "../base/types";
 import { createAnalyticsService } from "../../services/analytics/analytics-service";
 
-const ANALYTICS_CACHE_TTL_SECONDS = 60 * 60 * 24 * 365; // 1 year
-const ANALYTICS_CACHE_CONTROL = `public, max-age=${ANALYTICS_CACHE_TTL_SECONDS.toString()}, immutable`;
+const ANALYTICS_CACHE_TTL_SECONDS = 60 * 5; // 5 minutes (endpoint behavior may evolve)
+const ANALYTICS_STALE_WHILE_REVALIDATE_SECONDS = 60;
+const ANALYTICS_CACHE_CONTROL = `public, max-age=${ANALYTICS_CACHE_TTL_SECONDS.toString()}, s-maxage=${ANALYTICS_CACHE_TTL_SECONDS.toString()}, stale-while-revalidate=${ANALYTICS_STALE_WHILE_REVALIDATE_SECONDS.toString()}`;
 
 export const matchAnalyticsRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/stats/match-analytics/:matchId", async (request, env: Env) => {
