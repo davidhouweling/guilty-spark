@@ -6,7 +6,11 @@ export interface AnalyticsService {
   getMatchAnalytics(matchId: string, modules: string[]): Promise<MatchAnalytics>;
 }
 
-export function createAnalyticsService(_env: Env, _haloService: HaloService, _logService: LogService): AnalyticsService {
+export function createAnalyticsService(
+  _env: Env,
+  _haloService: HaloService,
+  _logService: LogService,
+): AnalyticsService {
   return {
     async getMatchAnalytics(_matchId: string, modules: string[]): Promise<MatchAnalytics> {
       // For now, return stub data. Will be implemented when film data is integrated.
@@ -20,10 +24,7 @@ export function createAnalyticsService(_env: Env, _haloService: HaloService, _lo
 
       return {
         requestedModules,
-        killMatrix:
-          requestedModules.includes("killMatrix") ?
-            {}
-          : undefined,
+        killMatrix: requestedModules.includes("killMatrix") ? {} : undefined,
         metadata: {
           pairingQuality: {
             unpairedDeathCount: 0,

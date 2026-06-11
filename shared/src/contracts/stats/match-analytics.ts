@@ -28,9 +28,7 @@ export type MatchAnalyticsQuery = z.infer<typeof matchAnalyticsQuerySchema>;
 export const matchAnalyticsSchema = z.object({
   requestedModules: z.array(z.enum(["killMatrix"])),
   killMatrix: z
-    .optional(
-      z.record(z.string().describe("Key format: <killerXuid>:<victimXuid>"), killMatrixEntrySchema)
-    )
+    .optional(z.record(z.string().describe("Key format: <killerXuid>:<victimXuid>"), killMatrixEntrySchema))
     .describe("Flat kill matrix keyed by <killerXuid>:<victimXuid>"),
   metadata: z.object({
     pairingQuality: z.object({
@@ -46,6 +44,4 @@ export const matchAnalyticsSchema = z.object({
 
 export type MatchAnalytics = z.infer<typeof matchAnalyticsSchema>;
 
-export const matchAnalyticsContract = defineContract(
-  z.object({ analytics: matchAnalyticsSchema })
-);
+export const matchAnalyticsContract = defineContract(z.object({ analytics: matchAnalyticsSchema }));

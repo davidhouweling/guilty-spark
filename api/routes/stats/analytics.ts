@@ -37,14 +37,11 @@ export const matchAnalyticsRoute: RoutesRegisterHandler = (router, installServic
         { analytics },
         {
           headers: { "Cache-Control": ANALYTICS_CACHE_CONTROL },
-        }
+        },
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error fetching analytics";
-      return errorContract.toResponse(
-        { error: message },
-        { status: 500 }
-      );
+      return errorContract.toResponse({ error: message }, { status: 500 });
     }
   });
 };
