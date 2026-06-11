@@ -350,6 +350,34 @@ async function getSubtitle(guildId: string, discordService: DiscordService, logS
   return subtitle;
 }
 
+async function getBestEffortMedalMetadata({
+  logService,
+  haloService,
+  matchesById,
+  guildId,
+  queueNumber,
+}: {
+  logService: LogService;
+  haloService: HaloService;
+  matchesById: Record<string, MatchStats>;
+  guildId: string;
+  queueNumber: number;
+}): Promise<DiscordSeriesStatsResolved["renderData"]["medalMetadata"]> {
+  try {
+    return await getMedalMetadataFromMatches(matchesById, async (medalId) => haloService.getMedal(medalId));
+  } catch (error) {
+    logService.warn(
+      "Failed to resolve medal metadata for discord series stats, using empty metadata",
+      new Map([
+        ["guildId", guildId],
+        ["queueNumber", queueNumber.toString()],
+        ["error", String(error)],
+      ]),
+    );
+    return {};
+  }
+}
+
 async function tryBuildRenderData({
   discordService,
   logService,
@@ -377,7 +405,13 @@ async function tryBuildRenderData({
 
   const [playerXuidToGametagMap, medalMetadata] = await Promise.all([
     haloService.getPlayerXuidsToGametags(matches),
-    getMedalMetadataFromMatches(matchesById, async (medalId) => haloService.getMedal(medalId)),
+    getBestEffortMedalMetadata({
+      logService,
+      haloService,
+      matchesById,
+      guildId,
+      queueNumber,
+    }),
   ]);
   const renderMatches = await Promise.all(
     matches.map(async (match) => {

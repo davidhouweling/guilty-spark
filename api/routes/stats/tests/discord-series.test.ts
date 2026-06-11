@@ -189,6 +189,51 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
     });
   });
 
+  it("returns resolved payload with empty medal metadata when medal lookup fails", async () => {
+    const ctfMatchId = "d81554d7-ddfe-44da-a6cb-000000000ctf";
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.discordService, "searchGuildMessages").mockResolvedValue({
+        doing_deep_historical_index: false,
+        total_results: 1,
+        messages: [
+          [
+            aFakeMessageWith({
+              id: "m-medal-lookup-fail",
+              color: EmbedColors.INFO,
+              title: "Series stats for queue #7777 (1-0)",
+              gameFieldValue: `[CTF](https://halodatahive.com/Infinite/Match/${ctfMatchId})`,
+            }),
+          ],
+        ],
+      });
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue({
+        ...guild,
+        id: "123456789012345678",
+        name: "NeatQueue League",
+      });
+      vi.spyOn(services.haloService, "getMedal").mockRejectedValue(new Error("metadata unavailable"));
+
+      return services;
+    });
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777"),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(200);
+    const body = await res.json<DiscordSeriesStatsResponse>();
+    expect(body).toMatchObject({
+      status: "resolved",
+      renderData: {
+        medalMetadata: {},
+      },
+    });
+  });
+
   it("falls back to guild id subtitle when guild lookup fails", async () => {
     const matchId = "d81554d7-ddfe-44da-a6cb-000000000ctf";
 

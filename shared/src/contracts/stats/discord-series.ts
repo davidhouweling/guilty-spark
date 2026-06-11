@@ -23,7 +23,7 @@ export const discordSeriesStatsResolvedSchema = z.object({
     subtitle: z.string(),
     seriesScore: z.string(),
     medalMetadata: z.record(
-      z.string(),
+      z.string().regex(/^\d+$/, "Invalid medal id"),
       z.object({
         name: z.string(),
         sortingWeight: z.number(),
