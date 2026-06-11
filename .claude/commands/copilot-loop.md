@@ -128,22 +128,32 @@ gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "{NODE
 
 **Triggering a new Copilot review:**
 
-Copilot automatically reviews when a new commit is pushed to the PR — no explicit trigger is needed in most cases. After `git push`, simply wait.
+After `git push`, request a review immediately:
 
-If no new review appears after 10 minutes (e.g. when no new commit was pushed), fall back to posting a comment:
+```bash
+gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
+```
+
+This works but the review from `copilot-pull-request-reviewer` may arrive with a significant delay (potentially hours, not minutes). It is still the correct command to use.
+
+For a faster sanity check while waiting, also post:
 
 ```bash
 gh pr comment {PR} --body "@copilot review"
 ```
 
-Note: `gh pr edit --add-reviewer copilot` and `gh pr edit --add-reviewer copilot-pull-request-reviewer` do not work — GitHub silently ignores or rejects reviewer requests for Copilot bots via the API.
+This triggers `copilot-swe-agent[bot]` within ~5 minutes. If it replies with clean language (see Step 2), and no new `copilot-pull-request-reviewer` review has appeared, treat the loop as complete.
+
+Note: `gh pr edit --add-reviewer copilot` and `gh pr edit --add-reviewer github-copilot` do not work (GraphQL cannot resolve those logins).
 
 ## Step 5 — Wait and loop
 
 Schedule a wakeup for **10 minutes**. On wakeup, go back to Step 1.
 
-- If there is still no new review after 10 minutes, post `@copilot review` as a fallback, then wait **5 more minutes** and check once more.
-- If still no new review after 15 minutes total: stop and inform the user. They may need to manually request a review from the GitHub PR page.
+- Check both `copilot-pull-request-reviewer` PR reviews AND `copilot-swe-agent[bot]` issue comments (Step 2).
+- If `copilot-swe-agent` says clean and no new `copilot-pull-request-reviewer` review has appeared → stop, the loop is complete.
+- If no response from either after 10 minutes, wait **5 more minutes** then check once more.
+- If still nothing after 15 minutes total: stop and inform the user (the `copilot-pull-request-reviewer` review may arrive hours later — it was successfully requested).
 
 ## Repo-specific notes
 

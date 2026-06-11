@@ -123,17 +123,31 @@ Resolve each unresolved thread for the comments just replied to:
 gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "{NODE_ID}"}) { thread { isResolved } } }'
 ```
 
-## Step 6 — Report and hand back
+## Step 6 — Request review and hand back
 
-After pushing, tell me:
+After pushing, request a review:
 
-> "Done. Fixes committed as {SHA} and pushed. Copilot will auto-review the new push — please re-run this prompt in ~10 minutes."
+```bash
+gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
+```
 
-If no new commit was pushed (all comments were refuted), tell me:
+Then post a comment for a faster response from the secondary Copilot bot:
 
-> "Done. All comments refuted (no code changes). Re-run this prompt in ~10 minutes to check if Copilot accepts the responses."
+```bash
+gh pr comment {PR} --body "@copilot review"
+```
 
-Note: `gh pr edit --add-reviewer` does not work for Copilot bots via the API — Copilot auto-reviews on push, which is sufficient.
+**Why both?** `copilot-pull-request-reviewer` does the full inline code review but may take hours to respond after the `gh pr edit` request. `copilot-swe-agent[bot]` responds to `@copilot review` within ~5 minutes and runs tests/lint. If `copilot-swe-agent` says clean and no new `copilot-pull-request-reviewer` review has appeared, the loop can be considered complete.
+
+Note: `gh pr edit --add-reviewer copilot` and `gh pr edit --add-reviewer github-copilot` do not resolve — use `copilot-pull-request-reviewer` exactly.
+
+**Report back:**
+
+> "Done. Fixes committed as {SHA} and pushed. Review requested from `copilot-pull-request-reviewer` (may take up to a few hours) and `@copilot review` posted for a quick check. Re-run this prompt in ~10 minutes to process the quick check result; the full review may need another pass later."
+
+If no new commit was pushed (all comments were refuted):
+
+> "Done. All comments refuted — no code changes. `@copilot review` posted. Re-run in ~10 minutes to check the response."
 
 ## Repo-specific notes
 
