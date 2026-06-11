@@ -36,6 +36,16 @@ function buildDefaultTeams(): readonly ManualSeriesTeamSnapshot[] {
   ];
 }
 
+function normaliseTeams(data: SeriesInitialData): readonly ManualSeriesTeamSnapshot[] {
+  if (data.teams.length === 0) {
+    return buildDefaultTeams();
+  }
+  return data.teams.map((t) => ({
+    name: t.name,
+    members: t.members.length > 0 ? [...t.members] : [...INITIAL_TEAM_MEMBERS],
+  }));
+}
+
 export class ManualSeriesDialogStore {
   private snapshot: ManualSeriesDialogSnapshot;
   private readonly subscribers = new Set<() => void>();
@@ -43,13 +53,7 @@ export class ManualSeriesDialogStore {
 
   public constructor(initialData?: SeriesInitialData) {
     const mode: "start" | "edit" = initialData != null ? "edit" : "start";
-    const teams =
-      initialData != null && initialData.teams.length > 0
-        ? initialData.teams.map((t) => ({
-            name: t.name,
-            members: t.members.length > 0 ? [...t.members] : [...INITIAL_TEAM_MEMBERS],
-          }))
-        : buildDefaultTeams();
+    const teams = initialData != null ? normaliseTeams(initialData) : buildDefaultTeams();
     this.snapshot = {
       mode,
       titleOverride: initialData?.title ?? "",
@@ -79,13 +83,7 @@ export class ManualSeriesDialogStore {
 
   public reset(initialData?: SeriesInitialData): void {
     const data = initialData ?? this.initialData;
-    const teams =
-      data != null && data.teams.length > 0
-        ? data.teams.map((t) => ({
-            name: t.name,
-            members: t.members.length > 0 ? [...t.members] : [...INITIAL_TEAM_MEMBERS],
-          }))
-        : buildDefaultTeams();
+    const teams = data != null ? normaliseTeams(data) : buildDefaultTeams();
     this.update({
       mode: data != null ? "edit" : "start",
       titleOverride: data?.title ?? "",
