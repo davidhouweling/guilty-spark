@@ -7,6 +7,7 @@ import type {
 } from "../../../services/individual-tracker/types";
 import { buildIndividualTrackerTrackerViewPath } from "../../individual-tracker/routes";
 import type { GameSelectionDialogState, ManualSeriesDialogState } from "../types";
+import type { SeriesInitialData } from "../../individual-tracker/manual-series-dialog/manual-series-dialog-store";
 import type { TrackerDisplayStatus, TrackerListItem, TrackerRowAction } from "../tracker-list/tracker-list";
 import type { LiveTrackersStore } from "./live-trackers-store";
 import type { LiveTrackersSnapshot } from "./types";
@@ -247,7 +248,15 @@ export class LiveTrackersPresenter {
           this.openGameSelection(item);
         },
       });
-      if (!item.hasActiveSeries) {
+      if (item.hasActiveSeries) {
+        actions.push({
+          label: "Edit series",
+          disabled: snapshot.busy,
+          onClick: (): void => {
+            this.openManualSeriesDialog(item);
+          },
+        });
+      } else {
         actions.push({
           label: "Start series",
           disabled: snapshot.busy,
@@ -617,9 +626,23 @@ export class LiveTrackersPresenter {
     if (item.trackerId == null) {
       return;
     }
+    const liveView = this.activeLiveView?.trackerId === item.trackerId ? this.activeLiveView : null;
+    const activeSeriesContext = liveView?.activeSeriesContext;
+    const initialData: SeriesInitialData | undefined =
+      activeSeriesContext != null
+        ? {
+            title: activeSeriesContext.title,
+            subtitle: activeSeriesContext.subtitle ?? "",
+            teams: activeSeriesContext.teams.map((t) => ({
+              name: t.name,
+              members: t.players.map((p) => p.gamertag ?? "").filter((g): g is string => g !== ""),
+            })),
+          }
+        : undefined;
     const dialogState: ManualSeriesDialogState = {
       trackerId: item.trackerId,
       trackerLabel: item.gamertag,
+      initialData,
     };
     this.updateSnapshot((s) => ({ ...s, manualSeriesDialogState: dialogState }));
   }

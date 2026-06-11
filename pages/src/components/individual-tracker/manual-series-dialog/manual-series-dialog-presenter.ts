@@ -24,9 +24,13 @@ function summaryToHistoryEntry(summary: TrackerMatchSummary): TrackerMatchHistor
     gameVariantCategory: summary.gameVariantCategory,
     startTimeIso: summary.startTime,
     endTimeIso: summary.endTime,
-    duration: "",
+    duration: ((): string => {
+      const ms = new Date(summary.endTime).getTime() - new Date(summary.startTime).getTime();
+      const totalSeconds = Math.floor(ms / 1000);
+      return `${Math.floor(totalSeconds / 60).toString()}m ${(totalSeconds % 60).toString().padStart(2, "0")}s`;
+    })(),
     mapName: summary.mapName,
-    modeName: "",
+    modeName: "Custom",
     outcome: (["Win", "Loss", "Tie", "DNF"].includes(summary.outcome)
       ? summary.outcome
       : "Unknown") as TrackerMatchHistoryEntry["outcome"],

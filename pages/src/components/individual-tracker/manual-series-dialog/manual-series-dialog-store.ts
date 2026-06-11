@@ -44,10 +44,9 @@ export class ManualSeriesDialogStore {
   public constructor(initialData?: SeriesInitialData) {
     const mode: "start" | "edit" = initialData != null ? "edit" : "start";
     const teams =
-      initialData?.teams.map((t) => ({
-        name: t.name,
-        members: t.members.length > 0 ? [...t.members] : [""],
-      })) ?? buildDefaultTeams();
+      initialData != null && initialData.teams.length > 0
+        ? initialData.teams.map((t) => ({ name: t.name, members: t.members.length > 0 ? [...t.members] : [""] }))
+        : buildDefaultTeams();
     this.snapshot = {
       mode,
       titleOverride: initialData?.title ?? "",
@@ -78,10 +77,9 @@ export class ManualSeriesDialogStore {
   public reset(initialData?: SeriesInitialData): void {
     const data = initialData ?? this.initialData;
     const teams =
-      data?.teams.map((t) => ({
-        name: t.name,
-        members: t.members.length > 0 ? [...t.members] : [""],
-      })) ?? buildDefaultTeams();
+      data != null && data.teams.length > 0
+        ? data.teams.map((t) => ({ name: t.name, members: t.members.length > 0 ? [...t.members] : [""] }))
+        : buildDefaultTeams();
     this.update({
       mode: data != null ? "edit" : "start",
       titleOverride: data?.title ?? "",

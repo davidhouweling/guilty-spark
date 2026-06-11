@@ -85,6 +85,11 @@ function LiveTrackersSectionInternal({
                 controller.closeManualSeriesDialog();
                 void controller.refresh();
               }}
+              onSeriesEdited={(): void => {
+                controller.closeManualSeriesDialog();
+                void controller.refresh();
+              }}
+              initialData={snapshot.manualSeriesDialogState.initialData}
               individualTrackerService={individualTrackerService}
               viewService={individualTrackerViewService}
             />
