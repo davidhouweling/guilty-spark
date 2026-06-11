@@ -661,7 +661,7 @@ export class LiveTrackersPresenter {
             subtitle: activeSeriesContext.subtitle ?? "",
             teams: activeSeriesContext.teams.map((t) => ({
               name: t.name,
-              members: t.players.map((p) => p.gamertag ?? "").filter((g): g is string => g !== ""),
+              members: t.players.map((p) => p.gamertag ?? ""),
             })),
           }
         : undefined;

@@ -44,6 +44,26 @@ describe("ManualSeriesDialogStore", () => {
     store.reset();
     expect(store.getSnapshot().titleOverride).toBe("Original");
   });
+
+  it("falls back to INITIAL_TEAM_MEMBERS slots when a team has no members", () => {
+    const store = new ManualSeriesDialogStore({
+      title: "T",
+      subtitle: "",
+      teams: [{ name: "Alpha", members: [] }],
+    });
+    expect(store.getSnapshot().teams[0].members).toHaveLength(4);
+  });
+
+  it("reset falls back to INITIAL_TEAM_MEMBERS slots when a team has no members", () => {
+    const store = new ManualSeriesDialogStore({
+      title: "T",
+      subtitle: "",
+      teams: [{ name: "Alpha", members: [] }],
+    });
+    store.setTitleOverride("Changed");
+    store.reset();
+    expect(store.getSnapshot().teams[0].members).toHaveLength(4);
+  });
 });
 
 describe("ManualSeriesDialogPresenter", () => {
