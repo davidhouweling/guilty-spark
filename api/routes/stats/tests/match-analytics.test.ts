@@ -54,7 +54,7 @@ describe("/api/stats/match-analytics/:matchId", () => {
     )) as Response;
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("Cache-Control")).toBe("public, max-age=31536000");
+    expect(response.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
 
     const body = await response.json();
     expect(body).toMatchObject({
@@ -71,7 +71,7 @@ describe("/api/stats/match-analytics/:matchId", () => {
     });
   });
 
-  it("returns 500 when analytics service throws", async () => {
+  it("returns 500 with generic message when analytics service throws", async () => {
     vi.spyOn(analyticsServiceModule, "createAnalyticsService").mockReturnValue({
       getMatchAnalytics: vi.fn().mockRejectedValue(new Error("boom")),
     });
@@ -85,7 +85,22 @@ describe("/api/stats/match-analytics/:matchId", () => {
     )) as Response;
 
     expect(response.status).toBe(500);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
     const body = await response.json();
-    expect(body).toEqual({ error: "boom" });
+    expect(body).toEqual({ error: "Failed to fetch analytics" });
+  });
+
+  it("returns 400 for unsupported modules", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => installFakeServicesWith({ env }));
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      new Request("http://localhost/api/stats/match-analytics/match-123?modules=scoreProgression"),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body).toEqual({ error: "Invalid modules parameter" });
   });
 });

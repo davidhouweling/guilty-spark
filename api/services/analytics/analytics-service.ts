@@ -20,12 +20,11 @@ export function createAnalyticsService(
       // 1. Fetch film metadata from Halo API (with caching)
       // 2. Download film chunks (with caching)
       // 3. Parse and compute analytics
-      // 4. Return based on requested modules
 
       // TODO: remove this when the actual implementation is done
       await Promise.resolve();
 
-      const requestedModules = modules as "killMatrix"[];
+      const requestedModules = modules.filter((module): module is "killMatrix" => module === "killMatrix");
 
       return {
         requestedModules,

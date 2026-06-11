@@ -28,16 +28,21 @@ export type MatchAnalyticsQuery = z.infer<typeof matchAnalyticsQuerySchema>;
 export const matchAnalyticsSchema = z.object({
   requestedModules: z.array(z.enum(["killMatrix"])),
   killMatrix: z
-    .optional(z.record(z.string().describe("Key format: <killerXuid>:<victimXuid>"), killMatrixEntrySchema))
+    .optional(
+      z.record(
+        z.string().regex(/^\d+:\d+$/, "Invalid killMatrix key format, expected <killerXuid>:<victimXuid>"),
+        killMatrixEntrySchema,
+      ),
+    )
     .describe("Flat kill matrix keyed by <killerXuid>:<victimXuid>"),
   metadata: z.object({
     pairingQuality: z.object({
-      unpairedDeathCount: z.number(),
-      maxTimeDeltaMs: z.number(),
+      unpairedDeathCount: z.number().int().nonnegative(),
+      maxTimeDeltaMs: z.number().int().nonnegative(),
     }),
     perfectCounts: z.object({
-      total: z.number(),
-      byXuid: z.record(z.string(), z.number()),
+      total: z.number().int().nonnegative(),
+      byXuid: z.record(z.string(), z.number().int().nonnegative()),
     }),
   }),
 });

@@ -56,4 +56,41 @@ describe("matchAnalyticsContract", () => {
 
     expect(parsed.success).toBe(false);
   });
+
+  it("rejects malformed killMatrix keys", () => {
+    const parsed = matchAnalyticsContract.safeParse({
+      analytics: {
+        requestedModules: ["killMatrix"],
+        killMatrix: {
+          "not-a-valid-key": {
+            count: 1,
+            headshotKills: 0,
+            perfects: 0,
+            weapons: [],
+          },
+        },
+        metadata: {
+          pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 1 },
+          perfectCounts: { total: 0, byXuid: {} },
+        },
+      },
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects negative pairingQuality values", () => {
+    const parsed = matchAnalyticsContract.safeParse({
+      analytics: {
+        requestedModules: ["killMatrix"],
+        killMatrix: {},
+        metadata: {
+          pairingQuality: { unpairedDeathCount: -1, maxTimeDeltaMs: 1 },
+          perfectCounts: { total: 0, byXuid: {} },
+        },
+      },
+    });
+
+    expect(parsed.success).toBe(false);
+  });
 });
