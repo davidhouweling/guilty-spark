@@ -20,8 +20,8 @@ describe("createAnalyticsService", () => {
     const services = installFakeServicesWith({ env });
     const service = createAnalyticsService(env, services.haloService, services.logService);
 
-    await expect(service.getMatchAnalytics("match-123", ["scoreProgression"]))
-      .rejects
-      .toThrow("No supported analytics modules requested");
+    await expect(service.getMatchAnalytics("match-123", ["scoreProgression"])).rejects.toThrow(
+      "No supported analytics modules requested",
+    );
   });
 });
