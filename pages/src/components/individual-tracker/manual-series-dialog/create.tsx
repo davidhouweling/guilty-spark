@@ -55,8 +55,8 @@ export function ManualSeriesDialogSection({
   );
 
   useEffect(() => {
-    store.reset(initialDataRef.current);
-  }, [isOpen, store]);
+    store.reset(initialData);
+  }, [isOpen, store, initialData]);
 
   useEffect(() => {
     return (): void => {
