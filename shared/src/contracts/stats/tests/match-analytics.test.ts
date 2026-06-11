@@ -36,6 +36,21 @@ describe("matchAnalyticsContract", () => {
     expect(parsed.success).toBe(true);
   });
 
+  it("rejects empty requestedModules array", () => {
+    const parsed = matchAnalyticsContract.safeParse({
+      analytics: {
+        requestedModules: [],
+        killMatrix: {},
+        metadata: {
+          pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 1 },
+          perfectCounts: { total: 0, byXuid: {} },
+        },
+      },
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
   it("rejects unsupported requested modules", () => {
     const parsed = matchAnalyticsContract.safeParse({
       analytics: {

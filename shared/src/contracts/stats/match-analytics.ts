@@ -26,13 +26,11 @@ export const matchAnalyticsQuerySchema = z.object({
 export type MatchAnalyticsQuery = z.infer<typeof matchAnalyticsQuerySchema>;
 
 export const matchAnalyticsSchema = z.object({
-  requestedModules: z.array(z.enum(["killMatrix"])),
+  requestedModules: z.array(z.enum(["killMatrix"])).min(1),
   killMatrix: z
-    .optional(
-      z.record(
-        z.string().regex(/^\d+:\d+$/, "Invalid killMatrix key format, expected <killerXuid>:<victimXuid>"),
-        killMatrixEntrySchema,
-      ),
+    .record(
+      z.string().regex(/^\d+:\d+$/, "Invalid killMatrix key format, expected <killerXuid>:<victimXuid>"),
+      killMatrixEntrySchema,
     )
     .describe("Flat kill matrix keyed by <killerXuid>:<victimXuid>"),
   metadata: z.object({

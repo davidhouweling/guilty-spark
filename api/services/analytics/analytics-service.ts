@@ -6,29 +6,32 @@ export interface AnalyticsService {
   getMatchAnalytics(matchId: string, modules: string[]): Promise<MatchAnalytics>;
 }
 
-// TODO: remove this eslint-disable and implement the actual service once film data is available
-/* eslint-disable @typescript-eslint/no-unused-vars */
+// TODO: implement once film data is integrated
 export function createAnalyticsService(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _env: Env,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _haloService: HaloService,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _logService: LogService,
 ): AnalyticsService {
   return {
-    async getMatchAnalytics(_matchId: string, modules: string[]): Promise<MatchAnalytics> {
-      // For now, return stub data. Will be implemented when film data is integrated.
+    async getMatchAnalytics(
+       
+      _matchId: string,
+      modules: string[],
+    ): Promise<MatchAnalytics> {
+      // Stub: will be replaced when film data integration is implemented.
       // The actual implementation will:
       // 1. Fetch film metadata from Halo API (with caching)
       // 2. Download film chunks (with caching)
       // 3. Parse and compute analytics
 
-      // TODO: remove this when the actual implementation is done
-      await Promise.resolve();
-
       const requestedModules = modules.filter((module): module is "killMatrix" => module === "killMatrix");
 
-      return {
+      return Promise.resolve({
         requestedModules,
-        killMatrix: requestedModules.includes("killMatrix") ? {} : undefined,
+        killMatrix: {},
         metadata: {
           pairingQuality: {
             unpairedDeathCount: 0,
@@ -39,7 +42,7 @@ export function createAnalyticsService(
             byXuid: {},
           },
         },
-      };
+      });
     },
   };
 }

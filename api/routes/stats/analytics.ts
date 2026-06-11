@@ -29,10 +29,14 @@ export const matchAnalyticsRoute: RoutesRegisterHandler = (router, installServic
 
     const { matchId } = pathParams.data;
     const modulesRaw = queryParams.data.modules;
-    const modules = modulesRaw
-      .split(",")
-      .map((m: string) => m.trim())
-      .filter((m: string) => m.length > 0);
+    const modules = Array.from(
+      new Set(
+        modulesRaw
+          .split(",")
+          .map((m: string) => m.trim())
+          .filter((m: string) => m.length > 0),
+      ),
+    );
 
     const supportedModules = new Set(["killMatrix"]);
     if (modules.length === 0 || modules.some((m) => !supportedModules.has(m))) {
