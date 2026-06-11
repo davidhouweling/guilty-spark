@@ -15,6 +15,16 @@ export const killMatrixEntrySchema = z.object({
 
 export type KillMatrixEntry = z.infer<typeof killMatrixEntrySchema>;
 
+export const matchAnalyticsParamsSchema = z.object({
+  matchId: z.string(),
+});
+export type MatchAnalyticsParams = z.infer<typeof matchAnalyticsParamsSchema>;
+
+export const matchAnalyticsQuerySchema = z.object({
+  modules: z.string().optional().default("killMatrix"),
+});
+export type MatchAnalyticsQuery = z.infer<typeof matchAnalyticsQuerySchema>;
+
 export const matchAnalyticsSchema = z.object({
   requestedModules: z.array(z.enum(["killMatrix"])),
   killMatrix: z
