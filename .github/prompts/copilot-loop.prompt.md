@@ -1,9 +1,9 @@
 ---
 agent: agent
-description: "Process the latest Copilot PR review: fix valid issues, reply to all comments, resolve threads, then report whether the loop is done or should be re-run."
+description: "Process the latest Copilot PR review: fix valid issues, reply to all comments, resolve threads, request a new review. Copilot does not auto-fire — re-run this prompt manually each iteration once the new review arrives."
 ---
 
-Run one iteration of the Copilot review loop on the current PR. At the end, tell me whether Copilot is satisfied or I should re-run this prompt after waiting for a new review.
+Run one iteration of the Copilot review loop on the current PR. Copilot does **not** auto-fire on push — I will manually re-run this prompt each time. At the end, request a new review and tell me when to come back.
 
 ## Step 1 — Identify the PR
 
@@ -28,7 +28,7 @@ else:
 "
 ```
 
-If `NO_REVIEW`: push the current branch if there are unpushed commits, then stop and tell me to re-run this prompt in 10 minutes (Copilot auto-reviews on push).
+If `NO_REVIEW`: request a review (Step 6) and stop — tell me to re-run this prompt once the review arrives (may take up to a few hours).
 
 ## Step 3 — Check if the review is clean
 
@@ -125,23 +125,21 @@ gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "{NODE
 
 ## Step 6 — Request review and hand back
 
-`copilot-pull-request-reviewer` auto-fires on every push, so after `git push` no explicit trigger is usually needed. If no new commit was pushed this iteration (all comments refuted), request a review manually:
+Request a new review:
 
 ```bash
 gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
 ```
 
-Do **not** post `@copilot review` — that triggers the separate `copilot-swe-agent[bot]` (tests/lint only, issue comment response), causing two simultaneous reviews. Stick to one trigger.
-
-Note: `gh pr edit --add-reviewer copilot` and `gh pr edit --add-reviewer github-copilot` do not work — use `copilot-pull-request-reviewer` exactly.
+Note: `gh pr edit --add-reviewer copilot` and `gh pr edit --add-reviewer github-copilot` do not work — use `copilot-pull-request-reviewer` exactly. Do **not** post `@copilot review` — that triggers the unrelated `copilot-swe-agent[bot]` bot.
 
 **Report back:**
 
-If a new commit was pushed:
-> "Done. Fixes committed as {SHA} and pushed. Copilot will auto-review — re-run this prompt in ~10 minutes."
+If fixes were committed and pushed:
+> "Done. Fixes committed as {SHA} and pushed. New review requested — re-run this prompt once the Copilot review arrives (may take up to a few hours)."
 
-If all comments were refuted (no new commit):
-> "Done. All comments refuted — no code changes. Review requested from `copilot-pull-request-reviewer` (may take up to a few hours). Re-run this prompt when the review appears."
+If all comments were refuted (no code changes):
+> "Done. All comments refuted — no code changes. New review requested — re-run this prompt once the Copilot review arrives."
 
 ## Repo-specific notes
 

@@ -1,6 +1,6 @@
 # Copilot Review Loop
 
-Runs a continuous fix-and-re-review loop against GitHub Copilot on the current PR until Copilot reports no new issues.
+Processes the latest Copilot PR review: fixes valid issues, replies to all comments, resolves threads, then requests a new review. Copilot does **not** auto-fire on push — the user manually invokes this command each time they want to run a loop iteration.
 
 ## Setup
 
@@ -29,7 +29,7 @@ else:
 "
 ```
 
-Record the latest review ID. If `NO_REVIEW`, request one (Step 4) then schedule a 10-minute wakeup.
+If `NO_REVIEW`: request one (Step 4) and stop — tell the user to re-run `/copilot-loop` once the review arrives (may take up to a few hours).
 
 ## Step 2 — Check if the review is clean
 
@@ -41,28 +41,13 @@ gh api "repos/{owner}/{repo}/pulls/{PR}/reviews/{REVIEW_ID}/comments"
 
 **Clean** if the JSON array is empty (`[]`), OR if the review body contains "generated no new comments".
 
-Also check for a `copilot-swe-agent[bot]` issue comment that appeared after the last push:
-
-```bash
-gh api "repos/{owner}/{repo}/issues/{PR}/comments?per_page=100" | python3 -c "
-import json, sys
-comments = json.load(sys.stdin)
-for c in reversed(comments):
-    if 'copilot-swe-agent' in c.get('user', {}).get('login', ''):
-        print(c['body'][:200])
-        break
-"
-```
-
-If the latest `copilot-swe-agent` comment body contains any of: `clean`, `no issues`, `good to merge`, `no new comments`, `all.*tests pass` — treat as clean.
-
 **If clean: stop and tell the user Copilot found no issues. The loop is complete.**
 
 ## Step 3 — Process each comment
 
 For each inline comment from the review:
 
-1. **Assess validity.** Read the file and surrounding context. Determine if the concern is real.
+1. **Assess validity.** Read the referenced file and surrounding context. Is the concern real?
 
 2. **If valid:** Fix the code. Add or update tests if the fix changes observable behaviour. Then:
 
@@ -74,7 +59,7 @@ For each inline comment from the review:
 
 3. **If invalid/refuted:** Note the reason clearly. Do not make code changes for this comment.
 
-4. Commit all fixes together:
+4. Commit all fixes together once all comments are processed:
 
    ```bash
    git add <changed files>
@@ -83,7 +68,7 @@ For each inline comment from the review:
    Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
    ```
 
-## Step 4 — Push, reply, resolve, re-request
+## Step 4 — Push, reply, resolve, request
 
 Once all comments are addressed (or refuted):
 
@@ -126,26 +111,15 @@ Then resolve each unresolved thread for the comments you just replied to:
 gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "{NODE_ID}"}) { thread { isResolved } } }'
 ```
 
-**Triggering a new Copilot review:**
-
-`copilot-pull-request-reviewer` auto-fires on every push, so after `git push` simply wait. If no review appears after 10 minutes (e.g. no new commit was pushed this iteration), request one explicitly:
+**Request a new Copilot review:**
 
 ```bash
 gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
 ```
 
-The review may still take up to a few hours to arrive after this request — that is normal.
+The review may take up to a few hours to arrive. Stop here and tell the user to re-run `/copilot-loop` once the new review appears.
 
-Do **not** post `@copilot review` — that triggers the separate `copilot-swe-agent[bot]` bot (which only runs tests/lint and replies as an issue comment), causing two simultaneous reviews. Stick to one trigger.
-
-Note: `gh pr edit --add-reviewer copilot` and `gh pr edit --add-reviewer github-copilot` do not work (GraphQL cannot resolve those logins).
-
-## Step 5 — Wait and loop
-
-Schedule a wakeup for **10 minutes**. On wakeup, go back to Step 1.
-
-- If no new `copilot-pull-request-reviewer` review after 10 minutes, wait **5 more minutes** then check once more.
-- If still nothing after 15 minutes total: stop and inform the user. The review was successfully requested and will arrive eventually — they can re-run `/copilot-loop` when it appears.
+Note: `gh pr edit --add-reviewer copilot` and `gh pr edit --add-reviewer github-copilot` do not work (GraphQL cannot resolve those logins). Do **not** post `@copilot review` — that triggers the unrelated `copilot-swe-agent[bot]` bot.
 
 ## Repo-specific notes
 
@@ -153,4 +127,4 @@ Schedule a wakeup for **10 minutes**. On wakeup, go back to Step 1.
 - Commit message format: `fix(scope): description` with `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>`
 - Owner: `davidhouweling`, Repo: `guilty-spark`
 - ESLint rules to watch for: `strict-boolean-expressions`, `no-unnecessary-condition` — avoid redundant null checks and `??` on non-nullable types
-- Always check the thread resolution status before resolving to avoid double-resolve errors
+- Always check `isResolved` before resolving a thread to avoid double-resolve errors
