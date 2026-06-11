@@ -1,9 +1,19 @@
-import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import {
+  SUPPORTED_ANALYTICS_MODULES,
+  type AnalyticsModule,
+  type MatchAnalytics,
+} from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { HaloService } from "../halo/halo";
 import type { LogService } from "../log/types";
 
 export interface AnalyticsService {
   getMatchAnalytics(matchId: string, modules: string[]): Promise<MatchAnalytics>;
+}
+
+const supportedAnalyticsModuleSet = new Set<string>(SUPPORTED_ANALYTICS_MODULES);
+
+function isSupportedAnalyticsModule(module: string): module is AnalyticsModule {
+  return supportedAnalyticsModuleSet.has(module);
 }
 
 // TODO: implement once film data is integrated
@@ -23,7 +33,10 @@ export function createAnalyticsService(
       // 2. Download film chunks (with caching)
       // 3. Parse and compute analytics
 
-      const requestedModules = modules.filter((module): module is "killMatrix" => module === "killMatrix");
+      const requestedModules = modules.filter(isSupportedAnalyticsModule);
+      if (requestedModules.length === 0) {
+        return Promise.reject(new Error("No supported analytics modules requested"));
+      }
 
       return Promise.resolve({
         requestedModules,

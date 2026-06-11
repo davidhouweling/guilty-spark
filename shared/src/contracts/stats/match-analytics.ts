@@ -15,6 +15,10 @@ export const killMatrixEntrySchema = z.object({
 
 export type KillMatrixEntry = z.infer<typeof killMatrixEntrySchema>;
 
+export const SUPPORTED_ANALYTICS_MODULES = ["killMatrix"] as const;
+export const analyticsModuleSchema = z.enum(SUPPORTED_ANALYTICS_MODULES);
+export type AnalyticsModule = z.infer<typeof analyticsModuleSchema>;
+
 export const matchAnalyticsParamsSchema = z.object({
   matchId: z.string(),
 });
@@ -26,7 +30,7 @@ export const matchAnalyticsQuerySchema = z.object({
 export type MatchAnalyticsQuery = z.infer<typeof matchAnalyticsQuerySchema>;
 
 export const matchAnalyticsSchema = z.object({
-  requestedModules: z.array(z.enum(["killMatrix"])).min(1),
+  requestedModules: z.array(analyticsModuleSchema).min(1),
   killMatrix: z
     .record(
       z.string().regex(/^\d+:\d+$/, "Invalid killMatrix key format, expected <killerXuid>:<victimXuid>"),
