@@ -34,7 +34,7 @@ function summaryToHistoryEntry(summary: TrackerMatchSummary): TrackerMatchHistor
     outcome: (["Win", "Loss", "Tie", "DNF"].includes(summary.outcome)
       ? summary.outcome
       : "Unknown") as TrackerMatchHistoryEntry["outcome"],
-    resultString: summary.outcome,
+    resultString: summary.score !== "" ? `${summary.outcome} - ${summary.score}` : summary.outcome,
     isMatchmaking: summary.isMatchmaking,
     category: summary.isMatchmaking ? "matchmaking" : "custom",
     teams: [],
@@ -151,7 +151,7 @@ export class ManualSeriesDialogPresenter {
         .filter((m) => !m.isMatchmaking)
         .map(summaryToHistoryEntry)
         .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
-      const error = entries.length === 0 ? "No matches found for this tracker yet." : null;
+      const error = entries.length === 0 ? "No custom game matches found for this tracker yet." : null;
       this.config.store.setBackfillDone(entries, null, error);
     } catch (err) {
       if (this.checkDisposed()) {
