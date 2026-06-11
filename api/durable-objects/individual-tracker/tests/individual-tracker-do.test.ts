@@ -1852,6 +1852,20 @@ describe("IndividualTrackerDO", () => {
       expect(response.status).toBe(400);
     });
 
+    it("returns 400 when teams is not an array", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ activeSeries: anActiveSeries() }));
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/edit-series", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ teams: "not-an-array" }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+    });
+
     it("remaps teams in-place with null discord fields", async () => {
       storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ activeSeries: anActiveSeries() }));
 

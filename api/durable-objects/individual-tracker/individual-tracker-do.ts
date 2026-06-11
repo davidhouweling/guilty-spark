@@ -645,21 +645,20 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     let body: IndividualTrackerEditSeriesRequest;
     try {
       body = await request.json<IndividualTrackerEditSeriesRequest>();
+      if (body.titleOverride !== undefined) {
+        trackerState.activeSeries.title = body.titleOverride ?? getDefaultSeriesGroupTitle();
+      }
+      if (body.subtitleOverride !== undefined) {
+        trackerState.activeSeries.subtitle = body.subtitleOverride;
+      }
+      if (body.teams !== undefined) {
+        trackerState.activeSeries.teams = body.teams.map((team) => ({
+          name: team.name,
+          players: team.members.map((gamertag) => ({ discordId: null, discordName: null, gamertag, xboxId: null })),
+        }));
+      }
     } catch {
       return new Response("Bad Request", { status: 400 });
-    }
-
-    if (body.titleOverride !== undefined) {
-      trackerState.activeSeries.title = body.titleOverride ?? getDefaultSeriesGroupTitle();
-    }
-    if (body.subtitleOverride !== undefined) {
-      trackerState.activeSeries.subtitle = body.subtitleOverride;
-    }
-    if (body.teams !== undefined) {
-      trackerState.activeSeries.teams = body.teams.map((team) => ({
-        name: team.name,
-        players: team.members.map((gamertag) => ({ discordId: null, discordName: null, gamertag, xboxId: null })),
-      }));
     }
 
     trackerState.lastUpdateTime = new Date().toISOString();
