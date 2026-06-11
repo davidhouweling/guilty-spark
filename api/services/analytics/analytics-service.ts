@@ -16,11 +16,7 @@ export function createAnalyticsService(
   _logService: LogService,
 ): AnalyticsService {
   return {
-    async getMatchAnalytics(
-       
-      _matchId: string,
-      modules: string[],
-    ): Promise<MatchAnalytics> {
+    async getMatchAnalytics(_matchId: string, modules: string[]): Promise<MatchAnalytics> {
       // Stub: will be replaced when film data integration is implemented.
       // The actual implementation will:
       // 1. Fetch film metadata from Halo API (with caching)
