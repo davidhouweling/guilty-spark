@@ -16,17 +16,12 @@ export const killMatrixEntrySchema = z.object({
 export type KillMatrixEntry = z.infer<typeof killMatrixEntrySchema>;
 
 export const matchAnalyticsSchema = z.object({
-  requestedModules: z.array(z.enum(["killMatrix", "scoreProgression"])),
+  requestedModules: z.array(z.enum(["killMatrix"])),
   killMatrix: z
     .optional(
       z.record(z.string().describe("Key format: <killerXuid>:<victimXuid>"), killMatrixEntrySchema)
     )
     .describe("Flat kill matrix keyed by <killerXuid>:<victimXuid>"),
-  scoreProgression: z
-    .optional(
-      z.object({})
-    )
-    .describe("Score progression timeline (Phase 2)"),
   metadata: z.object({
     pairingQuality: z.object({
       unpairedDeathCount: z.number(),

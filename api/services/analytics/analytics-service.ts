@@ -16,7 +16,7 @@ export function createAnalyticsService(_env: Env, _haloService: HaloService, _lo
       // 3. Parse and compute analytics
       // 4. Return based on requested modules
 
-      const requestedModules = modules as Array<"killMatrix" | "scoreProgression">;
+      const requestedModules = modules as Array<"killMatrix">;
 
       return {
         requestedModules,
@@ -24,7 +24,6 @@ export function createAnalyticsService(_env: Env, _haloService: HaloService, _lo
           requestedModules.includes("killMatrix") ?
             {}
           : undefined,
-        scoreProgression: requestedModules.includes("scoreProgression") ? {} : undefined,
         metadata: {
           pairingQuality: {
             unpairedDeathCount: 0,
