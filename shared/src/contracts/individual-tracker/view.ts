@@ -50,6 +50,15 @@ export const trackerLiveViewSchema = z.object({
   series: z.array(trackerSeriesGroupSchema),
   lastUpdateTime: z.string(),
   lastMatchDiscoveredAt: z.string().nullable(),
+  hasActiveSeries: z.boolean(),
+  hasRecentCompletedSeries: z.boolean(),
+  activeSeriesContext: z
+    .object({
+      title: z.string(),
+      subtitle: z.string().nullable(),
+      teams: z.array(trackerSeriesTeamSchema),
+    })
+    .optional(),
 });
 export type TrackerLiveView = z.infer<typeof trackerLiveViewSchema>;
 

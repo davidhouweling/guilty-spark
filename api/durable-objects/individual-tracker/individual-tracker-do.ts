@@ -15,6 +15,7 @@ import {
   getDefaultSeriesGroupTitle,
 } from "@guilty-spark/shared/individual-tracker/series-grouping";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { type IndividualTopBarStatOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { LogService } from "../../services/log/types";
 import { installServices as installServicesImpl, type Services } from "../../services/install";
@@ -40,6 +41,9 @@ import type {
   IndividualTrackerStartSeriesRequest,
   IndividualTrackerStartSeriesResponse,
   IndividualTrackerNudgeResponse,
+  IndividualTrackerEditSeriesRequest,
+  IndividualTrackerEditSeriesResponse,
+  IndividualTrackerResumeSeriesResponse,
   ActiveSeries,
   SeriesContextPayload,
   SeriesTeam,
@@ -123,6 +127,12 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
           case "end-series": {
             return await this.handleEndSeries();
+          }
+          case "edit-series": {
+            return await this.handleEditSeries(request);
+          }
+          case "resume-series": {
+            return await this.handleResumeSeries();
           }
           case "nudge": {
             return await this.handleNudge(request);
@@ -626,6 +636,68 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return Response.json({ success: true });
   }
 
+  private async handleEditSeries(request: Request): Promise<Response> {
+    const trackerState = await this.getState();
+    if (trackerState?.activeSeries == null) {
+      return new Response("No active series", { status: 409 });
+    }
+
+    let body: IndividualTrackerEditSeriesRequest;
+    try {
+      body = await request.json<IndividualTrackerEditSeriesRequest>();
+      if (body.titleOverride !== undefined) {
+        trackerState.activeSeries.title = body.titleOverride ?? getDefaultSeriesGroupTitle();
+      }
+      if (body.subtitleOverride !== undefined) {
+        trackerState.activeSeries.subtitle = body.subtitleOverride;
+      }
+      if (body.teams !== undefined) {
+        trackerState.activeSeries.teams = body.teams.map((team) => ({
+          name: team.name,
+          players: team.members.map((gamertag) => ({ discordId: null, discordName: null, gamertag, xboxId: null })),
+        }));
+      }
+    } catch {
+      return new Response("Bad Request", { status: 400 });
+    }
+
+    trackerState.lastUpdateTime = new Date().toISOString();
+
+    await this.setState(trackerState);
+    this.broadcastViewState(trackerState);
+
+    const response: IndividualTrackerEditSeriesResponse = { success: true };
+    return Response.json(response);
+  }
+
+  private async handleResumeSeries(): Promise<Response> {
+    const trackerState = await this.getState();
+    if (trackerState == null) {
+      return new Response("No completed series to resume", { status: 422 });
+    }
+
+    if (trackerState.activeSeries != null) {
+      return new Response("Active series already exists", { status: 409 });
+    }
+
+    if (trackerState.completedSeries == null || trackerState.completedSeries.length === 0) {
+      return new Response("No completed series to resume", { status: 422 });
+    }
+
+    const resumed = Preconditions.checkExists(
+      trackerState.completedSeries.pop(),
+      "completedSeries was unexpectedly empty",
+    );
+    trackerState.activeSeries = { ...resumed, isActive: true };
+    trackerState.lastUpdateTime = new Date().toISOString();
+
+    await this.setState(trackerState);
+    this.broadcastViewState(trackerState);
+
+    const response: IndividualTrackerResumeSeriesResponse = { success: true };
+    return Response.json(response);
+  }
+
   private async handleNudge(request: Request): Promise<Response> {
     const trackerState = await this.getState();
     if (trackerState == null) {
@@ -854,6 +926,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       };
     });
 
+    const lastTrackedMatchId = state.matchIds.at(-1);
+    const lastCompletedSeries = state.completedSeries?.at(-1);
+    const hasRecentCompletedSeries =
+      state.activeSeries == null &&
+      lastTrackedMatchId != null &&
+      (lastCompletedSeries?.matchIds.includes(lastTrackedMatchId) ?? false);
+
     return {
       trackerId: state.trackerId,
       gamertag: state.gamertag,
@@ -873,6 +952,17 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       series,
       lastUpdateTime: state.lastUpdateTime,
       lastMatchDiscoveredAt: state.lastMatchDiscoveredAt ?? null,
+      hasActiveSeries: state.activeSeries != null,
+      hasRecentCompletedSeries,
+      ...(state.activeSeries != null
+        ? {
+            activeSeriesContext: {
+              title: state.activeSeries.title,
+              subtitle: state.activeSeries.subtitle,
+              teams: state.activeSeries.teams,
+            },
+          }
+        : {}),
     };
   }
 

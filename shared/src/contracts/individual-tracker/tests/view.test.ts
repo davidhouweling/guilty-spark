@@ -39,6 +39,8 @@ describe("trackerViewContract", () => {
       ],
       lastUpdateTime: "2024-11-26T12:00:00.000Z",
       lastMatchDiscoveredAt: "2024-11-26T11:55:00.000Z",
+      hasActiveSeries: false,
+      hasRecentCompletedSeries: false,
     },
   };
 
@@ -63,6 +65,8 @@ describe("trackerViewContract", () => {
         series: [],
         lastUpdateTime: "",
         lastMatchDiscoveredAt: null,
+        hasActiveSeries: false,
+        hasRecentCompletedSeries: false,
       },
     });
     expect(result.success).toBe(true);
@@ -101,6 +105,8 @@ describe("trackerViewMessageSchema", () => {
       series: [],
       lastUpdateTime: "2024-11-26T12:00:00.000Z",
       lastMatchDiscoveredAt: "2024-11-26T11:55:00.000Z",
+      hasActiveSeries: false,
+      hasRecentCompletedSeries: false,
     },
   };
 
@@ -129,6 +135,8 @@ describe("trackerViewMessageContract", () => {
       series: [],
       lastUpdateTime: "2024-11-26T12:00:00.000Z",
       lastMatchDiscoveredAt: null,
+      hasActiveSeries: false,
+      hasRecentCompletedSeries: false,
     },
   };
 

@@ -28,6 +28,7 @@ import type {
   IndividualTrackerStartSeriesRequest,
   ActiveSeries,
   SeriesContextPayload,
+  ActiveSeriesContext,
 } from "../types";
 import {
   aFakeIndividualTrackerInternalStateWith,
@@ -419,7 +420,17 @@ describe("IndividualTrackerDO", () => {
         expect(body.state).not.toHaveProperty("isPaused");
         expect(body.state).not.toHaveProperty("userId");
         expect(Object.keys(body.state).sort()).toEqual(
-          ["gamertag", "lastMatchDiscoveredAt", "lastUpdateTime", "matches", "series", "status", "trackerId"].sort(),
+          [
+            "gamertag",
+            "hasActiveSeries",
+            "hasRecentCompletedSeries",
+            "lastMatchDiscoveredAt",
+            "lastUpdateTime",
+            "matches",
+            "series",
+            "status",
+            "trackerId",
+          ].sort(),
         );
       }
     });
@@ -1755,6 +1766,428 @@ describe("IndividualTrackerDO", () => {
       const [group] = body.state.series;
       expect(group?.title).toBe("Eagle vs Cobra");
       expect(group?.guildIconUrl).toBeNull();
+    });
+  });
+
+  describe("handleEditSeries()", () => {
+    const editSeriesRequest = (body: object): Request =>
+      new Request("http://do/edit-series", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+    const anActiveSeries = (): ActiveSeries => ({
+      title: "Original Title",
+      subtitle: "Original Subtitle",
+      guildIconUrl: null,
+      teams: [],
+      matchIds: ["match-1", "match-2"],
+      startedAt: "2024-11-26T11:00:00.000Z",
+      isActive: true,
+    });
+
+    it("returns 409 when no state exists", async () => {
+      storageGetSpy.mockResolvedValue(null);
+
+      const response = await individualTrackerDO.fetch(editSeriesRequest({ titleOverride: "New Title" }));
+
+      expect(response.status).toBe(409);
+    });
+
+    it("returns 409 when no active series exists", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
+
+      const response = await individualTrackerDO.fetch(editSeriesRequest({ titleOverride: "New Title" }));
+
+      expect(response.status).toBe(409);
+    });
+
+    it("updates title in-place and preserves matchIds and startedAt", async () => {
+      const activeSeries = anActiveSeries();
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ activeSeries }));
+
+      const response = await individualTrackerDO.fetch(editSeriesRequest({ titleOverride: "Updated Title" }));
+
+      expect(response.status).toBe(200);
+      const result = await response.json<{ success: boolean }>();
+      expect(result.success).toBe(true);
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.title).toBe("Updated Title");
+      expect(persisted.activeSeries?.subtitle).toBe("Original Subtitle");
+      expect(persisted.activeSeries?.matchIds).toEqual(["match-1", "match-2"]);
+      expect(persisted.activeSeries?.startedAt).toBe("2024-11-26T11:00:00.000Z");
+    });
+
+    it("updates subtitle including null in-place", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ activeSeries: anActiveSeries() }));
+
+      await individualTrackerDO.fetch(editSeriesRequest({ subtitleOverride: null }));
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.subtitle).toBeNull();
+    });
+
+    it("resets title to default when titleOverride is null", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ activeSeries: anActiveSeries() }));
+
+      await individualTrackerDO.fetch(editSeriesRequest({ titleOverride: null }));
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.title).toBe("Eagle vs Cobra");
+    });
+
+    it("returns 400 for malformed JSON body", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ activeSeries: anActiveSeries() }));
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/edit-series", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: "not-valid-json",
+        }),
+      );
+
+      expect(response.status).toBe(400);
+    });
+
+    it("returns 400 when teams is not an array", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ activeSeries: anActiveSeries() }));
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/edit-series", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ teams: "not-an-array" }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+    });
+
+    it("remaps teams in-place with null discord fields", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ activeSeries: anActiveSeries() }));
+
+      await individualTrackerDO.fetch(
+        editSeriesRequest({
+          teams: [
+            { name: "Team A", members: ["Player1", "Player2"] },
+            { name: "Team B", members: ["Player3"] },
+          ],
+        }),
+      );
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.teams).toEqual([
+        {
+          name: "Team A",
+          players: [
+            { discordId: null, discordName: null, gamertag: "Player1", xboxId: null },
+            { discordId: null, discordName: null, gamertag: "Player2", xboxId: null },
+          ],
+        },
+        {
+          name: "Team B",
+          players: [{ discordId: null, discordName: null, gamertag: "Player3", xboxId: null }],
+        },
+      ]);
+    });
+
+    it("broadcasts view state after edit", async () => {
+      const webSocketAdapter = aFakeWebSocketHibernationAdapter();
+      const do2 = new IndividualTrackerDO(mockState, env, () => services, webSocketAdapter);
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ activeSeries: anActiveSeries() }));
+
+      await do2.fetch(editSeriesRequest({ titleOverride: "Broadcast Test" }));
+
+      expect(webSocketAdapter.broadcasts).toHaveLength(1);
+    });
+  });
+
+  describe("handleResumeSeries()", () => {
+    const aCompletedSeries = (overrides: Partial<ActiveSeries> = {}): ActiveSeries => ({
+      title: "Completed Series",
+      subtitle: "Best of 5",
+      guildIconUrl: null,
+      teams: [],
+      matchIds: ["match-old-1", "match-old-2"],
+      startedAt: "2024-11-26T10:00:00.000Z",
+      isActive: false,
+      ...overrides,
+    });
+
+    it("returns 422 when no state exists", async () => {
+      storageGetSpy.mockResolvedValue(null);
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/resume-series", { method: "POST" }));
+
+      expect(response.status).toBe(422);
+    });
+
+    it("returns 409 when an active series already exists", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          activeSeries: {
+            title: "Active",
+            subtitle: null,
+            guildIconUrl: null,
+            teams: [],
+            matchIds: [],
+            startedAt: new Date().toISOString(),
+            isActive: true,
+          },
+          completedSeries: [aCompletedSeries()],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/resume-series", { method: "POST" }));
+
+      expect(response.status).toBe(409);
+    });
+
+    it("returns 422 when no completed series exists", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/resume-series", { method: "POST" }));
+
+      expect(response.status).toBe(422);
+    });
+
+    it("restores the last completed series as active, preserves matchIds and startedAt, removes it from completedSeries", async () => {
+      const older = aCompletedSeries({ title: "Older Series", startedAt: "2024-11-26T09:00:00.000Z" });
+      const latest = aCompletedSeries({ title: "Latest Series", matchIds: ["m1", "m2"] });
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ completedSeries: [older, latest] }));
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/resume-series", { method: "POST" }));
+
+      expect(response.status).toBe(200);
+      const result = await response.json<{ success: boolean }>();
+      expect(result.success).toBe(true);
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.title).toBe("Latest Series");
+      expect(persisted.activeSeries?.isActive).toBe(true);
+      expect(persisted.activeSeries?.matchIds).toEqual(["m1", "m2"]);
+      expect(persisted.activeSeries?.startedAt).toBe(latest.startedAt);
+      expect(persisted.completedSeries).toHaveLength(1);
+      expect(persisted.completedSeries?.[0]?.title).toBe("Older Series");
+    });
+
+    it("broadcasts view state after resume", async () => {
+      const webSocketAdapter = aFakeWebSocketHibernationAdapter();
+      const do2 = new IndividualTrackerDO(mockState, env, () => services, webSocketAdapter);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ completedSeries: [aCompletedSeries()] }),
+      );
+
+      await do2.fetch(new Request("http://do/resume-series", { method: "POST" }));
+
+      expect(webSocketAdapter.broadcasts).toHaveLength(1);
+    });
+  });
+
+  describe("toViewState() hasActiveSeries and hasRecentCompletedSeries", () => {
+    it("hasActiveSeries is true when activeSeries is set", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          activeSeries: {
+            title: "T",
+            subtitle: null,
+            guildIconUrl: null,
+            teams: [],
+            matchIds: [],
+            startedAt: new Date().toISOString(),
+            isActive: true,
+          },
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body = await response.json<{ state: { hasActiveSeries: boolean } }>();
+
+      expect(body.state.hasActiveSeries).toBe(true);
+    });
+
+    it("hasActiveSeries is false when no activeSeries", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body = await response.json<{ state: { hasActiveSeries: boolean } }>();
+
+      expect(body.state.hasActiveSeries).toBe(false);
+    });
+
+    it("hasRecentCompletedSeries is true when the last match is in the last completedSeries", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          selectedMatchIds: ["m1", "m2"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m1",
+              startTime: "2024-11-26T11:00:00.000Z",
+            }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m2",
+              startTime: "2024-11-26T12:00:00.000Z",
+            }),
+          },
+          completedSeries: [
+            {
+              title: "Done",
+              subtitle: null,
+              guildIconUrl: null,
+              teams: [],
+              matchIds: ["m1", "m2"],
+              startedAt: "2024-11-26T11:00:00.000Z",
+              isActive: false,
+            },
+          ],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body = await response.json<{ state: { hasRecentCompletedSeries: boolean } }>();
+
+      expect(body.state.hasRecentCompletedSeries).toBe(true);
+    });
+
+    it("hasRecentCompletedSeries is false when the last match is NOT in the last completedSeries", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          selectedMatchIds: ["m1", "m2"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m1",
+              startTime: "2024-11-26T11:00:00.000Z",
+            }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m2",
+              startTime: "2024-11-26T12:00:00.000Z",
+            }),
+          },
+          completedSeries: [
+            {
+              title: "Done",
+              subtitle: null,
+              guildIconUrl: null,
+              teams: [],
+              matchIds: ["m1"],
+              startedAt: "2024-11-26T11:00:00.000Z",
+              isActive: false,
+            },
+          ],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body = await response.json<{ state: { hasRecentCompletedSeries: boolean } }>();
+
+      expect(body.state.hasRecentCompletedSeries).toBe(false);
+    });
+
+    it("hasRecentCompletedSeries is false when post-series matches exist but are deselected", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2", "m3"],
+          selectedMatchIds: ["m1", "m2"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", startTime: "2024-11-26T11:00:00.000Z" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2", startTime: "2024-11-26T12:00:00.000Z" }),
+            m3: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m3", startTime: "2024-11-26T13:00:00.000Z" }),
+          },
+          completedSeries: [
+            {
+              title: "Done",
+              subtitle: null,
+              guildIconUrl: null,
+              teams: [],
+              matchIds: ["m1", "m2"],
+              startedAt: "2024-11-26T11:00:00.000Z",
+              isActive: false,
+            },
+          ],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body = await response.json<{ state: { hasRecentCompletedSeries: boolean } }>();
+
+      expect(body.state.hasRecentCompletedSeries).toBe(false);
+    });
+
+    it("activeSeriesContext is present with correct data when activeSeries exists", async () => {
+      const teams = [
+        { name: "Eagle", players: [{ discordId: null, discordName: null, gamertag: "GT1", xboxId: null }] },
+      ];
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          activeSeries: {
+            title: "Active Title",
+            subtitle: "Active Sub",
+            guildIconUrl: null,
+            teams,
+            matchIds: [],
+            startedAt: new Date().toISOString(),
+            isActive: true,
+          },
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body = await response.json<{ state: { activeSeriesContext?: ActiveSeriesContext } }>();
+
+      expect(body.state.activeSeriesContext).toBeDefined();
+      expect(body.state.activeSeriesContext?.title).toBe("Active Title");
+      expect(body.state.activeSeriesContext?.subtitle).toBe("Active Sub");
+      expect(body.state.activeSeriesContext?.teams).toEqual(teams);
+    });
+
+    it("activeSeriesContext is absent when no activeSeries", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body = await response.json<{ state: { activeSeriesContext?: ActiveSeriesContext } }>();
+
+      expect(body.state.activeSeriesContext).toBeUndefined();
+    });
+
+    it("hasRecentCompletedSeries is false when activeSeries is set even if last match is in completedSeries", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          activeSeries: {
+            title: "Active",
+            subtitle: null,
+            guildIconUrl: null,
+            teams: [],
+            matchIds: ["m-active"],
+            startedAt: new Date().toISOString(),
+            isActive: true,
+          },
+          completedSeries: [
+            {
+              title: "Completed",
+              subtitle: null,
+              guildIconUrl: null,
+              teams: [],
+              matchIds: ["m1"],
+              startedAt: "2024-11-26T10:00:00.000Z",
+              isActive: false,
+            },
+          ],
+          matchIds: ["m1"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ startTime: "2024-11-26T10:05:00.000Z" }),
+          },
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body = await response.json<{ state: { hasRecentCompletedSeries: boolean } }>();
+
+      expect(body.state.hasRecentCompletedSeries).toBe(false);
     });
   });
 });
