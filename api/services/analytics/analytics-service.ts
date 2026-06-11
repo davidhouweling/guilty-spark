@@ -1,11 +1,13 @@
+import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { HaloService } from "../halo/halo";
 import type { LogService } from "../log/types";
-import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 
 export interface AnalyticsService {
   getMatchAnalytics(matchId: string, modules: string[]): Promise<MatchAnalytics>;
 }
 
+// TODO: remove this eslint-disable and implement the actual service once film data is available
+/* eslint-disable @typescript-eslint/no-unused-vars */
 export function createAnalyticsService(
   _env: Env,
   _haloService: HaloService,
@@ -20,7 +22,10 @@ export function createAnalyticsService(
       // 3. Parse and compute analytics
       // 4. Return based on requested modules
 
-      const requestedModules = modules as Array<"killMatrix">;
+      // TODO: remove this when the actual implementation is done
+      await Promise.resolve();
+
+      const requestedModules = modules as "killMatrix"[];
 
       return {
         requestedModules,
