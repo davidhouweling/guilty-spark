@@ -292,6 +292,47 @@ describe("ManualSeriesDialogPresenter", () => {
       expect(onSeriesEdited).toHaveBeenCalled();
     });
 
+    it("omits teams from the request when all teams are blank", async () => {
+      const service = aFakeIndividualTrackerServiceWith();
+      const editSeriesSpy = vi.spyOn(service, "editSeries");
+      const { presenter, store } = buildPresenter(service);
+
+      store.setTitleOverride("Title Only");
+
+      await new Promise<void>((resolve) => {
+        store.subscribe(() => {
+          if (!store.getSnapshot().busy) {
+            resolve();
+          }
+        });
+        presenter.editSeries();
+      });
+
+      expect(editSeriesSpy).toHaveBeenCalledWith(
+        "tracker-1",
+        expect.not.objectContaining({ teams: expect.anything() }),
+      );
+    });
+
+    it("includes teams when at least one team has data", async () => {
+      const service = aFakeIndividualTrackerServiceWith();
+      const editSeriesSpy = vi.spyOn(service, "editSeries");
+      const { presenter, store } = buildPresenter(service);
+
+      presenter.setTeamMember(0, 0, "Alpha");
+
+      await new Promise<void>((resolve) => {
+        store.subscribe(() => {
+          if (!store.getSnapshot().busy) {
+            resolve();
+          }
+        });
+        presenter.editSeries();
+      });
+
+      expect(editSeriesSpy).toHaveBeenCalledWith("tracker-1", expect.objectContaining({ teams: expect.any(Array) }));
+    });
+
     it("sets submitError when editSeries fails", async () => {
       const service = aFakeIndividualTrackerServiceWith();
       vi.spyOn(service, "editSeries").mockRejectedValue(new Error("Server error"));

@@ -229,11 +229,14 @@ export class ManualSeriesDialogPresenter {
         name: team.name.trim(),
         members: team.members.map((m) => m.trim()).filter((m) => m !== ""),
       }));
+      const hasTeamData = teams.some((t) => t.name !== "" || t.members.length > 0);
 
       await this.config.individualTrackerService.editSeries(this.config.trackerId, {
         titleOverride: snapshot.titleOverride.trim() || null,
         subtitleOverride: snapshot.subtitleOverride.trim() || null,
-        teams: teams as unknown as readonly [ManualSeriesTeamForm, ...ManualSeriesTeamForm[]],
+        ...(hasTeamData
+          ? { teams: teams as unknown as readonly [ManualSeriesTeamForm, ...ManualSeriesTeamForm[]] }
+          : {}),
       });
 
       if (this.checkDisposed()) {
