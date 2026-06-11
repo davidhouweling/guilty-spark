@@ -125,29 +125,23 @@ gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "{NODE
 
 ## Step 6 — Request review and hand back
 
-After pushing, request a review:
+`copilot-pull-request-reviewer` auto-fires on every push, so after `git push` no explicit trigger is usually needed. If no new commit was pushed this iteration (all comments refuted), request a review manually:
 
 ```bash
 gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
 ```
 
-Then post a comment for a faster response from the secondary Copilot bot:
+Do **not** post `@copilot review` — that triggers the separate `copilot-swe-agent[bot]` (tests/lint only, issue comment response), causing two simultaneous reviews. Stick to one trigger.
 
-```bash
-gh pr comment {PR} --body "@copilot review"
-```
-
-**Why both?** `copilot-pull-request-reviewer` does the full inline code review but may take hours to respond after the `gh pr edit` request. `copilot-swe-agent[bot]` responds to `@copilot review` within ~5 minutes and runs tests/lint. If `copilot-swe-agent` says clean and no new `copilot-pull-request-reviewer` review has appeared, the loop can be considered complete.
-
-Note: `gh pr edit --add-reviewer copilot` and `gh pr edit --add-reviewer github-copilot` do not resolve — use `copilot-pull-request-reviewer` exactly.
+Note: `gh pr edit --add-reviewer copilot` and `gh pr edit --add-reviewer github-copilot` do not work — use `copilot-pull-request-reviewer` exactly.
 
 **Report back:**
 
-> "Done. Fixes committed as {SHA} and pushed. Review requested from `copilot-pull-request-reviewer` (may take up to a few hours) and `@copilot review` posted for a quick check. Re-run this prompt in ~10 minutes to process the quick check result; the full review may need another pass later."
+If a new commit was pushed:
+> "Done. Fixes committed as {SHA} and pushed. Copilot will auto-review — re-run this prompt in ~10 minutes."
 
-If no new commit was pushed (all comments were refuted):
-
-> "Done. All comments refuted — no code changes. `@copilot review` posted. Re-run in ~10 minutes to check the response."
+If all comments were refuted (no new commit):
+> "Done. All comments refuted — no code changes. Review requested from `copilot-pull-request-reviewer` (may take up to a few hours). Re-run this prompt when the review appears."
 
 ## Repo-specific notes
 
