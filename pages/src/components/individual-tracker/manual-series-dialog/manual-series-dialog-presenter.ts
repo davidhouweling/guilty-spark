@@ -224,7 +224,7 @@ export class ManualSeriesDialogPresenter {
       }));
 
       await this.config.individualTrackerService.editSeries(this.config.trackerId, {
-        titleOverride: snapshot.titleOverride.trim() || undefined,
+        titleOverride: snapshot.titleOverride.trim() || null,
         subtitleOverride: snapshot.subtitleOverride.trim() || null,
         teams,
       });

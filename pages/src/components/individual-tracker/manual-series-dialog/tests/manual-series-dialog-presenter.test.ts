@@ -110,6 +110,29 @@ describe("ManualSeriesDialogPresenter", () => {
       expect(store.getSnapshot().backfillMatches[0].matchId).toBe("tracker-match-1");
     });
 
+    it("filters out matchmaking matches", async () => {
+      const customMatch = aFakeTrackerMatchSummaryWith({ matchId: "custom-1", isMatchmaking: false });
+      const matchmakingMatch = aFakeTrackerMatchSummaryWith({ matchId: "mm-1", isMatchmaking: true });
+      const viewService = aFakeIndividualTrackerViewServiceWith({
+        view: aFakeTrackerViewStateWith({ matches: [customMatch, matchmakingMatch] }),
+      });
+      const { presenter, store } = buildPresenter(aFakeIndividualTrackerServiceWith(), vi.fn(), viewService);
+
+      await new Promise<void>((resolve) => {
+        store.subscribe(() => {
+          const s = store.getSnapshot();
+          if (s.backfillState === "done" || s.backfillState === "error") {
+            resolve();
+          }
+        });
+        presenter.discoverBackfillMatches();
+      });
+
+      expect(store.getSnapshot().backfillState).toBe("done");
+      expect(store.getSnapshot().backfillMatches).toHaveLength(1);
+      expect(store.getSnapshot().backfillMatches[0].matchId).toBe("custom-1");
+    });
+
     it("sets error when tracker has no matches", async () => {
       const viewService = aFakeIndividualTrackerViewServiceWith({
         view: aFakeTrackerViewStateWith({ matches: [] }),

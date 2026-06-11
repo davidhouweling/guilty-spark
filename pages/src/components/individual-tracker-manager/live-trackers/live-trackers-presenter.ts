@@ -257,6 +257,16 @@ export class LiveTrackersPresenter {
           },
         });
       } else {
+        const liveView = this.activeLiveView?.trackerId === item.trackerId ? this.activeLiveView : null;
+        if (liveView?.hasRecentCompletedSeries === true) {
+          actions.push({
+            label: "Resume series",
+            disabled: snapshot.busy,
+            onClick: (): void => {
+              void this.resumeSeries(trackerId);
+            },
+          });
+        }
         actions.push({
           label: "Start series",
           disabled: snapshot.busy,
@@ -559,6 +569,21 @@ export class LiveTrackersPresenter {
     }
   }
 
+  private async resumeSeries(trackerId: string): Promise<void> {
+    this.updateSnapshot((s) => ({ ...s, busy: true, errorMessage: null }));
+    try {
+      await this.config.individualTrackerService.resumeSeries(trackerId);
+      await this.refresh();
+    } catch (error) {
+      this.updateSnapshot((s) => ({
+        ...s,
+        errorMessage: error instanceof Error ? error.message : "Failed to resume series.",
+      }));
+    } finally {
+      this.updateSnapshot((s) => ({ ...s, busy: false }));
+    }
+  }
+
   private async selectLiveTracker(trackerId: string): Promise<void> {
     this.updateSnapshot((s) => ({ ...s, busy: true, errorMessage: null }));
     try {
@@ -628,8 +653,8 @@ export class LiveTrackersPresenter {
     }
     const liveView = this.activeLiveView?.trackerId === item.trackerId ? this.activeLiveView : null;
     const activeSeriesContext = liveView?.activeSeriesContext;
-    const initialData: SeriesInitialData | undefined =
-      activeSeriesContext != null
+    const initialData: SeriesInitialData | undefined = item.hasActiveSeries
+      ? activeSeriesContext != null
         ? {
             title: activeSeriesContext.title,
             subtitle: activeSeriesContext.subtitle ?? "",
@@ -638,7 +663,8 @@ export class LiveTrackersPresenter {
               members: t.players.map((p) => p.gamertag ?? "").filter((g): g is string => g !== ""),
             })),
           }
-        : undefined;
+        : { title: "", subtitle: "", teams: [] }
+      : undefined;
     const dialogState: ManualSeriesDialogState = {
       trackerId: item.trackerId,
       trackerLabel: item.gamertag,

@@ -77,7 +77,7 @@ export interface ManualSeriesTeamForm {
 }
 
 export interface EditSeriesRequest {
-  readonly titleOverride?: string;
+  readonly titleOverride?: string | null;
   readonly subtitleOverride?: string | null;
   readonly teams?: readonly ManualSeriesTeamForm[];
 }
