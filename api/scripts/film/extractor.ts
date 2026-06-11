@@ -277,8 +277,8 @@ function parseHighlightEvent(data: Uint8Array, xuidStartBit: number, filmMajorVe
   const timestampBytes = envelope.subarray(48, 52);
 
   // Extract weapon and headshot from envelope (currently unknown format, set to null for MVP)
-  // TODO: Research film v41+ format to determine weapon and headshot encoding
-  const weapon: string | null = null;
+  // TODO: Research film v41+ format to determine weaponId and headshot encoding
+  const weaponId: number | null = null;
   const headshot: boolean | null = null;
 
   if (typeHint == null || isMedalByte == null || medalValue == null || timestampBytes.length !== 4 || gamertag === "") {
@@ -296,7 +296,7 @@ function parseHighlightEvent(data: Uint8Array, xuidStartBit: number, filmMajorVe
     timeMs: parseTimestampMs(timestampBytes),
     medalValue,
     teamId: null,
-    weapon,
+    weaponId,
     headshot,
   };
 }
@@ -545,22 +545,46 @@ function buildKillMatrixAnalytics(matchStats: MatchStats, kills: HighlightEvent[
       victimTeamId: deathEvent.teamId,
       timeDeltaMs: bestDelta,
       classification: classifyKillPair(killEvent.teamId, killEvent.xuid, deathEvent.teamId, deathEvent.xuid),
-      weapon: killEvent.weapon,
+      weaponId: killEvent.weaponId,
       headshot: killEvent.headshot,
     });
   }
 
-  // Build kill matrix as Map<killerXuid, array of kills with victim + perfect status>
-  const matrixByKiller = new Map<string, Array<{ victimXuid: string; perfect: boolean; weapon: string | null; headshot: boolean | null }>>();
+  // Build kill matrix as flat pair aggregates keyed by killer and victim.
+  const matrixByPair = new Map<string, FilmTimelineOutput["analytics"]["killMatrix"]["entries"][number]>();
   for (const pairing of pairings) {
-    const killerKills = matrixByKiller.get(pairing.killerXuid) ?? [];
-    killerKills.push({
-      victimXuid: pairing.victimXuid,
-      perfect: false, // Will be updated below
-      weapon: pairing.weapon,
-      headshot: pairing.headshot,
-    });
-    matrixByKiller.set(pairing.killerXuid, killerKills);
+    const key = `${pairing.killerXuid}:${pairing.victimXuid}`;
+    const existing = matrixByPair.get(key);
+    if (existing == null) {
+      const weapons: Array<{ weaponId: number; count: number }> = [];
+      if (pairing.weaponId != null) {
+        weapons.push({ weaponId: pairing.weaponId, count: 1 });
+      }
+
+      matrixByPair.set(key, {
+        killerXuid: pairing.killerXuid,
+        victimXuid: pairing.victimXuid,
+        count: 1,
+        headshotKills: pairing.headshot === true ? 1 : 0,
+        perfects: 0,
+        weapons,
+      });
+      continue;
+    }
+
+    existing.count += 1;
+    if (pairing.headshot === true) {
+      existing.headshotKills += 1;
+    }
+
+    if (pairing.weaponId != null) {
+      const weapon = existing.weapons.find((current) => current.weaponId === pairing.weaponId);
+      if (weapon == null) {
+        existing.weapons.push({ weaponId: pairing.weaponId, count: 1 });
+      } else {
+        weapon.count += 1;
+      }
+    }
   }
 
   const unpairedDeathsByXuid = new Map<string, number>();
@@ -577,10 +601,12 @@ function buildKillMatrixAnalytics(matchStats: MatchStats, kills: HighlightEvent[
   }
 
   return {
-    entries: [...matrixByKiller.entries()].map(([killerXuid, kills]) => ({
-      killerXuid,
-      kills,
-    })),
+    entries: [...matrixByPair.values()].sort((left, right) => {
+      if (left.killerXuid !== right.killerXuid) {
+        return left.killerXuid.localeCompare(right.killerXuid);
+      }
+      return left.victimXuid.localeCompare(right.victimXuid);
+    }),
     pairings,
     unpairedDeaths: [...unpairedDeathsByXuid.entries()].map(([xuid, count]) => {
       const player = playersByXuid.get(xuid);

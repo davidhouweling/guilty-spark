@@ -34,7 +34,7 @@ export interface HighlightEvent {
   timeMs: number;
   medalValue: number;
   teamId: number | null;
-  weapon: string | null;
+  weaponId: number | null;
   headshot: boolean | null;
 }
 
@@ -93,17 +93,19 @@ export interface KillPairing {
   victimTeamId: number | null;
   timeDeltaMs: number;
   classification: "enemy-kill" | "betrayal" | "suicide";
-  weapon: string | null;
+  weaponId: number | null;
   headshot: boolean | null;
 }
 
 export interface KillMatrixEntry {
   killerXuid: string;
-  kills: Array<{
-    victimXuid: string;
-    perfect: boolean;
-    weapon: string | null;
-    headshot: boolean | null;
+  victimXuid: string;
+  count: number;
+  headshotKills: number;
+  perfects: number;
+  weapons: Array<{
+    weaponId: number;
+    count: number;
   }>;
 }
 

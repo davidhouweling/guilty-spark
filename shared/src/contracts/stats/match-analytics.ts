@@ -2,10 +2,15 @@ import { z } from "zod";
 import { defineContract } from "../base";
 
 export const killMatrixEntrySchema = z.object({
-  killed: z.string().describe("XUID of the victim"),
-  perfect: z.boolean().describe("Whether this kill was a perfect medal"),
-  weapon: z.string().nullable().describe("Weapon used (null if unavailable)"),
-  headshot: z.boolean().nullable().describe("Whether the kill was a headshot (null if unavailable)"),
+  count: z.number().int().nonnegative().describe("Total kills for this killer/victim pair"),
+  headshotKills: z.number().int().nonnegative().describe("Headshot kill count for this killer/victim pair"),
+  perfects: z.number().int().nonnegative().describe("Perfect medal kill count for this killer/victim pair"),
+  weapons: z.array(
+    z.object({
+      weaponId: z.number().int().nonnegative(),
+      count: z.number().int().nonnegative(),
+    }),
+  ),
 });
 
 export type KillMatrixEntry = z.infer<typeof killMatrixEntrySchema>;
@@ -14,12 +19,9 @@ export const matchAnalyticsSchema = z.object({
   requestedModules: z.array(z.enum(["killMatrix", "scoreProgression"])),
   killMatrix: z
     .optional(
-      z.record(
-        z.string().describe("Killer XUID"),
-        z.array(killMatrixEntrySchema)
-      )
+      z.record(z.string().describe("Key format: <killerXuid>:<victimXuid>"), killMatrixEntrySchema)
     )
-    .describe("Map of killer XUID to array of kills (victim XUID, perfect status, weapon, headshot)"),
+    .describe("Flat kill matrix keyed by <killerXuid>:<victimXuid>"),
   scoreProgression: z
     .optional(
       z.object({})
