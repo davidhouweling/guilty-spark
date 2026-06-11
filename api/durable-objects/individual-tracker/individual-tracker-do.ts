@@ -864,7 +864,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const autoGroupings = analyzeMatchGroupings(
       summaries.map((summary) => ({
         matchId: summary.matchId,
-        isMatchmaking: summary.isMatchmaking,
+        isMatchmaking: (summary.isMatchmaking as boolean | undefined) ?? false,
         teamRosterSignature: summary.teamRosterSignature,
       })),
     );
@@ -948,7 +948,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         gameVariantCategory: summary.gameVariantCategory,
         outcome: summary.outcome,
         score: summary.score,
-        isMatchmaking: summary.isMatchmaking,
+        isMatchmaking: (summary.isMatchmaking as boolean | undefined) ?? false,
       })),
       series,
       lastUpdateTime: state.lastUpdateTime,

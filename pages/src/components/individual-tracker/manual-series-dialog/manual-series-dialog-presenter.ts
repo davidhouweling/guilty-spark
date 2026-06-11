@@ -150,8 +150,8 @@ export class ManualSeriesDialogPresenter {
       }
       const entries = view.matches
         .filter((m) => !m.isMatchmaking)
-        .map(summaryToHistoryEntry)
-        .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+        .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+        .map(summaryToHistoryEntry);
       const error = entries.length === 0 ? "No custom game matches found for this tracker yet." : null;
       this.config.store.setBackfillDone(entries, null, error);
     } catch (err) {
