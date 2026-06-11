@@ -104,7 +104,10 @@ export class DiscordSeriesStatsPresenter {
       try {
         const presenter = createMatchStatsPresenter(match.rawMatch.MatchInfo.GameVariantCategory);
         const playerMap = new Map<string, string>(Object.entries(match.playerXuidToGametag));
-        return { matchId: match.matchId, data: presenter.getData(match.rawMatch, playerMap) };
+        return {
+          matchId: match.matchId,
+          data: presenter.getData(match.rawMatch, playerMap, this.renderData.medalMetadata),
+        };
       } catch {
         return { matchId: match.matchId, data: null };
       }
@@ -133,8 +136,8 @@ export class DiscordSeriesStatsPresenter {
         }
 
         seriesStats = {
-          teamData: teamPresenter.getSeriesData(rawMatches, playersMap),
-          playerData: playerPresenter.getSeriesData(rawMatches, playersMap),
+          teamData: teamPresenter.getSeriesData(rawMatches, playersMap, this.renderData.medalMetadata),
+          playerData: playerPresenter.getSeriesData(rawMatches, playersMap, this.renderData.medalMetadata),
           metadata: calculateSeriesMetadata(this.renderData.matches, this.renderData.seriesScore),
         };
       } catch {
