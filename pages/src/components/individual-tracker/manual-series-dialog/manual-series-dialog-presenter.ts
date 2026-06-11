@@ -1,9 +1,6 @@
 import type { TrackerMatchSummary } from "@guilty-spark/shared/contracts/individual-tracker/view";
-import type {
-  IndividualTrackerService,
-  ManualSeriesTeamForm,
-  TrackerMatchHistoryEntry,
-} from "../../../services/individual-tracker/types";
+import { getDurationBetween } from "@guilty-spark/shared/halo/duration";
+import type { IndividualTrackerService, TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import { formatDisplayDateTime } from "../../../services/individual-tracker/match-history-helpers";
 import type { ManualSeriesDialogSnapshot, ManualSeriesDialogStore } from "./manual-series-dialog-store";
@@ -12,7 +9,7 @@ interface Config {
   readonly trackerId: string;
   readonly store: ManualSeriesDialogStore;
   readonly individualTrackerService: IndividualTrackerService;
-  readonly viewService: IndividualTrackerViewService;
+  readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly onSeriesStarted: () => void;
   readonly onSeriesEdited?: (() => void) | undefined;
 }
@@ -21,8 +18,6 @@ function summaryToHistoryEntry(summary: TrackerMatchSummary): TrackerMatchHistor
   const outcome = (
     ["Win", "Loss", "Tie", "DNF"].includes(summary.outcome) ? summary.outcome : "Unknown"
   ) as TrackerMatchHistoryEntry["outcome"];
-  const ms = new Date(summary.endTime).getTime() - new Date(summary.startTime).getTime();
-  const totalSeconds = Math.floor(ms / 1000);
   return {
     matchId: summary.matchId,
     startTime: formatDisplayDateTime(summary.startTime),
@@ -34,7 +29,7 @@ function summaryToHistoryEntry(summary: TrackerMatchSummary): TrackerMatchHistor
     gameVariantCategory: summary.gameVariantCategory,
     startTimeIso: summary.startTime,
     endTimeIso: summary.endTime,
-    duration: `${Math.floor(totalSeconds / 60).toString()}m ${(totalSeconds % 60).toString().padStart(2, "0")}s`,
+    duration: getDurationBetween(summary.startTime, summary.endTime),
     mapName: summary.mapName,
     modeName: "Custom",
     outcome,
@@ -147,7 +142,7 @@ export class ManualSeriesDialogPresenter {
   private async runBackfillDiscovery(): Promise<void> {
     this.config.store.setBackfillLoading();
     try {
-      const { view } = await this.config.viewService.getView(this.config.trackerId);
+      const { view } = await this.config.individualTrackerViewService.getView(this.config.trackerId);
       if (this.checkDisposed()) {
         return;
       }
@@ -234,9 +229,7 @@ export class ManualSeriesDialogPresenter {
       await this.config.individualTrackerService.editSeries(this.config.trackerId, {
         titleOverride: snapshot.titleOverride.trim() || null,
         subtitleOverride: snapshot.subtitleOverride.trim() || null,
-        ...(hasTeamData
-          ? { teams: teams as unknown as readonly [ManualSeriesTeamForm, ...ManualSeriesTeamForm[]] }
-          : {}),
+        ...(hasTeamData ? { teams } : {}),
       });
 
       if (this.checkDisposed()) {

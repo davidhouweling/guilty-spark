@@ -79,7 +79,7 @@ export interface ManualSeriesTeamForm {
 export interface EditSeriesRequest {
   readonly titleOverride?: string | null;
   readonly subtitleOverride?: string | null;
-  readonly teams?: readonly [ManualSeriesTeamForm, ...ManualSeriesTeamForm[]];
+  readonly teams?: readonly ManualSeriesTeamForm[];
 }
 
 export interface StartSeriesRequest {

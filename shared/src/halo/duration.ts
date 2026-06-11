@@ -50,3 +50,8 @@ export function getReadableDuration(duration: string, locale?: string): string {
 
   return output.length ? output.join(" ") : "0s";
 }
+
+export function getDurationBetween(startIso: string, endIso: string): string {
+  const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
+  return getReadableDuration(getDurationInIsoString(Math.max(0, Math.floor(ms / 1000))));
+}

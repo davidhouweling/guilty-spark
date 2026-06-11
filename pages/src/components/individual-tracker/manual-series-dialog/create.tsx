@@ -43,7 +43,7 @@ export function ManualSeriesDialogSection({
         trackerId,
         store,
         individualTrackerService,
-        viewService,
+        individualTrackerViewService: viewService,
         onSeriesStarted: (): void => {
           onSeriesStartedRef.current();
         },

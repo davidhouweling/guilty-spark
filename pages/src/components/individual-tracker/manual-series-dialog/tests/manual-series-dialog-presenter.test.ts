@@ -15,12 +15,12 @@ function buildPresenter(
   viewServiceOverride?: ReturnType<typeof aFakeIndividualTrackerViewServiceWith>,
 ): { presenter: ManualSeriesDialogPresenter; store: ManualSeriesDialogStore } {
   const store = new ManualSeriesDialogStore();
-  const viewService = viewServiceOverride ?? aFakeIndividualTrackerViewServiceWith();
+  const individualTrackerViewService = viewServiceOverride ?? aFakeIndividualTrackerViewServiceWith();
   const presenter = new ManualSeriesDialogPresenter({
     trackerId: "tracker-1",
     store,
     individualTrackerService: service,
-    viewService,
+    individualTrackerViewService,
     onSeriesStarted,
   });
   return { presenter, store };
@@ -107,7 +107,7 @@ describe("ManualSeriesDialogPresenter", () => {
   });
 
   describe("backfill discovery", () => {
-    it("loads tracker matches from viewService.getView", async () => {
+    it("loads tracker matches from individualTrackerViewService.getView", async () => {
       const match = aFakeTrackerMatchSummaryWith({ matchId: "tracker-match-1" });
       const viewService = aFakeIndividualTrackerViewServiceWith({
         view: aFakeTrackerViewStateWith({ matches: [match] }),
@@ -287,7 +287,7 @@ describe("ManualSeriesDialogPresenter", () => {
         trackerId: "tracker-1",
         store,
         individualTrackerService: service,
-        viewService: aFakeIndividualTrackerViewServiceWith(),
+        individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
         onSeriesStarted: vi.fn(),
         onSeriesEdited,
       });
