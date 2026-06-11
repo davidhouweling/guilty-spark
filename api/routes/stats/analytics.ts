@@ -17,7 +17,7 @@ const matchAnalyticsQuerySchema = z.object({
 });
 
 export const matchAnalyticsRoute: RoutesRegisterHandler = (router, installServices) => {
-  router.get("/stats/match-analytics/:matchId", async (request, env) => {
+  router.get("/api/stats/match-analytics/:matchId", async (request, env) => {
     const services = installServices({ env });
     const analyticsService = createAnalyticsService(env, services.haloService, services.logService);
 
