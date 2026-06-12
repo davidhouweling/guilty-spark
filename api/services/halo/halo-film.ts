@@ -71,11 +71,6 @@ export class HaloFilmService {
     };
   }
 
-  async buildKillMatrix(matchStats: MatchStats): Promise<KillMatrixEntry[]> {
-    const analytics = await this.buildKillMatrixAnalytics(matchStats);
-    return analytics.entries;
-  }
-
   private async getOrFetchFilmMetadata(
     matchId: string,
     authContext: { spartanToken: string; clearanceToken: string },
