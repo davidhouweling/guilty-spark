@@ -1,6 +1,8 @@
 {
   "extends": "@tsconfig/node24/tsconfig.json",
   "compilerOptions": {
+    "target": "es2025",
+    "lib": ["es2025", "ESNext.Array", "ESNext.Collection", "ESNext.Error"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "allowUnreachableCode": false,
@@ -15,7 +17,6 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
     "sourceMap": true,
     "isolatedModules": true
   },
