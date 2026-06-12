@@ -51,7 +51,7 @@ describe("/api/stats/match-analytics/:matchId", () => {
     )) as Response;
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("Cache-Control")).toBe("s-maxage=31536000, stale-while-revalidate=604800");
+    expect(response.headers.get("Cache-Control")).toBe("public, s-maxage=31536000, stale-while-revalidate=604800");
 
     const body = await response.json();
     expect(body).toMatchObject({
