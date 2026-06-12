@@ -654,17 +654,20 @@ export class LiveTrackersPresenter {
     }
     const liveView = this.activeLiveView?.trackerId === item.trackerId ? this.activeLiveView : null;
     const activeSeriesContext = liveView?.activeSeriesContext;
-    if (activeSeriesContext == null) {
+    if (item.hasActiveSeries && activeSeriesContext == null) {
       return;
     }
-    const initialData: SeriesInitialData = {
-      title: activeSeriesContext.title,
-      subtitle: activeSeriesContext.subtitle ?? "",
-      teams: activeSeriesContext.teams.map((t) => ({
-        name: t.name,
-        members: t.players.map((p) => p.gamertag ?? ""),
-      })),
-    };
+    const initialData: SeriesInitialData | undefined =
+      activeSeriesContext != null
+        ? {
+            title: activeSeriesContext.title,
+            subtitle: activeSeriesContext.subtitle ?? "",
+            teams: activeSeriesContext.teams.map((t) => ({
+              name: t.name,
+              members: t.players.map((p) => p.gamertag ?? ""),
+            })),
+          }
+        : undefined;
     const dialogState: ManualSeriesDialogState = {
       trackerId: item.trackerId,
       trackerLabel: item.gamertag,
