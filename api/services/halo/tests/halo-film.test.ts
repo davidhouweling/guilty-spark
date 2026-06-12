@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { deflateSync } from "node:zlib";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import type { MockInstance } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { createFileBackedKVNamespace } from "../../../base/fakes/namespace-to-file";
@@ -125,7 +126,11 @@ describe("HaloFilmService", () => {
   });
 
   describe("clearance token caching", () => {
-    function makeFetchStub(clearanceToken: string, metadata: unknown, compressedChunk: Uint8Array) {
+    function mockFetch(
+      clearanceToken: string,
+      metadata: unknown,
+      compressedChunk: Uint8Array,
+    ): MockInstance<typeof globalThis.fetch> {
       return vi
         .spyOn(globalThis, "fetch")
         .mockImplementation(async (input: Parameters<typeof fetch>[0]): Promise<Response> => {
@@ -162,7 +167,7 @@ describe("HaloFilmService", () => {
           Chunks: [{ Index: 1, ChunkType: 3, DurationMilliseconds: 100, ChunkSize: 1, FileRelativePath: "/c.bin" }],
         },
       };
-      makeFetchStub("clearance-abc", metadata, compressedChunk);
+      mockFetch("clearance-abc", metadata, compressedChunk);
 
       await service.getHighlightEventsForMatch("clearance-test-1");
 
@@ -187,11 +192,11 @@ describe("HaloFilmService", () => {
           Chunks: [{ Index: 1, ChunkType: 3, DurationMilliseconds: 100, ChunkSize: 1, FileRelativePath: "/c.bin" }],
         },
       };
-      const fetchSpy = makeFetchStub("clearance-xyz", metadata, compressedChunk);
+      const fetchSpy = mockFetch("clearance-xyz", metadata, compressedChunk);
 
       await service.getHighlightEventsForMatch("clearance-test-2");
       const callsAfterFirst = fetchSpy.mock.calls.map((args) => {
-        const input = args[0];
+        const [input] = args;
         return typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
       });
       const settingsCallCount = callsAfterFirst.filter((url) => url.includes("flight-configurations")).length;
@@ -215,7 +220,7 @@ describe("HaloFilmService", () => {
       await service.getHighlightEventsForMatch("clearance-test-2b");
 
       const secondCallUrls = fetchSpy.mock.calls.map((args) => {
-        const input = args[0];
+        const [input] = args;
         return typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
       });
       expect(secondCallUrls.some((url) => url.includes("/users/me"))).toBe(false);
@@ -234,12 +239,66 @@ describe("HaloFilmService", () => {
     const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
 
     vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
-      { xuid: killerXuid, gamertag: "killer", typeHint: 50, isMedal: false, eventType: "kill", timeMs: 100, medalValue: 0, teamId: null },
-      { xuid: victimXuid, gamertag: "victim", typeHint: 20, isMedal: false, eventType: "death", timeMs: 100, medalValue: 0, teamId: null },
-      { xuid: killerXuid, gamertag: "killer", typeHint: 50, isMedal: false, eventType: "kill", timeMs: 200, medalValue: 0, teamId: null },
-      { xuid: victimXuid, gamertag: "victim", typeHint: 20, isMedal: false, eventType: "death", timeMs: 200, medalValue: 0, teamId: null },
-      { xuid: killerXuid, gamertag: "killer", typeHint: 210, isMedal: true, eventType: "medal", timeMs: 205, medalValue: 1512363953, teamId: null },
-      { xuid: victimXuid, gamertag: "victim", typeHint: 20, isMedal: false, eventType: "death", timeMs: 500, medalValue: 0, teamId: null },
+      {
+        xuid: killerXuid,
+        gamertag: "killer",
+        typeHint: 50,
+        isMedal: false,
+        eventType: "kill",
+        timeMs: 100,
+        medalValue: 0,
+        teamId: null,
+      },
+      {
+        xuid: victimXuid,
+        gamertag: "victim",
+        typeHint: 20,
+        isMedal: false,
+        eventType: "death",
+        timeMs: 100,
+        medalValue: 0,
+        teamId: null,
+      },
+      {
+        xuid: killerXuid,
+        gamertag: "killer",
+        typeHint: 50,
+        isMedal: false,
+        eventType: "kill",
+        timeMs: 200,
+        medalValue: 0,
+        teamId: null,
+      },
+      {
+        xuid: victimXuid,
+        gamertag: "victim",
+        typeHint: 20,
+        isMedal: false,
+        eventType: "death",
+        timeMs: 200,
+        medalValue: 0,
+        teamId: null,
+      },
+      {
+        xuid: killerXuid,
+        gamertag: "killer",
+        typeHint: 210,
+        isMedal: true,
+        eventType: "medal",
+        timeMs: 205,
+        medalValue: 1512363953,
+        teamId: null,
+      },
+      {
+        xuid: victimXuid,
+        gamertag: "victim",
+        typeHint: 20,
+        isMedal: false,
+        eventType: "death",
+        timeMs: 500,
+        medalValue: 0,
+        teamId: null,
+      },
     ]);
 
     const analytics = await service.buildKillMatrixAnalytics(match);
@@ -274,8 +333,26 @@ describe("HaloFilmService", () => {
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
 
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
-        { xuid: killerXuid, gamertag: "killer", typeHint: 50, isMedal: false, eventType: "kill", timeMs: 1000, medalValue: 0, teamId: null },
-        { xuid: victimXuid, gamertag: "victim", typeHint: 20, isMedal: false, eventType: "death", timeMs: 1001, medalValue: 0, teamId: null },
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 1000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 1001,
+          medalValue: 0,
+          teamId: null,
+        },
       ]);
 
       const analytics = await service.buildKillMatrixAnalytics(match);
@@ -293,8 +370,26 @@ describe("HaloFilmService", () => {
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
 
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
-        { xuid: killerXuid, gamertag: "killer", typeHint: 50, isMedal: false, eventType: "kill", timeMs: 1000, medalValue: 0, teamId: null },
-        { xuid: victimXuid, gamertag: "victim", typeHint: 20, isMedal: false, eventType: "death", timeMs: 1003, medalValue: 0, teamId: null },
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 1000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 1003,
+          medalValue: 0,
+          teamId: null,
+        },
       ]);
 
       const analytics = await service.buildKillMatrixAnalytics(match);
@@ -312,9 +407,36 @@ describe("HaloFilmService", () => {
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
 
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
-        { xuid: killerXuid, gamertag: "killer", typeHint: 50, isMedal: false, eventType: "kill", timeMs: 1000, medalValue: 0, teamId: null },
-        { xuid: killerXuid, gamertag: "killer", typeHint: 50, isMedal: false, eventType: "kill", timeMs: 1000, medalValue: 0, teamId: null },
-        { xuid: victimXuid, gamertag: "victim", typeHint: 20, isMedal: false, eventType: "death", timeMs: 1000, medalValue: 0, teamId: null },
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 1000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 1000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 1000,
+          medalValue: 0,
+          teamId: null,
+        },
       ]);
 
       const analytics = await service.buildKillMatrixAnalytics(match);
@@ -333,8 +455,26 @@ describe("HaloFilmService", () => {
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
 
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
-        { xuid: killerXuid, gamertag: "killer", typeHint: 50, isMedal: false, eventType: "kill", timeMs: 1001, medalValue: 0, teamId: null },
-        { xuid: victimXuid, gamertag: "victim", typeHint: 20, isMedal: false, eventType: "death", timeMs: 1000, medalValue: 0, teamId: null },
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 1001,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 1000,
+          medalValue: 0,
+          teamId: null,
+        },
       ]);
 
       const analytics = await service.buildKillMatrixAnalytics(match);
@@ -354,9 +494,36 @@ describe("HaloFilmService", () => {
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
 
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
-        { xuid: killerXuid, gamertag: "killer", typeHint: 50, isMedal: false, eventType: "kill", timeMs: 1000, medalValue: 0, teamId: null },
-        { xuid: victimXuid, gamertag: "victim", typeHint: 20, isMedal: false, eventType: "death", timeMs: 1000, medalValue: 0, teamId: null },
-        { xuid: killerXuid, gamertag: "killer", typeHint: 210, isMedal: true, eventType: "medal", timeMs: 1000, medalValue: 1512363953, teamId: null },
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 1000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 1000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 210,
+          isMedal: true,
+          eventType: "medal",
+          timeMs: 1000,
+          medalValue: 1512363953,
+          teamId: null,
+        },
       ]);
 
       const analytics = await service.buildKillMatrixAnalytics(match);
@@ -374,10 +541,46 @@ describe("HaloFilmService", () => {
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
 
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
-        { xuid: killerXuid, gamertag: "killer", typeHint: 50, isMedal: false, eventType: "kill", timeMs: 1000, medalValue: 0, teamId: null },
-        { xuid: victimXuid, gamertag: "victim", typeHint: 20, isMedal: false, eventType: "death", timeMs: 1000, medalValue: 0, teamId: null },
-        { xuid: killerXuid, gamertag: "killer", typeHint: 210, isMedal: true, eventType: "medal", timeMs: 1000, medalValue: 1512363953, teamId: null },
-        { xuid: killerXuid, gamertag: "killer", typeHint: 210, isMedal: true, eventType: "medal", timeMs: 1001, medalValue: 1512363953, teamId: null },
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 1000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 1000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 210,
+          isMedal: true,
+          eventType: "medal",
+          timeMs: 1000,
+          medalValue: 1512363953,
+          teamId: null,
+        },
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 210,
+          isMedal: true,
+          eventType: "medal",
+          timeMs: 1001,
+          medalValue: 1512363953,
+          teamId: null,
+        },
       ]);
 
       const analytics = await service.buildKillMatrixAnalytics(match);
@@ -395,9 +598,36 @@ describe("HaloFilmService", () => {
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
 
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
-        { xuid: killerXuid, gamertag: "killer", typeHint: 50, isMedal: false, eventType: "kill", timeMs: 1000, medalValue: 0, teamId: null },
-        { xuid: victimXuid, gamertag: "victim", typeHint: 20, isMedal: false, eventType: "death", timeMs: 1000, medalValue: 0, teamId: null },
-        { xuid: killerXuid, gamertag: "killer", typeHint: 210, isMedal: true, eventType: "medal", timeMs: 1000, medalValue: 865763896, teamId: null },
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 1000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 1000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 210,
+          isMedal: true,
+          eventType: "medal",
+          timeMs: 1000,
+          medalValue: 865763896,
+          teamId: null,
+        },
       ]);
 
       const analytics = await service.buildKillMatrixAnalytics(match);
@@ -414,7 +644,16 @@ describe("HaloFilmService", () => {
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
 
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
-        { xuid: "1", gamertag: "a", typeHint: 20, isMedal: false, eventType: "death", timeMs: 1, medalValue: 0, teamId: null },
+        {
+          xuid: "1",
+          gamertag: "a",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 1,
+          medalValue: 0,
+          teamId: null,
+        },
       ]);
 
       const analytics = await service.buildKillMatrixAnalytics(match);
@@ -448,8 +687,26 @@ describe("HaloFilmService", () => {
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
 
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
-        { xuid: killerXuid, gamertag: "killer", typeHint: 50, isMedal: false, eventType: "kill", timeMs: 1, medalValue: 0, teamId: null },
-        { xuid: victimXuid, gamertag: "victim", typeHint: 20, isMedal: false, eventType: "death", timeMs: 1, medalValue: 0, teamId: null },
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 1,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 1,
+          medalValue: 0,
+          teamId: null,
+        },
       ]);
 
       const analytics = await service.buildKillMatrixAnalytics(match);

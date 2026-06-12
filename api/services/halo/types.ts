@@ -1,5 +1,6 @@
 import type { UserInfo as HaloUserInfo } from "halo-infinite-api";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
+import type { CustomSpartanTokenProvider } from "./custom-spartan-token-provider";
 
 export type UserInfo = Pick<HaloUserInfo, "xuid" | "gamertag">;
 export type CachedUserInfo = UserInfo & { fetchedAt: number };
@@ -199,5 +200,5 @@ export interface KillMatrixAnalytics {
 
 export interface HaloFilmServiceOpts {
   env: Env;
-  spartanTokenProvider: import("./custom-spartan-token-provider").CustomSpartanTokenProvider;
+  spartanTokenProvider: CustomSpartanTokenProvider;
 }

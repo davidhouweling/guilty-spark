@@ -7,17 +7,18 @@ export interface FakeHaloFilmService {
 
 export function aFakeHaloFilmServiceWith(overrides: Partial<FakeHaloFilmService> = {}): FakeHaloFilmService {
   return {
-    buildKillMatrixAnalytics: async () => ({
-      entries: [],
-      pairingQuality: {
-        unpairedDeathCount: 0,
-        maxTimeDeltaMs: 0,
-      },
-      perfectCounts: {
-        total: 0,
-        byXuid: {},
-      },
-    }),
+    buildKillMatrixAnalytics: async () =>
+      Promise.resolve<KillMatrixAnalytics>({
+        entries: [],
+        pairingQuality: {
+          unpairedDeathCount: 0,
+          maxTimeDeltaMs: 0,
+        },
+        perfectCounts: {
+          total: 0,
+          byXuid: {},
+        },
+      }),
     ...overrides,
   };
 }
