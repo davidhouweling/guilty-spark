@@ -188,8 +188,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       if (isFirstEmbed) {
         if (seriesData != null) {
           embed.title = `Live Tracker - NeatQueue Series (Queue #${seriesData.seriesId.queueNumber.toString()})`;
-          const teamNames =
-            getSeriesGroupTitleFromTeams(seriesData.teams) ?? seriesData.teams.map((t) => t.name.trim()).join(" vs ");
+          const teamNames = getSeriesGroupTitleFromTeams(seriesData.teams) ?? "";
           embed.description = `**${statusText}**\n*${teamNames}*`;
         } else {
           embed.title = `Live Tracker - Queue #${queueNumber.toString()}`;

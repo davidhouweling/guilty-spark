@@ -17,8 +17,6 @@ export function buildSeriesGroupKey(matchIds: readonly string[]): string {
   return normalizeSeriesGroupMatchIds(matchIds).join(":");
 }
 
-const SERIES_TITLE_SEPARATOR = " vs ";
-
 export function getDefaultSeriesGroupTitle(): string {
   return "Eagle vs Cobra";
 }
@@ -33,7 +31,7 @@ export function getSeriesGroupTitleFromTeams(teams: readonly { readonly name: st
   if (!name0 || !name1) {
     return null;
   }
-  return `${name0}${SERIES_TITLE_SEPARATOR}${name1}`;
+  return `${name0} vs ${name1}`;
 }
 
 export function getDefaultSeriesGroupSubtitle(
