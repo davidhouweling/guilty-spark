@@ -41,8 +41,17 @@ export class HaloFilmService {
 
   async getHighlightEventsForMatch(matchId: string): Promise<ParsedHighlightEvent[]> {
     const authContext = await this.resolveAuthContext();
-    const metadataCacheRequest = this.toMetadataCacheRequest(matchId);
+    const filmMetadata = await this.getOrFetchFilmMetadata(matchId, authContext);
+    const highlightChunkBytes = await this.getOrFetchHighlightChunkBytes(matchId, filmMetadata, authContext);
+    const events = this.parseHighlightEvents(highlightChunkBytes, filmMetadata.CustomData.FilmMajorVersion);
+    return events;
+  }
 
+  private async getOrFetchFilmMetadata(
+    matchId: string,
+    authContext: { spartanToken: string; clearanceToken: string },
+  ): Promise<FilmMetadataResponse> {
+    const metadataCacheRequest = this.toMetadataCacheRequest(matchId);
     let filmMetadata = await this.getCachedJson<FilmMetadataResponse>(metadataCacheRequest);
     if (filmMetadata == null) {
       filmMetadata = await this.fetchJson<FilmMetadataResponse>(
@@ -52,51 +61,84 @@ export class HaloFilmService {
       );
       await this.putCachedJson(metadataCacheRequest, filmMetadata);
     }
+    return filmMetadata;
+  }
 
+  private findHighlightChunk(filmMetadata: FilmMetadataResponse): FilmMetadataResponse["CustomData"]["Chunks"][number] {
     const highlightChunk = [...filmMetadata.CustomData.Chunks]
       .sort((left, right) => left.Index - right.Index)
       .findLast((chunk) => chunk.ChunkType === 3);
 
     if (highlightChunk == null) {
-      throw new Error(`No highlight chunk found for match ${matchId}`);
+      throw new Error(`No highlight chunk found for match`);
     }
 
+    return highlightChunk;
+  }
+
+  private async getOrFetchHighlightChunkBytes(
+    matchId: string,
+    filmMetadata: FilmMetadataResponse,
+    authContext: { spartanToken: string; clearanceToken: string },
+  ): Promise<Uint8Array> {
+    const highlightChunk = this.findHighlightChunk(filmMetadata);
     const chunkCacheRequest = this.toChunkCacheRequest(matchId, highlightChunk.Index);
     const cachedChunk = await this.getCachedChunk(chunkCacheRequest);
-    let highlightChunkBytes: Uint8Array;
-    if (cachedChunk == null) {
-      const highlightChunkPath = highlightChunk.FileRelativePath.replace(/^\//u, "");
-      const highlightChunkUrl = `${filmMetadata.BlobStoragePathPrefix}${highlightChunkPath}`;
-      const downloadedChunk = await this.fetchBinary(
-        highlightChunkUrl,
-        authContext.spartanToken,
-        authContext.clearanceToken,
-      );
-      await this.putCachedChunk(chunkCacheRequest, downloadedChunk);
-      highlightChunkBytes = downloadedChunk;
-    } else {
-      highlightChunkBytes = cachedChunk;
+    if (cachedChunk != null) {
+      return cachedChunk;
     }
 
-    const events = this.parseHighlightEvents(highlightChunkBytes, filmMetadata.CustomData.FilmMajorVersion);
-    return events;
+    const highlightChunkPath = highlightChunk.FileRelativePath.replace(/^\//u, "");
+    const highlightChunkUrl = `${filmMetadata.BlobStoragePathPrefix}${highlightChunkPath}`;
+    const downloadedChunk = await this.fetchBinary(
+      highlightChunkUrl,
+      authContext.spartanToken,
+      authContext.clearanceToken,
+    );
+    await this.putCachedChunk(chunkCacheRequest, downloadedChunk);
+    return downloadedChunk;
   }
 
   async buildKillMatrixAnalytics(matchStats: MatchStats): Promise<KillMatrixAnalytics> {
     const events = await this.getHighlightEventsForMatch(matchStats.MatchId);
-
-    const xuidToTeamId = new Map<string, number>();
-    for (const player of matchStats.Players) {
-      const xuid = unwrapXuid(player.PlayerId);
-      xuidToTeamId.set(xuid, player.LastTeamId);
-    }
-
-    for (const event of events) {
-      event.teamId = xuidToTeamId.get(event.xuid) ?? null;
-    }
+    const xuidToTeamId = this.buildXuidToTeamMap(matchStats);
+    this.assignTeamIdsToEvents(events, xuidToTeamId);
 
     const kills = events.filter((event) => event.eventType === "kill");
     const deaths = events.filter((event) => event.eventType === "death");
+    const perfectByXuid = this.buildPerfectMedalsByXuid(events);
+
+    const { entries, maxTimeDeltaMs, usedDeathCount } = this.buildKillMatrixEntriesByPairing(kills, deaths);
+    this.assignPerfectsToEntries(entries, perfectByXuid);
+
+    const perfectCounts = this.buildPerfectCountsReport(perfectByXuid);
+
+    return {
+      entries,
+      pairingQuality: {
+        unpairedDeathCount: deaths.length - usedDeathCount,
+        maxTimeDeltaMs,
+      },
+      perfectCounts,
+    };
+  }
+
+  private buildXuidToTeamMap(matchStats: MatchStats): Map<string, number> {
+    const map = new Map<string, number>();
+    for (const player of matchStats.Players) {
+      const xuid = unwrapXuid(player.PlayerId);
+      map.set(xuid, player.LastTeamId);
+    }
+    return map;
+  }
+
+  private assignTeamIdsToEvents(events: ParsedHighlightEvent[], xuidToTeamId: Map<string, number>): void {
+    for (const event of events) {
+      event.teamId = xuidToTeamId.get(event.xuid) ?? null;
+    }
+  }
+
+  private buildPerfectMedalsByXuid(events: ParsedHighlightEvent[]): Map<string, number> {
     const perfectByXuid = new Map<string, number>();
     for (const event of events) {
       if (event.eventType !== "medal") {
@@ -108,7 +150,13 @@ export class HaloFilmService {
       const currentPerfectCount = perfectByXuid.get(event.xuid) ?? 0;
       perfectByXuid.set(event.xuid, currentPerfectCount + 1);
     }
+    return perfectByXuid;
+  }
 
+  private buildKillMatrixEntriesByPairing(
+    kills: ParsedHighlightEvent[],
+    deaths: ParsedHighlightEvent[],
+  ): { entries: KillMatrixEntry[]; maxTimeDeltaMs: number; usedDeathCount: number } {
     const entriesByPair = new Map<string, KillMatrixEntry>();
     const usedDeathIndexes = new Set<number>();
     let maxTimeDeltaMs = 0;
@@ -118,33 +166,15 @@ export class HaloFilmService {
         continue;
       }
 
-      let bestDeathIndex = -1;
-      let bestTimeDelta = Infinity;
-
-      for (let deathIndex = 0; deathIndex < deaths.length; deathIndex += 1) {
-        if (usedDeathIndexes.has(deathIndex)) {
-          continue;
-        }
-
-        const deathEvent = deaths[deathIndex];
-        if (deathEvent?.teamId == null) {
-          continue;
-        }
-
-        const timeDelta = Math.abs(killEvent.timeMs - deathEvent.timeMs);
-        if (timeDelta <= KILL_DEATH_PAIRING_MAX_DELTA_MS && timeDelta < bestTimeDelta) {
-          bestDeathIndex = deathIndex;
-          bestTimeDelta = timeDelta;
-        }
-      }
-
-      if (bestDeathIndex < 0) {
+      const deathIndex = this.findBestDeathMatch(killEvent, deaths, usedDeathIndexes);
+      if (deathIndex < 0) {
         continue;
       }
 
-      const deathEvent = Preconditions.checkExists(deaths[bestDeathIndex]);
-      usedDeathIndexes.add(bestDeathIndex);
-      maxTimeDeltaMs = Math.max(maxTimeDeltaMs, bestTimeDelta);
+      const deathEvent = Preconditions.checkExists(deaths[deathIndex]);
+      usedDeathIndexes.add(deathIndex);
+      const timeDelta = Math.abs(killEvent.timeMs - deathEvent.timeMs);
+      maxTimeDeltaMs = Math.max(maxTimeDeltaMs, timeDelta);
 
       const pairKey = `${killEvent.xuid}:${deathEvent.xuid}`;
       const existing = entriesByPair.get(pairKey) ?? {
@@ -159,12 +189,44 @@ export class HaloFilmService {
       entriesByPair.set(pairKey, existing);
     }
 
+    return { entries: Array.from(entriesByPair.values()), maxTimeDeltaMs, usedDeathCount: usedDeathIndexes.size };
+  }
+
+  private findBestDeathMatch(
+    killEvent: ParsedHighlightEvent,
+    deaths: ParsedHighlightEvent[],
+    usedDeathIndexes: Set<number>,
+  ): number {
+    let bestDeathIndex = -1;
+    let bestTimeDelta = Infinity;
+
+    for (let deathIndex = 0; deathIndex < deaths.length; deathIndex += 1) {
+      if (usedDeathIndexes.has(deathIndex)) {
+        continue;
+      }
+
+      const deathEvent = deaths[deathIndex];
+      if (deathEvent?.teamId == null) {
+        continue;
+      }
+
+      const timeDelta = Math.abs(killEvent.timeMs - deathEvent.timeMs);
+      if (timeDelta <= KILL_DEATH_PAIRING_MAX_DELTA_MS && timeDelta < bestTimeDelta) {
+        bestDeathIndex = deathIndex;
+        bestTimeDelta = timeDelta;
+      }
+    }
+
+    return bestDeathIndex;
+  }
+
+  private assignPerfectsToEntries(entries: KillMatrixEntry[], perfectByXuid: Map<string, number>): void {
     for (const [killerXuid, perfectCount] of perfectByXuid.entries()) {
       if (perfectCount <= 0) {
         continue;
       }
 
-      const killerEntries = Array.from(entriesByPair.values()).filter((entry) => entry.killerXuid === killerXuid);
+      const killerEntries = entries.filter((entry) => entry.killerXuid === killerXuid);
       for (let index = 0; index < perfectCount && index < killerEntries.length; index += 1) {
         const entry = killerEntries[index];
         if (entry != null) {
@@ -172,25 +234,19 @@ export class HaloFilmService {
         }
       }
     }
+  }
 
-    const perfectCountsByXuid: Record<string, number> = {};
-    let perfectCountTotal = 0;
+  private buildPerfectCountsReport(perfectByXuid: Map<string, number>): {
+    total: number;
+    byXuid: Record<string, number>;
+  } {
+    const byXuid: Record<string, number> = {};
+    let total = 0;
     for (const [xuid, count] of perfectByXuid.entries()) {
-      perfectCountsByXuid[xuid] = count;
-      perfectCountTotal += count;
+      byXuid[xuid] = count;
+      total += count;
     }
-
-    return {
-      entries: Array.from(entriesByPair.values()),
-      pairingQuality: {
-        unpairedDeathCount: deaths.length - usedDeathIndexes.size,
-        maxTimeDeltaMs,
-      },
-      perfectCounts: {
-        total: perfectCountTotal,
-        byXuid: perfectCountsByXuid,
-      },
-    };
+    return { total, byXuid };
   }
 
   async buildKillMatrix(matchStats: MatchStats): Promise<KillMatrixEntry[]> {
