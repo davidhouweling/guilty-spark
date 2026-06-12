@@ -1,21 +1,61 @@
-import { mkdtemp } from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
 import { deflateSync } from "node:zlib";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { MockInstance } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
-import { createFileBackedKVNamespace } from "../../../base/fakes/namespace-to-file";
 import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import { getMatchStats } from "../fakes/data";
 import { CustomSpartanTokenProvider } from "../custom-spartan-token-provider";
 import { HaloFilmService } from "../halo-film";
 import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake";
 
+function aMutableKvNamespaceWith(): KVNamespace {
+  const data = new Map<string, string>();
+
+  return {
+    getWithMetadata: async () => Promise.resolve({ value: null, metadata: null, cacheStatus: null }),
+    get: async (key: string, type?: "text" | "json" | "arrayBuffer" | "stream") => {
+      const value = data.get(key) ?? null;
+      if (value == null) {
+        return null;
+      }
+
+      if (type === "json") {
+        return JSON.parse(value) as unknown;
+      }
+      if (type === "arrayBuffer") {
+        return new TextEncoder().encode(value).buffer;
+      }
+      if (type === "stream") {
+        return new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode(value));
+            controller.close();
+          },
+        });
+      }
+
+      return value;
+    },
+    put: async (key: string, value: string) => {
+      data.set(key, value);
+      return Promise.resolve();
+    },
+    list: async () =>
+      Promise.resolve({
+        list_complete: true,
+        keys: Array.from(data.keys()).map((name) => ({ name })),
+        cacheStatus: null,
+      }),
+    delete: async (key: string) => {
+      data.delete(key);
+      return Promise.resolve();
+    },
+  } as unknown as KVNamespace;
+}
+
 async function aFakeCacheBackedEnvWith(): Promise<Env> {
-  const tempDirectory = await mkdtemp(path.join(os.tmpdir(), "halo-film-tests-"));
-  const kvNamespace = await createFileBackedKVNamespace(path.join(tempDirectory, "kv.json"));
+  const kvNamespace = aMutableKvNamespaceWith();
   return aFakeEnvWith({ APP_DATA: kvNamespace });
 }
 
