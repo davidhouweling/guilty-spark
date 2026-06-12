@@ -28,6 +28,7 @@ export interface Services {
   discordService: DiscordService;
   xboxService: XboxService;
   haloService: HaloService;
+  haloFilmService: HaloFilmService;
   haloInfiniteClient: HaloInfiniteClient;
   userTokenProvider: UserTokenProvider;
   analyticsService: AnalyticsService;
@@ -91,7 +92,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
   const userTokenProvider = new UserTokenProvider({ authService, xboxService, logService });
   const haloFilmService = new HaloFilmService({
     env,
-    spartanTokenProvider: new CustomSpartanTokenProvider({ env, xboxService: new XboxService({ env, authenticate }) }),
+    spartanTokenProvider: new CustomSpartanTokenProvider({ env, xboxService }),
   });
   const analyticsService = new AnalyticsService({ haloService, haloFilmService });
   const liveTrackerService = new LiveTrackerService({ env, logService, discordService });
@@ -113,6 +114,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
     discordService,
     xboxService,
     haloService,
+    haloFilmService,
     haloInfiniteClient,
     userTokenProvider,
     analyticsService,

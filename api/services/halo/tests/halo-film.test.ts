@@ -59,28 +59,30 @@ function aMutableKvNamespaceWith(): KVNamespace {
 
   return {
     getWithMetadata: async () => Promise.resolve({ value: null, metadata: null, cacheStatus: null }),
-    get: async (key: string, type?: "text" | "json" | "arrayBuffer" | "stream") => {
+    get: async (key: string, type?: "text" | "json" | "arrayBuffer" | "stream"): Promise<unknown> => {
       const value = data.get(key) ?? null;
       if (value == null) {
-        return null;
+        return Promise.resolve(null);
       }
 
       if (type === "json") {
-        return JSON.parse(value) as unknown;
+        return Promise.resolve(JSON.parse(value) as unknown);
       }
       if (type === "arrayBuffer") {
-        return new TextEncoder().encode(value).buffer;
+        return Promise.resolve(new TextEncoder().encode(value).buffer);
       }
       if (type === "stream") {
-        return new ReadableStream<Uint8Array>({
-          start(controller) {
-            controller.enqueue(new TextEncoder().encode(value));
-            controller.close();
-          },
-        });
+        return Promise.resolve(
+          new ReadableStream<Uint8Array>({
+            start(controller): void {
+              controller.enqueue(new TextEncoder().encode(value));
+              controller.close();
+            },
+          }),
+        );
       }
 
-      return value;
+      return Promise.resolve(value);
     },
     put: async (key: string, value: string) => {
       data.set(key, value);
@@ -99,7 +101,7 @@ function aMutableKvNamespaceWith(): KVNamespace {
   } as unknown as KVNamespace;
 }
 
-async function aFakeCacheBackedEnvWith(): Promise<Env> {
+function aFakeCacheBackedEnvWith(): Env {
   const kvNamespace = aMutableKvNamespaceWith();
   return aFakeEnvWith({ APP_DATA: kvNamespace });
 }
@@ -115,7 +117,7 @@ describe("HaloFilmService", () => {
   });
 
   it("uses metadata and chunk cache keys before network fetch", async () => {
-    const env = await aFakeCacheBackedEnvWith();
+    const env = aFakeCacheBackedEnvWith();
     const xboxService = aFakeXboxServiceWith({ env });
     const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
     vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
@@ -153,7 +155,7 @@ describe("HaloFilmService", () => {
   });
 
   it("fetches and caches metadata and chunk bytes on cache miss", async () => {
-    const env = await aFakeCacheBackedEnvWith();
+    const env = aFakeCacheBackedEnvWith();
     const xboxService = aFakeXboxServiceWith({ env });
     const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
     vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
@@ -227,7 +229,7 @@ describe("HaloFilmService", () => {
     }
 
     it("fetches and caches clearance token on first call", async () => {
-      const env = await aFakeCacheBackedEnvWith();
+      const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
       vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
@@ -252,7 +254,7 @@ describe("HaloFilmService", () => {
     });
 
     it("reuses cached clearance token and skips settings endpoints on second call", async () => {
-      const env = await aFakeCacheBackedEnvWith();
+      const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
       vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
@@ -306,7 +308,7 @@ describe("HaloFilmService", () => {
   });
 
   it("builds kill matrix analytics with pairing quality and perfect counts", async () => {
-    const env = await aFakeCacheBackedEnvWith();
+    const env = aFakeCacheBackedEnvWith();
     const xboxService = aFakeXboxServiceWith({ env });
     const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
     const service = new HaloFilmService({ env, spartanTokenProvider });
@@ -402,7 +404,7 @@ describe("HaloFilmService", () => {
 
   describe("kill-death pairing edge cases", () => {
     it("pairs kills and deaths at exactly the boundary (1ms delta)", async () => {
-      const env = await aFakeCacheBackedEnvWith();
+      const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
       const service = new HaloFilmService({ env, spartanTokenProvider });
@@ -440,7 +442,7 @@ describe("HaloFilmService", () => {
     });
 
     it("does not pair kills and deaths exceeding 1ms delta", async () => {
-      const env = await aFakeCacheBackedEnvWith();
+      const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
       const service = new HaloFilmService({ env, spartanTokenProvider });
@@ -478,7 +480,7 @@ describe("HaloFilmService", () => {
     });
 
     it("handles multiple deaths at same timestamp with greedy pairing", async () => {
-      const env = await aFakeCacheBackedEnvWith();
+      const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
       const service = new HaloFilmService({ env, spartanTokenProvider });
@@ -527,7 +529,7 @@ describe("HaloFilmService", () => {
     });
 
     it("pairs kill before death (negative delta)", async () => {
-      const env = await aFakeCacheBackedEnvWith();
+      const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
       const service = new HaloFilmService({ env, spartanTokenProvider });
@@ -566,7 +568,7 @@ describe("HaloFilmService", () => {
 
   describe("perfect medal detection", () => {
     it("detects perfect medal by name ID", async () => {
-      const env = await aFakeCacheBackedEnvWith();
+      const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
       const service = new HaloFilmService({ env, spartanTokenProvider });
@@ -613,7 +615,7 @@ describe("HaloFilmService", () => {
     });
 
     it("detects multiple perfects for same killer", async () => {
-      const env = await aFakeCacheBackedEnvWith();
+      const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
       const service = new HaloFilmService({ env, spartanTokenProvider });
@@ -670,7 +672,7 @@ describe("HaloFilmService", () => {
     });
 
     it("distinguishes perfect medal from perfection medal", async () => {
-      const env = await aFakeCacheBackedEnvWith();
+      const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
       const service = new HaloFilmService({ env, spartanTokenProvider });
@@ -718,7 +720,7 @@ describe("HaloFilmService", () => {
 
   describe("error handling", () => {
     it("returns empty analytics when no events match any kills", async () => {
-      const env = await aFakeCacheBackedEnvWith();
+      const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
       const service = new HaloFilmService({ env, spartanTokenProvider });
@@ -742,7 +744,7 @@ describe("HaloFilmService", () => {
     });
 
     it("handles match with no events", async () => {
-      const env = await aFakeCacheBackedEnvWith();
+      const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
       const service = new HaloFilmService({ env, spartanTokenProvider });
@@ -759,7 +761,7 @@ describe("HaloFilmService", () => {
 
   describe("weapon aggregation", () => {
     it("aggregates kills with different weapons per pair", async () => {
-      const env = await aFakeCacheBackedEnvWith();
+      const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
       const service = new HaloFilmService({ env, spartanTokenProvider });

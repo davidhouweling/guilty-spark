@@ -13,7 +13,6 @@
   "scripts": {
     "start": "wrangler dev",
     "register": "tsx --env-file=.dev.vars scripts/deploy-commands.ts",
-    "film:extract": "tsx --env-file=.dev.vars scripts/extract-film-timeline.ts",
     "build": "tsc --project tsconfig.build.json",
     "build:generate-types": "wrangler types",
     "typecheck": "tsc --noEmit",

@@ -12,6 +12,8 @@ import { aFakeXboxServiceWith } from "../xbox/fakes/xbox.fake";
 import { aFakeLiveTrackerServiceWith } from "../live-tracker/fakes/live-tracker.fake";
 import { aFakeIndividualTrackerServiceWith } from "../individual-tracker/fakes/individual-tracker.fake";
 import { aFakeAnalyticsServiceWith } from "../analytics/fakes/analytics.fake";
+import { aFakeHaloFilmServiceWith } from "../halo/fakes/halo-film.fake";
+import { CustomSpartanTokenProvider } from "../halo/custom-spartan-token-provider";
 
 export function installFakeServicesWith(opts: Partial<Services & { env: Env }> = {}): Services {
   const env = opts.env ?? aFakeEnvWith();
@@ -22,8 +24,11 @@ export function installFakeServicesWith(opts: Partial<Services & { env: Env }> =
   const xboxService = opts.xboxService ?? aFakeXboxServiceWith({ env });
   const haloInfiniteClient = opts.haloInfiniteClient ?? aFakeHaloInfiniteClient();
   const haloService = opts.haloService ?? aFakeHaloServiceWith({ infiniteClient: haloInfiniteClient, databaseService });
+  const haloFilmService =
+    opts.haloFilmService ??
+    aFakeHaloFilmServiceWith({ env, spartanTokenProvider: new CustomSpartanTokenProvider({ env, xboxService }) });
   const userTokenProvider = opts.userTokenProvider ?? aFakeUserTokenProviderWith({ authService, xboxService });
-  const analyticsService = opts.analyticsService ?? aFakeAnalyticsServiceWith({ haloService });
+  const analyticsService = opts.analyticsService ?? aFakeAnalyticsServiceWith({ haloService, haloFilmService });
   const liveTrackerService =
     opts.liveTrackerService ?? aFakeLiveTrackerServiceWith({ logService, discordService, env });
   const neatQueueService =
@@ -39,6 +44,7 @@ export function installFakeServicesWith(opts: Partial<Services & { env: Env }> =
     discordService,
     xboxService,
     haloService,
+    haloFilmService,
     haloInfiniteClient,
     userTokenProvider,
     analyticsService,
