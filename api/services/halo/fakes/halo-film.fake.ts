@@ -1,6 +1,5 @@
-import { authenticate } from "@xboxreplay/xboxlive-auth";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
-import { XboxService } from "../../xbox/xbox";
+import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake";
 import { CustomSpartanTokenProvider } from "../custom-spartan-token-provider";
 import type { HaloFilmServiceOpts } from "../types";
 import { HaloFilmService } from "../halo-film";
@@ -11,7 +10,7 @@ export function aFakeHaloFilmServiceWith(opts: Partial<HaloFilmServiceOpts> = {}
     opts.spartanTokenProvider ??
     new CustomSpartanTokenProvider({
       env,
-      xboxService: new XboxService({ env, authenticate }),
+      xboxService: aFakeXboxServiceWith({ env }),
     });
 
   return new HaloFilmService({ env, spartanTokenProvider });
