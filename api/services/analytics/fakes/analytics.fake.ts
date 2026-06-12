@@ -6,13 +6,13 @@ export interface FakeAnalyticsService {
 
 export function aFakeAnalyticsServiceWith(overrides: Partial<FakeAnalyticsService> = {}): FakeAnalyticsService {
   return {
-    getMatchAnalytics: async (_matchId: string, modules: string[]) => {
+    getMatchAnalytics: async (_matchId: string, modules: string[]): Promise<MatchAnalytics> => {
       const requestedModules = modules.filter((module): module is "killMatrix" => module === "killMatrix");
       if (requestedModules.length === 0) {
         requestedModules.push("killMatrix");
       }
 
-      return {
+      return Promise.resolve({
         requestedModules,
         killMatrix: {},
         metadata: {
@@ -25,7 +25,7 @@ export function aFakeAnalyticsServiceWith(overrides: Partial<FakeAnalyticsServic
             byXuid: {},
           },
         },
-      };
+      });
     },
     ...overrides,
   };

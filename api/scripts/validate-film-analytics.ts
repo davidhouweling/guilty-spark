@@ -61,7 +61,6 @@ async function fetchJson<T>(url: string, spartanToken: string, clearanceToken?: 
   return response.json<T>();
 }
 
- 
 async function main(): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const matchId = process.argv[2]!;
@@ -73,9 +72,8 @@ async function main(): Promise<void> {
 
   console.log(`Validating film analytics for match ${matchId}...`);
 
-   
   const xboxUsername = process.env.XBOX_USERNAME;
-   
+
   const xboxPassword = process.env.XBOX_PASSWORD;
 
   if (!xboxUsername || !xboxPassword) {
@@ -83,9 +81,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const kvNamespace = await createFileBackedKVNamespace(
-    path.join(__dirname, "film-validation-cache.json"),
-  );
+  const kvNamespace = await createFileBackedKVNamespace(path.join(__dirname, "film-validation-cache.json"));
   const env = aFakeEnvWith({
     APP_DATA: kvNamespace,
     XBOX_USERNAME: xboxUsername,
@@ -103,14 +99,15 @@ async function main(): Promise<void> {
   try {
     console.log("Authenticating and fetching match stats...");
     const spartanToken = await customSpartanTokenProvider.getSpartanToken();
-    
+
     const matchStats = await fetchJson<MatchStats>(
       `https://halostats.svc.halowaypoint.com:443/hi/matches/${matchId}/stats`,
       spartanToken,
     );
 
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-    console.log(`✓ Match found: variant ${matchStats.MatchInfo.GameVariantCategory}, ${matchStats.Teams.length} teams, ${matchStats.Players.length} players`);
+    console.log(
+      `✓ Match found: variant ${String(matchStats.MatchInfo.GameVariantCategory)}, ${matchStats.Teams.length.toString()} teams, ${matchStats.Players.length.toString()} players`,
+    );
 
     console.log("Fetching and parsing film analytics...");
     const analytics = await haloFilmService.buildKillMatrixAnalytics(matchStats);
