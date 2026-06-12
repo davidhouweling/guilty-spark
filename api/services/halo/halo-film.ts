@@ -26,9 +26,10 @@ import type {
 import type { CustomSpartanTokenProvider } from "./custom-spartan-token-provider";
 
 export class HaloFilmService {
-  private static readonly FILM_CACHE_TTL_SECONDS = 31_536_000;
+  private static readonly FILM_CACHE_TTL_SECONDS = 604_800;
   private static readonly CLEARANCE_CACHE_KEY = "film:clearance";
   private static readonly CLEARANCE_CACHE_TTL_SECONDS = 3_600;
+  private static readonly FILM_CACHE_BASE_URL = "https://halo-film-cache.local";
 
   private readonly env: Env;
   private readonly spartanTokenProvider: CustomSpartanTokenProvider;
@@ -322,23 +323,66 @@ export class HaloFilmService {
     return events.sort((left, right) => left.timeMs - right.timeMs);
   }
 
+  private toMetadataCacheRequest(matchId: string): Request {
+    return new Request(`${HaloFilmService.FILM_CACHE_BASE_URL}/metadata/${matchId}`);
+  }
+
+  private toChunkCacheRequest(matchId: string, chunkIndex: number): Request {
+    return new Request(`${HaloFilmService.FILM_CACHE_BASE_URL}/chunk/${matchId}/${chunkIndex.toString()}`);
+  }
+
+  private async getCachedJson<T>(request: Request): Promise<T | null> {
+    const cached = await caches.default.match(request);
+    if (cached == null) {
+      return null;
+    }
+
+    return cached.json<T>();
+  }
+
+  private async putCachedJson(request: Request, payload: unknown): Promise<void> {
+    const response = new Response(JSON.stringify(payload), {
+      headers: {
+        "Cache-Control": `public, max-age=${HaloFilmService.FILM_CACHE_TTL_SECONDS.toString()}`,
+        "Content-Type": "application/json",
+      },
+    });
+    await caches.default.put(request, response);
+  }
+
+  private async getCachedChunk(request: Request): Promise<Uint8Array | null> {
+    const cached = await caches.default.match(request);
+    if (cached == null) {
+      return null;
+    }
+
+    return new Uint8Array(await cached.arrayBuffer());
+  }
+
+  private async putCachedChunk(request: Request, chunkBytes: Uint8Array): Promise<void> {
+    const response = new Response(chunkBytes, {
+      headers: {
+        "Cache-Control": `public, max-age=${HaloFilmService.FILM_CACHE_TTL_SECONDS.toString()}`,
+        "Content-Type": "application/octet-stream",
+      },
+    });
+    await caches.default.put(request, response);
+  }
+
   async getHighlightEventsForMatch(matchId: string): Promise<ParsedHighlightEvent[]> {
     const authContext = await this.resolveAuthContext();
-    const metadataCacheKey = `film:metadata:${matchId}`;
-    const chunkCachePrefix = `film:chunk:${matchId}:`;
+    const metadataCacheRequest = this.toMetadataCacheRequest(matchId);
 
     const filmMetadata =
-      (await this.env.APP_DATA.get<FilmMetadataResponse>(metadataCacheKey, "json")) ??
+      (await this.getCachedJson<FilmMetadataResponse>(metadataCacheRequest)) ??
       (await this.fetchJson<FilmMetadataResponse>(
         `https://discovery-infiniteugc.svc.halowaypoint.com:443/hi/films/matches/${matchId}/spectate`,
         authContext.spartanToken,
         authContext.clearanceToken,
       ));
 
-    if ((await this.env.APP_DATA.get(metadataCacheKey)) == null) {
-      await this.env.APP_DATA.put(metadataCacheKey, JSON.stringify(filmMetadata), {
-        expirationTtl: HaloFilmService.FILM_CACHE_TTL_SECONDS,
-      });
+    if ((await this.getCachedJson<FilmMetadataResponse>(metadataCacheRequest)) == null) {
+      await this.putCachedJson(metadataCacheRequest, filmMetadata);
     }
 
     const highlightChunk = [...filmMetadata.CustomData.Chunks]
@@ -349,8 +393,8 @@ export class HaloFilmService {
       throw new Error(`No highlight chunk found for match ${matchId}`);
     }
 
-    const chunkCacheKey = `${chunkCachePrefix}${highlightChunk.Index.toString()}`;
-    const cachedChunk = await this.env.APP_DATA.get<number[]>(chunkCacheKey, "json");
+    const chunkCacheRequest = this.toChunkCacheRequest(matchId, highlightChunk.Index);
+    const cachedChunk = await this.getCachedChunk(chunkCacheRequest);
     let highlightChunkBytes: Uint8Array;
     if (cachedChunk == null) {
       const highlightChunkPath = highlightChunk.FileRelativePath.replace(/^\//u, "");
@@ -360,12 +404,10 @@ export class HaloFilmService {
         authContext.spartanToken,
         authContext.clearanceToken,
       );
-      await this.env.APP_DATA.put(chunkCacheKey, JSON.stringify(Array.from(downloadedChunk)), {
-        expirationTtl: HaloFilmService.FILM_CACHE_TTL_SECONDS,
-      });
+      await this.putCachedChunk(chunkCacheRequest, downloadedChunk);
       highlightChunkBytes = downloadedChunk;
     } else {
-      highlightChunkBytes = Uint8Array.from(cachedChunk);
+      highlightChunkBytes = cachedChunk;
     }
 
     const events = this.parseHighlightEvents(highlightChunkBytes, filmMetadata.CustomData.FilmMajorVersion);

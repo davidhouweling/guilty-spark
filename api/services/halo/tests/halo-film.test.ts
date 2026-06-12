@@ -9,6 +9,37 @@ import { CustomSpartanTokenProvider } from "../custom-spartan-token-provider";
 import { HaloFilmService } from "../halo-film";
 import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake";
 
+function installInMemoryDefaultCache(): void {
+  const cacheEntries = new Map<string, Response>();
+  const cache = {
+    match: async (request: RequestInfo | URL): Promise<Response | undefined> => {
+      const key = typeof request === "string" ? request : request instanceof URL ? request.toString() : request.url;
+      const response = cacheEntries.get(key);
+      return response?.clone();
+    },
+    put: async (request: RequestInfo | URL, response: Response): Promise<void> => {
+      const key = typeof request === "string" ? request : request instanceof URL ? request.toString() : request.url;
+      cacheEntries.set(key, response.clone());
+    },
+    delete: async (request: RequestInfo | URL): Promise<boolean> => {
+      const key = typeof request === "string" ? request : request instanceof URL ? request.toString() : request.url;
+      return cacheEntries.delete(key);
+    },
+  };
+
+  (globalThis as unknown as { caches: { default: Cache } }).caches = { default: cache as unknown as Cache };
+}
+
+function defaultCache(): Cache {
+  return (globalThis as unknown as { caches: { default: Cache } }).caches.default;
+}
+
+const metadataCacheRequestFor = (matchId: string): Request =>
+  new Request(`https://halo-film-cache.local/metadata/${matchId}`);
+
+const chunkCacheRequestFor = (matchId: string, chunkIndex: number): Request =>
+  new Request(`https://halo-film-cache.local/chunk/${matchId}/${chunkIndex.toString()}`);
+
 function aMutableKvNamespaceWith(): KVNamespace {
   const data = new Map<string, string>();
 
@@ -62,6 +93,7 @@ async function aFakeCacheBackedEnvWith(): Promise<Env> {
 describe("HaloFilmService", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    installInMemoryDefaultCache();
   });
 
   it("uses metadata and chunk cache keys before network fetch", async () => {
@@ -92,8 +124,8 @@ describe("HaloFilmService", () => {
       },
     };
 
-    await env.APP_DATA.put("film:metadata:match-123", JSON.stringify(metadata));
-    await env.APP_DATA.put("film:chunk:match-123:9", JSON.stringify(Array.from(compressedChunk)));
+    await defaultCache().put(metadataCacheRequestFor("match-123"), Response.json(metadata));
+    await defaultCache().put(chunkCacheRequestFor("match-123", 9), new Response(compressedChunk));
 
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     const events = await service.getHighlightEventsForMatch("match-123");
@@ -148,8 +180,8 @@ describe("HaloFilmService", () => {
     expect(firstRead).toEqual([]);
     expect(secondRead).toEqual([]);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
-    expect(await env.APP_DATA.get("film:metadata:match-456")).not.toBeNull();
-    expect(await env.APP_DATA.get("film:chunk:match-456:7")).not.toBeNull();
+    expect(await defaultCache().match(metadataCacheRequestFor("match-456"))).toBeDefined();
+    expect(await defaultCache().match(chunkCacheRequestFor("match-456", 7))).toBeDefined();
   });
 
   describe("clearance token caching", () => {
