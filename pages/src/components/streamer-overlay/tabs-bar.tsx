@@ -43,12 +43,7 @@ interface TabButtonProps {
   readonly onTabClick: (tabIndex: number) => void;
 }
 
-const TabButton = memo(function TabButton({
-  tab,
-  isActive,
-  isSelected,
-  onTabClick,
-}: TabButtonProps): React.ReactElement {
+const TabButton = memo(({ tab, isActive, isSelected, onTabClick }: TabButtonProps): React.ReactElement => {
   const tabIndex = tab.type === "series" ? -1 : tab.index;
   const tabIcons =
     tab.type === "match" ? (tab.icons ?? (tab.icon !== "" ? [{ src: tab.icon, dimmed: false as const }] : [])) : [];

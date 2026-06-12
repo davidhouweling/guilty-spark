@@ -1,4 +1,3 @@
-import { instrumentD1WithSentry } from "@sentry/cloudflare";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { SESSION_COOKIE_MAX_AGE_SECONDS } from "../auth/session-manager";
 import type { DiscordAssociationsRow } from "./types/discord_associations";
@@ -22,7 +21,7 @@ export class DatabaseService {
   private readonly guildConfigCache = new Map<string, GuildConfigRow>();
 
   constructor({ env }: DatabaseServiceOpts) {
-    this.DB = env.MODE === "production" ? (instrumentD1WithSentry(env.DB) as D1Database) : env.DB;
+    this.DB = env.DB;
   }
 
   async getDiscordAssociations(discordIds: string[]): Promise<DiscordAssociationsRow[]> {
