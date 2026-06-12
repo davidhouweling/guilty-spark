@@ -136,9 +136,11 @@ Note: `gh pr edit --add-reviewer copilot` and `gh pr edit --add-reviewer github-
 **Report back:**
 
 If fixes were committed and pushed:
+
 > "Done. Fixes committed as {SHA} and pushed. New review requested — re-run this prompt once the Copilot review arrives (may take up to a few hours)."
 
 If all comments were refuted (no code changes):
+
 > "Done. All comments refuted — no code changes. New review requested — re-run this prompt once the Copilot review arrives."
 
 ## Repo-specific notes
