@@ -389,7 +389,7 @@ describe("HaloFilmService", () => {
       victimXuid,
       count: 2,
       headshotKills: 0,
-      perfects: 1,
+      perfects: 0,
       weapons: [],
     });
     expect(analytics.pairingQuality).toEqual({

@@ -7,7 +7,7 @@ import {
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import type { RoutesRegisterHandler } from "../base/types";
 
-const ANALYTICS_CACHE_CONTROL = "public, max-age=31536000";
+const ANALYTICS_CACHE_CONTROL = "s-maxage=31536000, stale-while-revalidate=604800";
 
 export const matchAnalyticsRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/stats/match-analytics/:matchId", async (request, env: Env) => {

@@ -57,7 +57,7 @@ export class HaloFilmService {
     const perfectByXuid = this.buildPerfectMedalsByXuid(events);
 
     const { entries, maxTimeDeltaMs, usedDeathCount } = this.buildKillMatrixEntriesByPairing(kills, deaths);
-    this.assignPerfectsToEntries(entries, perfectByXuid);
+    this.assignPerfectsToEntries();
 
     const perfectCounts = this.buildPerfectCountsReport(perfectByXuid);
 
@@ -223,20 +223,11 @@ export class HaloFilmService {
     return bestDeathIndex;
   }
 
-  private assignPerfectsToEntries(entries: KillMatrixEntry[], perfectByXuid: Map<string, number>): void {
-    for (const [killerXuid, perfectCount] of perfectByXuid.entries()) {
-      if (perfectCount <= 0) {
-        continue;
-      }
-
-      const killerEntries = entries.filter((entry) => entry.killerXuid === killerXuid);
-      for (let index = 0; index < perfectCount && index < killerEntries.length; index += 1) {
-        const entry = killerEntries[index];
-        if (entry != null) {
-          entry.perfects += 1;
-        }
-      }
-    }
+  private assignPerfectsToEntries(): void {
+    // Perfect medal attribution is deferred: victim-level attribution requires matching
+    // perfect medal events to specific kill events by timestamp. Currently, perfect counts
+    // are available only in metadata.perfectCounts.byXuid (killer level).
+    // TODO(perfects): implement timestamp-based matching of perfect medals to kill-death pairs
   }
 
   private buildPerfectCountsReport(perfectByXuid: Map<string, number>): {
