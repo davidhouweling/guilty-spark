@@ -7,6 +7,7 @@ import type { MockInstance } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { createFileBackedKVNamespace } from "../../../base/fakes/namespace-to-file";
+import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import { getMatchStats } from "../fakes/data";
 import { CustomSpartanTokenProvider } from "../custom-spartan-token-provider";
 import { HaloFilmService } from "../halo-film";
@@ -16,10 +17,6 @@ async function aFakeCacheBackedEnvWith(): Promise<Env> {
   const tempDirectory = await mkdtemp(path.join(os.tmpdir(), "halo-film-tests-"));
   const kvNamespace = await createFileBackedKVNamespace(path.join(tempDirectory, "kv.json"));
   return aFakeEnvWith({ APP_DATA: kvNamespace });
-}
-
-function unwrapXuid(playerId: string): string {
-  return playerId.replace(/^xuid\((\d+)\)$/u, "$1");
 }
 
 describe("HaloFilmService", () => {

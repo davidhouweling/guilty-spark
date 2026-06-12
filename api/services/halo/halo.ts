@@ -14,7 +14,7 @@ import type {
 import { MatchOutcome, AssetKind, GameVariantCategory, MatchType, RequestError } from "halo-infinite-api";
 import { differenceInDays, differenceInHours, differenceInMinutes, isAfter, isBefore } from "date-fns";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
-import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import { getPlayerXuid, wrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { SeriesScoreEntry } from "@guilty-spark/shared/halo/series-score";
 import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
@@ -224,7 +224,7 @@ export class HaloService {
   }
 
   wrapPlayerXuid(xuid: string): string {
-    return `xuid(${xuid})`;
+    return wrapXuid(xuid);
   }
 
   async getPlayerXuidsToGametags(matches: MatchStats | MatchStats[]): Promise<Map<string, string>> {

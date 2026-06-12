@@ -1,6 +1,7 @@
 import { inflateSync } from "node:zlib";
 import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { wrapXuid, unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import {
   HALO_PC_USER_AGENT,
   MIN_XUID,
@@ -94,7 +95,7 @@ export class HaloFilmService {
 
     const playerScopedClearanceUrl = [
       "https://settings.svc.halowaypoint.com:443/oban/flight-configurations/titles/hi/audiences/retail/players",
-      `xuid(${currentUser.xuid})`,
+      wrapXuid(currentUser.xuid),
       "active",
     ].join("/");
 
@@ -378,7 +379,7 @@ export class HaloFilmService {
 
     const xuidToTeamId = new Map<string, number>();
     for (const player of matchStats.Players) {
-      const xuid = player.PlayerId.replace(/^xuid\((\d+)\)$/u, "$1");
+      const xuid = unwrapXuid(player.PlayerId);
       xuidToTeamId.set(xuid, player.LastTeamId);
     }
 
