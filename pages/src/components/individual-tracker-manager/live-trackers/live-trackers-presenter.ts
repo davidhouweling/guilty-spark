@@ -249,10 +249,11 @@ export class LiveTrackersPresenter {
         },
       });
       if (item.hasActiveSeries) {
-        const hasLiveContext = this.activeLiveView?.trackerId === item.trackerId;
+        const liveViewForItem = this.activeLiveView?.trackerId === item.trackerId ? this.activeLiveView : null;
+        const hasSeriesContext = liveViewForItem?.activeSeriesContext != null;
         actions.push({
           label: "Edit series",
-          disabled: snapshot.busy || !hasLiveContext,
+          disabled: snapshot.busy || !hasSeriesContext,
           onClick: (): void => {
             this.openManualSeriesDialog(item);
           },
