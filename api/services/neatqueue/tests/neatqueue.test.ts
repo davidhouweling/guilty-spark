@@ -2058,6 +2058,7 @@ describe("NeatQueueService", () => {
         const { jobToComplete } = neatQueueService.handleRequest(teamsCreatedRequest, neatQueueConfig);
         await jobToComplete?.();
 
+        expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
         const [, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], SeriesContextPayload];
         expect(payload.title).toBe("Eagles vs Cobras");
       });
