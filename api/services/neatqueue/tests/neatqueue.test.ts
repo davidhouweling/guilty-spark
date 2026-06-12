@@ -2063,7 +2063,7 @@ describe("NeatQueueService", () => {
         expect(payload.title).toBe("Eagles vs Cobras");
       });
 
-      it("uses guild name as title fallback when getGuild fails and team names are unavailable", async () => {
+      it("uses guild ID as title fallback when getGuild fails and team names are unavailable", async () => {
         const teamsCreatedRequest = getFakeNeatQueueData("teamsCreated");
         teamsCreatedRequest.teams = [];
         (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());
