@@ -47,6 +47,35 @@ export class HaloFilmService {
     return events;
   }
 
+  async buildKillMatrixAnalytics(matchStats: MatchStats): Promise<KillMatrixAnalytics> {
+    const events = await this.getHighlightEventsForMatch(matchStats.MatchId);
+    const xuidToTeamId = this.buildXuidToTeamMap(matchStats);
+    this.assignTeamIdsToEvents(events, xuidToTeamId);
+
+    const kills = events.filter((event) => event.eventType === "kill");
+    const deaths = events.filter((event) => event.eventType === "death");
+    const perfectByXuid = this.buildPerfectMedalsByXuid(events);
+
+    const { entries, maxTimeDeltaMs, usedDeathCount } = this.buildKillMatrixEntriesByPairing(kills, deaths);
+    this.assignPerfectsToEntries(entries, perfectByXuid);
+
+    const perfectCounts = this.buildPerfectCountsReport(perfectByXuid);
+
+    return {
+      entries,
+      pairingQuality: {
+        unpairedDeathCount: deaths.length - usedDeathCount,
+        maxTimeDeltaMs,
+      },
+      perfectCounts,
+    };
+  }
+
+  async buildKillMatrix(matchStats: MatchStats): Promise<KillMatrixEntry[]> {
+    const analytics = await this.buildKillMatrixAnalytics(matchStats);
+    return analytics.entries;
+  }
+
   private async getOrFetchFilmMetadata(
     matchId: string,
     authContext: { spartanToken: string; clearanceToken: string },
@@ -97,30 +126,6 @@ export class HaloFilmService {
     );
     await this.putCachedChunk(chunkCacheRequest, downloadedChunk);
     return downloadedChunk;
-  }
-
-  async buildKillMatrixAnalytics(matchStats: MatchStats): Promise<KillMatrixAnalytics> {
-    const events = await this.getHighlightEventsForMatch(matchStats.MatchId);
-    const xuidToTeamId = this.buildXuidToTeamMap(matchStats);
-    this.assignTeamIdsToEvents(events, xuidToTeamId);
-
-    const kills = events.filter((event) => event.eventType === "kill");
-    const deaths = events.filter((event) => event.eventType === "death");
-    const perfectByXuid = this.buildPerfectMedalsByXuid(events);
-
-    const { entries, maxTimeDeltaMs, usedDeathCount } = this.buildKillMatrixEntriesByPairing(kills, deaths);
-    this.assignPerfectsToEntries(entries, perfectByXuid);
-
-    const perfectCounts = this.buildPerfectCountsReport(perfectByXuid);
-
-    return {
-      entries,
-      pairingQuality: {
-        unpairedDeathCount: deaths.length - usedDeathCount,
-        maxTimeDeltaMs,
-      },
-      perfectCounts,
-    };
   }
 
   private buildXuidToTeamMap(matchStats: MatchStats): Map<string, number> {
@@ -247,11 +252,6 @@ export class HaloFilmService {
       total += count;
     }
     return { total, byXuid };
-  }
-
-  async buildKillMatrix(matchStats: MatchStats): Promise<KillMatrixEntry[]> {
-    const analytics = await this.buildKillMatrixAnalytics(matchStats);
-    return analytics.entries;
   }
 
   private createHeaders(spartanToken: string, clearanceToken?: string, acceptOverride?: string): HeadersInit {
