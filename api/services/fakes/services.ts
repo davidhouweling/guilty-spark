@@ -23,7 +23,7 @@ export function installFakeServicesWith(opts: Partial<Services & { env: Env }> =
   const haloInfiniteClient = opts.haloInfiniteClient ?? aFakeHaloInfiniteClient();
   const haloService = opts.haloService ?? aFakeHaloServiceWith({ infiniteClient: haloInfiniteClient, databaseService });
   const userTokenProvider = opts.userTokenProvider ?? aFakeUserTokenProviderWith({ authService, xboxService });
-  const analyticsService = opts.analyticsService ?? aFakeAnalyticsServiceWith({ env, haloService });
+  const analyticsService = opts.analyticsService ?? aFakeAnalyticsServiceWith({ haloService });
   const liveTrackerService =
     opts.liveTrackerService ?? aFakeLiveTrackerServiceWith({ logService, discordService, env });
   const neatQueueService =

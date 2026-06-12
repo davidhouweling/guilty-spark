@@ -6,10 +6,9 @@ import {
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { HaloService } from "../halo/halo";
-import { HaloFilmService } from "../halo/halo-film";
+import type { HaloFilmService } from "../halo/halo-film";
 
 export interface AnalyticsServiceOpts {
-  env: Env;
   haloService: HaloService;
   haloFilmService: HaloFilmService;
 }
@@ -41,7 +40,7 @@ export class AnalyticsService {
   private readonly haloService: HaloService;
   private readonly haloFilmService: HaloFilmService;
 
-  constructor({ env: _env, haloService, haloFilmService }: AnalyticsServiceOpts) {
+  constructor({ haloService, haloFilmService }: AnalyticsServiceOpts) {
     this.haloService = haloService;
     this.haloFilmService = haloFilmService;
   }

@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { authenticate } from "@xboxreplay/xboxlive-auth";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeAnalyticsServiceWith } from "../fakes/analytics.fake";
 import { getMatchStats } from "../../halo/fakes/data";
 import { HaloFilmService } from "../../halo/halo-film";
 import { CustomSpartanTokenProvider } from "../../halo/custom-spartan-token-provider";
 import { XboxService } from "../../xbox/xbox";
-import { authenticate } from "@xboxreplay/xboxlive-auth";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
 
 describe("AnalyticsService", () => {
@@ -47,7 +47,7 @@ describe("AnalyticsService", () => {
       },
     });
 
-    const service = aFakeAnalyticsServiceWith({ env, haloService, haloFilmService });
+    const service = aFakeAnalyticsServiceWith({ haloService, haloFilmService });
 
     const analytics = await service.getMatchAnalytics("match-123", ["killMatrix"]);
 
@@ -84,7 +84,7 @@ describe("AnalyticsService", () => {
         xboxService: new XboxService({ env, authenticate }),
       }),
     });
-    const service = aFakeAnalyticsServiceWith({ env, haloService, haloFilmService });
+    const service = aFakeAnalyticsServiceWith({ haloService, haloFilmService });
 
     await expect(service.getMatchAnalytics("match-123", ["scoreProgression"])).rejects.toThrow(
       "No supported analytics modules requested",

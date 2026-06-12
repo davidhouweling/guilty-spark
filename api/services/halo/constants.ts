@@ -1,5 +1,4 @@
-export const HALO_PC_USER_AGENT =
-  "SHIVA-2043073184/6.10021.18539.0 (release; PC)";
+export const HALO_PC_USER_AGENT = "SHIVA-2043073184/6.10021.18539.0 (release; PC)";
 
 export const MIN_XUID = 2_000_000_000_000_000n;
 export const MAX_XUID = 3_000_000_000_000_000n;

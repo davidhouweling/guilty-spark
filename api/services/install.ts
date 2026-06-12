@@ -89,8 +89,11 @@ export function installServices({ env }: InstallServicesOpts): Services {
     playerMatchesRateLimiter: new PlayerMatchesRateLimiter({ logService, maxCallsPerSecond: 2 }),
   });
   const userTokenProvider = new UserTokenProvider({ authService, xboxService, logService });
-  const haloFilmService = new HaloFilmService({ env, spartanTokenProvider: new CustomSpartanTokenProvider({ env, xboxService: new XboxService({ env, authenticate }) }) });
-  const analyticsService = new AnalyticsService({ env, haloService, haloFilmService });
+  const haloFilmService = new HaloFilmService({
+    env,
+    spartanTokenProvider: new CustomSpartanTokenProvider({ env, xboxService: new XboxService({ env, authenticate }) }),
+  });
+  const analyticsService = new AnalyticsService({ haloService, haloFilmService });
   const liveTrackerService = new LiveTrackerService({ env, logService, discordService });
   const individualTrackerService = new IndividualTrackerService({ env, logService, databaseService });
   const neatQueueService = new NeatQueueService({
