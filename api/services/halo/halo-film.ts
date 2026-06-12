@@ -25,8 +25,6 @@ import type {
 } from "./types";
 import type { CustomSpartanTokenProvider } from "./custom-spartan-token-provider";
 
-export type { ParsedHighlightEvent, KillMatrixEntry };
-
 export class HaloFilmService {
   private static readonly FILM_CACHE_TTL_SECONDS = 31_536_000;
   private static readonly CLEARANCE_CACHE_KEY = "film:clearance";

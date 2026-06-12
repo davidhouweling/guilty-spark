@@ -15,8 +15,9 @@ import type {
 import { sub } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
-import { HaloService, FetchablePlaylist } from "../halo";
+import { HaloService } from "../halo";
 import type { CachedUserInfo, MatchPlayer } from "../types";
+import { FetchablePlaylist } from "../types";
 import type { generateRoundRobinMapsFn } from "../round-robin";
 import type { DatabaseService } from "../../database/database";
 import { aFakeDatabaseServiceWith, aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake";

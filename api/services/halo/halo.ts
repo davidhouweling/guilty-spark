@@ -45,9 +45,6 @@ import type {
 } from "./types";
 import { noMatchError, TimeInSeconds, FetchablePlaylist } from "./types";
 
-export { FetchablePlaylist } from "./types";
-export type { MatchPlayer, PlayerEsraData } from "./types";
-
 export interface HaloServiceOpts {
   env: Env;
   logService: LogService;
