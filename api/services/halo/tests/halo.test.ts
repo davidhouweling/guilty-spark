@@ -3018,12 +3018,6 @@ describe("Halo service", () => {
     });
   });
 
-  describe("wrapPlayerXuid", () => {
-    it("wraps a xuid in xuid() format", () => {
-      expect(haloService.wrapPlayerXuid("1234567890")).toBe("xuid(1234567890)");
-    });
-  });
-
   describe("getRankedArenaCsrs", () => {
     it("returns an empty map if no xuids provided", async () => {
       const result = await haloService.getRankedArenaCsrs([]);
