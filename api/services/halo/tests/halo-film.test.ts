@@ -1,38 +1,51 @@
 import { deflateSync } from "node:zlib";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { MockInstance } from "vitest";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { aFakeEnvWith } from "../../../base/fakes/env.fake";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
+import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { getMatchStats } from "../fakes/data";
 import { CustomSpartanTokenProvider } from "../custom-spartan-token-provider";
 import { HaloFilmService } from "../halo-film";
 import type { ParsedHighlightEvent } from "../types";
 import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake";
 
+interface CacheContainer {
+  default: Cache;
+}
+
+let installedDefaultCache: Cache | undefined;
+
 function installInMemoryDefaultCache(): void {
   const cacheEntries = new Map<string, Response>();
-  const cache = {
+  const cache: Cache = {
     match: async (request: RequestInfo | URL): Promise<Response | undefined> => {
       const key = typeof request === "string" ? request : request instanceof URL ? request.toString() : request.url;
       const response = cacheEntries.get(key);
-      return response?.clone();
+      return Promise.resolve(response?.clone());
     },
     put: async (request: RequestInfo | URL, response: Response): Promise<void> => {
       const key = typeof request === "string" ? request : request instanceof URL ? request.toString() : request.url;
       cacheEntries.set(key, response.clone());
+      return Promise.resolve();
     },
     delete: async (request: RequestInfo | URL): Promise<boolean> => {
       const key = typeof request === "string" ? request : request instanceof URL ? request.toString() : request.url;
-      return cacheEntries.delete(key);
+      return Promise.resolve(cacheEntries.delete(key));
     },
   };
 
-  (globalThis as unknown as { caches: { default: Cache } }).caches = { default: cache as unknown as Cache };
+  installedDefaultCache = cache;
+  vi.stubGlobal("caches", { default: cache } satisfies CacheContainer);
+}
+
+function restoreDefaultCache(): void {
+  installedDefaultCache = undefined;
+  vi.unstubAllGlobals();
 }
 
 function defaultCache(): Cache {
-  return (globalThis as unknown as { caches: { default: Cache } }).caches.default;
+  return Preconditions.checkExists(installedDefaultCache);
 }
 
 const metadataCacheRequestFor = (matchId: string): Request =>
@@ -95,6 +108,10 @@ describe("HaloFilmService", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     installInMemoryDefaultCache();
+  });
+
+  afterEach(() => {
+    restoreDefaultCache();
   });
 
   it("uses metadata and chunk cache keys before network fetch", async () => {
@@ -541,7 +558,6 @@ describe("HaloFilmService", () => {
         },
       ]);
 
-
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.entries).toHaveLength(1);
       expect(analytics.pairingQuality.maxTimeDeltaMs).toBe(1);
@@ -590,7 +606,6 @@ describe("HaloFilmService", () => {
           teamId: null,
         },
       ]);
-
 
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.perfectCounts.total).toBe(1);
@@ -649,7 +664,6 @@ describe("HaloFilmService", () => {
         },
       ]);
 
-
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.perfectCounts.total).toBe(2);
       expect(analytics.perfectCounts.byXuid[killerXuid]).toBe(2);
@@ -697,7 +711,6 @@ describe("HaloFilmService", () => {
         },
       ]);
 
-
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.perfectCounts.total).toBe(0);
     });
@@ -724,7 +737,6 @@ describe("HaloFilmService", () => {
         },
       ]);
 
-
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.entries).toEqual([]);
     });
@@ -737,7 +749,6 @@ describe("HaloFilmService", () => {
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
 
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([]);
-
 
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.entries).toEqual([]);
@@ -778,8 +789,6 @@ describe("HaloFilmService", () => {
           teamId: null,
         },
       ]);
-
-
 
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.entries).toHaveLength(1);
