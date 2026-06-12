@@ -248,8 +248,8 @@ export class LiveTrackersPresenter {
           this.openGameSelection(item);
         },
       });
+      const liveViewForItem = this.activeLiveView?.trackerId === item.trackerId ? this.activeLiveView : null;
       if (item.hasActiveSeries) {
-        const liveViewForItem = this.activeLiveView?.trackerId === item.trackerId ? this.activeLiveView : null;
         const hasSeriesContext = liveViewForItem?.activeSeriesContext != null;
         actions.push({
           label: "Edit series",
@@ -259,8 +259,7 @@ export class LiveTrackersPresenter {
           },
         });
       } else {
-        const liveView = this.activeLiveView?.trackerId === item.trackerId ? this.activeLiveView : null;
-        if (liveView?.hasRecentCompletedSeries === true) {
+        if (liveViewForItem?.hasRecentCompletedSeries === true) {
           actions.push({
             label: "Resume series",
             disabled: snapshot.busy,

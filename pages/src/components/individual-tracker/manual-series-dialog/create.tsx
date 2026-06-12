@@ -34,9 +34,7 @@ export function ManualSeriesDialogSection({
   const onSeriesEditedRef = useRef(onSeriesEdited);
   onSeriesEditedRef.current = onSeriesEdited;
 
-  const initialDataRef = useRef(initialData);
-  initialDataRef.current = initialData;
-  const store = useMemo(() => new ManualSeriesDialogStore(initialDataRef.current), []);
+  const store = useMemo(() => new ManualSeriesDialogStore(initialData), []);
   const presenter = useMemo(
     () =>
       new ManualSeriesDialogPresenter({
