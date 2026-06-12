@@ -88,13 +88,16 @@ export class HaloFilmService {
     return filmMetadata;
   }
 
-  private findHighlightChunk(filmMetadata: FilmMetadataResponse): FilmMetadataResponse["CustomData"]["Chunks"][number] {
+  private findHighlightChunk(
+    matchId: string,
+    filmMetadata: FilmMetadataResponse,
+  ): FilmMetadataResponse["CustomData"]["Chunks"][number] {
     const highlightChunk = [...filmMetadata.CustomData.Chunks]
       .sort((left, right) => left.Index - right.Index)
       .findLast((chunk) => chunk.ChunkType === 3);
 
     if (highlightChunk == null) {
-      throw new Error(`No highlight chunk found for match`);
+      throw new Error(`No highlight chunk found for match ${matchId}`);
     }
 
     return highlightChunk;
@@ -105,7 +108,7 @@ export class HaloFilmService {
     filmMetadata: FilmMetadataResponse,
     authContext: { spartanToken: string; clearanceToken: string },
   ): Promise<Uint8Array> {
-    const highlightChunk = this.findHighlightChunk(filmMetadata);
+    const highlightChunk = this.findHighlightChunk(matchId, filmMetadata);
     const chunkCacheRequest = this.toChunkCacheRequest(matchId, highlightChunk.Index);
     const cachedChunk = await this.getCachedChunk(chunkCacheRequest);
     if (cachedChunk != null) {
@@ -449,16 +452,18 @@ export class HaloFilmService {
     const gamertagStart = usesExtendedLayout ? 0 : 12;
     const gamertagEnd = gamertagStart + 32;
     const gamertag = this.decodeUtf16Le(envelope.subarray(gamertagStart, gamertagEnd));
-    const [typeHint, isMedalByte, medalValue] = [envelope[47], envelope[55], envelope[59]];
+    // eslint-disable-next-line @typescript-eslint/prefer-destructuring
+    const typeHint = envelope[47];
+    // eslint-disable-next-line @typescript-eslint/prefer-destructuring
+    const isMedalByte = envelope[55];
+    const medalValueBytes = envelope.subarray(56, 60);
+    const medalValue =
+      medalValueBytes.length === 4
+        ? new DataView(medalValueBytes.buffer, medalValueBytes.byteOffset, 4).getUint32(0, true)
+        : 0;
     const timestampBytes = envelope.subarray(48, 52);
 
-    if (
-      typeHint == null ||
-      isMedalByte == null ||
-      medalValue == null ||
-      timestampBytes.length !== 4 ||
-      gamertag === ""
-    ) {
+    if (typeHint == null || isMedalByte == null || timestampBytes.length !== 4 || gamertag === "") {
       return null;
     }
 
