@@ -7,6 +7,7 @@ import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import { getMatchStats } from "../fakes/data";
 import { CustomSpartanTokenProvider } from "../custom-spartan-token-provider";
 import { HaloFilmService } from "../halo-film";
+import type { ParsedHighlightEvent } from "../types";
 import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake";
 
 function installInMemoryDefaultCache(): void {
@@ -297,7 +298,7 @@ describe("HaloFilmService", () => {
     const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
     const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
 
-    vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+    const mockHighlightEvents: ParsedHighlightEvent[] = [
       {
         xuid: killerXuid,
         gamertag: "killer",
@@ -358,7 +359,8 @@ describe("HaloFilmService", () => {
         medalValue: 0,
         teamId: null,
       },
-    ]);
+    ];
+    vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue(mockHighlightEvents);
 
     const analytics = await service.buildKillMatrixAnalytics(match);
     const [entry] = analytics.entries;
@@ -391,7 +393,7 @@ describe("HaloFilmService", () => {
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
 
-      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+      const mockHighlightEvents: ParsedHighlightEvent[] = [
         {
           xuid: killerXuid,
           gamertag: "killer",
@@ -412,7 +414,8 @@ describe("HaloFilmService", () => {
           medalValue: 0,
           teamId: null,
         },
-      ]);
+      ];
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue(mockHighlightEvents);
 
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.entries).toHaveLength(1);
@@ -428,7 +431,7 @@ describe("HaloFilmService", () => {
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
 
-      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+      const mockHighlightEvents: ParsedHighlightEvent[] = [
         {
           xuid: killerXuid,
           gamertag: "killer",
@@ -449,7 +452,8 @@ describe("HaloFilmService", () => {
           medalValue: 0,
           teamId: null,
         },
-      ]);
+      ];
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue(mockHighlightEvents);
 
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.entries).toEqual([]);
@@ -465,7 +469,7 @@ describe("HaloFilmService", () => {
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
 
-      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+      const mockHighlightEvents: ParsedHighlightEvent[] = [
         {
           xuid: killerXuid,
           gamertag: "killer",
@@ -496,7 +500,8 @@ describe("HaloFilmService", () => {
           medalValue: 0,
           teamId: null,
         },
-      ]);
+      ];
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue(mockHighlightEvents);
 
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.entries).toHaveLength(1);
@@ -535,6 +540,7 @@ describe("HaloFilmService", () => {
           teamId: null,
         },
       ]);
+
 
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.entries).toHaveLength(1);
@@ -584,6 +590,7 @@ describe("HaloFilmService", () => {
           teamId: null,
         },
       ]);
+
 
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.perfectCounts.total).toBe(1);
@@ -642,6 +649,7 @@ describe("HaloFilmService", () => {
         },
       ]);
 
+
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.perfectCounts.total).toBe(2);
       expect(analytics.perfectCounts.byXuid[killerXuid]).toBe(2);
@@ -689,6 +697,7 @@ describe("HaloFilmService", () => {
         },
       ]);
 
+
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.perfectCounts.total).toBe(0);
     });
@@ -715,6 +724,7 @@ describe("HaloFilmService", () => {
         },
       ]);
 
+
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.entries).toEqual([]);
     });
@@ -727,6 +737,7 @@ describe("HaloFilmService", () => {
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
 
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([]);
+
 
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.entries).toEqual([]);
@@ -767,6 +778,8 @@ describe("HaloFilmService", () => {
           teamId: null,
         },
       ]);
+
+
 
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.entries).toHaveLength(1);
