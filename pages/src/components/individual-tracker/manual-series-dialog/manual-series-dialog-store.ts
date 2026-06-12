@@ -8,9 +8,11 @@ export interface ManualSeriesTeamSnapshot {
 export type BackfillState = "idle" | "loading" | "done" | "error";
 
 export interface ManualSeriesDialogSnapshot {
+  readonly mode: "start" | "edit";
   readonly titleOverride: string;
   readonly subtitleOverride: string;
   readonly teams: readonly ManualSeriesTeamSnapshot[];
+  readonly hadInitialTeams: boolean;
   readonly backfillState: BackfillState;
   readonly backfillError: string | null;
   readonly backfillWarning: string | null;
@@ -18,6 +20,12 @@ export interface ManualSeriesDialogSnapshot {
   readonly selectedBackfillMatchIds: readonly string[];
   readonly busy: boolean;
   readonly submitError: string | null;
+}
+
+export interface SeriesInitialData {
+  readonly title: string;
+  readonly subtitle: string;
+  readonly teams: readonly ManualSeriesTeamSnapshot[];
 }
 
 const INITIAL_TEAM_MEMBERS: readonly string[] = ["", "", "", ""];
@@ -29,15 +37,30 @@ function buildDefaultTeams(): readonly ManualSeriesTeamSnapshot[] {
   ];
 }
 
+function normaliseTeams(data: SeriesInitialData): readonly ManualSeriesTeamSnapshot[] {
+  if (data.teams.length === 0) {
+    return buildDefaultTeams();
+  }
+  return data.teams.map((t) => ({
+    name: t.name,
+    members: t.members.length > 0 ? [...t.members] : [...INITIAL_TEAM_MEMBERS],
+  }));
+}
+
 export class ManualSeriesDialogStore {
   private snapshot: ManualSeriesDialogSnapshot;
   private readonly subscribers = new Set<() => void>();
+  private readonly initialData: SeriesInitialData | undefined;
 
-  public constructor() {
+  public constructor(initialData?: SeriesInitialData) {
+    const mode: "start" | "edit" = initialData != null ? "edit" : "start";
+    const teams = initialData != null ? normaliseTeams(initialData) : buildDefaultTeams();
     this.snapshot = {
-      titleOverride: "",
-      subtitleOverride: "",
-      teams: buildDefaultTeams(),
+      mode,
+      titleOverride: initialData?.title ?? "",
+      subtitleOverride: initialData?.subtitle ?? "",
+      teams,
+      hadInitialTeams: (initialData?.teams.length ?? 0) > 0,
       backfillState: "idle",
       backfillError: null,
       backfillWarning: null,
@@ -46,6 +69,7 @@ export class ManualSeriesDialogStore {
       busy: false,
       submitError: null,
     };
+    this.initialData = initialData;
   }
 
   public subscribe(listener: () => void): () => void {
@@ -59,11 +83,15 @@ export class ManualSeriesDialogStore {
     return this.snapshot;
   }
 
-  public reset(): void {
+  public reset(initialData?: SeriesInitialData): void {
+    const data = initialData ?? this.initialData;
+    const teams = data != null ? normaliseTeams(data) : buildDefaultTeams();
     this.update({
-      titleOverride: "",
-      subtitleOverride: "",
-      teams: buildDefaultTeams(),
+      mode: data != null ? "edit" : "start",
+      titleOverride: data?.title ?? "",
+      subtitleOverride: data?.subtitle ?? "",
+      teams,
+      hadInitialTeams: (data?.teams.length ?? 0) > 0,
       backfillState: "idle",
       backfillError: null,
       backfillWarning: null,

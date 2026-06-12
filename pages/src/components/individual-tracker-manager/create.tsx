@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { AuthService } from "../../services/auth/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
+import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
 import { IndividualTrackerPresenter } from "./individual-tracker-presenter";
 import { IndividualTrackerStore } from "./individual-tracker-store";
 import { IndividualTrackerShell } from "./individual-tracker";
@@ -12,23 +13,26 @@ interface IndividualTrackerManagerPageProps {
   readonly authService: AuthService;
   readonly individualTrackerService: IndividualTrackerService;
   readonly settingsService: IndividualTrackerSettingsService;
+  readonly individualTrackerViewService: IndividualTrackerViewService;
 }
 
 export function IndividualTrackerManagerPage({
   authService,
   individualTrackerService,
   settingsService,
+  individualTrackerViewService,
 }: IndividualTrackerManagerPageProps): React.ReactElement {
   const { controller: liveTrackersController, Component: LiveTrackersComponent } = useMemo(
     () =>
       createLiveTrackersSection({
         individualTrackerService,
+        individualTrackerViewService,
         navigateTo: (url): void => {
           window.location.assign(url);
         },
         confirmDelete: (message): boolean => window.confirm(message),
       }),
-    [individualTrackerService],
+    [individualTrackerService, individualTrackerViewService],
   );
 
   const store = useMemo(() => new IndividualTrackerStore(), []);

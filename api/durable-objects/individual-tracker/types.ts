@@ -49,6 +49,7 @@ export interface IndividualTrackerViewMatch {
   gameVariantCategory: number;
   outcome: string;
   score: string;
+  isMatchmaking: boolean;
 }
 
 export interface SeriesPlayer {

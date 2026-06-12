@@ -62,6 +62,7 @@ describe("/api/individual-tracker view route", () => {
               gameVariantCategory: 6,
               outcome: "Win",
               score: "50:42",
+              isMatchmaking: false,
             },
           ],
           series: [

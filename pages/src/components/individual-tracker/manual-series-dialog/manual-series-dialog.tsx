@@ -107,14 +107,16 @@ export function ManualSeriesDialog({
   const showBackfillResults = snapshot.backfillState === "done" || snapshot.backfillState === "error";
 
   return (
-    <Dialog open={isOpen} onClose={onClose} title="Start Series">
+    <Dialog open={isOpen} onClose={onClose} title={snapshot.mode === "edit" ? "Edit Series" : "Start Series"}>
       <div className={styles.wrapper}>
         <Alert variant="info">
           Use this when you are running a custom series outside NeatQueue. If Guilty Spark is already monitoring your
           NeatQueue series, setup is automatic and you do not need this flow.
         </Alert>
 
-        <p className={styles.caption}>Creating series for: {trackerLabel}</p>
+        <p className={styles.caption}>
+          {snapshot.mode === "edit" ? "Editing series for" : "Creating series for"}: {trackerLabel}
+        </p>
 
         <section className={styles.section}>
           <h3 className={styles.sectionTitle}>Series details (optional)</h3>
@@ -195,7 +197,7 @@ export function ManualSeriesDialog({
             Cancel
           </Button>
           <Button onClick={onStartSeries} disabled={snapshot.busy}>
-            Start series
+            {snapshot.mode === "edit" ? "Save series" : "Start series"}
           </Button>
         </div>
       </div>

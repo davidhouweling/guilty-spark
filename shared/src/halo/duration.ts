@@ -1,3 +1,4 @@
+import { differenceInSeconds } from "date-fns";
 import * as tinyduration from "tinyduration";
 
 export function getDurationInSeconds(duration: string): number {
@@ -49,4 +50,9 @@ export function getReadableDuration(duration: string, locale?: string): string {
   }
 
   return output.length ? output.join(" ") : "0s";
+}
+
+export function getDurationBetween(startIso: string, endIso: string): string {
+  const seconds = Math.max(0, differenceInSeconds(new Date(endIso), new Date(startIso)));
+  return getReadableDuration(getDurationInIsoString(seconds));
 }

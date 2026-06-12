@@ -26,6 +26,7 @@ interface FakeMatchOverrides {
   readonly gameVariantCategory?: number;
   readonly outcome?: string;
   readonly score?: string;
+  readonly isMatchmaking?: boolean;
 }
 
 export function aFakeTrackerMatchSummaryWith(overrides: FakeMatchOverrides = {}): TrackerMatchSummary {
@@ -40,6 +41,7 @@ export function aFakeTrackerMatchSummaryWith(overrides: FakeMatchOverrides = {})
     gameVariantCategory: overrides.gameVariantCategory ?? 6,
     outcome: overrides.outcome ?? "Win",
     score: overrides.score ?? "50:42",
+    isMatchmaking: overrides.isMatchmaking ?? false,
   };
 }
 

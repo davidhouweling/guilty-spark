@@ -948,6 +948,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         gameVariantCategory: summary.gameVariantCategory,
         outcome: summary.outcome,
         score: summary.score,
+        isMatchmaking: summary.isMatchmaking,
       })),
       series,
       lastUpdateTime: state.lastUpdateTime,
