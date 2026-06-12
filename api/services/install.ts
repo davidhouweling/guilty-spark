@@ -18,6 +18,7 @@ import { createHaloInfiniteClientProxy } from "./halo/halo-infinite-client-proxy
 import { createResilientFetch } from "./halo/resilient-fetch";
 import { PlayerMatchesRateLimiter } from "./halo/player-matches-rate-limiter";
 import { UserTokenProvider } from "./halo/user-token-provider";
+import { AnalyticsService } from "./analytics/analytics";
 
 export interface Services {
   logService: LogService;
@@ -28,6 +29,7 @@ export interface Services {
   haloService: HaloService;
   haloInfiniteClient: HaloInfiniteClient;
   userTokenProvider: UserTokenProvider;
+  analyticsService: AnalyticsService;
   liveTrackerService: LiveTrackerService;
   neatQueueService: NeatQueueService;
   individualTrackerService: IndividualTrackerService;
@@ -86,6 +88,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
     playerMatchesRateLimiter: new PlayerMatchesRateLimiter({ logService, maxCallsPerSecond: 2 }),
   });
   const userTokenProvider = new UserTokenProvider({ authService, xboxService, logService });
+  const analyticsService = new AnalyticsService({ env, haloService });
   const liveTrackerService = new LiveTrackerService({ env, logService, discordService });
   const individualTrackerService = new IndividualTrackerService({ env, logService, databaseService });
   const neatQueueService = new NeatQueueService({
@@ -107,6 +110,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
     haloService,
     haloInfiniteClient,
     userTokenProvider,
+    analyticsService,
     liveTrackerService,
     neatQueueService,
     individualTrackerService,

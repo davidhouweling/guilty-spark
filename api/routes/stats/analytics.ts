@@ -6,7 +6,6 @@ import {
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import type { RoutesRegisterHandler } from "../base/types";
-import { AnalyticsService } from "../../services/analytics/analytics";
 
 const ANALYTICS_CACHE_CONTROL = "public, max-age=31536000";
 
@@ -29,8 +28,7 @@ export const matchAnalyticsRoute: RoutesRegisterHandler = (router, installServic
     const { modules } = queryParams.data;
 
     try {
-      const analyticsService = new AnalyticsService({ env, haloService: services.haloService });
-      const analytics = await analyticsService.getMatchAnalytics(matchId, modules);
+      const analytics = await services.analyticsService.getMatchAnalytics(matchId, modules);
       return matchAnalyticsContract.toResponse(
         { analytics },
         {
