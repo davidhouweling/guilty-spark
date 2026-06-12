@@ -1,13 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { installFakeServicesWith } from "../../fakes/services";
 import { getMatchStats } from "../../halo/fakes/data";
 import { HaloFilmService } from "../../halo/halo-film";
-import { createAnalyticsService } from "../analytics";
+import { AnalyticsService } from "../analytics";
 
-describe("createAnalyticsService", () => {
+describe("AnalyticsService", () => {
   it("returns killMatrix analytics for supported module", async () => {
     const env = aFakeEnvWith();
     const services = installFakeServicesWith({ env });
@@ -37,7 +36,7 @@ describe("createAnalyticsService", () => {
       },
     });
 
-    const service = createAnalyticsService(env, services.haloService, services.logService);
+    const service = new AnalyticsService({ env, haloService: services.haloService });
 
     const analytics = await service.getMatchAnalytics("match-123", ["killMatrix"]);
 
@@ -67,7 +66,7 @@ describe("createAnalyticsService", () => {
   it("rejects when no supported modules are requested", async () => {
     const env = aFakeEnvWith();
     const services = installFakeServicesWith({ env });
-    const service = createAnalyticsService(env, services.haloService, services.logService);
+    const service = new AnalyticsService({ env, haloService: services.haloService });
 
     await expect(service.getMatchAnalytics("match-123", ["scoreProgression"])).rejects.toThrow(
       "No supported analytics modules requested",

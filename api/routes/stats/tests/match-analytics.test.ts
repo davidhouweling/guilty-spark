@@ -4,7 +4,7 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
-import * as analyticsServiceModule from "../../../services/analytics/analytics";
+import { AnalyticsService } from "../../../services/analytics/analytics";
 import { statsRoutesRegisterHandler } from "../stats";
 
 describe("/api/stats/match-analytics/:matchId", () => {
@@ -41,9 +41,7 @@ describe("/api/stats/match-analytics/:matchId", () => {
       },
     };
 
-    vi.spyOn(analyticsServiceModule, "createAnalyticsService").mockReturnValue({
-      getMatchAnalytics: vi.fn().mockResolvedValue(analytics),
-    });
+    vi.spyOn(AnalyticsService.prototype, "getMatchAnalytics").mockResolvedValue(analytics);
 
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => installFakeServicesWith({ env }));
     statsRoutesRegisterHandler(router, localInstallServices);
@@ -72,9 +70,7 @@ describe("/api/stats/match-analytics/:matchId", () => {
   });
 
   it("returns 500 with generic message when analytics service throws", async () => {
-    vi.spyOn(analyticsServiceModule, "createAnalyticsService").mockReturnValue({
-      getMatchAnalytics: vi.fn().mockRejectedValue(new Error("boom")),
-    });
+    vi.spyOn(AnalyticsService.prototype, "getMatchAnalytics").mockRejectedValue(new Error("boom"));
 
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => installFakeServicesWith({ env }));
     statsRoutesRegisterHandler(router, localInstallServices);
