@@ -28,14 +28,9 @@ describe("HaloFilmService", () => {
     const env = await aFakeCacheBackedEnvWith();
     const xboxService = aFakeXboxServiceWith({ env });
     const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+    vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
+    await env.APP_DATA.put("film:clearance", "test-clearance-token");
     const service = new HaloFilmService({ env, spartanTokenProvider });
-    vi.spyOn(
-      service as unknown as { resolveAuthContext: () => Promise<{ spartanToken: string; clearanceToken: string }> },
-      "resolveAuthContext",
-    ).mockResolvedValue({
-      spartanToken: "test-spartan-token",
-      clearanceToken: "test-clearance-token",
-    });
 
     const compressedChunk = deflateSync(Uint8Array.of(0x01, 0x02, 0x03));
     const metadata = {
@@ -71,14 +66,9 @@ describe("HaloFilmService", () => {
     const env = await aFakeCacheBackedEnvWith();
     const xboxService = aFakeXboxServiceWith({ env });
     const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+    vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
+    await env.APP_DATA.put("film:clearance", "test-clearance-token");
     const service = new HaloFilmService({ env, spartanTokenProvider });
-    vi.spyOn(
-      service as unknown as { resolveAuthContext: () => Promise<{ spartanToken: string; clearanceToken: string }> },
-      "resolveAuthContext",
-    ).mockResolvedValue({
-      spartanToken: "test-spartan-token",
-      clearanceToken: "test-clearance-token",
-    });
 
     const compressedChunk = deflateSync(Uint8Array.of(0x04, 0x05, 0x06));
     const metadata = {
