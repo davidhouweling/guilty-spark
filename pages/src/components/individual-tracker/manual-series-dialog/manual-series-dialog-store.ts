@@ -12,6 +12,7 @@ export interface ManualSeriesDialogSnapshot {
   readonly titleOverride: string;
   readonly subtitleOverride: string;
   readonly teams: readonly ManualSeriesTeamSnapshot[];
+  readonly hadInitialTeams: boolean;
   readonly backfillState: BackfillState;
   readonly backfillError: string | null;
   readonly backfillWarning: string | null;
@@ -59,6 +60,7 @@ export class ManualSeriesDialogStore {
       titleOverride: initialData?.title ?? "",
       subtitleOverride: initialData?.subtitle ?? "",
       teams,
+      hadInitialTeams: (initialData?.teams.length ?? 0) > 0,
       backfillState: "idle",
       backfillError: null,
       backfillWarning: null,
@@ -89,6 +91,7 @@ export class ManualSeriesDialogStore {
       titleOverride: data?.title ?? "",
       subtitleOverride: data?.subtitle ?? "",
       teams,
+      hadInitialTeams: (data?.teams.length ?? 0) > 0,
       backfillState: "idle",
       backfillError: null,
       backfillWarning: null,

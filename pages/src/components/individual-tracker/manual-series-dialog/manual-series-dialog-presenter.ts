@@ -229,7 +229,7 @@ export class ManualSeriesDialogPresenter {
       await this.config.individualTrackerService.editSeries(this.config.trackerId, {
         titleOverride: snapshot.titleOverride.trim() || null,
         subtitleOverride: snapshot.subtitleOverride.trim() || null,
-        ...(hasTeamData ? { teams } : {}),
+        ...(hasTeamData || snapshot.hadInitialTeams ? { teams } : {}),
       });
 
       if (this.checkDisposed()) {

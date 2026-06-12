@@ -334,6 +334,36 @@ describe("ManualSeriesDialogPresenter", () => {
       );
     });
 
+    it("includes teams when all teams are cleared in edit mode (had initial teams)", async () => {
+      const service = aFakeIndividualTrackerServiceWith();
+      const editSeriesSpy = vi.spyOn(service, "editSeries");
+      const store = new ManualSeriesDialogStore({
+        title: "My Series",
+        subtitle: "",
+        teams: [{ name: "Eagles", members: ["Alpha"] }],
+      });
+      const presenter = new ManualSeriesDialogPresenter({
+        trackerId: "tracker-1",
+        store,
+        individualTrackerService: service,
+        individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
+        onSeriesStarted: vi.fn(),
+      });
+
+      store.setTeams([{ name: "", members: [] }]);
+
+      await new Promise<void>((resolve) => {
+        store.subscribe(() => {
+          if (!store.getSnapshot().busy) {
+            resolve();
+          }
+        });
+        presenter.editSeries();
+      });
+
+      expect(editSeriesSpy).toHaveBeenCalledWith("tracker-1", expect.objectContaining({ teams: expect.any(Array) }));
+    });
+
     it("includes teams when at least one team has data", async () => {
       const service = aFakeIndividualTrackerServiceWith();
       const editSeriesSpy = vi.spyOn(service, "editSeries");
