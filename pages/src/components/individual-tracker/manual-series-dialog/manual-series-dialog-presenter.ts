@@ -3,7 +3,7 @@ import { getDurationBetween } from "@guilty-spark/shared/halo/duration";
 import type { IndividualTrackerService, TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import { formatDisplayDateTime } from "../../../services/individual-tracker/match-history-helpers";
-import type { ManualSeriesDialogSnapshot, ManualSeriesDialogStore } from "./manual-series-dialog-store";
+import type { ManualSeriesDialogStore } from "./manual-series-dialog-store";
 
 interface Config {
   readonly trackerId: string;
@@ -55,10 +55,6 @@ export class ManualSeriesDialogPresenter {
 
   private checkDisposed(): boolean {
     return this.disposed;
-  }
-
-  public static present(snapshot: ManualSeriesDialogSnapshot): ManualSeriesDialogSnapshot {
-    return snapshot;
   }
 
   public setTitleOverride(value: string): void {
