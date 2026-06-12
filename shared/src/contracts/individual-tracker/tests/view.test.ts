@@ -26,6 +26,7 @@ describe("trackerViewContract", () => {
           gameVariantCategory: 6,
           outcome: "Win",
           score: "50:42",
+          isMatchmaking: false,
         },
       ],
       series: [
@@ -100,6 +101,7 @@ describe("trackerViewMessageSchema", () => {
           gameVariantCategory: 6,
           outcome: "Win",
           score: "50:42",
+          isMatchmaking: false,
         },
       ],
       series: [],

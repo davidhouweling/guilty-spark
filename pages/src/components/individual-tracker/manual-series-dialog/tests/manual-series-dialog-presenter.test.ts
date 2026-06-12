@@ -1,26 +1,70 @@
 import { describe, expect, it, vi } from "vitest";
 import type { IndividualTrackerService } from "../../../../services/individual-tracker/types";
+import { aFakeIndividualTrackerServiceWith } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
 import {
-  aFakeIndividualTrackerServiceWith,
-  aFakeMatchHistoryEntryWith,
-  aFakeTrackerSearchResultWith,
-} from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
+  aFakeIndividualTrackerViewServiceWith,
+  aFakeTrackerMatchSummaryWith,
+  aFakeTrackerViewStateWith,
+} from "../../../../services/individual-tracker/fakes/view.fake";
 import { ManualSeriesDialogPresenter } from "../manual-series-dialog-presenter";
 import { ManualSeriesDialogStore } from "../manual-series-dialog-store";
 
 function buildPresenter(
   service: IndividualTrackerService,
   onSeriesStarted = vi.fn<() => void>(),
+  viewServiceOverride?: ReturnType<typeof aFakeIndividualTrackerViewServiceWith>,
 ): { presenter: ManualSeriesDialogPresenter; store: ManualSeriesDialogStore } {
   const store = new ManualSeriesDialogStore();
+  const individualTrackerViewService = viewServiceOverride ?? aFakeIndividualTrackerViewServiceWith();
   const presenter = new ManualSeriesDialogPresenter({
     trackerId: "tracker-1",
     store,
     individualTrackerService: service,
+    individualTrackerViewService,
     onSeriesStarted,
   });
   return { presenter, store };
 }
+
+describe("ManualSeriesDialogStore", () => {
+  it("defaults to start mode", () => {
+    const store = new ManualSeriesDialogStore();
+    expect(store.getSnapshot().mode).toBe("start");
+  });
+
+  it("is edit mode when initialData is provided", () => {
+    const store = new ManualSeriesDialogStore({ title: "My Series", subtitle: "Bo3", teams: [] });
+    expect(store.getSnapshot().mode).toBe("edit");
+    expect(store.getSnapshot().titleOverride).toBe("My Series");
+  });
+
+  it("reset restores to initial data in edit mode", () => {
+    const store = new ManualSeriesDialogStore({ title: "Original", subtitle: "Bo3", teams: [] });
+    store.setTitleOverride("Changed");
+    store.reset();
+    expect(store.getSnapshot().titleOverride).toBe("Original");
+  });
+
+  it("falls back to INITIAL_TEAM_MEMBERS slots when a team has no members", () => {
+    const store = new ManualSeriesDialogStore({
+      title: "T",
+      subtitle: "",
+      teams: [{ name: "Alpha", members: [] }],
+    });
+    expect(store.getSnapshot().teams[0].members).toHaveLength(4);
+  });
+
+  it("reset falls back to INITIAL_TEAM_MEMBERS slots when a team has no members", () => {
+    const store = new ManualSeriesDialogStore({
+      title: "T",
+      subtitle: "",
+      teams: [{ name: "Alpha", members: [] }],
+    });
+    store.setTitleOverride("Changed");
+    store.reset();
+    expect(store.getSnapshot().teams[0].members).toHaveLength(4);
+  });
+});
 
 describe("ManualSeriesDialogPresenter", () => {
   describe("team editing", () => {
@@ -63,78 +107,97 @@ describe("ManualSeriesDialogPresenter", () => {
   });
 
   describe("backfill discovery", () => {
-    it("resolves shared custom matches across all team members", async () => {
-      const sharedMatch = aFakeMatchHistoryEntryWith({ matchId: "shared-1", category: "custom" });
-      const alphaOnlyMatch = aFakeMatchHistoryEntryWith({ matchId: "alpha-only", category: "custom" });
-      const bravoOnlyMatch = aFakeMatchHistoryEntryWith({ matchId: "bravo-only", category: "custom" });
-
-      const alphaResult = aFakeTrackerSearchResultWith({ gamertag: "Alpha", xuid: "xuid-alpha" });
-      const bravoResult = aFakeTrackerSearchResultWith({ gamertag: "Bravo", xuid: "xuid-bravo" });
-
-      const service = aFakeIndividualTrackerServiceWith({
-        searchResults: [alphaResult, bravoResult],
+    it("loads tracker matches from individualTrackerViewService.getView", async () => {
+      const match = aFakeTrackerMatchSummaryWith({ matchId: "tracker-match-1" });
+      const viewService = aFakeIndividualTrackerViewServiceWith({
+        view: aFakeTrackerViewStateWith({ matches: [match] }),
       });
-
-      const searchSpy = vi.spyOn(service, "searchGamertag");
-      const historySpy = vi.spyOn(service, "getMatchHistory").mockImplementation(async (xuid) => {
-        await Promise.resolve();
-        if (xuid === "xuid-alpha") {
-          return { matches: [sharedMatch, alphaOnlyMatch], suggestedGroupings: [] };
-        }
-        if (xuid === "xuid-bravo") {
-          return { matches: [sharedMatch, bravoOnlyMatch], suggestedGroupings: [] };
-        }
-        return { matches: [], suggestedGroupings: [] };
-      });
-
-      const { presenter, store } = buildPresenter(service);
-      presenter.setTeamMember(0, 0, "Alpha");
-      presenter.setTeamMember(1, 0, "Bravo");
-
-      await new Promise<void>((resolve) => {
-        store.subscribe(() => {
-          const s = store.getSnapshot();
-          if (s.backfillState === "done" || s.backfillState === "error") {
-            resolve();
-          }
-        });
-        presenter.discoverBackfillMatches();
-      });
-
-      expect(searchSpy).toHaveBeenCalledWith("Alpha");
-      expect(searchSpy).toHaveBeenCalledWith("Bravo");
-      expect(historySpy).toHaveBeenCalledWith("xuid-alpha", 0, 25, "custom");
-      expect(historySpy).toHaveBeenCalledWith("xuid-bravo", 0, 25, "custom");
-
-      const snapshot = store.getSnapshot();
-      expect(snapshot.backfillState).toBe("done");
-      expect(snapshot.backfillMatches).toHaveLength(1);
-      expect(snapshot.backfillMatches[0].matchId).toBe("shared-1");
-    });
-
-    it("sets error when no player identities are resolved", async () => {
-      const service = aFakeIndividualTrackerServiceWith({ searchResults: [] });
-      const { presenter, store } = buildPresenter(service);
-      presenter.setTeamMember(0, 0, "Unknown");
-
-      await new Promise<void>((resolve) => {
-        store.subscribe(() => {
-          const s = store.getSnapshot();
-          if (s.backfillState === "done" || s.backfillState === "error") {
-            resolve();
-          }
-        });
-        presenter.discoverBackfillMatches();
-      });
-
-      const snapshot = store.getSnapshot();
-      expect(snapshot.backfillState).toBe("done");
-      expect(snapshot.backfillError).toBeTruthy();
-    });
-
-    it("sets error when no member names are entered", async () => {
       const service = aFakeIndividualTrackerServiceWith();
-      const { presenter, store } = buildPresenter(service);
+      const { presenter, store } = buildPresenter(service, vi.fn(), viewService);
+
+      await new Promise<void>((resolve) => {
+        store.subscribe(() => {
+          const s = store.getSnapshot();
+          if (s.backfillState === "done" || s.backfillState === "error") {
+            resolve();
+          }
+        });
+        presenter.discoverBackfillMatches();
+      });
+
+      expect(store.getSnapshot().backfillState).toBe("done");
+      expect(store.getSnapshot().backfillMatches).toHaveLength(1);
+      expect(store.getSnapshot().backfillMatches[0].matchId).toBe("tracker-match-1");
+    });
+
+    it("filters out matchmaking matches", async () => {
+      const customMatch = aFakeTrackerMatchSummaryWith({ matchId: "custom-1", isMatchmaking: false });
+      const matchmakingMatch = aFakeTrackerMatchSummaryWith({ matchId: "mm-1", isMatchmaking: true });
+      const viewService = aFakeIndividualTrackerViewServiceWith({
+        view: aFakeTrackerViewStateWith({ matches: [customMatch, matchmakingMatch] }),
+      });
+      const { presenter, store } = buildPresenter(aFakeIndividualTrackerServiceWith(), vi.fn(), viewService);
+
+      await new Promise<void>((resolve) => {
+        store.subscribe(() => {
+          const s = store.getSnapshot();
+          if (s.backfillState === "done" || s.backfillState === "error") {
+            resolve();
+          }
+        });
+        presenter.discoverBackfillMatches();
+      });
+
+      expect(store.getSnapshot().backfillState).toBe("done");
+      expect(store.getSnapshot().backfillMatches).toHaveLength(1);
+      expect(store.getSnapshot().backfillMatches[0].matchId).toBe("custom-1");
+    });
+
+    it("sorts matches most-recent-first", async () => {
+      const older = aFakeTrackerMatchSummaryWith({ matchId: "old", startTime: "2100-01-01T00:00:00.000Z" });
+      const newer = aFakeTrackerMatchSummaryWith({ matchId: "new", startTime: "2100-01-02T00:00:00.000Z" });
+      const viewService = aFakeIndividualTrackerViewServiceWith({
+        view: aFakeTrackerViewStateWith({ matches: [older, newer] }),
+      });
+      const { presenter, store } = buildPresenter(aFakeIndividualTrackerServiceWith(), vi.fn(), viewService);
+
+      await new Promise<void>((resolve) => {
+        store.subscribe(() => {
+          const s = store.getSnapshot();
+          if (s.backfillState === "done" || s.backfillState === "error") {
+            resolve();
+          }
+        });
+        presenter.discoverBackfillMatches();
+      });
+
+      expect(store.getSnapshot().backfillMatches.map((m) => m.matchId)).toEqual(["new", "old"]);
+    });
+
+    it("sets error when tracker has no matches", async () => {
+      const viewService = aFakeIndividualTrackerViewServiceWith({
+        view: aFakeTrackerViewStateWith({ matches: [] }),
+      });
+      const { presenter, store } = buildPresenter(aFakeIndividualTrackerServiceWith(), vi.fn(), viewService);
+
+      await new Promise<void>((resolve) => {
+        store.subscribe(() => {
+          const s = store.getSnapshot();
+          if (s.backfillState === "done" || s.backfillState === "error") {
+            resolve();
+          }
+        });
+        presenter.discoverBackfillMatches();
+      });
+
+      expect(store.getSnapshot().backfillState).toBe("done");
+      expect(store.getSnapshot().backfillError).toBeTruthy();
+    });
+
+    it("sets error when getView throws", async () => {
+      const viewService = aFakeIndividualTrackerViewServiceWith();
+      vi.spyOn(viewService, "getView").mockRejectedValue(new Error("Network error"));
+      const { presenter, store } = buildPresenter(aFakeIndividualTrackerServiceWith(), vi.fn(), viewService);
 
       await new Promise<void>((resolve) => {
         store.subscribe(() => {
@@ -146,39 +209,8 @@ describe("ManualSeriesDialogPresenter", () => {
         presenter.discoverBackfillMatches();
       });
 
+      expect(store.getSnapshot().backfillState).toBe("error");
       expect(store.getSnapshot().backfillError).toBeTruthy();
-    });
-
-    it("filters out matchmaking matches from backfill candidates", async () => {
-      const customMatch = aFakeMatchHistoryEntryWith({ matchId: "custom-1", category: "custom" });
-      const matchmakingMatch = aFakeMatchHistoryEntryWith({
-        matchId: "mm-1",
-        category: "matchmaking",
-        isMatchmaking: true,
-      });
-
-      const result = aFakeTrackerSearchResultWith({ gamertag: "Alpha", xuid: "xuid-alpha" });
-      const service = aFakeIndividualTrackerServiceWith({ searchResults: [result] });
-
-      vi.spyOn(service, "getMatchHistory").mockResolvedValue({
-        matches: [customMatch, matchmakingMatch],
-        suggestedGroupings: [],
-      });
-
-      const { presenter, store } = buildPresenter(service);
-      presenter.setTeamMember(0, 0, "Alpha");
-
-      await new Promise<void>((resolve) => {
-        store.subscribe(() => {
-          const s = store.getSnapshot();
-          if (s.backfillState === "done" || s.backfillState === "error") {
-            resolve();
-          }
-        });
-        presenter.discoverBackfillMatches();
-      });
-
-      expect(store.getSnapshot().backfillMatches.every((m) => m.category === "custom")).toBe(true);
     });
   });
 
@@ -242,6 +274,130 @@ describe("ManualSeriesDialogPresenter", () => {
 
       expect(startSeriesSpy).not.toHaveBeenCalled();
       expect(store.getSnapshot().busy).toBe(false);
+    });
+  });
+
+  describe("editSeries", () => {
+    it("calls service editSeries with trimmed values then fires onSeriesEdited", async () => {
+      const service = aFakeIndividualTrackerServiceWith();
+      const editSeriesSpy = vi.spyOn(service, "editSeries");
+      const onSeriesEdited = vi.fn<() => void>();
+      const store = new ManualSeriesDialogStore();
+      const presenter = new ManualSeriesDialogPresenter({
+        trackerId: "tracker-1",
+        store,
+        individualTrackerService: service,
+        individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
+        onSeriesStarted: vi.fn(),
+        onSeriesEdited,
+      });
+
+      store.setTitleOverride("Eagle vs Cobra");
+      store.setSubtitleOverride("Bo5");
+      presenter.setTeamMember(0, 0, "Alpha");
+
+      await new Promise<void>((resolve) => {
+        store.subscribe(() => {
+          if (!store.getSnapshot().busy) {
+            resolve();
+          }
+        });
+        presenter.editSeries();
+      });
+
+      expect(editSeriesSpy).toHaveBeenCalledWith(
+        "tracker-1",
+        expect.objectContaining({ titleOverride: "Eagle vs Cobra", subtitleOverride: "Bo5" }),
+      );
+      expect(onSeriesEdited).toHaveBeenCalled();
+    });
+
+    it("omits teams from the request when all teams are blank", async () => {
+      const service = aFakeIndividualTrackerServiceWith();
+      const editSeriesSpy = vi.spyOn(service, "editSeries");
+      const { presenter, store } = buildPresenter(service);
+
+      store.setTitleOverride("Title Only");
+
+      await new Promise<void>((resolve) => {
+        store.subscribe(() => {
+          if (!store.getSnapshot().busy) {
+            resolve();
+          }
+        });
+        presenter.editSeries();
+      });
+
+      expect(editSeriesSpy).toHaveBeenCalledWith(
+        "tracker-1",
+        expect.not.objectContaining({ teams: expect.anything() }),
+      );
+    });
+
+    it("includes teams when all teams are cleared in edit mode (had initial teams)", async () => {
+      const service = aFakeIndividualTrackerServiceWith();
+      const editSeriesSpy = vi.spyOn(service, "editSeries");
+      const store = new ManualSeriesDialogStore({
+        title: "My Series",
+        subtitle: "",
+        teams: [{ name: "Eagles", members: ["Alpha"] }],
+      });
+      const presenter = new ManualSeriesDialogPresenter({
+        trackerId: "tracker-1",
+        store,
+        individualTrackerService: service,
+        individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
+        onSeriesStarted: vi.fn(),
+      });
+
+      store.setTeams([{ name: "", members: [] }]);
+
+      await new Promise<void>((resolve) => {
+        store.subscribe(() => {
+          if (!store.getSnapshot().busy) {
+            resolve();
+          }
+        });
+        presenter.editSeries();
+      });
+
+      expect(editSeriesSpy).toHaveBeenCalledWith("tracker-1", expect.objectContaining({ teams: expect.any(Array) }));
+    });
+
+    it("includes teams when at least one team has data", async () => {
+      const service = aFakeIndividualTrackerServiceWith();
+      const editSeriesSpy = vi.spyOn(service, "editSeries");
+      const { presenter, store } = buildPresenter(service);
+
+      presenter.setTeamMember(0, 0, "Alpha");
+
+      await new Promise<void>((resolve) => {
+        store.subscribe(() => {
+          if (!store.getSnapshot().busy) {
+            resolve();
+          }
+        });
+        presenter.editSeries();
+      });
+
+      expect(editSeriesSpy).toHaveBeenCalledWith("tracker-1", expect.objectContaining({ teams: expect.any(Array) }));
+    });
+
+    it("sets submitError when editSeries fails", async () => {
+      const service = aFakeIndividualTrackerServiceWith();
+      vi.spyOn(service, "editSeries").mockRejectedValue(new Error("Server error"));
+      const { presenter, store } = buildPresenter(service);
+
+      await new Promise<void>((resolve) => {
+        store.subscribe(() => {
+          if (!store.getSnapshot().busy) {
+            resolve();
+          }
+        });
+        presenter.editSeries();
+      });
+
+      expect(store.getSnapshot().submitError).toBe("Server error");
     });
   });
 

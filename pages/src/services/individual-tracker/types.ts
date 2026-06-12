@@ -76,6 +76,12 @@ export interface ManualSeriesTeamForm {
   readonly members: readonly string[];
 }
 
+export interface EditSeriesRequest {
+  readonly titleOverride?: string | null;
+  readonly subtitleOverride?: string | null;
+  readonly teams?: readonly ManualSeriesTeamForm[];
+}
+
 export interface StartSeriesRequest {
   readonly trackerId: string;
   readonly titleOverride: string | null;
@@ -147,5 +153,7 @@ export interface IndividualTrackerService {
   getActiveTrackerState(xuid: string): Promise<TrackerStatusResponse>;
   deleteTracker(trackerId: string): Promise<void>;
   endSeries(trackerId: string): Promise<void>;
+  editSeries(trackerId: string, request: EditSeriesRequest): Promise<void>;
+  resumeSeries(trackerId: string): Promise<void>;
   connectToTracker(userId: string, trackerId: string): IndividualTrackerConnection;
 }

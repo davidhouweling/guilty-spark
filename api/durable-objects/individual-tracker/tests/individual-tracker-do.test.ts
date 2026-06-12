@@ -455,7 +455,7 @@ describe("IndividualTrackerDO", () => {
       const body: IndividualTrackerViewStateResponse = await response.json();
       const match = body.state?.matches[0];
 
-      expect(match).not.toHaveProperty("isMatchmaking");
+      expect(match).toHaveProperty("isMatchmaking", true);
       expect(match).not.toHaveProperty("teamRosterSignature");
       expect(match).not.toHaveProperty("teamOutcomes");
       expect(Object.keys(match ?? {}).sort()).toEqual(
@@ -470,6 +470,7 @@ describe("IndividualTrackerDO", () => {
           "gameVariantCategory",
           "outcome",
           "score",
+          "isMatchmaking",
         ].sort(),
       );
     });

@@ -14,6 +14,7 @@ export const trackerMatchSummarySchema = z.object({
   gameVariantCategory: z.number(),
   outcome: z.string(),
   score: z.string(),
+  isMatchmaking: z.boolean(),
 });
 export type TrackerMatchSummary = z.infer<typeof trackerMatchSummarySchema>;
 

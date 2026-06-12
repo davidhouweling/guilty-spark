@@ -7,6 +7,7 @@ import type {
 } from "../../../services/individual-tracker/types";
 import { buildIndividualTrackerTrackerViewPath } from "../../individual-tracker/routes";
 import type { GameSelectionDialogState, ManualSeriesDialogState } from "../types";
+import type { SeriesInitialData } from "../../individual-tracker/manual-series-dialog/manual-series-dialog-store";
 import type { TrackerDisplayStatus, TrackerListItem, TrackerRowAction } from "../tracker-list/tracker-list";
 import type { LiveTrackersStore } from "./live-trackers-store";
 import type { LiveTrackersSnapshot } from "./types";
@@ -247,7 +248,26 @@ export class LiveTrackersPresenter {
           this.openGameSelection(item);
         },
       });
-      if (!item.hasActiveSeries) {
+      const liveViewForItem = this.activeLiveView?.trackerId === item.trackerId ? this.activeLiveView : null;
+      if (item.hasActiveSeries) {
+        const hasSeriesContext = liveViewForItem?.activeSeriesContext != null;
+        actions.push({
+          label: "Edit series",
+          disabled: snapshot.busy || !hasSeriesContext,
+          onClick: (): void => {
+            this.openManualSeriesDialog(item);
+          },
+        });
+      } else {
+        if (liveViewForItem?.hasRecentCompletedSeries === true) {
+          actions.push({
+            label: "Resume series",
+            disabled: snapshot.busy,
+            onClick: (): void => {
+              void this.resumeSeries(trackerId);
+            },
+          });
+        }
         actions.push({
           label: "Start series",
           disabled: snapshot.busy,
@@ -550,6 +570,21 @@ export class LiveTrackersPresenter {
     }
   }
 
+  private async resumeSeries(trackerId: string): Promise<void> {
+    this.updateSnapshot((s) => ({ ...s, busy: true, errorMessage: null }));
+    try {
+      await this.config.individualTrackerService.resumeSeries(trackerId);
+      await this.refresh();
+    } catch (error) {
+      this.updateSnapshot((s) => ({
+        ...s,
+        errorMessage: error instanceof Error ? error.message : "Failed to resume series.",
+      }));
+    } finally {
+      this.updateSnapshot((s) => ({ ...s, busy: false }));
+    }
+  }
+
   private async selectLiveTracker(trackerId: string): Promise<void> {
     this.updateSnapshot((s) => ({ ...s, busy: true, errorMessage: null }));
     try {
@@ -617,9 +652,26 @@ export class LiveTrackersPresenter {
     if (item.trackerId == null) {
       return;
     }
+    const liveView = this.activeLiveView?.trackerId === item.trackerId ? this.activeLiveView : null;
+    const activeSeriesContext = liveView?.activeSeriesContext;
+    if (item.hasActiveSeries && activeSeriesContext == null) {
+      return;
+    }
+    const initialData: SeriesInitialData | undefined =
+      activeSeriesContext != null
+        ? {
+            title: activeSeriesContext.title,
+            subtitle: activeSeriesContext.subtitle ?? "",
+            teams: activeSeriesContext.teams.map((t) => ({
+              name: t.name,
+              members: t.players.map((p) => p.gamertag ?? ""),
+            })),
+          }
+        : undefined;
     const dialogState: ManualSeriesDialogState = {
       trackerId: item.trackerId,
       trackerLabel: item.gamertag,
+      initialData,
     };
     this.updateSnapshot((s) => ({ ...s, manualSeriesDialogState: dialogState }));
   }

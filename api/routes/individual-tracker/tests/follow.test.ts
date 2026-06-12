@@ -147,6 +147,7 @@ describe("/u/:gamertag follow routes", () => {
                 gameVariantCategory: 6,
                 outcome: "Win",
                 score: "50:42",
+                isMatchmaking: false,
               },
               {
                 matchId: "m2",
@@ -159,6 +160,7 @@ describe("/u/:gamertag follow routes", () => {
                 gameVariantCategory: 6,
                 outcome: "Loss",
                 score: "40:50",
+                isMatchmaking: false,
               },
               {
                 matchId: "m3",
@@ -171,6 +173,7 @@ describe("/u/:gamertag follow routes", () => {
                 gameVariantCategory: 6,
                 outcome: "Tie",
                 score: "50:50",
+                isMatchmaking: false,
               },
             ],
           }),

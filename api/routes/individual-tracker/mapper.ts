@@ -107,6 +107,7 @@ export function toTrackerView(
             gameVariantCategory: match.gameVariantCategory,
             outcome: match.outcome,
             score: match.score,
+            isMatchmaking: match.isMatchmaking,
           })),
     series:
       doState == null

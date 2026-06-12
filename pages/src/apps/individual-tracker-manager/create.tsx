@@ -52,6 +52,7 @@ export function IndividualTrackerManagerApp({ apiHost }: IndividualTrackerManage
             authService={services.authService}
             individualTrackerService={services.individualTrackerService}
             settingsService={services.settingsService}
+            individualTrackerViewService={services.individualTrackerViewService}
           />
         ) : (
           <ErrorState message="Services failed to load" />
