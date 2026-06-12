@@ -5,15 +5,13 @@ import {
   type KillMatrixEntry as ContractKillMatrixEntry,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { authenticate } from "@xboxreplay/xboxlive-auth";
 import type { HaloService } from "../halo/halo";
 import { HaloFilmService } from "../halo/halo-film";
-import { CustomSpartanTokenProvider } from "../halo/custom-spartan-token-provider";
-import { XboxService } from "../xbox/xbox";
 
 export interface AnalyticsServiceOpts {
   env: Env;
   haloService: HaloService;
+  haloFilmService: HaloFilmService;
 }
 
 const supportedAnalyticsModuleSet = new Set<string>(SUPPORTED_ANALYTICS_MODULES);
@@ -40,12 +38,12 @@ function toContractKillMatrix(
 }
 
 export class AnalyticsService {
-  private readonly env: Env;
   private readonly haloService: HaloService;
+  private readonly haloFilmService: HaloFilmService;
 
-  constructor({ env, haloService }: AnalyticsServiceOpts) {
-    this.env = env;
+  constructor({ env: _env, haloService, haloFilmService }: AnalyticsServiceOpts) {
     this.haloService = haloService;
+    this.haloFilmService = haloFilmService;
   }
 
   async getMatchAnalytics(matchId: string, modules: string[]): Promise<MatchAnalytics> {
@@ -55,10 +53,7 @@ export class AnalyticsService {
     }
 
     const matchStats = Preconditions.checkExists((await this.haloService.getMatchDetails([matchId]))[0]);
-    const xboxService = new XboxService({ env: this.env, authenticate });
-    const spartanTokenProvider = new CustomSpartanTokenProvider({ env: this.env, xboxService });
-    const haloFilmService = new HaloFilmService({ env: this.env, spartanTokenProvider });
-    const killMatrixAnalytics = await haloFilmService.buildKillMatrixAnalytics(matchStats);
+    const killMatrixAnalytics = await this.haloFilmService.buildKillMatrixAnalytics(matchStats);
 
     return {
       requestedModules,

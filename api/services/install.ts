@@ -19,6 +19,7 @@ import { createResilientFetch } from "./halo/resilient-fetch";
 import { PlayerMatchesRateLimiter } from "./halo/player-matches-rate-limiter";
 import { UserTokenProvider } from "./halo/user-token-provider";
 import { AnalyticsService } from "./analytics/analytics";
+import { HaloFilmService } from "./halo/halo-film";
 
 export interface Services {
   logService: LogService;
@@ -88,7 +89,8 @@ export function installServices({ env }: InstallServicesOpts): Services {
     playerMatchesRateLimiter: new PlayerMatchesRateLimiter({ logService, maxCallsPerSecond: 2 }),
   });
   const userTokenProvider = new UserTokenProvider({ authService, xboxService, logService });
-  const analyticsService = new AnalyticsService({ env, haloService });
+  const haloFilmService = new HaloFilmService({ env, spartanTokenProvider: new CustomSpartanTokenProvider({ env, xboxService: new XboxService({ env, authenticate }) }) });
+  const analyticsService = new AnalyticsService({ env, haloService, haloFilmService });
   const liveTrackerService = new LiveTrackerService({ env, logService, discordService });
   const individualTrackerService = new IndividualTrackerService({ env, logService, databaseService });
   const neatQueueService = new NeatQueueService({
