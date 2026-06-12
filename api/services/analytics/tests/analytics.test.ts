@@ -1,11 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { authenticate } from "@xboxreplay/xboxlive-auth";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { getMatchStats } from "../../halo/fakes/data";
-import { HaloFilmService } from "../../halo/halo-film";
-import { CustomSpartanTokenProvider } from "../../halo/custom-spartan-token-provider";
-import { XboxService } from "../../xbox/xbox";
+import { aFakeHaloFilmServiceWith } from "../../halo/fakes/halo-film.fake";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
 import { AnalyticsService } from "../analytics";
 
@@ -13,13 +10,7 @@ describe("AnalyticsService", () => {
   it("returns killMatrix analytics for supported module", async () => {
     const env = aFakeEnvWith();
     const haloService = aFakeHaloServiceWith({ env });
-    const haloFilmService = new HaloFilmService({
-      env,
-      spartanTokenProvider: new CustomSpartanTokenProvider({
-        env,
-        xboxService: new XboxService({ env, authenticate }),
-      }),
-    });
+    const haloFilmService = aFakeHaloFilmServiceWith({ env });
 
     vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([
       Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
@@ -77,13 +68,7 @@ describe("AnalyticsService", () => {
   it("rejects when no supported modules are requested", async () => {
     const env = aFakeEnvWith();
     const haloService = aFakeHaloServiceWith({ env });
-    const haloFilmService = new HaloFilmService({
-      env,
-      spartanTokenProvider: new CustomSpartanTokenProvider({
-        env,
-        xboxService: new XboxService({ env, authenticate }),
-      }),
-    });
+    const haloFilmService = aFakeHaloFilmServiceWith({ env });
     const service = new AnalyticsService({ haloService, haloFilmService });
 
     await expect(service.getMatchAnalytics("match-123", ["scoreProgression"])).rejects.toThrow(
