@@ -373,15 +373,13 @@ export class HaloFilmService {
     const authContext = await this.resolveAuthContext();
     const metadataCacheRequest = this.toMetadataCacheRequest(matchId);
 
-    const filmMetadata =
-      (await this.getCachedJson<FilmMetadataResponse>(metadataCacheRequest)) ??
-      (await this.fetchJson<FilmMetadataResponse>(
+    let filmMetadata = await this.getCachedJson<FilmMetadataResponse>(metadataCacheRequest);
+    if (filmMetadata == null) {
+      filmMetadata = await this.fetchJson<FilmMetadataResponse>(
         `https://discovery-infiniteugc.svc.halowaypoint.com:443/hi/films/matches/${matchId}/spectate`,
         authContext.spartanToken,
         authContext.clearanceToken,
-      ));
-
-    if ((await this.getCachedJson<FilmMetadataResponse>(metadataCacheRequest)) == null) {
+      );
       await this.putCachedJson(metadataCacheRequest, filmMetadata);
     }
 
