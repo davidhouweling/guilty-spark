@@ -4,7 +4,7 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
-import * as analyticsServiceModule from "../../../services/analytics/analytics-service";
+import * as analyticsServiceModule from "../../../services/analytics/analytics";
 import { statsRoutesRegisterHandler } from "../stats";
 
 describe("/api/stats/match-analytics/:matchId", () => {
@@ -54,7 +54,7 @@ describe("/api/stats/match-analytics/:matchId", () => {
     )) as Response;
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("Cache-Control")).toBe("public, max-age=300, s-maxage=300, stale-while-revalidate=60");
+    expect(response.headers.get("Cache-Control")).toBe("public, max-age=31536000");
 
     const body = await response.json();
     expect(body).toMatchObject({
