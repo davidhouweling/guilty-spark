@@ -40,11 +40,21 @@ export class HaloFilmService {
   }
 
   async getHighlightEventsForMatch(matchId: string): Promise<ParsedHighlightEvent[]> {
+    const metadataCacheRequest = this.toMetadataCacheRequest(matchId);
+    const cachedMetadata = await this.getCachedJson<FilmMetadataResponse>(metadataCacheRequest);
+    if (cachedMetadata != null) {
+      const highlightChunk = this.findHighlightChunk(matchId, cachedMetadata);
+      const chunkCacheRequest = this.toChunkCacheRequest(matchId, highlightChunk.Index);
+      const cachedChunk = await this.getCachedChunk(chunkCacheRequest);
+      if (cachedChunk != null) {
+        return this.parseHighlightEvents(cachedChunk, cachedMetadata.CustomData.FilmMajorVersion);
+      }
+    }
+
     const authContext = await this.resolveAuthContext();
-    const filmMetadata = await this.getOrFetchFilmMetadata(matchId, authContext);
+    const filmMetadata = cachedMetadata ?? (await this.getOrFetchFilmMetadata(matchId, authContext));
     const highlightChunkBytes = await this.getOrFetchHighlightChunkBytes(matchId, filmMetadata, authContext);
-    const events = this.parseHighlightEvents(highlightChunkBytes, filmMetadata.CustomData.FilmMajorVersion);
-    return events;
+    return this.parseHighlightEvents(highlightChunkBytes, filmMetadata.CustomData.FilmMajorVersion);
   }
 
   async buildKillMatrixAnalytics(matchStats: MatchStats): Promise<KillMatrixAnalytics> {

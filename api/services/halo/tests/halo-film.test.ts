@@ -120,7 +120,9 @@ describe("HaloFilmService", () => {
     const env = aFakeCacheBackedEnvWith();
     const xboxService = aFakeXboxServiceWith({ env });
     const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-    vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
+    const getSpartanTokenSpy = vi
+      .spyOn(spartanTokenProvider, "getSpartanToken")
+      .mockResolvedValue("test-spartan-token");
     await env.APP_DATA.put("film:clearance", "test-clearance-token");
     const service = new HaloFilmService({ env, spartanTokenProvider });
 
@@ -152,6 +154,7 @@ describe("HaloFilmService", () => {
 
     expect(events).toEqual([]);
     expect(fetchSpy).not.toHaveBeenCalled();
+    expect(getSpartanTokenSpy).not.toHaveBeenCalled();
   });
 
   it("fetches and caches metadata and chunk bytes on cache miss", async () => {
