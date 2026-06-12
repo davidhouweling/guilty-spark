@@ -15,6 +15,7 @@ import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
+import { getSeriesGroupTitleFromTeams } from "@guilty-spark/shared/individual-tracker/series-grouping";
 import type { DatabaseService } from "../database/database";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config";
@@ -672,7 +673,7 @@ export class NeatQueueService {
         ),
       }));
       const seriesContext: SeriesContextPayload = {
-        title,
+        title: getSeriesGroupTitleFromTeams(seriesTeams) ?? title,
         subtitle: `Queue #${request.match_number.toString()}`,
         guildIconUrl,
         teams: seriesTeams,

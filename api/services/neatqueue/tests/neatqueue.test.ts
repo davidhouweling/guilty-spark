@@ -1987,7 +1987,7 @@ describe("NeatQueueService", () => {
         expect(xuids).toContain("xuid_discord_user_01");
         expect(xuids).toContain("xuid_discord_user_02");
         expect(payload).toMatchObject({
-          title: "Test Server",
+          title: "Eagle vs Cobra",
           subtitle: `Queue #${teamsCreatedRequest.match_number.toString()}`,
           guildIconUrl: null,
           teams: expect.arrayContaining<SeriesTeam>([
@@ -2033,8 +2033,38 @@ describe("NeatQueueService", () => {
         expect(xuids).toContain("xuid_discord_user_02");
       });
 
-      it("nudges with fallback title when getGuild fails", async () => {
+      it("derives title from explicit team names when set", async () => {
         const teamsCreatedRequest = getFakeNeatQueueData("teamsCreated");
+        const team0Player = teamsCreatedRequest.teams[0]?.[0];
+        const team1Player = teamsCreatedRequest.teams[1]?.[0];
+        if (team0Player != null) {
+          team0Player.team_name = "Eagles";
+        }
+        if (team1Player != null) {
+          team1Player.team_name = "Cobras";
+        }
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());
+        vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
+        vi.spyOn(discordService, "getGuild").mockResolvedValue({
+          ...guild,
+          id: "guild-1",
+          name: "Test Server",
+          icon: null,
+        });
+        vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
+          aFakeGuildConfigRow({ NeatQueueInformerLiveTracking: "N" }),
+        );
+
+        const { jobToComplete } = neatQueueService.handleRequest(teamsCreatedRequest, neatQueueConfig);
+        await jobToComplete?.();
+
+        const [, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], SeriesContextPayload];
+        expect(payload.title).toBe("Eagles vs Cobras");
+      });
+
+      it("uses guild name as title fallback when getGuild fails and team names are unavailable", async () => {
+        const teamsCreatedRequest = getFakeNeatQueueData("teamsCreated");
+        teamsCreatedRequest.teams = [];
         (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());
         vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
         vi.spyOn(discordService, "getGuild").mockRejectedValue(new Error("Discord API error"));
