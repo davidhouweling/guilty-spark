@@ -34,6 +34,7 @@ export function DiscordSeriesStatsView({
   const handleToggleViewMode = useCallback((): void => {
     setViewMode((current) => (current === "standard" ? "wide" : "standard"));
   }, []);
+  const killMatrixPresenter = useMemo(() => new KillMatrixPresenter(), []);
 
   const allMatchKillMatrixRows = useMemo<ReadonlyMap<string, KillMatrixViewRow[]>>(
     () =>
@@ -44,15 +45,12 @@ export function DiscordSeriesStatsView({
             return [];
           }
           const playersByXuid = new Map(
-            Object.entries(match.playerXuidToGametag).map(([xuid, gamertag]) => [
-              xuid,
-              { gamertag, teamId: null },
-            ]),
+            Object.entries(match.playerXuidToGametag).map(([xuid, gamertag]) => [xuid, { gamertag, teamId: null }]),
           );
-          return [[match.matchId, KillMatrixPresenter.present({ analytics, playersByXuid })]];
+          return [[match.matchId, killMatrixPresenter.present({ analytics, playersByXuid })]];
         }),
       ),
-    [analyticsByMatchId, renderData.matches],
+    [analyticsByMatchId, killMatrixPresenter, renderData.matches],
   );
 
   const seriesKillMatrixRows = useMemo<KillMatrixViewRow[]>(

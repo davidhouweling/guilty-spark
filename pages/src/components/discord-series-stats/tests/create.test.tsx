@@ -50,7 +50,9 @@ function aFakeResolvedDataWith(overrides: Partial<DiscordSeriesStatsResolved> = 
 
 describe("DiscordSeriesStats", () => {
   it("renders header and top-level sections", () => {
-    render(<DiscordSeriesStats data={aFakeResolvedDataWith()} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />);
+    render(
+      <DiscordSeriesStats data={aFakeResolvedDataWith()} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />,
+    );
 
     expect(screen.getByRole("heading", { name: "Queue #7777 Series Stats" })).toBeInTheDocument();
     expect(screen.getByText("Series overview")).toBeInTheDocument();
@@ -60,13 +62,17 @@ describe("DiscordSeriesStats", () => {
   });
 
   it("shows warning when a match has invalid raw match data", () => {
-    render(<DiscordSeriesStats data={aFakeResolvedDataWith()} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />);
+    render(
+      <DiscordSeriesStats data={aFakeResolvedDataWith()} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />,
+    );
 
     expect(screen.getByText("Failed to load detailed stats for match match-1.")).toBeInTheDocument();
   });
 
   it("does not render series totals when no valid raw match data exists", () => {
-    render(<DiscordSeriesStats data={aFakeResolvedDataWith()} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />);
+    render(
+      <DiscordSeriesStats data={aFakeResolvedDataWith()} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />,
+    );
 
     expect(screen.queryByText("Series Totals")).not.toBeInTheDocument();
   });
@@ -88,7 +94,9 @@ describe("DiscordSeriesStats", () => {
   });
 
   it("toggles between standard and wide view", () => {
-    render(<DiscordSeriesStats data={aFakeResolvedDataWith()} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />);
+    render(
+      <DiscordSeriesStats data={aFakeResolvedDataWith()} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />,
+    );
 
     const toggleButton = screen.getByRole("button", { name: "Switch to wide view" });
     expect(toggleButton).toBeInTheDocument();

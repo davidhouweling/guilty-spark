@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type ReactElement } from "react";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
+import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import { DiscordSeriesStatsPresenter } from "./discord-series-stats-presenter";
 import { DiscordSeriesStatsView } from "./discord-series-stats-view";
-import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
-import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 
 interface DiscordSeriesStatsProps {
   readonly data: DiscordSeriesStatsResolved;
@@ -19,7 +19,7 @@ export function DiscordSeriesStats({ data, matchAnalyticsService }: DiscordSerie
 
   useEffect(() => {
     let cancelled = false;
-    const matchIds = data.matchIds;
+    const {matchIds} = data;
 
     void Promise.all(
       matchIds.map(async (matchId) => {
@@ -48,11 +48,5 @@ export function DiscordSeriesStats({ data, matchAnalyticsService }: DiscordSerie
     };
   }, [data.matchIds, matchAnalyticsService]);
 
-  return (
-    <DiscordSeriesStatsView
-      renderData={data.renderData}
-      model={model}
-      analyticsByMatchId={analyticsByMatchId}
-    />
-  );
+  return <DiscordSeriesStatsView renderData={data.renderData} model={model} analyticsByMatchId={analyticsByMatchId} />;
 }
