@@ -4,7 +4,6 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
-import * as analyticsServiceModule from "../../../services/analytics/analytics-service";
 import { statsRoutesRegisterHandler } from "../stats";
 
 describe("/api/stats/match-analytics/:matchId", () => {
@@ -41,11 +40,9 @@ describe("/api/stats/match-analytics/:matchId", () => {
       },
     };
 
-    vi.spyOn(analyticsServiceModule, "createAnalyticsService").mockReturnValue({
-      getMatchAnalytics: vi.fn().mockResolvedValue(analytics),
-    });
-
-    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => installFakeServicesWith({ env }));
+    const services = installFakeServicesWith({ env });
+    vi.spyOn(services.analyticsService, "getMatchAnalytics").mockResolvedValue(analytics);
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
     statsRoutesRegisterHandler(router, localInstallServices);
 
     const response = (await router.fetch(
@@ -54,7 +51,7 @@ describe("/api/stats/match-analytics/:matchId", () => {
     )) as Response;
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("Cache-Control")).toBe("public, max-age=300, s-maxage=300, stale-while-revalidate=60");
+    expect(response.headers.get("Cache-Control")).toBe("public, s-maxage=86400, stale-while-revalidate=300");
 
     const body = await response.json();
     expect(body).toMatchObject({
@@ -72,11 +69,9 @@ describe("/api/stats/match-analytics/:matchId", () => {
   });
 
   it("returns 500 with generic message when analytics service throws", async () => {
-    vi.spyOn(analyticsServiceModule, "createAnalyticsService").mockReturnValue({
-      getMatchAnalytics: vi.fn().mockRejectedValue(new Error("boom")),
-    });
-
-    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => installFakeServicesWith({ env }));
+    const services = installFakeServicesWith({ env });
+    vi.spyOn(services.analyticsService, "getMatchAnalytics").mockRejectedValue(new Error("boom"));
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
     statsRoutesRegisterHandler(router, localInstallServices);
 
     const response = (await router.fetch(

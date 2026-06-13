@@ -18,6 +18,8 @@ import { createHaloInfiniteClientProxy } from "./halo/halo-infinite-client-proxy
 import { createResilientFetch } from "./halo/resilient-fetch";
 import { PlayerMatchesRateLimiter } from "./halo/player-matches-rate-limiter";
 import { UserTokenProvider } from "./halo/user-token-provider";
+import { AnalyticsService } from "./analytics/analytics";
+import { HaloFilmService } from "./halo/halo-film";
 
 export interface Services {
   logService: LogService;
@@ -26,8 +28,10 @@ export interface Services {
   discordService: DiscordService;
   xboxService: XboxService;
   haloService: HaloService;
+  haloFilmService: HaloFilmService;
   haloInfiniteClient: HaloInfiniteClient;
   userTokenProvider: UserTokenProvider;
+  analyticsService: AnalyticsService;
   liveTrackerService: LiveTrackerService;
   neatQueueService: NeatQueueService;
   individualTrackerService: IndividualTrackerService;
@@ -62,6 +66,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
   });
   const discordService = new DiscordService({ env, logService, fetch, verifyKey });
   const xboxService = new XboxService({ env, authenticate });
+  const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
   const useProxy: boolean = env.MODE === "development" && isValidUrl(env.PROXY_WORKER_URL);
 
   // For development with JSON-RPC proxy, use the existing proxy implementation
@@ -69,7 +74,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
   const haloInfiniteClient: HaloInfiniteClient = useProxy
     ? createHaloInfiniteClientProxy({ env })
     : new HaloInfiniteClient(
-        new CustomSpartanTokenProvider({ env, xboxService }),
+        spartanTokenProvider,
         createResilientFetch({
           env,
           logService,
@@ -86,6 +91,11 @@ export function installServices({ env }: InstallServicesOpts): Services {
     playerMatchesRateLimiter: new PlayerMatchesRateLimiter({ logService, maxCallsPerSecond: 2 }),
   });
   const userTokenProvider = new UserTokenProvider({ authService, xboxService, logService });
+  const haloFilmService = new HaloFilmService({
+    env,
+    spartanTokenProvider,
+  });
+  const analyticsService = new AnalyticsService({ haloService, haloFilmService });
   const liveTrackerService = new LiveTrackerService({ env, logService, discordService });
   const individualTrackerService = new IndividualTrackerService({ env, logService, databaseService });
   const neatQueueService = new NeatQueueService({
@@ -105,8 +115,10 @@ export function installServices({ env }: InstallServicesOpts): Services {
     discordService,
     xboxService,
     haloService,
+    haloFilmService,
     haloInfiniteClient,
     userTokenProvider,
+    analyticsService,
     liveTrackerService,
     neatQueueService,
     individualTrackerService,

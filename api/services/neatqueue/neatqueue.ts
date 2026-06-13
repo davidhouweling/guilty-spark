@@ -20,7 +20,8 @@ import type { DatabaseService } from "../database/database";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config";
 import { NEAT_QUEUE_BOT_USER_ID, type DiscordService } from "../discord/discord";
-import type { HaloService, MatchPlayer } from "../halo/halo";
+import type { HaloService } from "../halo/halo";
+import type { MatchPlayer } from "../halo/types";
 import type { LiveTrackerService } from "../live-tracker/live-tracker";
 import type {
   SeriesOverviewEmbedSubstitution,
