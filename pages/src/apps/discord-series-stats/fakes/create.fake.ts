@@ -6,6 +6,8 @@ import type {
   DiscordSeriesStatsResolved,
 } from "@guilty-spark/shared/contracts/stats/discord-series";
 import type { DiscordSeriesStatsResult } from "../../../services/stats/discord-series-types";
+import { aFakeDiscordSeriesStatsServiceWith } from "../../../services/stats/fakes/discord-series.fake";
+import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 import type { Services } from "../services";
 
 export function aFakeResolvedDiscordSeriesStatsWith(
@@ -100,13 +102,7 @@ function toFakeResult(response: DiscordSeriesStats): DiscordSeriesStatsResult {
 
 export function aFakeDiscordSeriesStatsAppServicesWith(response: DiscordSeriesStats): Services {
   return {
-    discordSeriesStatsService: {
-      getStats: async (): Promise<DiscordSeriesStatsResult> => {
-        return Promise.resolve(toFakeResult(response));
-      },
-      getLookup: async (): Promise<{ status: number; retryAfterSeconds: number | null }> => {
-        return Promise.resolve({ status: 200, retryAfterSeconds: null });
-      },
-    },
+    discordSeriesStatsService: aFakeDiscordSeriesStatsServiceWith({ result: toFakeResult(response) }),
+    matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
   };
 }
