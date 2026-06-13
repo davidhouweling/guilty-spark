@@ -11,6 +11,9 @@ import {
   selectMatchesRequestSchema,
   startSeriesContract,
   startSeriesRequestSchema,
+  type EditSeriesRequest,
+  type SelectMatchesRequest,
+  type StartSeriesRequest,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import {
   individualTrackerPauseContract,
@@ -19,6 +22,7 @@ import {
   individualTrackerStartRequestSchema,
   individualTrackerStopContract,
   type IndividualTrackerDoState,
+  type IndividualTrackerStartRequest,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
 import {
   individualTrackerStatusContract,
@@ -44,7 +48,6 @@ import {
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { type IndividualTopBarStatOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import type { z } from "zod";
 import type { LogService } from "../../services/log/types";
 import { installServices as installServicesImpl, type Services } from "../../services/install";
 import {
@@ -476,7 +479,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private async handleStart(request: Request): Promise<Response> {
-    let body: z.infer<typeof individualTrackerStartRequestSchema>;
+    let body: IndividualTrackerStartRequest;
     try {
       body = individualTrackerStartRequestSchema.parse(await request.json());
     } catch {
@@ -569,7 +572,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Not Found", { status: 404 });
     }
 
-    let body: z.infer<typeof selectMatchesRequestSchema>;
+    let body: SelectMatchesRequest;
     try {
       body = selectMatchesRequestSchema.parse(await request.json());
     } catch {
@@ -604,7 +607,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Not Found", { status: 404 });
     }
 
-    let body: z.infer<typeof startSeriesRequestSchema>;
+    let body: StartSeriesRequest;
     try {
       body = startSeriesRequestSchema.parse(await request.json());
     } catch {
@@ -659,7 +662,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("No active series", { status: 409 });
     }
 
-    let body: z.infer<typeof editSeriesRequestSchema>;
+    let body: EditSeriesRequest;
     try {
       body = editSeriesRequestSchema.parse(await request.json());
     } catch {
