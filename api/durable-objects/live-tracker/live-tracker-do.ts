@@ -754,7 +754,9 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async setState(state: LiveTrackerState): Promise<void> {
-    if (this.disposed) return;
+    if (this.disposed) {
+      return;
+    }
     await this.state.storage.put("trackerState", state);
     // Broadcast state update to all connected WebSocket clients
     await this.broadcastStateUpdate(state);
