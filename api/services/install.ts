@@ -66,6 +66,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
   });
   const discordService = new DiscordService({ env, logService, fetch, verifyKey });
   const xboxService = new XboxService({ env, authenticate });
+  const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
   const useProxy: boolean = env.MODE === "development" && isValidUrl(env.PROXY_WORKER_URL);
 
   // For development with JSON-RPC proxy, use the existing proxy implementation
@@ -73,7 +74,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
   const haloInfiniteClient: HaloInfiniteClient = useProxy
     ? createHaloInfiniteClientProxy({ env })
     : new HaloInfiniteClient(
-        new CustomSpartanTokenProvider({ env, xboxService }),
+        spartanTokenProvider,
         createResilientFetch({
           env,
           logService,
@@ -92,7 +93,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
   const userTokenProvider = new UserTokenProvider({ authService, xboxService, logService });
   const haloFilmService = new HaloFilmService({
     env,
-    spartanTokenProvider: new CustomSpartanTokenProvider({ env, xboxService }),
+    spartanTokenProvider,
   });
   const analyticsService = new AnalyticsService({ haloService, haloFilmService });
   const liveTrackerService = new LiveTrackerService({ env, logService, discordService });
