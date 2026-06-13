@@ -144,6 +144,22 @@ describe("/api/individual-tracker manage routes", () => {
     expect(res.status).toBe(400);
   });
 
+  it("returns 400 on start when xuid is missing", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith());
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      postRequest("/api/individual-tracker/manage/start", { gamertag: "Master Chief" }),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(400);
+  });
+
   it("returns 404 on stop when the tracker is not owned", async () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
