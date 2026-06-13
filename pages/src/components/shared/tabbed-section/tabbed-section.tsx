@@ -1,5 +1,6 @@
 import React from "react";
 import classNames from "classnames";
+import { Preconditions } from "../../../base/preconditions";
 import type { TabbedSectionTab } from "./types";
 import styles from "./tabbed-section.module.css";
 
@@ -18,9 +19,42 @@ export function TabbedSection<TId extends string>({
 }: TabbedSectionProps<TId>): React.ReactElement {
   const tabSetId = React.useId();
 
+  const handleKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>): void => {
+      const currentIndex = tabs.findIndex((t) => t.id === selectedTabId);
+      let nextIndex: number | null = null;
+
+      switch (event.key) {
+        case "ArrowRight": {
+          nextIndex = (currentIndex + 1) % tabs.length;
+          break;
+        }
+        case "ArrowLeft": {
+          nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+          break;
+        }
+        case "Home": {
+          nextIndex = 0;
+          break;
+        }
+        case "End": {
+          nextIndex = tabs.length - 1;
+          break;
+        }
+        default: {
+          return;
+        }
+      }
+
+      event.preventDefault();
+      onTabChange(Preconditions.checkExists(tabs[nextIndex], "tab at index").id);
+    },
+    [tabs, selectedTabId, onTabChange],
+  );
+
   return (
     <div>
-      <div className={styles.tabList} role="tablist" aria-label={tabListAriaLabel}>
+      <div className={styles.tabList} role="tablist" aria-label={tabListAriaLabel} onKeyDown={handleKeyDown}>
         {tabs.map((tab) => {
           const tabDomId = `${tabSetId}-${tab.id}-tab`;
           const panelDomId = `${tabSetId}-${tab.id}-panel`;
