@@ -441,7 +441,7 @@ export class TrackCommand extends BaseCommand {
         queueNumber,
       });
 
-      return statusResponse?.state ?? null;
+      return (statusResponse?.state as LiveTrackerState | undefined) ?? null;
     } catch (error) {
       this.services.logService.error("Failed to get tracker status", new Map([["error", String(error)]]));
       return null;

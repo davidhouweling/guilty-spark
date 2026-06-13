@@ -3,8 +3,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ButtonStyle, ComponentType } from "discord-api-types/v10";
 import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import type { LiveTrackerEmbedData } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/lifecycle";
 import { LiveTrackerEmbed } from "../live-tracker-embed";
-import type { LiveTrackerEmbedData } from "../../live-tracker/types";
 import type { DiscordService } from "../../services/discord/discord";
 import { aFakeDiscordServiceWith } from "../../services/discord/fakes/discord.fake";
 describe("LiveTrackerEmbed", () => {

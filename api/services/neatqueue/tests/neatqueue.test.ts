@@ -8,11 +8,11 @@ import type {
   APIGuildMember,
 } from "discord-api-types/v10";
 import { ChannelType } from "discord-api-types/v10";
-import type { MatchStats } from "halo-infinite-api";
 import { sub } from "date-fns";
 import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import type { SeriesContextPayload, SeriesPlayer, SeriesTeam } from "../../../durable-objects/individual-tracker/types";
+import type { SeriesContextPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
+import type { SeriesPlayer, SeriesTeam } from "../../../durable-objects/individual-tracker/types";
 import { NeatQueueService } from "../neatqueue";
 import type { DatabaseService } from "../../database/database";
 import {
@@ -1171,9 +1171,6 @@ describe("NeatQueueService", () => {
           ][0],
         );
         const matchIds = [match.MatchId];
-        const rawMatches: Record<string, MatchStats> = {
-          [match.MatchId]: match,
-        };
 
         const teams: { name: string; playerIds: string[] }[] = [{ name: "Cobra", playerIds: ["user1"] }];
 
@@ -1211,9 +1208,17 @@ describe("NeatQueueService", () => {
           state,
         });
 
-        // Mock getSeriesData to return raw matches
         vi.spyOn(liveTrackerService, "getSeriesData").mockResolvedValue({
-          rawMatches,
+          seriesId: { guildId: "fake-guild-id", queueNumber: 1 },
+          teams,
+          seriesScore: "0:0",
+          matchIds,
+          discoveredMatches,
+          rawMatches: [match],
+          playersAssociationData: {},
+          substitutions: [],
+          startTime: new Date().toISOString(),
+          lastUpdateTime: new Date().toISOString(),
         });
 
         const { jobToComplete } = neatQueueService.handleRequest(

@@ -3,18 +3,23 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { APIGuildMember, APIMessageComponentButtonInteraction } from "discord-api-types/v10";
 import { GuildMemberFlags } from "discord-api-types/v10";
 import { aFakePlayerAssociationDataWith } from "@guilty-spark/shared/live-tracker/fakes/data";
-import { LiveTrackerService, type LiveTrackerContext } from "../live-tracker";
-import type { LogService } from "../../log/types";
-import type { DiscordService } from "../../discord/discord";
 import type {
   LiveTrackerStartResponse,
   LiveTrackerPauseResponse,
   LiveTrackerResumeResponse,
   LiveTrackerStopResponse,
+  LiveTrackerEmbedData,
+} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/lifecycle";
+import type {
   LiveTrackerRefreshResponse,
   LiveTrackerSubstitutionResponse,
   LiveTrackerStatusResponse,
   LiveTrackerRepostResponse,
+} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
+import { LiveTrackerService, type LiveTrackerContext } from "../live-tracker";
+import type { LogService } from "../../log/types";
+import type { DiscordService } from "../../discord/discord";
+import type {
   LiveTrackerState,
   LiveTrackerRefreshCooldownErrorResponse,
 } from "../../../durable-objects/live-tracker/types";
@@ -23,7 +28,6 @@ import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake";
 import { apiMessage, discordNeatQueueData, fakeButtonClickInteraction } from "../../discord/fakes/data";
-import type { LiveTrackerEmbedData } from "../../../live-tracker/types";
 import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
 
 describe("LiveTrackerService", () => {

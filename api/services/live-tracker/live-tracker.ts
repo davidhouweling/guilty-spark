@@ -1,26 +1,44 @@
 import type { APIGuildMember, APIMessageComponentButtonInteraction, APIEmbed } from "discord-api-types/v10";
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
-import type { LiveTrackerDO } from "../../durable-objects/live-tracker/live-tracker-do";
 import type {
   LiveTrackerStartRequest,
   LiveTrackerStartResponse,
   LiveTrackerPauseResponse,
   LiveTrackerResumeResponse,
   LiveTrackerStopResponse,
+  LiveTrackerEmbedData,
+} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/lifecycle";
+import {
+  liveTrackerStartContract,
+  liveTrackerPauseContract,
+  liveTrackerResumeContract,
+  liveTrackerStopContract,
+} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/lifecycle";
+import type {
   LiveTrackerRefreshResponse,
+  LiveTrackerRefreshRequest,
   LiveTrackerSubstitutionRequest,
   LiveTrackerSubstitutionResponse,
   LiveTrackerStatusResponse,
   LiveTrackerRepostRequest,
   LiveTrackerRepostResponse,
+} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
+import {
+  liveTrackerRefreshContract,
+  liveTrackerSubstitutionContract,
+  liveTrackerStatusContract,
+  liveTrackerRepostContract,
+} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
+import type { LiveTrackerSeriesDataResponse } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/series-data";
+import { liveTrackerSeriesDataContract } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/series-data";
+import type { LiveTrackerDO } from "../../durable-objects/live-tracker/live-tracker-do";
+import type {
   LiveTrackerState,
   LiveTrackerRefreshCooldownErrorResponse,
-  LiveTrackerRefreshRequest,
 } from "../../durable-objects/live-tracker/types";
 import type { LogService } from "../log/types";
 import type { DiscordService } from "../discord/discord";
 import { LiveTrackerEmbed } from "../../embeds/live-tracker-embed";
-import type { LiveTrackerEmbedData } from "../../live-tracker/types";
 
 export interface LiveTrackerContext {
   userId: string;
@@ -153,7 +171,7 @@ export class LiveTrackerService {
       throw new Error(error);
     }
 
-    const result = await response.json<LiveTrackerStartResponse>();
+    const result = await liveTrackerStartContract.fromResponse(response);
     this.logService.info("LiveTrackerService: Live tracker started successfully", this.createLogParams(context));
     return result;
   }
@@ -175,7 +193,7 @@ export class LiveTrackerService {
       throw new Error(error);
     }
 
-    const result = await response.json<LiveTrackerPauseResponse>();
+    const result = await liveTrackerPauseContract.fromResponse(response);
     this.logService.info("LiveTrackerService: Live tracker paused successfully", this.createLogParams(context));
     return result;
   }
@@ -197,7 +215,7 @@ export class LiveTrackerService {
       throw new Error(error);
     }
 
-    const result = await response.json<LiveTrackerResumeResponse>();
+    const result = await liveTrackerResumeContract.fromResponse(response);
     this.logService.info("LiveTrackerService: Live tracker resumed successfully", this.createLogParams(context));
     return result;
   }
@@ -219,7 +237,7 @@ export class LiveTrackerService {
       throw new Error(error);
     }
 
-    const result = await response.json<LiveTrackerStopResponse>();
+    const result = await liveTrackerStopContract.fromResponse(response);
     this.logService.info("LiveTrackerService: Live tracker stopped successfully", this.createLogParams(context));
     return result;
   }
@@ -240,17 +258,31 @@ export class LiveTrackerService {
       body: JSON.stringify(request),
     });
 
-    const result = await response.json<LiveTrackerRefreshResponse>();
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        this.logService.warn("Refresh cooldown active", this.createLogParams(context));
-        return result;
-      }
-
+    if (!response.ok && response.status !== 429) {
       const error = `Failed to refresh live tracker: ${response.status.toString()}`;
       this.logService.error(error, this.createLogParams(context));
       throw new Error(error);
+    }
+
+    let responseBody: unknown;
+    try {
+      responseBody = await response.json();
+    } catch {
+      const error = `Failed to parse refresh response body (status ${response.status.toString()})`;
+      this.logService.error(error, this.createLogParams(context));
+      throw new Error(error);
+    }
+    const parsed = liveTrackerRefreshContract.safeParse(responseBody);
+    if (!parsed.success) {
+      const error = `Unexpected refresh response shape (status ${response.status.toString()})`;
+      this.logService.error(error, this.createLogParams(context));
+      throw new Error(error);
+    }
+    const result = parsed.data;
+
+    if (!response.ok) {
+      this.logService.warn("Refresh cooldown active", this.createLogParams(context));
+      return result;
     }
 
     this.logService.info("LiveTrackerService: Live tracker refreshed successfully", this.createLogParams(context));
@@ -281,7 +313,7 @@ export class LiveTrackerService {
     const substitutionData: LiveTrackerSubstitutionRequest = {
       playerOutId,
       playerInId,
-      playerAssociationData,
+      playerAssociationData: playerAssociationData as unknown as Record<string, unknown>,
     };
 
     const response = await doStub.fetch("http://do/substitution", {
@@ -296,7 +328,7 @@ export class LiveTrackerService {
       throw new Error(error);
     }
 
-    const result = await response.json<LiveTrackerSubstitutionResponse>();
+    const result = await liveTrackerSubstitutionContract.fromResponse(response);
     this.logService.info("LiveTrackerService: Substitution recorded successfully", this.createLogParams(context));
     return result;
   }
@@ -314,7 +346,7 @@ export class LiveTrackerService {
       return null;
     }
 
-    return response.json<LiveTrackerStatusResponse>();
+    return liveTrackerStatusContract.fromResponse(response);
   }
 
   /**
@@ -343,7 +375,7 @@ export class LiveTrackerService {
       throw new Error(error);
     }
 
-    const result = await response.json<LiveTrackerRepostResponse>();
+    const result = await liveTrackerRepostContract.fromResponse(response);
     this.logService.info("LiveTrackerService: Live tracker reposted successfully", this.createLogParams(context));
     return result;
   }
@@ -367,7 +399,7 @@ export class LiveTrackerService {
       };
 
       const statusResponse = await this.getTrackerStatus(context);
-      return statusResponse?.state ?? null;
+      return (statusResponse?.state as LiveTrackerState | undefined) ?? null;
     } catch (error) {
       this.logService.error(
         "LiveTrackerService: Failed to discover active tracker",
@@ -530,7 +562,7 @@ export class LiveTrackerService {
   /**
    * Gets series data including rawMatches loaded from KV
    */
-  async getSeriesData(context: LiveTrackerContext): Promise<{ rawMatches: Record<string, unknown> } | null> {
+  async getSeriesData(context: LiveTrackerContext): Promise<LiveTrackerSeriesDataResponse | null> {
     this.logService.debug("LiveTrackerService: Getting series data", this.createLogParams(context));
 
     const doStub = this.getDurableObjectStub(context);
@@ -546,7 +578,7 @@ export class LiveTrackerService {
       return null;
     }
 
-    return response.json<{ rawMatches: Record<string, unknown> }>();
+    return liveTrackerSeriesDataContract.fromResponse(response);
   }
 
   private getDurableObjectStub(context: LiveTrackerContext): DurableObjectStub<LiveTrackerDO> {
