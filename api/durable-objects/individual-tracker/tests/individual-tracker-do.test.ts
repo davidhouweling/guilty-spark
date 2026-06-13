@@ -6,6 +6,8 @@ import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakeTeamWith } from "@guilty-
 import { type HaloInfiniteClient, type PlayerMatchHistory, RequestError } from "halo-infinite-api";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
+import type { IndividualTrackerStartRequest } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
+import type { SeriesContextPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import { IndividualTrackerDO } from "../individual-tracker-do";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
@@ -17,7 +19,6 @@ import {
   type FakeWebSocketHibernationAdapter,
 } from "../../../base/fakes/websocket-hibernation-adapter.fake";
 import type {
-  IndividualTrackerStartRequest,
   IndividualTrackerInternalState,
   IndividualTrackerStartResponse,
   IndividualTrackerPauseResponse,
@@ -27,7 +28,6 @@ import type {
   IndividualTrackerSelectMatchesResponse,
   IndividualTrackerStartSeriesRequest,
   ActiveSeries,
-  SeriesContextPayload,
   ActiveSeriesContext,
 } from "../types";
 import {

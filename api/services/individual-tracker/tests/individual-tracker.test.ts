@@ -1,5 +1,6 @@
 import type { MockInstance } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { SeriesContextPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import {
   aFakeDatabaseServiceWith,
   aFakeIndividualTrackerProfilesRow,
@@ -18,7 +19,6 @@ import {
 } from "../../../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import type { LogService } from "../../log/types";
-import type { SeriesContextPayload } from "../../../durable-objects/individual-tracker/types";
 
 describe("IndividualTrackerService", () => {
   let databaseService: DatabaseService;

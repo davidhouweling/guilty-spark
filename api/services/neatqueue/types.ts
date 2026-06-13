@@ -1,7 +1,7 @@
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
+import type { SeriesContextPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
-import type { SeriesContextPayload } from "../../durable-objects/individual-tracker/types";
 
 export type { PlayerAssociationData };
 

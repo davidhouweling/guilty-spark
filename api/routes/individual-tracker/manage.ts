@@ -8,26 +8,26 @@ import {
   selectMatchesContract,
   selectMatchesRequestSchema,
   selectActiveTrackerRequestSchema,
+  startSeriesContract,
   startSeriesRequestSchema,
   startTrackerRequestSchema,
   stopTrackerContract,
   trackerContract,
   trackerParamsSchema,
   trackersContract,
+  type StartSeriesRequest,
+  type EditSeriesRequest,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
+import {
+  individualTrackerPauseContract,
+  individualTrackerResumeContract,
+  individualTrackerStartContract,
+  individualTrackerStopContract,
+  type IndividualTrackerDoState,
+  type IndividualTrackerStartRequest,
+} from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
+import { individualTrackerStatusContract } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/management";
 import { parseJsonBody, parsePathParams } from "@guilty-spark/shared/base/request-parsing";
-import type {
-  IndividualTrackerPauseResponse,
-  IndividualTrackerResumeResponse,
-  IndividualTrackerStartRequest,
-  IndividualTrackerStartResponse,
-  IndividualTrackerState,
-  IndividualTrackerStatusResponse,
-  IndividualTrackerStopResponse,
-  IndividualTrackerSelectMatchesResponse,
-  IndividualTrackerStartSeriesRequest,
-  IndividualTrackerEditSeriesRequest,
-} from "../../durable-objects/individual-tracker/types";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
 import {
   ActiveSeriesExistsError,
@@ -54,7 +54,10 @@ function assertDoOk(response: Response): void {
   }
 }
 
-async function startTrackerDo(env: Env, startRequest: IndividualTrackerStartRequest): Promise<IndividualTrackerState> {
+async function startTrackerDo(
+  env: Env,
+  startRequest: IndividualTrackerStartRequest,
+): Promise<IndividualTrackerDoState> {
   const stub = trackerDoStub(env, startRequest.userId, startRequest.trackerId);
   const response = await stub.fetch("http://do/start", {
     method: "POST",
@@ -62,23 +65,23 @@ async function startTrackerDo(env: Env, startRequest: IndividualTrackerStartRequ
     body: JSON.stringify(startRequest),
   });
   assertDoOk(response);
-  const result = await response.json<IndividualTrackerStartResponse>();
+  const result = await individualTrackerStartContract.fromResponse(response);
   return result.state;
 }
 
-async function pauseTrackerDo(env: Env, userId: string, trackerId: string): Promise<IndividualTrackerState> {
+async function pauseTrackerDo(env: Env, userId: string, trackerId: string): Promise<IndividualTrackerDoState> {
   const stub = trackerDoStub(env, userId, trackerId);
   const response = await stub.fetch("http://do/pause", { method: "POST" });
   assertDoOk(response);
-  const result = await response.json<IndividualTrackerPauseResponse>();
+  const result = await individualTrackerPauseContract.fromResponse(response);
   return result.state;
 }
 
-async function resumeTrackerDo(env: Env, userId: string, trackerId: string): Promise<IndividualTrackerState> {
+async function resumeTrackerDo(env: Env, userId: string, trackerId: string): Promise<IndividualTrackerDoState> {
   const stub = trackerDoStub(env, userId, trackerId);
   const response = await stub.fetch("http://do/resume", { method: "POST" });
   assertDoOk(response);
-  const result = await response.json<IndividualTrackerResumeResponse>();
+  const result = await individualTrackerResumeContract.fromResponse(response);
   return result.state;
 }
 
@@ -86,14 +89,14 @@ async function stopTrackerDo(env: Env, userId: string, trackerId: string): Promi
   const stub = trackerDoStub(env, userId, trackerId);
   const response = await stub.fetch("http://do/stop", { method: "POST" });
   assertDoOk(response);
-  await response.json<IndividualTrackerStopResponse>();
+  await individualTrackerStopContract.fromResponse(response);
 }
 
-async function statusTrackerDo(env: Env, userId: string, trackerId: string): Promise<IndividualTrackerState | null> {
+async function statusTrackerDo(env: Env, userId: string, trackerId: string): Promise<IndividualTrackerDoState | null> {
   const stub = trackerDoStub(env, userId, trackerId);
   const response = await stub.fetch("http://do/status", { method: "GET" });
   assertDoOk(response);
-  const result = await response.json<IndividualTrackerStatusResponse>();
+  const result = await individualTrackerStatusContract.fromResponse(response);
   return result.state;
 }
 
@@ -112,15 +115,10 @@ async function syncMatchesDo(env: Env, userId: string, trackerId: string, matchI
     body: JSON.stringify({ matchIds }),
   });
   assertDoOkWith404(response);
-  await response.json<IndividualTrackerSelectMatchesResponse>();
+  await selectMatchesContract.fromResponse(response);
 }
 
-async function startSeriesDo(
-  env: Env,
-  userId: string,
-  trackerId: string,
-  body: IndividualTrackerStartSeriesRequest,
-): Promise<void> {
+async function startSeriesDo(env: Env, userId: string, trackerId: string, body: StartSeriesRequest): Promise<void> {
   const stub = trackerDoStub(env, userId, trackerId);
   const response = await stub.fetch("http://do/start-series", {
     method: "POST",
@@ -128,7 +126,7 @@ async function startSeriesDo(
     body: JSON.stringify(body),
   });
   assertDoOkWith404(response);
-  await response.json<{ success: true }>();
+  await startSeriesContract.fromResponse(response);
 }
 
 async function endSeriesDo(env: Env, userId: string, trackerId: string): Promise<void> {
@@ -138,15 +136,10 @@ async function endSeriesDo(env: Env, userId: string, trackerId: string): Promise
     throw new NoActiveSeriesError();
   }
   assertDoOkWith404(response);
-  await response.json<{ success: true }>();
+  await endSeriesContract.fromResponse(response);
 }
 
-async function editSeriesDo(
-  env: Env,
-  userId: string,
-  trackerId: string,
-  body: IndividualTrackerEditSeriesRequest,
-): Promise<void> {
+async function editSeriesDo(env: Env, userId: string, trackerId: string, body: EditSeriesRequest): Promise<void> {
   const stub = trackerDoStub(env, userId, trackerId);
   const response = await stub.fetch("http://do/edit-series", {
     method: "PATCH",
@@ -157,7 +150,7 @@ async function editSeriesDo(
     throw new NoActiveSeriesError();
   }
   assertDoOkWith404(response);
-  await response.json<{ success: true }>();
+  await editSeriesContract.fromResponse(response);
 }
 
 async function resumeSeriesDo(env: Env, userId: string, trackerId: string): Promise<void> {
@@ -170,7 +163,7 @@ async function resumeSeriesDo(env: Env, userId: string, trackerId: string): Prom
     throw new NoCompletedSeriesError();
   }
   assertDoOkWith404(response);
-  await response.json<{ success: true }>();
+  await resumeSeriesContract.fromResponse(response);
 }
 
 export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
@@ -525,7 +518,7 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
           : {}),
       });
 
-      return Response.json({ success: true }, { headers: { "Cache-Control": "no-store" } });
+      return startSeriesContract.toResponse({ success: true }, { noStore: true });
     } catch (error) {
       logService.error(error as Error, new Map([["message", "Individual tracker start series error"]]));
       return errorContract.toResponse({ error: "Failed to start series" }, { status: 500, noStore: true });
@@ -591,7 +584,7 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       try {
         await individualTrackerService.getOwnedTracker(auth.session.userId, trackerId);
-        const editBody: IndividualTrackerEditSeriesRequest = {};
+        const editBody: EditSeriesRequest = {};
         if (parsed.data.titleOverride !== undefined) {
           editBody.titleOverride = parsed.data.titleOverride;
         }

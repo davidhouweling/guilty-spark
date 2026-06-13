@@ -4,6 +4,7 @@ import type { APIGroupDMChannel, APIChannel, APIGuildMember } from "discord-api-
 import { ChannelType } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import * as haloDuration from "@guilty-spark/shared/halo/duration";
+import type { LiveTrackerStartRequest } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/lifecycle";
 import { LiveTrackerDO } from "../live-tracker-do";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
@@ -12,8 +13,10 @@ import { DiscordError } from "../../../services/discord/discord-error";
 import { aGuildMemberWith, apiMessage, guild } from "../../../services/discord/fakes/data";
 import { aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake";
 import { getMatchStats } from "../../../services/halo/fakes/data";
-import type { LiveTrackerStartRequest, LiveTrackerState } from "../types";
+import type { LiveTrackerState } from "../types";
 import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
+import { aFakeWebSocketHibernationAdapter } from "../../../base/fakes/websocket-hibernation-adapter.fake";
+import type { FakeWebSocketHibernationAdapter } from "../../../base/fakes/websocket-hibernation-adapter.fake";
 
 // Create a mock SQL storage that satisfies the interface without using runtime types
 const createMockSqlStorage = (): SqlStorage => {
@@ -149,29 +152,38 @@ const createMockStartData = (): LiveTrackerStartRequest => ({
   interactionToken: "test-token",
 });
 
-const createMockTrackerState = (): LiveTrackerState => ({
-  ...createBaseTestData(),
-  isPaused: false,
-  status: "active",
-  startTime: new Date().toISOString(),
-  lastUpdateTime: new Date().toISOString(),
-  searchStartTime: new Date().toISOString(),
-  checkCount: 1,
-  substitutions: [],
-  discoveredMatches: {},
-  matchIds: [],
-  seriesScore: "🦅 0:0 🐍",
-  errorState: {
-    consecutiveErrors: 0,
-    backoffMinutes: 3,
-    lastSuccessTime: new Date().toISOString(),
-  },
-  lastMessageState: {
-    matchCount: 0,
-    substitutionCount: 0,
-  },
-  playersAssociationData: {},
-});
+const createMockTrackerState = (): LiveTrackerState => {
+  const baseData = createBaseTestData();
+  return {
+    userId: baseData.userId,
+    guildId: baseData.guildId,
+    channelId: baseData.channelId,
+    queueNumber: baseData.queueNumber,
+    liveMessageId: "test-message-id",
+    players: baseData.players as unknown as Record<string, APIGuildMember>,
+    teams: baseData.teams,
+    playersAssociationData: {},
+    isPaused: false,
+    status: "active",
+    startTime: new Date().toISOString(),
+    lastUpdateTime: new Date().toISOString(),
+    searchStartTime: new Date().toISOString(),
+    checkCount: 1,
+    substitutions: [],
+    discoveredMatches: {},
+    matchIds: [],
+    seriesScore: "🦅 0:0 🐍",
+    errorState: {
+      consecutiveErrors: 0,
+      backoffMinutes: 3,
+      lastSuccessTime: new Date().toISOString(),
+    },
+    lastMessageState: {
+      matchCount: 0,
+      substitutionCount: 0,
+    },
+  };
+};
 
 const aMatchSummaryWith = (
   overrides: Partial<LiveTrackerState["discoveredMatches"][string]> = {},
@@ -302,6 +314,7 @@ describe("LiveTrackerDO", () => {
   let mockStorage: DurableObjectStorage;
   let services: Services;
   let env: Env;
+  let fakeWebSocketAdapter: FakeWebSocketHibernationAdapter;
   let storageGetSpy: MockInstance<(key: string) => Promise<LiveTrackerState | null>>;
   let storagePutSpy: MockInstance<(key: string, value: LiveTrackerState) => Promise<void>>;
   let storageSetAlarmSpy: MockInstance<typeof mockStorage.setAlarm>;
@@ -318,6 +331,7 @@ describe("LiveTrackerDO", () => {
     mockStorage = mockSetup.mocks.storage;
     services = installFakeServicesWith();
     env = aFakeEnvWith();
+    fakeWebSocketAdapter = aFakeWebSocketHibernationAdapter();
 
     storageGetSpy = vi.spyOn(mockStorage, "get");
     storagePutSpy = vi.spyOn(mockStorage, "put");
@@ -325,7 +339,7 @@ describe("LiveTrackerDO", () => {
     storageDeleteAllSpy = vi.spyOn(mockStorage, "deleteAll");
     storageDeleteAlarmSpy = vi.spyOn(mockStorage, "deleteAlarm");
 
-    liveTrackerDO = new LiveTrackerDO(mockState, env, () => services);
+    liveTrackerDO = new LiveTrackerDO(mockState, env, () => services, fakeWebSocketAdapter);
   });
 
   afterEach(() => {
@@ -480,7 +494,7 @@ describe("LiveTrackerDO", () => {
         new Request("http://do/substitution", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ playerOutId: "player1", playerInId: "newplayer" }),
+          body: JSON.stringify({ playerOutId: "player1", playerInId: "newplayer", playerAssociationData: {} }),
         }),
       );
 
@@ -2292,7 +2306,7 @@ describe("LiveTrackerDO", () => {
       return new Request("http://do/substitution", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerOutId, playerInId }),
+        body: JSON.stringify({ playerOutId, playerInId, playerAssociationData: {} }),
       });
     };
 
@@ -3184,10 +3198,13 @@ describe("LiveTrackerDO", () => {
       expect(kvGetSpy).toHaveBeenCalledWith("live-tracker-match:9535b946-f30c-4a43-b852-000000slayer", "json");
 
       const data = await response.json<{
-        rawMatches: Record<string, typeof mockMatch>;
+        rawMatches: (typeof mockMatch)[];
       }>();
       expect(data).toHaveProperty("rawMatches");
-      expect(data.rawMatches).toHaveProperty("9535b946-f30c-4a43-b852-000000slayer");
+      expect(data.rawMatches).toHaveLength(1);
+      expect(data.rawMatches).toContainEqual(
+        expect.objectContaining({ MatchId: "9535b946-f30c-4a43-b852-000000slayer" }),
+      );
     });
 
     it("continues operation when KV put fails", async () => {
@@ -3250,6 +3267,134 @@ describe("LiveTrackerDO", () => {
 
       const [seriesScoreCall] = getSeriesScoreSpy.mock.calls;
       expect(seriesScoreCall?.[0]).toHaveLength(2);
+    });
+  });
+
+  describe("handleWebSocket()", () => {
+    it("returns 426 when upgrade header is missing", async () => {
+      const response = await liveTrackerDO.fetch(new Request("http://do/websocket", { method: "GET" }));
+
+      expect(response.status).toBe(426);
+    });
+
+    it("returns 404 when no tracker state exists", async () => {
+      storageGetSpy.mockResolvedValue(null);
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/websocket", { headers: { Upgrade: "websocket" } }),
+      );
+
+      expect(response.status).toBe(404);
+    });
+
+    it("delegates upgrade to webSocketAdapter with initial state message", async () => {
+      const trackerState = aFakeStateWith();
+      storageGetSpy.mockResolvedValue(trackerState);
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/websocket", { headers: { Upgrade: "websocket" } }),
+      );
+
+      expect(response.headers.get("x-fake-upgrade")).toBe("websocket");
+      expect(fakeWebSocketAdapter.initialMessages).toHaveLength(1);
+      const [initialMessage] = fakeWebSocketAdapter.initialMessages;
+      expect(initialMessage).toBeDefined();
+      const parsed = JSON.parse(initialMessage ?? "") as { type: string };
+      expect(parsed.type).toBe("state");
+    });
+  });
+
+  describe("broadcastStateUpdate()", () => {
+    it("broadcasts state to connected clients when state is saved", async () => {
+      const trackerState = createMockTrackerState();
+      storageGetSpy.mockResolvedValue(trackerState);
+      vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+
+      await liveTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+
+      expect(fakeWebSocketAdapter.broadcasts.length).toBeGreaterThan(0);
+      const lastBroadcast = fakeWebSocketAdapter.broadcasts.at(-1);
+      expect(lastBroadcast).toBeDefined();
+      const parsed = JSON.parse(lastBroadcast ?? "") as { type: string };
+      expect(parsed.type).toBe("state");
+    });
+
+    it("skips broadcast when no clients are connected", async () => {
+      const trackerState = createMockTrackerState();
+      storageGetSpy.mockResolvedValue(trackerState);
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+
+      await liveTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+
+      expect(fakeWebSocketAdapter.broadcasts).toHaveLength(0);
+    });
+  });
+
+  describe("dispose() WebSocket behaviour", () => {
+    it("closes all sockets when tracker stops", async () => {
+      const trackerState = aFakeStateWith({ status: "active" });
+      storageGetSpy.mockResolvedValue(trackerState);
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+      vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+
+      await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
+
+      expect(fakeWebSocketAdapter.closes).toHaveLength(1);
+      expect(fakeWebSocketAdapter.closes[0]).toEqual({ code: 1000, reason: "Tracker stopped" });
+    });
+
+    it("broadcasts final state before closing sockets on stop", async () => {
+      const trackerState = aFakeStateWith({ status: "active" });
+      storageGetSpy.mockResolvedValue(trackerState);
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+      vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+
+      await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
+
+      expect(fakeWebSocketAdapter.broadcasts).toHaveLength(1);
+      const [broadcast] = fakeWebSocketAdapter.broadcasts;
+      const parsed = JSON.parse(broadcast ?? "") as { type: string };
+      expect(parsed.type).toBe("state");
+    });
+
+    it("broadcasts status=stopped in the final message even when tracker was active at dispose time", async () => {
+      const trackerState = aFakeStateWith({ status: "active" });
+      storageGetSpy.mockResolvedValue(trackerState);
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+      vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+
+      await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
+
+      const [broadcast] = fakeWebSocketAdapter.broadcasts;
+      const parsed = JSON.parse(broadcast ?? "") as { data: { status: string } };
+      expect(parsed.data.status).toBe("stopped");
+    });
+
+    it("does not persist state after disposal when finally block runs", async () => {
+      const trackerState = createAlarmTestTrackerState();
+      storageGetSpy.mockResolvedValue(trackerState);
+      const discordError = new DiscordError(404, { code: 10003, message: "Unknown channel" });
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+      vi.spyOn(services.discordService, "editMessage").mockRejectedValue(discordError);
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+
+      await liveTrackerDO.alarm();
+
+      // deleteAll was called by dispose()
+      expect(storageDeleteAllSpy).toHaveBeenCalled();
+      // storagePut must not have been called after deleteAll (the finally block must be a no-op)
+      const deleteAllCallIndex = storagePutSpy.mock.invocationCallOrder.findIndex(
+        (order) => order > (storageDeleteAllSpy.mock.invocationCallOrder[0] ?? 0),
+      );
+      expect(deleteAllCallIndex).toBe(-1);
     });
   });
 });

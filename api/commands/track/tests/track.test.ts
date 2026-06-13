@@ -17,8 +17,9 @@ import {
   InteractionType,
   Locale,
 } from "discord-api-types/v10";
+import type { LiveTrackerEmbedData } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/lifecycle";
+import type { LiveTrackerRefreshResponse } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
 import { TrackCommand } from "../track";
-import type { LiveTrackerEmbedData } from "../../../live-tracker/types";
 import { InteractionComponent } from "../../../embeds/live-tracker-embed";
 import type { Services } from "../../../services/install";
 import { installFakeServicesWith } from "../../../services/fakes/services";
@@ -32,7 +33,6 @@ import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import type { DiscordService } from "../../../services/discord/discord";
 import type { LiveTrackerService } from "../../../services/live-tracker/live-tracker";
 import { aFakeLiveTrackerStateWith } from "../../../durable-objects/live-tracker/fakes/live-tracker-do.fake";
-import type { LiveTrackerRefreshResponse } from "../../../durable-objects/live-tracker/types";
 
 const applicationCommandInteractionTrackNeatQueue: APIApplicationCommandInteraction = {
   ...fakeBaseAPIApplicationCommandInteraction,

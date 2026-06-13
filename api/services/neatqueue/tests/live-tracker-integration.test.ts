@@ -1,6 +1,15 @@
 import type { MockInstance } from "vitest";
 import { describe, beforeEach, vi, it, expect } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import type {
+  LiveTrackerStartResponse,
+  LiveTrackerStopResponse,
+} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/lifecycle";
+import type {
+  LiveTrackerStatusResponse,
+  LiveTrackerSubstitutionResponse,
+  LiveTrackerRefreshResponse,
+} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
 import { NeatQueueService } from "../neatqueue";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import {
@@ -27,13 +36,6 @@ import type {
   NeatQueueSubstitutionRequest,
   NeatQueueTeamsCreatedRequest,
 } from "../types";
-import type {
-  LiveTrackerStartResponse,
-  LiveTrackerStatusResponse,
-  LiveTrackerSubstitutionResponse,
-  LiveTrackerStopResponse,
-  LiveTrackerRefreshResponse,
-} from "../../../durable-objects/live-tracker/types";
 import { aFakeLiveTrackerStateWith } from "../../../durable-objects/live-tracker/fakes/live-tracker-do.fake";
 
 describe("NeatQueueService Live Tracker Integration", () => {
@@ -742,10 +744,6 @@ describe("NeatQueueService Live Tracker Integration", () => {
       const match1 = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
       const match2 = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
       const mockMatchIds = [match1.MatchId, match2.MatchId];
-      const mockRawMatches = {
-        [match1.MatchId]: match1,
-        [match2.MatchId]: match2,
-      };
 
       const mockStatusResponse: LiveTrackerStatusResponse = {
         state: aFakeLiveTrackerStateWith({
@@ -766,9 +764,17 @@ describe("NeatQueueService Live Tracker Integration", () => {
       refreshTrackerSpy.mockResolvedValue(mockRefreshResponse);
       stopTrackerSpy.mockResolvedValue({ success: true, state: mockStatusResponse.state });
 
-      // Mock getSeriesData to return raw matches
       const _getSeriesDataSpy = vi.spyOn(liveTrackerService, "getSeriesData").mockResolvedValue({
-        rawMatches: mockRawMatches,
+        seriesId: { guildId: mockMatchCompletedRequest.guild, queueNumber: mockMatchCompletedRequest.match_number },
+        teams: [],
+        seriesScore: "0:0",
+        matchIds: mockMatchIds,
+        discoveredMatches: {},
+        rawMatches: [match1, match2],
+        playersAssociationData: {},
+        substitutions: [],
+        startTime: new Date().toISOString(),
+        lastUpdateTime: new Date().toISOString(),
       });
       void _getSeriesDataSpy;
 
@@ -791,10 +797,6 @@ describe("NeatQueueService Live Tracker Integration", () => {
       const match1 = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
       const match2 = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
       const mockMatchIds = [match1.MatchId, match2.MatchId];
-      const mockRawMatches = {
-        [match1.MatchId]: match1,
-        [match2.MatchId]: match2,
-      };
 
       const mockStatusResponse: LiveTrackerStatusResponse = {
         state: aFakeLiveTrackerStateWith({
@@ -819,9 +821,17 @@ describe("NeatQueueService Live Tracker Integration", () => {
       refreshTrackerSpy.mockResolvedValue(mockRefreshResponse);
       stopTrackerSpy.mockResolvedValue({ success: true, state: mockStatusResponse.state });
 
-      // Mock getSeriesData to return raw matches
       const _getSeriesDataSpy = vi.spyOn(liveTrackerService, "getSeriesData").mockResolvedValue({
-        rawMatches: mockRawMatches,
+        seriesId: { guildId: mockMatchCompletedRequest.guild, queueNumber: mockMatchCompletedRequest.match_number },
+        teams: [],
+        seriesScore: "0:0",
+        matchIds: mockMatchIds,
+        discoveredMatches: {},
+        rawMatches: [match1, match2],
+        playersAssociationData: {},
+        substitutions: [],
+        startTime: new Date().toISOString(),
+        lastUpdateTime: new Date().toISOString(),
       });
       void _getSeriesDataSpy;
 

@@ -1,38 +1,54 @@
 import * as Sentry from "@sentry/cloudflare";
-import type { APIChannel } from "discord-api-types/v10";
+import type { APIChannel, APIGuildMember } from "discord-api-types/v10";
 import { ChannelType, PermissionFlagsBits } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import { addMilliseconds, addMinutes, differenceInMilliseconds, differenceInMinutes, max } from "date-fns";
-import type { LiveTrackerMatchSummary, LiveTrackerStateData } from "@guilty-spark/shared/live-tracker/types";
+import type {
+  LiveTrackerMatchSummary,
+  LiveTrackerStateData,
+  PlayerAssociationData,
+} from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getMedalMetadataFromMatches } from "@guilty-spark/shared/halo/medals";
+import {
+  liveTrackerStartContract,
+  liveTrackerStartRequestSchema,
+  liveTrackerPauseContract,
+  liveTrackerResumeContract,
+  liveTrackerStopContract,
+} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/lifecycle";
+import type {
+  LiveTrackerEmbedData,
+  LiveTrackerStartRequest,
+} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/lifecycle";
+import {
+  liveTrackerRefreshContract,
+  liveTrackerRefreshRequestSchema,
+  liveTrackerSubstitutionContract,
+  liveTrackerSubstitutionRequestSchema,
+  liveTrackerStatusContract,
+  liveTrackerRepostContract,
+  liveTrackerRepostRequestSchema,
+  type LiveTrackerRefreshRequest,
+} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
+import { liveTrackerSeriesDataContract } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/series-data";
+import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import type { LogService } from "../../services/log/types";
 import type { DiscordService } from "../../services/discord/discord";
 import type { HaloService } from "../../services/halo/halo";
 import type { DatabaseService } from "../../services/database/database";
 import { installServices as installServicesImpl } from "../../services/install";
-import type { LiveTrackerEmbedData } from "../../live-tracker/types";
+import {
+  CloudflareWebSocketHibernationAdapter,
+  type WebSocketHibernationAdapter,
+} from "../../base/websocket-hibernation-adapter";
 import { LiveTrackerEmbed } from "../../embeds/live-tracker-embed";
 import { LiveTrackerLoadingEmbed } from "../../embeds/live-tracker-loading-embed";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import { DiscordError } from "../../services/discord/discord-error";
 import type { SeriesData } from "../../services/halo/types";
-import type {
-  LiveTrackerStartRequest,
-  LiveTrackerState,
-  LiveTrackerStartResponse,
-  LiveTrackerPauseResponse,
-  LiveTrackerResumeResponse,
-  LiveTrackerStopResponse,
-  LiveTrackerRefreshResponse,
-  LiveTrackerSubstitutionRequest,
-  LiveTrackerSubstitutionResponse,
-  LiveTrackerStatusResponse,
-  LiveTrackerRepostRequest,
-  LiveTrackerRepostResponse,
-  LiveTrackerRefreshRequest,
-} from "./types";
+import type { LiveTrackerState } from "./types";
 
 // Production: 3 minutes for live tracking (user-facing display)
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes shown to users
@@ -60,8 +76,15 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private readonly discordService: DiscordService;
   private readonly haloService: HaloService;
   private readonly databaseService: DatabaseService;
+  private readonly webSocketAdapter: WebSocketHibernationAdapter;
+  private disposed = false;
 
-  constructor(state: DurableObjectState, env: Env, installServices = installServicesImpl) {
+  constructor(
+    state: DurableObjectState,
+    env: Env,
+    installServices = installServicesImpl,
+    webSocketAdapter: WebSocketHibernationAdapter = new CloudflareWebSocketHibernationAdapter(),
+  ) {
     this.state = state;
     this.env = env;
 
@@ -70,6 +93,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     this.discordService = services.discordService;
     this.haloService = services.haloService;
     this.databaseService = services.databaseService;
+    this.webSocketAdapter = webSocketAdapter;
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -255,22 +279,26 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleStart(request: Request): Promise<Response> {
-    const body = await request.json<LiveTrackerStartRequest>();
+    const parsed = await parseJsonBody(request, liveTrackerStartRequestSchema, "Invalid start request");
+    if (!parsed.success) {
+      return parsed.response;
+    }
+    const startRequest = parsed.data;
 
     const trackerState: LiveTrackerState = {
-      userId: body.userId,
-      guildId: body.guildId,
-      channelId: body.channelId,
-      queueNumber: body.queueNumber,
+      userId: startRequest.userId,
+      guildId: startRequest.guildId,
+      channelId: startRequest.channelId,
+      queueNumber: startRequest.queueNumber,
       isPaused: false,
       status: "active",
-      liveMessageId: body.liveMessageId,
+      liveMessageId: startRequest.liveMessageId,
       startTime: new Date().toISOString(),
       lastUpdateTime: new Date().toISOString(),
-      searchStartTime: body.queueStartTime,
+      searchStartTime: startRequest.queueStartTime,
       checkCount: 0,
-      players: body.players,
-      teams: body.teams,
+      players: startRequest.players as Record<string, APIGuildMember>,
+      teams: startRequest.teams,
       substitutions: [],
       discoveredMatches: {},
       matchIds: [],
@@ -285,13 +313,13 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         matchCount: 0,
         substitutionCount: 0,
       },
-      playersAssociationData: body.playersAssociationData,
+      playersAssociationData: startRequest.playersAssociationData as Record<string, PlayerAssociationData>,
     };
 
     await this.setState(trackerState);
 
     try {
-      const loadingMessage = await this.createInitialMessage(body);
+      const loadingMessage = await this.createInitialMessage(startRequest);
       trackerState.liveMessageId = loadingMessage.id;
       await this.setState(trackerState);
 
@@ -310,7 +338,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       );
 
       await this.updateChannelName(trackerState, trackerState.seriesScore, true);
-      await this.discordService.editMessage(body.channelId, loadingMessage.id, liveTrackerEmbed.toMessageData());
+      await this.discordService.editMessage(
+        startRequest.channelId,
+        loadingMessage.id,
+        liveTrackerEmbed.toMessageData(),
+      );
 
       this.logService.info(
         `LiveTracker: Created live tracker message for queue ${trackerState.queueNumber.toString()}`,
@@ -470,15 +502,14 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     await this.setState(trackerState);
 
     try {
-      let body: LiveTrackerRefreshRequest = { matchCompleted: false };
+      let body: LiveTrackerRefreshRequest = {};
 
       try {
         const text = await request.text();
         if (text && text.trim() !== "") {
-          body = JSON.parse(text) as LiveTrackerRefreshRequest;
+          body = liveTrackerRefreshRequestSchema.parse(JSON.parse(text));
         }
       } catch (error) {
-        // If parsing fails, use default values
         this.logService.warn(
           "LiveTracker: Failed to parse refresh request body, using defaults",
           new Map([["error", String(error)]]),
@@ -546,7 +577,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleSubstitution(request: Request): Promise<Response> {
-    const { playerOutId, playerInId, playerAssociationData } = await request.json<LiveTrackerSubstitutionRequest>();
+    const parsed = await parseJsonBody(request, liveTrackerSubstitutionRequestSchema, "Invalid substitution request");
+    if (!parsed.success) {
+      return parsed.response;
+    }
+    const { playerOutId, playerInId, playerAssociationData } = parsed.data;
     const trackerState = await this.getState();
     if (!trackerState) {
       return new Response("Not Found", { status: 404 });
@@ -593,7 +628,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       trackerState.players[playerInId] = newPlayerMember;
       trackerState.playersAssociationData = {
         ...trackerState.playersAssociationData,
-        [playerInId]: playerAssociationData,
+        [playerInId]: playerAssociationData as unknown as PlayerAssociationData,
       };
       const now = new Date().toISOString();
       trackerState.searchStartTime = now;
@@ -635,7 +670,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleRepost(request: Request): Promise<Response> {
-    const { newMessageId } = await request.json<LiveTrackerRepostRequest>();
+    const parsed = await parseJsonBody(request, liveTrackerRepostRequestSchema, "Invalid repost request");
+    if (!parsed.success) {
+      return parsed.response;
+    }
+    const { newMessageId } = parsed.data;
 
     const trackerState = await this.getState();
     if (!trackerState) {
@@ -690,7 +729,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       seriesScore: trackerState.seriesScore,
       matchIds: trackerState.matchIds,
       discoveredMatches: trackerState.discoveredMatches,
-      rawMatches: await this.loadMatchesFromKV(trackerState.matchIds),
+      rawMatches: Object.values(await this.loadMatchesFromKV(trackerState.matchIds)),
       playersAssociationData: trackerState.playersAssociationData,
       substitutions: trackerState.substitutions,
       startTime: trackerState.startTime,
@@ -706,7 +745,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       ]),
     );
 
-    return Response.json(seriesData);
+    return liveTrackerSeriesDataContract.toResponse(seriesData);
   }
 
   private async getState(): Promise<LiveTrackerState | null> {
@@ -715,6 +754,9 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async setState(state: LiveTrackerState): Promise<void> {
+    if (this.disposed) {
+      return;
+    }
     await this.state.storage.put("trackerState", state);
     // Broadcast state update to all connected WebSocket clients
     await this.broadcastStateUpdate(state);
@@ -793,78 +835,56 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
   // Typed response helpers
   private createStartSuccessResponse(state: LiveTrackerState): Response {
-    const response: LiveTrackerStartResponse = { success: true, state };
-    return Response.json(response);
+    return liveTrackerStartContract.toResponse({ success: true, state });
   }
 
   private createStartFailureResponse(state: LiveTrackerState): Response {
-    const response: LiveTrackerStartResponse = { success: false, state };
-    return Response.json(response);
+    return liveTrackerStartContract.toResponse({ success: false, state });
   }
 
   private createPauseResponse(state: LiveTrackerState, embedData?: LiveTrackerEmbedData): Response {
-    const response: LiveTrackerPauseResponse = embedData
-      ? { success: true, state, embedData }
-      : { success: true, state };
-    return Response.json(response);
+    return liveTrackerPauseContract.toResponse(
+      embedData ? { success: true, state, embedData } : { success: true, state },
+    );
   }
 
   private createResumeResponse(state: LiveTrackerState, embedData?: LiveTrackerEmbedData): Response {
-    const response: LiveTrackerResumeResponse = embedData
-      ? { success: true, state, embedData }
-      : { success: true, state };
-    return Response.json(response);
+    return liveTrackerResumeContract.toResponse(
+      embedData ? { success: true, state, embedData } : { success: true, state },
+    );
   }
 
   private createStopResponse(state: LiveTrackerState, embedData?: LiveTrackerEmbedData): Response {
-    const response: LiveTrackerStopResponse = embedData
-      ? { success: true, state, embedData }
-      : { success: true, state };
-    return Response.json(response);
+    return liveTrackerStopContract.toResponse(
+      embedData ? { success: true, state, embedData } : { success: true, state },
+    );
   }
 
   private createRefreshSuccessResponse(state: LiveTrackerState): Response {
-    const response: LiveTrackerRefreshResponse = { success: true, state };
-    return Response.json(response);
+    return liveTrackerRefreshContract.toResponse({ success: true, state });
   }
 
   private createRefreshCooldownResponse(message: string): Response {
-    const response: LiveTrackerRefreshResponse = {
-      success: false,
-      error: "cooldown",
-      message,
-    };
-    return new Response(JSON.stringify(response), {
-      status: 429,
-      headers: { "Content-Type": "application/json" },
-    });
+    return liveTrackerRefreshContract.toResponse({ success: false, error: "cooldown", message }, { status: 429 });
   }
 
   private createRefreshFailureResponse(state: LiveTrackerState): Response {
-    const response: LiveTrackerRefreshResponse = { success: false, state };
-    return Response.json(response);
+    return liveTrackerRefreshContract.toResponse({ success: false, state });
   }
 
   private createSubstitutionResponse(playerOutId: string, playerInId: string, teamIndex: number): Response {
-    const response: LiveTrackerSubstitutionResponse = {
+    return liveTrackerSubstitutionContract.toResponse({
       success: true,
       substitution: { playerOutId, playerInId, teamIndex },
-    };
-    return Response.json(response);
+    });
   }
 
   private createStatusResponse(state: LiveTrackerState): Response {
-    const response: LiveTrackerStatusResponse = { state };
-    return Response.json(response);
+    return liveTrackerStatusContract.toResponse({ state });
   }
 
   private createRepostResponse(oldMessageId: string, newMessageId: string): Response {
-    const response: LiveTrackerRepostResponse = {
-      success: true,
-      oldMessageId,
-      newMessageId,
-    };
-    return Response.json(response);
+    return liveTrackerRepostContract.toResponse({ success: true, oldMessageId, newMessageId });
   }
 
   /**
@@ -1414,39 +1434,24 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       );
     }
 
-    const webSocketPair = new WebSocketPair();
-    const client = webSocketPair[0];
-    const server = webSocketPair[1];
-
     try {
-      // Use hibernation API - allows DO to be evicted from memory while maintaining connection
-      this.state.acceptWebSocket(server);
-
-      const allWebSockets = this.state.getWebSockets();
+      const data = await this.stateToContractData(trackerState);
+      const initialMessage = JSON.stringify({
+        type: "state",
+        data,
+        timestamp: new Date().toISOString(),
+      });
+      const response = this.webSocketAdapter.upgrade(this.state, initialMessage);
       this.logService.info(
         "LiveTracker: WebSocket client connected",
         new Map([
-          ["totalClients", allWebSockets.length.toString()],
+          ["totalClients", this.state.getWebSockets().length.toString()],
           ["guildId", trackerState.guildId],
           ["channelId", trackerState.channelId],
           ["queueNumber", trackerState.queueNumber.toString()],
         ]),
       );
-
-      // Send current state immediately on connection
-      const data = await this.stateToContractData(trackerState);
-      server.send(
-        JSON.stringify({
-          type: "state",
-          data,
-          timestamp: new Date().toISOString(),
-        }),
-      );
-
-      return new Response(null, {
-        status: 101,
-        webSocket: client,
-      });
+      return response;
     } catch (error) {
       this.logService.error(
         "LiveTracker: Failed to establish WebSocket",
@@ -1457,21 +1462,12 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         ]),
       );
       Sentry.captureException(error);
-
-      // Close the WebSocket if setup failed
-      try {
-        server.close(1011, "Internal error");
-      } catch {
-        // Ignore errors during cleanup
-      }
-
       return new Response("Failed to establish WebSocket connection", { status: 500 });
     }
   }
 
   private async broadcastStateUpdate(state: LiveTrackerState): Promise<void> {
-    const allWebSockets = this.state.getWebSockets();
-    if (allWebSockets.length === 0) {
+    if (this.state.getWebSockets().length === 0) {
       return;
     }
 
@@ -1482,14 +1478,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       timestamp: new Date().toISOString(),
     });
 
-    for (const client of allWebSockets) {
-      try {
-        client.send(message);
-      } catch (error) {
-        this.logService.warn("LiveTracker: Failed to send to WebSocket client", new Map([["error", String(error)]]));
-        // WebSocket will be cleaned up automatically by hibernation API
-      }
-    }
+    this.webSocketAdapter.broadcast(this.state, message);
   }
 
   private async stateToContractData(state: LiveTrackerState): Promise<LiveTrackerStateData> {
@@ -1532,46 +1521,26 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
    * Centralized disposal method for all tracker termination scenarios.
    * Ensures WebSocket clients are notified, resources are cleaned up, and storage is deleted.
    */
-  private async dispose(trackerState: LiveTrackerState | null, reason: string): Promise<void> {
-    const allWebSockets = this.state.getWebSockets();
+  private async dispose(trackerState: LiveTrackerState, reason: string): Promise<void> {
     this.logService.info(
       "LiveTracker: Disposing tracker",
       new Map([
         ["reason", reason],
-        ["hasState", trackerState != null ? "true" : "false"],
-        ["webSocketClients", allWebSockets.length.toString()],
+        ["webSocketClients", this.state.getWebSockets().length.toString()],
       ]),
     );
 
-    // Notify and close WebSocket clients if state exists
-    if (trackerState) {
-      await this.broadcastStopMessage(trackerState);
+    trackerState.status = "stopped";
+    this.disposed = true;
+    await this.broadcastStopMessage(trackerState);
 
-      // Attempt to reset channel name
-      try {
-        await this.resetChannelName(trackerState);
-      } catch (error) {
-        this.logService.info(
-          "LiveTracker: Failed to reset channel name during disposal",
-          new Map([["error", String(error)]]),
-        );
-      }
-    } else if (allWebSockets.length > 0) {
-      // Close any orphaned connections without state
+    try {
+      await this.resetChannelName(trackerState);
+    } catch (error) {
       this.logService.info(
-        "LiveTracker: Closing orphaned WebSocket connections during disposal",
-        new Map([["clientCount", allWebSockets.length.toString()]]),
+        "LiveTracker: Failed to reset channel name during disposal",
+        new Map([["error", String(error)]]),
       );
-      for (const client of allWebSockets) {
-        try {
-          client.close(1011, "Tracker disposed");
-        } catch (error) {
-          this.logService.info(
-            "LiveTracker: Failed to close orphaned WebSocket client",
-            new Map([["error", String(error)]]),
-          );
-        }
-      }
     }
 
     // Delete alarm and all storage
@@ -1580,12 +1549,15 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async broadcastStopMessage(state: LiveTrackerState): Promise<void> {
-    const allWebSockets = this.state.getWebSockets();
-
+    const clientCount = this.state.getWebSockets().length;
     this.logService.info(
       "Notifying WebSocket clients of tracker stop",
-      new Map([["clientCount", allWebSockets.length.toString()]]),
+      new Map([["clientCount", clientCount.toString()]]),
     );
+
+    if (clientCount === 0) {
+      return;
+    }
 
     try {
       // Send final state update with status='stopped' so the frontend receives complete state
@@ -1596,30 +1568,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         timestamp: new Date().toISOString(),
       });
 
-      for (const client of allWebSockets) {
-        try {
-          client.send(message);
-          client.close(1000, "Tracker stopped");
-        } catch (error) {
-          this.logService.warn(
-            "LiveTracker: Failed to notify WebSocket client of stop",
-            new Map([["error", String(error)]]),
-          );
-        }
-      }
+      this.webSocketAdapter.broadcast(this.state, message);
     } catch (error) {
       this.logService.warn("LiveTracker: Failed to build stop message state", new Map([["error", String(error)]]));
-      // Close websockets without sending final state if we can't build it
-      for (const client of allWebSockets) {
-        try {
-          client.close(1000, "Tracker stopped");
-        } catch (closeError) {
-          this.logService.warn(
-            "LiveTracker: Failed to close WebSocket client",
-            new Map([["error", String(closeError)]]),
-          );
-        }
-      }
     }
+
+    this.webSocketAdapter.closeAll(this.state, 1000, "Tracker stopped");
   }
 }
