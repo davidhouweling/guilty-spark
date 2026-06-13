@@ -3342,6 +3342,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = aFakeStateWith({ status: "active" });
       storageGetSpy.mockResolvedValue(trackerState);
       vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+      vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
 
       await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
 
@@ -3353,6 +3354,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = aFakeStateWith({ status: "active" });
       storageGetSpy.mockResolvedValue(trackerState);
       vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+      vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
 
       await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
 
@@ -3366,6 +3368,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = aFakeStateWith({ status: "active" });
       storageGetSpy.mockResolvedValue(trackerState);
       vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+      vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
 
       await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
 
@@ -3389,7 +3392,7 @@ describe("LiveTrackerDO", () => {
       expect(storageDeleteAllSpy).toHaveBeenCalled();
       // storagePut must not have been called after deleteAll (the finally block must be a no-op)
       const deleteAllCallIndex = storagePutSpy.mock.invocationCallOrder.findIndex(
-        (_, i) => storagePutSpy.mock.invocationCallOrder[i] > (storageDeleteAllSpy.mock.invocationCallOrder[0] ?? 0),
+        (order) => order > (storageDeleteAllSpy.mock.invocationCallOrder[0] ?? 0),
       );
       expect(deleteAllCallIndex).toBe(-1);
     });

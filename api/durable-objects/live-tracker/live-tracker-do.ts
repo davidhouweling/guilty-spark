@@ -1547,10 +1547,15 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async broadcastStopMessage(state: LiveTrackerState): Promise<void> {
+    const clientCount = this.state.getWebSockets().length;
     this.logService.info(
       "Notifying WebSocket clients of tracker stop",
-      new Map([["clientCount", this.state.getWebSockets().length.toString()]]),
+      new Map([["clientCount", clientCount.toString()]]),
     );
+
+    if (clientCount === 0) {
+      return;
+    }
 
     try {
       // Send final state update with status='stopped' so the frontend receives complete state
