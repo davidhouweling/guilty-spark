@@ -38,7 +38,7 @@ export class FakeMatchAnalyticsService implements MatchAnalyticsService {
   }
 
   async getMatchAnalytics(): Promise<MatchAnalytics> {
-    return this.analytics;
+    return Promise.resolve(this.analytics);
   }
 }
 

@@ -19,10 +19,7 @@ function createFallbackPlayer(xuid: string): KillMatrixPlayer {
   };
 }
 
-function toPlayer(
-  xuid: string,
-  playersByXuid: ReadonlyMap<string, KillMatrixPresenterPlayerLookup>,
-): KillMatrixPlayer {
+function toPlayer(xuid: string, playersByXuid: ReadonlyMap<string, KillMatrixPresenterPlayerLookup>): KillMatrixPlayer {
   const entry = playersByXuid.get(xuid);
   if (entry == null) {
     return createFallbackPlayer(xuid);
@@ -61,33 +58,35 @@ function parsePairKey(key: string): { killerXuid: string; victimXuid: string } {
   return { killerXuid, victimXuid };
 }
 
-export class KillMatrixPresenter {
-  static present({ analytics, playersByXuid }: KillMatrixPresenterOptions): KillMatrixViewRow[] {
-    const rows: KillMatrixViewRow[] = [];
+function presentKillMatrix({ analytics, playersByXuid }: KillMatrixPresenterOptions): KillMatrixViewRow[] {
+  const rows: KillMatrixViewRow[] = [];
 
-    for (const [key, value] of Object.entries(analytics.killMatrix)) {
-      const { killerXuid, victimXuid } = parsePairKey(key);
-      const killer = toPlayer(killerXuid, playersByXuid);
-      const victim = toPlayer(victimXuid, playersByXuid);
+  for (const [key, value] of Object.entries(analytics.killMatrix)) {
+    const { killerXuid, victimXuid } = parsePairKey(key);
+    const killer = toPlayer(killerXuid, playersByXuid);
+    const victim = toPlayer(victimXuid, playersByXuid);
 
-      rows.push({
-        key,
-        killer,
-        victim,
-        count: value.count,
-        headshotKills: value.headshotKills,
-        perfects: value.perfects,
-        classification: classify(killer, victim),
-        topWeaponId: topWeaponId(value.weapons),
-      });
-    }
-
-    return rows.sort((left, right) => {
-      if (right.count !== left.count) {
-        return right.count - left.count;
-      }
-
-      return left.key.localeCompare(right.key);
+    rows.push({
+      key,
+      killer,
+      victim,
+      count: value.count,
+      headshotKills: value.headshotKills,
+      perfects: value.perfects,
+      classification: classify(killer, victim),
+      topWeaponId: topWeaponId(value.weapons),
     });
   }
+
+  return rows.sort((left, right) => {
+    if (right.count !== left.count) {
+      return right.count - left.count;
+    }
+
+    return left.key.localeCompare(right.key);
+  });
 }
+
+export const KillMatrixPresenter = {
+  present: presentKillMatrix,
+};
