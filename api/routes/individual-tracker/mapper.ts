@@ -2,13 +2,13 @@ import type { TrackerProfile } from "@guilty-spark/shared/contracts/individual-t
 import type { Tracker, TrackerState } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { IndividualTrackerDoState } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
+import {
+  individualTrackerViewStateContract,
+  type IndividualTrackerViewState,
+} from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/management";
 import type { IndividualTrackerProfilesRow } from "../../services/database/types/individual_tracker_profiles";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
-import type {
-  IndividualTrackerState,
-  IndividualTrackerViewState,
-  IndividualTrackerViewStateResponse,
-} from "../../durable-objects/individual-tracker/types";
 
 export async function fetchTrackerDoViewState(
   env: Env,
@@ -23,7 +23,7 @@ export async function fetchTrackerDoViewState(
     url.searchParams.set("topBarStatSlots", JSON.stringify(topBarStatSlots));
   }
   const response = await stub.fetch(url.toString(), { method: "GET" });
-  const result = await response.json<IndividualTrackerViewStateResponse>();
+  const result = await individualTrackerViewStateContract.fromResponse(response);
   return result.state;
 }
 
@@ -56,7 +56,7 @@ export function toTrackerProfile(row: IndividualTrackerProfilesRow): TrackerProf
   };
 }
 
-function toTrackerState(state: IndividualTrackerState): TrackerState {
+function toTrackerState(state: IndividualTrackerDoState): TrackerState {
   return {
     userId: state.userId,
     trackerId: state.trackerId,
@@ -71,7 +71,7 @@ function toTrackerState(state: IndividualTrackerState): TrackerState {
   };
 }
 
-export function toTracker(row: IndividualTrackersRow, state: IndividualTrackerState | null): Tracker {
+export function toTracker(row: IndividualTrackersRow, state: IndividualTrackerDoState | null): Tracker {
   return {
     trackerId: row.TrackerId,
     gamertag: row.Gamertag,

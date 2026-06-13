@@ -1,10 +1,10 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { parseStreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { SeriesContextPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import type { DatabaseService } from "../database/database";
 import type { IndividualTrackerProfilesRow } from "../database/types/individual_tracker_profiles";
 import type { IndividualTrackerStatus, IndividualTrackersRow } from "../database/types/individual_trackers";
-import type { SeriesContextPayload } from "../../durable-objects/individual-tracker/types";
 import type { LogService } from "../log/types";
 import { IdentityNotOwnedError, ProfileNotFoundError, TrackerLimitReachedError, TrackerNotFoundError } from "./errors";
 import type { CreateTrackerOptions, UpdateProfileOptions } from "./types";

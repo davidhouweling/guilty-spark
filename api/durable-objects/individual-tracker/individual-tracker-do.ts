@@ -3,6 +3,32 @@ import { addMilliseconds, compareAsc, differenceInHours } from "date-fns";
 import { type HaloInfiniteClient, type MatchStats, MatchType, RequestError } from "halo-infinite-api";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import {
+  editSeriesContract,
+  editSeriesRequestSchema,
+  endSeriesContract,
+  resumeSeriesContract,
+  selectMatchesContract,
+  selectMatchesRequestSchema,
+  startSeriesContract,
+  startSeriesRequestSchema,
+} from "@guilty-spark/shared/contracts/individual-tracker/tracker";
+import {
+  individualTrackerPauseContract,
+  individualTrackerResumeContract,
+  individualTrackerStartContract,
+  individualTrackerStartRequestSchema,
+  individualTrackerStopContract,
+  type IndividualTrackerDoState,
+} from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
+import {
+  individualTrackerStatusContract,
+  individualTrackerViewStateContract,
+} from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/management";
+import {
+  individualTrackerNudgeContract,
+  seriesContextPayloadSchema,
+} from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
+import {
   analyzeMatchGroupings,
   buildMatchScore,
   buildTeamRosterSignature,
@@ -17,6 +43,7 @@ import {
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { type IndividualTopBarStatOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import { z } from "zod";
 import type { LogService } from "../../services/log/types";
 import { installServices as installServicesImpl, type Services } from "../../services/install";
 import {
@@ -24,28 +51,11 @@ import {
   type WebSocketHibernationAdapter,
 } from "../../base/websocket-hibernation-adapter";
 import type {
-  IndividualTrackerStartRequest,
   IndividualTrackerInternalState,
   IndividualTrackerMatchSummary,
   IndividualTrackerSeriesGroup,
-  IndividualTrackerState,
-  IndividualTrackerStartResponse,
-  IndividualTrackerPauseResponse,
-  IndividualTrackerResumeResponse,
-  IndividualTrackerStopResponse,
-  IndividualTrackerStatusResponse,
   IndividualTrackerViewState,
-  IndividualTrackerViewStateResponse,
-  IndividualTrackerSelectMatchesRequest,
-  IndividualTrackerSelectMatchesResponse,
-  IndividualTrackerStartSeriesRequest,
-  IndividualTrackerStartSeriesResponse,
-  IndividualTrackerNudgeResponse,
-  IndividualTrackerEditSeriesRequest,
-  IndividualTrackerEditSeriesResponse,
-  IndividualTrackerResumeSeriesResponse,
   ActiveSeries,
-  SeriesContextPayload,
   SeriesTeam,
   TopBarStatItem,
 } from "./types";
@@ -465,7 +475,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private async handleStart(request: Request): Promise<Response> {
-    const body = await request.json<IndividualTrackerStartRequest>();
+    const body = individualTrackerStartRequestSchema.parse(await request.json());
     const now = new Date().toISOString();
 
     const trackerState: IndividualTrackerInternalState = {
@@ -495,8 +505,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.setState(trackerState);
     await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
 
-    const response: IndividualTrackerStartResponse = { success: true, state: this.sanitizeState(trackerState) };
-    return Response.json(response);
+    return individualTrackerStartContract.toResponse({ success: true, state: this.sanitizeState(trackerState) });
   }
 
   private async handlePause(): Promise<Response> {
@@ -512,8 +521,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
 
-    const response: IndividualTrackerPauseResponse = { success: true, state: this.sanitizeState(trackerState) };
-    return Response.json(response);
+    return individualTrackerPauseContract.toResponse({ success: true, state: this.sanitizeState(trackerState) });
   }
 
   private async handleResume(): Promise<Response> {
@@ -530,8 +538,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.state.storage.setAlarm(addMilliseconds(new Date(), resumeAlarmDelay).getTime());
     this.broadcastViewState(trackerState);
 
-    const response: IndividualTrackerResumeResponse = { success: true, state: this.sanitizeState(trackerState) };
-    return Response.json(response);
+    return individualTrackerResumeContract.toResponse({ success: true, state: this.sanitizeState(trackerState) });
   }
 
   private async handleStop(): Promise<Response> {
@@ -547,8 +554,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       this.closeWebSockets("Tracker stopped");
     }
 
-    const response: IndividualTrackerStopResponse = { success: true };
-    return Response.json(response);
+    return individualTrackerStopContract.toResponse({ success: true });
   }
 
   private async handleSelectMatches(request: Request): Promise<Response> {
@@ -557,16 +563,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Not Found", { status: 404 });
     }
 
-    const body = await request.json<IndividualTrackerSelectMatchesRequest>();
-    if (!Array.isArray(body.matchIds)) {
-      return new Response("Bad Request", { status: 400 });
-    }
+    const body = selectMatchesRequestSchema.parse(await request.json());
     const known = new Set(trackerState.matchIds);
     const incoming = body.matchIds.filter((id) => known.has(id)).sort();
     const unchanged = incoming.join(",") === trackerState.selectedMatchIds.join(",");
 
     if (unchanged) {
-      return Response.json({ success: true } satisfies IndividualTrackerSelectMatchesResponse);
+      return selectMatchesContract.toResponse({ success: true });
     }
 
     trackerState.selectedMatchIds = incoming;
@@ -581,8 +584,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       await this.state.storage.setAlarm(Date.now());
     }
 
-    const response: IndividualTrackerSelectMatchesResponse = { success: true };
-    return Response.json(response);
+    return selectMatchesContract.toResponse({ success: true });
   }
 
   private async handleStartSeries(request: Request): Promise<Response> {
@@ -591,7 +593,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Not Found", { status: 404 });
     }
 
-    const body = await request.json<IndividualTrackerStartSeriesRequest>();
+    const body = startSeriesRequestSchema.parse(await request.json());
 
     const teams: SeriesTeam[] = body.teams.map((team) => ({
       name: team.name,
@@ -613,8 +615,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
 
-    const response: IndividualTrackerStartSeriesResponse = { success: true };
-    return Response.json(response);
+    return startSeriesContract.toResponse({ success: true });
   }
 
   private async handleEndSeries(): Promise<Response> {
@@ -633,7 +634,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
 
-    return Response.json({ success: true });
+    return endSeriesContract.toResponse({ success: true });
   }
 
   private async handleEditSeries(request: Request): Promise<Response> {
@@ -642,23 +643,23 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("No active series", { status: 409 });
     }
 
-    let body: IndividualTrackerEditSeriesRequest;
+    let body: z.infer<typeof editSeriesRequestSchema>;
     try {
-      body = await request.json<IndividualTrackerEditSeriesRequest>();
-      if (body.titleOverride !== undefined) {
-        trackerState.activeSeries.title = body.titleOverride ?? getDefaultSeriesGroupTitle();
-      }
-      if (body.subtitleOverride !== undefined) {
-        trackerState.activeSeries.subtitle = body.subtitleOverride;
-      }
-      if (body.teams !== undefined) {
-        trackerState.activeSeries.teams = body.teams.map((team) => ({
-          name: team.name,
-          players: team.members.map((gamertag) => ({ discordId: null, discordName: null, gamertag, xboxId: null })),
-        }));
-      }
+      body = editSeriesRequestSchema.parse(await request.json());
     } catch {
       return new Response("Bad Request", { status: 400 });
+    }
+    if (body.titleOverride !== undefined) {
+      trackerState.activeSeries.title = body.titleOverride ?? getDefaultSeriesGroupTitle();
+    }
+    if (body.subtitleOverride !== undefined) {
+      trackerState.activeSeries.subtitle = body.subtitleOverride;
+    }
+    if (body.teams !== undefined) {
+      trackerState.activeSeries.teams = body.teams.map((team) => ({
+        name: team.name,
+        players: team.members.map((gamertag) => ({ discordId: null, discordName: null, gamertag, xboxId: null })),
+      }));
     }
 
     trackerState.lastUpdateTime = new Date().toISOString();
@@ -666,8 +667,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
 
-    const response: IndividualTrackerEditSeriesResponse = { success: true };
-    return Response.json(response);
+    return editSeriesContract.toResponse({ success: true });
   }
 
   private async handleResumeSeries(): Promise<Response> {
@@ -694,8 +694,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
 
-    const response: IndividualTrackerResumeSeriesResponse = { success: true };
-    return Response.json(response);
+    return resumeSeriesContract.toResponse({ success: true });
   }
 
   private async handleNudge(request: Request): Promise<Response> {
@@ -704,9 +703,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Not Found", { status: 404 });
     }
 
-    let payload: SeriesContextPayload | null = null;
+    let payload: z.infer<typeof seriesContextPayloadSchema> | null = null;
     try {
-      payload = await request.json<SeriesContextPayload | null>();
+      payload = z.union([seriesContextPayloadSchema, z.null()]).parse(await request.json());
     } catch {
       return new Response("Bad Request", { status: 400 });
     }
@@ -727,16 +726,14 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     this.broadcastViewState(trackerState);
     await this.state.storage.setAlarm(Date.now());
 
-    const response: IndividualTrackerNudgeResponse = { success: true };
-    return Response.json(response);
+    return individualTrackerNudgeContract.toResponse({ success: true });
   }
 
   private async handleStatus(): Promise<Response> {
     const trackerState = await this.getState();
-    const response: IndividualTrackerStatusResponse = {
+    return individualTrackerStatusContract.toResponse({
       state: trackerState == null ? null : this.sanitizeState(trackerState),
-    };
-    return Response.json(response);
+    });
   }
 
   private async handleViewState(request: Request): Promise<Response> {
@@ -757,16 +754,17 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         ? await this.buildTopBarStats(trackerState, topBarStatSlots)
         : undefined;
 
-    const response: IndividualTrackerViewStateResponse = {
-      state:
-        trackerState == null
-          ? null
-          : {
-              ...this.toViewState(trackerState),
-              ...(topBarStats != null ? { topBarStats } : {}),
-            },
-    };
-    return Response.json(response);
+    if (trackerState == null) {
+      return individualTrackerViewStateContract.toResponse({ state: null });
+    }
+    const { topBarStats: viewTopBarStats, ...viewState } = this.toViewState(trackerState);
+    const resolvedTopBarStats = topBarStats ?? viewTopBarStats;
+    return individualTrackerViewStateContract.toResponse({
+      state: {
+        ...viewState,
+        ...(resolvedTopBarStats != null ? { topBarStats: [...resolvedTopBarStats] } : {}),
+      },
+    });
   }
 
   private async buildTopBarStats(
@@ -836,7 +834,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     delete state.activeSeries;
   }
 
-  private sanitizeState(state: IndividualTrackerInternalState): IndividualTrackerState {
+  private sanitizeState(state: IndividualTrackerInternalState): IndividualTrackerDoState {
     return {
       userId: state.userId,
       trackerId: state.trackerId,

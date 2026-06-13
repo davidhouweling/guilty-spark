@@ -16,6 +16,7 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getSeriesGroupTitleFromTeams } from "@guilty-spark/shared/individual-tracker/series-grouping";
+import type { SeriesContextPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import type { DatabaseService } from "../database/database";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config";
@@ -41,7 +42,7 @@ import { DiscordError } from "../discord/discord-error";
 import { MapsEmbed } from "../../embeds/maps-embed";
 import { isSuccessResponse } from "../../durable-objects/live-tracker/types";
 import { NeatQueuePlayersEmbed } from "../../embeds/neatqueue/neatqueue-players-embed";
-import type { SeriesContextPayload, SeriesPlayer, SeriesTeam } from "../../durable-objects/individual-tracker/types";
+import type { SeriesPlayer, SeriesTeam } from "../../durable-objects/individual-tracker/types";
 import type { IndividualTrackerService } from "../individual-tracker/individual-tracker";
 import type {
   VerifyNeatQueueResponse,
