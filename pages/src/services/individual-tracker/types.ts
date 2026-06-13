@@ -119,6 +119,7 @@ export interface IndividualTrackerConnection {
 export interface TrackerReference {
   readonly trackerId: string;
   readonly gamertag: string;
+  readonly xuid: string;
 }
 
 export interface TrackerListResponse {

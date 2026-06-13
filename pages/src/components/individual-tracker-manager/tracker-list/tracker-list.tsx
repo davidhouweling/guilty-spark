@@ -10,6 +10,7 @@ export type TrackerDisplayStatus = "active" | "paused" | "stopped" | "not-starte
 export interface TrackerListItem {
   readonly trackerId: string | null;
   readonly gamertag: string;
+  readonly xuid: string | null;
   readonly status: TrackerDisplayStatus;
   readonly isLive: boolean;
   readonly isPinned: boolean;

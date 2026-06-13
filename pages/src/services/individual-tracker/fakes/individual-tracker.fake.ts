@@ -249,7 +249,7 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
   public async getTrackers(): Promise<TrackerListResponse> {
     const { trackers } = await this.listTrackers();
     return {
-      trackers: trackers.map((t) => ({ trackerId: t.trackerId, gamertag: t.gamertag })),
+      trackers: trackers.map((t) => ({ trackerId: t.trackerId, gamertag: t.gamertag, xuid: t.xuid })),
       statuses: Object.fromEntries(trackers.map((t) => [t.trackerId, t.state ?? null])),
     };
   }
