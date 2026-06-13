@@ -54,7 +54,7 @@ describe("/api/individual-tracker manage routes", () => {
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
     const res = (await router.fetch(
-      postRequest("/api/individual-tracker/manage/start", { gamertag: "Foo" }),
+      postRequest("/api/individual-tracker/manage/start", { gamertag: "Foo", xuid: "xuid-foo" }),
       env,
     )) as Response;
 
@@ -75,7 +75,7 @@ describe("/api/individual-tracker manage routes", () => {
     expect(res.status).toBe(401);
   });
 
-  it("starts a tracker: resolves the gamertag, creates the registry row, calls the DO start, returns the tracker", async () => {
+  it("starts a tracker: creates the registry row, calls the DO start, returns the tracker", async () => {
     const doStub = aFakeIndividualTrackerDOWith({
       startResponse: {
         success: true,
@@ -94,17 +94,13 @@ describe("/api/individual-tracker manage routes", () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env: localEnv });
       vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith());
-      vi.spyOn(services.xboxService, "getUserByGamertag").mockResolvedValue({
-        xuid: "xuid-1",
-        gamertag: "ResolvedTag",
-      });
       vi.spyOn(services.individualTrackerService, "createTracker").mockResolvedValue(row);
       return services;
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
     const res = (await router.fetch(
-      postRequest("/api/individual-tracker/manage/start", { gamertag: "resolvedtag" }),
+      postRequest("/api/individual-tracker/manage/start", { gamertag: "ResolvedTag", xuid: "xuid-1" }),
       localEnv,
     )) as Response;
 
@@ -120,14 +116,13 @@ describe("/api/individual-tracker manage routes", () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
       vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith());
-      vi.spyOn(services.xboxService, "getUserByGamertag").mockResolvedValue({ xuid: "xuid-6", gamertag: "Sixth" });
       vi.spyOn(services.individualTrackerService, "createTracker").mockRejectedValue(new TrackerLimitReachedError());
       return services;
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
     const res = (await router.fetch(
-      postRequest("/api/individual-tracker/manage/start", { gamertag: "sixth" }),
+      postRequest("/api/individual-tracker/manage/start", { gamertag: "Sixth", xuid: "xuid-6" }),
       env,
     )) as Response;
 

@@ -164,14 +164,12 @@ export class LiveTrackersPresenter {
     const { status, gamertag, xuid, isLive, trackerId, isPinned } = item;
     const actions: TrackerRowAction[] = [];
 
-    if ((status === "not-started" || status === "stopped") && gamertag !== "") {
+    if ((status === "not-started" || status === "stopped") && gamertag !== "" && xuid != null) {
       actions.push({
         label: "Start tracker",
         disabled: snapshot.busy,
         onClick: (): void => {
-          if (xuid != null) {
-            void this.startTracker(gamertag, xuid);
-          }
+          void this.startTracker(gamertag, xuid);
         },
       });
     }
