@@ -16,6 +16,7 @@ import {
   InteractionType,
   MessageFlags,
   InteractionContextType,
+  PermissionFlagsBits,
 } from "discord-api-types/v10";
 import type { MatchStats, GameVariantCategory } from "halo-infinite-api";
 import { subHours } from "date-fns";
@@ -33,6 +34,14 @@ import type { GuildConfigRow } from "../../services/database/types/guild_config"
 import { StatsReturnType } from "../../services/database/types/guild_config";
 import { EndUserError } from "../../base/end-user-error";
 import { create } from "../../embeds/stats/create";
+
+interface FixFlowMetadata extends Record<string, unknown> {
+  guildId: string;
+  channelId: string;
+  queueData: QueueData;
+  selectedPlayerId?: string;
+  selectedMatchIds?: string[];
+}
 
 export enum InteractionButton {
   Retry = "btn_stats_retry",
@@ -123,6 +132,36 @@ export class StatsCommand extends BaseCommand {
         data: {
           component_type: ComponentType.Button,
           custom_id: InteractionButton.LoadGames,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: InteractionButton.FixPlayerSelect,
+          values: [],
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: InteractionButton.FixGamesSelect,
+          values: [],
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionButton.FixConfirm,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionButton.FixCancel,
         },
       },
     ];
@@ -750,14 +789,224 @@ export class StatsCommand extends BaseCommand {
   }
 
   private handleFixSubCommand(
-    _interaction: APIApplicationCommandInteraction,
-    _options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
+    interaction: APIApplicationCommandInteraction,
+    options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
   ): ExecuteResponse {
-    throw new Error("handleFixSubCommand not implemented");
+    const queueNumber = options.get("queue_number") as number | undefined;
+    const isThreadChannel = this.isThreadChannel(interaction.channel.type);
+
+    if (!isThreadChannel && queueNumber == null) {
+      throw new EndUserError("queue_number is required when running /stats fix outside a thread.");
+    }
+
+    if (isThreadChannel && queueNumber == null) {
+      return {
+        response: {
+          type: InteractionResponseType.DeferredChannelMessageWithSource,
+          data: {
+            flags: MessageFlags.Ephemeral,
+          },
+        },
+        jobToComplete: async () => this.fixSubCommandInThreadJob(interaction),
+      };
+    }
+
+    const parentChannelId = "parent_id" in interaction.channel ? interaction.channel.parent_id : undefined;
+    const channelId = isThreadChannel ? (parentChannelId ?? interaction.channel.id) : interaction.channel.id;
+
+    return {
+      response: {
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data: {
+          flags: MessageFlags.Ephemeral,
+        },
+      },
+      jobToComplete: async () => this.fixSubCommandJob(interaction, channelId, Preconditions.checkExists(queueNumber)),
+    };
   }
 
-  private async handleFixPlayerSelectJob(_interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
-    throw new Error("handleFixPlayerSelectJob not implemented");
+  private async fixSubCommandJob(
+    interaction: APIApplicationCommandInteraction,
+    channelId: string,
+    queueNumber: number,
+  ): Promise<void> {
+    const { discordService } = this.services;
+
+    try {
+      const guildId = Preconditions.checkExists(interaction.guild_id, "No guild ID found in interaction");
+      const queueData = await discordService.getTeamsFromQueueResult(guildId, channelId, queueNumber);
+
+      await this.fixCommandStartFlow(interaction, channelId, queueData);
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async fixSubCommandInThreadJob(interaction: APIApplicationCommandInteraction): Promise<void> {
+    const { discordService } = this.services;
+
+    try {
+      if (!this.isThreadChannel(interaction.channel.type)) {
+        throw new EndUserError("This command must be run in a thread channel.");
+      }
+
+      const guildId = Preconditions.checkExists(interaction.guild_id, "No guild ID found in interaction");
+      const threadMessages = await discordService.getMessages(interaction.channel.id);
+      const firstMessage = threadMessages[threadMessages.length - 1];
+
+      if (
+        firstMessage?.referenced_message?.author.bot !== true ||
+        firstMessage.referenced_message.author.id !== NEAT_QUEUE_BOT_USER_ID
+      ) {
+        throw new EndUserError("The first message in this thread is not from NeatQueue.");
+      }
+
+      const queueData = await discordService.getTeamsFromMessage(guildId, firstMessage.referenced_message);
+      const parentChannelId = "parent_id" in interaction.channel ? interaction.channel.parent_id : undefined;
+      const channelId = parentChannelId ?? interaction.channel.id;
+
+      await this.fixCommandStartFlow(interaction, channelId, queueData);
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async fixCommandStartFlow(
+    interaction: APIApplicationCommandInteraction,
+    channelId: string,
+    queueData: QueueData,
+  ): Promise<void> {
+    const { discordService } = this.services;
+
+    const guildId = Preconditions.checkExists(interaction.guild_id, "No guild ID found in interaction");
+    const userId = discordService.getDiscordUserId(interaction);
+    const permissions = await discordService.computeMemberPermissions(guildId, userId);
+    const isAdmin = (permissions & PermissionFlagsBits.Administrator) !== 0n;
+    const queuePlayerIds = new Set(queueData.teams.flatMap((team) => team.players.map((player) => player.user.id)));
+
+    if (!isAdmin && !queuePlayerIds.has(userId)) {
+      throw new EndUserError("Only players from that queue (or admins) can run /stats fix.");
+    }
+
+    const selectOptions = queueData.teams.flatMap((team) =>
+      team.players.map((player) => {
+        const label = player.nick ?? player.user.global_name ?? player.user.username;
+
+        return {
+          label: label.slice(0, 100),
+          value: player.user.id,
+          description: team.name.slice(0, 100),
+        };
+      }),
+    );
+
+    await discordService.updateDeferredReply(interaction.token, {
+      content: "Select a player from the queue to load candidate custom games.",
+      components: [
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.StringSelect,
+              custom_id: InteractionButton.FixPlayerSelect,
+              min_values: 1,
+              max_values: 1,
+              options: selectOptions,
+            },
+          ],
+        },
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.Button,
+              custom_id: InteractionButton.FixCancel,
+              label: "Cancel",
+              style: 2,
+            },
+          ],
+        },
+      ],
+    });
+
+    const message = await discordService.getMessageFromInteractionToken(interaction.token);
+    await this.setFixMetadata(message.id, {
+      guildId,
+      channelId,
+      queueData,
+    });
+  }
+
+  private async handleFixPlayerSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
+    const { databaseService, discordService, haloService } = this.services;
+
+    try {
+      const selectedPlayerId = Preconditions.checkExists(interaction.data.values[0], "No player selected");
+      const metadata = await this.getFixMetadata(interaction.message.id);
+      if (metadata == null) {
+        throw new EndUserError("Could not find fix-flow state. Please run /stats fix again.");
+      }
+
+      const association = (await databaseService.getDiscordAssociations([selectedPlayerId]))[0];
+      if (association?.XboxId == null || association.XboxId === "") {
+        throw new EndUserError("That player does not have a linked Xbox account.");
+      }
+
+      const games = await haloService.getPlayerCustomGames(association.XboxId, 25);
+      if (games.length === 0) {
+        throw new EndUserError("No recent custom games were found for that player.");
+      }
+
+      const gameOptions = games.map((game, index) => {
+        const startTime = new Date(game.MatchInfo.StartTime).toISOString().replace("T", " ").slice(0, 16);
+        const label = `${(index + 1).toString()}. ${startTime}`;
+
+        return {
+          label: label.slice(0, 100),
+          value: game.MatchId,
+          description: game.MatchId.slice(0, 100),
+          default: true,
+        };
+      });
+
+      const selectedMatchIds = gameOptions.map((option) => option.value);
+      await this.setFixMetadata(interaction.message.id, {
+        ...metadata,
+        selectedPlayerId,
+        selectedMatchIds,
+      });
+
+      await discordService.updateDeferredReply(interaction.token, {
+        content: "Select the custom games that belong to this series.",
+        components: [
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.StringSelect,
+                custom_id: InteractionButton.FixGamesSelect,
+                min_values: 1,
+                max_values: Math.min(gameOptions.length, 25),
+                options: gameOptions,
+              },
+            ],
+          },
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.Button,
+                custom_id: InteractionButton.FixCancel,
+                label: "Cancel",
+                style: 2,
+              },
+            ],
+          },
+        ],
+      });
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
   }
 
   private async handleFixGamesSelectJob(_interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
@@ -770,5 +1019,29 @@ export class StatsCommand extends BaseCommand {
 
   private async handleFixCancelJob(_interaction: APIMessageComponentButtonInteraction): Promise<void> {
     throw new Error("handleFixCancelJob not implemented");
+  }
+
+  private isThreadChannel(channelType: ChannelType): boolean {
+    return (
+      channelType === ChannelType.PublicThread ||
+      channelType === ChannelType.PrivateThread ||
+      channelType === ChannelType.AnnouncementThread
+    );
+  }
+
+  private async setFixMetadata(messageId: string, metadata: FixFlowMetadata): Promise<void> {
+    await this.services.discordService.setInteractionMetadata(this.fixMetadataKey(messageId), metadata);
+  }
+
+  private async getFixMetadata(messageId: string): Promise<FixFlowMetadata | null> {
+    const metadata = await this.services.discordService.getInteractionMetadata<FixFlowMetadata>(
+      this.fixMetadataKey(messageId),
+    );
+
+    return metadata;
+  }
+
+  private fixMetadataKey(messageId: string): string {
+    return `statsFix:${messageId}`;
   }
 }

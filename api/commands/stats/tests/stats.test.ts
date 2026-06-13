@@ -7,6 +7,7 @@ import type {
   APIThreadChannel,
   APIMessage,
   APIMessageComponentButtonInteraction,
+  APIMessageComponentSelectMenuInteraction,
 } from "discord-api-types/v10";
 import {
   ApplicationCommandOptionType,
@@ -14,6 +15,7 @@ import {
   ChannelType,
   ComponentType,
   EmbedType,
+  PermissionFlagsBits,
   InteractionResponseType,
   InteractionType,
   Locale,
@@ -33,10 +35,10 @@ import {
   textChannel,
   threadChannel,
 } from "../../../services/discord/fakes/data";
-import { getMatchStats, getPlayerXuidsToGametags } from "../../../services/halo/fakes/data";
+import { getMatchStats, getPlayerMatches, getPlayerXuidsToGametags } from "../../../services/halo/fakes/data";
 import { StatsReturnType } from "../../../services/database/types/guild_config";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
-import { aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake";
+import { aFakeDiscordAssociationsRow, aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake";
 import { EndUserError } from "../../../base/end-user-error";
 import type { MatchPlayer } from "../../../services/halo/halo";
 
@@ -104,6 +106,35 @@ const applicationCommandInteractionStatsMatch: APIApplicationCommandInteraction 
             name: "id",
             type: ApplicationCommandOptionType.String,
             value: "d81554d7-ddfe-44da-a6cb-000000000ctf",
+          },
+        ],
+        type: ApplicationCommandOptionType.Subcommand,
+      },
+    ],
+    type: ApplicationCommandType.ChatInput,
+  },
+};
+
+const applicationCommandInteractionStatsFix: APIApplicationCommandInteraction = {
+  ...fakeBaseAPIApplicationCommandInteraction,
+  type: InteractionType.ApplicationCommand,
+  guild: {
+    features: [],
+    id: "fake-guild-id",
+    locale: Locale.EnglishUS,
+  },
+  guild_id: "fake-guild-id",
+  data: {
+    id: "fake-command-id",
+    name: "stats",
+    options: [
+      {
+        name: "fix",
+        options: [
+          {
+            name: "queue_number",
+            type: ApplicationCommandOptionType.Integer,
+            value: 777,
           },
         ],
         type: ApplicationCommandOptionType.Subcommand,
@@ -807,6 +838,246 @@ describe("StatsCommand", () => {
         expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
         expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", error);
       });
+    });
+  });
+
+  describe("execute(): subcommand fix", () => {
+    beforeEach(() => {
+      vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+        name: "fix",
+        mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>([["queue_number", 777]]),
+        options: [],
+      });
+    });
+
+    it("returns deferred ephemeral response", () => {
+      const { response, jobToComplete } = statsCommand.execute(applicationCommandInteractionStatsFix);
+
+      expect(response).toEqual({
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data: {
+          flags: MessageFlags.Ephemeral,
+        },
+      });
+      expect(jobToComplete).toBeInstanceOf(Function);
+    });
+
+    it("returns immediate error when queue_number is missing outside thread", () => {
+      vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+        name: "fix",
+        mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>(),
+        options: [],
+      });
+
+      const { response } = statsCommand.execute(applicationCommandInteractionStatsFix);
+
+      expect(response).toEqual({
+        type: InteractionResponseType.ChannelMessageWithSource,
+        data: {
+          content: "Error: queue_number is required when running /stats fix outside a thread.",
+          flags: MessageFlags.Ephemeral,
+        },
+      });
+    });
+
+    it("starts player selection flow when user is queue player", async () => {
+      const queuePlayerInteraction: APIApplicationCommandInteraction = {
+        ...applicationCommandInteractionStatsFix,
+        member: {
+          ...Preconditions.checkExists(applicationCommandInteractionStatsFix.member),
+          user: {
+            ...Preconditions.checkExists(applicationCommandInteractionStatsFix.member?.user),
+            id: "000000000000000001",
+          },
+        },
+      };
+
+      vi.spyOn(services.discordService, "getTeamsFromQueueResult").mockResolvedValue(discordNeatQueueData);
+      vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValue(0n);
+      vi.spyOn(services.discordService, "getMessageFromInteractionToken").mockResolvedValue({
+        ...apiMessage,
+        id: "fix-flow-message-id",
+      });
+      const setInteractionMetadataSpy = vi
+        .spyOn(services.discordService, "setInteractionMetadata")
+        .mockResolvedValue();
+
+      const { jobToComplete } = statsCommand.execute(queuePlayerInteraction);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplySpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          components: expect.arrayContaining([
+            expect.objectContaining({
+              type: ComponentType.ActionRow,
+              components: [
+                expect.objectContaining({
+                  type: ComponentType.StringSelect,
+                  custom_id: "btn_stats_fix_player_select",
+                }),
+              ],
+            }),
+          ]),
+        }),
+      );
+      expect(setInteractionMetadataSpy).toHaveBeenCalledWith(
+        "statsFix:fix-flow-message-id",
+        expect.objectContaining({
+          guildId: "fake-guild-id",
+          channelId: "fake-channel-id",
+        }),
+      );
+    });
+
+    it("rejects users that are not queue players and not admins", async () => {
+      vi.spyOn(services.discordService, "getTeamsFromQueueResult").mockResolvedValue(discordNeatQueueData);
+      vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValue(0n);
+
+      const notPlayerInteraction: APIApplicationCommandInteraction = {
+        ...applicationCommandInteractionStatsFix,
+        member: {
+          ...Preconditions.checkExists(applicationCommandInteractionStatsFix.member),
+          user: {
+            ...Preconditions.checkExists(applicationCommandInteractionStatsFix.member?.user),
+            id: "not-in-queue",
+          },
+        },
+      };
+
+      const { jobToComplete } = statsCommand.execute(notPlayerInteraction);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          message: "Only players from that queue (or admins) can run /stats fix.",
+        }),
+      );
+    });
+
+    it("allows admins that are not queue players", async () => {
+      vi.spyOn(services.discordService, "getTeamsFromQueueResult").mockResolvedValue(discordNeatQueueData);
+      vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValue(PermissionFlagsBits.Administrator);
+      vi.spyOn(services.discordService, "getMessageFromInteractionToken").mockResolvedValue({
+        ...apiMessage,
+        id: "fix-flow-message-id",
+      });
+      vi.spyOn(services.discordService, "setInteractionMetadata").mockResolvedValue();
+
+      const adminInteraction: APIApplicationCommandInteraction = {
+        ...applicationCommandInteractionStatsFix,
+        member: {
+          ...Preconditions.checkExists(applicationCommandInteractionStatsFix.member),
+          user: {
+            ...Preconditions.checkExists(applicationCommandInteractionStatsFix.member?.user),
+            id: "not-in-queue",
+          },
+        },
+      };
+
+      const { jobToComplete } = statsCommand.execute(adminInteraction);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplySpy).toHaveBeenCalled();
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("execute(): message component fix player select", () => {
+    it("loads candidate games and shows multi-select", async () => {
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: "btn_stats_fix_player_select",
+          values: ["000000000000000001"],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          id: "fix-flow-message-id",
+        },
+      };
+
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "fake-channel-id",
+        queueData: discordNeatQueueData,
+      });
+      vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([
+        aFakeDiscordAssociationsRow({
+          DiscordId: "000000000000000001",
+          XboxId: "xuid-1",
+        }),
+      ]);
+      vi.spyOn(services.haloService, "getPlayerCustomGames").mockResolvedValue(getPlayerMatches().slice(0, 3));
+      const setInteractionMetadataSpy = vi
+        .spyOn(services.discordService, "setInteractionMetadata")
+        .mockResolvedValue();
+
+      const { response, jobToComplete } = statsCommand.execute(interaction);
+      expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
+
+      await jobToComplete?.();
+
+      expect(updateDeferredReplySpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          components: expect.arrayContaining([
+            expect.objectContaining({
+              components: [
+                expect.objectContaining({
+                  custom_id: "btn_stats_fix_games_select",
+                }),
+              ],
+            }),
+          ]),
+        }),
+      );
+      expect(setInteractionMetadataSpy).toHaveBeenCalledWith(
+        "statsFix:fix-flow-message-id",
+        expect.objectContaining({
+          selectedPlayerId: "000000000000000001",
+          selectedMatchIds: expect.any(Array),
+        }),
+      );
+    });
+
+    it("returns an error when selected player has no linked xbox account", async () => {
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: "btn_stats_fix_player_select",
+          values: ["000000000000000001"],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          id: "fix-flow-message-id",
+        },
+      };
+
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "fake-channel-id",
+        queueData: discordNeatQueueData,
+      });
+      vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([
+        aFakeDiscordAssociationsRow({
+          DiscordId: "000000000000000001",
+          XboxId: "",
+        }),
+      ]);
+
+      const { jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          message: "That player does not have a linked Xbox account.",
+        }),
+      );
     });
   });
 
