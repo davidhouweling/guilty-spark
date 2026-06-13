@@ -5,7 +5,7 @@ import type {
   DiscordSeriesStatsPending,
   DiscordSeriesStatsResolved,
 } from "@guilty-spark/shared/contracts/stats/discord-series";
-import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { AnalyticsModule, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { DiscordSeriesStatsResult } from "../../../services/stats/discord-series-types";
 import type { Services } from "../services";
 
@@ -127,7 +127,9 @@ export function aFakeDiscordSeriesStatsAppServicesWith(response: DiscordSeriesSt
       },
     },
     matchAnalyticsService: {
-      getMatchAnalytics: async (): Promise<MatchAnalytics> => {
+      getMatchAnalytics: async (matchId: string, modules?: readonly AnalyticsModule[]): Promise<MatchAnalytics> => {
+        void matchId;
+        void modules;
         return Promise.resolve(aFakeMatchAnalyticsWith());
       },
     },
