@@ -38,8 +38,9 @@ function aFakeAnalyticsWith(overrides: Partial<MatchAnalytics> = {}): MatchAnaly
 
 describe("KillMatrixPresenter", () => {
   it("expands and sorts kill matrix rows", () => {
+    const presenter = new KillMatrixPresenter();
     const analytics = aFakeAnalyticsWith();
-    const rows = KillMatrixPresenter.present({
+    const rows = presenter.present({
       analytics,
       playersByXuid: new Map([
         ["111", { gamertag: "Alpha", teamId: 0 }],
@@ -61,6 +62,7 @@ describe("KillMatrixPresenter", () => {
   });
 
   it("falls back to xuid when player details are missing", () => {
+    const presenter = new KillMatrixPresenter();
     const analytics = aFakeAnalyticsWith({
       killMatrix: {
         "999:888": {
@@ -72,7 +74,7 @@ describe("KillMatrixPresenter", () => {
       },
     });
 
-    const [row] = KillMatrixPresenter.present({ analytics, playersByXuid: new Map() });
+    const [row] = presenter.present({ analytics, playersByXuid: new Map() });
 
     expect(row.killer.gamertag).toBe("999");
     expect(row.victim.gamertag).toBe("888");
@@ -80,6 +82,7 @@ describe("KillMatrixPresenter", () => {
   });
 
   it("returns a weapon even when all have zero count", () => {
+    const presenter = new KillMatrixPresenter();
     const analytics = aFakeAnalyticsWith({
       killMatrix: {
         "111:222": {
@@ -95,7 +98,7 @@ describe("KillMatrixPresenter", () => {
       },
     });
 
-    const [row] = KillMatrixPresenter.present({
+    const [row] = presenter.present({
       analytics,
       playersByXuid: new Map([
         ["111", { gamertag: "Alpha", teamId: 0 }],

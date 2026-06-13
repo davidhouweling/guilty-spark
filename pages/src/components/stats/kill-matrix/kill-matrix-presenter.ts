@@ -11,92 +11,93 @@ export interface KillMatrixPresenterOptions {
   readonly playersByXuid: ReadonlyMap<string, KillMatrixPresenterPlayerLookup>;
 }
 
-function createFallbackPlayer(xuid: string): KillMatrixPlayer {
-  return {
-    xuid,
-    gamertag: xuid,
-    teamId: null,
-  };
-}
+export class KillMatrixPresenter {
+  public present({ analytics, playersByXuid }: KillMatrixPresenterOptions): KillMatrixViewRow[] {
+    const rows: KillMatrixViewRow[] = [];
 
-function toPlayer(xuid: string, playersByXuid: ReadonlyMap<string, KillMatrixPresenterPlayerLookup>): KillMatrixPlayer {
-  const entry = playersByXuid.get(xuid);
-  if (entry == null) {
-    return createFallbackPlayer(xuid);
-  }
+    for (const [key, value] of Object.entries(analytics.killMatrix)) {
+      const { killerXuid, victimXuid } = this.parsePairKey(key);
+      const killer = this.toPlayer(killerXuid, playersByXuid);
+      const victim = this.toPlayer(victimXuid, playersByXuid);
 
-  return {
-    xuid,
-    gamertag: entry.gamertag,
-    teamId: entry.teamId,
-  };
-}
-
-function classify(killer: KillMatrixPlayer, victim: KillMatrixPlayer): KillMatrixClassification {
-  if (killer.xuid === victim.xuid) {
-    return "suicide";
-  }
-
-  if (killer.teamId != null && victim.teamId != null && killer.teamId === victim.teamId) {
-    return "betrayal";
-  }
-
-  return "enemy-kill";
-}
-
-function topWeaponId(weapons: readonly { readonly weaponId: number; readonly count: number }[]): number | null {
-  if (weapons.length === 0) {
-    return null;
-  }
-
-  let maxWeaponId = weapons[0].weaponId;
-  let maxCount = weapons[0].count;
-
-  for (let i = 1; i < weapons.length; i++) {
-    const weapon = weapons[i];
-    if (weapon.count > maxCount) {
-      maxCount = weapon.count;
-      maxWeaponId = weapon.weaponId;
+      rows.push({
+        key,
+        killer,
+        victim,
+        count: value.count,
+        headshotKills: value.headshotKills,
+        perfects: value.perfects,
+        classification: this.classify(killer, victim),
+        topWeaponId: this.topWeaponId(value.weapons),
+      });
     }
-  }
 
-  return maxWeaponId;
-}
+    return rows.sort((left, right) => {
+      if (right.count !== left.count) {
+        return right.count - left.count;
+      }
 
-function parsePairKey(key: string): { killerXuid: string; victimXuid: string } {
-  const [killerXuid, victimXuid] = key.split(":");
-  return { killerXuid, victimXuid };
-}
-
-function presentKillMatrix({ analytics, playersByXuid }: KillMatrixPresenterOptions): KillMatrixViewRow[] {
-  const rows: KillMatrixViewRow[] = [];
-
-  for (const [key, value] of Object.entries(analytics.killMatrix)) {
-    const { killerXuid, victimXuid } = parsePairKey(key);
-    const killer = toPlayer(killerXuid, playersByXuid);
-    const victim = toPlayer(victimXuid, playersByXuid);
-
-    rows.push({
-      key,
-      killer,
-      victim,
-      count: value.count,
-      headshotKills: value.headshotKills,
-      perfects: value.perfects,
-      classification: classify(killer, victim),
-      topWeaponId: topWeaponId(value.weapons),
+      return left.key.localeCompare(right.key);
     });
   }
 
-  return rows.sort((left, right) => {
-    if (right.count !== left.count) {
-      return right.count - left.count;
+  private createFallbackPlayer(xuid: string): KillMatrixPlayer {
+    return {
+      xuid,
+      gamertag: xuid,
+      teamId: null,
+    };
+  }
+
+  private toPlayer(
+    xuid: string,
+    playersByXuid: ReadonlyMap<string, KillMatrixPresenterPlayerLookup>,
+  ): KillMatrixPlayer {
+    const entry = playersByXuid.get(xuid);
+    if (entry == null) {
+      return this.createFallbackPlayer(xuid);
     }
 
-    return left.key.localeCompare(right.key);
-  });
-}
+    return {
+      xuid,
+      gamertag: entry.gamertag,
+      teamId: entry.teamId,
+    };
+  }
 
-export const KillMatrixPresenter = {
-  present: presentKillMatrix,
-};
+  private classify(killer: KillMatrixPlayer, victim: KillMatrixPlayer): KillMatrixClassification {
+    if (killer.xuid === victim.xuid) {
+      return "suicide";
+    }
+
+    if (killer.teamId != null && victim.teamId != null && killer.teamId === victim.teamId) {
+      return "betrayal";
+    }
+
+    return "enemy-kill";
+  }
+
+  private topWeaponId(weapons: readonly { readonly weaponId: number; readonly count: number }[]): number | null {
+    if (weapons.length === 0) {
+      return null;
+    }
+
+    let maxWeaponId = weapons[0].weaponId;
+    let maxCount = weapons[0].count;
+
+    for (let i = 1; i < weapons.length; i++) {
+      const weapon = weapons[i];
+      if (weapon.count > maxCount) {
+        maxCount = weapon.count;
+        maxWeaponId = weapon.weaponId;
+      }
+    }
+
+    return maxWeaponId;
+  }
+
+  private parsePairKey(key: string): { killerXuid: string; victimXuid: string } {
+    const [killerXuid, victimXuid] = key.split(":");
+    return { killerXuid, victimXuid };
+  }
+}
