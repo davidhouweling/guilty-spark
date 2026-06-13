@@ -14,6 +14,8 @@ import { aFakeGuildConfigRow } from "../../../services/database/fakes/database.f
 import { getMatchStats } from "../../../services/halo/fakes/data";
 import type { LiveTrackerStartRequest, LiveTrackerState } from "../types";
 import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
+import { aFakeWebSocketHibernationAdapter } from "../../../base/fakes/websocket-hibernation-adapter.fake";
+import type { FakeWebSocketHibernationAdapter } from "../../../base/fakes/websocket-hibernation-adapter.fake";
 
 // Create a mock SQL storage that satisfies the interface without using runtime types
 const createMockSqlStorage = (): SqlStorage => {
@@ -302,6 +304,7 @@ describe("LiveTrackerDO", () => {
   let mockStorage: DurableObjectStorage;
   let services: Services;
   let env: Env;
+  let fakeWebSocketAdapter: FakeWebSocketHibernationAdapter;
   let storageGetSpy: MockInstance<(key: string) => Promise<LiveTrackerState | null>>;
   let storagePutSpy: MockInstance<(key: string, value: LiveTrackerState) => Promise<void>>;
   let storageSetAlarmSpy: MockInstance<typeof mockStorage.setAlarm>;
@@ -318,6 +321,7 @@ describe("LiveTrackerDO", () => {
     mockStorage = mockSetup.mocks.storage;
     services = installFakeServicesWith();
     env = aFakeEnvWith();
+    fakeWebSocketAdapter = aFakeWebSocketHibernationAdapter();
 
     storageGetSpy = vi.spyOn(mockStorage, "get");
     storagePutSpy = vi.spyOn(mockStorage, "put");
@@ -325,7 +329,7 @@ describe("LiveTrackerDO", () => {
     storageDeleteAllSpy = vi.spyOn(mockStorage, "deleteAll");
     storageDeleteAlarmSpy = vi.spyOn(mockStorage, "deleteAlarm");
 
-    liveTrackerDO = new LiveTrackerDO(mockState, env, () => services);
+    liveTrackerDO = new LiveTrackerDO(mockState, env, () => services, fakeWebSocketAdapter);
   });
 
   afterEach(() => {
@@ -3250,6 +3254,99 @@ describe("LiveTrackerDO", () => {
 
       const [seriesScoreCall] = getSeriesScoreSpy.mock.calls;
       expect(seriesScoreCall?.[0]).toHaveLength(2);
+    });
+  });
+
+  describe("handleWebSocket()", () => {
+    it("returns 426 when upgrade header is missing", async () => {
+      const response = await liveTrackerDO.fetch(new Request("http://do/websocket", { method: "GET" }));
+
+      expect(response.status).toBe(426);
+    });
+
+    it("returns 404 when no tracker state exists", async () => {
+      storageGetSpy.mockResolvedValue(null);
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/websocket", { headers: { Upgrade: "websocket" } }),
+      );
+
+      expect(response.status).toBe(404);
+    });
+
+    it("delegates upgrade to webSocketAdapter with initial state message", async () => {
+      const trackerState = aFakeStateWith();
+      storageGetSpy.mockResolvedValue(trackerState);
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/websocket", { headers: { Upgrade: "websocket" } }),
+      );
+
+      expect(response.status).toBe(200);
+      expect(fakeWebSocketAdapter.initialMessages).toHaveLength(1);
+      const [initialMessage] = fakeWebSocketAdapter.initialMessages;
+      expect(initialMessage).toBeDefined();
+      const parsed = JSON.parse(initialMessage ?? "") as { type: string };
+      expect(parsed.type).toBe("state");
+    });
+  });
+
+  describe("broadcastStateUpdate()", () => {
+    it("broadcasts state to connected clients when state is saved", async () => {
+      const trackerState = createMockTrackerState();
+      storageGetSpy.mockResolvedValue(trackerState);
+      vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+
+      await liveTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+
+      expect(fakeWebSocketAdapter.broadcasts.length).toBeGreaterThan(0);
+      const lastBroadcast = fakeWebSocketAdapter.broadcasts.at(-1);
+      expect(lastBroadcast).toBeDefined();
+      const parsed = JSON.parse(lastBroadcast ?? "") as { type: string };
+      expect(parsed.type).toBe("state");
+    });
+
+    it("skips broadcast when no clients are connected", async () => {
+      const trackerState = createMockTrackerState();
+      storageGetSpy.mockResolvedValue(trackerState);
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+
+      await liveTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+
+      expect(fakeWebSocketAdapter.broadcasts).toHaveLength(0);
+    });
+  });
+
+  describe("dispose() WebSocket behaviour", () => {
+    it("closes all sockets when tracker stops", async () => {
+      const trackerState = aFakeStateWith({ status: "active" });
+      storageGetSpy.mockResolvedValue(trackerState);
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+
+      await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
+
+      expect(fakeWebSocketAdapter.closes).toHaveLength(1);
+      expect(fakeWebSocketAdapter.closes[0]).toEqual({ code: 1000, reason: "Tracker stopped" });
+    });
+
+    it("broadcasts final state before closing sockets on stop", async () => {
+      const trackerState = aFakeStateWith({ status: "active" });
+      storageGetSpy.mockResolvedValue(trackerState);
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+
+      await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
+
+      expect(fakeWebSocketAdapter.broadcasts).toHaveLength(1);
+      const [broadcast] = fakeWebSocketAdapter.broadcasts;
+      const parsed = JSON.parse(broadcast ?? "") as { type: string };
+      expect(parsed.type).toBe("state");
     });
   });
 });
