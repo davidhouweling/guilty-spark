@@ -3373,5 +3373,25 @@ describe("LiveTrackerDO", () => {
       const parsed = JSON.parse(broadcast ?? "") as { data: { status: string } };
       expect(parsed.data.status).toBe("stopped");
     });
+
+    it("does not persist state after disposal when finally block runs", async () => {
+      const trackerState = createAlarmTestTrackerState();
+      storageGetSpy.mockResolvedValue(trackerState);
+      const discordError = new DiscordError(404, { code: 10003, message: "Unknown channel" });
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+      vi.spyOn(services.discordService, "editMessage").mockRejectedValue(discordError);
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+
+      await liveTrackerDO.alarm();
+
+      // deleteAll was called by dispose()
+      expect(storageDeleteAllSpy).toHaveBeenCalled();
+      // storagePut must not have been called after deleteAll (the finally block must be a no-op)
+      const deleteAllCallIndex = storagePutSpy.mock.invocationCallOrder.findIndex(
+        (_, i) => storagePutSpy.mock.invocationCallOrder[i] > (storageDeleteAllSpy.mock.invocationCallOrder[0] ?? 0),
+      );
+      expect(deleteAllCallIndex).toBe(-1);
+    });
   });
 });
