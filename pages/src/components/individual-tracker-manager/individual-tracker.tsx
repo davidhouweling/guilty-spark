@@ -1,5 +1,7 @@
 import type { ReactElement, ReactNode } from "react";
+import { useMemo } from "react";
 import { Button } from "../button/button";
+import { TabbedSection } from "../shared/tabbed-section/tabbed-section";
 import type { IndividualTrackerAuthState, IndividualTrackerSectionId } from "./individual-tracker-store";
 import styles from "./individual-tracker.module.css";
 
@@ -22,6 +24,22 @@ export function IndividualTrackerShell({
   liveTrackersContent,
   streamerSettingsContent,
 }: IndividualTrackerShellProps): ReactElement {
+  const sectionTabs = useMemo(
+    () => [
+      {
+        id: "live-trackers" as const,
+        label: "Live Trackers",
+        content: liveTrackersContent,
+      },
+      {
+        id: "streamer-settings" as const,
+        label: "Streamer Settings",
+        content: streamerSettingsContent,
+      },
+    ],
+    [liveTrackersContent, streamerSettingsContent],
+  );
+
   return (
     <div className={styles.container}>
       <h1 className={styles.heading}>Individual Tracker</h1>
@@ -38,29 +56,12 @@ export function IndividualTrackerShell({
 
       {authState === "authenticated" && (
         <>
-          <div className={styles.tabs}>
-            <button
-              type="button"
-              className={`${styles.tabButton} ${activeSection === "live-trackers" ? styles.tabButtonActive : ""}`}
-              onClick={(): void => {
-                onSectionChange("live-trackers");
-              }}
-            >
-              Live Trackers
-            </button>
-            <button
-              type="button"
-              className={`${styles.tabButton} ${activeSection === "streamer-settings" ? styles.tabButtonActive : ""}`}
-              onClick={(): void => {
-                onSectionChange("streamer-settings");
-              }}
-            >
-              Streamer Settings
-            </button>
-          </div>
-
-          <div hidden={activeSection !== "live-trackers"}>{liveTrackersContent}</div>
-          <div hidden={activeSection !== "streamer-settings"}>{streamerSettingsContent}</div>
+          <TabbedSection
+            tabs={sectionTabs}
+            selectedTabId={activeSection}
+            onTabChange={onSectionChange}
+            tabListAriaLabel="Individual tracker sections"
+          />
         </>
       )}
     </div>
