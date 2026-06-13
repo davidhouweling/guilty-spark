@@ -4,6 +4,7 @@ import type {
   APIEmbed,
   APIInteractionResponseDeferredChannelMessageWithSource,
   APIMessageComponentButtonInteraction,
+  APIMessageComponentSelectMenuInteraction,
 } from "discord-api-types/v10";
 import {
   EmbedType,
@@ -36,6 +37,10 @@ import { create } from "../../embeds/stats/create";
 export enum InteractionButton {
   Retry = "btn_stats_retry",
   LoadGames = "btn_stats_load_games",
+  FixPlayerSelect = "btn_stats_fix_player_select",
+  FixGamesSelect = "btn_stats_fix_games_select",
+  FixConfirm = "btn_stats_fix_confirm",
+  FixCancel = "btn_stats_fix_cancel",
 }
 
 export class StatsCommand extends BaseCommand {
@@ -85,6 +90,19 @@ export class StatsCommand extends BaseCommand {
             },
           ],
         },
+        {
+          type: ApplicationCommandOptionType.Subcommand,
+          name: "fix",
+          description: "Manually correct a series by selecting custom games",
+          options: [
+            {
+              type: ApplicationCommandOptionType.Integer,
+              name: "queue_number",
+              description: "The queue number to fix (optional if running from queue thread)",
+              required: false,
+            },
+          ],
+        },
       ],
     },
   ];
@@ -124,6 +142,9 @@ export class StatsCommand extends BaseCommand {
           case "match": {
             return this.handleMatchSubCommand(interaction, subcommand.mappedOptions);
           }
+          case "fix": {
+            return this.handleFixSubCommand(interaction, subcommand.mappedOptions);
+          }
           default: {
             throw new Error("Unknown subcommand");
           }
@@ -146,6 +167,38 @@ export class StatsCommand extends BaseCommand {
                 type: InteractionResponseType.DeferredMessageUpdate,
               },
               jobToComplete: async () => this.loadGamesJob(interaction as APIMessageComponentButtonInteraction),
+            };
+          }
+          case InteractionButton.FixPlayerSelect.toString(): {
+            return {
+              response: {
+                type: InteractionResponseType.DeferredMessageUpdate,
+              },
+              jobToComplete: async () => this.handleFixPlayerSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
+            };
+          }
+          case InteractionButton.FixGamesSelect.toString(): {
+            return {
+              response: {
+                type: InteractionResponseType.DeferredMessageUpdate,
+              },
+              jobToComplete: async () => this.handleFixGamesSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
+            };
+          }
+          case InteractionButton.FixConfirm.toString(): {
+            return {
+              response: {
+                type: InteractionResponseType.DeferredMessageUpdate,
+              },
+              jobToComplete: async () => this.handleFixConfirmationJob(interaction as APIMessageComponentButtonInteraction),
+            };
+          }
+          case InteractionButton.FixCancel.toString(): {
+            return {
+              response: {
+                type: InteractionResponseType.DeferredMessageUpdate,
+              },
+              jobToComplete: async () => this.handleFixCancelJob(interaction as APIMessageComponentButtonInteraction),
             };
           }
           default: {
@@ -694,5 +747,40 @@ export class StatsCommand extends BaseCommand {
         ]),
       );
     }
+  }
+
+  private handleFixSubCommand(
+    _interaction: APIApplicationCommandInteraction,
+    _options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
+  ): ExecuteResponse {
+    throw new Error("handleFixSubCommand not implemented");
+  }
+
+  private fixSubCommandJob(_interaction: APIApplicationCommandInteraction, _queueNumber: number): Promise<void> {
+    throw new Error("fixSubCommandJob not implemented");
+  }
+
+  private fixSubCommandInThreadJob(_interaction: APIApplicationCommandInteraction): Promise<void> {
+    throw new Error("fixSubCommandInThreadJob not implemented");
+  }
+
+  private fixCommandStartFlow(_interaction: APIApplicationCommandInteraction, _queueData: unknown): Promise<void> {
+    throw new Error("fixCommandStartFlow not implemented");
+  }
+
+  private async handleFixPlayerSelectJob(_interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
+    throw new Error("handleFixPlayerSelectJob not implemented");
+  }
+
+  private async handleFixGamesSelectJob(_interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
+    throw new Error("handleFixGamesSelectJob not implemented");
+  }
+
+  private async handleFixConfirmationJob(_interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    throw new Error("handleFixConfirmationJob not implemented");
+  }
+
+  private async handleFixCancelJob(_interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    throw new Error("handleFixCancelJob not implemented");
   }
 }
