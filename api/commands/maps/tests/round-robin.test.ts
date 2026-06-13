@@ -4,6 +4,14 @@ import { generateRoundRobinMaps } from "../round-robin";
 import { CURRENT_HCS_MAPS, HCS_SET_FORMAT, ALL_MODES } from "../../../services/halo/hcs";
 import type { MapMode } from "../../../services/halo/hcs";
 
+function makeLcg(seed: number): () => number {
+  let s = seed;
+  return () => {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 0x100000000;
+  };
+}
+
 // Minimal fake pool for deterministic tests
 const fakePool: { mode: MapMode; map: string }[] = [
   { mode: "Slayer", map: "Live Fire" },
@@ -127,11 +135,12 @@ describe("generateRoundRobinMaps", () => {
 
   it("produces different outputs on multiple runs (randomness)", () => {
     const formatSequence: ("slayer" | "objective")[] = ["slayer", "objective", "objective", "slayer", "objective"];
-    const runs = Array.from({ length: 5 }, () =>
+    const runs = Array.from({ length: 5 }, (_, i) =>
       generateRoundRobinMaps({
         count: 5,
         pool: fakePool,
         formatSequence,
+        random: makeLcg(i + 1),
       })
         .map(({ mode, map }) => `${mode}:${map}`)
         .join(","),
@@ -144,25 +153,25 @@ describe("generateRoundRobinMaps", () => {
 describe("generateRoundRobinMaps - HCS Analysis", () => {
   it("optimizes map diversity in realistic 7-game HCS series", () => {
     const pool = createHcsPool();
+    const lcg = makeLcg(1);
     const formatSequence = Preconditions.checkExists(HCS_SET_FORMAT[7]).map((f) =>
-      f === "random" ? (Math.random() < 0.5 ? "slayer" : "objective") : f,
+      f === "random" ? (lcg() < 0.5 ? "slayer" : "objective") : f,
     );
 
-    // Run multiple times to test consistency
-    const analyses = Array.from({ length: 10 }, () => {
+    const analyses = Array.from({ length: 10 }, (_, i) => {
       const result = generateRoundRobinMaps({
         count: 7,
         pool,
         formatSequence,
+        random: makeLcg(i + 1),
       });
       return analyzeDistribution(result);
     });
 
-    // Check that we optimize for map diversity
     for (const analysis of analyses) {
-      expect(analysis.maxMapRepeats).toBeLessThanOrEqual(2); // Minimal map repeats
-      expect(analysis.uniqueMaps).toBeGreaterThanOrEqual(5); // Good map variety (realistic given constraints)
-      expect(analysis.maxComboRepeats).toBeLessThanOrEqual(1); // No combo should repeat
+      expect(analysis.maxMapRepeats).toBeLessThanOrEqual(2);
+      expect(analysis.uniqueMaps).toBeGreaterThanOrEqual(5);
+      expect(analysis.maxComboRepeats).toBeLessThanOrEqual(1);
     }
   });
 
@@ -174,15 +183,14 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
       count: 7,
       pool,
       formatSequence,
+      random: makeLcg(42),
     });
 
     const analysis = analyzeDistribution(result);
 
-    // Should distribute across multiple objective modes (4 available: CTF, Strongholds, Oddball, KOTH)
     expect(analysis.uniqueModes).toBeGreaterThanOrEqual(3);
-    expect(analysis.maxModeRepeats).toBeLessThanOrEqual(3); // Some modes may repeat but not excessively
+    expect(analysis.maxModeRepeats).toBeLessThanOrEqual(3);
 
-    // No slayer should appear
     for (const { mode } of result) {
       expect(mode).not.toBe("Slayer");
     }
@@ -198,11 +206,11 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
       count: 5,
       pool: limitedPool,
       formatSequence: ["slayer", "objective", "slayer", "objective", "slayer"],
+      random: makeLcg(42),
     });
 
     expect(result).toHaveLength(5);
 
-    // Check that slayer positions get slayer, objective positions get objective
     expect(Preconditions.checkExists(result[0]).mode).toBe("Slayer");
     expect(Preconditions.checkExists(result[1]).mode).toBe("Oddball");
     expect(Preconditions.checkExists(result[2]).mode).toBe("Slayer");
@@ -213,16 +221,17 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
   it("ensures format sequence adherence with real HCS data", () => {
     const pool = createHcsPool();
     const formatSequence = Preconditions.checkExists(HCS_SET_FORMAT[5]);
+    const lcg = makeLcg(1);
 
     const result = generateRoundRobinMaps({
       count: 5,
       pool,
-      formatSequence: formatSequence.map((f) => (f === "random" ? (Math.random() < 0.5 ? "slayer" : "objective") : f)),
+      formatSequence: formatSequence.map((f) => (f === "random" ? (lcg() < 0.5 ? "slayer" : "objective") : f)),
+      random: makeLcg(42),
     });
 
     expect(result).toHaveLength(5);
 
-    // Verify format sequence is respected (accounting for random conversion)
     for (let i = 0; i < result.length; i++) {
       const expectedFormat = formatSequence[i];
       const actualMode = Preconditions.checkExists(result[i]).mode;
@@ -239,41 +248,38 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
   it("demonstrates significant improvement in map diversity", () => {
     const pool = createHcsPool();
 
-    // Test with a format that has many objective rounds (where map overlap is highest)
     const formatSequence = ["objective", "objective", "objective", "objective", "objective"] as (
       | "slayer"
       | "objective"
     )[];
 
-    // Run our algorithm multiple times
-    const ourResults = Array.from({ length: 20 }, () => {
+    const ourResults = Array.from({ length: 20 }, (_, i) => {
       const result = generateRoundRobinMaps({
         count: 5,
         pool,
         formatSequence,
+        random: makeLcg(i + 1),
       });
       return analyzeDistribution(result);
     });
 
-    // Calculate average performance metrics
     const avgUniqueMapCount = ourResults.reduce((sum, a) => sum + a.uniqueMaps, 0) / ourResults.length;
     const avgMaxMapRepeats = ourResults.reduce((sum, a) => sum + a.maxMapRepeats, 0) / ourResults.length;
     const avgUniqueModeCount = ourResults.reduce((sum, a) => sum + a.uniqueModes, 0) / ourResults.length;
 
-    // Our algorithm should achieve reasonable diversity given HCS constraints
-    expect(avgUniqueMapCount).toBeGreaterThan(3); // Good map diversity
-    expect(avgMaxMapRepeats).toBeLessThan(2.5); // Limited map repeats
-    expect(avgUniqueModeCount).toBeGreaterThan(2.5); // Mode variety
+    expect(avgUniqueMapCount).toBeGreaterThan(3);
+    expect(avgMaxMapRepeats).toBeLessThan(2.5);
+    expect(avgUniqueModeCount).toBeGreaterThan(2.5);
   });
 
   it("handles empty format sequence gracefully", () => {
     const pool = createHcsPool();
 
-    // Test with empty format sequence - should handle gracefully
     const result = generateRoundRobinMaps({
       count: 3,
       pool,
       formatSequence: [],
+      random: makeLcg(42),
     });
     expect(result).toHaveLength(3);
   });
@@ -287,40 +293,28 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
       count: 15,
       pool,
       formatSequence,
+      random: makeLcg(42),
     });
     const duration = Date.now() - startTime;
 
     expect(result).toHaveLength(15);
-    expect(duration).toBeLessThan(1000); // Should complete in under 1 second
+    expect(duration).toBeLessThan(1000);
 
-    // Even with large counts, should maintain quality distribution
-    // Objective modes have limited unique maps (Live Fire, Lattice, Recharge, Aquarius, Forbidden, Fortress, Origin)
-    // so expecting 6-7 unique maps for 15 objective games is realistic
     const analysis = analyzeDistribution(result);
-    expect(analysis.uniqueMaps).toBeGreaterThan(6); // Good diversity even at scale
+    expect(analysis.uniqueMaps).toBeGreaterThan(6);
   });
 
   it("validates deterministic behavior with same inputs", () => {
     const pool = createHcsPool();
     const formatSequence: ("slayer" | "objective")[] = ["slayer", "objective", "slayer"];
 
-    // Mock Math.random to ensure deterministic testing
-    const originalRandom = Math.random;
-    Math.random = (): number => 0.5;
+    const result1 = generateRoundRobinMaps({ count: 3, pool, formatSequence, random: makeLcg(42) });
+    const result2 = generateRoundRobinMaps({ count: 3, pool, formatSequence, random: makeLcg(42) });
 
-    try {
-      const result1 = generateRoundRobinMaps({ count: 3, pool, formatSequence });
-      const result2 = generateRoundRobinMaps({ count: 3, pool, formatSequence });
-
-      // With same random seed, results should be identical
-      expect(result1).toEqual(result2);
-    } finally {
-      Math.random = originalRandom;
-    }
+    expect(result1).toEqual(result2);
   });
 
   it("handles extreme scoring edge cases", () => {
-    // Create a pool where only one map works for each mode type
     const extremePool: { mode: MapMode; map: string }[] = [
       { mode: "Slayer", map: "OnlySlayerMap" },
       { mode: "Oddball", map: "OnlyObjectiveMap" },
@@ -330,6 +324,7 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
       count: 4,
       pool: extremePool,
       formatSequence: ["slayer", "objective", "slayer", "objective"],
+      random: makeLcg(42),
     });
 
     expect(result).toHaveLength(4);
@@ -351,22 +346,20 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
       "slayer",
     ];
 
-    // Run algorithm many times to ensure no memory leaks
     for (let i = 0; i < 100; i++) {
       const result = generateRoundRobinMaps({
         count: 7,
         pool,
         formatSequence,
+        random: makeLcg(i + 1),
       });
       expect(result).toHaveLength(7);
     }
 
-    // If we reach here without performance degradation, memory management is good
     expect(true).toBe(true);
   });
 
   it("ensures backward compatibility with existing data structures", () => {
-    // Test with the exact structure that commands/maps would use
     const pool = Object.entries(CURRENT_HCS_MAPS).flatMap(([mode, maps]) =>
       maps.map((map) => ({ mode: mode as MapMode, map })),
     );
@@ -375,11 +368,11 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
       count: 5,
       pool,
       formatSequence: ["slayer", "objective", "slayer", "objective", "slayer"],
+      random: makeLcg(42),
     });
 
     expect(result).toHaveLength(5);
 
-    // Validate structure matches expectations for map command integration
     for (const entry of result) {
       expect(entry).toHaveProperty("mode");
       expect(entry).toHaveProperty("map");
@@ -389,7 +382,6 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
   });
 
   it("adapts gracefully when maps are added to existing modes", () => {
-    // Create an extended pool with new maps added to existing modes
     const extendedPool = createHcsPool();
     extendedPool.push(
       { mode: "Slayer", map: "NewSlayerMap1" },
@@ -402,17 +394,16 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
       count: 7,
       pool: extendedPool,
       formatSequence: ["slayer", "objective", "slayer", "objective", "slayer", "objective", "objective"],
+      random: makeLcg(42),
     });
 
     expect(result).toHaveLength(7);
 
     const analysis = analyzeDistribution(result);
 
-    // Should still maintain good distribution even with expanded pool
-    expect(analysis.uniqueMaps).toBeGreaterThanOrEqual(6); // More maps available = better diversity
-    expect(analysis.maxMapRepeats).toBeLessThanOrEqual(2); // Should still minimize repeats
+    expect(analysis.uniqueMaps).toBeGreaterThanOrEqual(6);
+    expect(analysis.maxMapRepeats).toBeLessThanOrEqual(2);
 
-    // Verify format sequence is respected
     expect(result[0]?.mode).toBe("Slayer");
     expect(result[2]?.mode).toBe("Slayer");
     expect(result[4]?.mode).toBe("Slayer");
@@ -421,9 +412,7 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
   });
 
   it("handles maps being removed from modes gracefully", () => {
-    // Create a reduced pool by removing some maps
     const reducedPool = createHcsPool().filter(({ mode, map }) => {
-      // Remove some slayer maps and objective maps
       if (mode === "Slayer" && (map === "Solitude" || map === "Streets")) {
         return false;
       }
@@ -440,24 +429,22 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
       count: 7,
       pool: reducedPool,
       formatSequence: ["slayer", "objective", "slayer", "objective", "slayer", "objective", "objective"],
+      random: makeLcg(42),
     });
 
     expect(result).toHaveLength(7);
 
     const analysis = analyzeDistribution(result);
 
-    // Should still work with reduced pool, though diversity may be lower
-    expect(analysis.uniqueMaps).toBeGreaterThanOrEqual(4); // Still reasonable diversity
-    expect(analysis.maxMapRepeats).toBeLessThanOrEqual(3); // May need more repeats with fewer maps
+    expect(analysis.uniqueMaps).toBeGreaterThanOrEqual(4);
+    expect(analysis.maxMapRepeats).toBeLessThanOrEqual(3);
 
-    // Format sequence should still be respected
     expect(result[0]?.mode).toBe("Slayer");
     expect(result[2]?.mode).toBe("Slayer");
     expect(result[4]?.mode).toBe("Slayer");
   });
 
   it("adapts to completely new modes being added", () => {
-    // Add a fictional new mode with its own maps
     const extendedPool = createHcsPool();
     extendedPool.push(
       { mode: "Extraction" as MapMode, map: "NewExtractionMap1" },
@@ -465,24 +452,22 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
       { mode: "VIP" as MapMode, map: "NewVIPMap" },
     );
 
-    // Test with objective sequence (new modes should be treated as objectives)
     const result = generateRoundRobinMaps({
       count: 5,
       pool: extendedPool,
       formatSequence: ["objective", "objective", "objective", "objective", "objective"],
+      random: makeLcg(42),
     });
 
     expect(result).toHaveLength(5);
 
     const analysis = analyzeDistribution(result);
 
-    // System should handle new modes gracefully
-    expect(analysis.uniqueModes).toBeGreaterThanOrEqual(3); // Good mode variety including potential new modes
-    expect(result.every((r) => r.mode !== "Slayer")).toBe(true); // All should be non-slayer
+    expect(analysis.uniqueModes).toBeGreaterThanOrEqual(3);
+    expect(result.every((r) => r.mode !== "Slayer")).toBe(true);
   });
 
   it("handles extreme scenarios with very limited mode availability", () => {
-    // Test with only one map per mode type
     const minimalPool: { mode: MapMode; map: string }[] = [
       { mode: "Slayer", map: "OnlySlayerMap" },
       { mode: "Oddball", map: "OnlyOddballMap" },
@@ -492,11 +477,11 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
       count: 6,
       pool: minimalPool,
       formatSequence: ["slayer", "objective", "slayer", "objective", "slayer", "objective"],
+      random: makeLcg(42),
     });
 
     expect(result).toHaveLength(6);
 
-    // Should alternate correctly despite limited pool
     expect(result[0]?.mode).toBe("Slayer");
     expect(result[0]?.map).toBe("OnlySlayerMap");
     expect(result[1]?.mode).toBe("Oddball");
@@ -508,7 +493,6 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
   });
 
   it("maintains performance with asymmetric map pools", () => {
-    // Create a pool where slayer has many options but objectives have few
     const asymmetricPool: { mode: MapMode; map: string }[] = [
       { mode: "Slayer", map: "Slayer1" },
       { mode: "Slayer", map: "Slayer2" },
@@ -537,29 +521,24 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
         "objective",
         "objective",
       ],
+      random: makeLcg(42),
     });
 
     expect(result).toHaveLength(10);
 
     const analysis = analyzeDistribution(result);
 
-    // Should handle asymmetric pools well
-    // With 8 slayer maps + 2 objective maps = 10 total, but only using 10 games total
-    // Realistic expectation is 7-8 unique maps due to some necessary repeats
-    expect(analysis.uniqueMaps).toBeGreaterThanOrEqual(7); // Should use most available maps
+    expect(analysis.uniqueMaps).toBeGreaterThanOrEqual(7);
 
-    // Slayer games should have high diversity
     const slayerGames = result.filter((r) => r.mode === "Slayer");
     const slayerMaps = new Set(slayerGames.map((r) => r.map));
-    expect(slayerMaps.size).toBe(5); // Should use all 5 slayer positions with different maps
+    expect(slayerMaps.size).toBe(5);
 
-    // Objective games will have some repeats due to limited pool
     const objectiveGames = result.filter((r) => r.mode !== "Slayer");
     expect(objectiveGames.length).toBe(5);
   });
 
   it("validates that map pool changes don't break format sequence adherence", () => {
-    // Test multiple different pool configurations
     const poolConfigurations = [
       // Minimal pool
       [
@@ -585,19 +564,19 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
 
     const formatSequence: ("slayer" | "objective")[] = ["slayer", "objective", "slayer", "objective", "slayer"];
 
-    for (const pool of poolConfigurations) {
+    for (const [i, pool] of poolConfigurations.entries()) {
       const result = generateRoundRobinMaps({
         count: 5,
         pool,
         formatSequence,
+        random: makeLcg(i + 1),
       });
 
       expect(result).toHaveLength(5);
 
-      // Format sequence must be respected regardless of pool composition
-      for (let i = 0; i < formatSequence.length; i++) {
-        const expectedType = formatSequence[i];
-        const actualMode = result[i]?.mode;
+      for (let j = 0; j < formatSequence.length; j++) {
+        const expectedType = formatSequence[j];
+        const actualMode = result[j]?.mode;
 
         if (expectedType === "slayer") {
           expect(actualMode).toBe("Slayer");

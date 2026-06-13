@@ -5,15 +5,15 @@ export interface RoundRobinArgs {
   count: number;
   pool: { mode: MapMode; map: string }[];
   formatSequence: ("slayer" | "objective")[];
+  random?: () => number;
 }
 
 export type generateRoundRobinMapsFn = (args: RoundRobinArgs) => { mode: MapMode; map: string }[];
 
-// Helper function to shuffle an array using Fisher-Yates algorithm
-function shuffleArray<T>(array: T[]): T[] {
+function shuffleArray<T>(array: T[], random: () => number): T[] {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(random() * (i + 1));
     const temp = Preconditions.checkExists(shuffled[i]);
     shuffled[i] = Preconditions.checkExists(shuffled[j]);
     shuffled[j] = temp;
@@ -169,7 +169,6 @@ function applyDiversityBonuses(
   return bonus;
 }
 
-// Helper function to calculate candidate score
 function calculateCandidateScore({
   candidate,
   previousPick,
@@ -181,6 +180,7 @@ function calculateCandidateScore({
   count,
   formatSequence,
   type,
+  random,
 }: {
   candidate: { mode: MapMode; map: string };
   previousPick: { mode: MapMode; map: string } | null;
@@ -192,6 +192,7 @@ function calculateCandidateScore({
   count: number;
   formatSequence: ("slayer" | "objective")[];
   type: "slayer" | "objective";
+  random: () => number;
 }): number {
   const comboKey = `${candidate.mode}:${candidate.map}`;
   const modeCount = usedModes.get(candidate.mode) ?? 0;
@@ -212,13 +213,11 @@ function calculateCandidateScore({
   // Apply map and combo diversity bonuses
   score += applyDiversityBonuses(candidate, usedMaps, usedCombos, comboKey);
 
-  // Add small random component for tie-breaking
-  score += Math.random();
+  score += random();
 
   return score;
 }
 
-// Helper function to select the best candidate based on scoring algorithm
 function selectBestCandidate({
   candidates,
   result,
@@ -228,6 +227,7 @@ function selectBestCandidate({
   count,
   formatSequence,
   type,
+  random,
 }: {
   candidates: { mode: MapMode; map: string }[];
   result: { mode: MapMode; map: string }[];
@@ -237,11 +237,11 @@ function selectBestCandidate({
   count: number;
   formatSequence: ("slayer" | "objective")[];
   type: "slayer" | "objective";
+  random: () => number;
 }): { mode: MapMode; map: string } {
   let bestPick: { mode: MapMode; map: string } | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
 
-  // Get recent picks for pattern analysis
   const recentPicks = result.slice(-3);
   const previousPick = result.length > 0 ? (result[result.length - 1] ?? null) : null;
 
@@ -257,6 +257,7 @@ function selectBestCandidate({
       count,
       formatSequence,
       type,
+      random,
     });
 
     if (score > bestScore) {
@@ -269,18 +270,27 @@ function selectBestCandidate({
   return bestPick ?? Preconditions.checkExists(candidates[0]);
 }
 
-export const generateRoundRobinMaps: generateRoundRobinMapsFn = ({ count, pool, formatSequence }) => {
-  // Handle empty format sequence by defaulting to random alternation
+export const generateRoundRobinMaps: generateRoundRobinMapsFn = ({
+  count,
+  pool,
+  formatSequence,
+  random = Math.random,
+}) => {
   if (formatSequence.length === 0) {
     const defaultFormat: ("slayer" | "objective")[] = Array.from({ length: count }, (_, i) =>
       i % 2 === 0 ? "slayer" : "objective",
     );
-    return generateRoundRobinMaps({ count, pool, formatSequence: defaultFormat });
+    return generateRoundRobinMaps({ count, pool, formatSequence: defaultFormat, random });
   }
 
-  // Separate and shuffle pools by type
-  const slayerPairs = shuffleArray(pool.filter(({ mode }) => mode === "Slayer"));
-  const objectivePairs = shuffleArray(pool.filter(({ mode }) => mode !== "Slayer"));
+  const slayerPairs = shuffleArray(
+    pool.filter(({ mode }) => mode === "Slayer"),
+    random,
+  );
+  const objectivePairs = shuffleArray(
+    pool.filter(({ mode }) => mode !== "Slayer"),
+    random,
+  );
 
   const result: { mode: MapMode; map: string }[] = [];
   const usedMaps = new Set<string>();
@@ -304,6 +314,7 @@ export const generateRoundRobinMaps: generateRoundRobinMapsFn = ({ count, pool, 
       count,
       formatSequence,
       type,
+      random,
     });
 
     result.push(bestPick);
