@@ -5,6 +5,7 @@ import type {
   DiscordSeriesStatsPending,
   DiscordSeriesStatsResolved,
 } from "@guilty-spark/shared/contracts/stats/discord-series";
+import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { DiscordSeriesStatsResult } from "../../../services/stats/discord-series-types";
 import type { Services } from "../services";
 
@@ -98,6 +99,23 @@ function toFakeResult(response: DiscordSeriesStats): DiscordSeriesStatsResult {
   };
 }
 
+function aFakeMatchAnalyticsWith(): MatchAnalytics {
+  return {
+    requestedModules: ["killMatrix"],
+    killMatrix: {},
+    metadata: {
+      pairingQuality: {
+        unpairedDeathCount: 0,
+        maxTimeDeltaMs: 0,
+      },
+      perfectCounts: {
+        total: 0,
+        byXuid: {},
+      },
+    },
+  };
+}
+
 export function aFakeDiscordSeriesStatsAppServicesWith(response: DiscordSeriesStats): Services {
   return {
     discordSeriesStatsService: {
@@ -106,6 +124,11 @@ export function aFakeDiscordSeriesStatsAppServicesWith(response: DiscordSeriesSt
       },
       getLookup: async (): Promise<{ status: number; retryAfterSeconds: number | null }> => {
         return Promise.resolve({ status: 200, retryAfterSeconds: null });
+      },
+    },
+    matchAnalyticsService: {
+      getMatchAnalytics: async (): Promise<MatchAnalytics> => {
+        return Promise.resolve(aFakeMatchAnalyticsWith());
       },
     },
   };
