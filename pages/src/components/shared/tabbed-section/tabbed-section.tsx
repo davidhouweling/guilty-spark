@@ -1,6 +1,6 @@
 import React from "react";
 import classNames from "classnames";
-import { Preconditions } from "../../../base/preconditions";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { TabbedSectionTab } from "./types";
 import styles from "./tabbed-section.module.css";
 
@@ -20,10 +20,14 @@ export function TabbedSection<TId extends string>({
   const tabSetId = React.useId();
   const tabListRef = React.useRef<HTMLDivElement>(null);
 
-  const focusTab = React.useCallback((tabId: TId): void => {
-    const button = tabListRef.current?.querySelector<HTMLButtonElement>(`[data-tabid="${tabId}"]`);
-    button?.focus();
-  }, []);
+  const focusTab = React.useCallback(
+    (tabId: TId): void => {
+      const tabDomId = `${tabSetId}-${tabId}-tab`;
+      const button = tabListRef.current?.ownerDocument.getElementById(tabDomId) as HTMLButtonElement | null;
+      button?.focus();
+    },
+    [tabSetId],
+  );
 
   const handleKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>): void => {
@@ -83,7 +87,6 @@ export function TabbedSection<TId extends string>({
             <button
               key={tab.id}
               id={tabDomId}
-              data-tabid={tab.id}
               type="button"
               role="tab"
               aria-selected={isSelected}
