@@ -75,6 +75,7 @@
     // Staging environment
     "staging": {
       "name": "guilty-spark-staging",
+      "routes": ["api-staging.guilty-spark.app/*"],
       "kv_namespaces": [
         {
           "binding": "APP_DATA",
@@ -110,6 +111,7 @@
     // Production environment
     "production": {
       "name": "guilty-spark",
+      "routes": ["api.guilty-spark.app/*"],
       "kv_namespaces": [
         {
           "binding": "APP_DATA",
