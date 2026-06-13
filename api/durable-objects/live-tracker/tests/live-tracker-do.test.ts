@@ -3296,7 +3296,7 @@ describe("LiveTrackerDO", () => {
         new Request("http://do/websocket", { headers: { Upgrade: "websocket" } }),
       );
 
-      expect(response.status).toBe(200);
+      expect(response.headers.get("x-fake-upgrade")).toBe("websocket");
       expect(fakeWebSocketAdapter.initialMessages).toHaveLength(1);
       const [initialMessage] = fakeWebSocketAdapter.initialMessages;
       expect(initialMessage).toBeDefined();
@@ -3360,6 +3360,18 @@ describe("LiveTrackerDO", () => {
       const [broadcast] = fakeWebSocketAdapter.broadcasts;
       const parsed = JSON.parse(broadcast ?? "") as { type: string };
       expect(parsed.type).toBe("state");
+    });
+
+    it("broadcasts status=stopped in the final message even when tracker was active at dispose time", async () => {
+      const trackerState = aFakeStateWith({ status: "active" });
+      storageGetSpy.mockResolvedValue(trackerState);
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+
+      await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
+
+      const [broadcast] = fakeWebSocketAdapter.broadcasts;
+      const parsed = JSON.parse(broadcast ?? "") as { data: { status: string } };
+      expect(parsed.data.status).toBe("stopped");
     });
   });
 });

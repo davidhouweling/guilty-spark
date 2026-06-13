@@ -1526,6 +1526,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       ]),
     );
 
+    trackerState.status = "stopped";
     await this.broadcastStopMessage(trackerState);
 
     try {
