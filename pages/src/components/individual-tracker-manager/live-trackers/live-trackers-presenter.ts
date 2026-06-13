@@ -122,8 +122,11 @@ export class LiveTrackersPresenter {
     const pinnedRuntimeTracker =
       snapshot.xboxGamertag == null
         ? null
-        : (snapshot.runningTrackers.find((t) => t.gamertag.toLowerCase() === snapshot.xboxGamertag?.toLowerCase()) ??
-          null);
+        : (snapshot.runningTrackers.find((t) =>
+            snapshot.xboxXuid != null
+              ? t.xuid === snapshot.xboxXuid
+              : t.gamertag.toLowerCase() === snapshot.xboxGamertag?.toLowerCase(),
+          ) ?? null);
 
     if (snapshot.xboxGamertag != null) {
       const pinnedState =
