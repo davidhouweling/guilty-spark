@@ -207,6 +207,73 @@ describe("HaloFilmService", () => {
     expect(await defaultCache().match(chunkCacheRequestFor("match-456", 7))).toBeDefined();
   });
 
+  it("treats cached metadata without highlight chunk as cache miss", async () => {
+    const env = aFakeCacheBackedEnvWith();
+    const xboxService = aFakeXboxServiceWith({ env });
+    const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+    vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
+    await env.APP_DATA.put("film:clearance", "test-clearance-token");
+    const service = new HaloFilmService({ env, spartanTokenProvider });
+
+    const malformedCachedMetadata = {
+      AssetId: "asset-id",
+      BlobStoragePathPrefix: "https://blob.example/",
+      CustomData: {
+        MatchId: "match-789",
+        FilmMajorVersion: 42,
+        FilmLength: 600,
+        Chunks: [
+          {
+            Index: 5,
+            ChunkType: 2,
+            DurationMilliseconds: 600,
+            ChunkSize: 3,
+            FileRelativePath: "/wrong-chunk.bin",
+          },
+        ],
+      },
+    };
+    await defaultCache().put(metadataCacheRequestFor("match-789"), Response.json(malformedCachedMetadata));
+
+    const compressedChunk = deflateSync(Uint8Array.of(0x07, 0x08, 0x09));
+    const fetchedMetadata = {
+      AssetId: "asset-id",
+      BlobStoragePathPrefix: "https://blob.example/",
+      CustomData: {
+        MatchId: "match-789",
+        FilmMajorVersion: 42,
+        FilmLength: 600,
+        Chunks: [
+          {
+            Index: 7,
+            ChunkType: 3,
+            DurationMilliseconds: 600,
+            ChunkSize: compressedChunk.byteLength,
+            FileRelativePath: "/chunk-7.bin",
+          },
+        ],
+      },
+    };
+
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input: Parameters<typeof fetch>[0]): Promise<Response> => {
+        await Promise.resolve();
+        const requestUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+        if (requestUrl.includes("/spectate")) {
+          return new Response(JSON.stringify(fetchedMetadata), { status: 200 });
+        }
+
+        return new Response(compressedChunk, { status: 200 });
+      });
+
+    const events = await service.getHighlightEventsForMatch("match-789");
+
+    expect(events).toEqual([]);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(await defaultCache().match(chunkCacheRequestFor("match-789", 7))).toBeDefined();
+  });
+
   describe("clearance token caching", () => {
     function mockFetch(
       clearanceToken: string,

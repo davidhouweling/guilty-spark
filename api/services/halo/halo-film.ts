@@ -42,17 +42,26 @@ export class HaloFilmService {
   async getHighlightEventsForMatch(matchId: string): Promise<ParsedHighlightEvent[]> {
     const metadataCacheRequest = this.toMetadataCacheRequest(matchId);
     const cachedMetadata = await this.getCachedJson<FilmMetadataResponse>(metadataCacheRequest);
+    const cachedHighlightChunk = cachedMetadata == null ? null : this.tryFindHighlightChunk(cachedMetadata);
     if (cachedMetadata != null) {
-      const highlightChunk = this.findHighlightChunk(matchId, cachedMetadata);
-      const chunkCacheRequest = this.toChunkCacheRequest(matchId, highlightChunk.Index);
-      const cachedChunk = await this.getCachedChunk(chunkCacheRequest);
-      if (cachedChunk != null) {
-        return this.parseHighlightEvents(cachedChunk, cachedMetadata.CustomData.FilmMajorVersion);
+      if (cachedHighlightChunk != null) {
+        const chunkCacheRequest = this.toChunkCacheRequest(matchId, cachedHighlightChunk.Index);
+        const cachedChunk = await this.getCachedChunk(chunkCacheRequest);
+        if (cachedChunk != null) {
+          return this.parseHighlightEvents(cachedChunk, cachedMetadata.CustomData.FilmMajorVersion);
+        }
       }
     }
 
+    if (cachedMetadata != null && cachedHighlightChunk == null) {
+      await caches.default.delete(metadataCacheRequest);
+    }
+
     const authContext = await this.resolveAuthContext();
-    const filmMetadata = cachedMetadata ?? (await this.getOrFetchFilmMetadata(matchId, authContext));
+    const filmMetadata =
+      cachedMetadata != null && cachedHighlightChunk != null
+        ? cachedMetadata
+        : await this.getOrFetchFilmMetadata(matchId, authContext);
     const highlightChunkBytes = await this.getOrFetchHighlightChunkBytes(matchId, filmMetadata, authContext);
     return this.parseHighlightEvents(highlightChunkBytes, filmMetadata.CustomData.FilmMajorVersion);
   }
@@ -67,7 +76,6 @@ export class HaloFilmService {
     const perfectByXuid = this.buildPerfectMedalsByXuid(events);
 
     const { entries, maxTimeDeltaMs, usedDeathCount } = this.buildKillMatrixEntriesByPairing(kills, deaths);
-    this.assignPerfectsToEntries();
 
     const perfectCounts = this.buildPerfectCountsReport(perfectByXuid);
 
@@ -102,15 +110,23 @@ export class HaloFilmService {
     matchId: string,
     filmMetadata: FilmMetadataResponse,
   ): FilmMetadataResponse["CustomData"]["Chunks"][number] {
-    const highlightChunk = [...filmMetadata.CustomData.Chunks]
-      .sort((left, right) => left.Index - right.Index)
-      .findLast((chunk) => chunk.ChunkType === 3);
+    const highlightChunk = this.tryFindHighlightChunk(filmMetadata);
 
     if (highlightChunk == null) {
       throw new Error(`No highlight chunk found for match ${matchId}`);
     }
 
     return highlightChunk;
+  }
+
+  private tryFindHighlightChunk(
+    filmMetadata: FilmMetadataResponse,
+  ): FilmMetadataResponse["CustomData"]["Chunks"][number] | null {
+    return (
+      [...filmMetadata.CustomData.Chunks]
+        .sort((left, right) => left.Index - right.Index)
+        .findLast((chunk) => chunk.ChunkType === 3) ?? null
+    );
   }
 
   private async getOrFetchHighlightChunkBytes(
@@ -231,13 +247,6 @@ export class HaloFilmService {
     }
 
     return bestDeathIndex;
-  }
-
-  private assignPerfectsToEntries(): void {
-    // Perfect medal attribution is deferred: victim-level attribution requires matching
-    // perfect medal events to specific kill events by timestamp. Currently, perfect counts
-    // are available only in metadata.perfectCounts.byXuid (killer level).
-    // TODO(perfects): implement timestamp-based matching of perfect medals to kill-death pairs
   }
 
   private buildPerfectCountsReport(perfectByXuid: Map<string, number>): {
