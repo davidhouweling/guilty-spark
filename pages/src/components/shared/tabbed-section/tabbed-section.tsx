@@ -18,10 +18,22 @@ export function TabbedSection<TId extends string>({
   tabListAriaLabel,
 }: TabbedSectionProps<TId>): React.ReactElement {
   const tabSetId = React.useId();
+  const tabListRef = React.useRef<HTMLDivElement>(null);
+
+  const focusTab = React.useCallback((tabId: TId): void => {
+    const button = tabListRef.current?.querySelector<HTMLButtonElement>(`[data-tabid="${tabId}"]`);
+    button?.focus();
+  }, []);
 
   const handleKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>): void => {
+      if (tabs.length === 0) {
+        return;
+      }
       const currentIndex = tabs.findIndex((t) => t.id === selectedTabId);
+      if (currentIndex === -1) {
+        return;
+      }
       let nextIndex: number | null = null;
 
       switch (event.key) {
@@ -47,14 +59,22 @@ export function TabbedSection<TId extends string>({
       }
 
       event.preventDefault();
-      onTabChange(Preconditions.checkExists(tabs[nextIndex], "tab at index").id);
+      const nextTab = Preconditions.checkExists(tabs[nextIndex], "tab at index");
+      onTabChange(nextTab.id);
+      focusTab(nextTab.id);
     },
-    [tabs, selectedTabId, onTabChange],
+    [tabs, selectedTabId, onTabChange, focusTab],
   );
 
   return (
     <div>
-      <div className={styles.tabList} role="tablist" aria-label={tabListAriaLabel} onKeyDown={handleKeyDown}>
+      <div
+        ref={tabListRef}
+        className={styles.tabList}
+        role="tablist"
+        aria-label={tabListAriaLabel}
+        onKeyDown={handleKeyDown}
+      >
         {tabs.map((tab) => {
           const tabDomId = `${tabSetId}-${tab.id}-tab`;
           const panelDomId = `${tabSetId}-${tab.id}-panel`;
@@ -63,6 +83,7 @@ export function TabbedSection<TId extends string>({
             <button
               key={tab.id}
               id={tabDomId}
+              data-tabid={tab.id}
               type="button"
               role="tab"
               aria-selected={isSelected}

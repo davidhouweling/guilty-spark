@@ -150,4 +150,62 @@ describe("TabbedSection", () => {
 
     expect(onTabChange).toHaveBeenCalledWith("kill-matrix");
   });
+
+  it("does not call onTabChange on ArrowRight when tabs is empty", () => {
+    const onTabChange = vi.fn<(tabId: never) => void>();
+
+    render(
+      <TabbedSection
+        tabListAriaLabel="Demo tabs"
+        selectedTabId={"players" as never}
+        onTabChange={onTabChange}
+        tabs={[]}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByRole("tablist"), { key: "ArrowRight" });
+
+    expect(onTabChange).not.toHaveBeenCalled();
+  });
+
+  it("does not call onTabChange on ArrowRight when selectedTabId is not in tabs", () => {
+    const onTabChange = vi.fn<(tabId: "players" | "kill-matrix") => void>();
+
+    render(
+      <TabbedSection
+        tabListAriaLabel="Demo tabs"
+        selectedTabId={"unknown" as "players"}
+        onTabChange={onTabChange}
+        tabs={[
+          { id: "players", label: "Players", content: <div>Players panel</div> },
+          { id: "kill-matrix", label: "Kill Matrix", content: <div>Kill matrix panel</div> },
+        ]}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByRole("tablist"), { key: "ArrowRight" });
+
+    expect(onTabChange).not.toHaveBeenCalled();
+  });
+
+  it("moves focus to the newly selected tab button on ArrowRight", () => {
+    const onTabChange = vi.fn<(tabId: "players" | "kill-matrix") => void>();
+
+    render(
+      <TabbedSection
+        tabListAriaLabel="Demo tabs"
+        selectedTabId="players"
+        onTabChange={onTabChange}
+        tabs={[
+          { id: "players", label: "Players", content: <div>Players panel</div> },
+          { id: "kill-matrix", label: "Kill Matrix", content: <div>Kill matrix panel</div> },
+        ]}
+      />,
+    );
+
+    screen.getByRole("tab", { name: "Players" }).focus();
+    fireEvent.keyDown(screen.getByRole("tablist"), { key: "ArrowRight" });
+
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Kill Matrix" }));
+  });
 });
