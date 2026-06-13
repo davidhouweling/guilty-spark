@@ -39,6 +39,10 @@ import type { DiscordService } from "../../services/discord/discord";
 import type { HaloService } from "../../services/halo/halo";
 import type { DatabaseService } from "../../services/database/database";
 import { installServices as installServicesImpl } from "../../services/install";
+import {
+  CloudflareWebSocketHibernationAdapter,
+  type WebSocketHibernationAdapter,
+} from "../../base/websocket-hibernation-adapter";
 import { LiveTrackerEmbed } from "../../embeds/live-tracker-embed";
 import { LiveTrackerLoadingEmbed } from "../../embeds/live-tracker-loading-embed";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
@@ -72,8 +76,15 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private readonly discordService: DiscordService;
   private readonly haloService: HaloService;
   private readonly databaseService: DatabaseService;
+  private readonly webSocketAdapter: WebSocketHibernationAdapter;
+  private disposed = false;
 
-  constructor(state: DurableObjectState, env: Env, installServices = installServicesImpl) {
+  constructor(
+    state: DurableObjectState,
+    env: Env,
+    installServices = installServicesImpl,
+    webSocketAdapter: WebSocketHibernationAdapter = new CloudflareWebSocketHibernationAdapter(),
+  ) {
     this.state = state;
     this.env = env;
 
@@ -82,6 +93,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     this.discordService = services.discordService;
     this.haloService = services.haloService;
     this.databaseService = services.databaseService;
+    this.webSocketAdapter = webSocketAdapter;
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -742,6 +754,9 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async setState(state: LiveTrackerState): Promise<void> {
+    if (this.disposed) {
+      return;
+    }
     await this.state.storage.put("trackerState", state);
     // Broadcast state update to all connected WebSocket clients
     await this.broadcastStateUpdate(state);
@@ -1419,39 +1434,24 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       );
     }
 
-    const webSocketPair = new WebSocketPair();
-    const client = webSocketPair[0];
-    const server = webSocketPair[1];
-
     try {
-      // Use hibernation API - allows DO to be evicted from memory while maintaining connection
-      this.state.acceptWebSocket(server);
-
-      const allWebSockets = this.state.getWebSockets();
+      const data = await this.stateToContractData(trackerState);
+      const initialMessage = JSON.stringify({
+        type: "state",
+        data,
+        timestamp: new Date().toISOString(),
+      });
+      const response = this.webSocketAdapter.upgrade(this.state, initialMessage);
       this.logService.info(
         "LiveTracker: WebSocket client connected",
         new Map([
-          ["totalClients", allWebSockets.length.toString()],
+          ["totalClients", this.state.getWebSockets().length.toString()],
           ["guildId", trackerState.guildId],
           ["channelId", trackerState.channelId],
           ["queueNumber", trackerState.queueNumber.toString()],
         ]),
       );
-
-      // Send current state immediately on connection
-      const data = await this.stateToContractData(trackerState);
-      server.send(
-        JSON.stringify({
-          type: "state",
-          data,
-          timestamp: new Date().toISOString(),
-        }),
-      );
-
-      return new Response(null, {
-        status: 101,
-        webSocket: client,
-      });
+      return response;
     } catch (error) {
       this.logService.error(
         "LiveTracker: Failed to establish WebSocket",
@@ -1462,21 +1462,12 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         ]),
       );
       Sentry.captureException(error);
-
-      // Close the WebSocket if setup failed
-      try {
-        server.close(1011, "Internal error");
-      } catch {
-        // Ignore errors during cleanup
-      }
-
       return new Response("Failed to establish WebSocket connection", { status: 500 });
     }
   }
 
   private async broadcastStateUpdate(state: LiveTrackerState): Promise<void> {
-    const allWebSockets = this.state.getWebSockets();
-    if (allWebSockets.length === 0) {
+    if (this.state.getWebSockets().length === 0) {
       return;
     }
 
@@ -1487,14 +1478,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       timestamp: new Date().toISOString(),
     });
 
-    for (const client of allWebSockets) {
-      try {
-        client.send(message);
-      } catch (error) {
-        this.logService.warn("LiveTracker: Failed to send to WebSocket client", new Map([["error", String(error)]]));
-        // WebSocket will be cleaned up automatically by hibernation API
-      }
-    }
+    this.webSocketAdapter.broadcast(this.state, message);
   }
 
   private async stateToContractData(state: LiveTrackerState): Promise<LiveTrackerStateData> {
@@ -1537,46 +1521,26 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
    * Centralized disposal method for all tracker termination scenarios.
    * Ensures WebSocket clients are notified, resources are cleaned up, and storage is deleted.
    */
-  private async dispose(trackerState: LiveTrackerState | null, reason: string): Promise<void> {
-    const allWebSockets = this.state.getWebSockets();
+  private async dispose(trackerState: LiveTrackerState, reason: string): Promise<void> {
     this.logService.info(
       "LiveTracker: Disposing tracker",
       new Map([
         ["reason", reason],
-        ["hasState", trackerState != null ? "true" : "false"],
-        ["webSocketClients", allWebSockets.length.toString()],
+        ["webSocketClients", this.state.getWebSockets().length.toString()],
       ]),
     );
 
-    // Notify and close WebSocket clients if state exists
-    if (trackerState) {
-      await this.broadcastStopMessage(trackerState);
+    trackerState.status = "stopped";
+    this.disposed = true;
+    await this.broadcastStopMessage(trackerState);
 
-      // Attempt to reset channel name
-      try {
-        await this.resetChannelName(trackerState);
-      } catch (error) {
-        this.logService.info(
-          "LiveTracker: Failed to reset channel name during disposal",
-          new Map([["error", String(error)]]),
-        );
-      }
-    } else if (allWebSockets.length > 0) {
-      // Close any orphaned connections without state
+    try {
+      await this.resetChannelName(trackerState);
+    } catch (error) {
       this.logService.info(
-        "LiveTracker: Closing orphaned WebSocket connections during disposal",
-        new Map([["clientCount", allWebSockets.length.toString()]]),
+        "LiveTracker: Failed to reset channel name during disposal",
+        new Map([["error", String(error)]]),
       );
-      for (const client of allWebSockets) {
-        try {
-          client.close(1011, "Tracker disposed");
-        } catch (error) {
-          this.logService.info(
-            "LiveTracker: Failed to close orphaned WebSocket client",
-            new Map([["error", String(error)]]),
-          );
-        }
-      }
     }
 
     // Delete alarm and all storage
@@ -1585,12 +1549,15 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async broadcastStopMessage(state: LiveTrackerState): Promise<void> {
-    const allWebSockets = this.state.getWebSockets();
-
+    const clientCount = this.state.getWebSockets().length;
     this.logService.info(
       "Notifying WebSocket clients of tracker stop",
-      new Map([["clientCount", allWebSockets.length.toString()]]),
+      new Map([["clientCount", clientCount.toString()]]),
     );
+
+    if (clientCount === 0) {
+      return;
+    }
 
     try {
       // Send final state update with status='stopped' so the frontend receives complete state
@@ -1601,30 +1568,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         timestamp: new Date().toISOString(),
       });
 
-      for (const client of allWebSockets) {
-        try {
-          client.send(message);
-          client.close(1000, "Tracker stopped");
-        } catch (error) {
-          this.logService.warn(
-            "LiveTracker: Failed to notify WebSocket client of stop",
-            new Map([["error", String(error)]]),
-          );
-        }
-      }
+      this.webSocketAdapter.broadcast(this.state, message);
     } catch (error) {
       this.logService.warn("LiveTracker: Failed to build stop message state", new Map([["error", String(error)]]));
-      // Close websockets without sending final state if we can't build it
-      for (const client of allWebSockets) {
-        try {
-          client.close(1000, "Tracker stopped");
-        } catch (closeError) {
-          this.logService.warn(
-            "LiveTracker: Failed to close WebSocket client",
-            new Map([["error", String(closeError)]]),
-          );
-        }
-      }
     }
+
+    this.webSocketAdapter.closeAll(this.state, 1000, "Tracker stopped");
   }
 }
