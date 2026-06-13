@@ -17,6 +17,7 @@ interface LoadedStatsPanelProps {
 
 function LoadedStatsPanel({ state }: LoadedStatsPanelProps): React.ReactElement {
   const { stats, playerMap, medalMetadata, analytics } = state;
+  const killMatrixPresenter = useMemo(() => new KillMatrixPresenter(), []);
   const data = useMemo<MatchStatsData[]>(() => {
     const presenter = createMatchStatsPresenter(stats.MatchInfo.GameVariantCategory);
     return presenter.getData(stats, playerMap, medalMetadata);
@@ -31,8 +32,8 @@ function LoadedStatsPanel({ state }: LoadedStatsPanelProps): React.ReactElement 
       [...playerMap.entries()].map(([xuid, gamertag]) => [xuid, { gamertag, teamId: null }]),
     );
 
-    return KillMatrixPresenter.present({ analytics, playersByXuid });
-  }, [analytics, playerMap]);
+    return killMatrixPresenter.present({ analytics, playersByXuid });
+  }, [analytics, killMatrixPresenter, playerMap]);
 
   return (
     <div className={styles.wrapper}>
