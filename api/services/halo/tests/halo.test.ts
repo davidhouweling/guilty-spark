@@ -1755,6 +1755,31 @@ describe("Halo service", () => {
     });
   });
 
+  describe("getPlayerCustomGames()", () => {
+    it("fetches custom matches for a player xuid", async () => {
+      const customGames = [
+        aFakePlayerMatchHistoryWith({ MatchId: "custom-1" }),
+        aFakePlayerMatchHistoryWith({ MatchId: "custom-2" }),
+      ];
+      infiniteClient.getPlayerMatches.mockResolvedValue(customGames);
+
+      const response = await haloService.getPlayerCustomGames("0000000000001", 12);
+
+      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledWith(
+        "0000000000001",
+        MatchType.Custom,
+        12,
+        0,
+        {
+          cf: {
+            cacheTtlByStatus: { "200-299": 60, 404: 60, "500-599": 0 },
+          },
+        },
+      );
+      expect(response).toEqual(customGames);
+    });
+  });
+
   describe("getMatchDetails()", () => {
     it("returns the match details", async () => {
       const matchDetails = await haloService.getMatchDetails(["d81554d7-ddfe-44da-a6cb-000000000ctf"]);

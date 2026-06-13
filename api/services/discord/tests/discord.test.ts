@@ -4,6 +4,7 @@ import type { verifyKey } from "discord-interactions";
 import type {
   APIApplicationCommandInteraction,
   APIChannel,
+  APIGuild,
   APIGuildMember,
   APIInteraction,
   APIMessage,
@@ -11,9 +12,11 @@ import type {
 import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
+  ChannelType,
   ComponentType,
   InteractionType,
   Locale,
+  PermissionFlagsBits,
   MessageSearchAuthorType,
   MessageSearchSortMode,
 } from "discord-api-types/v10";
@@ -1066,6 +1069,113 @@ describe("DiscordService", () => {
       delete cloneInteraction.user;
 
       expect(() => discordService.getDiscordUserId(cloneInteraction)).toThrow("No user found on interaction");
+    });
+  });
+
+  describe("computeMemberPermissions()", () => {
+    it("combines @everyone and member role permissions", async () => {
+      const getGuildSpy = vi.spyOn(discordService, "getGuild").mockResolvedValue({
+        id: "fake-guild-id",
+        roles: [
+          {
+            id: "fake-guild-id",
+            name: "@everyone",
+            permissions: "1",
+          },
+          {
+            id: "mod-role",
+            name: "mod",
+            permissions: "4",
+          },
+        ],
+      } as APIGuild);
+
+      const getGuildMemberSpy = vi
+        .spyOn(discordService, "getGuildMember")
+        .mockResolvedValue(aGuildMemberWith({ roles: ["fake-guild-id", "mod-role"] }));
+
+      const permissions = await discordService.computeMemberPermissions("fake-guild-id", "fake-user-id");
+
+      expect(getGuildSpy).toHaveBeenCalledWith("fake-guild-id");
+      expect(getGuildMemberSpy).toHaveBeenCalledWith("fake-guild-id", "fake-user-id");
+      expect(permissions).toEqual(5n);
+    });
+
+    it("returns all permissions when administrator permission is present", async () => {
+      vi.spyOn(discordService, "getGuild").mockResolvedValue({
+        id: "fake-guild-id",
+        roles: [
+          {
+            id: "fake-guild-id",
+            name: "@everyone",
+            permissions: "1",
+          },
+          {
+            id: "admin-role",
+            name: "admin",
+            permissions: PermissionFlagsBits.Administrator.toString(),
+          },
+        ],
+      } as APIGuild);
+
+      vi.spyOn(discordService, "getGuildMember").mockResolvedValue(
+        aGuildMemberWith({ roles: ["fake-guild-id", "admin-role"] }),
+      );
+
+      const permissions = await discordService.computeMemberPermissions("fake-guild-id", "fake-user-id");
+
+      expect(permissions).toEqual(~0n);
+    });
+  });
+
+  describe("interaction metadata", () => {
+    it("stores interaction metadata in KV", async () => {
+      const putSpy = vi.spyOn(env.APP_DATA, "put");
+
+      await discordService.setInteractionMetadata("token-1", { queueNumber: 777, userId: "user-1" });
+
+      expect(putSpy).toHaveBeenCalledWith(
+        "interactionMetadata:token-1",
+        '{"queueNumber":777,"userId":"user-1"}',
+        { expirationTtl: 3600 },
+      );
+    });
+
+    it("retrieves interaction metadata from KV", async () => {
+      const getSpy = vi.spyOn(env.APP_DATA, "get").mockResolvedValue({ queueNumber: 888 } as never);
+
+      const metadata = await discordService.getInteractionMetadata<{ queueNumber: number }>("token-2");
+
+      expect(getSpy).toHaveBeenCalledWith("interactionMetadata:token-2", "json");
+      expect(metadata).toEqual({ queueNumber: 888 });
+    });
+  });
+
+  describe("getThreads()", () => {
+    it("fetches active threads for a channel", async () => {
+      const fakeThread: APIChannel = {
+        id: "thread-1",
+        type: ChannelType.PublicThread,
+      } as APIChannel;
+
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ threads: [fakeThread] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const threads = await discordService.getThreads("fake-channel");
+
+      expect(mockFetch).toHaveBeenCalledWith("https://discord.com/api/v10/channels/fake-channel/threads/active", {
+        body: null,
+        headers: new Headers({
+          Authorization: "Bot DISCORD_TOKEN",
+          "content-type": "application/json;charset=UTF-8",
+        }),
+        method: "GET",
+      });
+      expect(threads).toEqual([fakeThread]);
     });
   });
 
