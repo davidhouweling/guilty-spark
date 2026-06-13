@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS DiscordAssociations (
   DiscordDisplayNameSearched TEXT
 );
 
+CREATE INDEX IF NOT EXISTS IdxDiscordAssociationsXboxId ON DiscordAssociations (XboxId);
+
 CREATE TABLE IF NOT EXISTS GuildConfig (
     GuildId TEXT PRIMARY KEY,
     StatsReturn CHAR(1) CHECK(StatsReturn IN ('S', 'A')) NOT NULL DEFAULT 'S',
@@ -30,6 +32,9 @@ CREATE TABLE IF NOT EXISTS NeatQueueConfig (
     PRIMARY KEY (GuildId, ChannelId)
 );
 
+CREATE INDEX IF NOT EXISTS IdxNeatQueueConfigGuildWebhookSecret
+    ON NeatQueueConfig (GuildId, WebhookSecret);
+
 CREATE TABLE IF NOT EXISTS UserSessions (
     SessionId TEXT PRIMARY KEY NOT NULL,
     UserId TEXT NOT NULL,
@@ -43,6 +48,7 @@ CREATE TABLE IF NOT EXISTS UserSessions (
 
 CREATE INDEX IF NOT EXISTS IdxUserSessionsUserId ON UserSessions (UserId);
 CREATE INDEX IF NOT EXISTS IdxUserSessionsExpiresAt ON UserSessions (ExpiresAt);
+CREATE INDEX IF NOT EXISTS IdxUserSessionsCreatedAt ON UserSessions (CreatedAt);
 
 CREATE TABLE IF NOT EXISTS UserCredentials (
     UserId TEXT PRIMARY KEY NOT NULL,
@@ -67,6 +73,11 @@ CREATE INDEX IF NOT EXISTS IdxLinkedIdentitiesUserId ON LinkedIdentities (UserId
 CREATE UNIQUE INDEX IF NOT EXISTS UqLinkedIdentitiesActiveXboxPerUser
     ON LinkedIdentities (UserId)
     WHERE Provider = 'xbox' AND IsActive = 1;
+CREATE INDEX IF NOT EXISTS IdxLinkedIdentitiesUserIdCreatedAt
+    ON LinkedIdentities (UserId, CreatedAt DESC);
+CREATE INDEX IF NOT EXISTS IdxLinkedIdentitiesActiveXboxGamertagUpdatedAt
+    ON LinkedIdentities (Gamertag, UpdatedAt DESC)
+    WHERE Provider = 'xbox' AND IsActive = 1;
 
 CREATE TABLE IF NOT EXISTS IndividualTrackerProfiles (
     ProfileId TEXT PRIMARY KEY NOT NULL,
@@ -80,6 +91,8 @@ CREATE TABLE IF NOT EXISTS IndividualTrackerProfiles (
 );
 
 CREATE INDEX IF NOT EXISTS IdxIndividualTrackerProfilesUserId ON IndividualTrackerProfiles (UserId);
+CREATE INDEX IF NOT EXISTS IdxIndividualTrackerProfilesUserIdCreatedAt
+    ON IndividualTrackerProfiles (UserId, CreatedAt ASC);
 
 CREATE TABLE IF NOT EXISTS IndividualTrackerGames (
     ProfileId TEXT NOT NULL,
@@ -117,4 +130,6 @@ CREATE TABLE IF NOT EXISTS IndividualTrackers (
 
 CREATE INDEX IF NOT EXISTS IdxIndividualTrackersUserId ON IndividualTrackers (UserId);
 CREATE INDEX IF NOT EXISTS IdxIndividualTrackersXuid ON IndividualTrackers (Xuid);
+CREATE INDEX IF NOT EXISTS IdxIndividualTrackersUserIdCreatedAt
+    ON IndividualTrackers (UserId, CreatedAt ASC);
 CREATE UNIQUE INDEX IF NOT EXISTS UqIndividualTrackersLivePerUser ON IndividualTrackers (UserId) WHERE IsLive = 1;
