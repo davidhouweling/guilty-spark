@@ -24,10 +24,10 @@ import {
   individualTrackerStatusContract,
   individualTrackerViewStateContract,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/management";
-import type { seriesContextPayloadSchema } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import {
   individualTrackerNudgeContract,
   seriesContextNullablePayloadSchema,
+  type SeriesContextPayload,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import {
   analyzeMatchGroupings,
@@ -719,7 +719,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Not Found", { status: 404 });
     }
 
-    let payload: z.infer<typeof seriesContextPayloadSchema> | null = null;
+    let payload: SeriesContextPayload | null = null;
     try {
       payload = seriesContextNullablePayloadSchema.parse(await request.json());
     } catch {

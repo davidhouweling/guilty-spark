@@ -31,6 +31,8 @@ import {
   liveTrackerRepostContract,
   liveTrackerRepostRequestSchema,
   type LiveTrackerRefreshRequest,
+  type LiveTrackerSubstitutionRequest,
+  type LiveTrackerRepostRequest,
 } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
 import { liveTrackerSeriesDataContract } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/series-data";
 import type { LogService } from "../../services/log/types";
@@ -266,7 +268,12 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleStart(request: Request): Promise<Response> {
-    const startRequest = liveTrackerStartRequestSchema.parse(await request.json());
+    let startRequest: LiveTrackerStartRequest;
+    try {
+      startRequest = liveTrackerStartRequestSchema.parse(await request.json());
+    } catch {
+      return new Response("Bad Request", { status: 400 });
+    }
 
     const trackerState: LiveTrackerState = {
       userId: startRequest.userId,
@@ -560,9 +567,13 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleSubstitution(request: Request): Promise<Response> {
-    const { playerOutId, playerInId, playerAssociationData } = liveTrackerSubstitutionRequestSchema.parse(
-      await request.json(),
-    );
+    let parsedSubstitution: LiveTrackerSubstitutionRequest;
+    try {
+      parsedSubstitution = liveTrackerSubstitutionRequestSchema.parse(await request.json());
+    } catch {
+      return new Response("Bad Request", { status: 400 });
+    }
+    const { playerOutId, playerInId, playerAssociationData } = parsedSubstitution;
     const trackerState = await this.getState();
     if (!trackerState) {
       return new Response("Not Found", { status: 404 });
@@ -651,7 +662,13 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleRepost(request: Request): Promise<Response> {
-    const { newMessageId } = liveTrackerRepostRequestSchema.parse(await request.json());
+    let repostRequest: LiveTrackerRepostRequest;
+    try {
+      repostRequest = liveTrackerRepostRequestSchema.parse(await request.json());
+    } catch {
+      return new Response("Bad Request", { status: 400 });
+    }
+    const { newMessageId } = repostRequest;
 
     const trackerState = await this.getState();
     if (!trackerState) {
