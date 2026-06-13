@@ -169,7 +169,7 @@ async function resumeSeriesDo(env: Env, userId: string, trackerId: string): Prom
 export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
   router.post("/api/individual-tracker/manage/start", async (request, env: Env) => {
     const services = installServices({ env });
-    const { authService, individualTrackerService, xboxService, logService } = services;
+    const { authService, individualTrackerService, logService } = services;
 
     try {
       const auth = await requireSession(request, authService);
@@ -182,24 +182,10 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
         return parsed.response;
       }
 
-      let xboxUser: Awaited<ReturnType<typeof xboxService.getUserByGamertag>>;
-      try {
-        xboxUser = await xboxService.getUserByGamertag(parsed.data.gamertag);
-      } catch (error) {
-        logService.warn(
-          "Individual tracker start: gamertag lookup failed",
-          new Map([
-            ["gamertag", parsed.data.gamertag],
-            ["error", String(error)],
-          ]),
-        );
-        return errorContract.toResponse({ error: "Gamertag not found" }, { status: 404, noStore: true });
-      }
-
       const createOptions: CreateTrackerOptions = {
         userId: auth.session.userId,
-        gamertag: xboxUser.gamertag,
-        xuid: xboxUser.xuid,
+        gamertag: parsed.data.gamertag,
+        xuid: parsed.data.xuid,
       };
 
       let tracker: IndividualTrackersRow;

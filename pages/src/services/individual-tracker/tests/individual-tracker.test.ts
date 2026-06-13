@@ -122,14 +122,14 @@ describe("RealIndividualTrackerService", () => {
   it("starts a tracker with a JSON body", async () => {
     fetchSpy.mockResolvedValueOnce(jsonResponse({ tracker: FAKE_TRACKER }));
 
-    const result = await service.startTracker({ gamertag: "Master Chief" });
+    const result = await service.startTracker({ gamertag: "Master Chief", xuid: "xuid_master_chief" });
 
     expect(fetchSpy).toHaveBeenCalledWith(
       "https://api.example.com/api/individual-tracker/manage/start",
       expect.objectContaining({
         credentials: "include",
         method: "POST",
-        body: JSON.stringify({ gamertag: "Master Chief" }),
+        body: JSON.stringify({ gamertag: "Master Chief", xuid: "xuid_master_chief" }),
       }),
     );
     expect(result).toEqual({ tracker: FAKE_TRACKER });

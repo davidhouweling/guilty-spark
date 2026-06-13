@@ -189,7 +189,7 @@ export class AddTrackerDialogPresenter {
       return;
     }
     this.config.store.setBusy(true);
-    this.runStartTracker(snapshot.result.gamertag);
+    this.runStartTracker(snapshot.result.gamertag, snapshot.result.xuid);
   }
 
   private applyGroupingsUpdate(nextGroupings: readonly (readonly string[])[]): void {
@@ -285,13 +285,13 @@ export class AddTrackerDialogPresenter {
     }
   }
 
-  private runStartTracker(gamertag: string): void {
-    void this.doStartTracker(gamertag);
+  private runStartTracker(gamertag: string, xuid: string): void {
+    void this.doStartTracker(gamertag, xuid);
   }
 
-  private async doStartTracker(gamertag: string): Promise<void> {
+  private async doStartTracker(gamertag: string, xuid: string): Promise<void> {
     try {
-      await this.config.individualTrackerService.startTracker({ gamertag });
+      await this.config.individualTrackerService.startTracker({ gamertag, xuid });
       if (this.isDisposed) {
         return;
       }

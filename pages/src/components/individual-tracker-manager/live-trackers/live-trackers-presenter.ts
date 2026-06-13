@@ -131,6 +131,7 @@ export class LiveTrackersPresenter {
       rows.push({
         trackerId: pinnedRuntimeTracker?.trackerId ?? null,
         gamertag: snapshot.xboxGamertag,
+        xuid: pinnedRuntimeTracker?.xuid ?? snapshot.xboxXuid ?? null,
         status: pinnedState != null ? derivedStatus(pinnedState.status) : "not-started",
         isLive: pinnedRuntimeTracker != null && pinnedRuntimeTracker.trackerId === snapshot.activeTracker?.trackerId,
         isPinned: true,
@@ -146,6 +147,7 @@ export class LiveTrackersPresenter {
       rows.push({
         trackerId: tracker.trackerId,
         gamertag: tracker.gamertag,
+        xuid: tracker.xuid,
         status: trackerState != null ? derivedStatus(trackerState.status) : "stopped",
         isLive: tracker.trackerId === snapshot.activeTracker?.trackerId,
         isPinned: false,
@@ -159,7 +161,7 @@ export class LiveTrackersPresenter {
   public getActions(item: TrackerListItem): readonly TrackerRowAction[] {
     const snapshot = this.getSnapshot();
     const trackerItems = this.getTrackerItems();
-    const { status, gamertag, isLive, trackerId, isPinned } = item;
+    const { status, gamertag, xuid, isLive, trackerId, isPinned } = item;
     const actions: TrackerRowAction[] = [];
 
     if ((status === "not-started" || status === "stopped") && gamertag !== "") {
@@ -167,7 +169,9 @@ export class LiveTrackersPresenter {
         label: "Start tracker",
         disabled: snapshot.busy,
         onClick: (): void => {
-          void this.startTracker(gamertag !== snapshot.xboxGamertag ? gamertag : undefined);
+          if (xuid != null) {
+            void this.startTracker(gamertag, xuid);
+          }
         },
       });
     }
@@ -309,7 +313,7 @@ export class LiveTrackersPresenter {
       this.updateSnapshot((current) => ({
         ...current,
         activeTracker: liveTracker?.state ?? null,
-        runningTrackers: trackers.map((t) => ({ trackerId: t.trackerId, gamertag: t.gamertag })),
+        runningTrackers: trackers.map((t) => ({ trackerId: t.trackerId, gamertag: t.gamertag, xuid: t.xuid })),
         trackerStatuses: Object.fromEntries<TrackerState | null>(trackers.map((t) => [t.trackerId, t.state ?? null])),
       }));
     } catch (error) {
@@ -478,7 +482,13 @@ export class LiveTrackersPresenter {
           // authoritative and a stale poll response would resurrect deleted trackers.
           ...(this.refreshInFlight
             ? {}
-            : { runningTrackers: response.trackers.map((t) => ({ trackerId: t.trackerId, gamertag: t.gamertag })) }),
+            : {
+                runningTrackers: response.trackers.map((t) => ({
+                  trackerId: t.trackerId,
+                  gamertag: t.gamertag,
+                  xuid: t.xuid,
+                })),
+              }),
           trackerStatuses: mergedStatuses,
         };
       });
@@ -487,14 +497,10 @@ export class LiveTrackersPresenter {
     }
   }
 
-  private async startTracker(gamertag?: string): Promise<void> {
-    const targetGamertag = gamertag ?? this.getSnapshot().xboxGamertag;
-    if (targetGamertag == null) {
-      return;
-    }
+  private async startTracker(gamertag: string, xuid: string): Promise<void> {
     this.updateSnapshot((s) => ({ ...s, busy: true, errorMessage: null }));
     try {
-      await this.config.individualTrackerService.startTracker({ idleTimeoutHours: 1, gamertag: targetGamertag });
+      await this.config.individualTrackerService.startTracker({ idleTimeoutHours: 1, gamertag, xuid });
       await this.refresh();
       const afterRefresh = this.getSnapshot();
       if (afterRefresh.runningTrackers.length === 1 && afterRefresh.activeTracker == null) {

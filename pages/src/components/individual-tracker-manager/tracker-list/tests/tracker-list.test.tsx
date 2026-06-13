@@ -22,6 +22,7 @@ describe("TrackerList", () => {
     const item: TrackerListItem = {
       trackerId: "tracker-1",
       gamertag: "Chief",
+      xuid: null,
       status: "active",
       isLive: true,
       isPinned: false,
@@ -39,6 +40,7 @@ describe("TrackerList", () => {
     const item: TrackerListItem = {
       trackerId: "tracker-2",
       gamertag: "Arbiter",
+      xuid: null,
       status: "paused",
       isLive: false,
       isPinned: false,
@@ -55,6 +57,7 @@ describe("TrackerList", () => {
     const item: TrackerListItem = {
       trackerId: "tracker-3",
       gamertag: "Noble Six",
+      xuid: null,
       status: "active",
       isLive: false,
       isPinned: true,
@@ -70,6 +73,7 @@ describe("TrackerList", () => {
     const item: TrackerListItem = {
       trackerId: "tracker-5",
       gamertag: "Spartan",
+      xuid: null,
       status: "stopped",
       isLive: false,
       isPinned: false,
@@ -85,6 +89,7 @@ describe("TrackerList", () => {
     const item: TrackerListItem = {
       trackerId: "tracker-6",
       gamertag: "Rookie",
+      xuid: null,
       status: "not-started",
       isLive: false,
       isPinned: false,
@@ -100,6 +105,7 @@ describe("TrackerList", () => {
     const item: TrackerListItem = {
       trackerId: "tracker-4",
       gamertag: "Buck",
+      xuid: null,
       status: "active",
       isLive: false,
       isPinned: false,
@@ -113,8 +119,24 @@ describe("TrackerList", () => {
 
   it("renders a row per item", () => {
     const items: readonly TrackerListItem[] = [
-      { trackerId: "t-1", gamertag: "Alpha", status: "active", isLive: true, isPinned: false, hasActiveSeries: false },
-      { trackerId: "t-2", gamertag: "Bravo", status: "paused", isLive: false, isPinned: false, hasActiveSeries: false },
+      {
+        trackerId: "t-1",
+        gamertag: "Alpha",
+        xuid: null,
+        status: "active",
+        isLive: true,
+        isPinned: false,
+        hasActiveSeries: false,
+      },
+      {
+        trackerId: "t-2",
+        gamertag: "Bravo",
+        xuid: null,
+        status: "paused",
+        isLive: false,
+        isPinned: false,
+        hasActiveSeries: false,
+      },
     ];
 
     render(<TrackerList items={items} getActions={() => []} />);
@@ -129,6 +151,7 @@ describe("TrackerList", () => {
     const item: TrackerListItem = {
       trackerId: "tracker-1",
       gamertag: "Chief",
+      xuid: null,
       status: "active",
       isLive: false,
       isPinned: false,
@@ -148,6 +171,7 @@ describe("TrackerList", () => {
     const item: TrackerListItem = {
       trackerId: "tracker-1",
       gamertag: "Chief",
+      xuid: null,
       status: "active",
       isLive: false,
       isPinned: false,

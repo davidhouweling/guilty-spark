@@ -30,6 +30,7 @@ export type Tracker = z.infer<typeof trackerSchema>;
 
 export const startTrackerRequestSchema = z.object({
   gamertag: z.string().min(1),
+  xuid: z.string(),
   searchStartTime: z.iso.datetime().optional(),
   idleTimeoutHours: z.number().positive().optional(),
 });

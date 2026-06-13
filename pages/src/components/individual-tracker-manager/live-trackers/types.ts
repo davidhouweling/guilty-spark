@@ -7,7 +7,7 @@ export interface LiveTrackersSnapshot {
   readonly xboxGamertag: string | null;
   readonly xboxXuid: string | null;
   readonly activeTracker: TrackerState | null;
-  readonly runningTrackers: readonly { trackerId: string; gamertag: string }[];
+  readonly runningTrackers: readonly { trackerId: string; gamertag: string; xuid: string }[];
   readonly trackerStatuses: Readonly<Record<string, TrackerState | null>>;
   readonly busy: boolean;
   readonly errorMessage: string | null;
