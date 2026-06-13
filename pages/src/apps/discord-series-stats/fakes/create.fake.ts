@@ -5,8 +5,9 @@ import type {
   DiscordSeriesStatsPending,
   DiscordSeriesStatsResolved,
 } from "@guilty-spark/shared/contracts/stats/discord-series";
-import type { AnalyticsModule, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { DiscordSeriesStatsResult } from "../../../services/stats/discord-series-types";
+import { aFakeDiscordSeriesStatsServiceWith } from "../../../services/stats/fakes/discord-series.fake";
+import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 import type { Services } from "../services";
 
 export function aFakeResolvedDiscordSeriesStatsWith(
@@ -99,39 +100,9 @@ function toFakeResult(response: DiscordSeriesStats): DiscordSeriesStatsResult {
   };
 }
 
-function aFakeMatchAnalyticsWith(): MatchAnalytics {
-  return {
-    requestedModules: ["killMatrix"],
-    killMatrix: {},
-    metadata: {
-      pairingQuality: {
-        unpairedDeathCount: 0,
-        maxTimeDeltaMs: 0,
-      },
-      perfectCounts: {
-        total: 0,
-        byXuid: {},
-      },
-    },
-  };
-}
-
 export function aFakeDiscordSeriesStatsAppServicesWith(response: DiscordSeriesStats): Services {
   return {
-    discordSeriesStatsService: {
-      getStats: async (): Promise<DiscordSeriesStatsResult> => {
-        return Promise.resolve(toFakeResult(response));
-      },
-      getLookup: async (): Promise<{ status: number; retryAfterSeconds: number | null }> => {
-        return Promise.resolve({ status: 200, retryAfterSeconds: null });
-      },
-    },
-    matchAnalyticsService: {
-      getMatchAnalytics: async (matchId: string, modules?: readonly AnalyticsModule[]): Promise<MatchAnalytics> => {
-        void matchId;
-        void modules;
-        return Promise.resolve(aFakeMatchAnalyticsWith());
-      },
-    },
+    discordSeriesStatsService: aFakeDiscordSeriesStatsServiceWith({ result: toFakeResult(response) }),
+    matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
   };
 }
