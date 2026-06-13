@@ -12,6 +12,7 @@ import type {
 import { ButtonStyle, ChannelType, ComponentType, PermissionFlagsBits } from "discord-api-types/v10";
 import { sub, isAfter } from "date-fns";
 import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types";
+import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
@@ -1052,7 +1053,14 @@ export class NeatQueueService {
       return null;
     }
 
-    const { matchIds, teams, players: refreshedPlayers, discoveredMatches } = refreshResult.state;
+    const {
+      matchIds,
+      teams,
+      players: rawRefreshedPlayers,
+      discoveredMatches: rawDiscoveredMatches,
+    } = refreshResult.state;
+    const refreshedPlayers = rawRefreshedPlayers as Record<string, APIGuildMember>;
+    const discoveredMatches = rawDiscoveredMatches as Record<string, LiveTrackerMatchSummary>;
     this.logService.info(
       "MatchCompletedJob: Retrieved series data from live tracker",
       new Map([
@@ -1068,7 +1076,7 @@ export class NeatQueueService {
       throw new Error("Failed to get series data from live tracker");
     }
 
-    const series = Object.values(seriesData.rawMatches) as MatchStats[];
+    const series = seriesData.rawMatches as MatchStats[];
     if (series.length > 0) {
       const mappedTeamPlayers: MatchPlayer[][] = teams.map((team) =>
         team.playerIds.map((playerId) => {

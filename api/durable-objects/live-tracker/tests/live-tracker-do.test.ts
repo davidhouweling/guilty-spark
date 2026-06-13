@@ -4,6 +4,7 @@ import type { APIGroupDMChannel, APIChannel, APIGuildMember } from "discord-api-
 import { ChannelType } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import * as haloDuration from "@guilty-spark/shared/halo/duration";
+import type { LiveTrackerStartRequest } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/lifecycle";
 import { LiveTrackerDO } from "../live-tracker-do";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
@@ -12,7 +13,7 @@ import { DiscordError } from "../../../services/discord/discord-error";
 import { aGuildMemberWith, apiMessage, guild } from "../../../services/discord/fakes/data";
 import { aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake";
 import { getMatchStats } from "../../../services/halo/fakes/data";
-import type { LiveTrackerStartRequest, LiveTrackerState } from "../types";
+import type { LiveTrackerState } from "../types";
 import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
 
 // Create a mock SQL storage that satisfies the interface without using runtime types
@@ -149,29 +150,38 @@ const createMockStartData = (): LiveTrackerStartRequest => ({
   interactionToken: "test-token",
 });
 
-const createMockTrackerState = (): LiveTrackerState => ({
-  ...createBaseTestData(),
-  isPaused: false,
-  status: "active",
-  startTime: new Date().toISOString(),
-  lastUpdateTime: new Date().toISOString(),
-  searchStartTime: new Date().toISOString(),
-  checkCount: 1,
-  substitutions: [],
-  discoveredMatches: {},
-  matchIds: [],
-  seriesScore: "🦅 0:0 🐍",
-  errorState: {
-    consecutiveErrors: 0,
-    backoffMinutes: 3,
-    lastSuccessTime: new Date().toISOString(),
-  },
-  lastMessageState: {
-    matchCount: 0,
-    substitutionCount: 0,
-  },
-  playersAssociationData: {},
-});
+const createMockTrackerState = (): LiveTrackerState => {
+  const baseData = createBaseTestData();
+  return {
+    userId: baseData.userId,
+    guildId: baseData.guildId,
+    channelId: baseData.channelId,
+    queueNumber: baseData.queueNumber,
+    liveMessageId: "test-message-id",
+    players: baseData.players as unknown as Record<string, APIGuildMember>,
+    teams: baseData.teams,
+    playersAssociationData: {},
+    isPaused: false,
+    status: "active",
+    startTime: new Date().toISOString(),
+    lastUpdateTime: new Date().toISOString(),
+    searchStartTime: new Date().toISOString(),
+    checkCount: 1,
+    substitutions: [],
+    discoveredMatches: {},
+    matchIds: [],
+    seriesScore: "🦅 0:0 🐍",
+    errorState: {
+      consecutiveErrors: 0,
+      backoffMinutes: 3,
+      lastSuccessTime: new Date().toISOString(),
+    },
+    lastMessageState: {
+      matchCount: 0,
+      substitutionCount: 0,
+    },
+  };
+};
 
 const aMatchSummaryWith = (
   overrides: Partial<LiveTrackerState["discoveredMatches"][string]> = {},
@@ -480,7 +490,7 @@ describe("LiveTrackerDO", () => {
         new Request("http://do/substitution", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ playerOutId: "player1", playerInId: "newplayer" }),
+          body: JSON.stringify({ playerOutId: "player1", playerInId: "newplayer", playerAssociationData: {} }),
         }),
       );
 
@@ -2292,7 +2302,7 @@ describe("LiveTrackerDO", () => {
       return new Request("http://do/substitution", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerOutId, playerInId }),
+        body: JSON.stringify({ playerOutId, playerInId, playerAssociationData: {} }),
       });
     };
 
@@ -3184,10 +3194,13 @@ describe("LiveTrackerDO", () => {
       expect(kvGetSpy).toHaveBeenCalledWith("live-tracker-match:9535b946-f30c-4a43-b852-000000slayer", "json");
 
       const data = await response.json<{
-        rawMatches: Record<string, typeof mockMatch>;
+        rawMatches: (typeof mockMatch)[];
       }>();
       expect(data).toHaveProperty("rawMatches");
-      expect(data.rawMatches).toHaveProperty("9535b946-f30c-4a43-b852-000000slayer");
+      expect(data.rawMatches).toHaveLength(1);
+      expect(data.rawMatches).toContainEqual(
+        expect.objectContaining({ MatchId: "9535b946-f30c-4a43-b852-000000slayer" }),
+      );
     });
 
     it("continues operation when KV put fails", async () => {

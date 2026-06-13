@@ -1,38 +1,49 @@
 import * as Sentry from "@sentry/cloudflare";
-import type { APIChannel } from "discord-api-types/v10";
+import type { APIChannel, APIGuildMember } from "discord-api-types/v10";
 import { ChannelType, PermissionFlagsBits } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import { addMilliseconds, addMinutes, differenceInMilliseconds, differenceInMinutes, max } from "date-fns";
-import type { LiveTrackerMatchSummary, LiveTrackerStateData } from "@guilty-spark/shared/live-tracker/types";
+import type {
+  LiveTrackerMatchSummary,
+  LiveTrackerStateData,
+  PlayerAssociationData,
+} from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getMedalMetadataFromMatches } from "@guilty-spark/shared/halo/medals";
+import {
+  liveTrackerStartContract,
+  liveTrackerStartRequestSchema,
+  liveTrackerPauseContract,
+  liveTrackerResumeContract,
+  liveTrackerStopContract,
+} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/lifecycle";
+import type {
+  LiveTrackerEmbedData,
+  LiveTrackerStartRequest,
+} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/lifecycle";
+import {
+  liveTrackerRefreshContract,
+  liveTrackerRefreshRequestSchema,
+  liveTrackerSubstitutionContract,
+  liveTrackerSubstitutionRequestSchema,
+  liveTrackerStatusContract,
+  liveTrackerRepostContract,
+  liveTrackerRepostRequestSchema,
+  type LiveTrackerRefreshRequest,
+} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
+import { liveTrackerSeriesDataContract } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/series-data";
 import type { LogService } from "../../services/log/types";
 import type { DiscordService } from "../../services/discord/discord";
 import type { HaloService } from "../../services/halo/halo";
 import type { DatabaseService } from "../../services/database/database";
 import { installServices as installServicesImpl } from "../../services/install";
-import type { LiveTrackerEmbedData } from "../../live-tracker/types";
 import { LiveTrackerEmbed } from "../../embeds/live-tracker-embed";
 import { LiveTrackerLoadingEmbed } from "../../embeds/live-tracker-loading-embed";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import { DiscordError } from "../../services/discord/discord-error";
 import type { SeriesData } from "../../services/halo/types";
-import type {
-  LiveTrackerStartRequest,
-  LiveTrackerState,
-  LiveTrackerStartResponse,
-  LiveTrackerPauseResponse,
-  LiveTrackerResumeResponse,
-  LiveTrackerStopResponse,
-  LiveTrackerRefreshResponse,
-  LiveTrackerSubstitutionRequest,
-  LiveTrackerSubstitutionResponse,
-  LiveTrackerStatusResponse,
-  LiveTrackerRepostRequest,
-  LiveTrackerRepostResponse,
-  LiveTrackerRefreshRequest,
-} from "./types";
+import type { LiveTrackerState } from "./types";
 
 // Production: 3 minutes for live tracking (user-facing display)
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes shown to users
@@ -255,22 +266,22 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleStart(request: Request): Promise<Response> {
-    const body = await request.json<LiveTrackerStartRequest>();
+    const startRequest = liveTrackerStartRequestSchema.parse(await request.json());
 
     const trackerState: LiveTrackerState = {
-      userId: body.userId,
-      guildId: body.guildId,
-      channelId: body.channelId,
-      queueNumber: body.queueNumber,
+      userId: startRequest.userId,
+      guildId: startRequest.guildId,
+      channelId: startRequest.channelId,
+      queueNumber: startRequest.queueNumber,
       isPaused: false,
       status: "active",
-      liveMessageId: body.liveMessageId,
+      liveMessageId: startRequest.liveMessageId,
       startTime: new Date().toISOString(),
       lastUpdateTime: new Date().toISOString(),
-      searchStartTime: body.queueStartTime,
+      searchStartTime: startRequest.queueStartTime,
       checkCount: 0,
-      players: body.players,
-      teams: body.teams,
+      players: startRequest.players as Record<string, APIGuildMember>,
+      teams: startRequest.teams,
       substitutions: [],
       discoveredMatches: {},
       matchIds: [],
@@ -285,13 +296,13 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         matchCount: 0,
         substitutionCount: 0,
       },
-      playersAssociationData: body.playersAssociationData,
+      playersAssociationData: startRequest.playersAssociationData as Record<string, PlayerAssociationData>,
     };
 
     await this.setState(trackerState);
 
     try {
-      const loadingMessage = await this.createInitialMessage(body);
+      const loadingMessage = await this.createInitialMessage(startRequest);
       trackerState.liveMessageId = loadingMessage.id;
       await this.setState(trackerState);
 
@@ -310,7 +321,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       );
 
       await this.updateChannelName(trackerState, trackerState.seriesScore, true);
-      await this.discordService.editMessage(body.channelId, loadingMessage.id, liveTrackerEmbed.toMessageData());
+      await this.discordService.editMessage(
+        startRequest.channelId,
+        loadingMessage.id,
+        liveTrackerEmbed.toMessageData(),
+      );
 
       this.logService.info(
         `LiveTracker: Created live tracker message for queue ${trackerState.queueNumber.toString()}`,
@@ -470,15 +485,14 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     await this.setState(trackerState);
 
     try {
-      let body: LiveTrackerRefreshRequest = { matchCompleted: false };
+      let body: LiveTrackerRefreshRequest = {};
 
       try {
         const text = await request.text();
         if (text && text.trim() !== "") {
-          body = JSON.parse(text) as LiveTrackerRefreshRequest;
+          body = liveTrackerRefreshRequestSchema.parse(JSON.parse(text));
         }
       } catch (error) {
-        // If parsing fails, use default values
         this.logService.warn(
           "LiveTracker: Failed to parse refresh request body, using defaults",
           new Map([["error", String(error)]]),
@@ -546,7 +560,9 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleSubstitution(request: Request): Promise<Response> {
-    const { playerOutId, playerInId, playerAssociationData } = await request.json<LiveTrackerSubstitutionRequest>();
+    const { playerOutId, playerInId, playerAssociationData } = liveTrackerSubstitutionRequestSchema.parse(
+      await request.json(),
+    );
     const trackerState = await this.getState();
     if (!trackerState) {
       return new Response("Not Found", { status: 404 });
@@ -593,7 +609,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       trackerState.players[playerInId] = newPlayerMember;
       trackerState.playersAssociationData = {
         ...trackerState.playersAssociationData,
-        [playerInId]: playerAssociationData,
+        [playerInId]: playerAssociationData as unknown as PlayerAssociationData,
       };
       const now = new Date().toISOString();
       trackerState.searchStartTime = now;
@@ -635,7 +651,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleRepost(request: Request): Promise<Response> {
-    const { newMessageId } = await request.json<LiveTrackerRepostRequest>();
+    const { newMessageId } = liveTrackerRepostRequestSchema.parse(await request.json());
 
     const trackerState = await this.getState();
     if (!trackerState) {
@@ -690,7 +706,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       seriesScore: trackerState.seriesScore,
       matchIds: trackerState.matchIds,
       discoveredMatches: trackerState.discoveredMatches,
-      rawMatches: await this.loadMatchesFromKV(trackerState.matchIds),
+      rawMatches: Object.values(await this.loadMatchesFromKV(trackerState.matchIds)),
       playersAssociationData: trackerState.playersAssociationData,
       substitutions: trackerState.substitutions,
       startTime: trackerState.startTime,
@@ -706,7 +722,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       ]),
     );
 
-    return Response.json(seriesData);
+    return liveTrackerSeriesDataContract.toResponse(seriesData);
   }
 
   private async getState(): Promise<LiveTrackerState | null> {
@@ -793,78 +809,56 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
   // Typed response helpers
   private createStartSuccessResponse(state: LiveTrackerState): Response {
-    const response: LiveTrackerStartResponse = { success: true, state };
-    return Response.json(response);
+    return liveTrackerStartContract.toResponse({ success: true, state });
   }
 
   private createStartFailureResponse(state: LiveTrackerState): Response {
-    const response: LiveTrackerStartResponse = { success: false, state };
-    return Response.json(response);
+    return liveTrackerStartContract.toResponse({ success: false, state });
   }
 
   private createPauseResponse(state: LiveTrackerState, embedData?: LiveTrackerEmbedData): Response {
-    const response: LiveTrackerPauseResponse = embedData
-      ? { success: true, state, embedData }
-      : { success: true, state };
-    return Response.json(response);
+    return liveTrackerPauseContract.toResponse(
+      embedData ? { success: true, state, embedData } : { success: true, state },
+    );
   }
 
   private createResumeResponse(state: LiveTrackerState, embedData?: LiveTrackerEmbedData): Response {
-    const response: LiveTrackerResumeResponse = embedData
-      ? { success: true, state, embedData }
-      : { success: true, state };
-    return Response.json(response);
+    return liveTrackerResumeContract.toResponse(
+      embedData ? { success: true, state, embedData } : { success: true, state },
+    );
   }
 
   private createStopResponse(state: LiveTrackerState, embedData?: LiveTrackerEmbedData): Response {
-    const response: LiveTrackerStopResponse = embedData
-      ? { success: true, state, embedData }
-      : { success: true, state };
-    return Response.json(response);
+    return liveTrackerStopContract.toResponse(
+      embedData ? { success: true, state, embedData } : { success: true, state },
+    );
   }
 
   private createRefreshSuccessResponse(state: LiveTrackerState): Response {
-    const response: LiveTrackerRefreshResponse = { success: true, state };
-    return Response.json(response);
+    return liveTrackerRefreshContract.toResponse({ success: true, state });
   }
 
   private createRefreshCooldownResponse(message: string): Response {
-    const response: LiveTrackerRefreshResponse = {
-      success: false,
-      error: "cooldown",
-      message,
-    };
-    return new Response(JSON.stringify(response), {
-      status: 429,
-      headers: { "Content-Type": "application/json" },
-    });
+    return liveTrackerRefreshContract.toResponse({ success: false, error: "cooldown", message }, { status: 429 });
   }
 
   private createRefreshFailureResponse(state: LiveTrackerState): Response {
-    const response: LiveTrackerRefreshResponse = { success: false, state };
-    return Response.json(response);
+    return liveTrackerRefreshContract.toResponse({ success: false, state });
   }
 
   private createSubstitutionResponse(playerOutId: string, playerInId: string, teamIndex: number): Response {
-    const response: LiveTrackerSubstitutionResponse = {
+    return liveTrackerSubstitutionContract.toResponse({
       success: true,
       substitution: { playerOutId, playerInId, teamIndex },
-    };
-    return Response.json(response);
+    });
   }
 
   private createStatusResponse(state: LiveTrackerState): Response {
-    const response: LiveTrackerStatusResponse = { state };
-    return Response.json(response);
+    return liveTrackerStatusContract.toResponse({ state });
   }
 
   private createRepostResponse(oldMessageId: string, newMessageId: string): Response {
-    const response: LiveTrackerRepostResponse = {
-      success: true,
-      oldMessageId,
-      newMessageId,
-    };
-    return Response.json(response);
+    return liveTrackerRepostContract.toResponse({ success: true, oldMessageId, newMessageId });
   }
 
   /**
