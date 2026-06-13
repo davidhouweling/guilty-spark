@@ -570,6 +570,50 @@ export class DiscordService {
     return Preconditions.checkExists(this.userCache.get(userId));
   }
 
+  async computeMemberPermissions(guildId: string, userId: string): Promise<bigint> {
+    const [guild, guildMember] = await Promise.all([this.getGuild(guildId), this.getGuildMember(guildId, userId)]);
+
+    const everyoneRole = guild.roles.find((role) => role.id === guild.id);
+    let permissions = BigInt(everyoneRole?.permissions ?? "0");
+
+    for (const roleId of guildMember.roles) {
+      if (roleId === guild.id) {
+        continue;
+      }
+
+      const role = guild.roles.find((guildRole) => guildRole.id === roleId);
+      if (role == null) {
+        continue;
+      }
+
+      permissions |= BigInt(role.permissions);
+    }
+
+    if ((permissions & PermissionFlagsBits.Administrator) !== 0n) {
+      return ~0n;
+    }
+
+    return permissions;
+  }
+
+  async setInteractionMetadata(token: string, data: Record<string, unknown>): Promise<void> {
+    await this.env.APP_DATA.put(`interactionMetadata:${token}`, JSON.stringify(data), {
+      expirationTtl: TimeInSeconds["1_HOUR"],
+    });
+  }
+
+  async getInteractionMetadata<T extends Record<string, unknown>>(token: string): Promise<T | null> {
+    return this.env.APP_DATA.get<T>(`interactionMetadata:${token}`, "json");
+  }
+
+  async getThreads(channelId: string): Promise<APIChannel[]> {
+    const response = await this.fetch<{ threads: APIChannel[] }>(`/channels/${channelId}/threads/active`, {
+      method: "GET",
+    });
+
+    return response.threads;
+  }
+
   async getMessage(channelId: string, messageId: string): Promise<APIMessage> {
     return this.fetch<APIMessage>(Routes.channelMessage(channelId, messageId), {
       method: "GET",

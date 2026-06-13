@@ -756,18 +756,6 @@ export class StatsCommand extends BaseCommand {
     throw new Error("handleFixSubCommand not implemented");
   }
 
-  private fixSubCommandJob(_interaction: APIApplicationCommandInteraction, _queueNumber: number): Promise<void> {
-    throw new Error("fixSubCommandJob not implemented");
-  }
-
-  private fixSubCommandInThreadJob(_interaction: APIApplicationCommandInteraction): Promise<void> {
-    throw new Error("fixSubCommandInThreadJob not implemented");
-  }
-
-  private fixCommandStartFlow(_interaction: APIApplicationCommandInteraction, _queueData: unknown): Promise<void> {
-    throw new Error("fixCommandStartFlow not implemented");
-  }
-
   private async handleFixPlayerSelectJob(_interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
     throw new Error("handleFixPlayerSelectJob not implemented");
   }
