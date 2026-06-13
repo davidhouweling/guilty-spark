@@ -34,6 +34,10 @@ export function TabbedSection<TId extends string>({
       if (tabs.length === 0) {
         return;
       }
+      // Skip key handling when modifier keys are held to preserve OS/browser shortcuts
+      if (event.ctrlKey || event.altKey || event.metaKey) {
+        return;
+      }
       const currentIndex = tabs.findIndex((t) => t.id === selectedTabId);
       if (currentIndex === -1) {
         return;

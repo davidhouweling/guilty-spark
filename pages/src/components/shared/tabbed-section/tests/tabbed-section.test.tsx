@@ -208,4 +208,64 @@ describe("TabbedSection", () => {
 
     expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Kill Matrix" }));
   });
+
+  it("does not call onTabChange when Alt key is held with ArrowRight", () => {
+    const onTabChange = vi.fn<(tabId: "players" | "kill-matrix") => void>();
+
+    render(
+      <TabbedSection
+        tabListAriaLabel="Demo tabs"
+        selectedTabId="players"
+        onTabChange={onTabChange}
+        tabs={[
+          { id: "players", label: "Players", content: <div>Players panel</div> },
+          { id: "kill-matrix", label: "Kill Matrix", content: <div>Kill matrix panel</div> },
+        ]}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByRole("tablist"), { key: "ArrowRight", altKey: true });
+
+    expect(onTabChange).not.toHaveBeenCalled();
+  });
+
+  it("does not call onTabChange when Ctrl key is held with ArrowRight", () => {
+    const onTabChange = vi.fn<(tabId: "players" | "kill-matrix") => void>();
+
+    render(
+      <TabbedSection
+        tabListAriaLabel="Demo tabs"
+        selectedTabId="players"
+        onTabChange={onTabChange}
+        tabs={[
+          { id: "players", label: "Players", content: <div>Players panel</div> },
+          { id: "kill-matrix", label: "Kill Matrix", content: <div>Kill matrix panel</div> },
+        ]}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByRole("tablist"), { key: "ArrowRight", ctrlKey: true });
+
+    expect(onTabChange).not.toHaveBeenCalled();
+  });
+
+  it("does not call onTabChange when Meta key is held with ArrowRight", () => {
+    const onTabChange = vi.fn<(tabId: "players" | "kill-matrix") => void>();
+
+    render(
+      <TabbedSection
+        tabListAriaLabel="Demo tabs"
+        selectedTabId="players"
+        onTabChange={onTabChange}
+        tabs={[
+          { id: "players", label: "Players", content: <div>Players panel</div> },
+          { id: "kill-matrix", label: "Kill Matrix", content: <div>Kill matrix panel</div> },
+        ]}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByRole("tablist"), { key: "ArrowRight", metaKey: true });
+
+    expect(onTabChange).not.toHaveBeenCalled();
+  });
 });
