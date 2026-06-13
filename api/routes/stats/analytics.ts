@@ -6,11 +6,10 @@ import {
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import type { RoutesRegisterHandler } from "../base/types";
-import { createAnalyticsService } from "../../services/analytics/analytics-service";
 
-const ANALYTICS_CACHE_TTL_SECONDS = 60 * 5; // 5 minutes (endpoint behavior may evolve)
-const ANALYTICS_STALE_WHILE_REVALIDATE_SECONDS = 60;
-const ANALYTICS_CACHE_CONTROL = `public, max-age=${ANALYTICS_CACHE_TTL_SECONDS.toString()}, s-maxage=${ANALYTICS_CACHE_TTL_SECONDS.toString()}, stale-while-revalidate=${ANALYTICS_STALE_WHILE_REVALIDATE_SECONDS.toString()}`;
+const ANALYTICS_CACHE_TTL_SECONDS = 60 * 60 * 24;
+const ANALYTICS_STALE_WHILE_REVALIDATE_SECONDS = 60 * 5;
+const ANALYTICS_CACHE_CONTROL = `public, s-maxage=${ANALYTICS_CACHE_TTL_SECONDS.toString()}, stale-while-revalidate=${ANALYTICS_STALE_WHILE_REVALIDATE_SECONDS.toString()}`;
 
 export const matchAnalyticsRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/stats/match-analytics/:matchId", async (request, env: Env) => {
@@ -31,8 +30,7 @@ export const matchAnalyticsRoute: RoutesRegisterHandler = (router, installServic
     const { modules } = queryParams.data;
 
     try {
-      const analyticsService = createAnalyticsService(env, services.haloService, services.logService);
-      const analytics = await analyticsService.getMatchAnalytics(matchId, modules);
+      const analytics = await services.analyticsService.getMatchAnalytics(matchId, modules);
       return matchAnalyticsContract.toResponse(
         { analytics },
         {

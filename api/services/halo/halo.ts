@@ -14,7 +14,7 @@ import type {
 import { MatchOutcome, AssetKind, GameVariantCategory, MatchType, RequestError } from "halo-infinite-api";
 import { differenceInDays, differenceInHours, differenceInMinutes, isAfter, isBefore } from "date-fns";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
-import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import { getPlayerXuid, wrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { SeriesScoreEntry } from "@guilty-spark/shared/halo/series-score";
 import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
@@ -44,9 +44,6 @@ import type {
   MatchHistoryEntry,
 } from "./types";
 import { noMatchError, TimeInSeconds, FetchablePlaylist } from "./types";
-
-export { FetchablePlaylist } from "./types";
-export type { MatchPlayer, PlayerEsraData } from "./types";
 
 export interface HaloServiceOpts {
   env: Env;
@@ -223,10 +220,6 @@ export class HaloService {
     return wins.length === 2 ? `🦅 ${score} 🐍` : score;
   }
 
-  wrapPlayerXuid(xuid: string): string {
-    return `xuid(${xuid})`;
-  }
-
   async getPlayerXuidsToGametags(matches: MatchStats | MatchStats[]): Promise<Map<string, string>> {
     const xuidsToResolve = (Array.isArray(matches) ? matches : [matches])
       .flatMap((match) => match.Players)
@@ -336,7 +329,7 @@ export class HaloService {
 
   async getServiceRecord(xuid: string): Promise<ServiceRecord> {
     const serviceRecord = await this.infiniteClient.getUserServiceRecord(
-      this.wrapPlayerXuid(xuid),
+      wrapXuid(xuid),
       {},
       {
         cf: {
@@ -348,7 +341,7 @@ export class HaloService {
   }
 
   async getMatchCount(xuid: string): Promise<MatchCount> {
-    const matchCount = await this.infiniteClient.getPlayerMatchCount(this.wrapPlayerXuid(xuid), {
+    const matchCount = await this.infiniteClient.getPlayerMatchCount(wrapXuid(xuid), {
       cf: {
         cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
       },
@@ -459,7 +452,7 @@ export class HaloService {
             },
           );
 
-          const playerSkill = skillResults.find((r) => r.Id === this.wrapPlayerXuid(xuid));
+          const playerSkill = skillResults.find((r) => r.Id === wrapXuid(xuid));
           if (playerSkill?.ResultCode === 0) {
             const esra = skillRankCombined(playerSkill.Result, "Expected");
 
@@ -787,7 +780,7 @@ export class HaloService {
       return new Map();
     }
 
-    const wrappedXuidsMap = new Map(xuids.map((xuid) => [xuid, this.wrapPlayerXuid(xuid)]));
+    const wrappedXuidsMap = new Map(xuids.map((xuid) => [xuid, wrapXuid(xuid)]));
     const playlistCsr = await this.infiniteClient.getPlaylistCsr(
       FetchablePlaylist.RANKED_ARENA,
       wrappedXuidsMap.values().toArray(),

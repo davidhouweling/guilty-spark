@@ -1,14 +1,16 @@
 import type {
-  LiveTrackerPauseResponse,
-  LiveTrackerRefreshResponse,
-  LiveTrackerRepostResponse,
-  LiveTrackerResumeResponse,
   LiveTrackerStartResponse,
-  LiveTrackerState,
-  LiveTrackerStatusResponse,
+  LiveTrackerPauseResponse,
+  LiveTrackerResumeResponse,
   LiveTrackerStopResponse,
+} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/lifecycle";
+import type {
+  LiveTrackerRefreshResponse,
   LiveTrackerSubstitutionResponse,
-} from "../types";
+  LiveTrackerStatusResponse,
+  LiveTrackerRepostResponse,
+} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
+import type { LiveTrackerState } from "../types";
 import type { LiveTrackerDO } from "../live-tracker-do";
 import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
 

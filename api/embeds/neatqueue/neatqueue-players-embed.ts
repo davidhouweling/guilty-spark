@@ -13,7 +13,7 @@ import type { DiscordAssociationsRow } from "../../services/database/types/disco
 import { BaseTableEmbed } from "../base-table-embed";
 import { EmbedColors } from "../colors";
 import { MapsPostType } from "../../services/database/types/guild_config";
-import type { PlayerEsraData } from "../../services/halo/halo";
+import type { PlayerEsraData } from "../../services/halo/types";
 
 interface NeatQueuePlayersEmbedServices {
   discordService: DiscordService;
