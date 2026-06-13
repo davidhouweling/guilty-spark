@@ -1,14 +1,5 @@
 import type { IndividualTrackerStatus } from "../../services/database/types/individual_trackers";
 
-export interface IndividualTrackerStartRequest {
-  userId: string;
-  trackerId: string;
-  xuid: string;
-  gamertag: string;
-  searchStartTime: string;
-  idleTimeoutHours: number;
-}
-
 export interface IndividualTrackerState {
   userId: string;
   trackerId: string;
@@ -72,13 +63,6 @@ export interface ActiveSeries {
   matchIds: string[];
   startedAt: string;
   isActive: boolean;
-}
-
-export interface SeriesContextPayload {
-  title: string;
-  subtitle: string;
-  guildIconUrl: string | null;
-  teams: SeriesTeam[];
 }
 
 export interface IndividualTrackerSeriesGroup {
@@ -217,52 +201,3 @@ export interface IndividualTrackerViewState {
 export interface IndividualTrackerViewStateResponse {
   state: IndividualTrackerViewState | null;
 }
-
-export type IndividualTrackerAction =
-  | "start"
-  | "pause"
-  | "resume"
-  | "stop"
-  | "status"
-  | "view-state"
-  | "select-matches"
-  | "nudge";
-
-export interface IndividualTrackerApiMap {
-  start: {
-    request: IndividualTrackerStartRequest;
-    response: IndividualTrackerStartResponse;
-  };
-  pause: {
-    request: never;
-    response: IndividualTrackerPauseResponse;
-  };
-  resume: {
-    request: never;
-    response: IndividualTrackerResumeResponse;
-  };
-  stop: {
-    request: never;
-    response: IndividualTrackerStopResponse;
-  };
-  status: {
-    request: never;
-    response: IndividualTrackerStatusResponse;
-  };
-  "view-state": {
-    request: never;
-    response: IndividualTrackerViewStateResponse;
-  };
-  "select-matches": {
-    request: IndividualTrackerSelectMatchesRequest;
-    response: IndividualTrackerSelectMatchesResponse;
-  };
-  nudge: {
-    request: SeriesContextPayload | null;
-    response: IndividualTrackerNudgeResponse;
-  };
-}
-
-export type IndividualTrackerRequestFor<T extends IndividualTrackerAction> = IndividualTrackerApiMap[T]["request"];
-
-export type IndividualTrackerResponseFor<T extends IndividualTrackerAction> = IndividualTrackerApiMap[T]["response"];
