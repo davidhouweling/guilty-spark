@@ -1,7 +1,27 @@
 import { describe, it, expect } from "vitest";
-import { getPlayerXuid, getTeamPlayersFromMatches } from "../match-stats";
+import { getPlayerXuid, getTeamPlayersFromMatches, unwrapXuid, wrapXuid } from "../match-stats";
 import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakePlayerWith, aFakeTeamWith } from "../fakes/data";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+
+describe("wrapXuid", () => {
+  it("wraps a bare xuid", () => {
+    expect(wrapXuid("1234567890")).toBe("xuid(1234567890)");
+  });
+
+  it("returns already-wrapped xuid unchanged", () => {
+    expect(wrapXuid("xuid(1234567890)")).toBe("xuid(1234567890)");
+  });
+});
+
+describe("unwrapXuid", () => {
+  it("unwraps a wrapped xuid", () => {
+    expect(unwrapXuid("xuid(1234567890)")).toBe("1234567890");
+  });
+
+  it("returns already-unwrapped xuid unchanged", () => {
+    expect(unwrapXuid("1234567890")).toBe("1234567890");
+  });
+});
 
 describe("getPlayerXuid", () => {
   it("extracts XUID from PlayerId", () => {

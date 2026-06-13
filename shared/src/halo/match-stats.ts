@@ -2,8 +2,18 @@ import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "../base/preconditions";
 import { StatsValueSortBy } from "./stat-formatting";
 
+const XUID_WRAPPED_RE = /^xuid\((\d+)\)$/;
+
+export function wrapXuid(xuid: string): string {
+  return XUID_WRAPPED_RE.test(xuid) ? xuid : `xuid(${xuid})`;
+}
+
+export function unwrapXuid(xuid: string): string {
+  return xuid.replace(XUID_WRAPPED_RE, "$1");
+}
+
 export function getPlayerXuid(player: Pick<MatchStats["Players"][0], "PlayerId">): string {
-  return player.PlayerId.replace(/^xuid\((\d+)\)$/, "$1");
+  return unwrapXuid(player.PlayerId);
 }
 
 export function getTeamPlayersFromMatches(matches: MatchStats[], team: MatchStats["Teams"][0]): MatchStats["Players"] {

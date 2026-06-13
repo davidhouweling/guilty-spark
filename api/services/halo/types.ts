@@ -1,5 +1,6 @@
 import type { UserInfo as HaloUserInfo } from "halo-infinite-api";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
+import type { CustomSpartanTokenProvider } from "./custom-spartan-token-provider";
 
 export type UserInfo = Pick<HaloUserInfo, "xuid" | "gamertag">;
 export type CachedUserInfo = UserInfo & { fetchedAt: number };
@@ -134,3 +135,70 @@ export const CIRCUIT_BREAKER_CONFIG = {
 };
 
 export const ISSUE_STATUS_CODES = [526];
+
+export interface FilmMetadataChunk {
+  ChunkType: number;
+  Index: number;
+  FileRelativePath: string;
+  ChunkSize: number;
+  DurationMilliseconds: number;
+}
+
+export interface FilmMetadataCustomData {
+  MatchId: string;
+  FilmMajorVersion: number;
+  FilmLength: number;
+  Chunks: FilmMetadataChunk[];
+}
+
+export interface FilmMetadataResponse {
+  AssetId: string;
+  BlobStoragePathPrefix: string;
+  CustomData: FilmMetadataCustomData;
+}
+
+export interface ParsedHighlightEvent {
+  xuid: string;
+  gamertag: string;
+  typeHint: number;
+  isMedal: boolean;
+  eventType: "kill" | "death" | "medal" | "mode";
+  timeMs: number;
+  medalValue: number;
+  teamId: number | null;
+}
+
+export interface KillMatrixWeaponUsage {
+  weaponId: number;
+  count: number;
+}
+
+export interface KillMatrixEntry {
+  killerXuid: string;
+  victimXuid: string;
+  count: number;
+  headshotKills: number;
+  perfects: number;
+  weapons: KillMatrixWeaponUsage[];
+}
+
+export interface PairingQuality {
+  unpairedDeathCount: number;
+  maxTimeDeltaMs: number;
+}
+
+export interface PerfectCounts {
+  total: number;
+  byXuid: Record<string, number>;
+}
+
+export interface KillMatrixAnalytics {
+  entries: KillMatrixEntry[];
+  pairingQuality: PairingQuality;
+  perfectCounts: PerfectCounts;
+}
+
+export interface HaloFilmServiceOpts {
+  env: Env;
+  spartanTokenProvider: CustomSpartanTokenProvider;
+}

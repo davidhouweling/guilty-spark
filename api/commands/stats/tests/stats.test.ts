@@ -38,7 +38,7 @@ import { StatsReturnType } from "../../../services/database/types/guild_config";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake";
 import { EndUserError } from "../../../base/end-user-error";
-import type { MatchPlayer } from "../../../services/halo/halo";
+import type { MatchPlayer } from "../../../services/halo/types";
 
 const applicationCommandInteractionStatsNeatQueue: APIApplicationCommandInteraction = {
   ...fakeBaseAPIApplicationCommandInteraction,
