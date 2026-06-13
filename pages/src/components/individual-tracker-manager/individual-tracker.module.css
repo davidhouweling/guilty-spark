@@ -32,37 +32,6 @@
   margin: 0;
 }
 
-.tabs {
-  border-bottom: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
-  display: flex;
-  gap: var(--space-1);
-  margin-bottom: var(--space-6);
-}
-
-.tabButton {
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--halo-gray);
-  cursor: pointer;
-  font-family: var(--font-body);
-  font-size: var(--text-sm);
-  letter-spacing: 0.05em;
-  margin-bottom: -1px;
-  padding: var(--space-2) var(--space-4);
-  text-transform: uppercase;
-  transition: color 0.15s ease;
-}
-
-.tabButton:hover {
-  color: var(--halo-white);
-}
-
-.tabButtonActive {
-  border-bottom-color: var(--halo-teal-primary);
-  color: var(--halo-white);
-}
-
 .loading {
   color: var(--halo-gray);
   padding: var(--space-10) 0;
