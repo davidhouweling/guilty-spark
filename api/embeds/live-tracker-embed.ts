@@ -7,6 +7,7 @@ import type {
 import { ComponentType, ButtonStyle } from "discord-api-types/v10";
 import { addMinutes, compareAsc, isBefore } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { getSeriesGroupTitleFromTeams } from "@guilty-spark/shared/individual-tracker/series-grouping";
 import type { DiscordService } from "../services/discord/discord";
 import type { LiveTrackerEmbedData } from "../live-tracker/types";
 import { BaseTableEmbed } from "./base-table-embed";
@@ -187,8 +188,8 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       if (isFirstEmbed) {
         if (seriesData != null) {
           embed.title = `Live Tracker - NeatQueue Series (Queue #${seriesData.seriesId.queueNumber.toString()})`;
-          const teamNames = seriesData.teams.map((t) => t.name).join(" vs ");
-          embed.description = `**${statusText}**\n*${teamNames}*`;
+          const teamNames = getSeriesGroupTitleFromTeams(seriesData.teams);
+          embed.description = teamNames != null ? `**${statusText}**\n*${teamNames}*` : `**${statusText}**`;
         } else {
           embed.title = `Live Tracker - Queue #${queueNumber.toString()}`;
           embed.description = `**${statusText}**`;

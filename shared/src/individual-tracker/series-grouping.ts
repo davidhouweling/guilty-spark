@@ -21,6 +21,19 @@ export function getDefaultSeriesGroupTitle(): string {
   return "Eagle vs Cobra";
 }
 
+export function getSeriesGroupTitleFromTeams(teams: readonly { readonly name: string }[]): string | null {
+  const [team0, team1] = teams;
+  if (team0 == null || team1 == null) {
+    return null;
+  }
+  const name0 = team0.name.trim();
+  const name1 = team1.name.trim();
+  if (!name0 || !name1) {
+    return null;
+  }
+  return `${name0} vs ${name1}`;
+}
+
 export function getDefaultSeriesGroupSubtitle(
   entries: readonly {
     startTime: string;
