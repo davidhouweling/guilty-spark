@@ -100,4 +100,30 @@ export class KillMatrixPresenter {
     const [killerXuid, victimXuid] = key.split(":");
     return { killerXuid, victimXuid };
   }
+
+  public static aggregate(rows: readonly KillMatrixViewRow[]): KillMatrixViewRow[] {
+    const merged = new Map<string, KillMatrixViewRow>();
+
+    for (const row of rows) {
+      const existing = merged.get(row.key);
+      if (existing == null) {
+        merged.set(row.key, { ...row });
+      } else {
+        merged.set(row.key, {
+          ...existing,
+          count: existing.count + row.count,
+          headshotKills: existing.headshotKills + row.headshotKills,
+          perfects: existing.perfects + row.perfects,
+        });
+      }
+    }
+
+    return [...merged.values()].sort((left, right) => {
+      if (right.count !== left.count) {
+        return right.count - left.count;
+      }
+
+      return left.key.localeCompare(right.key);
+    });
+  }
 }

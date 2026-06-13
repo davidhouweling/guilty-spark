@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { KillMatrixPresenter } from "../kill-matrix-presenter";
 import { aFakeMatchAnalyticsWith } from "../fakes/match-analytics.fake";
+import type { KillMatrixViewRow } from "../types";
 
 describe("KillMatrixPresenter", () => {
   it("expands and sorts kill matrix rows", () => {
@@ -73,5 +74,70 @@ describe("KillMatrixPresenter", () => {
     });
 
     expect(row.topWeaponId).toBe(6001);
+  });
+
+  describe("aggregate", () => {
+    it("sums counts for the same key across multiple rows", () => {
+      const rows: KillMatrixViewRow[] = [
+        {
+          key: "111:222",
+          killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+          victim: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+          count: 3,
+          headshotKills: 1,
+          perfects: 0,
+          classification: "enemy-kill",
+          topWeaponId: 1001,
+        },
+        {
+          key: "111:222",
+          killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+          victim: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+          count: 2,
+          headshotKills: 2,
+          perfects: 1,
+          classification: "enemy-kill",
+          topWeaponId: 2001,
+        },
+      ];
+
+      const result = KillMatrixPresenter.aggregate(rows);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({ key: "111:222", count: 5, headshotKills: 3, perfects: 1 });
+    });
+
+    it("returns rows sorted by count descending", () => {
+      const rows: KillMatrixViewRow[] = [
+        {
+          key: "111:222",
+          killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+          victim: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+          count: 1,
+          headshotKills: 0,
+          perfects: 0,
+          classification: "enemy-kill",
+          topWeaponId: null,
+        },
+        {
+          key: "333:444",
+          killer: { xuid: "333", gamertag: "Charlie", teamId: 0 },
+          victim: { xuid: "444", gamertag: "Delta", teamId: 1 },
+          count: 3,
+          headshotKills: 0,
+          perfects: 0,
+          classification: "enemy-kill",
+          topWeaponId: null,
+        },
+      ];
+
+      const result = KillMatrixPresenter.aggregate(rows);
+
+      expect(result.map((r) => r.key)).toEqual(["333:444", "111:222"]);
+    });
+
+    it("returns empty array when given no rows", () => {
+      expect(KillMatrixPresenter.aggregate([])).toEqual([]);
+    });
   });
 });
