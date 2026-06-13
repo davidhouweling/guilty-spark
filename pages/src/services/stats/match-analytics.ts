@@ -26,9 +26,10 @@ export class RealMatchAnalyticsService implements MatchAnalyticsService {
     matchId: string,
     modules: readonly AnalyticsModule[] = DEFAULT_MODULES,
   ): Promise<MatchAnalytics> {
+    const encodedMatchId = encodeURIComponent(matchId);
     const normalizedModules = modules.length === 0 ? DEFAULT_MODULES : modules;
     const query = new URLSearchParams({ modules: buildModulesQuery(normalizedModules) });
-    const response = await fetch(`${this.apiHost}/api/stats/match-analytics/${matchId}?${query.toString()}`, {
+    const response = await fetch(`${this.apiHost}/api/stats/match-analytics/${encodedMatchId}?${query.toString()}`, {
       credentials: "include",
     });
     const parsed = await matchAnalyticsContract.fromResponse(response);

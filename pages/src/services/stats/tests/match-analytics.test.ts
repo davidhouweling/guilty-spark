@@ -79,4 +79,23 @@ describe("RealMatchAnalyticsService", () => {
       { credentials: "include" },
     );
   });
+
+  it("encodes matchId path segment", async () => {
+    const analytics = aFakeAnalyticsResponseWith();
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ analytics }), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }),
+    );
+
+    await service.getMatchAnalytics("match/123?abc=1");
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "https://api.example.com/api/stats/match-analytics/match%2F123%3Fabc%3D1?modules=killMatrix",
+      { credentials: "include" },
+    );
+  });
 });
