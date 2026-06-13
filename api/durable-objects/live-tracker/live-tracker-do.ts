@@ -31,10 +31,9 @@ import {
   liveTrackerRepostContract,
   liveTrackerRepostRequestSchema,
   type LiveTrackerRefreshRequest,
-  type LiveTrackerSubstitutionRequest,
-  type LiveTrackerRepostRequest,
 } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
 import { liveTrackerSeriesDataContract } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/series-data";
+import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import type { LogService } from "../../services/log/types";
 import type { DiscordService } from "../../services/discord/discord";
 import type { HaloService } from "../../services/halo/halo";
@@ -268,12 +267,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleStart(request: Request): Promise<Response> {
-    let startRequest: LiveTrackerStartRequest;
-    try {
-      startRequest = liveTrackerStartRequestSchema.parse(await request.json());
-    } catch {
-      return new Response("Bad Request", { status: 400 });
+    const parsed = await parseJsonBody(request, liveTrackerStartRequestSchema, "Invalid start request");
+    if (!parsed.success) {
+      return parsed.response;
     }
+    const startRequest = parsed.data;
 
     const trackerState: LiveTrackerState = {
       userId: startRequest.userId,
@@ -567,13 +565,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleSubstitution(request: Request): Promise<Response> {
-    let parsedSubstitution: LiveTrackerSubstitutionRequest;
-    try {
-      parsedSubstitution = liveTrackerSubstitutionRequestSchema.parse(await request.json());
-    } catch {
-      return new Response("Bad Request", { status: 400 });
+    const parsed = await parseJsonBody(request, liveTrackerSubstitutionRequestSchema, "Invalid substitution request");
+    if (!parsed.success) {
+      return parsed.response;
     }
-    const { playerOutId, playerInId, playerAssociationData } = parsedSubstitution;
+    const { playerOutId, playerInId, playerAssociationData } = parsed.data;
     const trackerState = await this.getState();
     if (!trackerState) {
       return new Response("Not Found", { status: 404 });
@@ -662,13 +658,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleRepost(request: Request): Promise<Response> {
-    let repostRequest: LiveTrackerRepostRequest;
-    try {
-      repostRequest = liveTrackerRepostRequestSchema.parse(await request.json());
-    } catch {
-      return new Response("Bad Request", { status: 400 });
+    const parsed = await parseJsonBody(request, liveTrackerRepostRequestSchema, "Invalid repost request");
+    if (!parsed.success) {
+      return parsed.response;
     }
-    const { newMessageId } = repostRequest;
+    const { newMessageId } = parsed.data;
 
     const trackerState = await this.getState();
     if (!trackerState) {

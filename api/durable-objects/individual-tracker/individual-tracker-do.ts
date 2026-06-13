@@ -11,9 +11,6 @@ import {
   selectMatchesRequestSchema,
   startSeriesContract,
   startSeriesRequestSchema,
-  type EditSeriesRequest,
-  type SelectMatchesRequest,
-  type StartSeriesRequest,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import {
   individualTrackerPauseContract,
@@ -22,7 +19,6 @@ import {
   individualTrackerStartRequestSchema,
   individualTrackerStopContract,
   type IndividualTrackerDoState,
-  type IndividualTrackerStartRequest,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
 import {
   individualTrackerStatusContract,
@@ -31,7 +27,6 @@ import {
 import {
   individualTrackerNudgeContract,
   seriesContextNullablePayloadSchema,
-  type SeriesContextPayload,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import {
   analyzeMatchGroupings,
@@ -47,6 +42,7 @@ import {
 } from "@guilty-spark/shared/individual-tracker/series-grouping";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import { type IndividualTopBarStatOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { LogService } from "../../services/log/types";
 import { installServices as installServicesImpl, type Services } from "../../services/install";
@@ -479,12 +475,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private async handleStart(request: Request): Promise<Response> {
-    let body: IndividualTrackerStartRequest;
-    try {
-      body = individualTrackerStartRequestSchema.parse(await request.json());
-    } catch {
-      return new Response("Bad Request", { status: 400 });
+    const parsed = await parseJsonBody(request, individualTrackerStartRequestSchema, "Invalid start request");
+    if (!parsed.success) {
+      return parsed.response;
     }
+    const body = parsed.data;
     const now = new Date().toISOString();
 
     const trackerState: IndividualTrackerInternalState = {
@@ -572,12 +567,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Not Found", { status: 404 });
     }
 
-    let body: SelectMatchesRequest;
-    try {
-      body = selectMatchesRequestSchema.parse(await request.json());
-    } catch {
-      return new Response("Bad Request", { status: 400 });
+    const parsed = await parseJsonBody(request, selectMatchesRequestSchema, "Invalid select-matches request");
+    if (!parsed.success) {
+      return parsed.response;
     }
+    const body = parsed.data;
     const known = new Set(trackerState.matchIds);
     const incoming = body.matchIds.filter((id) => known.has(id)).sort();
     const unchanged = incoming.join(",") === trackerState.selectedMatchIds.join(",");
@@ -607,12 +601,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Not Found", { status: 404 });
     }
 
-    let body: StartSeriesRequest;
-    try {
-      body = startSeriesRequestSchema.parse(await request.json());
-    } catch {
-      return new Response("Bad Request", { status: 400 });
+    const parsed = await parseJsonBody(request, startSeriesRequestSchema, "Invalid start-series request");
+    if (!parsed.success) {
+      return parsed.response;
     }
+    const body = parsed.data;
 
     const teams: SeriesTeam[] = body.teams.map((team) => ({
       name: team.name,
@@ -662,12 +655,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("No active series", { status: 409 });
     }
 
-    let body: EditSeriesRequest;
-    try {
-      body = editSeriesRequestSchema.parse(await request.json());
-    } catch {
-      return new Response("Bad Request", { status: 400 });
+    const parsed = await parseJsonBody(request, editSeriesRequestSchema, "Invalid edit-series request");
+    if (!parsed.success) {
+      return parsed.response;
     }
+    const body = parsed.data;
     if (body.titleOverride !== undefined) {
       trackerState.activeSeries.title = body.titleOverride ?? getDefaultSeriesGroupTitle();
     }
@@ -722,12 +714,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Not Found", { status: 404 });
     }
 
-    let payload: SeriesContextPayload | null = null;
-    try {
-      payload = seriesContextNullablePayloadSchema.parse(await request.json());
-    } catch {
-      return new Response("Bad Request", { status: 400 });
+    const parsed = await parseJsonBody(request, seriesContextNullablePayloadSchema, "Invalid nudge request");
+    if (!parsed.success) {
+      return parsed.response;
     }
+    const payload = parsed.data;
 
     this.retireActiveSeries(trackerState);
     if (payload != null) {
