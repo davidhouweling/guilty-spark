@@ -49,8 +49,17 @@ function topWeaponId(weapons: readonly { readonly weaponId: number; readonly cou
     return null;
   }
 
-  const sorted = [...weapons].sort((a, b) => b.count - a.count);
-  return sorted[0]?.weaponId ?? null;
+  let maxWeaponId: number | null = null;
+  let maxCount = 0;
+
+  for (const weapon of weapons) {
+    if (weapon.count > maxCount) {
+      maxCount = weapon.count;
+      maxWeaponId = weapon.weaponId;
+    }
+  }
+
+  return maxWeaponId;
 }
 
 function parsePairKey(key: string): { killerXuid: string; victimXuid: string } {

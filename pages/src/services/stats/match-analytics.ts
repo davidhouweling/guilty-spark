@@ -26,7 +26,8 @@ export class RealMatchAnalyticsService implements MatchAnalyticsService {
     matchId: string,
     modules: readonly AnalyticsModule[] = DEFAULT_MODULES,
   ): Promise<MatchAnalytics> {
-    const query = new URLSearchParams({ modules: buildModulesQuery(modules) });
+    const normalizedModules = modules.length === 0 ? DEFAULT_MODULES : modules;
+    const query = new URLSearchParams({ modules: buildModulesQuery(normalizedModules) });
     const response = await fetch(`${this.apiHost}/api/stats/match-analytics/${matchId}?${query.toString()}`, {
       credentials: "include",
     });
