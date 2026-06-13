@@ -52,7 +52,6 @@ export const liveTrackerStateSchema = z.object({
   refreshInProgress: z.boolean().optional(),
   refreshStartedAt: z.string().optional(),
 });
-export type LiveTrackerDoState = z.infer<typeof liveTrackerStateSchema>;
 
 const matchSummarySchema = z.object({
   matchId: z.string(),

@@ -24,9 +24,11 @@ import {
   individualTrackerStatusContract,
   individualTrackerViewStateContract,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/management";
+import type {
+  seriesContextPayloadSchema} from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import {
   individualTrackerNudgeContract,
-  seriesContextPayloadSchema,
+  seriesContextNullablePayloadSchema
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import {
   analyzeMatchGroupings,
@@ -43,7 +45,7 @@ import {
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { type IndividualTopBarStatOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import { z } from "zod";
+import type { z } from "zod";
 import type { LogService } from "../../services/log/types";
 import { installServices as installServicesImpl, type Services } from "../../services/install";
 import {
@@ -475,7 +477,12 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private async handleStart(request: Request): Promise<Response> {
-    const body = individualTrackerStartRequestSchema.parse(await request.json());
+    let body: z.infer<typeof individualTrackerStartRequestSchema>;
+    try {
+      body = individualTrackerStartRequestSchema.parse(await request.json());
+    } catch {
+      return new Response("Bad Request", { status: 400 });
+    }
     const now = new Date().toISOString();
 
     const trackerState: IndividualTrackerInternalState = {
@@ -715,7 +722,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     let payload: z.infer<typeof seriesContextPayloadSchema> | null = null;
     try {
-      payload = z.union([seriesContextPayloadSchema, z.null()]).parse(await request.json());
+      payload = seriesContextNullablePayloadSchema.parse(await request.json());
     } catch {
       return new Response("Bad Request", { status: 400 });
     }

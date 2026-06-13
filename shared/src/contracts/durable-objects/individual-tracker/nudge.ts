@@ -9,6 +9,8 @@ export const seriesContextPayloadSchema = z.object({
   teams: z.array(trackerSeriesTeamSchema),
 });
 export type SeriesContextPayload = z.infer<typeof seriesContextPayloadSchema>;
+export const seriesContextNullablePayloadSchema = z.union([seriesContextPayloadSchema, z.null()]);
+export type SeriesContextNullablePayload = z.infer<typeof seriesContextNullablePayloadSchema>;
 
 export const individualTrackerNudgeContract = defineContract(z.object({ success: z.literal(true) }));
 export type IndividualTrackerNudgeResponse = z.infer<typeof individualTrackerNudgeContract.schema>;

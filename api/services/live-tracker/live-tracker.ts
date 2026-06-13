@@ -264,7 +264,21 @@ export class LiveTrackerService {
       throw new Error(error);
     }
 
-    const result = await liveTrackerRefreshContract.fromResponse(response);
+    let responseBody: unknown;
+    try {
+      responseBody = await response.json();
+    } catch {
+      const error = `Failed to parse refresh response body (status ${response.status.toString()})`;
+      this.logService.error(error, this.createLogParams(context));
+      throw new Error(error);
+    }
+    const parsed = liveTrackerRefreshContract.safeParse(responseBody);
+    if (!parsed.success) {
+      const error = `Unexpected refresh response shape (status ${response.status.toString()})`;
+      this.logService.error(error, this.createLogParams(context));
+      throw new Error(error);
+    }
+    const result = parsed.data;
 
     if (!response.ok) {
       this.logService.warn("Refresh cooldown active", this.createLogParams(context));
