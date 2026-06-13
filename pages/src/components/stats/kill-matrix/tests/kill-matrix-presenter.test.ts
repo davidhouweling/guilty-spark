@@ -78,4 +78,31 @@ describe("KillMatrixPresenter", () => {
     expect(row.victim.gamertag).toBe("888");
     expect(row.classification).toBe("enemy-kill");
   });
+
+  it("returns a weapon even when all have zero count", () => {
+    const analytics = aFakeAnalyticsWith({
+      killMatrix: {
+        "111:222": {
+          count: 1,
+          headshotKills: 0,
+          perfects: 0,
+          weapons: [
+            { weaponId: 6001, count: 0 },
+            { weaponId: 5001, count: 0 },
+            { weaponId: 7001, count: 0 },
+          ],
+        },
+      },
+    });
+
+    const [row] = KillMatrixPresenter.present({
+      analytics,
+      playersByXuid: new Map([
+        ["111", { gamertag: "Alpha", teamId: 0 }],
+        ["222", { gamertag: "Bravo", teamId: 1 }],
+      ]),
+    });
+
+    expect(row.topWeaponId).toBe(6001);
+  });
 });

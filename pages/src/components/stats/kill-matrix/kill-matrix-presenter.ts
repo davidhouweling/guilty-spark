@@ -49,10 +49,11 @@ function topWeaponId(weapons: readonly { readonly weaponId: number; readonly cou
     return null;
   }
 
-  let maxWeaponId: number | null = null;
-  let maxCount = 0;
+  let maxWeaponId = weapons[0].weaponId;
+  let maxCount = weapons[0].count;
 
-  for (const weapon of weapons) {
+  for (let i = 1; i < weapons.length; i++) {
+    const weapon = weapons[i];
     if (weapon.count > maxCount) {
       maxCount = weapon.count;
       maxWeaponId = weapon.weaponId;
