@@ -24,11 +24,10 @@ import {
   individualTrackerStatusContract,
   individualTrackerViewStateContract,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/management";
-import type {
-  seriesContextPayloadSchema} from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
+import type { seriesContextPayloadSchema } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import {
   individualTrackerNudgeContract,
-  seriesContextNullablePayloadSchema
+  seriesContextNullablePayloadSchema,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import {
   analyzeMatchGroupings,
