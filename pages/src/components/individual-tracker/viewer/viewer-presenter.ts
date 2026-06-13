@@ -1,6 +1,7 @@
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type {
   IndividualTrackerViewService,
   TrackerViewConnection,
@@ -12,6 +13,7 @@ import type { IndividualTrackerViewerViewModel } from "./types";
 
 interface Config {
   readonly individualTrackerViewService: IndividualTrackerViewService;
+  readonly matchAnalyticsService: MatchAnalyticsService;
   readonly haloClient: HaloInfiniteClient;
   readonly store: IndividualTrackerViewerStore;
   readonly trackerId: string;
@@ -68,7 +70,10 @@ export class IndividualTrackerViewerPresenter {
 
   private async fetchMatchStats(matchId: string): Promise<void> {
     try {
-      const stats = await this.config.haloClient.getMatchStats(matchId);
+      const [stats, analytics] = await Promise.all([
+        this.config.haloClient.getMatchStats(matchId),
+        this.config.matchAnalyticsService.getMatchAnalytics(matchId).catch(() => null),
+      ]);
       if (this.isStale(matchId)) {
         return;
       }
@@ -89,7 +94,7 @@ export class IndividualTrackerViewerPresenter {
       const medalMetadata: MedalMetadata = Object.fromEntries(
         medalsMetadataFile.medals.map((m) => [m.nameId, { name: m.name.value, sortingWeight: m.sortingWeight }]),
       );
-      this.config.store.setMatchStats(matchId, stats, playerMap, medalMetadata);
+      this.config.store.setMatchStats(matchId, stats, playerMap, medalMetadata, analytics);
     } catch (error) {
       if (this.isStale(matchId)) {
         return;

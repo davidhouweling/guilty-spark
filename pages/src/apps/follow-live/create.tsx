@@ -68,6 +68,7 @@ export function FollowLiveApp({ apiHost, gamertag, variant = "viewer" }: FollowL
             gamertag={gamertag}
             followLiveService={services.followLiveService}
             individualTrackerViewService={services.individualTrackerViewService}
+            matchAnalyticsService={services.matchAnalyticsService}
             haloClient={services.haloClient}
           />
         ) : (

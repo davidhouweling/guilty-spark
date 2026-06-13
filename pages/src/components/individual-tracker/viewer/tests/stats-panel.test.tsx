@@ -46,7 +46,7 @@ describe("StatsPanel", () => {
       ["4444444444", "Delta"],
     ]);
 
-    render(<StatsPanel state={{ status: "loaded", stats, playerMap, medalMetadata: {} }} />);
+    render(<StatsPanel state={{ status: "loaded", stats, playerMap, medalMetadata: {}, analytics: null }} />);
 
     expect(screen.getByRole("tab", { name: "Players" })).toBeInTheDocument();
   });
