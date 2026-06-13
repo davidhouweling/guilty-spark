@@ -1,0 +1,9 @@
+.emptyState {
+  color: var(--halo-gray);
+  margin: 0;
+  padding: var(--space-4) 0;
+}
+
+.rowCount {
+  font-variant-numeric: tabular-nums;
+}

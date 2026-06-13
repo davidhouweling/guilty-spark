@@ -3,6 +3,9 @@ import React from "react";
 import classNames from "classnames";
 import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";
+import { TabbedSection } from "../shared/tabbed-section/tabbed-section";
+import { KillMatrixTable } from "./kill-matrix/kill-matrix-table";
+import type { KillMatrixViewRow } from "./kill-matrix/types";
 import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
 import type { TeamColor } from "../team-colors/team-colors";
@@ -23,6 +26,7 @@ interface MatchStatsProps {
   readonly startTime: string;
   readonly endTime: string;
   readonly teamColors?: readonly TeamColor[];
+  readonly killMatrixRows?: readonly KillMatrixViewRow[];
 }
 
 type MatchStatsRow = MatchStatsData & { player: MatchStatsPlayerData };
@@ -40,7 +44,9 @@ export function MatchStats({
   startTime,
   endTime,
   teamColors,
+  killMatrixRows,
 }: MatchStatsProps): React.ReactElement {
+  const [activeTab, setActiveTab] = React.useState<"players" | "kill-matrix">("players");
   const hasTeamStats = data.length > 0 && data[0].teamStats.length > 0;
 
   // Define team stats columns
@@ -204,43 +210,69 @@ export function MatchStats({
         </div>
         <img src={gameModeIconUrl} alt={gameModeAlt} className={styles.gameModeIcon} />
       </div>
-      {hasTeamStats && (
-        <div className={styles.teamTotals}>
-          <h3 className={styles.subsectionHeader}>Team Totals</h3>
-          <SortableTable
-            data={data}
-            columns={teamColumns}
-            getRowKey={(row) => row.teamId.toString()}
-            ariaLabel="Team statistics"
-            getRowStyle={
-              teamColors
-                ? (row): React.CSSProperties =>
-                    ({
-                      "--row-color": teamColors[row.teamId]?.hex ?? "transparent",
-                    }) as React.CSSProperties
-                : undefined
-            }
-          />
-        </div>
-      )}
+      <TabbedSection
+        tabListAriaLabel="Match statistics sections"
+        selectedTabId={activeTab}
+        onTabChange={setActiveTab}
+        tabs={[
+          {
+            id: "players",
+            label: "Players",
+            content: (
+              <>
+                {hasTeamStats && (
+                  <div className={styles.teamTotals}>
+                    <h3 className={styles.subsectionHeader}>Team Totals</h3>
+                    <SortableTable
+                      data={data}
+                      columns={teamColumns}
+                      getRowKey={(row) => row.teamId.toString()}
+                      ariaLabel="Team statistics"
+                      getRowStyle={
+                        teamColors
+                          ? (row): React.CSSProperties =>
+                              ({
+                                "--row-color": teamColors[row.teamId]?.hex ?? "transparent",
+                              }) as React.CSSProperties
+                          : undefined
+                      }
+                    />
+                  </div>
+                )}
 
-      <div className={styles.playerStats}>
-        <h3 className={styles.subsectionHeader}>Players</h3>
-        <SortableTable
-          data={playerData}
-          columns={playerColumns}
-          getRowKey={(row) => `${row.teamId.toString()}-${row.player.name}`}
-          ariaLabel="Player statistics"
-          getRowStyle={
-            teamColors
-              ? (row): React.CSSProperties =>
-                  ({
-                    "--row-color": teamColors[row.teamId]?.hex ?? "transparent",
-                  }) as React.CSSProperties
-              : undefined
-          }
-        />
-      </div>
+                <div className={styles.playerStats}>
+                  <h3 className={styles.subsectionHeader}>Players</h3>
+                  <SortableTable
+                    data={playerData}
+                    columns={playerColumns}
+                    getRowKey={(row) => `${row.teamId.toString()}-${row.player.name}`}
+                    ariaLabel="Player statistics"
+                    getRowStyle={
+                      teamColors
+                        ? (row): React.CSSProperties =>
+                            ({
+                              "--row-color": teamColors[row.teamId]?.hex ?? "transparent",
+                            }) as React.CSSProperties
+                        : undefined
+                    }
+                  />
+                </div>
+              </>
+            ),
+          },
+          {
+            id: "kill-matrix",
+            label: "Kill Matrix",
+            content: (
+              <KillMatrixTable
+                rows={killMatrixRows ?? []}
+                ariaLabel="Match kill matrix"
+                emptyMessage="Kill matrix data is not available for this match yet."
+              />
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

@@ -2,6 +2,9 @@ import React from "react";
 import classNames from "classnames";
 import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";
+import { TabbedSection } from "../shared/tabbed-section/tabbed-section";
+import { KillMatrixTable } from "./kill-matrix/kill-matrix-table";
+import type { KillMatrixViewRow } from "./kill-matrix/types";
 import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
 import type { TeamColor } from "../team-colors/team-colors";
@@ -16,6 +19,7 @@ interface SeriesStatsProps {
   readonly title: string;
   readonly metadata: SeriesMetadata | null;
   readonly teamColors?: readonly TeamColor[];
+  readonly killMatrixRows?: readonly KillMatrixViewRow[];
 }
 
 type MatchStatsRow = MatchStatsData & { player: MatchStatsPlayerData };
@@ -26,7 +30,9 @@ export function SeriesStats({
   title,
   metadata,
   teamColors,
+  killMatrixRows,
 }: SeriesStatsProps): React.ReactElement {
+  const [activeTab, setActiveTab] = React.useState<"accumulated" | "kill-matrix">("accumulated");
   const hasTeamStats = teamData.length > 0 && teamData[0].teamStats.length > 0;
   const hasPlayerStats = playerData.length > 0 && playerData[0].players.length > 0;
 
@@ -198,45 +204,71 @@ export function SeriesStats({
         </div>
       </div>
 
-      {hasTeamStats && (
-        <div className={styles.teamTotals}>
-          <h3 className={styles.subsectionHeader}>Accumulated Team Stats</h3>
-          <SortableTable
-            data={teamData}
-            columns={teamColumns}
-            getRowKey={(row) => row.teamId.toString()}
-            ariaLabel="Accumulated team statistics"
-            getRowStyle={
-              teamColors
-                ? (row): React.CSSProperties =>
-                    ({
-                      "--row-color": teamColors[row.teamId]?.hex ?? "transparent",
-                    }) as React.CSSProperties
-                : undefined
-            }
-          />
-        </div>
-      )}
+      <TabbedSection
+        tabListAriaLabel="Series statistics sections"
+        selectedTabId={activeTab}
+        onTabChange={setActiveTab}
+        tabs={[
+          {
+            id: "accumulated",
+            label: "Accumulated Stats",
+            content: (
+              <>
+                {hasTeamStats && (
+                  <div className={styles.teamTotals}>
+                    <h3 className={styles.subsectionHeader}>Accumulated Team Stats</h3>
+                    <SortableTable
+                      data={teamData}
+                      columns={teamColumns}
+                      getRowKey={(row) => row.teamId.toString()}
+                      ariaLabel="Accumulated team statistics"
+                      getRowStyle={
+                        teamColors
+                          ? (row): React.CSSProperties =>
+                              ({
+                                "--row-color": teamColors[row.teamId]?.hex ?? "transparent",
+                              }) as React.CSSProperties
+                          : undefined
+                      }
+                    />
+                  </div>
+                )}
 
-      {hasPlayerStats && (
-        <div className={styles.playerStats}>
-          <h3 className={styles.subsectionHeader}>Accumulated Player Stats</h3>
-          <SortableTable
-            data={flattenedPlayerData}
-            columns={playerColumns}
-            getRowKey={(row) => `${row.teamId.toString()}-${row.player.name}`}
-            ariaLabel="Accumulated player statistics"
-            getRowStyle={
-              teamColors
-                ? (row): React.CSSProperties =>
-                    ({
-                      "--row-color": teamColors[row.teamId]?.hex ?? "transparent",
-                    }) as React.CSSProperties
-                : undefined
-            }
-          />
-        </div>
-      )}
+                {hasPlayerStats && (
+                  <div className={styles.playerStats}>
+                    <h3 className={styles.subsectionHeader}>Accumulated Player Stats</h3>
+                    <SortableTable
+                      data={flattenedPlayerData}
+                      columns={playerColumns}
+                      getRowKey={(row) => `${row.teamId.toString()}-${row.player.name}`}
+                      ariaLabel="Accumulated player statistics"
+                      getRowStyle={
+                        teamColors
+                          ? (row): React.CSSProperties =>
+                              ({
+                                "--row-color": teamColors[row.teamId]?.hex ?? "transparent",
+                              }) as React.CSSProperties
+                          : undefined
+                      }
+                    />
+                  </div>
+                )}
+              </>
+            ),
+          },
+          {
+            id: "kill-matrix",
+            label: "Kill Matrix",
+            content: (
+              <KillMatrixTable
+                rows={killMatrixRows ?? []}
+                ariaLabel="Series kill matrix"
+                emptyMessage="Kill matrix data is not available for this series yet."
+              />
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }
