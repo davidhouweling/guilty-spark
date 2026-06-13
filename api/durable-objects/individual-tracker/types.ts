@@ -211,7 +211,7 @@ export interface IndividualTrackerViewState {
   hasActiveSeries: boolean;
   hasRecentCompletedSeries: boolean;
   activeSeriesContext?: ActiveSeriesContext;
-  topBarStats?: readonly TopBarStatItem[];
+  topBarStats?: TopBarStatItem[];
 }
 
 export interface IndividualTrackerViewStateResponse {

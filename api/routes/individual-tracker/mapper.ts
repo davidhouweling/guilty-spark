@@ -23,6 +23,9 @@ export async function fetchTrackerDoViewState(
     url.searchParams.set("topBarStatSlots", JSON.stringify(topBarStatSlots));
   }
   const response = await stub.fetch(url.toString(), { method: "GET" });
+  if (!response.ok) {
+    throw new Error(`DO view-state request failed with status ${response.status.toString()}`);
+  }
   const result = await individualTrackerViewStateContract.fromResponse(response);
   return result.state;
 }

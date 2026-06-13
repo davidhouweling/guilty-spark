@@ -563,7 +563,12 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Not Found", { status: 404 });
     }
 
-    const body = selectMatchesRequestSchema.parse(await request.json());
+    let body: z.infer<typeof selectMatchesRequestSchema>;
+    try {
+      body = selectMatchesRequestSchema.parse(await request.json());
+    } catch {
+      return new Response("Bad Request", { status: 400 });
+    }
     const known = new Set(trackerState.matchIds);
     const incoming = body.matchIds.filter((id) => known.has(id)).sort();
     const unchanged = incoming.join(",") === trackerState.selectedMatchIds.join(",");
@@ -593,7 +598,12 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Not Found", { status: 404 });
     }
 
-    const body = startSeriesRequestSchema.parse(await request.json());
+    let body: z.infer<typeof startSeriesRequestSchema>;
+    try {
+      body = startSeriesRequestSchema.parse(await request.json());
+    } catch {
+      return new Response("Bad Request", { status: 400 });
+    }
 
     const teams: SeriesTeam[] = body.teams.map((team) => ({
       name: team.name,
@@ -757,12 +767,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     if (trackerState == null) {
       return individualTrackerViewStateContract.toResponse({ state: null });
     }
-    const { topBarStats: viewTopBarStats, ...viewState } = this.toViewState(trackerState);
-    const resolvedTopBarStats = topBarStats ?? viewTopBarStats;
+    const viewState = this.toViewState(trackerState);
     return individualTrackerViewStateContract.toResponse({
       state: {
         ...viewState,
-        ...(resolvedTopBarStats != null ? { topBarStats: [...resolvedTopBarStats] } : {}),
+        ...(topBarStats != null ? { topBarStats: [...topBarStats] } : {}),
       },
     });
   }
