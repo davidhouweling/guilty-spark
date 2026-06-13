@@ -32,6 +32,7 @@ export function TabbedSection<TId extends string>({
               type="button"
               role="tab"
               aria-selected={isSelected}
+              tabIndex={isSelected ? 0 : -1}
               aria-controls={panelDomId}
               className={classNames(styles.tabButton, {
                 [styles.tabButtonActive]: isSelected,

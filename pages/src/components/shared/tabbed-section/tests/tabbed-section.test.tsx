@@ -23,7 +23,9 @@ describe("TabbedSection", () => {
     );
 
     expect(screen.getByRole("tab", { name: "Players" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Players" })).toHaveAttribute("tabindex", "0");
     expect(screen.getByRole("tab", { name: "Kill Matrix" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("tab", { name: "Kill Matrix" })).toHaveAttribute("tabindex", "-1");
     expect(screen.getByText("Players panel")).toBeVisible();
     expect(screen.queryByText("Kill matrix panel")).not.toBeVisible();
   });
