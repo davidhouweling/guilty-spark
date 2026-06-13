@@ -64,12 +64,5 @@ export function KillMatrixTable({ rows, ariaLabel, emptyMessage }: KillMatrixTab
     return <p className={styles.emptyState}>{emptyMessage}</p>;
   }
 
-  return (
-    <SortableTable
-      data={rows}
-      columns={columns}
-      getRowKey={(row): string => row.key}
-      ariaLabel={ariaLabel}
-    />
-  );
+  return <SortableTable data={rows} columns={columns} getRowKey={(row): string => row.key} ariaLabel={ariaLabel} />;
 }
