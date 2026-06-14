@@ -627,6 +627,32 @@ describe("Server", () => {
     });
   });
 
+  describe("GET /tracker/:guildId/:queueNumber/status", () => {
+    it("returns 400 when queueNumber is not a valid number", async () => {
+      const req = new Request("http://localhost/tracker/guild123/notanumber/status", { method: "GET" });
+      const res = (await server.router.fetch(req, env)) as Response;
+      expect(res.status).toBe(400);
+      const text = await res.text();
+      expect(text).toBe("Invalid queue number");
+    });
+
+    it("forwards the DO 200 response when the tracker exists", async () => {
+      const req = new Request("http://localhost/tracker/guild123/42/status", { method: "GET" });
+      const res = (await server.router.fetch(req, env)) as Response;
+      expect(res.status).toBe(200);
+    });
+
+    it("forwards the DO 404 when no tracker exists for the given guild and queue", async () => {
+      const fakeEnv = aFakeEnvWith();
+      const stub = fakeEnv.LIVE_TRACKER_DO.get(fakeEnv.LIVE_TRACKER_DO.idFromName("any"));
+      vi.spyOn(stub, "fetch").mockResolvedValue(new Response("Not Found", { status: 404 }));
+
+      const req = new Request("http://localhost/tracker/guild123/42/status", { method: "GET" });
+      const res = (await server.router.fetch(req, fakeEnv)) as Response;
+      expect(res.status).toBe(404);
+    });
+  });
+
   describe("GET /ws/tracker/:guildId/:queueNumber", () => {
     it("returns 400 when queueNumber is not a valid number", async () => {
       const req = new Request("http://localhost/ws/tracker/guild123/notanumber", { method: "GET" });

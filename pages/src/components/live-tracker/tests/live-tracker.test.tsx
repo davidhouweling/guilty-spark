@@ -4,7 +4,11 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, waitFor, cleanup } from "@testing-library/react";
 
 import type { LiveTrackerMessage, LiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/types";
-import type { LiveTrackerConnection, SteppableLiveTrackerConnection } from "../../../services/live-tracker/types";
+import type {
+  LiveTrackerConnection,
+  LiveTrackerStatusListener,
+  SteppableLiveTrackerConnection,
+} from "../../../services/live-tracker/types";
 import { aFakeLiveTrackerScenarioWith } from "../../../services/live-tracker/fakes/scenario";
 import { aFakeLiveTrackerServiceWith } from "../../../services/live-tracker/fakes/live-tracker.fake";
 import { LiveTracker } from "../create";
@@ -82,7 +86,7 @@ describe("LiveTracker", () => {
     render(<LiveTracker liveTrackerService={liveTrackerService} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Establishing Connection...")).toBeInTheDocument();
+      expect(screen.getByText("Connecting...")).toBeInTheDocument();
     });
 
     if (!isSteppableLiveTrackerConnection(connection)) {
@@ -100,5 +104,31 @@ describe("LiveTracker", () => {
     });
 
     expect(screen.getByText("Matches")).toBeInTheDocument();
+  });
+
+  it("shows an error state when the tracker is not found", async () => {
+    window.history.pushState({}, "", "/tracker?server=1&queue=3");
+
+    const notFoundConnection: LiveTrackerConnection = {
+      subscribe: () => ({ unsubscribe: () => undefined }),
+      subscribeStatus: (listener: LiveTrackerStatusListener) => {
+        queueMicrotask(() => {
+          listener("not_found");
+        });
+        return { unsubscribe: () => undefined };
+      },
+      disconnect: () => undefined,
+    };
+
+    const liveTrackerService = aFakeLiveTrackerServiceWith();
+    vi.spyOn(liveTrackerService, "connect").mockResolvedValue(notFoundConnection);
+
+    render(<LiveTracker liveTrackerService={liveTrackerService} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Connection Failed")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("No active tracker found for this queue. Start a tracker first.")).toBeInTheDocument();
   });
 });

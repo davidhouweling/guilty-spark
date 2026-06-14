@@ -79,6 +79,7 @@ describe("LiveTrackersPresenter", () => {
     const pinnedTracker = aFakeTrackerWith({
       trackerId: "t1",
       gamertag: "Chief",
+      xuid: "xuid-1",
       status: "paused",
       isLive: false,
       state: aFakeTrackerState({ trackerId: "t1", gamertag: "Chief", status: "paused" }),

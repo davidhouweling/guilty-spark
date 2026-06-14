@@ -45,7 +45,9 @@ export function LiveTracker({ liveTrackerService }: LiveTrackerProps): React.Rea
 
   const loaderStatus = snapshot.hasReceivedInitialData
     ? ComponentLoaderStatus.LOADED
-    : snapshot.connectionState === "error" || snapshot.connectionState === "stopped"
+    : snapshot.connectionState === "error" ||
+        snapshot.connectionState === "stopped" ||
+        snapshot.connectionState === "not_found"
       ? ComponentLoaderStatus.ERROR
       : ComponentLoaderStatus.LOADING;
 
@@ -166,7 +168,7 @@ export function LiveTracker({ liveTrackerService }: LiveTrackerProps): React.Rea
   return (
     <ComponentLoader
       status={loaderStatus}
-      loading={<LoadingState />}
+      loading={<LoadingState text={snapshot.statusText} />}
       error={
         <ErrorState
           message={snapshot.statusText}
