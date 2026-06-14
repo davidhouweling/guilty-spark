@@ -36,7 +36,13 @@ export function DiscordSeriesStatsView({ renderData, model }: DiscordSeriesStats
             <div className={styles.headerSubtitle}>{renderData.subtitle}</div>
           </div>
           <div className={styles.headerRight}>
-            <Button size="small" variant="secondary" aria-pressed={viewMode === "wide"} onClick={handleToggleViewMode}>
+            <Button
+              size="small"
+              variant="secondary"
+              className={localStyles.switchView}
+              aria-pressed={viewMode === "wide"}
+              onClick={handleToggleViewMode}
+            >
               {viewMode === "standard" ? "Switch to wide view" : "Switch to standard view"}
             </Button>
           </div>

@@ -48,6 +48,6 @@ describe("StatsPanel", () => {
 
     render(<StatsPanel state={{ status: "loaded", stats, playerMap, medalMetadata: {} }} />);
 
-    expect(screen.getByText("Players")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Players" })).toBeInTheDocument();
   });
 });

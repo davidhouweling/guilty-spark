@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 
 import { MatchStats } from "../match-stats";
 import { aFakeMatchStatsDataWith, aFakeMatchStatsPlayerDataWith } from "../fakes/component-data";
@@ -208,5 +208,29 @@ describe("MatchStats", () => {
     const icon = screen.getByAltText("Slayer Mode");
     expect(icon).toBeInTheDocument();
     expect(icon).toHaveAttribute("src", "https://example.com/icon.png");
+  });
+
+  it("shows kill matrix empty state when kill matrix tab is selected", () => {
+    const data = [aFakeMatchStatsDataWith({ teamId: 0 })];
+
+    render(
+      <MatchStats
+        data={data}
+        id="match-1"
+        backgroundImageUrl="https://example.com/bg.jpg"
+        gameModeIconUrl="https://example.com/icon.png"
+        gameModeAlt="Slayer Mode"
+        matchNumber={1}
+        gameTypeAndMap="Slayer: Aquarius"
+        duration="10m 30s"
+        score="50:49"
+        startTime="2024-01-01T00:00:00.000Z"
+        endTime="2024-01-01T00:10:30.000Z"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Kill Matrix" }));
+
+    expect(screen.getByText("Kill matrix data is not available for this match yet.")).toBeInTheDocument();
   });
 });

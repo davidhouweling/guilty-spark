@@ -17,3 +17,13 @@
 .playerList li {
   overflow-wrap: anywhere;
 }
+
+.switchView {
+  display: none;
+}
+
+@media (--ultrawide-viewport) {
+  .switchView {
+    display: inline-block;
+  }
+}
