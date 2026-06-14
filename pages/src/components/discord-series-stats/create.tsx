@@ -19,7 +19,7 @@ export function DiscordSeriesStats({ data, matchAnalyticsService }: DiscordSerie
 
   useEffect(() => {
     let cancelled = false;
-    const {matchIds} = data;
+    const { matchIds } = data;
 
     void Promise.all(
       matchIds.map(async (matchId) => {
