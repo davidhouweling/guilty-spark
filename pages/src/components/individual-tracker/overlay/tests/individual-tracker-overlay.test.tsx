@@ -87,6 +87,7 @@ describe("IndividualTrackerOverlay", () => {
             ["4444444444", "Delta"],
           ]),
           medalMetadata: {},
+          analytics: null,
         }}
         selectedMatchId="m-1"
         onSelectMatch={() => undefined}
@@ -128,6 +129,7 @@ describe("IndividualTrackerOverlay", () => {
             ["4444444444", "Delta"],
           ]),
           medalMetadata: {},
+          analytics: null,
         }}
         selectedMatchId="m-1"
         onSelectMatch={() => undefined}

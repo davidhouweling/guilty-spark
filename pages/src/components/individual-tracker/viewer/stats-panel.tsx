@@ -1,7 +1,6 @@
 import React, { useMemo } from "react";
-import type { MatchStats as MatchStatsType } from "halo-infinite-api";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
+import { KillMatrixPresenter } from "../../stats/kill-matrix/kill-matrix-presenter";
 import { Alert } from "../../alert/alert";
 import { LoadingState } from "../../loading-state/loading-state";
 import { createMatchStatsPresenter } from "../../stats/create";
@@ -9,19 +8,32 @@ import { MatchStats } from "../../stats/match-stats";
 import type { MatchStatsData } from "../../stats/types";
 import { gameModeIconSrc } from "../game-mode-icon";
 import type { IndividualTrackerViewerViewModel } from "./types";
+import type { MatchStatsState } from "./viewer-store";
 import styles from "./stats-panel.module.css";
 
 interface LoadedStatsPanelProps {
-  readonly stats: MatchStatsType;
-  readonly playerMap: Map<string, string>;
-  readonly medalMetadata: MedalMetadata;
+  readonly state: Extract<MatchStatsState, { readonly status: "loaded" }>;
 }
 
-function LoadedStatsPanel({ stats, playerMap, medalMetadata }: LoadedStatsPanelProps): React.ReactElement {
+function LoadedStatsPanel({ state }: LoadedStatsPanelProps): React.ReactElement {
+  const { stats, playerMap, medalMetadata, analytics } = state;
+  const killMatrixPresenter = useMemo(() => new KillMatrixPresenter(), []);
   const data = useMemo<MatchStatsData[]>(() => {
     const presenter = createMatchStatsPresenter(stats.MatchInfo.GameVariantCategory);
     return presenter.getData(stats, playerMap, medalMetadata);
   }, [stats, playerMap, medalMetadata]);
+
+  const killMatrixRows = useMemo(() => {
+    if (analytics == null) {
+      return [];
+    }
+
+    const playersByXuid = new Map(
+      [...playerMap.entries()].map(([xuid, gamertag]) => [xuid, { gamertag, teamId: null }]),
+    );
+
+    return killMatrixPresenter.present({ analytics, playersByXuid });
+  }, [analytics, killMatrixPresenter, playerMap]);
 
   return (
     <div className={styles.wrapper}>
@@ -37,6 +49,7 @@ function LoadedStatsPanel({ stats, playerMap, medalMetadata }: LoadedStatsPanelP
         score=""
         startTime={stats.MatchInfo.StartTime}
         endTime={stats.MatchInfo.EndTime}
+        killMatrixRows={killMatrixRows}
       />
     </div>
   );
@@ -67,7 +80,7 @@ export function StatsPanel({ state }: StatsPanelProps): React.ReactElement | nul
       );
     }
     case "loaded": {
-      return <LoadedStatsPanel stats={state.stats} playerMap={state.playerMap} medalMetadata={state.medalMetadata} />;
+      return <LoadedStatsPanel state={state} />;
     }
     default: {
       throw new UnreachableError(state);

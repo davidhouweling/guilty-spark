@@ -1,6 +1,7 @@
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type {
   IndividualTrackerViewService,
   TrackerViewConnection,
@@ -12,6 +13,7 @@ import type { IndividualTrackerViewerViewModel } from "./types";
 
 interface Config {
   readonly individualTrackerViewService: IndividualTrackerViewService;
+  readonly matchAnalyticsService: MatchAnalyticsService;
   readonly haloClient: HaloInfiniteClient;
   readonly store: IndividualTrackerViewerStore;
   readonly trackerId: string;
@@ -68,14 +70,16 @@ export class IndividualTrackerViewerPresenter {
 
   private async fetchMatchStats(matchId: string): Promise<void> {
     try {
+      const analyticsPromise = this.config.matchAnalyticsService.getMatchAnalytics(matchId).catch(() => null);
       const stats = await this.config.haloClient.getMatchStats(matchId);
       if (this.isStale(matchId)) {
         return;
       }
       const xuids = stats.Players.filter((p) => p.PlayerType === 1).map((p) => getPlayerXuid(p));
-      const [users, medalsMetadataFile] = await Promise.all([
+      const [users, medalsMetadataFile, analytics] = await Promise.all([
         this.config.haloClient.getUsers(xuids),
         this.config.haloClient.getMedalsMetadataFile(),
+        analyticsPromise,
       ]);
       if (this.isStale(matchId)) {
         return;
@@ -89,7 +93,7 @@ export class IndividualTrackerViewerPresenter {
       const medalMetadata: MedalMetadata = Object.fromEntries(
         medalsMetadataFile.medals.map((m) => [m.nameId, { name: m.name.value, sortingWeight: m.sortingWeight }]),
       );
-      this.config.store.setMatchStats(matchId, stats, playerMap, medalMetadata);
+      this.config.store.setMatchStats(matchId, stats, playerMap, medalMetadata, analytics);
     } catch (error) {
       if (this.isStale(matchId)) {
         return;
