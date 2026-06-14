@@ -1,5 +1,5 @@
 import React from "react";
-import classNames from "classnames";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { Alert } from "../../alert/alert";
 import { SortableTable, type SortableTableColumn } from "../../table/sortable-table";
 import tableStyles from "../../table/table.module.css";
@@ -12,58 +12,94 @@ interface KillMatrixTableProps {
   readonly emptyMessage: string;
 }
 
+interface MatrixRow {
+  readonly killerId: string;
+  readonly killerGamertag: string;
+  [victimGamertag: string]: string | number;
+}
+
 export function KillMatrixTable({ rows, ariaLabel, emptyMessage }: KillMatrixTableProps): React.ReactElement {
-  const columns = React.useMemo<SortableTableColumn<KillMatrixViewRow>[]>(() => {
-    return [
+  // Build a pivot table structure: killers x victims with kill counts
+  const matrixData = React.useMemo(() => {
+    if (rows.length === 0) {
+      return { tableRows: [], victimGamertags: [] };
+    }
+
+    // Extract unique killers and victims
+    const killersMap = new Map<string, string>();
+    const victimsMap = new Map<string, string>();
+    const killCounts = new Map<string, Map<string, number>>();
+
+    for (const row of rows) {
+      killersMap.set(row.killer.xuid, row.killer.gamertag);
+      victimsMap.set(row.victim.xuid, row.victim.gamertag);
+
+      if (!killCounts.has(row.killer.xuid)) {
+        killCounts.set(row.killer.xuid, new Map());
+      }
+      const victimCounts = Preconditions.checkExists(killCounts.get(row.killer.xuid));
+      victimCounts.set(row.victim.xuid, row.count);
+    }
+
+    // Sort killers and victims alphabetically
+    const sortedKillers = Array.from(killersMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+    const sortedVictims = Array.from(victimsMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+
+    // Build table rows
+    const tableRows: MatrixRow[] = sortedKillers.map(([killerId, killerGamertag]) => {
+      const row: MatrixRow = {
+        killerId,
+        killerGamertag,
+      };
+
+      const victimCounts = killCounts.get(killerId) ?? new Map();
+      for (const [victimId, victimGamertag] of sortedVictims) {
+        row[victimGamertag] = victimCounts.get(victimId) ?? 0;
+      }
+
+      return row;
+    });
+
+    const victimGamertags = sortedVictims.map(([, gamertag]) => gamertag);
+
+    return { tableRows, victimGamertags };
+  }, [rows]);
+
+  const columns = React.useMemo<SortableTableColumn<MatrixRow>[]>(() => {
+    const cols: SortableTableColumn<MatrixRow>[] = [
       {
         id: "killer",
         header: "Killer",
-        accessorFn: (row): string => row.killer.gamertag,
+        accessorFn: (row): string => row.killerGamertag,
         sortingFn: "alphanumeric",
         cellClassName: tableStyles.labelCell,
-      },
-      {
-        id: "victim",
-        header: "Victim",
-        accessorFn: (row): string => row.victim.gamertag,
-        sortingFn: "alphanumeric",
-        cellClassName: tableStyles.labelCell,
-      },
-      {
-        id: "count",
-        header: "Kills",
-        accessorFn: (row): number => row.count,
-        sortingFn: "basic",
-        cellClassName: classNames(tableStyles.statCell, styles.rowCount),
-      },
-      {
-        id: "headshotKills",
-        header: "HS",
-        accessorFn: (row): number => row.headshotKills,
-        sortingFn: "basic",
-        cellClassName: classNames(tableStyles.statCell, styles.rowCount),
-      },
-      {
-        id: "perfects",
-        header: "Perfects",
-        accessorFn: (row): number => row.perfects,
-        sortingFn: "basic",
-        cellClassName: classNames(tableStyles.statCell, styles.rowCount),
-      },
-      {
-        id: "classification",
-        header: "Type",
-        accessorFn: (row): string => row.classification,
-        sortingFn: "alphanumeric",
-        cellClassName: tableStyles.statCell,
-        cell: (value): React.ReactNode => String(value).replace("-", " "),
       },
     ];
-  }, []);
 
-  if (rows.length === 0) {
+    // Add a column for each victim
+    for (const victimGamertag of matrixData.victimGamertags) {
+      cols.push({
+        id: victimGamertag,
+        header: victimGamertag,
+        accessorFn: (row): number => row[victimGamertag] as number,
+        sortingFn: "basic",
+        cellClassName: styles.killCell,
+      });
+    }
+
+    return cols;
+  }, [matrixData.victimGamertags]);
+
+  if (matrixData.tableRows.length === 0) {
     return <Alert variant="info">{emptyMessage}</Alert>;
   }
 
-  return <SortableTable data={rows} columns={columns} getRowKey={(row): string => row.key} ariaLabel={ariaLabel} />;
+  return (
+    <SortableTable
+      data={matrixData.tableRows}
+      columns={columns}
+      getRowKey={(row): string => row.killerId}
+      ariaLabel={ariaLabel}
+    />
+  );
 }
