@@ -117,6 +117,9 @@
 
 .seriesScoresList {
   color: var(--halo-white);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
   list-style-type: none;
   margin: 0;
   padding: 0;
@@ -143,7 +146,7 @@
     100% 100%,
     10px 10px,
     cover;
-  margin: 0 0 var(--space-4);
+  margin: 0;
 
   /* Image comes from JSX via CSS var so we can layer theme overlays for contrast */
   --series-score-bg: none;
@@ -355,10 +358,6 @@
     > :nth-child(3) {
       order: 3;
     }
-  }
-
-  .seriesScore {
-    margin: 0;
   }
 }
 

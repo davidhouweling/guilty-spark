@@ -23,31 +23,29 @@ const footerSections = [
 ];
 ---
 
-<footer class={styles.haloFooter}>
-  <Container>
-    <div class={styles.footerContent}>
-      <div class={styles.footerSection}>
-        <Logo variant="footer" />
-        <p class={styles.footerDesc}>Installation 04 Combat Statistics Interface</p>
-      </div>
-
-      {
-        footerSections.map((section) => (
-          <div class={styles.footerSection}>
-            <h4 class={styles.footerHeading}>{section.heading}</h4>
-            {section.links.map((link) => (
-              <a class={styles.footerLink} href={link.href} target="_blank" rel="noopener noreferrer">
-                {link.label}
-              </a>
-            ))}
-          </div>
-        ))
-      }
+<Container tagName="footer" class={styles.haloFooter}>
+  <div class={styles.footerContent}>
+    <div class={styles.footerSection}>
+      <Logo variant="footer" />
+      <p class={styles.footerDesc}>Installation 04 Combat Statistics Interface</p>
     </div>
 
-    <div class={styles.footerBottom}>
-      <div class={styles.footerLegal}>© David Houweling. Not affiliated with Microsoft or 343 Industries.</div>
-      <div class={styles.footerVersion}>Monitoring since October 2024</div>
-    </div>
-  </Container>
-</footer>
+    {
+      footerSections.map((section) => (
+        <div class={styles.footerSection}>
+          <h4 class={styles.footerHeading}>{section.heading}</h4>
+          {section.links.map((link) => (
+            <a class={styles.footerLink} href={link.href} target="_blank" rel="noopener noreferrer">
+              {link.label}
+            </a>
+          ))}
+        </div>
+      ))
+    }
+  </div>
+
+  <div class={styles.footerBottom}>
+    <div class={styles.footerLegal}>© David Houweling. Not affiliated with Microsoft or 343 Industries.</div>
+    <div class={styles.footerVersion}>Monitoring since October 2024</div>
+  </div>
+</Container>

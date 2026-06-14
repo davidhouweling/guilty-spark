@@ -7,6 +7,7 @@ import { TabbedSection } from "../shared/tabbed-section/tabbed-section";
 import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
 import type { TeamColor } from "../team-colors/team-colors";
+import { Container } from "../container/container";
 import type { KillMatrixViewRow } from "./kill-matrix/types";
 import { KillMatrixTable } from "./kill-matrix/kill-matrix-table";
 import type { MatchStatsData, MatchStatsPlayerData } from "./types";
@@ -184,7 +185,10 @@ export function MatchStats({
 
   return (
     <div className={styles.matchStatsContainer} id={id}>
-      <div className={styles.matchHeader} style={{ "--match-bg": `url(${backgroundImageUrl})` } as React.CSSProperties}>
+      <Container
+        className={styles.matchHeader}
+        style={{ "--match-bg": `url(${backgroundImageUrl})` } as React.CSSProperties}
+      >
         <div className={styles.matchHeaderContent}>
           <h3 className={styles.matchTitle}>
             Match {matchNumber}: {gameTypeAndMap}
@@ -209,9 +213,32 @@ export function MatchStats({
           </ul>
         </div>
         <img src={gameModeIconUrl} alt={gameModeAlt} className={styles.gameModeIcon} />
-      </div>
+      </Container>
+
+      {hasTeamStats && (
+        <div className={styles.teamTotals}>
+          <Container>
+            <h3 className={styles.subsectionHeader}>Team Totals</h3>
+          </Container>
+          <SortableTable
+            data={data}
+            columns={teamColumns}
+            getRowKey={(row) => row.teamId.toString()}
+            ariaLabel="Team statistics"
+            getRowStyle={
+              teamColors
+                ? (row): React.CSSProperties =>
+                    ({
+                      "--row-color": teamColors[row.teamId]?.hex ?? "transparent",
+                    }) as React.CSSProperties
+                : undefined
+            }
+          />
+        </div>
+      )}
+
       <TabbedSection
-        tabListAriaLabel="Match statistics sections"
+        tabListAriaLabel="Player statistics view"
         selectedTabId={activeTab}
         onTabChange={setActiveTab}
         tabs={[
@@ -219,45 +246,20 @@ export function MatchStats({
             id: "players",
             label: "Players",
             content: (
-              <>
-                {hasTeamStats && (
-                  <div className={styles.teamTotals}>
-                    <h3 className={styles.subsectionHeader}>Team Totals</h3>
-                    <SortableTable
-                      data={data}
-                      columns={teamColumns}
-                      getRowKey={(row) => row.teamId.toString()}
-                      ariaLabel="Team statistics"
-                      getRowStyle={
-                        teamColors
-                          ? (row): React.CSSProperties =>
-                              ({
-                                "--row-color": teamColors[row.teamId]?.hex ?? "transparent",
-                              }) as React.CSSProperties
-                          : undefined
-                      }
-                    />
-                  </div>
-                )}
-
-                <div className={styles.playerStats}>
-                  <h3 className={styles.subsectionHeader}>Players</h3>
-                  <SortableTable
-                    data={playerData}
-                    columns={playerColumns}
-                    getRowKey={(row) => `${row.teamId.toString()}-${row.player.name}`}
-                    ariaLabel="Player statistics"
-                    getRowStyle={
-                      teamColors
-                        ? (row): React.CSSProperties =>
-                            ({
-                              "--row-color": teamColors[row.teamId]?.hex ?? "transparent",
-                            }) as React.CSSProperties
-                        : undefined
-                    }
-                  />
-                </div>
-              </>
+              <SortableTable
+                data={playerData}
+                columns={playerColumns}
+                getRowKey={(row) => `${row.teamId.toString()}-${row.player.name}`}
+                ariaLabel="Player statistics"
+                getRowStyle={
+                  teamColors
+                    ? (row): React.CSSProperties =>
+                        ({
+                          "--row-color": teamColors[row.teamId]?.hex ?? "transparent",
+                        }) as React.CSSProperties
+                    : undefined
+                }
+              />
             ),
           },
           {

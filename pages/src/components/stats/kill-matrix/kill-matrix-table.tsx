@@ -1,5 +1,6 @@
 import React from "react";
 import classNames from "classnames";
+import { Alert } from "../../alert/alert";
 import { SortableTable, type SortableTableColumn } from "../../table/sortable-table";
 import tableStyles from "../../table/table.module.css";
 import type { KillMatrixViewRow } from "./types";
@@ -61,7 +62,7 @@ export function KillMatrixTable({ rows, ariaLabel, emptyMessage }: KillMatrixTab
   }, []);
 
   if (rows.length === 0) {
-    return <p className={styles.emptyState}>{emptyMessage}</p>;
+    return <Alert variant="info">{emptyMessage}</Alert>;
   }
 
   return <SortableTable data={rows} columns={columns} getRowKey={(row): string => row.key} ariaLabel={ariaLabel} />;
