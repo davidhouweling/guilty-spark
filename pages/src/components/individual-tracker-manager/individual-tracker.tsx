@@ -1,6 +1,7 @@
 import type { ReactElement, ReactNode } from "react";
 import { useMemo } from "react";
 import { Button } from "../button/button";
+import { LoadingState } from "../loading-state/loading-state";
 import { TabbedSection } from "../shared/tabbed-section/tabbed-section";
 import type { IndividualTrackerAuthState, IndividualTrackerSectionId } from "./individual-tracker-store";
 import styles from "./individual-tracker.module.css";
@@ -44,7 +45,7 @@ export function IndividualTrackerShell({
     <div className={styles.container}>
       <h1 className={styles.heading}>Individual Tracker</h1>
 
-      {authState === "loading" && <p className={styles.loading}>Checking session...</p>}
+      {authState === "loading" && <LoadingState text="Checking session..." />}
 
       {authState === "unauthenticated" && (
         <div className={styles.authWall}>
