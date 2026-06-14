@@ -20,7 +20,6 @@ describe("KillMatrixPresenter", () => {
     expect(rows.map((row) => row.key)).toEqual(["111:222", "333:444", "111:111"]);
     expect(rows[0]).toMatchObject({
       classification: "enemy-kill",
-      topWeaponId: 5001,
       killer: { gamertag: "Alpha" },
       victim: { gamertag: "Bravo" },
     });
@@ -48,34 +47,6 @@ describe("KillMatrixPresenter", () => {
     expect(row.classification).toBe("enemy-kill");
   });
 
-  it("returns a weapon even when all have zero count", () => {
-    const presenter = new KillMatrixPresenter();
-    const analytics = aFakeMatchAnalyticsWith({
-      killMatrix: {
-        "111:222": {
-          count: 1,
-          headshotKills: 0,
-          perfects: 0,
-          weapons: [
-            { weaponId: 6001, count: 0 },
-            { weaponId: 5001, count: 0 },
-            { weaponId: 7001, count: 0 },
-          ],
-        },
-      },
-    });
-
-    const [row] = presenter.present({
-      analytics,
-      playersByXuid: new Map([
-        ["111", { gamertag: "Alpha", teamId: 0 }],
-        ["222", { gamertag: "Bravo", teamId: 1 }],
-      ]),
-    });
-
-    expect(row.topWeaponId).toBe(6001);
-  });
-
   describe("aggregate", () => {
     it("sums counts for the same key across multiple rows", () => {
       const rows: KillMatrixViewRow[] = [
@@ -87,7 +58,6 @@ describe("KillMatrixPresenter", () => {
           headshotKills: 1,
           perfects: 0,
           classification: "enemy-kill",
-          topWeaponId: 1001,
         },
         {
           key: "111:222",
@@ -97,7 +67,6 @@ describe("KillMatrixPresenter", () => {
           headshotKills: 2,
           perfects: 1,
           classification: "enemy-kill",
-          topWeaponId: 2001,
         },
       ];
 
@@ -117,7 +86,6 @@ describe("KillMatrixPresenter", () => {
           headshotKills: 0,
           perfects: 0,
           classification: "enemy-kill",
-          topWeaponId: null,
         },
         {
           key: "333:444",
@@ -127,7 +95,6 @@ describe("KillMatrixPresenter", () => {
           headshotKills: 0,
           perfects: 0,
           classification: "enemy-kill",
-          topWeaponId: null,
         },
       ];
 

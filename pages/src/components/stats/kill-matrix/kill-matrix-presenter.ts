@@ -28,7 +28,6 @@ export class KillMatrixPresenter {
         headshotKills: value.headshotKills,
         perfects: value.perfects,
         classification: this.classify(killer, victim),
-        topWeaponId: this.topWeaponId(value.weapons),
       });
     }
 
@@ -75,25 +74,6 @@ export class KillMatrixPresenter {
     }
 
     return "enemy-kill";
-  }
-
-  private topWeaponId(weapons: readonly { readonly weaponId: number; readonly count: number }[]): number | null {
-    if (weapons.length === 0) {
-      return null;
-    }
-
-    let maxWeaponId = weapons[0].weaponId;
-    let maxCount = weapons[0].count;
-
-    for (let i = 1; i < weapons.length; i++) {
-      const weapon = weapons[i];
-      if (weapon.count > maxCount) {
-        maxCount = weapon.count;
-        maxWeaponId = weapon.weaponId;
-      }
-    }
-
-    return maxWeaponId;
   }
 
   private parsePairKey(key: string): { killerXuid: string; victimXuid: string } {

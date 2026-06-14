@@ -29,7 +29,6 @@ describe("KillMatrixTable", () => {
             headshotKills: 1,
             perfects: 0,
             classification: "enemy-kill",
-            topWeaponId: 1001,
           },
         ]}
       />,
