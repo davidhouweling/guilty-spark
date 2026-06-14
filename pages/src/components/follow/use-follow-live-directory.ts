@@ -14,6 +14,7 @@ export interface FollowLiveDirectoryResult {
   readonly isFollowingLive: boolean;
   readonly onSelectTracker: (trackerId: string) => void;
   readonly onFollowLive: () => void;
+  readonly onRetry: () => void;
 }
 
 function findLiveTrackerId(directory: TrackerDirectory): string | null {
@@ -33,6 +34,7 @@ export function useFollowLiveDirectory({
   const [directoryStatus, setDirectoryStatus] = useState<DirectoryConnectionStatus>("connecting");
   const [selectedTrackerId, setSelectedTrackerId] = useState<string | null>(null);
   const [isFollowingLive, setIsFollowingLive] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
 
   // Refs let WS callbacks and action handlers read current values without
   // stale closures and without calling state setters inside updater functions.
@@ -104,7 +106,7 @@ export function useFollowLiveDirectory({
       statusSubscription.unsubscribe();
       connection.disconnect();
     };
-  }, [followLiveService, gamertag]);
+  }, [followLiveService, gamertag, retryCount]);
 
   const onSelectTracker = useCallback((trackerId: string): void => {
     const dir = directoryRef.current;
@@ -123,6 +125,10 @@ export function useFollowLiveDirectory({
     }
   }, []);
 
+  const onRetry = useCallback((): void => {
+    setRetryCount((c) => c + 1);
+  }, []);
+
   return {
     directory,
     directoryStatus,
@@ -130,5 +136,6 @@ export function useFollowLiveDirectory({
     isFollowingLive,
     onSelectTracker,
     onFollowLive,
+    onRetry,
   };
 }
