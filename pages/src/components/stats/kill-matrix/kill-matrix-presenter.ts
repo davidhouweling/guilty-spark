@@ -28,7 +28,6 @@ export class KillMatrixPresenter {
         headshotKills: value.headshotKills,
         perfects: value.perfects,
         classification: this.classify(killer, victim),
-        topWeaponId: this.topWeaponId(value.weapons),
       });
     }
 
@@ -77,27 +76,34 @@ export class KillMatrixPresenter {
     return "enemy-kill";
   }
 
-  private topWeaponId(weapons: readonly { readonly weaponId: number; readonly count: number }[]): number | null {
-    if (weapons.length === 0) {
-      return null;
-    }
-
-    let maxWeaponId = weapons[0].weaponId;
-    let maxCount = weapons[0].count;
-
-    for (let i = 1; i < weapons.length; i++) {
-      const weapon = weapons[i];
-      if (weapon.count > maxCount) {
-        maxCount = weapon.count;
-        maxWeaponId = weapon.weaponId;
-      }
-    }
-
-    return maxWeaponId;
-  }
-
   private parsePairKey(key: string): { killerXuid: string; victimXuid: string } {
     const [killerXuid, victimXuid] = key.split(":");
     return { killerXuid, victimXuid };
+  }
+
+  public static aggregate(rows: readonly KillMatrixViewRow[]): KillMatrixViewRow[] {
+    const merged = new Map<string, KillMatrixViewRow>();
+
+    for (const row of rows) {
+      const existing = merged.get(row.key);
+      if (existing == null) {
+        merged.set(row.key, { ...row });
+      } else {
+        merged.set(row.key, {
+          ...existing,
+          count: existing.count + row.count,
+          headshotKills: existing.headshotKills + row.headshotKills,
+          perfects: existing.perfects + row.perfects,
+        });
+      }
+    }
+
+    return [...merged.values()].sort((left, right) => {
+      if (right.count !== left.count) {
+        return right.count - left.count;
+      }
+
+      return left.key.localeCompare(right.key);
+    });
   }
 }

@@ -16,7 +16,6 @@ export interface KillMatrixViewRow {
   readonly headshotKills: number;
   readonly perfects: number;
   readonly classification: KillMatrixClassification;
-  readonly topWeaponId: number | null;
 }
 
 export type KillMatrixRaw = MatchAnalytics["killMatrix"];
