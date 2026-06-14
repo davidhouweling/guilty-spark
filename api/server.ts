@@ -39,6 +39,26 @@ export class Server {
 
     discordInteractionsRoute(this.router, this.installServices);
 
+    this.router.get("/tracker/:guildId/:queueNumber/status", async (request, env: Env) => {
+      const { guildId, queueNumber } = request.params as {
+        guildId: string;
+        queueNumber: string;
+      };
+
+      const queueNum = parseInt(queueNumber, 10);
+      if (isNaN(queueNum)) {
+        return new Response("Invalid queue number", { status: 400 });
+      }
+
+      const doId = env.LIVE_TRACKER_DO.idFromName(`${guildId}:${queueNum.toString()}`);
+      const stub = env.LIVE_TRACKER_DO.get(doId);
+
+      const doUrl = new URL(request.url);
+      doUrl.pathname = "/status";
+
+      return await stub.fetch(new Request(doUrl.toString()));
+    });
+
     this.router.get("/ws/tracker/:guildId/:queueNumber", async (request, env: Env) => {
       try {
         // Extract parameters from itty-router
