@@ -129,8 +129,6 @@ describe("LiveTracker", () => {
       expect(screen.getByText("Connection Failed")).toBeInTheDocument();
     });
 
-    expect(
-      screen.getByText("No active tracker found for this queue. Start a tracker first."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("No active tracker found for this queue. Start a tracker first.")).toBeInTheDocument();
   });
 });
