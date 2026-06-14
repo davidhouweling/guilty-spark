@@ -115,8 +115,7 @@ describe("SeriesStats", () => {
       <SeriesStats teamData={teamData} playerData={playerData} title="Series Overview" metadata={seriesMetadata} />,
     );
 
-    const playerStatsElements = screen.getAllByText("Accumulated Player Stats");
-    expect(playerStatsElements.length).toBeGreaterThan(0);
+    expect(screen.getByRole("tab", { name: "Accumulated Stats" })).toBeInTheDocument();
     expect(screen.getByLabelText("Accumulated player statistics")).toBeInTheDocument();
     expect(screen.getByText("Player1")).toBeInTheDocument();
     expect(screen.getByText("Player2")).toBeInTheDocument();
