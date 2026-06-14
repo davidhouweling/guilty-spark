@@ -5,6 +5,7 @@ import { ErrorState } from "../../components/error-state/error-state";
 import { LoadingState } from "../../components/loading-state/loading-state";
 import { DiscordSeriesStats } from "../../components/discord-series-stats/create";
 import type { DiscordSeriesStatsService } from "../../services/stats/discord-series-types";
+import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import { DiscordSeriesStatsPresenter } from "./discord-series-stats-presenter";
 import { DiscordSeriesStatsStore } from "./discord-series-stats-store";
 import type { Services } from "./services";
@@ -18,7 +19,7 @@ interface DiscordSeriesStatsAppProps {
 
 interface DiscordSeriesStatsDataProps {
   readonly discordSeriesStatsService: DiscordSeriesStatsService;
-  readonly matchAnalyticsService: Services["matchAnalyticsService"];
+  readonly matchAnalyticsService: MatchAnalyticsService;
   readonly guildId: string;
   readonly queueNumber: string;
 }
