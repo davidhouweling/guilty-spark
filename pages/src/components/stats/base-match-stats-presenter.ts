@@ -12,7 +12,7 @@ import {
 } from "@guilty-spark/shared/halo/match-stats";
 import type { MatchStatsData, MatchStatsPlayerData, MatchStatsValues } from "./types";
 
-export abstract class BaseMatchStatsPresenter {
+export abstract class BaseMatchStatsFormatter {
   protected abstract getPlayerObjectiveStats(stats: Stats): StatsCollection;
 
   protected getPlayerSlayerStats(stats: Stats, rank: number): StatsCollection {

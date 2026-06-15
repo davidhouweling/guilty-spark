@@ -1,7 +1,7 @@
 import type { StatsCollection } from "@guilty-spark/shared/halo/types";
-import { BaseMatchStatsPresenter } from "./base-match-stats-presenter";
+import { BaseMatchStatsFormatter } from "./base-match-stats-presenter";
 
-export class EscalationMatchStatsPresenter extends BaseMatchStatsPresenter {
+export class EscalationMatchStatsFormatter extends BaseMatchStatsFormatter {
   protected getPlayerObjectiveStats(): StatsCollection {
     return new Map();
   }

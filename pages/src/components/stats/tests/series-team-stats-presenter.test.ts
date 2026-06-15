@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { SeriesTeamStatsPresenter } from "../series-team-stats-presenter";
+import { SeriesTeamStatsFormatter } from "../series-team-stats-presenter";
 import { aFakeMatchStatsWith, aFakeTeamWith, aFakeCoreStatsWith, aFakeMedalMetadata } from "../fakes/data";
 
-describe("SeriesTeamStatsPresenter", () => {
-  const presenter = new SeriesTeamStatsPresenter();
+describe("SeriesTeamStatsFormatter", () => {
+  const presenter = new SeriesTeamStatsFormatter();
 
   describe("getSeriesData", () => {
     it("returns data for each team", () => {

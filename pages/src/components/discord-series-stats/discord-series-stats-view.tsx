@@ -5,7 +5,7 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
-import { KillMatrixPresenter } from "../stats/kill-matrix/kill-matrix-presenter";
+import { KillMatrixFormatter } from "../stats/kill-matrix/kill-matrix-presenter";
 import type { KillMatrixViewRow } from "../stats/kill-matrix/types";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
@@ -34,7 +34,7 @@ export function DiscordSeriesStatsView({
   const handleToggleViewMode = useCallback((): void => {
     setViewMode((current) => (current === "standard" ? "wide" : "standard"));
   }, []);
-  const killMatrixPresenter = useMemo(() => new KillMatrixPresenter(), []);
+  const killMatrixPresenter = useMemo(() => new KillMatrixFormatter(), []);
 
   const allMatchKillMatrixRows = useMemo<ReadonlyMap<string, KillMatrixViewRow[]>>(
     () =>
@@ -54,7 +54,7 @@ export function DiscordSeriesStatsView({
   );
 
   const seriesKillMatrixRows = useMemo<KillMatrixViewRow[]>(
-    () => KillMatrixPresenter.aggregate([...allMatchKillMatrixRows.values()].flat()),
+    () => KillMatrixFormatter.aggregate([...allMatchKillMatrixRows.values()].flat()),
     [allMatchKillMatrixRows],
   );
 
