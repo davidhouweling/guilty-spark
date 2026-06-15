@@ -2,7 +2,7 @@ import React from "react";
 import classNames from "classnames";
 import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";
-import { TabbedSection } from "../shared/tabbed-section/tabbed-section";
+import { TabbedSection } from "../tabbed-section/tabbed-section";
 import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
 import type { TeamColor } from "../team-colors/team-colors";
