@@ -4,7 +4,10 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 
 import { SeriesStats } from "../series-stats";
-import { aFakeMatchStatsDataWith, aFakeMatchStatsPlayerDataWith } from "../../../controllers/stats/fakes/component-data";
+import {
+  aFakeMatchStatsDataWith,
+  aFakeMatchStatsPlayerDataWith,
+} from "../../../controllers/stats/fakes/component-data";
 import type { SeriesMetadata } from "../../../controllers/stats/series-metadata";
 import type { TeamColor } from "../../team-colors/team-colors";
 

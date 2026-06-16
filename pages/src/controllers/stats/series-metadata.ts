@@ -12,10 +12,7 @@ interface MatchWithTimes {
   readonly endTime: string;
 }
 
-export function calculateSeriesMetadata(
-  matches: readonly MatchWithTimes[],
-  score: string,
-): SeriesMetadata | null {
+export function calculateSeriesMetadata(matches: readonly MatchWithTimes[], score: string): SeriesMetadata | null {
   if (matches.length === 0) {
     return null;
   }
