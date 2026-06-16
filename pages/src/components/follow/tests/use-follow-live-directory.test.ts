@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { aFakeFollowLiveServiceWith } from "../../../services/follow/fakes/follow.fake";
@@ -230,6 +230,42 @@ describe("useFollowLiveDirectory", () => {
 
     expect(result.current.selectedTrackerId).toBe("tracker-1");
     expect(result.current.isFollowingLive).toBe(true);
+  });
+
+  it("sets directoryStatus to error when getDirectory fails", async () => {
+    const service = aFakeFollowLiveServiceWith();
+    vi.spyOn(service, "getDirectory").mockRejectedValue(new Error("Network error"));
+    const { result } = renderHook(() =>
+      useFollowLiveDirectory({ followLiveService: service, gamertag: "Spartan One" }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.directoryStatus).toBe("error");
+    });
+
+    expect(result.current.directory).toBeNull();
+  });
+
+  it("onRetry re-fetches the directory after an error", async () => {
+    const service = aFakeFollowLiveServiceWith({ directory: aDirectory() });
+    vi.spyOn(service, "getDirectory").mockRejectedValueOnce(new Error("Network error"));
+    const { result } = renderHook(() =>
+      useFollowLiveDirectory({ followLiveService: service, gamertag: "Spartan One" }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.directoryStatus).toBe("error");
+    });
+
+    act(() => {
+      result.current.onRetry();
+    });
+
+    await waitFor(() => {
+      expect(result.current.directoryStatus).toBe("connected");
+    });
+
+    expect(result.current.directory).not.toBeNull();
   });
 
   it("onFollowLive sets isFollowingLive to true and selects the live tracker", async () => {
