@@ -54,8 +54,12 @@ export class IndividualTrackerViewerPresenter {
   }
 
   private static toMatchStatsPanelState(state: MatchStatsState | null): MatchStatsPanelState | null {
-    if (state == null) {return null;}
-    if (state.status !== "loaded") {return state;}
+    if (state == null) {
+      return null;
+    }
+    if (state.status !== "loaded") {
+      return state;
+    }
 
     const { stats, playerMap, medalMetadata, analytics } = state;
     try {
