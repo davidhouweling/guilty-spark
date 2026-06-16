@@ -9,6 +9,7 @@ import { MedalIcon } from "../icons/medal-icon";
 import type { TeamColor } from "../team-colors/team-colors";
 import { Container } from "../container/container";
 import type { KillMatrixViewRow } from "../../controllers/stats/kill-matrix/types";
+import { KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import type { MatchStatsData, MatchStatsPlayerData } from "../../controllers/stats/types";
 import { sortByMedals, getTeamMedalsMap, getPlayerMedalsMap } from "../../controllers/stats/medals-sorting";
 import { KillMatrixTable } from "./kill-matrix/kill-matrix-table";
@@ -267,7 +268,7 @@ export function MatchStats({
             label: "Kill Matrix",
             content: (
               <KillMatrixTable
-                rows={killMatrixRows ?? []}
+                pivotData={KillMatrixFormatter.pivot(killMatrixRows ?? [])}
                 ariaLabel="Match kill matrix"
                 emptyMessage="Kill matrix data is not available for this match yet."
               />

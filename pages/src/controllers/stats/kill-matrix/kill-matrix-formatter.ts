@@ -1,5 +1,6 @@
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
-import type { KillMatrixClassification, KillMatrixPlayer, KillMatrixViewRow } from "./types";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import type { KillMatrixClassification, KillMatrixPivotData, KillMatrixPlayer, KillMatrixViewRow } from "./types";
 
 interface KillMatrixFormatterPlayerLookup {
   readonly gamertag: string;
@@ -79,6 +80,48 @@ export class KillMatrixFormatter {
   private parsePairKey(key: string): { killerXuid: string; victimXuid: string } {
     const [killerXuid, victimXuid] = key.split(":");
     return { killerXuid, victimXuid };
+  }
+
+  public static pivot(rows: readonly KillMatrixViewRow[]): KillMatrixPivotData {
+    if (rows.length === 0) {
+      return { tableRows: [], victimGamertags: [] };
+    }
+
+    const killersMap = new Map<string, string>();
+    const victimsMap = new Map<string, string>();
+    const killCounts = new Map<string, Map<string, number>>();
+
+    for (const row of rows) {
+      killersMap.set(row.killer.xuid, row.killer.gamertag);
+      victimsMap.set(row.victim.xuid, row.victim.gamertag);
+
+      if (!killCounts.has(row.killer.xuid)) {
+        killCounts.set(row.killer.xuid, new Map());
+      }
+      const victimCounts = Preconditions.checkExists(killCounts.get(row.killer.xuid));
+      victimCounts.set(row.victim.xuid, row.count);
+    }
+
+    const sortedKillers = Array.from(killersMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+    const sortedVictims = Array.from(victimsMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+
+    const tableRows = sortedKillers.map(([killerId, killerGamertag]) => {
+      const row: { killerId: string; killerGamertag: string; [key: string]: string | number } = {
+        killerId,
+        killerGamertag,
+      };
+
+      const victimCounts = killCounts.get(killerId) ?? new Map();
+      for (const [victimId, victimGamertag] of sortedVictims) {
+        row[victimGamertag] = victimCounts.get(victimId) ?? 0;
+      }
+
+      return row;
+    });
+
+    const victimGamertags = sortedVictims.map(([, gamertag]) => gamertag);
+
+    return { tableRows, victimGamertags };
   }
 
   public static aggregate(rows: readonly KillMatrixViewRow[]): KillMatrixViewRow[] {
