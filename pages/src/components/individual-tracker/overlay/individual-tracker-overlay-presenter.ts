@@ -3,7 +3,7 @@ import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { TickerMatchGroup } from "../../information-ticker/information-ticker";
-import { createMatchStatsFormatter } from "../../stats/create";
+import { createMatchStatsFormatter } from "../../../controllers/stats/create";
 import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
 import type { IndividualTrackerViewerRenderModel, ViewerSeriesTab, ViewerTimelineItem } from "../viewer/types";
 import type { MatchStatsState } from "../viewer/viewer-store";

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { StatsCollection } from "@guilty-spark/shared/halo/types";
-import { BaseMatchStatsFormatter } from "../base-match-stats-presenter";
+import { BaseMatchStatsFormatter } from "../base-match-stats-formatter";
 import {
   aFakeMatchStatsWith,
   aFakePlayerWith,

@@ -1,10 +1,10 @@
 import type { MatchStats } from "halo-infinite-api";
 import { differenceInSeconds, isValid, parseISO } from "date-fns";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
-import { createMatchStatsFormatter } from "../stats/create";
-import { SeriesTeamStatsFormatter } from "../stats/series-team-stats-presenter";
-import { SeriesPlayerStatsFormatter } from "../stats/series-player-stats-presenter";
-import type { MatchStatsData } from "../stats/types";
+import { createMatchStatsFormatter } from "../../controllers/stats/create";
+import { SeriesTeamStatsFormatter } from "../../controllers/stats/series-team-stats-formatter";
+import { SeriesPlayerStatsFormatter } from "../../controllers/stats/series-player-stats-formatter";
+import type { MatchStatsData } from "../../controllers/stats/types";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault, type TeamColor } from "../team-colors/team-colors";
 
 const WIN_OUTCOME = 2;

@@ -1,5 +1,5 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import type { LiveTrackerMatchRenderModel } from "../live-tracker/types";
+import type { LiveTrackerMatchRenderModel } from "../../components/live-tracker/types";
 
 export interface SeriesMetadata {
   readonly score: string;

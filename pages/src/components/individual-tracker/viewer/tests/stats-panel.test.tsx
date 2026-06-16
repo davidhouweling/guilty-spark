@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { aFakeMatchStatsWith } from "../../../stats/fakes/data";
+import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { StatsPanel } from "../stats-panel";
 
 vi.mock("../../../icons/team-icon", () => ({

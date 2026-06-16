@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { LiveTrackerMatchRenderModel } from "../../live-tracker/types";
+import type { LiveTrackerMatchRenderModel } from "../../../components/live-tracker/types";
 import { calculateSeriesMetadata } from "../series-metadata";
 
 describe("calculateSeriesMetadata", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { KillMatrixFormatter } from "../kill-matrix-presenter";
+import { KillMatrixFormatter } from "../kill-matrix-formatter";
 import { aFakeMatchAnalyticsWith } from "../fakes/match-analytics.fake";
 import type { KillMatrixViewRow } from "../types";
 

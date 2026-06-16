@@ -3,7 +3,7 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { Alert } from "../../alert/alert";
 import { SortableTable, type SortableTableColumn } from "../../table/sortable-table";
 import tableStyles from "../../table/table.module.css";
-import type { KillMatrixViewRow } from "./types";
+import type { KillMatrixViewRow } from "../../../controllers/stats/kill-matrix/types";
 import styles from "./kill-matrix-table.module.css";
 
 interface KillMatrixTableProps {

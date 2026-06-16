@@ -3,8 +3,8 @@ import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/ty
 import type { TeamColor } from "../../team-colors/team-colors";
 import { MatchStats as MatchStatsView } from "../../stats/match-stats";
 import { SeriesStats } from "../../stats/series-stats";
-import type { MatchStatsData } from "../../stats/types";
-import type { SeriesMetadata } from "../../stats/series-metadata";
+import type { MatchStatsData } from "../../../controllers/stats/types";
+import type { SeriesMetadata } from "../../../controllers/stats/series-metadata";
 import { PlayerPreSeriesInfo } from "../../player-pre-series-info/player-pre-series-info";
 import type { LiveTrackerMatchRenderModel, LiveTrackerTeamRenderModel } from "../types";
 

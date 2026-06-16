@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SeriesTeamStatsFormatter } from "../series-team-stats-presenter";
+import { SeriesTeamStatsFormatter } from "../series-team-stats-formatter";
 import { aFakeMatchStatsWith, aFakeTeamWith, aFakeCoreStatsWith, aFakeMedalMetadata } from "../fakes/data";
 
 describe("SeriesTeamStatsFormatter", () => {

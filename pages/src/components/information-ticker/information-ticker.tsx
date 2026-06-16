@@ -1,6 +1,6 @@
 import React, { useEffect, memo } from "react";
 import classNames from "classnames";
-import type { MatchStatsValues } from "../stats/types";
+import type { MatchStatsValues } from "../../controllers/stats/types";
 import type { TeamColor } from "../team-colors/team-colors";
 import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
