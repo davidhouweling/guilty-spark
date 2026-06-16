@@ -106,13 +106,18 @@ describe("DiscordSeriesStats", () => {
     expect(screen.getByRole("button", { name: "Switch to standard view" })).toBeInTheDocument();
   });
 
-  it("fetches match analytics for each match id", async () => {
+  it("fetches match analytics for each match in renderData", async () => {
     const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
     const getMatchAnalyticsSpy = vi.spyOn(matchAnalyticsService, "getMatchAnalytics");
+    const base = aFakeResolvedDataWith();
+    const secondMatch = { ...base.renderData.matches[0], matchId: "match-2" };
 
     render(
       <DiscordSeriesStats
-        data={aFakeResolvedDataWith({ matchIds: ["match-1", "match-2"] })}
+        data={aFakeResolvedDataWith({
+          matchIds: ["match-1", "match-2"],
+          renderData: { ...base.renderData, matches: [...base.renderData.matches, secondMatch] },
+        })}
         matchAnalyticsService={matchAnalyticsService}
       />,
     );

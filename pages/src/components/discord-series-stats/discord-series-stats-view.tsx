@@ -1,20 +1,15 @@
-import { useCallback, useMemo, useState, type CSSProperties, type ReactElement } from "react";
+import { useCallback, useState, type CSSProperties, type ReactElement } from "react";
 import classNames from "classnames";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
-import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
-import { KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
-import type { KillMatrixViewRow } from "../../controllers/stats/kill-matrix/types";
-import type { StatsController } from "../../controllers/stats/stats-controller";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
 import { getTeamColorOrDefault } from "../team-colors/team-colors";
 import styles from "../live-tracker/live-tracker.module.css";
 import { Button } from "../button/button";
 import localStyles from "./discord-series-stats.module.css";
-import { DiscordSeriesStatsPresenter } from "./discord-series-stats-presenter";
 import type { DiscordSeriesStatsViewModel } from "./discord-series-stats-presenter";
 
 export type DiscordSeriesViewMode = "standard" | "wide";
@@ -22,55 +17,14 @@ export type DiscordSeriesViewMode = "standard" | "wide";
 interface DiscordSeriesStatsViewProps {
   readonly renderData: DiscordSeriesStatsResolved["renderData"];
   readonly model: DiscordSeriesStatsViewModel;
-  readonly analyticsByMatchId: ReadonlyMap<string, MatchAnalytics>;
-  readonly controller: StatsController;
 }
 
-export function DiscordSeriesStatsView({
-  renderData,
-  model,
-  analyticsByMatchId,
-  controller,
-}: DiscordSeriesStatsViewProps): ReactElement {
+export function DiscordSeriesStatsView({ renderData, model }: DiscordSeriesStatsViewProps): ReactElement {
   const [viewMode, setViewMode] = useState<DiscordSeriesViewMode>("standard");
   const contentWidthClass = viewMode === "wide" ? styles.wide : undefined;
   const handleToggleViewMode = useCallback((): void => {
     setViewMode((current) => (current === "standard" ? "wide" : "standard"));
   }, []);
-  const killMatrixPresenter = useMemo(() => new KillMatrixFormatter(), []);
-
-  const playersByXuid = useMemo((): ReadonlyMap<string, { gamertag: string; teamId: number | null }> => {
-    if (model.seriesStats != null) {
-      return new Map(controller.getPlayers().map((p) => [p.xuid, { gamertag: p.gamertag, teamId: p.teamId }]));
-    }
-    return new Map(
-      renderData.matches.flatMap((match) =>
-        Object.entries(match.playerXuidToGametag).map(([xuid, gamertag]) => [
-          xuid,
-          { gamertag, teamId: null as number | null },
-        ]),
-      ),
-    );
-  }, [controller, model.seriesStats, renderData.matches]);
-
-  const allMatchKillMatrixRows = useMemo<ReadonlyMap<string, KillMatrixViewRow[]>>(
-    () =>
-      new Map(
-        renderData.matches.flatMap((match) => {
-          const analytics = analyticsByMatchId.get(match.matchId);
-          if (analytics == null) {
-            return [];
-          }
-          return [[match.matchId, killMatrixPresenter.present({ analytics, playersByXuid })]];
-        }),
-      ),
-    [analyticsByMatchId, killMatrixPresenter, playersByXuid, renderData.matches],
-  );
-
-  const seriesKillMatrixRows = useMemo<KillMatrixViewRow[]>(
-    () => KillMatrixFormatter.aggregate([...allMatchKillMatrixRows.values()].flat()),
-    [allMatchKillMatrixRows],
-  );
 
   return (
     <>
@@ -107,8 +61,8 @@ export function DiscordSeriesStatsView({
                   {renderData.seriesScore}
                 </h3>
                 <ul className={styles.seriesScoresList}>
-                  {renderData.matches.map((match) => {
-                    const teamColor = DiscordSeriesStatsPresenter.getWinningTeamColor(match.rawMatch, model.teamColors);
+                  {renderData.matches.map((match, index) => {
+                    const matchStats = model.allMatchStats[index];
 
                     return (
                       <li
@@ -117,7 +71,7 @@ export function DiscordSeriesStatsView({
                         style={
                           {
                             "--series-score-bg": `url(${match.gameMapThumbnailUrl})`,
-                            "--team-color": teamColor?.hex ?? "transparent",
+                            "--team-color": matchStats.winningTeamColorHex ?? "transparent",
                           } as CSSProperties
                         }
                       >
@@ -166,6 +120,7 @@ export function DiscordSeriesStatsView({
             </div>
           </div>
         </Container>
+
         {model.seriesStats != null && (
           <Container mobileDown="0" className={classNames(styles.contentContainer, contentWidthClass)}>
             <SeriesStats
@@ -174,7 +129,7 @@ export function DiscordSeriesStatsView({
               title="Series Totals"
               metadata={model.seriesStats.metadata}
               teamColors={model.teamColors}
-              killMatrixRows={seriesKillMatrixRows}
+              killMatrixRows={model.seriesStats.killMatrixRows}
             />
           </Container>
         )}
@@ -206,7 +161,7 @@ export function DiscordSeriesStatsView({
                   startTime={match.startTime}
                   endTime={match.endTime}
                   teamColors={model.teamColors}
-                  killMatrixRows={allMatchKillMatrixRows.get(match.matchId)}
+                  killMatrixRows={matchStats.killMatrixRows}
                 />
               ) : (
                 <Alert variant="warning">Failed to load detailed stats for match {match.matchId}.</Alert>
