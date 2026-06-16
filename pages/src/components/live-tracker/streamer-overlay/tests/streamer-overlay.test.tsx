@@ -57,6 +57,8 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
     iconUrl: "data:,",
     statusText: "active",
     statusClassName: "status-active",
+    sortedSubstitutions: [],
+    availablePlayers: [],
     state: {
       type: "neatqueue",
       guildName: "Test Guild",

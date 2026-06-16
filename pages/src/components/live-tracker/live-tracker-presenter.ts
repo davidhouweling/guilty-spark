@@ -68,13 +68,23 @@ export class LiveTrackerPresenter {
       statusText = initialStatusText;
     }
 
+    const state = lastStateMessage?.type === "state" ? toLiveTrackerStateRenderModel(lastStateMessage) : null;
+    const substitutions = state?.type === "neatqueue" ? state.substitutions : [];
+    const sortedSubstitutions = [...substitutions].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    const availablePlayers =
+      state?.type === "neatqueue"
+        ? state.teams.flatMap((team) => team.players.map((player) => ({ id: player.id, name: player.displayName })))
+        : [];
+
     return {
       title,
       subtitle,
       statusText,
       statusClassName,
       iconUrl,
-      state: lastStateMessage?.type === "state" ? toLiveTrackerStateRenderModel(lastStateMessage) : null,
+      state,
+      sortedSubstitutions,
+      availablePlayers,
     };
   }
 

@@ -1,7 +1,6 @@
-import React, { useMemo, useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import ReactTimeAgo from "react-time-ago";
 import classNames from "classnames";
-import { compareAsc } from "date-fns";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
 import { Container } from "../container/container";
@@ -22,6 +21,7 @@ import {
   useSeriesStats,
   useHasMatches,
   useSubstitutions,
+  useAvailablePlayers,
 } from "./live-tracker-context";
 import type { LiveTrackerStateRenderModel } from "./types";
 import styles from "./live-tracker.module.css";
@@ -48,9 +48,11 @@ export function LiveTrackerView(): React.ReactElement {
   const trackerInfo = useTrackerInfo();
   const state = useTrackerState();
   const hasMatches = useHasMatches();
-  const sortedSubstitutions = useSubstitutions();
   const allMatchStats = useAllMatchStats();
   const seriesStats = useSeriesStats();
+
+  const sortedSubstitutionsList = useSubstitutions();
+  const availablePlayers = useAvailablePlayers();
 
   const { settings, setSettings } = useStreamerSettings();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -139,44 +141,15 @@ export function LiveTrackerView(): React.ReactElement {
     updateUrl(mode);
   }, []);
 
-  // Apply settings overrides for title and subtitle
-  const displayTitle = useMemo(
-    () =>
-      settings.series.titleOverride !== null && settings.series.titleOverride !== ""
-        ? settings.series.titleOverride
-        : trackerInfo.title,
-    [settings.series.titleOverride, trackerInfo.title],
-  );
+  const displayTitle =
+    settings.series.titleOverride !== null && settings.series.titleOverride !== ""
+      ? settings.series.titleOverride
+      : trackerInfo.title;
 
-  const displaySubtitle = useMemo(
-    () =>
-      settings.series.subtitleOverride !== null && settings.series.subtitleOverride !== ""
-        ? settings.series.subtitleOverride
-        : trackerInfo.subtitle,
-    [settings.series.subtitleOverride, trackerInfo.subtitle],
-  );
-
-  // Sort substitutions by timestamp for rendering between matches (memoized)
-  const sortedSubstitutionsList = useMemo(() => {
-    if (!sortedSubstitutions) {
-      return [];
-    }
-    return [...sortedSubstitutions].sort((a, b) => compareAsc(a.timestamp, b.timestamp));
-  }, [sortedSubstitutions]);
-
-  // Memoize available players for settings dialog
-  const availablePlayers = useMemo(
-    () =>
-      hasState(state)
-        ? state.teams.flatMap((team) =>
-            team.players.map((player) => ({
-              id: player.id,
-              name: player.displayName,
-            })),
-          )
-        : [],
-    [state],
-  );
+  const displaySubtitle =
+    settings.series.subtitleOverride !== null && settings.series.subtitleOverride !== ""
+      ? settings.series.subtitleOverride
+      : trackerInfo.subtitle;
 
   // Set body data attribute for streamer mode styling
   useEffect(() => {
