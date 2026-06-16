@@ -7,6 +7,7 @@ import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
 import { KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import type { KillMatrixViewRow } from "../../controllers/stats/kill-matrix/types";
+import type { StatsController } from "../../controllers/stats/stats-controller";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
 import { getTeamColorOrDefault } from "../team-colors/team-colors";
@@ -22,12 +23,14 @@ interface DiscordSeriesStatsViewProps {
   readonly renderData: DiscordSeriesStatsResolved["renderData"];
   readonly model: DiscordSeriesStatsViewModel;
   readonly analyticsByMatchId: ReadonlyMap<string, MatchAnalytics>;
+  readonly controller: StatsController;
 }
 
 export function DiscordSeriesStatsView({
   renderData,
   model,
   analyticsByMatchId,
+  controller,
 }: DiscordSeriesStatsViewProps): ReactElement {
   const [viewMode, setViewMode] = useState<DiscordSeriesViewMode>("standard");
   const contentWidthClass = viewMode === "wide" ? styles.wide : undefined;
@@ -35,6 +38,21 @@ export function DiscordSeriesStatsView({
     setViewMode((current) => (current === "standard" ? "wide" : "standard"));
   }, []);
   const killMatrixPresenter = useMemo(() => new KillMatrixFormatter(), []);
+
+  const playersByXuid = useMemo((): ReadonlyMap<string, { gamertag: string; teamId: number | null }> => {
+    try {
+      return new Map(controller.getPlayers().map((p) => [p.xuid, { gamertag: p.gamertag, teamId: p.teamId }]));
+    } catch {
+      return new Map(
+        renderData.matches.flatMap((match) =>
+          Object.entries(match.playerXuidToGametag).map(([xuid, gamertag]) => [
+            xuid,
+            { gamertag, teamId: null as number | null },
+          ]),
+        ),
+      );
+    }
+  }, [controller, renderData.matches]);
 
   const allMatchKillMatrixRows = useMemo<ReadonlyMap<string, KillMatrixViewRow[]>>(
     () =>
@@ -44,13 +62,10 @@ export function DiscordSeriesStatsView({
           if (analytics == null) {
             return [];
           }
-          const playersByXuid = new Map(
-            Object.entries(match.playerXuidToGametag).map(([xuid, gamertag]) => [xuid, { gamertag, teamId: null }]),
-          );
           return [[match.matchId, killMatrixPresenter.present({ analytics, playersByXuid })]];
         }),
       ),
-    [analyticsByMatchId, killMatrixPresenter, renderData.matches],
+    [analyticsByMatchId, killMatrixPresenter, playersByXuid, renderData.matches],
   );
 
   const seriesKillMatrixRows = useMemo<KillMatrixViewRow[]>(
