@@ -8,10 +8,10 @@ import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
 import type { TeamColor } from "../team-colors/team-colors";
 import { Container } from "../container/container";
-import type { KillMatrixViewRow } from "./kill-matrix/types";
+import type { KillMatrixViewRow } from "../../controllers/stats/kill-matrix/types";
+import type { MatchStatsData, MatchStatsPlayerData } from "../../controllers/stats/types";
+import { sortByMedals, getTeamMedalsMap, getPlayerMedalsMap } from "../../controllers/stats/medals-sorting";
 import { KillMatrixTable } from "./kill-matrix/kill-matrix-table";
-import type { MatchStatsData, MatchStatsPlayerData } from "./types";
-import { sortByMedals, getTeamMedalsMap, getPlayerMedalsMap } from "./medals-sorting";
 import styles from "./match-stats.module.css";
 
 interface MatchStatsProps {

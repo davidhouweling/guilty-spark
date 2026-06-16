@@ -1,11 +1,11 @@
 import React, { useMemo } from "react";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import { KillMatrixFormatter } from "../../stats/kill-matrix/kill-matrix-presenter";
+import { KillMatrixFormatter } from "../../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import { Alert } from "../../alert/alert";
 import { LoadingState } from "../../loading-state/loading-state";
-import { createMatchStatsFormatter } from "../../stats/create";
+import { createMatchStatsFormatter } from "../../../controllers/stats/create";
 import { MatchStats } from "../../stats/match-stats";
-import type { MatchStatsData } from "../../stats/types";
+import type { MatchStatsData } from "../../../controllers/stats/types";
 import { gameModeIconSrc } from "../game-mode-icon";
 import type { IndividualTrackerViewerViewModel } from "./types";
 import type { MatchStatsState } from "./viewer-store";

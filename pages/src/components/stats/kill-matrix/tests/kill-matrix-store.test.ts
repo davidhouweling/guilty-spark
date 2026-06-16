@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { KillMatrixViewRow } from "../types";
+import type { KillMatrixViewRow } from "../../../../controllers/stats/kill-matrix/types";
 import { KillMatrixStore } from "../kill-matrix-store";
 
 describe("KillMatrixStore", () => {

@@ -5,8 +5,8 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
-import { KillMatrixFormatter } from "../stats/kill-matrix/kill-matrix-presenter";
-import type { KillMatrixViewRow } from "../stats/kill-matrix/types";
+import { KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
+import type { KillMatrixViewRow } from "../../controllers/stats/kill-matrix/types";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
 import { getTeamColorOrDefault } from "../team-colors/team-colors";

@@ -12,7 +12,7 @@ import type { FakeIndividualTrackerViewService } from "../../../../services/indi
 import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
 import type { MatchAnalyticsService } from "../../../../services/stats/match-analytics-types";
-import { aFakeMatchStatsWith } from "../../../stats/fakes/data";
+import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { IndividualTrackerViewerPresenter } from "../viewer-presenter";
 import { IndividualTrackerViewerStore } from "../viewer-store";
 

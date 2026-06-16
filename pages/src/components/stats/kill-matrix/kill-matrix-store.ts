@@ -1,4 +1,4 @@
-import type { KillMatrixViewRow } from "./types";
+import type { KillMatrixViewRow } from "../../../controllers/stats/kill-matrix/types";
 
 export type KillMatrixStoreState =
   | { readonly status: "idle" }

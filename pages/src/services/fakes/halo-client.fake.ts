@@ -1,5 +1,5 @@
 import type { HaloInfiniteClient, UserInfo } from "halo-infinite-api";
-import { aFakeMatchStatsWith } from "../../components/stats/fakes/data";
+import { aFakeMatchStatsWith } from "../../controllers/stats/fakes/data";
 
 type FakeHaloClientMethods = Pick<HaloInfiniteClient, "getMatchStats" | "getUsers" | "getMedalsMetadataFile">;
 

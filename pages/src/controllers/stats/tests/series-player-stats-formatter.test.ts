@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SeriesPlayerStatsFormatter } from "../series-player-stats-presenter";
+import { SeriesPlayerStatsFormatter } from "../series-player-stats-formatter";
 import {
   aFakeMatchStatsWith,
   aFakePlayerWith,

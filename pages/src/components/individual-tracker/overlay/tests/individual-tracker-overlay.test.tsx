@@ -16,7 +16,7 @@ import {
   aFakeTrackerMatchSummaryWith,
   aFakeTrackerViewStateWith,
 } from "../../../../services/individual-tracker/fakes/view.fake";
-import { aFakeMatchStatsWith } from "../../../stats/fakes/data";
+import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { buildViewerRenderModel } from "../../viewer/viewer-render-model";
 import { IndividualTrackerOverlay } from "../individual-tracker-overlay";
 
