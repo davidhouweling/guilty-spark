@@ -76,8 +76,14 @@ export const settingsContract = defineContract(z.object({ settings: streamerView
 
 **Presenter/Store Pattern** (all stateful components):
 
+Each feature follows the SPC split: Store → Presenter → Component (view).
+
+- **Store**: pure state holder — no fetching, no business logic. Exposes `getSnapshot()` and `subscribe(listener)`. Only mutated by the presenter via `store.update(patch)`.
+- **Presenter**: owns all business logic and async work. `start()` drives fetches and pushes results to the store. `present(snapshot)` is a pure computation that converts a snapshot into a fully display-ready view model — all formatting, icon URLs, hex colour values, sorted arrays, and computed strings must be done here, not in the view.
+- **View (component)**: pure renderer. Receives specific named props only (see **View Props** below). No business logic, no utility calls, no `useMemo` for data derivation.
+
 ```typescript
-// Store owns snapshot state; presenter owns business logic
+// create.tsx — wires the three layers together
 const store = useMemo(() => new FooStore(), []);
 const presenter = useMemo(() => new FooPresenter({ store, service }), [store, service]);
 useEffect(() => {
@@ -85,8 +91,13 @@ useEffect(() => {
   return () => presenter.dispose();
 }, [presenter]);
 const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
-const model = useMemo(() => FooPresenter.present(snapshot), [snapshot]);
+const model = useMemo(() => presenter.present(snapshot), [presenter, snapshot]);
+return <FooView {...model} />;
 ```
+
+**View Props**: Views must receive specific named props — never a generic `model` object or raw contract types (e.g. `renderData: Contract["renderData"]`). The `create.tsx` file is the mapping layer between presenter output and view props; spreading the model is idiomatic: `<FooView {...model} />`. `useMemo` inside a view is acceptable only for pure view-layer derivations such as column definitions — never for business logic or data transformation.
+
+**Shared types between presenter and view**: If a type is used by both the presenter and the view, it lives in `types.ts` in the same folder. The presenter does not import from the view; the view does not import from the presenter. Both import from `types.ts`.
 
 **Fake mode**: `getMode() === "FAKE"` routes all service installs to in-memory fakes in `pages/src/services/fakes/`. Useful for UI dev without a running API.
 
@@ -97,11 +108,13 @@ Exported via glob patterns in `package.json` `exports`. Always import via packag
 ## File Conventions
 
 - **Feature folders**: Group related code (e.g. `live-tracker/`) not scattered at top-level
-- **Types**: Colocate in `types.ts` alongside implementation
+- **Types**: Colocate in `types.ts` alongside implementation. Shared types between a presenter and its view belong in `types.ts` in the same folder — neither file imports from the other (see **Shared types** under Presenter/Store Pattern above)
 - **Fakes**: In `fakes/` subfolders; factories named `aFake…With(overrides?)`
 - **Tests**: In `tests/` subfolders
 - **Imports**: Extensionless for internal TypeScript modules; package entrypoints for cross-workspace
 - **One key component per file**: If a file gains a non-trivial sub-component, move that sub-component to its own sibling folder (e.g. `match-card/`) with its own `tests/` subfolder
+- **Sub-component ordering**: When multiple components share a file, sub-components must be defined before the parent component that uses them (ESLint `no-use-before-define`)
+- **View file naming**: View component files are named `<component-name>.tsx` — no `-view` suffix. The file name matches the exported component name.
 - **No re-exports**: Consumers import directly from the source module; never re-export a symbol from an intermediary wrapper file
 - **Extract service helpers**: Helper functions that grow a service file belong in their own named files with dedicated tests
 
