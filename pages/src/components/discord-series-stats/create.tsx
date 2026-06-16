@@ -4,7 +4,7 @@ import type { MatchAnalyticsService } from "../../services/stats/match-analytics
 import { StatsController } from "../../controllers/stats/stats-controller";
 import { DiscordSeriesStatsStore } from "./discord-series-stats-store";
 import { DiscordSeriesStatsPresenter } from "./discord-series-stats-presenter";
-import { DiscordSeriesStatsView } from "./discord-series-stats-view";
+import { DiscordSeriesStatsView } from "./discord-series-stats";
 
 interface DiscordSeriesStatsProps {
   readonly data: DiscordSeriesStatsResolved;
