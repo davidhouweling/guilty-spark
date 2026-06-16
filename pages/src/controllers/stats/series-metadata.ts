@@ -1,5 +1,4 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import type { LiveTrackerMatchRenderModel } from "../../components/live-tracker/types";
 
 export interface SeriesMetadata {
   readonly score: string;
@@ -8,8 +7,13 @@ export interface SeriesMetadata {
   readonly endTime: string;
 }
 
+interface MatchWithTimes {
+  readonly startTime: string;
+  readonly endTime: string;
+}
+
 export function calculateSeriesMetadata(
-  matches: readonly LiveTrackerMatchRenderModel[],
+  matches: readonly MatchWithTimes[],
   score: string,
 ): SeriesMetadata | null {
   if (matches.length === 0) {
@@ -24,7 +28,7 @@ export function calculateSeriesMetadata(
   const totalMs = endMs - startMs;
   const totalMinutes = Math.floor(totalMs / 60000);
   const totalSeconds = Math.floor((totalMs % 60000) / 1000);
-  const duration = `${totalMinutes.toLocaleString()}m ${totalSeconds.toLocaleString()}s`;
+  const duration = `${String(totalMinutes)}m ${String(totalSeconds).padStart(2, "0")}s`;
 
   return {
     score,

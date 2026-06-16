@@ -2,6 +2,7 @@ import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import { createMatchStatsFormatter } from "./create";
 import { SeriesTeamStatsFormatter } from "./series-team-stats-formatter";
 import { SeriesPlayerStatsFormatter } from "./series-player-stats-formatter";
@@ -29,7 +30,7 @@ export class StatsController {
   loadMatch(match: MatchStats, playerMap: Map<string, string>, medals: MedalMetadata): void {
     const formatter = createMatchStatsFormatter(match.MatchInfo.GameVariantCategory);
     this.matchStats = formatter.getData(match, playerMap, medals);
-    this.players = this.buildPlayers(this.matchStats, playerMap);
+    this.players = this.extractPlayers([match], playerMap);
   }
 
   loadSeries(matches: MatchStats[], playerMap: Map<string, string>, medals: MedalMetadata): void {
@@ -39,7 +40,7 @@ export class StatsController {
       teamData: teamFormatter.getSeriesData(matches, playerMap, medals),
       playerData: playerFormatter.getSeriesData(matches, playerMap, medals),
     };
-    this.players = this.buildPlayers(this.seriesStats.playerData, playerMap);
+    this.players = this.extractPlayers(matches, playerMap);
   }
 
   loadAnalytics(analytics: MatchAnalytics, playerMap: Map<string, string>): void {
@@ -64,15 +65,19 @@ export class StatsController {
     return Preconditions.checkExists(this.killMatrixRows, "Kill matrix not loaded — call loadAnalytics() first");
   }
 
-  private buildPlayers(data: MatchStatsData[], playerMap: Map<string, string>): StatsPlayer[] {
-    const gamertagToXuid = new Map([...playerMap.entries()].map(([xuid, gamertag]) => [gamertag, xuid]));
-    return data.flatMap((team) =>
-      team.players.map((player) => ({
-        xuid: gamertagToXuid.get(player.name) ?? player.name,
-        gamertag: player.name,
-        teamId: team.teamId,
-      })),
-    );
+  private extractPlayers(matches: MatchStats[], playerMap: Map<string, string>): StatsPlayer[] {
+    const seen = new Set<string>();
+    const players: StatsPlayer[] = [];
+    for (const match of matches) {
+      for (const player of match.Players) {
+        const xuid = getPlayerXuid(player);
+        if (!seen.has(xuid)) {
+          seen.add(xuid);
+          players.push({ xuid, gamertag: playerMap.get(xuid) ?? xuid, teamId: player.LastTeamId });
+        }
+      }
+    }
+    return players;
   }
 
   private buildPlayersByXuid(playerMap: Map<string, string>): Map<string, { gamertag: string; teamId: number | null }> {

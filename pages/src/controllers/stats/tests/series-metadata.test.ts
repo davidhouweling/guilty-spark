@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-import type { LiveTrackerMatchRenderModel } from "../../../components/live-tracker/types";
 import { calculateSeriesMetadata } from "../series-metadata";
 
 describe("calculateSeriesMetadata", () => {
@@ -9,7 +8,7 @@ describe("calculateSeriesMetadata", () => {
   });
 
   it("calculates metadata for a single match", () => {
-    const matches: LiveTrackerMatchRenderModel[] = [
+    const matches = [
       {
         matchId: "match1",
         gameTypeAndMap: "Slayer: Aquarius",
@@ -37,7 +36,7 @@ describe("calculateSeriesMetadata", () => {
   });
 
   it("calculates metadata for multiple matches", () => {
-    const matches: LiveTrackerMatchRenderModel[] = [
+    const matches = [
       {
         matchId: "match1",
         gameTypeAndMap: "Slayer: Aquarius",
@@ -79,7 +78,7 @@ describe("calculateSeriesMetadata", () => {
   });
 
   it("removes emoji from series score", () => {
-    const matches: LiveTrackerMatchRenderModel[] = [
+    const matches = [
       {
         matchId: "match1",
         gameTypeAndMap: "Slayer: Aquarius",
@@ -102,7 +101,7 @@ describe("calculateSeriesMetadata", () => {
   });
 
   it("calculates correct duration across time boundaries", () => {
-    const matches: LiveTrackerMatchRenderModel[] = [
+    const matches = [
       {
         matchId: "match1",
         gameTypeAndMap: "Slayer: Aquarius",
