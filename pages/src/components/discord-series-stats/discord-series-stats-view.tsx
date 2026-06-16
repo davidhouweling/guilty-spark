@@ -40,19 +40,18 @@ export function DiscordSeriesStatsView({
   const killMatrixPresenter = useMemo(() => new KillMatrixFormatter(), []);
 
   const playersByXuid = useMemo((): ReadonlyMap<string, { gamertag: string; teamId: number | null }> => {
-    try {
+    if (model.seriesStats != null) {
       return new Map(controller.getPlayers().map((p) => [p.xuid, { gamertag: p.gamertag, teamId: p.teamId }]));
-    } catch {
-      return new Map(
-        renderData.matches.flatMap((match) =>
-          Object.entries(match.playerXuidToGametag).map(([xuid, gamertag]) => [
-            xuid,
-            { gamertag, teamId: null as number | null },
-          ]),
-        ),
-      );
     }
-  }, [controller, renderData.matches]);
+    return new Map(
+      renderData.matches.flatMap((match) =>
+        Object.entries(match.playerXuidToGametag).map(([xuid, gamertag]) => [
+          xuid,
+          { gamertag, teamId: null as number | null },
+        ]),
+      ),
+    );
+  }, [controller, model.seriesStats, renderData.matches]);
 
   const allMatchKillMatrixRows = useMemo<ReadonlyMap<string, KillMatrixViewRow[]>>(
     () =>

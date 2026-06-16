@@ -12,8 +12,11 @@ interface DiscordSeriesStatsProps {
 }
 
 export function DiscordSeriesStats({ data, matchAnalyticsService }: DiscordSeriesStatsProps): ReactElement {
-  const controller = useMemo(() => new StatsController(), [data]);
-  const presenter = useMemo(() => new DiscordSeriesStatsPresenter(data.renderData, controller), [data, controller]);
+  const controller = useMemo(() => new StatsController(), [data.renderData]);
+  const presenter = useMemo(
+    () => new DiscordSeriesStatsPresenter(data.renderData, controller),
+    [data.renderData, controller],
+  );
 
   const model = useMemo(() => presenter.present(), [presenter]);
 

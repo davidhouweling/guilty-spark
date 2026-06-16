@@ -1,9 +1,8 @@
 import type { MatchStats } from "halo-infinite-api";
 import { differenceInSeconds, isValid, parseISO } from "date-fns";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
-import { createMatchStatsFormatter } from "../../controllers/stats/create";
 import type { MatchStatsData } from "../../controllers/stats/types";
-import type { StatsController } from "../../controllers/stats/stats-controller";
+import { StatsController } from "../../controllers/stats/stats-controller";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault, type TeamColor } from "../team-colors/team-colors";
 
 const WIN_OUTCOME = 2;
@@ -104,12 +103,10 @@ export class DiscordSeriesStatsPresenter {
       }
 
       try {
-        const formatter = createMatchStatsFormatter(match.rawMatch.MatchInfo.GameVariantCategory);
+        const matchController = new StatsController();
         const playerMap = new Map<string, string>(Object.entries(match.playerXuidToGametag));
-        return {
-          matchId: match.matchId,
-          data: formatter.getData(match.rawMatch, playerMap, this.renderData.medalMetadata),
-        };
+        matchController.loadMatch(match.rawMatch, playerMap, this.renderData.medalMetadata);
+        return { matchId: match.matchId, data: matchController.getMatchStats() };
       } catch {
         return { matchId: match.matchId, data: null };
       }
