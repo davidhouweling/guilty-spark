@@ -1,84 +1,121 @@
-import { useCallback, useMemo, useState, type CSSProperties, type ReactElement } from "react";
+import { useCallback, useState, type CSSProperties, type ReactElement } from "react";
 import classNames from "classnames";
-import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
-import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
-import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
-import { KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
-import type { KillMatrixViewRow } from "../../controllers/stats/kill-matrix/types";
-import type { StatsController } from "../../controllers/stats/stats-controller";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
-import { getTeamColorOrDefault } from "../team-colors/team-colors";
 import styles from "../live-tracker/live-tracker.module.css";
 import { Button } from "../button/button";
 import localStyles from "./discord-series-stats.module.css";
-import { DiscordSeriesStatsPresenter } from "./discord-series-stats-presenter";
-import type { DiscordSeriesStatsViewModel } from "./discord-series-stats-presenter";
+import type {
+  DiscordSeriesMatchDetail,
+  DiscordSeriesMatchSummary,
+  DiscordSeriesStatsViewModel,
+  DiscordSeriesTeamCard,
+} from "./types";
 
 export type DiscordSeriesViewMode = "standard" | "wide";
 
-interface DiscordSeriesStatsViewProps {
-  readonly renderData: DiscordSeriesStatsResolved["renderData"];
-  readonly model: DiscordSeriesStatsViewModel;
-  readonly analyticsByMatchId: ReadonlyMap<string, MatchAnalytics>;
-  readonly controller: StatsController;
+interface MatchSummaryItemProps {
+  readonly summary: DiscordSeriesMatchSummary;
 }
 
+function MatchSummaryItem({ summary }: MatchSummaryItemProps): ReactElement {
+  return (
+    <li
+      className={styles.seriesScore}
+      style={
+        {
+          "--series-score-bg": `url(${summary.gameMapThumbnailUrl})`,
+          "--team-color": summary.winningTeamColorHex ?? "transparent",
+        } as CSSProperties
+      }
+    >
+      <a href={`#${summary.matchId}`} className={classNames(styles.seriesScoreLink, localStyles.seriesScoreLink)}>
+        <img src={summary.gameModeIconUrl} alt={summary.gameModeAlt} className={styles.gameTypeIcon} />
+        {summary.gameScore}
+        {summary.gameSubScore != null ? <span className={styles.seriesSubScore}>({summary.gameSubScore})</span> : null}
+        <span className={styles.gameTypeAndMap}>{summary.gameMap}</span>
+      </a>
+    </li>
+  );
+}
+
+interface TeamCardSectionProps {
+  readonly team: DiscordSeriesTeamCard;
+}
+
+function TeamCardSection({ team }: TeamCardSectionProps): ReactElement {
+  return (
+    <section
+      className={classNames(styles.teamCard, localStyles.teamCard)}
+      style={{ "--team-color": team.teamColorHex } as CSSProperties}
+    >
+      <h3 className={styles.teamName}>{team.name}</h3>
+      <ul className={classNames(styles.playerList, localStyles.playerList)}>
+        {team.players.map((player, playerIndex) => (
+          <li key={`${team.name}:${player}:${playerIndex.toString()}`}>{player}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+interface MatchDetailSectionProps {
+  readonly detail: DiscordSeriesMatchDetail;
+  readonly contentWidthClass: string | undefined;
+}
+
+function MatchDetailSection({ detail, contentWidthClass }: MatchDetailSectionProps): ReactElement {
+  return (
+    <Container mobileDown="0" className={classNames(styles.contentContainer, contentWidthClass)}>
+      {detail.data != null ? (
+        <MatchStatsView
+          data={detail.data}
+          id={detail.matchId}
+          backgroundImageUrl={detail.gameMapThumbnailUrl}
+          gameModeIconUrl={detail.gameModeIconUrl}
+          gameModeAlt={detail.gameModeAlt}
+          matchNumber={detail.matchNumber}
+          gameTypeAndMap={detail.gameTypeAndMap}
+          duration={detail.duration}
+          score={detail.score}
+          startTime={detail.startTime}
+          endTime={detail.endTime}
+          teamColors={detail.teamColors}
+          killMatrixRows={detail.killMatrixRows}
+        />
+      ) : (
+        <Alert variant="warning">Failed to load detailed stats for match {detail.matchId}.</Alert>
+      )}
+    </Container>
+  );
+}
+
+type DiscordSeriesStatsViewProps = DiscordSeriesStatsViewModel;
+
 export function DiscordSeriesStatsView({
-  renderData,
-  model,
-  analyticsByMatchId,
-  controller,
+  title,
+  subtitle,
+  seriesScore,
+  matchSummaries,
+  teams,
+  seriesStats,
+  matchDetails,
 }: DiscordSeriesStatsViewProps): ReactElement {
   const [viewMode, setViewMode] = useState<DiscordSeriesViewMode>("standard");
   const contentWidthClass = viewMode === "wide" ? styles.wide : undefined;
   const handleToggleViewMode = useCallback((): void => {
     setViewMode((current) => (current === "standard" ? "wide" : "standard"));
   }, []);
-  const killMatrixPresenter = useMemo(() => new KillMatrixFormatter(), []);
-
-  const playersByXuid = useMemo((): ReadonlyMap<string, { gamertag: string; teamId: number | null }> => {
-    if (model.seriesStats != null) {
-      return new Map(controller.getPlayers().map((p) => [p.xuid, { gamertag: p.gamertag, teamId: p.teamId }]));
-    }
-    return new Map(
-      renderData.matches.flatMap((match) =>
-        Object.entries(match.playerXuidToGametag).map(([xuid, gamertag]) => [
-          xuid,
-          { gamertag, teamId: null as number | null },
-        ]),
-      ),
-    );
-  }, [controller, model.seriesStats, renderData.matches]);
-
-  const allMatchKillMatrixRows = useMemo<ReadonlyMap<string, KillMatrixViewRow[]>>(
-    () =>
-      new Map(
-        renderData.matches.flatMap((match) => {
-          const analytics = analyticsByMatchId.get(match.matchId);
-          if (analytics == null) {
-            return [];
-          }
-          return [[match.matchId, killMatrixPresenter.present({ analytics, playersByXuid })]];
-        }),
-      ),
-    [analyticsByMatchId, killMatrixPresenter, playersByXuid, renderData.matches],
-  );
-
-  const seriesKillMatrixRows = useMemo<KillMatrixViewRow[]>(
-    () => KillMatrixFormatter.aggregate([...allMatchKillMatrixRows.values()].flat()),
-    [allMatchKillMatrixRows],
-  );
 
   return (
     <>
       <Container>
         <div className={styles.headerBar}>
           <div className={styles.headerLeft}>
-            <h1 className={styles.headerTitle}>{renderData.title}</h1>
-            <div className={styles.headerSubtitle}>{renderData.subtitle}</div>
+            <h1 className={styles.headerTitle}>{title}</h1>
+            <div className={styles.headerSubtitle}>{subtitle}</div>
           </div>
           <div className={styles.headerRight}>
             <Button
@@ -104,77 +141,31 @@ export function DiscordSeriesStatsView({
             <div className={styles.seriesOverview}>
               <section className={styles.seriesScores}>
                 <h3 className={styles.seriesScoresHeader} aria-label="Series scores">
-                  {renderData.seriesScore}
+                  {seriesScore}
                 </h3>
                 <ul className={styles.seriesScoresList}>
-                  {renderData.matches.map((match) => {
-                    const teamColor = DiscordSeriesStatsPresenter.getWinningTeamColor(match.rawMatch, model.teamColors);
-
-                    return (
-                      <li
-                        key={match.matchId}
-                        className={styles.seriesScore}
-                        style={
-                          {
-                            "--series-score-bg": `url(${match.gameMapThumbnailUrl})`,
-                            "--team-color": teamColor?.hex ?? "transparent",
-                          } as CSSProperties
-                        }
-                      >
-                        <a
-                          href={`#${match.matchId}`}
-                          className={classNames(styles.seriesScoreLink, localStyles.seriesScoreLink)}
-                        >
-                          <img
-                            src={gameModeIconSrc(match.gameVariantCategory)}
-                            alt={match.gameType}
-                            className={styles.gameTypeIcon}
-                          />
-                          {match.gameScore}
-                          {match.gameSubScore != null ? (
-                            <span className={styles.seriesSubScore}>({match.gameSubScore})</span>
-                          ) : null}
-                          <span className={styles.gameTypeAndMap}>{match.gameMap}</span>
-                        </a>
-                      </li>
-                    );
-                  })}
+                  {matchSummaries.map((summary) => (
+                    <MatchSummaryItem key={summary.matchId} summary={summary} />
+                  ))}
                 </ul>
               </section>
 
-              {renderData.teams.map((team, teamIndex) => {
-                const teamColor =
-                  teamIndex < 2 && model.teamColors.length > teamIndex
-                    ? (model.teamColors[teamIndex] ?? getTeamColorOrDefault(undefined, teamIndex))
-                    : getTeamColorOrDefault(undefined, teamIndex);
-
-                return (
-                  <section
-                    key={team.name}
-                    className={classNames(styles.teamCard, localStyles.teamCard)}
-                    style={{ "--team-color": teamColor.hex } as CSSProperties}
-                  >
-                    <h3 className={styles.teamName}>{team.name}</h3>
-                    <ul className={classNames(styles.playerList, localStyles.playerList)}>
-                      {team.players.map((player, playerIndex) => (
-                        <li key={`${team.name}:${player}:${playerIndex.toString()}`}>{player}</li>
-                      ))}
-                    </ul>
-                  </section>
-                );
-              })}
+              {teams.map((team) => (
+                <TeamCardSection key={team.name} team={team} />
+              ))}
             </div>
           </div>
         </Container>
-        {model.seriesStats != null && (
+
+        {seriesStats != null && (
           <Container mobileDown="0" className={classNames(styles.contentContainer, contentWidthClass)}>
             <SeriesStats
-              teamData={model.seriesStats.teamData}
-              playerData={model.seriesStats.playerData}
+              teamData={seriesStats.teamData}
+              playerData={seriesStats.playerData}
               title="Series Totals"
-              metadata={model.seriesStats.metadata}
-              teamColors={model.teamColors}
-              killMatrixRows={seriesKillMatrixRows}
+              metadata={seriesStats.metadata}
+              teamColors={seriesStats.teamColors}
+              killMatrixRows={seriesStats.killMatrixRows}
             />
           </Container>
         )}
@@ -183,37 +174,9 @@ export function DiscordSeriesStatsView({
           <h2 className={styles.sectionTitle}>Matches</h2>
         </Container>
 
-        {renderData.matches.map((match, index) => {
-          const matchStats = model.allMatchStats[index];
-
-          return (
-            <Container
-              key={match.matchId}
-              mobileDown="0"
-              className={classNames(styles.contentContainer, contentWidthClass)}
-            >
-              {matchStats.data != null ? (
-                <MatchStatsView
-                  data={matchStats.data}
-                  id={match.matchId}
-                  backgroundImageUrl={match.gameMapThumbnailUrl}
-                  gameModeIconUrl={gameModeIconSrc(match.gameVariantCategory)}
-                  gameModeAlt={match.gameType}
-                  matchNumber={index + 1}
-                  gameTypeAndMap={match.gameTypeAndMap}
-                  duration={match.duration}
-                  score={match.gameSubScore != null ? `${match.gameScore} (${match.gameSubScore})` : match.gameScore}
-                  startTime={match.startTime}
-                  endTime={match.endTime}
-                  teamColors={model.teamColors}
-                  killMatrixRows={allMatchKillMatrixRows.get(match.matchId)}
-                />
-              ) : (
-                <Alert variant="warning">Failed to load detailed stats for match {match.matchId}.</Alert>
-              )}
-            </Container>
-          );
-        })}
+        {matchDetails.map((detail) => (
+          <MatchDetailSection key={detail.matchId} detail={detail} contentWidthClass={contentWidthClass} />
+        ))}
       </Container>
     </>
   );
