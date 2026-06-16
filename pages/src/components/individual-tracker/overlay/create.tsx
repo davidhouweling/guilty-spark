@@ -38,6 +38,7 @@ export function IndividualTrackerOverlayPage({
           <IndividualTrackerOverlay
             renderModel={model.renderModel}
             matchStatsState={model.matchStatsState}
+            matchStatsPanelState={model.matchStatsPanelState}
             selectedMatchId={model.selectedMatchId}
             onSelectMatch={onSelectMatch}
             onDeselect={onDeselect}

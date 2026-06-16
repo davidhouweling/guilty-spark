@@ -3,6 +3,8 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
+import { StatsController } from "../../../../controllers/stats/stats-controller";
+import type { MatchStatsPanelState } from "../types";
 import { StatsPanel } from "../stats-panel";
 
 vi.mock("../../../icons/team-icon", () => ({
@@ -16,6 +18,31 @@ vi.mock("../../../icons/medal-icon", () => ({
     <div data-testid={`medal-icon-${medalName}`}>{medalName}</div>
   ),
 }));
+
+function aLoadedState(
+  overrides: Partial<Extract<MatchStatsPanelState, { status: "loaded" }>> = {},
+): Extract<MatchStatsPanelState, { status: "loaded" }> {
+  const stats = aFakeMatchStatsWith();
+  const playerMap = new Map([
+    ["1111111111", "Alpha"],
+    ["2222222222", "Bravo"],
+    ["3333333333", "Charlie"],
+    ["4444444444", "Delta"],
+  ]);
+  const controller = new StatsController();
+  controller.loadMatch(stats, playerMap, {});
+  return {
+    status: "loaded",
+    matchId: stats.MatchId,
+    gameVariantCategory: stats.MatchInfo.GameVariantCategory,
+    duration: stats.MatchInfo.Duration,
+    startTime: stats.MatchInfo.StartTime,
+    endTime: stats.MatchInfo.EndTime,
+    data: controller.getMatchStats(),
+    killMatrixRows: [],
+    ...overrides,
+  };
+}
 
 describe("StatsPanel", () => {
   afterEach(() => {
@@ -38,20 +65,12 @@ describe("StatsPanel", () => {
   });
 
   it("renders match stats player table when status is loaded", () => {
-    const stats = aFakeMatchStatsWith();
-    const playerMap = new Map([
-      ["1111111111", "Alpha"],
-      ["2222222222", "Bravo"],
-      ["3333333333", "Charlie"],
-      ["4444444444", "Delta"],
-    ]);
-
-    render(<StatsPanel state={{ status: "loaded", stats, playerMap, medalMetadata: {}, analytics: null }} />);
+    render(<StatsPanel state={aLoadedState()} />);
 
     expect(screen.getByRole("tab", { name: "Players" })).toBeInTheDocument();
   });
 
-  it("renders kill matrix table when analytics is available", () => {
+  it("renders kill matrix table when kill matrix rows are provided", () => {
     const stats = aFakeMatchStatsWith();
     const playerMap = new Map([
       ["1111111111", "Alpha"],
@@ -59,38 +78,28 @@ describe("StatsPanel", () => {
       ["3333333333", "Charlie"],
       ["4444444444", "Delta"],
     ]);
-
-    render(
-      <StatsPanel
-        state={{
-          status: "loaded",
-          stats,
-          playerMap,
-          medalMetadata: {},
-          analytics: {
-            requestedModules: ["killMatrix"],
-            killMatrix: {
-              "1111111111:2222222222": {
-                count: 3,
-                headshotKills: 1,
-                perfects: 0,
-                weapons: [],
-              },
-            },
-            metadata: {
-              pairingQuality: {
-                unpairedDeathCount: 0,
-                maxTimeDeltaMs: 1,
-              },
-              perfectCounts: {
-                total: 0,
-                byXuid: {},
-              },
-            },
+    const controller = new StatsController();
+    controller.loadAnalytics(
+      {
+        requestedModules: ["killMatrix"],
+        killMatrix: {
+          "1111111111:2222222222": {
+            count: 3,
+            headshotKills: 1,
+            perfects: 0,
+            weapons: [],
           },
-        }}
-      />,
+        },
+        metadata: {
+          pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 1 },
+          perfectCounts: { total: 0, byXuid: {} },
+        },
+      },
+      playerMap,
     );
+    controller.loadMatch(stats, playerMap, {});
+
+    render(<StatsPanel state={aLoadedState({ killMatrixRows: controller.getKillMatrix() })} />);
 
     fireEvent.click(screen.getByRole("tab", { name: "Kill Matrix" }));
 
