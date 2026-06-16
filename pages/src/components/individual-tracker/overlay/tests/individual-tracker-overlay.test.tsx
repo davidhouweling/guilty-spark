@@ -36,6 +36,7 @@ describe("IndividualTrackerOverlay", () => {
       <IndividualTrackerOverlay
         renderModel={aRenderModel({ matches: [], series: [] })}
         matchStatsState={null}
+        matchStatsPanelState={null}
         selectedMatchId={null}
         onSelectMatch={() => undefined}
         onDeselect={() => undefined}
@@ -50,6 +51,7 @@ describe("IndividualTrackerOverlay", () => {
       <IndividualTrackerOverlay
         renderModel={aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] })}
         matchStatsState={null}
+        matchStatsPanelState={null}
         selectedMatchId={null}
         onSelectMatch={() => undefined}
         onDeselect={() => undefined}
@@ -64,6 +66,7 @@ describe("IndividualTrackerOverlay", () => {
       <IndividualTrackerOverlay
         renderModel={aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] })}
         matchStatsState={{ status: "loading" }}
+        matchStatsPanelState={{ status: "loading" }}
         selectedMatchId="m-1"
         onSelectMatch={() => undefined}
         onDeselect={() => undefined}
@@ -89,6 +92,7 @@ describe("IndividualTrackerOverlay", () => {
           medalMetadata: {},
           analytics: null,
         }}
+        matchStatsPanelState={null}
         selectedMatchId="m-1"
         onSelectMatch={() => undefined}
         onDeselect={() => undefined}
@@ -103,6 +107,7 @@ describe("IndividualTrackerOverlay", () => {
       <IndividualTrackerOverlay
         renderModel={aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] })}
         matchStatsState={{ status: "error", message: "Network failure" }}
+        matchStatsPanelState={{ status: "error", message: "Network failure" }}
         selectedMatchId="m-1"
         onSelectMatch={() => undefined}
         onDeselect={() => undefined}
@@ -131,6 +136,7 @@ describe("IndividualTrackerOverlay", () => {
           medalMetadata: {},
           analytics: null,
         }}
+        matchStatsPanelState={null}
         selectedMatchId="m-1"
         onSelectMatch={() => undefined}
         onDeselect={onDeselect}

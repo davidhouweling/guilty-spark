@@ -2,6 +2,8 @@ import type { TopBarStatItem } from "@guilty-spark/shared/contracts/individual-t
 import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
+import type { MatchStatsData } from "../../../controllers/stats/types";
+import type { KillMatrixViewRow } from "../../../controllers/stats/kill-matrix/types";
 import type { MatchStatsState } from "./viewer-store";
 
 export type ViewerTabOutcome = "win" | "loss" | "tie" | "dnf" | "unknown";
@@ -48,10 +50,25 @@ export interface IndividualTrackerViewerRenderModel {
   readonly topBarStats: readonly TopBarStatItem[] | undefined;
 }
 
+export type MatchStatsPanelState =
+  | { readonly status: "loading" }
+  | {
+      readonly status: "loaded";
+      readonly matchId: string;
+      readonly gameVariantCategory: number;
+      readonly duration: string;
+      readonly startTime: string;
+      readonly endTime: string;
+      readonly data: MatchStatsData[];
+      readonly killMatrixRows: readonly KillMatrixViewRow[];
+    }
+  | { readonly status: "error"; readonly message: string };
+
 export interface IndividualTrackerViewerViewModel {
   readonly renderModel: IndividualTrackerViewerRenderModel | null;
   readonly connectionStatus: TrackerViewConnectionStatus;
   readonly selectedMatchId: string | null;
   readonly matchStatsState: MatchStatsState | null;
+  readonly matchStatsPanelState: MatchStatsPanelState | null;
   readonly streamerSettings: StreamerViewSettings | undefined;
 }

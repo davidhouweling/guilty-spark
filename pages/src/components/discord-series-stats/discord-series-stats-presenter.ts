@@ -1,9 +1,21 @@
 import type { MatchStats } from "halo-infinite-api";
 import { differenceInSeconds, isValid, parseISO } from "date-fns";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
+import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { MatchStatsData } from "../../controllers/stats/types";
 import { StatsController } from "../../controllers/stats/stats-controller";
+import { KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
+import type { KillMatrixViewRow } from "../../controllers/stats/kill-matrix/types";
+import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault, type TeamColor } from "../team-colors/team-colors";
+import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
+import type { DiscordSeriesStatsSnapshot, DiscordSeriesStatsStore } from "./discord-series-stats-store";
+import type {
+  DiscordSeriesMatchDetail,
+  DiscordSeriesMatchSummary,
+  DiscordSeriesStatsViewModel,
+  DiscordSeriesTeamCard,
+} from "./types";
 
 const WIN_OUTCOME = 2;
 
@@ -12,16 +24,6 @@ interface SeriesMetadata {
   readonly duration: string;
   readonly startTime: string;
   readonly endTime: string;
-}
-
-export interface DiscordSeriesStatsViewModel {
-  readonly teamColors: readonly TeamColor[];
-  readonly allMatchStats: { matchId: string; data: MatchStatsData[] | null }[];
-  readonly seriesStats: {
-    readonly teamData: MatchStatsData[];
-    readonly playerData: MatchStatsData[];
-    readonly metadata: SeriesMetadata | null;
-  } | null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -81,46 +83,63 @@ function calculateSeriesMetadata(
 }
 
 export class DiscordSeriesStatsPresenter {
+  private cancelled = false;
+
   constructor(
     readonly renderData: DiscordSeriesStatsResolved["renderData"],
     private readonly controller: StatsController,
+    private readonly store: DiscordSeriesStatsStore,
+    private readonly matchAnalyticsService: MatchAnalyticsService,
   ) {}
 
-  private static readonly modelByRenderData = new WeakMap<
-    DiscordSeriesStatsResolved["renderData"],
-    DiscordSeriesStatsViewModel
-  >();
+  start(): void {
+    this.cancelled = false;
+    const matchIds = this.renderData.matches.map((m) => m.matchId);
 
-  present(): DiscordSeriesStatsViewModel {
-    const cached = DiscordSeriesStatsPresenter.modelByRenderData.get(this.renderData);
-    if (cached != null) {
-      return cached;
-    }
-
-    const allMatchStats = this.renderData.matches.map((match) => {
-      if (!isMatchStats(match.rawMatch)) {
-        return { matchId: match.matchId, data: null };
+    void Promise.all(
+      matchIds.map(async (matchId) => {
+        try {
+          const analytics = await this.matchAnalyticsService.getMatchAnalytics(matchId);
+          return { matchId, analytics };
+        } catch {
+          return null;
+        }
+      }),
+    ).then((results) => {
+      if (this.cancelled) {
+        return;
       }
-
-      try {
-        const matchController = new StatsController();
-        const playerMap = new Map<string, string>(Object.entries(match.playerXuidToGametag));
-        matchController.loadMatch(match.rawMatch, playerMap, this.renderData.medalMetadata);
-        return { matchId: match.matchId, data: matchController.getMatchStats() };
-      } catch {
-        return { matchId: match.matchId, data: null };
+      const map = new Map<string, MatchAnalytics>();
+      for (const result of results) {
+        if (result != null) {
+          map.set(result.matchId, result.analytics);
+        }
       }
+      this.store.update({ analyticsByMatchId: map });
     });
+  }
 
-    const rawMatches = this.renderData.matches
-      .map((match) => match.rawMatch)
-      .filter((match): match is MatchStats => isMatchStats(match));
+  dispose(): void {
+    this.cancelled = true;
+  }
 
-    let seriesStats: DiscordSeriesStatsViewModel["seriesStats"] = null;
+  present(snapshot: DiscordSeriesStatsSnapshot): DiscordSeriesStatsViewModel {
     const teamColors = [
       getTeamColorOrDefault(DEFAULT_TEAM_COLORS[0], 0),
       getTeamColorOrDefault(DEFAULT_TEAM_COLORS[1], 1),
     ];
+
+    const rawMatches = this.renderData.matches.map((m) => m.rawMatch).filter((m): m is MatchStats => isMatchStats(m));
+
+    let playersByXuid: ReadonlyMap<string, { gamertag: string; teamId: number | null }> = new Map(
+      this.renderData.matches.flatMap((match) =>
+        Object.entries(match.playerXuidToGametag).map(([xuid, gamertag]) => [
+          xuid,
+          { gamertag, teamId: null as number | null },
+        ]),
+      ),
+    );
+    let seriesData: { teamData: MatchStatsData[]; playerData: MatchStatsData[] } | null = null;
 
     if (rawMatches.length > 0) {
       try {
@@ -130,27 +149,95 @@ export class DiscordSeriesStatsPresenter {
             playersMap.set(xuid, gamertag);
           }
         }
-
         this.controller.loadSeries(rawMatches, playersMap, this.renderData.medalMetadata);
-        const { teamData, playerData } = this.controller.getSeriesStats();
-
-        seriesStats = {
-          teamData,
-          playerData,
-          metadata: calculateSeriesMetadata(this.renderData.matches, this.renderData.seriesScore),
-        };
+        seriesData = this.controller.getSeriesStats();
+        playersByXuid = new Map(
+          this.controller.getPlayers().map((p) => [p.xuid, { gamertag: p.gamertag, teamId: p.teamId }]),
+        );
       } catch {
-        seriesStats = null;
+        seriesData = null;
       }
     }
 
-    const model = {
-      teamColors,
-      allMatchStats,
+    const killMatrixFormatter = new KillMatrixFormatter();
+    const matchKillMatrixRows = new Map<string, readonly KillMatrixViewRow[]>();
+    for (const match of this.renderData.matches) {
+      const analytics = snapshot.analyticsByMatchId.get(match.matchId);
+      if (analytics != null) {
+        matchKillMatrixRows.set(match.matchId, killMatrixFormatter.present({ analytics, playersByXuid }));
+      }
+    }
+
+    const matchSummaries: DiscordSeriesMatchSummary[] = this.renderData.matches.map((match) => ({
+      matchId: match.matchId,
+      gameMapThumbnailUrl: match.gameMapThumbnailUrl,
+      gameModeIconUrl: gameModeIconSrc(match.gameVariantCategory),
+      gameModeAlt: match.gameType,
+      gameScore: match.gameScore,
+      gameSubScore: match.gameSubScore ?? null,
+      gameMap: match.gameMap,
+      winningTeamColorHex: DiscordSeriesStatsPresenter.getWinningTeamColor(match.rawMatch, teamColors)?.hex ?? null,
+    }));
+
+    const teams: DiscordSeriesTeamCard[] = this.renderData.teams.map((team, teamIndex) => {
+      const teamColor =
+        teamIndex < 2
+          ? (teamColors[teamIndex] ?? getTeamColorOrDefault(undefined, teamIndex))
+          : getTeamColorOrDefault(undefined, teamIndex);
+      return { name: team.name, players: team.players, teamColorHex: teamColor.hex };
+    });
+
+    const matchDetails: DiscordSeriesMatchDetail[] = this.renderData.matches.map((match, index) => {
+      const killMatrixRows = matchKillMatrixRows.get(match.matchId) ?? ([] as readonly KillMatrixViewRow[]);
+      const base = {
+        matchId: match.matchId,
+        gameMapThumbnailUrl: match.gameMapThumbnailUrl,
+        gameModeIconUrl: gameModeIconSrc(match.gameVariantCategory),
+        gameModeAlt: match.gameType,
+        matchNumber: index + 1,
+        gameTypeAndMap: match.gameTypeAndMap,
+        duration: match.duration,
+        score: match.gameSubScore != null ? `${match.gameScore} (${match.gameSubScore})` : match.gameScore,
+        startTime: match.startTime,
+        endTime: match.endTime,
+        teamColors,
+        killMatrixRows,
+      };
+      if (!isMatchStats(match.rawMatch)) {
+        return { ...base, data: null };
+      }
+      try {
+        const matchController = new StatsController();
+        const playerMap = new Map<string, string>(Object.entries(match.playerXuidToGametag));
+        matchController.loadMatch(match.rawMatch, playerMap, this.renderData.medalMetadata);
+        return { ...base, data: matchController.getMatchStats() };
+      } catch {
+        return { ...base, data: null };
+      }
+    });
+
+    const seriesStats: DiscordSeriesStatsViewModel["seriesStats"] =
+      seriesData != null
+        ? {
+            teamData: seriesData.teamData,
+            playerData: seriesData.playerData,
+            metadata: calculateSeriesMetadata(this.renderData.matches, this.renderData.seriesScore),
+            teamColors,
+            killMatrixRows: KillMatrixFormatter.aggregate(
+              [...matchKillMatrixRows.values()].flatMap((rows) => [...rows]),
+            ),
+          }
+        : null;
+
+    return {
+      title: this.renderData.title,
+      subtitle: this.renderData.subtitle,
+      seriesScore: this.renderData.seriesScore,
+      matchSummaries,
+      teams,
       seriesStats,
+      matchDetails,
     };
-    DiscordSeriesStatsPresenter.modelByRenderData.set(this.renderData, model);
-    return model;
   }
 
   static getWinningTeamColor(rawMatch: unknown, teamColors: readonly TeamColor[]): TeamColor | null {

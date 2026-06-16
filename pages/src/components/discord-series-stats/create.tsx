@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useSyncExternalStore, type ReactElement } from "react";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
-import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import { StatsController } from "../../controllers/stats/stats-controller";
+import { DiscordSeriesStatsStore } from "./discord-series-stats-store";
 import { DiscordSeriesStatsPresenter } from "./discord-series-stats-presenter";
 import { DiscordSeriesStatsView } from "./discord-series-stats-view";
 
@@ -12,53 +12,27 @@ interface DiscordSeriesStatsProps {
 }
 
 export function DiscordSeriesStats({ data, matchAnalyticsService }: DiscordSeriesStatsProps): ReactElement {
+  const store = useMemo(() => new DiscordSeriesStatsStore(), [data.renderData]);
   const controller = useMemo(() => new StatsController(), [data.renderData]);
   const presenter = useMemo(
-    () => new DiscordSeriesStatsPresenter(data.renderData, controller),
-    [data.renderData, controller],
+    () => new DiscordSeriesStatsPresenter(data.renderData, controller, store, matchAnalyticsService),
+    [data.renderData, controller, store, matchAnalyticsService],
   );
 
-  const model = useMemo(() => presenter.present(), [presenter]);
-
-  const [analyticsByMatchId, setAnalyticsByMatchId] = useState<ReadonlyMap<string, MatchAnalytics>>(new Map());
+  const snapshot = useSyncExternalStore(
+    (listener) => store.subscribe(listener),
+    () => store.getSnapshot(),
+    () => store.getSnapshot(),
+  );
 
   useEffect(() => {
-    let cancelled = false;
-    const { matchIds } = data;
-
-    void Promise.all(
-      matchIds.map(async (matchId) => {
-        try {
-          const analytics = await matchAnalyticsService.getMatchAnalytics(matchId);
-          return { matchId, analytics };
-        } catch {
-          return null;
-        }
-      }),
-    ).then((results) => {
-      if (cancelled) {
-        return;
-      }
-      const map = new Map<string, MatchAnalytics>();
-      for (const result of results) {
-        if (result != null) {
-          map.set(result.matchId, result.analytics);
-        }
-      }
-      setAnalyticsByMatchId(map);
-    });
-
+    presenter.start();
     return (): void => {
-      cancelled = true;
+      presenter.dispose();
     };
-  }, [data.matchIds, matchAnalyticsService]);
+  }, [presenter]);
 
-  return (
-    <DiscordSeriesStatsView
-      renderData={data.renderData}
-      model={model}
-      analyticsByMatchId={analyticsByMatchId}
-      controller={controller}
-    />
-  );
+  const model = useMemo(() => presenter.present(snapshot), [presenter, snapshot]);
+
+  return <DiscordSeriesStatsView {...model} />;
 }

@@ -5,8 +5,7 @@ import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tr
 import { Container } from "../../container/container";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import { relativeTime, Timeline } from "../timeline/timeline";
-import type { IndividualTrackerViewerRenderModel } from "./types";
-import type { MatchStatsState } from "./viewer-store";
+import type { IndividualTrackerViewerRenderModel, MatchStatsPanelState } from "./types";
 import { TabsBar } from "./viewer-tabs";
 import { StatsPanel } from "./stats-panel";
 import styles from "./individual-tracker-viewer.module.css";
@@ -15,7 +14,7 @@ interface IndividualTrackerViewerProps {
   readonly renderModel: IndividualTrackerViewerRenderModel;
   readonly connectionStatus: TrackerViewConnectionStatus;
   readonly selectedMatchId: string | null;
-  readonly matchStatsState: MatchStatsState | null;
+  readonly matchStatsPanelState: MatchStatsPanelState | null;
   readonly onSelectMatch: (matchId: string) => void;
   readonly onDeselect: () => void;
 }
@@ -73,7 +72,7 @@ export function IndividualTrackerViewer({
   renderModel,
   connectionStatus,
   selectedMatchId,
-  matchStatsState,
+  matchStatsPanelState,
   onSelectMatch,
   onDeselect,
 }: IndividualTrackerViewerProps): React.ReactElement {
@@ -118,7 +117,7 @@ export function IndividualTrackerViewer({
         onDeselect={onDeselect}
       />
 
-      <StatsPanel state={matchStatsState} />
+      <StatsPanel state={matchStatsPanelState} />
 
       <Timeline timeline={renderModel.timeline} />
     </Container>

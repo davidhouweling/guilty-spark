@@ -35,7 +35,7 @@ describe("IndividualTrackerViewer", () => {
         renderModel={aModel(view)}
         connectionStatus="connected"
         selectedMatchId={null}
-        matchStatsState={null}
+        matchStatsPanelState={null}
         onSelectMatch={() => undefined}
         onDeselect={() => undefined}
       />,
@@ -55,7 +55,7 @@ describe("IndividualTrackerViewer", () => {
         renderModel={aModel(view)}
         connectionStatus="connected"
         selectedMatchId={null}
-        matchStatsState={null}
+        matchStatsPanelState={null}
         onSelectMatch={() => undefined}
         onDeselect={() => undefined}
       />,
@@ -77,7 +77,7 @@ describe("IndividualTrackerViewer", () => {
         renderModel={aModel(view)}
         connectionStatus="connected"
         selectedMatchId={null}
-        matchStatsState={null}
+        matchStatsPanelState={null}
         onSelectMatch={() => undefined}
         onDeselect={() => undefined}
       />,
@@ -97,7 +97,7 @@ describe("IndividualTrackerViewer", () => {
         renderModel={aModel(view)}
         connectionStatus="connected"
         selectedMatchId={null}
-        matchStatsState={null}
+        matchStatsPanelState={null}
         onSelectMatch={() => undefined}
         onDeselect={() => undefined}
       />,
@@ -114,7 +114,7 @@ describe("IndividualTrackerViewer", () => {
         renderModel={aModel(view)}
         connectionStatus="connected"
         selectedMatchId={null}
-        matchStatsState={null}
+        matchStatsPanelState={null}
         onSelectMatch={() => undefined}
         onDeselect={() => undefined}
       />,
@@ -131,7 +131,7 @@ describe("IndividualTrackerViewer", () => {
         renderModel={aModel(view)}
         connectionStatus="disconnected"
         selectedMatchId={null}
-        matchStatsState={null}
+        matchStatsPanelState={null}
         onSelectMatch={() => undefined}
         onDeselect={() => undefined}
       />,
@@ -152,7 +152,7 @@ describe("IndividualTrackerViewer", () => {
         renderModel={aModel(view)}
         connectionStatus="connected"
         selectedMatchId={null}
-        matchStatsState={null}
+        matchStatsPanelState={null}
         onSelectMatch={() => undefined}
         onDeselect={() => undefined}
       />,

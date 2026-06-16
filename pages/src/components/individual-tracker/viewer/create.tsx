@@ -39,7 +39,7 @@ export function IndividualTrackerViewerPage({
             renderModel={model.renderModel}
             connectionStatus={model.connectionStatus}
             selectedMatchId={model.selectedMatchId}
-            matchStatsState={model.matchStatsState}
+            matchStatsPanelState={model.matchStatsPanelState}
             onSelectMatch={onSelectMatch}
             onDeselect={onDeselect}
           />

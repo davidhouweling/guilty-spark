@@ -7,9 +7,11 @@ import type {
   TrackerViewConnection,
   TrackerViewSubscription,
 } from "../../../services/individual-tracker/view-types";
+import { StatsController } from "../../../controllers/stats/stats-controller";
+import type { KillMatrixViewRow } from "../../../controllers/stats/kill-matrix/types";
 import { buildViewerRenderModel } from "./viewer-render-model";
-import type { IndividualTrackerViewerSnapshot, IndividualTrackerViewerStore } from "./viewer-store";
-import type { IndividualTrackerViewerViewModel } from "./types";
+import type { IndividualTrackerViewerSnapshot, IndividualTrackerViewerStore, MatchStatsState } from "./viewer-store";
+import type { IndividualTrackerViewerViewModel, MatchStatsPanelState } from "./types";
 
 interface Config {
   readonly individualTrackerViewService: IndividualTrackerViewService;
@@ -46,8 +48,41 @@ export class IndividualTrackerViewerPresenter {
       connectionStatus: snapshot.connectionStatus,
       selectedMatchId: snapshot.selectedMatchId,
       matchStatsState: snapshot.matchStatsState,
+      matchStatsPanelState: IndividualTrackerViewerPresenter.toMatchStatsPanelState(snapshot.matchStatsState),
       streamerSettings,
     };
+  }
+
+  private static toMatchStatsPanelState(state: MatchStatsState | null): MatchStatsPanelState | null {
+    if (state == null) {
+      return null;
+    }
+    if (state.status !== "loaded") {
+      return state;
+    }
+
+    const { stats, playerMap, medalMetadata, analytics } = state;
+    try {
+      const controller = new StatsController();
+      controller.loadMatch(stats, playerMap, medalMetadata);
+      let killMatrixRows: readonly KillMatrixViewRow[] = [];
+      if (analytics != null) {
+        controller.loadAnalytics(analytics, playerMap);
+        killMatrixRows = controller.getKillMatrix();
+      }
+      return {
+        status: "loaded",
+        matchId: stats.MatchId,
+        gameVariantCategory: stats.MatchInfo.GameVariantCategory,
+        duration: stats.MatchInfo.Duration,
+        startTime: stats.MatchInfo.StartTime,
+        endTime: stats.MatchInfo.EndTime,
+        data: controller.getMatchStats(),
+        killMatrixRows,
+      };
+    } catch {
+      return { status: "error", message: "Failed to compute match stats" };
+    }
   }
 
   public selectMatch(matchId: string): void {
