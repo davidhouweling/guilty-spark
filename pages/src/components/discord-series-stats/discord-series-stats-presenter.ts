@@ -8,7 +8,14 @@ import { KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-ma
 import type { KillMatrixViewRow } from "../../controllers/stats/kill-matrix/types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault, type TeamColor } from "../team-colors/team-colors";
+import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
 import type { DiscordSeriesStatsSnapshot, DiscordSeriesStatsStore } from "./discord-series-stats-store";
+import type {
+  DiscordSeriesMatchDetail,
+  DiscordSeriesMatchSummary,
+  DiscordSeriesStatsViewModel,
+  DiscordSeriesTeamCard,
+} from "./types";
 
 const WIN_OUTCOME = 2;
 
@@ -17,22 +24,6 @@ interface SeriesMetadata {
   readonly duration: string;
   readonly startTime: string;
   readonly endTime: string;
-}
-
-export interface DiscordSeriesStatsViewModel {
-  readonly teamColors: readonly TeamColor[];
-  readonly allMatchStats: {
-    readonly matchId: string;
-    readonly data: MatchStatsData[] | null;
-    readonly winningTeamColorHex: string | null;
-    readonly killMatrixRows: readonly KillMatrixViewRow[];
-  }[];
-  readonly seriesStats: {
-    readonly teamData: MatchStatsData[];
-    readonly playerData: MatchStatsData[];
-    readonly metadata: SeriesMetadata | null;
-    readonly killMatrixRows: readonly KillMatrixViewRow[];
-  } | null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -177,32 +168,51 @@ export class DiscordSeriesStatsPresenter {
       }
     }
 
-    const allMatchStats = this.renderData.matches.map((match) => {
+    const matchSummaries: DiscordSeriesMatchSummary[] = this.renderData.matches.map((match) => ({
+      matchId: match.matchId,
+      gameMapThumbnailUrl: match.gameMapThumbnailUrl,
+      gameModeIconUrl: gameModeIconSrc(match.gameVariantCategory),
+      gameModeAlt: match.gameType,
+      gameScore: match.gameScore,
+      gameSubScore: match.gameSubScore ?? null,
+      gameMap: match.gameMap,
+      winningTeamColorHex: DiscordSeriesStatsPresenter.getWinningTeamColor(match.rawMatch, teamColors)?.hex ?? null,
+    }));
+
+    const teams: DiscordSeriesTeamCard[] = this.renderData.teams.map((team, teamIndex) => {
+      const teamColor =
+        teamIndex < 2
+          ? (teamColors[teamIndex] ?? getTeamColorOrDefault(undefined, teamIndex))
+          : getTeamColorOrDefault(undefined, teamIndex);
+      return { name: team.name, players: team.players, teamColorHex: teamColor.hex };
+    });
+
+    const matchDetails: DiscordSeriesMatchDetail[] = this.renderData.matches.map((match, index) => {
+      const killMatrixRows = matchKillMatrixRows.get(match.matchId) ?? ([] as readonly KillMatrixViewRow[]);
+      const base = {
+        matchId: match.matchId,
+        gameMapThumbnailUrl: match.gameMapThumbnailUrl,
+        gameModeIconUrl: gameModeIconSrc(match.gameVariantCategory),
+        gameModeAlt: match.gameType,
+        matchNumber: index + 1,
+        gameTypeAndMap: match.gameTypeAndMap,
+        duration: match.duration,
+        score: match.gameSubScore != null ? `${match.gameScore} (${match.gameSubScore})` : match.gameScore,
+        startTime: match.startTime,
+        endTime: match.endTime,
+        teamColors,
+        killMatrixRows,
+      };
       if (!isMatchStats(match.rawMatch)) {
-        return {
-          matchId: match.matchId,
-          data: null,
-          winningTeamColorHex: null,
-          killMatrixRows: [] as readonly KillMatrixViewRow[],
-        };
+        return { ...base, data: null };
       }
       try {
         const matchController = new StatsController();
         const playerMap = new Map<string, string>(Object.entries(match.playerXuidToGametag));
         matchController.loadMatch(match.rawMatch, playerMap, this.renderData.medalMetadata);
-        return {
-          matchId: match.matchId,
-          data: matchController.getMatchStats(),
-          winningTeamColorHex: DiscordSeriesStatsPresenter.getWinningTeamColor(match.rawMatch, teamColors)?.hex ?? null,
-          killMatrixRows: matchKillMatrixRows.get(match.matchId) ?? ([] as readonly KillMatrixViewRow[]),
-        };
+        return { ...base, data: matchController.getMatchStats() };
       } catch {
-        return {
-          matchId: match.matchId,
-          data: null,
-          winningTeamColorHex: null,
-          killMatrixRows: [] as readonly KillMatrixViewRow[],
-        };
+        return { ...base, data: null };
       }
     });
 
@@ -212,13 +222,22 @@ export class DiscordSeriesStatsPresenter {
             teamData: seriesData.teamData,
             playerData: seriesData.playerData,
             metadata: calculateSeriesMetadata(this.renderData.matches, this.renderData.seriesScore),
+            teamColors,
             killMatrixRows: KillMatrixFormatter.aggregate(
               [...matchKillMatrixRows.values()].flatMap((rows) => [...rows]),
             ),
           }
         : null;
 
-    return { teamColors, allMatchStats, seriesStats };
+    return {
+      title: this.renderData.title,
+      subtitle: this.renderData.subtitle,
+      seriesScore: this.renderData.seriesScore,
+      matchSummaries,
+      teams,
+      seriesStats,
+      matchDetails,
+    };
   }
 
   static getWinningTeamColor(rawMatch: unknown, teamColors: readonly TeamColor[]): TeamColor | null {

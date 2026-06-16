@@ -34,5 +34,5 @@ export function DiscordSeriesStats({ data, matchAnalyticsService }: DiscordSerie
 
   const model = useMemo(() => presenter.present(snapshot), [presenter, snapshot]);
 
-  return <DiscordSeriesStatsView renderData={data.renderData} model={model} />;
+  return <DiscordSeriesStatsView {...model} />;
 }
