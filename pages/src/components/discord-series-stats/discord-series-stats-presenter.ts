@@ -1,9 +1,9 @@
 import type { MatchStats } from "halo-infinite-api";
 import { differenceInSeconds, isValid, parseISO } from "date-fns";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
-import { createMatchStatsPresenter } from "../stats/create";
-import { SeriesTeamStatsPresenter } from "../stats/series-team-stats-presenter";
-import { SeriesPlayerStatsPresenter } from "../stats/series-player-stats-presenter";
+import { createMatchStatsFormatter } from "../stats/create";
+import { SeriesTeamStatsFormatter } from "../stats/series-team-stats-presenter";
+import { SeriesPlayerStatsFormatter } from "../stats/series-player-stats-presenter";
 import type { MatchStatsData } from "../stats/types";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault, type TeamColor } from "../team-colors/team-colors";
 
@@ -102,11 +102,11 @@ export class DiscordSeriesStatsPresenter {
       }
 
       try {
-        const presenter = createMatchStatsPresenter(match.rawMatch.MatchInfo.GameVariantCategory);
+        const formatter = createMatchStatsFormatter(match.rawMatch.MatchInfo.GameVariantCategory);
         const playerMap = new Map<string, string>(Object.entries(match.playerXuidToGametag));
         return {
           matchId: match.matchId,
-          data: presenter.getData(match.rawMatch, playerMap, this.renderData.medalMetadata),
+          data: formatter.getData(match.rawMatch, playerMap, this.renderData.medalMetadata),
         };
       } catch {
         return { matchId: match.matchId, data: null };
@@ -125,8 +125,8 @@ export class DiscordSeriesStatsPresenter {
 
     if (rawMatches.length > 0) {
       try {
-        const teamPresenter = new SeriesTeamStatsPresenter();
-        const playerPresenter = new SeriesPlayerStatsPresenter();
+        const teamFormatter = new SeriesTeamStatsFormatter();
+        const playerFormatter = new SeriesPlayerStatsFormatter();
         const playersMap = new Map<string, string>();
 
         for (const match of this.renderData.matches) {
@@ -136,8 +136,8 @@ export class DiscordSeriesStatsPresenter {
         }
 
         seriesStats = {
-          teamData: teamPresenter.getSeriesData(rawMatches, playersMap, this.renderData.medalMetadata),
-          playerData: playerPresenter.getSeriesData(rawMatches, playersMap, this.renderData.medalMetadata),
+          teamData: teamFormatter.getSeriesData(rawMatches, playersMap, this.renderData.medalMetadata),
+          playerData: playerFormatter.getSeriesData(rawMatches, playersMap, this.renderData.medalMetadata),
           metadata: calculateSeriesMetadata(this.renderData.matches, this.renderData.seriesScore),
         };
       } catch {

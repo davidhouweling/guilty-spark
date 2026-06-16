@@ -9,7 +9,7 @@ import { getBestStatValues, getPlayerXuid, getTeamPlayersFromMatches } from "@gu
 import { aggregatePlayerCoreStats } from "@guilty-spark/shared/halo/series-player";
 import type { MatchStatsData, MatchStatsPlayerData, MatchStatsValues } from "./types";
 
-export class SeriesTeamStatsPresenter {
+export class SeriesTeamStatsFormatter {
   getSeriesData(
     matches: MatchStats[],
     players: Map<string, string>,

@@ -1,9 +1,9 @@
 import React, { useMemo } from "react";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import { KillMatrixPresenter } from "../../stats/kill-matrix/kill-matrix-presenter";
+import { KillMatrixFormatter } from "../../stats/kill-matrix/kill-matrix-presenter";
 import { Alert } from "../../alert/alert";
 import { LoadingState } from "../../loading-state/loading-state";
-import { createMatchStatsPresenter } from "../../stats/create";
+import { createMatchStatsFormatter } from "../../stats/create";
 import { MatchStats } from "../../stats/match-stats";
 import type { MatchStatsData } from "../../stats/types";
 import { gameModeIconSrc } from "../game-mode-icon";
@@ -17,10 +17,10 @@ interface LoadedStatsPanelProps {
 
 function LoadedStatsPanel({ state }: LoadedStatsPanelProps): React.ReactElement {
   const { stats, playerMap, medalMetadata, analytics } = state;
-  const killMatrixPresenter = useMemo(() => new KillMatrixPresenter(), []);
+  const killMatrixPresenter = useMemo(() => new KillMatrixFormatter(), []);
   const data = useMemo<MatchStatsData[]>(() => {
-    const presenter = createMatchStatsPresenter(stats.MatchInfo.GameVariantCategory);
-    return presenter.getData(stats, playerMap, medalMetadata);
+    const formatter = createMatchStatsFormatter(stats.MatchInfo.GameVariantCategory);
+    return formatter.getData(stats, playerMap, medalMetadata);
   }, [stats, playerMap, medalMetadata]);
 
   const killMatrixRows = useMemo(() => {

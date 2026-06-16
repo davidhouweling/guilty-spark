@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { KillMatrixPresenter } from "../kill-matrix-presenter";
+import { KillMatrixFormatter } from "../kill-matrix-presenter";
 import { aFakeMatchAnalyticsWith } from "../fakes/match-analytics.fake";
 import type { KillMatrixViewRow } from "../types";
 
-describe("KillMatrixPresenter", () => {
+describe("KillMatrixFormatter", () => {
   it("expands and sorts kill matrix rows", () => {
-    const presenter = new KillMatrixPresenter();
+    const presenter = new KillMatrixFormatter();
     const analytics = aFakeMatchAnalyticsWith();
     const rows = presenter.present({
       analytics,
@@ -28,7 +28,7 @@ describe("KillMatrixPresenter", () => {
   });
 
   it("falls back to xuid when player details are missing", () => {
-    const presenter = new KillMatrixPresenter();
+    const presenter = new KillMatrixFormatter();
     const analytics = aFakeMatchAnalyticsWith({
       killMatrix: {
         "999:888": {
@@ -70,7 +70,7 @@ describe("KillMatrixPresenter", () => {
         },
       ];
 
-      const result = KillMatrixPresenter.aggregate(rows);
+      const result = KillMatrixFormatter.aggregate(rows);
 
       expect(result).toHaveLength(1);
       expect(result[0]).toMatchObject({ key: "111:222", count: 5, headshotKills: 3, perfects: 1 });
@@ -98,13 +98,13 @@ describe("KillMatrixPresenter", () => {
         },
       ];
 
-      const result = KillMatrixPresenter.aggregate(rows);
+      const result = KillMatrixFormatter.aggregate(rows);
 
       expect(result.map((r) => r.key)).toEqual(["333:444", "111:222"]);
     });
 
     it("returns empty array when given no rows", () => {
-      expect(KillMatrixPresenter.aggregate([])).toEqual([]);
+      expect(KillMatrixFormatter.aggregate([])).toEqual([]);
     });
   });
 });

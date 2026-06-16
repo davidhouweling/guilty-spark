@@ -1,18 +1,18 @@
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { KillMatrixClassification, KillMatrixPlayer, KillMatrixViewRow } from "./types";
 
-interface KillMatrixPresenterPlayerLookup {
+interface KillMatrixFormatterPlayerLookup {
   readonly gamertag: string;
   readonly teamId: number | null;
 }
 
-export interface KillMatrixPresenterOptions {
+export interface KillMatrixFormatterOptions {
   readonly analytics: MatchAnalytics;
-  readonly playersByXuid: ReadonlyMap<string, KillMatrixPresenterPlayerLookup>;
+  readonly playersByXuid: ReadonlyMap<string, KillMatrixFormatterPlayerLookup>;
 }
 
-export class KillMatrixPresenter {
-  public present({ analytics, playersByXuid }: KillMatrixPresenterOptions): KillMatrixViewRow[] {
+export class KillMatrixFormatter {
+  public present({ analytics, playersByXuid }: KillMatrixFormatterOptions): KillMatrixViewRow[] {
     const rows: KillMatrixViewRow[] = [];
 
     for (const [key, value] of Object.entries(analytics.killMatrix)) {
@@ -50,7 +50,7 @@ export class KillMatrixPresenter {
 
   private toPlayer(
     xuid: string,
-    playersByXuid: ReadonlyMap<string, KillMatrixPresenterPlayerLookup>,
+    playersByXuid: ReadonlyMap<string, KillMatrixFormatterPlayerLookup>,
   ): KillMatrixPlayer {
     const entry = playersByXuid.get(xuid);
     if (entry == null) {
