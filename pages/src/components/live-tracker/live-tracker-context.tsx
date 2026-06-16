@@ -4,6 +4,7 @@ import type { MatchStatsData } from "../../controllers/stats/types";
 import type { SeriesMetadata } from "../../controllers/stats/series-metadata";
 import type { LiveTrackerParams } from "./live-tracker-store";
 import type {
+  LiveTrackerAvailablePlayer,
   LiveTrackerViewModel,
   LiveTrackerMatchRenderModel,
   LiveTrackerSubstitutionRenderModel,
@@ -163,11 +164,19 @@ export function useMatchByIndex(index: number): LiveTrackerMatchRenderModel | nu
 }
 
 /**
- * Select substitutions (NeatQueue only)
+ * Select substitutions sorted by timestamp (pre-sorted by presenter)
  */
-export function useSubstitutions(): readonly LiveTrackerSubstitutionRenderModel[] | null {
+export function useSubstitutions(): readonly LiveTrackerSubstitutionRenderModel[] {
   const { model } = useLiveTrackerContext();
-  return useMemo(() => (model.state?.type === "neatqueue" ? model.state.substitutions : null), [model.state]);
+  return useMemo(() => model.sortedSubstitutions, [model.sortedSubstitutions]);
+}
+
+/**
+ * Select available players for settings (pre-computed by presenter)
+ */
+export function useAvailablePlayers(): readonly LiveTrackerAvailablePlayer[] {
+  const { model } = useLiveTrackerContext();
+  return useMemo(() => model.availablePlayers, [model.availablePlayers]);
 }
 
 /**

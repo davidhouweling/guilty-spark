@@ -72,6 +72,11 @@ export interface LiveTrackerNeatQueueStateRenderModel {
   readonly seriesData?: LiveTrackerSeriesDataRenderModel;
 }
 
+export interface LiveTrackerAvailablePlayer {
+  readonly id: string;
+  readonly name: string;
+}
+
 export interface LiveTrackerViewModel {
   readonly title: string;
   readonly subtitle: string;
@@ -79,4 +84,6 @@ export interface LiveTrackerViewModel {
   readonly statusText: string;
   readonly statusClassName: string;
   readonly state: LiveTrackerStateRenderModel | null;
+  readonly sortedSubstitutions: readonly LiveTrackerSubstitutionRenderModel[];
+  readonly availablePlayers: readonly LiveTrackerAvailablePlayer[];
 }

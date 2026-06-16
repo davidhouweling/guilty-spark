@@ -31,6 +31,8 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
     iconUrl: "data:,",
     statusText: "active",
     statusClassName: "status-active",
+    sortedSubstitutions: [],
+    availablePlayers: [],
     state: {
       type: "neatqueue",
       guildName: "Test Guild",
@@ -327,25 +329,17 @@ describe("LiveTrackerContext", () => {
   });
 
   it("provides substitutions to hooks", () => {
-    const defaultState = aFakeLiveTrackerViewModelWith().state;
     const model = aFakeLiveTrackerViewModelWith({
-      state:
-        defaultState?.type === "neatqueue"
-          ? {
-              ...defaultState,
-              type: "neatqueue",
-              substitutions: [
-                {
-                  playerInId: "player2",
-                  playerInDisplayName: "Player Two",
-                  playerOutId: "player1",
-                  playerOutDisplayName: "Player One",
-                  teamName: "Team 1",
-                  timestamp: "2025-01-01T00:05:00.000Z",
-                },
-              ],
-            }
-          : defaultState,
+      sortedSubstitutions: [
+        {
+          playerInId: "player2",
+          playerInDisplayName: "Player Two",
+          playerOutId: "player1",
+          playerOutDisplayName: "Player One",
+          teamName: "Team 1",
+          timestamp: "2025-01-01T00:05:00.000Z",
+        },
+      ],
     });
 
     const { result } = renderHook(() => useSubstitutions(), {
@@ -356,8 +350,8 @@ describe("LiveTrackerContext", () => {
       ),
     });
 
-    expect(result.current?.length).toBe(1);
-    expect(result.current?.[0]?.playerInId).toBe("player2");
+    expect(result.current.length).toBe(1);
+    expect(result.current[0]?.playerInId).toBe("player2");
   });
 
   it("provides match count to hooks", () => {
