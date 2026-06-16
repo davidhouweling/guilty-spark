@@ -31,9 +31,3 @@
   color: var(--halo-red);
   margin: 0;
 }
-
-.loading {
-  color: var(--halo-gray);
-  padding: var(--space-10) 0;
-  text-align: center;
-}
