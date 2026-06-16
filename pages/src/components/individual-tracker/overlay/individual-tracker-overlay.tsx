@@ -2,7 +2,7 @@ import React, { useCallback, useMemo } from "react";
 import { StreamerOverlay } from "../../streamer-overlay/streamer-overlay";
 import { TopSection } from "../../streamer-overlay/top-section";
 import { StatsPanel } from "../viewer/stats-panel";
-import type { IndividualTrackerViewerRenderModel } from "../viewer/types";
+import type { IndividualTrackerViewerRenderModel, MatchStatsPanelState } from "../viewer/types";
 import type { MatchStatsState } from "../viewer/viewer-store";
 import {
   buildTabs,
@@ -19,6 +19,7 @@ import styles from "./individual-tracker-overlay.module.css";
 interface IndividualTrackerOverlayProps {
   readonly renderModel: IndividualTrackerViewerRenderModel;
   readonly matchStatsState: MatchStatsState | null;
+  readonly matchStatsPanelState: MatchStatsPanelState | null;
   readonly selectedMatchId: string | null;
   readonly onSelectMatch: (matchId: string) => void;
   readonly onDeselect: () => void;
@@ -27,6 +28,7 @@ interface IndividualTrackerOverlayProps {
 export function IndividualTrackerOverlay({
   renderModel,
   matchStatsState,
+  matchStatsPanelState,
   selectedMatchId,
   onSelectMatch,
   onDeselect,
@@ -97,8 +99,8 @@ export function IndividualTrackerOverlay({
   const hasPanelContent = useCallback((): boolean => false, []);
 
   const renderPanelContent = useCallback(
-    (): React.ReactElement | null => <StatsPanel state={matchStatsState} />,
-    [matchStatsState],
+    (): React.ReactElement | null => <StatsPanel state={matchStatsPanelState} />,
+    [matchStatsPanelState],
   );
 
   return (
