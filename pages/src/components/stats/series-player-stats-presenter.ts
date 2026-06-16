@@ -12,7 +12,7 @@ import { getPlayerSlayerStats as getSharedPlayerSlayerStats } from "@guilty-spar
 import { getBestStatValues, getBestTeamStatValues, getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { MatchStatsData, MatchStatsPlayerData } from "./types";
 
-export class SeriesPlayerStatsPresenter {
+export class SeriesPlayerStatsFormatter {
   getSeriesData(
     matches: MatchStats[],
     players: Map<string, string>,

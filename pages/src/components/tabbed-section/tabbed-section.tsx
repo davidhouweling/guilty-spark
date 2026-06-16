@@ -75,7 +75,7 @@ export function TabbedSection<TId extends string>({
   );
 
   return (
-    <div>
+    <>
       <div
         ref={tabListRef}
         className={styles.tabList}
@@ -126,6 +126,6 @@ export function TabbedSection<TId extends string>({
           </div>
         );
       })}
-    </div>
+    </>
   );
 }

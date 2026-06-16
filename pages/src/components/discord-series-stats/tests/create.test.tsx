@@ -1,10 +1,11 @@
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { DiscordSeriesStats } from "../create";
 import { DiscordSeriesStatsPresenter } from "../discord-series-stats-presenter";
+import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 
 afterEach(() => {
   cleanup();
@@ -49,7 +50,9 @@ function aFakeResolvedDataWith(overrides: Partial<DiscordSeriesStatsResolved> = 
 
 describe("DiscordSeriesStats", () => {
   it("renders header and top-level sections", () => {
-    render(<DiscordSeriesStats data={aFakeResolvedDataWith()} />);
+    render(
+      <DiscordSeriesStats data={aFakeResolvedDataWith()} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />,
+    );
 
     expect(screen.getByRole("heading", { name: "Queue #7777 Series Stats" })).toBeInTheDocument();
     expect(screen.getByText("Series overview")).toBeInTheDocument();
@@ -59,13 +62,17 @@ describe("DiscordSeriesStats", () => {
   });
 
   it("shows warning when a match has invalid raw match data", () => {
-    render(<DiscordSeriesStats data={aFakeResolvedDataWith()} />);
+    render(
+      <DiscordSeriesStats data={aFakeResolvedDataWith()} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />,
+    );
 
     expect(screen.getByText("Failed to load detailed stats for match match-1.")).toBeInTheDocument();
   });
 
   it("does not render series totals when no valid raw match data exists", () => {
-    render(<DiscordSeriesStats data={aFakeResolvedDataWith()} />);
+    render(
+      <DiscordSeriesStats data={aFakeResolvedDataWith()} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />,
+    );
 
     expect(screen.queryByText("Series Totals")).not.toBeInTheDocument();
   });
@@ -77,6 +84,7 @@ describe("DiscordSeriesStats", () => {
     render(
       <DiscordSeriesStats
         data={aFakeResolvedDataWith({ renderData: { ...aFakeResolvedDataWith().renderData, medalMetadata } })}
+        matchAnalyticsService={aFakeMatchAnalyticsServiceWith()}
       />,
     );
 
@@ -86,7 +94,9 @@ describe("DiscordSeriesStats", () => {
   });
 
   it("toggles between standard and wide view", () => {
-    render(<DiscordSeriesStats data={aFakeResolvedDataWith()} />);
+    render(
+      <DiscordSeriesStats data={aFakeResolvedDataWith()} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />,
+    );
 
     const toggleButton = screen.getByRole("button", { name: "Switch to wide view" });
     expect(toggleButton).toBeInTheDocument();
@@ -94,5 +104,24 @@ describe("DiscordSeriesStats", () => {
     fireEvent.click(toggleButton);
 
     expect(screen.getByRole("button", { name: "Switch to standard view" })).toBeInTheDocument();
+  });
+
+  it("fetches match analytics for each match id", async () => {
+    const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
+    const getMatchAnalyticsSpy = vi.spyOn(matchAnalyticsService, "getMatchAnalytics");
+
+    render(
+      <DiscordSeriesStats
+        data={aFakeResolvedDataWith({ matchIds: ["match-1", "match-2"] })}
+        matchAnalyticsService={matchAnalyticsService}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(getMatchAnalyticsSpy).toHaveBeenCalledTimes(2);
+    });
+
+    expect(getMatchAnalyticsSpy).toHaveBeenCalledWith("match-1");
+    expect(getMatchAnalyticsSpy).toHaveBeenCalledWith("match-2");
   });
 });

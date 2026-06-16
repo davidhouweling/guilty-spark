@@ -2,7 +2,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useMemo } from "react";
 import { Button } from "../button/button";
 import { LoadingState } from "../loading-state/loading-state";
-import { TabbedSection } from "../shared/tabbed-section/tabbed-section";
+import { TabbedSection } from "../tabbed-section/tabbed-section";
 import type { IndividualTrackerAuthState, IndividualTrackerSectionId } from "./individual-tracker-store";
 import styles from "./individual-tracker.module.css";
 

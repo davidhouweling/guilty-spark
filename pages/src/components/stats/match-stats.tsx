@@ -3,9 +3,13 @@ import React from "react";
 import classNames from "classnames";
 import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";
+import { TabbedSection } from "../tabbed-section/tabbed-section";
 import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
 import type { TeamColor } from "../team-colors/team-colors";
+import { Container } from "../container/container";
+import type { KillMatrixViewRow } from "./kill-matrix/types";
+import { KillMatrixTable } from "./kill-matrix/kill-matrix-table";
 import type { MatchStatsData, MatchStatsPlayerData } from "./types";
 import { sortByMedals, getTeamMedalsMap, getPlayerMedalsMap } from "./medals-sorting";
 import styles from "./match-stats.module.css";
@@ -23,6 +27,7 @@ interface MatchStatsProps {
   readonly startTime: string;
   readonly endTime: string;
   readonly teamColors?: readonly TeamColor[];
+  readonly killMatrixRows?: readonly KillMatrixViewRow[];
 }
 
 type MatchStatsRow = MatchStatsData & { player: MatchStatsPlayerData };
@@ -40,7 +45,9 @@ export function MatchStats({
   startTime,
   endTime,
   teamColors,
+  killMatrixRows,
 }: MatchStatsProps): React.ReactElement {
+  const [activeTab, setActiveTab] = React.useState<"players" | "kill-matrix">("players");
   const hasTeamStats = data.length > 0 && data[0].teamStats.length > 0;
 
   // Define team stats columns
@@ -178,7 +185,10 @@ export function MatchStats({
 
   return (
     <div className={styles.matchStatsContainer} id={id}>
-      <div className={styles.matchHeader} style={{ "--match-bg": `url(${backgroundImageUrl})` } as React.CSSProperties}>
+      <Container
+        className={styles.matchHeader}
+        style={{ "--match-bg": `url(${backgroundImageUrl})` } as React.CSSProperties}
+      >
         <div className={styles.matchHeaderContent}>
           <h3 className={styles.matchTitle}>
             Match {matchNumber}: {gameTypeAndMap}
@@ -203,10 +213,13 @@ export function MatchStats({
           </ul>
         </div>
         <img src={gameModeIconUrl} alt={gameModeAlt} className={styles.gameModeIcon} />
-      </div>
+      </Container>
+
       {hasTeamStats && (
         <div className={styles.teamTotals}>
-          <h3 className={styles.subsectionHeader}>Team Totals</h3>
+          <Container>
+            <h3 className={styles.subsectionHeader}>Team Totals</h3>
+          </Container>
           <SortableTable
             data={data}
             columns={teamColumns}
@@ -224,23 +237,44 @@ export function MatchStats({
         </div>
       )}
 
-      <div className={styles.playerStats}>
-        <h3 className={styles.subsectionHeader}>Players</h3>
-        <SortableTable
-          data={playerData}
-          columns={playerColumns}
-          getRowKey={(row) => `${row.teamId.toString()}-${row.player.name}`}
-          ariaLabel="Player statistics"
-          getRowStyle={
-            teamColors
-              ? (row): React.CSSProperties =>
-                  ({
-                    "--row-color": teamColors[row.teamId]?.hex ?? "transparent",
-                  }) as React.CSSProperties
-              : undefined
-          }
-        />
-      </div>
+      <TabbedSection
+        tabListAriaLabel="Player statistics view"
+        selectedTabId={activeTab}
+        onTabChange={setActiveTab}
+        tabs={[
+          {
+            id: "players",
+            label: "Players",
+            content: (
+              <SortableTable
+                data={playerData}
+                columns={playerColumns}
+                getRowKey={(row) => `${row.teamId.toString()}-${row.player.name}`}
+                ariaLabel="Player statistics"
+                getRowStyle={
+                  teamColors
+                    ? (row): React.CSSProperties =>
+                        ({
+                          "--row-color": teamColors[row.teamId]?.hex ?? "transparent",
+                        }) as React.CSSProperties
+                    : undefined
+                }
+              />
+            ),
+          },
+          {
+            id: "kill-matrix",
+            label: "Kill Matrix",
+            content: (
+              <KillMatrixTable
+                rows={killMatrixRows ?? []}
+                ariaLabel="Match kill matrix"
+                emptyMessage="Kill matrix data is not available for this match yet."
+              />
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

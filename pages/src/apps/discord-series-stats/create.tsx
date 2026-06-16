@@ -5,6 +5,7 @@ import { ErrorState } from "../../components/error-state/error-state";
 import { LoadingState } from "../../components/loading-state/loading-state";
 import { DiscordSeriesStats } from "../../components/discord-series-stats/create";
 import type { DiscordSeriesStatsService } from "../../services/stats/discord-series-types";
+import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import { DiscordSeriesStatsPresenter } from "./discord-series-stats-presenter";
 import { DiscordSeriesStatsStore } from "./discord-series-stats-store";
 import type { Services } from "./services";
@@ -18,12 +19,14 @@ interface DiscordSeriesStatsAppProps {
 
 interface DiscordSeriesStatsDataProps {
   readonly discordSeriesStatsService: DiscordSeriesStatsService;
+  readonly matchAnalyticsService: MatchAnalyticsService;
   readonly guildId: string;
   readonly queueNumber: string;
 }
 
 function DiscordSeriesStatsData({
   discordSeriesStatsService,
+  matchAnalyticsService,
   guildId,
   queueNumber,
 }: DiscordSeriesStatsDataProps): ReactElement {
@@ -68,7 +71,7 @@ function DiscordSeriesStatsData({
       error={<ErrorState message={model.state === "error" ? model.message : "Failed to load stats"} />}
       loaded={
         model.state === "resolved" ? (
-          <DiscordSeriesStats data={model.data} />
+          <DiscordSeriesStats data={model.data} matchAnalyticsService={matchAnalyticsService} />
         ) : model.state === "pending-index" ? (
           <LoadingState
             text={`Stats are still indexing. Retry in ${Math.ceil(model.retryAfterSeconds).toString()}s.`}
@@ -126,6 +129,7 @@ export function DiscordSeriesStatsApp({ apiHost, guildId, queueNumber }: Discord
         services != null ? (
           <DiscordSeriesStatsData
             discordSeriesStatsService={services.discordSeriesStatsService}
+            matchAnalyticsService={services.matchAnalyticsService}
             guildId={guildId}
             queueNumber={queueNumber}
           />

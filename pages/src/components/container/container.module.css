@@ -15,6 +15,7 @@
   max-width: calc(var(--content-width) + (var(--gutter-desktop) * 2));
   padding-left: var(--gutter-mobile-down);
   padding-right: var(--gutter-mobile-down);
+  width: 100%;
 }
 
 /* ============================================ */

@@ -2,10 +2,10 @@ import React, { useEffect, useMemo, useSyncExternalStore, useRef } from "react";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
 import { ErrorState } from "../error-state/error-state";
 import { LoadingState } from "../loading-state/loading-state";
-import { createMatchStatsPresenter } from "../stats/create";
+import { createMatchStatsFormatter } from "../stats/create";
 import type { MatchStatsData } from "../stats/types";
-import { SeriesTeamStatsPresenter } from "../stats/series-team-stats-presenter";
-import { SeriesPlayerStatsPresenter } from "../stats/series-player-stats-presenter";
+import { SeriesTeamStatsFormatter } from "../stats/series-team-stats-presenter";
+import { SeriesPlayerStatsFormatter } from "../stats/series-player-stats-presenter";
 import { calculateSeriesMetadata, type SeriesMetadata } from "../stats/series-metadata";
 import type { LiveTrackerService } from "../../services/live-tracker/types";
 import { LiveTrackerPresenter } from "./live-tracker-presenter";
@@ -45,7 +45,9 @@ export function LiveTracker({ liveTrackerService }: LiveTrackerProps): React.Rea
 
   const loaderStatus = snapshot.hasReceivedInitialData
     ? ComponentLoaderStatus.LOADED
-    : snapshot.connectionState === "error" || snapshot.connectionState === "stopped"
+    : snapshot.connectionState === "error" ||
+        snapshot.connectionState === "stopped" ||
+        snapshot.connectionState === "not_found"
       ? ComponentLoaderStatus.ERROR
       : ComponentLoaderStatus.LOADING;
 
@@ -108,11 +110,11 @@ export function LiveTracker({ liveTrackerService }: LiveTrackerProps): React.Rea
 
       try {
         const matchStats = match.rawMatchStats;
-        const matchStatsPresenter = createMatchStatsPresenter(matchStats.MatchInfo.GameVariantCategory);
+        const matchStatsFormatter = createMatchStatsFormatter(matchStats.MatchInfo.GameVariantCategory);
         const playerMap = new Map<string, string>(Object.entries(match.playerXuidToGametag));
         return {
           matchId: match.matchId,
-          data: matchStatsPresenter.getData(matchStats, playerMap, medalMetadata),
+          data: matchStatsFormatter.getData(matchStats, playerMap, medalMetadata),
         };
       } catch (error) {
         console.error("Error processing match stats:", error);
@@ -140,8 +142,8 @@ export function LiveTracker({ liveTrackerService }: LiveTrackerProps): React.Rea
     }
 
     try {
-      const teamPresenter = new SeriesTeamStatsPresenter();
-      const playerPresenter = new SeriesPlayerStatsPresenter();
+      const teamFormatter = new SeriesTeamStatsFormatter();
+      const playerFormatter = new SeriesPlayerStatsFormatter();
 
       const allPlayerXuidToGametag = new Map<string, string>();
       for (const match of model.state.matches) {
@@ -153,8 +155,8 @@ export function LiveTracker({ liveTrackerService }: LiveTrackerProps): React.Rea
       const metadata = calculateSeriesMetadata(model.state.matches, model.state.seriesScore);
 
       return {
-        teamData: teamPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, model.state.medalMetadata),
-        playerData: playerPresenter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, model.state.medalMetadata),
+        teamData: teamFormatter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, model.state.medalMetadata),
+        playerData: playerFormatter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, model.state.medalMetadata),
         metadata,
       };
     } catch (error) {
@@ -166,7 +168,7 @@ export function LiveTracker({ liveTrackerService }: LiveTrackerProps): React.Rea
   return (
     <ComponentLoader
       status={loaderStatus}
-      loading={<LoadingState />}
+      loading={<LoadingState text={snapshot.statusText} />}
       error={
         <ErrorState
           message={snapshot.statusText}

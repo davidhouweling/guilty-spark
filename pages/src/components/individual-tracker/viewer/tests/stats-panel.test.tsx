@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { aFakeMatchStatsWith } from "../../../stats/fakes/data";
 import { StatsPanel } from "../stats-panel";
 
@@ -46,8 +46,55 @@ describe("StatsPanel", () => {
       ["4444444444", "Delta"],
     ]);
 
-    render(<StatsPanel state={{ status: "loaded", stats, playerMap, medalMetadata: {} }} />);
+    render(<StatsPanel state={{ status: "loaded", stats, playerMap, medalMetadata: {}, analytics: null }} />);
 
-    expect(screen.getByText("Players")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Players" })).toBeInTheDocument();
+  });
+
+  it("renders kill matrix table when analytics is available", () => {
+    const stats = aFakeMatchStatsWith();
+    const playerMap = new Map([
+      ["1111111111", "Alpha"],
+      ["2222222222", "Bravo"],
+      ["3333333333", "Charlie"],
+      ["4444444444", "Delta"],
+    ]);
+
+    render(
+      <StatsPanel
+        state={{
+          status: "loaded",
+          stats,
+          playerMap,
+          medalMetadata: {},
+          analytics: {
+            requestedModules: ["killMatrix"],
+            killMatrix: {
+              "1111111111:2222222222": {
+                count: 3,
+                headshotKills: 1,
+                perfects: 0,
+                weapons: [],
+              },
+            },
+            metadata: {
+              pairingQuality: {
+                unpairedDeathCount: 0,
+                maxTimeDeltaMs: 1,
+              },
+              perfectCounts: {
+                total: 0,
+                byXuid: {},
+              },
+            },
+          },
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Kill Matrix" }));
+
+    expect(screen.getByLabelText("Match kill matrix")).toBeInTheDocument();
+    expect(screen.queryByText("Kill matrix data is not available for this match yet.")).not.toBeInTheDocument();
   });
 });

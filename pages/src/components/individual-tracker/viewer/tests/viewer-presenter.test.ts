@@ -10,18 +10,24 @@ import {
 } from "../../../../services/individual-tracker/fakes/view.fake";
 import type { FakeIndividualTrackerViewService } from "../../../../services/individual-tracker/fakes/view.fake";
 import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
+import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
+import type { MatchAnalyticsService } from "../../../../services/stats/match-analytics-types";
 import { aFakeMatchStatsWith } from "../../../stats/fakes/data";
 import { IndividualTrackerViewerPresenter } from "../viewer-presenter";
 import { IndividualTrackerViewerStore } from "../viewer-store";
 
 interface Harness {
   readonly service: FakeIndividualTrackerViewService;
+  readonly matchAnalyticsService: MatchAnalyticsService;
   readonly haloClient: Mocked<Pick<HaloInfiniteClient, "getMatchStats" | "getUsers" | "getMedalsMetadataFile">>;
   readonly store: IndividualTrackerViewerStore;
   readonly presenter: IndividualTrackerViewerPresenter;
 }
 
-function aHarness(service: FakeIndividualTrackerViewService): Harness {
+function aHarness(
+  service: FakeIndividualTrackerViewService,
+  matchAnalyticsService: MatchAnalyticsService = aFakeMatchAnalyticsServiceWith(),
+): Harness {
   const store = new IndividualTrackerViewerStore();
   const haloClient = {
     getMatchStats: vi.fn<HaloInfiniteClient["getMatchStats"]>().mockResolvedValue(aFakeMatchStatsWith()),
@@ -32,11 +38,12 @@ function aHarness(service: FakeIndividualTrackerViewService): Harness {
   };
   const presenter = new IndividualTrackerViewerPresenter({
     individualTrackerViewService: service,
+    matchAnalyticsService,
     haloClient: aFakeHaloClientWith(haloClient),
     store,
     trackerId: "tracker-1",
   });
-  return { service, haloClient, store, presenter };
+  return { service, matchAnalyticsService, haloClient, store, presenter };
 }
 
 describe("IndividualTrackerViewerPresenter", () => {
@@ -125,8 +132,9 @@ describe("IndividualTrackerViewerPresenter", () => {
     it("sets selectedMatchId in the store and transitions matchStatsState to loaded", async () => {
       const fakeStats = aFakeMatchStatsWith({ MatchId: "m-99" });
       const service = aFakeIndividualTrackerViewServiceWith();
-      const { haloClient, store, presenter } = aHarness(service);
+      const { haloClient, matchAnalyticsService, store, presenter } = aHarness(service);
       haloClient.getMatchStats.mockResolvedValue(fakeStats);
+      const getMatchAnalyticsSpy = vi.spyOn(matchAnalyticsService, "getMatchAnalytics");
 
       presenter.selectMatch("m-99");
 
@@ -140,6 +148,26 @@ describe("IndividualTrackerViewerPresenter", () => {
       const statsState = store.getSnapshot().matchStatsState;
       if (statsState?.status === "loaded") {
         expect(statsState.stats.MatchId).toBe("m-99");
+        expect(statsState.analytics).not.toBeNull();
+      }
+      expect(getMatchAnalyticsSpy).toHaveBeenCalledWith("m-99");
+    });
+
+    it("falls back to null analytics when analytics fetch fails", async () => {
+      const service = aFakeIndividualTrackerViewServiceWith();
+      const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
+      vi.spyOn(matchAnalyticsService, "getMatchAnalytics").mockRejectedValue(new Error("analytics failed"));
+      const { store, presenter } = aHarness(service, matchAnalyticsService);
+
+      presenter.selectMatch("m-1");
+
+      await vi.waitFor(() => {
+        expect(store.getSnapshot().matchStatsState?.status).toBe("loaded");
+      });
+
+      const statsState = store.getSnapshot().matchStatsState;
+      if (statsState?.status === "loaded") {
+        expect(statsState.analytics).toBeNull();
       }
     });
 
@@ -221,14 +249,15 @@ describe("IndividualTrackerViewerPresenter", () => {
     });
 
     it("sets matchStatsState to error when getMatchStats rejects", async () => {
-      expect.assertions(2);
       const service = aFakeIndividualTrackerViewServiceWith();
       const { haloClient, store, presenter } = aHarness(service);
       haloClient.getMatchStats.mockRejectedValue(new Error("Network failure"));
 
       presenter.selectMatch("m-err");
 
-      await vi.waitFor(() => store.getSnapshot().matchStatsState?.status === "error");
+      await vi.waitFor(() => {
+        expect(store.getSnapshot().matchStatsState?.status).toBe("error");
+      });
 
       const statsState = store.getSnapshot().matchStatsState;
       if (statsState?.status === "error") {

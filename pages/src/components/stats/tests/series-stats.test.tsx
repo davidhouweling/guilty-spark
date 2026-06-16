@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 
 import { SeriesStats } from "../series-stats";
 import { aFakeMatchStatsDataWith, aFakeMatchStatsPlayerDataWith } from "../fakes/component-data";
@@ -115,8 +115,7 @@ describe("SeriesStats", () => {
       <SeriesStats teamData={teamData} playerData={playerData} title="Series Overview" metadata={seriesMetadata} />,
     );
 
-    const playerStatsElements = screen.getAllByText("Accumulated Player Stats");
-    expect(playerStatsElements.length).toBeGreaterThan(0);
+    expect(screen.getByRole("tab", { name: "Accumulated Stats" })).toBeInTheDocument();
     expect(screen.getByLabelText("Accumulated player statistics")).toBeInTheDocument();
     expect(screen.getByText("Player1")).toBeInTheDocument();
     expect(screen.getByText("Player2")).toBeInTheDocument();
@@ -184,5 +183,16 @@ describe("SeriesStats", () => {
     expect(teamStatsElements).toHaveLength(0);
     const playerStatsElements = screen.queryAllByText("Accumulated Player Stats");
     expect(playerStatsElements).toHaveLength(0);
+  });
+
+  it("shows kill matrix empty state when kill matrix tab is selected", () => {
+    const teamData = [aFakeMatchStatsDataWith({ teamId: 0 })];
+    const playerData = [aFakeMatchStatsDataWith({ teamId: 0 })];
+
+    render(<SeriesStats teamData={teamData} playerData={playerData} title="Series Overview" metadata={null} />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Kill Matrix" }));
+
+    expect(screen.getByText("Kill matrix data is not available for this series yet.")).toBeInTheDocument();
   });
 });

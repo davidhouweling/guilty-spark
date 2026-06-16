@@ -3,7 +3,7 @@ import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { TickerMatchGroup } from "../../information-ticker/information-ticker";
-import { createMatchStatsPresenter } from "../../stats/create";
+import { createMatchStatsFormatter } from "../../stats/create";
 import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
 import type { IndividualTrackerViewerRenderModel, ViewerSeriesTab, ViewerTimelineItem } from "../viewer/types";
 import type { MatchStatsState } from "../viewer/viewer-store";
@@ -62,9 +62,9 @@ export function buildTickerGroups(matchStatsState: MatchStatsState | null, match
   }
 
   const { stats } = matchStatsState;
-  const presenter = createMatchStatsPresenter(stats.MatchInfo.GameVariantCategory);
+  const formatter = createMatchStatsFormatter(stats.MatchInfo.GameVariantCategory);
   const playerMap = new Map(stats.Players.map((p) => [getPlayerXuid(p), getPlayerXuid(p)]));
-  const data = presenter.getData(stats, playerMap, {});
+  const data = formatter.getData(stats, playerMap, {});
 
   return [
     {

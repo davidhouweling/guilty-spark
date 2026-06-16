@@ -1,9 +1,12 @@
-import { useCallback, useState, type CSSProperties, type ReactElement } from "react";
+import { useCallback, useMemo, useState, type CSSProperties, type ReactElement } from "react";
 import classNames from "classnames";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
+import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
+import { KillMatrixFormatter } from "../stats/kill-matrix/kill-matrix-presenter";
+import type { KillMatrixViewRow } from "../stats/kill-matrix/types";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
 import { getTeamColorOrDefault } from "../team-colors/team-colors";
@@ -18,14 +21,42 @@ export type DiscordSeriesViewMode = "standard" | "wide";
 interface DiscordSeriesStatsViewProps {
   readonly renderData: DiscordSeriesStatsResolved["renderData"];
   readonly model: DiscordSeriesStatsViewModel;
+  readonly analyticsByMatchId: ReadonlyMap<string, MatchAnalytics>;
 }
 
-export function DiscordSeriesStatsView({ renderData, model }: DiscordSeriesStatsViewProps): ReactElement {
+export function DiscordSeriesStatsView({
+  renderData,
+  model,
+  analyticsByMatchId,
+}: DiscordSeriesStatsViewProps): ReactElement {
   const [viewMode, setViewMode] = useState<DiscordSeriesViewMode>("standard");
   const contentWidthClass = viewMode === "wide" ? styles.wide : undefined;
   const handleToggleViewMode = useCallback((): void => {
     setViewMode((current) => (current === "standard" ? "wide" : "standard"));
   }, []);
+  const killMatrixPresenter = useMemo(() => new KillMatrixFormatter(), []);
+
+  const allMatchKillMatrixRows = useMemo<ReadonlyMap<string, KillMatrixViewRow[]>>(
+    () =>
+      new Map(
+        renderData.matches.flatMap((match) => {
+          const analytics = analyticsByMatchId.get(match.matchId);
+          if (analytics == null) {
+            return [];
+          }
+          const playersByXuid = new Map(
+            Object.entries(match.playerXuidToGametag).map(([xuid, gamertag]) => [xuid, { gamertag, teamId: null }]),
+          );
+          return [[match.matchId, killMatrixPresenter.present({ analytics, playersByXuid })]];
+        }),
+      ),
+    [analyticsByMatchId, killMatrixPresenter, renderData.matches],
+  );
+
+  const seriesKillMatrixRows = useMemo<KillMatrixViewRow[]>(
+    () => KillMatrixFormatter.aggregate([...allMatchKillMatrixRows.values()].flat()),
+    [allMatchKillMatrixRows],
+  );
 
   return (
     <>
@@ -36,7 +67,13 @@ export function DiscordSeriesStatsView({ renderData, model }: DiscordSeriesStats
             <div className={styles.headerSubtitle}>{renderData.subtitle}</div>
           </div>
           <div className={styles.headerRight}>
-            <Button size="small" variant="secondary" aria-pressed={viewMode === "wide"} onClick={handleToggleViewMode}>
+            <Button
+              size="small"
+              variant="secondary"
+              className={localStyles.switchView}
+              aria-pressed={viewMode === "wide"}
+              onClick={handleToggleViewMode}
+            >
               {viewMode === "standard" ? "Switch to wide view" : "Switch to standard view"}
             </Button>
           </div>
@@ -123,6 +160,7 @@ export function DiscordSeriesStatsView({ renderData, model }: DiscordSeriesStats
               title="Series Totals"
               metadata={model.seriesStats.metadata}
               teamColors={model.teamColors}
+              killMatrixRows={seriesKillMatrixRows}
             />
           </Container>
         )}
@@ -154,6 +192,7 @@ export function DiscordSeriesStatsView({ renderData, model }: DiscordSeriesStats
                   startTime={match.startTime}
                   endTime={match.endTime}
                   teamColors={model.teamColors}
+                  killMatrixRows={allMatchKillMatrixRows.get(match.matchId)}
                 />
               ) : (
                 <Alert variant="warning">Failed to load detailed stats for match {match.matchId}.</Alert>

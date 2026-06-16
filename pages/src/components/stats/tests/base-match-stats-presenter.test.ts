@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { StatsCollection } from "@guilty-spark/shared/halo/types";
-import { BaseMatchStatsPresenter } from "../base-match-stats-presenter";
+import { BaseMatchStatsFormatter } from "../base-match-stats-presenter";
 import {
   aFakeMatchStatsWith,
   aFakePlayerWith,
@@ -9,14 +9,14 @@ import {
   aFakeCoreStatsWith,
 } from "../fakes/data";
 
-class TestMatchStatsPresenter extends BaseMatchStatsPresenter {
+class TestMatchStatsFormatter extends BaseMatchStatsFormatter {
   protected getPlayerObjectiveStats(): StatsCollection {
     return new Map([]);
   }
 }
 
-describe("BaseMatchStatsPresenter", () => {
-  const presenter = new TestMatchStatsPresenter();
+describe("BaseMatchStatsFormatter", () => {
+  const presenter = new TestMatchStatsFormatter();
 
   describe("getData", () => {
     it("returns data for each team", () => {
