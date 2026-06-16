@@ -1,11 +1,9 @@
 import React, { useMemo } from "react";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import { KillMatrixFormatter } from "../../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import { Alert } from "../../alert/alert";
 import { LoadingState } from "../../loading-state/loading-state";
-import { createMatchStatsFormatter } from "../../../controllers/stats/create";
+import { StatsController } from "../../../controllers/stats/stats-controller";
 import { MatchStats } from "../../stats/match-stats";
-import type { MatchStatsData } from "../../../controllers/stats/types";
 import { gameModeIconSrc } from "../game-mode-icon";
 import type { IndividualTrackerViewerViewModel } from "./types";
 import type { MatchStatsState } from "./viewer-store";
@@ -17,23 +15,20 @@ interface LoadedStatsPanelProps {
 
 function LoadedStatsPanel({ state }: LoadedStatsPanelProps): React.ReactElement {
   const { stats, playerMap, medalMetadata, analytics } = state;
-  const killMatrixPresenter = useMemo(() => new KillMatrixFormatter(), []);
-  const data = useMemo<MatchStatsData[]>(() => {
-    const formatter = createMatchStatsFormatter(stats.MatchInfo.GameVariantCategory);
-    return formatter.getData(stats, playerMap, medalMetadata);
-  }, [stats, playerMap, medalMetadata]);
+  const controller = useMemo(() => new StatsController(), []);
+
+  const data = useMemo(() => {
+    controller.loadMatch(stats, playerMap, medalMetadata);
+    return controller.getMatchStats();
+  }, [controller, stats, playerMap, medalMetadata]);
 
   const killMatrixRows = useMemo(() => {
     if (analytics == null) {
       return [];
     }
-
-    const playersByXuid = new Map(
-      [...playerMap.entries()].map(([xuid, gamertag]) => [xuid, { gamertag, teamId: null }]),
-    );
-
-    return killMatrixPresenter.present({ analytics, playersByXuid });
-  }, [analytics, killMatrixPresenter, playerMap]);
+    controller.loadAnalytics(analytics, playerMap);
+    return controller.getKillMatrix();
+  }, [controller, analytics, playerMap]);
 
   return (
     <div className={styles.wrapper}>

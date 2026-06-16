@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactElement } from "react";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
+import { StatsController } from "../../controllers/stats/stats-controller";
 import { DiscordSeriesStatsPresenter } from "./discord-series-stats-presenter";
 import { DiscordSeriesStatsView } from "./discord-series-stats-view";
 
@@ -11,7 +12,11 @@ interface DiscordSeriesStatsProps {
 }
 
 export function DiscordSeriesStats({ data, matchAnalyticsService }: DiscordSeriesStatsProps): ReactElement {
-  const presenter = useMemo(() => new DiscordSeriesStatsPresenter(data.renderData), [data]);
+  const controller = useMemo(() => new StatsController(), [data.renderData]);
+  const presenter = useMemo(
+    () => new DiscordSeriesStatsPresenter(data.renderData, controller),
+    [data.renderData, controller],
+  );
 
   const model = useMemo(() => presenter.present(), [presenter]);
 
@@ -48,5 +53,12 @@ export function DiscordSeriesStats({ data, matchAnalyticsService }: DiscordSerie
     };
   }, [data.matchIds, matchAnalyticsService]);
 
-  return <DiscordSeriesStatsView renderData={data.renderData} model={model} analyticsByMatchId={analyticsByMatchId} />;
+  return (
+    <DiscordSeriesStatsView
+      renderData={data.renderData}
+      model={model}
+      analyticsByMatchId={analyticsByMatchId}
+      controller={controller}
+    />
+  );
 }

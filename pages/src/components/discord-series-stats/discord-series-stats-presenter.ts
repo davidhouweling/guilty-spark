@@ -1,10 +1,8 @@
 import type { MatchStats } from "halo-infinite-api";
 import { differenceInSeconds, isValid, parseISO } from "date-fns";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
-import { createMatchStatsFormatter } from "../../controllers/stats/create";
-import { SeriesTeamStatsFormatter } from "../../controllers/stats/series-team-stats-formatter";
-import { SeriesPlayerStatsFormatter } from "../../controllers/stats/series-player-stats-formatter";
 import type { MatchStatsData } from "../../controllers/stats/types";
+import { StatsController } from "../../controllers/stats/stats-controller";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault, type TeamColor } from "../team-colors/team-colors";
 
 const WIN_OUTCOME = 2;
@@ -76,14 +74,17 @@ function calculateSeriesMetadata(
 
   return {
     score: seriesScore,
-    duration: `${totalMinutes.toString()}m ${remainingSeconds.toString().padStart(2, "0")}s`,
+    duration: `${String(totalMinutes)}m ${String(remainingSeconds).padStart(2, "0")}s`,
     startTime: firstMatch.startTime,
     endTime: lastMatch.endTime,
   };
 }
 
 export class DiscordSeriesStatsPresenter {
-  constructor(readonly renderData: DiscordSeriesStatsResolved["renderData"]) {}
+  constructor(
+    readonly renderData: DiscordSeriesStatsResolved["renderData"],
+    private readonly controller: StatsController,
+  ) {}
 
   private static readonly modelByRenderData = new WeakMap<
     DiscordSeriesStatsResolved["renderData"],
@@ -102,12 +103,10 @@ export class DiscordSeriesStatsPresenter {
       }
 
       try {
-        const formatter = createMatchStatsFormatter(match.rawMatch.MatchInfo.GameVariantCategory);
+        const matchController = new StatsController();
         const playerMap = new Map<string, string>(Object.entries(match.playerXuidToGametag));
-        return {
-          matchId: match.matchId,
-          data: formatter.getData(match.rawMatch, playerMap, this.renderData.medalMetadata),
-        };
+        matchController.loadMatch(match.rawMatch, playerMap, this.renderData.medalMetadata);
+        return { matchId: match.matchId, data: matchController.getMatchStats() };
       } catch {
         return { matchId: match.matchId, data: null };
       }
@@ -125,19 +124,19 @@ export class DiscordSeriesStatsPresenter {
 
     if (rawMatches.length > 0) {
       try {
-        const teamFormatter = new SeriesTeamStatsFormatter();
-        const playerFormatter = new SeriesPlayerStatsFormatter();
         const playersMap = new Map<string, string>();
-
         for (const match of this.renderData.matches) {
           for (const [xuid, gamertag] of Object.entries(match.playerXuidToGametag)) {
             playersMap.set(xuid, gamertag);
           }
         }
 
+        this.controller.loadSeries(rawMatches, playersMap, this.renderData.medalMetadata);
+        const { teamData, playerData } = this.controller.getSeriesStats();
+
         seriesStats = {
-          teamData: teamFormatter.getSeriesData(rawMatches, playersMap, this.renderData.medalMetadata),
-          playerData: playerFormatter.getSeriesData(rawMatches, playersMap, this.renderData.medalMetadata),
+          teamData,
+          playerData,
           metadata: calculateSeriesMetadata(this.renderData.matches, this.renderData.seriesScore),
         };
       } catch {

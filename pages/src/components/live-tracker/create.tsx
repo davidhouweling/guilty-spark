@@ -2,10 +2,8 @@ import React, { useEffect, useMemo, useSyncExternalStore, useRef } from "react";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
 import { ErrorState } from "../error-state/error-state";
 import { LoadingState } from "../loading-state/loading-state";
-import { createMatchStatsFormatter } from "../../controllers/stats/create";
 import type { MatchStatsData } from "../../controllers/stats/types";
-import { SeriesTeamStatsFormatter } from "../../controllers/stats/series-team-stats-formatter";
-import { SeriesPlayerStatsFormatter } from "../../controllers/stats/series-player-stats-formatter";
+import { StatsController } from "../../controllers/stats/stats-controller";
 import { calculateSeriesMetadata, type SeriesMetadata } from "../../controllers/stats/series-metadata";
 import type { LiveTrackerService } from "../../services/live-tracker/types";
 import { LiveTrackerPresenter } from "./live-tracker-presenter";
@@ -110,12 +108,10 @@ export function LiveTracker({ liveTrackerService }: LiveTrackerProps): React.Rea
 
       try {
         const matchStats = match.rawMatchStats;
-        const matchStatsFormatter = createMatchStatsFormatter(matchStats.MatchInfo.GameVariantCategory);
+        const controller = new StatsController();
         const playerMap = new Map<string, string>(Object.entries(match.playerXuidToGametag));
-        return {
-          matchId: match.matchId,
-          data: matchStatsFormatter.getData(matchStats, playerMap, medalMetadata),
-        };
+        controller.loadMatch(matchStats, playerMap, medalMetadata);
+        return { matchId: match.matchId, data: controller.getMatchStats() };
       } catch (error) {
         console.error("Error processing match stats:", error);
         return { matchId: match.matchId, data: null };
@@ -142,9 +138,6 @@ export function LiveTracker({ liveTrackerService }: LiveTrackerProps): React.Rea
     }
 
     try {
-      const teamFormatter = new SeriesTeamStatsFormatter();
-      const playerFormatter = new SeriesPlayerStatsFormatter();
-
       const allPlayerXuidToGametag = new Map<string, string>();
       for (const match of model.state.matches) {
         for (const [xuid, gamertag] of Object.entries(match.playerXuidToGametag)) {
@@ -152,13 +145,12 @@ export function LiveTracker({ liveTrackerService }: LiveTrackerProps): React.Rea
         }
       }
 
+      const controller = new StatsController();
+      controller.loadSeries(rawMatchStats, allPlayerXuidToGametag, model.state.medalMetadata);
+      const { teamData, playerData } = controller.getSeriesStats();
       const metadata = calculateSeriesMetadata(model.state.matches, model.state.seriesScore);
 
-      return {
-        teamData: teamFormatter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, model.state.medalMetadata),
-        playerData: playerFormatter.getSeriesData(rawMatchStats, allPlayerXuidToGametag, model.state.medalMetadata),
-        metadata,
-      };
+      return { teamData, playerData, metadata };
     } catch (error) {
       console.error("Error processing series stats:", error);
       return null;
