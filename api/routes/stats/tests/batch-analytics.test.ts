@@ -1,27 +1,13 @@
 import type { AutoRouterType } from "itty-router";
 import type { MockInstance } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { LogService } from "../../../services/log/types";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
+import type { AnalyticsService } from "../../../services/analytics/analytics";
+import { aFakeMatchAnalyticsWith } from "../../../services/analytics/fakes/analytics.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { statsRoutesRegisterHandler } from "../stats";
-
-const aFakeAnalytics = (): MatchAnalytics => ({
-  requestedModules: ["killMatrix"],
-  killMatrix: {
-    "2533274844642438:2533274881185517": {
-      count: 3,
-      headshotKills: 1,
-      perfects: 0,
-      weapons: [],
-    },
-  },
-  metadata: {
-    pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 1 },
-    perfectCounts: { total: 0, byXuid: {} },
-  },
-});
 
 describe("/api/stats/match-analytics (batch)", () => {
   let env: Env;
@@ -33,10 +19,10 @@ describe("/api/stats/match-analytics (batch)", () => {
   });
 
   it("returns results keyed by matchId with no-store cache header", async () => {
-    const analytics = aFakeAnalytics();
+    const analytics = aFakeMatchAnalyticsWith();
 
     const services = installFakeServicesWith({ env });
-    const getMatchAnalyticsSpy: MockInstance<typeof services.analyticsService.getMatchAnalytics> = vi.spyOn(
+    const getMatchAnalyticsSpy: MockInstance<AnalyticsService["getMatchAnalytics"]> = vi.spyOn(
       services.analyticsService,
       "getMatchAnalytics",
     );
@@ -65,13 +51,13 @@ describe("/api/stats/match-analytics (batch)", () => {
   });
 
   it("returns null for matchIds that fail, successful ones with data, and logs the failure count", async () => {
-    const analytics = aFakeAnalytics();
+    const analytics = aFakeMatchAnalyticsWith();
 
     const services = installFakeServicesWith({ env });
     vi.spyOn(services.analyticsService, "getMatchAnalytics")
       .mockResolvedValueOnce(analytics)
       .mockRejectedValueOnce(new Error("halo api down"));
-    const logWarnSpy: MockInstance<typeof services.logService.warn> = vi.spyOn(services.logService, "warn");
+    const logWarnSpy: MockInstance<LogService["warn"]> = vi.spyOn(services.logService, "warn");
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
     statsRoutesRegisterHandler(router, localInstallServices);
 
