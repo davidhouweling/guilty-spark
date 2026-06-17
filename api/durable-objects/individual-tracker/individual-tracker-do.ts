@@ -44,7 +44,7 @@ import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import { type IndividualTopBarStatOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import type { LogService } from "../../services/log/types";
+import type { JsonAny, LogService } from "../../services/log/types";
 import { installServices as installServicesImpl, type Services } from "../../services/install";
 import {
   CloudflareWebSocketHibernationAdapter,
@@ -109,6 +109,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         method: request.method,
       });
 
+      this.logService.debug("IndividualTrackerDO: fetch", new Map([["action", action ?? "unknown"]]));
+
       try {
         switch (action) {
           case "start": {
@@ -158,8 +160,14 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
         }
       } catch (error) {
-        this.logService.error("IndividualTrackerDO fetch error:", new Map([["error", String(error)]]));
-        Sentry.captureException(error);
+        this.logService.error(
+          error,
+          new Map([
+            ["context", "IndividualTrackerDO fetch error"],
+            ["action", action ?? "unknown"],
+            ["url", url.pathname],
+          ]),
+        );
         return new Response("Internal Server Error", { status: 500 });
       }
     });
@@ -183,6 +191,16 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         errorCount: trackerState.errorState.consecutiveErrors,
       });
 
+      this.logService.info(
+        "IndividualTracker: alarm triggered",
+        new Map<string, JsonAny>([
+          ["trackerId", trackerState.trackerId],
+          ["gamertag", trackerState.gamertag],
+          ["checkCount", trackerState.checkCount],
+          ["consecutiveErrors", trackerState.errorState.consecutiveErrors],
+        ]),
+      );
+
       const lastActivity = new Date(
         Math.max(
           new Date(trackerState.startTime).getTime(),
@@ -192,6 +210,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         ),
       );
       if (differenceInHours(new Date(), lastActivity) >= trackerState.idleTimeoutHours) {
+        this.logService.info(
+          "IndividualTracker: idle timeout reached, stopping tracker",
+          new Map<string, JsonAny>([
+            ["trackerId", trackerState.trackerId],
+            ["idleTimeoutHours", trackerState.idleTimeoutHours],
+          ]),
+        );
         trackerState.status = "stopped";
         trackerState.lastUpdateTime = new Date().toISOString();
         await this.state.storage.deleteAlarm();
@@ -206,8 +231,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       try {
         discoveredNewMatch = await this.poll(trackerState);
       } catch (error) {
-        this.logService.error("IndividualTracker: alarm poll failed", new Map([["error", String(error)]]));
-        Sentry.captureException(error);
+        this.logService.error(error, new Map([["context", "IndividualTracker alarm poll failed"]]));
         this.handleError(trackerState, error);
       }
 
@@ -329,6 +353,16 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.errorState.lastSuccessTime = now;
     trackerState.errorState.lastErrorMessage = undefined;
 
+    this.logService.info(
+      "IndividualTracker: poll complete",
+      new Map<string, JsonAny>([
+        ["trackerId", trackerState.trackerId],
+        ["newMatches", newlyDiscovered.size],
+        ["totalMatches", trackerState.matchIds.length],
+        ["checkCount", trackerState.checkCount],
+      ]),
+    );
+
     return discoveredNewMatch;
   }
 
@@ -342,10 +376,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         throw error;
       }
       this.logService.warn(
-        "IndividualTracker: getMatchStats failed",
+        error,
         new Map([
+          ["context", "IndividualTracker: getMatchStats failed"],
           ["matchId", summary.matchId],
-          ["error", String(error)],
         ]),
       );
       summary.score = "";
@@ -388,10 +422,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           throw error;
         }
         this.logService.warn(
-          "IndividualTracker: recomputeAccumulatedTotals getMatchStats failed",
+          error,
           new Map([
+            ["context", "IndividualTracker: recomputeAccumulatedTotals getMatchStats failed"],
             ["matchId", matchId],
-            ["error", String(error)],
           ]),
         );
         continue;
@@ -407,11 +441,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return await this.services.haloService.getMapName(assetId, versionId);
     } catch (error) {
       this.logService.warn(
-        "IndividualTracker: getMapName failed",
+        error,
         new Map([
+          ["context", "IndividualTracker: getMapName failed"],
           ["assetId", assetId],
           ["versionId", versionId],
-          ["error", String(error)],
         ]),
       );
       return "";
@@ -426,10 +460,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
     } catch (error) {
       this.logService.warn(
-        "IndividualTracker: failed to mark registry stopped on idle timeout",
+        error,
         new Map([
+          ["context", "IndividualTracker: failed to mark registry stopped on idle timeout"],
           ["trackerId", trackerState.trackerId],
-          ["error", String(error)],
         ]),
       );
     }
@@ -509,6 +543,16 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.setState(trackerState);
     await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
 
+    this.logService.info(
+      "IndividualTracker: tracker started",
+      new Map([
+        ["userId", body.userId],
+        ["trackerId", body.trackerId],
+        ["gamertag", body.gamertag],
+        ["searchStartTime", body.searchStartTime],
+      ]),
+    );
+
     return individualTrackerStartContract.toResponse({ success: true, state: this.sanitizeState(trackerState) });
   }
 
@@ -524,6 +568,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.state.storage.deleteAlarm();
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
+
+    this.logService.info("IndividualTracker: tracker paused", new Map([["trackerId", trackerState.trackerId]]));
 
     return individualTrackerPauseContract.toResponse({ success: true, state: this.sanitizeState(trackerState) });
   }
@@ -542,6 +588,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.state.storage.setAlarm(addMilliseconds(new Date(), resumeAlarmDelay).getTime());
     this.broadcastViewState(trackerState);
 
+    this.logService.info("IndividualTracker: tracker resumed", new Map([["trackerId", trackerState.trackerId]]));
+
     return individualTrackerResumeContract.toResponse({ success: true, state: this.sanitizeState(trackerState) });
   }
 
@@ -556,6 +604,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       trackerState.lastUpdateTime = new Date().toISOString();
       this.broadcastViewState(trackerState);
       this.closeWebSockets("Tracker stopped");
+      this.logService.info("IndividualTracker: tracker stopped", new Map([["trackerId", trackerState.trackerId]]));
     }
 
     return individualTrackerStopContract.toResponse({ success: true });
@@ -592,6 +641,14 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       await this.state.storage.setAlarm(Date.now());
     }
 
+    this.logService.info(
+      "IndividualTracker: match selection updated",
+      new Map<string, JsonAny>([
+        ["trackerId", trackerState.trackerId],
+        ["selectedCount", incoming.length],
+      ]),
+    );
+
     return selectMatchesContract.toResponse({ success: true });
   }
 
@@ -627,6 +684,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
 
+    this.logService.info("IndividualTracker: series started", new Map([["trackerId", trackerState.trackerId]]));
+
     return startSeriesContract.toResponse({ success: true });
   }
 
@@ -645,6 +704,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
+
+    this.logService.info("IndividualTracker: series ended", new Map([["trackerId", trackerState.trackerId]]));
 
     return endSeriesContract.toResponse({ success: true });
   }
@@ -704,6 +765,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
+
+    this.logService.info("IndividualTracker: series resumed", new Map([["trackerId", trackerState.trackerId]]));
 
     return resumeSeriesContract.toResponse({ success: true });
   }
@@ -810,14 +873,26 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         ? this.services.haloService
             .getRankedArenaCsrs([state.xuid])
             .then((m) => m.get(state.xuid) ?? null)
-            .catch(() => {
-              this.logService.warn("IndividualTracker: getRankedArenaCsrs failed", new Map([["xuid", state.xuid]]));
+            .catch((err: unknown) => {
+              this.logService.warn(
+                err,
+                new Map([
+                  ["context", "IndividualTracker: getRankedArenaCsrs failed"],
+                  ["xuid", state.xuid],
+                ]),
+              );
               return null;
             })
         : Promise.resolve(null),
       hasEsraSlot
-        ? this.services.haloService.getPlayerEsra(state.xuid).catch(() => {
-            this.logService.warn("IndividualTracker: getPlayerEsra failed", new Map([["xuid", state.xuid]]));
+        ? this.services.haloService.getPlayerEsra(state.xuid).catch((err: unknown) => {
+            this.logService.warn(
+              err,
+              new Map([
+                ["context", "IndividualTracker: getPlayerEsra failed"],
+                ["xuid", state.xuid],
+              ]),
+            );
             return null;
           })
         : Promise.resolve(null),
@@ -985,14 +1060,22 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     const trackerState = await this.getState();
+    this.logService.info(
+      "IndividualTracker: WebSocket connection requested",
+      new Map([["trackerId", trackerState?.trackerId ?? "unknown"]]),
+    );
     try {
-      return this.webSocketAdapter.upgrade(
+      const response = this.webSocketAdapter.upgrade(
         this.state,
         trackerState != null ? this.viewMessage(trackerState) : undefined,
       );
+      this.logService.info(
+        "IndividualTracker: WebSocket connection established",
+        new Map([["trackerId", trackerState?.trackerId ?? "unknown"]]),
+      );
+      return response;
     } catch (error) {
-      this.logService.error("IndividualTracker: failed to establish WebSocket", new Map([["error", String(error)]]));
-      Sentry.captureException(error);
+      this.logService.error(error, new Map([["context", "IndividualTracker: failed to establish WebSocket"]]));
       return new Response("Failed to establish WebSocket connection", { status: 500 });
     }
   }
@@ -1007,16 +1090,16 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   webSocketClose(_ws: WebSocket, code: number, reason: string, wasClean: boolean): void {
     this.logService.debug(
       "IndividualTracker: WebSocket client disconnected",
-      new Map([
-        ["code", code.toString()],
+      new Map<string, JsonAny>([
+        ["code", code],
         ["reason", reason],
-        ["wasClean", wasClean.toString()],
+        ["wasClean", wasClean],
       ]),
     );
   }
 
   webSocketError(_ws: WebSocket, error: unknown): void {
-    this.logService.warn("IndividualTracker: WebSocket error", new Map([["error", String(error)]]));
+    this.logService.warn(error, new Map([["context", "IndividualTracker: WebSocket error"]]));
   }
 
   private broadcastViewState(state: IndividualTrackerInternalState): void {

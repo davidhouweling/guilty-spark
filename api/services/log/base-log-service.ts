@@ -1,13 +1,13 @@
 import type { JsonAny, LogService } from "./types";
 
 export abstract class BaseLogService implements LogService {
-  abstract debug(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void;
+  abstract debug(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void;
 
-  abstract info(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void;
+  abstract info(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void;
 
-  abstract warn(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void;
+  abstract warn(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void;
 
-  abstract error(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void;
+  abstract error(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void;
 
-  abstract fatal(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void;
+  abstract fatal(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void;
 }

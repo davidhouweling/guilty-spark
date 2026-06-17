@@ -2,8 +2,36 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { MockInstance } from "vitest";
 import { ConsoleLogClient } from "../console-log-client";
 
-function stringifyContent(content: Record<string, unknown>): string {
-  return JSON.stringify(content, null, 2);
+function parseLogged(
+  spy: MockInstance<typeof console.info | typeof console.warn | typeof console.error>,
+): Record<string, unknown> {
+  expect(spy).toHaveBeenCalledTimes(1);
+  const [call] = spy.mock.calls;
+  if (call == null) {
+    throw new Error("Expected spy to have been called");
+  }
+  const [firstArg] = call;
+  if (typeof firstArg !== "string") {
+    throw new Error(`Expected first console argument to be a string, got ${typeof firstArg}`);
+  }
+  return JSON.parse(firstArg) as Record<string, unknown>;
+}
+
+function parseFatalLogged(spy: MockInstance<typeof console.error>): Record<string, unknown> {
+  expect(spy).toHaveBeenCalledTimes(1);
+  const [call] = spy.mock.calls;
+  if (call == null) {
+    throw new Error("Expected spy to have been called");
+  }
+  const [prefix, secondArg] = call as unknown[];
+  if (typeof prefix !== "string") {
+    throw new Error(`Expected first console argument to be a string, got ${typeof prefix}`);
+  }
+  if (typeof secondArg !== "string") {
+    throw new Error(`Expected second console argument to be a string, got ${typeof secondArg}`);
+  }
+  expect(prefix).toBe("FATAL:");
+  return JSON.parse(secondArg) as Record<string, unknown>;
 }
 
 describe("ConsoleLogClient", () => {
@@ -45,11 +73,9 @@ describe("ConsoleLogClient", () => {
     it("logs info message without extra data", () => {
       logClient.info("test info message");
 
-      expect(consoleSpy.info).toHaveBeenCalledWith(
-        stringifyContent({
-          message: "test info message",
-        }),
-      );
+      const logged = parseLogged(consoleSpy.info);
+      expect(logged).toMatchObject({ message: "test info message" });
+      expect(logged["callStack"]).toBeUndefined();
     });
 
     it("logs info message with extra data", () => {
@@ -57,25 +83,33 @@ describe("ConsoleLogClient", () => {
 
       logClient.info("test info", extra);
 
-      expect(consoleSpy.info).toHaveBeenCalledWith(
-        stringifyContent({
-          message: "test info",
-          key: "value",
-        }),
-      );
+      const logged = parseLogged(consoleSpy.info);
+      expect(logged).toMatchObject({ message: "test info", key: "value" });
+      expect(logged["callStack"]).toBeUndefined();
     });
 
-    it("logs Error objects", () => {
+    it("logs Error objects with message and stack from the error", () => {
       const error = new Error("test error");
 
       logClient.info(error);
 
-      expect(consoleSpy.info).toHaveBeenCalledWith(
-        stringifyContent({
-          message: "test error",
-          stack: error.stack,
-        }),
-      );
+      const logged = parseLogged(consoleSpy.info);
+      expect(logged).toMatchObject({ message: "test error", stack: error.stack });
+      expect(logged["callStack"]).toBeUndefined();
+    });
+
+    it("logs numbers as JSON strings", () => {
+      logClient.info(42);
+
+      const logged = parseLogged(consoleSpy.info);
+      expect(logged).toMatchObject({ message: "42" });
+    });
+
+    it("logs plain objects as JSON", () => {
+      logClient.info({ key: "value", count: 1 });
+
+      const logged = parseLogged(consoleSpy.info);
+      expect(logged).toMatchObject({ message: '{"key":"value","count":1}' });
     });
   });
 
@@ -83,11 +117,9 @@ describe("ConsoleLogClient", () => {
     it("logs warn message without extra data", () => {
       logClient.warn("test warning");
 
-      expect(consoleSpy.warn).toHaveBeenCalledWith(
-        stringifyContent({
-          message: "test warning",
-        }),
-      );
+      const logged = parseLogged(consoleSpy.warn);
+      expect(logged).toMatchObject({ message: "test warning" });
+      expect(logged["callStack"]).toBeTypeOf("string");
     });
 
     it("logs warn message with extra data", () => {
@@ -95,12 +127,18 @@ describe("ConsoleLogClient", () => {
 
       logClient.warn("test warning", extra);
 
-      expect(consoleSpy.warn).toHaveBeenCalledWith(
-        stringifyContent({
-          message: "test warning",
-          context: "data",
-        }),
-      );
+      const logged = parseLogged(consoleSpy.warn);
+      expect(logged).toMatchObject({ message: "test warning", context: "data" });
+    });
+
+    it("logs Error objects with message and stack from the error", () => {
+      const error = new Error("test warn error");
+
+      logClient.warn(error);
+
+      const logged = parseLogged(consoleSpy.warn);
+      expect(logged).toMatchObject({ message: "test warn error", stack: error.stack });
+      expect(logged["callStack"]).toBeTypeOf("string");
     });
   });
 
@@ -108,11 +146,9 @@ describe("ConsoleLogClient", () => {
     it("logs error message without extra data", () => {
       logClient.error("test error");
 
-      expect(consoleSpy.error).toHaveBeenCalledWith(
-        stringifyContent({
-          message: "test error",
-        }),
-      );
+      const logged = parseLogged(consoleSpy.error);
+      expect(logged).toMatchObject({ message: "test error" });
+      expect(logged["callStack"]).toBeTypeOf("string");
     });
 
     it("logs error message with extra data", () => {
@@ -120,12 +156,18 @@ describe("ConsoleLogClient", () => {
 
       logClient.error("test error", extra);
 
-      expect(consoleSpy.error).toHaveBeenCalledWith(
-        stringifyContent({
-          message: "test error",
-          details: "info",
-        }),
-      );
+      const logged = parseLogged(consoleSpy.error);
+      expect(logged).toMatchObject({ message: "test error", details: "info" });
+    });
+
+    it("logs Error objects with message and stack from the error", () => {
+      const error = new Error("test error object");
+
+      logClient.error(error);
+
+      const logged = parseLogged(consoleSpy.error);
+      expect(logged).toMatchObject({ message: "test error object", stack: error.stack });
+      expect(logged["callStack"]).toBeTypeOf("string");
     });
   });
 
@@ -133,12 +175,9 @@ describe("ConsoleLogClient", () => {
     it("logs fatal message with FATAL prefix without extra data", () => {
       logClient.fatal("critical failure");
 
-      expect(consoleSpy.error).toHaveBeenCalledWith(
-        "FATAL:",
-        stringifyContent({
-          message: "critical failure",
-        }),
-      );
+      const logged = parseFatalLogged(consoleSpy.error);
+      expect(logged).toMatchObject({ message: "critical failure" });
+      expect(logged["callStack"]).toBeTypeOf("string");
     });
 
     it("logs fatal message with FATAL prefix with extra data", () => {
@@ -146,13 +185,8 @@ describe("ConsoleLogClient", () => {
 
       logClient.fatal("critical failure", extra);
 
-      expect(consoleSpy.error).toHaveBeenCalledWith(
-        "FATAL:",
-        stringifyContent({
-          message: "critical failure",
-          crash: "data",
-        }),
-      );
+      const logged = parseFatalLogged(consoleSpy.error);
+      expect(logged).toMatchObject({ message: "critical failure", crash: "data" });
     });
   });
 });

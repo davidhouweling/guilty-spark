@@ -64,7 +64,7 @@ export const trackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (router
       const directory = await buildDirectory(env, identity.UserId, services);
       return trackerDirectoryContract.toResponse(directory, { noStore: true });
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Follow view error"]]));
+      logService.error(error, new Map([["context", "Follow view error"]]));
       return errorContract.toResponse({ error: "Failed to fetch follow directory" }, { status: 500, noStore: true });
     }
   });
@@ -100,7 +100,7 @@ export const trackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       return new Response(null, { status: 101, webSocket: client });
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Follow WebSocket error"]]));
+      logService.error(error, new Map([["context", "Follow WebSocket error"]]));
       return new Response("Internal Server Error", { status: 500 });
     }
   });

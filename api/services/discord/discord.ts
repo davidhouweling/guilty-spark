@@ -160,7 +160,7 @@ export class DiscordService {
       const parsedInteraction = JSON.parse(body) as APIInteraction;
       return { interaction: parsedInteraction, isValid: true, rawBody: body };
     } catch (error) {
-      this.logService.error(error as Error, new Map([["body", body]]));
+      this.logService.error(error, new Map([["body", body]]));
 
       return { isValid: false, error: "Invalid JSON", rawBody: body };
     }
@@ -704,7 +704,7 @@ export class DiscordService {
 
       return { hasAll: missing.length === 0, missing };
     } catch (error) {
-      this.logService.warn(error as Error);
+      this.logService.warn(error);
       return { hasAll: false, missing: requiredPermissions };
     }
   }

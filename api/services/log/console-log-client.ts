@@ -2,39 +2,74 @@ import type { LogService, JsonAny } from "./types";
 
 export class ConsoleLogClient implements LogService {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  debug(_error: Error | string, _extra?: ReadonlyMap<string, JsonAny>): void {
-    // console.debug(error, extra ? JSON.stringify([...extra], null, 2) : undefined);
+  debug(_message: unknown, _extra?: ReadonlyMap<string, JsonAny>): void {
+    // no-op
   }
 
-  info(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void {
-    console.info(this.format(error, extra));
+  info(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void {
+    console.info(this.format(message, extra));
   }
 
-  warn(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void {
-    console.warn(this.format(error, extra));
+  warn(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void {
+    console.warn(this.format(message, extra, this.captureCallSiteStack()));
   }
 
-  error(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void {
-    console.error(this.format(error, extra));
+  error(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void {
+    console.error(this.format(message, extra, this.captureCallSiteStack()));
   }
 
-  fatal(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void {
-    console.error("FATAL:", this.format(error, extra));
+  fatal(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void {
+    console.error("FATAL:", this.format(message, extra, this.captureCallSiteStack()));
   }
 
-  private format(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): string {
-    const content: Record<string, JsonAny> = {
-      message: typeof error === "string" ? error : error.message,
-    };
-
-    if (typeof error !== "string") {
-      content["stack"] = error.stack;
+  private toJsonSafe(value: unknown): string {
+    if (typeof value === "string") {
+      return value;
     }
+    if (value === undefined || typeof value === "function" || typeof value === "symbol") {
+      return String(value);
+    }
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "[unserializable]";
+    }
+  }
 
-    if (extra) {
+  private captureCallSiteStack(): string {
+    const lines = new Error().stack?.split("\n") ?? [];
+    return lines
+      .filter(
+        (line) =>
+          line !== "Error" &&
+          !line.startsWith("Error") &&
+          !line.includes("console-log-client") &&
+          !line.includes("aggregator-client"),
+      )
+      .slice(0, 10)
+      .join("\n");
+  }
+
+  private format(message: unknown, extra?: ReadonlyMap<string, JsonAny>, callStack?: string): string {
+    const content: Record<string, JsonAny> = {};
+
+    if (extra != null) {
       for (const [key, value] of extra) {
         content[key] = value;
       }
+    }
+
+    if (message instanceof Error) {
+      content["message"] = message.message;
+      if (message.stack != null) {
+        content["stack"] = message.stack;
+      }
+    } else {
+      content["message"] = this.toJsonSafe(message);
+    }
+
+    if (callStack != null && callStack.length > 0) {
+      content["callStack"] = callStack;
     }
 
     return JSON.stringify(content, null, 2);

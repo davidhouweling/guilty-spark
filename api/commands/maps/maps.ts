@@ -191,7 +191,7 @@ export class MapsCommand extends BaseCommand {
             await discordService.updateDeferredReply(interaction.token, response);
           }
         } catch (error) {
-          logService.error(error as Error);
+          logService.error(error);
           await discordService.updateDeferredReplyWithError(interaction.token, error);
         }
       },
@@ -247,7 +247,7 @@ export class MapsCommand extends BaseCommand {
 
       await this.services.discordService.createMessage(interaction.channel.id, response);
     } catch (error) {
-      this.services.logService.error(error as Error);
+      this.services.logService.error(error);
       await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
@@ -273,7 +273,7 @@ export class MapsCommand extends BaseCommand {
 
       await this.services.discordService.updateDeferredReply(interaction.token, response);
     } catch (error) {
-      this.services.logService.error(error as Error);
+      this.services.logService.error(error);
       await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
@@ -298,7 +298,7 @@ export class MapsCommand extends BaseCommand {
 
       await this.services.discordService.updateDeferredReply(interaction.token, response);
     } catch (error) {
-      this.services.logService.error(error as Error);
+      this.services.logService.error(error);
       await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
@@ -323,7 +323,7 @@ export class MapsCommand extends BaseCommand {
 
       await this.services.discordService.updateDeferredReply(interaction.token, response);
     } catch (error) {
-      this.services.logService.error(error as Error);
+      this.services.logService.error(error);
       await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }

@@ -499,7 +499,7 @@ export class HaloService {
 
       return { esra: averageEsra, lastRankedGamePlayed };
     } catch (error) {
-      this.logService.error(error as Error, new Map([["context", `Failed to fetch ESRA for xuid ${xuid}`]]));
+      this.logService.error(error, new Map([["context", `Failed to fetch ESRA for xuid ${xuid}`]]));
       throw error;
     }
   }
@@ -555,7 +555,7 @@ export class HaloService {
     try {
       return await this.getPlayerMatches(user.xuid, matchType, count, 0);
     } catch (error) {
-      this.logService.error(error as Error);
+      this.logService.error(error);
 
       throw new EndUserError("Unable to retrieve match history");
     }
@@ -868,7 +868,7 @@ export class HaloService {
       return null;
     } catch (error) {
       this.logService.warn(
-        error as Error,
+        error,
         new Map([["context", `Failed to fetch map thumbnail for assetId ${assetId}, versionId ${versionId}`]]),
       );
       return null;
@@ -1135,10 +1135,7 @@ export class HaloService {
         try {
           result = await fallbackFetch();
         } catch (xboxError) {
-          this.logService.info(
-            xboxError as Error,
-            new Map([["context", `Xbox Live API also failed for ${identifier}`]]),
-          );
+          this.logService.info(xboxError, new Map([["context", `Xbox Live API also failed for ${identifier}`]]));
         }
       }
     }
@@ -1478,7 +1475,7 @@ export class HaloService {
           xboxGamertagMap.set(user.xuid, user.gamertag);
         }
       } catch (error) {
-        this.logService.warn(`Failed to fetch Xbox gamertags for fuzzy matching: ${(error as Error).message}`);
+        this.logService.warn(error, new Map([["context", "Failed to fetch Xbox gamertags for fuzzy matching"]]));
       }
     }
 

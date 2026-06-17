@@ -554,7 +554,7 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
         return discordSeriesStatsContract.toResponse(getForbiddenResponseData(guildId, queueNumber), { status: 403 });
       }
 
-      logService.error(error as Error, new Map([["message", "Failed to resolve discord series stats route"]]));
+      logService.error(error, new Map([["context", "Failed to resolve discord series stats route"]]));
       return errorContract.toResponse(
         { error: "Failed to resolve discord series stats" },
         { status: 500, noStore: true },
@@ -612,7 +612,7 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
         return toLookupResponse(getForbiddenResponseData(guildId, queueNumber));
       }
 
-      logService.error(error as Error, new Map([["message", "Failed to resolve discord series stats lookup route"]]));
+      logService.error(error, new Map([["context", "Failed to resolve discord series stats lookup route"]]));
       return errorContract.toResponse(
         { error: "Failed to resolve discord series stats lookup" },
         { status: 500, noStore: true },

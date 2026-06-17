@@ -19,7 +19,7 @@ export const trackerSettingsRoutesRegisterHandler: RoutesRegisterHandler = (rout
 
       return settingsContract.toResponse({ settings }, { noStore: true });
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Individual tracker settings get error"]]));
+      logService.error(error, new Map([["context", "Individual tracker settings get error"]]));
       return errorContract.toResponse({ error: "Failed to fetch settings" }, { status: 500, noStore: true });
     }
   });
@@ -43,7 +43,7 @@ export const trackerSettingsRoutesRegisterHandler: RoutesRegisterHandler = (rout
 
       return settingsContract.toResponse({ settings }, { noStore: true });
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Individual tracker settings update error"]]));
+      logService.error(error, new Map([["context", "Individual tracker settings update error"]]));
       return errorContract.toResponse({ error: "Failed to update settings" }, { status: 500, noStore: true });
     }
   });

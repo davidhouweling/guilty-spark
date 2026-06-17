@@ -55,7 +55,7 @@ export const authSessionRoute: RoutesRegisterHandler = (router, installServices)
         { noStore: true },
       );
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Auth session error"]]));
+      logService.error(error, new Map([["context", "Auth session error"]]));
       return errorContract.toResponse({ error: "Failed to retrieve session" }, { status: 500, noStore: true });
     }
   });
