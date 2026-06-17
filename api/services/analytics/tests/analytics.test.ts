@@ -76,3 +76,54 @@ describe("AnalyticsService", () => {
     );
   });
 });
+
+describe("AnalyticsService.getBatchMatchAnalytics", () => {
+  it("resolves auth once then returns results keyed by matchId", async () => {
+    const env = aFakeEnvWith();
+    const haloService = aFakeHaloServiceWith({ env });
+    const haloFilmService = aFakeHaloFilmServiceWith({ env });
+    const resolveAuthSpy = vi.spyOn(haloFilmService, "resolveAuthContext").mockResolvedValue({
+      spartanToken: "spartan-token",
+      clearanceToken: "clearance-token",
+    });
+    const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([matchStats]);
+    vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
+      entries: [],
+      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+      perfectCounts: { total: 0, byXuid: {} },
+    });
+
+    const service = new AnalyticsService({ haloService, haloFilmService });
+    const results = await service.getBatchMatchAnalytics(["match-1", "match-2"], ["killMatrix"]);
+
+    expect(resolveAuthSpy).toHaveBeenCalledOnce();
+    expect(results["match-1"]).not.toBeNull();
+    expect(results["match-2"]).not.toBeNull();
+  });
+
+  it("returns null for failed matches without affecting successful ones", async () => {
+    const env = aFakeEnvWith();
+    const haloService = aFakeHaloServiceWith({ env });
+    const haloFilmService = aFakeHaloFilmServiceWith({ env });
+    vi.spyOn(haloFilmService, "resolveAuthContext").mockResolvedValue({
+      spartanToken: "spartan-token",
+      clearanceToken: "clearance-token",
+    });
+    const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+    vi.spyOn(haloService, "getMatchDetails")
+      .mockResolvedValueOnce([matchStats])
+      .mockRejectedValueOnce(new Error("halo api down"));
+    vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
+      entries: [],
+      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+      perfectCounts: { total: 0, byXuid: {} },
+    });
+
+    const service = new AnalyticsService({ haloService, haloFilmService });
+    const results = await service.getBatchMatchAnalytics(["match-ok", "match-fail"], ["killMatrix"]);
+
+    expect(results["match-ok"]).not.toBeNull();
+    expect(results["match-fail"]).toBeNull();
+  });
+});

@@ -63,4 +63,17 @@ export class AnalyticsService {
       },
     };
   }
+
+  async getBatchMatchAnalytics(matchIds: string[], modules: string[]): Promise<Record<string, MatchAnalytics | null>> {
+    await this.haloFilmService.resolveAuthContext();
+
+    const settled = await Promise.allSettled(matchIds.map(async (matchId) => this.getMatchAnalytics(matchId, modules)));
+
+    const results: Record<string, MatchAnalytics | null> = {};
+    for (const [index, matchId] of matchIds.entries()) {
+      const outcome = settled[index];
+      results[matchId] = outcome?.status === "fulfilled" ? outcome.value : null;
+    }
+    return results;
+  }
 }

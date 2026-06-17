@@ -201,4 +201,5 @@ export interface KillMatrixAnalytics {
 export interface HaloFilmServiceOpts {
   env: Env;
   spartanTokenProvider: CustomSpartanTokenProvider;
+  fetch?: typeof globalThis.fetch;
 }

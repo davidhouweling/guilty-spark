@@ -94,6 +94,11 @@ export function installServices({ env }: InstallServicesOpts): Services {
   const haloFilmService = new HaloFilmService({
     env,
     spartanTokenProvider,
+    fetch: createResilientFetch({
+      env,
+      logService,
+      proxyUrl: env.PROXY_WORKER_URL,
+    }),
   });
   const analyticsService = new AnalyticsService({ haloService, haloFilmService });
   const liveTrackerService = new LiveTrackerService({ env, logService, discordService });
