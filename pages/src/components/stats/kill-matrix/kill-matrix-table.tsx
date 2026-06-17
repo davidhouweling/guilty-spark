@@ -65,7 +65,7 @@ export function KillMatrixTable({
         {Array.from({ length: rowCount }, (_, i) => {
           const gamertag = playerGamertags?.[i];
           return (
-            <div key={gamertag ?? i} className={styles.shimmerRow}>
+            <div key={i} className={styles.shimmerRow}>
               {gamertag}
             </div>
           );

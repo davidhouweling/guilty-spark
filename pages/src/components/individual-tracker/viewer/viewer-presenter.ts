@@ -9,6 +9,7 @@ import type {
 } from "../../../services/individual-tracker/view-types";
 import { StatsController } from "../../../controllers/stats/stats-controller";
 import { KillMatrixFormatter } from "../../../controllers/stats/kill-matrix/kill-matrix-formatter";
+import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../../controllers/stats/kill-matrix/types";
 import { buildViewerRenderModel } from "./viewer-render-model";
 import type { IndividualTrackerViewerSnapshot, IndividualTrackerViewerStore, MatchStatsState } from "./viewer-store";
 import type { IndividualTrackerViewerViewModel, MatchStatsPanelState } from "./types";
@@ -68,7 +69,6 @@ export class IndividualTrackerViewerPresenter {
       if (analytics != null) {
         controller.loadAnalytics(analytics, playerMap);
       }
-      const killMatrixRows = analytics != null ? controller.getKillMatrix() : [];
       return {
         status: "loaded",
         matchId: stats.MatchId,
@@ -77,7 +77,8 @@ export class IndividualTrackerViewerPresenter {
         startTime: stats.MatchInfo.StartTime,
         endTime: stats.MatchInfo.EndTime,
         data: controller.getMatchStats(),
-        killMatrixPivotData: KillMatrixFormatter.pivot(killMatrixRows),
+        killMatrixPivotData:
+          analytics != null ? KillMatrixFormatter.pivot(controller.getKillMatrix()) : EMPTY_KILL_MATRIX_PIVOT_DATA,
       };
     } catch {
       return { status: "error", message: "Failed to compute match stats" };
