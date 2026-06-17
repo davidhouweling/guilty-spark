@@ -230,7 +230,7 @@ export class DiscordSeriesStatsPresenter {
             metadata: calculateSeriesMetadata(this.renderData.matches, this.renderData.seriesScore),
             teamColors,
             killMatrixPivotData: KillMatrixFormatter.pivot(
-              KillMatrixFormatter.aggregate([...matchKillMatrixRows.values()].flatMap((rows) => [...rows])),
+              KillMatrixFormatter.aggregate([...matchKillMatrixRows.values()].flatMap((rows) => rows)),
             ),
             killMatrixStatus: snapshot.analyticsStatus,
           }

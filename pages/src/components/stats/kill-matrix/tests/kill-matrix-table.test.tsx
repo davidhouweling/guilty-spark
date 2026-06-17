@@ -61,6 +61,22 @@ describe("KillMatrixTable", () => {
     expect(screen.queryByText("No kill matrix data.")).not.toBeInTheDocument();
   });
 
+  it("shows 5 shimmer rows when playerGamertags is an empty array", () => {
+    render(
+      <KillMatrixTable
+        pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
+        ariaLabel="Kill matrix"
+        emptyMessage="No kill matrix data."
+        status={ComponentLoaderStatus.LOADING}
+        playerGamertags={[]}
+      />,
+    );
+
+    const shimmer = screen.getByRole("region", { name: "Kill matrix" });
+    expect(shimmer).toHaveAttribute("aria-busy", "true");
+    expect(shimmer.children).toHaveLength(5);
+  });
+
   it("shows shimmer rows using playerGamertags when provided", () => {
     render(
       <KillMatrixTable
