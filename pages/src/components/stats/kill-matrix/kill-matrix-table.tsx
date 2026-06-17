@@ -109,7 +109,7 @@ export function KillMatrixTable({
                 setIsTransposed((prev) => !prev);
               }}
             >
-              {isTransposed ? "View Kills" : "View Deaths"}
+              {isTransposed ? "Switch to Kills view" : "Switch to Deaths view"}
             </Button>
           )}
         </div>

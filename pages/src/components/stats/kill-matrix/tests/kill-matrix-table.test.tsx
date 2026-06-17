@@ -154,8 +154,8 @@ describe("KillMatrixTable", () => {
 
     render(<KillMatrixTable pivotData={pivotData} ariaLabel="Kill matrix" emptyMessage="No kill matrix data." />);
 
-    expect(screen.queryByText("View Deaths")).not.toBeInTheDocument();
-    expect(screen.queryByText("View Kills")).not.toBeInTheDocument();
+    expect(screen.queryByText("Switch to Deaths view")).not.toBeInTheDocument();
+    expect(screen.queryByText("Switch to Kills view")).not.toBeInTheDocument();
   });
 
   it("toggles between kills and deaths view when toggle button is clicked", () => {
@@ -183,14 +183,16 @@ describe("KillMatrixTable", () => {
     );
 
     expect(screen.getByText("Deaths →")).toBeInTheDocument();
-    expect(screen.getByText("View Deaths")).toBeInTheDocument();
+    expect(screen.getByText("Killer")).toBeInTheDocument();
+    expect(screen.getByText("Switch to Deaths view")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("View Deaths"));
+    fireEvent.click(screen.getByText("Switch to Deaths view"));
 
     expect(screen.getByText("Kills →")).toBeInTheDocument();
-    expect(screen.getByText("View Kills")).toBeInTheDocument();
+    expect(screen.getByText("Victim")).toBeInTheDocument();
+    expect(screen.getByText("Switch to Kills view")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("View Kills"));
+    fireEvent.click(screen.getByText("Switch to Kills view"));
 
     expect(screen.getByText("Deaths →")).toBeInTheDocument();
   });
