@@ -46,7 +46,7 @@ export function StatsPanel({ state }: StatsPanelProps): React.ReactElement | nul
             score=""
             startTime={state.startTime}
             endTime={state.endTime}
-            killMatrixRows={state.killMatrixRows}
+            killMatrixPivotData={state.killMatrixPivotData}
           />
         </div>
       );

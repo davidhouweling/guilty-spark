@@ -5,8 +5,9 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import type { MatchStatsData } from "../../controllers/stats/types";
 import { StatsController } from "../../controllers/stats/stats-controller";
 import { KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
-import type { KillMatrixViewRow } from "../../controllers/stats/kill-matrix/types";
+import { EMPTY_KILL_MATRIX_PIVOT_DATA, type KillMatrixViewRow } from "../../controllers/stats/kill-matrix/types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
+import { ComponentLoaderStatus } from "../component-loader/component-loader";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault, type TeamColor } from "../team-colors/team-colors";
 import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
 import type { DiscordSeriesStatsSnapshot, DiscordSeriesStatsStore } from "./discord-series-stats-store";
@@ -94,6 +95,7 @@ export class DiscordSeriesStatsPresenter {
 
   start(): void {
     this.cancelled = false;
+    this.store.update({ analyticsStatus: ComponentLoaderStatus.LOADING });
     void this.fetchAnalytics();
   }
 
@@ -104,6 +106,7 @@ export class DiscordSeriesStatsPresenter {
   private async fetchAnalytics(): Promise<void> {
     const matchIds = this.renderData.matches.map((m) => m.matchId);
     if (matchIds.length === 0) {
+      this.store.update({ analyticsStatus: ComponentLoaderStatus.LOADED });
       return;
     }
     try {
@@ -117,9 +120,12 @@ export class DiscordSeriesStatsPresenter {
           map.set(matchId, analytics);
         }
       }
-      this.store.update({ analyticsByMatchId: map });
+      this.store.update({ analyticsByMatchId: map, analyticsStatus: ComponentLoaderStatus.LOADED });
     } catch {
-      // analytics are best-effort; store retains empty map
+      if (this.cancelled) {
+        return;
+      }
+      this.store.update({ analyticsStatus: ComponentLoaderStatus.ERROR });
     }
   }
 
@@ -167,7 +173,6 @@ export class DiscordSeriesStatsPresenter {
         matchKillMatrixRows.set(match.matchId, killMatrixFormatter.present({ analytics, playersByXuid }));
       }
     }
-
     const matchSummaries: DiscordSeriesMatchSummary[] = this.renderData.matches.map((match) => ({
       matchId: match.matchId,
       gameMapThumbnailUrl: match.gameMapThumbnailUrl,
@@ -188,7 +193,7 @@ export class DiscordSeriesStatsPresenter {
     });
 
     const matchDetails: DiscordSeriesMatchDetail[] = this.renderData.matches.map((match, index) => {
-      const killMatrixRows = matchKillMatrixRows.get(match.matchId) ?? ([] as readonly KillMatrixViewRow[]);
+      const rows = matchKillMatrixRows.get(match.matchId);
       const base = {
         matchId: match.matchId,
         gameMapThumbnailUrl: match.gameMapThumbnailUrl,
@@ -201,7 +206,8 @@ export class DiscordSeriesStatsPresenter {
         startTime: match.startTime,
         endTime: match.endTime,
         teamColors,
-        killMatrixRows,
+        killMatrixPivotData: rows != null ? KillMatrixFormatter.pivot(rows) : EMPTY_KILL_MATRIX_PIVOT_DATA,
+        killMatrixStatus: snapshot.analyticsStatus,
       };
       if (!isMatchStats(match.rawMatch)) {
         return { ...base, data: null };
@@ -223,9 +229,10 @@ export class DiscordSeriesStatsPresenter {
             playerData: seriesData.playerData,
             metadata: calculateSeriesMetadata(this.renderData.matches, this.renderData.seriesScore),
             teamColors,
-            killMatrixRows: KillMatrixFormatter.aggregate(
-              [...matchKillMatrixRows.values()].flatMap((rows) => [...rows]),
+            killMatrixPivotData: KillMatrixFormatter.pivot(
+              KillMatrixFormatter.aggregate([...matchKillMatrixRows.values()].flatMap((rows) => rows)),
             ),
+            killMatrixStatus: snapshot.analyticsStatus,
           }
         : null;
 

@@ -3,7 +3,7 @@ import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tr
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import type { MatchStatsData } from "../../../controllers/stats/types";
-import type { KillMatrixViewRow } from "../../../controllers/stats/kill-matrix/types";
+import type { KillMatrixPivotData } from "../../../controllers/stats/kill-matrix/types";
 import type { MatchStatsState } from "./viewer-store";
 
 export type ViewerTabOutcome = "win" | "loss" | "tie" | "dnf" | "unknown";
@@ -60,7 +60,7 @@ export type MatchStatsPanelState =
       readonly startTime: string;
       readonly endTime: string;
       readonly data: MatchStatsData[];
-      readonly killMatrixRows: readonly KillMatrixViewRow[];
+      readonly killMatrixPivotData: KillMatrixPivotData;
     }
   | { readonly status: "error"; readonly message: string };
 

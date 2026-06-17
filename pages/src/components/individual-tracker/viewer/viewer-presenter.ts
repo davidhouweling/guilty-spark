@@ -8,7 +8,8 @@ import type {
   TrackerViewSubscription,
 } from "../../../services/individual-tracker/view-types";
 import { StatsController } from "../../../controllers/stats/stats-controller";
-import type { KillMatrixViewRow } from "../../../controllers/stats/kill-matrix/types";
+import { KillMatrixFormatter } from "../../../controllers/stats/kill-matrix/kill-matrix-formatter";
+import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../../controllers/stats/kill-matrix/types";
 import { buildViewerRenderModel } from "./viewer-render-model";
 import type { IndividualTrackerViewerSnapshot, IndividualTrackerViewerStore, MatchStatsState } from "./viewer-store";
 import type { IndividualTrackerViewerViewModel, MatchStatsPanelState } from "./types";
@@ -65,10 +66,8 @@ export class IndividualTrackerViewerPresenter {
     try {
       const controller = new StatsController();
       controller.loadMatch(stats, playerMap, medalMetadata);
-      let killMatrixRows: readonly KillMatrixViewRow[] = [];
       if (analytics != null) {
         controller.loadAnalytics(analytics, playerMap);
-        killMatrixRows = controller.getKillMatrix();
       }
       return {
         status: "loaded",
@@ -78,7 +77,8 @@ export class IndividualTrackerViewerPresenter {
         startTime: stats.MatchInfo.StartTime,
         endTime: stats.MatchInfo.EndTime,
         data: controller.getMatchStats(),
-        killMatrixRows,
+        killMatrixPivotData:
+          analytics != null ? KillMatrixFormatter.pivot(controller.getKillMatrix()) : EMPTY_KILL_MATRIX_PIVOT_DATA,
       };
     } catch {
       return { status: "error", message: "Failed to compute match stats" };
