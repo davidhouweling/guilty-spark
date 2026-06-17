@@ -213,7 +213,8 @@ export class StatsCommand extends BaseCommand {
               response: {
                 type: InteractionResponseType.DeferredMessageUpdate,
               },
-              jobToComplete: async () => this.handleFixPlayerSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
+              jobToComplete: async () =>
+                this.handleFixPlayerSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
             };
           }
           case InteractionButton.FixGamesSelect.toString(): {
@@ -221,7 +222,8 @@ export class StatsCommand extends BaseCommand {
               response: {
                 type: InteractionResponseType.DeferredMessageUpdate,
               },
-              jobToComplete: async () => this.handleFixGamesSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
+              jobToComplete: async () =>
+                this.handleFixGamesSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
             };
           }
           case InteractionButton.FixConfirm.toString(): {
@@ -229,7 +231,8 @@ export class StatsCommand extends BaseCommand {
               response: {
                 type: InteractionResponseType.DeferredMessageUpdate,
               },
-              jobToComplete: async () => this.handleFixConfirmationJob(interaction as APIMessageComponentButtonInteraction),
+              jobToComplete: async () =>
+                this.handleFixConfirmationJob(interaction as APIMessageComponentButtonInteraction),
             };
           }
           case InteractionButton.FixCancel.toString(): {
@@ -1010,15 +1013,164 @@ export class StatsCommand extends BaseCommand {
   }
 
   private async handleFixGamesSelectJob(_interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
-    throw new Error("handleFixGamesSelectJob not implemented");
+    const { discordService, haloService } = this.services;
+
+    try {
+      const selectedMatchIds = _interaction.data.values;
+      if (selectedMatchIds.length === 0) {
+        throw new EndUserError("Select at least one game.");
+      }
+
+      const metadata = await this.getFixMetadata(_interaction.message.id);
+      if (metadata == null) {
+        throw new EndUserError("Could not find fix-flow state. Please run /stats fix again.");
+      }
+
+      const series = await haloService.getMatchDetails(selectedMatchIds);
+      if (series.length === 0) {
+        throw new EndUserError("No match details found for the selected games.");
+      }
+
+      const seriesEmbed = await this.createSeriesEmbed({
+        guildId: metadata.guildId,
+        channelId: metadata.channelId,
+        locale: _interaction.guild_locale ?? _interaction.locale,
+        queueData: metadata.queueData,
+        series,
+      });
+
+      await this.setFixMetadata(_interaction.message.id, {
+        ...metadata,
+        selectedMatchIds,
+      });
+
+      await discordService.updateDeferredReply(_interaction.token, {
+        content: "Preview generated. Confirm to replace the previous series stats.",
+        embeds: seriesEmbed.embeds,
+        components: [
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.Button,
+                custom_id: InteractionButton.FixConfirm,
+                label: "Confirm",
+                style: 3,
+              },
+              {
+                type: ComponentType.Button,
+                custom_id: InteractionButton.FixCancel,
+                label: "Cancel",
+                style: 2,
+              },
+            ],
+          },
+        ],
+      });
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(_interaction.token, error);
+    }
   }
 
-  private async handleFixConfirmationJob(_interaction: APIMessageComponentButtonInteraction): Promise<void> {
-    throw new Error("handleFixConfirmationJob not implemented");
+  private async handleFixConfirmationJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    const { databaseService, discordService, haloService } = this.services;
+
+    try {
+      const metadata = await this.getFixMetadata(interaction.message.id);
+      if (metadata == null) {
+        throw new EndUserError("Could not find fix-flow state. Please run /stats fix again.");
+      }
+
+      const selectedMatchIds = metadata.selectedMatchIds ?? [];
+      if (selectedMatchIds.length === 0) {
+        throw new EndUserError("No games were selected. Please run /stats fix again.");
+      }
+
+      const locale = interaction.guild_locale ?? interaction.locale;
+      const [guildConfig, series] = await Promise.all([
+        databaseService.getGuildConfig(metadata.guildId),
+        haloService.getMatchDetails(selectedMatchIds),
+      ]);
+      if (series.length === 0) {
+        throw new EndUserError("No match details found for selected games.");
+      }
+
+      const amendedSeriesEmbed = await this.createSeriesEmbed({
+        guildId: metadata.guildId,
+        channelId: metadata.channelId,
+        locale,
+        queueData: metadata.queueData,
+        series,
+      });
+      const amendedByUserId = discordService.getDiscordUserId(interaction);
+      const amendedField = {
+        name: "Amended by",
+        value: `<@${amendedByUserId}> on ${discordService.getTimestamp(new Date().toISOString())}`,
+        inline: false,
+      };
+      const amendedOverviewEmbed = Preconditions.checkExists(amendedSeriesEmbed.embeds[0]);
+      if (amendedOverviewEmbed.fields == null) {
+        amendedOverviewEmbed.fields = [];
+      }
+      amendedOverviewEmbed.fields.push(amendedField);
+
+      const activeThreads = await discordService.getThreads(metadata.channelId);
+      const relatedThread = activeThreads.find(
+        (thread) => "parent_id" in thread && thread.parent_id === metadata.queueData.message.id,
+      );
+
+      let destinationThreadId: string;
+      if (relatedThread != null) {
+        destinationThreadId = relatedThread.id;
+        const existingThreadMessages = await discordService.getMessages(destinationThreadId);
+        await this.deleteMessagesInChunks(
+          destinationThreadId,
+          existingThreadMessages.map((message) => message.id),
+          "Replacing amended series stats",
+        );
+      } else {
+        const seriesOverviewMessage = await discordService.createMessage(metadata.channelId, {
+          embeds: amendedSeriesEmbed.embeds,
+          components: amendedSeriesEmbed.components,
+        });
+        const createdThread = await discordService.startThreadFromMessage(
+          metadata.channelId,
+          seriesOverviewMessage.id,
+          `Queue #${metadata.queueData.queue.toString()} series stats (${haloService.getSeriesScore(series, locale, true)})`,
+        );
+        destinationThreadId = createdThread.id;
+      }
+
+      await discordService.createMessage(destinationThreadId, {
+        embeds: amendedSeriesEmbed.embeds,
+        components: amendedSeriesEmbed.components,
+      });
+      await this.postSeriesEmbedsToThread(destinationThreadId, series, guildConfig, locale);
+      await this.postGameStatsOrButton(destinationThreadId, series, guildConfig, locale);
+      await this.warmDiscordSeriesStatsRoute(metadata.guildId, metadata.queueData.queue);
+
+      await discordService.updateDeferredReply(interaction.token, {
+        content: "Series stats were amended successfully.",
+        embeds: [],
+        components: [],
+      });
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
   }
 
-  private async handleFixCancelJob(_interaction: APIMessageComponentButtonInteraction): Promise<void> {
-    throw new Error("handleFixCancelJob not implemented");
+  private async handleFixCancelJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    const { discordService } = this.services;
+
+    try {
+      await discordService.updateDeferredReply(interaction.token, {
+        content: "Cancelled.",
+        components: [],
+        embeds: [],
+      });
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
   }
 
   private isThreadChannel(channelType: ChannelType): boolean {
@@ -1043,5 +1195,21 @@ export class StatsCommand extends BaseCommand {
 
   private fixMetadataKey(messageId: string): string {
     return `statsFix:${messageId}`;
+  }
+
+  private async deleteMessagesInChunks(channelId: string, messageIds: string[], reason: string): Promise<void> {
+    const { discordService } = this.services;
+
+    for (let start = 0; start < messageIds.length; start += 100) {
+      const chunk = messageIds.slice(start, start + 100);
+      if (chunk.length === 0) {
+        continue;
+      }
+      if (chunk.length === 1) {
+        await discordService.deleteMessage(channelId, Preconditions.checkExists(chunk[0]), reason);
+        continue;
+      }
+      await discordService.bulkDeleteMessages(channelId, chunk, reason);
+    }
   }
 }

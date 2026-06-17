@@ -845,7 +845,9 @@ describe("StatsCommand", () => {
     beforeEach(() => {
       vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
         name: "fix",
-        mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>([["queue_number", 777]]),
+        mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>([
+          ["queue_number", 777],
+        ]),
         options: [],
       });
     });
@@ -898,9 +900,7 @@ describe("StatsCommand", () => {
         ...apiMessage,
         id: "fix-flow-message-id",
       });
-      const setInteractionMetadataSpy = vi
-        .spyOn(services.discordService, "setInteractionMetadata")
-        .mockResolvedValue();
+      const setInteractionMetadataSpy = vi.spyOn(services.discordService, "setInteractionMetadata").mockResolvedValue();
 
       const { jobToComplete } = statsCommand.execute(queuePlayerInteraction);
       await jobToComplete?.();
@@ -958,7 +958,9 @@ describe("StatsCommand", () => {
 
     it("allows admins that are not queue players", async () => {
       vi.spyOn(services.discordService, "getTeamsFromQueueResult").mockResolvedValue(discordNeatQueueData);
-      vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValue(PermissionFlagsBits.Administrator);
+      vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValue(
+        PermissionFlagsBits.Administrator,
+      );
       vi.spyOn(services.discordService, "getMessageFromInteractionToken").mockResolvedValue({
         ...apiMessage,
         id: "fix-flow-message-id",
@@ -1011,9 +1013,7 @@ describe("StatsCommand", () => {
         }),
       ]);
       vi.spyOn(services.haloService, "getPlayerCustomGames").mockResolvedValue(getPlayerMatches().slice(0, 3));
-      const setInteractionMetadataSpy = vi
-        .spyOn(services.discordService, "setInteractionMetadata")
-        .mockResolvedValue();
+      const setInteractionMetadataSpy = vi.spyOn(services.discordService, "setInteractionMetadata").mockResolvedValue();
 
       const { response, jobToComplete } = statsCommand.execute(interaction);
       expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
@@ -1078,6 +1078,168 @@ describe("StatsCommand", () => {
           message: "That player does not have a linked Xbox account.",
         }),
       );
+    });
+  });
+
+  describe("execute(): message component fix games select", () => {
+    it("creates preview embed and shows confirm/cancel buttons", async () => {
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: "btn_stats_fix_games_select",
+          values: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          id: "fix-flow-message-id",
+        },
+      };
+
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "fake-channel-id",
+        queueData: discordNeatQueueData,
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+        Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
+      ]);
+      const setInteractionMetadataSpy = vi.spyOn(services.discordService, "setInteractionMetadata").mockResolvedValue();
+
+      const { response, jobToComplete } = statsCommand.execute(interaction);
+      expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
+
+      await jobToComplete?.();
+
+      expect(setInteractionMetadataSpy).toHaveBeenCalledWith(
+        "statsFix:fix-flow-message-id",
+        expect.objectContaining({
+          selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
+        }),
+      );
+      expect(updateDeferredReplySpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          content: "Preview generated. Confirm to replace the previous series stats.",
+          components: [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                expect.objectContaining({ custom_id: "btn_stats_fix_confirm" }),
+                expect.objectContaining({ custom_id: "btn_stats_fix_cancel" }),
+              ],
+            },
+          ],
+        }),
+      );
+    });
+  });
+
+  describe("execute(): message component fix confirm", () => {
+    it("rebuilds stats in related thread and marks amendment", async () => {
+      const interaction: APIMessageComponentButtonInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: "btn_stats_fix_confirm",
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          id: "fix-flow-message-id",
+        },
+      };
+
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "fake-channel-id",
+        queueData: {
+          ...discordNeatQueueData,
+          message: {
+            ...discordNeatQueueData.message,
+            id: "queue-parent-message-id",
+          },
+        },
+        selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+        Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
+      ]);
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+        aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
+      );
+      vi.spyOn(services.discordService, "getThreads").mockResolvedValue([
+        {
+          id: "related-thread-id",
+          type: ChannelType.PublicThread,
+          parent_id: "queue-parent-message-id",
+        } as APIThreadChannel,
+      ]);
+      vi.spyOn(services.discordService, "getMessages").mockResolvedValue([
+        { ...apiMessage, id: "thread-msg-1" },
+        { ...apiMessage, id: "thread-msg-2" },
+      ]);
+      const bulkDeleteMessagesSpy = vi.spyOn(services.discordService, "bulkDeleteMessages").mockResolvedValue();
+      const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
+      const warmRouteFetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
+
+      const { response, jobToComplete } = statsCommand.execute(interaction);
+      expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
+
+      await jobToComplete?.();
+
+      expect(bulkDeleteMessagesSpy).toHaveBeenCalledWith(
+        "related-thread-id",
+        ["thread-msg-1", "thread-msg-2"],
+        "Replacing amended series stats",
+      );
+      expect(createMessageSpy).toHaveBeenCalledWith(
+        "related-thread-id",
+        expect.objectContaining({
+          embeds: expect.arrayContaining([
+            expect.objectContaining({
+              fields: expect.arrayContaining([
+                expect.objectContaining({
+                  name: "Amended by",
+                }),
+              ]),
+            }),
+          ]),
+        }),
+      );
+      expect(warmRouteFetchSpy).toHaveBeenCalledWith("http://localhost:8787/api/stats/discord/fake-guild-id/777", {
+        method: "GET",
+      });
+      expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
+        content: "Series stats were amended successfully.",
+        embeds: [],
+        components: [],
+      });
+    });
+  });
+
+  describe("execute(): message component fix cancel", () => {
+    it("marks flow as cancelled", async () => {
+      const interaction: APIMessageComponentButtonInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: "btn_stats_fix_cancel",
+        },
+      };
+
+      const { response, jobToComplete } = statsCommand.execute(interaction);
+      expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
+
+      await jobToComplete?.();
+
+      expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
+        content: "Cancelled.",
+        components: [],
+        embeds: [],
+      });
     });
   });
 

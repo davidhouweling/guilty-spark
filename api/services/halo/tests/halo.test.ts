@@ -1765,17 +1765,11 @@ describe("Halo service", () => {
 
       const response = await haloService.getPlayerCustomGames("0000000000001", 12);
 
-      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledWith(
-        "0000000000001",
-        MatchType.Custom,
-        12,
-        0,
-        {
-          cf: {
-            cacheTtlByStatus: { "200-299": 60, 404: 60, "500-599": 0 },
-          },
+      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledWith("0000000000001", MatchType.Custom, 12, 0, {
+        cf: {
+          cacheTtlByStatus: { "200-299": 60, 404: 60, "500-599": 0 },
         },
-      );
+      });
       expect(response).toEqual(customGames);
     });
   });
