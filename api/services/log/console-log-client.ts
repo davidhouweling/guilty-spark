@@ -39,6 +39,12 @@ export class ConsoleLogClient implements LogService {
   private format(message: unknown, extra?: ReadonlyMap<string, JsonAny>, callStack?: string): string {
     const content: Record<string, JsonAny> = {};
 
+    if (extra != null) {
+      for (const [key, value] of extra) {
+        content[key] = value;
+      }
+    }
+
     if (message instanceof Error) {
       content["message"] = message.message;
       if (message.stack != null) {
@@ -50,12 +56,6 @@ export class ConsoleLogClient implements LogService {
 
     if (callStack != null && callStack.length > 0) {
       content["callStack"] = callStack;
-    }
-
-    if (extra != null) {
-      for (const [key, value] of extra) {
-        content[key] = value;
-      }
     }
 
     return JSON.stringify(content, null, 2);
