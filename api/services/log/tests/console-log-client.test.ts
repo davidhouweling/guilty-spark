@@ -11,7 +11,10 @@ function parseLogged(
     throw new Error("Expected spy to have been called");
   }
   const [firstArg] = call;
-  return JSON.parse(firstArg as string) as Record<string, unknown>;
+  if (typeof firstArg !== "string") {
+    throw new Error(`Expected first console argument to be a string, got ${typeof firstArg}`);
+  }
+  return JSON.parse(firstArg) as Record<string, unknown>;
 }
 
 function parseFatalLogged(spy: MockInstance<typeof console.error>): Record<string, unknown> {
@@ -20,7 +23,13 @@ function parseFatalLogged(spy: MockInstance<typeof console.error>): Record<strin
   if (call == null) {
     throw new Error("Expected spy to have been called");
   }
-  const [prefix, secondArg] = call as [string, string];
+  const [prefix, secondArg] = call as unknown[];
+  if (typeof prefix !== "string") {
+    throw new Error(`Expected first console argument to be a string, got ${typeof prefix}`);
+  }
+  if (typeof secondArg !== "string") {
+    throw new Error(`Expected second console argument to be a string, got ${typeof secondArg}`);
+  }
   expect(prefix).toBe("FATAL:");
   return JSON.parse(secondArg) as Record<string, unknown>;
 }
