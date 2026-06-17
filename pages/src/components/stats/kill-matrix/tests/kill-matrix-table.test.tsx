@@ -56,7 +56,8 @@ describe("KillMatrixTable", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Kill matrix")).toHaveAttribute("aria-busy", "true");
+    const shimmer = screen.getByRole("region", { name: "Kill matrix" });
+    expect(shimmer).toHaveAttribute("aria-busy", "true");
     expect(screen.queryByText("No kill matrix data.")).not.toBeInTheDocument();
   });
 
@@ -71,13 +72,14 @@ describe("KillMatrixTable", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Kill matrix")).toHaveAttribute("aria-busy", "true");
+    const shimmer = screen.getByRole("region", { name: "Kill matrix" });
+    expect(shimmer).toHaveAttribute("aria-busy", "true");
     expect(screen.getByText("Alpha")).toBeInTheDocument();
     expect(screen.getByText("Bravo")).toBeInTheDocument();
     expect(screen.getByText("Charlie")).toBeInTheDocument();
   });
 
-  it("shows error message when status is error", () => {
+  it("shows emptyMessage when status is error and no errorMessage is provided", () => {
     render(
       <KillMatrixTable
         pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
@@ -88,6 +90,21 @@ describe("KillMatrixTable", () => {
     );
 
     expect(screen.getByText("Kill matrix data is not available.")).toBeInTheDocument();
+  });
+
+  it("shows errorMessage instead of emptyMessage when status is error and errorMessage is provided", () => {
+    render(
+      <KillMatrixTable
+        pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
+        ariaLabel="Kill matrix"
+        emptyMessage="Kill matrix data is not available."
+        errorMessage="Failed to load kill matrix data."
+        status={ComponentLoaderStatus.ERROR}
+      />,
+    );
+
+    expect(screen.getByText("Failed to load kill matrix data.")).toBeInTheDocument();
+    expect(screen.queryByText("Kill matrix data is not available.")).not.toBeInTheDocument();
   });
 
   it("shows empty message when status is loaded and no data", () => {

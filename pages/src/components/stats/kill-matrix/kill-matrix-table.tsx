@@ -10,6 +10,7 @@ interface KillMatrixTableProps {
   readonly pivotData: KillMatrixPivotData;
   readonly ariaLabel: string;
   readonly emptyMessage: string;
+  readonly errorMessage?: string;
   readonly status?: ComponentLoaderStatus;
   readonly killerAxisLabel?: string;
   readonly victimAxisLabel?: string;
@@ -20,6 +21,7 @@ export function KillMatrixTable({
   pivotData,
   ariaLabel,
   emptyMessage,
+  errorMessage,
   status,
   killerAxisLabel = "Killer",
   victimAxisLabel = "Deaths",
@@ -59,7 +61,7 @@ export function KillMatrixTable({
   if (isLoading) {
     const rowCount = playerGamertags?.length ?? 5;
     return (
-      <div className={styles.shimmerContainer} aria-busy="true" aria-label={ariaLabel}>
+      <div role="region" className={styles.shimmerContainer} aria-busy="true" aria-label={ariaLabel}>
         {Array.from({ length: rowCount }, (_, i) => {
           const gamertag = playerGamertags?.[i];
           return (
@@ -73,7 +75,7 @@ export function KillMatrixTable({
   }
 
   if (isError) {
-    return <Alert variant="warning">{emptyMessage}</Alert>;
+    return <Alert variant="warning">{errorMessage ?? emptyMessage}</Alert>;
   }
 
   if (pivotData.tableRows.length === 0) {

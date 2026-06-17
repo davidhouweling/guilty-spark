@@ -275,6 +275,7 @@ export function MatchStats({
                 pivotData={killMatrixPivotData ?? EMPTY_KILL_MATRIX_PIVOT_DATA}
                 ariaLabel="Match kill matrix"
                 emptyMessage="Kill matrix data is not available for this match yet."
+                errorMessage="Failed to load kill matrix data for this match."
                 status={killMatrixStatus}
                 playerGamertags={playerGamertags}
               />

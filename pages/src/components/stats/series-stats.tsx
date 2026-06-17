@@ -266,6 +266,7 @@ export function SeriesStats({
                   pivotData={killMatrixPivotData ?? EMPTY_KILL_MATRIX_PIVOT_DATA}
                   ariaLabel="Series kill matrix"
                   emptyMessage="Kill matrix data is not available for this series yet."
+                  errorMessage="Failed to load kill matrix data for this series."
                   status={killMatrixStatus}
                   playerGamertags={playerGamertags}
                 />
