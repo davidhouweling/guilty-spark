@@ -1,6 +1,6 @@
 import React from "react";
 import { Alert } from "../../alert/alert";
-import { ComponentLoaderStatus } from "../../component-loader/component-loader";
+import { ComponentLoader, ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { SortableTable, type SortableTableColumn } from "../../table/sortable-table";
 import tableStyles from "../../table/table.module.css";
 import type { KillMatrixPivotData, KillMatrixPivotRow } from "../../../controllers/stats/kill-matrix/types";
@@ -27,11 +27,10 @@ export function KillMatrixTable({
   victimAxisLabel = "Deaths",
   playerGamertags,
 }: KillMatrixTableProps): React.ReactElement {
-  const isLoading = status === ComponentLoaderStatus.LOADING || status === ComponentLoaderStatus.PENDING;
-  const isError = status === ComponentLoaderStatus.ERROR;
+  const effectiveStatus = status ?? ComponentLoaderStatus.LOADED;
 
   const columns = React.useMemo<SortableTableColumn<KillMatrixPivotRow>[]>(() => {
-    if (isLoading) {
+    if (effectiveStatus !== ComponentLoaderStatus.LOADED) {
       return [];
     }
 
@@ -56,41 +55,56 @@ export function KillMatrixTable({
     }
 
     return cols;
-  }, [isLoading, killerAxisLabel, pivotData.victimGamertags]);
+  }, [effectiveStatus, killerAxisLabel, pivotData.victimGamertags]);
 
-  if (isLoading) {
-    const rowCount = playerGamertags !== undefined && playerGamertags.length > 0 ? playerGamertags.length : 8;
-    return (
-      <div role="region" className={styles.shimmerContainer} aria-busy="true" aria-label={ariaLabel}>
-        {Array.from({ length: rowCount }, (_, i) => {
-          const gamertag = playerGamertags?.[i];
-          return (
-            <div key={i} className={styles.shimmerRow}>
-              {gamertag}
-            </div>
-          );
-        })}
+  const playerCount = playerGamertags !== undefined && playerGamertags.length > 0 ? playerGamertags.length : 8;
+
+  const shimmer = (
+    <div
+      role="region"
+      className={styles.shimmerContainer}
+      style={{ "--shimmer-cols": playerCount } as React.CSSProperties}
+      aria-busy="true"
+      aria-label={ariaLabel}
+    >
+      <div className={styles.shimmerHeaderCell}>{killerAxisLabel}</div>
+      {Array.from({ length: playerCount }, (_, i) => (
+        <div key={i} className={styles.shimmerHeaderCell}>
+          {playerGamertags?.[i]}
+        </div>
+      ))}
+      {Array.from({ length: playerCount }, (_, row) => (
+        <React.Fragment key={row}>
+          <div className={styles.shimmerLabelCell}>{playerGamertags?.[row]}</div>
+          {Array.from({ length: playerCount }, (_col, col) => (
+            <div key={col} className={styles.shimmerCell} />
+          ))}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+
+  const loaded =
+    pivotData.tableRows.length === 0 ? (
+      <Alert variant="info">{emptyMessage}</Alert>
+    ) : (
+      <div>
+        <div className={styles.victimAxisLabel}>{victimAxisLabel} →</div>
+        <SortableTable
+          data={pivotData.tableRows}
+          columns={columns}
+          getRowKey={(row): string => row.killerId}
+          ariaLabel={ariaLabel}
+        />
       </div>
     );
-  }
-
-  if (isError) {
-    return <Alert variant="warning">{errorMessage ?? emptyMessage}</Alert>;
-  }
-
-  if (pivotData.tableRows.length === 0) {
-    return <Alert variant="info">{emptyMessage}</Alert>;
-  }
 
   return (
-    <div>
-      <div className={styles.victimAxisLabel}>{victimAxisLabel} →</div>
-      <SortableTable
-        data={pivotData.tableRows}
-        columns={columns}
-        getRowKey={(row): string => row.killerId}
-        ariaLabel={ariaLabel}
-      />
-    </div>
+    <ComponentLoader
+      status={effectiveStatus}
+      loading={shimmer}
+      error={<Alert variant="warning">{errorMessage ?? emptyMessage}</Alert>}
+      loaded={loaded}
+    />
   );
 }

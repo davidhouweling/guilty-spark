@@ -11,31 +11,33 @@
 }
 
 .shimmerContainer {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  display: grid;
+  gap: var(--space-1);
+  grid-template-columns: auto repeat(var(--shimmer-cols, 8), minmax(3rem, 1fr));
+  overflow-x: auto;
   padding: var(--space-4) 0;
 }
 
-.shimmerRow {
+.shimmerHeaderCell {
+  color: var(--halo-gray);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  padding: var(--space-1) var(--space-2);
+}
+
+.shimmerLabelCell {
   align-items: center;
+  display: flex;
+  font-size: var(--text-sm);
+  padding: var(--space-1) var(--space-2);
+}
+
+.shimmerCell {
   animation: shimmer 1.5s ease-in-out infinite;
   background: linear-gradient(90deg, var(--halo-bg-card) 25%, var(--halo-teal-darker) 50%, var(--halo-bg-card) 75%);
   background-size: 200% 100%;
   border-radius: 4px;
-  display: flex;
-  font-size: var(--text-sm);
   height: 2rem;
-  padding-left: var(--space-2);
-  width: 85%;
-}
-
-.shimmerRow:nth-child(3n + 2) {
-  width: 90%;
-}
-
-.shimmerRow:nth-child(3n + 3) {
-  width: 95%;
 }
 
 @keyframes shimmer {
