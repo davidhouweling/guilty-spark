@@ -71,7 +71,7 @@ describe("/api/stats/match-analytics (batch)", () => {
     vi.spyOn(services.analyticsService, "getMatchAnalytics")
       .mockResolvedValueOnce(analytics)
       .mockRejectedValueOnce(new Error("halo api down"));
-    const logErrorSpy: MockInstance<typeof services.logService.error> = vi.spyOn(services.logService, "error");
+    const logWarnSpy: MockInstance<typeof services.logService.warn> = vi.spyOn(services.logService, "warn");
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
     statsRoutesRegisterHandler(router, localInstallServices);
 
@@ -88,9 +88,9 @@ describe("/api/stats/match-analytics (batch)", () => {
         "match-fail": null,
       },
     });
-    expect(logErrorSpy).toHaveBeenCalledOnce();
-    expect(logErrorSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "1/2 match analytics fetches failed" }),
+    expect(logWarnSpy).toHaveBeenCalledOnce();
+    expect(logWarnSpy).toHaveBeenCalledWith(
+      "1/2 match analytics fetches failed",
       new Map([["route", "stats:match-analytics-batch"]]),
     );
   });
@@ -99,10 +99,7 @@ describe("/api/stats/match-analytics (batch)", () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => installFakeServicesWith({ env }));
     statsRoutesRegisterHandler(router, localInstallServices);
 
-    const response = (await router.fetch(
-      new Request("http://localhost/api/stats/match-analytics"),
-      env,
-    )) as Response;
+    const response = (await router.fetch(new Request("http://localhost/api/stats/match-analytics"), env)) as Response;
 
     expect(response.status).toBe(400);
     const body = await response.json();
