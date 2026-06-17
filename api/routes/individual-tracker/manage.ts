@@ -212,9 +212,18 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       const state = await startTrackerDo(env, startRequest);
 
+      logService.info(
+        "Individual tracker started",
+        new Map([
+          ["trackerId", tracker.TrackerId],
+          ["gamertag", tracker.Gamertag],
+          ["userId", auth.session.userId],
+        ]),
+      );
+
       return trackerContract.toResponse({ tracker: toTracker(tracker, state) }, { noStore: true });
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Individual tracker start error"]]));
+      logService.error(error, new Map([["context", "Individual tracker start error"]]));
       return errorContract.toResponse({ error: "Failed to start tracker" }, { status: 500, noStore: true });
     }
   });
@@ -248,9 +257,11 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
       await stopTrackerDo(env, auth.session.userId, tracker.TrackerId);
       await individualTrackerService.markTrackerStatus(tracker, "stopped");
 
+      logService.info("Individual tracker stopped", new Map([["trackerId", tracker.TrackerId]]));
+
       return stopTrackerContract.toResponse({ success: true }, { noStore: true });
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Individual tracker stop error"]]));
+      logService.error(error, new Map([["context", "Individual tracker stop error"]]));
       return errorContract.toResponse({ error: "Failed to stop tracker" }, { status: 500, noStore: true });
     }
   });
@@ -284,9 +295,11 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
       const state = await pauseTrackerDo(env, auth.session.userId, tracker.TrackerId);
       const paused = await individualTrackerService.markTrackerStatus(tracker, "paused");
 
+      logService.info("Individual tracker paused", new Map([["trackerId", tracker.TrackerId]]));
+
       return trackerContract.toResponse({ tracker: toTracker(paused, state) }, { noStore: true });
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Individual tracker pause error"]]));
+      logService.error(error, new Map([["context", "Individual tracker pause error"]]));
       return errorContract.toResponse({ error: "Failed to pause tracker" }, { status: 500, noStore: true });
     }
   });
@@ -320,9 +333,11 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
       const state = await resumeTrackerDo(env, auth.session.userId, tracker.TrackerId);
       const resumed = await individualTrackerService.markTrackerStatus(tracker, "active");
 
+      logService.info("Individual tracker resumed", new Map([["trackerId", tracker.TrackerId]]));
+
       return trackerContract.toResponse({ tracker: toTracker(resumed, state) }, { noStore: true });
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Individual tracker resume error"]]));
+      logService.error(error, new Map([["context", "Individual tracker resume error"]]));
       return errorContract.toResponse({ error: "Failed to resume tracker" }, { status: 500, noStore: true });
     }
   });
@@ -360,7 +375,7 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       return trackerContract.toResponse({ tracker: toTracker(tracker, state) }, { noStore: true });
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Individual tracker select active error"]]));
+      logService.error(error, new Map([["context", "Individual tracker select active error"]]));
       return errorContract.toResponse({ error: "Failed to select active tracker" }, { status: 500, noStore: true });
     }
   });
@@ -385,7 +400,7 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       return trackersContract.toResponse({ trackers }, { noStore: true });
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Individual tracker list error"]]));
+      logService.error(error, new Map([["context", "Individual tracker list error"]]));
       return errorContract.toResponse({ error: "Failed to list trackers" }, { status: 500, noStore: true });
     }
   });
@@ -420,7 +435,7 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       return trackerContract.toResponse({ tracker: toTracker(tracker, state) }, { noStore: true });
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Individual tracker status error"]]));
+      logService.error(error, new Map([["context", "Individual tracker status error"]]));
       return errorContract.toResponse({ error: "Failed to fetch tracker status" }, { status: 500, noStore: true });
     }
   });
@@ -459,7 +474,7 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       return selectMatchesContract.toResponse({ success: true }, { noStore: true });
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Individual tracker select matches error"]]));
+      logService.error(error, new Map([["context", "Individual tracker select matches error"]]));
       return errorContract.toResponse({ error: "Failed to update match selection" }, { status: 500, noStore: true });
     }
   });
@@ -506,7 +521,7 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       return startSeriesContract.toResponse({ success: true }, { noStore: true });
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Individual tracker start series error"]]));
+      logService.error(error, new Map([["context", "Individual tracker start series error"]]));
       return errorContract.toResponse({ error: "Failed to start series" }, { status: 500, noStore: true });
     }
   });
@@ -542,7 +557,7 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       return endSeriesContract.toResponse({ success: true }, { noStore: true });
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Individual tracker end series error"]]));
+      logService.error(error, new Map([["context", "Individual tracker end series error"]]));
       return errorContract.toResponse({ error: "Failed to end series" }, { status: 500, noStore: true });
     }
   });
@@ -593,7 +608,7 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       return editSeriesContract.toResponse({ success: true }, { noStore: true });
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Individual tracker edit series error"]]));
+      logService.error(error, new Map([["context", "Individual tracker edit series error"]]));
       return errorContract.toResponse({ error: "Failed to edit series" }, { status: 500, noStore: true });
     }
   });
@@ -635,7 +650,7 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       return resumeSeriesContract.toResponse({ success: true }, { noStore: true });
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Individual tracker resume series error"]]));
+      logService.error(error, new Map([["context", "Individual tracker resume series error"]]));
       return errorContract.toResponse({ error: "Failed to resume series" }, { status: 500, noStore: true });
     }
   });
@@ -669,7 +684,7 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       return deleteTrackerContract.toResponse({ success: true }, { noStore: true });
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Individual tracker delete error"]]));
+      logService.error(error, new Map([["context", "Individual tracker delete error"]]));
       return errorContract.toResponse({ error: "Failed to delete tracker" }, { status: 500, noStore: true });
     }
   });
