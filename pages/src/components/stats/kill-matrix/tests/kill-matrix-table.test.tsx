@@ -40,7 +40,7 @@ describe("KillMatrixTable", () => {
     expect(screen.getByLabelText("Kill matrix")).toBeInTheDocument();
     expect(screen.getByText("Alpha")).toBeInTheDocument();
     expect(screen.getByText("Bravo")).toBeInTheDocument();
-    expect(screen.getByText("Kills")).toBeInTheDocument();
+    expect(screen.getByText("Killer")).toBeInTheDocument();
     expect(screen.getByText("Deaths →")).toBeInTheDocument();
   });
 

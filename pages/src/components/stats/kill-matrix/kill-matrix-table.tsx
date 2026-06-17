@@ -19,7 +19,7 @@ export function KillMatrixTable({
   ariaLabel,
   emptyMessage,
   loading,
-  killerAxisLabel = "Kills",
+  killerAxisLabel = "Killer",
   victimAxisLabel = "Deaths",
 }: KillMatrixTableProps): React.ReactElement {
   const columns = React.useMemo<SortableTableColumn<KillMatrixPivotRow>[]>(() => {
