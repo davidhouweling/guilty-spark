@@ -59,7 +59,7 @@ export function KillMatrixTable({
   }, [isLoading, killerAxisLabel, pivotData.victimGamertags]);
 
   if (isLoading) {
-    const rowCount = playerGamertags !== undefined && playerGamertags.length > 0 ? playerGamertags.length : 5;
+    const rowCount = playerGamertags !== undefined && playerGamertags.length > 0 ? playerGamertags.length : 8;
     return (
       <div role="region" className={styles.shimmerContainer} aria-busy="true" aria-label={ariaLabel}>
         {Array.from({ length: rowCount }, (_, i) => {

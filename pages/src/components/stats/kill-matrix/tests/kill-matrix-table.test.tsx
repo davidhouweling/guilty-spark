@@ -74,7 +74,7 @@ describe("KillMatrixTable", () => {
 
     const shimmer = screen.getByRole("region", { name: "Kill matrix" });
     expect(shimmer).toHaveAttribute("aria-busy", "true");
-    expect(shimmer.children).toHaveLength(5);
+    expect(shimmer.children).toHaveLength(8);
   });
 
   it("shows shimmer rows using playerGamertags when provided", () => {
