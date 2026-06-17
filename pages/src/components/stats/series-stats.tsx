@@ -7,7 +7,7 @@ import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
 import type { TeamColor } from "../team-colors/team-colors";
 import { Container } from "../container/container";
-import type { KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
+import { EMPTY_KILL_MATRIX_PIVOT_DATA, type KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
 import type { MatchStatsData, MatchStatsPlayerData } from "../../controllers/stats/types";
 import type { SeriesMetadata } from "../../controllers/stats/series-metadata";
 import { sortByMedals, getTeamMedalsMap, getPlayerMedalsMap } from "../../controllers/stats/medals-sorting";
@@ -260,7 +260,7 @@ export function SeriesStats({
               label: "Kill Matrix",
               content: (
                 <KillMatrixTable
-                  pivotData={killMatrixPivotData ?? { tableRows: [], victimGamertags: [] }}
+                  pivotData={killMatrixPivotData ?? EMPTY_KILL_MATRIX_PIVOT_DATA}
                   loading={killMatrixLoading}
                   ariaLabel="Series kill matrix"
                   emptyMessage="Kill matrix data is not available for this series yet."

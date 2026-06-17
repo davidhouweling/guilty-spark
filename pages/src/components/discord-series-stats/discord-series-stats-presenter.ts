@@ -5,7 +5,7 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import type { MatchStatsData } from "../../controllers/stats/types";
 import { StatsController } from "../../controllers/stats/stats-controller";
 import { KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
-import type { KillMatrixPivotData, KillMatrixViewRow } from "../../controllers/stats/kill-matrix/types";
+import { EMPTY_KILL_MATRIX_PIVOT_DATA, type KillMatrixViewRow } from "../../controllers/stats/kill-matrix/types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault, type TeamColor } from "../team-colors/team-colors";
 import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
@@ -169,8 +169,6 @@ export class DiscordSeriesStatsPresenter {
         matchKillMatrixRows.set(match.matchId, killMatrixFormatter.present({ analytics, playersByXuid }));
       }
     }
-    const emptyPivot: KillMatrixPivotData = { tableRows: [], victimGamertags: [] };
-
     const matchSummaries: DiscordSeriesMatchSummary[] = this.renderData.matches.map((match) => ({
       matchId: match.matchId,
       gameMapThumbnailUrl: match.gameMapThumbnailUrl,
@@ -204,7 +202,7 @@ export class DiscordSeriesStatsPresenter {
         startTime: match.startTime,
         endTime: match.endTime,
         teamColors,
-        killMatrixPivotData: rows != null ? KillMatrixFormatter.pivot(rows) : emptyPivot,
+        killMatrixPivotData: rows != null ? KillMatrixFormatter.pivot(rows) : EMPTY_KILL_MATRIX_PIVOT_DATA,
         killMatrixLoading: snapshot.analyticsLoading,
       };
       if (!isMatchStats(match.rawMatch)) {

@@ -50,7 +50,7 @@ export function KillMatrixTable({
     return (
       <div className={styles.shimmerContainer} aria-busy="true" aria-label={ariaLabel}>
         {Array.from({ length: 5 }, (_, i) => (
-          <div key={i} className={styles.shimmerRow} style={{ width: `${(85 + (i % 3) * 5).toString()}%` }} />
+          <div key={i} className={styles.shimmerRow} />
         ))}
       </div>
     );

@@ -13,6 +13,8 @@ export interface KillMatrixPivotData {
   readonly victimGamertags: readonly string[];
 }
 
+export const EMPTY_KILL_MATRIX_PIVOT_DATA: KillMatrixPivotData = { tableRows: [], victimGamertags: [] };
+
 export interface KillMatrixPlayer {
   readonly xuid: string;
   readonly gamertag: string;
