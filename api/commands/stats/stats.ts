@@ -32,6 +32,7 @@ import type { GuildConfigRow } from "../../services/database/types/guild_config"
 import { StatsReturnType } from "../../services/database/types/guild_config";
 import { EndUserError } from "../../base/end-user-error";
 import { create } from "../../embeds/stats/create";
+import type { JsonAny } from "../../services/log/types";
 
 export enum InteractionButton {
   Retry = "btn_stats_retry",
@@ -679,18 +680,18 @@ export class StatsCommand extends BaseCommand {
 
       logService.warn(
         `Discord series stats warm request returned non-OK status: ${response.status.toString()}`,
-        new Map([
+        new Map<string, JsonAny>([
           ["guildId", guildId],
-          ["queueNumber", queueNumber.toString()],
-          ["status", response.status.toString()],
+          ["queueNumber", queueNumber],
+          ["status", response.status],
         ]),
       );
     } catch (error) {
       logService.warn(
         error,
-        new Map([
+        new Map<string, JsonAny>([
           ["guildId", guildId],
-          ["queueNumber", queueNumber.toString()],
+          ["queueNumber", queueNumber],
         ]),
       );
     }
