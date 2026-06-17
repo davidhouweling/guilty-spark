@@ -94,29 +94,30 @@ export class DiscordSeriesStatsPresenter {
 
   start(): void {
     this.cancelled = false;
-    const matchIds = this.renderData.matches.map((m) => m.matchId);
-
-    void this.matchAnalyticsService
-      .getBatchMatchAnalytics(matchIds)
-      .then((batchResults) => {
-        if (this.cancelled) {
-          return;
-        }
-        const map = new Map<string, MatchAnalytics>();
-        for (const [matchId, analytics] of Object.entries(batchResults)) {
-          if (analytics != null) {
-            map.set(matchId, analytics);
-          }
-        }
-        this.store.update({ analyticsByMatchId: map });
-      })
-      .catch(() => {
-        // batch fetch failed; store retains empty map
-      });
+    void this.fetchAnalytics();
   }
 
   dispose(): void {
     this.cancelled = true;
+  }
+
+  private async fetchAnalytics(): Promise<void> {
+    const matchIds = this.renderData.matches.map((m) => m.matchId);
+    try {
+      const batchResults = await this.matchAnalyticsService.getBatchMatchAnalytics(matchIds);
+      if (this.cancelled) {
+        return;
+      }
+      const map = new Map<string, MatchAnalytics>();
+      for (const [matchId, analytics] of Object.entries(batchResults)) {
+        if (analytics != null) {
+          map.set(matchId, analytics);
+        }
+      }
+      this.store.update({ analyticsByMatchId: map });
+    } catch {
+      // analytics are best-effort; store retains empty map
+    }
   }
 
   present(snapshot: DiscordSeriesStatsSnapshot): DiscordSeriesStatsViewModel {
