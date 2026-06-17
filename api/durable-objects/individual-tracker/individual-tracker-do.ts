@@ -160,7 +160,14 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
         }
       } catch (error) {
-        this.logService.error(error, new Map([["context", "IndividualTrackerDO fetch error"]]));
+        this.logService.error(
+          error,
+          new Map([
+            ["context", "IndividualTrackerDO fetch error"],
+            ["action", action ?? "unknown"],
+            ["url", url.pathname],
+          ]),
+        );
         return new Response("Internal Server Error", { status: 500 });
       }
     });

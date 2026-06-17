@@ -25,7 +25,14 @@ export class ConsoleLogClient implements LogService {
   private captureCallSiteStack(): string {
     const lines = new Error().stack?.split("\n") ?? [];
     return lines
-      .filter((line) => line !== "Error" && !line.includes("console-log-client") && !line.includes("aggregator-client"))
+      .filter(
+        (line) =>
+          line !== "Error" &&
+          !line.startsWith("Error") &&
+          !line.includes("console-log-client") &&
+          !line.includes("aggregator-client"),
+      )
+      .slice(0, 10)
       .join("\n");
   }
 
