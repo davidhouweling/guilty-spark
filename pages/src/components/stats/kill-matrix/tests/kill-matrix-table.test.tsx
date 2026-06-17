@@ -176,9 +176,9 @@ describe("KillMatrixTable", () => {
     render(
       <KillMatrixTable
         pivotData={pivotData}
-        transposedPivotData={transposedPivotData}
         ariaLabel="Kill matrix"
         emptyMessage="No kill matrix data."
+        transposedPivotData={transposedPivotData}
       />,
     );
 

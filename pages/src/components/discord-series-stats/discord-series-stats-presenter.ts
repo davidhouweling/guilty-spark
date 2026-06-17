@@ -207,7 +207,8 @@ export class DiscordSeriesStatsPresenter {
         endTime: match.endTime,
         teamColors,
         killMatrixPivotData: rows != null ? KillMatrixFormatter.pivot(rows) : EMPTY_KILL_MATRIX_PIVOT_DATA,
-        transposedKillMatrixPivotData: rows != null ? KillMatrixFormatter.transpose(rows) : EMPTY_KILL_MATRIX_PIVOT_DATA,
+        transposedKillMatrixPivotData:
+          rows != null ? KillMatrixFormatter.transpose(rows) : EMPTY_KILL_MATRIX_PIVOT_DATA,
         killMatrixStatus: snapshot.analyticsStatus,
       };
       if (!isMatchStats(match.rawMatch)) {
