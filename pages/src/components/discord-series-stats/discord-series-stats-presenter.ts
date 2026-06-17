@@ -103,6 +103,9 @@ export class DiscordSeriesStatsPresenter {
 
   private async fetchAnalytics(): Promise<void> {
     const matchIds = this.renderData.matches.map((m) => m.matchId);
+    if (matchIds.length === 0) {
+      return;
+    }
     try {
       const batchResults = await this.matchAnalyticsService.getBatchMatchAnalytics(matchIds);
       if (this.cancelled) {
