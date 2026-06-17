@@ -66,7 +66,7 @@ describe("ConsoleLogClient", () => {
 
       const logged = parseLogged(consoleSpy.info);
       expect(logged).toMatchObject({ message: "test info message" });
-      expect(logged["callStack"]).toBeTypeOf("string");
+      expect(logged["callStack"]).toBeUndefined();
     });
 
     it("logs info message with extra data", () => {
@@ -76,7 +76,7 @@ describe("ConsoleLogClient", () => {
 
       const logged = parseLogged(consoleSpy.info);
       expect(logged).toMatchObject({ message: "test info", key: "value" });
-      expect(logged["callStack"]).toBeTypeOf("string");
+      expect(logged["callStack"]).toBeUndefined();
     });
 
     it("logs Error objects with message and stack from the error", () => {
@@ -86,7 +86,7 @@ describe("ConsoleLogClient", () => {
 
       const logged = parseLogged(consoleSpy.info);
       expect(logged).toMatchObject({ message: "test error", stack: error.stack });
-      expect(logged["callStack"]).toBeTypeOf("string");
+      expect(logged["callStack"]).toBeUndefined();
     });
 
     it("logs unknown values as strings", () => {

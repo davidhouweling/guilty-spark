@@ -7,7 +7,7 @@ export class ConsoleLogClient implements LogService {
   }
 
   info(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void {
-    console.info(this.format(message, extra, this.captureCallSiteStack()));
+    console.info(this.format(message, extra));
   }
 
   warn(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void {

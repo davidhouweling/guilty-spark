@@ -44,7 +44,7 @@ import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import { type IndividualTopBarStatOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import type { LogService } from "../../services/log/types";
+import type { JsonAny, LogService } from "../../services/log/types";
 import { installServices as installServicesImpl, type Services } from "../../services/install";
 import {
   CloudflareWebSocketHibernationAdapter,
@@ -161,7 +161,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         }
       } catch (error) {
         this.logService.error(error, new Map([["context", "IndividualTrackerDO fetch error"]]));
-        Sentry.captureException(error);
         return new Response("Internal Server Error", { status: 500 });
       }
     });
@@ -187,11 +186,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
       this.logService.info(
         "IndividualTracker: alarm triggered",
-        new Map([
+        new Map<string, JsonAny>([
           ["trackerId", trackerState.trackerId],
           ["gamertag", trackerState.gamertag],
-          ["checkCount", trackerState.checkCount.toString()],
-          ["consecutiveErrors", trackerState.errorState.consecutiveErrors.toString()],
+          ["checkCount", trackerState.checkCount],
+          ["consecutiveErrors", trackerState.errorState.consecutiveErrors],
         ]),
       );
 
@@ -206,9 +205,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       if (differenceInHours(new Date(), lastActivity) >= trackerState.idleTimeoutHours) {
         this.logService.info(
           "IndividualTracker: idle timeout reached, stopping tracker",
-          new Map([
+          new Map<string, JsonAny>([
             ["trackerId", trackerState.trackerId],
-            ["idleTimeoutHours", trackerState.idleTimeoutHours.toString()],
+            ["idleTimeoutHours", trackerState.idleTimeoutHours],
           ]),
         );
         trackerState.status = "stopped";
@@ -226,7 +225,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         discoveredNewMatch = await this.poll(trackerState);
       } catch (error) {
         this.logService.error(error, new Map([["context", "IndividualTracker alarm poll failed"]]));
-        Sentry.captureException(error);
         this.handleError(trackerState, error);
       }
 
@@ -350,11 +348,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     this.logService.info(
       "IndividualTracker: poll complete",
-      new Map([
+      new Map<string, JsonAny>([
         ["trackerId", trackerState.trackerId],
-        ["newMatches", newlyDiscovered.size.toString()],
-        ["totalMatches", trackerState.matchIds.length.toString()],
-        ["checkCount", trackerState.checkCount.toString()],
+        ["newMatches", newlyDiscovered.size],
+        ["totalMatches", trackerState.matchIds.length],
+        ["checkCount", trackerState.checkCount],
       ]),
     );
 
@@ -638,9 +636,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     this.logService.info(
       "IndividualTracker: match selection updated",
-      new Map([
+      new Map<string, JsonAny>([
         ["trackerId", trackerState.trackerId],
-        ["selectedCount", incoming.length.toString()],
+        ["selectedCount", incoming.length],
       ]),
     );
 
@@ -1071,7 +1069,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return response;
     } catch (error) {
       this.logService.error(error, new Map([["context", "IndividualTracker: failed to establish WebSocket"]]));
-      Sentry.captureException(error);
       return new Response("Failed to establish WebSocket connection", { status: 500 });
     }
   }
@@ -1086,10 +1083,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   webSocketClose(_ws: WebSocket, code: number, reason: string, wasClean: boolean): void {
     this.logService.debug(
       "IndividualTracker: WebSocket client disconnected",
-      new Map([
-        ["code", code.toString()],
+      new Map<string, JsonAny>([
+        ["code", code],
         ["reason", reason],
-        ["wasClean", wasClean.toString()],
+        ["wasClean", wasClean],
       ]),
     );
   }
