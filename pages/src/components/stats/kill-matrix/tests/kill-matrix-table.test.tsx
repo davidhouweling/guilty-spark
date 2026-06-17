@@ -61,7 +61,7 @@ describe("KillMatrixTable", () => {
     expect(screen.queryByText("No kill matrix data.")).not.toBeInTheDocument();
   });
 
-  it("shows 5 shimmer rows when playerGamertags is an empty array", () => {
+  it("shows 8 shimmer rows when playerGamertags is an empty array", () => {
     render(
       <KillMatrixTable
         pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
