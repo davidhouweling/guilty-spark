@@ -131,7 +131,7 @@ describe("RealMatchAnalyticsService.getBatchMatchAnalytics", () => {
 
     expect(result).toEqual({ "match-1": analytics, "match-2": analytics });
     expect(fetchSpy).toHaveBeenCalledWith(
-      "https://api.example.com/api/stats/batch-match-analytics?matchIds=match-1%2Cmatch-2&modules=killMatrix",
+      "https://api.example.com/api/stats/match-analytics?matchIds=match-1%2Cmatch-2&modules=killMatrix",
       { credentials: "include" },
     );
   });
@@ -148,7 +148,7 @@ describe("RealMatchAnalyticsService.getBatchMatchAnalytics", () => {
     await service.getBatchMatchAnalytics(["match-1"], ["killMatrix"]);
 
     expect(fetchSpy).toHaveBeenCalledWith(
-      "https://api.example.com/api/stats/batch-match-analytics?matchIds=match-1&modules=killMatrix",
+      "https://api.example.com/api/stats/match-analytics?matchIds=match-1&modules=killMatrix",
       { credentials: "include" },
     );
   });

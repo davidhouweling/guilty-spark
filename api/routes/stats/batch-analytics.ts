@@ -22,15 +22,15 @@ export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installS
       matchIds.map(async (matchId) => services.analyticsService.getMatchAnalytics(matchId, modules)),
     );
 
-    const results: Record<string, MatchAnalytics | null> = {};
+    const resultsMap = new Map<string, MatchAnalytics | null>();
     let failureCount = 0;
     for (const [index, matchId] of matchIds.entries()) {
       const outcome = settled[index];
       if (outcome == null || outcome.status === "rejected") {
-        results[matchId] = null;
+        resultsMap.set(matchId, null);
         failureCount++;
       } else {
-        results[matchId] = outcome.value;
+        resultsMap.set(matchId, outcome.value);
       }
     }
 
@@ -41,6 +41,6 @@ export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installS
       );
     }
 
-    return batchMatchAnalyticsContract.toResponse({ results }, { noStore: true });
+    return batchMatchAnalyticsContract.toResponse({ results: Object.fromEntries(resultsMap) }, { noStore: true });
   });
 };
