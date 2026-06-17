@@ -38,6 +38,15 @@
   background-size: 200% 100%;
   border-radius: 4px;
   height: 2rem;
+  width: 85%;
+}
+
+.shimmerRow:nth-child(3n + 2) {
+  width: 90%;
+}
+
+.shimmerRow:nth-child(3n + 3) {
+  width: 95%;
 }
 
 @keyframes shimmer {
