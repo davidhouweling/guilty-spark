@@ -11,7 +11,7 @@ export class DiscordSeriesStatsStore {
   private readonly subscribers = new Set<() => void>();
 
   constructor() {
-    this.snapshot = { analyticsByMatchId: new Map(), analyticsStatus: ComponentLoaderStatus.LOADING };
+    this.snapshot = { analyticsByMatchId: new Map(), analyticsStatus: ComponentLoaderStatus.PENDING };
   }
 
   subscribe(listener: () => void): () => void {
