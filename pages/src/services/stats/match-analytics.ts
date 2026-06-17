@@ -46,7 +46,7 @@ export class RealMatchAnalyticsService implements MatchAnalyticsService {
       matchIds: matchIds.join(","),
       modules: buildModulesQuery(normalizedModules),
     });
-    const response = await fetch(`${this.apiHost}/api/stats/batch-match-analytics?${query.toString()}`, {
+    const response = await fetch(`${this.apiHost}/api/stats/match-analytics?${query.toString()}`, {
       credentials: "include",
     });
     const parsed = await batchMatchAnalyticsContract.fromResponse(response);

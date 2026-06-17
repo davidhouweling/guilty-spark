@@ -7,7 +7,7 @@ import {
 import type { RoutesRegisterHandler } from "../base/types";
 
 export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installServices) => {
-  router.get("/api/stats/batch-match-analytics", async (request, env: Env) => {
+  router.get("/api/stats/match-analytics", async (request, env: Env) => {
     const services = installServices({ env });
 
     const url = new URL(request.url);
@@ -37,7 +37,7 @@ export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installS
     if (failureCount > 0) {
       services.logService.error(
         new Error(`${failureCount.toString()}/${matchIds.length.toString()} match analytics fetches failed`),
-        new Map([["route", "stats:batch-match-analytics"]]),
+        new Map([["route", "stats:match-analytics-batch"]]),
       );
     }
 

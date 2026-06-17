@@ -23,7 +23,7 @@ const aFakeAnalytics = (): MatchAnalytics => ({
   },
 });
 
-describe("/api/stats/batch-match-analytics", () => {
+describe("/api/stats/match-analytics (batch)", () => {
   let env: Env;
   let router: AutoRouterType;
 
@@ -45,7 +45,7 @@ describe("/api/stats/batch-match-analytics", () => {
     statsRoutesRegisterHandler(router, localInstallServices);
 
     const response = (await router.fetch(
-      new Request("http://localhost/api/stats/batch-match-analytics?matchIds=match-1,match-2&modules=killMatrix"),
+      new Request("http://localhost/api/stats/match-analytics?matchIds=match-1,match-2&modules=killMatrix"),
       env,
     )) as Response;
 
@@ -76,7 +76,7 @@ describe("/api/stats/batch-match-analytics", () => {
     statsRoutesRegisterHandler(router, localInstallServices);
 
     const response = (await router.fetch(
-      new Request("http://localhost/api/stats/batch-match-analytics?matchIds=match-ok,match-fail"),
+      new Request("http://localhost/api/stats/match-analytics?matchIds=match-ok,match-fail"),
       env,
     )) as Response;
 
@@ -91,7 +91,7 @@ describe("/api/stats/batch-match-analytics", () => {
     expect(logErrorSpy).toHaveBeenCalledOnce();
     expect(logErrorSpy).toHaveBeenCalledWith(
       expect.objectContaining({ message: "1/2 match analytics fetches failed" }),
-      new Map([["route", "stats:batch-match-analytics"]]),
+      new Map([["route", "stats:match-analytics-batch"]]),
     );
   });
 
@@ -100,7 +100,7 @@ describe("/api/stats/batch-match-analytics", () => {
     statsRoutesRegisterHandler(router, localInstallServices);
 
     const response = (await router.fetch(
-      new Request("http://localhost/api/stats/batch-match-analytics"),
+      new Request("http://localhost/api/stats/match-analytics"),
       env,
     )) as Response;
 
@@ -114,7 +114,7 @@ describe("/api/stats/batch-match-analytics", () => {
     statsRoutesRegisterHandler(router, localInstallServices);
 
     const response = (await router.fetch(
-      new Request("http://localhost/api/stats/batch-match-analytics?matchIds=match-1&modules=scoreProgression"),
+      new Request("http://localhost/api/stats/match-analytics?matchIds=match-1&modules=scoreProgression"),
       env,
     )) as Response;
 
@@ -129,7 +129,7 @@ describe("/api/stats/batch-match-analytics", () => {
     statsRoutesRegisterHandler(router, localInstallServices);
 
     const response = (await router.fetch(
-      new Request(`http://localhost/api/stats/batch-match-analytics?matchIds=${matchIds}`),
+      new Request(`http://localhost/api/stats/match-analytics?matchIds=${matchIds}`),
       env,
     )) as Response;
 
