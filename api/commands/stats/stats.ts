@@ -214,7 +214,8 @@ export class StatsCommand extends BaseCommand {
               response: {
                 type: InteractionResponseType.DeferredMessageUpdate,
               },
-              jobToComplete: async () => this.handleFixPlayerSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
+              jobToComplete: async () =>
+                this.handleFixPlayerSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
             };
           }
           case InteractionButton.FixGamesSelect.toString(): {
@@ -222,7 +223,8 @@ export class StatsCommand extends BaseCommand {
               response: {
                 type: InteractionResponseType.DeferredMessageUpdate,
               },
-              jobToComplete: async () => this.handleFixGamesSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
+              jobToComplete: async () =>
+                this.handleFixGamesSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
             };
           }
           case InteractionButton.FixConfirm.toString(): {
@@ -230,7 +232,8 @@ export class StatsCommand extends BaseCommand {
               response: {
                 type: InteractionResponseType.DeferredMessageUpdate,
               },
-              jobToComplete: async () => this.handleFixConfirmationJob(interaction as APIMessageComponentButtonInteraction),
+              jobToComplete: async () =>
+                this.handleFixConfirmationJob(interaction as APIMessageComponentButtonInteraction),
             };
           }
           case InteractionButton.FixCancel.toString(): {
