@@ -3,6 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { KillMatrixFormatter } from "../../../../controllers/stats/kill-matrix/kill-matrix-formatter";
+import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../../../controllers/stats/kill-matrix/types";
 import { KillMatrixTable } from "../kill-matrix-table";
 
 describe("KillMatrixTable", () => {
@@ -47,7 +48,7 @@ describe("KillMatrixTable", () => {
   it("shows shimmer skeleton when loading", () => {
     render(
       <KillMatrixTable
-        pivotData={{ tableRows: [], victimGamertags: [] }}
+        pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
         ariaLabel="Kill matrix"
         emptyMessage="No kill matrix data."
         loading={true}
@@ -61,7 +62,7 @@ describe("KillMatrixTable", () => {
   it("shows empty message when not loading and no data", () => {
     render(
       <KillMatrixTable
-        pivotData={{ tableRows: [], victimGamertags: [] }}
+        pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
         ariaLabel="Kill matrix"
         emptyMessage="No kill matrix data."
         loading={false}

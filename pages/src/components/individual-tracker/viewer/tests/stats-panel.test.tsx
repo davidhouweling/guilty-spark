@@ -5,6 +5,8 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { StatsController } from "../../../../controllers/stats/stats-controller";
 import { KillMatrixFormatter } from "../../../../controllers/stats/kill-matrix/kill-matrix-formatter";
+import { aFakeMatchAnalyticsWith } from "../../../../controllers/stats/kill-matrix/fakes/match-analytics.fake";
+import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../../../controllers/stats/kill-matrix/types";
 import type { MatchStatsPanelState } from "../types";
 import { StatsPanel } from "../stats-panel";
 
@@ -40,7 +42,7 @@ function aLoadedState(
     startTime: stats.MatchInfo.StartTime,
     endTime: stats.MatchInfo.EndTime,
     data: controller.getMatchStats(),
-    killMatrixPivotData: { tableRows: [], victimGamertags: [] },
+    killMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
     ...overrides,
   };
 }
@@ -81,8 +83,7 @@ describe("StatsPanel", () => {
     ]);
     const controller = new StatsController();
     controller.loadAnalytics(
-      {
-        requestedModules: ["killMatrix"],
+      aFakeMatchAnalyticsWith({
         killMatrix: {
           "1111111111:2222222222": {
             count: 3,
@@ -91,11 +92,7 @@ describe("StatsPanel", () => {
             weapons: [],
           },
         },
-        metadata: {
-          pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 1 },
-          perfectCounts: { total: 0, byXuid: {} },
-        },
-      },
+      }),
       playerMap,
     );
     controller.loadMatch(stats, playerMap, {});
