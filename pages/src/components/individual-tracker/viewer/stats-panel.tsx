@@ -47,6 +47,7 @@ export function StatsPanel({ state }: StatsPanelProps): React.ReactElement | nul
             startTime={state.startTime}
             endTime={state.endTime}
             killMatrixPivotData={state.killMatrixPivotData}
+            transposedKillMatrixPivotData={state.transposedKillMatrixPivotData}
           />
         </div>
       );

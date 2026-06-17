@@ -29,6 +29,7 @@ interface MatchStatsProps {
   readonly endTime: string;
   readonly teamColors?: readonly TeamColor[];
   readonly killMatrixPivotData?: KillMatrixPivotData;
+  readonly transposedKillMatrixPivotData?: KillMatrixPivotData;
   readonly killMatrixStatus?: ComponentLoaderStatus;
 }
 
@@ -48,6 +49,7 @@ export function MatchStats({
   endTime,
   teamColors,
   killMatrixPivotData,
+  transposedKillMatrixPivotData,
   killMatrixStatus,
 }: MatchStatsProps): React.ReactElement {
   const [activeTab, setActiveTab] = React.useState<"players" | "kill-matrix">("players");
@@ -273,6 +275,7 @@ export function MatchStats({
             content: (
               <KillMatrixTable
                 pivotData={killMatrixPivotData ?? EMPTY_KILL_MATRIX_PIVOT_DATA}
+                transposedPivotData={transposedKillMatrixPivotData}
                 ariaLabel="Match kill matrix"
                 emptyMessage="Kill matrix data is not available for this match yet."
                 errorMessage="Failed to load kill matrix data for this match."

@@ -3,10 +3,16 @@
   text-align: center;
 }
 
+.tableHeader {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: var(--space-1);
+}
+
 .victimAxisLabel {
   color: var(--halo-gray);
   font-size: var(--text-sm);
-  padding-bottom: var(--space-1);
   text-align: right;
 }
 

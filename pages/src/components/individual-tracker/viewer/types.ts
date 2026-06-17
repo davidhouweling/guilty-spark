@@ -61,6 +61,7 @@ export type MatchStatsPanelState =
       readonly endTime: string;
       readonly data: MatchStatsData[];
       readonly killMatrixPivotData: KillMatrixPivotData;
+      readonly transposedKillMatrixPivotData: KillMatrixPivotData;
     }
   | { readonly status: "error"; readonly message: string };
 

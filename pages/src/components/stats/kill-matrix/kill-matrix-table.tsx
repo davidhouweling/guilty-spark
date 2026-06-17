@@ -1,5 +1,6 @@
 import React from "react";
 import { Alert } from "../../alert/alert";
+import { Button } from "../../button/button";
 import { ComponentLoader, ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { SortableTable, type SortableTableColumn } from "../../table/sortable-table";
 import tableStyles from "../../table/table.module.css";
@@ -8,6 +9,7 @@ import styles from "./kill-matrix-table.module.css";
 
 interface KillMatrixTableProps {
   readonly pivotData: KillMatrixPivotData;
+  readonly transposedPivotData?: KillMatrixPivotData;
   readonly ariaLabel: string;
   readonly emptyMessage: string;
   readonly errorMessage?: string;
@@ -19,6 +21,7 @@ interface KillMatrixTableProps {
 
 export function KillMatrixTable({
   pivotData,
+  transposedPivotData,
   ariaLabel,
   emptyMessage,
   errorMessage,
@@ -29,6 +32,12 @@ export function KillMatrixTable({
 }: KillMatrixTableProps): React.ReactElement {
   const effectiveStatus = status ?? ComponentLoaderStatus.LOADED;
 
+  const [isTransposed, setIsTransposed] = React.useState(false);
+
+  const activePivotData = isTransposed && transposedPivotData != null ? transposedPivotData : pivotData;
+  const activeKillerAxisLabel = isTransposed ? "Victim" : killerAxisLabel;
+  const activeVictimAxisLabel = isTransposed ? "Kills" : victimAxisLabel;
+
   const columns = React.useMemo<SortableTableColumn<KillMatrixPivotRow>[]>(() => {
     if (effectiveStatus !== ComponentLoaderStatus.LOADED) {
       return [];
@@ -37,14 +46,14 @@ export function KillMatrixTable({
     const cols: SortableTableColumn<KillMatrixPivotRow>[] = [
       {
         id: "killer",
-        header: killerAxisLabel,
+        header: activeKillerAxisLabel,
         accessorFn: (row): string => row.killerGamertag,
         sortingFn: "alphanumeric",
         cellClassName: tableStyles.labelCell,
       },
     ];
 
-    for (const victimGamertag of pivotData.victimGamertags) {
+    for (const victimGamertag of activePivotData.victimGamertags) {
       cols.push({
         id: victimGamertag,
         header: victimGamertag,
@@ -55,9 +64,10 @@ export function KillMatrixTable({
     }
 
     return cols;
-  }, [effectiveStatus, killerAxisLabel, pivotData.victimGamertags]);
+  }, [effectiveStatus, activeKillerAxisLabel, activePivotData.victimGamertags]);
 
-  const playerCount = playerGamertags !== undefined && playerGamertags.length > 0 ? playerGamertags.length : 8;
+  const playerCount =
+    playerGamertags !== undefined && playerGamertags.length > 0 ? playerGamertags.length : 8;
 
   const shimmer = (
     <div
@@ -85,13 +95,26 @@ export function KillMatrixTable({
   );
 
   const loaded =
-    pivotData.tableRows.length === 0 ? (
+    activePivotData.tableRows.length === 0 ? (
       <Alert variant="info">{emptyMessage}</Alert>
     ) : (
       <div>
-        <div className={styles.victimAxisLabel}>{victimAxisLabel} →</div>
+        <div className={styles.tableHeader}>
+          <div className={styles.victimAxisLabel}>{activeVictimAxisLabel} →</div>
+          {transposedPivotData != null && (
+            <Button
+              size="small"
+              variant="secondary"
+              onClick={(): void => {
+                setIsTransposed((prev) => !prev);
+              }}
+            >
+              {isTransposed ? "View Kills" : "View Deaths"}
+            </Button>
+          )}
+        </div>
         <SortableTable
-          data={pivotData.tableRows}
+          data={activePivotData.tableRows}
           columns={columns}
           getRowKey={(row): string => row.killerId}
           ariaLabel={ariaLabel}

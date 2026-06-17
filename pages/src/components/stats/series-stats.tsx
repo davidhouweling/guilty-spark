@@ -22,6 +22,7 @@ interface SeriesStatsProps {
   readonly metadata: SeriesMetadata | null;
   readonly teamColors?: readonly TeamColor[];
   readonly killMatrixPivotData?: KillMatrixPivotData;
+  readonly transposedKillMatrixPivotData?: KillMatrixPivotData;
   readonly killMatrixStatus?: ComponentLoaderStatus;
 }
 
@@ -34,6 +35,7 @@ export function SeriesStats({
   metadata,
   teamColors,
   killMatrixPivotData,
+  transposedKillMatrixPivotData,
   killMatrixStatus,
 }: SeriesStatsProps): React.ReactElement {
   const [activeTab, setActiveTab] = React.useState<"accumulated" | "kill-matrix">("accumulated");
@@ -264,6 +266,7 @@ export function SeriesStats({
               content: (
                 <KillMatrixTable
                   pivotData={killMatrixPivotData ?? EMPTY_KILL_MATRIX_PIVOT_DATA}
+                  transposedPivotData={transposedKillMatrixPivotData}
                   ariaLabel="Series kill matrix"
                   emptyMessage="Kill matrix data is not available for this series yet."
                   errorMessage="Failed to load kill matrix data for this series."

@@ -34,6 +34,7 @@ export interface DiscordSeriesMatchDetail {
   readonly endTime: string;
   readonly teamColors: readonly TeamColor[];
   readonly killMatrixPivotData: KillMatrixPivotData;
+  readonly transposedKillMatrixPivotData: KillMatrixPivotData;
   readonly killMatrixStatus: ComponentLoaderStatus;
 }
 
@@ -48,6 +49,7 @@ interface DiscordSeriesSeriesStats {
   } | null;
   readonly teamColors: readonly TeamColor[];
   readonly killMatrixPivotData: KillMatrixPivotData;
+  readonly transposedKillMatrixPivotData: KillMatrixPivotData;
   readonly killMatrixStatus: ComponentLoaderStatus;
 }
 

@@ -69,6 +69,7 @@ export class IndividualTrackerViewerPresenter {
       if (analytics != null) {
         controller.loadAnalytics(analytics, playerMap);
       }
+      const killMatrixRows = analytics != null ? controller.getKillMatrix() : null;
       return {
         status: "loaded",
         matchId: stats.MatchId,
@@ -78,7 +79,9 @@ export class IndividualTrackerViewerPresenter {
         endTime: stats.MatchInfo.EndTime,
         data: controller.getMatchStats(),
         killMatrixPivotData:
-          analytics != null ? KillMatrixFormatter.pivot(controller.getKillMatrix()) : EMPTY_KILL_MATRIX_PIVOT_DATA,
+          killMatrixRows != null ? KillMatrixFormatter.pivot(killMatrixRows) : EMPTY_KILL_MATRIX_PIVOT_DATA,
+        transposedKillMatrixPivotData:
+          killMatrixRows != null ? KillMatrixFormatter.transpose(killMatrixRows) : EMPTY_KILL_MATRIX_PIVOT_DATA,
       };
     } catch {
       return { status: "error", message: "Failed to compute match stats" };

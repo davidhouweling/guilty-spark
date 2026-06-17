@@ -84,6 +84,7 @@ function MatchDetailSection({ detail, contentWidthClass }: MatchDetailSectionPro
           endTime={detail.endTime}
           teamColors={detail.teamColors}
           killMatrixPivotData={detail.killMatrixPivotData}
+          transposedKillMatrixPivotData={detail.transposedKillMatrixPivotData}
           killMatrixStatus={detail.killMatrixStatus}
         />
       ) : (
@@ -167,6 +168,7 @@ export function DiscordSeriesStatsView({
               metadata={seriesStats.metadata}
               teamColors={seriesStats.teamColors}
               killMatrixPivotData={seriesStats.killMatrixPivotData}
+              transposedKillMatrixPivotData={seriesStats.transposedKillMatrixPivotData}
               killMatrixStatus={seriesStats.killMatrixStatus}
             />
           </Container>

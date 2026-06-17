@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { KillMatrixFormatter } from "../../../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../../../controllers/stats/kill-matrix/types";
@@ -137,5 +137,61 @@ describe("KillMatrixTable", () => {
     );
 
     expect(screen.getByText("No kill matrix data.")).toBeInTheDocument();
+  });
+
+  it("does not render toggle button when transposedPivotData is not provided", () => {
+    const pivotData = KillMatrixFormatter.pivot([
+      {
+        key: "111:222",
+        killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+        victim: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+        count: 3,
+        headshotKills: 1,
+        perfects: 0,
+        classification: "enemy-kill",
+      },
+    ]);
+
+    render(<KillMatrixTable pivotData={pivotData} ariaLabel="Kill matrix" emptyMessage="No kill matrix data." />);
+
+    expect(screen.queryByText("View Deaths")).not.toBeInTheDocument();
+    expect(screen.queryByText("View Kills")).not.toBeInTheDocument();
+  });
+
+  it("toggles between kills and deaths view when toggle button is clicked", () => {
+    const rows = [
+      {
+        key: "111:222",
+        killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+        victim: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+        count: 3,
+        headshotKills: 1,
+        perfects: 0,
+        classification: "enemy-kill" as const,
+      },
+    ];
+    const pivotData = KillMatrixFormatter.pivot(rows);
+    const transposedPivotData = KillMatrixFormatter.transpose(rows);
+
+    render(
+      <KillMatrixTable
+        pivotData={pivotData}
+        transposedPivotData={transposedPivotData}
+        ariaLabel="Kill matrix"
+        emptyMessage="No kill matrix data."
+      />,
+    );
+
+    expect(screen.getByText("Deaths →")).toBeInTheDocument();
+    expect(screen.getByText("View Deaths")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("View Deaths"));
+
+    expect(screen.getByText("Kills →")).toBeInTheDocument();
+    expect(screen.getByText("View Kills")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("View Kills"));
+
+    expect(screen.getByText("Deaths →")).toBeInTheDocument();
   });
 });

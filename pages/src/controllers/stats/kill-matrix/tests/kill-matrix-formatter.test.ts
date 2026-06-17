@@ -202,4 +202,30 @@ describe("KillMatrixFormatter", () => {
       expect(KillMatrixFormatter.aggregate([])).toEqual([]);
     });
   });
+
+  describe("transpose", () => {
+    it("returns empty pivot for no rows", () => {
+      expect(KillMatrixFormatter.transpose([])).toEqual({ tableRows: [], victimGamertags: [] });
+    });
+
+    it("swaps killers and victims so rows become victims and columns become killers", () => {
+      const rows: KillMatrixViewRow[] = [
+        {
+          key: "111:222",
+          killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+          victim: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+          count: 5,
+          headshotKills: 2,
+          perfects: 0,
+          classification: "enemy-kill",
+        },
+      ];
+
+      const result = KillMatrixFormatter.transpose(rows);
+
+      expect(result.victimGamertags).toEqual(["Alpha"]);
+      expect(result.tableRows).toHaveLength(1);
+      expect(result.tableRows[0]).toMatchObject({ killerId: "222", killerGamertag: "Bravo", Alpha: 5 });
+    });
+  });
 });
