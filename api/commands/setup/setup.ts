@@ -1452,7 +1452,7 @@ export class SetupCommand extends BaseCommand {
 
       await discordService.updateDeferredReply(interaction.token, content);
     } catch (error) {
-      this.services.logService.error(error as Error);
+      this.services.logService.error(error);
       await discordService.updateDeferredReply(interaction.token, {
         content: `Failed to fetch configuration: ${error instanceof Error ? error.message : "unknown"}`,
       });

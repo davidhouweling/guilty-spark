@@ -317,7 +317,7 @@ export class StatsCommand extends BaseCommand {
           "Cleaning up previous Guilty Spark messages before computing data",
         );
       } catch (error) {
-        logService.error(error as Error, new Map([["threadChannelId", threadChannelId]]));
+        logService.error(error, new Map([["threadChannelId", threadChannelId]]));
       }
 
       [previousEndUserError] = errorMessages;
@@ -687,7 +687,7 @@ export class StatsCommand extends BaseCommand {
       );
     } catch (error) {
       logService.warn(
-        error as Error,
+        error,
         new Map([
           ["guildId", guildId],
           ["queueNumber", queueNumber.toString()],

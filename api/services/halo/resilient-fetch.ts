@@ -309,7 +309,7 @@ export function createResilientFetch({ env, logService, proxyUrl }: ResilientFet
     try {
       return await fetchWithRetry();
     } catch (error) {
-      logService.error(error as Error, new Map([["url", url]]));
+      logService.error(error, new Map([["url", url]]));
       throw error;
     }
   };

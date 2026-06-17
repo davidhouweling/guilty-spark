@@ -188,7 +188,7 @@ export class IndividualTrackerService {
           }
         } catch (error) {
           this.logService.warn(
-            error as Error,
+            error,
             new Map([
               ["reason", "nudgeTrackers: failed to nudge tracker"],
               ["trackerId", tracker.TrackerId],

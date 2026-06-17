@@ -13,14 +13,14 @@ export const authLogoutRoute: RoutesRegisterHandler = (router, installServices) 
       try {
         await authService.invalidateSession(request);
       } catch (error: unknown) {
-        logService.error(error as Error, new Map([["message", "Failed to invalidate session during logout"]]));
+        logService.error(error, new Map([["message", "Failed to invalidate session during logout"]]));
       }
 
       authService.clearSessionCookie(response);
 
       return response;
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Auth logout error"]]));
+      logService.error(error, new Map([["message", "Auth logout error"]]));
       return errorContract.toResponse({ error: "Logout failed" }, { status: 500, noStore: true });
     }
   });

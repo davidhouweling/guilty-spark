@@ -28,7 +28,7 @@ export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, 
 
       return trackerViewContract.toResponse({ view: toTrackerView(row, doState, streamerSettings) }, { noStore: true });
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Individual tracker view error"]]));
+      logService.error(error, new Map([["context", "Individual tracker view error"]]));
       return errorContract.toResponse({ error: "Failed to fetch tracker view" }, { status: 500, noStore: true });
     }
   });
@@ -61,7 +61,7 @@ export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, 
 
       return await stub.fetch(new Request(forwardedUrl.toString(), { headers: request.headers }));
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Individual tracker WebSocket error"]]));
+      logService.error(error, new Map([["context", "Individual tracker WebSocket error"]]));
       return new Response("Internal Server Error", { status: 500 });
     }
   });

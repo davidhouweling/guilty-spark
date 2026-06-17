@@ -126,7 +126,7 @@ export class NeatQueueService {
 
       return { isValid: true, rawBody, interaction: body, neatQueueConfig };
     } catch (error) {
-      this.logService.error(error as Error);
+      this.logService.error(error);
 
       return { isValid: false, rawBody, error: "Invalid JSON" };
     }
@@ -309,7 +309,7 @@ export class NeatQueueService {
             }
           }
         } catch (error) {
-          this.logService.error(error as Error, new Map([["reason", "Failed to process substitution"]]));
+          this.logService.error(error, new Map([["reason", "Failed to process substitution"]]));
           if (series.length === 0) {
             throw error;
           }
@@ -324,7 +324,7 @@ export class NeatQueueService {
         });
         series.unshift(...startData);
       } catch (error) {
-        this.logService.error(error as Error, new Map([["reason", "Failed to get series data from Discord queue"]]));
+        this.logService.error(error, new Map([["reason", "Failed to get series data from Discord queue"]]));
         if (series.length === 0) {
           throw error;
         }
@@ -388,7 +388,7 @@ export class NeatQueueService {
         return;
       }
 
-      this.logService.error(error as Error, new Map([["reason", "Unhandled error during retry"]]));
+      this.logService.error(error, new Map([["reason", "Unhandled error during retry"]]));
       const endUserError = new EndUserError("An unexpected error occurred while retrying the neat queue job", {
         actions: ["retry"],
       });
@@ -441,7 +441,7 @@ export class NeatQueueService {
 
       await this.discordService.editMessage(channelId, messageId, playersPostMessage);
     } catch (error) {
-      this.logService.error(error as Error, new Map([["reason", "Failed to update players embed"]]));
+      this.logService.error(error, new Map([["reason", "Failed to update players embed"]]));
     }
   }
 
@@ -543,7 +543,7 @@ export class NeatQueueService {
         });
       }
     } catch (error) {
-      logService.warn(error as Error, new Map([["reason", "Failed to post players message or maps button"]]));
+      logService.warn(error, new Map([["reason", "Failed to post players message or maps button"]]));
 
       if ((error instanceof DiscordError && error.restError.code === 50001) || error === insufficientPermissionsError) {
         await databaseService.updateGuildConfig(request.guild, {
@@ -888,7 +888,7 @@ export class NeatQueueService {
         await discordService.deleteMessage(request.channel, oldMessageId, "Updating players list after substitution");
       } catch (error) {
         logService.warn(
-          error as Error,
+          error,
           new Map([
             ["reason", "Failed to delete old players message"],
             ["messageId", oldMessageId],
@@ -906,7 +906,7 @@ export class NeatQueueService {
         ]),
       );
     } catch (error) {
-      logService.warn(error as Error, new Map([["reason", "Failed to update players embed for substitution"]]));
+      logService.warn(error, new Map([["reason", "Failed to update players embed for substitution"]]));
 
       if (error instanceof DiscordError && error.restError.code === 50001) {
         await databaseService.updateGuildConfig(request.guild, {
@@ -1004,7 +1004,7 @@ export class NeatQueueService {
         (await this.resolveSeriesFromLiveTracker(request)) ??
         (await this.getSeriesDataFromTimeline(timeline, neatQueueConfig));
     } catch (error) {
-      this.logService.info(error as Error, new Map([["reason", "Failed to get series data from timeline"]]));
+      this.logService.info(error, new Map([["reason", "Failed to get series data from timeline"]]));
       errorOccurred = true;
 
       const opts = { request, neatQueueConfig, handledError: error as Error, timeline };
@@ -1202,7 +1202,7 @@ export class NeatQueueService {
       this.queueStateCache.set(cacheKey, defaultState);
       return defaultState;
     } catch (error) {
-      this.logService.warn(error as Error);
+      this.logService.warn(error);
       this.queueStateCache.set(cacheKey, defaultState);
       return defaultState;
     }
@@ -1531,7 +1531,7 @@ export class NeatQueueService {
             series.push(...subSeries);
           } catch (error) {
             // don't fail if its just a substitution
-            this.logService.info(error as Error, new Map([["reason", "No series data from substitution"]]));
+            this.logService.info(error, new Map([["reason", "No series data from substitution"]]));
             this.haloService.clearUserCache();
           }
 
@@ -1690,7 +1690,7 @@ export class NeatQueueService {
 
       await this.postSeriesDetailsToChannel(thread.id, request.guild, series);
     } catch (error) {
-      this.logService.warn(error as Error, new Map([["reason", "Failed to post series data to thread"]]));
+      this.logService.warn(error, new Map([["reason", "Failed to post series data to thread"]]));
 
       if (!foundResultsMessage) {
         return;
@@ -1747,7 +1747,7 @@ export class NeatQueueService {
         components: endUserError.discordActions,
       });
     } catch (error) {
-      this.logService.warn(error as Error, new Map([["reason", "Failed to post error to thread"]]));
+      this.logService.warn(error, new Map([["reason", "Failed to post error to thread"]]));
 
       if (useFallback) {
         this.logService.info("Attempting to post direct to channel");
@@ -1804,7 +1804,7 @@ export class NeatQueueService {
       channelId = thread.id;
       await this.postSeriesDetailsToChannel(channelId, request.guild, series);
     } catch (error) {
-      this.logService.error(error as Error, new Map([["reason", "Failed to post series data direct to channel"]]));
+      this.logService.error(error, new Map([["reason", "Failed to post series data direct to channel"]]));
 
       const endUserError = this.getEndUserErrorEmbed(error as Error, request, neatQueueConfig, timeline);
       await discordService.createMessage(channelId, {
@@ -1862,7 +1862,7 @@ export class NeatQueueService {
         components: endUserError.discordActions,
       });
     } catch (error) {
-      this.logService.error(error as Error, new Map([["reason", "Failed to post error direct to channel"]]));
+      this.logService.error(error, new Map([["reason", "Failed to post error direct to channel"]]));
     }
   }
 

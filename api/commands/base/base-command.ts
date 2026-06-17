@@ -103,7 +103,7 @@ export abstract class BaseCommand {
     try {
       return this.handleInteraction(interaction);
     } catch (error) {
-      this.services.logService.error(error as Error);
+      this.services.logService.error(error);
 
       return {
         response: {

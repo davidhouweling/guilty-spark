@@ -30,7 +30,7 @@ export const discordInteractionsRoute: RoutesRegisterHandler = (router, installS
 
       return response;
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Discord interaction error"]]));
+      logService.error(error, new Map([["message", "Discord interaction error"]]));
 
       return new Response("Internal error", { status: 500 });
     }

@@ -24,7 +24,7 @@ export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, instal
       try {
         xboxUser = await xboxService.getUserFromMicrosoftAccessToken(sessionPayload.accessToken);
       } catch (xboxError) {
-        logService.error(xboxError as Error, new Map([["message", "Xbox profile required for sign-in"]]));
+        logService.error(xboxError, new Map([["message", "Xbox profile required for sign-in"]]));
         await databaseService.deleteUserSession(sessionPayload.sessionId);
         const rejectUrl = new URL("/login", env.PAGES_URL);
         rejectUrl.searchParams.set("error", "xbox-required");
@@ -61,7 +61,7 @@ export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, instal
 
       return response;
     } catch (error) {
-      logService.error(error as Error, new Map([["message", "Auth callback error"]]));
+      logService.error(error, new Map([["message", "Auth callback error"]]));
       return errorContract.toResponse({ error: "Authentication failed" }, { status: 400, noStore: true });
     }
   });
