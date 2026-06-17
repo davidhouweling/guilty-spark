@@ -106,9 +106,9 @@ describe("DiscordSeriesStats", () => {
     expect(screen.getByRole("button", { name: "Switch to standard view" })).toBeInTheDocument();
   });
 
-  it("fetches match analytics for each match in renderData", async () => {
+  it("fetches batch match analytics for all matches in renderData", async () => {
     const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
-    const getMatchAnalyticsSpy = vi.spyOn(matchAnalyticsService, "getMatchAnalytics");
+    const getBatchMatchAnalyticsSpy = vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics");
     const base = aFakeResolvedDataWith();
     const secondMatch = { ...base.renderData.matches[0], matchId: "match-2" };
 
@@ -123,10 +123,9 @@ describe("DiscordSeriesStats", () => {
     );
 
     await waitFor(() => {
-      expect(getMatchAnalyticsSpy).toHaveBeenCalledTimes(2);
+      expect(getBatchMatchAnalyticsSpy).toHaveBeenCalledTimes(1);
     });
 
-    expect(getMatchAnalyticsSpy).toHaveBeenCalledWith("match-1");
-    expect(getMatchAnalyticsSpy).toHaveBeenCalledWith("match-2");
+    expect(getBatchMatchAnalyticsSpy).toHaveBeenCalledWith(["match-1", "match-2"]);
   });
 });

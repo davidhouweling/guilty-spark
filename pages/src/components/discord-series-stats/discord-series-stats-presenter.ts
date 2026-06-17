@@ -96,27 +96,23 @@ export class DiscordSeriesStatsPresenter {
     this.cancelled = false;
     const matchIds = this.renderData.matches.map((m) => m.matchId);
 
-    void Promise.all(
-      matchIds.map(async (matchId) => {
-        try {
-          const analytics = await this.matchAnalyticsService.getMatchAnalytics(matchId);
-          return { matchId, analytics };
-        } catch {
-          return null;
+    void this.matchAnalyticsService
+      .getBatchMatchAnalytics(matchIds)
+      .then((batchResults) => {
+        if (this.cancelled) {
+          return;
         }
-      }),
-    ).then((results) => {
-      if (this.cancelled) {
-        return;
-      }
-      const map = new Map<string, MatchAnalytics>();
-      for (const result of results) {
-        if (result != null) {
-          map.set(result.matchId, result.analytics);
+        const map = new Map<string, MatchAnalytics>();
+        for (const [matchId, analytics] of Object.entries(batchResults)) {
+          if (analytics != null) {
+            map.set(matchId, analytics);
+          }
         }
-      }
-      this.store.update({ analyticsByMatchId: map });
-    });
+        this.store.update({ analyticsByMatchId: map });
+      })
+      .catch(() => {
+        // batch fetch failed; store retains empty map
+      });
   }
 
   dispose(): void {

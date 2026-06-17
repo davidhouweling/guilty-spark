@@ -1,6 +1,12 @@
+import path from "node:path";
 import { coverageConfigDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "@guilty-spark/shared": path.resolve(import.meta.dirname, "shared/src"),
+    },
+  },
   test: {
     mockReset: true,
     restoreMocks: true,

@@ -28,19 +28,34 @@ function aFakeMatchAnalyticsWith(overrides: Partial<MatchAnalytics> = {}): Match
 
 interface FakeMatchAnalyticsServiceOptions {
   readonly analytics: MatchAnalytics;
+  readonly failMatchIds: readonly string[];
 }
 
 export class FakeMatchAnalyticsService implements MatchAnalyticsService {
   private readonly analytics: MatchAnalytics;
+  private readonly failMatchIds: ReadonlySet<string>;
 
   constructor(options: Partial<FakeMatchAnalyticsServiceOptions> = {}) {
     this.analytics = options.analytics ?? aFakeMatchAnalyticsWith();
+    this.failMatchIds = new Set(options.failMatchIds ?? []);
   }
 
   async getMatchAnalytics(matchId: string, modules?: readonly AnalyticsModule[]): Promise<MatchAnalytics> {
     void matchId;
     void modules;
     return Promise.resolve(this.analytics);
+  }
+
+  async getBatchMatchAnalytics(
+    matchIds: readonly string[],
+    modules?: readonly AnalyticsModule[],
+  ): Promise<Record<string, MatchAnalytics | null>> {
+    void modules;
+    const results: Record<string, MatchAnalytics | null> = {};
+    for (const matchId of matchIds) {
+      results[matchId] = this.failMatchIds.has(matchId) ? null : this.analytics;
+    }
+    return Promise.resolve(results);
   }
 }
 

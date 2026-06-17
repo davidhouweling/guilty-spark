@@ -2,4 +2,8 @@ import type { AnalyticsModule, MatchAnalytics } from "@guilty-spark/shared/contr
 
 export interface MatchAnalyticsService {
   getMatchAnalytics(matchId: string, modules?: readonly AnalyticsModule[]): Promise<MatchAnalytics>;
+  getBatchMatchAnalytics(
+    matchIds: readonly string[],
+    modules?: readonly AnalyticsModule[],
+  ): Promise<Record<string, MatchAnalytics | null>>;
 }
