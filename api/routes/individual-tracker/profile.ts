@@ -25,7 +25,7 @@ export const trackerProfileRoutesRegisterHandler: RoutesRegisterHandler = (route
 
       return trackerProfileContract.toResponse({ profile: toTrackerProfile(profile) }, { noStore: true });
     } catch (error) {
-      logService.error(error, new Map([["message", "Individual tracker profile get error"]]));
+      logService.error(error, new Map([["context", "Individual tracker profile get error"]]));
       return errorContract.toResponse({ error: "Failed to fetch profile" }, { status: 500, noStore: true });
     }
   });
@@ -69,7 +69,7 @@ export const trackerProfileRoutesRegisterHandler: RoutesRegisterHandler = (route
         throw error;
       }
     } catch (error) {
-      logService.error(error, new Map([["message", "Individual tracker profile update error"]]));
+      logService.error(error, new Map([["context", "Individual tracker profile update error"]]));
       return errorContract.toResponse({ error: "Failed to update profile" }, { status: 500, noStore: true });
     }
   });

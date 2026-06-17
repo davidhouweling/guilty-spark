@@ -1007,7 +1007,8 @@ export class NeatQueueService {
       this.logService.info(error, new Map([["reason", "Failed to get series data from timeline"]]));
       errorOccurred = true;
 
-      const opts = { request, neatQueueConfig, handledError: error as Error, timeline };
+      const handledError = error instanceof Error ? error : new Error(String(error));
+      const opts = { request, neatQueueConfig, handledError, timeline };
       await this.handlePostSeriesError(neatQueueConfig.PostSeriesMode, opts);
     }
 
@@ -1703,7 +1704,8 @@ export class NeatQueueService {
       } else if (thread != null) {
         this.logService.info("Attempting to post error to thread");
 
-        const endUserError = this.getEndUserErrorEmbed(error as Error, request, neatQueueConfig, timeline);
+        const normalizedError = error instanceof Error ? error : new Error(String(error));
+        const endUserError = this.getEndUserErrorEmbed(normalizedError, request, neatQueueConfig, timeline);
         await discordService.createMessage(thread.id, {
           embeds: [endUserError.discordEmbed],
           components: endUserError.discordActions,
@@ -1806,7 +1808,8 @@ export class NeatQueueService {
     } catch (error) {
       this.logService.error(error, new Map([["reason", "Failed to post series data direct to channel"]]));
 
-      const endUserError = this.getEndUserErrorEmbed(error as Error, request, neatQueueConfig, timeline);
+      const normalizedError = error instanceof Error ? error : new Error(String(error));
+      const endUserError = this.getEndUserErrorEmbed(normalizedError, request, neatQueueConfig, timeline);
       await discordService.createMessage(channelId, {
         embeds: [endUserError.discordEmbed],
         components: endUserError.discordActions,

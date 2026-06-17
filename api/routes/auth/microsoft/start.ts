@@ -36,7 +36,7 @@ export const authMicrosoftStartRoute: RoutesRegisterHandler = (router, installSe
 
       return response;
     } catch (error) {
-      services.logService.error(error, new Map([["message", "Auth start error"]]));
+      services.logService.error(error, new Map([["context", "Auth start error"]]));
       return errorContract.toResponse(
         { error: "Failed to generate authorization URL" },
         { status: 500, noStore: true },
