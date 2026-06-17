@@ -4,19 +4,19 @@ import type { BaseLogService } from "../base-log-service";
 import type { JsonAny, LogService } from "../types";
 
 export class FakeLogService implements BaseLogService {
-  debug(_error: Error | string, _extra?: ReadonlyMap<string, JsonAny>): void {
+  debug(_message: unknown, _extra?: ReadonlyMap<string, JsonAny>): void {
     // no-op
   }
-  info(_error: Error | string, _extra?: ReadonlyMap<string, JsonAny>): void {
+  info(_message: unknown, _extra?: ReadonlyMap<string, JsonAny>): void {
     // no-op
   }
-  warn(_error: Error | string, _extra?: ReadonlyMap<string, JsonAny>): void {
+  warn(_message: unknown, _extra?: ReadonlyMap<string, JsonAny>): void {
     // no-op
   }
-  error(_error: Error | string, _extra?: ReadonlyMap<string, JsonAny>): void {
+  error(_message: unknown, _extra?: ReadonlyMap<string, JsonAny>): void {
     // no-op
   }
-  fatal(_error: Error | string, _extra?: ReadonlyMap<string, JsonAny>): void {
+  fatal(_message: unknown, _extra?: ReadonlyMap<string, JsonAny>): void {
     // no-op
   }
 }

@@ -7,33 +7,33 @@ export class AggregatorClient implements LogService {
     this.clients = clients;
   }
 
-  debug(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void {
+  debug(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void {
     for (const client of this.clients) {
-      client.debug(error, extra);
+      client.debug(message, extra);
     }
   }
 
-  info(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void {
+  info(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void {
     for (const client of this.clients) {
-      client.info(error, extra);
+      client.info(message, extra);
     }
   }
 
-  warn(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void {
+  warn(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void {
     for (const client of this.clients) {
-      client.warn(error, extra);
+      client.warn(message, extra);
     }
   }
 
-  error(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void {
+  error(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void {
     for (const client of this.clients) {
-      client.error(error, extra);
+      client.error(message, extra);
     }
   }
 
-  fatal(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void {
+  fatal(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void {
     for (const client of this.clients) {
-      client.fatal(error, extra);
+      client.fatal(message, extra);
     }
   }
 }

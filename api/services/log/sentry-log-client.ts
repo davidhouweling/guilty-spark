@@ -12,83 +12,92 @@ export class SentryLogClient implements LogService {
     this.shouldLog = mode === "production";
   }
 
-  debug(error: Error | string, extra: ReadonlyMap<string, JsonAny> = new Map()): void {
+  private toMessage(message: unknown): string {
+    if (message instanceof Error) {
+      return message.message;
+    }
+    if (typeof message === "string") {
+      return message;
+    }
+    return String(message);
+  }
+
+  debug(message: unknown, extra: ReadonlyMap<string, JsonAny> = new Map()): void {
     if (!this.shouldLog) {
       return;
     }
 
     addBreadcrumb({
       category: "debug",
-      message: error instanceof Error ? error.message : error,
+      message: this.toMessage(message),
       level: "debug",
       data: Object.fromEntries(extra),
     });
   }
 
-  info(error: Error | string, extra: ReadonlyMap<string, JsonAny> = new Map()): void {
+  info(message: unknown, extra: ReadonlyMap<string, JsonAny> = new Map()): void {
     if (!this.shouldLog) {
       return;
     }
 
     addBreadcrumb({
       category: "info",
-      message: error instanceof Error ? error.message : error,
+      message: this.toMessage(message),
       level: "info",
       data: Object.fromEntries(extra),
     });
   }
 
-  warn(error: Error | string, extra: ReadonlyMap<string, JsonAny> = new Map()): void {
+  warn(message: unknown, extra: ReadonlyMap<string, JsonAny> = new Map()): void {
     if (!this.shouldLog) {
       return;
     }
 
-    // For warnings, use breadcrumbs unless it's an actual Error object that needs tracking
-    if (error instanceof Error) {
-      captureException(error, {
+    if (message instanceof Error) {
+      captureException(message, {
         level: "warning",
         extra: Object.fromEntries(extra),
       });
     } else {
       addBreadcrumb({
         category: "warning",
-        message: error,
+        message: this.toMessage(message),
         level: "warning",
         data: Object.fromEntries(extra),
       });
     }
   }
 
-  error(error: Error | string, extra: ReadonlyMap<string, JsonAny> = new Map()): void {
+  error(message: unknown, extra: ReadonlyMap<string, JsonAny> = new Map()): void {
     if (!this.shouldLog) {
       return;
     }
 
-    if (error instanceof Error) {
-      captureException(error, {
+    if (message instanceof Error) {
+      captureException(message, {
         level: "error",
         extra: Object.fromEntries(extra),
       });
     } else {
-      captureMessage(error, {
+      captureMessage(this.toMessage(message), {
         level: "error",
         extra: Object.fromEntries(extra),
       });
     }
   }
 
-  fatal(error: Error | string, extra: ReadonlyMap<string, JsonAny> = new Map()): void {
+  fatal(message: unknown, extra: ReadonlyMap<string, JsonAny> = new Map()): void {
     if (!this.shouldLog) {
       return;
     }
 
-    if (error instanceof Error) {
-      captureException(error, {
+    if (message instanceof Error) {
+      captureException(message, {
         level: "fatal",
         extra: Object.fromEntries(extra),
       });
     } else {
-      captureMessage(error, {
+      captureMessage(this.toMessage(message), {
         level: "fatal",
         extra: Object.fromEntries(extra),
       });
