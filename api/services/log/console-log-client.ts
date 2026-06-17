@@ -22,6 +22,20 @@ export class ConsoleLogClient implements LogService {
     console.error("FATAL:", this.format(message, extra, this.captureCallSiteStack()));
   }
 
+  private toJsonSafe(value: unknown): string {
+    if (typeof value === "string") {
+      return value;
+    }
+    if (value === undefined) {
+      return "undefined";
+    }
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "[unserializable]";
+    }
+  }
+
   private captureCallSiteStack(): string {
     const lines = new Error().stack?.split("\n") ?? [];
     return lines
@@ -51,7 +65,7 @@ export class ConsoleLogClient implements LogService {
         content["stack"] = message.stack;
       }
     } else {
-      content["message"] = typeof message === "string" ? message : String(message);
+      content["message"] = this.toJsonSafe(message);
     }
 
     if (callStack != null && callStack.length > 0) {

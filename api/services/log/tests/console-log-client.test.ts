@@ -89,11 +89,18 @@ describe("ConsoleLogClient", () => {
       expect(logged["callStack"]).toBeUndefined();
     });
 
-    it("logs unknown values as strings", () => {
+    it("logs numbers as JSON strings", () => {
       logClient.info(42);
 
       const logged = parseLogged(consoleSpy.info);
       expect(logged).toMatchObject({ message: "42" });
+    });
+
+    it("logs plain objects as JSON", () => {
+      logClient.info({ key: "value", count: 1 });
+
+      const logged = parseLogged(consoleSpy.info);
+      expect(logged).toMatchObject({ message: '{"key":"value","count":1}' });
     });
   });
 

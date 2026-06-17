@@ -19,7 +19,14 @@ export class SentryLogClient implements LogService {
     if (typeof message === "string") {
       return message;
     }
-    return String(message);
+    if (message === undefined) {
+      return "undefined";
+    }
+    try {
+      return JSON.stringify(message);
+    } catch {
+      return "[unserializable]";
+    }
   }
 
   debug(message: unknown, extra: ReadonlyMap<string, JsonAny> = new Map()): void {
