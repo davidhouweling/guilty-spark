@@ -24,7 +24,7 @@ export const matchAnalyticsParamsSchema = z.object({
 });
 export type MatchAnalyticsParams = z.infer<typeof matchAnalyticsParamsSchema>;
 
-const requestedModulesQuerySchema = z
+export const requestedModulesQuerySchema = z
   .string()
   .optional()
   .default("killMatrix")
