@@ -34,9 +34,10 @@ export function KillMatrixTable({
 
   const [isTransposed, setIsTransposed] = React.useState(false);
 
-  const activePivotData = isTransposed && transposedPivotData != null ? transposedPivotData : pivotData;
-  const activeKillerAxisLabel = isTransposed ? "Victim" : killerAxisLabel;
-  const activeVictimAxisLabel = isTransposed ? "Kills" : victimAxisLabel;
+  const isTransposedActive = isTransposed && transposedPivotData != null;
+  const activePivotData = isTransposedActive ? transposedPivotData : pivotData;
+  const activeKillerAxisLabel = isTransposedActive ? "Victim" : killerAxisLabel;
+  const activeVictimAxisLabel = isTransposedActive ? "Kills" : victimAxisLabel;
 
   const columns = React.useMemo<SortableTableColumn<KillMatrixPivotRow>[]>(() => {
     if (effectiveStatus !== ComponentLoaderStatus.LOADED) {
@@ -66,8 +67,7 @@ export function KillMatrixTable({
     return cols;
   }, [effectiveStatus, activeKillerAxisLabel, activePivotData.victimGamertags]);
 
-  const playerCount =
-    playerGamertags !== undefined && playerGamertags.length > 0 ? playerGamertags.length : 8;
+  const playerCount = playerGamertags !== undefined && playerGamertags.length > 0 ? playerGamertags.length : 8;
 
   const shimmer = (
     <div
@@ -109,7 +109,7 @@ export function KillMatrixTable({
                 setIsTransposed((prev) => !prev);
               }}
             >
-              {isTransposed ? "Switch to Kills view" : "Switch to Deaths view"}
+              {isTransposedActive ? "Switch to Kills view" : "Switch to Deaths view"}
             </Button>
           )}
         </div>

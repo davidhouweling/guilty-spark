@@ -1,7 +1,8 @@
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { KillMatrixFormatter } from "../../../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../../../controllers/stats/kill-matrix/types";
@@ -158,7 +159,8 @@ describe("KillMatrixTable", () => {
     expect(screen.queryByText("Switch to Kills view")).not.toBeInTheDocument();
   });
 
-  it("toggles between kills and deaths view when toggle button is clicked", () => {
+  it("toggles between kills and deaths view when toggle button is clicked", async () => {
+    const user = userEvent.setup();
     const rows = [
       {
         key: "111:222",
@@ -186,13 +188,13 @@ describe("KillMatrixTable", () => {
     expect(screen.getByText("Killer")).toBeInTheDocument();
     expect(screen.getByText("Switch to Deaths view")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("Switch to Deaths view"));
+    await user.click(screen.getByText("Switch to Deaths view"));
 
     expect(screen.getByText("Kills →")).toBeInTheDocument();
     expect(screen.getByText("Victim")).toBeInTheDocument();
     expect(screen.getByText("Switch to Kills view")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("Switch to Kills view"));
+    await user.click(screen.getByText("Switch to Kills view"));
 
     expect(screen.getByText("Deaths →")).toBeInTheDocument();
   });
