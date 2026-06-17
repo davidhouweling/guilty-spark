@@ -7,6 +7,7 @@ import { StatsController } from "../../controllers/stats/stats-controller";
 import { KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import { EMPTY_KILL_MATRIX_PIVOT_DATA, type KillMatrixViewRow } from "../../controllers/stats/kill-matrix/types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
+import { ComponentLoaderStatus } from "../component-loader/component-loader";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault, type TeamColor } from "../team-colors/team-colors";
 import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
 import type { DiscordSeriesStatsSnapshot, DiscordSeriesStatsStore } from "./discord-series-stats-store";
@@ -94,7 +95,7 @@ export class DiscordSeriesStatsPresenter {
 
   start(): void {
     this.cancelled = false;
-    this.store.update({ analyticsLoading: true });
+    this.store.update({ analyticsStatus: ComponentLoaderStatus.LOADING });
     void this.fetchAnalytics();
   }
 
@@ -105,7 +106,7 @@ export class DiscordSeriesStatsPresenter {
   private async fetchAnalytics(): Promise<void> {
     const matchIds = this.renderData.matches.map((m) => m.matchId);
     if (matchIds.length === 0) {
-      this.store.update({ analyticsLoading: false });
+      this.store.update({ analyticsStatus: ComponentLoaderStatus.LOADED });
       return;
     }
     try {
@@ -119,9 +120,12 @@ export class DiscordSeriesStatsPresenter {
           map.set(matchId, analytics);
         }
       }
-      this.store.update({ analyticsByMatchId: map, analyticsLoading: false });
+      this.store.update({ analyticsByMatchId: map, analyticsStatus: ComponentLoaderStatus.LOADED });
     } catch {
-      this.store.update({ analyticsLoading: false });
+      if (this.cancelled) {
+        return;
+      }
+      this.store.update({ analyticsStatus: ComponentLoaderStatus.ERROR });
     }
   }
 
@@ -203,7 +207,7 @@ export class DiscordSeriesStatsPresenter {
         endTime: match.endTime,
         teamColors,
         killMatrixPivotData: rows != null ? KillMatrixFormatter.pivot(rows) : EMPTY_KILL_MATRIX_PIVOT_DATA,
-        killMatrixLoading: snapshot.analyticsLoading,
+        killMatrixStatus: snapshot.analyticsStatus,
       };
       if (!isMatchStats(match.rawMatch)) {
         return { ...base, data: null };
@@ -228,7 +232,7 @@ export class DiscordSeriesStatsPresenter {
             killMatrixPivotData: KillMatrixFormatter.pivot(
               KillMatrixFormatter.aggregate([...matchKillMatrixRows.values()].flatMap((rows) => [...rows])),
             ),
-            killMatrixLoading: snapshot.analyticsLoading,
+            killMatrixStatus: snapshot.analyticsStatus,
           }
         : null;
 

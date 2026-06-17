@@ -1,5 +1,6 @@
 import React from "react";
 import { Alert } from "../../alert/alert";
+import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { SortableTable, type SortableTableColumn } from "../../table/sortable-table";
 import tableStyles from "../../table/table.module.css";
 import type { KillMatrixPivotData, KillMatrixPivotRow } from "../../../controllers/stats/kill-matrix/types";
@@ -9,20 +10,29 @@ interface KillMatrixTableProps {
   readonly pivotData: KillMatrixPivotData;
   readonly ariaLabel: string;
   readonly emptyMessage: string;
-  readonly loading?: boolean;
+  readonly status?: ComponentLoaderStatus;
   readonly killerAxisLabel?: string;
   readonly victimAxisLabel?: string;
+  readonly playerGamertags?: readonly string[];
 }
 
 export function KillMatrixTable({
   pivotData,
   ariaLabel,
   emptyMessage,
-  loading,
+  status,
   killerAxisLabel = "Killer",
   victimAxisLabel = "Deaths",
+  playerGamertags,
 }: KillMatrixTableProps): React.ReactElement {
+  const isLoading = status === ComponentLoaderStatus.LOADING || status === ComponentLoaderStatus.PENDING;
+  const isError = status === ComponentLoaderStatus.ERROR;
+
   const columns = React.useMemo<SortableTableColumn<KillMatrixPivotRow>[]>(() => {
+    if (isLoading) {
+      return [];
+    }
+
     const cols: SortableTableColumn<KillMatrixPivotRow>[] = [
       {
         id: "killer",
@@ -44,16 +54,26 @@ export function KillMatrixTable({
     }
 
     return cols;
-  }, [killerAxisLabel, pivotData.victimGamertags]);
+  }, [isLoading, killerAxisLabel, pivotData.victimGamertags]);
 
-  if (loading === true) {
+  if (isLoading) {
+    const rowCount = playerGamertags?.length ?? 5;
     return (
       <div className={styles.shimmerContainer} aria-busy="true" aria-label={ariaLabel}>
-        {Array.from({ length: 5 }, (_, i) => (
-          <div key={i} className={styles.shimmerRow} />
-        ))}
+        {Array.from({ length: rowCount }, (_, i) => {
+          const gamertag = playerGamertags?.[i];
+          return (
+            <div key={gamertag ?? i} className={styles.shimmerRow}>
+              {gamertag}
+            </div>
+          );
+        })}
       </div>
     );
+  }
+
+  if (isError) {
+    return <Alert variant="warning">{emptyMessage}</Alert>;
   }
 
   if (pivotData.tableRows.length === 0) {

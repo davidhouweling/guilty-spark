@@ -18,11 +18,15 @@
 }
 
 .shimmerRow {
+  align-items: center;
   animation: shimmer 1.5s ease-in-out infinite;
   background: linear-gradient(90deg, var(--halo-bg-card) 25%, var(--halo-teal-darker) 50%, var(--halo-bg-card) 75%);
   background-size: 200% 100%;
   border-radius: 4px;
+  display: flex;
+  font-size: var(--text-sm);
   height: 2rem;
+  padding-left: var(--space-2);
   width: 85%;
 }
 

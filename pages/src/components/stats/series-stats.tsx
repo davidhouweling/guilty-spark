@@ -1,5 +1,6 @@
 import React from "react";
 import classNames from "classnames";
+import type { ComponentLoaderStatus } from "../component-loader/component-loader";
 import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";
 import { TabbedSection } from "../tabbed-section/tabbed-section";
@@ -21,7 +22,7 @@ interface SeriesStatsProps {
   readonly metadata: SeriesMetadata | null;
   readonly teamColors?: readonly TeamColor[];
   readonly killMatrixPivotData?: KillMatrixPivotData;
-  readonly killMatrixLoading?: boolean;
+  readonly killMatrixStatus?: ComponentLoaderStatus;
 }
 
 type MatchStatsRow = MatchStatsData & { player: MatchStatsPlayerData };
@@ -33,7 +34,7 @@ export function SeriesStats({
   metadata,
   teamColors,
   killMatrixPivotData,
-  killMatrixLoading,
+  killMatrixStatus,
 }: SeriesStatsProps): React.ReactElement {
   const [activeTab, setActiveTab] = React.useState<"accumulated" | "kill-matrix">("accumulated");
   const hasTeamStats = teamData.length > 0 && teamData[0].teamStats.length > 0;
@@ -164,6 +165,8 @@ export function SeriesStats({
     ];
   }, [playerData, hasPlayerStats]);
 
+  const playerGamertags = React.useMemo(() => playerData.flatMap((d) => d.players).map((p) => p.name), [playerData]);
+
   // Flatten player data for table
   const flattenedPlayerData = React.useMemo<MatchStatsRow[]>(
     () =>
@@ -261,9 +264,10 @@ export function SeriesStats({
               content: (
                 <KillMatrixTable
                   pivotData={killMatrixPivotData ?? EMPTY_KILL_MATRIX_PIVOT_DATA}
-                  loading={killMatrixLoading}
                   ariaLabel="Series kill matrix"
                   emptyMessage="Kill matrix data is not available for this series yet."
+                  status={killMatrixStatus}
+                  playerGamertags={playerGamertags}
                 />
               ),
             },

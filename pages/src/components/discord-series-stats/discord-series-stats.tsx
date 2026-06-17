@@ -84,7 +84,7 @@ function MatchDetailSection({ detail, contentWidthClass }: MatchDetailSectionPro
           endTime={detail.endTime}
           teamColors={detail.teamColors}
           killMatrixPivotData={detail.killMatrixPivotData}
-          killMatrixLoading={detail.killMatrixLoading}
+          killMatrixStatus={detail.killMatrixStatus}
         />
       ) : (
         <Alert variant="warning">Failed to load detailed stats for match {detail.matchId}.</Alert>
@@ -167,7 +167,7 @@ export function DiscordSeriesStatsView({
               metadata={seriesStats.metadata}
               teamColors={seriesStats.teamColors}
               killMatrixPivotData={seriesStats.killMatrixPivotData}
-              killMatrixLoading={seriesStats.killMatrixLoading}
+              killMatrixStatus={seriesStats.killMatrixStatus}
             />
           </Container>
         )}

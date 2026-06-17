@@ -2,6 +2,7 @@ import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
+import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { KillMatrixFormatter } from "../../../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../../../controllers/stats/kill-matrix/types";
 import { KillMatrixTable } from "../kill-matrix-table";
@@ -45,13 +46,13 @@ describe("KillMatrixTable", () => {
     expect(screen.getByText("Deaths →")).toBeInTheDocument();
   });
 
-  it("shows shimmer skeleton when loading", () => {
+  it("shows shimmer skeleton when status is loading", () => {
     render(
       <KillMatrixTable
         pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
         ariaLabel="Kill matrix"
         emptyMessage="No kill matrix data."
-        loading={true}
+        status={ComponentLoaderStatus.LOADING}
       />,
     );
 
@@ -59,13 +60,43 @@ describe("KillMatrixTable", () => {
     expect(screen.queryByText("No kill matrix data.")).not.toBeInTheDocument();
   });
 
-  it("shows empty message when not loading and no data", () => {
+  it("shows shimmer rows using playerGamertags when provided", () => {
     render(
       <KillMatrixTable
         pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
         ariaLabel="Kill matrix"
         emptyMessage="No kill matrix data."
-        loading={false}
+        status={ComponentLoaderStatus.LOADING}
+        playerGamertags={["Alpha", "Bravo", "Charlie"]}
+      />,
+    );
+
+    expect(screen.getByLabelText("Kill matrix")).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(screen.getByText("Bravo")).toBeInTheDocument();
+    expect(screen.getByText("Charlie")).toBeInTheDocument();
+  });
+
+  it("shows error message when status is error", () => {
+    render(
+      <KillMatrixTable
+        pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
+        ariaLabel="Kill matrix"
+        emptyMessage="Kill matrix data is not available."
+        status={ComponentLoaderStatus.ERROR}
+      />,
+    );
+
+    expect(screen.getByText("Kill matrix data is not available.")).toBeInTheDocument();
+  });
+
+  it("shows empty message when status is loaded and no data", () => {
+    render(
+      <KillMatrixTable
+        pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
+        ariaLabel="Kill matrix"
+        emptyMessage="No kill matrix data."
+        status={ComponentLoaderStatus.LOADED}
       />,
     );
 
