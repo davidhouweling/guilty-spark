@@ -845,7 +845,9 @@ describe("StatsCommand", () => {
     beforeEach(() => {
       vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
         name: "fix",
-        mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>([["queue_number", 777]]),
+        mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>([
+          ["queue_number", 777],
+        ]),
         options: [],
       });
     });
@@ -898,9 +900,7 @@ describe("StatsCommand", () => {
         ...apiMessage,
         id: "fix-flow-message-id",
       });
-      const setInteractionMetadataSpy = vi
-        .spyOn(services.discordService, "setInteractionMetadata")
-        .mockResolvedValue();
+      const setInteractionMetadataSpy = vi.spyOn(services.discordService, "setInteractionMetadata").mockResolvedValue();
 
       const { jobToComplete } = statsCommand.execute(queuePlayerInteraction);
       await jobToComplete?.();
@@ -958,7 +958,9 @@ describe("StatsCommand", () => {
 
     it("allows admins that are not queue players", async () => {
       vi.spyOn(services.discordService, "getTeamsFromQueueResult").mockResolvedValue(discordNeatQueueData);
-      vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValue(PermissionFlagsBits.Administrator);
+      vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValue(
+        PermissionFlagsBits.Administrator,
+      );
       vi.spyOn(services.discordService, "getMessageFromInteractionToken").mockResolvedValue({
         ...apiMessage,
         id: "fix-flow-message-id",
@@ -1011,9 +1013,7 @@ describe("StatsCommand", () => {
         }),
       ]);
       vi.spyOn(services.haloService, "getPlayerCustomGames").mockResolvedValue(getPlayerMatches().slice(0, 3));
-      const setInteractionMetadataSpy = vi
-        .spyOn(services.discordService, "setInteractionMetadata")
-        .mockResolvedValue();
+      const setInteractionMetadataSpy = vi.spyOn(services.discordService, "setInteractionMetadata").mockResolvedValue();
 
       const { response, jobToComplete } = statsCommand.execute(interaction);
       expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
@@ -1088,10 +1088,7 @@ describe("StatsCommand", () => {
         data: {
           component_type: ComponentType.StringSelect,
           custom_id: "btn_stats_fix_games_select",
-          values: [
-            "d81554d7-ddfe-44da-a6cb-000000000ctf",
-            "9535b946-f30c-4a43-b852-000000slayer",
-          ],
+          values: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
         },
         message: {
           ...fakeButtonClickInteraction.message,
@@ -1108,9 +1105,7 @@ describe("StatsCommand", () => {
         Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
         Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
       ]);
-      const setInteractionMetadataSpy = vi
-        .spyOn(services.discordService, "setInteractionMetadata")
-        .mockResolvedValue();
+      const setInteractionMetadataSpy = vi.spyOn(services.discordService, "setInteractionMetadata").mockResolvedValue();
 
       const { response, jobToComplete } = statsCommand.execute(interaction);
       expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
@@ -1120,10 +1115,7 @@ describe("StatsCommand", () => {
       expect(setInteractionMetadataSpy).toHaveBeenCalledWith(
         "statsFix:fix-flow-message-id",
         expect.objectContaining({
-          selectedMatchIds: [
-            "d81554d7-ddfe-44da-a6cb-000000000ctf",
-            "9535b946-f30c-4a43-b852-000000slayer",
-          ],
+          selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
         }),
       );
       expect(updateDeferredReplySpy).toHaveBeenCalledWith(
@@ -1168,10 +1160,7 @@ describe("StatsCommand", () => {
             id: "queue-parent-message-id",
           },
         },
-        selectedMatchIds: [
-          "d81554d7-ddfe-44da-a6cb-000000000ctf",
-          "9535b946-f30c-4a43-b852-000000slayer",
-        ],
+        selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
       });
       vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
         Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
@@ -1223,14 +1212,11 @@ describe("StatsCommand", () => {
       expect(warmRouteFetchSpy).toHaveBeenCalledWith("http://localhost:8787/api/stats/discord/fake-guild-id/777", {
         method: "GET",
       });
-      expect(updateDeferredReplySpy).toHaveBeenCalledWith(
-        "fake-token",
-        {
-          content: "Series stats were amended successfully.",
-          embeds: [],
-          components: [],
-        },
-      );
+      expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
+        content: "Series stats were amended successfully.",
+        embeds: [],
+        components: [],
+      });
     });
   });
 

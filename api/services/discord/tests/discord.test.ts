@@ -1134,11 +1134,9 @@ describe("DiscordService", () => {
 
       await discordService.setInteractionMetadata("token-1", { queueNumber: 777, userId: "user-1" });
 
-      expect(putSpy).toHaveBeenCalledWith(
-        "interactionMetadata:token-1",
-        '{"queueNumber":777,"userId":"user-1"}',
-        { expirationTtl: 3600 },
-      );
+      expect(putSpy).toHaveBeenCalledWith("interactionMetadata:token-1", '{"queueNumber":777,"userId":"user-1"}', {
+        expirationTtl: 3600,
+      });
     });
 
     it("retrieves interaction metadata from KV", async () => {
