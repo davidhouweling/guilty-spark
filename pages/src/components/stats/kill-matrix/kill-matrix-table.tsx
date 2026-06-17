@@ -9,7 +9,6 @@ import styles from "./kill-matrix-table.module.css";
 
 interface KillMatrixTableProps {
   readonly pivotData: KillMatrixPivotData;
-  readonly transposedPivotData?: KillMatrixPivotData;
   readonly ariaLabel: string;
   readonly emptyMessage: string;
   readonly errorMessage?: string;
@@ -17,11 +16,11 @@ interface KillMatrixTableProps {
   readonly killerAxisLabel?: string;
   readonly victimAxisLabel?: string;
   readonly playerGamertags?: readonly string[];
+  readonly transposedPivotData?: KillMatrixPivotData;
 }
 
 export function KillMatrixTable({
   pivotData,
-  transposedPivotData,
   ariaLabel,
   emptyMessage,
   errorMessage,
@@ -29,6 +28,7 @@ export function KillMatrixTable({
   killerAxisLabel = "Killer",
   victimAxisLabel = "Deaths",
   playerGamertags,
+  transposedPivotData,
 }: KillMatrixTableProps): React.ReactElement {
   const effectiveStatus = status ?? ComponentLoaderStatus.LOADED;
 
