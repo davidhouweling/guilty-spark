@@ -207,6 +207,8 @@ export class DiscordSeriesStatsPresenter {
         endTime: match.endTime,
         teamColors,
         killMatrixPivotData: rows != null ? KillMatrixFormatter.pivot(rows) : EMPTY_KILL_MATRIX_PIVOT_DATA,
+        transposedKillMatrixPivotData:
+          rows != null ? KillMatrixFormatter.transpose(rows) : EMPTY_KILL_MATRIX_PIVOT_DATA,
         killMatrixStatus: snapshot.analyticsStatus,
       };
       if (!isMatchStats(match.rawMatch)) {
@@ -222,6 +224,9 @@ export class DiscordSeriesStatsPresenter {
       }
     });
 
+    const aggregatedKillMatrixRows = KillMatrixFormatter.aggregate(
+      [...matchKillMatrixRows.values()].flatMap((rows) => rows),
+    );
     const seriesStats: DiscordSeriesStatsViewModel["seriesStats"] =
       seriesData != null
         ? {
@@ -229,9 +234,8 @@ export class DiscordSeriesStatsPresenter {
             playerData: seriesData.playerData,
             metadata: calculateSeriesMetadata(this.renderData.matches, this.renderData.seriesScore),
             teamColors,
-            killMatrixPivotData: KillMatrixFormatter.pivot(
-              KillMatrixFormatter.aggregate([...matchKillMatrixRows.values()].flatMap((rows) => rows)),
-            ),
+            killMatrixPivotData: KillMatrixFormatter.pivot(aggregatedKillMatrixRows),
+            transposedKillMatrixPivotData: KillMatrixFormatter.transpose(aggregatedKillMatrixRows),
             killMatrixStatus: snapshot.analyticsStatus,
           }
         : null;

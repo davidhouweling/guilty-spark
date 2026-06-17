@@ -124,6 +124,10 @@ export class KillMatrixFormatter {
     return { tableRows, victimGamertags };
   }
 
+  public static transpose(rows: readonly KillMatrixViewRow[]): KillMatrixPivotData {
+    return KillMatrixFormatter.pivot(rows.map((row) => ({ ...row, killer: row.victim, victim: row.killer })));
+  }
+
   public static aggregate(rows: readonly KillMatrixViewRow[]): KillMatrixViewRow[] {
     const merged = new Map<string, KillMatrixViewRow>();
 

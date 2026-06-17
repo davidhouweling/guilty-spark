@@ -43,6 +43,7 @@ function aLoadedState(
     endTime: stats.MatchInfo.EndTime,
     data: controller.getMatchStats(),
     killMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
+    transposedKillMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
     ...overrides,
   };
 }
