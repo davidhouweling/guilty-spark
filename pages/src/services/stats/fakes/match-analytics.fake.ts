@@ -53,11 +53,10 @@ export class FakeMatchAnalyticsService implements MatchAnalyticsService {
     modules?: readonly AnalyticsModule[],
   ): Promise<Record<string, MatchAnalytics | null>> {
     void modules;
-    const results: Record<string, MatchAnalytics | null> = {};
-    for (const matchId of matchIds) {
-      results[matchId] = this.failMatchIds.has(matchId) ? null : this.analytics;
-    }
-    return Promise.resolve(results);
+    const resultsMap = new Map<string, MatchAnalytics | null>(
+      matchIds.map((matchId) => [matchId, this.failMatchIds.has(matchId) ? null : this.analytics]),
+    );
+    return Promise.resolve(Object.fromEntries(resultsMap));
   }
 }
 
