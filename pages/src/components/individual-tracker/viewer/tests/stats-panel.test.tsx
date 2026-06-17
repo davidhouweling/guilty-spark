@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { StatsController } from "../../../../controllers/stats/stats-controller";
+import { KillMatrixFormatter } from "../../../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import type { MatchStatsPanelState } from "../types";
 import { StatsPanel } from "../stats-panel";
 
@@ -39,7 +40,7 @@ function aLoadedState(
     startTime: stats.MatchInfo.StartTime,
     endTime: stats.MatchInfo.EndTime,
     data: controller.getMatchStats(),
-    killMatrixRows: [],
+    killMatrixPivotData: { tableRows: [], victimGamertags: [] },
     ...overrides,
   };
 }
@@ -99,7 +100,11 @@ describe("StatsPanel", () => {
     );
     controller.loadMatch(stats, playerMap, {});
 
-    render(<StatsPanel state={aLoadedState({ killMatrixRows: controller.getKillMatrix() })} />);
+    render(
+      <StatsPanel
+        state={aLoadedState({ killMatrixPivotData: KillMatrixFormatter.pivot(controller.getKillMatrix()) })}
+      />,
+    );
 
     fireEvent.click(screen.getByRole("tab", { name: "Kill Matrix" }));
 

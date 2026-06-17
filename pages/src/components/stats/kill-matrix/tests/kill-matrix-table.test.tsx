@@ -22,7 +22,7 @@ describe("KillMatrixTable", () => {
     expect(screen.getByText("No kill matrix data.")).toBeInTheDocument();
   });
 
-  it("renders rows when data exists", () => {
+  it("renders rows when data exists with axis labels", () => {
     const pivotData = KillMatrixFormatter.pivot([
       {
         key: "111:222",
@@ -40,5 +40,34 @@ describe("KillMatrixTable", () => {
     expect(screen.getByLabelText("Kill matrix")).toBeInTheDocument();
     expect(screen.getByText("Alpha")).toBeInTheDocument();
     expect(screen.getByText("Bravo")).toBeInTheDocument();
+    expect(screen.getByText("Kills")).toBeInTheDocument();
+    expect(screen.getByText("Deaths →")).toBeInTheDocument();
+  });
+
+  it("shows shimmer skeleton when loading", () => {
+    render(
+      <KillMatrixTable
+        pivotData={{ tableRows: [], victimGamertags: [] }}
+        ariaLabel="Kill matrix"
+        emptyMessage="No kill matrix data."
+        loading={true}
+      />,
+    );
+
+    expect(screen.getByLabelText("Kill matrix")).toHaveAttribute("aria-busy", "true");
+    expect(screen.queryByText("No kill matrix data.")).not.toBeInTheDocument();
+  });
+
+  it("shows empty message when not loading and no data", () => {
+    render(
+      <KillMatrixTable
+        pivotData={{ tableRows: [], victimGamertags: [] }}
+        ariaLabel="Kill matrix"
+        emptyMessage="No kill matrix data."
+        loading={false}
+      />,
+    );
+
+    expect(screen.getByText("No kill matrix data.")).toBeInTheDocument();
   });
 });

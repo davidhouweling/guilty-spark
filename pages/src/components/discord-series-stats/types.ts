@@ -1,5 +1,5 @@
 import type { MatchStatsData } from "../../controllers/stats/types";
-import type { KillMatrixViewRow } from "../../controllers/stats/kill-matrix/types";
+import type { KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
 import type { TeamColor } from "../team-colors/team-colors";
 
 export interface DiscordSeriesMatchSummary {
@@ -32,7 +32,8 @@ export interface DiscordSeriesMatchDetail {
   readonly startTime: string;
   readonly endTime: string;
   readonly teamColors: readonly TeamColor[];
-  readonly killMatrixRows: readonly KillMatrixViewRow[];
+  readonly killMatrixPivotData: KillMatrixPivotData;
+  readonly killMatrixLoading: boolean;
 }
 
 interface DiscordSeriesSeriesStats {
@@ -45,7 +46,8 @@ interface DiscordSeriesSeriesStats {
     readonly endTime: string;
   } | null;
   readonly teamColors: readonly TeamColor[];
-  readonly killMatrixRows: readonly KillMatrixViewRow[];
+  readonly killMatrixPivotData: KillMatrixPivotData;
+  readonly killMatrixLoading: boolean;
 }
 
 export interface DiscordSeriesStatsViewModel {

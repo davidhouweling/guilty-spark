@@ -9,14 +9,24 @@ interface KillMatrixTableProps {
   readonly pivotData: KillMatrixPivotData;
   readonly ariaLabel: string;
   readonly emptyMessage: string;
+  readonly loading?: boolean;
+  readonly killerAxisLabel?: string;
+  readonly victimAxisLabel?: string;
 }
 
-export function KillMatrixTable({ pivotData, ariaLabel, emptyMessage }: KillMatrixTableProps): React.ReactElement {
+export function KillMatrixTable({
+  pivotData,
+  ariaLabel,
+  emptyMessage,
+  loading,
+  killerAxisLabel = "Kills",
+  victimAxisLabel = "Deaths",
+}: KillMatrixTableProps): React.ReactElement {
   const columns = React.useMemo<SortableTableColumn<KillMatrixPivotRow>[]>(() => {
     const cols: SortableTableColumn<KillMatrixPivotRow>[] = [
       {
         id: "killer",
-        header: "Killer",
+        header: killerAxisLabel,
         accessorFn: (row): string => row.killerGamertag,
         sortingFn: "alphanumeric",
         cellClassName: tableStyles.labelCell,
@@ -34,18 +44,31 @@ export function KillMatrixTable({ pivotData, ariaLabel, emptyMessage }: KillMatr
     }
 
     return cols;
-  }, [pivotData.victimGamertags]);
+  }, [killerAxisLabel, pivotData.victimGamertags]);
+
+  if (loading === true) {
+    return (
+      <div className={styles.shimmerContainer} aria-busy="true" aria-label={ariaLabel}>
+        {Array.from({ length: 5 }, (_, i) => (
+          <div key={i} className={styles.shimmerRow} style={{ width: `${(85 + (i % 3) * 5).toString()}%` }} />
+        ))}
+      </div>
+    );
+  }
 
   if (pivotData.tableRows.length === 0) {
     return <Alert variant="info">{emptyMessage}</Alert>;
   }
 
   return (
-    <SortableTable
-      data={pivotData.tableRows}
-      columns={columns}
-      getRowKey={(row): string => row.killerId}
-      ariaLabel={ariaLabel}
-    />
+    <div>
+      <div className={styles.victimAxisLabel}>{victimAxisLabel} →</div>
+      <SortableTable
+        data={pivotData.tableRows}
+        columns={columns}
+        getRowKey={(row): string => row.killerId}
+        ariaLabel={ariaLabel}
+      />
+    </div>
   );
 }

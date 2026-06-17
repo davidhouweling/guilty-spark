@@ -2,6 +2,7 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 
 export interface DiscordSeriesStatsSnapshot {
   readonly analyticsByMatchId: ReadonlyMap<string, MatchAnalytics>;
+  readonly analyticsLoading: boolean;
 }
 
 export class DiscordSeriesStatsStore {
@@ -9,7 +10,7 @@ export class DiscordSeriesStatsStore {
   private readonly subscribers = new Set<() => void>();
 
   constructor() {
-    this.snapshot = { analyticsByMatchId: new Map() };
+    this.snapshot = { analyticsByMatchId: new Map(), analyticsLoading: true };
   }
 
   subscribe(listener: () => void): () => void {

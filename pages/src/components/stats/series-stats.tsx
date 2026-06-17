@@ -7,8 +7,7 @@ import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
 import type { TeamColor } from "../team-colors/team-colors";
 import { Container } from "../container/container";
-import type { KillMatrixViewRow } from "../../controllers/stats/kill-matrix/types";
-import { KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
+import type { KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
 import type { MatchStatsData, MatchStatsPlayerData } from "../../controllers/stats/types";
 import type { SeriesMetadata } from "../../controllers/stats/series-metadata";
 import { sortByMedals, getTeamMedalsMap, getPlayerMedalsMap } from "../../controllers/stats/medals-sorting";
@@ -21,7 +20,8 @@ interface SeriesStatsProps {
   readonly title: string;
   readonly metadata: SeriesMetadata | null;
   readonly teamColors?: readonly TeamColor[];
-  readonly killMatrixRows?: readonly KillMatrixViewRow[];
+  readonly killMatrixPivotData?: KillMatrixPivotData;
+  readonly killMatrixLoading?: boolean;
 }
 
 type MatchStatsRow = MatchStatsData & { player: MatchStatsPlayerData };
@@ -32,7 +32,8 @@ export function SeriesStats({
   title,
   metadata,
   teamColors,
-  killMatrixRows,
+  killMatrixPivotData,
+  killMatrixLoading,
 }: SeriesStatsProps): React.ReactElement {
   const [activeTab, setActiveTab] = React.useState<"accumulated" | "kill-matrix">("accumulated");
   const hasTeamStats = teamData.length > 0 && teamData[0].teamStats.length > 0;
@@ -259,7 +260,8 @@ export function SeriesStats({
               label: "Kill Matrix",
               content: (
                 <KillMatrixTable
-                  pivotData={KillMatrixFormatter.pivot(killMatrixRows ?? [])}
+                  pivotData={killMatrixPivotData ?? { tableRows: [], victimGamertags: [] }}
+                  loading={killMatrixLoading}
                   ariaLabel="Series kill matrix"
                   emptyMessage="Kill matrix data is not available for this series yet."
                 />
