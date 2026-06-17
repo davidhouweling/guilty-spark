@@ -26,8 +26,8 @@ export class ConsoleLogClient implements LogService {
     if (typeof value === "string") {
       return value;
     }
-    if (value === undefined) {
-      return "undefined";
+    if (value === undefined || typeof value === "function" || typeof value === "symbol") {
+      return String(value);
     }
     try {
       return JSON.stringify(value);

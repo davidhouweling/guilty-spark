@@ -19,8 +19,8 @@ export class SentryLogClient implements LogService {
     if (typeof message === "string") {
       return message;
     }
-    if (message === undefined) {
-      return "undefined";
+    if (message === undefined || typeof message === "function" || typeof message === "symbol") {
+      return String(message);
     }
     try {
       return JSON.stringify(message);
