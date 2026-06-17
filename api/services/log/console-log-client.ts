@@ -2,36 +2,50 @@ import type { LogService, JsonAny } from "./types";
 
 export class ConsoleLogClient implements LogService {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  debug(_error: Error | string, _extra?: ReadonlyMap<string, JsonAny>): void {
-    // console.debug(error, extra ? JSON.stringify([...extra], null, 2) : undefined);
+  debug(_message: unknown, _extra?: ReadonlyMap<string, JsonAny>): void {
+    // no-op
   }
 
-  info(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void {
-    console.info(this.format(error, extra));
+  info(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void {
+    console.info(this.format(message, extra, this.captureCallSiteStack()));
   }
 
-  warn(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void {
-    console.warn(this.format(error, extra));
+  warn(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void {
+    console.warn(this.format(message, extra, this.captureCallSiteStack()));
   }
 
-  error(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void {
-    console.error(this.format(error, extra));
+  error(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void {
+    console.error(this.format(message, extra, this.captureCallSiteStack()));
   }
 
-  fatal(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): void {
-    console.error("FATAL:", this.format(error, extra));
+  fatal(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void {
+    console.error("FATAL:", this.format(message, extra, this.captureCallSiteStack()));
   }
 
-  private format(error: Error | string, extra?: ReadonlyMap<string, JsonAny>): string {
-    const content: Record<string, JsonAny> = {
-      message: typeof error === "string" ? error : error.message,
-    };
+  private captureCallSiteStack(): string {
+    const lines = new Error().stack?.split("\n") ?? [];
+    return lines
+      .filter((line) => line !== "Error" && !line.includes("console-log-client") && !line.includes("aggregator-client"))
+      .join("\n");
+  }
 
-    if (typeof error !== "string") {
-      content["stack"] = error.stack;
+  private format(message: unknown, extra?: ReadonlyMap<string, JsonAny>, callStack?: string): string {
+    const content: Record<string, JsonAny> = {};
+
+    if (message instanceof Error) {
+      content["message"] = message.message;
+      if (message.stack != null) {
+        content["stack"] = message.stack;
+      }
+    } else {
+      content["message"] = typeof message === "string" ? message : String(message);
     }
 
-    if (extra) {
+    if (callStack != null && callStack.length > 0) {
+      content["callStack"] = callStack;
+    }
+
+    if (extra != null) {
       for (const [key, value] of extra) {
         content[key] = value;
       }
