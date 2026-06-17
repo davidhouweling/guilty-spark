@@ -36,7 +36,7 @@ export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installS
 
     if (failureCount > 0) {
       services.logService.error(
-        new Error(`${String(failureCount)}/${String(matchIds.length)} match analytics fetches failed`),
+        new Error(`${failureCount.toString()}/${matchIds.length.toString()} match analytics fetches failed`),
         new Map([["route", "stats:batch-match-analytics"]]),
       );
     }

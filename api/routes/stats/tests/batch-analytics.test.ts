@@ -64,13 +64,14 @@ describe("/api/stats/batch-match-analytics", () => {
     expect(getMatchAnalyticsSpy).toHaveBeenCalledWith("match-2", ["killMatrix"]);
   });
 
-  it("returns null for matchIds that fail, successful ones with data", async () => {
+  it("returns null for matchIds that fail, successful ones with data, and logs the failure count", async () => {
     const analytics = aFakeAnalytics();
 
     const services = installFakeServicesWith({ env });
     vi.spyOn(services.analyticsService, "getMatchAnalytics")
       .mockResolvedValueOnce(analytics)
       .mockRejectedValueOnce(new Error("halo api down"));
+    const logErrorSpy: MockInstance<typeof services.logService.error> = vi.spyOn(services.logService, "error");
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
     statsRoutesRegisterHandler(router, localInstallServices);
 
@@ -87,6 +88,11 @@ describe("/api/stats/batch-match-analytics", () => {
         "match-fail": null,
       },
     });
+    expect(logErrorSpy).toHaveBeenCalledOnce();
+    expect(logErrorSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "1/2 match analytics fetches failed" }),
+      new Map([["route", "stats:batch-match-analytics"]]),
+    );
   });
 
   it("returns 400 when matchIds param is missing", async () => {
