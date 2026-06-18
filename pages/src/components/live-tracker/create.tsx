@@ -22,6 +22,7 @@ import type { LiveTrackerViewModel } from "./types";
 import { LiveTrackerProvider } from "./live-tracker-context";
 
 const killMatrixFormatter = new KillMatrixFormatter();
+const ANALYTICS_BATCH_SIZE = 30;
 
 interface LiveTrackerProps {
   readonly liveTrackerService: LiveTrackerService;
@@ -171,18 +172,24 @@ export function LiveTracker({ liveTrackerService, matchAnalyticsService }: LiveT
       setAnalyticsStatus(ComponentLoaderStatus.LOADING);
     }
 
-    matchAnalyticsService
-      .getBatchMatchAnalytics(newMatchIds)
-      .then((results) => {
+    const chunks: string[][] = [];
+    for (let i = 0; i < newMatchIds.length; i += ANALYTICS_BATCH_SIZE) {
+      chunks.push(newMatchIds.slice(i, i + ANALYTICS_BATCH_SIZE));
+    }
+
+    Promise.all(chunks.map(async (chunk) => matchAnalyticsService.getBatchMatchAnalytics(chunk)))
+      .then((allResults) => {
         settled = true;
         if (cancelled) {
           return;
         }
         setAnalyticsByMatchId((prev) => {
           const map = new Map(prev);
-          for (const [matchId, analytics] of Object.entries(results)) {
-            if (analytics != null) {
-              map.set(matchId, analytics);
+          for (const results of allResults) {
+            for (const [matchId, analytics] of Object.entries(results)) {
+              if (analytics != null) {
+                map.set(matchId, analytics);
+              }
             }
           }
           return map;

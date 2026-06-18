@@ -3,7 +3,11 @@ import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, waitFor, cleanup } from "@testing-library/react";
 
-import type { LiveTrackerMessage, LiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/types";
+import type {
+  LiveTrackerMatchSummary,
+  LiveTrackerMessage,
+  LiveTrackerStateMessage,
+} from "@guilty-spark/shared/live-tracker/types";
 import type {
   LiveTrackerConnection,
   LiveTrackerStatusListener,
@@ -18,6 +22,72 @@ function isSteppableLiveTrackerConnection(
   connection: LiveTrackerConnection,
 ): connection is SteppableLiveTrackerConnection {
   return "step" in connection && typeof connection.step === "function";
+}
+
+function aMatchSummary(matchId: string): LiveTrackerMatchSummary {
+  return {
+    matchId,
+    gameTypeAndMap: "Slayer: Aquarius",
+    gameType: "Slayer",
+    gameMap: "Aquarius",
+    gameMapThumbnailUrl: "data:,",
+    duration: "10m 0s",
+    gameScore: "50:49",
+    gameSubScore: null,
+    startTime: "2024-12-31T23:50:00.000Z",
+    endTime: "2025-01-01T00:00:00.000Z",
+    playerXuidToGametag: {},
+  };
+}
+
+function aStateMessage(matchIds: readonly string[], rawMatchIds: readonly string[] = []): LiveTrackerStateMessage {
+  return {
+    type: "state",
+    timestamp: "2025-01-01T00:00:00.000Z",
+    data: {
+      type: "neatqueue",
+      guildId: "1",
+      guildIcon: null,
+      guildName: "Guild 1",
+      channelId: "2",
+      queueNumber: 3,
+      status: "active",
+      lastUpdateTime: "2025-01-01T00:00:00.000Z",
+      players: [],
+      teams: [],
+      substitutions: [],
+      matchSummaries: matchIds.map(aMatchSummary),
+      rawMatches: Object.fromEntries(
+        rawMatchIds.map((id) => [id, { MatchId: id, Teams: [], Players: [], MatchInfo: {} }]),
+      ),
+      seriesScore: "0:0",
+      medalMetadata: {},
+      playersAssociationData: {},
+    },
+  };
+}
+
+async function renderLiveTrackerWith(
+  stateMessage: LiveTrackerStateMessage,
+  analyticsService = aFakeMatchAnalyticsServiceWith(),
+): Promise<SteppableLiveTrackerConnection> {
+  window.history.pushState({}, "", "/tracker?server=1&queue=3");
+
+  const scenario = aFakeLiveTrackerScenarioWith({
+    intervalMs: 10,
+    frames: [stateMessage] satisfies readonly LiveTrackerMessage[],
+  });
+  const liveTrackerService = aFakeLiveTrackerServiceWith({ scenario, mode: "manual" });
+  const connection = await liveTrackerService.connect({ type: "team" as const, guildId: "1", queueNumber: "3" });
+  vi.spyOn(liveTrackerService, "connect").mockResolvedValue(connection);
+
+  render(<LiveTracker liveTrackerService={liveTrackerService} matchAnalyticsService={analyticsService} />);
+  await waitFor(() => expect(screen.getByText("Connecting...")).toBeInTheDocument());
+
+  if (!isSteppableLiveTrackerConnection(connection)) {
+    throw new Error("Expected steppable fake connection in manual mode");
+  }
+  return connection;
 }
 
 describe("LiveTracker", () => {
@@ -107,6 +177,65 @@ describe("LiveTracker", () => {
     });
 
     expect(screen.getByText("Matches")).toBeInTheDocument();
+  });
+
+  describe("analytics effect", () => {
+    it("calls getBatchMatchAnalytics for match IDs that have rawMatchStats", async () => {
+      const analyticsService = aFakeMatchAnalyticsServiceWith();
+      const spy = vi.spyOn(analyticsService, "getBatchMatchAnalytics");
+
+      const connection = await renderLiveTrackerWith(aStateMessage(["m1"], ["m1"]), analyticsService);
+      connection.step();
+
+      await waitFor(() => {
+        expect(spy).toHaveBeenCalledWith(["m1"]);
+      });
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not call getBatchMatchAnalytics when no matches have rawMatchStats", async () => {
+      const analyticsService = aFakeMatchAnalyticsServiceWith();
+      const spy = vi.spyOn(analyticsService, "getBatchMatchAnalytics");
+
+      const connection = await renderLiveTrackerWith(aStateMessage(["m1"], []), analyticsService);
+      connection.step();
+
+      await waitFor(() => expect(screen.getByText(/Series overview/i)).toBeInTheDocument());
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("chunks analytics requests at 30 match IDs per batch", async () => {
+      const matchIds = Array.from({ length: 31 }, (_, i) => `m${(i + 1).toString()}`);
+      const analyticsService = aFakeMatchAnalyticsServiceWith();
+      const spy = vi.spyOn(analyticsService, "getBatchMatchAnalytics");
+
+      const connection = await renderLiveTrackerWith(aStateMessage(matchIds, matchIds), analyticsService);
+      connection.step();
+
+      await waitFor(() => {
+        expect(spy).toHaveBeenCalledTimes(2);
+      });
+      expect(spy.mock.calls[0]?.[0]).toHaveLength(30);
+      expect(spy.mock.calls[1]?.[0]).toHaveLength(1);
+    });
+
+    it("does not re-fetch analytics for match IDs already fetched", async () => {
+      const analyticsService = aFakeMatchAnalyticsServiceWith();
+      const spy = vi.spyOn(analyticsService, "getBatchMatchAnalytics");
+
+      const connection = await renderLiveTrackerWith(aStateMessage(["m1"], ["m1"]), analyticsService);
+      connection.step();
+
+      await waitFor(() => {
+        expect(spy).toHaveBeenCalledTimes(1);
+      });
+      connection.step();
+
+      await waitFor(() => {
+        expect(screen.getAllByText(/Series overview/i).length).toBeGreaterThan(0);
+      });
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("shows an error state when the tracker is not found", async () => {
