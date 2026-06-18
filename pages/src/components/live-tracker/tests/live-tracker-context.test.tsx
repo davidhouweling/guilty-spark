@@ -96,9 +96,7 @@ describe("LiveTrackerContext", () => {
 
   it("provides tracker info to hooks", () => {
     const { result } = renderHook(() => useTrackerInfo(), {
-      wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
-      ),
+      wrapper: ({ children }) => <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>,
     });
 
     expect(result.current.title).toBe("Test Guild");
@@ -110,9 +108,7 @@ describe("LiveTrackerContext", () => {
 
   it("provides tracker state to hooks", () => {
     const { result } = renderHook(() => useTrackerState(), {
-      wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
-      ),
+      wrapper: ({ children }) => <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>,
     });
 
     expect.assertions(3);
@@ -125,9 +121,7 @@ describe("LiveTrackerContext", () => {
 
   it("provides teams to hooks", () => {
     const { result } = renderHook(() => useTrackerTeams(), {
-      wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
-      ),
+      wrapper: ({ children }) => <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>,
     });
 
     expect(result.current?.length).toBe(1);
@@ -139,7 +133,9 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useTrackerTeams(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps} model={model}>{children}</LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} model={model}>
+          {children}
+        </LiveTrackerProvider>
       ),
     });
 
@@ -148,9 +144,7 @@ describe("LiveTrackerContext", () => {
 
   it("provides matches to hooks", () => {
     const { result } = renderHook(() => useTrackerMatches(), {
-      wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
-      ),
+      wrapper: ({ children }) => <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>,
     });
 
     expect(result.current?.length).toBe(1);
@@ -162,7 +156,9 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useTrackerMatches(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps} model={model}>{children}</LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} model={model}>
+          {children}
+        </LiveTrackerProvider>
       ),
     });
 
@@ -199,7 +195,9 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useTrackerPlayersData(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps} model={model}>{children}</LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} model={model}>
+          {children}
+        </LiveTrackerProvider>
       ),
     });
 
@@ -208,9 +206,7 @@ describe("LiveTrackerContext", () => {
 
   it("provides series score to hooks", () => {
     const { result } = renderHook(() => useSeriesScore(), {
-      wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
-      ),
+      wrapper: ({ children }) => <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>,
     });
 
     expect(result.current).toBe("1:0");
@@ -221,7 +217,9 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useSeriesScore(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps} model={model}>{children}</LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} model={model}>
+          {children}
+        </LiveTrackerProvider>
       ),
     });
 
@@ -236,7 +234,9 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useAllMatchStats(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps} allMatchStats={allMatchStats}>{children}</LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} allMatchStats={allMatchStats}>
+          {children}
+        </LiveTrackerProvider>
       ),
     });
 
@@ -253,7 +253,9 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useSeriesStats(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps} seriesStats={seriesStats}>{children}</LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} seriesStats={seriesStats}>
+          {children}
+        </LiveTrackerProvider>
       ),
     });
 
@@ -262,9 +264,7 @@ describe("LiveTrackerContext", () => {
 
   it("provides match by index to hooks", () => {
     const { result } = renderHook(() => useMatchByIndex(0), {
-      wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
-      ),
+      wrapper: ({ children }) => <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>,
     });
 
     expect(result.current?.matchId).toBe("match1");
@@ -272,9 +272,7 @@ describe("LiveTrackerContext", () => {
 
   it("returns null for invalid match index", () => {
     const { result } = renderHook(() => useMatchByIndex(5), {
-      wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
-      ),
+      wrapper: ({ children }) => <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>,
     });
 
     expect(result.current).toBeNull();
@@ -282,9 +280,7 @@ describe("LiveTrackerContext", () => {
 
   it("returns null for negative match index", () => {
     const { result } = renderHook(() => useMatchByIndex(-1), {
-      wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
-      ),
+      wrapper: ({ children }) => <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>,
     });
 
     expect(result.current).toBeNull();
@@ -306,7 +302,9 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useSubstitutions(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps} model={model}>{children}</LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} model={model}>
+          {children}
+        </LiveTrackerProvider>
       ),
     });
 
@@ -316,9 +314,7 @@ describe("LiveTrackerContext", () => {
 
   it("provides match count to hooks", () => {
     const { result } = renderHook(() => useMatchCount(), {
-      wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
-      ),
+      wrapper: ({ children }) => <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>,
     });
 
     expect(result.current).toBe(1);
@@ -329,7 +325,9 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useMatchCount(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps} model={model}>{children}</LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} model={model}>
+          {children}
+        </LiveTrackerProvider>
       ),
     });
 
@@ -338,9 +336,7 @@ describe("LiveTrackerContext", () => {
 
   it("provides has matches flag to hooks", () => {
     const { result } = renderHook(() => useHasMatches(), {
-      wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
-      ),
+      wrapper: ({ children }) => <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>,
     });
 
     expect(result.current).toBe(true);
@@ -351,7 +347,9 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useHasMatches(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps} model={model}>{children}</LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} model={model}>
+          {children}
+        </LiveTrackerProvider>
       ),
     });
 
@@ -373,7 +371,9 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useHasMatches(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps} model={model}>{children}</LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} model={model}>
+          {children}
+        </LiveTrackerProvider>
       ),
     });
 
@@ -382,9 +382,7 @@ describe("LiveTrackerContext", () => {
 
   it("provides tracker identity to hooks", () => {
     const { result } = renderHook(() => useTrackerIdentity(), {
-      wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
-      ),
+      wrapper: ({ children }) => <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>,
     });
 
     expect(result.current?.guildId).toBe("Test Guild");
@@ -396,7 +394,9 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useTrackerIdentity(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider {...defaultProviderProps} model={model}>{children}</LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} model={model}>
+          {children}
+        </LiveTrackerProvider>
       ),
     });
 
