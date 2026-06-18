@@ -15,7 +15,8 @@ export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installS
       return queryParams.response;
     }
 
-    const { matchIds, modules } = queryParams.data;
+    const { matchIds: rawMatchIds, modules } = queryParams.data;
+    const matchIds = [...new Set(rawMatchIds)];
 
     const results = await services.analyticsService.getBatchMatchAnalytics(matchIds, modules);
 

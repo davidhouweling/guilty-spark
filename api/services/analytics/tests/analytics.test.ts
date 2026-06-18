@@ -133,12 +133,13 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     const logService = aFakeLogServiceWith();
     const logWarnSpy = vi.spyOn(logService, "warn");
     vi.spyOn(haloFilmService, "warmAuthCache").mockRejectedValue(new Error("auth down"));
-    vi.spyOn(haloService, "getMatchDetails").mockRejectedValue(new Error("auth down"));
+    const getMatchDetailsSpy = vi.spyOn(haloService, "getMatchDetails").mockRejectedValue(new Error("auth down"));
 
     const service = new AnalyticsService({ haloService, haloFilmService, logService });
     const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix"]);
 
     expect(logWarnSpy).toHaveBeenCalledOnce();
+    expect(getMatchDetailsSpy).toHaveBeenCalledOnce();
     expect(results["match-1"]).toBeNull();
   });
 });
