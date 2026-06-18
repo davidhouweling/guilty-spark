@@ -52,6 +52,22 @@ export function KillMatrixTable({
   const teamColorOf = (teamId: number | null): string =>
     (teamId != null ? teamColors?.[teamId]?.hex : undefined) ?? "transparent";
 
+  const renderPlayerHeader = (gamertag: string, teamId: number | null): React.ReactNode => (
+    <span className={styles.playerHeader}>
+      {teamId != null && <TeamIcon teamId={teamId} size="x-small" />}
+      {gamertag}
+    </span>
+  );
+
+  const rowTeamStyle = (teamId: number | null): React.CSSProperties =>
+    ({ "--row-team-color": teamColorOf(teamId) }) as React.CSSProperties;
+
+  const colTeamStyle = (teamId: number | null): React.CSSProperties =>
+    ({ "--col-team-color": teamColorOf(teamId) }) as React.CSSProperties;
+
+  const cellTeamStyle = (rowTeamId: number | null, colTeamId: number | null): React.CSSProperties =>
+    ({ "--row-team-color": teamColorOf(rowTeamId), "--col-team-color": teamColorOf(colTeamId) }) as React.CSSProperties;
+
   const columns = React.useMemo<SortableTableColumn<KillMatrixPivotRow>[]>(() => {
     if (effectiveStatus !== ComponentLoaderStatus.LOADED) {
       return [];
@@ -61,48 +77,31 @@ export function KillMatrixTable({
       {
         id: "killer",
         header: activeKillerAxisLabel,
-        accessorFn: (row): string => row.killerGamertag,
+        accessorFn: (row: KillMatrixPivotRow): string => row.killerGamertag,
         sortingFn: "alphanumeric",
         cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
         cellStyle:
           teamColors != null
-            ? (row): React.CSSProperties =>
-                ({ "--row-team-color": teamColorOf(row.killerTeamId) }) as React.CSSProperties
+            ? (row: KillMatrixPivotRow): React.CSSProperties => rowTeamStyle(row.killerTeamId)
             : undefined,
-        cell: (_value, row): React.ReactNode => {
-          const { killerTeamId } = row;
-          return (
-            <span className={styles.playerHeader}>
-              {killerTeamId != null && <TeamIcon teamId={killerTeamId} size="x-small" />}
-              {row.killerGamertag}
-            </span>
-          );
-        },
+        cell: (_value: unknown, row: KillMatrixPivotRow): React.ReactNode =>
+          renderPlayerHeader(row.killerGamertag, row.killerTeamId),
       },
     ];
 
     for (const { gamertag, teamId } of activePivotData.columnHeaders) {
-      const colColor = teamColorOf(teamId);
+      const colTeamId: number | null = teamId;
       cols.push({
         id: gamertag,
-        header: (
-          <span className={styles.playerHeader}>
-            {teamId != null && <TeamIcon teamId={teamId} size="x-small" />}
-            {gamertag}
-          </span>
-        ),
+        header: renderPlayerHeader(gamertag, colTeamId),
         headerClassName: styles.colHeader,
-        headerStyle: teamColors != null ? ({ "--col-team-color": colColor } as React.CSSProperties) : undefined,
+        headerStyle: teamColors != null ? colTeamStyle(colTeamId) : undefined,
         accessorFn: (row: KillMatrixPivotRow): number => row.kills.get(gamertag) ?? 0,
         sortingFn: "basic",
         cellClassName: styles.killCell,
         cellStyle:
           teamColors != null
-            ? (row): React.CSSProperties =>
-                ({
-                  "--row-team-color": teamColorOf(row.killerTeamId),
-                  "--col-team-color": colColor,
-                }) as React.CSSProperties
+            ? (row: KillMatrixPivotRow): React.CSSProperties => cellTeamStyle(row.killerTeamId, colTeamId)
             : undefined,
       });
     }
@@ -122,46 +121,29 @@ export function KillMatrixTable({
         cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
         cellStyle:
           teamColors != null
-            ? (row): React.CSSProperties =>
-                ({
-                  "--row-team-color": teamColorOf(playerHeaders?.[row.index]?.teamId ?? null),
-                }) as React.CSSProperties
+            ? (row): React.CSSProperties => rowTeamStyle(playerHeaders?.[row.index]?.teamId ?? null)
             : undefined,
         cell: (_value, row): React.ReactNode => {
-          const rowHeader = playerHeaders?.[row.index];
-          return (
-            <span className={styles.playerHeader}>
-              {rowHeader?.teamId != null && <TeamIcon teamId={rowHeader.teamId} size="x-small" />}
-              {rowHeader?.gamertag ?? ""}
-            </span>
-          );
+          const ph = playerHeaders?.[row.index];
+          return renderPlayerHeader(ph?.gamertag ?? "", ph?.teamId ?? null);
         },
       },
     ];
 
     for (let i = 0; i < playerCount; i++) {
       const header = playerHeaders?.[i];
-      const colColor = teamColorOf(header?.teamId ?? null);
+      const colTeamId = header?.teamId ?? null;
       cols.push({
         id: `victim-${i.toString()}`,
-        header: (
-          <span className={styles.playerHeader}>
-            {header?.teamId != null && <TeamIcon teamId={header.teamId} size="x-small" />}
-            {header?.gamertag ?? ""}
-          </span>
-        ),
+        header: renderPlayerHeader(header?.gamertag ?? "", colTeamId),
         headerClassName: styles.colHeader,
-        headerStyle: teamColors != null ? ({ "--col-team-color": colColor } as React.CSSProperties) : undefined,
+        headerStyle: teamColors != null ? colTeamStyle(colTeamId) : undefined,
         accessorFn: (): number => 0,
         enableSorting: false,
         cellClassName: styles.killCell,
         cellStyle:
           teamColors != null
-            ? (row): React.CSSProperties =>
-                ({
-                  "--row-team-color": teamColorOf(playerHeaders?.[row.index]?.teamId ?? null),
-                  "--col-team-color": colColor,
-                }) as React.CSSProperties
+            ? (row): React.CSSProperties => cellTeamStyle(playerHeaders?.[row.index]?.teamId ?? null, colTeamId)
             : undefined,
         cell: (): React.ReactNode => <div className={styles.shimmerCell} />,
       });
