@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import type { Mocked } from "vitest";
+import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import {
   aFakeIndividualTrackerViewServiceWith,
@@ -312,8 +313,8 @@ describe("IndividualTrackerViewerPresenter", () => {
         ],
       });
 
-      const analytics = {
-        requestedModules: ["killMatrix"] as const,
+      const analytics: MatchAnalytics = {
+        requestedModules: ["killMatrix"],
         killMatrix: {
           "3333333333:1111111111": { count: 2, headshotKills: 0, perfects: 0, weapons: [] },
           "1111111111:3333333333": { count: 1, headshotKills: 0, perfects: 0, weapons: [] },
