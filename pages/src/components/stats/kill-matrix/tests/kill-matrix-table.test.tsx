@@ -234,10 +234,10 @@ describe("KillMatrixTable", () => {
     const table = screen.getByRole("table", { name: "Kill matrix" });
     const headers = table.querySelectorAll("thead th");
     const victimHeader = Array.from(headers).find((th) => th.textContent.includes("Bravo"));
-    expect(victimHeader).toHaveStyle({ background: "color-mix(in srgb, #3B9DFF 20%, transparent)" });
+    expect(victimHeader).toHaveStyle({ "--col-team-color": "#3B9DFF" });
 
     const killerCell = table.querySelector("tbody tr td:first-child");
-    expect(killerCell).toHaveStyle({ background: "color-mix(in srgb, #FE3939 20%, transparent)" });
+    expect(killerCell).toHaveStyle({ "--row-team-color": "#FE3939" });
   });
 
   it("does not render toggle button when transposedPivotData is not provided", () => {

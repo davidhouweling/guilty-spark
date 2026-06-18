@@ -48,10 +48,8 @@ export function KillMatrixTable({
       return [];
     }
 
-    const teamColorOf = (teamId: number | null): string | undefined =>
-      teamId != null ? teamColors?.[teamId]?.hex : undefined;
-
-    const tint = (hex: string): string => `color-mix(in srgb, ${hex} 20%, transparent)`;
+    const teamColorOf = (teamId: number | null): string =>
+      (teamId != null ? teamColors?.[teamId]?.hex : undefined) ?? "transparent";
 
     const cols: SortableTableColumn<KillMatrixPivotRow>[] = [
       {
@@ -59,13 +57,11 @@ export function KillMatrixTable({
         header: activeKillerAxisLabel,
         accessorFn: (row): string => row.killerGamertag,
         sortingFn: "alphanumeric",
-        cellClassName: tableStyles.labelCell,
+        cellClassName: `${tableStyles.labelCell} ${styles.killerCell}`,
         cellStyle:
           teamColors != null
-            ? (row): React.CSSProperties => {
-                const hex = teamColorOf(row.killerTeamId);
-                return hex != null ? { background: tint(hex) } : {};
-              }
+            ? (row): React.CSSProperties =>
+                ({ "--row-team-color": teamColorOf(row.killerTeamId) }) as React.CSSProperties
             : undefined,
         cell: (_value, row): React.ReactNode => {
           const { killerTeamId } = row;
@@ -80,7 +76,7 @@ export function KillMatrixTable({
     ];
 
     for (const { gamertag, teamId } of activePivotData.columnHeaders) {
-      const colHex = teamColorOf(teamId);
+      const colColor = teamColorOf(teamId);
       cols.push({
         id: gamertag,
         header: (
@@ -89,21 +85,18 @@ export function KillMatrixTable({
             {gamertag}
           </span>
         ),
-        headerStyle: colHex != null ? { background: tint(colHex) } : undefined,
+        headerClassName: styles.colHeader,
+        headerStyle: teamColors != null ? ({ "--col-team-color": colColor } as React.CSSProperties) : undefined,
         accessorFn: (row: KillMatrixPivotRow): number => row.kills.get(gamertag) ?? 0,
         sortingFn: "basic",
         cellClassName: styles.killCell,
         cellStyle:
           teamColors != null
-            ? (row): React.CSSProperties => {
-                const rowHex = teamColorOf(row.killerTeamId);
-                if (rowHex == null && colHex == null) {
-                  return {};
-                }
-                const rowColor = rowHex != null ? tint(rowHex) : "transparent";
-                const colColor = colHex != null ? tint(colHex) : "transparent";
-                return { background: `linear-gradient(135deg, ${rowColor} 50%, ${colColor} 50%)` };
-              }
+            ? (row): React.CSSProperties =>
+                ({
+                  "--row-team-color": teamColorOf(row.killerTeamId),
+                  "--col-team-color": colColor,
+                }) as React.CSSProperties
             : undefined,
       });
     }
