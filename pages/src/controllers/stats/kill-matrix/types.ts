@@ -2,18 +2,24 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 
 export type KillMatrixClassification = "enemy-kill" | "betrayal" | "suicide";
 
+export interface KillMatrixColumnHeader {
+  readonly gamertag: string;
+  readonly teamId: number | null;
+}
+
 export interface KillMatrixPivotRow {
   readonly killerId: string;
   readonly killerGamertag: string;
-  readonly [victimGamertag: string]: string | number;
+  readonly killerTeamId: number | null;
+  readonly kills: ReadonlyMap<string, number>;
 }
 
 export interface KillMatrixPivotData {
   readonly tableRows: readonly KillMatrixPivotRow[];
-  readonly victimGamertags: readonly string[];
+  readonly columnHeaders: readonly KillMatrixColumnHeader[];
 }
 
-export const EMPTY_KILL_MATRIX_PIVOT_DATA: KillMatrixPivotData = { tableRows: [], victimGamertags: [] };
+export const EMPTY_KILL_MATRIX_PIVOT_DATA: KillMatrixPivotData = { tableRows: [], columnHeaders: [] };
 
 export interface KillMatrixPlayer {
   readonly xuid: string;

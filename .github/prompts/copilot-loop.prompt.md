@@ -98,7 +98,7 @@ gh api repos/{owner}/{repo}/pulls/{PR}/comments/{COMMENT_ID}/replies \
   -X POST -f body="Not actioned: <reason>."
 ```
 
-**Resolve every thread.** Get thread node IDs:
+**Resolve every unresolved Copilot thread.** Get thread node IDs, including the author of the first comment so you can filter to Copilot-owned threads only:
 
 ```bash
 gh api graphql -f query='
@@ -109,7 +109,7 @@ gh api graphql -f query='
         nodes {
           id
           isResolved
-          comments(first: 1) { nodes { databaseId } }
+          comments(first: 1) { nodes { databaseId author { login } } }
         }
       }
     }
@@ -117,7 +117,7 @@ gh api graphql -f query='
 }'
 ```
 
-Resolve each unresolved thread for the comments just replied to:
+Resolve each unresolved thread whose first comment author login contains `"copilot"`:
 
 ```bash
 gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "{NODE_ID}"}) { thread { isResolved } } }'

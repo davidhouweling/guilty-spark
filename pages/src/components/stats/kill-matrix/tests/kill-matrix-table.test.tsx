@@ -1,6 +1,13 @@
 import "@testing-library/jest-dom/vitest";
 
-import { afterEach, describe, expect, it } from "vitest";
+import type { ReactNode } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../../icons/team-icon", () => ({
+  TeamIcon: ({ teamId }: { teamId: number }): ReactNode => (
+    <div data-testid={`team-icon-${teamId.toString()}`}>Team {teamId.toString()}</div>
+  ),
+}));
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
@@ -138,6 +145,64 @@ describe("KillMatrixTable", () => {
     );
 
     expect(screen.getByText("No kill matrix data.")).toBeInTheDocument();
+  });
+
+  it("renders team icons for killer row labels and victim column headers", () => {
+    const pivotData = KillMatrixFormatter.pivot([
+      {
+        key: "111:222",
+        killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+        victim: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+        count: 3,
+        headshotKills: 1,
+        perfects: 0,
+        classification: "enemy-kill",
+      },
+    ]);
+
+    render(<KillMatrixTable pivotData={pivotData} ariaLabel="Kill matrix" emptyMessage="No kill matrix data." />);
+
+    expect(screen.getByTestId("team-icon-0")).toBeInTheDocument();
+    expect(screen.getByTestId("team-icon-1")).toBeInTheDocument();
+  });
+
+  it("renders team icons after toggling to deaths view and back", async () => {
+    const user = userEvent.setup();
+    const rows = [
+      {
+        key: "111:222",
+        killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+        victim: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+        count: 3,
+        headshotKills: 1,
+        perfects: 0,
+        classification: "enemy-kill" as const,
+      },
+    ];
+    const pivotData = KillMatrixFormatter.pivot(rows);
+    const transposedPivotData = KillMatrixFormatter.transpose(rows);
+
+    render(
+      <KillMatrixTable
+        pivotData={pivotData}
+        ariaLabel="Kill matrix"
+        emptyMessage="No kill matrix data."
+        transposedPivotData={transposedPivotData}
+      />,
+    );
+
+    expect(screen.getByTestId("team-icon-0")).toBeInTheDocument();
+    expect(screen.getByTestId("team-icon-1")).toBeInTheDocument();
+
+    await user.click(screen.getByText("Switch to Deaths view"));
+
+    expect(screen.getByTestId("team-icon-0")).toBeInTheDocument();
+    expect(screen.getByTestId("team-icon-1")).toBeInTheDocument();
+
+    await user.click(screen.getByText("Switch to Kills view"));
+
+    expect(screen.getByTestId("team-icon-0")).toBeInTheDocument();
+    expect(screen.getByTestId("team-icon-1")).toBeInTheDocument();
   });
 
   it("does not render toggle button when transposedPivotData is not provided", () => {

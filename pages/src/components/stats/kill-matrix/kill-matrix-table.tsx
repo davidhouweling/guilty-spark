@@ -2,6 +2,7 @@ import React from "react";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
 import { ComponentLoader, ComponentLoaderStatus } from "../../component-loader/component-loader";
+import { TeamIcon } from "../../icons/team-icon";
 import { SortableTable, type SortableTableColumn } from "../../table/sortable-table";
 import tableStyles from "../../table/table.module.css";
 import type { KillMatrixPivotData, KillMatrixPivotRow } from "../../../controllers/stats/kill-matrix/types";
@@ -51,21 +52,35 @@ export function KillMatrixTable({
         accessorFn: (row): string => row.killerGamertag,
         sortingFn: "alphanumeric",
         cellClassName: tableStyles.labelCell,
+        cell: (_value, row): React.ReactNode => {
+          const { killerTeamId } = row;
+          return (
+            <span className={styles.playerHeader}>
+              {killerTeamId != null && <TeamIcon teamId={killerTeamId} size="x-small" />}
+              {row.killerGamertag}
+            </span>
+          );
+        },
       },
     ];
 
-    for (const victimGamertag of activePivotData.victimGamertags) {
+    for (const { gamertag, teamId } of activePivotData.columnHeaders) {
       cols.push({
-        id: victimGamertag,
-        header: victimGamertag,
-        accessorFn: (row): number => row[victimGamertag] as number,
+        id: gamertag,
+        header: (
+          <span className={styles.playerHeader}>
+            {teamId != null && <TeamIcon teamId={teamId} size="x-small" />}
+            {gamertag}
+          </span>
+        ),
+        accessorFn: (row: KillMatrixPivotRow): number => row.kills.get(gamertag) ?? 0,
         sortingFn: "basic",
         cellClassName: styles.killCell,
       });
     }
 
     return cols;
-  }, [effectiveStatus, activeKillerAxisLabel, activePivotData.victimGamertags]);
+  }, [effectiveStatus, activeKillerAxisLabel, activePivotData.columnHeaders]);
 
   const playerCount = playerGamertags !== undefined && playerGamertags.length > 0 ? playerGamertags.length : 8;
 

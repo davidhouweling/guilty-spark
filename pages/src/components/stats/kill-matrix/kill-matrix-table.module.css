@@ -1,3 +1,9 @@
+.playerHeader {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
 .killCell {
   font-variant-numeric: tabular-nums;
   text-align: center;

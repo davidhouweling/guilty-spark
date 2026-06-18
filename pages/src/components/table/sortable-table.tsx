@@ -15,7 +15,7 @@ export interface SortableTableColumn<TData> extends Omit<ColumnDef<TData>, "id" 
   /** Unique identifier for the column */
   id: string;
   /** Header label to display */
-  header: string;
+  header: React.ReactNode;
   /** Function to extract cell value from row data */
   accessorFn: (row: TData) => unknown;
   /** Function to render cell content (optional, defaults to displaying the value) */
@@ -80,7 +80,7 @@ export function SortableTable<TData>({
       columns.map((col) => ({
         id: col.id,
         accessorFn: col.accessorFn,
-        header: col.header,
+        header: (): React.ReactNode => col.header,
         cell: (info): React.ReactNode => {
           const value = info.getValue();
           return col.cell != null ? col.cell(value, info.row.original) : (value as React.ReactNode);
