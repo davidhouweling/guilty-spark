@@ -181,6 +181,38 @@ describe("KillMatrixFormatter", () => {
       expect(result.tableRows.map((r) => r.killerGamertag)).toEqual(["Bravo", "Alpha"]);
       expect(result.columnHeaders.map((h) => h.gamertag)).toEqual(["Bravo", "Alpha"]);
     });
+
+    it("appends players absent from orderedPlayers alphabetically after the ordered subset", () => {
+      const rows: KillMatrixViewRow[] = [
+        {
+          key: "111:222",
+          killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+          victim: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+          count: 3,
+          headshotKills: 0,
+          perfects: 0,
+          classification: "enemy-kill",
+        },
+        {
+          key: "999:888",
+          killer: { xuid: "999", gamertag: "Zeta", teamId: null },
+          victim: { xuid: "888", gamertag: "Omega", teamId: null },
+          count: 1,
+          headshotKills: 0,
+          perfects: 0,
+          classification: "enemy-kill",
+        },
+      ];
+
+      const orderedPlayers = [
+        { xuid: "222", gamertag: "Bravo", teamId: 1 },
+        { xuid: "111", gamertag: "Alpha", teamId: 0 },
+      ];
+      const result = KillMatrixFormatter.pivot(rows, orderedPlayers);
+
+      expect(result.tableRows.map((r) => r.killerGamertag)).toEqual(["Alpha", "Zeta"]);
+      expect(result.columnHeaders.map((h) => h.gamertag)).toEqual(["Bravo", "Omega"]);
+    });
   });
 
   describe("aggregate", () => {

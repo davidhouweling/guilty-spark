@@ -111,15 +111,28 @@ export class KillMatrixFormatter {
       victimCounts.set(row.victim.xuid, row.count);
     }
 
-    const sortedKillers =
-      orderedPlayers != null
-        ? orderedPlayers.filter((p) => killersMap.has(p.xuid))
-        : Array.from(killersMap.values()).sort((a, b) => a.gamertag.localeCompare(b.gamertag));
+    const byGamertag = (a: KillMatrixPlayer, b: KillMatrixPlayer): number => a.gamertag.localeCompare(b.gamertag);
 
-    const sortedVictims =
-      orderedPlayers != null
-        ? orderedPlayers.filter((p) => victimsMap.has(p.xuid))
-        : Array.from(victimsMap.values()).sort((a, b) => a.gamertag.localeCompare(b.gamertag));
+    let sortedKillers: KillMatrixPlayer[];
+    let sortedVictims: KillMatrixPlayer[];
+    if (orderedPlayers != null) {
+      const orderedXuids = new Set(orderedPlayers.map((p) => p.xuid));
+      sortedKillers = [
+        ...orderedPlayers.filter((p) => killersMap.has(p.xuid)),
+        ...Array.from(killersMap.values())
+          .filter((p) => !orderedXuids.has(p.xuid))
+          .sort(byGamertag),
+      ];
+      sortedVictims = [
+        ...orderedPlayers.filter((p) => victimsMap.has(p.xuid)),
+        ...Array.from(victimsMap.values())
+          .filter((p) => !orderedXuids.has(p.xuid))
+          .sort(byGamertag),
+      ];
+    } else {
+      sortedKillers = Array.from(killersMap.values()).sort(byGamertag);
+      sortedVictims = Array.from(victimsMap.values()).sort(byGamertag);
+    }
 
     const tableRows = sortedKillers.map((killer) => {
       const victimCounts = Preconditions.checkExists(killCounts.get(killer.xuid));
