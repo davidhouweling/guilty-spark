@@ -1,9 +1,10 @@
 import "@testing-library/jest-dom/vitest";
 
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../icons/team-icon", () => ({
-  TeamIcon: ({ teamId }: { teamId: number }): React.ReactNode => (
+  TeamIcon: ({ teamId }: { teamId: number }): ReactNode => (
     <div data-testid={`team-icon-${teamId.toString()}`}>Team {teamId.toString()}</div>
   ),
 }));

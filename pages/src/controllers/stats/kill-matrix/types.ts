@@ -11,7 +11,7 @@ export interface KillMatrixPivotRow {
   readonly killerId: string;
   readonly killerGamertag: string;
   readonly killerTeamId: number | null;
-  readonly kills: Map<string, number>;
+  readonly kills: ReadonlyMap<string, number>;
 }
 
 export interface KillMatrixPivotData {
