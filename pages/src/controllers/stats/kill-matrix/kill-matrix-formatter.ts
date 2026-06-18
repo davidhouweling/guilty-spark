@@ -1,7 +1,5 @@
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-
-export const GAMES_SUFFIX_RE = /\s+\(\d+\/\d+ games\)$/;
 import type {
   KillMatrixClassification,
   KillMatrixColumnHeader,
@@ -9,6 +7,8 @@ import type {
   KillMatrixPlayer,
   KillMatrixViewRow,
 } from "./types";
+
+export const GAMES_SUFFIX_RE = /\s+\(\d+\/\d+ games\)$/;
 
 interface KillMatrixFormatterPlayerLookup {
   readonly gamertag: string;
