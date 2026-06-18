@@ -98,6 +98,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
       env,
       logService,
       proxyUrl: env.PROXY_WORKER_URL,
+      kvKeyNamespace: "halo:film",
     }),
   });
   const analyticsService = new AnalyticsService({ haloService, haloFilmService });
