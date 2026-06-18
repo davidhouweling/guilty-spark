@@ -6,7 +6,7 @@ import { LoadingState } from "../loading-state/loading-state";
 import type { MatchStatsData } from "../../controllers/stats/types";
 import { StatsController } from "../../controllers/stats/stats-controller";
 import { calculateSeriesMetadata, type SeriesMetadata } from "../../controllers/stats/series-metadata";
-import { KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
+import { GAMES_SUFFIX_RE, KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import {
   EMPTY_KILL_MATRIX_PIVOT_DATA,
   type KillMatrixPivotData,
@@ -20,8 +20,6 @@ import { LiveTrackerStore } from "./live-tracker-store";
 import { LiveTrackerView } from "./live-tracker";
 import type { LiveTrackerViewModel } from "./types";
 import { LiveTrackerProvider } from "./live-tracker-context";
-
-const GAMES_SUFFIX_RE = /\s+\(\d+\/\d+ games\)$/;
 
 interface LiveTrackerProps {
   readonly liveTrackerService: LiveTrackerService;
@@ -138,7 +136,9 @@ export function LiveTracker({ liveTrackerService, matchAnalyticsService }: LiveT
   const fetchedMatchIdsRef = useRef<Set<string>>(new Set());
 
   const completeMatchIdsKey = useMemo((): string => {
-    if (model.state?.type !== "neatqueue") {return "";}
+    if (model.state?.type !== "neatqueue") {
+      return "";
+    }
     return model.state.matches
       .filter((m) => m.rawMatchStats != null)
       .map((m) => m.matchId)
@@ -154,7 +154,9 @@ export function LiveTracker({ liveTrackerService, matchAnalyticsService }: LiveT
     }
 
     const newMatchIds = completeMatchIdsKey.split(",").filter((id) => !fetchedMatchIdsRef.current.has(id));
-    if (newMatchIds.length === 0) {return;}
+    if (newMatchIds.length === 0) {
+      return;
+    }
 
     const isInitialFetch = fetchedMatchIdsRef.current.size === 0;
     for (const id of newMatchIds) {
@@ -162,6 +164,7 @@ export function LiveTracker({ liveTrackerService, matchAnalyticsService }: LiveT
     }
 
     let cancelled = false;
+    let settled = false;
     if (isInitialFetch) {
       setAnalyticsStatus(ComponentLoaderStatus.LOADING);
     }
@@ -169,6 +172,7 @@ export function LiveTracker({ liveTrackerService, matchAnalyticsService }: LiveT
     matchAnalyticsService
       .getBatchMatchAnalytics(newMatchIds)
       .then((results) => {
+        settled = true;
         if (cancelled) {return;}
         setAnalyticsByMatchId((prev) => {
           const map = new Map(prev);
@@ -182,6 +186,7 @@ export function LiveTracker({ liveTrackerService, matchAnalyticsService }: LiveT
         setAnalyticsStatus(ComponentLoaderStatus.LOADED);
       })
       .catch(() => {
+        settled = true;
         if (cancelled) {return;}
         for (const id of newMatchIds) {
           fetchedMatchIdsRef.current.delete(id);
@@ -191,8 +196,10 @@ export function LiveTracker({ liveTrackerService, matchAnalyticsService }: LiveT
 
     return (): void => {
       cancelled = true;
-      for (const id of newMatchIds) {
-        fetchedMatchIdsRef.current.delete(id);
+      if (!settled) {
+        for (const id of newMatchIds) {
+          fetchedMatchIdsRef.current.delete(id);
+        }
       }
     };
   }, [completeMatchIdsKey, matchAnalyticsService]);

@@ -1,5 +1,7 @@
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+
+export const GAMES_SUFFIX_RE = /\s+\(\d+\/\d+ games\)$/;
 import type {
   KillMatrixClassification,
   KillMatrixColumnHeader,
