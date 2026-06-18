@@ -22,6 +22,9 @@ import {
   useHasMatches,
   useSubstitutions,
   useAvailablePlayers,
+  useAllMatchKillMatrix,
+  useSeriesKillMatrix,
+  useAnalyticsStatus,
 } from "./live-tracker-context";
 import type { LiveTrackerStateRenderModel } from "./types";
 import styles from "./live-tracker.module.css";
@@ -53,6 +56,9 @@ export function LiveTrackerView(): React.ReactElement {
 
   const sortedSubstitutionsList = useSubstitutions();
   const availablePlayers = useAvailablePlayers();
+  const allMatchKillMatrix = useAllMatchKillMatrix();
+  const seriesKillMatrix = useSeriesKillMatrix();
+  const analyticsStatus = useAnalyticsStatus();
 
   const { settings, setSettings } = useStreamerSettings();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -369,6 +375,9 @@ export function LiveTrackerView(): React.ReactElement {
                   title="Series Totals"
                   metadata={seriesStats.metadata}
                   teamColors={teamColorsArray}
+                  killMatrixPivotData={seriesKillMatrix?.pivotData}
+                  transposedKillMatrixPivotData={seriesKillMatrix?.transposedPivotData}
+                  killMatrixStatus={analyticsStatus}
                 />
               </Container>
             )}
@@ -406,6 +415,8 @@ export function LiveTrackerView(): React.ReactElement {
                     // Add match
                     const matchStats = allMatchStats.find((stats) => stats.matchId === match.matchId);
 
+                    const matchKillMatrix = allMatchKillMatrix.find((km) => km.matchId === match.matchId);
+
                     elements.push(
                       matchStats?.data ? (
                         <Container
@@ -429,6 +440,9 @@ export function LiveTrackerView(): React.ReactElement {
                             startTime={match.startTime}
                             endTime={match.endTime}
                             teamColors={teamColorsArray}
+                            killMatrixPivotData={matchKillMatrix?.pivotData}
+                            transposedKillMatrixPivotData={matchKillMatrix?.transposedPivotData}
+                            killMatrixStatus={analyticsStatus}
                           />
                         </Container>
                       ) : (
