@@ -50,8 +50,8 @@ describe("KillMatrixTable", () => {
     expect(screen.getByLabelText("Kill matrix")).toBeInTheDocument();
     expect(screen.getByText("Alpha")).toBeInTheDocument();
     expect(screen.getByText("Bravo")).toBeInTheDocument();
-    expect(screen.getByText("Killer")).toBeInTheDocument();
-    expect(screen.getByText("Deaths →")).toBeInTheDocument();
+    expect(screen.getByText("Kills")).toBeInTheDocument();
+    expect(screen.getByText("Deaths")).toBeInTheDocument();
   });
 
   it("shows shimmer skeleton when status is loading", () => {
@@ -197,16 +197,30 @@ describe("KillMatrixTable", () => {
 
     expect(screen.getByTestId("team-icon-0")).toBeInTheDocument();
     expect(screen.getByTestId("team-icon-1")).toBeInTheDocument();
+    expect(screen.getByText("Kills")).toBeInTheDocument();
+    expect(screen.getByText("Deaths")).toBeInTheDocument();
 
-    await user.click(screen.getByText("Switch to Deaths view"));
+    const getToggleButton = (): HTMLElement => {
+      const table = screen.getByRole("table", { name: "Kill matrix" });
+      const toggleButton = table.querySelector("thead th button");
+      expect(toggleButton).toBeInTheDocument();
+
+      return toggleButton as HTMLElement;
+    };
+
+    await user.click(getToggleButton());
 
     expect(screen.getByTestId("team-icon-0")).toBeInTheDocument();
     expect(screen.getByTestId("team-icon-1")).toBeInTheDocument();
+    expect(screen.getByText("Kills")).toBeInTheDocument();
+    expect(screen.getByText("Deaths")).toBeInTheDocument();
 
-    await user.click(screen.getByText("Switch to Kills view"));
+    await user.click(getToggleButton());
 
     expect(screen.getByTestId("team-icon-0")).toBeInTheDocument();
     expect(screen.getByTestId("team-icon-1")).toBeInTheDocument();
+    expect(screen.getByText("Kills")).toBeInTheDocument();
+    expect(screen.getByText("Deaths")).toBeInTheDocument();
   });
 
   it("applies team color background to killer cells and victim column headers when teamColors provided", () => {
@@ -244,7 +258,8 @@ describe("KillMatrixTable", () => {
     expect(killerCell).toHaveStyle({ "--row-team-color": "#FE3939" });
   });
 
-  it("does not render toggle button when transposedPivotData is not provided", () => {
+  it("keeps the same matrix when toggle button is clicked without transposedPivotData", async () => {
+    const user = userEvent.setup();
     const pivotData = KillMatrixFormatter.pivot([
       {
         key: "111:222",
@@ -259,8 +274,21 @@ describe("KillMatrixTable", () => {
 
     render(<KillMatrixTable pivotData={pivotData} ariaLabel="Kill matrix" emptyMessage="No kill matrix data." />);
 
-    expect(screen.queryByText("Switch to Deaths view")).not.toBeInTheDocument();
-    expect(screen.queryByText("Switch to Kills view")).not.toBeInTheDocument();
+    const table = screen.getByRole("table", { name: "Kill matrix" });
+    const headerLabelBefore = table.querySelector("thead th:nth-child(2)")?.textContent?.trim();
+    const rowLabelBefore = table.querySelector("tbody tr td:first-child")?.textContent?.trim();
+    const toggleButton = table.querySelector("thead th button");
+
+    expect(toggleButton).toBeInTheDocument();
+
+    await user.click(toggleButton as HTMLElement);
+
+    const nextTable = screen.getByRole("table", { name: "Kill matrix" });
+    const headerLabelAfter = nextTable.querySelector("thead th:nth-child(2)")?.textContent?.trim();
+    const rowLabelAfter = nextTable.querySelector("tbody tr td:first-child")?.textContent?.trim();
+
+    expect(headerLabelAfter).toBe(headerLabelBefore);
+    expect(rowLabelAfter).toBe(rowLabelBefore);
   });
 
   it("toggles between kills and deaths view when toggle button is clicked", async () => {
@@ -288,18 +316,37 @@ describe("KillMatrixTable", () => {
       />,
     );
 
-    expect(screen.getByText("Deaths →")).toBeInTheDocument();
-    expect(screen.getByText("Killer")).toBeInTheDocument();
-    expect(screen.getByText("Switch to Deaths view")).toBeInTheDocument();
+    const getHeaderAndRowLabels = (): { readonly headerLabel: string; readonly rowLabel: string } => {
+      const table = screen.getByRole("table", { name: "Kill matrix" });
+      const headerLabel = table.querySelector("thead th:nth-child(2)")?.textContent?.trim();
+      const rowLabel = table.querySelector("tbody tr td:first-child")?.textContent?.trim();
 
-    await user.click(screen.getByText("Switch to Deaths view"));
+      expect(headerLabel).toBeDefined();
+      expect(rowLabel).toBeDefined();
 
-    expect(screen.getByText("Kills →")).toBeInTheDocument();
-    expect(screen.getByText("Victim")).toBeInTheDocument();
-    expect(screen.getByText("Switch to Kills view")).toBeInTheDocument();
+      return { headerLabel: headerLabel ?? "", rowLabel: rowLabel ?? "" };
+    };
 
-    await user.click(screen.getByText("Switch to Kills view"));
+    expect(screen.getByText("Kills")).toBeInTheDocument();
+    expect(screen.getByText("Deaths")).toBeInTheDocument();
+    expect(getHeaderAndRowLabels()).toEqual({ headerLabel: "Team 1Bravo", rowLabel: "Team 0Alpha" });
 
-    expect(screen.getByText("Deaths →")).toBeInTheDocument();
+    const getToggleButton = (): HTMLElement => {
+      const table = screen.getByRole("table", { name: "Kill matrix" });
+      const toggleButton = table.querySelector("thead th button");
+      expect(toggleButton).toBeInTheDocument();
+
+      return toggleButton as HTMLElement;
+    };
+
+    await user.click(getToggleButton());
+
+    expect(screen.getByText("Kills")).toBeInTheDocument();
+    expect(screen.getByText("Deaths")).toBeInTheDocument();
+    expect(getHeaderAndRowLabels()).toEqual({ headerLabel: "Team 0Alpha", rowLabel: "Team 1Bravo" });
+
+    await user.click(getToggleButton());
+
+    expect(getHeaderAndRowLabels()).toEqual({ headerLabel: "Team 1Bravo", rowLabel: "Team 0Alpha" });
   });
 });
