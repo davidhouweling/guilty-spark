@@ -163,7 +163,10 @@ export class DiscordSeriesStatsPresenter {
         this.controller.loadSeries(rawMatches, playersMap, this.renderData.medalMetadata);
         seriesData = this.controller.getSeriesStats();
         const players = this.controller.getPlayers();
-        orderedPlayers = players;
+        const playersByGamertag = new Map(players.map((p) => [p.gamertag, p]));
+        orderedPlayers = seriesData.playerData
+          .flatMap((teamData) => teamData.players.map((p) => playersByGamertag.get(p.name)))
+          .filter((p): p is KillMatrixPlayer => p != null);
         playersByXuid = new Map(players.map((p) => [p.xuid, { gamertag: p.gamertag, teamId: p.teamId }]));
       } catch {
         seriesData = null;
