@@ -191,16 +191,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         errorCount: trackerState.errorState.consecutiveErrors,
       });
 
-      this.logService.info(
-        "IndividualTracker: alarm triggered",
-        new Map<string, JsonAny>([
-          ["trackerId", trackerState.trackerId],
-          ["gamertag", trackerState.gamertag],
-          ["checkCount", trackerState.checkCount],
-          ["consecutiveErrors", trackerState.errorState.consecutiveErrors],
-        ]),
-      );
-
       const lastActivity = new Date(
         Math.max(
           new Date(trackerState.startTime).getTime(),
@@ -208,6 +198,17 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
             ? new Date(trackerState.startTime).getTime()
             : new Date(trackerState.lastMatchDiscoveredAt).getTime(),
         ),
+      );
+
+      this.logService.info(
+        "IndividualTracker: alarm triggered",
+        new Map<string, JsonAny>([
+          ["trackerId", trackerState.trackerId],
+          ["gamertag", trackerState.gamertag],
+          ["checkCount", trackerState.checkCount],
+          ["consecutiveErrors", trackerState.errorState.consecutiveErrors],
+          ["lastActivity", lastActivity.toISOString()],
+        ]),
       );
       if (differenceInHours(new Date(), lastActivity) >= trackerState.idleTimeoutHours) {
         this.logService.info(
@@ -244,12 +245,31 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private async poll(trackerState: IndividualTrackerInternalState): Promise<boolean> {
+    this.logService.info(
+      "IndividualTracker: polling for new matches",
+      new Map([["trackerId", trackerState.trackerId]]),
+    );
+
     const haloClient = await this.getOwnerClient(trackerState.userId);
 
     let matches: Awaited<ReturnType<HaloInfiniteClient["getPlayerMatches"]>>;
     try {
       matches = await haloClient.getPlayerMatches(trackerState.xuid, MatchType.All, PLAYER_MATCHES_PAGE_SIZE);
+      this.logService.info(
+        "IndividualTracker: successfully retrieved player matches",
+        new Map([
+          ["trackerId", trackerState.trackerId],
+          ["matches", matches.map((m) => m.MatchId).join(",")],
+        ]),
+      );
     } catch (error) {
+      this.logService.error(
+        error,
+        new Map([
+          ["context", "IndividualTracker failed to retrieve player matches"],
+          ["trackerId", trackerState.trackerId],
+        ]),
+      );
       if (this.isAuthError(error)) {
         this.ownerClient = null;
       }
@@ -300,6 +320,15 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
       newlyDiscovered.add(matchId);
       discoveredNewMatch = true;
+      this.logService.info(
+        "IndividualTracker: added new match to tracker",
+        new Map([
+          ["trackerId", trackerState.trackerId],
+          ["matchId", matchId],
+          ["mapName", summary.mapName],
+          ["score", summary.score],
+        ]),
+      );
     }
 
     if (trackerState.activeSeries != null && newlyDiscovered.size > 0) {
