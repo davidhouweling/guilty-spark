@@ -4,7 +4,20 @@
   gap: var(--space-1);
 }
 
+.killerCell {
+  background: color-mix(in srgb, var(--row-team-color, transparent) 20%, transparent);
+}
+
+.colHeader {
+  background: color-mix(in srgb, var(--col-team-color, transparent) 20%, transparent);
+}
+
 .killCell {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--row-team-color, transparent) 20%, transparent) 50%,
+    color-mix(in srgb, var(--col-team-color, transparent) 20%, transparent) 50%
+  );
   font-variant-numeric: tabular-nums;
   text-align: center;
 }

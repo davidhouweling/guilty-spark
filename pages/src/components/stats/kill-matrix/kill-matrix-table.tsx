@@ -1,10 +1,12 @@
 import React from "react";
+import classNames from "classnames";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
 import { ComponentLoader, ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { TeamIcon } from "../../icons/team-icon";
 import { SortableTable, type SortableTableColumn } from "../../table/sortable-table";
 import tableStyles from "../../table/table.module.css";
+import type { TeamColor } from "../../team-colors/team-colors";
 import type { KillMatrixPivotData, KillMatrixPivotRow } from "../../../controllers/stats/kill-matrix/types";
 import styles from "./kill-matrix-table.module.css";
 
@@ -18,6 +20,7 @@ interface KillMatrixTableProps {
   readonly victimAxisLabel?: string;
   readonly playerGamertags?: readonly string[];
   readonly transposedPivotData?: KillMatrixPivotData;
+  readonly teamColors?: readonly TeamColor[];
 }
 
 export function KillMatrixTable({
@@ -30,6 +33,7 @@ export function KillMatrixTable({
   victimAxisLabel = "Deaths",
   playerGamertags,
   transposedPivotData,
+  teamColors,
 }: KillMatrixTableProps): React.ReactElement {
   const effectiveStatus = status ?? ComponentLoaderStatus.LOADED;
 
@@ -45,13 +49,21 @@ export function KillMatrixTable({
       return [];
     }
 
+    const teamColorOf = (teamId: number | null): string =>
+      (teamId != null ? teamColors?.[teamId]?.hex : undefined) ?? "transparent";
+
     const cols: SortableTableColumn<KillMatrixPivotRow>[] = [
       {
         id: "killer",
         header: activeKillerAxisLabel,
         accessorFn: (row): string => row.killerGamertag,
         sortingFn: "alphanumeric",
-        cellClassName: tableStyles.labelCell,
+        cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
+        cellStyle:
+          teamColors != null
+            ? (row): React.CSSProperties =>
+                ({ "--row-team-color": teamColorOf(row.killerTeamId) }) as React.CSSProperties
+            : undefined,
         cell: (_value, row): React.ReactNode => {
           const { killerTeamId } = row;
           return (
@@ -65,6 +77,7 @@ export function KillMatrixTable({
     ];
 
     for (const { gamertag, teamId } of activePivotData.columnHeaders) {
+      const colColor = teamColorOf(teamId);
       cols.push({
         id: gamertag,
         header: (
@@ -73,14 +86,24 @@ export function KillMatrixTable({
             {gamertag}
           </span>
         ),
+        headerClassName: styles.colHeader,
+        headerStyle: teamColors != null ? ({ "--col-team-color": colColor } as React.CSSProperties) : undefined,
         accessorFn: (row: KillMatrixPivotRow): number => row.kills.get(gamertag) ?? 0,
         sortingFn: "basic",
         cellClassName: styles.killCell,
+        cellStyle:
+          teamColors != null
+            ? (row): React.CSSProperties =>
+                ({
+                  "--row-team-color": teamColorOf(row.killerTeamId),
+                  "--col-team-color": colColor,
+                }) as React.CSSProperties
+            : undefined,
       });
     }
 
     return cols;
-  }, [effectiveStatus, activeKillerAxisLabel, activePivotData.columnHeaders]);
+  }, [effectiveStatus, activeKillerAxisLabel, activePivotData.columnHeaders, teamColors]);
 
   const playerCount = playerGamertags !== undefined && playerGamertags.length > 0 ? playerGamertags.length : 8;
 

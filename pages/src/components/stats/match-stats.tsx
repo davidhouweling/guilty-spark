@@ -281,6 +281,7 @@ export function MatchStats({
                 errorMessage="Failed to load kill matrix data for this match."
                 status={killMatrixStatus}
                 playerGamertags={playerGamertags}
+                teamColors={teamColors}
               />
             ),
           },

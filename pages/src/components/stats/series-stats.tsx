@@ -272,6 +272,7 @@ export function SeriesStats({
                   errorMessage="Failed to load kill matrix data for this series."
                   status={killMatrixStatus}
                   playerGamertags={playerGamertags}
+                  teamColors={teamColors}
                 />
               ),
             },

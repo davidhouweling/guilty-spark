@@ -205,6 +205,41 @@ describe("KillMatrixTable", () => {
     expect(screen.getByTestId("team-icon-1")).toBeInTheDocument();
   });
 
+  it("applies team color background to killer cells and victim column headers when teamColors provided", () => {
+    const teamColors = [
+      { id: "salmon", name: "Salmon", hex: "#FE3939" },
+      { id: "cerulean", name: "Cerulean", hex: "#3B9DFF" },
+    ];
+    const pivotData = KillMatrixFormatter.pivot([
+      {
+        key: "111:222",
+        killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+        victim: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+        count: 3,
+        headshotKills: 1,
+        perfects: 0,
+        classification: "enemy-kill",
+      },
+    ]);
+
+    render(
+      <KillMatrixTable
+        pivotData={pivotData}
+        ariaLabel="Kill matrix"
+        emptyMessage="No kill matrix data."
+        teamColors={teamColors}
+      />,
+    );
+
+    const table = screen.getByRole("table", { name: "Kill matrix" });
+    const headers = table.querySelectorAll("thead th");
+    const victimHeader = Array.from(headers).find((th) => th.textContent.includes("Bravo"));
+    expect(victimHeader).toHaveStyle({ "--col-team-color": "#3B9DFF" });
+
+    const killerCell = table.querySelector("tbody tr td:first-child");
+    expect(killerCell).toHaveStyle({ "--row-team-color": "#FE3939" });
+  });
+
   it("does not render toggle button when transposedPivotData is not provided", () => {
     const pivotData = KillMatrixFormatter.pivot([
       {
