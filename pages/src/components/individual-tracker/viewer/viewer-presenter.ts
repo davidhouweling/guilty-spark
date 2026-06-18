@@ -9,7 +9,7 @@ import type {
 } from "../../../services/individual-tracker/view-types";
 import { StatsController } from "../../../controllers/stats/stats-controller";
 import { KillMatrixFormatter } from "../../../controllers/stats/kill-matrix/kill-matrix-formatter";
-import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../../controllers/stats/kill-matrix/types";
+import { EMPTY_KILL_MATRIX_PIVOT_DATA, type KillMatrixPlayer } from "../../../controllers/stats/kill-matrix/types";
 import { buildViewerRenderModel } from "./viewer-render-model";
 import type { IndividualTrackerViewerSnapshot, IndividualTrackerViewerStore, MatchStatsState } from "./viewer-store";
 import type { IndividualTrackerViewerViewModel, MatchStatsPanelState } from "./types";
@@ -70,7 +70,13 @@ export class IndividualTrackerViewerPresenter {
         controller.loadAnalytics(analytics, playerMap);
       }
       const killMatrixRows = analytics != null ? controller.getKillMatrix() : null;
-      const orderedPlayers = controller.getPlayers();
+      const players = controller.getPlayers();
+      const playersByGamertag = new Map(players.map((p) => [p.gamertag, p]));
+      const matchStats = controller.getMatchStats();
+      const resolvedPlayers = matchStats
+        .flatMap((teamData) => teamData.players.map((p) => playersByGamertag.get(p.name)))
+        .filter((p): p is KillMatrixPlayer => p != null);
+      const orderedPlayers = resolvedPlayers.length === players.length ? resolvedPlayers : players;
       return {
         status: "loaded",
         matchId: stats.MatchId,
@@ -78,7 +84,7 @@ export class IndividualTrackerViewerPresenter {
         duration: stats.MatchInfo.Duration,
         startTime: stats.MatchInfo.StartTime,
         endTime: stats.MatchInfo.EndTime,
-        data: controller.getMatchStats(),
+        data: matchStats,
         killMatrixPivotData:
           killMatrixRows != null
             ? KillMatrixFormatter.pivot(killMatrixRows, orderedPlayers)
