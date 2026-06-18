@@ -22,8 +22,12 @@ export interface SortableTableColumn<TData> extends Omit<ColumnDef<TData>, "id" 
   cell?: (value: unknown, row: TData) => React.ReactNode;
   /** Optional CSS class for header cells */
   headerClassName?: string;
+  /** Optional inline style for header cells */
+  headerStyle?: React.CSSProperties;
   /** Optional CSS class for body cells (can be a function for dynamic classes) */
   cellClassName?: string | ((row: TData) => string);
+  /** Optional inline style for body cells (can be a function for dynamic styles) */
+  cellStyle?: React.CSSProperties | ((row: TData) => React.CSSProperties);
   /** Enable sorting for this column (default: true) */
   enableSorting?: boolean;
 }
@@ -127,6 +131,7 @@ export function SortableTable<TData>({
                 return (
                   <th
                     key={header.id}
+                    style={column?.headerStyle}
                     className={classNames(column?.headerClassName, {
                       [styles.sortableHeader]: canSort,
                       [styles.sortedAsc]: sortDirection === "asc",
@@ -178,8 +183,10 @@ export function SortableTable<TData>({
                     typeof column?.cellClassName === "function"
                       ? column.cellClassName(row.original)
                       : column?.cellClassName;
+                  const cellStyle =
+                    typeof column?.cellStyle === "function" ? column.cellStyle(row.original) : column?.cellStyle;
                   return (
-                    <td key={cell.id} className={cellClassName}>
+                    <td key={cell.id} className={cellClassName} style={cellStyle}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   );
