@@ -150,7 +150,7 @@ export function KillMatrixTable({
     }
 
     return cols;
-  }, [killerAxisLabel, playerHeaders, playerCount, teamColors]);
+  }, [killerAxisLabel, playerHeaders, teamColors]);
 
   const shimmerRows = React.useMemo(() => Array.from({ length: playerCount }, (_, i) => ({ index: i })), [playerCount]);
 
