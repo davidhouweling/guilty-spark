@@ -35,28 +35,6 @@
   text-align: right;
 }
 
-.shimmerContainer {
-  display: grid;
-  gap: var(--space-1);
-  grid-template-columns: auto repeat(var(--shimmer-cols, 8), minmax(3rem, 1fr));
-  overflow-x: auto;
-  padding: var(--space-4) 0;
-}
-
-.shimmerHeaderCell {
-  color: var(--halo-gray);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  padding: var(--space-1) var(--space-2);
-}
-
-.shimmerLabelCell {
-  align-items: center;
-  display: flex;
-  font-size: var(--text-sm);
-  padding: var(--space-1) var(--space-2);
-}
-
 .shimmerCell {
   animation: shimmer 1.5s ease-in-out infinite;
   background: linear-gradient(90deg, var(--halo-bg-card) 25%, var(--halo-teal-darker) 50%, var(--halo-bg-card) 75%);

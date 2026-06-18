@@ -10,6 +10,11 @@ import type { TeamColor } from "../../team-colors/team-colors";
 import type { KillMatrixPivotData, KillMatrixPivotRow } from "../../../controllers/stats/kill-matrix/types";
 import styles from "./kill-matrix-table.module.css";
 
+interface PlayerHeader {
+  readonly gamertag: string;
+  readonly teamId: number | null;
+}
+
 interface KillMatrixTableProps {
   readonly pivotData: KillMatrixPivotData;
   readonly ariaLabel: string;
@@ -18,7 +23,7 @@ interface KillMatrixTableProps {
   readonly status?: ComponentLoaderStatus;
   readonly killerAxisLabel?: string;
   readonly victimAxisLabel?: string;
-  readonly playerGamertags?: readonly string[];
+  readonly playerHeaders?: readonly PlayerHeader[];
   readonly transposedPivotData?: KillMatrixPivotData;
   readonly teamColors?: readonly TeamColor[];
 }
@@ -31,7 +36,7 @@ export function KillMatrixTable({
   status,
   killerAxisLabel = "Killer",
   victimAxisLabel = "Deaths",
-  playerGamertags,
+  playerHeaders,
   transposedPivotData,
   teamColors,
 }: KillMatrixTableProps): React.ReactElement {
@@ -44,60 +49,59 @@ export function KillMatrixTable({
   const activeKillerAxisLabel = isTransposedActive ? "Victim" : killerAxisLabel;
   const activeVictimAxisLabel = isTransposedActive ? "Kills" : victimAxisLabel;
 
+  const teamColorOf = (teamId: number | null): string =>
+    (teamId != null ? teamColors?.[teamId]?.hex : undefined) ?? "transparent";
+
+  const renderPlayerHeader = (gamertag: string, teamId: number | null): React.ReactNode => (
+    <span className={styles.playerHeader}>
+      {teamId != null && <TeamIcon teamId={teamId} size="x-small" />}
+      {gamertag}
+    </span>
+  );
+
+  const rowTeamStyle = (teamId: number | null): React.CSSProperties =>
+    ({ "--row-team-color": teamColorOf(teamId) }) as React.CSSProperties;
+
+  const colTeamStyle = (teamId: number | null): React.CSSProperties =>
+    ({ "--col-team-color": teamColorOf(teamId) }) as React.CSSProperties;
+
+  const cellTeamStyle = (rowTeamId: number | null, colTeamId: number | null): React.CSSProperties =>
+    ({ "--row-team-color": teamColorOf(rowTeamId), "--col-team-color": teamColorOf(colTeamId) }) as React.CSSProperties;
+
   const columns = React.useMemo<SortableTableColumn<KillMatrixPivotRow>[]>(() => {
     if (effectiveStatus !== ComponentLoaderStatus.LOADED) {
       return [];
     }
 
-    const teamColorOf = (teamId: number | null): string =>
-      (teamId != null ? teamColors?.[teamId]?.hex : undefined) ?? "transparent";
-
     const cols: SortableTableColumn<KillMatrixPivotRow>[] = [
       {
         id: "killer",
         header: activeKillerAxisLabel,
-        accessorFn: (row): string => row.killerGamertag,
+        accessorFn: (row: KillMatrixPivotRow): string => row.killerGamertag,
         sortingFn: "alphanumeric",
         cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
         cellStyle:
           teamColors != null
-            ? (row): React.CSSProperties =>
-                ({ "--row-team-color": teamColorOf(row.killerTeamId) }) as React.CSSProperties
+            ? (row: KillMatrixPivotRow): React.CSSProperties => rowTeamStyle(row.killerTeamId)
             : undefined,
-        cell: (_value, row): React.ReactNode => {
-          const { killerTeamId } = row;
-          return (
-            <span className={styles.playerHeader}>
-              {killerTeamId != null && <TeamIcon teamId={killerTeamId} size="x-small" />}
-              {row.killerGamertag}
-            </span>
-          );
-        },
+        cell: (_value: unknown, row: KillMatrixPivotRow): React.ReactNode =>
+          renderPlayerHeader(row.killerGamertag, row.killerTeamId),
       },
     ];
 
     for (const { gamertag, teamId } of activePivotData.columnHeaders) {
-      const colColor = teamColorOf(teamId);
+      const colTeamId: number | null = teamId;
       cols.push({
         id: gamertag,
-        header: (
-          <span className={styles.playerHeader}>
-            {teamId != null && <TeamIcon teamId={teamId} size="x-small" />}
-            {gamertag}
-          </span>
-        ),
+        header: renderPlayerHeader(gamertag, colTeamId),
         headerClassName: styles.colHeader,
-        headerStyle: teamColors != null ? ({ "--col-team-color": colColor } as React.CSSProperties) : undefined,
+        headerStyle: teamColors != null ? colTeamStyle(colTeamId) : undefined,
         accessorFn: (row: KillMatrixPivotRow): number => row.kills.get(gamertag) ?? 0,
         sortingFn: "basic",
         cellClassName: styles.killCell,
         cellStyle:
           teamColors != null
-            ? (row): React.CSSProperties =>
-                ({
-                  "--row-team-color": teamColorOf(row.killerTeamId),
-                  "--col-team-color": colColor,
-                }) as React.CSSProperties
+            ? (row: KillMatrixPivotRow): React.CSSProperties => cellTeamStyle(row.killerTeamId, colTeamId)
             : undefined,
       });
     }
@@ -105,30 +109,59 @@ export function KillMatrixTable({
     return cols;
   }, [effectiveStatus, activeKillerAxisLabel, activePivotData.columnHeaders, teamColors]);
 
-  const playerCount = playerGamertags !== undefined && playerGamertags.length > 0 ? playerGamertags.length : 8;
+  const playerCount = playerHeaders !== undefined && playerHeaders.length > 0 ? playerHeaders.length : 8;
+
+  const shimmerColumns = React.useMemo<SortableTableColumn<{ index: number }>[]>(() => {
+    const cols: SortableTableColumn<{ index: number }>[] = [
+      {
+        id: "killer",
+        header: activeKillerAxisLabel,
+        accessorFn: (row): number => row.index,
+        enableSorting: false,
+        cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
+        cellStyle:
+          teamColors != null
+            ? (row): React.CSSProperties => rowTeamStyle(playerHeaders?.[row.index]?.teamId ?? null)
+            : undefined,
+        cell: (_value, row): React.ReactNode => {
+          const ph = playerHeaders?.[row.index];
+          return renderPlayerHeader(ph?.gamertag ?? "", ph?.teamId ?? null);
+        },
+      },
+    ];
+
+    for (let i = 0; i < playerCount; i++) {
+      const header = playerHeaders?.[i];
+      const colTeamId = header?.teamId ?? null;
+      cols.push({
+        id: `victim-${i.toString()}`,
+        header: renderPlayerHeader(header?.gamertag ?? "", colTeamId),
+        headerClassName: styles.colHeader,
+        headerStyle: teamColors != null ? colTeamStyle(colTeamId) : undefined,
+        accessorFn: (): number => 0,
+        enableSorting: false,
+        cellClassName: styles.killCell,
+        cellStyle:
+          teamColors != null
+            ? (row): React.CSSProperties => cellTeamStyle(playerHeaders?.[row.index]?.teamId ?? null, colTeamId)
+            : undefined,
+        cell: (): React.ReactNode => <div className={styles.shimmerCell} />,
+      });
+    }
+
+    return cols;
+  }, [activeKillerAxisLabel, playerHeaders, teamColors]);
+
+  const shimmerRows = React.useMemo(() => Array.from({ length: playerCount }, (_, i) => ({ index: i })), [playerCount]);
 
   const shimmer = (
-    <div
-      role="region"
-      className={styles.shimmerContainer}
-      style={{ "--shimmer-cols": playerCount } as React.CSSProperties}
-      aria-busy="true"
-      aria-label={ariaLabel}
-    >
-      <div className={styles.shimmerHeaderCell}>{killerAxisLabel}</div>
-      {Array.from({ length: playerCount }, (_, i) => (
-        <div key={i} className={styles.shimmerHeaderCell}>
-          {playerGamertags?.[i]}
-        </div>
-      ))}
-      {Array.from({ length: playerCount }, (_, row) => (
-        <React.Fragment key={row}>
-          <div className={styles.shimmerLabelCell}>{playerGamertags?.[row]}</div>
-          {Array.from({ length: playerCount }, (_col, col) => (
-            <div key={col} className={styles.shimmerCell} />
-          ))}
-        </React.Fragment>
-      ))}
+    <div role="region" aria-busy="true" aria-label={ariaLabel}>
+      <SortableTable
+        data={shimmerRows}
+        columns={shimmerColumns}
+        getRowKey={(row): string => row.index.toString()}
+        ariaLabel={ariaLabel}
+      />
     </div>
   );
 

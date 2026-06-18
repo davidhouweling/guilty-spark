@@ -167,7 +167,10 @@ export function SeriesStats({
     ];
   }, [playerData, hasPlayerStats]);
 
-  const playerGamertags = React.useMemo(() => playerData.flatMap((d) => d.players).map((p) => p.name), [playerData]);
+  const playerHeaders = React.useMemo(
+    () => playerData.flatMap((d) => d.players.map((p) => ({ gamertag: p.name, teamId: d.teamId }))),
+    [playerData],
+  );
 
   // Flatten player data for table
   const flattenedPlayerData = React.useMemo<MatchStatsRow[]>(
@@ -271,7 +274,7 @@ export function SeriesStats({
                   emptyMessage="Kill matrix data is not available for this series yet."
                   errorMessage="Failed to load kill matrix data for this series."
                   status={killMatrixStatus}
-                  playerGamertags={playerGamertags}
+                  playerHeaders={playerHeaders}
                   teamColors={teamColors}
                 />
               ),

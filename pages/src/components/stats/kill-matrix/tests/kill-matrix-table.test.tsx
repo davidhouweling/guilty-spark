@@ -69,38 +69,42 @@ describe("KillMatrixTable", () => {
     expect(screen.queryByText("No kill matrix data.")).not.toBeInTheDocument();
   });
 
-  it("shows NxN shimmer grid using default 8 players when playerGamertags is an empty array", () => {
+  it("shows NxN shimmer table using default 8 players when playerHeaders is an empty array", () => {
     render(
       <KillMatrixTable
         pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
         ariaLabel="Kill matrix"
         emptyMessage="No kill matrix data."
         status={ComponentLoaderStatus.LOADING}
-        playerGamertags={[]}
+        playerHeaders={[]}
       />,
     );
 
     const shimmer = screen.getByRole("region", { name: "Kill matrix" });
     expect(shimmer).toHaveAttribute("aria-busy", "true");
     // (N+1)^2 cells: 1 killer header + N victim headers + N rows × (1 label + N cells)
-    expect(shimmer.children).toHaveLength(81);
+    expect(shimmer.querySelectorAll("th, td")).toHaveLength(81);
   });
 
-  it("shows NxN shimmer grid using playerGamertags when provided", () => {
+  it("shows NxN shimmer table using playerHeaders when provided", () => {
     render(
       <KillMatrixTable
         pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
         ariaLabel="Kill matrix"
         emptyMessage="No kill matrix data."
         status={ComponentLoaderStatus.LOADING}
-        playerGamertags={["Alpha", "Bravo", "Charlie"]}
+        playerHeaders={[
+          { gamertag: "Alpha", teamId: null },
+          { gamertag: "Bravo", teamId: null },
+          { gamertag: "Charlie", teamId: null },
+        ]}
       />,
     );
 
     const shimmer = screen.getByRole("region", { name: "Kill matrix" });
     expect(shimmer).toHaveAttribute("aria-busy", "true");
     // 3 players: (3+1)^2 = 16 cells; each name appears in header row + row label
-    expect(shimmer.children).toHaveLength(16);
+    expect(shimmer.querySelectorAll("th, td")).toHaveLength(16);
     expect(screen.getAllByText("Alpha")).toHaveLength(2);
     expect(screen.getAllByText("Bravo")).toHaveLength(2);
     expect(screen.getAllByText("Charlie")).toHaveLength(2);
