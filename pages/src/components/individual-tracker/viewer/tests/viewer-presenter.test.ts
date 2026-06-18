@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import type { Mocked } from "vitest";
+import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import {
   aFakeIndividualTrackerViewServiceWith,
@@ -12,7 +13,7 @@ import type { FakeIndividualTrackerViewService } from "../../../../services/indi
 import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
 import type { MatchAnalyticsService } from "../../../../services/stats/match-analytics-types";
-import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
+import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakePlayerWith } from "../../../../controllers/stats/fakes/data";
 import { IndividualTrackerViewerPresenter } from "../viewer-presenter";
 import { IndividualTrackerViewerStore } from "../viewer-store";
 
@@ -246,6 +247,103 @@ describe("IndividualTrackerViewerPresenter", () => {
       expect(setMatchStatsErrorSpy).not.toHaveBeenCalled();
       expect(store.getSnapshot().selectedMatchId).toBeNull();
       expect(store.getSnapshot().matchStatsState).toBeNull();
+    });
+
+    it("orders kill matrix rows by team/rank from match stats, not by API Players array order", async () => {
+      // Players are scrambled: team 1 appears first in the API array
+      const scrambledStats = aFakeMatchStatsWith({
+        MatchId: "m-ordering",
+        Players: [
+          aFakePlayerWith({
+            PlayerId: "xuid(3333333333)",
+            LastTeamId: 1,
+            Rank: 1,
+            PlayerTeamStats: [
+              {
+                TeamId: 1,
+                Stats: {
+                  CoreStats: aFakeCoreStatsWith({ Kills: 25, Deaths: 10, Assists: 15, PersonalScore: 4000 }),
+                  PvpStats: { Kills: 25, Deaths: 10, Assists: 15, KDA: 4 },
+                },
+              },
+            ],
+          }),
+          aFakePlayerWith({
+            PlayerId: "xuid(4444444444)",
+            LastTeamId: 1,
+            Rank: 2,
+            PlayerTeamStats: [
+              {
+                TeamId: 1,
+                Stats: {
+                  CoreStats: aFakeCoreStatsWith({ Kills: 20, Deaths: 11, Assists: 12, PersonalScore: 3200 }),
+                  PvpStats: { Kills: 20, Deaths: 11, Assists: 12, KDA: 2.91 },
+                },
+              },
+            ],
+          }),
+          aFakePlayerWith({
+            PlayerId: "xuid(1111111111)",
+            LastTeamId: 0,
+            Rank: 3,
+            PlayerTeamStats: [
+              {
+                TeamId: 0,
+                Stats: {
+                  CoreStats: aFakeCoreStatsWith({ Kills: 10, Deaths: 15, Assists: 5, PersonalScore: 1500 }),
+                  PvpStats: { Kills: 10, Deaths: 15, Assists: 5, KDA: 1 },
+                },
+              },
+            ],
+          }),
+          aFakePlayerWith({
+            PlayerId: "xuid(2222222222)",
+            LastTeamId: 0,
+            Rank: 4,
+            PlayerTeamStats: [
+              {
+                TeamId: 0,
+                Stats: {
+                  CoreStats: aFakeCoreStatsWith({ Kills: 8, Deaths: 12, Assists: 3, PersonalScore: 1200 }),
+                  PvpStats: { Kills: 8, Deaths: 12, Assists: 3, KDA: 0.92 },
+                },
+              },
+            ],
+          }),
+        ],
+      });
+
+      const analytics: MatchAnalytics = {
+        requestedModules: ["killMatrix"],
+        killMatrix: {
+          "3333333333:1111111111": { count: 2, headshotKills: 0, perfects: 0, weapons: [] },
+          "1111111111:3333333333": { count: 1, headshotKills: 0, perfects: 0, weapons: [] },
+        },
+        metadata: {
+          pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 1 },
+          perfectCounts: { total: 0, byXuid: {} },
+        },
+      };
+
+      const service = aFakeIndividualTrackerViewServiceWith();
+      const { haloClient, store, presenter } = aHarness(service, aFakeMatchAnalyticsServiceWith({ analytics }));
+      haloClient.getMatchStats.mockResolvedValue(scrambledStats);
+
+      presenter.selectMatch("m-ordering");
+
+      await vi.waitFor(() => {
+        expect(store.getSnapshot().matchStatsState?.status).toBe("loaded");
+      });
+
+      const panelState = IndividualTrackerViewerPresenter.present(store.getSnapshot()).matchStatsPanelState;
+      if (panelState?.status !== "loaded") {
+        throw new Error("Expected loaded panel state");
+      }
+
+      // Teams array is [team0, team1]; within each team players sort by rank ascending.
+      // Team 0 player 1111111111 (rank 3) should appear before team 1 player 3333333333 (rank 1).
+      const killerOrder = panelState.killMatrixPivotData.tableRows.map((row) => row.killerGamertag);
+      expect(killerOrder).toEqual(["1111111111", "3333333333"]);
     });
 
     it("sets matchStatsState to error when getMatchStats rejects", async () => {
