@@ -614,6 +614,66 @@ describe("createResilientFetch", () => {
     });
   });
 
+  describe("kvKeyNamespace", () => {
+    it("reads circuit-breaker state from namespaced key when kvKeyNamespace is provided", async () => {
+      kvGetSpy.mockImplementation(async (key) => {
+        if (key === KV_KEYS.PROXY_ENABLED) {
+          return Promise.resolve("true");
+        }
+        return Promise.resolve(null);
+      });
+      fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 200 }));
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "https://haloquery.com/proxy",
+        kvKeyNamespace: "halo:film",
+      });
+
+      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
+
+      expect(kvGetSpy).toHaveBeenCalledWith("halo:film:circuit_breaker", "json");
+      expect(kvGetSpy).not.toHaveBeenCalledWith(KV_KEYS.CIRCUIT_BREAKER, "json");
+    });
+
+    it("writes circuit-breaker and error-window state to namespaced keys when kvKeyNamespace is provided", async () => {
+      const errorWindow = aFakeErrorWindowWith({ errorCount: 2 });
+      kvGetSpy.mockImplementation(async (key: string) => {
+        if (key.startsWith("halo:film:errors")) {
+          return Promise.resolve(errorWindow);
+        }
+        return Promise.resolve(null);
+      });
+
+      fetchSpy
+        .mockResolvedValueOnce(aFakeResponseWith({ status: 526 }))
+        .mockResolvedValueOnce(aFakeResponseWith({ status: 200 }));
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "https://haloquery.com/proxy",
+        kvKeyNamespace: "halo:film",
+      });
+
+      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(kvPutSpy).toHaveBeenCalledWith(
+        expect.stringContaining("halo:film:errors"),
+        expect.any(String),
+        expect.objectContaining({ expirationTtl: CIRCUIT_BREAKER_CONFIG.ERROR_TRACKING_TTL_SECONDS }),
+      );
+      expect(kvPutSpy).toHaveBeenCalledWith(
+        "halo:film:circuit_breaker",
+        expect.any(String),
+        expect.objectContaining({ expirationTtl: expect.any(Number) as number }),
+      );
+      expect(kvPutSpy).not.toHaveBeenCalledWith(KV_KEYS.CIRCUIT_BREAKER, expect.anything(), expect.anything());
+    });
+  });
+
   describe("cache status logging", () => {
     it("logs cache HIT status for direct requests", async () => {
       kvGetSpy.mockResolvedValue(null);

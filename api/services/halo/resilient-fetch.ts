@@ -14,6 +14,7 @@ interface ResilientFetchOptions {
   env: Env;
   logService: LogService;
   proxyUrl: string;
+  kvKeyNamespace?: string;
 }
 
 interface DebounceEntry {
@@ -44,9 +45,9 @@ function detectProxyType(proxyUrl: string): ProxyType {
   return ProxyType.JSON_RPC;
 }
 
-function getErrorWindowKey(): string {
+function getErrorWindowKey(baseKey: string): string {
   const windowStart = Math.floor(Date.now() / CIRCUIT_BREAKER_CONFIG.ERROR_WINDOW_MS);
-  return `${KV_KEYS.ERROR_WINDOW}:${windowStart.toString()}`;
+  return `${baseKey}:${windowStart.toString()}`;
 }
 
 function filterHeadersForProxy(headers: Headers): Headers {
@@ -80,12 +81,20 @@ function transformUrlForProxy(originalUrl: string, proxyBaseUrl: string): string
   return `${proxyBase}${pathWithDomain}`;
 }
 
-export function createResilientFetch({ env, logService, proxyUrl }: ResilientFetchOptions): typeof fetch {
+export function createResilientFetch({
+  env,
+  logService,
+  proxyUrl,
+  kvKeyNamespace,
+}: ResilientFetchOptions): typeof fetch {
   const proxyConfig: ProxyConfig = {
     type: detectProxyType(proxyUrl),
     baseUrl: proxyUrl,
     enabled: isValidUrl(proxyUrl),
   };
+
+  const circuitBreakerKey = kvKeyNamespace != null ? `${kvKeyNamespace}:circuit_breaker` : KV_KEYS.CIRCUIT_BREAKER;
+  const errorWindowKey = kvKeyNamespace != null ? `${kvKeyNamespace}:errors` : KV_KEYS.ERROR_WINDOW;
 
   const kvDebounceMap = new Map<string, DebounceEntry>();
 
@@ -95,7 +104,7 @@ export function createResilientFetch({ env, logService, proxyUrl }: ResilientFet
   }
 
   async function getCircuitBreakerState(): Promise<CircuitBreakerState | null> {
-    return await env.APP_DATA.get<CircuitBreakerState>(KV_KEYS.CIRCUIT_BREAKER, "json");
+    return await env.APP_DATA.get<CircuitBreakerState>(circuitBreakerKey, "json");
   }
 
   function logCacheStatus(response: Response, url: string, viaProxy = false): void {
@@ -147,7 +156,7 @@ export function createResilientFetch({ env, logService, proxyUrl }: ResilientFet
 
     const ttlSeconds = differenceInSeconds(expiresAt, now);
 
-    scheduleKvWrite(KV_KEYS.CIRCUIT_BREAKER, JSON.stringify(state), ttlSeconds);
+    scheduleKvWrite(circuitBreakerKey, JSON.stringify(state), ttlSeconds);
 
     logService.warn(
       `Circuit breaker activated: ${reason}`,
@@ -160,7 +169,7 @@ export function createResilientFetch({ env, logService, proxyUrl }: ResilientFet
   }
 
   async function trackError(statusCode: number, url: string): Promise<void> {
-    const windowKey = getErrorWindowKey();
+    const windowKey = getErrorWindowKey(errorWindowKey);
     const now = Date.now();
 
     const existingWindow = await env.APP_DATA.get<ErrorWindow>(windowKey, "json");

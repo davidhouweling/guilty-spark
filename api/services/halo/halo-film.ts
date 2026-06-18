@@ -33,10 +33,16 @@ export class HaloFilmService {
 
   private readonly env: Env;
   private readonly spartanTokenProvider: CustomSpartanTokenProvider;
+  private readonly fetchFn: typeof globalThis.fetch | undefined;
 
-  constructor({ env, spartanTokenProvider }: HaloFilmServiceOpts) {
+  constructor({ env, spartanTokenProvider, fetch: fetchFn }: HaloFilmServiceOpts) {
     this.env = env;
     this.spartanTokenProvider = spartanTokenProvider;
+    this.fetchFn = fetchFn;
+  }
+
+  private async callFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    return this.fetchFn != null ? this.fetchFn(input, init) : fetch(input, init);
   }
 
   async getHighlightEventsForMatch(matchId: string): Promise<ParsedHighlightEvent[]> {
@@ -277,7 +283,7 @@ export class HaloFilmService {
   }
 
   private async fetchJson<T>(url: string, spartanToken: string, clearanceToken?: string): Promise<T> {
-    const response = await fetch(url, {
+    const response = await this.callFetch(url, {
       method: "GET",
       headers: this.createHeaders(spartanToken, clearanceToken),
     });
@@ -290,7 +296,7 @@ export class HaloFilmService {
   }
 
   private async fetchBinary(url: string, spartanToken: string, clearanceToken: string): Promise<Uint8Array> {
-    const response = await fetch(url, {
+    const response = await this.callFetch(url, {
       method: "GET",
       headers: this.createHeaders(spartanToken, clearanceToken, "*/*"),
     });
@@ -300,6 +306,10 @@ export class HaloFilmService {
     }
 
     return new Uint8Array(await response.arrayBuffer());
+  }
+
+  async warmAuthCache(): Promise<void> {
+    await this.resolveAuthContext();
   }
 
   private async resolveAuthContext(): Promise<{ spartanToken: string; clearanceToken: string }> {

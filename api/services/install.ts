@@ -94,8 +94,14 @@ export function installServices({ env }: InstallServicesOpts): Services {
   const haloFilmService = new HaloFilmService({
     env,
     spartanTokenProvider,
+    fetch: createResilientFetch({
+      env,
+      logService,
+      proxyUrl: env.PROXY_WORKER_URL,
+      kvKeyNamespace: "halo:film",
+    }),
   });
-  const analyticsService = new AnalyticsService({ haloService, haloFilmService });
+  const analyticsService = new AnalyticsService({ haloService, haloFilmService, logService });
   const liveTrackerService = new LiveTrackerService({ env, logService, discordService });
   const individualTrackerService = new IndividualTrackerService({ env, logService, databaseService });
   const neatQueueService = new NeatQueueService({

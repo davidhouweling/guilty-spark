@@ -1,6 +1,7 @@
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
 import { aFakeHaloFilmServiceWith } from "../../halo/fakes/halo-film.fake";
+import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import type { AnalyticsServiceOpts } from "../analytics";
 import { AnalyticsService } from "../analytics";
 
@@ -26,6 +27,7 @@ export function aFakeMatchAnalyticsWith(overrides: Partial<MatchAnalytics> = {})
 export function aFakeAnalyticsServiceWith(opts: Partial<AnalyticsServiceOpts> = {}): AnalyticsService {
   const haloService = opts.haloService ?? aFakeHaloServiceWith();
   const haloFilmService = opts.haloFilmService ?? aFakeHaloFilmServiceWith();
+  const logService = opts.logService ?? aFakeLogServiceWith();
 
-  return new AnalyticsService({ haloService, haloFilmService });
+  return new AnalyticsService({ haloService, haloFilmService, logService });
 }

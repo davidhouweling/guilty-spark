@@ -22,11 +22,11 @@ describe("/api/stats/match-analytics (batch)", () => {
     const analytics = aFakeMatchAnalyticsWith();
 
     const services = installFakeServicesWith({ env });
-    const getMatchAnalyticsSpy: MockInstance<AnalyticsService["getMatchAnalytics"]> = vi.spyOn(
+    const getBatchMatchAnalyticsSpy: MockInstance<AnalyticsService["getBatchMatchAnalytics"]> = vi.spyOn(
       services.analyticsService,
-      "getMatchAnalytics",
+      "getBatchMatchAnalytics",
     );
-    getMatchAnalyticsSpy.mockResolvedValue(analytics);
+    getBatchMatchAnalyticsSpy.mockResolvedValue({ "match-1": analytics, "match-2": analytics });
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
     statsRoutesRegisterHandler(router, localInstallServices);
 
@@ -45,18 +45,18 @@ describe("/api/stats/match-analytics (batch)", () => {
         "match-2": analytics,
       },
     });
-    expect(getMatchAnalyticsSpy).toHaveBeenCalledTimes(2);
-    expect(getMatchAnalyticsSpy).toHaveBeenCalledWith("match-1", ["killMatrix"]);
-    expect(getMatchAnalyticsSpy).toHaveBeenCalledWith("match-2", ["killMatrix"]);
+    expect(getBatchMatchAnalyticsSpy).toHaveBeenCalledOnce();
+    expect(getBatchMatchAnalyticsSpy).toHaveBeenCalledWith(["match-1", "match-2"], ["killMatrix"]);
   });
 
   it("returns null for matchIds that fail, successful ones with data, and logs the failure count", async () => {
     const analytics = aFakeMatchAnalyticsWith();
 
     const services = installFakeServicesWith({ env });
-    vi.spyOn(services.analyticsService, "getMatchAnalytics")
-      .mockResolvedValueOnce(analytics)
-      .mockRejectedValueOnce(new Error("halo api down"));
+    vi.spyOn(services.analyticsService, "getBatchMatchAnalytics").mockResolvedValue({
+      "match-ok": analytics,
+      "match-fail": null,
+    });
     const logWarnSpy: MockInstance<LogService["warn"]> = vi.spyOn(services.logService, "warn");
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
     statsRoutesRegisterHandler(router, localInstallServices);

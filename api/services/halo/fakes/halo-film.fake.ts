@@ -13,5 +13,5 @@ export function aFakeHaloFilmServiceWith(opts: Partial<HaloFilmServiceOpts> = {}
       xboxService: aFakeXboxServiceWith({ env }),
     });
 
-  return new HaloFilmService({ env, spartanTokenProvider });
+  return new HaloFilmService({ env, spartanTokenProvider, ...(opts.fetch != null ? { fetch: opts.fetch } : {}) });
 }

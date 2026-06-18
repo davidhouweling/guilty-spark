@@ -28,7 +28,8 @@ export function installFakeServicesWith(opts: Partial<Services & { env: Env }> =
     opts.haloFilmService ??
     aFakeHaloFilmServiceWith({ env, spartanTokenProvider: new CustomSpartanTokenProvider({ env, xboxService }) });
   const userTokenProvider = opts.userTokenProvider ?? aFakeUserTokenProviderWith({ authService, xboxService });
-  const analyticsService = opts.analyticsService ?? aFakeAnalyticsServiceWith({ haloService, haloFilmService });
+  const analyticsService =
+    opts.analyticsService ?? aFakeAnalyticsServiceWith({ haloService, haloFilmService, logService });
   const liveTrackerService =
     opts.liveTrackerService ?? aFakeLiveTrackerServiceWith({ logService, discordService, env });
   const neatQueueService =
