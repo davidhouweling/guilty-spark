@@ -204,7 +204,9 @@ export function LiveTracker({ liveTrackerService, matchAnalyticsService }: LiveT
         for (const id of newMatchIds) {
           fetchedMatchIdsRef.current.delete(id);
         }
-        setAnalyticsStatus(ComponentLoaderStatus.ERROR);
+        if (isInitialFetch) {
+          setAnalyticsStatus(ComponentLoaderStatus.ERROR);
+        }
       });
 
     return (): void => {
