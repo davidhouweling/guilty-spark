@@ -21,6 +21,8 @@ import { LiveTrackerView } from "./live-tracker";
 import type { LiveTrackerViewModel } from "./types";
 import { LiveTrackerProvider } from "./live-tracker-context";
 
+const killMatrixFormatter = new KillMatrixFormatter();
+
 interface LiveTrackerProps {
   readonly liveTrackerService: LiveTrackerService;
   readonly matchAnalyticsService: MatchAnalyticsService;
@@ -173,7 +175,9 @@ export function LiveTracker({ liveTrackerService, matchAnalyticsService }: LiveT
       .getBatchMatchAnalytics(newMatchIds)
       .then((results) => {
         settled = true;
-        if (cancelled) {return;}
+        if (cancelled) {
+          return;
+        }
         setAnalyticsByMatchId((prev) => {
           const map = new Map(prev);
           for (const [matchId, analytics] of Object.entries(results)) {
@@ -187,7 +191,9 @@ export function LiveTracker({ liveTrackerService, matchAnalyticsService }: LiveT
       })
       .catch(() => {
         settled = true;
-        if (cancelled) {return;}
+        if (cancelled) {
+          return;
+        }
         for (const id of newMatchIds) {
           fetchedMatchIdsRef.current.delete(id);
         }
@@ -276,7 +282,6 @@ export function LiveTracker({ liveTrackerService, matchAnalyticsService }: LiveT
     }
 
     const { orderedPlayers: seriesPlayers, playersByXuid } = seriesStatsData;
-    const formatter = new KillMatrixFormatter();
     const matchKillMatrixRows = new Map<string, readonly KillMatrixViewRow[]>();
 
     const computedAllMatchKillMatrix = model.state.matches.map((match) => {
@@ -288,7 +293,7 @@ export function LiveTracker({ liveTrackerService, matchAnalyticsService }: LiveT
           transposedPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
         };
       }
-      const rows = formatter.present({ analytics, playersByXuid });
+      const rows = killMatrixFormatter.present({ analytics, playersByXuid });
       matchKillMatrixRows.set(match.matchId, rows);
       return {
         matchId: match.matchId,
