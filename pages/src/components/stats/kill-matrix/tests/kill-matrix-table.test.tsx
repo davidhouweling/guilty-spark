@@ -1,6 +1,12 @@
 import "@testing-library/jest-dom/vitest";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../../icons/team-icon", () => ({
+  TeamIcon: ({ teamId }: { teamId: number }): React.ReactNode => (
+    <div data-testid={`team-icon-${teamId.toString()}`}>Team {teamId.toString()}</div>
+  ),
+}));
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
