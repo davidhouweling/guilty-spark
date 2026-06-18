@@ -86,10 +86,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     const haloService = aFakeHaloServiceWith({ env });
     const haloFilmService = aFakeHaloFilmServiceWith({ env });
     const logService = aFakeLogServiceWith();
-    const resolveAuthSpy = vi.spyOn(haloFilmService, "resolveAuthContext").mockResolvedValue({
-      spartanToken: "spartan-token",
-      clearanceToken: "clearance-token",
-    });
+    const warmAuthCacheSpy = vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([matchStats]);
     vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
@@ -101,7 +98,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     const service = new AnalyticsService({ haloService, haloFilmService, logService });
     const results = await service.getBatchMatchAnalytics(["match-1", "match-2"], ["killMatrix"]);
 
-    expect(resolveAuthSpy).toHaveBeenCalledOnce();
+    expect(warmAuthCacheSpy).toHaveBeenCalledOnce();
     expect(results["match-1"]).not.toBeNull();
     expect(results["match-2"]).not.toBeNull();
   });
@@ -111,10 +108,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     const haloService = aFakeHaloServiceWith({ env });
     const haloFilmService = aFakeHaloFilmServiceWith({ env });
     const logService = aFakeLogServiceWith();
-    vi.spyOn(haloFilmService, "resolveAuthContext").mockResolvedValue({
-      spartanToken: "spartan-token",
-      clearanceToken: "clearance-token",
-    });
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     vi.spyOn(haloService, "getMatchDetails")
       .mockResolvedValueOnce([matchStats])
@@ -132,13 +126,13 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     expect(results["match-fail"]).toBeNull();
   });
 
-  it("logs a warning when auth pre-warm fails", async () => {
+  it("logs a warning and returns null for all matches when auth pre-warm fails", async () => {
     const env = aFakeEnvWith();
     const haloService = aFakeHaloServiceWith({ env });
     const haloFilmService = aFakeHaloFilmServiceWith({ env });
     const logService = aFakeLogServiceWith();
     const logWarnSpy = vi.spyOn(logService, "warn");
-    vi.spyOn(haloFilmService, "resolveAuthContext").mockRejectedValue(new Error("auth down"));
+    vi.spyOn(haloFilmService, "warmAuthCache").mockRejectedValue(new Error("auth down"));
     vi.spyOn(haloService, "getMatchDetails").mockRejectedValue(new Error("auth down"));
 
     const service = new AnalyticsService({ haloService, haloFilmService, logService });

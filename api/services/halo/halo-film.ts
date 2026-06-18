@@ -308,7 +308,11 @@ export class HaloFilmService {
     return new Uint8Array(await response.arrayBuffer());
   }
 
-  async resolveAuthContext(): Promise<{ spartanToken: string; clearanceToken: string }> {
+  async warmAuthCache(): Promise<void> {
+    await this.resolveAuthContext();
+  }
+
+  private async resolveAuthContext(): Promise<{ spartanToken: string; clearanceToken: string }> {
     const spartanToken = await this.spartanTokenProvider.getSpartanToken();
 
     const cachedClearance = await this.env.APP_DATA.get(HaloFilmService.CLEARANCE_CACHE_KEY);

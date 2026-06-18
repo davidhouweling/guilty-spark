@@ -70,9 +70,9 @@ export class AnalyticsService {
 
   async getBatchMatchAnalytics(matchIds: string[], modules: string[]): Promise<Record<string, MatchAnalytics | null>> {
     try {
-      await this.haloFilmService.resolveAuthContext();
+      await this.haloFilmService.warmAuthCache();
     } catch (error) {
-      this.logService.warn(error, new Map([["context", "resolveAuthContext pre-warm"]]));
+      this.logService.warn(error, new Map([["context", "warmAuthCache pre-warm"]]));
     }
 
     const settled = await Promise.allSettled(matchIds.map(async (matchId) => this.getMatchAnalytics(matchId, modules)));
