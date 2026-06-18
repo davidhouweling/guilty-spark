@@ -82,7 +82,10 @@ export function LiveTrackerApp({ apiHost }: LiveTrackerAppProps): ReactElement {
       error={<ErrorState />}
       loaded={
         services ? (
-          <LiveTracker liveTrackerService={services.liveTrackerService} />
+          <LiveTracker
+            liveTrackerService={services.liveTrackerService}
+            matchAnalyticsService={services.matchAnalyticsService}
+          />
         ) : (
           <ErrorState message="Services failed to load" />
         )

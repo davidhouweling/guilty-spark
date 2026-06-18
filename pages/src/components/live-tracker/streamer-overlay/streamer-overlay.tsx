@@ -9,7 +9,15 @@ import { RankIcon } from "../../icons/rank-icon";
 import discordLogo from "../../../assets/discord-logo.png";
 import xboxLogo from "../../../assets/xbox-logo.png";
 import { ALL_SLAYER_STATS, type AllStreamerSettings } from "../settings/types";
-import { useTrackerState, useAllMatchStats, useSeriesStats, useTrackerInfo } from "../live-tracker-context";
+import {
+  useTrackerState,
+  useAllMatchStats,
+  useSeriesStats,
+  useTrackerInfo,
+  useAllMatchKillMatrix,
+  useSeriesKillMatrix,
+  useAnalyticsStatus,
+} from "../live-tracker-context";
 import type { LiveTrackerNeatQueueStateRenderModel } from "../types";
 import { TopSection } from "../../streamer-overlay/top-section";
 import { TeamDetailsContent } from "../../streamer-overlay/team-details-content";
@@ -64,6 +72,9 @@ function NeatQueueStreamerOverlay({
 }: NeatQueueStreamerOverlayProps): React.ReactElement {
   const allMatchStats = useAllMatchStats();
   const seriesStats = useSeriesStats();
+  const allMatchKillMatrix = useAllMatchKillMatrix();
+  const seriesKillMatrix = useSeriesKillMatrix();
+  const analyticsStatus = useAnalyticsStatus();
   const trackerInfo = useTrackerInfo();
 
   const title =
@@ -358,6 +369,7 @@ function NeatQueueStreamerOverlay({
     (tabIndex: number): React.ReactElement | null => {
       const selectedMatchStats = tabIndex >= 0 ? (allMatchStats[tabIndex]?.data ?? null) : null;
       const selectedMatch = tabIndex >= 0 ? (neatQueueState.matches[tabIndex] ?? null) : null;
+      const matchKillMatrix = tabIndex >= 0 ? (allMatchKillMatrix[tabIndex] ?? null) : null;
       return (
         <StatsPanelContent
           selectedTab={tabIndex}
@@ -369,10 +381,22 @@ function NeatQueueStreamerOverlay({
           selectedMatch={selectedMatch}
           teamColors={teamColors}
           gameModeIconUrl={gameModeIconUrl}
+          matchKillMatrix={matchKillMatrix}
+          seriesKillMatrix={seriesKillMatrix}
+          analyticsStatus={analyticsStatus}
         />
       );
     },
-    [allMatchStats, gameModeIconUrl, neatQueueState, seriesStats, teamColors],
+    [
+      allMatchStats,
+      allMatchKillMatrix,
+      analyticsStatus,
+      gameModeIconUrl,
+      neatQueueState,
+      seriesKillMatrix,
+      seriesStats,
+      teamColors,
+    ],
   );
 
   const renderPlayerNameContent = useCallback(

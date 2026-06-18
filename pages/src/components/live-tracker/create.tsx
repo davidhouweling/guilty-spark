@@ -1,10 +1,19 @@
-import React, { useEffect, useMemo, useSyncExternalStore, useRef } from "react";
+import React, { useEffect, useMemo, useState, useSyncExternalStore, useRef } from "react";
+import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
 import { ErrorState } from "../error-state/error-state";
 import { LoadingState } from "../loading-state/loading-state";
 import type { MatchStatsData } from "../../controllers/stats/types";
 import { StatsController } from "../../controllers/stats/stats-controller";
 import { calculateSeriesMetadata, type SeriesMetadata } from "../../controllers/stats/series-metadata";
+import { KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
+import {
+  EMPTY_KILL_MATRIX_PIVOT_DATA,
+  type KillMatrixPivotData,
+  type KillMatrixPlayer,
+  type KillMatrixViewRow,
+} from "../../controllers/stats/kill-matrix/types";
+import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { LiveTrackerService } from "../../services/live-tracker/types";
 import { LiveTrackerPresenter } from "./live-tracker-presenter";
 import { LiveTrackerStore } from "./live-tracker-store";
@@ -12,11 +21,14 @@ import { LiveTrackerView } from "./live-tracker";
 import type { LiveTrackerViewModel } from "./types";
 import { LiveTrackerProvider } from "./live-tracker-context";
 
+const GAMES_SUFFIX_RE = /\s+\(\d+\/\d+ games\)$/;
+
 interface LiveTrackerProps {
   readonly liveTrackerService: LiveTrackerService;
+  readonly matchAnalyticsService: MatchAnalyticsService;
 }
 
-export function LiveTracker({ liveTrackerService }: LiveTrackerProps): React.ReactElement {
+export function LiveTracker({ liveTrackerService, matchAnalyticsService }: LiveTrackerProps): React.ReactElement {
   const store = useMemo(() => new LiveTrackerStore(), []);
 
   const presenter = useMemo(() => {
@@ -119,6 +131,133 @@ export function LiveTracker({ liveTrackerService }: LiveTrackerProps): React.Rea
     });
   }, [model.state]); // Depend on entire state to catch type changes
 
+  const [analyticsByMatchId, setAnalyticsByMatchId] = useState<ReadonlyMap<string, MatchAnalytics>>(new Map());
+  const [analyticsStatus, setAnalyticsStatus] = useState(ComponentLoaderStatus.LOADING);
+
+  const completeMatchIdsKey = useMemo((): string => {
+    if (model.state?.type !== "neatqueue") {return "";}
+    return model.state.matches
+      .filter((m) => m.rawMatchStats != null)
+      .map((m) => m.matchId)
+      .join(",");
+  }, [model.state]);
+
+  useEffect(() => {
+    if (!completeMatchIdsKey) {
+      setAnalyticsByMatchId(new Map());
+      setAnalyticsStatus(ComponentLoaderStatus.LOADED);
+      return;
+    }
+
+    let cancelled = false;
+    setAnalyticsStatus(ComponentLoaderStatus.LOADING);
+    const matchIds = completeMatchIdsKey.split(",");
+
+    matchAnalyticsService
+      .getBatchMatchAnalytics(matchIds)
+      .then((results) => {
+        if (cancelled) {return;}
+        const map = new Map<string, MatchAnalytics>();
+        for (const [matchId, analytics] of Object.entries(results)) {
+          if (analytics != null) {
+            map.set(matchId, analytics);
+          }
+        }
+        setAnalyticsByMatchId(map);
+        setAnalyticsStatus(ComponentLoaderStatus.LOADED);
+      })
+      .catch(() => {
+        if (cancelled) {return;}
+        setAnalyticsStatus(ComponentLoaderStatus.ERROR);
+      });
+
+    return (): void => {
+      cancelled = true;
+    };
+  }, [completeMatchIdsKey, matchAnalyticsService]);
+
+  const { allMatchKillMatrix, seriesKillMatrix } = useMemo((): {
+    allMatchKillMatrix: readonly {
+      matchId: string;
+      pivotData: KillMatrixPivotData;
+      transposedPivotData: KillMatrixPivotData;
+    }[];
+    seriesKillMatrix: { pivotData: KillMatrixPivotData; transposedPivotData: KillMatrixPivotData } | null;
+  } => {
+    if (model.state?.type !== "neatqueue" || analyticsByMatchId.size === 0) {
+      return { allMatchKillMatrix: [], seriesKillMatrix: null };
+    }
+
+    const { medalMetadata } = model.state;
+    const formatter = new KillMatrixFormatter();
+
+    const allPlayerXuidToGametag = new Map<string, string>();
+    for (const match of model.state.matches) {
+      for (const [xuid, gamertag] of Object.entries(match.playerXuidToGametag)) {
+        allPlayerXuidToGametag.set(xuid, gamertag);
+      }
+    }
+
+    let seriesPlayers: readonly KillMatrixPlayer[] | undefined;
+    let playersByXuid: ReadonlyMap<string, { gamertag: string; teamId: number | null }> = new Map();
+
+    const rawMatchStats = model.state.matches
+      .map((m) => m.rawMatchStats)
+      .filter((s): s is NonNullable<typeof s> => s != null);
+
+    if (rawMatchStats.length > 0) {
+      try {
+        const seriesController = new StatsController();
+        seriesController.loadSeries(rawMatchStats, allPlayerXuidToGametag, medalMetadata);
+        const players = seriesController.getPlayers();
+        const playersByGamertag = new Map(players.map((p) => [p.gamertag, p]));
+        const seriesData = seriesController.getSeriesStats();
+        const resolvedPlayers = seriesData.playerData
+          .flatMap((teamData) =>
+            teamData.players.map((p) => playersByGamertag.get(p.name.replace(GAMES_SUFFIX_RE, ""))),
+          )
+          .filter((p): p is KillMatrixPlayer => p != null);
+        seriesPlayers = resolvedPlayers.length === players.length ? resolvedPlayers : players;
+        playersByXuid = new Map(players.map((p) => [p.xuid, { gamertag: p.gamertag, teamId: p.teamId }]));
+      } catch (error) {
+        console.error("Error building kill matrix player data:", error);
+      }
+    }
+
+    const matchKillMatrixRows = new Map<string, readonly KillMatrixViewRow[]>();
+    const computedAllMatchKillMatrix = model.state.matches.map((match) => {
+      const analytics = analyticsByMatchId.get(match.matchId);
+      if (analytics == null) {
+        return {
+          matchId: match.matchId,
+          pivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
+          transposedPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
+        };
+      }
+      const rows = formatter.present({ analytics, playersByXuid });
+      matchKillMatrixRows.set(match.matchId, rows);
+      return {
+        matchId: match.matchId,
+        pivotData: KillMatrixFormatter.pivot(rows, seriesPlayers),
+        transposedPivotData: KillMatrixFormatter.transpose(rows, seriesPlayers),
+      };
+    });
+
+    if (matchKillMatrixRows.size === 0) {
+      return { allMatchKillMatrix: computedAllMatchKillMatrix, seriesKillMatrix: null };
+    }
+
+    const aggregatedRows = KillMatrixFormatter.aggregate([...matchKillMatrixRows.values()].flatMap((rows) => rows));
+
+    return {
+      allMatchKillMatrix: computedAllMatchKillMatrix,
+      seriesKillMatrix: {
+        pivotData: KillMatrixFormatter.pivot(aggregatedRows, seriesPlayers),
+        transposedPivotData: KillMatrixFormatter.transpose(aggregatedRows, seriesPlayers),
+      },
+    };
+  }, [model.state, analyticsByMatchId]);
+
   // Compute series stats from model state (NeatQueue only)
   const seriesStats = useMemo((): {
     teamData: MatchStatsData[];
@@ -179,6 +318,9 @@ export function LiveTracker({ liveTrackerService }: LiveTrackerProps): React.Rea
           params={snapshot.params}
           allMatchStats={allMatchStats}
           seriesStats={seriesStats}
+          analyticsStatus={analyticsStatus}
+          allMatchKillMatrix={allMatchKillMatrix}
+          seriesKillMatrix={seriesKillMatrix}
         >
           <LiveTrackerView />
         </LiveTrackerProvider>

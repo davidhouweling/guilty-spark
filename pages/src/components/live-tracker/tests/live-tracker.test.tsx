@@ -11,6 +11,7 @@ import type {
 } from "../../../services/live-tracker/types";
 import { aFakeLiveTrackerScenarioWith } from "../../../services/live-tracker/fakes/scenario";
 import { aFakeLiveTrackerServiceWith } from "../../../services/live-tracker/fakes/live-tracker.fake";
+import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 import { LiveTracker } from "../create";
 
 function isSteppableLiveTrackerConnection(
@@ -83,7 +84,9 @@ describe("LiveTracker", () => {
       return Promise.resolve(connection);
     });
 
-    render(<LiveTracker liveTrackerService={liveTrackerService} />);
+    render(
+      <LiveTracker liveTrackerService={liveTrackerService} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />,
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Connecting...")).toBeInTheDocument();
@@ -123,7 +126,9 @@ describe("LiveTracker", () => {
     const liveTrackerService = aFakeLiveTrackerServiceWith();
     vi.spyOn(liveTrackerService, "connect").mockResolvedValue(notFoundConnection);
 
-    render(<LiveTracker liveTrackerService={liveTrackerService} />);
+    render(
+      <LiveTracker liveTrackerService={liveTrackerService} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />,
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Connection Failed")).toBeInTheDocument();
