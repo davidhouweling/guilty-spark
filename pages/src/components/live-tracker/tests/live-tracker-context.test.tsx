@@ -20,6 +20,7 @@ import {
   useMatchCount,
   useHasMatches,
   useTrackerIdentity,
+  type LiveTrackerProviderProps,
 } from "../live-tracker-context";
 
 const defaultParams = { type: "team" as const, server: "test-server", queue: "5" };
@@ -77,7 +78,7 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
   };
 }
 
-const defaultProviderProps = {
+const defaultProviderProps: Omit<LiveTrackerProviderProps, "children"> = {
   params: defaultParams,
   model: aFakeLiveTrackerViewModelWith(),
   allMatchStats: [] as { matchId: string; data: never[] }[],
@@ -85,7 +86,7 @@ const defaultProviderProps = {
   analyticsStatus: ComponentLoaderStatus.LOADED,
   allMatchKillMatrix: [],
   seriesKillMatrix: null,
-} as const;
+};
 
 describe("LiveTrackerContext", () => {
   it("throws error when hooks used outside provider", () => {

@@ -40,7 +40,7 @@ interface LiveTrackerContextValue {
 
 const LiveTrackerContext = createContext<LiveTrackerContextValue | null>(null);
 
-interface LiveTrackerProviderProps {
+export interface LiveTrackerProviderProps {
   readonly model: LiveTrackerViewModel;
   readonly params: LiveTrackerParams;
   readonly allMatchStats: readonly { matchId: string; data: MatchStatsData[] | null }[];
