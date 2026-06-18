@@ -22,7 +22,6 @@ import {
   useTrackerIdentity,
 } from "../live-tracker-context";
 
-// Default params for test cases
 const defaultParams = { type: "team" as const, server: "test-server", queue: "5" };
 
 function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>): LiveTrackerViewModel {
@@ -78,6 +77,16 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
   };
 }
 
+const defaultProviderProps = {
+  params: defaultParams,
+  model: aFakeLiveTrackerViewModelWith(),
+  allMatchStats: [] as { matchId: string; data: never[] }[],
+  seriesStats: null,
+  analyticsStatus: ComponentLoaderStatus.LOADED,
+  allMatchKillMatrix: [],
+  seriesKillMatrix: null,
+} as const;
+
 describe("LiveTrackerContext", () => {
   it("throws error when hooks used outside provider", () => {
     expect(() => {
@@ -86,21 +95,9 @@ describe("LiveTrackerContext", () => {
   });
 
   it("provides tracker info to hooks", () => {
-    const model = aFakeLiveTrackerViewModelWith();
-
     const { result } = renderHook(() => useTrackerInfo(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -112,21 +109,9 @@ describe("LiveTrackerContext", () => {
   });
 
   it("provides tracker state to hooks", () => {
-    const model = aFakeLiveTrackerViewModelWith();
-
     const { result } = renderHook(() => useTrackerState(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -139,21 +124,9 @@ describe("LiveTrackerContext", () => {
   });
 
   it("provides teams to hooks", () => {
-    const model = aFakeLiveTrackerViewModelWith();
-
     const { result } = renderHook(() => useTrackerTeams(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -166,17 +139,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useTrackerTeams(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} model={model}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -184,21 +147,9 @@ describe("LiveTrackerContext", () => {
   });
 
   it("provides matches to hooks", () => {
-    const model = aFakeLiveTrackerViewModelWith();
-
     const { result } = renderHook(() => useTrackerMatches(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -211,17 +162,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useTrackerMatches(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} model={model}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -258,17 +199,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useTrackerPlayersData(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} model={model}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -276,21 +207,9 @@ describe("LiveTrackerContext", () => {
   });
 
   it("provides series score to hooks", () => {
-    const model = aFakeLiveTrackerViewModelWith();
-
     const { result } = renderHook(() => useSeriesScore(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -302,17 +221,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useSeriesScore(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} model={model}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -325,21 +234,9 @@ describe("LiveTrackerContext", () => {
       { matchId: "match2", data: [] },
     ];
 
-    const model = aFakeLiveTrackerViewModelWith();
-
     const { result } = renderHook(() => useAllMatchStats(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={allMatchStats}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} allMatchStats={allMatchStats}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -354,21 +251,9 @@ describe("LiveTrackerContext", () => {
       metadata: null,
     };
 
-    const model = aFakeLiveTrackerViewModelWith();
-
     const { result } = renderHook(() => useSeriesStats(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={seriesStats}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} seriesStats={seriesStats}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -376,21 +261,9 @@ describe("LiveTrackerContext", () => {
   });
 
   it("provides match by index to hooks", () => {
-    const model = aFakeLiveTrackerViewModelWith();
-
     const { result } = renderHook(() => useMatchByIndex(0), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -398,21 +271,9 @@ describe("LiveTrackerContext", () => {
   });
 
   it("returns null for invalid match index", () => {
-    const model = aFakeLiveTrackerViewModelWith();
-
     const { result } = renderHook(() => useMatchByIndex(5), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -420,21 +281,9 @@ describe("LiveTrackerContext", () => {
   });
 
   it("returns null for negative match index", () => {
-    const model = aFakeLiveTrackerViewModelWith();
-
     const { result } = renderHook(() => useMatchByIndex(-1), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -457,17 +306,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useSubstitutions(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} model={model}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -476,21 +315,9 @@ describe("LiveTrackerContext", () => {
   });
 
   it("provides match count to hooks", () => {
-    const model = aFakeLiveTrackerViewModelWith();
-
     const { result } = renderHook(() => useMatchCount(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -502,17 +329,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useMatchCount(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} model={model}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -520,21 +337,9 @@ describe("LiveTrackerContext", () => {
   });
 
   it("provides has matches flag to hooks", () => {
-    const model = aFakeLiveTrackerViewModelWith();
-
     const { result } = renderHook(() => useHasMatches(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -546,17 +351,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useHasMatches(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} model={model}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -578,17 +373,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useHasMatches(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} model={model}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -596,21 +381,9 @@ describe("LiveTrackerContext", () => {
   });
 
   it("provides tracker identity to hooks", () => {
-    const model = aFakeLiveTrackerViewModelWith();
-
     const { result } = renderHook(() => useTrackerIdentity(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps}>{children}</LiveTrackerProvider>
       ),
     });
 
@@ -623,17 +396,7 @@ describe("LiveTrackerContext", () => {
 
     const { result } = renderHook(() => useTrackerIdentity(), {
       wrapper: ({ children }) => (
-        <LiveTrackerProvider
-          params={defaultParams}
-          model={model}
-          allMatchStats={[]}
-          seriesStats={null}
-          analyticsStatus={ComponentLoaderStatus.LOADED}
-          allMatchKillMatrix={[]}
-          seriesKillMatrix={null}
-        >
-          {children}
-        </LiveTrackerProvider>
+        <LiveTrackerProvider {...defaultProviderProps} model={model}>{children}</LiveTrackerProvider>
       ),
     });
 
