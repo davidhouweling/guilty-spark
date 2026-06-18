@@ -1,4 +1,5 @@
 import React from "react";
+import classNames from "classnames";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
 import { ComponentLoader, ComponentLoaderStatus } from "../../component-loader/component-loader";
@@ -57,7 +58,7 @@ export function KillMatrixTable({
         header: activeKillerAxisLabel,
         accessorFn: (row): string => row.killerGamertag,
         sortingFn: "alphanumeric",
-        cellClassName: `${tableStyles.labelCell} ${styles.killerCell}`,
+        cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
         cellStyle:
           teamColors != null
             ? (row): React.CSSProperties =>
