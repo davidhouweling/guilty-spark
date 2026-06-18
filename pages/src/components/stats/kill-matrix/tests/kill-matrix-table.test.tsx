@@ -275,8 +275,8 @@ describe("KillMatrixTable", () => {
     render(<KillMatrixTable pivotData={pivotData} ariaLabel="Kill matrix" emptyMessage="No kill matrix data." />);
 
     const table = screen.getByRole("table", { name: "Kill matrix" });
-    const headerLabelBefore = table.querySelector("thead th:nth-child(2)")?.textContent?.trim();
-    const rowLabelBefore = table.querySelector("tbody tr td:first-child")?.textContent?.trim();
+    const headerLabelBefore = table.querySelector("thead th:nth-child(2)")?.textContent.trim();
+    const rowLabelBefore = table.querySelector("tbody tr td:first-child")?.textContent.trim();
     const toggleButton = table.querySelector("thead th button");
 
     expect(toggleButton).toBeInTheDocument();
@@ -284,8 +284,8 @@ describe("KillMatrixTable", () => {
     await user.click(toggleButton as HTMLElement);
 
     const nextTable = screen.getByRole("table", { name: "Kill matrix" });
-    const headerLabelAfter = nextTable.querySelector("thead th:nth-child(2)")?.textContent?.trim();
-    const rowLabelAfter = nextTable.querySelector("tbody tr td:first-child")?.textContent?.trim();
+    const headerLabelAfter = nextTable.querySelector("thead th:nth-child(2)")?.textContent.trim();
+    const rowLabelAfter = nextTable.querySelector("tbody tr td:first-child")?.textContent.trim();
 
     expect(headerLabelAfter).toBe(headerLabelBefore);
     expect(rowLabelAfter).toBe(rowLabelBefore);
@@ -318,8 +318,8 @@ describe("KillMatrixTable", () => {
 
     const getHeaderAndRowLabels = (): { readonly headerLabel: string; readonly rowLabel: string } => {
       const table = screen.getByRole("table", { name: "Kill matrix" });
-      const headerLabel = table.querySelector("thead th:nth-child(2)")?.textContent?.trim();
-      const rowLabel = table.querySelector("tbody tr td:first-child")?.textContent?.trim();
+      const headerLabel = table.querySelector("thead th:nth-child(2)")?.textContent.trim();
+      const rowLabel = table.querySelector("tbody tr td:first-child")?.textContent.trim();
 
       expect(headerLabel).toBeDefined();
       expect(rowLabel).toBeDefined();
