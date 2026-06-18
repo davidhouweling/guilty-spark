@@ -132,7 +132,10 @@ export function LiveTracker({ liveTrackerService, matchAnalyticsService }: LiveT
   }, [model.state]); // Depend on entire state to catch type changes
 
   const [analyticsByMatchId, setAnalyticsByMatchId] = useState<ReadonlyMap<string, MatchAnalytics>>(new Map());
-  const [analyticsStatus, setAnalyticsStatus] = useState(ComponentLoaderStatus.LOADING);
+  const [analyticsStatus, setAnalyticsStatus] = useState(ComponentLoaderStatus.LOADED);
+  // Tracks IDs that are already fetched or in-flight so the effect can check without
+  // depending on analyticsByMatchId state (which would cause an infinite re-render loop).
+  const fetchedMatchIdsRef = useRef<Set<string>>(new Set());
 
   const completeMatchIdsKey = useMemo((): string => {
     if (model.state?.type !== "neatqueue") {return "";}
@@ -144,37 +147,114 @@ export function LiveTracker({ liveTrackerService, matchAnalyticsService }: LiveT
 
   useEffect(() => {
     if (!completeMatchIdsKey) {
+      fetchedMatchIdsRef.current = new Set();
       setAnalyticsByMatchId(new Map());
       setAnalyticsStatus(ComponentLoaderStatus.LOADED);
       return;
     }
 
+    const newMatchIds = completeMatchIdsKey.split(",").filter((id) => !fetchedMatchIdsRef.current.has(id));
+    if (newMatchIds.length === 0) {return;}
+
+    const isInitialFetch = fetchedMatchIdsRef.current.size === 0;
+    for (const id of newMatchIds) {
+      fetchedMatchIdsRef.current.add(id);
+    }
+
     let cancelled = false;
-    setAnalyticsStatus(ComponentLoaderStatus.LOADING);
-    const matchIds = completeMatchIdsKey.split(",");
+    if (isInitialFetch) {
+      setAnalyticsStatus(ComponentLoaderStatus.LOADING);
+    }
 
     matchAnalyticsService
-      .getBatchMatchAnalytics(matchIds)
+      .getBatchMatchAnalytics(newMatchIds)
       .then((results) => {
         if (cancelled) {return;}
-        const map = new Map<string, MatchAnalytics>();
-        for (const [matchId, analytics] of Object.entries(results)) {
-          if (analytics != null) {
-            map.set(matchId, analytics);
+        setAnalyticsByMatchId((prev) => {
+          const map = new Map(prev);
+          for (const [matchId, analytics] of Object.entries(results)) {
+            if (analytics != null) {
+              map.set(matchId, analytics);
+            }
           }
-        }
-        setAnalyticsByMatchId(map);
+          return map;
+        });
         setAnalyticsStatus(ComponentLoaderStatus.LOADED);
       })
       .catch(() => {
         if (cancelled) {return;}
+        for (const id of newMatchIds) {
+          fetchedMatchIdsRef.current.delete(id);
+        }
         setAnalyticsStatus(ComponentLoaderStatus.ERROR);
       });
 
     return (): void => {
       cancelled = true;
+      for (const id of newMatchIds) {
+        fetchedMatchIdsRef.current.delete(id);
+      }
     };
   }, [completeMatchIdsKey, matchAnalyticsService]);
+
+  // Compute series stats and player ordering from model state (NeatQueue only).
+  // Runs loadSeries once; the kill-matrix memo reuses orderedPlayers and playersByXuid.
+  const seriesStatsData = useMemo((): {
+    teamData: MatchStatsData[];
+    playerData: MatchStatsData[];
+    metadata: SeriesMetadata | null;
+    orderedPlayers: readonly KillMatrixPlayer[] | undefined;
+    playersByXuid: ReadonlyMap<string, { gamertag: string; teamId: number | null }>;
+  } | null => {
+    if (model.state?.type !== "neatqueue" || model.state.matches.length === 0) {
+      return null;
+    }
+
+    const rawMatchStats = model.state.matches
+      .map((match) => match.rawMatchStats)
+      .filter((stats): stats is NonNullable<typeof stats> => stats != null);
+
+    if (rawMatchStats.length === 0) {
+      return null;
+    }
+
+    try {
+      const allPlayerXuidToGametag = new Map<string, string>();
+      for (const match of model.state.matches) {
+        for (const [xuid, gamertag] of Object.entries(match.playerXuidToGametag)) {
+          allPlayerXuidToGametag.set(xuid, gamertag);
+        }
+      }
+
+      const controller = new StatsController();
+      controller.loadSeries(rawMatchStats, allPlayerXuidToGametag, model.state.medalMetadata);
+      const { teamData, playerData } = controller.getSeriesStats();
+      const players = controller.getPlayers();
+      const playersByGamertag = new Map(players.map((p) => [p.gamertag, p]));
+      const resolvedPlayers = playerData
+        .flatMap((td) => td.players.map((p) => playersByGamertag.get(p.name.replace(GAMES_SUFFIX_RE, ""))))
+        .filter((p): p is KillMatrixPlayer => p != null);
+      const orderedPlayers = resolvedPlayers.length === players.length ? resolvedPlayers : players;
+      const playersByXuid = new Map(players.map((p) => [p.xuid, { gamertag: p.gamertag, teamId: p.teamId }]));
+      const metadata = calculateSeriesMetadata(model.state.matches, model.state.seriesScore);
+
+      return { teamData, playerData, metadata, orderedPlayers, playersByXuid };
+    } catch (error) {
+      console.error("Error processing series stats:", error);
+      return null;
+    }
+  }, [model.state]);
+
+  const seriesStats = useMemo(() => {
+    if (seriesStatsData == null) {
+      return null;
+    }
+    return {
+      teamData: seriesStatsData.teamData,
+      playerData: seriesStatsData.playerData,
+      metadata: seriesStatsData.metadata,
+    };
+  }, [seriesStatsData]);
 
   const { allMatchKillMatrix, seriesKillMatrix } = useMemo((): {
     allMatchKillMatrix: readonly {
@@ -184,47 +264,14 @@ export function LiveTracker({ liveTrackerService, matchAnalyticsService }: LiveT
     }[];
     seriesKillMatrix: { pivotData: KillMatrixPivotData; transposedPivotData: KillMatrixPivotData } | null;
   } => {
-    if (model.state?.type !== "neatqueue" || analyticsByMatchId.size === 0) {
+    if (model.state?.type !== "neatqueue" || seriesStatsData == null || analyticsByMatchId.size === 0) {
       return { allMatchKillMatrix: [], seriesKillMatrix: null };
     }
 
-    const { medalMetadata } = model.state;
+    const { orderedPlayers: seriesPlayers, playersByXuid } = seriesStatsData;
     const formatter = new KillMatrixFormatter();
-
-    const allPlayerXuidToGametag = new Map<string, string>();
-    for (const match of model.state.matches) {
-      for (const [xuid, gamertag] of Object.entries(match.playerXuidToGametag)) {
-        allPlayerXuidToGametag.set(xuid, gamertag);
-      }
-    }
-
-    let seriesPlayers: readonly KillMatrixPlayer[] | undefined;
-    let playersByXuid: ReadonlyMap<string, { gamertag: string; teamId: number | null }> = new Map();
-
-    const rawMatchStats = model.state.matches
-      .map((m) => m.rawMatchStats)
-      .filter((s): s is NonNullable<typeof s> => s != null);
-
-    if (rawMatchStats.length > 0) {
-      try {
-        const seriesController = new StatsController();
-        seriesController.loadSeries(rawMatchStats, allPlayerXuidToGametag, medalMetadata);
-        const players = seriesController.getPlayers();
-        const playersByGamertag = new Map(players.map((p) => [p.gamertag, p]));
-        const seriesData = seriesController.getSeriesStats();
-        const resolvedPlayers = seriesData.playerData
-          .flatMap((teamData) =>
-            teamData.players.map((p) => playersByGamertag.get(p.name.replace(GAMES_SUFFIX_RE, ""))),
-          )
-          .filter((p): p is KillMatrixPlayer => p != null);
-        seriesPlayers = resolvedPlayers.length === players.length ? resolvedPlayers : players;
-        playersByXuid = new Map(players.map((p) => [p.xuid, { gamertag: p.gamertag, teamId: p.teamId }]));
-      } catch (error) {
-        console.error("Error building kill matrix player data:", error);
-      }
-    }
-
     const matchKillMatrixRows = new Map<string, readonly KillMatrixViewRow[]>();
+
     const computedAllMatchKillMatrix = model.state.matches.map((match) => {
       const analytics = analyticsByMatchId.get(match.matchId);
       if (analytics == null) {
@@ -256,45 +303,7 @@ export function LiveTracker({ liveTrackerService, matchAnalyticsService }: LiveT
         transposedPivotData: KillMatrixFormatter.transpose(aggregatedRows, seriesPlayers),
       },
     };
-  }, [model.state, analyticsByMatchId]);
-
-  // Compute series stats from model state (NeatQueue only)
-  const seriesStats = useMemo((): {
-    teamData: MatchStatsData[];
-    playerData: MatchStatsData[];
-    metadata: SeriesMetadata | null;
-  } | null => {
-    if (model.state?.type !== "neatqueue" || model.state.matches.length === 0) {
-      return null;
-    }
-
-    const rawMatchStats = model.state.matches
-      .map((match) => match.rawMatchStats)
-      .filter((stats): stats is NonNullable<typeof stats> => stats != null);
-
-    if (rawMatchStats.length === 0) {
-      return null;
-    }
-
-    try {
-      const allPlayerXuidToGametag = new Map<string, string>();
-      for (const match of model.state.matches) {
-        for (const [xuid, gamertag] of Object.entries(match.playerXuidToGametag)) {
-          allPlayerXuidToGametag.set(xuid, gamertag);
-        }
-      }
-
-      const controller = new StatsController();
-      controller.loadSeries(rawMatchStats, allPlayerXuidToGametag, model.state.medalMetadata);
-      const { teamData, playerData } = controller.getSeriesStats();
-      const metadata = calculateSeriesMetadata(model.state.matches, model.state.seriesScore);
-
-      return { teamData, playerData, metadata };
-    } catch (error) {
-      console.error("Error processing series stats:", error);
-      return null;
-    }
-  }, [model.state]); // Depend on entire state to catch type changes
+  }, [model.state, seriesStatsData, analyticsByMatchId]);
 
   return (
     <ComponentLoader
