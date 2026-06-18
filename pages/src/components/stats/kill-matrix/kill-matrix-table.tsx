@@ -115,7 +115,7 @@ export function KillMatrixTable({
     const cols: SortableTableColumn<{ index: number }>[] = [
       {
         id: "killer",
-        header: killerAxisLabel,
+        header: activeKillerAxisLabel,
         accessorFn: (row): number => row.index,
         enableSorting: false,
         cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
@@ -150,13 +150,18 @@ export function KillMatrixTable({
     }
 
     return cols;
-  }, [killerAxisLabel, playerHeaders, teamColors]);
+  }, [activeKillerAxisLabel, playerHeaders, teamColors]);
 
   const shimmerRows = React.useMemo(() => Array.from({ length: playerCount }, (_, i) => ({ index: i })), [playerCount]);
 
   const shimmer = (
     <div role="region" aria-busy="true" aria-label={ariaLabel}>
-      <SortableTable data={shimmerRows} columns={shimmerColumns} getRowKey={(row): string => row.index.toString()} />
+      <SortableTable
+        data={shimmerRows}
+        columns={shimmerColumns}
+        getRowKey={(row): string => row.index.toString()}
+        ariaLabel={ariaLabel}
+      />
     </div>
   );
 
