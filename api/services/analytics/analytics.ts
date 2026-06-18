@@ -7,10 +7,12 @@ import {
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { HaloService } from "../halo/halo";
 import type { HaloFilmService } from "../halo/halo-film";
+import type { LogService } from "../log/types";
 
 export interface AnalyticsServiceOpts {
   haloService: HaloService;
   haloFilmService: HaloFilmService;
+  logService: LogService;
 }
 
 const supportedAnalyticsModuleSet = new Set<string>(SUPPORTED_ANALYTICS_MODULES);
@@ -39,10 +41,12 @@ function toContractKillMatrix(
 export class AnalyticsService {
   private readonly haloService: HaloService;
   private readonly haloFilmService: HaloFilmService;
+  private readonly logService: LogService;
 
-  constructor({ haloService, haloFilmService }: AnalyticsServiceOpts) {
+  constructor({ haloService, haloFilmService, logService }: AnalyticsServiceOpts) {
     this.haloService = haloService;
     this.haloFilmService = haloFilmService;
+    this.logService = logService;
   }
 
   async getMatchAnalytics(matchId: string, modules: string[]): Promise<MatchAnalytics> {
@@ -67,8 +71,8 @@ export class AnalyticsService {
   async getBatchMatchAnalytics(matchIds: string[], modules: string[]): Promise<Record<string, MatchAnalytics | null>> {
     try {
       await this.haloFilmService.resolveAuthContext();
-    } catch {
-      // pre-warm failed; per-match calls will handle auth individually
+    } catch (error) {
+      this.logService.warn(error, new Map([["context", "resolveAuthContext pre-warm"]]));
     }
 
     const settled = await Promise.allSettled(matchIds.map(async (matchId) => this.getMatchAnalytics(matchId, modules)));

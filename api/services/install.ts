@@ -101,7 +101,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
       kvKeyNamespace: "halo:film",
     }),
   });
-  const analyticsService = new AnalyticsService({ haloService, haloFilmService });
+  const analyticsService = new AnalyticsService({ haloService, haloFilmService, logService });
   const liveTrackerService = new LiveTrackerService({ env, logService, discordService });
   const individualTrackerService = new IndividualTrackerService({ env, logService, databaseService });
   const neatQueueService = new NeatQueueService({
