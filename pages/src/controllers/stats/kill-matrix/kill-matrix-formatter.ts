@@ -1,6 +1,12 @@
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import type { KillMatrixClassification, KillMatrixPivotData, KillMatrixPlayer, KillMatrixViewRow } from "./types";
+import type {
+  KillMatrixClassification,
+  KillMatrixColumnHeader,
+  KillMatrixPivotData,
+  KillMatrixPlayer,
+  KillMatrixViewRow,
+} from "./types";
 
 interface KillMatrixFormatterPlayerLookup {
   readonly gamertag: string;
@@ -82,18 +88,21 @@ export class KillMatrixFormatter {
     return { killerXuid, victimXuid };
   }
 
-  public static pivot(rows: readonly KillMatrixViewRow[]): KillMatrixPivotData {
+  public static pivot(
+    rows: readonly KillMatrixViewRow[],
+    orderedPlayers?: readonly KillMatrixPlayer[],
+  ): KillMatrixPivotData {
     if (rows.length === 0) {
-      return { tableRows: [], victimGamertags: [] };
+      return { tableRows: [], columnHeaders: [] };
     }
 
-    const killersMap = new Map<string, string>();
-    const victimsMap = new Map<string, string>();
+    const killersMap = new Map<string, KillMatrixPlayer>();
+    const victimsMap = new Map<string, KillMatrixPlayer>();
     const killCounts = new Map<string, Map<string, number>>();
 
     for (const row of rows) {
-      killersMap.set(row.killer.xuid, row.killer.gamertag);
-      victimsMap.set(row.victim.xuid, row.victim.gamertag);
+      killersMap.set(row.killer.xuid, row.killer);
+      victimsMap.set(row.victim.xuid, row.victim);
 
       if (!killCounts.has(row.killer.xuid)) {
         killCounts.set(row.killer.xuid, new Map());
@@ -102,30 +111,46 @@ export class KillMatrixFormatter {
       victimCounts.set(row.victim.xuid, row.count);
     }
 
-    const sortedKillers = Array.from(killersMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-    const sortedVictims = Array.from(victimsMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+    const sortedKillers =
+      orderedPlayers != null
+        ? orderedPlayers.filter((p) => killersMap.has(p.xuid))
+        : Array.from(killersMap.values()).sort((a, b) => a.gamertag.localeCompare(b.gamertag));
 
-    const tableRows = sortedKillers.map(([killerId, killerGamertag]) => {
-      const row: { killerId: string; killerGamertag: string; [key: string]: string | number } = {
-        killerId,
-        killerGamertag,
-      };
+    const sortedVictims =
+      orderedPlayers != null
+        ? orderedPlayers.filter((p) => victimsMap.has(p.xuid))
+        : Array.from(victimsMap.values()).sort((a, b) => a.gamertag.localeCompare(b.gamertag));
 
-      const victimCounts = killCounts.get(killerId) ?? new Map();
-      for (const [victimId, victimGamertag] of sortedVictims) {
-        row[victimGamertag] = victimCounts.get(victimId) ?? 0;
+    const tableRows = sortedKillers.map((killer) => {
+      const victimCounts = Preconditions.checkExists(killCounts.get(killer.xuid));
+      const kills = new Map<string, number>();
+      for (const victim of sortedVictims) {
+        kills.set(victim.gamertag, victimCounts.get(victim.xuid) ?? 0);
       }
-
-      return row;
+      return {
+        killerId: killer.xuid,
+        killerGamertag: killer.gamertag,
+        killerTeamId: killer.teamId,
+        kills,
+      };
     });
 
-    const victimGamertags = sortedVictims.map(([, gamertag]) => gamertag);
+    const columnHeaders: KillMatrixColumnHeader[] = sortedVictims.map((p) => ({
+      gamertag: p.gamertag,
+      teamId: p.teamId,
+    }));
 
-    return { tableRows, victimGamertags };
+    return { tableRows, columnHeaders };
   }
 
-  public static transpose(rows: readonly KillMatrixViewRow[]): KillMatrixPivotData {
-    return KillMatrixFormatter.pivot(rows.map((row) => ({ ...row, killer: row.victim, victim: row.killer })));
+  public static transpose(
+    rows: readonly KillMatrixViewRow[],
+    orderedPlayers?: readonly KillMatrixPlayer[],
+  ): KillMatrixPivotData {
+    return KillMatrixFormatter.pivot(
+      rows.map((row) => ({ ...row, killer: row.victim, victim: row.killer })),
+      orderedPlayers,
+    );
   }
 
   public static aggregate(rows: readonly KillMatrixViewRow[]): KillMatrixViewRow[] {
