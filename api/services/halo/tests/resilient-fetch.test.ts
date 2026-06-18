@@ -617,7 +617,9 @@ describe("createResilientFetch", () => {
   describe("kvKeyNamespace", () => {
     it("reads circuit-breaker state from namespaced key when kvKeyNamespace is provided", async () => {
       kvGetSpy.mockImplementation(async (key) => {
-        if (key === KV_KEYS.PROXY_ENABLED) {return Promise.resolve("true");}
+        if (key === KV_KEYS.PROXY_ENABLED) {
+          return Promise.resolve("true");
+        }
         return Promise.resolve(null);
       });
       fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 200 }));
@@ -638,7 +640,9 @@ describe("createResilientFetch", () => {
     it("writes circuit-breaker and error-window state to namespaced keys when kvKeyNamespace is provided", async () => {
       const errorWindow = aFakeErrorWindowWith({ errorCount: 2 });
       kvGetSpy.mockImplementation(async (key: string) => {
-        if (key.startsWith("halo:film:errors")) {return Promise.resolve(errorWindow);}
+        if (key.startsWith("halo:film:errors")) {
+          return Promise.resolve(errorWindow);
+        }
         return Promise.resolve(null);
       });
 
