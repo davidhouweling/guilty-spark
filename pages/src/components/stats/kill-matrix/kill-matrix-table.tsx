@@ -10,6 +10,11 @@ import type { TeamColor } from "../../team-colors/team-colors";
 import type { KillMatrixPivotData, KillMatrixPivotRow } from "../../../controllers/stats/kill-matrix/types";
 import styles from "./kill-matrix-table.module.css";
 
+interface PlayerHeader {
+  readonly gamertag: string;
+  readonly teamId: number | null;
+}
+
 interface KillMatrixTableProps {
   readonly pivotData: KillMatrixPivotData;
   readonly ariaLabel: string;
@@ -18,7 +23,7 @@ interface KillMatrixTableProps {
   readonly status?: ComponentLoaderStatus;
   readonly killerAxisLabel?: string;
   readonly victimAxisLabel?: string;
-  readonly playerGamertags?: readonly string[];
+  readonly playerHeaders?: readonly PlayerHeader[];
   readonly transposedPivotData?: KillMatrixPivotData;
   readonly teamColors?: readonly TeamColor[];
 }
@@ -31,7 +36,7 @@ export function KillMatrixTable({
   status,
   killerAxisLabel = "Killer",
   victimAxisLabel = "Deaths",
-  playerGamertags,
+  playerHeaders,
   transposedPivotData,
   teamColors,
 }: KillMatrixTableProps): React.ReactElement {
@@ -44,13 +49,13 @@ export function KillMatrixTable({
   const activeKillerAxisLabel = isTransposedActive ? "Victim" : killerAxisLabel;
   const activeVictimAxisLabel = isTransposedActive ? "Kills" : victimAxisLabel;
 
+  const teamColorOf = (teamId: number | null): string =>
+    (teamId != null ? teamColors?.[teamId]?.hex : undefined) ?? "transparent";
+
   const columns = React.useMemo<SortableTableColumn<KillMatrixPivotRow>[]>(() => {
     if (effectiveStatus !== ComponentLoaderStatus.LOADED) {
       return [];
     }
-
-    const teamColorOf = (teamId: number | null): string =>
-      (teamId != null ? teamColors?.[teamId]?.hex : undefined) ?? "transparent";
 
     const cols: SortableTableColumn<KillMatrixPivotRow>[] = [
       {
@@ -105,30 +110,71 @@ export function KillMatrixTable({
     return cols;
   }, [effectiveStatus, activeKillerAxisLabel, activePivotData.columnHeaders, teamColors]);
 
-  const playerCount = playerGamertags !== undefined && playerGamertags.length > 0 ? playerGamertags.length : 8;
+  const playerCount = playerHeaders !== undefined && playerHeaders.length > 0 ? playerHeaders.length : 8;
+
+  const shimmerColumns = React.useMemo<SortableTableColumn<{ index: number }>[]>(() => {
+    const cols: SortableTableColumn<{ index: number }>[] = [
+      {
+        id: "killer",
+        header: killerAxisLabel,
+        accessorFn: (row): number => row.index,
+        enableSorting: false,
+        cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
+        cellStyle:
+          teamColors != null
+            ? (row): React.CSSProperties =>
+                ({
+                  "--row-team-color": teamColorOf(playerHeaders?.[row.index]?.teamId ?? null),
+                }) as React.CSSProperties
+            : undefined,
+        cell: (_value, row): React.ReactNode => {
+          const rowHeader = playerHeaders?.[row.index];
+          return (
+            <span className={styles.playerHeader}>
+              {rowHeader?.teamId != null && <TeamIcon teamId={rowHeader.teamId} size="x-small" />}
+              {rowHeader?.gamertag ?? ""}
+            </span>
+          );
+        },
+      },
+    ];
+
+    for (let i = 0; i < playerCount; i++) {
+      const header = playerHeaders?.[i];
+      const colColor = teamColorOf(header?.teamId ?? null);
+      cols.push({
+        id: `victim-${i.toString()}`,
+        header: (
+          <span className={styles.playerHeader}>
+            {header?.teamId != null && <TeamIcon teamId={header.teamId} size="x-small" />}
+            {header?.gamertag ?? ""}
+          </span>
+        ),
+        headerClassName: styles.colHeader,
+        headerStyle: teamColors != null ? ({ "--col-team-color": colColor } as React.CSSProperties) : undefined,
+        accessorFn: (): number => 0,
+        enableSorting: false,
+        cellClassName: styles.killCell,
+        cellStyle:
+          teamColors != null
+            ? (row): React.CSSProperties =>
+                ({
+                  "--row-team-color": teamColorOf(playerHeaders?.[row.index]?.teamId ?? null),
+                  "--col-team-color": colColor,
+                }) as React.CSSProperties
+            : undefined,
+        cell: (): React.ReactNode => <div className={styles.shimmerCell} />,
+      });
+    }
+
+    return cols;
+  }, [killerAxisLabel, playerHeaders, playerCount, teamColors]);
+
+  const shimmerRows = React.useMemo(() => Array.from({ length: playerCount }, (_, i) => ({ index: i })), [playerCount]);
 
   const shimmer = (
-    <div
-      role="region"
-      className={styles.shimmerContainer}
-      style={{ "--shimmer-cols": playerCount } as React.CSSProperties}
-      aria-busy="true"
-      aria-label={ariaLabel}
-    >
-      <div className={styles.shimmerHeaderCell}>{killerAxisLabel}</div>
-      {Array.from({ length: playerCount }, (_, i) => (
-        <div key={i} className={styles.shimmerHeaderCell}>
-          {playerGamertags?.[i]}
-        </div>
-      ))}
-      {Array.from({ length: playerCount }, (_, row) => (
-        <React.Fragment key={row}>
-          <div className={styles.shimmerLabelCell}>{playerGamertags?.[row]}</div>
-          {Array.from({ length: playerCount }, (_col, col) => (
-            <div key={col} className={styles.shimmerCell} />
-          ))}
-        </React.Fragment>
-      ))}
+    <div role="region" aria-busy="true" aria-label={ariaLabel}>
+      <SortableTable data={shimmerRows} columns={shimmerColumns} getRowKey={(row): string => row.index.toString()} />
     </div>
   );
 
