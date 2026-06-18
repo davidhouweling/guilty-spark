@@ -4,7 +4,7 @@ import classNames from "classnames";
 import styles from "./button.module.css";
 
 interface ButtonProps {
-  readonly onClick?: () => void;
+  readonly onClick?: React.DOMAttributes<HTMLButtonElement>["onClick"];
   readonly href?: string;
   readonly variant?: "primary" | "secondary";
   readonly size?: "default" | "small" | "large";
