@@ -37,22 +37,22 @@ export class DiscordSeriesStatsPresenter {
     const activeRequest = this.requestNumber;
 
     this.store.setLoading();
+    void this.startAsync(activeRequest);
+  }
 
-    this.fetchStats()
-      .then((response) => {
-        if (this.isDisposed || activeRequest !== this.requestNumber) {
-          return;
-        }
-
-        this.store.setLoaded(response);
-      })
-      .catch(() => {
-        if (this.isDisposed || activeRequest !== this.requestNumber) {
-          return;
-        }
-
-        this.store.setError("Failed to load stats");
-      });
+  private async startAsync(activeRequest: number): Promise<void> {
+    try {
+      const response = await this.fetchStats();
+      if (this.isDisposed || activeRequest !== this.requestNumber) {
+        return;
+      }
+      this.store.setLoaded(response);
+    } catch {
+      if (this.isDisposed || activeRequest !== this.requestNumber) {
+        return;
+      }
+      this.store.setError("Failed to load stats");
+    }
   }
 
   dispose(): void {

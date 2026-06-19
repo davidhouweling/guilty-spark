@@ -199,23 +199,25 @@ export class StreamerConnectionsPresenter {
     const generation = ++this.saveGeneration;
     const settings = snapshotToSettings(this.config.store.getSnapshot());
     this.config.store.setSaving();
-    this.config.settingsService
-      .updateSettings(settings)
-      .then((saved) => {
-        if (this.isDisposed || generation !== this.saveGeneration || this.debounceTimer !== null) {
-          return;
-        }
-        const snapshot = this.config.store.getSnapshot();
-        const parsed = settingsToSnapshot(saved, snapshot);
-        applyParsedSettingsToStore(this.config.store, parsed, snapshot.gamertag);
-        this.config.store.setSaved();
-      })
-      .catch((err: unknown) => {
-        if (this.isDisposed || generation !== this.saveGeneration || this.debounceTimer !== null) {
-          return;
-        }
-        const message = err instanceof Error ? err.message : "Failed to save settings";
-        this.config.store.setSaveError(message);
-      });
+    void this.saveAsync(generation, settings);
+  }
+
+  private async saveAsync(generation: number, settings: StreamerViewSettings): Promise<void> {
+    try {
+      const saved = await this.config.settingsService.updateSettings(settings);
+      if (this.isDisposed || generation !== this.saveGeneration || this.debounceTimer !== null) {
+        return;
+      }
+      const snapshot = this.config.store.getSnapshot();
+      const parsed = settingsToSnapshot(saved, snapshot);
+      applyParsedSettingsToStore(this.config.store, parsed, snapshot.gamertag);
+      this.config.store.setSaved();
+    } catch (err: unknown) {
+      if (this.isDisposed || generation !== this.saveGeneration || this.debounceTimer !== null) {
+        return;
+      }
+      const message = err instanceof Error ? err.message : "Failed to save settings";
+      this.config.store.setSaveError(message);
+    }
   }
 }

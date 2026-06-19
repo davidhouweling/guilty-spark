@@ -3,7 +3,7 @@ import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
 import { alignSeriesGroupsToGroupings } from "../series-group-metadata";
 import { applyAddToAdjacentGroup, applyBreakFromGroup } from "../grouping-utils";
 import { shouldHideShortDurationMatch } from "../match-duration-filter";
-import type { GameSelectionDialogStore } from "./game-selection-dialog-store";
+import type { GameSelectionDialogSnapshot, GameSelectionDialogStore } from "./game-selection-dialog-store";
 
 interface Config {
   readonly store: GameSelectionDialogStore;
@@ -33,7 +33,7 @@ export class GameSelectionDialogPresenter {
       return;
     }
 
-    const { store, service, xuid, initialSelectedMatchIds, initialGroupings, initialSeriesGroups } = this.config;
+    const { store, initialSelectedMatchIds, initialGroupings, initialSeriesGroups } = this.config;
 
     store.batchUpdate({
       matches: null,
@@ -46,29 +46,32 @@ export class GameSelectionDialogPresenter {
       errorMessage: null,
     });
 
-    service
-      .getMatchHistory(xuid, 0, 25)
-      .then((response) => {
-        if (this.isDisposed) {
-          return;
-        }
-        const snapshot = store.getSnapshot();
-        const groupings = snapshot.groupings.length > 0 ? snapshot.groupings : [...response.suggestedGroupings];
-        store.batchUpdate({
-          matches: response.matches,
-          groupings,
-          seriesGroups: alignSeriesGroupsToGroupings(groupings, Array.from(snapshot.seriesGroups)),
-          hasMore: response.matches.length >= 25,
-        });
-      })
-      .catch((err: unknown) => {
-        if (this.isDisposed) {
-          return;
-        }
-        store.batchUpdate({
-          errorMessage: err instanceof Error ? err.message : "Failed to load matches.",
-        });
+    void this.loadMatchesAsync();
+  }
+
+  private async loadMatchesAsync(): Promise<void> {
+    const { store, service, xuid } = this.config;
+    try {
+      const response = await service.getMatchHistory(xuid, 0, 25);
+      if (this.isDisposed) {
+        return;
+      }
+      const snapshot = store.getSnapshot();
+      const groupings = snapshot.groupings.length > 0 ? snapshot.groupings : [...response.suggestedGroupings];
+      store.batchUpdate({
+        matches: response.matches,
+        groupings,
+        seriesGroups: alignSeriesGroupsToGroupings(groupings, Array.from(snapshot.seriesGroups)),
+        hasMore: response.matches.length >= 25,
       });
+    } catch (err: unknown) {
+      if (this.isDisposed) {
+        return;
+      }
+      store.batchUpdate({
+        errorMessage: err instanceof Error ? err.message : "Failed to load matches.",
+      });
+    }
   }
 
   public loadMore(): void {
@@ -76,31 +79,31 @@ export class GameSelectionDialogPresenter {
       return;
     }
 
-    const { store, service, xuid } = this.config;
-    const snapshot = store.getSnapshot();
+    const snapshot = this.config.store.getSnapshot();
 
     if (snapshot.matches == null) {
       return;
     }
 
-    const start = snapshot.matches.length;
+    void this.loadMoreAsync(snapshot.matches.length);
+  }
 
-    service
-      .getMatchHistory(xuid, start, 25)
-      .then((response) => {
-        if (this.isDisposed) {
-          return;
-        }
-        const current = store.getSnapshot();
-        const allMatches = current.matches != null ? [...current.matches, ...response.matches] : response.matches;
-        store.batchUpdate({
-          matches: allMatches,
-          hasMore: response.matches.length >= 25,
-        });
-      })
-      .catch(() => {
-        /* keep existing data visible */
+  private async loadMoreAsync(start: number): Promise<void> {
+    const { store, service, xuid } = this.config;
+    try {
+      const response = await service.getMatchHistory(xuid, start, 25);
+      if (this.isDisposed) {
+        return;
+      }
+      const current = store.getSnapshot();
+      const allMatches = current.matches != null ? [...current.matches, ...response.matches] : response.matches;
+      store.batchUpdate({
+        matches: allMatches,
+        hasMore: response.matches.length >= 25,
       });
+    } catch {
+      /* keep existing data visible */
+    }
   }
 
   public toggleMatch(matchId: string): void {
@@ -176,37 +179,38 @@ export class GameSelectionDialogPresenter {
       return;
     }
 
-    const { store, service, trackerId, onSynced } = this.config;
-    const snapshot = store.getSnapshot();
+    const snapshot = this.config.store.getSnapshot();
 
     if (snapshot.isSyncing) {
       return;
     }
 
-    store.batchUpdate({ isSyncing: true, errorMessage: null });
+    this.config.store.batchUpdate({ isSyncing: true, errorMessage: null });
+    void this.syncAndCloseAsync(snapshot);
+  }
 
-    service
-      .syncMatchesToTracker({
+  private async syncAndCloseAsync(snapshot: GameSelectionDialogSnapshot): Promise<void> {
+    const { store, service, trackerId, onSynced } = this.config;
+    try {
+      await service.syncMatchesToTracker({
         trackerId,
         selectedMatchIds: Array.from(snapshot.selectedMatchIds),
         matchGroupings: snapshot.groupings,
         matches: snapshot.matches ?? [],
-      })
-      .then(() => {
-        if (this.isDisposed) {
-          return;
-        }
-        onSynced();
-      })
-      .catch((err: unknown) => {
-        if (this.isDisposed) {
-          return;
-        }
-        store.batchUpdate({
-          isSyncing: false,
-          errorMessage: err instanceof Error ? err.message : "Failed to sync game selection.",
-        });
       });
+      if (this.isDisposed) {
+        return;
+      }
+      onSynced();
+    } catch (err: unknown) {
+      if (this.isDisposed) {
+        return;
+      }
+      store.batchUpdate({
+        isSyncing: false,
+        errorMessage: err instanceof Error ? err.message : "Failed to sync game selection.",
+      });
+    }
   }
 
   public static present(snapshot: ReturnType<GameSelectionDialogStore["getSnapshot"]>): {

@@ -98,22 +98,25 @@ export function DiscordSeriesStatsApp({ apiHost, guildId, queueNumber }: Discord
     setServices(null);
     setLoadingServices(ComponentLoaderStatus.PENDING);
 
-    installServices(apiHost)
-      .then((installedServices) => {
+    async function loadServices(): Promise<void> {
+      try {
+        const installedServices = await installServices(apiHost);
         if (isCancelled) {
           return;
         }
 
         setServices(installedServices);
         setLoadingServices(ComponentLoaderStatus.LOADED);
-      })
-      .catch(() => {
+      } catch {
         if (isCancelled) {
           return;
         }
 
         setLoadingServices(ComponentLoaderStatus.ERROR);
-      });
+      }
+    }
+
+    void loadServices();
 
     return (): void => {
       isCancelled = true;
