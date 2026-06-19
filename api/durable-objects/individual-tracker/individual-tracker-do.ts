@@ -280,12 +280,16 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     let discoveredNewMatch = false;
     let viewChanged = false;
     const newlyDiscovered = new Set<string>();
+    let skippedAlreadyKnown = 0;
+    let skippedBeforeStart = 0;
     for (const match of matches) {
       const matchId = match.MatchId;
       if (trackerState.matchIds.includes(matchId)) {
+        skippedAlreadyKnown++;
         continue;
       }
       if (new Date(match.MatchInfo.StartTime) < searchStart) {
+        skippedBeforeStart++;
         continue;
       }
 
@@ -330,6 +334,20 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         ]),
       );
     }
+
+    this.logService.info(
+      "IndividualTracker: poll filter summary",
+      new Map<string, JsonAny>([
+        ["trackerId", trackerState.trackerId],
+        ["searchStartTime", trackerState.searchStartTime],
+        ["totalFetched", matches.length],
+        ["skippedAlreadyKnown", skippedAlreadyKnown],
+        ["skippedBeforeStart", skippedBeforeStart],
+        ["newlyDiscovered", newlyDiscovered.size],
+        ["oldestMatchStartTime", matches.at(-1)?.MatchInfo.StartTime ?? "none"],
+        ["newestMatchStartTime", matches.at(0)?.MatchInfo.StartTime ?? "none"],
+      ]),
+    );
 
     if (trackerState.activeSeries != null && newlyDiscovered.size > 0) {
       const existingSeriesMatchIds = new Set(trackerState.activeSeries.matchIds);
