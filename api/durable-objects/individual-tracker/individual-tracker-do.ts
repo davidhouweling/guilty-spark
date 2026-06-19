@@ -923,7 +923,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     } catch (err: unknown) {
       this.logService.warn(
         err,
-        new Map([["context", "IndividualTracker: getUserHaloService failed in buildTopBarStats"]]),
+        new Map([
+          ["context", "IndividualTracker: getUserHaloService failed in buildTopBarStats"],
+          ["userId", state.userId],
+          ["xuid", state.xuid],
+        ]),
       );
       return computeTopBarStats(state, topBarStatSlots, null, null);
     }
