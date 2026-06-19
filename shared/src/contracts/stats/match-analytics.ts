@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { defineContract } from "../base";
 
 export const killMatrixEntrySchema = z.object({
   count: z.number().int().nonnegative().describe("Total kills for this killer/victim pair"),
@@ -19,11 +18,6 @@ export const SUPPORTED_ANALYTICS_MODULES = ["killMatrix"] as const;
 export const analyticsModuleSchema = z.enum(SUPPORTED_ANALYTICS_MODULES);
 export type AnalyticsModule = z.infer<typeof analyticsModuleSchema>;
 
-export const matchAnalyticsParamsSchema = z.object({
-  matchId: z.string(),
-});
-export type MatchAnalyticsParams = z.infer<typeof matchAnalyticsParamsSchema>;
-
 export const requestedModulesQuerySchema = z
   .string()
   .optional()
@@ -39,11 +33,6 @@ export const requestedModulesQuerySchema = z
     );
   })
   .pipe(z.array(analyticsModuleSchema).min(1));
-
-export const matchAnalyticsQuerySchema = z.object({
-  modules: requestedModulesQuerySchema,
-});
-export type MatchAnalyticsQuery = z.infer<typeof matchAnalyticsQuerySchema>;
 
 export const matchAnalyticsSchema = z.object({
   requestedModules: z.array(analyticsModuleSchema).min(1),
@@ -66,5 +55,3 @@ export const matchAnalyticsSchema = z.object({
 });
 
 export type MatchAnalytics = z.infer<typeof matchAnalyticsSchema>;
-
-export const matchAnalyticsContract = defineContract(z.object({ analytics: matchAnalyticsSchema }));
