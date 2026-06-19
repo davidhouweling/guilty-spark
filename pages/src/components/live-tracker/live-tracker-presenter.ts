@@ -640,6 +640,10 @@ export class LiveTrackerPresenter {
 
       const current = this.config.store.getSnapshot();
       if (current.lastStateMessage !== stateMessage) {
+        for (const id of newMatchIds) {
+          this.fetchedMatchIds.delete(id);
+        }
+        this.triggerAnalyticsFetch(current);
         return;
       }
       const map = new Map(current.analyticsByMatchId);

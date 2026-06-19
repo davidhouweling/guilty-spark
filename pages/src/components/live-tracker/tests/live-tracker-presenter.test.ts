@@ -195,15 +195,16 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
     presenter.dispose();
   });
 
-  it("discards stale analytics when lastStateMessage changes before the fetch resolves", async (): Promise<void> => {
+  it("rolls back fetchedMatchIds and re-triggers fetch when lastStateMessage changes before the fetch resolves", async (): Promise<void> => {
     const mockStore = new MockLiveTrackerStore();
     const analyticsService = aFakeMatchAnalyticsServiceWith();
 
-    let resolveFetch!: (value: Record<string, MatchAnalytics | null>) => void;
-    const pendingFetch = new Promise<Record<string, MatchAnalytics | null>>((resolve) => {
-      resolveFetch = resolve;
+    let resolveStaleFetch!: (value: Record<string, MatchAnalytics | null>) => void;
+    const staleFetch = new Promise<Record<string, MatchAnalytics | null>>((resolve) => {
+      resolveStaleFetch = resolve;
     });
-    vi.spyOn(analyticsService, "getBatchMatchAnalytics").mockReturnValue(pendingFetch);
+    // First call returns a deferred promise; subsequent calls use the real fake (resolves immediately)
+    const getBatchSpy = vi.spyOn(analyticsService, "getBatchMatchAnalytics").mockReturnValueOnce(staleFetch);
 
     let currentConnection: MockLiveTrackerConnection | null = null;
     const mockService = new MockLiveTrackerService();
@@ -228,17 +229,20 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
 
     expect(mockStore.getSnapshot().analyticsStatus).toBe(ComponentLoaderStatus.LOADING);
 
-    // Simulate a new lastStateMessage arriving (different object reference) before fetch resolves
+    // Simulate a new lastStateMessage arriving (different object reference) before the stale fetch resolves
     const snapshotBeforeResolve = mockStore.getSnapshot();
-    mockStore.setSnapshot({ ...snapshotBeforeResolve, lastStateMessage: { ...sampleLiveTrackerStateMessage } });
+    const newStateMessage = { ...sampleLiveTrackerStateMessage };
+    mockStore.setSnapshot({ ...snapshotBeforeResolve, lastStateMessage: newStateMessage });
 
-    // Resolve the first (now stale) fetch with fake analytics
-    resolveFetch({});
+    // Resolve the first (stale) fetch with empty results
+    resolveStaleFetch({});
     await vi.runAllTimersAsync();
 
-    // The stale guard (current.lastStateMessage !== stateMessage) should have suppressed the update
-    expect(mockStore.getSnapshot().analyticsStatus).toBe(ComponentLoaderStatus.LOADING);
-    expect(mockStore.getSnapshot().analyticsByMatchId.size).toBe(0);
+    const rawMatchIds = Object.keys(sampleLiveTrackerStateMessage.data.rawMatches);
+    // Stale fetch result is discarded; fetchedMatchIds are rolled back and a re-triggered fetch runs
+    expect(getBatchSpy).toHaveBeenCalledTimes(2);
+    expect(mockStore.getSnapshot().analyticsStatus).toBe(ComponentLoaderStatus.LOADED);
+    expect(mockStore.getSnapshot().analyticsByMatchId.size).toBe(rawMatchIds.length);
 
     presenter.dispose();
   });
