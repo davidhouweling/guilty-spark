@@ -158,10 +158,10 @@ public loadMatches(): void {
 private async loadMatchesAsync(): Promise<void> {
   try {
     const result = await this.config.service.fetchSomething();
-    if (this.isDisposed) return;
+    if (this.isDisposed) { return; }
     this.config.store.batchUpdate({ data: result });
   } catch (err: unknown) {
-    if (this.isDisposed) return;
+    if (this.isDisposed) { return; }
     this.config.store.batchUpdate({ error: "Failed" });
   }
 }
@@ -176,10 +176,14 @@ useEffect(() => {
   async function fetchDirectory(): Promise<void> {
     try {
       const dir = await service.getDirectory(gamertag);
-      if (isCancelled) return;
+      if (isCancelled) {
+        return;
+      }
       setDirectory(dir);
     } catch {
-      if (isCancelled) return;
+      if (isCancelled) {
+        return;
+      }
       setError(true);
     }
   }
