@@ -415,6 +415,7 @@ describe("topBarStats", () => {
     };
 
     beforeEach(() => {
+      vi.spyOn(services.haloService, "withUserClient").mockReturnValue(services.haloService);
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           xuid: trackedXuid,
