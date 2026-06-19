@@ -1,18 +1,48 @@
 import type { LiveTrackerIdentity, LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
+import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type {
   LiveTrackerConnection,
   LiveTrackerConnectionStatus,
   LiveTrackerService,
   LiveTrackerSubscription,
 } from "../../services/live-tracker/types";
+import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
+import type { MatchStatsData } from "../../controllers/stats/types";
+import type { SeriesMetadata } from "../../controllers/stats/series-metadata";
+import { ComponentLoaderStatus } from "../component-loader/component-loader";
+import { StatsController } from "../../controllers/stats/stats-controller";
+import { calculateSeriesMetadata } from "../../controllers/stats/series-metadata";
+import { GAMES_SUFFIX_RE, KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
+import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../controllers/stats/kill-matrix/types";
+import type { KillMatrixPivotData, KillMatrixPlayer } from "../../controllers/stats/kill-matrix/types";
 import type { LiveTrackerParams, LiveTrackerSnapshot, LiveTrackerStore } from "./live-tracker-store";
-import type { LiveTrackerViewModel } from "./types";
+import type { LiveTrackerViewModel, LiveTrackerStateRenderModel } from "./types";
 import { toLiveTrackerStateRenderModel } from "./state-render-model";
 
 interface Config {
   readonly liveTrackerService: LiveTrackerService;
   readonly getUrl: () => URL;
   readonly store: LiveTrackerStore;
+  readonly matchAnalyticsService: MatchAnalyticsService;
+}
+
+interface SeriesStatsData {
+  readonly teamData: MatchStatsData[];
+  readonly playerData: MatchStatsData[];
+  readonly metadata: SeriesMetadata | null;
+  readonly orderedPlayers: readonly KillMatrixPlayer[] | undefined;
+  readonly playersByXuid: ReadonlyMap<string, { gamertag: string; teamId: number | null }>;
+}
+
+interface MatchKillMatrix {
+  readonly matchId: string;
+  readonly pivotData: KillMatrixPivotData;
+  readonly transposedPivotData: KillMatrixPivotData;
+}
+
+interface KillMatrixResult {
+  readonly pivotData: KillMatrixPivotData;
+  readonly transposedPivotData: KillMatrixPivotData;
 }
 
 export class LiveTrackerPresenter {
@@ -31,6 +61,10 @@ export class LiveTrackerPresenter {
   private readonly maxReconnectionAttempts = 10;
   private readonly maxReconnectionDurationMs = 3 * 60 * 1000;
   private readonly baseReconnectionDelayMs = 2000;
+
+  private readonly fetchedMatchIds = new Set<string>();
+  private static readonly killMatrixFormatter = new KillMatrixFormatter();
+  private static readonly ANALYTICS_BATCH_SIZE = 30;
 
   public constructor(config: Config) {
     this.config = config;
@@ -76,6 +110,24 @@ export class LiveTrackerPresenter {
         ? state.teams.flatMap((team) => team.players.map((player) => ({ id: player.id, name: player.displayName })))
         : [];
 
+    const allMatchStats = LiveTrackerPresenter.computeAllMatchStats(state);
+    const seriesStatsData = LiveTrackerPresenter.computeSeriesStatsData(state);
+
+    const seriesStats =
+      seriesStatsData != null
+        ? {
+            teamData: seriesStatsData.teamData,
+            playerData: seriesStatsData.playerData,
+            metadata: seriesStatsData.metadata,
+          }
+        : null;
+
+    const { allMatchKillMatrix, seriesKillMatrix } = LiveTrackerPresenter.computeKillMatrix(
+      state,
+      seriesStatsData,
+      snapshot.analyticsByMatchId,
+    );
+
     return {
       title,
       subtitle,
@@ -85,6 +137,121 @@ export class LiveTrackerPresenter {
       state,
       sortedSubstitutions,
       availablePlayers,
+      params,
+      allMatchStats,
+      seriesStats,
+      analyticsStatus: snapshot.analyticsStatus,
+      allMatchKillMatrix,
+      seriesKillMatrix,
+    };
+  }
+
+  private static computeAllMatchStats(
+    state: LiveTrackerStateRenderModel | null,
+  ): readonly { matchId: string; data: MatchStatsData[] | null }[] {
+    if (state?.type !== "neatqueue") {
+      return [];
+    }
+
+    const { medalMetadata } = state;
+
+    return state.matches.map((match) => {
+      if (match.rawMatchStats == null) {
+        return { matchId: match.matchId, data: null };
+      }
+
+      try {
+        const controller = new StatsController();
+        const playerMap = new Map<string, string>(Object.entries(match.playerXuidToGametag));
+        controller.loadMatch(match.rawMatchStats, playerMap, medalMetadata);
+        return { matchId: match.matchId, data: controller.getMatchStats() };
+      } catch {
+        return { matchId: match.matchId, data: null };
+      }
+    });
+  }
+
+  private static computeSeriesStatsData(state: LiveTrackerStateRenderModel | null): SeriesStatsData | null {
+    if (state?.type !== "neatqueue" || state.matches.length === 0) {
+      return null;
+    }
+
+    const rawMatchStats = state.matches
+      .map((match) => match.rawMatchStats)
+      .filter((stats): stats is NonNullable<typeof stats> => stats != null);
+
+    if (rawMatchStats.length === 0) {
+      return null;
+    }
+
+    try {
+      const allPlayerXuidToGametag = new Map<string, string>();
+      for (const match of state.matches) {
+        for (const [xuid, gamertag] of Object.entries(match.playerXuidToGametag)) {
+          allPlayerXuidToGametag.set(xuid, gamertag);
+        }
+      }
+
+      const controller = new StatsController();
+      controller.loadSeries(rawMatchStats, allPlayerXuidToGametag, state.medalMetadata);
+      const { teamData, playerData } = controller.getSeriesStats();
+      const players = controller.getPlayers();
+      const playersByGamertag = new Map(players.map((p) => [p.gamertag, p]));
+      const resolvedPlayers = playerData
+        .flatMap((td) => td.players.map((p) => playersByGamertag.get(p.name.replace(GAMES_SUFFIX_RE, ""))))
+        .filter((p): p is KillMatrixPlayer => p != null);
+      const orderedPlayers = resolvedPlayers.length === players.length ? resolvedPlayers : players;
+      const playersByXuid = new Map(players.map((p) => [p.xuid, { gamertag: p.gamertag, teamId: p.teamId }]));
+      const metadata = calculateSeriesMetadata(state.matches, state.seriesScore);
+
+      return { teamData, playerData, metadata, orderedPlayers, playersByXuid };
+    } catch {
+      return null;
+    }
+  }
+
+  private static computeKillMatrix(
+    state: LiveTrackerStateRenderModel | null,
+    seriesStatsData: SeriesStatsData | null,
+    analyticsByMatchId: ReadonlyMap<string, MatchAnalytics>,
+  ): { allMatchKillMatrix: readonly MatchKillMatrix[]; seriesKillMatrix: KillMatrixResult | null } {
+    if (state?.type !== "neatqueue" || seriesStatsData == null || analyticsByMatchId.size === 0) {
+      return { allMatchKillMatrix: [], seriesKillMatrix: null };
+    }
+
+    const { orderedPlayers: seriesPlayers, playersByXuid } = seriesStatsData;
+    const matchKillMatrixRows = new Map<string, ReturnType<KillMatrixFormatter["present"]>>();
+
+    const allMatchKillMatrix = state.matches.map((match) => {
+      const analytics = analyticsByMatchId.get(match.matchId);
+      if (analytics == null) {
+        return {
+          matchId: match.matchId,
+          pivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
+          transposedPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
+        };
+      }
+      const rows = LiveTrackerPresenter.killMatrixFormatter.present({ analytics, playersByXuid });
+      matchKillMatrixRows.set(match.matchId, rows);
+      return {
+        matchId: match.matchId,
+        pivotData: KillMatrixFormatter.pivot(rows, seriesPlayers),
+        transposedPivotData: KillMatrixFormatter.transpose(rows, seriesPlayers),
+      };
+    });
+
+    if (matchKillMatrixRows.size === 0) {
+      return { allMatchKillMatrix, seriesKillMatrix: null };
+    }
+
+    const aggregatedRows = KillMatrixFormatter.aggregate([...matchKillMatrixRows.values()].flatMap((rows) => rows));
+
+    return {
+      allMatchKillMatrix,
+      seriesKillMatrix: {
+        pivotData: KillMatrixFormatter.pivot(aggregatedRows, seriesPlayers),
+        transposedPivotData: KillMatrixFormatter.transpose(aggregatedRows, seriesPlayers),
+      },
     };
   }
 
@@ -265,6 +432,8 @@ export class LiveTrackerPresenter {
         lastStateMessage: null,
         hasConnection: false,
         hasReceivedInitialData: false,
+        analyticsByMatchId: new Map(),
+        analyticsStatus: ComponentLoaderStatus.LOADED,
       });
       return;
     }
@@ -292,12 +461,16 @@ export class LiveTrackerPresenter {
     this.stopReconnection();
     this.cleanupConnection();
 
+    this.fetchedMatchIds.clear();
+
     const current = this.config.store.getSnapshot();
     this.config.store.setSnapshot({
       ...current,
       hasConnection: false,
       lastStateMessage: null,
       hasReceivedInitialData: false,
+      analyticsByMatchId: new Map(),
+      analyticsStatus: ComponentLoaderStatus.LOADED,
     });
   }
 
@@ -396,12 +569,95 @@ export class LiveTrackerPresenter {
 
       const snapshot = this.config.store.getSnapshot();
 
-      this.config.store.setSnapshot({
+      if (LiveTrackerPresenter.isStateMessageEqual(snapshot.lastStateMessage, message)) {
+        return;
+      }
+
+      const newSnapshot: LiveTrackerSnapshot = {
         ...snapshot,
         lastStateMessage: message,
         hasReceivedInitialData: true,
-      });
+      };
+
+      this.config.store.setSnapshot(newSnapshot);
+      this.triggerAnalyticsFetch(newSnapshot);
     });
+  }
+
+  private triggerAnalyticsFetch(snapshot: LiveTrackerSnapshot): void {
+    if (snapshot.lastStateMessage?.type !== "state") {
+      return;
+    }
+
+    const rawMatchIds = Object.keys(snapshot.lastStateMessage.data.rawMatches);
+    const newMatchIds = rawMatchIds.filter((id) => !this.fetchedMatchIds.has(id));
+
+    if (newMatchIds.length === 0) {
+      return;
+    }
+
+    const isInitialFetch = this.fetchedMatchIds.size === 0;
+    void this.fetchAnalyticsAsync(newMatchIds, isInitialFetch);
+  }
+
+  private async fetchAnalyticsAsync(newMatchIds: string[], isInitialFetch: boolean): Promise<void> {
+    for (const id of newMatchIds) {
+      this.fetchedMatchIds.add(id);
+    }
+
+    if (isInitialFetch) {
+      const current = this.config.store.getSnapshot();
+      this.config.store.setSnapshot({
+        ...current,
+        analyticsStatus: ComponentLoaderStatus.LOADING,
+      });
+    }
+
+    const chunks: string[][] = [];
+    for (let i = 0; i < newMatchIds.length; i += LiveTrackerPresenter.ANALYTICS_BATCH_SIZE) {
+      chunks.push(newMatchIds.slice(i, i + LiveTrackerPresenter.ANALYTICS_BATCH_SIZE));
+    }
+
+    try {
+      const allResults = await Promise.all(
+        chunks.map(async (chunk) => this.config.matchAnalyticsService.getBatchMatchAnalytics(chunk)),
+      );
+
+      if (this.isDisposed) {
+        return;
+      }
+
+      const current = this.config.store.getSnapshot();
+      const map = new Map(current.analyticsByMatchId);
+      for (const results of allResults) {
+        for (const [matchId, analytics] of Object.entries(results)) {
+          if (analytics != null) {
+            map.set(matchId, analytics);
+          }
+        }
+      }
+      this.config.store.setSnapshot({
+        ...current,
+        analyticsByMatchId: map,
+        analyticsStatus: ComponentLoaderStatus.LOADED,
+      });
+    } catch {
+      if (this.isDisposed) {
+        return;
+      }
+
+      for (const id of newMatchIds) {
+        this.fetchedMatchIds.delete(id);
+      }
+
+      if (isInitialFetch) {
+        const current = this.config.store.getSnapshot();
+        this.config.store.setSnapshot({
+          ...current,
+          analyticsStatus: ComponentLoaderStatus.ERROR,
+        });
+      }
+    }
   }
 
   private handleConnectionLost(identity: LiveTrackerIdentity, detail?: string): void {

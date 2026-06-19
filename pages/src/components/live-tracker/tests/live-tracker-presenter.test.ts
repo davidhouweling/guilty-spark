@@ -9,6 +9,8 @@ import type {
   LiveTrackerSubscription,
   LiveTrackerStatusListener,
 } from "../../../services/live-tracker/types";
+import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
+import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import type { LiveTrackerSnapshot, LiveTrackerStore } from "../live-tracker-store";
 
 class MockLiveTrackerConnection implements LiveTrackerConnection {
@@ -76,6 +78,8 @@ class MockLiveTrackerStore {
       lastStateMessage: null,
       hasConnection: false,
       hasReceivedInitialData: false,
+      analyticsByMatchId: new Map(),
+      analyticsStatus: ComponentLoaderStatus.LOADED,
     };
   }
 
@@ -124,6 +128,7 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
       liveTrackerService: mockService,
       store: mockStore as unknown as LiveTrackerStore,
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     });
 
     // Start the connection
@@ -194,6 +199,7 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
       liveTrackerService: mockService,
       store: mockStore as unknown as LiveTrackerStore,
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     });
 
     // Start the connection
@@ -242,6 +248,7 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
       liveTrackerService: mockService,
       store: mockStore as unknown as LiveTrackerStore,
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     });
 
     // Start the connection
@@ -277,6 +284,7 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
 
     // Test passes if we eventually gave up due to time limit
     const finalSnapshot = mockStore.getSnapshot();
+
     const reachedTimeLimit =
       finalSnapshot.statusText.includes("Gave up") || finalSnapshot.statusText.includes("Max retries");
 

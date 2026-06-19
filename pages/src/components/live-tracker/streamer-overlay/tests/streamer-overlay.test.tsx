@@ -60,6 +60,12 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
     statusClassName: "status-active",
     sortedSubstitutions: [],
     availablePlayers: [],
+    params: defaultParams,
+    allMatchStats: [],
+    seriesStats: null,
+    analyticsStatus: ComponentLoaderStatus.LOADED,
+    allMatchKillMatrix: [],
+    seriesKillMatrix: null,
     state: {
       type: "neatqueue",
       guildName: "Test Guild",
