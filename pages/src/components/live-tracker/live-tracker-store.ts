@@ -3,7 +3,7 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import type { LiveTrackerConnectionStatus } from "../../services/live-tracker/types";
 import type { MatchStatsData } from "../../controllers/stats/types";
 import { ComponentLoaderStatus } from "../component-loader/component-loader";
-import type { SeriesStatsData } from "./types";
+import type { LiveTrackerSeriesStatsData } from "./types";
 
 export type LiveTrackerConnectionState = "idle" | LiveTrackerConnectionStatus;
 
@@ -23,7 +23,7 @@ export interface LiveTrackerSnapshot {
   readonly analyticsByMatchId: ReadonlyMap<string, MatchAnalytics>;
   readonly analyticsStatus: ComponentLoaderStatus;
   readonly allMatchStats: readonly { matchId: string; data: MatchStatsData[] | null }[];
-  readonly seriesStatsData: SeriesStatsData | null;
+  readonly seriesStatsData: LiveTrackerSeriesStatsData | null;
 }
 
 export class LiveTrackerStore {

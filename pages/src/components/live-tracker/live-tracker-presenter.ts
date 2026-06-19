@@ -20,7 +20,7 @@ import type {
   LiveTrackerStateRenderModel,
   MatchKillMatrix,
   KillMatrixResult,
-  SeriesStatsData,
+  LiveTrackerSeriesStatsData,
 } from "./types";
 import { toLiveTrackerStateRenderModel } from "./state-render-model";
 
@@ -156,7 +156,9 @@ export class LiveTrackerPresenter {
     });
   }
 
-  private static computeSeriesStatsData(state: LiveTrackerStateRenderModel | null): SeriesStatsData | null {
+  private static computeLiveTrackerSeriesStatsData(
+    state: LiveTrackerStateRenderModel | null,
+  ): LiveTrackerSeriesStatsData | null {
     if (state?.type !== "neatqueue" || state.matches.length === 0) {
       return null;
     }
@@ -197,7 +199,7 @@ export class LiveTrackerPresenter {
 
   private static computeKillMatrix(
     state: LiveTrackerStateRenderModel | null,
-    seriesStatsData: SeriesStatsData | null,
+    seriesStatsData: LiveTrackerSeriesStatsData | null,
     analyticsByMatchId: ReadonlyMap<string, MatchAnalytics>,
   ): { allMatchKillMatrix: readonly MatchKillMatrix[]; seriesKillMatrix: KillMatrixResult | null } {
     if (state?.type !== "neatqueue" || seriesStatsData == null || analyticsByMatchId.size === 0) {
@@ -564,7 +566,7 @@ export class LiveTrackerPresenter {
 
       const state = toLiveTrackerStateRenderModel(message);
       const allMatchStats = LiveTrackerPresenter.computeAllMatchStats(state);
-      const seriesStatsData = LiveTrackerPresenter.computeSeriesStatsData(state);
+      const seriesStatsData = LiveTrackerPresenter.computeLiveTrackerSeriesStatsData(state);
 
       const newSnapshot: LiveTrackerSnapshot = {
         ...snapshot,

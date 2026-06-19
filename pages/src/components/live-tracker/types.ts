@@ -6,7 +6,7 @@ import type { ComponentLoaderStatus } from "../component-loader/component-loader
 import type { KillMatrixPivotData, KillMatrixPlayer } from "../../controllers/stats/kill-matrix/types";
 import type { LiveTrackerParams } from "./live-tracker-store";
 
-export interface SeriesStatsData {
+export interface LiveTrackerSeriesStatsData {
   readonly teamData: MatchStatsData[];
   readonly playerData: MatchStatsData[];
   readonly metadata: SeriesMetadata | null;
