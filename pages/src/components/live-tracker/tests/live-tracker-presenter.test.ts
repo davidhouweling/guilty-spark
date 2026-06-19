@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import type { LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
+import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
 import { LiveTrackerPresenter } from "../live-tracker-presenter";
 import type {
@@ -103,6 +104,145 @@ class MockLiveTrackerStore {
     };
   }
 }
+
+describe("LiveTrackerPresenter - Analytics Fetch", () => {
+  beforeEach((): void => {
+    vi.useFakeTimers();
+  });
+
+  afterEach((): void => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("transitions analyticsStatus LOADING then LOADED and calls getBatchMatchAnalytics once per batch", async (): Promise<void> => {
+    const mockStore = new MockLiveTrackerStore();
+    const analyticsService = aFakeMatchAnalyticsServiceWith();
+    const getBatchSpy = vi.spyOn(analyticsService, "getBatchMatchAnalytics");
+
+    let currentConnection: MockLiveTrackerConnection | null = null;
+    const mockService = new MockLiveTrackerService();
+    vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
+      currentConnection = new MockLiveTrackerConnection();
+      return Promise.resolve(currentConnection);
+    });
+
+    const presenter = new LiveTrackerPresenter({
+      getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
+      liveTrackerService: mockService,
+      store: mockStore as unknown as LiveTrackerStore,
+      matchAnalyticsService: analyticsService,
+    });
+
+    presenter.start();
+    await vi.runAllTimersAsync();
+
+    const connection = currentConnection as unknown as MockLiveTrackerConnection;
+    connection.emitStatus("connected");
+    connection.emitMessage(sampleLiveTrackerStateMessage);
+
+    // Status transitions to LOADING synchronously inside fetchAnalyticsAsync before the first await
+    expect(mockStore.getSnapshot().analyticsStatus).toBe(ComponentLoaderStatus.LOADING);
+
+    // Flush microtasks so the fake analytics Promise.resolve() completes
+    await vi.runAllTimersAsync();
+
+    const rawMatchIds = Object.keys(sampleLiveTrackerStateMessage.data.rawMatches);
+    expect(mockStore.getSnapshot().analyticsStatus).toBe(ComponentLoaderStatus.LOADED);
+    // All 5 matches fit in one batch (ANALYTICS_BATCH_SIZE = 30)
+    expect(getBatchSpy).toHaveBeenCalledTimes(1);
+    expect(getBatchSpy).toHaveBeenCalledWith(expect.arrayContaining(rawMatchIds));
+    expect(mockStore.getSnapshot().analyticsByMatchId.size).toBe(rawMatchIds.length);
+
+    presenter.dispose();
+  });
+
+  it("does not fetch analytics again when the same state message arrives a second time", async (): Promise<void> => {
+    const mockStore = new MockLiveTrackerStore();
+    const analyticsService = aFakeMatchAnalyticsServiceWith();
+    const getBatchSpy = vi.spyOn(analyticsService, "getBatchMatchAnalytics");
+
+    let currentConnection: MockLiveTrackerConnection | null = null;
+    const mockService = new MockLiveTrackerService();
+    vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
+      currentConnection = new MockLiveTrackerConnection();
+      return Promise.resolve(currentConnection);
+    });
+
+    const presenter = new LiveTrackerPresenter({
+      getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
+      liveTrackerService: mockService,
+      store: mockStore as unknown as LiveTrackerStore,
+      matchAnalyticsService: analyticsService,
+    });
+
+    presenter.start();
+    await vi.runAllTimersAsync();
+
+    const connection = currentConnection as unknown as MockLiveTrackerConnection;
+    connection.emitStatus("connected");
+    connection.emitMessage(sampleLiveTrackerStateMessage);
+    await vi.runAllTimersAsync();
+
+    expect(getBatchSpy).toHaveBeenCalledTimes(1);
+
+    // Emit the same state message again (heartbeat with identical rawMatches)
+    connection.emitMessage(sampleLiveTrackerStateMessage);
+    await vi.runAllTimersAsync();
+
+    expect(getBatchSpy).toHaveBeenCalledTimes(1);
+
+    presenter.dispose();
+  });
+
+  it("discards stale analytics when lastStateMessage changes before the fetch resolves", async (): Promise<void> => {
+    const mockStore = new MockLiveTrackerStore();
+    const analyticsService = aFakeMatchAnalyticsServiceWith();
+
+    let resolveFetch!: (value: Record<string, MatchAnalytics | null>) => void;
+    const pendingFetch = new Promise<Record<string, MatchAnalytics | null>>((resolve) => {
+      resolveFetch = resolve;
+    });
+    vi.spyOn(analyticsService, "getBatchMatchAnalytics").mockReturnValue(pendingFetch);
+
+    let currentConnection: MockLiveTrackerConnection | null = null;
+    const mockService = new MockLiveTrackerService();
+    vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
+      currentConnection = new MockLiveTrackerConnection();
+      return Promise.resolve(currentConnection);
+    });
+
+    const presenter = new LiveTrackerPresenter({
+      getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
+      liveTrackerService: mockService,
+      store: mockStore as unknown as LiveTrackerStore,
+      matchAnalyticsService: analyticsService,
+    });
+
+    presenter.start();
+    await vi.runAllTimersAsync();
+
+    const connection = currentConnection as unknown as MockLiveTrackerConnection;
+    connection.emitStatus("connected");
+    connection.emitMessage(sampleLiveTrackerStateMessage);
+
+    expect(mockStore.getSnapshot().analyticsStatus).toBe(ComponentLoaderStatus.LOADING);
+
+    // Simulate a new lastStateMessage arriving (different object reference) before fetch resolves
+    const snapshotBeforeResolve = mockStore.getSnapshot();
+    mockStore.setSnapshot({ ...snapshotBeforeResolve, lastStateMessage: { ...sampleLiveTrackerStateMessage } });
+
+    // Resolve the first (now stale) fetch with fake analytics
+    resolveFetch({});
+    await vi.runAllTimersAsync();
+
+    // The stale guard (current.lastStateMessage !== stateMessage) should have suppressed the update
+    expect(mockStore.getSnapshot().analyticsStatus).toBe(ComponentLoaderStatus.LOADING);
+    expect(mockStore.getSnapshot().analyticsByMatchId.size).toBe(0);
+
+    presenter.dispose();
+  });
+});
 
 describe("LiveTrackerPresenter - Retry Behavior", () => {
   beforeEach((): void => {
