@@ -1,7 +1,6 @@
 import * as Sentry from "@sentry/cloudflare";
 import { addMilliseconds, compareAsc, differenceInHours } from "date-fns";
 import { MatchType, RequestError } from "halo-infinite-api";
-import type { HaloService } from "../../services/halo/halo";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import {
   editSeriesContract,
@@ -45,6 +44,7 @@ import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import { type IndividualTopBarStatOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { HaloService } from "../../services/halo/halo";
 import type { JsonAny, LogService } from "../../services/log/types";
 import { installServices as installServicesImpl, type Services } from "../../services/install";
 import {
