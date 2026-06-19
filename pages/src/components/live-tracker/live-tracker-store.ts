@@ -26,7 +26,12 @@ export interface LiveTrackerSnapshot {
   readonly seriesStatsData: LiveTrackerSeriesStatsData | null;
 }
 
-export class LiveTrackerStore {
+export interface LiveTrackerStoreApi {
+  getSnapshot(): LiveTrackerSnapshot;
+  setSnapshot(next: LiveTrackerSnapshot): void;
+}
+
+export class LiveTrackerStore implements LiveTrackerStoreApi {
   private snapshot: LiveTrackerSnapshot;
   private readonly subscribers = new Set<() => void>();
 

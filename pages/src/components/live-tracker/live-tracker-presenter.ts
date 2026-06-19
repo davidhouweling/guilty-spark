@@ -14,7 +14,7 @@ import { calculateSeriesMetadata } from "../../controllers/stats/series-metadata
 import { GAMES_SUFFIX_RE, KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../controllers/stats/kill-matrix/types";
 import type { KillMatrixPlayer } from "../../controllers/stats/kill-matrix/types";
-import type { LiveTrackerParams, LiveTrackerSnapshot, LiveTrackerStore } from "./live-tracker-store";
+import type { LiveTrackerParams, LiveTrackerSnapshot, LiveTrackerStoreApi } from "./live-tracker-store";
 import type {
   LiveTrackerViewModel,
   LiveTrackerStateRenderModel,
@@ -27,7 +27,7 @@ import { toLiveTrackerStateRenderModel } from "./state-render-model";
 interface Config {
   readonly liveTrackerService: LiveTrackerService;
   readonly getUrl: () => URL;
-  readonly store: LiveTrackerStore;
+  readonly store: LiveTrackerStoreApi;
   readonly matchAnalyticsService: MatchAnalyticsService;
 }
 

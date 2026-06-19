@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import type { LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
 import { LiveTrackerPresenter } from "../live-tracker-presenter";
 import type {
@@ -12,7 +13,7 @@ import type {
 } from "../../../services/live-tracker/types";
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
-import type { LiveTrackerSnapshot, LiveTrackerStore } from "../live-tracker-store";
+import type { LiveTrackerSnapshot } from "../live-tracker-store";
 
 class MockLiveTrackerConnection implements LiveTrackerConnection {
   private readonly statusListeners = new Set<LiveTrackerStatusListener>();
@@ -120,24 +121,25 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
     const analyticsService = aFakeMatchAnalyticsServiceWith();
     const getBatchSpy = vi.spyOn(analyticsService, "getBatchMatchAnalytics");
 
-    let currentConnection: MockLiveTrackerConnection | null = null;
+    const createdConnections: MockLiveTrackerConnection[] = [];
     const mockService = new MockLiveTrackerService();
     vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
-      currentConnection = new MockLiveTrackerConnection();
-      return Promise.resolve(currentConnection);
+      const conn = new MockLiveTrackerConnection();
+      createdConnections.push(conn);
+      return Promise.resolve(conn);
     });
 
     const presenter = new LiveTrackerPresenter({
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
       liveTrackerService: mockService,
-      store: mockStore as unknown as LiveTrackerStore,
+      store: mockStore,
       matchAnalyticsService: analyticsService,
     });
 
     presenter.start();
     await vi.runAllTimersAsync();
 
-    const connection = currentConnection as unknown as MockLiveTrackerConnection;
+    const connection = Preconditions.checkExists(createdConnections[0]);
     connection.emitStatus("connected");
     connection.emitMessage(sampleLiveTrackerStateMessage);
 
@@ -162,24 +164,25 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
     const analyticsService = aFakeMatchAnalyticsServiceWith();
     const getBatchSpy = vi.spyOn(analyticsService, "getBatchMatchAnalytics");
 
-    let currentConnection: MockLiveTrackerConnection | null = null;
+    const createdConnections: MockLiveTrackerConnection[] = [];
     const mockService = new MockLiveTrackerService();
     vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
-      currentConnection = new MockLiveTrackerConnection();
-      return Promise.resolve(currentConnection);
+      const conn = new MockLiveTrackerConnection();
+      createdConnections.push(conn);
+      return Promise.resolve(conn);
     });
 
     const presenter = new LiveTrackerPresenter({
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
       liveTrackerService: mockService,
-      store: mockStore as unknown as LiveTrackerStore,
+      store: mockStore,
       matchAnalyticsService: analyticsService,
     });
 
     presenter.start();
     await vi.runAllTimersAsync();
 
-    const connection = currentConnection as unknown as MockLiveTrackerConnection;
+    const connection = Preconditions.checkExists(createdConnections[0]);
     connection.emitStatus("connected");
     connection.emitMessage(sampleLiveTrackerStateMessage);
     await vi.runAllTimersAsync();
@@ -206,24 +209,25 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
     // First call returns a deferred promise; subsequent calls use the real fake (resolves immediately)
     const getBatchSpy = vi.spyOn(analyticsService, "getBatchMatchAnalytics").mockReturnValueOnce(staleFetch);
 
-    let currentConnection: MockLiveTrackerConnection | null = null;
+    const createdConnections: MockLiveTrackerConnection[] = [];
     const mockService = new MockLiveTrackerService();
     vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
-      currentConnection = new MockLiveTrackerConnection();
-      return Promise.resolve(currentConnection);
+      const conn = new MockLiveTrackerConnection();
+      createdConnections.push(conn);
+      return Promise.resolve(conn);
     });
 
     const presenter = new LiveTrackerPresenter({
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
       liveTrackerService: mockService,
-      store: mockStore as unknown as LiveTrackerStore,
+      store: mockStore,
       matchAnalyticsService: analyticsService,
     });
 
     presenter.start();
     await vi.runAllTimersAsync();
 
-    const connection = currentConnection as unknown as MockLiveTrackerConnection;
+    const connection = Preconditions.checkExists(createdConnections[0]);
     connection.emitStatus("connected");
     connection.emitMessage(sampleLiveTrackerStateMessage);
 
@@ -273,7 +277,7 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
     const presenter = new LiveTrackerPresenter({
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
       liveTrackerService: mockService,
-      store: mockStore as unknown as LiveTrackerStore,
+      store: mockStore,
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     });
 
@@ -335,16 +339,17 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
     const mockService = new MockLiveTrackerService();
     const mockStore = new MockLiveTrackerStore();
 
-    let currentConnection: MockLiveTrackerConnection | null = null;
-    vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
-      currentConnection = new MockLiveTrackerConnection();
-      return Promise.resolve(currentConnection);
+    const createdConnections: MockLiveTrackerConnection[] = [];
+    const connectSpy = vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
+      const conn = new MockLiveTrackerConnection();
+      createdConnections.push(conn);
+      return Promise.resolve(conn);
     });
 
     const presenter = new LiveTrackerPresenter({
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
       liveTrackerService: mockService,
-      store: mockStore as unknown as LiveTrackerStore,
+      store: mockStore,
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     });
 
@@ -353,8 +358,7 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
     await vi.runAllTimersAsync();
 
     // Simulate 404 not found status on initial connection
-    expect(currentConnection).not.toBeNull();
-    const connection = currentConnection as unknown as MockLiveTrackerConnection;
+    const connection = Preconditions.checkExists(createdConnections[0]);
     connection.emitStatus("not_found");
     await vi.runAllTimersAsync();
 
@@ -362,13 +366,13 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
     expect(snapshot1.connectionState).toBe("not_found");
     expect(snapshot1.statusText).toContain("No active tracker found");
 
-    const connectCallCount = (mockService.connect as unknown as { mock: { calls: unknown[] } }).mock.calls.length;
+    const connectCallCount = connectSpy.mock.calls.length;
 
     // Advance time significantly
     await vi.advanceTimersByTimeAsync(300000); // 5 minutes
 
     // Should not have made any more connection attempts
-    const finalCallCount = (mockService.connect as unknown as { mock: { calls: unknown[] } }).mock.calls.length;
+    const finalCallCount = connectSpy.mock.calls.length;
     expect(finalCallCount).toBe(connectCallCount);
 
     // Should not have changed state (no retries)
@@ -393,7 +397,7 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
     const presenter = new LiveTrackerPresenter({
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
       liveTrackerService: mockService,
-      store: mockStore as unknown as LiveTrackerStore,
+      store: mockStore,
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     });
 
