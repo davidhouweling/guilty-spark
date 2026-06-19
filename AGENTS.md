@@ -144,6 +144,62 @@ switch (item.type) {
 
 **Functions**: Functions to be single single responsibility, when needing to do multiple things, break it down into individual functions that are called / chained.
 
+## Async Patterns
+
+**Fire-and-forget calls**: always extract to a named async function — never chain `.then().catch()` for side-effectful work. Call with `void` to communicate intent.
+
+**Presenters** — extract to a `private async` method named `<publicMethod>Async`:
+
+```typescript
+public loadMatches(): void {
+  void this.loadMatchesAsync();
+}
+
+private async loadMatchesAsync(): Promise<void> {
+  try {
+    const result = await this.config.service.fetchSomething();
+    if (this.isDisposed) { return; }
+    this.config.store.batchUpdate({ data: result });
+  } catch (err: unknown) {
+    if (this.isDisposed) { return; }
+    this.config.store.batchUpdate({ error: "Failed" });
+  }
+}
+```
+
+**Hooks/effects** — extract to a named inner async function:
+
+```typescript
+useEffect(() => {
+  let isCancelled = false;
+
+  async function fetchDirectory(): Promise<void> {
+    try {
+      const dir = await service.getDirectory(gamertag);
+      if (isCancelled) {
+        return;
+      }
+      setDirectory(dir);
+    } catch {
+      if (isCancelled) {
+        return;
+      }
+      setError(true);
+    }
+  }
+
+  void fetchDirectory();
+
+  return (): void => {
+    isCancelled = true;
+  };
+}, [deps]);
+```
+
+**`void` usage**: marks intentional fire-and-forget calls — not a linter silencer for unintentional floating promises. The `@typescript-eslint/no-floating-promises` rule is enabled.
+
+**Exception**: transformation chains that return a value (e.g. passed to `Promise.all`) are fine as-is.
+
 ## CSS / Styling
 
 CSS Modules only — all styling via `.module.css`. Use `classnames` package for conditional classes; never template-literal class strings. Pass dynamic values via CSS variables in the `style` prop: `style={{ "--accent": color }}` (only acceptable `style` usage).

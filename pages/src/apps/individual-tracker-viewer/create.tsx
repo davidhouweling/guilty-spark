@@ -32,8 +32,9 @@ export function IndividualTrackerViewerApp({ apiHost, trackerId }: IndividualTra
     setServices(null);
     setState(ComponentLoaderStatus.PENDING);
 
-    installServices(apiHost)
-      .then(async (installedServices) => {
+    async function loadServices(): Promise<void> {
+      try {
+        const installedServices = await installServices(apiHost);
         const session = await installedServices.authService.getSession();
         if (isCancelled) {
           return;
@@ -46,13 +47,15 @@ export function IndividualTrackerViewerApp({ apiHost, trackerId }: IndividualTra
 
         setServices(installedServices);
         setState(ComponentLoaderStatus.LOADED);
-      })
-      .catch(() => {
+      } catch {
         if (isCancelled) {
           return;
         }
         setState(ComponentLoaderStatus.ERROR);
-      });
+      }
+    }
+
+    void loadServices();
 
     return (): void => {
       isCancelled = true;

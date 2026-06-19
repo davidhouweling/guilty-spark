@@ -21,22 +21,25 @@ export function LoginApp({ apiHost }: LoginAppProps): ReactElement {
     setAuthService(null);
     setLoadingServices(ComponentLoaderStatus.PENDING);
 
-    installServices(apiHost)
-      .then((installedServices) => {
+    async function loadServices(): Promise<void> {
+      try {
+        const installedServices = await installServices(apiHost);
         if (isCancelled) {
           return;
         }
 
         setAuthService(installedServices.authService);
         setLoadingServices(ComponentLoaderStatus.LOADED);
-      })
-      .catch(() => {
+      } catch {
         if (isCancelled) {
           return;
         }
 
         setLoadingServices(ComponentLoaderStatus.ERROR);
-      });
+      }
+    }
+
+    void loadServices();
 
     return (): void => {
       isCancelled = true;

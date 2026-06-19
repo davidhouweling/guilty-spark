@@ -21,20 +21,23 @@ export function IndividualTrackerManagerApp({ apiHost }: IndividualTrackerManage
     setServices(null);
     setState(ComponentLoaderStatus.PENDING);
 
-    installServices(apiHost)
-      .then((installedServices) => {
+    async function loadServices(): Promise<void> {
+      try {
+        const installedServices = await installServices(apiHost);
         if (isCancelled) {
           return;
         }
         setServices(installedServices);
         setState(ComponentLoaderStatus.LOADED);
-      })
-      .catch(() => {
+      } catch {
         if (isCancelled) {
           return;
         }
         setState(ComponentLoaderStatus.ERROR);
-      });
+      }
+    }
+
+    void loadServices();
 
     return (): void => {
       isCancelled = true;

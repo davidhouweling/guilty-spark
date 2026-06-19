@@ -70,6 +70,7 @@ export default defineConfig(
       "@typescript-eslint/promise-function-async": "error",
       "@typescript-eslint/strict-boolean-expressions": "error",
       "@typescript-eslint/switch-exhaustiveness-check": "error",
+      "@typescript-eslint/no-floating-promises": "error",
       "import/order": "error",
       curly: ["error", "all"],
       "default-case": "error",

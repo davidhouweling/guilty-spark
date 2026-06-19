@@ -57,9 +57,9 @@ export function useFollowLiveDirectory({
 
     const connection = followLiveService.connectDirectory(gamertag);
 
-    followLiveService
-      .getDirectory(gamertag)
-      .then((dir) => {
+    async function fetchDirectory(): Promise<void> {
+      try {
+        const dir = await followLiveService.getDirectory(gamertag);
         if (isCancelled) {
           return;
         }
@@ -69,14 +69,16 @@ export function useFollowLiveDirectory({
         setSelectedTrackerId(liveId);
         setDirectoryStatus("connected");
         initialLoadDoneRef.current = true;
-      })
-      .catch(() => {
+      } catch {
         if (isCancelled) {
           return;
         }
         setDirectoryStatus("error");
         initialLoadDoneRef.current = true;
-      });
+      }
+    }
+
+    void fetchDirectory();
 
     const dirSubscription = connection.subscribe((updatedDirectory) => {
       if (isCancelled || !initialLoadDoneRef.current) {
