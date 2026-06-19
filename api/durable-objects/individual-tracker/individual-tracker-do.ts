@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/cloudflare";
 import { addMilliseconds, compareAsc, differenceInHours } from "date-fns";
-import { MatchType, RequestError } from "halo-infinite-api";
+import { type MatchStats, MatchType, RequestError } from "halo-infinite-api";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import {
   editSeriesContract,
@@ -416,9 +416,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private async enrichScore(haloService: HaloService, summary: IndividualTrackerMatchSummary): Promise<boolean> {
-    let matchStats: Awaited<ReturnType<HaloService["getMatchStats"]>>;
+    let matchStats: MatchStats;
     try {
-      matchStats = await haloService.getMatchStats(summary.matchId);
+      matchStats = Preconditions.checkExists((await haloService.getMatchDetails([summary.matchId]))[0]);
     } catch (error) {
       if (this.isAuthError(error)) {
         this.userHaloService = null;
@@ -462,9 +462,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.accumulatedMatchIds = [];
 
     for (const matchId of trackerState.selectedMatchIds) {
-      let matchStats: Awaited<ReturnType<HaloService["getMatchStats"]>>;
+      let matchStats: MatchStats;
       try {
-        matchStats = await haloService.getMatchStats(matchId);
+        matchStats = Preconditions.checkExists((await haloService.getMatchDetails([matchId]))[0]);
       } catch (error) {
         if (this.isAuthError(error)) {
           this.userHaloService = null;

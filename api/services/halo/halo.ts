@@ -157,14 +157,6 @@ export class HaloService {
     return seriesMatches;
   }
 
-  async getMatchStats(matchId: string): Promise<MatchStats> {
-    return this.userClient.getMatchStats(matchId, {
-      cf: {
-        cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_WEEK"], "500-599": 0 },
-      },
-    });
-  }
-
   async getMatchDetails(
     matchIDs: string[],
     filter?: (match: MatchStats, index: number) => boolean,
