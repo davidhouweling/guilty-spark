@@ -582,11 +582,12 @@ export class LiveTrackerPresenter {
   }
 
   private triggerAnalyticsFetch(snapshot: LiveTrackerSnapshot): void {
-    if (snapshot.lastStateMessage?.type !== "state") {
+    const { lastStateMessage } = snapshot;
+    if (lastStateMessage == null) {
       return;
     }
 
-    const rawMatchIds = Object.keys(snapshot.lastStateMessage.data.rawMatches);
+    const rawMatchIds = Object.keys(lastStateMessage.data.rawMatches);
     const newMatchIds = rawMatchIds.filter((id) => !this.fetchedMatchIds.has(id));
 
     if (newMatchIds.length === 0) {
@@ -594,10 +595,14 @@ export class LiveTrackerPresenter {
     }
 
     const isInitialFetch = this.fetchedMatchIds.size === 0;
-    void this.fetchAnalyticsAsync(newMatchIds, isInitialFetch);
+    void this.fetchAnalyticsAsync(newMatchIds, isInitialFetch, lastStateMessage);
   }
 
-  private async fetchAnalyticsAsync(newMatchIds: string[], isInitialFetch: boolean): Promise<void> {
+  private async fetchAnalyticsAsync(
+    newMatchIds: string[],
+    isInitialFetch: boolean,
+    stateMessage: LiveTrackerMessage,
+  ): Promise<void> {
     for (const id of newMatchIds) {
       this.fetchedMatchIds.add(id);
     }
@@ -634,6 +639,9 @@ export class LiveTrackerPresenter {
       }
 
       const current = this.config.store.getSnapshot();
+      if (current.lastStateMessage !== stateMessage) {
+        return;
+      }
       const map = new Map(current.analyticsByMatchId);
       for (const [matchId, analytics] of newAnalytics) {
         map.set(matchId, analytics);
@@ -654,6 +662,9 @@ export class LiveTrackerPresenter {
 
       if (isInitialFetch) {
         const current = this.config.store.getSnapshot();
+        if (current.lastStateMessage !== stateMessage) {
+          return;
+        }
         this.config.store.setSnapshot({
           ...current,
           analyticsStatus: ComponentLoaderStatus.ERROR,
