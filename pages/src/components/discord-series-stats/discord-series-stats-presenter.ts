@@ -4,7 +4,7 @@ import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { MatchStatsData } from "../../controllers/stats/types";
 import { StatsController } from "../../controllers/stats/stats-controller";
-import { KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
+import { GAMES_SUFFIX_RE, KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import {
   EMPTY_KILL_MATRIX_PIVOT_DATA,
   type KillMatrixPlayer,
@@ -164,7 +164,6 @@ export class DiscordSeriesStatsPresenter {
         seriesData = this.controller.getSeriesStats();
         const players = this.controller.getPlayers();
         const playersByGamertag = new Map(players.map((p) => [p.gamertag, p]));
-        const GAMES_SUFFIX_RE = /\s+\(\d+\/\d+ games\)$/;
         const resolvedPlayers = seriesData.playerData
           .flatMap((teamData) =>
             teamData.players.map((p) => playersByGamertag.get(p.name.replace(GAMES_SUFFIX_RE, ""))),

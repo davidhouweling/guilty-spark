@@ -4,7 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { TeamColor } from "../../../team-colors/team-colors";
 import type { StreamerOverlayProps } from "../streamer-overlay";
-import { LiveTrackerProvider } from "../../live-tracker-context";
+import { LiveTrackerProvider, type LiveTrackerProviderProps } from "../../live-tracker-context";
+import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import type { LiveTrackerViewModel } from "../../types";
 import { DEFAULT_ALL_SETTINGS } from "../../settings/types";
 
@@ -87,6 +88,16 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
   };
 }
 
+const defaultProviderProps: Omit<LiveTrackerProviderProps, "children"> = {
+  params: defaultParams,
+  model: aFakeLiveTrackerViewModelWith(),
+  allMatchStats: [] as { matchId: string; data: never[] }[],
+  seriesStats: null,
+  analyticsStatus: ComponentLoaderStatus.LOADED,
+  allMatchKillMatrix: [],
+  seriesKillMatrix: null,
+};
+
 describe("StreamerOverlay", () => {
   const teamColors: TeamColor[] = [
     { id: "eagle", name: "Eagle", hex: "#0066CC" },
@@ -106,7 +117,7 @@ describe("StreamerOverlay", () => {
     const model = aFakeLiveTrackerViewModelWith({ state: null });
 
     render(
-      <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
+      <LiveTrackerProvider {...defaultProviderProps} model={model}>
         <StreamerOverlay {...defaultProps} />
       </LiveTrackerProvider>,
     );
@@ -115,10 +126,8 @@ describe("StreamerOverlay", () => {
   });
 
   it("renders streamer overlay with settings UI", () => {
-    const model = aFakeLiveTrackerViewModelWith();
-
     render(
-      <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={[]} seriesStats={null}>
+      <LiveTrackerProvider {...defaultProviderProps}>
         <StreamerOverlay {...defaultProps} />
       </LiveTrackerProvider>,
     );
@@ -185,7 +194,7 @@ describe("StreamerOverlay", () => {
     ];
 
     render(
-      <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={allMatchStats} seriesStats={null}>
+      <LiveTrackerProvider {...defaultProviderProps} model={model} allMatchStats={allMatchStats}>
         <StreamerOverlay {...defaultProps} />
       </LiveTrackerProvider>,
     );
@@ -233,7 +242,7 @@ describe("StreamerOverlay", () => {
     const allMatchStats = [{ matchId: "match1", data: null }];
 
     render(
-      <LiveTrackerProvider params={defaultParams} model={model} allMatchStats={allMatchStats} seriesStats={null}>
+      <LiveTrackerProvider {...defaultProviderProps} model={model} allMatchStats={allMatchStats}>
         <StreamerOverlay {...defaultProps} />
       </LiveTrackerProvider>,
     );

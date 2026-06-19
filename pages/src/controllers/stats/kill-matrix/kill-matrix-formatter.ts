@@ -8,6 +8,8 @@ import type {
   KillMatrixViewRow,
 } from "./types";
 
+export const GAMES_SUFFIX_RE = /\s+\(\d+\/\d+ games\)$/;
+
 interface KillMatrixFormatterPlayerLookup {
   readonly gamertag: string;
   readonly teamId: number | null;

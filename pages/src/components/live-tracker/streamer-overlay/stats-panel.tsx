@@ -1,12 +1,19 @@
 import React, { memo } from "react";
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
+import type { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import type { TeamColor } from "../../team-colors/team-colors";
 import { MatchStats as MatchStatsView } from "../../stats/match-stats";
 import { SeriesStats } from "../../stats/series-stats";
 import type { MatchStatsData } from "../../../controllers/stats/types";
 import type { SeriesMetadata } from "../../../controllers/stats/series-metadata";
+import type { KillMatrixPivotData } from "../../../controllers/stats/kill-matrix/types";
 import { PlayerPreSeriesInfo } from "../../player-pre-series-info/player-pre-series-info";
 import type { LiveTrackerMatchRenderModel, LiveTrackerTeamRenderModel } from "../types";
+
+interface KillMatrixData {
+  readonly pivotData: KillMatrixPivotData;
+  readonly transposedPivotData: KillMatrixPivotData;
+}
 
 interface StatsPanelContentProps {
   readonly selectedTab: number;
@@ -22,6 +29,9 @@ interface StatsPanelContentProps {
   readonly selectedMatch: LiveTrackerMatchRenderModel | null;
   readonly teamColors: TeamColor[];
   readonly gameModeIconUrl: (gameMode: string, gameVariantCategory?: number) => string;
+  readonly matchKillMatrix: KillMatrixData | null;
+  readonly seriesKillMatrix: KillMatrixData | null;
+  readonly analyticsStatus: ComponentLoaderStatus;
 }
 
 function StatsPanelContentComponent({
@@ -34,6 +44,9 @@ function StatsPanelContentComponent({
   selectedMatch,
   teamColors,
   gameModeIconUrl,
+  matchKillMatrix,
+  seriesKillMatrix,
+  analyticsStatus,
 }: StatsPanelContentProps): React.ReactElement | null {
   if (selectedTab === -1 && matchesLength === 0 && playersAssociationData != null) {
     return (
@@ -49,6 +62,9 @@ function StatsPanelContentComponent({
         title="Series Totals"
         metadata={seriesStats.metadata}
         teamColors={teamColors}
+        killMatrixPivotData={seriesKillMatrix?.pivotData}
+        transposedKillMatrixPivotData={seriesKillMatrix?.transposedPivotData}
+        killMatrixStatus={analyticsStatus}
       />
     );
   }
@@ -71,6 +87,9 @@ function StatsPanelContentComponent({
         startTime={selectedMatch.startTime}
         endTime={selectedMatch.endTime}
         teamColors={teamColors}
+        killMatrixPivotData={matchKillMatrix?.pivotData}
+        transposedKillMatrixPivotData={matchKillMatrix?.transposedPivotData}
+        killMatrixStatus={analyticsStatus}
       />
     );
   }

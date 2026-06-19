@@ -2,6 +2,8 @@ import React, { createContext, useContext, useMemo } from "react";
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import type { MatchStatsData } from "../../controllers/stats/types";
 import type { SeriesMetadata } from "../../controllers/stats/series-metadata";
+import { type ComponentLoaderStatus } from "../component-loader/component-loader";
+import type { KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
 import type { LiveTrackerParams } from "./live-tracker-store";
 import type {
   LiveTrackerAvailablePlayer,
@@ -10,6 +12,17 @@ import type {
   LiveTrackerSubstitutionRenderModel,
   LiveTrackerTeamRenderModel,
 } from "./types";
+
+interface MatchKillMatrix {
+  readonly matchId: string;
+  readonly pivotData: KillMatrixPivotData;
+  readonly transposedPivotData: KillMatrixPivotData;
+}
+
+interface KillMatrixResult {
+  readonly pivotData: KillMatrixPivotData;
+  readonly transposedPivotData: KillMatrixPivotData;
+}
 
 interface LiveTrackerContextValue {
   readonly model: LiveTrackerViewModel;
@@ -20,11 +33,14 @@ interface LiveTrackerContextValue {
     playerData: MatchStatsData[];
     metadata: SeriesMetadata | null;
   } | null;
+  readonly analyticsStatus: ComponentLoaderStatus;
+  readonly allMatchKillMatrix: readonly MatchKillMatrix[];
+  readonly seriesKillMatrix: KillMatrixResult | null;
 }
 
 const LiveTrackerContext = createContext<LiveTrackerContextValue | null>(null);
 
-interface LiveTrackerProviderProps {
+export interface LiveTrackerProviderProps {
   readonly model: LiveTrackerViewModel;
   readonly params: LiveTrackerParams;
   readonly allMatchStats: readonly { matchId: string; data: MatchStatsData[] | null }[];
@@ -33,6 +49,9 @@ interface LiveTrackerProviderProps {
     playerData: MatchStatsData[];
     metadata: SeriesMetadata | null;
   } | null;
+  readonly analyticsStatus: ComponentLoaderStatus;
+  readonly allMatchKillMatrix: readonly MatchKillMatrix[];
+  readonly seriesKillMatrix: KillMatrixResult | null;
   readonly children: React.ReactNode;
 }
 
@@ -41,6 +60,9 @@ export function LiveTrackerProvider({
   params,
   allMatchStats,
   seriesStats,
+  analyticsStatus,
+  allMatchKillMatrix,
+  seriesKillMatrix,
   children,
 }: LiveTrackerProviderProps): React.ReactElement {
   // Memoize context value to prevent unnecessary re-renders
@@ -50,8 +72,11 @@ export function LiveTrackerProvider({
       params,
       allMatchStats,
       seriesStats,
+      analyticsStatus,
+      allMatchKillMatrix,
+      seriesKillMatrix,
     }),
-    [model, params, allMatchStats, seriesStats],
+    [model, params, allMatchStats, seriesStats, analyticsStatus, allMatchKillMatrix, seriesKillMatrix],
   );
 
   return <LiveTrackerContext.Provider value={value}>{children}</LiveTrackerContext.Provider>;
@@ -227,4 +252,28 @@ export function useTrackerIdentity(): { guildId: string; queueNumber: number } |
 export function useTrackerParams(): LiveTrackerParams {
   const { params } = useLiveTrackerContext();
   return params;
+}
+
+/**
+ * Select analytics loading status
+ */
+export function useAnalyticsStatus(): ComponentLoaderStatus {
+  const { analyticsStatus } = useLiveTrackerContext();
+  return analyticsStatus;
+}
+
+/**
+ * Select kill matrix data for all matches
+ */
+export function useAllMatchKillMatrix(): readonly MatchKillMatrix[] {
+  const { allMatchKillMatrix } = useLiveTrackerContext();
+  return allMatchKillMatrix;
+}
+
+/**
+ * Select series-level kill matrix data
+ */
+export function useSeriesKillMatrix(): KillMatrixResult | null {
+  const { seriesKillMatrix } = useLiveTrackerContext();
+  return seriesKillMatrix;
 }
