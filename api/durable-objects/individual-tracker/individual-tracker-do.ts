@@ -427,7 +427,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       this.logService.warn(
         error,
         new Map([
-          ["context", "IndividualTracker: getMatchStats failed"],
+          ["context", "IndividualTracker: getMatchDetails failed"],
           ["matchId", summary.matchId],
         ]),
       );
@@ -473,7 +473,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         this.logService.warn(
           error,
           new Map([
-            ["context", "IndividualTracker: recomputeAccumulatedTotals getMatchStats failed"],
+            ["context", "IndividualTracker: recomputeAccumulatedTotals getMatchDetails failed"],
             ["matchId", matchId],
           ]),
         );
@@ -489,6 +489,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     try {
       return await haloService.getMapName(assetId, versionId);
     } catch (error) {
+      if (this.isAuthError(error)) {
+        this.userHaloService = null;
+      }
       this.logService.warn(
         error,
         new Map([
