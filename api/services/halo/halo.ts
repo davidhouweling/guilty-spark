@@ -90,8 +90,9 @@ export class HaloService {
     this.playerMatchesRateLimiter = playerMatchesRateLimiter;
   }
 
-  // Returns a clone of this service that routes all Halo Infinite API calls through
-  // the supplied per-user client instead of the shared service credential.
+  // Returns a new HaloService instance that routes all Halo Infinite API calls through
+  // the supplied per-user client instead of the shared service credential. Internal caches
+  // (map names, player matches, etc.) start empty on the returned instance.
   withUserClient(client: HaloInfiniteClient): HaloService {
     return new HaloService({
       env: this.env,

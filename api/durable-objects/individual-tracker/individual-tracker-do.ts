@@ -491,6 +491,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     } catch (error) {
       if (this.isAuthError(error)) {
         this.userHaloService = null;
+        throw error;
       }
       this.logService.warn(
         error,

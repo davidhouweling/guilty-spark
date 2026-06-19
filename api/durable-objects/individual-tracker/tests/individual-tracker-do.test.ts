@@ -1059,6 +1059,30 @@ describe("IndividualTrackerDO", () => {
       expect(getClientForUser).toHaveBeenCalledTimes(1);
     });
 
+    it("clears the cached client and backs off when resolveMapName throws an auth error", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)]);
+      ownerClient.getSpecificAssetVersion.mockRejectedValue(
+        new RequestError(new URL("https://halo"), new Response(null, { status: 401 })),
+      );
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: [],
+          discoveredMatches: {},
+          errorState: { consecutiveErrors: 0, backoffMinutes: 3, lastSuccessTime: "old" },
+        }),
+      );
+
+      await expect(individualTrackerDO.alarm()).resolves.toBeUndefined();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.errorState.consecutiveErrors).toBe(1);
+
+      await individualTrackerDO.alarm();
+      expect(getClientForUser).toHaveBeenCalledTimes(2);
+    });
+
     it("sets lastMatchDiscoveredAt and resets errorState when new matches are found", async () => {
       ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z")]);
       storageGetSpy.mockResolvedValue(
