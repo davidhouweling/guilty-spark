@@ -111,6 +111,13 @@ Then resolve each unresolved thread whose first comment author login contains `"
 gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "{NODE_ID}"}) { thread { isResolved } } }'
 ```
 
+**Dismiss each Copilot review body** (hides the "⚠️ Not ready to approve" summary with a reason). Do this for every Copilot review whose state is `COMMENTED` or `CHANGES_REQUESTED` (i.e. not already `DISMISSED`):
+
+```bash
+gh api repos/{owner}/{repo}/pulls/{PR}/reviews/{REVIEW_ID}/dismissals \
+  -X PUT -f message="<addressed: one sentence explaining what was fixed or why not actioned>"
+```
+
 **Request a new Copilot review:**
 
 ```bash
