@@ -622,14 +622,19 @@ export class LiveTrackerPresenter {
         return;
       }
 
-      const current = this.config.store.getSnapshot();
-      const map = new Map(current.analyticsByMatchId);
+      const newAnalytics = new Map<string, MatchAnalytics>();
       for (const results of allResults) {
         for (const [matchId, analytics] of Object.entries(results)) {
           if (analytics != null) {
-            map.set(matchId, analytics);
+            newAnalytics.set(matchId, analytics);
           }
         }
+      }
+
+      const current = this.config.store.getSnapshot();
+      const map = new Map(current.analyticsByMatchId);
+      for (const [matchId, analytics] of newAnalytics) {
+        map.set(matchId, analytics);
       }
       this.config.store.setSnapshot({
         ...current,
