@@ -867,4 +867,130 @@ describe("HaloFilmService", () => {
       expect(analytics.entries[0]?.weapons).toEqual([]);
     });
   });
+
+  describe("highlight events KV cache", () => {
+    it("returns KV-cached events without hitting the network", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+
+      const cachedEvents: ParsedHighlightEvent[] = [
+        {
+          xuid: "111",
+          gamertag: "cached-player",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 500,
+          medalValue: 0,
+          teamId: null,
+        },
+      ];
+      await env.APP_DATA.put("halo:film:match:kv-match-1", JSON.stringify(cachedEvents));
+
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      const events = await service.getHighlightEventsForMatch("kv-match-1");
+
+      expect(events).toEqual(cachedEvents);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it("stores parsed events in KV after fetching from Halo Waypoint", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
+      await env.APP_DATA.put("film:clearance", "test-clearance-token");
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+
+      const compressedChunk = deflateSync(Uint8Array.of(0x01, 0x02));
+      const metadata = {
+        AssetId: "asset-id",
+        BlobStoragePathPrefix: "https://blob.example/",
+        CustomData: {
+          MatchId: "kv-miss-match",
+          FilmMajorVersion: 42,
+          FilmLength: 100,
+          Chunks: [
+            {
+              Index: 1,
+              ChunkType: 3,
+              DurationMilliseconds: 100,
+              ChunkSize: compressedChunk.byteLength,
+              FileRelativePath: "/chunk.bin",
+            },
+          ],
+        },
+      };
+
+      vi.spyOn(globalThis, "fetch").mockImplementation(
+        async (input: Parameters<typeof fetch>[0]): Promise<Response> => {
+          await Promise.resolve();
+          const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+          if (url.includes("/spectate")) {
+            return new Response(JSON.stringify(metadata), { status: 200 });
+          }
+          return new Response(compressedChunk, { status: 200 });
+        },
+      );
+
+      await service.getHighlightEventsForMatch("kv-miss-match");
+
+      const stored = await env.APP_DATA.get("halo:film:match:kv-miss-match", "json");
+      expect(stored).not.toBeNull();
+      expect(Array.isArray(stored)).toBe(true);
+    });
+
+    it("serves second request from KV without additional network calls", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
+      await env.APP_DATA.put("film:clearance", "test-clearance-token");
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+
+      const compressedChunk = deflateSync(Uint8Array.of(0x01));
+      const metadata = {
+        AssetId: "asset-id",
+        BlobStoragePathPrefix: "https://blob.example/",
+        CustomData: {
+          MatchId: "kv-second-req",
+          FilmMajorVersion: 42,
+          FilmLength: 100,
+          Chunks: [
+            {
+              Index: 2,
+              ChunkType: 3,
+              DurationMilliseconds: 100,
+              ChunkSize: compressedChunk.byteLength,
+              FileRelativePath: "/chunk.bin",
+            },
+          ],
+        },
+      };
+
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockImplementation(async (input: Parameters<typeof fetch>[0]): Promise<Response> => {
+          await Promise.resolve();
+          const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+          if (url.includes("/spectate")) {
+            return new Response(JSON.stringify(metadata), { status: 200 });
+          }
+          return new Response(compressedChunk, { status: 200 });
+        });
+
+      const firstResult = await service.getHighlightEventsForMatch("kv-second-req");
+      const callsAfterFirst = fetchSpy.mock.calls.length;
+      fetchSpy.mockClear();
+
+      const secondResult = await service.getHighlightEventsForMatch("kv-second-req");
+
+      expect(secondResult).toEqual(firstResult);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(callsAfterFirst).toBeGreaterThan(0);
+    });
+  });
 });

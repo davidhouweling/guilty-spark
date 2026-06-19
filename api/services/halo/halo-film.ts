@@ -46,6 +46,22 @@ export class HaloFilmService {
   }
 
   async getHighlightEventsForMatch(matchId: string): Promise<ParsedHighlightEvent[]> {
+    const kvCacheKey = `halo:film:match:${matchId}`;
+    const kvCached = await this.env.APP_DATA.get<ParsedHighlightEvent[]>(kvCacheKey, "json");
+    if (kvCached != null) {
+      return kvCached;
+    }
+
+    const events = await this.fetchHighlightEventsForMatch(matchId);
+
+    await this.env.APP_DATA.put(kvCacheKey, JSON.stringify(events), {
+      expirationTtl: HaloFilmService.FILM_CACHE_TTL_SECONDS,
+    });
+
+    return events;
+  }
+
+  private async fetchHighlightEventsForMatch(matchId: string): Promise<ParsedHighlightEvent[]> {
     const metadataCacheRequest = this.toMetadataCacheRequest(matchId);
     const cachedMetadata = await this.getCachedJson<FilmMetadataResponse>(metadataCacheRequest);
     const cachedHighlightChunk = cachedMetadata == null ? null : this.tryFindHighlightChunk(cachedMetadata);
