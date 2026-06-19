@@ -938,6 +938,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
             .getRankedArenaCsrs([state.xuid])
             .then((m) => m.get(state.xuid) ?? null)
             .catch((err: unknown) => {
+              if (this.isAuthError(err)) {
+                this.userHaloService = null;
+              }
               this.logService.warn(
                 err,
                 new Map([
@@ -950,6 +953,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         : Promise.resolve(null),
       hasEsraSlot
         ? userHaloService.getPlayerEsra(state.xuid).catch((err: unknown) => {
+            if (this.isAuthError(err)) {
+              this.userHaloService = null;
+            }
             this.logService.warn(
               err,
               new Map([
