@@ -8,15 +8,20 @@ import type {
 } from "../../services/live-tracker/types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { MatchStatsData } from "../../controllers/stats/types";
-import type { SeriesMetadata } from "../../controllers/stats/series-metadata";
 import { ComponentLoaderStatus } from "../component-loader/component-loader";
 import { StatsController } from "../../controllers/stats/stats-controller";
 import { calculateSeriesMetadata } from "../../controllers/stats/series-metadata";
 import { GAMES_SUFFIX_RE, KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../controllers/stats/kill-matrix/types";
-import type { KillMatrixPivotData, KillMatrixPlayer } from "../../controllers/stats/kill-matrix/types";
+import type { KillMatrixPlayer } from "../../controllers/stats/kill-matrix/types";
 import type { LiveTrackerParams, LiveTrackerSnapshot, LiveTrackerStore } from "./live-tracker-store";
-import type { LiveTrackerViewModel, LiveTrackerStateRenderModel } from "./types";
+import type {
+  LiveTrackerViewModel,
+  LiveTrackerStateRenderModel,
+  MatchKillMatrix,
+  KillMatrixResult,
+  SeriesStatsData,
+} from "./types";
 import { toLiveTrackerStateRenderModel } from "./state-render-model";
 
 interface Config {
@@ -24,25 +29,6 @@ interface Config {
   readonly getUrl: () => URL;
   readonly store: LiveTrackerStore;
   readonly matchAnalyticsService: MatchAnalyticsService;
-}
-
-interface SeriesStatsData {
-  readonly teamData: MatchStatsData[];
-  readonly playerData: MatchStatsData[];
-  readonly metadata: SeriesMetadata | null;
-  readonly orderedPlayers: readonly KillMatrixPlayer[] | undefined;
-  readonly playersByXuid: ReadonlyMap<string, { gamertag: string; teamId: number | null }>;
-}
-
-interface MatchKillMatrix {
-  readonly matchId: string;
-  readonly pivotData: KillMatrixPivotData;
-  readonly transposedPivotData: KillMatrixPivotData;
-}
-
-interface KillMatrixResult {
-  readonly pivotData: KillMatrixPivotData;
-  readonly transposedPivotData: KillMatrixPivotData;
 }
 
 export class LiveTrackerPresenter {
@@ -110,8 +96,7 @@ export class LiveTrackerPresenter {
         ? state.teams.flatMap((team) => team.players.map((player) => ({ id: player.id, name: player.displayName })))
         : [];
 
-    const allMatchStats = LiveTrackerPresenter.computeAllMatchStats(state);
-    const seriesStatsData = LiveTrackerPresenter.computeSeriesStatsData(state);
+    const { allMatchStats, seriesStatsData } = snapshot;
 
     const seriesStats =
       seriesStatsData != null
@@ -288,7 +273,7 @@ export class LiveTrackerPresenter {
 
     // Compare medalMetadata keys (structural check)
     const prevMedalIds = Object.keys(prevData.medalMetadata).sort();
-    const currMedalIds = Object.keys(prevData.medalMetadata).sort();
+    const currMedalIds = Object.keys(currData.medalMetadata).sort();
     if (prevMedalIds.length !== currMedalIds.length || !prevMedalIds.every((id, idx) => id === currMedalIds[idx])) {
       return false;
     }
@@ -434,6 +419,8 @@ export class LiveTrackerPresenter {
         hasReceivedInitialData: false,
         analyticsByMatchId: new Map(),
         analyticsStatus: ComponentLoaderStatus.LOADED,
+        allMatchStats: [],
+        seriesStatsData: null,
       });
       return;
     }
@@ -471,6 +458,8 @@ export class LiveTrackerPresenter {
       hasReceivedInitialData: false,
       analyticsByMatchId: new Map(),
       analyticsStatus: ComponentLoaderStatus.LOADED,
+      allMatchStats: [],
+      seriesStatsData: null,
     });
   }
 
@@ -573,10 +562,16 @@ export class LiveTrackerPresenter {
         return;
       }
 
+      const state = toLiveTrackerStateRenderModel(message);
+      const allMatchStats = LiveTrackerPresenter.computeAllMatchStats(state);
+      const seriesStatsData = LiveTrackerPresenter.computeSeriesStatsData(state);
+
       const newSnapshot: LiveTrackerSnapshot = {
         ...snapshot,
         lastStateMessage: message,
         hasReceivedInitialData: true,
+        allMatchStats,
+        seriesStatsData,
       };
 
       this.config.store.setSnapshot(newSnapshot);

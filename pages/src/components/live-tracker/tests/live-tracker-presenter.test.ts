@@ -80,6 +80,8 @@ class MockLiveTrackerStore {
       hasReceivedInitialData: false,
       analyticsByMatchId: new Map(),
       analyticsStatus: ComponentLoaderStatus.LOADED,
+      allMatchStats: [],
+      seriesStatsData: null,
     };
   }
 

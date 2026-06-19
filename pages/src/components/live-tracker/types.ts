@@ -3,8 +3,16 @@ import type { MatchStats } from "halo-infinite-api";
 import type { MatchStatsData } from "../../controllers/stats/types";
 import type { SeriesMetadata } from "../../controllers/stats/series-metadata";
 import type { ComponentLoaderStatus } from "../component-loader/component-loader";
-import type { KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
+import type { KillMatrixPivotData, KillMatrixPlayer } from "../../controllers/stats/kill-matrix/types";
 import type { LiveTrackerParams } from "./live-tracker-store";
+
+export interface SeriesStatsData {
+  readonly teamData: MatchStatsData[];
+  readonly playerData: MatchStatsData[];
+  readonly metadata: SeriesMetadata | null;
+  readonly orderedPlayers: readonly KillMatrixPlayer[] | undefined;
+  readonly playersByXuid: ReadonlyMap<string, { gamertag: string; teamId: number | null }>;
+}
 
 export interface LiveTrackerPlayerRenderModel {
   readonly id: string;
@@ -82,13 +90,13 @@ export interface LiveTrackerAvailablePlayer {
   readonly name: string;
 }
 
-interface MatchKillMatrix {
+export interface MatchKillMatrix {
   readonly matchId: string;
   readonly pivotData: KillMatrixPivotData;
   readonly transposedPivotData: KillMatrixPivotData;
 }
 
-interface KillMatrixResult {
+export interface KillMatrixResult {
   readonly pivotData: KillMatrixPivotData;
   readonly transposedPivotData: KillMatrixPivotData;
 }

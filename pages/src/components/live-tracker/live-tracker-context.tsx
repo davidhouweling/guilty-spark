@@ -3,7 +3,6 @@ import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/ty
 import type { MatchStatsData } from "../../controllers/stats/types";
 import type { SeriesMetadata } from "../../controllers/stats/series-metadata";
 import { type ComponentLoaderStatus } from "../component-loader/component-loader";
-import type { KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
 import type { LiveTrackerParams } from "./live-tracker-store";
 import type {
   LiveTrackerAvailablePlayer,
@@ -11,18 +10,9 @@ import type {
   LiveTrackerMatchRenderModel,
   LiveTrackerSubstitutionRenderModel,
   LiveTrackerTeamRenderModel,
+  MatchKillMatrix,
+  KillMatrixResult,
 } from "./types";
-
-interface MatchKillMatrix {
-  readonly matchId: string;
-  readonly pivotData: KillMatrixPivotData;
-  readonly transposedPivotData: KillMatrixPivotData;
-}
-
-interface KillMatrixResult {
-  readonly pivotData: KillMatrixPivotData;
-  readonly transposedPivotData: KillMatrixPivotData;
-}
 
 interface LiveTrackerContextValue {
   readonly model: LiveTrackerViewModel;

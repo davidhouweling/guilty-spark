@@ -1,7 +1,9 @@
 import type { LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { LiveTrackerConnectionStatus } from "../../services/live-tracker/types";
+import type { MatchStatsData } from "../../controllers/stats/types";
 import { ComponentLoaderStatus } from "../component-loader/component-loader";
+import type { SeriesStatsData } from "./types";
 
 export type LiveTrackerConnectionState = "idle" | LiveTrackerConnectionStatus;
 
@@ -20,6 +22,8 @@ export interface LiveTrackerSnapshot {
   readonly hasReceivedInitialData: boolean;
   readonly analyticsByMatchId: ReadonlyMap<string, MatchAnalytics>;
   readonly analyticsStatus: ComponentLoaderStatus;
+  readonly allMatchStats: readonly { matchId: string; data: MatchStatsData[] | null }[];
+  readonly seriesStatsData: SeriesStatsData | null;
 }
 
 export class LiveTrackerStore {
@@ -40,6 +44,8 @@ export class LiveTrackerStore {
       hasReceivedInitialData: false,
       analyticsByMatchId: new Map(),
       analyticsStatus: ComponentLoaderStatus.LOADED,
+      allMatchStats: [],
+      seriesStatsData: null,
     };
   }
 
