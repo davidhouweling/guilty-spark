@@ -80,8 +80,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private readonly state: DurableObjectState;
   private readonly services: Services;
   private readonly logService: LogService;
-  private userHaloService: HaloService | null = null;
   private readonly webSocketAdapter: WebSocketHibernationAdapter;
+  private userHaloService: HaloService | null = null;
   private topBarStatsCacheKey: string | undefined;
   private cachedTopBarStats: readonly TopBarStatItem[] | undefined;
   private cachedResolvedRosterCount: number | undefined;
