@@ -3,12 +3,13 @@ import type { MockInstance } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakeTeamWith } from "@guilty-spark/shared/halo/fakes/data";
-import { type HaloInfiniteClient, type PlayerMatchHistory, RequestError } from "halo-infinite-api";
+import { type HaloInfiniteClient, MatchType, type PlayerMatchHistory, RequestError } from "halo-infinite-api";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 import type { IndividualTrackerStartRequest } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
 import type { SeriesContextPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import { IndividualTrackerDO } from "../individual-tracker-do";
+import { HaloService } from "../../../services/halo/halo";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import type { Services } from "../../../services/install";
@@ -798,7 +799,13 @@ describe("IndividualTrackerDO", () => {
 
       await individualTrackerDO.alarm();
 
-      expect(ownerClient.getPlayerMatches).toHaveBeenCalledWith("fake-xuid", 0, 25);
+      expect(ownerClient.getPlayerMatches).toHaveBeenCalledWith(
+        "fake-xuid",
+        MatchType.All,
+        25,
+        undefined,
+        expect.objectContaining({ cf: expect.any(Object) }),
+      );
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.matchIds).toEqual(["match-existing", "match-new"]);
       expect(persisted.discoveredMatches["match-new"]).toMatchObject({
@@ -877,7 +884,7 @@ describe("IndividualTrackerDO", () => {
 
     it("stores outcome, score, and the resolved map name for a newly discovered match", async () => {
       ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 3)]);
-      const getMapNameSpy = vi.spyOn(services.haloService, "getMapName").mockResolvedValue("Aquarius");
+      const getMapNameSpy = vi.spyOn(HaloService.prototype, "getMapName").mockResolvedValue("Aquarius");
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           startTime: now.toISOString(),
@@ -894,7 +901,10 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.discoveredMatches["match-new"]?.score).toBe("50:42");
       expect(persisted.discoveredMatches["match-new"]?.mapName).toBe("Aquarius");
       expect(getMapNameSpy).toHaveBeenCalledWith("map-asset", "v1");
-      expect(ownerClient.getMatchStats).toHaveBeenCalledWith("match-new");
+      expect(ownerClient.getMatchStats).toHaveBeenCalledWith(
+        "match-new",
+        expect.objectContaining({ cf: expect.any(Object) }),
+      );
     });
 
     it("stores the team roster signature and team outcomes from getMatchStats", async () => {
@@ -963,7 +973,7 @@ describe("IndividualTrackerDO", () => {
 
     it("retries map-name resolution on a later poll when it initially fails", async () => {
       ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)]);
-      vi.spyOn(services.haloService, "getMapName")
+      vi.spyOn(HaloService.prototype, "getMapName")
         .mockRejectedValueOnce(new Error("asset blip"))
         .mockResolvedValue("Aquarius");
       const state = aFakeIndividualTrackerInternalStateWith({

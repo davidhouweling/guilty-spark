@@ -51,6 +51,7 @@ export interface HaloServiceOpts {
   databaseService: DatabaseService;
   xboxService: XboxService;
   infiniteClient: HaloInfiniteClient;
+  userClient?: HaloInfiniteClient;
   playerMatchesRateLimiter: IPlayerMatchesRateLimiter;
   roundRobinFn?: generateRoundRobinMapsFn;
 }
@@ -63,6 +64,7 @@ export class HaloService {
   private readonly databaseService: DatabaseService;
   private readonly xboxService: XboxService;
   private readonly infiniteClient: HaloInfiniteClient;
+  private readonly userClient: HaloInfiniteClient;
   private readonly roundRobinFn: generateRoundRobinMapsFn;
   private readonly playerMatchesRateLimiter: IPlayerMatchesRateLimiter;
   private readonly mapNameCache = new Map<string, string>();
@@ -78,6 +80,7 @@ export class HaloService {
     databaseService,
     xboxService,
     infiniteClient,
+    userClient,
     playerMatchesRateLimiter,
     roundRobinFn = generateRoundRobinMaps,
   }: HaloServiceOpts) {
@@ -86,8 +89,22 @@ export class HaloService {
     this.databaseService = databaseService;
     this.xboxService = xboxService;
     this.infiniteClient = infiniteClient;
+    this.userClient = userClient ?? infiniteClient;
     this.roundRobinFn = roundRobinFn;
     this.playerMatchesRateLimiter = playerMatchesRateLimiter;
+  }
+
+  withUserClient(client: HaloInfiniteClient): HaloService {
+    return new HaloService({
+      env: this.env,
+      logService: this.logService,
+      databaseService: this.databaseService,
+      xboxService: this.xboxService,
+      infiniteClient: this.infiniteClient,
+      userClient: client,
+      playerMatchesRateLimiter: this.playerMatchesRateLimiter,
+      roundRobinFn: this.roundRobinFn,
+    });
   }
 
   async getSeriesFromDiscordQueue(
@@ -140,13 +157,21 @@ export class HaloService {
     return seriesMatches;
   }
 
+  async getMatchStats(matchId: string): Promise<MatchStats> {
+    return this.userClient.getMatchStats(matchId, {
+      cf: {
+        cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_WEEK"], "500-599": 0 },
+      },
+    });
+  }
+
   async getMatchDetails(
     matchIDs: string[],
     filter?: (match: MatchStats, index: number) => boolean,
   ): Promise<MatchStats[]> {
     const matchStats = await Promise.all(
       matchIDs.map(async (matchID) =>
-        this.infiniteClient.getMatchStats(matchID, {
+        this.userClient.getMatchStats(matchID, {
           cf: {
             cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_WEEK"], "500-599": 0 },
           },
@@ -254,7 +279,7 @@ export class HaloService {
 
     const user = await this.fetchWithResilientFallback(
       async () =>
-        this.infiniteClient.getUser(gamertag, {
+        this.userClient.getUser(gamertag, {
           cf: {
             cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
           },
@@ -298,7 +323,7 @@ export class HaloService {
 
     const fetchedUsers = await this.fetchWithResilientFallback(
       async () =>
-        this.infiniteClient.getUsers(missingXuids, {
+        this.userClient.getUsers(missingXuids, {
           cf: {
             cacheTtlByStatus: { "200-299": TimeInSeconds["1_HOUR"], 404: TimeInSeconds["1_HOUR"], "500-599": 0 },
           },
@@ -328,7 +353,7 @@ export class HaloService {
   }
 
   async getServiceRecord(xuid: string): Promise<ServiceRecord> {
-    const serviceRecord = await this.infiniteClient.getUserServiceRecord(
+    const serviceRecord = await this.userClient.getUserServiceRecord(
       wrapXuid(xuid),
       {},
       {
@@ -341,7 +366,7 @@ export class HaloService {
   }
 
   async getMatchCount(xuid: string): Promise<MatchCount> {
-    const matchCount = await this.infiniteClient.getPlayerMatchCount(wrapXuid(xuid), {
+    const matchCount = await this.userClient.getPlayerMatchCount(wrapXuid(xuid), {
       cf: {
         cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
       },
@@ -442,7 +467,7 @@ export class HaloService {
 
       for (const [variantKey, match] of matchesByVariant.entries()) {
         try {
-          const skillResults: ResultContainer<MatchSkill>[] = await this.infiniteClient.getMatchSkill(
+          const skillResults: ResultContainer<MatchSkill>[] = await this.userClient.getMatchSkill(
             match.MatchId,
             [xuid],
             {
@@ -505,7 +530,7 @@ export class HaloService {
   }
 
   async getMedal(medalId: number): Promise<Medal | undefined> {
-    this.metadataJsonCache ??= this.infiniteClient.getMedalsMetadataFile({
+    this.metadataJsonCache ??= this.userClient.getMedalsMetadataFile({
       cf: {
         cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
       },
@@ -781,7 +806,7 @@ export class HaloService {
     }
 
     const wrappedXuidsMap = new Map(xuids.map((xuid) => [xuid, wrapXuid(xuid)]));
-    const playlistCsr = await this.infiniteClient.getPlaylistCsr(
+    const playlistCsr = await this.userClient.getPlaylistCsr(
       FetchablePlaylist.RANKED_ARENA,
       wrappedXuidsMap.values().toArray(),
       undefined,
@@ -843,7 +868,7 @@ export class HaloService {
 
   async getMapThumbnailUrl(assetId: string, versionId: string): Promise<string | null> {
     try {
-      const asset = await this.infiniteClient.getSpecificAssetVersion(AssetKind.Map, assetId, versionId, {
+      const asset = await this.userClient.getSpecificAssetVersion(AssetKind.Map, assetId, versionId, {
         cf: {
           cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_DAY"], "500-599": 0 },
         },
@@ -1191,14 +1216,14 @@ export class HaloService {
    * @param start starting index (allows us to page through results)
    * @returns
    */
-  private async getPlayerMatches(
+  async getPlayerMatches(
     playerXuid: string,
     type?: MatchType,
     count?: number,
     start?: number,
   ): Promise<PlayerMatchHistory[]> {
     const matches = await this.playerMatchesRateLimiter.execute(async () =>
-      this.infiniteClient.getPlayerMatches(playerXuid, type, count, start, {
+      this.userClient.getPlayerMatches(playerXuid, type, count, start, {
         cf: {
           cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
         },
@@ -1320,7 +1345,7 @@ export class HaloService {
     const cacheKey = `${assetId}:${versionId}`;
 
     if (!this.mapNameCache.has(cacheKey)) {
-      const mapData = await this.infiniteClient.getSpecificAssetVersion(AssetKind.Map, assetId, versionId, {
+      const mapData = await this.userClient.getSpecificAssetVersion(AssetKind.Map, assetId, versionId, {
         cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
       });
       this.mapNameCache.set(cacheKey, this.sanitizeMapName(mapData.PublicName));
@@ -1332,7 +1357,7 @@ export class HaloService {
   private async getGameType(ugcGameVariantAssetId: string, ucgGameVariantVersionId: string): Promise<string> {
     const cacheKey = `${ugcGameVariantAssetId}:${ucgGameVariantVersionId}`;
     if (!this.gameTypeCache.has(cacheKey)) {
-      const mapModeData = await this.infiniteClient.getSpecificAssetVersion(
+      const mapModeData = await this.userClient.getSpecificAssetVersion(
         AssetKind.UgcGameVariant,
         ugcGameVariantAssetId,
         ucgGameVariantVersionId,
@@ -1830,10 +1855,10 @@ export class HaloService {
   }
 
   private async getPlaylistRotationEntries(playlistId: FetchablePlaylist): Promise<MapModePairAsset[]> {
-    const playlist = await this.infiniteClient.getPlaylist(playlistId, {
+    const playlist = await this.userClient.getPlaylist(playlistId, {
       cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
     });
-    const specificAssetVersion = await this.infiniteClient.getSpecificAssetVersion(
+    const specificAssetVersion = await this.userClient.getSpecificAssetVersion(
       AssetKind.Playlist,
       playlistId,
       playlist.UgcPlaylistVersion,
@@ -1843,7 +1868,7 @@ export class HaloService {
     );
     const rotationEntries = await Promise.allSettled(
       specificAssetVersion.RotationEntries.map(async (entry) =>
-        this.infiniteClient.getSpecificAssetVersion(AssetKind.MapModePair, entry.AssetId, entry.VersionId, {
+        this.userClient.getSpecificAssetVersion(AssetKind.MapModePair, entry.AssetId, entry.VersionId, {
           cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
         }),
       ),
