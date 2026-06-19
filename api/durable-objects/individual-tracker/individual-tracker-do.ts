@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/cloudflare";
 import { addMilliseconds, compareAsc, differenceInHours } from "date-fns";
-import { type HaloInfiniteClient, type MatchStats, MatchType, RequestError } from "halo-infinite-api";
+import { type MatchStats, MatchType, type PlaylistCsrContainer, RequestError } from "halo-infinite-api";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import {
   editSeriesContract,
@@ -44,6 +44,8 @@ import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import { type IndividualTopBarStatOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { HaloService } from "../../services/halo/halo";
+import type { PlayerEsraData } from "../../services/halo/types";
 import type { JsonAny, LogService } from "../../services/log/types";
 import { installServices as installServicesImpl, type Services } from "../../services/install";
 import {
@@ -78,8 +80,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private readonly state: DurableObjectState;
   private readonly services: Services;
   private readonly logService: LogService;
-  private ownerClient: HaloInfiniteClient | null = null;
   private readonly webSocketAdapter: WebSocketHibernationAdapter;
+  private userHaloService: HaloService | null = null;
   private topBarStatsCacheKey: string | undefined;
   private cachedTopBarStats: readonly TopBarStatItem[] | undefined;
   private cachedResolvedRosterCount: number | undefined;
@@ -250,11 +252,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       new Map([["trackerId", trackerState.trackerId]]),
     );
 
-    const haloClient = await this.getOwnerClient(trackerState.userId);
+    await this.getUserHaloService(trackerState.userId);
 
-    let matches: Awaited<ReturnType<HaloInfiniteClient["getPlayerMatches"]>>;
+    let matches: Awaited<ReturnType<HaloService["getPlayerMatches"]>>;
     try {
-      matches = await haloClient.getPlayerMatches(trackerState.xuid, MatchType.All, PLAYER_MATCHES_PAGE_SIZE);
+      matches = await this.haloService.getPlayerMatches(trackerState.xuid, MatchType.All, PLAYER_MATCHES_PAGE_SIZE);
       this.logService.info(
         "IndividualTracker: successfully retrieved player matches",
         new Map([
@@ -271,7 +273,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         ]),
       );
       if (this.isAuthError(error)) {
-        this.ownerClient = null;
+        this.userHaloService = null;
       }
       throw error;
     }
@@ -313,7 +315,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         teamRosterSignature: null,
         teamOutcomes: null,
       };
-      await this.enrichScore(haloClient, summary);
+      await this.enrichScore(summary);
       trackerState.discoveredMatches[matchId] = summary;
       trackerState.matchIds.push(matchId);
       if (trackerState.selectedMatchIds.length > 0) {
@@ -368,7 +370,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
 
       if (summary.teamOutcomes === null) {
-        const enriched = await this.enrichScore(haloClient, summary);
+        const enriched = await this.enrichScore(summary);
         if (enriched) {
           viewChanged = true;
         }
@@ -391,7 +393,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       discoveredNewMatch = true;
     }
 
-    await this.recomputeAccumulatedTotals(haloClient, trackerState);
+    await this.recomputeAccumulatedTotals(trackerState);
 
     trackerState.checkCount += 1;
     trackerState.lastUpdateTime = now;
@@ -413,19 +415,19 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return discoveredNewMatch;
   }
 
-  private async enrichScore(haloClient: HaloInfiniteClient, summary: IndividualTrackerMatchSummary): Promise<boolean> {
+  private async enrichScore(summary: IndividualTrackerMatchSummary): Promise<boolean> {
     let matchStats: MatchStats;
     try {
-      matchStats = await haloClient.getMatchStats(summary.matchId);
+      matchStats = Preconditions.checkExists((await this.haloService.getMatchDetails([summary.matchId]))[0]);
     } catch (error) {
       if (this.isAuthError(error)) {
-        this.ownerClient = null;
+        this.userHaloService = null;
         throw error;
       }
       this.logService.warn(
         error,
         new Map([
-          ["context", "IndividualTracker: getMatchStats failed"],
+          ["context", "IndividualTracker: getMatchDetails failed"],
           ["matchId", summary.matchId],
         ]),
       );
@@ -448,10 +450,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return trackerState.selectedMatchIds.join(",") !== (trackerState.accumulatedMatchIds ?? []).join(",");
   }
 
-  private async recomputeAccumulatedTotals(
-    haloClient: HaloInfiniteClient,
-    trackerState: IndividualTrackerInternalState,
-  ): Promise<void> {
+  private async recomputeAccumulatedTotals(trackerState: IndividualTrackerInternalState): Promise<void> {
     if (!this.hasPendingRecompute(trackerState)) {
       return;
     }
@@ -462,16 +461,16 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     for (const matchId of trackerState.selectedMatchIds) {
       let matchStats: MatchStats;
       try {
-        matchStats = await haloClient.getMatchStats(matchId);
+        matchStats = Preconditions.checkExists((await this.haloService.getMatchDetails([matchId]))[0]);
       } catch (error) {
         if (this.isAuthError(error)) {
-          this.ownerClient = null;
+          this.userHaloService = null;
           throw error;
         }
         this.logService.warn(
           error,
           new Map([
-            ["context", "IndividualTracker: recomputeAccumulatedTotals getMatchStats failed"],
+            ["context", "IndividualTracker: recomputeAccumulatedTotals getMatchDetails failed"],
             ["matchId", matchId],
           ]),
         );
@@ -485,8 +484,12 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
   private async resolveMapName(assetId: string, versionId: string): Promise<string> {
     try {
-      return await this.services.haloService.getMapName(assetId, versionId);
+      return await this.haloService.getMapName(assetId, versionId);
     } catch (error) {
+      if (this.isAuthError(error)) {
+        this.userHaloService = null;
+        throw error;
+      }
       this.logService.warn(
         error,
         new Map([
@@ -516,9 +519,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
   }
 
-  private async getOwnerClient(userId: string): Promise<HaloInfiniteClient> {
-    if (this.ownerClient != null) {
-      return this.ownerClient;
+  private async getUserHaloService(userId: string): Promise<HaloService> {
+    if (this.userHaloService != null) {
+      return this.userHaloService;
     }
 
     const client = await this.services.userTokenProvider.getClientForUser(userId);
@@ -526,8 +529,49 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       throw new Error("No Halo credentials available for tracker owner");
     }
 
-    this.ownerClient = client;
-    return client;
+    this.userHaloService = this.services.haloService.withUserClient(client);
+    return this.userHaloService;
+  }
+
+  private get haloService(): HaloService {
+    return Preconditions.checkExists(this.userHaloService);
+  }
+
+  private async fetchRankedArenaCsr(xuid: string): Promise<PlaylistCsrContainer | null> {
+    try {
+      const result = await this.haloService.getRankedArenaCsrs([xuid]);
+      return result.get(xuid) ?? null;
+    } catch (err: unknown) {
+      if (this.isAuthError(err)) {
+        this.userHaloService = null;
+      }
+      this.logService.warn(
+        err,
+        new Map([
+          ["context", "IndividualTracker: getRankedArenaCsrs failed"],
+          ["xuid", xuid],
+        ]),
+      );
+      return null;
+    }
+  }
+
+  private async fetchPlayerEsra(xuid: string): Promise<PlayerEsraData | null> {
+    try {
+      return await this.haloService.getPlayerEsra(xuid);
+    } catch (err: unknown) {
+      if (this.isAuthError(err)) {
+        this.userHaloService = null;
+      }
+      this.logService.warn(
+        err,
+        new Map([
+          ["context", "IndividualTracker: getPlayerEsra failed"],
+          ["xuid", xuid],
+        ]),
+      );
+      return null;
+    }
   }
 
   private isAuthError(error: unknown): boolean {
@@ -915,34 +959,23 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return stats;
     }
 
+    try {
+      await this.getUserHaloService(state.userId);
+    } catch (err: unknown) {
+      this.logService.warn(
+        err,
+        new Map([
+          ["context", "IndividualTracker: getUserHaloService failed in buildTopBarStats"],
+          ["userId", state.userId],
+          ["xuid", state.xuid],
+        ]),
+      );
+      return computeTopBarStats(state, topBarStatSlots, null, null);
+    }
+
     const [csrContainer, esraData] = await Promise.all([
-      hasRankSlot
-        ? this.services.haloService
-            .getRankedArenaCsrs([state.xuid])
-            .then((m) => m.get(state.xuid) ?? null)
-            .catch((err: unknown) => {
-              this.logService.warn(
-                err,
-                new Map([
-                  ["context", "IndividualTracker: getRankedArenaCsrs failed"],
-                  ["xuid", state.xuid],
-                ]),
-              );
-              return null;
-            })
-        : Promise.resolve(null),
-      hasEsraSlot
-        ? this.services.haloService.getPlayerEsra(state.xuid).catch((err: unknown) => {
-            this.logService.warn(
-              err,
-              new Map([
-                ["context", "IndividualTracker: getPlayerEsra failed"],
-                ["xuid", state.xuid],
-              ]),
-            );
-            return null;
-          })
-        : Promise.resolve(null),
+      hasRankSlot ? this.fetchRankedArenaCsr(state.xuid) : Promise.resolve(null),
+      hasEsraSlot ? this.fetchPlayerEsra(state.xuid) : Promise.resolve(null),
     ]);
 
     return computeTopBarStats(state, topBarStatSlots, csrContainer, esraData);

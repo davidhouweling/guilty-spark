@@ -90,6 +90,21 @@ export class HaloService {
     this.playerMatchesRateLimiter = playerMatchesRateLimiter;
   }
 
+  // Returns a new HaloService instance that routes all Halo Infinite API calls through
+  // the supplied per-user client instead of the shared service credential. Internal caches
+  // (map names, player matches, etc.) start empty on the returned instance.
+  withUserClient(client: HaloInfiniteClient): HaloService {
+    return new HaloService({
+      env: this.env,
+      logService: this.logService,
+      databaseService: this.databaseService,
+      xboxService: this.xboxService,
+      infiniteClient: client,
+      playerMatchesRateLimiter: this.playerMatchesRateLimiter,
+      roundRobinFn: this.roundRobinFn,
+    });
+  }
+
   async getSeriesFromDiscordQueue(
     queueData: SeriesData,
     doNotUpdateDiscordAssociations = false,
@@ -1191,7 +1206,7 @@ export class HaloService {
    * @param start starting index (allows us to page through results)
    * @returns
    */
-  private async getPlayerMatches(
+  async getPlayerMatches(
     playerXuid: string,
     type?: MatchType,
     count?: number,
