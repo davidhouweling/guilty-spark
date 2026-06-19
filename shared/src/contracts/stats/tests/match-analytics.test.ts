@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MatchAnalytics } from "../../stats/match-analytics";
-import { matchAnalyticsSchema } from "../../stats/match-analytics";
+import { matchAnalyticsSchema, requestedModulesQuerySchema } from "../../stats/match-analytics";
 
 function aValidAnalytics(): MatchAnalytics {
   return {
@@ -19,6 +19,32 @@ function aValidAnalytics(): MatchAnalytics {
     },
   };
 }
+
+describe("requestedModulesQuerySchema", () => {
+  it("parses a modules CSV into a deduped analytics module array", () => {
+    const result = requestedModulesQuerySchema.safeParse("killMatrix, killMatrix");
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toEqual(["killMatrix"]);
+    }
+  });
+
+  it("defaults to killMatrix when no value is provided", () => {
+    const result = requestedModulesQuerySchema.safeParse(undefined);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toEqual(["killMatrix"]);
+    }
+  });
+
+  it("rejects unsupported modules", () => {
+    expect(requestedModulesQuerySchema.safeParse("scoreProgression").success).toBe(false);
+  });
+
+  it("rejects empty modules after parsing", () => {
+    expect(requestedModulesQuerySchema.safeParse(" , ").success).toBe(false);
+  });
+});
 
 describe("matchAnalyticsSchema", () => {
   it("accepts a valid analytics payload", () => {
