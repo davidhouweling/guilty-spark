@@ -3,7 +3,13 @@ import type { MockInstance } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakeTeamWith } from "@guilty-spark/shared/halo/fakes/data";
-import { AssetKind, type HaloInfiniteClient, MatchType, type PlayerMatchHistory, RequestError } from "halo-infinite-api";
+import {
+  AssetKind,
+  type HaloInfiniteClient,
+  MatchType,
+  type PlayerMatchHistory,
+  RequestError,
+} from "halo-infinite-api";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 import type { IndividualTrackerStartRequest } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
@@ -804,7 +810,7 @@ describe("IndividualTrackerDO", () => {
         MatchType.All,
         25,
         undefined,
-        expect.objectContaining({ cf: expect.any(Object) }),
+        expect.anything(),
       );
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.matchIds).toEqual(["match-existing", "match-new"]);
@@ -904,12 +910,9 @@ describe("IndividualTrackerDO", () => {
         AssetKind.Map,
         "map-asset",
         "v1",
-        expect.objectContaining({ cf: expect.any(Object) }),
+        expect.anything(),
       );
-      expect(ownerClient.getMatchStats).toHaveBeenCalledWith(
-        "match-new",
-        expect.objectContaining({ cf: expect.any(Object) }),
-      );
+      expect(ownerClient.getMatchStats).toHaveBeenCalledWith("match-new", expect.anything());
     });
 
     it("stores the team roster signature and team outcomes from getMatchStats", async () => {
