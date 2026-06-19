@@ -40,14 +40,6 @@ export class FakeMatchAnalyticsService implements MatchAnalyticsService {
     this.failMatchIds = new Set(options.failMatchIds ?? []);
   }
 
-  async getMatchAnalytics(matchId: string, modules?: readonly AnalyticsModule[]): Promise<MatchAnalytics> {
-    void modules;
-    if (this.failMatchIds.has(matchId)) {
-      return Promise.reject(new Error(`Analytics fetch failed for ${matchId}`));
-    }
-    return Promise.resolve(this.analytics);
-  }
-
   async getBatchMatchAnalytics(
     matchIds: readonly string[],
     modules?: readonly AnalyticsModule[],

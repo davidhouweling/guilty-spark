@@ -49,7 +49,7 @@ export class AnalyticsService {
     this.logService = logService;
   }
 
-  async getMatchAnalytics(matchId: string, modules: string[]): Promise<MatchAnalytics> {
+  private async getMatchAnalytics(matchId: string, modules: string[]): Promise<MatchAnalytics> {
     const requestedModules = modules.filter(isSupportedAnalyticsModule);
     if (requestedModules.length === 0) {
       return Promise.reject(new Error("No supported analytics modules requested"));

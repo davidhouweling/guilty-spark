@@ -135,7 +135,7 @@ describe("IndividualTrackerViewerPresenter", () => {
       const service = aFakeIndividualTrackerViewServiceWith();
       const { haloClient, matchAnalyticsService, store, presenter } = aHarness(service);
       haloClient.getMatchStats.mockResolvedValue(fakeStats);
-      const getMatchAnalyticsSpy = vi.spyOn(matchAnalyticsService, "getMatchAnalytics");
+      const getBatchMatchAnalyticsSpy = vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics");
 
       presenter.selectMatch("m-99");
 
@@ -151,13 +151,13 @@ describe("IndividualTrackerViewerPresenter", () => {
         expect(statsState.stats.MatchId).toBe("m-99");
         expect(statsState.analytics).not.toBeNull();
       }
-      expect(getMatchAnalyticsSpy).toHaveBeenCalledWith("m-99");
+      expect(getBatchMatchAnalyticsSpy).toHaveBeenCalledWith(["m-99"]);
     });
 
     it("falls back to null analytics when analytics fetch fails", async () => {
       const service = aFakeIndividualTrackerViewServiceWith();
       const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
-      vi.spyOn(matchAnalyticsService, "getMatchAnalytics").mockRejectedValue(new Error("analytics failed"));
+      vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics").mockRejectedValue(new Error("analytics failed"));
       const { store, presenter } = aHarness(service, matchAnalyticsService);
 
       presenter.selectMatch("m-1");

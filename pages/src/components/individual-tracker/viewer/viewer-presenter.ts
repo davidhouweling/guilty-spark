@@ -119,7 +119,10 @@ export class IndividualTrackerViewerPresenter {
 
   private async fetchMatchStats(matchId: string): Promise<void> {
     try {
-      const analyticsPromise = this.config.matchAnalyticsService.getMatchAnalytics(matchId).catch(() => null);
+      const analyticsPromise = this.config.matchAnalyticsService
+        .getBatchMatchAnalytics([matchId])
+        .then((results) => results[matchId] ?? null)
+        .catch(() => null);
       const stats = await this.config.haloClient.getMatchStats(matchId);
       if (this.isStale(matchId)) {
         return;

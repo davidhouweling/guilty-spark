@@ -1,8 +1,4 @@
-import {
-  type MatchAnalytics,
-  type AnalyticsModule,
-  matchAnalyticsContract,
-} from "@guilty-spark/shared/contracts/stats/match-analytics";
+import { type MatchAnalytics, type AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { batchMatchAnalyticsContract } from "@guilty-spark/shared/contracts/stats/batch-match-analytics";
 import type { MatchAnalyticsService } from "./match-analytics-types";
 
@@ -21,20 +17,6 @@ export class RealMatchAnalyticsService implements MatchAnalyticsService {
 
   constructor({ apiHost }: RealMatchAnalyticsServiceOptions) {
     this.apiHost = apiHost;
-  }
-
-  async getMatchAnalytics(
-    matchId: string,
-    modules: readonly AnalyticsModule[] = DEFAULT_MODULES,
-  ): Promise<MatchAnalytics> {
-    const encodedMatchId = encodeURIComponent(matchId);
-    const normalizedModules = modules.length === 0 ? DEFAULT_MODULES : modules;
-    const query = new URLSearchParams({ modules: buildModulesQuery(normalizedModules) });
-    const response = await fetch(`${this.apiHost}/api/stats/match-analytics/${encodedMatchId}?${query.toString()}`, {
-      credentials: "include",
-    });
-    const parsed = await matchAnalyticsContract.fromResponse(response);
-    return parsed.analytics;
   }
 
   async getBatchMatchAnalytics(
