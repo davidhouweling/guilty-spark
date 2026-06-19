@@ -318,11 +318,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       await this.enrichScore(summary);
       trackerState.discoveredMatches[matchId] = summary;
       trackerState.matchIds.push(matchId);
-      if (trackerState.selectedMatchIds.length > 0) {
-        const durationSeconds = getDurationInSeconds(match.MatchInfo.Duration);
-        if (durationSeconds >= 120) {
-          trackerState.selectedMatchIds = [...trackerState.selectedMatchIds, matchId].sort();
-        }
+      const durationSeconds = getDurationInSeconds(match.MatchInfo.Duration);
+      if (durationSeconds >= 120) {
+        trackerState.selectedMatchIds = [...trackerState.selectedMatchIds, matchId].sort();
       }
       newlyDiscovered.add(matchId);
       discoveredNewMatch = true;

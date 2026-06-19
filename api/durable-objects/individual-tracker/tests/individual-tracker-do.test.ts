@@ -826,7 +826,7 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.discoveredMatches).not.toHaveProperty("match-too-old");
     });
 
-    it("auto-appends a new match to selectedMatchIds when selectedMatchIds is set and duration >= 120s", async () => {
+    it("auto-appends a new match to selectedMatchIds when duration >= 120s", async () => {
       ownerClient.getPlayerMatches.mockResolvedValue([
         aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2, "PT5M"),
       ]);
@@ -870,7 +870,7 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.selectedMatchIds).toEqual(["match-existing"]);
     });
 
-    it("does not auto-append to selectedMatchIds when it is empty", async () => {
+    it("auto-appends to selectedMatchIds even when it starts empty", async () => {
       ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z")]);
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
@@ -885,7 +885,7 @@ describe("IndividualTrackerDO", () => {
       await individualTrackerDO.alarm();
 
       const persisted = lastPersistedState(storagePutSpy);
-      expect(persisted.selectedMatchIds).toEqual([]);
+      expect(persisted.selectedMatchIds).toEqual(["match-new"]);
     });
 
     it("stores outcome, score, and the resolved map name for a newly discovered match", async () => {
@@ -966,8 +966,12 @@ describe("IndividualTrackerDO", () => {
       const state = aFakeIndividualTrackerInternalStateWith({
         startTime: now.toISOString(),
         searchStartTime: "2024-11-26T11:00:00.000Z",
-        matchIds: [],
-        discoveredMatches: {},
+        matchIds: ["match-new"],
+        selectedMatchIds: ["match-new"],
+        accumulatedMatchIds: ["match-new"],
+        discoveredMatches: {
+          "match-new": aFakeIndividualTrackerMatchSummaryWith({ matchId: "match-new", score: "", teamOutcomes: [] }),
+        },
       });
       storageGetSpy.mockResolvedValue(state);
 
@@ -976,7 +980,7 @@ describe("IndividualTrackerDO", () => {
 
       expect(state.discoveredMatches["match-new"]?.score).toBe("");
       expect(state.discoveredMatches["match-new"]?.teamOutcomes).toEqual([]);
-      expect(ownerClient.getMatchStats).toHaveBeenCalledTimes(1);
+      expect(ownerClient.getMatchStats).not.toHaveBeenCalled();
     });
 
     it("retries map-name resolution on a later poll when it initially fails", async () => {
