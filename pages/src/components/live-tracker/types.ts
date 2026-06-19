@@ -1,5 +1,18 @@
 import type { LiveTrackerStatus, PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import type { MatchStats } from "halo-infinite-api";
+import type { MatchStatsData } from "../../controllers/stats/types";
+import type { SeriesMetadata } from "../../controllers/stats/series-metadata";
+import type { ComponentLoaderStatus } from "../component-loader/component-loader";
+import type { KillMatrixPivotData, KillMatrixPlayer } from "../../controllers/stats/kill-matrix/types";
+import type { LiveTrackerParams } from "./live-tracker-store";
+
+export interface LiveTrackerSeriesStatsData {
+  readonly teamData: MatchStatsData[];
+  readonly playerData: MatchStatsData[];
+  readonly metadata: SeriesMetadata | null;
+  readonly orderedPlayers: readonly KillMatrixPlayer[] | undefined;
+  readonly playersByXuid: ReadonlyMap<string, { gamertag: string; teamId: number | null }>;
+}
 
 export interface LiveTrackerPlayerRenderModel {
   readonly id: string;
@@ -77,6 +90,17 @@ export interface LiveTrackerAvailablePlayer {
   readonly name: string;
 }
 
+export interface MatchKillMatrix {
+  readonly matchId: string;
+  readonly pivotData: KillMatrixPivotData;
+  readonly transposedPivotData: KillMatrixPivotData;
+}
+
+export interface KillMatrixResult {
+  readonly pivotData: KillMatrixPivotData;
+  readonly transposedPivotData: KillMatrixPivotData;
+}
+
 export interface LiveTrackerViewModel {
   readonly title: string;
   readonly subtitle: string;
@@ -86,4 +110,14 @@ export interface LiveTrackerViewModel {
   readonly state: LiveTrackerStateRenderModel | null;
   readonly sortedSubstitutions: readonly LiveTrackerSubstitutionRenderModel[];
   readonly availablePlayers: readonly LiveTrackerAvailablePlayer[];
+  readonly params: LiveTrackerParams;
+  readonly allMatchStats: readonly { matchId: string; data: MatchStatsData[] | null }[];
+  readonly seriesStats: {
+    teamData: MatchStatsData[];
+    playerData: MatchStatsData[];
+    metadata: SeriesMetadata | null;
+  } | null;
+  readonly analyticsStatus: ComponentLoaderStatus;
+  readonly allMatchKillMatrix: readonly MatchKillMatrix[];
+  readonly seriesKillMatrix: KillMatrixResult | null;
 }

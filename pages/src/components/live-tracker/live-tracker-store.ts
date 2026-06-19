@@ -1,5 +1,9 @@
 import type { LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
+import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { LiveTrackerConnectionStatus } from "../../services/live-tracker/types";
+import type { MatchStatsData } from "../../controllers/stats/types";
+import { ComponentLoaderStatus } from "../component-loader/component-loader";
+import type { LiveTrackerSeriesStatsData } from "./types";
 
 export type LiveTrackerConnectionState = "idle" | LiveTrackerConnectionStatus;
 
@@ -16,9 +20,18 @@ export interface LiveTrackerSnapshot {
   readonly lastStateMessage: LiveTrackerMessage | null;
   readonly hasConnection: boolean;
   readonly hasReceivedInitialData: boolean;
+  readonly analyticsByMatchId: ReadonlyMap<string, MatchAnalytics>;
+  readonly analyticsStatus: ComponentLoaderStatus;
+  readonly allMatchStats: readonly { matchId: string; data: MatchStatsData[] | null }[];
+  readonly seriesStatsData: LiveTrackerSeriesStatsData | null;
 }
 
-export class LiveTrackerStore {
+export interface LiveTrackerStoreApi {
+  getSnapshot(): LiveTrackerSnapshot;
+  setSnapshot(next: LiveTrackerSnapshot): void;
+}
+
+export class LiveTrackerStore implements LiveTrackerStoreApi {
   private snapshot: LiveTrackerSnapshot;
   private readonly subscribers = new Set<() => void>();
 
@@ -34,6 +47,10 @@ export class LiveTrackerStore {
       lastStateMessage: null,
       hasConnection: false,
       hasReceivedInitialData: false,
+      analyticsByMatchId: new Map(),
+      analyticsStatus: ComponentLoaderStatus.LOADED,
+      allMatchStats: [],
+      seriesStatsData: null,
     };
   }
 
