@@ -40,8 +40,17 @@ export function IndividualTrackerViewerPage({
             connectionStatus={model.connectionStatus}
             selectedMatchId={model.selectedMatchId}
             matchStatsPanelState={model.matchStatsPanelState}
+            canManage={true}
+            refreshInProgress={false}
+            refreshStartedAt={null}
+            refreshPending={false}
+            refreshMessage={null}
             onSelectMatch={onSelectMatch}
             onDeselect={onDeselect}
+            onBackToManage={(): void => {
+              window.location.assign("/individual-tracker");
+            }}
+            onRefresh={onRetry}
           />
         ) : (
           <LoadingState />

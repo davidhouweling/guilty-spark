@@ -1,3 +1,34 @@
+.viewerActionBar {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}
+
+.backButton {
+  align-self: flex-start;
+  opacity: 0.78;
+}
+
+.backButton:hover,
+.backButton:focus-visible {
+  opacity: 1;
+}
+
+.viewerActionRight {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.refreshHint {
+  color: var(--halo-gray);
+  font-size: var(--text-xs);
+  margin: 0;
+}
+
 .header {
   align-items: flex-start;
   display: flex;
@@ -16,7 +47,7 @@
 .gamertag {
   color: var(--halo-white);
   font-family: var(--font-heading);
-  font-size: var(--text-3xl);
+  font-size: var(--text-2xl);
   letter-spacing: 0.04em;
   margin: 0;
   text-transform: uppercase;
@@ -80,7 +111,7 @@
 .record {
   color: var(--halo-white);
   font-family: var(--font-heading);
-  font-size: var(--text-2xl);
+  font-size: var(--text-xl);
   letter-spacing: 0.04em;
 }
 
@@ -92,4 +123,63 @@
   color: var(--halo-gray);
   font-size: var(--text-sm);
   margin: 0 0 var(--space-4);
+}
+
+.accumulatedSection,
+.matchesSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.sectionTitle {
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  margin: 0;
+}
+
+.statsList {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.statsItem {
+  background: color-mix(in srgb, var(--halo-bg-elevated) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 18%, transparent);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: var(--space-3);
+}
+
+.statsLabel {
+  color: var(--halo-gray);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+}
+
+.statsValue {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+@media (--tablet-viewport) {
+  .viewerActionBar {
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .viewerActionRight {
+    align-items: center;
+    flex-direction: row;
+  }
 }
