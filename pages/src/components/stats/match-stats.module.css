@@ -71,6 +71,10 @@
   opacity: 0.5;
 }
 
+.tabs {
+  margin-bottom: 0;
+}
+
 /* Team Stats */
 .teamStats {
   background: var(--halo-bg-secondary, #0a0e14);

@@ -56,14 +56,12 @@ export function IndividualTrackerShell({
       )}
 
       {authState === "authenticated" && (
-        <>
-          <TabbedSection
-            tabs={sectionTabs}
-            selectedTabId={activeSection}
-            onTabChange={onSectionChange}
-            tabListAriaLabel="Individual tracker sections"
-          />
-        </>
+        <TabbedSection
+          tabs={sectionTabs}
+          selectedTabId={activeSection}
+          onTabChange={onSectionChange}
+          tabListAriaLabel="Individual tracker sections"
+        />
       )}
     </div>
   );

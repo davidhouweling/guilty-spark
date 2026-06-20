@@ -7,15 +7,19 @@ import styles from "./tabbed-section.module.css";
 interface TabbedSectionProps<TId extends string> {
   readonly tabs: readonly TabbedSectionTab<TId>[];
   readonly selectedTabId: TId;
-  readonly onTabChange: (tabId: TId) => void;
   readonly tabListAriaLabel: string;
+  readonly onTabChange: (tabId: TId) => void;
+  readonly tabsClassName?: string;
+  readonly tabContainerClassName?: string;
 }
 
 export function TabbedSection<TId extends string>({
   tabs,
   selectedTabId,
-  onTabChange,
   tabListAriaLabel,
+  onTabChange,
+  tabsClassName,
+  tabContainerClassName,
 }: TabbedSectionProps<TId>): React.ReactElement {
   const tabSetId = React.useId();
   const tabListRef = React.useRef<HTMLDivElement>(null);
@@ -78,7 +82,7 @@ export function TabbedSection<TId extends string>({
     <>
       <div
         ref={tabListRef}
-        className={styles.tabList}
+        className={classNames(styles.tabList, tabsClassName)}
         role="tablist"
         aria-label={tabListAriaLabel}
         onKeyDown={handleKeyDown}
@@ -120,7 +124,7 @@ export function TabbedSection<TId extends string>({
             role="tabpanel"
             aria-labelledby={tabDomId}
             hidden={!isSelected}
-            className={styles.panel}
+            className={classNames(styles.panel, tabContainerClassName)}
           >
             {tab.content}
           </div>

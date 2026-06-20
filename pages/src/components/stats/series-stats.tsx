@@ -241,7 +241,6 @@ export function SeriesStats({
         <TabbedSection
           tabListAriaLabel="Player statistics view"
           selectedTabId={activeTab}
-          onTabChange={setActiveTab}
           tabs={[
             {
               id: "accumulated",
@@ -280,6 +279,8 @@ export function SeriesStats({
               ),
             },
           ]}
+          tabsClassName={styles.tabs}
+          onTabChange={setActiveTab}
         />
       )}
     </div>
