@@ -9,7 +9,46 @@ export interface CreateHaloInfiniteClientProxyOpts {
   readonly credentials?: "omit" | "same-origin" | "include";
   readonly additionalHeaders?: HeadersInit | (() => HeadersInit);
   readonly additionalQueryParams?: Record<string, string> | (() => Record<string, string>);
+  readonly maxConcurrentRequests?: number;
   readonly fetchFn?: typeof fetch;
+}
+
+class RequestSemaphore {
+  private readonly waitingResolvers: (() => void)[] = [];
+  private activeRequestCount = 0;
+
+  public constructor(private readonly maxConcurrentRequests: number) {}
+
+  public async withLock<T>(task: () => Promise<T>): Promise<T> {
+    await this.acquire();
+    try {
+      return await task();
+    } finally {
+      this.release();
+    }
+  }
+
+  private async acquire(): Promise<void> {
+    if (this.activeRequestCount < this.maxConcurrentRequests) {
+      this.activeRequestCount += 1;
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      this.waitingResolvers.push(() => {
+        this.activeRequestCount += 1;
+        resolve();
+      });
+    });
+  }
+
+  private release(): void {
+    this.activeRequestCount -= 1;
+    const nextResolver = this.waitingResolvers.shift();
+    if (nextResolver != null) {
+      nextResolver();
+    }
+  }
 }
 
 export class ProxyRequestError extends Error {
@@ -77,15 +116,29 @@ function resolveProxyEndpoint(proxyBaseUrl: string, proxyPath: string): string {
   return new URL(proxyPath, baseUrl).toString();
 }
 
+function resolveRequestSemaphore(maxConcurrentRequests?: number): RequestSemaphore | undefined {
+  if (maxConcurrentRequests == null) {
+    return undefined;
+  }
+
+  if (!Number.isInteger(maxConcurrentRequests) || maxConcurrentRequests < 1) {
+    throw new Error("maxConcurrentRequests must be a positive integer");
+  }
+
+  return new RequestSemaphore(maxConcurrentRequests);
+}
+
 export function createHaloInfiniteClientProxy({
   proxyBaseUrl,
   proxyPath = "/proxy/halo-infinite",
   credentials,
   additionalHeaders,
   additionalQueryParams,
+  maxConcurrentRequests = 2,
   fetchFn = fetch,
 }: CreateHaloInfiniteClientProxyOpts): HaloInfiniteClient {
   const endpoint = resolveProxyEndpoint(proxyBaseUrl, proxyPath);
+  const requestSemaphore = resolveRequestSemaphore(maxConcurrentRequests);
 
   return new Proxy(
     {},
@@ -119,15 +172,23 @@ export function createHaloInfiniteClientProxy({
 
           appendHaloProxyArgsToUrl(url, args);
 
-          const response = await fetchFn(url.toString(), {
-            method: "GET",
-            headers,
-            ...(credentials != null ? { credentials } : {}),
-          });
+          const runRequest = async (): Promise<unknown> => {
+            const response = await fetchFn(url.toString(), {
+              method: "GET",
+              headers,
+              ...(credentials != null ? { credentials } : {}),
+            });
 
-          return handleProxyResponse(response, url);
+            return handleProxyResponse(response, url);
+          };
+
+          if (requestSemaphore == null) {
+            return runRequest();
+          }
+
+          return requestSemaphore.withLock(runRequest);
         };
       },
     },
-  ) as unknown as HaloInfiniteClient;
+  ) as HaloInfiniteClient;
 }
