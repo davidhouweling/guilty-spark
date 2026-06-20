@@ -14,6 +14,7 @@
   border: 1px solid var(--halo-teal-primary);
   border-radius: var(--radius-md);
   box-shadow: 0 8px 24px rgb(0 0 0 / 50%);
+  max-height: calc(100vh - (var(--space-4) * 2));
   max-width: 480px;
   padding: var(--space-6);
   width: 100%;

@@ -5,6 +5,7 @@ import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
 import { Checkbox } from "../../checkbox/checkbox";
 import { Dialog } from "../../dialog/dialog";
+import { LoadingState } from "../../loading-state/loading-state";
 import { MatchHistorySection } from "../../match-history/create";
 import styles from "./game-selection-dialog.module.css";
 
@@ -65,7 +66,13 @@ export function GameSelectionDialog({
   };
 
   return (
-    <Dialog open={isOpen} title="Game Selection" onClose={onClose}>
+    <Dialog
+      open={isOpen}
+      title="Game Selection"
+      onClose={onClose}
+      panelClassName={styles.dialogPanel}
+      bodyClassName={styles.dialogBody}
+    >
       <div className={styles.controlsRow}>
         <p className={styles.summaryText}>
           {trackerLabel} | {selectedCount} selected
@@ -75,11 +82,16 @@ export function GameSelectionDialog({
 
       {errorMessage != null && <Alert variant="error">{errorMessage}</Alert>}
 
-      {(errorMessage == null || visibleMatches !== null) && (
+      {errorMessage == null && visibleMatches == null ? (
+        <div className={styles.matchesContainer}>
+          <LoadingState text="Loading matches..." />
+        </div>
+      ) : null}
+
+      {(errorMessage == null || visibleMatches !== null) && visibleMatches != null && (
         <div className={styles.matchesContainer}>
           <MatchHistorySection
             entries={visibleMatches}
-            loadingCount={5}
             showGroupings={true}
             allowManualGrouping={true}
             groupings={groupings}
