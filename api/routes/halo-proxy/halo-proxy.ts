@@ -41,6 +41,12 @@ async function resolveHaloProxyClient(request: Request, services: Services): Pro
   const session = await services.authService.validateSession(request);
 
   if (session !== null) {
+    const cachedXstsToken = await services.authService.getCachedHaloXstsTokenForSession(session.sessionId);
+    if (cachedXstsToken != null) {
+      const client = new HaloInfiniteClient(new StaticXstsTicketTokenSpartanTokenProvider(cachedXstsToken.XSTSToken));
+      return { ok: true, resolved: { client } };
+    }
+
     let microsoftAccessToken = session.accessToken;
 
     if (session.isExpired) {
@@ -63,6 +69,7 @@ async function resolveHaloProxyClient(request: Request, services: Services): Pro
     }
 
     const xstsTokenInfo = await services.xboxService.exchangeMicrosoftAccessTokenForXstsToken(microsoftAccessToken);
+    await services.authService.cacheHaloXstsTokenForSession(session.sessionId, xstsTokenInfo);
     const client = new HaloInfiniteClient(new StaticXstsTicketTokenSpartanTokenProvider(xstsTokenInfo.XSTSToken));
     return { ok: true, resolved: { client } };
   }

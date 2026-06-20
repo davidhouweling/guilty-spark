@@ -3,6 +3,7 @@ import { safeRedirectPath } from "@guilty-spark/shared/base/safe-redirect";
 import { z } from "zod";
 import type { DatabaseService } from "../database/database";
 import type { UserSessionsRow } from "../database/types/user_sessions";
+import type { TokenInfo } from "../xbox/types";
 import { MicrosoftAuthService } from "./microsoft-auth";
 import { SessionManager, SESSION_COOKIE_MAX_AGE_SECONDS } from "./session-manager";
 import { TokenEncryptor } from "./token-encryptor";
@@ -29,7 +30,12 @@ const authMetadataSchema = z.object({
   xboxGamertag: z.string().optional().catch(undefined),
   xboxXuid: z.string().optional().catch(undefined),
   xboxProfileCheckedAt: z.number().optional().catch(undefined),
+  haloXstsTokenEncrypted: z.string().optional().catch(undefined),
+  haloXstsUserHash: z.string().optional().catch(undefined),
+  haloXstsExpiresAt: z.number().optional().catch(undefined),
 });
+
+const XSTS_EXPIRY_SKEW_MS = 60_000;
 
 const pkceStatePayloadSchema = z.object({
   codeVerifier: z.string().min(1),
@@ -282,7 +288,28 @@ export class AuthService {
         return null;
       }
 
-      const refreshToken = await this.tokenEncryptor.decrypt(credentials.RefreshToken);
+      const firstTry = await this.refreshMicrosoftAccessTokenWithStoredCredentials(userId, credentials.RefreshToken);
+      if (firstTry != null) {
+        return firstTry;
+      }
+
+      const latestCredentials = await this.databaseService.getUserCredentials(userId);
+      if (latestCredentials == null || latestCredentials.RefreshToken === credentials.RefreshToken) {
+        return null;
+      }
+
+      return await this.refreshMicrosoftAccessTokenWithStoredCredentials(userId, latestCredentials.RefreshToken);
+    } catch {
+      return null;
+    }
+  }
+
+  private async refreshMicrosoftAccessTokenWithStoredCredentials(
+    userId: string,
+    encryptedRefreshToken: string,
+  ): Promise<string | null> {
+    try {
+      const refreshToken = await this.tokenEncryptor.decrypt(encryptedRefreshToken);
       const tokens = await this.microsoftAuth.refreshAccessToken(refreshToken);
 
       if (tokens.refresh_token != null && tokens.refresh_token !== "") {
@@ -297,6 +324,51 @@ export class AuthService {
     } catch {
       return null;
     }
+  }
+
+  public async getCachedHaloXstsTokenForSession(sessionId: string): Promise<TokenInfo | null> {
+    const session = await this.databaseService.getUserSession(sessionId);
+    if (session == null) {
+      return null;
+    }
+
+    const metadata = this.parseAuthMetadata(session.AuthMetadataJson);
+    const encryptedToken = metadata.haloXstsTokenEncrypted;
+    const userHash = metadata.haloXstsUserHash;
+    const expiresAt = metadata.haloXstsExpiresAt;
+
+    if (encryptedToken == null || userHash == null || expiresAt == null) {
+      return null;
+    }
+
+    if (Date.now() >= expiresAt - XSTS_EXPIRY_SKEW_MS) {
+      return null;
+    }
+
+    try {
+      const token = await this.tokenEncryptor.decrypt(encryptedToken);
+      return {
+        XSTSToken: token,
+        userHash,
+        expiresOn: new Date(expiresAt),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  public async cacheHaloXstsTokenForSession(sessionId: string, tokenInfo: TokenInfo): Promise<void> {
+    const session = await this.databaseService.getUserSession(sessionId);
+    if (session == null) {
+      return;
+    }
+
+    const metadata = this.parseAuthMetadata(session.AuthMetadataJson);
+    metadata.haloXstsTokenEncrypted = await this.tokenEncryptor.encrypt(tokenInfo.XSTSToken);
+    metadata.haloXstsUserHash = tokenInfo.userHash;
+    metadata.haloXstsExpiresAt = tokenInfo.expiresOn.getTime();
+
+    await this.databaseService.updateSessionAuthMetadata(sessionId, JSON.stringify(metadata));
   }
 
   /**

@@ -107,6 +107,7 @@ describe("IndividualTrackerDO", () => {
   let storageDeleteAlarmSpy: MockInstance<typeof mockStorage.deleteAlarm>;
   let ownerClient: MockProxy<HaloInfiniteClient>;
   let getClientForUser: MockInstance<UserTokenProvider["getClientForUser"]>;
+  let clearCachedClient: MockInstance<UserTokenProvider["clearCachedClient"]>;
   let userTokenProvider: UserTokenProvider;
 
   beforeEach(() => {
@@ -121,7 +122,8 @@ describe("IndividualTrackerDO", () => {
     ownerClient.getPlayerMatches.mockResolvedValue([]);
     ownerClient.getMatchStats.mockResolvedValue(aFakeWinMatchStats());
     getClientForUser = vi.fn<UserTokenProvider["getClientForUser"]>().mockResolvedValue(ownerClient);
-    userTokenProvider = { getClientForUser } as unknown as UserTokenProvider;
+    clearCachedClient = vi.fn<UserTokenProvider["clearCachedClient"]>();
+    userTokenProvider = { getClientForUser, clearCachedClient } as unknown as UserTokenProvider;
 
     services = installFakeServicesWith({ userTokenProvider });
     env = aFakeEnvWith();
@@ -1041,6 +1043,7 @@ describe("IndividualTrackerDO", () => {
       await individualTrackerDO.alarm();
 
       expect(getClientForUser).toHaveBeenCalledTimes(2);
+      expect(clearCachedClient).toHaveBeenCalled();
     });
 
     it("does not treat a non-401 RequestError as an auth error", async () => {
@@ -1085,6 +1088,7 @@ describe("IndividualTrackerDO", () => {
 
       await individualTrackerDO.alarm();
       expect(getClientForUser).toHaveBeenCalledTimes(2);
+      expect(clearCachedClient).toHaveBeenCalled();
     });
 
     it("sets lastMatchDiscoveredAt and resets errorState when new matches are found", async () => {
