@@ -173,7 +173,7 @@ describe("GameSelectionDialogSection", () => {
     expect(screen.getByText("Slayer: Aquarius")).toBeInTheDocument();
   });
 
-  it("calls syncMatchesToTracker when the dialog is closed", async () => {
+  it("calls syncMatchesToTracker only when footer sync button is clicked", async () => {
     const service = new FakeIndividualTrackerService();
     vi.spyOn(service, "getMatchHistory").mockResolvedValue(aResponse({ matches: [aMatch("m1")] }));
     const syncSpy = vi.spyOn(service, "syncMatchesToTracker").mockResolvedValue(undefined);
@@ -209,5 +209,38 @@ describe("GameSelectionDialogSection", () => {
       );
     });
     expect(onSynced).toHaveBeenCalledOnce();
+  });
+
+  it("treats escape close as cancel and does not sync", async () => {
+    const service = new FakeIndividualTrackerService();
+    vi.spyOn(service, "getMatchHistory").mockResolvedValue(aResponse({ matches: [aMatch("m1")] }));
+    const syncSpy = vi.spyOn(service, "syncMatchesToTracker").mockResolvedValue(undefined);
+    const onSynced = vi.fn();
+    const onClose = vi.fn();
+
+    render(
+      <GameSelectionDialogSection
+        isOpen={true}
+        trackerId="tracker-1"
+        trackerLabel="Test Player"
+        xuid="xuid-1"
+        initialSelectedMatchIds={["m1"]}
+        initialGroupings={[]}
+        initialSeriesGroups={[]}
+        onClose={onClose}
+        onSynced={onSynced}
+        individualTrackerService={service as IndividualTrackerService}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(syncSpy).not.toHaveBeenCalled();
+    expect(onSynced).not.toHaveBeenCalled();
   });
 });
