@@ -112,6 +112,10 @@
   z-index: var(--z-base);
 }
 
+.btnContentLoading {
+  visibility: hidden;
+}
+
 .btnIcon {
   align-items: center;
   display: flex;
@@ -148,12 +152,16 @@
   border-top-color: currentcolor;
   display: block;
   height: 1em;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
   width: 1em;
 }
 
 @keyframes btn-rotate {
   to {
-    transform: rotate(360deg);
+    transform: translate(-50%, -50%) rotate(360deg);
   }
 }
 

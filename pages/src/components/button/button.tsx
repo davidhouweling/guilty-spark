@@ -49,24 +49,19 @@ export function Button({
       <span className={classNames(styles.btnCorner, styles.tr)}></span>
       <span className={classNames(styles.btnCorner, styles.bl)}></span>
       <span className={classNames(styles.btnCorner, styles.br)}></span>
-      <span className={styles.btnContent}>
-        {loading ? (
-          <span className={styles.btnSpinner} aria-hidden="true" />
-        ) : (
+      <span className={classNames(styles.btnContent, loading && styles.btnContentLoading)}>
+        {icon !== null && icon !== undefined && (
           <>
-            {icon !== null && icon !== undefined && (
-              <>
-                {isImageIcon ? (
-                  <img src={(icon as { src: string }).src} alt={iconAlt} className={styles.btnIcon} />
-                ) : (
-                  <span className={styles.btnIcon}>{icon}</span>
-                )}
-              </>
+            {isImageIcon ? (
+              <img src={(icon as { src: string }).src} alt={iconAlt} className={styles.btnIcon} />
+            ) : (
+              <span className={styles.btnIcon}>{icon}</span>
             )}
-            {children}
           </>
         )}
+        {children}
       </span>
+      {loading && <span className={styles.btnSpinner} aria-hidden="true" />}
     </>
   );
 
