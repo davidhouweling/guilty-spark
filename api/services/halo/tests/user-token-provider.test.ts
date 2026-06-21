@@ -135,7 +135,7 @@ describe("UserTokenProvider", () => {
     const deferred = createDeferred<TokenInfo>();
     const exchangeSpy = vi
       .spyOn(xboxService, "exchangeMicrosoftAccessTokenForXstsToken")
-      .mockImplementation(() => deferred.promise);
+      .mockImplementation(async () => deferred.promise);
 
     const provider = new UserTokenProvider({ authService, xboxService, logService: aFakeLogServiceWith() });
 
