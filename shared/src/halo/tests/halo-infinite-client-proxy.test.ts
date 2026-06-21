@@ -2,6 +2,26 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import { createHaloInfiniteClientProxy, ProxyRequestError } from "../halo-infinite-client-proxy";
 
+function createDeferredPromise<T>(): {
+  readonly promise: Promise<T>;
+  readonly resolve: (value: T) => void;
+} {
+  let resolveFn: ((value: T) => void) | undefined;
+  const promise = new Promise<T>((resolve) => {
+    resolveFn = resolve;
+  });
+
+  return {
+    promise,
+    resolve(value: T): void {
+      if (resolveFn == null) {
+        throw new Error("Expected deferred promise resolver to exist");
+      }
+      resolveFn(value);
+    },
+  };
+}
+
 describe("createHaloInfiniteClientProxy", () => {
   let fetchSpy: MockInstance<typeof fetch>;
 
@@ -137,5 +157,108 @@ describe("createHaloInfiniteClientProxy", () => {
 
     const [, calledInit] = fetchSpy.mock.calls[0] as [string, Record<string, unknown>];
     expect(calledInit["credentials"]).toBe("include");
+  });
+
+  it("queues requests when maxConcurrentRequests is 1", async () => {
+    const pendingResponses: { readonly resolve: (response: Response) => void }[] = [];
+    fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      const deferredResponse = createDeferredPromise<Response>();
+      pendingResponses.push({ resolve: deferredResponse.resolve });
+      return deferredResponse.promise;
+    });
+
+    const client = createHaloInfiniteClientProxy({
+      proxyBaseUrl: "https://api.example.com",
+      maxConcurrentRequests: 1,
+    });
+
+    const firstRequest = client.getMatchStats("match-1");
+    const secondRequest = client.getMatchStats("match-2");
+
+    await Promise.resolve();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    pendingResponses[0]?.resolve(new Response(JSON.stringify({ MatchId: "match-1" }), { status: 200 }));
+    await firstRequest;
+
+    await Promise.resolve();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+    pendingResponses[1]?.resolve(new Response(JSON.stringify({ MatchId: "match-2" }), { status: 200 }));
+    await secondRequest;
+  });
+
+  it("allows up to two in-flight requests when maxConcurrentRequests is 2", async () => {
+    const pendingResponses: { readonly resolve: (response: Response) => void }[] = [];
+    fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      const deferredResponse = createDeferredPromise<Response>();
+      pendingResponses.push({ resolve: deferredResponse.resolve });
+      return deferredResponse.promise;
+    });
+
+    const client = createHaloInfiniteClientProxy({
+      proxyBaseUrl: "https://api.example.com",
+      maxConcurrentRequests: 2,
+    });
+
+    const firstRequest = client.getMatchStats("match-1");
+    const secondRequest = client.getMatchStats("match-2");
+    const thirdRequest = client.getMatchStats("match-3");
+
+    await Promise.resolve();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+    pendingResponses[0]?.resolve(new Response(JSON.stringify({ MatchId: "match-1" }), { status: 200 }));
+    await firstRequest;
+
+    await Promise.resolve();
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+
+    pendingResponses[1]?.resolve(new Response(JSON.stringify({ MatchId: "match-2" }), { status: 200 }));
+    pendingResponses[2]?.resolve(new Response(JSON.stringify({ MatchId: "match-3" }), { status: 200 }));
+
+    await secondRequest;
+    await thirdRequest;
+  });
+
+  it("defaults to allowing up to two in-flight requests", async () => {
+    const pendingResponses: { readonly resolve: (response: Response) => void }[] = [];
+    fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      const deferredResponse = createDeferredPromise<Response>();
+      pendingResponses.push({ resolve: deferredResponse.resolve });
+      return deferredResponse.promise;
+    });
+
+    const client = createHaloInfiniteClientProxy({
+      proxyBaseUrl: "https://api.example.com",
+    });
+
+    const firstRequest = client.getMatchStats("match-1");
+    const secondRequest = client.getMatchStats("match-2");
+    const thirdRequest = client.getMatchStats("match-3");
+
+    await Promise.resolve();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+    pendingResponses[0]?.resolve(new Response(JSON.stringify({ MatchId: "match-1" }), { status: 200 }));
+    await firstRequest;
+
+    await Promise.resolve();
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+
+    pendingResponses[1]?.resolve(new Response(JSON.stringify({ MatchId: "match-2" }), { status: 200 }));
+    pendingResponses[2]?.resolve(new Response(JSON.stringify({ MatchId: "match-3" }), { status: 200 }));
+
+    await secondRequest;
+    await thirdRequest;
+  });
+
+  it("throws when maxConcurrentRequests is not a positive integer", () => {
+    expect(() =>
+      createHaloInfiniteClientProxy({
+        proxyBaseUrl: "https://api.example.com",
+        maxConcurrentRequests: 0,
+      }),
+    ).toThrow(new Error("maxConcurrentRequests must be a positive integer"));
   });
 });
