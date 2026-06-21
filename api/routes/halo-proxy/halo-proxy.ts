@@ -40,7 +40,7 @@ async function resolveOwnerClient(request: Request, services: Services): Promise
 async function resolveHaloProxyClient(request: Request, services: Services): Promise<ResolveHaloProxyClientResult> {
   const sessionWithMetadata = await services.authService.validateSessionWithAuthMetadata(request);
   if (sessionWithMetadata !== null) {
-    const {session} = sessionWithMetadata;
+    const { session } = sessionWithMetadata;
     const cachedXstsToken = await services.authService.getCachedHaloXstsTokenForAuthMetadata(
       sessionWithMetadata.authMetadata,
     );
