@@ -3,6 +3,7 @@ import { safeRedirectPath } from "@guilty-spark/shared/base/safe-redirect";
 import { z } from "zod";
 import type { DatabaseService } from "../database/database";
 import type { UserSessionsRow } from "../database/types/user_sessions";
+import type { TokenInfo } from "../xbox/types";
 import { MicrosoftAuthService } from "./microsoft-auth";
 import { SessionManager, SESSION_COOKIE_MAX_AGE_SECONDS } from "./session-manager";
 import { TokenEncryptor } from "./token-encryptor";
@@ -14,6 +15,7 @@ import type {
   AuthCallbackResult,
   AuthMetadata,
   XboxSessionProfile,
+  SessionWithAuthMetadata,
 } from "./types";
 
 const sessionCookiePayloadSchema = z.object({
@@ -29,7 +31,12 @@ const authMetadataSchema = z.object({
   xboxGamertag: z.string().optional().catch(undefined),
   xboxXuid: z.string().optional().catch(undefined),
   xboxProfileCheckedAt: z.number().optional().catch(undefined),
+  haloXstsTokenEncrypted: z.string().optional().catch(undefined),
+  haloXstsUserHash: z.string().optional().catch(undefined),
+  haloXstsExpiresAt: z.number().optional().catch(undefined),
 });
+
+const XSTS_EXPIRY_SKEW_MS = 60_000;
 
 const pkceStatePayloadSchema = z.object({
   codeVerifier: z.string().min(1),
@@ -133,7 +140,9 @@ export class AuthService {
       return;
     }
 
-    const mergedMetadata = this.parseAuthMetadata(existingSession.AuthMetadataJson);
+    const mergedMetadata: Mutable<AuthMetadata> = {
+      ...this.parseAuthMetadata(existingSession.AuthMetadataJson),
+    };
     if (profile.avatarUrl != null) {
       mergedMetadata.avatarUrl = profile.avatarUrl;
     }
@@ -195,6 +204,11 @@ export class AuthService {
    * Validate a session token from a request.
    */
   public async validateSession(request: Request): Promise<AuthSession | null> {
+    const sessionWithMetadata = await this.validateSessionWithAuthMetadata(request);
+    return sessionWithMetadata?.session ?? null;
+  }
+
+  public async validateSessionWithAuthMetadata(request: Request): Promise<SessionWithAuthMetadata | null> {
     const token = this.sessionManager.extractSessionToken(request);
     if (token == null) {
       return null;
@@ -210,7 +224,7 @@ export class AuthService {
       return null;
     }
 
-    return await this.toAuthSession(session);
+    return await this.toAuthSessionWithAuthMetadata(session);
   }
 
   public async invalidateSession(request: Request): Promise<void> {
@@ -282,7 +296,28 @@ export class AuthService {
         return null;
       }
 
-      const refreshToken = await this.tokenEncryptor.decrypt(credentials.RefreshToken);
+      const firstTry = await this.refreshMicrosoftAccessTokenWithStoredCredentials(userId, credentials.RefreshToken);
+      if (firstTry != null) {
+        return firstTry;
+      }
+
+      const latestCredentials = await this.databaseService.getUserCredentials(userId);
+      if (latestCredentials == null || latestCredentials.RefreshToken === credentials.RefreshToken) {
+        return null;
+      }
+
+      return await this.refreshMicrosoftAccessTokenWithStoredCredentials(userId, latestCredentials.RefreshToken);
+    } catch {
+      return null;
+    }
+  }
+
+  private async refreshMicrosoftAccessTokenWithStoredCredentials(
+    userId: string,
+    encryptedRefreshToken: string,
+  ): Promise<string | null> {
+    try {
+      const refreshToken = await this.tokenEncryptor.decrypt(encryptedRefreshToken);
       const tokens = await this.microsoftAuth.refreshAccessToken(refreshToken);
 
       if (tokens.refresh_token != null && tokens.refresh_token !== "") {
@@ -296,6 +331,78 @@ export class AuthService {
       return tokens.access_token;
     } catch {
       return null;
+    }
+  }
+
+  public async getCachedHaloXstsTokenForSession(sessionId: string): Promise<TokenInfo | null> {
+    try {
+      const session = await this.databaseService.getUserSession(sessionId);
+      if (session == null) {
+        return null;
+      }
+
+      const metadata = this.parseAuthMetadata(session.AuthMetadataJson);
+      return await this.getCachedHaloXstsTokenForAuthMetadata(metadata);
+    } catch {
+      return null;
+    }
+  }
+
+  public async getCachedHaloXstsTokenForAuthMetadata(authMetadata: AuthMetadata): Promise<TokenInfo | null> {
+    try {
+      const encryptedToken = authMetadata.haloXstsTokenEncrypted;
+      const userHash = authMetadata.haloXstsUserHash;
+      const expiresAt = authMetadata.haloXstsExpiresAt;
+
+      if (encryptedToken == null || userHash == null || expiresAt == null) {
+        return null;
+      }
+
+      if (Date.now() >= expiresAt - XSTS_EXPIRY_SKEW_MS) {
+        return null;
+      }
+
+      const token = await this.tokenEncryptor.decrypt(encryptedToken);
+      return {
+        XSTSToken: token,
+        userHash,
+        expiresOn: new Date(expiresAt),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  public async cacheHaloXstsTokenForSession(sessionId: string, tokenInfo: TokenInfo): Promise<void> {
+    try {
+      const session = await this.databaseService.getUserSession(sessionId);
+      if (session == null) {
+        return;
+      }
+
+      const metadata = this.parseAuthMetadata(session.AuthMetadataJson);
+      await this.cacheHaloXstsTokenForSessionAuthMetadata(sessionId, metadata, tokenInfo);
+    } catch {
+      // Best-effort cache write only; auth flow must continue on storage/encryption failures.
+    }
+  }
+
+  public async cacheHaloXstsTokenForSessionAuthMetadata(
+    sessionId: string,
+    authMetadata: AuthMetadata,
+    tokenInfo: TokenInfo,
+  ): Promise<void> {
+    try {
+      const metadata: Mutable<AuthMetadata> = {
+        ...authMetadata,
+      };
+      metadata.haloXstsTokenEncrypted = await this.tokenEncryptor.encrypt(tokenInfo.XSTSToken);
+      metadata.haloXstsUserHash = tokenInfo.userHash;
+      metadata.haloXstsExpiresAt = tokenInfo.expiresOn.getTime();
+
+      await this.databaseService.updateSessionAuthMetadata(sessionId, JSON.stringify(metadata));
+    } catch {
+      // Best-effort cache write only; auth flow must continue on storage/encryption failures.
     }
   }
 
@@ -394,16 +501,52 @@ export class AuthService {
     }
   }
 
-  private parseAuthMetadata(authMetadataJson: string): z.infer<typeof authMetadataSchema> {
+  private parseAuthMetadata(authMetadataJson: string): AuthMetadata {
     try {
       const parsed = authMetadataSchema.safeParse(JSON.parse(authMetadataJson));
-      return parsed.success ? parsed.data : {};
+      if (!parsed.success) {
+        return {};
+      }
+
+      const metadata: Mutable<AuthMetadata> = {};
+      if (parsed.data.email != null) {
+        metadata.email = parsed.data.email;
+      }
+      if (parsed.data.name != null) {
+        metadata.name = parsed.data.name;
+      }
+      if (parsed.data.preferredUsername != null) {
+        metadata.preferredUsername = parsed.data.preferredUsername;
+      }
+      if (parsed.data.avatarUrl != null) {
+        metadata.avatarUrl = parsed.data.avatarUrl;
+      }
+      if (parsed.data.xboxGamertag != null) {
+        metadata.xboxGamertag = parsed.data.xboxGamertag;
+      }
+      if (parsed.data.xboxXuid != null) {
+        metadata.xboxXuid = parsed.data.xboxXuid;
+      }
+      if (parsed.data.xboxProfileCheckedAt != null) {
+        metadata.xboxProfileCheckedAt = parsed.data.xboxProfileCheckedAt;
+      }
+      if (parsed.data.haloXstsTokenEncrypted != null) {
+        metadata.haloXstsTokenEncrypted = parsed.data.haloXstsTokenEncrypted;
+      }
+      if (parsed.data.haloXstsUserHash != null) {
+        metadata.haloXstsUserHash = parsed.data.haloXstsUserHash;
+      }
+      if (parsed.data.haloXstsExpiresAt != null) {
+        metadata.haloXstsExpiresAt = parsed.data.haloXstsExpiresAt;
+      }
+
+      return metadata;
     } catch {
       return {};
     }
   }
 
-  private async toAuthSession(session: UserSessionsRow): Promise<AuthSession> {
+  private async toAuthSessionWithAuthMetadata(session: UserSessionsRow): Promise<SessionWithAuthMetadata> {
     const expiresAt = session.ExpiresAt * 1000;
     const isExpired = expiresAt < Date.now();
     const accessToken = await this.tokenEncryptor.decrypt(session.AccessToken);
@@ -431,7 +574,10 @@ export class AuthService {
     if (metadata.xboxProfileCheckedAt != null) {
       authSession.xboxProfileCheckedAt = metadata.xboxProfileCheckedAt;
     }
-    return authSession;
+    return {
+      session: authSession,
+      authMetadata: metadata,
+    };
   }
 
   private async readSessionCookiePayload(token: string): Promise<SessionCookiePayload | null> {

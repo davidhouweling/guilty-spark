@@ -7,6 +7,23 @@ import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake";
 import type { TokenInfo } from "../../xbox/types";
 
+function createDeferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve: ((value: T) => void) | undefined;
+  const promise = new Promise<T>((resolveFn) => {
+    resolve = resolveFn;
+  });
+
+  return {
+    promise,
+    resolve(value: T): void {
+      if (resolve == null) {
+        throw new Error("Expected deferred resolver to exist");
+      }
+      resolve(value);
+    },
+  };
+}
+
 vi.mock("halo-infinite-api", async (importOriginal) => {
   const actual = await importOriginal<typeof HaloInfiniteApi>();
   return {
@@ -17,6 +34,10 @@ vi.mock("halo-infinite-api", async (importOriginal) => {
 });
 
 describe("UserTokenProvider", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
@@ -67,5 +88,98 @@ describe("UserTokenProvider", () => {
 
     expect(client).toBeNull();
     expect(warnSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("reuses cached client when token has not expired", async () => {
+    const authService = aFakeAuthServiceWith();
+    const xboxService = aFakeXboxServiceWith();
+    vi.spyOn(authService, "getMicrosoftAccessTokenForUser").mockResolvedValue("owner-access-token");
+    const exchangeSpy = vi.spyOn(xboxService, "exchangeMicrosoftAccessTokenForXstsToken").mockResolvedValue({
+      XSTSToken: "owner-xsts-token",
+      userHash: "owner-user-hash",
+      expiresOn: new Date("2030-01-01T00:00:00.000Z"),
+    } satisfies TokenInfo);
+
+    const provider = new UserTokenProvider({ authService, xboxService, logService: aFakeLogServiceWith() });
+
+    const firstClient = await provider.getClientForUser("user-123");
+    const secondClient = await provider.getClientForUser("user-123");
+
+    expect(exchangeSpy).toHaveBeenCalledTimes(1);
+    expect(firstClient).toBe(secondClient);
+  });
+
+  it("re-mints client after clearCachedClient is called", async () => {
+    const authService = aFakeAuthServiceWith();
+    const xboxService = aFakeXboxServiceWith();
+    vi.spyOn(authService, "getMicrosoftAccessTokenForUser").mockResolvedValue("owner-access-token");
+    const exchangeSpy = vi.spyOn(xboxService, "exchangeMicrosoftAccessTokenForXstsToken").mockResolvedValue({
+      XSTSToken: "owner-xsts-token",
+      userHash: "owner-user-hash",
+      expiresOn: new Date("2030-01-01T00:00:00.000Z"),
+    } satisfies TokenInfo);
+
+    const provider = new UserTokenProvider({ authService, xboxService, logService: aFakeLogServiceWith() });
+
+    await provider.getClientForUser("user-123");
+    provider.clearCachedClient("user-123");
+    await provider.getClientForUser("user-123");
+
+    expect(exchangeSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("deduplicates concurrent client mint requests for the same user", async () => {
+    const authService = aFakeAuthServiceWith();
+    const xboxService = aFakeXboxServiceWith();
+    vi.spyOn(authService, "getMicrosoftAccessTokenForUser").mockResolvedValue("owner-access-token");
+    const deferred = createDeferred<TokenInfo>();
+    const exchangeSpy = vi
+      .spyOn(xboxService, "exchangeMicrosoftAccessTokenForXstsToken")
+      .mockImplementation(async () => deferred.promise);
+
+    const provider = new UserTokenProvider({ authService, xboxService, logService: aFakeLogServiceWith() });
+
+    const firstPromise = provider.getClientForUser("user-123");
+    const secondPromise = provider.getClientForUser("user-123");
+
+    deferred.resolve({
+      XSTSToken: "owner-xsts-token",
+      userHash: "owner-user-hash",
+      expiresOn: new Date("2030-01-01T00:00:00.000Z"),
+    });
+
+    const [firstClient, secondClient] = await Promise.all([firstPromise, secondPromise]);
+
+    expect(exchangeSpy).toHaveBeenCalledTimes(1);
+    expect(firstClient).toBe(secondClient);
+  });
+
+  it("re-mints client when cached token is inside expiry skew", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-20T00:00:00.000Z"));
+
+    const authService = aFakeAuthServiceWith();
+    const xboxService = aFakeXboxServiceWith();
+    vi.spyOn(authService, "getMicrosoftAccessTokenForUser").mockResolvedValue("owner-access-token");
+    const exchangeSpy = vi.spyOn(xboxService, "exchangeMicrosoftAccessTokenForXstsToken");
+    exchangeSpy
+      .mockResolvedValueOnce({
+        XSTSToken: "owner-xsts-token-1",
+        userHash: "owner-user-hash",
+        expiresOn: new Date(Date.now() + 5 * 60_000),
+      } satisfies TokenInfo)
+      .mockResolvedValueOnce({
+        XSTSToken: "owner-xsts-token-2",
+        userHash: "owner-user-hash",
+        expiresOn: new Date(Date.now() + 5 * 60_000),
+      } satisfies TokenInfo);
+
+    const provider = new UserTokenProvider({ authService, xboxService, logService: aFakeLogServiceWith() });
+
+    await provider.getClientForUser("user-123");
+    vi.setSystemTime(new Date(Date.now() + 5 * 60_000 - 30_000));
+    await provider.getClientForUser("user-123");
+
+    expect(exchangeSpy).toHaveBeenCalledTimes(2);
   });
 });

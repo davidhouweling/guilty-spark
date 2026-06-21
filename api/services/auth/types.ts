@@ -64,6 +64,14 @@ export interface AuthMetadata {
   readonly xboxGamertag?: string;
   readonly xboxXuid?: string;
   readonly xboxProfileCheckedAt?: number;
+  readonly haloXstsTokenEncrypted?: string;
+  readonly haloXstsUserHash?: string;
+  readonly haloXstsExpiresAt?: number;
+}
+
+export interface SessionWithAuthMetadata {
+  readonly session: AuthSession;
+  readonly authMetadata: AuthMetadata;
 }
 
 export type XboxSessionProfile = Pick<AuthMetadata, "avatarUrl" | "xboxGamertag" | "xboxXuid" | "xboxProfileCheckedAt">;
