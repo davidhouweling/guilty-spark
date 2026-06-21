@@ -30,7 +30,7 @@ export interface GameSelectionDialogProps {
   readonly onSeriesGroupTitleChange: (groupIndex: number, value: string | null) => void;
   readonly onSeriesGroupSubtitleChange: (groupIndex: number, value: string | null) => void;
   readonly onHideShortGamesChange: (hide: boolean) => void;
-  readonly onLoadMore: () => void;
+  readonly onLoadMore: () => Promise<void>;
 }
 
 export function GameSelectionDialog({
@@ -61,8 +61,7 @@ export function GameSelectionDialog({
   }
 
   const handleLoadMore = async (): Promise<void> => {
-    onLoadMore();
-    return Promise.resolve();
+    await onLoadMore();
   };
 
   return (

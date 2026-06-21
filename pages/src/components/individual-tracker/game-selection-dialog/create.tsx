@@ -112,8 +112,8 @@ export function GameSelectionDialogSection({
       onHideShortGamesChange={(hide): void => {
         presenter.setHideShortGames(hide);
       }}
-      onLoadMore={(): void => {
-        presenter.loadMore();
+      onLoadMore={async (): Promise<void> => {
+        return presenter.loadMore();
       }}
     />
   );
