@@ -12,7 +12,7 @@ const ALLOWED_ORIGINS = [
 const { preflight, corsify } = cors({
   origin: ALLOWED_ORIGINS,
   credentials: true,
-  allowMethods: ["GET", "POST", "PATCH", "OPTIONS"],
+  allowMethods: ["GET", "POST", "PUT", "PATCH", "OPTIONS"],
   allowHeaders: ["Content-Type"],
   maxAge: 86400, // 24 hours
 });

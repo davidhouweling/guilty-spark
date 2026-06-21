@@ -109,8 +109,8 @@ export function GameSelectionDialog({
         </div>
       )}
 
-      <Button onClick={onSyncAndClose} disabled={isSyncing}>
-        {isSyncing ? "Syncing..." : "Close and sync"}
+      <Button onClick={onSyncAndClose} loading={isSyncing}>
+        Save
       </Button>
     </Dialog>
   );

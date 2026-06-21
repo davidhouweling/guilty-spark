@@ -227,7 +227,7 @@ describe("GameSelectionDialogSection", () => {
       expect(screen.getByRole("checkbox", { name: "" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /close and sync/i }));
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
     await waitFor(() => {
       expect(syncSpy).toHaveBeenCalledWith(
