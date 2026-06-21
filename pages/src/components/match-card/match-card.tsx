@@ -74,7 +74,6 @@ export function MatchCard({
     <div
       className={[
         styles.card,
-        isSelected ? styles.selected : null,
         isGroupStart ? styles.groupStart : null,
         isGroupEnd ? styles.groupEnd : null,
         showGrouping && groupColor != null ? styles.grouped : null,
