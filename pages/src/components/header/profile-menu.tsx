@@ -65,6 +65,8 @@ export function ProfileMenu({ apiHost }: ProfileMenuProps): React.ReactElement {
     </span>
   );
 
+  const profileTrigger = <span className={styles.profileIconButton}>{avatar}</span>;
+
   if (!session.authenticated) {
     return (
       <a href="/login" className={styles.profileIconButton} aria-label="Sign in" title="Sign in">
@@ -86,9 +88,12 @@ export function ProfileMenu({ apiHost }: ProfileMenuProps): React.ReactElement {
   };
 
   return (
-    <Dropdown trigger={avatar} ariaLabel="Profile menu" dropdownWidth={220} dropdownHeight={180}>
+    <Dropdown trigger={profileTrigger} ariaLabel="Profile menu" dropdownWidth={220} dropdownHeight={180}>
       <div className={styles.profileMenuList}>
         {gamertag != null && gamertag !== "" ? <span className={styles.profileMenuLabel}>{gamertag}</span> : null}
+        <a href="/" className={styles.profileMenuItem}>
+          Individual Tracker (Coming Soon)
+        </a>
         <button type="button" className={styles.profileMenuItem} onClick={handleLogout}>
           Sign out
         </button>
