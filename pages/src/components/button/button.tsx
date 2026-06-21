@@ -74,7 +74,13 @@ export function Button({
   }
 
   return (
-    <button type={type} onClick={onClick} disabled={disabled || loading} className={buttonClassName}>
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled || loading}
+      className={buttonClassName}
+      aria-busy={loading}
+    >
       {content}
     </button>
   );
