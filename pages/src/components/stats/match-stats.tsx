@@ -250,7 +250,6 @@ export function MatchStats({
       <TabbedSection
         tabListAriaLabel="Player statistics view"
         selectedTabId={activeTab}
-        onTabChange={setActiveTab}
         tabs={[
           {
             id: "players",
@@ -289,6 +288,8 @@ export function MatchStats({
             ),
           },
         ]}
+        tabsClassName={styles.tabs}
+        onTabChange={setActiveTab}
       />
     </div>
   );
