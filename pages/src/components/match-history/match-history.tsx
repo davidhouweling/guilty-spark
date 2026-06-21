@@ -83,11 +83,9 @@ export function MatchHistory({
   return (
     <div className={styles.container}>
       {showSeriesInfo && groupings != null && (
-        <div className={styles.seriesInfo}>
-          <p>
-            Suggested <strong>{groupings.length}</strong> game series from <strong>{entries.length}</strong> matches
-          </p>
-        </div>
+        <Alert variant="info">
+          Suggested <strong>{groupings.length}</strong> game series from <strong>{entries.length}</strong> matches
+        </Alert>
       )}
 
       {showActionBar && onStartTracker != null && (
@@ -250,15 +248,18 @@ export function MatchHistory({
           }
         })}
         {hasMore === true && (
-          <button
-            className={styles.loadMoreButton}
-            disabled={model.isLoadingMore}
-            onClick={() => {
-              void onLoadMore?.();
-            }}
-          >
-            {model.isLoadingMore ? "Loading…" : "Load more"}
-          </button>
+          <div className={styles.loadMoreRow}>
+            <Button
+              variant="secondary"
+              loading={model.isLoadingMore}
+              disabled={model.isLoadingMore}
+              onClick={() => {
+                void onLoadMore?.();
+              }}
+            >
+              Load more
+            </Button>
+          </div>
         )}
       </div>
     </div>

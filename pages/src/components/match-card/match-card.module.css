@@ -1,18 +1,9 @@
 .card {
-  background-color: var(--color-surface);
-  background-image:
-    linear-gradient(
-      to bottom,
-      color-mix(in srgb, var(--color-surface) 85%, transparent),
-      color-mix(in srgb, var(--color-surface) 85%, transparent)
-    ),
-    var(--map-bg);
-  background-position: center, center;
-  background-repeat: no-repeat, no-repeat;
-  background-size:
-    100% 100%,
-    cover;
-  border: 1px solid var(--color-border);
+  background-image: linear-gradient(rgb(0 0 0 / 25%), rgb(0 0 0 / 75%)), var(--map-bg);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  border: 1px solid color-mix(in srgb, var(--group-color, var(--halo-teal-primary)) 30%, transparent);
   border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
@@ -21,10 +12,6 @@
   padding: var(--space-4);
   position: relative;
   transition: opacity var(--transition-base);
-}
-
-.card + .card {
-  margin-top: var(--space-4);
 }
 
 .card.grouped + .card.grouped {
@@ -36,7 +23,7 @@
 }
 
 .grouped {
-  border-left: 3px solid var(--group-color, var(--halo-teal-primary));
+  border-left-width: 3px;
   border-radius: 0;
   margin-top: -1px;
 }
@@ -50,18 +37,6 @@
 .grouped.groupEnd {
   border-bottom-left-radius: var(--radius-lg);
   border-bottom-right-radius: var(--radius-lg);
-}
-
-.card.selected {
-  background-color: var(--color-background-secondary);
-  background-image:
-    linear-gradient(
-      to bottom,
-      color-mix(in srgb, var(--color-background-secondary) 85%, transparent),
-      color-mix(in srgb, var(--color-background-secondary) 85%, transparent)
-    ),
-    var(--map-bg);
-  border-color: var(--halo-teal-primary);
 }
 
 .cardContent {

@@ -10,19 +10,6 @@
   gap: var(--space-4);
 }
 
-.seriesInfo {
-  background: var(--color-background-secondary);
-  border-left: 4px solid var(--halo-teal-primary);
-  border-radius: var(--radius-base);
-  font-size: var(--text-sm);
-  padding: var(--space-4);
-}
-
-.seriesInfo p {
-  color: var(--color-text-primary);
-  margin: 0;
-}
-
 .actionBar {
   display: flex;
   flex-wrap: wrap;
@@ -32,13 +19,7 @@
 .matchList {
   display: flex;
   flex-direction: column;
-  gap: 0;
-}
-
-.card + .seriesBlock,
-.seriesBlock + .card,
-.seriesBlock + .seriesBlock {
-  margin-top: var(--space-4);
+  gap: var(--space-4);
 }
 
 .seriesBlock {
@@ -47,14 +28,13 @@
   border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-3);
 }
 
 .seriesHeader {
   background: color-mix(in srgb, var(--group-color, var(--halo-teal-primary)) 14%, transparent);
   border: 1px solid color-mix(in srgb, var(--group-color, var(--halo-teal-primary)) 30%, transparent);
-  border-radius: var(--radius-base);
+  border-top-left-radius: var(--radius-base);
+  border-top-right-radius: var(--radius-base);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -101,21 +81,15 @@
   min-width: 0;
 }
 
-.loadMoreButton {
-  align-self: center;
-  background: var(--color-background-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-base);
-  color: var(--color-text-primary);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  margin-top: var(--space-4);
-  padding: var(--space-2) var(--space-6);
+.seriesCards > :first-child {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 
-.loadMoreButton:disabled {
-  cursor: default;
-  opacity: 0.6;
+.loadMoreRow {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--space-4);
 }
 
 @media (--tablet-viewport) {

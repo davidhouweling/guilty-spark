@@ -112,7 +112,7 @@ describe("MatchHistorySection", () => {
       />,
     );
 
-    const button = screen.getByRole("button", { name: "Loading…" });
+    const button = screen.getByRole("button", { name: "Load more" });
     expect(button).toBeDisabled();
   });
 

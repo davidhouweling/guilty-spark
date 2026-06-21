@@ -74,18 +74,18 @@ export class GameSelectionDialogPresenter {
     }
   }
 
-  public loadMore(): void {
+  public async loadMore(): Promise<void> {
     if (this.isDisposed) {
-      return;
+      return Promise.resolve();
     }
 
     const snapshot = this.config.store.getSnapshot();
 
     if (snapshot.matches == null) {
-      return;
+      return Promise.resolve();
     }
 
-    void this.loadMoreAsync(snapshot.matches.length);
+    return this.loadMoreAsync(snapshot.matches.length);
   }
 
   private async loadMoreAsync(start: number): Promise<void> {

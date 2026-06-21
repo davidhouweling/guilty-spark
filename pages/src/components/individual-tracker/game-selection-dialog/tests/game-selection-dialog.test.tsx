@@ -47,6 +47,35 @@ function aMatch(
 }
 
 describe("GameSelectionDialogSection", () => {
+  it("shows a single loading state while initial matches are being fetched", () => {
+    const service = new FakeIndividualTrackerService();
+    vi.spyOn(service, "getMatchHistory").mockImplementation(
+      async () =>
+        new Promise(() => {
+          /* keep pending */
+        }),
+    );
+
+    render(
+      <GameSelectionDialogSection
+        isOpen={true}
+        trackerId="tracker-1"
+        trackerLabel="Test Player"
+        xuid="xuid-1"
+        initialSelectedMatchIds={[]}
+        initialGroupings={[]}
+        initialSeriesGroups={[]}
+        onClose={vi.fn()}
+        onSynced={vi.fn()}
+        individualTrackerService={service as IndividualTrackerService}
+      />,
+    );
+
+    expect(screen.getByText("Loading matches...")).toBeInTheDocument();
+    expect(screen.getAllByText("Loading matches...")).toHaveLength(1);
+    expect(screen.queryByText("Establishing Connection...")).not.toBeInTheDocument();
+  });
+
   it("shows error alert and hides match list when getMatchHistory fails", async () => {
     const service = new FakeIndividualTrackerService();
     vi.spyOn(service, "getMatchHistory").mockRejectedValue(new Error("Network error"));
@@ -173,7 +202,7 @@ describe("GameSelectionDialogSection", () => {
     expect(screen.getByText("Slayer: Aquarius")).toBeInTheDocument();
   });
 
-  it("calls syncMatchesToTracker when the dialog is closed", async () => {
+  it("calls syncMatchesToTracker only when footer sync button is clicked", async () => {
     const service = new FakeIndividualTrackerService();
     vi.spyOn(service, "getMatchHistory").mockResolvedValue(aResponse({ matches: [aMatch("m1")] }));
     const syncSpy = vi.spyOn(service, "syncMatchesToTracker").mockResolvedValue(undefined);
@@ -198,7 +227,7 @@ describe("GameSelectionDialogSection", () => {
       expect(screen.getByRole("checkbox", { name: "" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /close and sync/i }));
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
     await waitFor(() => {
       expect(syncSpy).toHaveBeenCalledWith(
@@ -209,5 +238,38 @@ describe("GameSelectionDialogSection", () => {
       );
     });
     expect(onSynced).toHaveBeenCalledOnce();
+  });
+
+  it("treats escape close as cancel and does not sync", async () => {
+    const service = new FakeIndividualTrackerService();
+    vi.spyOn(service, "getMatchHistory").mockResolvedValue(aResponse({ matches: [aMatch("m1")] }));
+    const syncSpy = vi.spyOn(service, "syncMatchesToTracker").mockResolvedValue(undefined);
+    const onSynced = vi.fn();
+    const onClose = vi.fn();
+
+    render(
+      <GameSelectionDialogSection
+        isOpen={true}
+        trackerId="tracker-1"
+        trackerLabel="Test Player"
+        xuid="xuid-1"
+        initialSelectedMatchIds={["m1"]}
+        initialGroupings={[]}
+        initialSeriesGroups={[]}
+        onClose={onClose}
+        onSynced={onSynced}
+        individualTrackerService={service as IndividualTrackerService}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(syncSpy).not.toHaveBeenCalled();
+    expect(onSynced).not.toHaveBeenCalled();
   });
 });

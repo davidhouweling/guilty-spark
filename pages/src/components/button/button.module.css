@@ -112,6 +112,10 @@
   z-index: var(--z-base);
 }
 
+.btnContentLoading {
+  visibility: hidden;
+}
+
 .btnIcon {
   align-items: center;
   display: flex;
@@ -139,6 +143,26 @@
 
 .btnSecondary {
   background: transparent;
+}
+
+.btnSpinner {
+  animation: btn-rotate 1.2s linear infinite;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  border-top-color: currentcolor;
+  display: block;
+  height: 1em;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 1em;
+}
+
+@keyframes btn-rotate {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
 
 /* ============================================ */

@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useRef } from "react";
+import classNames from "classnames";
 import styles from "./dialog.module.css";
 
 interface DialogProps {
@@ -6,9 +7,18 @@ interface DialogProps {
   readonly title: string;
   readonly onClose: () => void;
   readonly children: React.ReactNode;
+  readonly panelClassName?: string;
+  readonly bodyClassName?: string;
 }
 
-export function Dialog({ open, title, onClose, children }: DialogProps): React.ReactElement | null {
+export function Dialog({
+  open,
+  title,
+  onClose,
+  children,
+  panelClassName,
+  bodyClassName,
+}: DialogProps): React.ReactElement | null {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
@@ -53,12 +63,12 @@ export function Dialog({ open, title, onClose, children }: DialogProps): React.R
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={styles.panel}
+        className={classNames(styles.panel, panelClassName)}
       >
         <h2 id={titleId} className={styles.title}>
           {title}
         </h2>
-        <div className={styles.body}>{children}</div>
+        <div className={classNames(styles.body, bodyClassName)}>{children}</div>
       </div>
     </div>
   );

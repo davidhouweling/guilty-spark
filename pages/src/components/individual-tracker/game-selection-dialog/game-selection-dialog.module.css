@@ -1,3 +1,17 @@
+.dialogPanel {
+  display: flex;
+  flex-direction: column;
+  max-width: min(1120px, calc(100vw - (var(--space-4) * 2)));
+}
+
+.dialogBody {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .summaryText {
   color: var(--halo-gray);
   flex: 1 1 auto;
@@ -17,7 +31,16 @@
 .matchesContainer {
   border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 18%, transparent);
   border-radius: var(--radius-sm);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
   padding: var(--space-3);
+}
+
+@media (--tablet-viewport) {
+  .dialogPanel {
+    max-width: min(1240px, calc(100vw - (var(--space-6) * 2)));
+  }
 }
 
 @media (--tablet-viewport) {
