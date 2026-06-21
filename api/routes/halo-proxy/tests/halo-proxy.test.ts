@@ -3,10 +3,12 @@ import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as HaloInfiniteApi from "halo-infinite-api";
 import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
+import * as haloProxyOperations from "@guilty-spark/shared/halo/halo-infinite-proxy-operations";
 import type { TokenInfo } from "../../../services/xbox/types";
 import type { XboxService } from "../../../services/xbox/xbox";
 import type { UserTokenProvider } from "../../../services/halo/user-token-provider";
 import type { DatabaseService } from "../../../services/database/database";
+import type { AuthService } from "../../../services/auth/auth";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeCacheStorage } from "../../../base/fakes/cache.fake";
@@ -69,10 +71,23 @@ describe("/proxy/halo-infinite/:operation route", () => {
     expect(await res.text()).toBe("Method not allowed");
   });
 
+  it("returns 404 when an allowlisted operation cannot be resolved", async () => {
+    const resolveSpy = vi.spyOn(haloProxyOperations, "resolveHaloProxyOperation").mockReturnValue(null);
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => installFakeServicesWith({ env }));
+    haloProxyRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("http://localhost/proxy/halo-infinite/getUser"), env, ctx)) as Response;
+
+    expect(res.status).toBe(404);
+    expect(await res.text()).toContain("Operation not found: getUser");
+    resolveSpy.mockRestore();
+  });
+
   it("derives the client from a valid session via the session XSTS token", async () => {
     const sessionClient = aFakeHaloInfiniteClient();
     const sessionGetUserSpy = vi.spyOn(sessionClient, "getUser");
     let exchangeSpy!: MockInstance<XboxService["exchangeMicrosoftAccessTokenForXstsToken"]>;
+    let cacheHaloXstsTokenSpy!: MockInstance<AuthService["cacheHaloXstsTokenForSessionAuthMetadata"]>;
     vi.mocked(StaticXstsTicketTokenSpartanTokenProvider).mockClear();
     vi.mocked(HaloInfiniteClient).mockClear();
     vi.mocked(HaloInfiniteClient).mockImplementation(function () {
@@ -81,14 +96,21 @@ describe("/proxy/halo-infinite/:operation route", () => {
 
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
-      vi.spyOn(services.authService, "validateSession").mockResolvedValue({
-        sessionId: "session-123",
-        userId: "user-123",
-        accessToken: "access-token",
-        refreshToken: undefined,
-        expiresAt: Date.now() + 3600000,
-        isExpired: false,
+      vi.spyOn(services.authService, "validateSessionWithAuthMetadata").mockResolvedValue({
+        session: {
+          sessionId: "session-123",
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        },
+        authMetadata: {},
       });
+      vi.spyOn(services.authService, "getCachedHaloXstsTokenForAuthMetadata").mockResolvedValue(null);
+      cacheHaloXstsTokenSpy = vi
+        .spyOn(services.authService, "cacheHaloXstsTokenForSessionAuthMetadata")
+        .mockResolvedValue();
       exchangeSpy = vi.spyOn(services.xboxService, "exchangeMicrosoftAccessTokenForXstsToken").mockResolvedValue({
         XSTSToken: "session-xsts-token",
         userHash: "session-user-hash",
@@ -106,8 +128,191 @@ describe("/proxy/halo-infinite/:operation route", () => {
 
     expect(res.status).toBe(200);
     expect(exchangeSpy).toHaveBeenCalledWith("access-token");
+    expect(cacheHaloXstsTokenSpy).toHaveBeenCalledWith(
+      "session-123",
+      expect.any(Object),
+      expect.objectContaining({ XSTSToken: "session-xsts-token" }),
+    );
     expect(vi.mocked(StaticXstsTicketTokenSpartanTokenProvider)).toHaveBeenCalledWith("session-xsts-token");
     expect(sessionGetUserSpy).toHaveBeenCalledWith("discord_user_01");
+  });
+
+  it("reuses cached session XSTS token and skips token exchange", async () => {
+    const sessionClient = aFakeHaloInfiniteClient();
+    const sessionGetUserSpy = vi.spyOn(sessionClient, "getUser");
+    let exchangeSpy!: MockInstance<XboxService["exchangeMicrosoftAccessTokenForXstsToken"]>;
+    let cacheHaloXstsTokenSpy!: MockInstance<AuthService["cacheHaloXstsTokenForSessionAuthMetadata"]>;
+
+    vi.mocked(StaticXstsTicketTokenSpartanTokenProvider).mockClear();
+    vi.mocked(HaloInfiniteClient).mockClear();
+    vi.mocked(HaloInfiniteClient).mockImplementation(function () {
+      return sessionClient;
+    });
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.authService, "validateSessionWithAuthMetadata").mockResolvedValue({
+        session: {
+          sessionId: "session-123",
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        },
+        authMetadata: {},
+      });
+      vi.spyOn(services.authService, "getCachedHaloXstsTokenForAuthMetadata").mockResolvedValue({
+        XSTSToken: "cached-session-xsts-token",
+        userHash: "cached-user-hash",
+        expiresOn: new Date(Date.now() + 3600_000),
+      });
+      cacheHaloXstsTokenSpy = vi
+        .spyOn(services.authService, "cacheHaloXstsTokenForSessionAuthMetadata")
+        .mockResolvedValue();
+      exchangeSpy = vi.spyOn(services.xboxService, "exchangeMicrosoftAccessTokenForXstsToken").mockResolvedValue({
+        XSTSToken: "session-xsts-token",
+        userHash: "session-user-hash",
+        expiresOn: new Date("2025-01-01T06:00:00.000Z"),
+      } satisfies TokenInfo);
+      return services;
+    });
+    haloProxyRoutesRegisterHandler(router, localInstallServices);
+
+    const req = new Request("http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22", {
+      method: "GET",
+      headers: { cookie: "auth-session=valid-token" },
+    });
+    const res = (await router.fetch(req, env, ctx)) as Response;
+
+    expect(res.status).toBe(200);
+    expect(exchangeSpy).not.toHaveBeenCalled();
+    expect(cacheHaloXstsTokenSpy).not.toHaveBeenCalled();
+    expect(vi.mocked(StaticXstsTicketTokenSpartanTokenProvider)).toHaveBeenCalledWith("cached-session-xsts-token");
+    expect(sessionGetUserSpy).toHaveBeenCalledWith("discord_user_01");
+  });
+
+  it("refreshes an expired session and exchanges token using refreshed access token", async () => {
+    const sessionClient = aFakeHaloInfiniteClient();
+    const sessionGetUserSpy = vi.spyOn(sessionClient, "getUser");
+    let refreshSessionSpy!: MockInstance<AuthService["refreshSession"]>;
+    let exchangeSpy!: MockInstance<XboxService["exchangeMicrosoftAccessTokenForXstsToken"]>;
+
+    vi.mocked(StaticXstsTicketTokenSpartanTokenProvider).mockClear();
+    vi.mocked(HaloInfiniteClient).mockClear();
+    vi.mocked(HaloInfiniteClient).mockImplementation(function () {
+      return sessionClient;
+    });
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.authService, "validateSessionWithAuthMetadata").mockResolvedValue({
+        session: {
+          sessionId: "session-123",
+          userId: "user-123",
+          accessToken: "expired-access-token",
+          refreshToken: "refresh-token",
+          expiresAt: Date.now() - 1000,
+          isExpired: true,
+        },
+        authMetadata: {},
+      });
+      vi.spyOn(services.authService, "getCachedHaloXstsTokenForAuthMetadata").mockResolvedValue(null);
+      refreshSessionSpy = vi.spyOn(services.authService, "refreshSession").mockResolvedValue({
+        sessionId: "session-123",
+        userId: "user-123",
+        accessToken: "refreshed-access-token",
+        refreshToken: "rotated-refresh-token",
+        expiresAt: Date.now() + 3600_000,
+        issuedAt: Date.now(),
+      });
+      vi.spyOn(services.authService, "cacheHaloXstsTokenForSessionAuthMetadata").mockResolvedValue();
+      exchangeSpy = vi.spyOn(services.xboxService, "exchangeMicrosoftAccessTokenForXstsToken").mockResolvedValue({
+        XSTSToken: "refreshed-session-xsts-token",
+        userHash: "session-user-hash",
+        expiresOn: new Date("2025-01-01T06:00:00.000Z"),
+      } satisfies TokenInfo);
+      return services;
+    });
+    haloProxyRoutesRegisterHandler(router, localInstallServices);
+
+    const req = new Request("http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22", {
+      method: "GET",
+      headers: { cookie: "auth-session=valid-token" },
+    });
+    const res = (await router.fetch(req, env, ctx)) as Response;
+
+    expect(res.status).toBe(200);
+    expect(refreshSessionSpy).toHaveBeenCalledOnce();
+    expect(exchangeSpy).toHaveBeenCalledWith("refreshed-access-token");
+    expect(vi.mocked(StaticXstsTicketTokenSpartanTokenProvider)).toHaveBeenCalledWith("refreshed-session-xsts-token");
+    expect(sessionGetUserSpy).toHaveBeenCalledWith("discord_user_01");
+  });
+
+  it("returns 401 and clears cookie when refreshing an expired session throws", async () => {
+    let clearSessionCookieSpy!: MockInstance<AuthService["clearSessionCookie"]>;
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.authService, "validateSessionWithAuthMetadata").mockResolvedValue({
+        session: {
+          sessionId: "session-123",
+          userId: "user-123",
+          accessToken: "expired-access-token",
+          refreshToken: "refresh-token",
+          expiresAt: Date.now() - 1000,
+          isExpired: true,
+        },
+        authMetadata: {},
+      });
+      vi.spyOn(services.authService, "getCachedHaloXstsTokenForAuthMetadata").mockResolvedValue(null);
+      vi.spyOn(services.authService, "refreshSession").mockRejectedValue(new Error("refresh failed"));
+      clearSessionCookieSpy = vi.spyOn(services.authService, "clearSessionCookie");
+      return services;
+    });
+    haloProxyRoutesRegisterHandler(router, localInstallServices);
+
+    const req = new Request("http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22", {
+      method: "GET",
+      headers: { cookie: "auth-session=valid-token" },
+    });
+    const res = (await router.fetch(req, env, ctx)) as Response;
+
+    expect(res.status).toBe(401);
+    expect(await res.text()).toBe("Unauthorized");
+    expect(clearSessionCookieSpy).toHaveBeenCalledOnce();
+  });
+
+  it("returns 401 and clears cookie when refreshing an expired session returns null", async () => {
+    let clearSessionCookieSpy!: MockInstance<AuthService["clearSessionCookie"]>;
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.authService, "validateSessionWithAuthMetadata").mockResolvedValue({
+        session: {
+          sessionId: "session-123",
+          userId: "user-123",
+          accessToken: "expired-access-token",
+          refreshToken: "refresh-token",
+          expiresAt: Date.now() - 1000,
+          isExpired: true,
+        },
+        authMetadata: {},
+      });
+      vi.spyOn(services.authService, "getCachedHaloXstsTokenForAuthMetadata").mockResolvedValue(null);
+      vi.spyOn(services.authService, "refreshSession").mockResolvedValue(null);
+      clearSessionCookieSpy = vi.spyOn(services.authService, "clearSessionCookie");
+      return services;
+    });
+    haloProxyRoutesRegisterHandler(router, localInstallServices);
+
+    const req = new Request("http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22", {
+      method: "GET",
+      headers: { cookie: "auth-session=valid-token" },
+    });
+    const res = (await router.fetch(req, env, ctx)) as Response;
+
+    expect(res.status).toBe(401);
+    expect(await res.text()).toBe("Unauthorized");
+    expect(clearSessionCookieSpy).toHaveBeenCalledOnce();
   });
 
   it("prefers the session client and ignores the gamertag when both are present", async () => {
@@ -121,14 +326,19 @@ describe("/proxy/halo-infinite/:operation route", () => {
     let findIdentitySpy!: MockInstance<DatabaseService["findActiveXboxIdentityByGamertag"]>;
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
-      vi.spyOn(services.authService, "validateSession").mockResolvedValue({
-        sessionId: "session-123",
-        userId: "user-123",
-        accessToken: "access-token",
-        refreshToken: undefined,
-        expiresAt: Date.now() + 3600000,
-        isExpired: false,
+      vi.spyOn(services.authService, "validateSessionWithAuthMetadata").mockResolvedValue({
+        session: {
+          sessionId: "session-123",
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        },
+        authMetadata: {},
       });
+      vi.spyOn(services.authService, "getCachedHaloXstsTokenForAuthMetadata").mockResolvedValue(null);
+      vi.spyOn(services.authService, "cacheHaloXstsTokenForSessionAuthMetadata").mockResolvedValue();
       vi.spyOn(services.xboxService, "exchangeMicrosoftAccessTokenForXstsToken").mockResolvedValue({
         XSTSToken: "session-xsts-token",
         userHash: "session-user-hash",
@@ -219,6 +429,37 @@ describe("/proxy/halo-infinite/:operation route", () => {
     expect(res.status).toBe(200);
     expect(botGetUserSpy).toHaveBeenCalledWith("discord_user_01");
     expect(getClientForUserSpy).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the bot client when owner identity lookup throws", async () => {
+    const botClient = aFakeHaloInfiniteClient();
+    const botGetUserSpy = vi.spyOn(botClient, "getUser");
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env, haloInfiniteClient: botClient });
+      vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockRejectedValue(new Error("db down"));
+      return services;
+    });
+    haloProxyRoutesRegisterHandler(router, localInstallServices);
+
+    const req = getRequest("http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22&gamertag=OwnerTag");
+    const res = (await router.fetch(req, env, ctx)) as Response;
+
+    expect(res.status).toBe(200);
+    expect(botGetUserSpy).toHaveBeenCalledWith("discord_user_01");
+  });
+
+  it("returns 400 when proxy args cannot be parsed", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => installFakeServicesWith({ env }));
+    haloProxyRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      getRequest("http://localhost/proxy/halo-infinite/getUser?arg=not-json"),
+      env,
+      ctx,
+    )) as Response;
+
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain("Invalid query arguments");
   });
 
   it("serves a second request with a different gamertag from the gamertag-stripped cache entry", async () => {

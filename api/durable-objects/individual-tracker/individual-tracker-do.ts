@@ -82,6 +82,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private readonly logService: LogService;
   private readonly webSocketAdapter: WebSocketHibernationAdapter;
   private userHaloService: HaloService | null = null;
+  private userHaloServiceUserId: string | null = null;
   private topBarStatsCacheKey: string | undefined;
   private cachedTopBarStats: readonly TopBarStatItem[] | undefined;
   private cachedResolvedRosterCount: number | undefined;
@@ -273,7 +274,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         ]),
       );
       if (this.isAuthError(error)) {
-        this.userHaloService = null;
+        this.clearUserHaloService();
       }
       throw error;
     }
@@ -419,7 +420,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       matchStats = Preconditions.checkExists((await this.haloService.getMatchDetails([summary.matchId]))[0]);
     } catch (error) {
       if (this.isAuthError(error)) {
-        this.userHaloService = null;
+        this.clearUserHaloService();
         throw error;
       }
       this.logService.warn(
@@ -462,7 +463,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         matchStats = Preconditions.checkExists((await this.haloService.getMatchDetails([matchId]))[0]);
       } catch (error) {
         if (this.isAuthError(error)) {
-          this.userHaloService = null;
+          this.clearUserHaloService();
           throw error;
         }
         this.logService.warn(
@@ -485,7 +486,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return await this.haloService.getMapName(assetId, versionId);
     } catch (error) {
       if (this.isAuthError(error)) {
-        this.userHaloService = null;
+        this.clearUserHaloService();
         throw error;
       }
       this.logService.warn(
@@ -528,7 +529,16 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     this.userHaloService = this.services.haloService.withUserClient(client);
+    this.userHaloServiceUserId = userId;
     return this.userHaloService;
+  }
+
+  private clearUserHaloService(): void {
+    if (this.userHaloServiceUserId != null) {
+      this.services.userTokenProvider.clearCachedClient(this.userHaloServiceUserId);
+    }
+    this.userHaloService = null;
+    this.userHaloServiceUserId = null;
   }
 
   private get haloService(): HaloService {
@@ -541,7 +551,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return result.get(xuid) ?? null;
     } catch (err: unknown) {
       if (this.isAuthError(err)) {
-        this.userHaloService = null;
+        this.clearUserHaloService();
       }
       this.logService.warn(
         err,
@@ -559,7 +569,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return await this.haloService.getPlayerEsra(xuid);
     } catch (err: unknown) {
       if (this.isAuthError(err)) {
-        this.userHaloService = null;
+        this.clearUserHaloService();
       }
       this.logService.warn(
         err,

@@ -178,14 +178,19 @@ describe("Server", () => {
 
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
-        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
-          sessionId: "session-123",
-          userId: "user-123",
-          accessToken: "access-token",
-          refreshToken: undefined,
-          expiresAt: Date.now() + 3600000,
-          isExpired: false,
+        vi.spyOn(services.authService, "validateSessionWithAuthMetadata").mockResolvedValue({
+          session: {
+            sessionId: "session-123",
+            userId: "user-123",
+            accessToken: "access-token",
+            refreshToken: undefined,
+            expiresAt: Date.now() + 3600000,
+            isExpired: false,
+          },
+          authMetadata: {},
         });
+        vi.spyOn(services.authService, "getCachedHaloXstsTokenForAuthMetadata").mockResolvedValue(null);
+        vi.spyOn(services.authService, "cacheHaloXstsTokenForSessionAuthMetadata").mockResolvedValue();
         exchangeMicrosoftAccessTokenForXstsTokenSpy = vi
           .spyOn(services.xboxService, "exchangeMicrosoftAccessTokenForXstsToken")
           .mockResolvedValue({
@@ -236,14 +241,19 @@ describe("Server", () => {
 
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
-        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
-          sessionId: "session-123",
-          userId: "user-123",
-          accessToken: "expired-access-token",
-          refreshToken: "refresh-token",
-          expiresAt: Date.now() - 1000,
-          isExpired: true,
+        vi.spyOn(services.authService, "validateSessionWithAuthMetadata").mockResolvedValue({
+          session: {
+            sessionId: "session-123",
+            userId: "user-123",
+            accessToken: "expired-access-token",
+            refreshToken: "refresh-token",
+            expiresAt: Date.now() - 1000,
+            isExpired: true,
+          },
+          authMetadata: {},
         });
+        vi.spyOn(services.authService, "getCachedHaloXstsTokenForAuthMetadata").mockResolvedValue(null);
+        vi.spyOn(services.authService, "cacheHaloXstsTokenForSessionAuthMetadata").mockResolvedValue();
         vi.spyOn(services.authService, "refreshSession").mockResolvedValue({
           sessionId: "session-123",
           userId: "user-123",
@@ -282,14 +292,18 @@ describe("Server", () => {
     it("returns 401 and clears the cookie when an expired session cannot be refreshed", async () => {
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
-        vi.spyOn(services.authService, "validateSession").mockResolvedValue({
-          sessionId: "session-123",
-          userId: "user-123",
-          accessToken: "expired-access-token",
-          refreshToken: "refresh-token",
-          expiresAt: Date.now() - 1000,
-          isExpired: true,
+        vi.spyOn(services.authService, "validateSessionWithAuthMetadata").mockResolvedValue({
+          session: {
+            sessionId: "session-123",
+            userId: "user-123",
+            accessToken: "expired-access-token",
+            refreshToken: "refresh-token",
+            expiresAt: Date.now() - 1000,
+            isExpired: true,
+          },
+          authMetadata: {},
         });
+        vi.spyOn(services.authService, "getCachedHaloXstsTokenForAuthMetadata").mockResolvedValue(null);
         vi.spyOn(services.authService, "refreshSession").mockResolvedValue(null);
         return services;
       });
