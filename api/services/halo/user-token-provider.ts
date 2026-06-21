@@ -36,8 +36,12 @@ export class UserTokenProvider {
 
   async getClientForUser(userId: string): Promise<HaloInfiniteClient | null> {
     const cached = this.cachedClientsByUserId.get(userId);
-    if (cached != null && Date.now() < cached.expiresAtMs - UserTokenProvider.CACHE_EXPIRY_SKEW_MS) {
-      return cached.client;
+    if (cached != null) {
+      if (Date.now() < cached.expiresAtMs - UserTokenProvider.CACHE_EXPIRY_SKEW_MS) {
+        return cached.client;
+      }
+
+      this.cachedClientsByUserId.delete(userId);
     }
 
     const inFlightClient = this.inFlightClientByUserId.get(userId);
