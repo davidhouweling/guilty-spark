@@ -141,6 +141,22 @@
   background: transparent;
 }
 
+.btnSpinner {
+  animation: btn-rotate 1.2s linear infinite;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  border-top-color: currentcolor;
+  display: block;
+  height: 1em;
+  width: 1em;
+}
+
+@keyframes btn-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ============================================ */
 
 /* Media Queries - Tablet and Above            */

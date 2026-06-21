@@ -248,15 +248,18 @@ export function MatchHistory({
           }
         })}
         {hasMore === true && (
-          <button
-            className={styles.loadMoreButton}
-            disabled={model.isLoadingMore}
-            onClick={() => {
-              void onLoadMore?.();
-            }}
-          >
-            {model.isLoadingMore ? "Loading…" : "Load more"}
-          </button>
+          <div className={styles.loadMoreRow}>
+            <Button
+              variant="secondary"
+              loading={model.isLoadingMore}
+              disabled={model.isLoadingMore}
+              onClick={() => {
+                void onLoadMore?.();
+              }}
+            >
+              Load more
+            </Button>
+          </div>
         )}
       </div>
     </div>

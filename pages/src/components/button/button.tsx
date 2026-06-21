@@ -9,6 +9,7 @@ interface ButtonProps {
   readonly variant?: "primary" | "secondary";
   readonly size?: "default" | "small" | "large";
   readonly disabled?: boolean;
+  readonly loading?: boolean;
   readonly type?: "button" | "submit" | "reset";
   readonly className?: string;
   readonly icon?: ImageMetadata | React.ReactNode;
@@ -22,6 +23,7 @@ export function Button({
   variant = "primary",
   size = "default",
   disabled = false,
+  loading = false,
   type = "button",
   className,
   icon,
@@ -48,16 +50,22 @@ export function Button({
       <span className={classNames(styles.btnCorner, styles.bl)}></span>
       <span className={classNames(styles.btnCorner, styles.br)}></span>
       <span className={styles.btnContent}>
-        {icon !== null && icon !== undefined && (
+        {loading ? (
+          <span className={styles.btnSpinner} aria-hidden="true" />
+        ) : (
           <>
-            {isImageIcon ? (
-              <img src={(icon as { src: string }).src} alt={iconAlt} className={styles.btnIcon} />
-            ) : (
-              <span className={styles.btnIcon}>{icon}</span>
+            {icon !== null && icon !== undefined && (
+              <>
+                {isImageIcon ? (
+                  <img src={(icon as { src: string }).src} alt={iconAlt} className={styles.btnIcon} />
+                ) : (
+                  <span className={styles.btnIcon}>{icon}</span>
+                )}
+              </>
             )}
+            {children}
           </>
         )}
-        {children}
       </span>
     </>
   );
@@ -71,7 +79,7 @@ export function Button({
   }
 
   return (
-    <button type={type} onClick={onClick} disabled={disabled} className={buttonClassName}>
+    <button type={type} onClick={onClick} disabled={disabled || loading} className={buttonClassName}>
       {content}
     </button>
   );

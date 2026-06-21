@@ -86,21 +86,10 @@
   border-top-right-radius: 0;
 }
 
-.loadMoreButton {
-  align-self: center;
-  background: var(--color-background-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-base);
-  color: var(--color-text-primary);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  margin-top: var(--space-4);
-  padding: var(--space-2) var(--space-6);
-}
-
-.loadMoreButton:disabled {
-  cursor: default;
-  opacity: 0.6;
+.loadMoreRow {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--space-4);
 }
 
 @media (--tablet-viewport) {
