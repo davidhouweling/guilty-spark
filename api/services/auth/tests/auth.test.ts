@@ -1048,4 +1048,27 @@ describe("AuthService", () => {
 
     expect(updateMetadataSpy).not.toHaveBeenCalled();
   });
+
+  it("returns null for cached Halo XSTS token when reading session fails", async () => {
+    vi.spyOn(databaseService, "getUserSession").mockRejectedValue(new Error("db unavailable"));
+
+    const cached = await service.getCachedHaloXstsTokenForSession("session-123");
+
+    expect(cached).toBeNull();
+  });
+
+  it("does nothing when caching a Halo XSTS token and session storage fails", async () => {
+    vi.spyOn(databaseService, "getUserSession").mockRejectedValue(new Error("db unavailable"));
+    const updateMetadataSpy = vi.spyOn(databaseService, "updateSessionAuthMetadata").mockResolvedValue();
+
+    await expect(
+      service.cacheHaloXstsTokenForSession("session-123", {
+        XSTSToken: "session-xsts-token",
+        userHash: "session-user-hash",
+        expiresOn: new Date(Date.now() + 3_600_000),
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(updateMetadataSpy).not.toHaveBeenCalled();
+  });
 });

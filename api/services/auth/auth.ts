@@ -327,25 +327,25 @@ export class AuthService {
   }
 
   public async getCachedHaloXstsTokenForSession(sessionId: string): Promise<TokenInfo | null> {
-    const session = await this.databaseService.getUserSession(sessionId);
-    if (session == null) {
-      return null;
-    }
-
-    const metadata = this.parseAuthMetadata(session.AuthMetadataJson);
-    const encryptedToken = metadata.haloXstsTokenEncrypted;
-    const userHash = metadata.haloXstsUserHash;
-    const expiresAt = metadata.haloXstsExpiresAt;
-
-    if (encryptedToken == null || userHash == null || expiresAt == null) {
-      return null;
-    }
-
-    if (Date.now() >= expiresAt - XSTS_EXPIRY_SKEW_MS) {
-      return null;
-    }
-
     try {
+      const session = await this.databaseService.getUserSession(sessionId);
+      if (session == null) {
+        return null;
+      }
+
+      const metadata = this.parseAuthMetadata(session.AuthMetadataJson);
+      const encryptedToken = metadata.haloXstsTokenEncrypted;
+      const userHash = metadata.haloXstsUserHash;
+      const expiresAt = metadata.haloXstsExpiresAt;
+
+      if (encryptedToken == null || userHash == null || expiresAt == null) {
+        return null;
+      }
+
+      if (Date.now() >= expiresAt - XSTS_EXPIRY_SKEW_MS) {
+        return null;
+      }
+
       const token = await this.tokenEncryptor.decrypt(encryptedToken);
       return {
         XSTSToken: token,
@@ -358,17 +358,21 @@ export class AuthService {
   }
 
   public async cacheHaloXstsTokenForSession(sessionId: string, tokenInfo: TokenInfo): Promise<void> {
-    const session = await this.databaseService.getUserSession(sessionId);
-    if (session == null) {
-      return;
+    try {
+      const session = await this.databaseService.getUserSession(sessionId);
+      if (session == null) {
+        return;
+      }
+
+      const metadata = this.parseAuthMetadata(session.AuthMetadataJson);
+      metadata.haloXstsTokenEncrypted = await this.tokenEncryptor.encrypt(tokenInfo.XSTSToken);
+      metadata.haloXstsUserHash = tokenInfo.userHash;
+      metadata.haloXstsExpiresAt = tokenInfo.expiresOn.getTime();
+
+      await this.databaseService.updateSessionAuthMetadata(sessionId, JSON.stringify(metadata));
+    } catch {
+      // Best-effort cache write only; auth flow must continue on storage/encryption failures.
     }
-
-    const metadata = this.parseAuthMetadata(session.AuthMetadataJson);
-    metadata.haloXstsTokenEncrypted = await this.tokenEncryptor.encrypt(tokenInfo.XSTSToken);
-    metadata.haloXstsUserHash = tokenInfo.userHash;
-    metadata.haloXstsExpiresAt = tokenInfo.expiresOn.getTime();
-
-    await this.databaseService.updateSessionAuthMetadata(sessionId, JSON.stringify(metadata));
   }
 
   /**
