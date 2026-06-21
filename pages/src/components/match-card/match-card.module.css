@@ -12,7 +12,7 @@
   background-size:
     100% 100%,
     cover;
-  border: 1px solid var(--color-border);
+  border: 2px solid var(--halo-teal-primary);
   border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
@@ -21,10 +21,6 @@
   padding: var(--space-4);
   position: relative;
   transition: opacity var(--transition-base);
-}
-
-.card + .card {
-  margin-top: var(--space-4);
 }
 
 .card.grouped + .card.grouped {

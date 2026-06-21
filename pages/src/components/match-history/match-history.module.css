@@ -10,19 +10,6 @@
   gap: var(--space-4);
 }
 
-.seriesInfo {
-  background: var(--color-background-secondary);
-  border-left: 4px solid var(--halo-teal-primary);
-  border-radius: var(--radius-base);
-  font-size: var(--text-sm);
-  padding: var(--space-4);
-}
-
-.seriesInfo p {
-  color: var(--color-text-primary);
-  margin: 0;
-}
-
 .actionBar {
   display: flex;
   flex-wrap: wrap;

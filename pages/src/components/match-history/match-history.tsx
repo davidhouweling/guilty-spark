@@ -83,11 +83,9 @@ export function MatchHistory({
   return (
     <div className={styles.container}>
       {showSeriesInfo && groupings != null && (
-        <div className={styles.seriesInfo}>
-          <p>
-            Suggested <strong>{groupings.length}</strong> game series from <strong>{entries.length}</strong> matches
-          </p>
-        </div>
+        <Alert variant="info">
+          Suggested <strong>{groupings.length}</strong> game series from <strong>{entries.length}</strong> matches
+        </Alert>
       )}
 
       {showActionBar && onStartTracker != null && (
