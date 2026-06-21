@@ -1,18 +1,9 @@
 .card {
-  background-color: var(--color-surface);
-  background-image:
-    linear-gradient(
-      to bottom,
-      color-mix(in srgb, var(--color-surface) 85%, transparent),
-      color-mix(in srgb, var(--color-surface) 85%, transparent)
-    ),
-    var(--map-bg);
-  background-position: center, center;
-  background-repeat: no-repeat, no-repeat;
-  background-size:
-    100% 100%,
-    cover;
-  border: 2px solid var(--halo-teal-primary);
+  background-image: linear-gradient(rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.75)), var(--map-bg);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  border: 1px solid color-mix(in srgb, var(--group-color, var(--halo-teal-primary)) 30%, transparent);
   border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
@@ -32,7 +23,7 @@
 }
 
 .grouped {
-  border-left: 3px solid var(--group-color, var(--halo-teal-primary));
+  border-left-width: 3px;
   border-radius: 0;
   margin-top: -1px;
 }

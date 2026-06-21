@@ -19,13 +19,7 @@
 .matchList {
   display: flex;
   flex-direction: column;
-  gap: 0;
-}
-
-.card + .seriesBlock,
-.seriesBlock + .card,
-.seriesBlock + .seriesBlock {
-  margin-top: var(--space-4);
+  gap: var(--space-4);
 }
 
 .seriesBlock {
@@ -34,14 +28,13 @@
   border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-3);
 }
 
 .seriesHeader {
   background: color-mix(in srgb, var(--group-color, var(--halo-teal-primary)) 14%, transparent);
   border: 1px solid color-mix(in srgb, var(--group-color, var(--halo-teal-primary)) 30%, transparent);
-  border-radius: var(--radius-base);
+  border-top-left-radius: var(--radius-base);
+  border-top-right-radius: var(--radius-base);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -86,6 +79,11 @@
   flex: 1;
   flex-direction: column;
   min-width: 0;
+}
+
+.seriesCards > :first-child {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 
 .loadMoreButton {

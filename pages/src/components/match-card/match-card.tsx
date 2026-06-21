@@ -60,12 +60,11 @@ export function MatchCard({
   onBreakFromGroup,
 }: MatchCardProps): React.JSX.Element {
   const modeIconSrc = gameModeIconSrc(entry.gameVariantCategory);
-  const mapBgUrl = entry.mapThumbnailUrl !== "data:," ? entry.mapThumbnailUrl : undefined;
   const teamListFormatter = new Intl.ListFormat(undefined, { style: "narrow", type: "conjunction" });
   const categoryLabel = getCategoryLabel(entry.category);
 
   const cardStyle = {
-    "--map-bg": mapBgUrl != null ? `url(${mapBgUrl})` : "none",
+    "--map-bg": `url(${entry.mapThumbnailUrl})`,
     ...(groupColor != null ? { "--group-color": groupColor } : {}),
   } as React.CSSProperties;
 
