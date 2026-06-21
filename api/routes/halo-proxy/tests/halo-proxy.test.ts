@@ -87,7 +87,7 @@ describe("/proxy/halo-infinite/:operation route", () => {
     const sessionClient = aFakeHaloInfiniteClient();
     const sessionGetUserSpy = vi.spyOn(sessionClient, "getUser");
     let exchangeSpy!: MockInstance<XboxService["exchangeMicrosoftAccessTokenForXstsToken"]>;
-    let cacheHaloXstsTokenSpy!: MockInstance<AuthService["cacheHaloXstsTokenForSession"]>;
+    let cacheHaloXstsTokenSpy!: MockInstance<AuthService["cacheHaloXstsTokenForSessionAuthMetadata"]>;
     vi.mocked(StaticXstsTicketTokenSpartanTokenProvider).mockClear();
     vi.mocked(HaloInfiniteClient).mockClear();
     vi.mocked(HaloInfiniteClient).mockImplementation(function () {
@@ -96,16 +96,21 @@ describe("/proxy/halo-infinite/:operation route", () => {
 
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
-      vi.spyOn(services.authService, "validateSession").mockResolvedValue({
-        sessionId: "session-123",
-        userId: "user-123",
-        accessToken: "access-token",
-        refreshToken: undefined,
-        expiresAt: Date.now() + 3600000,
-        isExpired: false,
+      vi.spyOn(services.authService, "validateSessionWithAuthMetadata").mockResolvedValue({
+        session: {
+          sessionId: "session-123",
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        },
+        authMetadata: {},
       });
-      vi.spyOn(services.authService, "getCachedHaloXstsTokenForSession").mockResolvedValue(null);
-      cacheHaloXstsTokenSpy = vi.spyOn(services.authService, "cacheHaloXstsTokenForSession").mockResolvedValue();
+      vi.spyOn(services.authService, "getCachedHaloXstsTokenForAuthMetadata").mockResolvedValue(null);
+      cacheHaloXstsTokenSpy = vi
+        .spyOn(services.authService, "cacheHaloXstsTokenForSessionAuthMetadata")
+        .mockResolvedValue();
       exchangeSpy = vi.spyOn(services.xboxService, "exchangeMicrosoftAccessTokenForXstsToken").mockResolvedValue({
         XSTSToken: "session-xsts-token",
         userHash: "session-user-hash",
@@ -125,6 +130,7 @@ describe("/proxy/halo-infinite/:operation route", () => {
     expect(exchangeSpy).toHaveBeenCalledWith("access-token");
     expect(cacheHaloXstsTokenSpy).toHaveBeenCalledWith(
       "session-123",
+      expect.any(Object),
       expect.objectContaining({ XSTSToken: "session-xsts-token" }),
     );
     expect(vi.mocked(StaticXstsTicketTokenSpartanTokenProvider)).toHaveBeenCalledWith("session-xsts-token");
@@ -135,7 +141,7 @@ describe("/proxy/halo-infinite/:operation route", () => {
     const sessionClient = aFakeHaloInfiniteClient();
     const sessionGetUserSpy = vi.spyOn(sessionClient, "getUser");
     let exchangeSpy!: MockInstance<XboxService["exchangeMicrosoftAccessTokenForXstsToken"]>;
-    let cacheHaloXstsTokenSpy!: MockInstance<AuthService["cacheHaloXstsTokenForSession"]>;
+    let cacheHaloXstsTokenSpy!: MockInstance<AuthService["cacheHaloXstsTokenForSessionAuthMetadata"]>;
 
     vi.mocked(StaticXstsTicketTokenSpartanTokenProvider).mockClear();
     vi.mocked(HaloInfiniteClient).mockClear();
@@ -145,20 +151,25 @@ describe("/proxy/halo-infinite/:operation route", () => {
 
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
-      vi.spyOn(services.authService, "validateSession").mockResolvedValue({
-        sessionId: "session-123",
-        userId: "user-123",
-        accessToken: "access-token",
-        refreshToken: undefined,
-        expiresAt: Date.now() + 3600000,
-        isExpired: false,
+      vi.spyOn(services.authService, "validateSessionWithAuthMetadata").mockResolvedValue({
+        session: {
+          sessionId: "session-123",
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        },
+        authMetadata: {},
       });
-      vi.spyOn(services.authService, "getCachedHaloXstsTokenForSession").mockResolvedValue({
+      vi.spyOn(services.authService, "getCachedHaloXstsTokenForAuthMetadata").mockResolvedValue({
         XSTSToken: "cached-session-xsts-token",
         userHash: "cached-user-hash",
         expiresOn: new Date(Date.now() + 3600_000),
       });
-      cacheHaloXstsTokenSpy = vi.spyOn(services.authService, "cacheHaloXstsTokenForSession").mockResolvedValue();
+      cacheHaloXstsTokenSpy = vi
+        .spyOn(services.authService, "cacheHaloXstsTokenForSessionAuthMetadata")
+        .mockResolvedValue();
       exchangeSpy = vi.spyOn(services.xboxService, "exchangeMicrosoftAccessTokenForXstsToken").mockResolvedValue({
         XSTSToken: "session-xsts-token",
         userHash: "session-user-hash",
@@ -195,15 +206,18 @@ describe("/proxy/halo-infinite/:operation route", () => {
 
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
-      vi.spyOn(services.authService, "validateSession").mockResolvedValue({
-        sessionId: "session-123",
-        userId: "user-123",
-        accessToken: "expired-access-token",
-        refreshToken: "refresh-token",
-        expiresAt: Date.now() - 1000,
-        isExpired: true,
+      vi.spyOn(services.authService, "validateSessionWithAuthMetadata").mockResolvedValue({
+        session: {
+          sessionId: "session-123",
+          userId: "user-123",
+          accessToken: "expired-access-token",
+          refreshToken: "refresh-token",
+          expiresAt: Date.now() - 1000,
+          isExpired: true,
+        },
+        authMetadata: {},
       });
-      vi.spyOn(services.authService, "getCachedHaloXstsTokenForSession").mockResolvedValue(null);
+      vi.spyOn(services.authService, "getCachedHaloXstsTokenForAuthMetadata").mockResolvedValue(null);
       refreshSessionSpy = vi.spyOn(services.authService, "refreshSession").mockResolvedValue({
         sessionId: "session-123",
         userId: "user-123",
@@ -212,7 +226,7 @@ describe("/proxy/halo-infinite/:operation route", () => {
         expiresAt: Date.now() + 3600_000,
         issuedAt: Date.now(),
       });
-      vi.spyOn(services.authService, "cacheHaloXstsTokenForSession").mockResolvedValue();
+      vi.spyOn(services.authService, "cacheHaloXstsTokenForSessionAuthMetadata").mockResolvedValue();
       exchangeSpy = vi.spyOn(services.xboxService, "exchangeMicrosoftAccessTokenForXstsToken").mockResolvedValue({
         XSTSToken: "refreshed-session-xsts-token",
         userHash: "session-user-hash",
@@ -239,15 +253,18 @@ describe("/proxy/halo-infinite/:operation route", () => {
     let clearSessionCookieSpy!: MockInstance<AuthService["clearSessionCookie"]>;
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
-      vi.spyOn(services.authService, "validateSession").mockResolvedValue({
-        sessionId: "session-123",
-        userId: "user-123",
-        accessToken: "expired-access-token",
-        refreshToken: "refresh-token",
-        expiresAt: Date.now() - 1000,
-        isExpired: true,
+      vi.spyOn(services.authService, "validateSessionWithAuthMetadata").mockResolvedValue({
+        session: {
+          sessionId: "session-123",
+          userId: "user-123",
+          accessToken: "expired-access-token",
+          refreshToken: "refresh-token",
+          expiresAt: Date.now() - 1000,
+          isExpired: true,
+        },
+        authMetadata: {},
       });
-      vi.spyOn(services.authService, "getCachedHaloXstsTokenForSession").mockResolvedValue(null);
+      vi.spyOn(services.authService, "getCachedHaloXstsTokenForAuthMetadata").mockResolvedValue(null);
       vi.spyOn(services.authService, "refreshSession").mockRejectedValue(new Error("refresh failed"));
       clearSessionCookieSpy = vi.spyOn(services.authService, "clearSessionCookie");
       return services;
@@ -269,15 +286,18 @@ describe("/proxy/halo-infinite/:operation route", () => {
     let clearSessionCookieSpy!: MockInstance<AuthService["clearSessionCookie"]>;
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
-      vi.spyOn(services.authService, "validateSession").mockResolvedValue({
-        sessionId: "session-123",
-        userId: "user-123",
-        accessToken: "expired-access-token",
-        refreshToken: "refresh-token",
-        expiresAt: Date.now() - 1000,
-        isExpired: true,
+      vi.spyOn(services.authService, "validateSessionWithAuthMetadata").mockResolvedValue({
+        session: {
+          sessionId: "session-123",
+          userId: "user-123",
+          accessToken: "expired-access-token",
+          refreshToken: "refresh-token",
+          expiresAt: Date.now() - 1000,
+          isExpired: true,
+        },
+        authMetadata: {},
       });
-      vi.spyOn(services.authService, "getCachedHaloXstsTokenForSession").mockResolvedValue(null);
+      vi.spyOn(services.authService, "getCachedHaloXstsTokenForAuthMetadata").mockResolvedValue(null);
       vi.spyOn(services.authService, "refreshSession").mockResolvedValue(null);
       clearSessionCookieSpy = vi.spyOn(services.authService, "clearSessionCookie");
       return services;
@@ -306,14 +326,19 @@ describe("/proxy/halo-infinite/:operation route", () => {
     let findIdentitySpy!: MockInstance<DatabaseService["findActiveXboxIdentityByGamertag"]>;
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
-      vi.spyOn(services.authService, "validateSession").mockResolvedValue({
-        sessionId: "session-123",
-        userId: "user-123",
-        accessToken: "access-token",
-        refreshToken: undefined,
-        expiresAt: Date.now() + 3600000,
-        isExpired: false,
+      vi.spyOn(services.authService, "validateSessionWithAuthMetadata").mockResolvedValue({
+        session: {
+          sessionId: "session-123",
+          userId: "user-123",
+          accessToken: "access-token",
+          refreshToken: undefined,
+          expiresAt: Date.now() + 3600000,
+          isExpired: false,
+        },
+        authMetadata: {},
       });
+      vi.spyOn(services.authService, "getCachedHaloXstsTokenForAuthMetadata").mockResolvedValue(null);
+      vi.spyOn(services.authService, "cacheHaloXstsTokenForSessionAuthMetadata").mockResolvedValue();
       vi.spyOn(services.xboxService, "exchangeMicrosoftAccessTokenForXstsToken").mockResolvedValue({
         XSTSToken: "session-xsts-token",
         userHash: "session-user-hash",

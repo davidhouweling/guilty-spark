@@ -15,6 +15,7 @@ import type {
   AuthCallbackResult,
   AuthMetadata,
   XboxSessionProfile,
+  SessionWithAuthMetadata,
 } from "./types";
 
 const sessionCookiePayloadSchema = z.object({
@@ -139,7 +140,9 @@ export class AuthService {
       return;
     }
 
-    const mergedMetadata = this.parseAuthMetadata(existingSession.AuthMetadataJson);
+    const mergedMetadata: Mutable<AuthMetadata> = {
+      ...this.parseAuthMetadata(existingSession.AuthMetadataJson),
+    };
     if (profile.avatarUrl != null) {
       mergedMetadata.avatarUrl = profile.avatarUrl;
     }
@@ -201,6 +204,11 @@ export class AuthService {
    * Validate a session token from a request.
    */
   public async validateSession(request: Request): Promise<AuthSession | null> {
+    const sessionWithMetadata = await this.validateSessionWithAuthMetadata(request);
+    return sessionWithMetadata?.session ?? null;
+  }
+
+  public async validateSessionWithAuthMetadata(request: Request): Promise<SessionWithAuthMetadata | null> {
     const token = this.sessionManager.extractSessionToken(request);
     if (token == null) {
       return null;
@@ -216,7 +224,7 @@ export class AuthService {
       return null;
     }
 
-    return await this.toAuthSession(session);
+    return await this.toAuthSessionWithAuthMetadata(session);
   }
 
   public async invalidateSession(request: Request): Promise<void> {
@@ -334,9 +342,17 @@ export class AuthService {
       }
 
       const metadata = this.parseAuthMetadata(session.AuthMetadataJson);
-      const encryptedToken = metadata.haloXstsTokenEncrypted;
-      const userHash = metadata.haloXstsUserHash;
-      const expiresAt = metadata.haloXstsExpiresAt;
+      return await this.getCachedHaloXstsTokenForAuthMetadata(metadata);
+    } catch {
+      return null;
+    }
+  }
+
+  public async getCachedHaloXstsTokenForAuthMetadata(authMetadata: AuthMetadata): Promise<TokenInfo | null> {
+    try {
+      const encryptedToken = authMetadata.haloXstsTokenEncrypted;
+      const userHash = authMetadata.haloXstsUserHash;
+      const expiresAt = authMetadata.haloXstsExpiresAt;
 
       if (encryptedToken == null || userHash == null || expiresAt == null) {
         return null;
@@ -365,6 +381,21 @@ export class AuthService {
       }
 
       const metadata = this.parseAuthMetadata(session.AuthMetadataJson);
+      await this.cacheHaloXstsTokenForSessionAuthMetadata(sessionId, metadata, tokenInfo);
+    } catch {
+      // Best-effort cache write only; auth flow must continue on storage/encryption failures.
+    }
+  }
+
+  public async cacheHaloXstsTokenForSessionAuthMetadata(
+    sessionId: string,
+    authMetadata: AuthMetadata,
+    tokenInfo: TokenInfo,
+  ): Promise<void> {
+    try {
+      const metadata: Mutable<AuthMetadata> = {
+        ...authMetadata,
+      };
       metadata.haloXstsTokenEncrypted = await this.tokenEncryptor.encrypt(tokenInfo.XSTSToken);
       metadata.haloXstsUserHash = tokenInfo.userHash;
       metadata.haloXstsExpiresAt = tokenInfo.expiresOn.getTime();
@@ -470,16 +501,52 @@ export class AuthService {
     }
   }
 
-  private parseAuthMetadata(authMetadataJson: string): z.infer<typeof authMetadataSchema> {
+  private parseAuthMetadata(authMetadataJson: string): AuthMetadata {
     try {
       const parsed = authMetadataSchema.safeParse(JSON.parse(authMetadataJson));
-      return parsed.success ? parsed.data : {};
+      if (!parsed.success) {
+        return {};
+      }
+
+      const metadata: Mutable<AuthMetadata> = {};
+      if (parsed.data.email != null) {
+        metadata.email = parsed.data.email;
+      }
+      if (parsed.data.name != null) {
+        metadata.name = parsed.data.name;
+      }
+      if (parsed.data.preferredUsername != null) {
+        metadata.preferredUsername = parsed.data.preferredUsername;
+      }
+      if (parsed.data.avatarUrl != null) {
+        metadata.avatarUrl = parsed.data.avatarUrl;
+      }
+      if (parsed.data.xboxGamertag != null) {
+        metadata.xboxGamertag = parsed.data.xboxGamertag;
+      }
+      if (parsed.data.xboxXuid != null) {
+        metadata.xboxXuid = parsed.data.xboxXuid;
+      }
+      if (parsed.data.xboxProfileCheckedAt != null) {
+        metadata.xboxProfileCheckedAt = parsed.data.xboxProfileCheckedAt;
+      }
+      if (parsed.data.haloXstsTokenEncrypted != null) {
+        metadata.haloXstsTokenEncrypted = parsed.data.haloXstsTokenEncrypted;
+      }
+      if (parsed.data.haloXstsUserHash != null) {
+        metadata.haloXstsUserHash = parsed.data.haloXstsUserHash;
+      }
+      if (parsed.data.haloXstsExpiresAt != null) {
+        metadata.haloXstsExpiresAt = parsed.data.haloXstsExpiresAt;
+      }
+
+      return metadata;
     } catch {
       return {};
     }
   }
 
-  private async toAuthSession(session: UserSessionsRow): Promise<AuthSession> {
+  private async toAuthSessionWithAuthMetadata(session: UserSessionsRow): Promise<SessionWithAuthMetadata> {
     const expiresAt = session.ExpiresAt * 1000;
     const isExpired = expiresAt < Date.now();
     const accessToken = await this.tokenEncryptor.decrypt(session.AccessToken);
@@ -507,7 +574,10 @@ export class AuthService {
     if (metadata.xboxProfileCheckedAt != null) {
       authSession.xboxProfileCheckedAt = metadata.xboxProfileCheckedAt;
     }
-    return authSession;
+    return {
+      session: authSession,
+      authMetadata: metadata,
+    };
   }
 
   private async readSessionCookiePayload(token: string): Promise<SessionCookiePayload | null> {

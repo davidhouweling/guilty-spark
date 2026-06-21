@@ -38,10 +38,12 @@ async function resolveOwnerClient(request: Request, services: Services): Promise
 }
 
 async function resolveHaloProxyClient(request: Request, services: Services): Promise<ResolveHaloProxyClientResult> {
-  const session = await services.authService.validateSession(request);
-
-  if (session !== null) {
-    const cachedXstsToken = await services.authService.getCachedHaloXstsTokenForSession(session.sessionId);
+  const sessionWithMetadata = await services.authService.validateSessionWithAuthMetadata(request);
+  if (sessionWithMetadata !== null) {
+    const {session} = sessionWithMetadata;
+    const cachedXstsToken = await services.authService.getCachedHaloXstsTokenForAuthMetadata(
+      sessionWithMetadata.authMetadata,
+    );
     if (cachedXstsToken != null) {
       const client = new HaloInfiniteClient(new StaticXstsTicketTokenSpartanTokenProvider(cachedXstsToken.XSTSToken));
       return { ok: true, resolved: { client } };
@@ -69,7 +71,11 @@ async function resolveHaloProxyClient(request: Request, services: Services): Pro
     }
 
     const xstsTokenInfo = await services.xboxService.exchangeMicrosoftAccessTokenForXstsToken(microsoftAccessToken);
-    await services.authService.cacheHaloXstsTokenForSession(session.sessionId, xstsTokenInfo);
+    await services.authService.cacheHaloXstsTokenForSessionAuthMetadata(
+      session.sessionId,
+      sessionWithMetadata.authMetadata,
+      xstsTokenInfo,
+    );
     const client = new HaloInfiniteClient(new StaticXstsTicketTokenSpartanTokenProvider(xstsTokenInfo.XSTSToken));
     return { ok: true, resolved: { client } };
   }
