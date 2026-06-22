@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/cloudflare";
 import { addMilliseconds, compareAsc, differenceInHours } from "date-fns";
 import { type MatchStats, MatchType, type PlaylistCsrContainer, RequestError } from "halo-infinite-api";
+import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import {
   editSeriesContract,
@@ -34,6 +35,7 @@ import {
   buildTeamRosterSignature,
   getMatchOutcomeLabel,
 } from "@guilty-spark/shared/halo/match-enrichment";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
 import {
   buildSeriesGroupKey,
@@ -56,6 +58,7 @@ import type {
   IndividualTrackerInternalState,
   IndividualTrackerMatchSummary,
   IndividualTrackerSeriesGroup,
+  IndividualTrackerSeriesGroupOverride,
   IndividualTrackerViewState,
   ActiveSeries,
   SeriesTeam,
@@ -720,23 +723,41 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return parsed.response;
     }
     const body = parsed.data;
-    const known = new Set(trackerState.matchIds);
-    const incoming = body.matchIds.filter((id) => known.has(id)).sort();
-    const unchanged = incoming.join(",") === trackerState.selectedMatchIds.join(",");
+
+    const incoming = [...new Set(body.matchIds)].sort();
+    const selectionChanged = incoming.join(",") !== trackerState.selectedMatchIds.join(",");
+    const seriesGroupsChanged = this.detectSeriesGroupChanges(trackerState, body.seriesGroups);
+
+    // Hydrate any unknown matches
+    const knownSummaries = new Map(Object.entries(trackerState.discoveredMatches));
+    const needsHydration = incoming.filter((id) => !knownSummaries.has(id));
+
+    if (needsHydration.length > 0) {
+      const hydrationResult = await this.hydrateMatchSummaries(trackerState, needsHydration);
+      if (!hydrationResult.success) {
+        return errorContract.toResponse(
+          { error: `Failed to hydrate matches: ${hydrationResult.failingIds.join(", ")}` },
+          { status: 400, noStore: true },
+        );
+      }
+      this.mergeHydratedMatches(trackerState, hydrationResult.summaries);
+    }
+
+    // Determine if state needs to be updated
+    const hasHydration = needsHydration.length > 0;
+    const unchanged = !hasHydration && !selectionChanged && !seriesGroupsChanged;
 
     if (unchanged) {
       return selectMatchesContract.toResponse({ success: true });
     }
 
-    trackerState.selectedMatchIds = incoming;
-    if (!trackerState.isPaused) {
-      delete trackerState.accumulatedPlayerTotals;
-      trackerState.accumulatedMatchIds = [];
-    }
+    // Apply changes to state
+    this.applySelectMatchesChanges(trackerState, incoming, body.seriesGroups, selectionChanged);
 
+    // Persist and broadcast
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
-    if (!trackerState.isPaused) {
+    if (selectionChanged && !trackerState.isPaused) {
       await this.state.storage.setAlarm(Date.now());
     }
 
@@ -745,10 +766,321 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       new Map<string, JsonAny>([
         ["trackerId", trackerState.trackerId],
         ["selectedCount", incoming.length],
+        ["seriesGroupCount", body.seriesGroups.length],
       ]),
     );
 
     return selectMatchesContract.toResponse({ success: true });
+  }
+
+  private detectSeriesGroupChanges(
+    trackerState: IndividualTrackerInternalState,
+    incomingSeriesGroups: IndividualTrackerSeriesGroupOverride[],
+  ): boolean {
+    const existingSeriesGroupOverrides = trackerState.seriesGroupOverrides ?? [];
+    return (
+      existingSeriesGroupOverrides.length !== incomingSeriesGroups.length ||
+      !this.seriesGroupsAreEquivalent(existingSeriesGroupOverrides, incomingSeriesGroups)
+    );
+  }
+
+  private mergeHydratedMatches(
+    trackerState: IndividualTrackerInternalState,
+    hydratedSummaries: Map<string, IndividualTrackerMatchSummary>,
+  ): void {
+    for (const [matchId, summary] of hydratedSummaries) {
+      trackerState.discoveredMatches[matchId] = summary;
+      if (!trackerState.matchIds.includes(matchId)) {
+        trackerState.matchIds.push(matchId);
+      }
+    }
+
+    trackerState.matchIds.sort((left, right) => {
+      const leftSummary = trackerState.discoveredMatches[left];
+      const rightSummary = trackerState.discoveredMatches[right];
+
+      if (leftSummary != null && rightSummary != null) {
+        return compareAsc(new Date(leftSummary.startTime), new Date(rightSummary.startTime));
+      }
+
+      if (leftSummary == null) {
+        return 1;
+      }
+      if (rightSummary == null) {
+        return -1;
+      }
+
+      return left.localeCompare(right);
+    });
+  }
+
+  private applySelectMatchesChanges(
+    trackerState: IndividualTrackerInternalState,
+    incomingMatchIds: string[],
+    incomingSeriesGroups: IndividualTrackerSeriesGroupOverride[],
+    selectionChanged: boolean,
+  ): void {
+    trackerState.selectedMatchIds = incomingMatchIds;
+    trackerState.seriesGroupOverrides = incomingSeriesGroups.map((group) => ({
+      matchIds: [...group.matchIds],
+      titleOverride: group.titleOverride,
+      subtitleOverride: group.subtitleOverride,
+    }));
+
+    if (selectionChanged && trackerState.activeSeries != null) {
+      const syncedMatchIdSet = new Set(incomingMatchIds);
+      trackerState.activeSeries.matchIds = trackerState.activeSeries.matchIds.filter((id) => syncedMatchIdSet.has(id));
+    }
+
+    if (selectionChanged && !trackerState.isPaused) {
+      delete trackerState.accumulatedPlayerTotals;
+      trackerState.accumulatedMatchIds = [];
+    }
+  }
+
+  private async hydrateMatchSummaries(
+    trackerState: IndividualTrackerInternalState,
+    matchIds: string[],
+  ): Promise<
+    { success: true; summaries: Map<string, IndividualTrackerMatchSummary> } | { success: false; failingIds: string[] }
+  > {
+    await this.getUserHaloService(trackerState.userId);
+
+    const matchStatsById = await this.fetchMatchDetailsForIds(matchIds);
+    const validation = this.validateAndCollectMatches(
+      trackerState,
+      matchIds,
+      matchStatsById.failingIds,
+      matchStatsById.summaries,
+    );
+    const mapNameResults = await this.resolveMapNamesForMatches(validation.validatedMatches);
+    const result = this.buildMatchSummaries(validation.validatedMatches, validation.failingIds, mapNameResults);
+
+    return result;
+  }
+
+  private async fetchMatchDetailsForIds(
+    matchIds: string[],
+  ): Promise<{ summaries: Map<string, MatchStats>; failingIds: string[] }> {
+    const matchPromises = matchIds.map(async (matchId) =>
+      this.haloService.getMatchDetails([matchId]).then((results) => {
+        if (results.length === 0) {
+          throw new Error(`No match details returned for ${matchId}`);
+        }
+        return results[0];
+      }),
+    );
+
+    const matchResults = await Promise.allSettled(matchPromises);
+
+    const summaries = new Map<string, MatchStats>();
+    const failingIds: string[] = [];
+
+    for (let i = 0; i < matchResults.length; i++) {
+      const matchId = matchIds[i];
+      if (matchId == null) {
+        continue;
+      }
+
+      const result = matchResults[i];
+      if (result == null) {
+        continue;
+      }
+
+      if (result.status === "rejected") {
+        if (this.isAuthError(result.reason)) {
+          this.clearUserHaloService();
+          throw result.reason;
+        }
+        this.logService.warn(
+          result.reason,
+          new Map([
+            ["context", "IndividualTracker: getMatchDetails failed for ID"],
+            ["matchId", matchId],
+          ]),
+        );
+        failingIds.push(matchId);
+        continue;
+      }
+
+      const matchStats = result.value;
+      if (matchStats != null) {
+        summaries.set(matchId, matchStats);
+      }
+    }
+
+    return { summaries, failingIds };
+  }
+
+  private validateAndCollectMatches(
+    trackerState: IndividualTrackerInternalState,
+    matchIds: string[],
+    initialFailingIds: string[],
+    matchStatsById: Map<string, MatchStats>,
+  ): {
+    validatedMatches: {
+      matchId: string;
+      matchStats: MatchStats;
+      playerEntry: MatchStats["Players"][0];
+    }[];
+    failingIds: string[];
+  } {
+    const failingIds: string[] = [...initialFailingIds];
+    const validatedMatches: {
+      matchId: string;
+      matchStats: MatchStats;
+      playerEntry: MatchStats["Players"][0];
+    }[] = [];
+
+    for (const matchId of matchIds) {
+      if (initialFailingIds.includes(matchId)) {
+        continue;
+      }
+      const matchStats = matchStatsById.get(matchId);
+
+      try {
+        if (matchStats == null) {
+          failingIds.push(matchId);
+          continue;
+        }
+
+        const playerEntry = matchStats.Players.find((p) => getPlayerXuid(p) === trackerState.xuid);
+        if (playerEntry == null) {
+          failingIds.push(matchId);
+          continue;
+        }
+
+        validatedMatches.push({ matchId, matchStats, playerEntry });
+      } catch (error) {
+        if (this.isAuthError(error)) {
+          this.clearUserHaloService();
+          throw error;
+        }
+        this.logService.warn(
+          error,
+          new Map([
+            ["context", "IndividualTracker: hydrateMatchSummaries validation failed"],
+            ["matchId", matchId],
+          ]),
+        );
+        failingIds.push(matchId);
+      }
+    }
+
+    return { validatedMatches, failingIds };
+  }
+
+  private async resolveMapNamesForMatches(
+    validatedMatches: {
+      matchId: string;
+      matchStats: MatchStats;
+      playerEntry: MatchStats["Players"][0];
+    }[],
+  ): Promise<PromiseSettledResult<string>[]> {
+    const mapNamePromises = validatedMatches.map(async (m) =>
+      this.resolveMapName(m.matchStats.MatchInfo.MapVariant.AssetId, m.matchStats.MatchInfo.MapVariant.VersionId),
+    );
+    return Promise.allSettled(mapNamePromises);
+  }
+
+  private buildMatchSummaries(
+    validatedMatches: {
+      matchId: string;
+      matchStats: MatchStats;
+      playerEntry: MatchStats["Players"][0];
+    }[],
+    initialFailingIds: string[],
+    mapNameResults: PromiseSettledResult<string>[],
+  ):
+    | { success: true; summaries: Map<string, IndividualTrackerMatchSummary> }
+    | { success: false; failingIds: string[] } {
+    const summaries = new Map<string, IndividualTrackerMatchSummary>();
+    const failingIds: string[] = [...initialFailingIds];
+
+    for (let i = 0; i < validatedMatches.length; i++) {
+      const validated = validatedMatches[i];
+      if (validated == null) {
+        continue;
+      }
+
+      const { matchId, matchStats, playerEntry } = validated;
+      const mapNameResult = mapNameResults[i];
+      if (mapNameResult == null) {
+        continue;
+      }
+
+      if (mapNameResult.status === "rejected") {
+        if (this.isAuthError(mapNameResult.reason)) {
+          this.clearUserHaloService();
+          throw mapNameResult.reason;
+        }
+        this.logService.warn(
+          mapNameResult.reason,
+          new Map([
+            ["context", "IndividualTracker: map name resolution failed"],
+            ["matchId", matchId],
+          ]),
+        );
+        failingIds.push(matchId);
+        continue;
+      }
+
+      const outcome = getMatchOutcomeLabel(playerEntry.Outcome);
+      const mapName = mapNameResult.value;
+
+      summaries.set(matchId, {
+        matchId,
+        startTime: matchStats.MatchInfo.StartTime,
+        endTime: matchStats.MatchInfo.EndTime,
+        mapAssetId: matchStats.MatchInfo.MapVariant.AssetId,
+        mapVersionId: matchStats.MatchInfo.MapVariant.VersionId,
+        mapName,
+        modeAssetId: matchStats.MatchInfo.UgcGameVariant.AssetId,
+        gameVariantCategory: matchStats.MatchInfo.GameVariantCategory,
+        outcome,
+        score: buildMatchScore(matchStats),
+        isMatchmaking: matchStats.MatchInfo.Playlist != null,
+        teamRosterSignature: buildTeamRosterSignature(matchStats),
+        teamOutcomes: matchStats.Teams.map((team) => team.Outcome),
+      });
+    }
+
+    if (failingIds.length > 0) {
+      return { success: false, failingIds };
+    }
+
+    return { success: true, summaries };
+  }
+
+  private seriesGroupsAreEquivalent(
+    existing: IndividualTrackerSeriesGroupOverride[],
+    incoming: IndividualTrackerSeriesGroupOverride[],
+  ): boolean {
+    if (existing.length !== incoming.length) {
+      return false;
+    }
+
+    const existingKeys = new Set(existing.map((group) => this.buildSeriesGroupComparisonKey(group)));
+    const incomingKeys = new Set(incoming.map((group) => this.buildSeriesGroupComparisonKey(group)));
+
+    if (existingKeys.size !== incomingKeys.size) {
+      return false;
+    }
+
+    for (const key of existingKeys) {
+      if (!incomingKeys.has(key)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private buildSeriesGroupComparisonKey(group: IndividualTrackerSeriesGroupOverride): string {
+    const matchIdKey = buildSeriesGroupKey(group.matchIds);
+    const titleKey = JSON.stringify(group.titleOverride);
+    const subtitleKey = JSON.stringify(group.subtitleOverride);
+    return `${matchIdKey}:${titleKey}:${subtitleKey}`;
   }
 
   private async handleStartSeries(request: Request): Promise<Response> {
@@ -1051,6 +1383,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       ...(state.activeSeries != null ? [state.activeSeries] : []),
       ...(state.completedSeries ?? []),
     ];
+    const seriesGroupOverridesByKey = new Map<string, IndividualTrackerSeriesGroupOverride>();
+    for (const override of state.seriesGroupOverrides ?? []) {
+      seriesGroupOverridesByKey.set(buildSeriesGroupKey(override.matchIds), override);
+    }
 
     const series = groupings.map((matchIds): IndividualTrackerSeriesGroup => {
       const groupSummaries = matchIds
@@ -1080,9 +1416,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
       const matchIdSet = new Set(matchIds);
       const seriesContext = allSeriesContexts.find((ctx) => ctx.matchIds.some((id) => matchIdSet.has(id)));
+      const seriesGroupOverride = seriesGroupOverridesByKey.get(buildSeriesGroupKey(matchIds));
 
-      const title = seriesContext?.title ?? defaultTitle;
-      const subtitle = seriesContext?.subtitle ?? defaultSubtitle;
+      const title = seriesContext?.title ?? seriesGroupOverride?.titleOverride ?? defaultTitle;
+      const subtitle = seriesContext?.subtitle ?? seriesGroupOverride?.subtitleOverride ?? defaultSubtitle;
       const guildIconUrl = seriesContext?.guildIconUrl ?? null;
       const teams = seriesContext?.teams;
 

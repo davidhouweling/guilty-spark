@@ -106,6 +106,7 @@ export interface IndividualTrackerInternalState extends IndividualTrackerState {
   accumulatedMatchIds?: string[];
   activeSeries?: ActiveSeries;
   completedSeries?: ActiveSeries[];
+  seriesGroupOverrides?: IndividualTrackerSeriesGroupOverride[];
   errorState: {
     consecutiveErrors: number;
     backoffMinutes: number;
@@ -136,8 +137,15 @@ export interface IndividualTrackerStartSeriesResponse {
   success: true;
 }
 
+export interface IndividualTrackerSeriesGroupOverride {
+  matchIds: string[];
+  titleOverride: string | null;
+  subtitleOverride: string | null;
+}
+
 export interface IndividualTrackerSelectMatchesRequest {
   matchIds: string[];
+  seriesGroups?: IndividualTrackerSeriesGroupOverride[];
 }
 
 export interface IndividualTrackerSelectMatchesResponse {

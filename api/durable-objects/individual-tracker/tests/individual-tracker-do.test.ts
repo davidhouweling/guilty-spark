@@ -2,7 +2,12 @@ import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
-import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakeTeamWith } from "@guilty-spark/shared/halo/fakes/data";
+import {
+  aFakeCoreStatsWith,
+  aFakeMatchStatsWith,
+  aFakePlayerWith,
+  aFakeTeamWith,
+} from "@guilty-spark/shared/halo/fakes/data";
 import {
   AssetKind,
   type HaloInfiniteClient,
@@ -600,11 +605,11 @@ describe("IndividualTrackerDO", () => {
   });
 
   describe("handleSelectMatches()", () => {
-    const selectRequest = (matchIds: string[]): Request =>
+    const selectRequest = (matchIds: string[], seriesGroups: unknown[] = []): Request =>
       new Request("http://do/select-matches", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matchIds }),
+        body: JSON.stringify({ matchIds, seriesGroups }),
       });
 
     it("returns 404 when no state exists", async () => {
@@ -616,7 +621,15 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("sets selectedMatchIds from the request body and returns success", async () => {
-      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ matchIds: ["match-1", "match-2"] }));
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["match-1", "match-2"],
+          discoveredMatches: {
+            "match-1": aFakeIndividualTrackerMatchSummaryWith({ matchId: "match-1" }),
+            "match-2": aFakeIndividualTrackerMatchSummaryWith({ matchId: "match-2" }),
+          },
+        }),
+      );
 
       const response = await individualTrackerDO.fetch(selectRequest(["match-2"]));
 
@@ -631,7 +644,15 @@ describe("IndividualTrackerDO", () => {
 
     it("replaces an existing selectedMatchIds with the new list", async () => {
       storageGetSpy.mockResolvedValue(
-        aFakeIndividualTrackerInternalStateWith({ matchIds: ["m1", "m2", "m3"], selectedMatchIds: ["m1", "m2"] }),
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2", "m3"],
+          selectedMatchIds: ["m1", "m2"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2" }),
+            m3: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m3" }),
+          },
+        }),
       );
 
       await individualTrackerDO.fetch(selectRequest(["m2", "m3"]));
@@ -642,14 +663,259 @@ describe("IndividualTrackerDO", () => {
       );
     });
 
-    it("filters out matchIds that are not in the known matchIds list", async () => {
-      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ matchIds: ["m1", "m2"] }));
+    it("hydrates and includes unknown match IDs via the Halo API", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: [],
+          discoveredMatches: {},
+        }),
+      );
+      ownerClient.getMatchStats.mockImplementation(async (matchId: string) => {
+        if (matchId === "z-match") {
+          return Promise.resolve(
+            aFakeMatchStatsWith({
+              MatchId: "z-match",
+              MatchInfo: {
+                ...aFakeMatchStatsWith().MatchInfo,
+                StartTime: "2024-11-26T10:00:00.000Z",
+              },
+              Players: [
+                aFakePlayerWith({
+                  PlayerId: "fake-xuid",
+                  Outcome: 2,
+                }),
+              ],
+            }),
+          );
+        }
 
-      await individualTrackerDO.fetch(selectRequest(["m1", "unknown-id"]));
+        if (matchId === "a-match") {
+          return Promise.resolve(
+            aFakeMatchStatsWith({
+              MatchId: "a-match",
+              MatchInfo: {
+                ...aFakeMatchStatsWith().MatchInfo,
+                StartTime: "2024-11-26T12:00:00.000Z",
+              },
+              Players: [
+                aFakePlayerWith({
+                  PlayerId: "fake-xuid",
+                  Outcome: 2,
+                }),
+              ],
+            }),
+          );
+        }
+
+        return Promise.reject(new Error(`Unexpected match ID: ${matchId}`));
+      });
+
+      const response = await individualTrackerDO.fetch(selectRequest(["z-match", "a-match"]));
+
+      expect(response.status).toBe(200);
+      expect(storagePutSpy).toHaveBeenCalledWith(
+        "individualTrackerState",
+        expect.objectContaining({
+          selectedMatchIds: ["a-match", "z-match"],
+          matchIds: ["z-match", "a-match"],
+        }),
+      );
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.discoveredMatches["z-match"]?.startTime).toBe("2024-11-26T10:00:00.000Z");
+      expect(persisted.discoveredMatches["a-match"]?.startTime).toBe("2024-11-26T12:00:00.000Z");
+    });
+
+    it("returns 400 and does not persist when hydration fails for an ID", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1"],
+          discoveredMatches: { m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }) },
+        }),
+      );
+      ownerClient.getMatchStats.mockRejectedValueOnce(new Error("Match not found"));
+
+      const response = await individualTrackerDO.fetch(selectRequest(["m1", "bad-id"]));
+
+      expect(response.status).toBe(400);
+      const body: { error: string } = await response.json();
+      expect(body.error).toContain("bad-id");
+      expect(storagePutSpy).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 and does not persist when hydration cannot find the tracked player", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1"],
+          discoveredMatches: { m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }) },
+        }),
+      );
+      ownerClient.getMatchStats.mockResolvedValueOnce(
+        aFakeMatchStatsWith({
+          Players: [],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(selectRequest(["m1", "orphaned-match"]));
+
+      expect(response.status).toBe(400);
+      const body: { error: string } = await response.json();
+      expect(body.error).toContain("orphaned-match");
+      expect(storagePutSpy).not.toHaveBeenCalled();
+    });
+
+    it("returns 500 and does not persist when map-name hydration hits an auth error", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: [],
+          discoveredMatches: {},
+        }),
+      );
+      ownerClient.getMatchStats.mockResolvedValueOnce(
+        aFakeMatchStatsWith({
+          MatchId: "m1",
+          Players: [
+            aFakePlayerWith({
+              PlayerId: "fake-xuid",
+              Outcome: 2,
+            }),
+          ],
+        }),
+      );
+      ownerClient.getSpecificAssetVersion.mockRejectedValue(
+        new RequestError(new URL("https://halo"), new Response(null, { status: 401 })),
+      );
+
+      const response = await individualTrackerDO.fetch(selectRequest(["m1"]));
+
+      expect(response.status).toBe(500);
+      expect(storagePutSpy).not.toHaveBeenCalled();
+    });
+
+    it("reports only failing IDs when batch hydration has partial failures", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: [],
+          discoveredMatches: {},
+        }),
+      );
+      ownerClient.getMatchStats.mockRejectedValueOnce(new Error("Not found")).mockResolvedValueOnce(
+        aFakeMatchStatsWith({
+          MatchId: "m1",
+          Players: [
+            aFakePlayerWith({
+              PlayerId: "fake-xuid",
+              Outcome: 2,
+            }),
+          ],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(selectRequest(["bad-id", "m1"]));
+
+      expect(response.status).toBe(400);
+      const body: { error: string } = await response.json();
+      expect(body.error).toContain("bad-id");
+      expect(body.error).not.toContain("m1");
+      expect(storagePutSpy).not.toHaveBeenCalled();
+    });
+
+    it("persists seriesGroupOverrides from the request body", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2", "m3", "m4"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2" }),
+            m3: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m3" }),
+            m4: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m4" }),
+          },
+        }),
+      );
+
+      await individualTrackerDO.fetch(
+        selectRequest(
+          ["m1", "m2", "m3", "m4"],
+          [
+            { matchIds: ["m1", "m2"], titleOverride: "Custom Title", subtitleOverride: "Custom Sub" },
+            { matchIds: ["m3", "m4"], titleOverride: null, subtitleOverride: null },
+          ],
+        ),
+      );
 
       expect(storagePutSpy).toHaveBeenCalledWith(
         "individualTrackerState",
-        expect.objectContaining({ selectedMatchIds: ["m1"] }),
+        expect.objectContaining({
+          seriesGroupOverrides: [
+            { matchIds: ["m1", "m2"], titleOverride: "Custom Title", subtitleOverride: "Custom Sub" },
+            { matchIds: ["m3", "m4"], titleOverride: null, subtitleOverride: null },
+          ],
+        }),
+      );
+    });
+
+    it("reconciles activeSeries matchIds by intersection with synced matchIds", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2", "m3"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2" }),
+            m3: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m3" }),
+          },
+          activeSeries: {
+            title: "Series Title",
+            subtitle: "Series Sub",
+            guildIconUrl: null,
+            teams: [],
+            matchIds: ["m1", "m2", "m3"],
+            startedAt: new Date().toISOString(),
+            isActive: true,
+          },
+        }),
+      );
+
+      await individualTrackerDO.fetch(selectRequest(["m1", "m2"]));
+
+      expect(storagePutSpy).toHaveBeenCalledWith(
+        "individualTrackerState",
+        expect.objectContaining({
+          activeSeries: expect.objectContaining({ matchIds: ["m1", "m2"] }) as ActiveSeries,
+        }),
+      );
+    });
+
+    it("does not mutate activeSeries title or subtitle during sync", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2" }),
+          },
+          activeSeries: {
+            title: "Kept Title",
+            subtitle: "Kept Sub",
+            guildIconUrl: null,
+            teams: [],
+            matchIds: ["m1", "m2"],
+            startedAt: new Date().toISOString(),
+            isActive: true,
+          },
+        }),
+      );
+
+      await individualTrackerDO.fetch(
+        selectRequest(
+          ["m1", "m2"],
+          [{ matchIds: ["m1", "m2"], titleOverride: "Override Title", subtitleOverride: null }],
+        ),
+      );
+
+      expect(storagePutSpy).toHaveBeenCalledWith(
+        "individualTrackerState",
+        expect.objectContaining({
+          activeSeries: expect.objectContaining({ title: "Kept Title", subtitle: "Kept Sub" }) as ActiveSeries,
+        }),
       );
     });
 
@@ -658,6 +924,10 @@ describe("IndividualTrackerDO", () => {
         aFakeIndividualTrackerInternalStateWith({
           matchIds: ["m1", "m2"],
           selectedMatchIds: ["m1"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2" }),
+          },
           accumulatedMatchIds: ["m1"],
           accumulatedPlayerTotals: {
             kills: 5,
@@ -689,11 +959,245 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("schedules an immediate alarm after selection changes", async () => {
-      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ matchIds: ["m1", "m2"] }));
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2" }),
+          },
+        }),
+      );
 
       await individualTrackerDO.fetch(selectRequest(["m1"]));
 
       expect(storageSetAlarmSpy).toHaveBeenCalledWith(Date.now());
+    });
+
+    it("persists seriesGroupOverrides without clearing totals when selection is unchanged", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          selectedMatchIds: ["m1", "m2"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2" }),
+          },
+          accumulatedMatchIds: ["m1"],
+          accumulatedPlayerTotals: {
+            kills: 5,
+            deaths: 2,
+            assists: 1,
+            headshotKills: 1,
+            shotsFired: 50,
+            shotsHit: 25,
+            damageDealt: 2000,
+            damageTaken: 1000,
+            totalLifeSeconds: 60,
+            totalSpawns: 2,
+            totalLifeSpawns: 2,
+          },
+        }),
+      );
+
+      await individualTrackerDO.fetch(
+        selectRequest(
+          ["m1", "m2"],
+          [{ matchIds: ["m1", "m2"], titleOverride: "Series Title", subtitleOverride: null }],
+        ),
+      );
+
+      expect(storagePutSpy).toHaveBeenCalledWith(
+        "individualTrackerState",
+        expect.objectContaining({
+          selectedMatchIds: ["m1", "m2"],
+          seriesGroupOverrides: [
+            expect.objectContaining({
+              matchIds: ["m1", "m2"],
+              titleOverride: "Series Title",
+              subtitleOverride: null,
+            }),
+          ],
+          accumulatedMatchIds: ["m1"],
+        }),
+      );
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted).toHaveProperty("accumulatedPlayerTotals");
+      expect(storageSetAlarmSpy).not.toHaveBeenCalled();
+    });
+
+    it("treats seriesGroupOverrides with different matchId orderings as unchanged", async () => {
+      storagePutSpy.mockClear();
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          selectedMatchIds: ["m1", "m2"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2" }),
+          },
+          seriesGroupOverrides: [
+            {
+              matchIds: ["m1", "m2"],
+              titleOverride: "Series Title",
+              subtitleOverride: null,
+            },
+          ],
+          accumulatedMatchIds: ["m1"],
+          accumulatedPlayerTotals: {
+            kills: 5,
+            deaths: 2,
+            assists: 1,
+            headshotKills: 1,
+            shotsFired: 50,
+            shotsHit: 25,
+            damageDealt: 2000,
+            damageTaken: 1000,
+            totalLifeSeconds: 60,
+            totalSpawns: 2,
+            totalLifeSpawns: 2,
+          },
+        }),
+      );
+
+      await individualTrackerDO.fetch(
+        selectRequest(
+          ["m1", "m2"],
+          [{ matchIds: ["m2", "m1"], titleOverride: "Series Title", subtitleOverride: null }],
+        ),
+      );
+
+      expect(storagePutSpy).not.toHaveBeenCalled();
+      expect(storageSetAlarmSpy).not.toHaveBeenCalled();
+    });
+
+    it("treats seriesGroupOverrides in different group order as unchanged", async () => {
+      storagePutSpy.mockClear();
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2", "m3", "m4"],
+          selectedMatchIds: ["m1", "m2", "m3", "m4"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2" }),
+            m3: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m3" }),
+            m4: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m4" }),
+          },
+          seriesGroupOverrides: [
+            { matchIds: ["m1", "m2"], titleOverride: "Group A", subtitleOverride: null },
+            { matchIds: ["m3", "m4"], titleOverride: "Group B", subtitleOverride: null },
+          ],
+          accumulatedMatchIds: ["m1"],
+          accumulatedPlayerTotals: {
+            kills: 5,
+            deaths: 2,
+            assists: 1,
+            headshotKills: 1,
+            shotsFired: 50,
+            shotsHit: 25,
+            damageDealt: 2000,
+            damageTaken: 1000,
+            totalLifeSeconds: 60,
+            totalSpawns: 2,
+            totalLifeSpawns: 2,
+          },
+        }),
+      );
+
+      await individualTrackerDO.fetch(
+        selectRequest(
+          ["m1", "m2", "m3", "m4"],
+          [
+            { matchIds: ["m3", "m4"], titleOverride: "Group B", subtitleOverride: null },
+            { matchIds: ["m1", "m2"], titleOverride: "Group A", subtitleOverride: null },
+          ],
+        ),
+      );
+
+      expect(storagePutSpy).not.toHaveBeenCalled();
+      expect(storageSetAlarmSpy).not.toHaveBeenCalled();
+    });
+
+    it("treats null and empty string titleOverride as distinct changes", async () => {
+      storagePutSpy.mockClear();
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          selectedMatchIds: ["m1", "m2"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2" }),
+          },
+          seriesGroupOverrides: [{ matchIds: ["m1", "m2"], titleOverride: null, subtitleOverride: null }],
+          accumulatedMatchIds: ["m1"],
+          accumulatedPlayerTotals: {
+            kills: 5,
+            deaths: 2,
+            assists: 1,
+            headshotKills: 1,
+            shotsFired: 50,
+            shotsHit: 25,
+            damageDealt: 2000,
+            damageTaken: 1000,
+            totalLifeSeconds: 60,
+            totalSpawns: 2,
+            totalLifeSpawns: 2,
+          },
+        }),
+      );
+
+      // Request same matchIds but with empty string override instead of null
+      const response = await individualTrackerDO.fetch(
+        selectRequest(["m1", "m2"], [{ matchIds: ["m1", "m2"], titleOverride: "", subtitleOverride: null }]),
+      );
+
+      // Should detect the change and persist it
+      expect(storagePutSpy).toHaveBeenCalled();
+      // Verify the state was updated with the new override
+      const [, updatedState] = storagePutSpy.mock.calls[0] ?? [];
+      expect(updatedState?.seriesGroupOverrides?.[0]?.titleOverride).toBe("");
+      expect(response.status).toBe(200);
+    });
+
+    it("treats null and empty string subtitleOverride as distinct changes", async () => {
+      storagePutSpy.mockClear();
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          selectedMatchIds: ["m1", "m2"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2" }),
+          },
+          seriesGroupOverrides: [{ matchIds: ["m1", "m2"], titleOverride: "Title", subtitleOverride: null }],
+          accumulatedMatchIds: ["m1"],
+          accumulatedPlayerTotals: {
+            kills: 5,
+            deaths: 2,
+            assists: 1,
+            headshotKills: 1,
+            shotsFired: 50,
+            shotsHit: 25,
+            damageDealt: 2000,
+            damageTaken: 1000,
+            totalLifeSeconds: 60,
+            totalSpawns: 2,
+            totalLifeSpawns: 2,
+          },
+        }),
+      );
+
+      // Request same group but with empty string subtitle override instead of null
+      const response = await individualTrackerDO.fetch(
+        selectRequest(["m1", "m2"], [{ matchIds: ["m1", "m2"], titleOverride: "Title", subtitleOverride: "" }]),
+      );
+
+      // Should detect the change and persist it
+      expect(storagePutSpy).toHaveBeenCalled();
+      // Verify the state was updated with the new override
+      const [, updatedState] = storagePutSpy.mock.calls[0] ?? [];
+      expect(updatedState?.seriesGroupOverrides?.[0]?.subtitleOverride).toBe("");
+      expect(response.status).toBe(200);
     });
   });
 
@@ -759,6 +1263,115 @@ describe("IndividualTrackerDO", () => {
 
       expect(body.state?.matches).toHaveLength(1);
       expect(body.state?.matches[0]?.matchId).toBe("m2");
+    });
+
+    it("applies seriesGroupOverride title and subtitle to series when no active/completed series context", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          selectedMatchIds: ["m1", "m2"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m1",
+              teamRosterSignature: "0:1|1:2",
+              teamOutcomes: [2, 3],
+            }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m2",
+              teamRosterSignature: "0:1|1:2",
+              teamOutcomes: [2, 3],
+            }),
+          },
+          seriesGroupOverrides: [
+            { matchIds: ["m2", "m1"], titleOverride: "Custom Series", subtitleOverride: "Custom Sub" },
+          ],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.series[0]?.title).toBe("Custom Series");
+      expect(body.state?.series[0]?.subtitle).toBe("Custom Sub");
+    });
+
+    it("does not apply a seriesGroupOverride to a non-matching group with overlapping matchIds", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2", "m3", "m4"],
+          selectedMatchIds: ["m1", "m2", "m3", "m4"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m1",
+              teamRosterSignature: "0:1|1:2",
+              teamOutcomes: [2, 3],
+            }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m2",
+              teamRosterSignature: "0:1|1:2",
+              teamOutcomes: [2, 3],
+            }),
+            m3: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m3",
+              teamRosterSignature: "0:1|1:2",
+              teamOutcomes: [2, 3],
+            }),
+            m4: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m4",
+              teamRosterSignature: "0:1|1:2",
+              teamOutcomes: [2, 3],
+            }),
+          },
+          seriesGroupOverrides: [
+            { matchIds: ["m1", "m2", "m3"], titleOverride: "Overlapping Override", subtitleOverride: "Bad Match" },
+          ],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.series.map((series) => series.title)).not.toContain("Overlapping Override");
+      expect(body.state?.series.map((series) => series.subtitle)).not.toContain("Bad Match");
+    });
+
+    it("active series title takes precedence over seriesGroupOverride title", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          selectedMatchIds: ["m1", "m2"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m1",
+              teamRosterSignature: "0:1|1:2",
+              teamOutcomes: [2, 3],
+            }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m2",
+              teamRosterSignature: "0:1|1:2",
+              teamOutcomes: [2, 3],
+            }),
+          },
+          activeSeries: {
+            title: "Active Series Title",
+            subtitle: "Active Sub",
+            guildIconUrl: null,
+            teams: [],
+            matchIds: ["m1", "m2"],
+            startedAt: new Date().toISOString(),
+            isActive: true,
+          },
+          seriesGroupOverrides: [
+            { matchIds: ["m1", "m2"], titleOverride: "Override Title", subtitleOverride: "Override Sub" },
+          ],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.series[0]?.title).toBe("Active Series Title");
+      expect(body.state?.series[0]?.subtitle).toBe("Active Sub");
     });
   });
 
