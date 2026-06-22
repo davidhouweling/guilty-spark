@@ -1005,9 +1005,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
   private buildSeriesGroupComparisonKey(group: IndividualTrackerSeriesGroupOverride): string {
     // Build a deterministic key from the group's content (excluding order)
+    // Use JSON.stringify to preserve distinction between null and "" (contract allows empty strings)
     const matchIdKey = buildSeriesGroupKey(group.matchIds);
-    const titleKey = group.titleOverride ?? "";
-    const subtitleKey = group.subtitleOverride ?? "";
+    const titleKey = JSON.stringify(group.titleOverride);
+    const subtitleKey = JSON.stringify(group.subtitleOverride);
     return `${matchIdKey}:${titleKey}:${subtitleKey}`;
   }
 

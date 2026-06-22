@@ -1117,6 +1117,88 @@ describe("IndividualTrackerDO", () => {
       expect(storagePutSpy).not.toHaveBeenCalled();
       expect(storageSetAlarmSpy).not.toHaveBeenCalled();
     });
+
+    it("treats null and empty string titleOverride as distinct changes", async () => {
+      storagePutSpy.mockClear();
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          selectedMatchIds: ["m1", "m2"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2" }),
+          },
+          seriesGroupOverrides: [{ matchIds: ["m1", "m2"], titleOverride: null, subtitleOverride: null }],
+          accumulatedMatchIds: ["m1"],
+          accumulatedPlayerTotals: {
+            kills: 5,
+            deaths: 2,
+            assists: 1,
+            headshotKills: 1,
+            shotsFired: 50,
+            shotsHit: 25,
+            damageDealt: 2000,
+            damageTaken: 1000,
+            totalLifeSeconds: 60,
+            totalSpawns: 2,
+            totalLifeSpawns: 2,
+          },
+        }),
+      );
+
+      // Request same matchIds but with empty string override instead of null
+      const response = await individualTrackerDO.fetch(
+        selectRequest(["m1", "m2"], [{ matchIds: ["m1", "m2"], titleOverride: "", subtitleOverride: null }]),
+      );
+
+      // Should detect the change and persist it
+      expect(storagePutSpy).toHaveBeenCalled();
+      // Verify the state was updated with the new override
+      const [, updatedState] = storagePutSpy.mock.calls[0] ?? [];
+      expect((updatedState)?.seriesGroupOverrides?.[0]?.titleOverride).toBe("");
+      expect(response.status).toBe(200);
+    });
+
+    it("treats null and empty string subtitleOverride as distinct changes", async () => {
+      storagePutSpy.mockClear();
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          selectedMatchIds: ["m1", "m2"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2" }),
+          },
+          seriesGroupOverrides: [{ matchIds: ["m1", "m2"], titleOverride: "Title", subtitleOverride: null }],
+          accumulatedMatchIds: ["m1"],
+          accumulatedPlayerTotals: {
+            kills: 5,
+            deaths: 2,
+            assists: 1,
+            headshotKills: 1,
+            shotsFired: 50,
+            shotsHit: 25,
+            damageDealt: 2000,
+            damageTaken: 1000,
+            totalLifeSeconds: 60,
+            totalSpawns: 2,
+            totalLifeSpawns: 2,
+          },
+        }),
+      );
+
+      // Request same group but with empty string subtitle override instead of null
+      const response = await individualTrackerDO.fetch(
+        selectRequest(["m1", "m2"], [{ matchIds: ["m1", "m2"], titleOverride: "Title", subtitleOverride: "" }]),
+      );
+
+      // Should detect the change and persist it
+      expect(storagePutSpy).toHaveBeenCalled();
+      // Verify the state was updated with the new override
+      const [, updatedState] = storagePutSpy.mock.calls[0] ?? [];
+      expect((updatedState)?.seriesGroupOverrides?.[0]?.subtitleOverride).toBe("");
+      expect(response.status).toBe(200);
+    });
   });
 
   describe("toViewState() selection filtering", () => {
