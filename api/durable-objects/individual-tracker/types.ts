@@ -9,6 +9,7 @@ export interface IndividualTrackerState {
   isPaused: boolean;
   startTime: string;
   lastUpdateTime: string;
+  searchStartTime?: string;
   idleTimeoutHours: number;
   hasActiveSeries?: boolean;
 }

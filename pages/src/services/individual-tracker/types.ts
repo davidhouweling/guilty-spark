@@ -3,6 +3,7 @@ import type {
   UpdateTrackerProfileRequest,
 } from "@guilty-spark/shared/contracts/individual-tracker/profile";
 import type {
+  SelectMatchesSeriesGroup,
   StartTrackerRequest,
   TrackerResponse,
   TrackerState,
@@ -64,11 +65,9 @@ export interface TrackerMatchHistoryResponse {
   readonly suggestedGroupings: readonly (readonly string[])[];
 }
 
-export interface TrackerSyncSeriesGroup {
+export type TrackerSyncSeriesGroup = Omit<SelectMatchesSeriesGroup, "matchIds"> & {
   readonly matchIds: readonly string[];
-  readonly titleOverride: string | null;
-  readonly subtitleOverride: string | null;
-}
+};
 
 export interface TrackerSyncMatchesRequest {
   readonly trackerId: string;
