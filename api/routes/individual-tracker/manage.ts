@@ -17,6 +17,7 @@ import {
   trackersContract,
   type StartSeriesRequest,
   type EditSeriesRequest,
+  type SelectMatchesRequest,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import {
   individualTrackerPauseContract,
@@ -42,6 +43,13 @@ import { requireSession } from "../base/require-session";
 import { toTracker } from "./mapper";
 
 const DEFAULT_IDLE_TIMEOUT_HOURS = 6;
+
+class SyncMatchesError extends Error {
+  public constructor(message: string) {
+    super(message);
+    this.name = "SyncMatchesError";
+  }
+}
 
 function trackerDoStub(env: Env, userId: string, trackerId: string): DurableObjectStub {
   const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${userId}:${trackerId}`);
@@ -107,13 +115,25 @@ function assertDoOkWith404(response: Response): void {
   assertDoOk(response);
 }
 
-async function syncMatchesDo(env: Env, userId: string, trackerId: string, matchIds: string[]): Promise<void> {
+async function syncMatchesDo(env: Env, userId: string, trackerId: string, body: SelectMatchesRequest): Promise<void> {
   const stub = trackerDoStub(env, userId, trackerId);
   const response = await stub.fetch("http://do/select-matches", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ matchIds }),
+    body: JSON.stringify(body),
   });
+  if (response.status === 400) {
+    try {
+      const payload = errorContract.safeParse(await response.clone().json());
+      if (payload.success) {
+        throw new SyncMatchesError(payload.data.error);
+      }
+    } catch {
+      // fall through with generic error below when DO payload is not parseable
+    }
+
+    throw new SyncMatchesError("Failed to update match selection");
+  }
   assertDoOkWith404(response);
   await selectMatchesContract.fromResponse(response);
 }
@@ -464,10 +484,20 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
       let tracker: IndividualTrackersRow;
       try {
         tracker = await individualTrackerService.getOwnedTracker(auth.session.userId, trackerId);
-        await syncMatchesDo(env, auth.session.userId, tracker.TrackerId, parsed.data.matchIds);
+        await syncMatchesDo(env, auth.session.userId, tracker.TrackerId, {
+          matchIds: [...parsed.data.matchIds],
+          seriesGroups: parsed.data.seriesGroups.map((group) => ({
+            matchIds: [...group.matchIds],
+            titleOverride: group.titleOverride,
+            subtitleOverride: group.subtitleOverride,
+          })),
+        });
       } catch (error) {
         if (error instanceof TrackerNotFoundError) {
           return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
+        }
+        if (error instanceof SyncMatchesError) {
+          return errorContract.toResponse({ error: error.message }, { status: 400, noStore: true });
         }
         throw error;
       }

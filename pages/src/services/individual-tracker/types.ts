@@ -64,11 +64,18 @@ export interface TrackerMatchHistoryResponse {
   readonly suggestedGroupings: readonly (readonly string[])[];
 }
 
+export interface TrackerSyncSeriesGroup {
+  readonly matchIds: readonly string[];
+  readonly titleOverride: string | null;
+  readonly subtitleOverride: string | null;
+}
+
 export interface TrackerSyncMatchesRequest {
   readonly trackerId: string;
   readonly selectedMatchIds: readonly string[];
-  readonly matchGroupings: readonly (readonly string[])[];
-  readonly matches: readonly TrackerMatchHistoryEntry[];
+  readonly seriesGroups?: readonly TrackerSyncSeriesGroup[];
+  readonly matchGroupings?: readonly (readonly string[])[];
+  readonly matches?: readonly TrackerMatchHistoryEntry[];
 }
 
 export interface ManualSeriesTeamForm {
