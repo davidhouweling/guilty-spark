@@ -666,43 +666,63 @@ describe("IndividualTrackerDO", () => {
     it("hydrates and includes unknown match IDs via the Halo API", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
-          matchIds: ["m2"],
-          discoveredMatches: {
-            m2: aFakeIndividualTrackerMatchSummaryWith({
-              matchId: "m2",
-              startTime: "2024-11-26T12:00:00.000Z",
-            }),
-          },
+          matchIds: [],
+          discoveredMatches: {},
         }),
       );
-      ownerClient.getMatchStats.mockResolvedValueOnce(
-        aFakeMatchStatsWith({
-          MatchId: "m1",
-          MatchInfo: {
-            ...aFakeMatchStatsWith().MatchInfo,
-            StartTime: "2024-11-26T11:00:00.000Z",
-          },
-          Players: [
-            aFakePlayerWith({
-              PlayerId: "fake-xuid",
-              Outcome: 2,
+      ownerClient.getMatchStats.mockImplementation(async (matchId: string) => {
+        if (matchId === "z-match") {
+          return Promise.resolve(
+            aFakeMatchStatsWith({
+              MatchId: "z-match",
+              MatchInfo: {
+                ...aFakeMatchStatsWith().MatchInfo,
+                StartTime: "2024-11-26T10:00:00.000Z",
+              },
+              Players: [
+                aFakePlayerWith({
+                  PlayerId: "fake-xuid",
+                  Outcome: 2,
+                }),
+              ],
             }),
-          ],
-        }),
-      );
+          );
+        }
 
-      const response = await individualTrackerDO.fetch(selectRequest(["m1", "m2"]));
+        if (matchId === "a-match") {
+          return Promise.resolve(
+            aFakeMatchStatsWith({
+              MatchId: "a-match",
+              MatchInfo: {
+                ...aFakeMatchStatsWith().MatchInfo,
+                StartTime: "2024-11-26T12:00:00.000Z",
+              },
+              Players: [
+                aFakePlayerWith({
+                  PlayerId: "fake-xuid",
+                  Outcome: 2,
+                }),
+              ],
+            }),
+          );
+        }
+
+        return Promise.reject(new Error(`Unexpected match ID: ${matchId}`));
+      });
+
+      const response = await individualTrackerDO.fetch(selectRequest(["z-match", "a-match"]));
 
       expect(response.status).toBe(200);
       expect(storagePutSpy).toHaveBeenCalledWith(
         "individualTrackerState",
         expect.objectContaining({
-          selectedMatchIds: ["m1", "m2"],
-          matchIds: ["m1", "m2"],
+          selectedMatchIds: ["a-match", "z-match"],
+          matchIds: ["z-match", "a-match"],
         }),
       );
       const persisted = lastPersistedState(storagePutSpy);
-      expect(persisted.discoveredMatches["m1"]).toBeDefined();
+      expect(persisted.discoveredMatches["z-match"]?.startTime).toBe("2024-11-26T10:00:00.000Z");
+      expect(persisted.discoveredMatches["a-match"]?.startTime).toBe("2024-11-26T12:00:00.000Z");
     });
 
     it("returns 400 and does not persist when hydration fails for an ID", async () => {

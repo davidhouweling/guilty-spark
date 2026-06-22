@@ -820,7 +820,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   > {
     await this.getUserHaloService(trackerState.userId);
 
-    let matchStatsArray: (MatchStats | null)[];
+    let matchStatsArray: MatchStats[];
 
     try {
       // Batch fetch all match details at once
@@ -841,6 +841,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return { success: false, failingIds: matchIds };
     }
 
+    const matchStatsById = new Map<string, MatchStats>();
+    for (const matchStats of matchStatsArray) {
+      matchStatsById.set(matchStats.MatchId, matchStats);
+    }
+
     const failingIds: string[] = [];
     const validatedMatches: {
       matchId: string;
@@ -849,13 +854,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }[] = [];
 
     // First pass: validate matches
-    for (let i = 0; i < matchIds.length; i++) {
-      const matchId = matchIds[i];
-      if (matchId == null) {
-        continue;
-      }
-
-      const matchStats = matchStatsArray[i];
+    for (const matchId of matchIds) {
+      const matchStats = matchStatsById.get(matchId);
 
       try {
         if (matchStats == null) {
