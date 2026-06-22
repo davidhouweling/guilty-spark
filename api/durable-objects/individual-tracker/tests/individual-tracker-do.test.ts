@@ -763,6 +763,34 @@ describe("IndividualTrackerDO", () => {
       expect(storagePutSpy).not.toHaveBeenCalled();
     });
 
+    it("returns 500 and does not persist when map-name hydration hits an auth error", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: [],
+          discoveredMatches: {},
+        }),
+      );
+      ownerClient.getMatchStats.mockResolvedValueOnce(
+        aFakeMatchStatsWith({
+          MatchId: "m1",
+          Players: [
+            aFakePlayerWith({
+              PlayerId: "fake-xuid",
+              Outcome: 2,
+            }),
+          ],
+        }),
+      );
+      ownerClient.getSpecificAssetVersion.mockRejectedValue(
+        new RequestError(new URL("https://halo"), new Response(null, { status: 401 })),
+      );
+
+      const response = await individualTrackerDO.fetch(selectRequest(["m1"]));
+
+      expect(response.status).toBe(500);
+      expect(storagePutSpy).not.toHaveBeenCalled();
+    });
+
     it("persists seriesGroupOverrides from the request body", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
@@ -916,6 +944,58 @@ describe("IndividualTrackerDO", () => {
       await individualTrackerDO.fetch(selectRequest(["m1"]));
 
       expect(storageSetAlarmSpy).toHaveBeenCalledWith(Date.now());
+    });
+
+    it("persists seriesGroupOverrides without clearing totals when selection is unchanged", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          selectedMatchIds: ["m1", "m2"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2" }),
+          },
+          accumulatedMatchIds: ["m1"],
+          accumulatedPlayerTotals: {
+            kills: 5,
+            deaths: 2,
+            assists: 1,
+            headshotKills: 1,
+            shotsFired: 50,
+            shotsHit: 25,
+            damageDealt: 2000,
+            damageTaken: 1000,
+            totalLifeSeconds: 60,
+            totalSpawns: 2,
+            totalLifeSpawns: 2,
+          },
+        }),
+      );
+
+      await individualTrackerDO.fetch(
+        selectRequest(
+          ["m1", "m2"],
+          [{ matchIds: ["m1", "m2"], titleOverride: "Series Title", subtitleOverride: null }],
+        ),
+      );
+
+      expect(storagePutSpy).toHaveBeenCalledWith(
+        "individualTrackerState",
+        expect.objectContaining({
+          selectedMatchIds: ["m1", "m2"],
+          seriesGroupOverrides: [
+            expect.objectContaining({
+              matchIds: ["m1", "m2"],
+              titleOverride: "Series Title",
+              subtitleOverride: null,
+            }),
+          ],
+          accumulatedMatchIds: ["m1"],
+        }),
+      );
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted).toHaveProperty("accumulatedPlayerTotals");
+      expect(storageSetAlarmSpy).not.toHaveBeenCalled();
     });
   });
 

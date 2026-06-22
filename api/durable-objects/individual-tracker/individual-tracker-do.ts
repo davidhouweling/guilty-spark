@@ -724,6 +724,22 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
     const body = parsed.data;
     const incoming = [...new Set(body.matchIds)].sort();
+    const selectionChanged = incoming.join(",") !== trackerState.selectedMatchIds.join(",");
+
+    const existingSeriesGroupOverrides = trackerState.seriesGroupOverrides ?? [];
+    const seriesGroupsChanged =
+      existingSeriesGroupOverrides.length !== body.seriesGroups.length ||
+      body.seriesGroups.some((group, index) => {
+        const existingGroup = existingSeriesGroupOverrides[index];
+        if (existingGroup == null) {
+          return true;
+        }
+        return (
+          existingGroup.matchIds.join(",") !== group.matchIds.join(",") ||
+          existingGroup.titleOverride !== group.titleOverride ||
+          existingGroup.subtitleOverride !== group.subtitleOverride
+        );
+      });
 
     const knownSummaries = new Map(Object.entries(trackerState.discoveredMatches));
     const needsHydration = incoming.filter((id) => !knownSummaries.has(id));
@@ -765,11 +781,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     const hasHydration = needsHydration.length > 0;
-    const unchanged =
-      !hasHydration &&
-      incoming.join(",") === trackerState.selectedMatchIds.join(",") &&
-      body.seriesGroups.length === 0 &&
-      (trackerState.seriesGroupOverrides?.length ?? 0) === 0;
+    const unchanged = !hasHydration && !selectionChanged && !seriesGroupsChanged;
 
     if (unchanged) {
       return selectMatchesContract.toResponse({ success: true });
@@ -784,19 +796,19 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }),
     );
 
-    if (trackerState.activeSeries != null) {
+    if (selectionChanged && trackerState.activeSeries != null) {
       const syncedMatchIdSet = new Set(incoming);
       trackerState.activeSeries.matchIds = trackerState.activeSeries.matchIds.filter((id) => syncedMatchIdSet.has(id));
     }
 
-    if (!trackerState.isPaused) {
+    if (selectionChanged && !trackerState.isPaused) {
       delete trackerState.accumulatedPlayerTotals;
       trackerState.accumulatedMatchIds = [];
     }
 
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
-    if (!trackerState.isPaused) {
+    if (selectionChanged && !trackerState.isPaused) {
       await this.state.storage.setAlarm(Date.now());
     }
 
@@ -908,6 +920,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
 
       if (mapNameResult.status === "rejected") {
+        if (this.isAuthError(mapNameResult.reason)) {
+          this.clearUserHaloService();
+          throw mapNameResult.reason;
+        }
         this.logService.warn(
           mapNameResult.reason,
           new Map([
