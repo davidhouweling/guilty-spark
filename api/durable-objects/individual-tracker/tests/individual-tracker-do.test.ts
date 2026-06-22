@@ -791,6 +791,34 @@ describe("IndividualTrackerDO", () => {
       expect(storagePutSpy).not.toHaveBeenCalled();
     });
 
+    it("reports only failing IDs when batch hydration has partial failures", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: [],
+          discoveredMatches: {},
+        }),
+      );
+      ownerClient.getMatchStats.mockRejectedValueOnce(new Error("Not found")).mockResolvedValueOnce(
+        aFakeMatchStatsWith({
+          MatchId: "m1",
+          Players: [
+            aFakePlayerWith({
+              PlayerId: "fake-xuid",
+              Outcome: 2,
+            }),
+          ],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(selectRequest(["bad-id", "m1"]));
+
+      expect(response.status).toBe(400);
+      const body: { error: string } = await response.json();
+      expect(body.error).toContain("bad-id");
+      expect(body.error).not.toContain("m1");
+      expect(storagePutSpy).not.toHaveBeenCalled();
+    });
+
     it("persists seriesGroupOverrides from the request body", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({

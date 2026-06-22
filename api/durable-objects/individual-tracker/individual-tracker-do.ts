@@ -832,41 +832,66 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   > {
     await this.getUserHaloService(trackerState.userId);
 
-    let matchStatsArray: MatchStats[];
+    // Fetch each match individually to track per-match failures
+    const matchPromises = matchIds.map(async (matchId) =>
+      this.haloService.getMatchDetails([matchId]).then((results) => {
+        if (results.length === 0) {
+          throw new Error(`No match details returned for ${matchId}`);
+        }
+        return results[0];
+      }),
+    );
 
-    try {
-      // Batch fetch all match details at once
-      matchStatsArray = await this.haloService.getMatchDetails(matchIds);
-    } catch (error) {
-      if (this.isAuthError(error)) {
-        this.clearUserHaloService();
-        throw error;
-      }
-      // If batch fetch fails entirely, treat all IDs as failing
-      this.logService.warn(
-        error,
-        new Map([
-          ["context", "IndividualTracker: batch getMatchDetails failed"],
-          ["matchCount", matchIds.length.toString()],
-        ]),
-      );
-      return { success: false, failingIds: matchIds };
-    }
+    const matchResults = await Promise.allSettled(matchPromises);
 
     const matchStatsById = new Map<string, MatchStats>();
-    for (const matchStats of matchStatsArray) {
-      matchStatsById.set(matchStats.MatchId, matchStats);
+    const initialFailingIds: string[] = [];
+
+    for (let i = 0; i < matchResults.length; i++) {
+      const matchId = matchIds[i];
+      if (matchId == null) {
+        continue;
+      }
+
+      const result = matchResults[i];
+      if (result == null) {
+        continue;
+      }
+
+      if (result.status === "rejected") {
+        if (this.isAuthError(result.reason)) {
+          this.clearUserHaloService();
+          throw result.reason;
+        }
+        this.logService.warn(
+          result.reason,
+          new Map([
+            ["context", "IndividualTracker: getMatchDetails failed for ID"],
+            ["matchId", matchId],
+          ]),
+        );
+        initialFailingIds.push(matchId);
+        continue;
+      }
+
+      const matchStats = result.value;
+      if (matchStats != null) {
+        matchStatsById.set(matchId, matchStats);
+      }
     }
 
-    const failingIds: string[] = [];
+    const failingIds: string[] = [...initialFailingIds];
     const validatedMatches: {
       matchId: string;
       matchStats: MatchStats;
       playerEntry: MatchStats["Players"][0];
     }[] = [];
 
-    // First pass: validate matches
+    // First pass: validate matches that were successfully fetched
     for (const matchId of matchIds) {
+      if (initialFailingIds.includes(matchId)) {
+        continue;
+      }
       const matchStats = matchStatsById.get(matchId);
 
       try {
