@@ -77,9 +77,7 @@ For each comment:
 
    ```bash
    git add <changed files>
-   git commit -m "fix(...): <description>
-
-   Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+   git commit -m "fix(...): <description>"
    ```
 
 ## Step 5 — Push, reply, resolve
@@ -147,6 +145,6 @@ If all comments were refuted (no code changes):
 
 - Owner: `davidhouweling`, Repo: `guilty-spark`
 - `npm run done` = prettier → typecheck (tsc + astro check) → eslint --fix → vitest run related
-- Commit message: `fix(scope): description` + `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>`
+- Commit message: `fix(scope): description`
 - ESLint rules to watch: `strict-boolean-expressions`, `no-unnecessary-condition`
 - Always check `isResolved` before resolving a thread to avoid errors

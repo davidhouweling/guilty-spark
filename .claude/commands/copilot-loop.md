@@ -63,9 +63,7 @@ For each inline comment from the review:
 
    ```bash
    git add <changed files>
-   git commit -m "fix(...): <description>
-
-   Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+   git commit -m "fix(...): <description>"
    ```
 
 ## Step 4 — Push, reply, resolve, request
@@ -124,7 +122,7 @@ Note: `gh pr edit --add-reviewer copilot` and `gh pr edit --add-reviewer github-
 ## Repo-specific notes
 
 - `npm run done` = prettier → typecheck (tsc + astro check) → eslint --fix → vitest run related
-- Commit message format: `fix(scope): description` with `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>`
+- Commit message format: `fix(scope): description`
 - Owner: `davidhouweling`, Repo: `guilty-spark`
 - ESLint rules to watch for: `strict-boolean-expressions`, `no-unnecessary-condition` — avoid redundant null checks and `??` on non-nullable types
 - Always check `isResolved` before resolving a thread to avoid double-resolve errors
