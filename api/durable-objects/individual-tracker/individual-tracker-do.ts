@@ -743,9 +743,24 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         }
       }
       trackerState.matchIds.sort((left, right) => {
-        const leftSummary = Preconditions.checkExists(trackerState.discoveredMatches[left]);
-        const rightSummary = Preconditions.checkExists(trackerState.discoveredMatches[right]);
-        return compareAsc(new Date(leftSummary.startTime), new Date(rightSummary.startTime));
+        const leftSummary = trackerState.discoveredMatches[left];
+        const rightSummary = trackerState.discoveredMatches[right];
+
+        // Both have summaries - compare by start time
+        if (leftSummary != null && rightSummary != null) {
+          return compareAsc(new Date(leftSummary.startTime), new Date(rightSummary.startTime));
+        }
+
+        // Missing summaries go to the end
+        if (leftSummary == null) {
+          return 1;
+        }
+        if (rightSummary == null) {
+          return -1;
+        }
+
+        // Fallback to string comparison (should not reach here)
+        return left.localeCompare(right);
       });
     }
 
@@ -804,41 +819,57 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     { success: true; summaries: Map<string, IndividualTrackerMatchSummary> } | { success: false; failingIds: string[] }
   > {
     await this.getUserHaloService(trackerState.userId);
-    const failingIds: string[] = [];
-    const summaries = new Map<string, IndividualTrackerMatchSummary>();
 
-    for (const matchId of matchIds) {
+    let matchStatsArray: (MatchStats | null)[];
+
+    try {
+      // Batch fetch all match details at once
+      matchStatsArray = await this.haloService.getMatchDetails(matchIds);
+    } catch (error) {
+      if (this.isAuthError(error)) {
+        this.clearUserHaloService();
+        throw error;
+      }
+      // If batch fetch fails entirely, treat all IDs as failing
+      this.logService.warn(
+        error,
+        new Map([
+          ["context", "IndividualTracker: batch getMatchDetails failed"],
+          ["matchCount", matchIds.length.toString()],
+        ]),
+      );
+      return { success: false, failingIds: matchIds };
+    }
+
+    const failingIds: string[] = [];
+    const validatedMatches: {
+      matchId: string;
+      matchStats: MatchStats;
+      playerEntry: MatchStats["Players"][0];
+    }[] = [];
+
+    // First pass: validate matches
+    for (let i = 0; i < matchIds.length; i++) {
+      const matchId = matchIds[i];
+      if (matchId == null) {
+        continue;
+      }
+
+      const matchStats = matchStatsArray[i];
+
       try {
-        const [matchStats] = await this.haloService.getMatchDetails([matchId]);
         if (matchStats == null) {
           failingIds.push(matchId);
           continue;
         }
+
         const playerEntry = matchStats.Players.find((p) => getPlayerXuid(p) === trackerState.xuid);
         if (playerEntry == null) {
           failingIds.push(matchId);
           continue;
         }
-        const outcome = getMatchOutcomeLabel(playerEntry.Outcome);
-        const mapName = await this.resolveMapName(
-          matchStats.MatchInfo.MapVariant.AssetId,
-          matchStats.MatchInfo.MapVariant.VersionId,
-        );
-        summaries.set(matchId, {
-          matchId,
-          startTime: matchStats.MatchInfo.StartTime,
-          endTime: matchStats.MatchInfo.EndTime,
-          mapAssetId: matchStats.MatchInfo.MapVariant.AssetId,
-          mapVersionId: matchStats.MatchInfo.MapVariant.VersionId,
-          mapName,
-          modeAssetId: matchStats.MatchInfo.UgcGameVariant.AssetId,
-          gameVariantCategory: matchStats.MatchInfo.GameVariantCategory,
-          outcome,
-          score: buildMatchScore(matchStats),
-          isMatchmaking: matchStats.MatchInfo.Playlist != null,
-          teamRosterSignature: buildTeamRosterSignature(matchStats),
-          teamOutcomes: matchStats.Teams.map((team) => team.Outcome),
-        });
+
+        validatedMatches.push({ matchId, matchStats, playerEntry });
       } catch (error) {
         if (this.isAuthError(error)) {
           this.clearUserHaloService();
@@ -847,12 +878,65 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         this.logService.warn(
           error,
           new Map([
-            ["context", "IndividualTracker: hydrateMatchSummaries failed"],
+            ["context", "IndividualTracker: hydrateMatchSummaries validation failed"],
             ["matchId", matchId],
           ]),
         );
         failingIds.push(matchId);
       }
+    }
+
+    // Resolve all map names in parallel for validated matches
+    const mapNamePromises = validatedMatches.map(async (m) =>
+      this.resolveMapName(m.matchStats.MatchInfo.MapVariant.AssetId, m.matchStats.MatchInfo.MapVariant.VersionId),
+    );
+    const mapNameResults = await Promise.allSettled(mapNamePromises);
+
+    // Build final summaries
+    const summaries = new Map<string, IndividualTrackerMatchSummary>();
+
+    for (let i = 0; i < validatedMatches.length; i++) {
+      const validated = validatedMatches[i];
+      if (validated == null) {
+        continue;
+      }
+
+      const { matchId, matchStats, playerEntry } = validated;
+      const mapNameResult = mapNameResults[i];
+      if (mapNameResult == null) {
+        continue;
+      }
+
+      if (mapNameResult.status === "rejected") {
+        this.logService.warn(
+          mapNameResult.reason,
+          new Map([
+            ["context", "IndividualTracker: map name resolution failed"],
+            ["matchId", matchId],
+          ]),
+        );
+        failingIds.push(matchId);
+        continue;
+      }
+
+      const outcome = getMatchOutcomeLabel(playerEntry.Outcome);
+      const mapName = mapNameResult.value;
+
+      summaries.set(matchId, {
+        matchId,
+        startTime: matchStats.MatchInfo.StartTime,
+        endTime: matchStats.MatchInfo.EndTime,
+        mapAssetId: matchStats.MatchInfo.MapVariant.AssetId,
+        mapVersionId: matchStats.MatchInfo.MapVariant.VersionId,
+        mapName,
+        modeAssetId: matchStats.MatchInfo.UgcGameVariant.AssetId,
+        gameVariantCategory: matchStats.MatchInfo.GameVariantCategory,
+        outcome,
+        score: buildMatchScore(matchStats),
+        isMatchmaking: matchStats.MatchInfo.Playlist != null,
+        teamRosterSignature: buildTeamRosterSignature(matchStats),
+        teamOutcomes: matchStats.Teams.map((team) => team.Outcome),
+      });
     }
 
     if (failingIds.length > 0) {
