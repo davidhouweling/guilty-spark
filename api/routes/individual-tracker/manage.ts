@@ -123,13 +123,15 @@ async function syncMatchesDo(env: Env, userId: string, trackerId: string, body: 
     body: JSON.stringify(body),
   });
   if (response.status === 400) {
-    try {
-      const payload = errorContract.safeParse(await response.clone().json());
+    const responseBody = await response
+      .clone()
+      .json()
+      .catch(() => null);
+    if (responseBody != null) {
+      const payload = errorContract.safeParse(responseBody);
       if (payload.success) {
         throw new SyncMatchesError(payload.data.error);
       }
-    } catch {
-      // fall through with generic error below when DO payload is not parseable
     }
 
     throw new SyncMatchesError("Failed to update match selection");
