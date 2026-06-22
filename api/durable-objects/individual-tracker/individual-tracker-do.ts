@@ -742,6 +742,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           trackerState.matchIds.push(matchId);
         }
       }
+      trackerState.matchIds.sort((left, right) => {
+        const leftSummary = Preconditions.checkExists(trackerState.discoveredMatches[left]);
+        const rightSummary = Preconditions.checkExists(trackerState.discoveredMatches[right]);
+        return compareAsc(new Date(leftSummary.startTime), new Date(rightSummary.startTime));
+      });
     }
 
     const hasHydration = needsHydration.length > 0;

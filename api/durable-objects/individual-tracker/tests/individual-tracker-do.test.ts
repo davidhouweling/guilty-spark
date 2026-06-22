@@ -666,14 +666,22 @@ describe("IndividualTrackerDO", () => {
     it("hydrates and includes unknown match IDs via the Halo API", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
-          matchIds: ["m1"],
+          matchIds: ["m2"],
           discoveredMatches: {
-            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m2",
+              startTime: "2024-11-26T12:00:00.000Z",
+            }),
           },
         }),
       );
       ownerClient.getMatchStats.mockResolvedValueOnce(
         aFakeMatchStatsWith({
+          MatchId: "m1",
+          MatchInfo: {
+            ...aFakeMatchStatsWith().MatchInfo,
+            StartTime: "2024-11-26T11:00:00.000Z",
+          },
           Players: [
             aFakePlayerWith({
               PlayerId: "fake-xuid",
@@ -683,18 +691,18 @@ describe("IndividualTrackerDO", () => {
         }),
       );
 
-      const response = await individualTrackerDO.fetch(selectRequest(["m1", "unknown-id"]));
+      const response = await individualTrackerDO.fetch(selectRequest(["m1", "m2"]));
 
       expect(response.status).toBe(200);
       expect(storagePutSpy).toHaveBeenCalledWith(
         "individualTrackerState",
         expect.objectContaining({
-          selectedMatchIds: ["m1", "unknown-id"],
-          matchIds: expect.arrayContaining(["m1", "unknown-id"]) as string[],
+          selectedMatchIds: ["m1", "m2"],
+          matchIds: ["m1", "m2"],
         }),
       );
       const persisted = lastPersistedState(storagePutSpy);
-      expect(persisted.discoveredMatches["unknown-id"]).toBeDefined();
+      expect(persisted.discoveredMatches["m1"]).toBeDefined();
     });
 
     it("returns 400 and does not persist when hydration fails for an ID", async () => {
