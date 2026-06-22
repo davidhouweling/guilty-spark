@@ -69,6 +69,7 @@ function toTrackerState(state: IndividualTrackerDoState): TrackerState {
     isPaused: state.isPaused,
     startTime: state.startTime,
     lastUpdateTime: state.lastUpdateTime,
+    searchStartTime: state.searchStartTime,
     idleTimeoutHours: state.idleTimeoutHours,
     hasActiveSeries: state.hasActiveSeries ?? false,
   };

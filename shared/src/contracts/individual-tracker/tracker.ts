@@ -13,6 +13,7 @@ export const trackerStateSchema = z.object({
   isPaused: z.boolean(),
   startTime: z.string(),
   lastUpdateTime: z.string(),
+  searchStartTime: z.string().optional(),
   idleTimeoutHours: z.number(),
   hasActiveSeries: z.boolean(),
 });
@@ -55,8 +56,16 @@ export type TrackersResponse = z.infer<typeof trackersContract.schema>;
 export const stopTrackerContract = defineContract(z.object({ success: z.literal(true) }));
 export type StopTrackerResponse = z.infer<typeof stopTrackerContract.schema>;
 
+export const selectMatchesSeriesGroupSchema = z.object({
+  matchIds: z.array(z.string().min(1)).min(2),
+  titleOverride: z.string().nullable(),
+  subtitleOverride: z.string().nullable(),
+});
+export type SelectMatchesSeriesGroup = z.infer<typeof selectMatchesSeriesGroupSchema>;
+
 export const selectMatchesRequestSchema = z.object({
   matchIds: z.array(z.string().min(1)),
+  seriesGroups: z.array(selectMatchesSeriesGroupSchema).default([]),
 });
 export type SelectMatchesRequest = z.infer<typeof selectMatchesRequestSchema>;
 

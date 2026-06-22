@@ -404,7 +404,10 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
         credentials: "include",
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matchIds: request.selectedMatchIds }),
+        body: JSON.stringify({
+          matchIds: request.selectedMatchIds,
+          seriesGroups: request.seriesGroups ?? [],
+        }),
       },
     );
 

@@ -1016,6 +1016,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       isPaused: state.isPaused,
       startTime: state.startTime,
       lastUpdateTime: state.lastUpdateTime,
+      searchStartTime: state.searchStartTime,
       idleTimeoutHours: state.idleTimeoutHours,
       hasActiveSeries: state.activeSeries != null,
     };

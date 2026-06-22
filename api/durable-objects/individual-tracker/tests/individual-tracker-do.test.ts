@@ -226,6 +226,7 @@ describe("IndividualTrackerDO", () => {
           "idleTimeoutHours",
           "isPaused",
           "lastUpdateTime",
+          "searchStartTime",
           "startTime",
           "status",
           "trackerId",
@@ -338,10 +339,10 @@ describe("IndividualTrackerDO", () => {
       expect.assertions(5);
       if (body.state != null) {
         expect(body.state).not.toHaveProperty("errorState");
-        expect(body.state).not.toHaveProperty("searchStartTime");
+        expect(body.state.searchStartTime).toBeDefined();
         expect(body.state).not.toHaveProperty("checkCount");
         expect(body.state).not.toHaveProperty("lastMatchDiscoveredAt");
-        expect(Object.keys(body.state)).toHaveLength(10);
+        expect(Object.keys(body.state)).toHaveLength(11);
       }
     });
   });
