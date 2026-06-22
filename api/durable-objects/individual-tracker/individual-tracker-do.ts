@@ -729,17 +729,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const existingSeriesGroupOverrides = trackerState.seriesGroupOverrides ?? [];
     const seriesGroupsChanged =
       existingSeriesGroupOverrides.length !== body.seriesGroups.length ||
-      body.seriesGroups.some((group, index) => {
-        const existingGroup = existingSeriesGroupOverrides[index];
-        if (existingGroup == null) {
-          return true;
-        }
-        return (
-          buildSeriesGroupKey(existingGroup.matchIds) !== buildSeriesGroupKey(group.matchIds) ||
-          existingGroup.titleOverride !== group.titleOverride ||
-          existingGroup.subtitleOverride !== group.subtitleOverride
-        );
-      });
+      !this.seriesGroupsAreEquivalent(existingSeriesGroupOverrides, body.seriesGroups);
 
     const knownSummaries = new Map(Object.entries(trackerState.discoveredMatches));
     const needsHydration = incoming.filter((id) => !knownSummaries.has(id));
@@ -985,6 +975,40 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     return { success: true, summaries };
+  }
+
+  private seriesGroupsAreEquivalent(
+    existing: IndividualTrackerSeriesGroupOverride[],
+    incoming: IndividualTrackerSeriesGroupOverride[],
+  ): boolean {
+    if (existing.length !== incoming.length) {
+      return false;
+    }
+
+    // Create normalized key representations for each group
+    const existingKeys = new Set(existing.map((group) => this.buildSeriesGroupComparisonKey(group)));
+    const incomingKeys = new Set(incoming.map((group) => this.buildSeriesGroupComparisonKey(group)));
+
+    // Check if the sets are the same size and contain the same keys
+    if (existingKeys.size !== incomingKeys.size) {
+      return false;
+    }
+
+    for (const key of existingKeys) {
+      if (!incomingKeys.has(key)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private buildSeriesGroupComparisonKey(group: IndividualTrackerSeriesGroupOverride): string {
+    // Build a deterministic key from the group's content (excluding order)
+    const matchIdKey = buildSeriesGroupKey(group.matchIds);
+    const titleKey = group.titleOverride ?? "";
+    const subtitleKey = group.subtitleOverride ?? "";
+    return `${matchIdKey}:${titleKey}:${subtitleKey}`;
   }
 
   private async handleStartSeries(request: Request): Promise<Response> {

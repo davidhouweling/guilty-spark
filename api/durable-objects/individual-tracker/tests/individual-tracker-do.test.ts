@@ -1070,6 +1070,53 @@ describe("IndividualTrackerDO", () => {
       expect(storagePutSpy).not.toHaveBeenCalled();
       expect(storageSetAlarmSpy).not.toHaveBeenCalled();
     });
+
+    it("treats seriesGroupOverrides in different group order as unchanged", async () => {
+      storagePutSpy.mockClear();
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2", "m3", "m4"],
+          selectedMatchIds: ["m1", "m2", "m3", "m4"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2" }),
+            m3: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m3" }),
+            m4: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m4" }),
+          },
+          seriesGroupOverrides: [
+            { matchIds: ["m1", "m2"], titleOverride: "Group A", subtitleOverride: null },
+            { matchIds: ["m3", "m4"], titleOverride: "Group B", subtitleOverride: null },
+          ],
+          accumulatedMatchIds: ["m1"],
+          accumulatedPlayerTotals: {
+            kills: 5,
+            deaths: 2,
+            assists: 1,
+            headshotKills: 1,
+            shotsFired: 50,
+            shotsHit: 25,
+            damageDealt: 2000,
+            damageTaken: 1000,
+            totalLifeSeconds: 60,
+            totalSpawns: 2,
+            totalLifeSpawns: 2,
+          },
+        }),
+      );
+
+      await individualTrackerDO.fetch(
+        selectRequest(
+          ["m1", "m2", "m3", "m4"],
+          [
+            { matchIds: ["m3", "m4"], titleOverride: "Group B", subtitleOverride: null },
+            { matchIds: ["m1", "m2"], titleOverride: "Group A", subtitleOverride: null },
+          ],
+        ),
+      );
+
+      expect(storagePutSpy).not.toHaveBeenCalled();
+      expect(storageSetAlarmSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe("toViewState() selection filtering", () => {
