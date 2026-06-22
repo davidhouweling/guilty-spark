@@ -145,6 +145,7 @@ export interface IndividualTrackerSeriesGroupOverride {
 
 export interface IndividualTrackerSelectMatchesRequest {
   matchIds: string[];
+  seriesGroups?: IndividualTrackerSeriesGroupOverride[];
 }
 
 export interface IndividualTrackerSelectMatchesResponse {

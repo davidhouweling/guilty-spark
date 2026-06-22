@@ -743,7 +743,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
     }
 
+    const hasHydration = needsHydration.length > 0;
     const unchanged =
+      !hasHydration &&
       incoming.join(",") === trackerState.selectedMatchIds.join(",") &&
       body.seriesGroups.length === 0 &&
       (trackerState.seriesGroupOverrides?.length ?? 0) === 0;
