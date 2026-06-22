@@ -809,7 +809,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           continue;
         }
         const playerEntry = matchStats.Players.find((p) => getPlayerXuid(p) === trackerState.xuid);
-        const outcome = getMatchOutcomeLabel(playerEntry?.Outcome ?? null);
+        if (playerEntry == null) {
+          failingIds.push(matchId);
+          continue;
+        }
+        const outcome = getMatchOutcomeLabel(playerEntry.Outcome);
         const mapName = await this.resolveMapName(
           matchStats.MatchInfo.MapVariant.AssetId,
           matchStats.MatchInfo.MapVariant.VersionId,

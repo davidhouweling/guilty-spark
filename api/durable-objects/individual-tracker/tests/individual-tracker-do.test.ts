@@ -2,7 +2,12 @@ import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
-import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakeTeamWith } from "@guilty-spark/shared/halo/fakes/data";
+import {
+  aFakeCoreStatsWith,
+  aFakeMatchStatsWith,
+  aFakePlayerWith,
+  aFakeTeamWith,
+} from "@guilty-spark/shared/halo/fakes/data";
 import {
   AssetKind,
   type HaloInfiniteClient,
@@ -667,6 +672,16 @@ describe("IndividualTrackerDO", () => {
           },
         }),
       );
+      ownerClient.getMatchStats.mockResolvedValueOnce(
+        aFakeMatchStatsWith({
+          Players: [
+            aFakePlayerWith({
+              PlayerId: "fake-xuid",
+              Outcome: 2,
+            }),
+          ],
+        }),
+      );
 
       const response = await individualTrackerDO.fetch(selectRequest(["m1", "unknown-id"]));
 
@@ -696,6 +711,27 @@ describe("IndividualTrackerDO", () => {
       expect(response.status).toBe(400);
       const body: { error: string } = await response.json();
       expect(body.error).toContain("bad-id");
+      expect(storagePutSpy).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 and does not persist when hydration cannot find the tracked player", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1"],
+          discoveredMatches: { m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1" }) },
+        }),
+      );
+      ownerClient.getMatchStats.mockResolvedValueOnce(
+        aFakeMatchStatsWith({
+          Players: [],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(selectRequest(["m1", "orphaned-match"]));
+
+      expect(response.status).toBe(400);
+      const body: { error: string } = await response.json();
+      expect(body.error).toContain("orphaned-match");
       expect(storagePutSpy).not.toHaveBeenCalled();
     });
 
