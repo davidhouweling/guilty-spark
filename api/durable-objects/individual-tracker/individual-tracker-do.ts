@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/cloudflare";
 import { addMilliseconds, compareAsc, differenceInHours } from "date-fns";
 import { type MatchStats, MatchType, type PlaylistCsrContainer, RequestError } from "halo-infinite-api";
+import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import {
   editSeriesContract,
@@ -730,9 +731,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     if (needsHydration.length > 0) {
       const hydrationResult = await this.hydrateMatchSummaries(trackerState, needsHydration);
       if (!hydrationResult.success) {
-        return new Response(
-          JSON.stringify({ error: `Failed to hydrate matches: ${hydrationResult.failingIds.join(", ")}` }),
-          { status: 400, headers: { "Content-Type": "application/json" } },
+        return errorContract.toResponse(
+          { error: `Failed to hydrate matches: ${hydrationResult.failingIds.join(", ")}` },
+          { status: 400, noStore: true },
         );
       }
       for (const [matchId, summary] of hydrationResult.summaries) {
@@ -1156,6 +1157,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       ...(state.activeSeries != null ? [state.activeSeries] : []),
       ...(state.completedSeries ?? []),
     ];
+    const seriesGroupOverridesByKey = new Map<string, IndividualTrackerSeriesGroupOverride>();
+    for (const override of state.seriesGroupOverrides ?? []) {
+      seriesGroupOverridesByKey.set(buildSeriesGroupKey(override.matchIds), override);
+    }
 
     const series = groupings.map((matchIds): IndividualTrackerSeriesGroup => {
       const groupSummaries = matchIds
@@ -1185,9 +1190,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
       const matchIdSet = new Set(matchIds);
       const seriesContext = allSeriesContexts.find((ctx) => ctx.matchIds.some((id) => matchIdSet.has(id)));
-      const seriesGroupOverride = (state.seriesGroupOverrides ?? []).find((ov) =>
-        ov.matchIds.some((id) => matchIdSet.has(id)),
-      );
+      const seriesGroupOverride = seriesGroupOverridesByKey.get(buildSeriesGroupKey(matchIds));
 
       const title = seriesContext?.title ?? seriesGroupOverride?.titleOverride ?? defaultTitle;
       const subtitle = seriesContext?.subtitle ?? seriesGroupOverride?.subtitleOverride ?? defaultSubtitle;

@@ -973,7 +973,7 @@ describe("IndividualTrackerDO", () => {
             }),
           },
           seriesGroupOverrides: [
-            { matchIds: ["m1", "m2"], titleOverride: "Custom Series", subtitleOverride: "Custom Sub" },
+            { matchIds: ["m2", "m1"], titleOverride: "Custom Series", subtitleOverride: "Custom Sub" },
           ],
         }),
       );
@@ -983,6 +983,46 @@ describe("IndividualTrackerDO", () => {
 
       expect(body.state?.series[0]?.title).toBe("Custom Series");
       expect(body.state?.series[0]?.subtitle).toBe("Custom Sub");
+    });
+
+    it("does not apply a seriesGroupOverride to a non-matching group with overlapping matchIds", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2", "m3", "m4"],
+          selectedMatchIds: ["m1", "m2", "m3", "m4"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m1",
+              teamRosterSignature: "0:1|1:2",
+              teamOutcomes: [2, 3],
+            }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m2",
+              teamRosterSignature: "0:1|1:2",
+              teamOutcomes: [2, 3],
+            }),
+            m3: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m3",
+              teamRosterSignature: "0:1|1:2",
+              teamOutcomes: [2, 3],
+            }),
+            m4: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m4",
+              teamRosterSignature: "0:1|1:2",
+              teamOutcomes: [2, 3],
+            }),
+          },
+          seriesGroupOverrides: [
+            { matchIds: ["m1", "m2", "m3"], titleOverride: "Overlapping Override", subtitleOverride: "Bad Match" },
+          ],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.series.map((series) => series.title)).not.toContain("Overlapping Override");
+      expect(body.state?.series.map((series) => series.subtitle)).not.toContain("Bad Match");
     });
 
     it("active series title takes precedence over seriesGroupOverride title", async () => {
