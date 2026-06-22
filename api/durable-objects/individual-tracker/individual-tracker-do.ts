@@ -735,7 +735,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           return true;
         }
         return (
-          existingGroup.matchIds.join(",") !== group.matchIds.join(",") ||
+          buildSeriesGroupKey(existingGroup.matchIds) !== buildSeriesGroupKey(group.matchIds) ||
           existingGroup.titleOverride !== group.titleOverride ||
           existingGroup.subtitleOverride !== group.subtitleOverride
         );
