@@ -1155,7 +1155,7 @@ describe("IndividualTrackerDO", () => {
       expect(storagePutSpy).toHaveBeenCalled();
       // Verify the state was updated with the new override
       const [, updatedState] = storagePutSpy.mock.calls[0] ?? [];
-      expect((updatedState)?.seriesGroupOverrides?.[0]?.titleOverride).toBe("");
+      expect(updatedState?.seriesGroupOverrides?.[0]?.titleOverride).toBe("");
       expect(response.status).toBe(200);
     });
 
@@ -1196,7 +1196,7 @@ describe("IndividualTrackerDO", () => {
       expect(storagePutSpy).toHaveBeenCalled();
       // Verify the state was updated with the new override
       const [, updatedState] = storagePutSpy.mock.calls[0] ?? [];
-      expect((updatedState)?.seriesGroupOverrides?.[0]?.subtitleOverride).toBe("");
+      expect(updatedState?.seriesGroupOverrides?.[0]?.subtitleOverride).toBe("");
       expect(response.status).toBe(200);
     });
   });
