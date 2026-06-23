@@ -40,7 +40,7 @@ function aMatch(matchId: string): TrackerMatchHistoryResponse["matches"][number]
     resultString: "Win - 50:40",
     isMatchmaking: false,
     category: "custom",
-    teams: [],
+    teams: [["alpha", "bravo"], ["charlie", "delta"]],
     mapThumbnailUrl: "data:,",
   };
 }
@@ -200,6 +200,57 @@ describe("GameSelectionDialogPresenter", () => {
       presenter.setHideShortGames(false);
 
       expect(store.getSnapshot().hideShortGames).toBe(false);
+    });
+  });
+
+  describe("loadMore()", () => {
+    it("recomputes and merges suggestions using new page plus prior-page boundary", async () => {
+      const firstPageTail = [aMatch("old-1"), aMatch("old-2")];
+      const service = aFakeService({
+        getMatchHistory: vi.fn<IndividualTrackerService["getMatchHistory"]>().mockResolvedValue({
+          matches: [aMatch("new-1"), aMatch("new-2")],
+          suggestedGroupings: [],
+        }),
+      });
+
+      store.batchUpdate({
+        matches: firstPageTail,
+        groupings: [],
+        seriesGroups: [],
+      });
+
+      const presenter = buildPresenter(service, store);
+      await presenter.loadMore();
+
+      expect(store.getSnapshot().groupings).toEqual([["old-1", "old-2", "new-1", "new-2"]]);
+    });
+
+    it("does not create new groups from older non-boundary data", async () => {
+      const oldMatches = [aMatch("old-a"), aMatch("old-b")];
+      const fillerMatches = Array.from({ length: 24 }, (_, index) => ({
+        ...aMatch(`filler-${index.toString()}`),
+        isMatchmaking: true,
+        category: "matchmaking" as const,
+      }));
+      const boundaryMatch = aMatch("old-tail");
+      const service = aFakeService({
+        getMatchHistory: vi.fn<IndividualTrackerService["getMatchHistory"]>().mockResolvedValue({
+          matches: [aMatch("new-1")],
+          suggestedGroupings: [],
+        }),
+      });
+
+      store.batchUpdate({
+        matches: [...oldMatches, ...fillerMatches, boundaryMatch],
+        groupings: [],
+        seriesGroups: [],
+      });
+
+      const presenter = buildPresenter(service, store);
+      await presenter.loadMore();
+
+      expect(store.getSnapshot().groupings).toEqual([["old-tail", "new-1"]]);
+      expect(store.getSnapshot().groupings).not.toContainEqual(["old-a", "old-b"]);
     });
   });
 
