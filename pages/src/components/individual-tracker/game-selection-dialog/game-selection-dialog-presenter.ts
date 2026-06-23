@@ -1,5 +1,5 @@
 import { analyzeMatchGroupings } from "@guilty-spark/shared/halo/match-enrichment";
-import type { IndividualTrackerService , TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
+import type { IndividualTrackerService, TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
 import { alignSeriesGroupsToGroupings } from "../series-group-metadata";
 import { applyAddToAdjacentGroup, applyBreakFromGroup } from "../grouping-utils";
