@@ -13,6 +13,12 @@ interface Config {
   readonly initialSelectedMatchIds: readonly string[];
   readonly initialGroupings: readonly (readonly string[])[];
   readonly initialSeriesGroups: readonly IndividualTrackerSeriesGroup[];
+  readonly searchStartTime?: string;
+  readonly activeSeriesContext?: {
+    readonly title: string;
+    readonly subtitle: string | null;
+    readonly teams: readonly unknown[];
+  };
   readonly onSynced: () => void;
 }
 
@@ -43,6 +49,7 @@ export class GameSelectionDialogPresenter {
       hasMore: false,
       hideShortGames: true,
       isSyncing: false,
+      hasActiveSeriesWarning: false,
       errorMessage: null,
     });
 
@@ -50,19 +57,61 @@ export class GameSelectionDialogPresenter {
   }
 
   private async loadMatchesAsync(): Promise<void> {
-    const { store, service, xuid } = this.config;
+    const { store, service, xuid, initialSelectedMatchIds, searchStartTime, activeSeriesContext } = this.config;
     try {
-      const response = await service.getMatchHistory(xuid, 0, 25);
-      if (this.isDisposed) {
-        return;
+      const allLoadedMatches: unknown[] = [];
+      const maxPages = 4;
+      const pageSize = 25;
+      const targetMatchIds = new Set(initialSelectedMatchIds);
+      const searchStartTimeMs = searchStartTime != null ? new Date(searchStartTime).getTime() : 0;
+
+      // Load pages until all initial matches are found, we've covered searchStartTime, or we reach max pages
+      for (let pageIndex = 0; pageIndex < maxPages; pageIndex++) {
+        const offset = pageIndex * pageSize;
+        const response = await service.getMatchHistory(xuid, offset, pageSize);
+
+        if (this.isDisposed) {
+          return;
+        }
+
+        allLoadedMatches.push(...response.matches);
+
+        // Check if all target matches are now loaded
+        const loadedMatchIds = new Set(allLoadedMatches.map((m: unknown) => (m as { matchId: string }).matchId));
+        const allFound = Array.from(targetMatchIds).every((id) => loadedMatchIds.has(id));
+
+        // Check if we've covered the searchStartTime boundary (if provided)
+        const reachedSearchBoundary =
+          searchStartTimeMs === 0 ||
+          response.matches.length === 0 ||
+          response.matches.some(
+            (m: unknown) => new Date((m as { startTime: string }).startTime).getTime() < searchStartTimeMs,
+          );
+
+        // Stop early if all matches found AND we've reached the search boundary, or if we got fewer than pageSize (end of history)
+        if ((allFound && reachedSearchBoundary) || response.matches.length < pageSize) {
+          const snapshot = store.getSnapshot();
+          const groupings = snapshot.groupings.length > 0 ? snapshot.groupings : [...response.suggestedGroupings];
+          store.batchUpdate({
+            matches: allLoadedMatches as never,
+            groupings,
+            seriesGroups: alignSeriesGroupsToGroupings(groupings, Array.from(snapshot.seriesGroups)),
+            hasMore: false,
+            hasActiveSeriesWarning: activeSeriesContext !== undefined,
+          });
+          return;
+        }
       }
+
+      // Reached max pages without finding all (rare edge case, but acceptable per requirements)
       const snapshot = store.getSnapshot();
-      const groupings = snapshot.groupings.length > 0 ? snapshot.groupings : [...response.suggestedGroupings];
+      const groupings = snapshot.groupings.length > 0 ? snapshot.groupings : [];
       store.batchUpdate({
-        matches: response.matches,
+        matches: allLoadedMatches as never,
         groupings,
         seriesGroups: alignSeriesGroupsToGroupings(groupings, Array.from(snapshot.seriesGroups)),
-        hasMore: response.matches.length >= 25,
+        hasMore: true,
+        hasActiveSeriesWarning: activeSeriesContext !== undefined,
       });
     } catch (err: unknown) {
       if (this.isDisposed) {

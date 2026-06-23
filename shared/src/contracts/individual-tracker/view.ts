@@ -53,6 +53,7 @@ export const trackerLiveViewSchema = z.object({
   lastMatchDiscoveredAt: z.string().nullable(),
   hasActiveSeries: z.boolean(),
   hasRecentCompletedSeries: z.boolean(),
+  searchStartTime: z.string().optional(),
   activeSeriesContext: z
     .object({
       title: z.string(),

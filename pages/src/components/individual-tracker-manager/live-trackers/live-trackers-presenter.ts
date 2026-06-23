@@ -651,6 +651,8 @@ export class LiveTrackersPresenter {
       initialGroupings: liveView?.series.map((s) => s.matchIds) ?? [],
       initialSeriesGroups:
         liveView?.series.map((s) => ({ matchIds: s.matchIds, titleOverride: null, subtitleOverride: null })) ?? [],
+      ...(liveView?.searchStartTime !== undefined ? { searchStartTime: liveView.searchStartTime } : {}),
+      ...(liveView?.activeSeriesContext !== undefined ? { activeSeriesContext: liveView.activeSeriesContext } : {}),
     };
     this.updateSnapshot((s) => ({ ...s, gameSelectionDialogState: dialogState }));
   }

@@ -21,6 +21,7 @@ export interface GameSelectionDialogProps {
   readonly selectedMatchIds: ReadonlySet<string>;
   readonly hasMore: boolean;
   readonly hideShortGames: boolean;
+  readonly hasActiveSeriesWarning: boolean;
   readonly onClose: () => void;
   readonly onSyncAndClose: () => void;
   readonly onMatchToggle: (matchId: string) => void;
@@ -45,6 +46,7 @@ export function GameSelectionDialog({
   selectedMatchIds,
   hasMore,
   hideShortGames,
+  hasActiveSeriesWarning,
   onClose,
   onSyncAndClose,
   onMatchToggle,
@@ -80,6 +82,13 @@ export function GameSelectionDialog({
       </div>
 
       {errorMessage != null && <Alert variant="error">{errorMessage}</Alert>}
+
+      {hasActiveSeriesWarning && (
+        <Alert variant="info">
+          An active series is in progress. Use the series controls in the main tracker view to modify the active series.
+          Your selections here will update the overall match history.
+        </Alert>
+      )}
 
       {errorMessage == null && visibleMatches == null ? (
         <div className={styles.matchesContainer}>
