@@ -96,7 +96,7 @@ export class GameSelectionDialogPresenter {
             matches: allLoadedMatches as never,
             groupings,
             seriesGroups: alignSeriesGroupsToGroupings(groupings, Array.from(snapshot.seriesGroups)),
-            hasMore: false,
+            hasMore: response.matches.length >= pageSize,
             hasActiveSeriesWarning: activeSeriesContext !== undefined,
           });
           return;

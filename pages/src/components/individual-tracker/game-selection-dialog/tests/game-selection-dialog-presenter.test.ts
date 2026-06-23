@@ -93,6 +93,22 @@ describe("GameSelectionDialogPresenter", () => {
       expect(service.getMatchHistory).toHaveBeenCalledWith("xuid-1", 0, 25);
     });
 
+    it("keeps hasMore true when auto-preload stops on a full page", async () => {
+      const page = Array.from({ length: 25 }, (_, index) => aMatch(`m-${index.toString()}`));
+      const service = aFakeService({
+        getMatchHistory: vi.fn<IndividualTrackerService["getMatchHistory"]>().mockResolvedValue({
+          matches: page,
+          suggestedGroupings: [],
+        }),
+      });
+
+      const presenter = buildPresenter(service, store);
+      presenter.loadMatches();
+
+      await flushPromises();
+      expect(store.getSnapshot().hasMore).toBe(true);
+    });
+
     it("sets suggested groupings when no initial groupings", async () => {
       const service = aFakeService({
         getMatchHistory: vi.fn<IndividualTrackerService["getMatchHistory"]>().mockResolvedValue({
