@@ -4,16 +4,11 @@
   flex-direction: column;
   gap: var(--space-3);
   padding-top: var(--space-2);
+  margin-bottom: var(--space-4);
 }
 
 .backButton {
   align-self: flex-start;
-  opacity: 0.78;
-}
-
-.backButton:hover,
-.backButton:focus-visible {
-  opacity: 1;
 }
 
 .viewerActionRight {
