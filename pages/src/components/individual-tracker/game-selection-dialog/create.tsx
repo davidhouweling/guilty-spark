@@ -13,6 +13,8 @@ export interface GameSelectionDialogSectionProps {
   readonly initialSelectedMatchIds: readonly string[];
   readonly initialGroupings: readonly (readonly string[])[];
   readonly initialSeriesGroups: readonly IndividualTrackerSeriesGroup[];
+  readonly searchStartTime?: string;
+  readonly hasActiveSeriesWarning?: boolean;
   readonly onClose: () => void;
   readonly onSynced: () => void;
   readonly individualTrackerService: IndividualTrackerService;
@@ -26,6 +28,8 @@ export function GameSelectionDialogSection({
   initialSelectedMatchIds,
   initialGroupings,
   initialSeriesGroups,
+  searchStartTime,
+  hasActiveSeriesWarning,
   onClose,
   onSynced,
   individualTrackerService,
@@ -45,11 +49,23 @@ export function GameSelectionDialogSection({
         initialSelectedMatchIds,
         initialGroupings,
         initialSeriesGroups,
+        searchStartTime,
+        hasActiveSeriesWarning,
         onSynced: (): void => {
           onSyncedRef.current();
         },
       }),
-    [store, individualTrackerService, trackerId, xuid, initialSelectedMatchIds, initialGroupings, initialSeriesGroups],
+    [
+      store,
+      individualTrackerService,
+      trackerId,
+      xuid,
+      initialSelectedMatchIds,
+      initialGroupings,
+      initialSeriesGroups,
+      searchStartTime,
+      hasActiveSeriesWarning,
+    ],
   );
 
   useEffect(() => {
@@ -89,6 +105,7 @@ export function GameSelectionDialogSection({
       selectedMatchIds={snapshot.selectedMatchIds}
       hasMore={snapshot.hasMore}
       hideShortGames={snapshot.hideShortGames}
+      hasActiveSeriesWarning={snapshot.hasActiveSeriesWarning}
       onClose={onClose}
       onSyncAndClose={handleSyncAndClose}
       onMatchToggle={(matchId): void => {

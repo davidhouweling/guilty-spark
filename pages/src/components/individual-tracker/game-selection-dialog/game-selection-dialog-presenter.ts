@@ -1,4 +1,5 @@
-import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
+import { analyzeMatchGroupings } from "@guilty-spark/shared/halo/match-enrichment";
+import type { IndividualTrackerService, TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
 import { alignSeriesGroupsToGroupings } from "../series-group-metadata";
 import { applyAddToAdjacentGroup, applyBreakFromGroup } from "../grouping-utils";
@@ -13,10 +14,13 @@ interface Config {
   readonly initialSelectedMatchIds: readonly string[];
   readonly initialGroupings: readonly (readonly string[])[];
   readonly initialSeriesGroups: readonly IndividualTrackerSeriesGroup[];
+  readonly searchStartTime?: string;
+  readonly hasActiveSeriesWarning?: boolean;
   readonly onSynced: () => void;
 }
 
 export class GameSelectionDialogPresenter {
+  private static readonly PAGE_SIZE = 25;
   private readonly config: Config;
   private isDisposed = false;
 
@@ -33,7 +37,8 @@ export class GameSelectionDialogPresenter {
       return;
     }
 
-    const { store, initialSelectedMatchIds, initialGroupings, initialSeriesGroups } = this.config;
+    const { store, initialSelectedMatchIds, initialGroupings, initialSeriesGroups, hasActiveSeriesWarning } =
+      this.config;
 
     store.batchUpdate({
       matches: null,
@@ -43,6 +48,7 @@ export class GameSelectionDialogPresenter {
       hasMore: false,
       hideShortGames: true,
       isSyncing: false,
+      hasActiveSeriesWarning: hasActiveSeriesWarning ?? false,
       errorMessage: null,
     });
 
@@ -50,19 +56,62 @@ export class GameSelectionDialogPresenter {
   }
 
   private async loadMatchesAsync(): Promise<void> {
-    const { store, service, xuid } = this.config;
+    const { store, service, xuid, initialSelectedMatchIds, searchStartTime } = this.config;
     try {
-      const response = await service.getMatchHistory(xuid, 0, 25);
-      if (this.isDisposed) {
-        return;
+      const allLoadedMatches: TrackerMatchHistoryEntry[] = [];
+      const maxPages = 4;
+      const targetMatchIds = new Set(initialSelectedMatchIds);
+      const parsedSearchStartTime = searchStartTime != null ? new Date(searchStartTime).getTime() : NaN;
+      const searchStartTimeMs = Number.isFinite(parsedSearchStartTime) ? parsedSearchStartTime : 0;
+
+      // Load pages until we've found all initial matches AND covered the searchStartTime boundary, or we reach max pages/end of history
+      for (let pageIndex = 0; pageIndex < maxPages; pageIndex++) {
+        const offset = pageIndex * GameSelectionDialogPresenter.PAGE_SIZE;
+        const response = await service.getMatchHistory(xuid, offset, GameSelectionDialogPresenter.PAGE_SIZE);
+
+        if (this.isDisposed) {
+          return;
+        }
+
+        allLoadedMatches.push(...response.matches);
+
+        // Check if all target matches are now loaded
+        const loadedMatchIds = new Set(allLoadedMatches.map((match) => match.matchId));
+        const allFound = Array.from(targetMatchIds).every((id) => loadedMatchIds.has(id));
+
+        // Check if we've covered the searchStartTime boundary (if provided)
+        const reachedSearchBoundary =
+          searchStartTimeMs === 0 ||
+          response.matches.length === 0 ||
+          response.matches.length < GameSelectionDialogPresenter.PAGE_SIZE ||
+          response.matches.some((match) => {
+            const isoTime = match.startTimeIso != null ? new Date(match.startTimeIso).getTime() : NaN;
+            const matchTimeMs = Number.isFinite(isoTime) ? isoTime : new Date(match.startTime).getTime();
+            return Number.isFinite(matchTimeMs) && matchTimeMs < searchStartTimeMs;
+          });
+
+        // Stop early if all matches found AND we've reached the search boundary, or if we got fewer than PAGE_SIZE (end of history)
+        if ((allFound && reachedSearchBoundary) || response.matches.length < GameSelectionDialogPresenter.PAGE_SIZE) {
+          const snapshot = store.getSnapshot();
+          const groupings = this.mergeSuggestedGroupings(snapshot.groupings, allLoadedMatches, 0);
+          store.batchUpdate({
+            matches: allLoadedMatches,
+            groupings,
+            seriesGroups: alignSeriesGroupsToGroupings(groupings, Array.from(snapshot.seriesGroups)),
+            hasMore: response.matches.length >= GameSelectionDialogPresenter.PAGE_SIZE,
+          });
+          return;
+        }
       }
+
+      // Reached max pages without finding all (rare edge case, but acceptable per requirements)
       const snapshot = store.getSnapshot();
-      const groupings = snapshot.groupings.length > 0 ? snapshot.groupings : [...response.suggestedGroupings];
+      const groupings = this.mergeSuggestedGroupings(snapshot.groupings, allLoadedMatches, 0);
       store.batchUpdate({
-        matches: response.matches,
+        matches: allLoadedMatches,
         groupings,
         seriesGroups: alignSeriesGroupsToGroupings(groupings, Array.from(snapshot.seriesGroups)),
-        hasMore: response.matches.length >= 25,
+        hasMore: true,
       });
     } catch (err: unknown) {
       if (this.isDisposed) {
@@ -91,15 +140,19 @@ export class GameSelectionDialogPresenter {
   private async loadMoreAsync(start: number): Promise<void> {
     const { store, service, xuid } = this.config;
     try {
-      const response = await service.getMatchHistory(xuid, start, 25);
+      const response = await service.getMatchHistory(xuid, start, GameSelectionDialogPresenter.PAGE_SIZE);
       if (this.isDisposed) {
         return;
       }
       const current = store.getSnapshot();
       const allMatches = current.matches != null ? [...current.matches, ...response.matches] : response.matches;
+      const nextGroupings = this.mergeSuggestedGroupings(current.groupings, allMatches, start);
+      const nextSeriesGroups = alignSeriesGroupsToGroupings(nextGroupings, Array.from(current.seriesGroups));
       store.batchUpdate({
         matches: allMatches,
-        hasMore: response.matches.length >= 25,
+        groupings: nextGroupings,
+        seriesGroups: nextSeriesGroups,
+        hasMore: response.matches.length >= GameSelectionDialogPresenter.PAGE_SIZE,
       });
     } catch {
       /* keep existing data visible */
@@ -234,5 +287,87 @@ export class GameSelectionDialogPresenter {
     const snapshot = this.config.store.getSnapshot();
     const nextSeriesGroups = alignSeriesGroupsToGroupings(nextGroupings, Array.from(snapshot.seriesGroups));
     this.config.store.batchUpdate({ groupings: nextGroupings, seriesGroups: nextSeriesGroups });
+  }
+
+  private mergeSuggestedGroupings(
+    currentGroupings: readonly (readonly string[])[],
+    allMatches: readonly TrackerMatchHistoryEntry[],
+    previousMatchCount: number,
+  ): readonly (readonly string[])[] {
+    const lookbackStart = Math.max(0, previousMatchCount - GameSelectionDialogPresenter.PAGE_SIZE);
+    const boundaryMatches = allMatches.slice(lookbackStart);
+    const newMatchIds = new Set(allMatches.slice(previousMatchCount).map((match) => match.matchId));
+    const suggestedGroupings = this.computeSuggestedGroupings(boundaryMatches).filter((group) =>
+      group.some((matchId) => newMatchIds.has(matchId)),
+    );
+    const nextGroupings = currentGroupings.map((group) => [...group]);
+    const timelineOrderedMatchIds = allMatches.map((match) => match.matchId);
+
+    for (const suggestedGroup of suggestedGroupings) {
+      const suggestedMatchIds = new Set(suggestedGroup);
+      const overlappingGroupIndexes: number[] = [];
+
+      for (const [index, existingGroup] of nextGroupings.entries()) {
+        if (existingGroup.some((matchId) => suggestedMatchIds.has(matchId))) {
+          overlappingGroupIndexes.push(index);
+        }
+      }
+
+      if (overlappingGroupIndexes.length === 0) {
+        nextGroupings.push([...suggestedGroup]);
+        continue;
+      }
+
+      const mergedMatchIds = new Set<string>(suggestedGroup);
+      for (const index of overlappingGroupIndexes) {
+        for (const matchId of nextGroupings[index] ?? []) {
+          mergedMatchIds.add(matchId);
+        }
+      }
+
+      const overlappingIndexesSet = new Set(overlappingGroupIndexes);
+      const groupsWithoutOverlaps = nextGroupings.filter((_, index) => !overlappingIndexesSet.has(index));
+      const mergedGroup = timelineOrderedMatchIds.filter((matchId) => mergedMatchIds.has(matchId));
+      nextGroupings.length = 0;
+      nextGroupings.push(...groupsWithoutOverlaps, mergedGroup);
+    }
+
+    return this.sortGroupingsByTimeline(nextGroupings, allMatches);
+  }
+
+  private computeSuggestedGroupings(allMatches: readonly TrackerMatchHistoryEntry[]): readonly (readonly string[])[] {
+    return analyzeMatchGroupings(
+      allMatches.map((match) => ({
+        matchId: match.matchId,
+        isMatchmaking: match.isMatchmaking,
+        teamRosterSignature: this.getTeamRosterSignature(match),
+      })),
+    );
+  }
+
+  private getTeamRosterSignature(match: TrackerMatchHistoryEntry): string | null {
+    if (match.isMatchmaking || match.teams.length === 0) {
+      return null;
+    }
+
+    const sortedTeams = match.teams.map((team) => [...team].sort().join(",")).sort();
+
+    return sortedTeams.join("|");
+  }
+
+  private sortGroupingsByTimeline(
+    groupings: readonly (readonly string[])[],
+    allMatches: readonly TrackerMatchHistoryEntry[],
+  ): readonly (readonly string[])[] {
+    const matchIndex = new Map<string, number>();
+    for (const [index, match] of allMatches.entries()) {
+      matchIndex.set(match.matchId, index);
+    }
+
+    return [...groupings].sort((leftGroup, rightGroup) => {
+      const leftIndex = Math.min(...leftGroup.map((matchId) => matchIndex.get(matchId) ?? Number.MAX_SAFE_INTEGER));
+      const rightIndex = Math.min(...rightGroup.map((matchId) => matchIndex.get(matchId) ?? Number.MAX_SAFE_INTEGER));
+      return leftIndex - rightIndex;
+    });
   }
 }

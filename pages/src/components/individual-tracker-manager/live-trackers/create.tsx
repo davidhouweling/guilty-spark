@@ -63,6 +63,8 @@ function LiveTrackersSectionInternal({
               initialSelectedMatchIds={snapshot.gameSelectionDialogState.initialSelectedMatchIds}
               initialGroupings={snapshot.gameSelectionDialogState.initialGroupings}
               initialSeriesGroups={snapshot.gameSelectionDialogState.initialSeriesGroups}
+              searchStartTime={snapshot.gameSelectionDialogState.searchStartTime}
+              hasActiveSeriesWarning={snapshot.gameSelectionDialogState.hasActiveSeriesWarning}
               onClose={(): void => {
                 controller.closeGameSelectionDialog();
               }}

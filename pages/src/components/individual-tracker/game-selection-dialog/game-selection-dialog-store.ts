@@ -9,6 +9,7 @@ export interface GameSelectionDialogSnapshot {
   readonly hasMore: boolean;
   readonly hideShortGames: boolean;
   readonly isSyncing: boolean;
+  readonly hasActiveSeriesWarning: boolean;
   readonly errorMessage: string | null;
 }
 
@@ -25,6 +26,7 @@ export class GameSelectionDialogStore {
       hasMore: false,
       hideShortGames: true,
       isSyncing: false,
+      hasActiveSeriesWarning: false,
       errorMessage: null,
     };
   }

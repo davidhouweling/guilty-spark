@@ -8,6 +8,8 @@ export interface GameSelectionDialogState {
   readonly initialSelectedMatchIds: readonly string[];
   readonly initialGroupings: readonly (readonly string[])[];
   readonly initialSeriesGroups: readonly IndividualTrackerSeriesGroup[];
+  readonly searchStartTime?: string;
+  readonly hasActiveSeriesWarning?: boolean;
 }
 
 export interface ManualSeriesDialogState {
