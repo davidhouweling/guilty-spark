@@ -252,6 +252,40 @@ describe("GameSelectionDialogPresenter", () => {
       expect(store.getSnapshot().groupings).toEqual([["old-tail", "new-1"]]);
       expect(store.getSnapshot().groupings).not.toContainEqual(["old-a", "old-b"]);
     });
+
+    it("groups matches with same team rosters regardless of team order", async () => {
+      const teamAlpha = ["alpha", "bravo"];
+      const teamBeta = ["charlie", "delta"];
+
+      const match1 = {
+        ...aMatch("m1"),
+        teams: [teamAlpha, teamBeta],
+      };
+      const match2 = {
+        ...aMatch("m2"),
+        teams: [teamBeta, teamAlpha],
+      };
+
+      const service = aFakeService({
+        getMatchHistory: vi
+          .fn<IndividualTrackerService["getMatchHistory"]>()
+          .mockResolvedValue({
+            matches: [match2],
+            suggestedGroupings: [],
+          }),
+      });
+
+      store.batchUpdate({
+        matches: [match1],
+        groupings: [],
+        seriesGroups: [],
+      });
+
+      const presenter = buildPresenter(service, store);
+      await presenter.loadMore();
+
+      expect(store.getSnapshot().groupings).toEqual([["m1", "m2"]]);
+    });
   });
 
   describe("syncAndClose()", () => {

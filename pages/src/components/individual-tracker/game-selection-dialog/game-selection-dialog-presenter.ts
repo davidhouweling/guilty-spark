@@ -335,9 +335,11 @@ export class GameSelectionDialogPresenter {
       return null;
     }
 
-    return match.teams
-      .map((team, index) => `${index.toString()}:${[...team].sort().join(",")}`)
-      .join("|");
+    const sortedTeams = match.teams
+      .map((team) => [...team].sort().join(","))
+      .sort();
+
+    return sortedTeams.join("|");
   }
 
   private sortGroupingsByTimeline(
