@@ -1392,7 +1392,7 @@ describe("IndividualTrackerDO", () => {
 
     it("polls getPlayerMatches and appends only genuinely-new matches at/after searchStartTime", async () => {
       const searchStartTime = "2024-11-26T11:00:00.000Z";
-      // New marker-based polling: first page only (no marker to search for)
+      // Initial poll (no marker set): fetch page 0 with matches, then page 1 (empty) to end pagination
       ownerClient.getPlayerMatches
         .mockResolvedValueOnce([
           aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z"),
@@ -1437,6 +1437,94 @@ describe("IndividualTrackerDO", () => {
         score: "50:42",
       });
       expect(persisted.discoveredMatches).not.toHaveProperty("match-too-old");
+    });
+
+    it("stops polling when marker is found and only processes matches before it", async () => {
+      const searchStartTime = "2024-11-26T11:00:00.000Z";
+      // Marker-based poll: page 0 and 1 have matches, page 1 contains marker, should stop polling
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([
+          aFakePlayerMatch("match-new-1", "2024-11-26T11:50:00.000Z"),
+          aFakePlayerMatch("match-new-2", "2024-11-26T11:45:00.000Z"),
+        ])
+        .mockResolvedValueOnce([
+          aFakePlayerMatch("match-marker", "2024-11-26T11:40:00.000Z"),
+          aFakePlayerMatch("match-old-3", "2024-11-26T11:35:00.000Z"),
+        ]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime,
+          matchIds: [],
+          lastSeenMatchId: "match-marker",
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      // Should find marker on page 1 and stop polling (no page 2 fetched)
+      expect(ownerClient.getPlayerMatches).toHaveBeenCalledTimes(2);
+      const persisted = lastPersistedState(storagePutSpy);
+      // Should only process matches before marker (match-new-1, match-new-2)
+      expect(persisted.matchIds).toEqual(["match-new-1", "match-new-2"]);
+      expect(persisted).not.toHaveProperty("match-old-3");
+      // Marker becomes new lastSeenMatchId for next poll
+      expect(persisted.lastSeenMatchId).toBe("match-new-1");
+    });
+
+    it("falls back to searchStartTime filter when marker is not found after pagination", async () => {
+      const searchStartTime = "2024-11-26T11:00:00.000Z";
+      // Marker not found: fetch pages until empty or max cap
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([
+          aFakePlayerMatch("match-new-1", "2024-11-26T11:50:00.000Z"),
+          aFakePlayerMatch("match-new-2", "2024-11-26T11:45:00.000Z"),
+        ])
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new-3", "2024-11-26T11:30:00.000Z")])
+        .mockResolvedValueOnce([]); // Stop pagination
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime,
+          matchIds: [],
+          lastSeenMatchId: "match-missing",
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      // Should fetch multiple pages looking for marker
+      expect(ownerClient.getPlayerMatches).toHaveBeenCalledTimes(3);
+      const persisted = lastPersistedState(storagePutSpy);
+      // Should process all matches since marker not found (fallback to searchStartTime)
+      expect(persisted.matchIds).toContain("match-new-1");
+      expect(persisted.matchIds).toContain("match-new-2");
+      expect(persisted.matchIds).toContain("match-new-3");
+    });
+
+    it("processes no matches when marker is found at index 0 (marker is newest)", async () => {
+      const searchStartTime = "2024-11-26T11:00:00.000Z";
+      // Edge case: marker is the newest match
+      ownerClient.getPlayerMatches.mockResolvedValueOnce([
+        aFakePlayerMatch("match-marker", "2024-11-26T11:50:00.000Z"),
+        aFakePlayerMatch("match-old-1", "2024-11-26T11:40:00.000Z"),
+      ]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime,
+          matchIds: [],
+          lastSeenMatchId: "match-marker",
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      // Should find marker at index 0 and process zero matches
+      expect(ownerClient.getPlayerMatches).toHaveBeenCalledTimes(1);
+      const persisted = lastPersistedState(storagePutSpy);
+      // No new matches added (slice(0, 0) is empty)
+      expect(persisted.matchIds).toEqual([]);
     });
 
     it("auto-appends a new match to selectedMatchIds when duration >= 120s", async () => {

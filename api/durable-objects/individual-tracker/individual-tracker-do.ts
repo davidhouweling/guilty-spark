@@ -75,6 +75,7 @@ const CONSECUTIVE_ERROR_INTERVAL_MINUTES = 5;
 const MAX_BACKOFF_INTERVAL_MINUTES = 10;
 
 const PLAYER_MATCHES_PAGE_SIZE = 25;
+const MAX_MATCHES_TO_FETCH = 100;
 
 const STATE_STORAGE_KEY = "individualTrackerState";
 
@@ -264,9 +265,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const allMatches: Awaited<ReturnType<HaloService["getPlayerMatches"]>> = [];
     let markerFound = false;
     let markerFoundAtIndex = -1;
-    const maxPages = 4; // Cap at 100 matches (25 per page)
+    const maxPages = Math.ceil(MAX_MATCHES_TO_FETCH / PLAYER_MATCHES_PAGE_SIZE);
 
-    // Fetch up to 4 pages (100 matches total)
+    // Fetch up to maxPages pages (MAX_MATCHES_TO_FETCH matches total)
     for (let page = 0; page < maxPages; page++) {
       const start = page * PLAYER_MATCHES_PAGE_SIZE;
       try {
@@ -334,6 +335,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       matchesToProcess = allMatches.slice(0, processFromIndex);
     }
 
+    // Build a Set of known match IDs for O(1) membership checks instead of O(n) .includes() in loop
+    const knownIds = new Set(trackerState.matchIds);
+
     let skippedAlreadyKnown = 0;
     let skippedBeforeStart = 0;
 
@@ -341,7 +345,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       const matchId = match.MatchId;
 
       // Skip if already known
-      if (trackerState.matchIds.includes(matchId)) {
+      if (knownIds.has(matchId)) {
         skippedAlreadyKnown++;
         continue;
       }
@@ -375,6 +379,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       await this.enrichScore(summary);
       trackerState.discoveredMatches[matchId] = summary;
       trackerState.matchIds.push(matchId);
+      knownIds.add(matchId);
       const durationSeconds = getDurationInSeconds(match.MatchInfo.Duration);
       if (durationSeconds >= 120) {
         trackerState.selectedMatchIds.push(matchId);
