@@ -58,7 +58,7 @@ export class GameSelectionDialogPresenter {
   }
 
   private async loadMatchesAsync(): Promise<void> {
-    const { store, service, xuid, initialSelectedMatchIds, searchStartTime, activeSeriesContext } = this.config;
+    const { store, service, xuid, initialSelectedMatchIds, searchStartTime } = this.config;
     try {
       const allLoadedMatches: TrackerMatchHistoryEntry[] = [];
       const maxPages = 4;
@@ -101,7 +101,6 @@ export class GameSelectionDialogPresenter {
             groupings,
             seriesGroups: alignSeriesGroupsToGroupings(groupings, Array.from(snapshot.seriesGroups)),
             hasMore: response.matches.length >= GameSelectionDialogPresenter.PAGE_SIZE,
-            hasActiveSeriesWarning: activeSeriesContext !== undefined,
           });
           return;
         }
@@ -115,7 +114,6 @@ export class GameSelectionDialogPresenter {
         groupings,
         seriesGroups: alignSeriesGroupsToGroupings(groupings, Array.from(snapshot.seriesGroups)),
         hasMore: true,
-        hasActiveSeriesWarning: activeSeriesContext !== undefined,
       });
     } catch (err: unknown) {
       if (this.isDisposed) {

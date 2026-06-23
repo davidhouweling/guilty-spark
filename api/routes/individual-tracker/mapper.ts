@@ -127,7 +127,6 @@ export function toTrackerView(
     lastMatchDiscoveredAt: doState == null ? null : doState.lastMatchDiscoveredAt,
     hasActiveSeries: doState?.hasActiveSeries ?? false,
     hasRecentCompletedSeries: doState?.hasRecentCompletedSeries ?? false,
-    ...(doState?.searchStartTime !== undefined ? { searchStartTime: doState.searchStartTime } : {}),
     ...(doState?.activeSeriesContext !== undefined ? { activeSeriesContext: doState.activeSeriesContext } : {}),
     ...(doState?.topBarStats != null ? { topBarStats: [...doState.topBarStats] } : {}),
   };
