@@ -16,6 +16,7 @@ export interface GameSelectionDialogSectionProps {
   readonly initialSeriesGroups: readonly IndividualTrackerSeriesGroup[];
   readonly searchStartTime?: string;
   readonly activeSeriesContext?: NonNullable<TrackerLiveView["activeSeriesContext"]>;
+  readonly hasActiveSeriesWarning?: boolean;
   readonly onClose: () => void;
   readonly onSynced: () => void;
   readonly individualTrackerService: IndividualTrackerService;
@@ -31,6 +32,7 @@ export function GameSelectionDialogSection({
   initialSeriesGroups,
   searchStartTime,
   activeSeriesContext,
+  hasActiveSeriesWarning,
   onClose,
   onSynced,
   individualTrackerService,
@@ -52,6 +54,7 @@ export function GameSelectionDialogSection({
         initialSeriesGroups,
         searchStartTime,
         activeSeriesContext,
+        hasActiveSeriesWarning,
         onSynced: (): void => {
           onSyncedRef.current();
         },
@@ -66,6 +69,7 @@ export function GameSelectionDialogSection({
       initialSeriesGroups,
       searchStartTime,
       activeSeriesContext,
+      hasActiveSeriesWarning,
     ],
   );
 

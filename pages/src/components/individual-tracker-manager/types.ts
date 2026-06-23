@@ -11,6 +11,7 @@ export interface GameSelectionDialogState {
   readonly initialSeriesGroups: readonly IndividualTrackerSeriesGroup[];
   readonly searchStartTime?: string;
   readonly activeSeriesContext?: NonNullable<TrackerLiveView["activeSeriesContext"]>;
+  readonly hasActiveSeriesWarning?: boolean;
 }
 
 export interface ManualSeriesDialogState {
