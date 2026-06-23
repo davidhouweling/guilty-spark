@@ -1395,8 +1395,8 @@ describe("IndividualTrackerDO", () => {
       // Initial poll (no marker set): fetch page 0 with matches, then page 1 (empty) to end pagination
       ownerClient.getPlayerMatches
         .mockResolvedValueOnce([
-          aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z"),
           aFakePlayerMatch("match-existing", "2024-11-26T11:40:00.000Z"),
+          aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z"),
           aFakePlayerMatch("match-too-old", "2024-11-26T10:00:00.000Z"),
         ])
         .mockResolvedValueOnce([]); // Second page is empty, stop polling
@@ -1467,7 +1467,7 @@ describe("IndividualTrackerDO", () => {
       const persisted = lastPersistedState(storagePutSpy);
       // Should only process matches before marker (match-new-1, match-new-2)
       expect(persisted.matchIds).toEqual(["match-new-1", "match-new-2"]);
-      expect(persisted).not.toHaveProperty("match-old-3");
+      expect(persisted.matchIds).not.toContain("match-old-3");
       // Marker becomes new lastSeenMatchId for next poll
       expect(persisted.lastSeenMatchId).toBe("match-new-1");
     });
