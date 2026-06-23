@@ -13,6 +13,7 @@ import type { MatchStatsData, MatchStatsPlayerData } from "../../controllers/sta
 import type { SeriesMetadata } from "../../controllers/stats/series-metadata";
 import { sortByMedals, getTeamMedalsMap, getPlayerMedalsMap } from "../../controllers/stats/medals-sorting";
 import { KillMatrixTable } from "./kill-matrix/kill-matrix-table";
+import { StatsHeader } from "./stats-header";
 import styles from "./match-stats.module.css";
 
 interface SeriesStatsProps {
@@ -24,6 +25,7 @@ interface SeriesStatsProps {
   readonly killMatrixPivotData?: KillMatrixPivotData;
   readonly transposedKillMatrixPivotData?: KillMatrixPivotData;
   readonly killMatrixStatus?: ComponentLoaderStatus;
+  readonly showHeader?: boolean;
 }
 
 type MatchStatsRow = MatchStatsData & { player: MatchStatsPlayerData };
@@ -37,6 +39,7 @@ export function SeriesStats({
   killMatrixPivotData,
   transposedKillMatrixPivotData,
   killMatrixStatus,
+  showHeader = true,
 }: SeriesStatsProps): React.ReactElement {
   const [activeTab, setActiveTab] = React.useState<"accumulated" | "kill-matrix">("accumulated");
   const hasTeamStats = teamData.length > 0 && teamData[0].teamStats.length > 0;
@@ -186,34 +189,22 @@ export function SeriesStats({
 
   return (
     <div className={styles.matchStatsContainer}>
-      <Container
-        className={styles.matchHeader}
-        style={{ "--match-bg": "linear-gradient(135deg, #0a0e14 0%, #1a1e24 100%)" } as React.CSSProperties}
-      >
-        <div className={styles.matchHeaderContent}>
-          <h3 className={styles.matchTitle}>{title}</h3>
-          {metadata != null && (
-            <ul className={styles.matchMetadata}>
-              <li>
-                <span className={styles.matchMetaLabel}>Score:</span>{" "}
-                <span className={styles.matchMetaValue}>{metadata.score}</span>
-              </li>
-              <li>
-                <span className={styles.matchMetaLabel}>Duration:</span>{" "}
-                <span className={styles.matchMetaValue}>{metadata.duration}</span>
-              </li>
-              <li>
-                <span className={styles.matchMetaLabel}>Start time:</span>{" "}
-                <span className={styles.matchMetaValue}>{new Date(metadata.startTime).toLocaleString()}</span>
-              </li>
-              <li>
-                <span className={styles.matchMetaLabel}>End time:</span>{" "}
-                <span className={styles.matchMetaValue}>{new Date(metadata.endTime).toLocaleString()}</span>
-              </li>
-            </ul>
-          )}
-        </div>
-      </Container>
+      {showHeader && (
+        <StatsHeader
+          title={title}
+          metadata={
+            metadata != null
+              ? [
+                  { label: "Score", value: metadata.score },
+                  { label: "Duration", value: metadata.duration },
+                  { label: "Start time", value: new Date(metadata.startTime).toLocaleString() },
+                  { label: "End time", value: new Date(metadata.endTime).toLocaleString() },
+                ]
+              : []
+          }
+          backgroundStyle={{ "--match-bg": "linear-gradient(135deg, #0a0e14 0%, #1a1e24 100%)" } as React.CSSProperties}
+        />
+      )}
 
       {hasTeamStats && (
         <>

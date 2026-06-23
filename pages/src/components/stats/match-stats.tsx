@@ -13,6 +13,7 @@ import { EMPTY_KILL_MATRIX_PIVOT_DATA, type KillMatrixPivotData } from "../../co
 import type { MatchStatsData, MatchStatsPlayerData } from "../../controllers/stats/types";
 import { sortByMedals, getTeamMedalsMap, getPlayerMedalsMap } from "../../controllers/stats/medals-sorting";
 import { KillMatrixTable } from "./kill-matrix/kill-matrix-table";
+import { StatsHeader } from "./stats-header";
 import styles from "./match-stats.module.css";
 
 interface MatchStatsProps {
@@ -31,6 +32,7 @@ interface MatchStatsProps {
   readonly killMatrixPivotData?: KillMatrixPivotData;
   readonly transposedKillMatrixPivotData?: KillMatrixPivotData;
   readonly killMatrixStatus?: ComponentLoaderStatus;
+  readonly showHeader?: boolean;
 }
 
 type MatchStatsRow = MatchStatsData & { player: MatchStatsPlayerData };
@@ -51,6 +53,7 @@ export function MatchStats({
   killMatrixPivotData,
   transposedKillMatrixPivotData,
   killMatrixStatus,
+  showHeader = true,
 }: MatchStatsProps): React.ReactElement {
   const [activeTab, setActiveTab] = React.useState<"players" | "kill-matrix">("players");
   const hasTeamStats = data.length > 0 && data[0].teamStats.length > 0;
@@ -195,35 +198,20 @@ export function MatchStats({
 
   return (
     <div className={styles.matchStatsContainer} id={id}>
-      <Container
-        className={styles.matchHeader}
-        style={{ "--match-bg": `url(${backgroundImageUrl})` } as React.CSSProperties}
-      >
-        <div className={styles.matchHeaderContent}>
-          <h3 className={styles.matchTitle}>
-            Match {matchNumber}: {gameTypeAndMap}
-          </h3>
-          <ul className={styles.matchMetadata}>
-            <li>
-              <span className={styles.matchMetaLabel}>Score:</span>{" "}
-              <span className={styles.matchMetaValue}>{score}</span>
-            </li>
-            <li>
-              <span className={styles.matchMetaLabel}>Duration:</span>{" "}
-              <span className={styles.matchMetaValue}>{duration}</span>
-            </li>
-            <li>
-              <span className={styles.matchMetaLabel}>Start time:</span>{" "}
-              <span className={styles.matchMetaValue}>{new Date(startTime).toLocaleString()}</span>
-            </li>
-            <li>
-              <span className={styles.matchMetaLabel}>End time:</span>{" "}
-              <span className={styles.matchMetaValue}>{new Date(endTime).toLocaleString()}</span>
-            </li>
-          </ul>
-        </div>
-        <img src={gameModeIconUrl} alt={gameModeAlt} className={styles.gameModeIcon} />
-      </Container>
+      {showHeader && (
+        <StatsHeader
+          title={`Match ${String(matchNumber)}: ${gameTypeAndMap}`}
+          metadata={[
+            { label: "Score", value: score },
+            { label: "Duration", value: duration },
+            { label: "Start time", value: new Date(startTime).toLocaleString() },
+            { label: "End time", value: new Date(endTime).toLocaleString() },
+          ]}
+          backgroundStyle={{ "--match-bg": `url(${backgroundImageUrl})` } as React.CSSProperties}
+          gameModeIconUrl={gameModeIconUrl}
+          gameModeAlt={gameModeAlt}
+        />
+      )}
 
       {hasTeamStats && (
         <div className={styles.teamTotals}>
