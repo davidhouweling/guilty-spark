@@ -1,6 +1,12 @@
 import * as Sentry from "@sentry/cloudflare";
 import { addMilliseconds, compareAsc, differenceInHours } from "date-fns";
-import { type MatchStats, MatchType, type PlaylistCsrContainer, RequestError } from "halo-infinite-api";
+import {
+  type PlayerMatchHistory,
+  type MatchStats,
+  MatchType,
+  type PlaylistCsrContainer,
+  RequestError,
+} from "halo-infinite-api";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import {
@@ -412,11 +418,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private async fetchPlayerMatchesPagesWithMarker(trackerState: IndividualTrackerInternalState): Promise<{
-    allMatches: Awaited<ReturnType<HaloService["getPlayerMatches"]>>;
+    allMatches: PlayerMatchHistory[];
     markerFound: boolean;
     markerFoundAtIndex: number;
   }> {
-    const allMatches: Awaited<ReturnType<HaloService["getPlayerMatches"]>> = [];
+    const allMatches: PlayerMatchHistory[] = [];
     let markerFound = false;
     let markerFoundAtIndex = -1;
     const maxPages = Math.ceil(MAX_MATCHES_TO_FETCH / PLAYER_MATCHES_PAGE_SIZE);
@@ -473,8 +479,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private scanPageForMarker(
-    pageMatches: Awaited<ReturnType<HaloService["getPlayerMatches"]>>,
-    allMatches: Awaited<ReturnType<HaloService["getPlayerMatches"]>>,
+    pageMatches: PlayerMatchHistory[],
+    allMatches: PlayerMatchHistory[],
     lastSeenMatchId: string | undefined,
   ): number | null {
     if (lastSeenMatchId == null) {
@@ -489,10 +495,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private getMatchesToProcessBeforeMarker(
-    allMatches: Awaited<ReturnType<HaloService["getPlayerMatches"]>>,
+    allMatches: PlayerMatchHistory[],
     markerFound: boolean,
     markerFoundAtIndex: number,
-  ): Awaited<ReturnType<HaloService["getPlayerMatches"]>> {
+  ): PlayerMatchHistory[] {
     if (markerFound && markerFoundAtIndex >= 0) {
       return allMatches.slice(0, markerFoundAtIndex);
     }
@@ -501,7 +507,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
   private updateLastSeenMatchIdMarker(
     trackerState: IndividualTrackerInternalState,
-    allMatches: Awaited<ReturnType<HaloService["getPlayerMatches"]>>,
+    allMatches: PlayerMatchHistory[],
   ): void {
     if (allMatches.length > 0) {
       const newestMatch = Preconditions.checkExists(allMatches[0]);
