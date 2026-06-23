@@ -283,17 +283,16 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
         allMatches.push(...pageMatches);
 
-
-          // Only search for marker if it was set before this poll (not initial poll)
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-          if (!markerFound && trackerState.lastSeenMatchId != null) {
-            const markerIndex = pageMatches.findIndex((m) => m.MatchId === trackerState.lastSeenMatchId);
-            if (markerIndex !== -1) {
-              markerFound = true;
-              markerFoundAtIndex = allMatches.length - pageMatches.length + markerIndex;
-              break; // Stop fetching after finding marker
-            }
+        // Only search for marker if it was set before this poll (not initial poll)
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        if (!markerFound && trackerState.lastSeenMatchId != null) {
+          const markerIndex = pageMatches.findIndex((m) => m.MatchId === trackerState.lastSeenMatchId);
+          if (markerIndex !== -1) {
+            markerFound = true;
+            markerFoundAtIndex = allMatches.length - pageMatches.length + markerIndex;
+            break; // Stop fetching after finding marker
           }
+        }
       } catch (error) {
         this.logService.error(
           error,
@@ -333,12 +332,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       matchesToProcess = allMatches.slice(0, processFromIndex);
     }
 
-    // Fallback: if marker not found, filter by searchStartTime
-    let useSearchStartTimeFallback = false;
-    if (!markerFound && trackerState.lastSeenMatchId != null) {
-      useSearchStartTimeFallback = true;
-    }
-
     let skippedAlreadyKnown = 0;
     let skippedBeforeStart = 0;
 
@@ -351,12 +344,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         continue;
       }
 
-      // If using fallback, filter by searchStartTime
-      if (useSearchStartTimeFallback) {
-        if (new Date(match.MatchInfo.StartTime) < searchStart) {
-          skippedBeforeStart++;
-          continue;
-        }
+      // Always filter by searchStartTime
+      if (new Date(match.MatchInfo.StartTime) < searchStart) {
+        skippedBeforeStart++;
+        continue;
       }
 
       const outcome = getMatchOutcomeLabel(match.Outcome);
@@ -403,7 +394,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       "IndividualTracker: poll marker filter summary",
       new Map<string, JsonAny>([
         ["trackerId", trackerState.trackerId],
-        ["strategy", markerFound ? "marker" : useSearchStartTimeFallback ? "fallback" : "initial"],
+        ["strategy", markerFound ? "marker" : "initial"],
         ["totalFetched", allMatches.length],
         ["processedRange", matchesToProcess.length],
         ["skippedAlreadyKnown", skippedAlreadyKnown],

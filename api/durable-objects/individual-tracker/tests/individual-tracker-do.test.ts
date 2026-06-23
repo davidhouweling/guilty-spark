@@ -124,7 +124,7 @@ describe("IndividualTrackerDO", () => {
     mockStorage = mockState.storage;
 
     ownerClient = mock<HaloInfiniteClient>();
-    ownerClient.getPlayerMatches.mockResolvedValueOnce([]);
+    ownerClient.getPlayerMatches.mockResolvedValue([]);
     ownerClient.getMatchStats.mockResolvedValue(aFakeWinMatchStats());
     getClientForUser = vi.fn<UserTokenProvider["getClientForUser"]>().mockResolvedValue(ownerClient);
     clearCachedClient = vi.fn<UserTokenProvider["clearCachedClient"]>();
@@ -1424,13 +1424,7 @@ describe("IndividualTrackerDO", () => {
 
       await individualTrackerDO.alarm();
 
-      expect(ownerClient.getPlayerMatches).toHaveBeenCalledWith(
-        "fake-xuid",
-        MatchType.All,
-        25,
-        undefined,
-        expect.anything(),
-      );
+      expect(ownerClient.getPlayerMatches).toHaveBeenCalledWith("fake-xuid", MatchType.All, 25, 0, expect.anything());
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.matchIds).toEqual(["match-existing", "match-new"]);
       expect(persisted.discoveredMatches["match-new"]).toMatchObject({
@@ -1446,9 +1440,9 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("auto-appends a new match to selectedMatchIds when duration >= 120s", async () => {
-      ownerClient.getPlayerMatches.mockResolvedValueOnce([
-        aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2, "PT5M"),
-      ]);
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2, "PT5M")])
+        .mockResolvedValueOnce([]);
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           startTime: now.toISOString(),
@@ -1468,9 +1462,9 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("does not append a new match to selectedMatchIds when duration < 120s", async () => {
-      ownerClient.getPlayerMatches.mockResolvedValueOnce([
-        aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2, "PT1M"),
-      ]);
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2, "PT1M")])
+        .mockResolvedValueOnce([]);
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           startTime: now.toISOString(),
@@ -1975,11 +1969,12 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("broadcasts the allowlisted view when a poll discovers a new match", async () => {
-      ownerClient.getPlayerMatches.mockResolvedValueOnce([
-        aFakePlayerMatch("new-match", new Date("2024-11-26T12:30:00.000Z").toISOString()),
-      ]);
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("new-match", new Date("2024-11-26T12:30:00.000Z").toISOString())])
+        .mockResolvedValueOnce([]);
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
+          startTime: "2024-11-26T12:00:00.000Z",
           matchIds: ["old-match"],
           selectedMatchIds: ["old-match"],
           discoveredMatches: { "old-match": aFakeIndividualTrackerMatchSummaryWith({ matchId: "old-match" }) },
