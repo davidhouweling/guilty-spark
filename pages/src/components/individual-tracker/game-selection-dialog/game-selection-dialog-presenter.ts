@@ -1,4 +1,5 @@
 import { analyzeMatchGroupings } from "@guilty-spark/shared/halo/match-enrichment";
+import type { TrackerLiveView } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { IndividualTrackerService, TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
 import { alignSeriesGroupsToGroupings } from "../series-group-metadata";
@@ -15,11 +16,7 @@ interface Config {
   readonly initialGroupings: readonly (readonly string[])[];
   readonly initialSeriesGroups: readonly IndividualTrackerSeriesGroup[];
   readonly searchStartTime?: string;
-  readonly activeSeriesContext?: {
-    readonly title: string;
-    readonly subtitle: string | null;
-    readonly teams: readonly unknown[];
-  };
+  readonly activeSeriesContext?: NonNullable<TrackerLiveView["activeSeriesContext"]>;
   readonly onSynced: () => void;
 }
 
@@ -64,7 +61,8 @@ export class GameSelectionDialogPresenter {
       const maxPages = 4;
       const pageSize = 25;
       const targetMatchIds = new Set(initialSelectedMatchIds);
-      const searchStartTimeMs = searchStartTime != null ? new Date(searchStartTime).getTime() : 0;
+      const parsedSearchStartTime = searchStartTime != null ? new Date(searchStartTime).getTime() : NaN;
+      const searchStartTimeMs = Number.isFinite(parsedSearchStartTime) ? parsedSearchStartTime : 0;
 
       // Load pages until all initial matches are found, we've covered searchStartTime, or we reach max pages
       for (let pageIndex = 0; pageIndex < maxPages; pageIndex++) {
@@ -85,7 +83,11 @@ export class GameSelectionDialogPresenter {
         const reachedSearchBoundary =
           searchStartTimeMs === 0 ||
           response.matches.length === 0 ||
-          response.matches.some((match) => new Date(match.startTime).getTime() < searchStartTimeMs);
+          response.matches.some((match) => {
+            const isoTime = match.startTimeIso != null ? new Date(match.startTimeIso).getTime() : NaN;
+            const matchTimeMs = Number.isFinite(isoTime) ? isoTime : new Date(match.startTime).getTime();
+            return Number.isFinite(matchTimeMs) && matchTimeMs < searchStartTimeMs;
+          });
 
         // Stop early if all matches found AND we've reached the search boundary, or if we got fewer than pageSize (end of history)
         if ((allFound && reachedSearchBoundary) || response.matches.length < pageSize) {
