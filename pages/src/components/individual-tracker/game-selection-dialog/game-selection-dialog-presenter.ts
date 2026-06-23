@@ -64,7 +64,7 @@ export class GameSelectionDialogPresenter {
       const parsedSearchStartTime = searchStartTime != null ? new Date(searchStartTime).getTime() : NaN;
       const searchStartTimeMs = Number.isFinite(parsedSearchStartTime) ? parsedSearchStartTime : 0;
 
-      // Load pages until all initial matches are found, we've covered searchStartTime, or we reach max pages
+      // Load pages until we've found all initial matches AND covered the searchStartTime boundary, or we reach max pages/end of history
       for (let pageIndex = 0; pageIndex < maxPages; pageIndex++) {
         const offset = pageIndex * pageSize;
         const response = await service.getMatchHistory(xuid, offset, pageSize);
