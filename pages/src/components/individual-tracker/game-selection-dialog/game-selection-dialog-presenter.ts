@@ -93,7 +93,7 @@ export class GameSelectionDialogPresenter {
         // Stop early if all matches found AND we've reached the search boundary, or if we got fewer than pageSize (end of history)
         if ((allFound && reachedSearchBoundary) || response.matches.length < pageSize) {
           const snapshot = store.getSnapshot();
-          const groupings = snapshot.groupings.length > 0 ? snapshot.groupings : [...response.suggestedGroupings];
+          const groupings = this.mergeSuggestedGroupings(snapshot.groupings, allLoadedMatches, 0);
           store.batchUpdate({
             matches: allLoadedMatches,
             groupings,
@@ -107,7 +107,7 @@ export class GameSelectionDialogPresenter {
 
       // Reached max pages without finding all (rare edge case, but acceptable per requirements)
       const snapshot = store.getSnapshot();
-      const groupings = snapshot.groupings.length > 0 ? snapshot.groupings : [];
+      const groupings = this.mergeSuggestedGroupings(snapshot.groupings, allLoadedMatches, 0);
       store.batchUpdate({
         matches: allLoadedMatches,
         groupings,
@@ -303,18 +303,36 @@ export class GameSelectionDialogPresenter {
     const suggestedGroupings = this.computeSuggestedGroupings(boundaryMatches).filter((group) =>
       group.some((matchId) => newMatchIds.has(matchId)),
     );
-    const usedMatchIds = new Set(currentGroupings.flatMap((group) => group));
     const nextGroupings = currentGroupings.map((group) => [...group]);
+    const timelineOrderedMatchIds = allMatches.map((match) => match.matchId);
 
     for (const suggestedGroup of suggestedGroupings) {
-      if (suggestedGroup.some((matchId) => usedMatchIds.has(matchId))) {
+      const suggestedMatchIds = new Set(suggestedGroup);
+      const overlappingGroupIndexes: number[] = [];
+
+      for (const [index, existingGroup] of nextGroupings.entries()) {
+        if (existingGroup.some((matchId) => suggestedMatchIds.has(matchId))) {
+          overlappingGroupIndexes.push(index);
+        }
+      }
+
+      if (overlappingGroupIndexes.length === 0) {
+        nextGroupings.push([...suggestedGroup]);
         continue;
       }
 
-      nextGroupings.push([...suggestedGroup]);
-      for (const matchId of suggestedGroup) {
-        usedMatchIds.add(matchId);
+      const mergedMatchIds = new Set<string>(suggestedGroup);
+      for (const index of overlappingGroupIndexes) {
+        for (const matchId of nextGroupings[index] ?? []) {
+          mergedMatchIds.add(matchId);
+        }
       }
+
+      const overlappingIndexesSet = new Set(overlappingGroupIndexes);
+      const groupsWithoutOverlaps = nextGroupings.filter((_, index) => !overlappingIndexesSet.has(index));
+      const mergedGroup = timelineOrderedMatchIds.filter((matchId) => mergedMatchIds.has(matchId));
+      nextGroupings.length = 0;
+      nextGroupings.push(...groupsWithoutOverlaps, mergedGroup);
     }
 
     return this.sortGroupingsByTimeline(nextGroupings, allMatches);

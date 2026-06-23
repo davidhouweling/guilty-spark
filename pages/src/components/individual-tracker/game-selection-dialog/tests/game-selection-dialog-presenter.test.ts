@@ -124,7 +124,7 @@ describe("GameSelectionDialogPresenter", () => {
       expect(store.getSnapshot().groupings).toEqual([["m1", "m2"]]);
     });
 
-    it("preserves initial groupings over suggested groupings", async () => {
+    it("extends initial groupings when suggestions overlap", async () => {
       const service = aFakeService({
         getMatchHistory: vi.fn<IndividualTrackerService["getMatchHistory"]>().mockResolvedValue({
           matches: [aMatch("m1"), aMatch("m2"), aMatch("m3")],
@@ -137,7 +137,7 @@ describe("GameSelectionDialogPresenter", () => {
 
       await flushPromises();
       expect(store.getSnapshot().matches).not.toBeNull();
-      expect(store.getSnapshot().groupings).toEqual([["m1", "m2"]]);
+      expect(store.getSnapshot().groupings).toEqual([["m1", "m2", "m3"]]);
     });
 
     it("sets error message on failure", async () => {
@@ -223,6 +223,27 @@ describe("GameSelectionDialogPresenter", () => {
       await presenter.loadMore();
 
       expect(store.getSnapshot().groupings).toEqual([["old-1", "old-2", "new-1", "new-2"]]);
+    });
+
+    it("extends an existing grouping when load-more suggestions overlap", async () => {
+      const existingGroupMatches = [aMatch("old-1"), aMatch("old-2")];
+      const service = aFakeService({
+        getMatchHistory: vi.fn<IndividualTrackerService["getMatchHistory"]>().mockResolvedValue({
+          matches: [aMatch("new-1")],
+          suggestedGroupings: [],
+        }),
+      });
+
+      store.batchUpdate({
+        matches: existingGroupMatches,
+        groupings: [["old-1", "old-2"]],
+        seriesGroups: [],
+      });
+
+      const presenter = buildPresenter(service, store);
+      await presenter.loadMore();
+
+      expect(store.getSnapshot().groupings).toEqual([["old-1", "old-2", "new-1"]]);
     });
 
     it("does not create new groups from older non-boundary data", async () => {
