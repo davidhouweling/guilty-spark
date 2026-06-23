@@ -1392,11 +1392,14 @@ describe("IndividualTrackerDO", () => {
 
     it("polls getPlayerMatches and appends only genuinely-new matches at/after searchStartTime", async () => {
       const searchStartTime = "2024-11-26T11:00:00.000Z";
-      ownerClient.getPlayerMatches.mockResolvedValue([
-        aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z"),
-        aFakePlayerMatch("match-existing", "2024-11-26T11:40:00.000Z"),
-        aFakePlayerMatch("match-too-old", "2024-11-26T10:00:00.000Z"),
-      ]);
+      // Initial poll (no marker set): fetch page 0 with matches, then page 1 (empty) to end pagination
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([
+          aFakePlayerMatch("match-existing", "2024-11-26T11:40:00.000Z"),
+          aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z"),
+          aFakePlayerMatch("match-too-old", "2024-11-26T10:00:00.000Z"),
+        ])
+        .mockResolvedValueOnce([]); // Second page is empty, stop polling
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           startTime: now.toISOString(),
@@ -1421,13 +1424,7 @@ describe("IndividualTrackerDO", () => {
 
       await individualTrackerDO.alarm();
 
-      expect(ownerClient.getPlayerMatches).toHaveBeenCalledWith(
-        "fake-xuid",
-        MatchType.All,
-        25,
-        undefined,
-        expect.anything(),
-      );
+      expect(ownerClient.getPlayerMatches).toHaveBeenCalledWith("fake-xuid", MatchType.All, 25, 0, expect.anything());
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.matchIds).toEqual(["match-existing", "match-new"]);
       expect(persisted.discoveredMatches["match-new"]).toMatchObject({
@@ -1442,10 +1439,98 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.discoveredMatches).not.toHaveProperty("match-too-old");
     });
 
-    it("auto-appends a new match to selectedMatchIds when duration >= 120s", async () => {
-      ownerClient.getPlayerMatches.mockResolvedValue([
-        aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2, "PT5M"),
+    it("stops polling when marker is found and only processes matches before it", async () => {
+      const searchStartTime = "2024-11-26T11:00:00.000Z";
+      // Marker-based poll: page 0 and 1 have matches, page 1 contains marker, should stop polling
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([
+          aFakePlayerMatch("match-new-1", "2024-11-26T11:50:00.000Z"),
+          aFakePlayerMatch("match-new-2", "2024-11-26T11:45:00.000Z"),
+        ])
+        .mockResolvedValueOnce([
+          aFakePlayerMatch("match-marker", "2024-11-26T11:40:00.000Z"),
+          aFakePlayerMatch("match-old-3", "2024-11-26T11:35:00.000Z"),
+        ]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime,
+          matchIds: [],
+          lastSeenMatchId: "match-marker",
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      // Should find marker on page 1 and stop polling (no page 2 fetched)
+      expect(ownerClient.getPlayerMatches).toHaveBeenCalledTimes(2);
+      const persisted = lastPersistedState(storagePutSpy);
+      // Should only process matches before marker (match-new-1, match-new-2)
+      expect(persisted.matchIds).toEqual(["match-new-1", "match-new-2"]);
+      expect(persisted.matchIds).not.toContain("match-old-3");
+      // Marker becomes new lastSeenMatchId for next poll
+      expect(persisted.lastSeenMatchId).toBe("match-new-1");
+    });
+
+    it("falls back to searchStartTime filter when marker is not found after pagination", async () => {
+      const searchStartTime = "2024-11-26T11:00:00.000Z";
+      // Marker not found: fetch pages until empty or max cap
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([
+          aFakePlayerMatch("match-new-1", "2024-11-26T11:50:00.000Z"),
+          aFakePlayerMatch("match-new-2", "2024-11-26T11:45:00.000Z"),
+        ])
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new-3", "2024-11-26T11:30:00.000Z")])
+        .mockResolvedValueOnce([]); // Stop pagination
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime,
+          matchIds: [],
+          lastSeenMatchId: "match-missing",
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      // Should fetch multiple pages looking for marker
+      expect(ownerClient.getPlayerMatches).toHaveBeenCalledTimes(3);
+      const persisted = lastPersistedState(storagePutSpy);
+      // Should process all matches since marker not found (fallback to searchStartTime)
+      expect(persisted.matchIds).toContain("match-new-1");
+      expect(persisted.matchIds).toContain("match-new-2");
+      expect(persisted.matchIds).toContain("match-new-3");
+    });
+
+    it("processes no matches when marker is found at index 0 (marker is newest)", async () => {
+      const searchStartTime = "2024-11-26T11:00:00.000Z";
+      // Edge case: marker is the newest match
+      ownerClient.getPlayerMatches.mockResolvedValueOnce([
+        aFakePlayerMatch("match-marker", "2024-11-26T11:50:00.000Z"),
+        aFakePlayerMatch("match-old-1", "2024-11-26T11:40:00.000Z"),
       ]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime,
+          matchIds: [],
+          lastSeenMatchId: "match-marker",
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      // Should find marker at index 0 and process zero matches
+      expect(ownerClient.getPlayerMatches).toHaveBeenCalledTimes(1);
+      const persisted = lastPersistedState(storagePutSpy);
+      // No new matches added (slice(0, 0) is empty)
+      expect(persisted.matchIds).toEqual([]);
+    });
+
+    it("auto-appends a new match to selectedMatchIds when duration >= 120s", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2, "PT5M")])
+        .mockResolvedValueOnce([]);
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           startTime: now.toISOString(),
@@ -1465,9 +1550,9 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("does not append a new match to selectedMatchIds when duration < 120s", async () => {
-      ownerClient.getPlayerMatches.mockResolvedValue([
-        aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2, "PT1M"),
-      ]);
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2, "PT1M")])
+        .mockResolvedValueOnce([]);
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           startTime: now.toISOString(),
@@ -1487,7 +1572,9 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("auto-appends to selectedMatchIds even when it starts empty", async () => {
-      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z")]);
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z")])
+        .mockResolvedValueOnce([]);
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           startTime: now.toISOString(),
@@ -1505,7 +1592,9 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("stores outcome, score, and the resolved map name for a newly discovered match", async () => {
-      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 3)]);
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 3)])
+        .mockResolvedValueOnce([]);
       ownerClient.getSpecificAssetVersion.mockResolvedValue(aFakeMapAssetWith({ PublicName: "Aquarius" }));
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
@@ -1532,7 +1621,9 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("stores the team roster signature and team outcomes from getMatchStats", async () => {
-      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)]);
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
+        .mockResolvedValueOnce([]);
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           startTime: now.toISOString(),
@@ -1552,7 +1643,9 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("falls back to an empty score and re-enriches on the next poll when getMatchStats fails", async () => {
-      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)]);
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
+        .mockResolvedValueOnce([]);
       ownerClient.getMatchStats.mockRejectedValueOnce(new Error("stats not ready"));
       const state = aFakeIndividualTrackerInternalStateWith({
         startTime: now.toISOString(),
@@ -1575,7 +1668,9 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("does not re-fetch stats every poll for an enriched match whose stats have no teams", async () => {
-      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)]);
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
+        .mockResolvedValueOnce([]);
       ownerClient.getMatchStats.mockResolvedValue(
         aFakeMatchStatsWith({ MatchInfo: { ...aFakeMatchStatsWith().MatchInfo, GameVariantCategory: 6 }, Teams: [] }),
       );
@@ -1600,7 +1695,9 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("retries map-name resolution on a later poll when it initially fails", async () => {
-      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)]);
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
+        .mockResolvedValueOnce([]);
       ownerClient.getSpecificAssetVersion
         .mockRejectedValueOnce(new Error("asset blip"))
         .mockResolvedValue(aFakeMapAssetWith({ PublicName: "Aquarius" }));
@@ -1620,7 +1717,9 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("clears the cached client and backs off when getMatchStats throws an auth error", async () => {
-      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)]);
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
+        .mockResolvedValueOnce([]);
       ownerClient.getMatchStats.mockRejectedValue(new Error("401 Unauthorized: spartan token expired"));
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
@@ -1639,7 +1738,9 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("treats a typed RequestError 401 as an auth error and clears the cached client", async () => {
-      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)]);
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
+        .mockResolvedValueOnce([]);
       ownerClient.getMatchStats.mockRejectedValue(
         new RequestError(new URL("https://halo"), new Response(null, { status: 401 })),
       );
@@ -1661,7 +1762,9 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("does not treat a non-401 RequestError as an auth error", async () => {
-      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)]);
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
+        .mockResolvedValueOnce([]);
       ownerClient.getMatchStats.mockRejectedValue(
         new RequestError(new URL("https://halo"), new Response(null, { status: 500 })),
       );
@@ -1681,7 +1784,9 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("clears the cached client and backs off when resolveMapName throws an auth error", async () => {
-      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)]);
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
+        .mockResolvedValueOnce([]);
       ownerClient.getSpecificAssetVersion.mockRejectedValue(
         new RequestError(new URL("https://halo"), new Response(null, { status: 401 })),
       );
@@ -1706,7 +1811,9 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("sets lastMatchDiscoveredAt and resets errorState when new matches are found", async () => {
-      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z")]);
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z")])
+        .mockResolvedValueOnce([]);
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           startTime: now.toISOString(),
@@ -1950,11 +2057,12 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("broadcasts the allowlisted view when a poll discovers a new match", async () => {
-      ownerClient.getPlayerMatches.mockResolvedValue([
-        aFakePlayerMatch("new-match", new Date("2024-11-26T12:30:00.000Z").toISOString()),
-      ]);
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("new-match", new Date("2024-11-26T12:30:00.000Z").toISOString())])
+        .mockResolvedValueOnce([]);
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
+          startTime: "2024-11-26T12:00:00.000Z",
           matchIds: ["old-match"],
           selectedMatchIds: ["old-match"],
           discoveredMatches: { "old-match": aFakeIndividualTrackerMatchSummaryWith({ matchId: "old-match" }) },
@@ -1971,7 +2079,7 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("does not broadcast when a poll discovers no new match", async () => {
-      ownerClient.getPlayerMatches.mockResolvedValue([]);
+      ownerClient.getPlayerMatches.mockResolvedValueOnce([]);
       storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ matchIds: [] }));
 
       await individualTrackerDO.alarm();
@@ -1980,7 +2088,9 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("does not broadcast on a steady-state poll where an already-enriched match is unchanged", async () => {
-      ownerClient.getPlayerMatches.mockResolvedValue([aFakePlayerMatch("m1", "2024-11-26T11:30:00.000Z")]);
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("m1", "2024-11-26T11:30:00.000Z")])
+        .mockResolvedValueOnce([]);
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           matchIds: ["m1"],

@@ -144,6 +144,12 @@ switch (item.type) {
 
 **Functions**: Functions to be single single responsibility, when needing to do multiple things, break it down into individual functions that are called / chained.
 
+**Comments & Readability**: Comments exist on a spectrum. Apply this hierarchy before adding a comment:
+
+1. **Extract to a named function** — If a comment explains what a block of code does, extract that block into a method with a descriptive name (e.g., `getMatchesToProcessBeforeMarker()` instead of `// Determine which matches to process`). Function names should describe intent; the function body handles the "how". Aim for functions 5-20 lines that fit one concept.
+2. **Rely on test coverage** — If obscure logic exists, comprehensive tests with descriptive names often explain intent better than inline comments (e.g., `it("processes no matches when marker is found at index 0")` documents an edge case). Test names read like specifications.
+3. **Keep comments only for truly obscure logic** — If code appears to do something unexpected (e.g., intentional off-by-one math, platform-specific workarounds, or non-obvious API contracts), add a brief comment explaining why. Example: `// malformed JSON — treat as empty slots`.
+
 ## Async Patterns
 
 **Fire-and-forget calls**: always extract to a named async function — never chain `.then().catch()` for side-effectful work. Call with `void` to communicate intent.

@@ -98,6 +98,7 @@ export interface TopBarStatItem {
 export interface IndividualTrackerInternalState extends IndividualTrackerState {
   searchStartTime: string;
   lastMatchDiscoveredAt: string | undefined;
+  lastSeenMatchId?: string;
   checkCount: number;
   matchIds: string[];
   discoveredMatches: Record<string, IndividualTrackerMatchSummary>;
