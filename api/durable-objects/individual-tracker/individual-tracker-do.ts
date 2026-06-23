@@ -302,6 +302,16 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
             break; // Stop fetching after finding marker
           }
         }
+          // Only search for marker if it was set before this poll (not initial poll)
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+          if (!markerFound && trackerState.lastSeenMatchId != null) {
+            const markerIndex = pageMatches.findIndex((m) => m.MatchId === trackerState.lastSeenMatchId);
+            if (markerIndex !== -1) {
+              markerFound = true;
+              markerFoundAtIndex = allMatches.length - pageMatches.length + markerIndex;
+              break; // Stop fetching after finding marker
+            }
+          }
       } catch (error) {
         this.logService.error(
           error,
