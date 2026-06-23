@@ -1,11 +1,10 @@
-import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import { analyzeMatchGroupings } from "@guilty-spark/shared/halo/match-enrichment";
+import type { IndividualTrackerService , TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
 import { alignSeriesGroupsToGroupings } from "../series-group-metadata";
 import { applyAddToAdjacentGroup, applyBreakFromGroup } from "../grouping-utils";
 import { shouldHideShortDurationMatch } from "../match-duration-filter";
 import type { GameSelectionDialogSnapshot, GameSelectionDialogStore } from "./game-selection-dialog-store";
-import type { TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 
 interface Config {
   readonly store: GameSelectionDialogStore;
@@ -86,9 +85,7 @@ export class GameSelectionDialogPresenter {
         const reachedSearchBoundary =
           searchStartTimeMs === 0 ||
           response.matches.length === 0 ||
-          response.matches.some(
-            (match) => new Date(match.startTime).getTime() < searchStartTimeMs,
-          );
+          response.matches.some((match) => new Date(match.startTime).getTime() < searchStartTimeMs);
 
         // Stop early if all matches found AND we've reached the search boundary, or if we got fewer than pageSize (end of history)
         if ((allFound && reachedSearchBoundary) || response.matches.length < pageSize) {
@@ -353,9 +350,7 @@ export class GameSelectionDialogPresenter {
       return null;
     }
 
-    const sortedTeams = match.teams
-      .map((team) => [...team].sort().join(","))
-      .sort();
+    const sortedTeams = match.teams.map((team) => [...team].sort().join(",")).sort();
 
     return sortedTeams.join("|");
   }

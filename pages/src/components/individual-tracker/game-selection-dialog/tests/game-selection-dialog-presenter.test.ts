@@ -40,7 +40,10 @@ function aMatch(matchId: string): TrackerMatchHistoryResponse["matches"][number]
     resultString: "Win - 50:40",
     isMatchmaking: false,
     category: "custom",
-    teams: [["alpha", "bravo"], ["charlie", "delta"]],
+    teams: [
+      ["alpha", "bravo"],
+      ["charlie", "delta"],
+    ],
     mapThumbnailUrl: "data:,",
   };
 }
@@ -288,12 +291,10 @@ describe("GameSelectionDialogPresenter", () => {
       };
 
       const service = aFakeService({
-        getMatchHistory: vi
-          .fn<IndividualTrackerService["getMatchHistory"]>()
-          .mockResolvedValue({
-            matches: [match2],
-            suggestedGroupings: [],
-          }),
+        getMatchHistory: vi.fn<IndividualTrackerService["getMatchHistory"]>().mockResolvedValue({
+          matches: [match2],
+          suggestedGroupings: [],
+        }),
       });
 
       store.batchUpdate({
