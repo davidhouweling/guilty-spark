@@ -324,11 +324,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const newlyDiscovered = new Set<string>();
     const searchStart = new Date(trackerState.searchStartTime);
     const processFromIndex = markerFound && markerFoundAtIndex >= 0 ? markerFoundAtIndex : -1;
+    const strategy = markerFound ? "marker" : trackerState.lastSeenMatchId != null ? "fallback" : "initial";
 
     // Determine which matches to process
     let matchesToProcess = allMatches;
     if (processFromIndex >= 0) {
-      // Process only matches after the marker
+      // Process only matches before the marker in the array (i.e., newer matches)
+      // getPlayerMatches returns results in newest-first order, so slice(0, index) gives newer matches
       matchesToProcess = allMatches.slice(0, processFromIndex);
     }
 
@@ -375,7 +377,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       trackerState.matchIds.push(matchId);
       const durationSeconds = getDurationInSeconds(match.MatchInfo.Duration);
       if (durationSeconds >= 120) {
-        trackerState.selectedMatchIds = [...trackerState.selectedMatchIds, matchId].sort();
+        trackerState.selectedMatchIds.push(matchId);
       }
       newlyDiscovered.add(matchId);
       discoveredNewMatch = true;
@@ -390,11 +392,16 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       );
     }
 
+    // Sort selectedMatchIds once after processing all new matches for efficiency
+    if (newlyDiscovered.size > 0) {
+      trackerState.selectedMatchIds = trackerState.selectedMatchIds.sort();
+    }
+
     this.logService.info(
       "IndividualTracker: poll marker filter summary",
       new Map<string, JsonAny>([
         ["trackerId", trackerState.trackerId],
-        ["strategy", markerFound ? "marker" : "initial"],
+        ["strategy", strategy],
         ["totalFetched", allMatches.length],
         ["processedRange", matchesToProcess.length],
         ["skippedAlreadyKnown", skippedAlreadyKnown],
