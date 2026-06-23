@@ -236,7 +236,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
       let discoveredNewMatch = false;
       try {
-        discoveredNewMatch = await this.poll(trackerState);
+        discoveredNewMatch = await this.pollWithMarker(trackerState);
       } catch (error) {
         this.logService.error(error, new Map([["context", "IndividualTracker alarm poll failed"]]));
         this.handleError(trackerState, error);
@@ -250,53 +250,121 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     });
   }
 
-  private async poll(trackerState: IndividualTrackerInternalState): Promise<boolean> {
+  private async pollWithMarker(trackerState: IndividualTrackerInternalState): Promise<boolean> {
     this.logService.info(
-      "IndividualTracker: polling for new matches",
-      new Map([["trackerId", trackerState.trackerId]]),
+      "IndividualTracker: polling for new matches with marker strategy",
+      new Map([
+        ["trackerId", trackerState.trackerId],
+        ["lastSeenMatchId", trackerState.lastSeenMatchId ?? "none"],
+      ]),
     );
 
     await this.getUserHaloService(trackerState.userId);
 
-    let matches: Awaited<ReturnType<HaloService["getPlayerMatches"]>>;
-    try {
-      matches = await this.haloService.getPlayerMatches(trackerState.xuid, MatchType.All, PLAYER_MATCHES_PAGE_SIZE);
-      this.logService.info(
-        "IndividualTracker: successfully retrieved player matches",
-        new Map([
-          ["trackerId", trackerState.trackerId],
-          ["matches", matches.map((m) => m.MatchId).join(",")],
-        ]),
-      );
-    } catch (error) {
-      this.logService.error(
-        error,
-        new Map([
-          ["context", "IndividualTracker failed to retrieve player matches"],
-          ["trackerId", trackerState.trackerId],
-        ]),
-      );
-      if (this.isAuthError(error)) {
-        this.clearUserHaloService();
+    const allMatches: Awaited<ReturnType<HaloService["getPlayerMatches"]>> = [];
+    let markerFound = false;
+    let markerFoundAtIndex = -1;
+    const maxPages = 4; // Cap at 100 matches (25 per page)
+
+    // Fetch up to 4 pages (100 matches total)
+    for (let page = 0; page < maxPages; page++) {
+      const start = page * PLAYER_MATCHES_PAGE_SIZE;
+      try {
+        const pageMatches = await this.haloService.getPlayerMatches(
+          trackerState.xuid,
+          MatchType.All,
+          PLAYER_MATCHES_PAGE_SIZE,
+          start,
+        );
+
+        if (pageMatches.length === 0) {
+          break; // No more matches
+        }
+
+        allMatches.push(...pageMatches);
+
+        // Track the first match ID as the new marker
+        if (allMatches.length === pageMatches.length && pageMatches.length > 0) {
+          // First page, first match
+          if (trackerState.lastSeenMatchId == null) {
+            const firstMatch = Preconditions.checkExists(pageMatches[0]);
+            trackerState.lastSeenMatchId = firstMatch.MatchId;
+          }
+        }
+
+        // Check if we found the marker
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        if (!markerFound && trackerState.lastSeenMatchId != null) {
+          const markerIndex = pageMatches.findIndex((m) => m.MatchId === trackerState.lastSeenMatchId);
+          if (markerIndex !== -1) {
+            markerFound = true;
+            markerFoundAtIndex = allMatches.length - pageMatches.length + markerIndex;
+            break; // Stop fetching after finding marker
+          }
+        }
+      } catch (error) {
+        this.logService.error(
+          error,
+          new Map<string, JsonAny>([
+            ["context", "IndividualTracker failed to retrieve player matches page"],
+            ["trackerId", trackerState.trackerId],
+            ["page", page],
+          ]),
+        );
+        if (this.isAuthError(error)) {
+          this.clearUserHaloService();
+        }
+        throw error;
       }
-      throw error;
     }
 
-    const searchStart = new Date(trackerState.searchStartTime);
+    this.logService.info(
+      "IndividualTracker: fetched matches with marker scan",
+      new Map<string, JsonAny>([
+        ["trackerId", trackerState.trackerId],
+        ["totalFetched", allMatches.length],
+        ["markerFound", markerFound],
+        ["markerFoundAtIndex", markerFoundAtIndex],
+      ]),
+    );
+
     let discoveredNewMatch = false;
     let viewChanged = false;
     const newlyDiscovered = new Set<string>();
+    const searchStart = new Date(trackerState.searchStartTime);
+    const processFromIndex = markerFound && markerFoundAtIndex >= 0 ? markerFoundAtIndex : -1;
+
+    // Determine which matches to process
+    let matchesToProcess = allMatches;
+    if (processFromIndex >= 0) {
+      // Process only matches after the marker
+      matchesToProcess = allMatches.slice(0, processFromIndex);
+    }
+
+    // Fallback: if marker not found, filter by searchStartTime
+    let useSearchStartTimeFallback = false;
+    if (!markerFound && trackerState.lastSeenMatchId != null) {
+      useSearchStartTimeFallback = true;
+    }
+
     let skippedAlreadyKnown = 0;
     let skippedBeforeStart = 0;
-    for (const match of matches) {
+
+    for (const match of matchesToProcess) {
       const matchId = match.MatchId;
+
+      // Skip if already known
       if (trackerState.matchIds.includes(matchId)) {
         skippedAlreadyKnown++;
         continue;
       }
-      if (new Date(match.MatchInfo.StartTime) < searchStart) {
-        skippedBeforeStart++;
-        continue;
+
+      // If using fallback, filter by searchStartTime
+      if (useSearchStartTimeFallback) {
+        if (new Date(match.MatchInfo.StartTime) < searchStart) {
+          skippedBeforeStart++;
+          continue;
+        }
       }
 
       const outcome = getMatchOutcomeLabel(match.Outcome);
@@ -340,18 +408,23 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     this.logService.info(
-      "IndividualTracker: poll filter summary",
+      "IndividualTracker: poll marker filter summary",
       new Map<string, JsonAny>([
         ["trackerId", trackerState.trackerId],
-        ["searchStartTime", trackerState.searchStartTime],
-        ["totalFetched", matches.length],
+        ["strategy", markerFound ? "marker" : useSearchStartTimeFallback ? "fallback" : "initial"],
+        ["totalFetched", allMatches.length],
+        ["processedRange", matchesToProcess.length],
         ["skippedAlreadyKnown", skippedAlreadyKnown],
         ["skippedBeforeStart", skippedBeforeStart],
         ["newlyDiscovered", newlyDiscovered.size],
-        ["oldestMatchStartTime", matches.at(-1)?.MatchInfo.StartTime ?? "none"],
-        ["newestMatchStartTime", matches.at(0)?.MatchInfo.StartTime ?? "none"],
       ]),
     );
+
+    // Update marker to the newest match we fetched
+    if (allMatches.length > 0) {
+      const newestMatch = Preconditions.checkExists(allMatches[0]);
+      trackerState.lastSeenMatchId = newestMatch.MatchId;
+    }
 
     if (trackerState.activeSeries != null && newlyDiscovered.size > 0) {
       const existingSeriesMatchIds = new Set(trackerState.activeSeries.matchIds);
@@ -405,7 +478,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.errorState.lastErrorMessage = undefined;
 
     this.logService.info(
-      "IndividualTracker: poll complete",
+      "IndividualTracker: poll with marker complete",
       new Map<string, JsonAny>([
         ["trackerId", trackerState.trackerId],
         ["newMatches", newlyDiscovered.size],
