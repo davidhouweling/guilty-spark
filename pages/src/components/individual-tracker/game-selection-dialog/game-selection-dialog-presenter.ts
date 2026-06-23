@@ -1,5 +1,4 @@
 import { analyzeMatchGroupings } from "@guilty-spark/shared/halo/match-enrichment";
-import type { TrackerLiveView } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { IndividualTrackerService, TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
 import { alignSeriesGroupsToGroupings } from "../series-group-metadata";
@@ -16,7 +15,6 @@ interface Config {
   readonly initialGroupings: readonly (readonly string[])[];
   readonly initialSeriesGroups: readonly IndividualTrackerSeriesGroup[];
   readonly searchStartTime?: string;
-  readonly activeSeriesContext?: NonNullable<TrackerLiveView["activeSeriesContext"]>;
   readonly hasActiveSeriesWarning?: boolean;
   readonly onSynced: () => void;
 }

@@ -1,4 +1,3 @@
-import type { TrackerLiveView } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { IndividualTrackerSeriesGroup } from "../individual-tracker/series-group-metadata";
 import type { SeriesInitialData } from "../individual-tracker/manual-series-dialog/manual-series-dialog-store";
 
@@ -10,7 +9,6 @@ export interface GameSelectionDialogState {
   readonly initialGroupings: readonly (readonly string[])[];
   readonly initialSeriesGroups: readonly IndividualTrackerSeriesGroup[];
   readonly searchStartTime?: string;
-  readonly activeSeriesContext?: NonNullable<TrackerLiveView["activeSeriesContext"]>;
   readonly hasActiveSeriesWarning?: boolean;
 }
 

@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
-import type { TrackerLiveView } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
 import { GameSelectionDialogPresenter } from "./game-selection-dialog-presenter";
@@ -15,7 +14,6 @@ export interface GameSelectionDialogSectionProps {
   readonly initialGroupings: readonly (readonly string[])[];
   readonly initialSeriesGroups: readonly IndividualTrackerSeriesGroup[];
   readonly searchStartTime?: string;
-  readonly activeSeriesContext?: NonNullable<TrackerLiveView["activeSeriesContext"]>;
   readonly hasActiveSeriesWarning?: boolean;
   readonly onClose: () => void;
   readonly onSynced: () => void;
@@ -31,7 +29,6 @@ export function GameSelectionDialogSection({
   initialGroupings,
   initialSeriesGroups,
   searchStartTime,
-  activeSeriesContext,
   hasActiveSeriesWarning,
   onClose,
   onSynced,
@@ -53,7 +50,6 @@ export function GameSelectionDialogSection({
         initialGroupings,
         initialSeriesGroups,
         searchStartTime,
-        activeSeriesContext,
         hasActiveSeriesWarning,
         onSynced: (): void => {
           onSyncedRef.current();
@@ -68,7 +64,6 @@ export function GameSelectionDialogSection({
       initialGroupings,
       initialSeriesGroups,
       searchStartTime,
-      activeSeriesContext,
       hasActiveSeriesWarning,
     ],
   );
