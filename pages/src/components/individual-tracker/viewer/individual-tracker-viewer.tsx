@@ -3,6 +3,7 @@ import classNames from "classnames";
 import { addMinutes, formatDistanceToNow, isValid, parseISO } from "date-fns";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
+import type { NormalizedMatchOutcome } from "@guilty-spark/shared/halo/match-enrichment";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
 import { Container } from "../../container/container";
@@ -14,12 +15,7 @@ import { SeriesStatsView } from "../../series-stats/series-stats";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import { gameModeIconSrc } from "../game-mode-icon";
 import { relativeTime } from "../timeline/timeline";
-import type {
-  IndividualTrackerViewerRenderModel,
-  ViewerEntryState,
-  ViewerTabOutcome,
-  ViewerTimelineItem,
-} from "./types";
+import type { IndividualTrackerViewerRenderModel, ViewerEntryState, ViewerTimelineItem } from "./types";
 import styles from "./individual-tracker-viewer.module.css";
 
 interface IndividualTrackerViewerProps {
@@ -125,7 +121,7 @@ function automaticRefreshText(renderModel: IndividualTrackerViewerRenderModel): 
   return `Next automatic refresh ${formatDistanceToNow(nextAutomaticRefreshDate, { addSuffix: true })}`;
 }
 
-function toOutcomeLabel(outcome: ViewerTabOutcome): OutcomeBadgeValue {
+function toOutcomeLabel(outcome: NormalizedMatchOutcome): OutcomeBadgeValue {
   switch (outcome) {
     case "win": {
       return "Win";
@@ -148,7 +144,7 @@ function toOutcomeLabel(outcome: ViewerTabOutcome): OutcomeBadgeValue {
   }
 }
 
-function summarizeSeriesOutcome(outcomes: readonly ViewerTabOutcome[]): OutcomeBadgeValue {
+function summarizeSeriesOutcome(outcomes: readonly NormalizedMatchOutcome[]): OutcomeBadgeValue {
   let wins = 0;
   let losses = 0;
   let ties = 0;
@@ -375,13 +371,15 @@ export function IndividualTrackerViewer({
                           onToggleEntry(item);
                         }}
                         aria-expanded={isExpanded}
-                        aria-label={`Match ${match.mapName}`}
+                        aria-label={`Match ${match.gameModeName} on ${match.mapName}`}
                       >
                         <StatsHeader
-                          title={match.mapName}
+                          title={`${match.gameModeName}: ${match.mapName}`}
                           metadata={[
                             { label: "Score", value: match.score },
+                            { label: "Duration", value: match.duration },
                             { label: "Start time", value: new Date(match.startTime).toLocaleString() },
+                            { label: "End time", value: new Date(match.endTime).toLocaleString() },
                           ]}
                           backgroundStyle={matchHeaderBackgroundStyle(state)}
                           rightContent={
@@ -439,8 +437,6 @@ export function IndividualTrackerViewer({
                 }
 
                 const { series } = item;
-                const [firstMatch] = series.matches;
-                const lastMatch = series.matches[series.matches.length - 1] ?? firstMatch;
                 const entryRef = isLatest
                   ? (element: HTMLDivElement | null): void => {
                       latestEntryRef.current = element;
@@ -463,11 +459,13 @@ export function IndividualTrackerViewer({
                         subtitle={series.subtitle}
                         metadata={[
                           { label: "Score", value: series.score },
-                          { label: "Matches", value: `${series.matches.length.toString()} matches` },
                           {
-                            label: "Window",
-                            value: `${new Date(firstMatch.startTime).toLocaleString()} - ${new Date(lastMatch.endTime).toLocaleString()}`,
+                            label: "Matches",
+                            value: `${series.matches.length.toString()} match${series.matches.length === 1 ? "" : "es"}`,
                           },
+                          { label: "Duration", value: series.duration },
+                          { label: "Start time", value: new Date(series.startTime).toLocaleString() },
+                          { label: "End time", value: new Date(series.endTime).toLocaleString() },
                         ]}
                         backgroundStyle={
                           { "--match-bg": "linear-gradient(135deg, #0a0e14 0%, #1a1e24 100%)" } as React.CSSProperties

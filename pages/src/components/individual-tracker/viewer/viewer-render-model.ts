@@ -3,6 +3,10 @@ import type {
   TrackerSeriesGroup,
   TrackerViewState,
 } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import { getGameModeName } from "@guilty-spark/shared/halo/game-variants";
+import { getDurationInIsoString, getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { normalizeOutcomeString, getOutcomeColor } from "@guilty-spark/shared/halo/match-enrichment";
+import { differenceInSeconds } from "date-fns";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type {
@@ -10,7 +14,6 @@ import type {
   ViewerAccumulatedStats,
   ViewerMatchTab,
   ViewerSeriesTab,
-  ViewerTabOutcome,
   ViewerTimelineItem,
 } from "./types";
 
@@ -20,50 +23,21 @@ export interface BuildViewerRenderModelOptions {
   readonly preferredEnemyColorId?: string;
 }
 
-function normalizeOutcome(outcome: string): ViewerTabOutcome {
-  if (outcome === "Win") {
-    return "win";
-  }
-  if (outcome === "Loss") {
-    return "loss";
-  }
-  if (outcome === "Tie") {
-    return "tie";
-  }
-  if (outcome === "DNF") {
-    return "dnf";
-  }
-  return "unknown";
-}
-
-function colorForOutcome(outcome: ViewerTabOutcome, teamHex: string, enemyHex: string): string | undefined {
-  switch (outcome) {
-    case "win": {
-      return teamHex;
-    }
-    case "loss": {
-      return enemyHex;
-    }
-    case "tie":
-    case "dnf":
-    case "unknown": {
-      return undefined;
-    }
-    default: {
-      throw new UnreachableError(outcome);
-    }
-  }
-}
-
 function toMatchTab(summary: TrackerMatchSummary, teamHex: string, enemyHex: string): ViewerMatchTab {
-  const outcome = normalizeOutcome(summary.outcome);
+  const outcome = normalizeOutcomeString(summary.outcome);
+  const durationInSeconds = differenceInSeconds(new Date(summary.endTime), new Date(summary.startTime));
+  const isoDuration = getDurationInIsoString(durationInSeconds);
+  const duration = getReadableDuration(isoDuration);
+
   return {
     matchId: summary.matchId,
     mapName: summary.mapName,
     gameVariantCategory: summary.gameVariantCategory,
+    gameModeName: getGameModeName(summary.gameVariantCategory),
+    duration,
     outcome,
     score: summary.score,
-    colorHex: colorForOutcome(outcome, teamHex, enemyHex),
+    colorHex: getOutcomeColor(outcome, teamHex, enemyHex),
     startTime: summary.startTime,
     endTime: summary.endTime,
   };
@@ -74,7 +48,7 @@ function accumulate(matches: readonly TrackerMatchSummary[]): ViewerAccumulatedS
   let losses = 0;
   let ties = 0;
   for (const match of matches) {
-    const outcome = normalizeOutcome(match.outcome);
+    const outcome = normalizeOutcomeString(match.outcome);
     switch (outcome) {
       case "win": {
         wins += 1;
@@ -136,17 +110,42 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
     const anchoredSeries = seriesByAnchor.get(match.matchId);
     if (anchoredSeries !== undefined) {
       const seriesMatches: ViewerMatchTab[] = [];
+      const seriesSummaries: TrackerMatchSummary[] = [];
       for (const id of anchoredSeries.matchIds) {
         const member = matchesById.get(id);
         if (member !== undefined) {
           seriesMatches.push(toMatchTab(member, teamHex, enemyHex));
+          seriesSummaries.push(member);
         }
       }
+
+      // Calculate series duration, startTime, and endTime
+      let seriesDuration = "0 hours";
+      let seriesStartTime = "";
+      let seriesEndTime = "";
+
+      if (seriesSummaries.length > 0) {
+        // Sum all match durations
+        let totalSeconds = 0;
+        for (const summary of seriesSummaries) {
+          totalSeconds += differenceInSeconds(new Date(summary.endTime), new Date(summary.startTime));
+        }
+        const isoDuration = getDurationInIsoString(totalSeconds);
+        seriesDuration = getReadableDuration(isoDuration);
+
+        // Get first match start time and last match end time
+        seriesStartTime = seriesSummaries[0]?.startTime ?? "";
+        seriesEndTime = seriesSummaries[seriesSummaries.length - 1]?.endTime ?? "";
+      }
+
       const series: ViewerSeriesTab = {
         id: anchoredSeries.id,
         title: anchoredSeries.title,
         subtitle: anchoredSeries.subtitle,
         score: anchoredSeries.score,
+        duration: seriesDuration,
+        startTime: seriesStartTime,
+        endTime: seriesEndTime,
         matches: seriesMatches,
         colorHex: undefined,
       };

@@ -1,5 +1,6 @@
 import type { TopBarStatItem } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
+import type { NormalizedMatchOutcome } from "@guilty-spark/shared/halo/match-enrichment";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import type { MatchStatsData } from "../../../controllers/stats/types";
@@ -7,13 +8,13 @@ import type { KillMatrixPivotData } from "../../../controllers/stats/kill-matrix
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { SeriesStatsViewModel } from "../../series-stats/types";
 
-export type ViewerTabOutcome = "win" | "loss" | "tie" | "dnf" | "unknown";
-
 export interface ViewerMatchTab {
   readonly matchId: string;
   readonly mapName: string;
   readonly gameVariantCategory: number;
-  readonly outcome: ViewerTabOutcome;
+  readonly gameModeName: string;
+  readonly duration: string;
+  readonly outcome: NormalizedMatchOutcome;
   readonly score: string;
   readonly colorHex: string | undefined;
   readonly startTime: string;
@@ -25,6 +26,9 @@ export interface ViewerSeriesTab {
   readonly title: string;
   readonly subtitle: string;
   readonly score: string;
+  readonly duration: string;
+  readonly startTime: string;
+  readonly endTime: string;
   readonly matches: readonly ViewerMatchTab[];
   readonly colorHex: string | undefined;
 }
