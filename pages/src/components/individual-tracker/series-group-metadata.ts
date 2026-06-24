@@ -3,7 +3,6 @@ import {
   normalizeSeriesGroupMatchIds,
   getDefaultSeriesGroupSubtitle as sharedGetDefaultSeriesGroupSubtitle,
 } from "@guilty-spark/shared/individual-tracker/series-grouping";
-import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
 
 export interface IndividualTrackerSeriesGroup {
   readonly matchIds: readonly string[];
@@ -12,10 +11,14 @@ export interface IndividualTrackerSeriesGroup {
 }
 
 export function getDefaultSeriesGroupSubtitle(
-  entries: readonly Pick<
-    TrackerMatchHistoryEntry,
-    "startTimeIso" | "startTime" | "mapAssetId" | "mapVersionId" | "gameVariantCategory" | "outcome"
-  >[],
+  entries: readonly {
+    startTimeIso?: string;
+    startTime: string;
+    mapAssetId: string;
+    mapVersionId: string;
+    gameVariantCategory: number;
+    outcome: string;
+  }[],
 ): string {
   return sharedGetDefaultSeriesGroupSubtitle(
     entries.map((entry) => ({
