@@ -63,6 +63,7 @@ export function IndividualTrackerOverlayApp({ apiHost, trackerId }: IndividualTr
           <IndividualTrackerOverlayPage
             individualTrackerViewService={services.individualTrackerViewService}
             matchAnalyticsService={services.matchAnalyticsService}
+            seriesMatchesService={services.seriesMatchesService}
             haloClient={services.haloClient}
             trackerId={trackerId}
           />

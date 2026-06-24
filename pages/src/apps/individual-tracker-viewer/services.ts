@@ -8,8 +8,9 @@ import {
 } from "../../services/individual-tracker/install";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
-import { installMatchAnalyticsService } from "../../services/stats/install";
+import { installMatchAnalyticsService, installSeriesMatchesService } from "../../services/stats/install";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
+import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
 
 export interface Services {
   readonly authService: AuthService;
@@ -17,16 +18,30 @@ export interface Services {
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly haloClient: HaloInfiniteClient;
   readonly matchAnalyticsService: MatchAnalyticsService;
+  readonly seriesMatchesService: SeriesMatchesService;
 }
 
 export async function installServices(apiHost: string): Promise<Services> {
   const haloClient = createHaloInfiniteClientProxy({ proxyBaseUrl: apiHost, credentials: "include" });
-  const [authService, individualTrackerService, individualTrackerViewService, matchAnalyticsService] =
-    await Promise.all([
-      installAuthService(apiHost),
-      installIndividualTrackerService(apiHost, haloClient),
-      installIndividualTrackerViewService(apiHost),
-      installMatchAnalyticsService(apiHost),
-    ]);
-  return { authService, individualTrackerService, individualTrackerViewService, haloClient, matchAnalyticsService };
+  const [
+    authService,
+    individualTrackerService,
+    individualTrackerViewService,
+    matchAnalyticsService,
+    seriesMatchesService,
+  ] = await Promise.all([
+    installAuthService(apiHost),
+    installIndividualTrackerService(apiHost, haloClient),
+    installIndividualTrackerViewService(apiHost),
+    installMatchAnalyticsService(apiHost),
+    installSeriesMatchesService(apiHost),
+  ]);
+  return {
+    authService,
+    individualTrackerService,
+    individualTrackerViewService,
+    haloClient,
+    matchAnalyticsService,
+    seriesMatchesService,
+  };
 }
