@@ -1,28 +1,35 @@
-import type { MatchStats } from "halo-infinite-api";
 import type { TrackerLiveView, TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
-import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
-import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
+import type { MatchStatsData } from "../../../controllers/stats/types";
+import type { KillMatrixPivotData } from "../../../controllers/stats/kill-matrix/types";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
+import type { SeriesStatsViewModel } from "../../series-stats/types";
+import type { ViewerEntryState } from "./types";
 
-export type MatchStatsState =
-  | { readonly status: "loading" }
-  | {
-      readonly status: "loaded";
-      readonly stats: MatchStats;
-      readonly playerMap: Map<string, string>;
-      readonly medalMetadata: MedalMetadata;
-      readonly analytics: MatchAnalytics | null;
-    }
-  | { readonly status: "error"; readonly message: string };
+export interface MatchEntryLoadedState {
+  readonly matchId: string;
+  readonly gameVariantCategory: number;
+  readonly gameMapThumbnailUrl: string;
+  readonly duration: string;
+  readonly startTime: string;
+  readonly endTime: string;
+  readonly data: MatchStatsData[];
+  readonly killMatrixPivotData: KillMatrixPivotData;
+  readonly transposedKillMatrixPivotData: KillMatrixPivotData;
+}
+
+export interface SeriesEntryLoadedState {
+  readonly seriesId: string;
+  readonly viewModel: SeriesStatsViewModel;
+}
 
 export interface IndividualTrackerViewerSnapshot {
   readonly status: ComponentLoaderStatus;
   readonly errorMessage: string | null;
   readonly view: TrackerViewState | null;
   readonly connectionStatus: TrackerViewConnectionStatus;
-  readonly selectedMatchId: string | null;
-  readonly matchStatsState: MatchStatsState | null;
+  readonly expandedEntryKeys: ReadonlySet<string>;
+  readonly entryStates: ReadonlyMap<string, ViewerEntryState>;
 }
 
 export class IndividualTrackerViewerStore {
@@ -35,8 +42,8 @@ export class IndividualTrackerViewerStore {
       errorMessage: null,
       view: null,
       connectionStatus: "connecting",
-      selectedMatchId: null,
-      matchStatsState: null,
+      expandedEntryKeys: new Set<string>(),
+      entryStates: new Map<string, ViewerEntryState>(),
     };
   }
 
@@ -74,28 +81,38 @@ export class IndividualTrackerViewerStore {
     this.update({ connectionStatus });
   }
 
-  public setSelectedMatchId(id: string | null): void {
-    this.update({ selectedMatchId: id, matchStatsState: id != null ? { status: "loading" } : null });
+  public setEntryExpanded(key: string, expanded: boolean): void {
+    const nextExpandedKeys = new Set(this.snapshot.expandedEntryKeys);
+    if (expanded) {
+      nextExpandedKeys.add(key);
+    } else {
+      nextExpandedKeys.delete(key);
+    }
+    this.update({ expandedEntryKeys: nextExpandedKeys });
   }
 
-  public setMatchStats(
-    matchId: string,
-    stats: MatchStats,
-    playerMap: Map<string, string>,
-    medalMetadata: MedalMetadata,
-    analytics: MatchAnalytics | null,
-  ): void {
-    if (this.snapshot.selectedMatchId !== matchId) {
-      return;
-    }
-    this.update({ matchStatsState: { status: "loaded", stats, playerMap, medalMetadata, analytics } });
+  public setEntryLoading(key: string, kind: "match" | "series"): void {
+    const nextEntryStates = new Map(this.snapshot.entryStates);
+    nextEntryStates.set(key, { kind, state: { status: "loading" } });
+    this.update({ entryStates: nextEntryStates });
   }
 
-  public setMatchStatsError(matchId: string, message: string): void {
-    if (this.snapshot.selectedMatchId !== matchId) {
-      return;
-    }
-    this.update({ matchStatsState: { status: "error", message } });
+  public setMatchEntryLoaded(key: string, state: MatchEntryLoadedState): void {
+    const nextEntryStates = new Map(this.snapshot.entryStates);
+    nextEntryStates.set(key, { kind: "match", state: { status: "loaded", ...state } });
+    this.update({ entryStates: nextEntryStates });
+  }
+
+  public setSeriesEntryLoaded(key: string, state: SeriesEntryLoadedState): void {
+    const nextEntryStates = new Map(this.snapshot.entryStates);
+    nextEntryStates.set(key, { kind: "series", state: { status: "loaded", ...state } });
+    this.update({ entryStates: nextEntryStates });
+  }
+
+  public setEntryError(key: string, kind: "match" | "series", message: string): void {
+    const nextEntryStates = new Map(this.snapshot.entryStates);
+    nextEntryStates.set(key, { kind, state: { status: "error", message } });
+    this.update({ entryStates: nextEntryStates });
   }
 
   private update(partial: Partial<IndividualTrackerViewerSnapshot>): void {

@@ -4,11 +4,11 @@ import { Alert } from "../../alert/alert";
 import { LoadingState } from "../../loading-state/loading-state";
 import { MatchStats } from "../../stats/match-stats";
 import { gameModeIconSrc } from "../game-mode-icon";
-import type { MatchStatsPanelState } from "./types";
+import type { MatchDetailsState } from "./types";
 import styles from "./stats-panel.module.css";
 
 interface StatsPanelProps {
-  readonly state: MatchStatsPanelState | null;
+  readonly state: MatchDetailsState | null;
 }
 
 export function StatsPanel({ state }: StatsPanelProps): React.ReactElement | null {

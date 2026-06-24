@@ -24,15 +24,14 @@ function renderViewer(
     <IndividualTrackerViewer
       renderModel={aModel(view)}
       connectionStatus={connectionStatus}
-      selectedMatchId={null}
-      matchStatsPanelState={null}
+      expandedEntryKeys={new Set()}
+      entryStates={new Map()}
       canManage={true}
       refreshInProgress={false}
       refreshStartedAt={null}
       refreshPending={false}
       refreshMessage={null}
-      onSelectMatch={() => undefined}
-      onDeselect={() => undefined}
+      onToggleEntry={() => undefined}
       onBackToManage={() => undefined}
       onRefresh={() => undefined}
     />,
@@ -60,19 +59,19 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByTestId("record")).toHaveTextContent("1:1");
   });
 
-  it("renders a standalone match card with its map and score", () => {
+  it("renders a standalone match entry with its map and score", () => {
     const view = aFakeTrackerViewStateWith({
       matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1", mapName: "Aquarius", score: "50:30" })],
     });
 
     renderViewer(view);
 
-    const card = screen.getByTestId("match-card");
-    expect(card).toHaveTextContent("Aquarius");
-    expect(card).toHaveTextContent("50:30");
+    expect(screen.getByText("Aquarius")).toBeInTheDocument();
+    expect(screen.getByText("50:30")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /match/i })).toBeInTheDocument();
   });
 
-  it("renders a series group card with its title, score, and member matches", () => {
+  it("renders a series entry with title and score", () => {
     const view = aFakeTrackerViewStateWith({
       matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
       series: [aFakeTrackerSeriesGroupWith({ matchIds: ["m-1", "m-2"], title: "Ranked Series", score: "1:1" })],
@@ -80,10 +79,9 @@ describe("IndividualTrackerViewer", () => {
 
     renderViewer(view);
 
-    const card = screen.getByTestId("series-card");
-    expect(card).toHaveTextContent("Ranked Series");
-    expect(card).toHaveTextContent("1:1");
-    expect(screen.getAllByTestId("match-card")).toHaveLength(2);
+    expect(screen.getByText("Ranked Series")).toBeInTheDocument();
+    expect(screen.getByText("1:1")).toBeInTheDocument();
+    expect(screen.getByText("2 matches")).toBeInTheDocument();
   });
 
   it("renders a Live badge when the tracker is live", () => {

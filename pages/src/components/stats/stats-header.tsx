@@ -9,23 +9,28 @@ export interface StatsHeaderItem {
 
 interface StatsHeaderProps {
   readonly title: string;
+  readonly subtitle?: string;
   readonly metadata: readonly StatsHeaderItem[];
   readonly backgroundStyle: React.CSSProperties;
   readonly gameModeIconUrl?: string;
   readonly gameModeAlt?: string;
+  readonly rightContent?: React.ReactNode;
 }
 
 export function StatsHeader({
   title,
+  subtitle,
   metadata,
   backgroundStyle,
   gameModeIconUrl,
   gameModeAlt,
+  rightContent,
 }: StatsHeaderProps): React.ReactElement {
   return (
     <Container className={styles.matchHeader} style={backgroundStyle}>
       <div className={styles.matchHeaderContent}>
         <h3 className={styles.matchTitle}>{title}</h3>
+        {subtitle != null && subtitle !== "" ? <p className={styles.matchSubtitle}>{subtitle}</p> : null}
         <ul className={styles.matchMetadata}>
           {metadata.map((item) => (
             <li key={`${item.label}-${item.value}`}>
@@ -35,9 +40,10 @@ export function StatsHeader({
           ))}
         </ul>
       </div>
-      {gameModeIconUrl != null && (
-        <img src={gameModeIconUrl} alt={gameModeAlt ?? ""} className={styles.gameModeIcon} />
-      )}
+      {rightContent ??
+        (gameModeIconUrl != null ? (
+          <img src={gameModeIconUrl} alt={gameModeAlt ?? ""} className={styles.gameModeIcon} />
+        ) : null)}
     </Container>
   );
 }

@@ -3,8 +3,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding-top: var(--space-2);
   margin-bottom: var(--space-4);
+  padding-top: var(--space-2);
 }
 
 .backButton {
@@ -128,6 +128,103 @@
   margin-bottom: var(--space-5);
 }
 
+.entriesList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.entry {
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.entryHeaderButton {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: block;
+  padding: 0;
+  text-align: inherit;
+  width: 100%;
+}
+
+.entryHeaderRight {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.entryHeaderVisuals {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.entryModeIcon {
+  filter: drop-shadow(0 2px 4px rgb(0 0 0 / 50%));
+  height: 1.75rem;
+  width: 1.75rem;
+}
+
+.seriesModeIcons {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  justify-content: flex-start;
+  max-width: 160px;
+}
+
+.seriesModeIconMuted {
+  filter: grayscale(100%) opacity(45%);
+}
+
+.entryChevron {
+  color: var(--halo-white);
+  display: inline-block;
+  font-size: 1.15rem;
+  font-weight: 700;
+  height: 1em;
+  line-height: 1;
+  margin-left: var(--space-1);
+  transition: color var(--transition-fast);
+  width: 1em;
+}
+
+.entryChevron::before {
+  content: "\02C5";
+}
+
+.entryChevronExpanded {
+  color: var(--halo-white);
+}
+
+.entryChevronExpanded::before {
+  content: "\02C4";
+}
+
+.entryBody {
+  border-top: 1px solid color-mix(in srgb, var(--halo-teal-primary) 15%, transparent);
+}
+
+.jumpToLatestButton {
+  background: color-mix(in srgb, var(--halo-teal-primary) 20%, var(--halo-bg-elevated));
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 60%, transparent);
+  border-radius: var(--radius-full);
+  bottom: var(--space-4);
+  color: var(--halo-white);
+  cursor: pointer;
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  padding: var(--space-2) var(--space-3);
+  position: fixed;
+  right: var(--space-4);
+  z-index: 20;
+}
+
 .sectionTitle {
   font-family: var(--font-heading);
   font-size: var(--text-lg);
@@ -176,5 +273,9 @@
   .viewerActionRight {
     align-items: center;
     flex-direction: row;
+  }
+
+  .entryHeaderRight {
+    align-items: center;
   }
 }

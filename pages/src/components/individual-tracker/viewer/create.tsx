@@ -5,12 +5,14 @@ import { ErrorState } from "../../error-state/error-state";
 import { LoadingState } from "../../loading-state/loading-state";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
+import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
 import { IndividualTrackerViewer } from "./individual-tracker-viewer";
 import { useIndividualTrackerViewer } from "./use-individual-tracker-viewer";
 
 interface IndividualTrackerViewerPageProps {
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
+  readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
   readonly trackerId: string;
 }
@@ -18,12 +20,14 @@ interface IndividualTrackerViewerPageProps {
 export function IndividualTrackerViewerPage({
   individualTrackerViewService,
   matchAnalyticsService,
+  seriesMatchesService,
   haloClient,
   trackerId,
 }: IndividualTrackerViewerPageProps): React.ReactElement {
-  const { snapshot, model, onSelectMatch, onDeselect, onRetry } = useIndividualTrackerViewer({
+  const { snapshot, model, onToggleEntry, onRetry } = useIndividualTrackerViewer({
     individualTrackerViewService,
     matchAnalyticsService,
+    seriesMatchesService,
     haloClient,
     trackerId,
   });
@@ -38,15 +42,14 @@ export function IndividualTrackerViewerPage({
           <IndividualTrackerViewer
             renderModel={model.renderModel}
             connectionStatus={model.connectionStatus}
-            selectedMatchId={model.selectedMatchId}
-            matchStatsPanelState={model.matchStatsPanelState}
+            expandedEntryKeys={model.expandedEntryKeys}
+            entryStates={model.entryStates}
             canManage={true}
             refreshInProgress={false}
             refreshStartedAt={null}
             refreshPending={false}
             refreshMessage={null}
-            onSelectMatch={onSelectMatch}
-            onDeselect={onDeselect}
+            onToggleEntry={onToggleEntry}
             onBackToManage={(): void => {
               window.location.assign("/individual-tracker");
             }}

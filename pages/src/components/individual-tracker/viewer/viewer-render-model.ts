@@ -172,5 +172,6 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
     timeline,
     accumulated,
     topBarStats: view.topBarStats,
+    teamColors: [getTeamColorOrDefault(preferredTeamColorId, 0), getTeamColorOrDefault(preferredEnemyColorId, 1)],
   };
 }

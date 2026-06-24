@@ -1,12 +1,25 @@
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
+import type { MatchStats } from "halo-infinite-api";
+import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
+import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { TickerMatchGroup } from "../../information-ticker/information-ticker";
 import { createMatchStatsFormatter } from "../../../controllers/stats/create";
 import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
 import type { IndividualTrackerViewerRenderModel, ViewerSeriesTab, ViewerTimelineItem } from "../viewer/types";
-import type { MatchStatsState } from "../viewer/viewer-store";
+
+export type MatchStatsState =
+  | { readonly status: "loading" }
+  | {
+      readonly status: "loaded";
+      readonly stats: MatchStats;
+      readonly playerMap: Map<string, string>;
+      readonly medalMetadata: MedalMetadata;
+      readonly analytics: MatchAnalytics | null;
+    }
+  | { readonly status: "error"; readonly message: string };
 
 export function getDefaultTeamColors(): [TeamColor, TeamColor] {
   return [getTeamColorOrDefault(undefined, 0), getTeamColorOrDefault(undefined, 1)];

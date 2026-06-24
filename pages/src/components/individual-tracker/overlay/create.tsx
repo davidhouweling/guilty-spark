@@ -5,12 +5,14 @@ import { ErrorState } from "../../error-state/error-state";
 import { LoadingState } from "../../loading-state/loading-state";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
+import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
 import { useIndividualTrackerViewer } from "../viewer/use-individual-tracker-viewer";
 import { IndividualTrackerOverlay } from "./individual-tracker-overlay";
 
 interface IndividualTrackerOverlayPageProps {
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
+  readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
   readonly trackerId: string;
 }
@@ -18,12 +20,14 @@ interface IndividualTrackerOverlayPageProps {
 export function IndividualTrackerOverlayPage({
   individualTrackerViewService,
   matchAnalyticsService,
+  seriesMatchesService,
   haloClient,
   trackerId,
 }: IndividualTrackerOverlayPageProps): React.ReactElement {
-  const { snapshot, model, onSelectMatch, onDeselect, onRetry } = useIndividualTrackerViewer({
+  const { snapshot, model, onRetry } = useIndividualTrackerViewer({
     individualTrackerViewService,
     matchAnalyticsService,
+    seriesMatchesService,
     haloClient,
     trackerId,
   });
@@ -37,11 +41,11 @@ export function IndividualTrackerOverlayPage({
         model.renderModel != null ? (
           <IndividualTrackerOverlay
             renderModel={model.renderModel}
-            matchStatsState={model.matchStatsState}
-            matchStatsPanelState={model.matchStatsPanelState}
-            selectedMatchId={model.selectedMatchId}
-            onSelectMatch={onSelectMatch}
-            onDeselect={onDeselect}
+            matchStatsState={null}
+            matchStatsPanelState={null}
+            selectedMatchId={null}
+            onSelectMatch={(): void => undefined}
+            onDeselect={(): void => undefined}
           />
         ) : (
           <LoadingState />

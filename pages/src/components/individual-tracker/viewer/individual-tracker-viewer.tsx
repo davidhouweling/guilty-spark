@@ -6,27 +6,47 @@ import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tr
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
 import { Container } from "../../container/container";
+import { LoadingState } from "../../loading-state/loading-state";
+import { OutcomeBadge, type OutcomeBadgeValue } from "../../outcome-badge/outcome-badge";
+import { MatchStats } from "../../stats/match-stats";
+import { StatsHeader } from "../../stats/stats-header";
+import { SeriesStatsView } from "../../series-stats/series-stats";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
-import { relativeTime, Timeline } from "../timeline/timeline";
-import type { IndividualTrackerViewerRenderModel, MatchStatsPanelState } from "./types";
-import { TabsBar } from "./viewer-tabs";
-import { StatsPanel } from "./stats-panel";
+import { gameModeIconSrc } from "../game-mode-icon";
+import { relativeTime } from "../timeline/timeline";
+import type {
+  IndividualTrackerViewerRenderModel,
+  ViewerEntryState,
+  ViewerTabOutcome,
+  ViewerTimelineItem,
+} from "./types";
 import styles from "./individual-tracker-viewer.module.css";
 
 interface IndividualTrackerViewerProps {
   readonly renderModel: IndividualTrackerViewerRenderModel;
   readonly connectionStatus: TrackerViewConnectionStatus;
-  readonly selectedMatchId: string | null;
-  readonly matchStatsPanelState: MatchStatsPanelState | null;
+  readonly expandedEntryKeys: ReadonlySet<string>;
+  readonly entryStates: ReadonlyMap<string, ViewerEntryState>;
   readonly canManage: boolean;
   readonly refreshInProgress: boolean;
   readonly refreshStartedAt: string | null;
   readonly refreshPending: boolean;
   readonly refreshMessage: string | null;
-  readonly onSelectMatch: (matchId: string) => void;
-  readonly onDeselect: () => void;
+  readonly onToggleEntry: (item: ViewerTimelineItem) => void;
   readonly onBackToManage: () => void;
   readonly onRefresh: () => void;
+}
+
+function entryKey(item: ViewerTimelineItem): string {
+  if (item.type === "match") {
+    return `match:${item.match.matchId}`;
+  }
+  return `series:${item.series.id}`;
+}
+
+function isNearBottom(): boolean {
+  const threshold = 200;
+  return window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - threshold;
 }
 
 function statusLabel(status: TrackerStatus): string {
@@ -105,21 +125,148 @@ function automaticRefreshText(renderModel: IndividualTrackerViewerRenderModel): 
   return `Next automatic refresh ${formatDistanceToNow(nextAutomaticRefreshDate, { addSuffix: true })}`;
 }
 
+function toOutcomeLabel(outcome: ViewerTabOutcome): OutcomeBadgeValue {
+  switch (outcome) {
+    case "win": {
+      return "Win";
+    }
+    case "loss": {
+      return "Loss";
+    }
+    case "tie": {
+      return "Tie";
+    }
+    case "dnf": {
+      return "DNF";
+    }
+    case "unknown": {
+      return "Unknown";
+    }
+    default: {
+      throw new UnreachableError(outcome);
+    }
+  }
+}
+
+function summarizeSeriesOutcome(outcomes: readonly ViewerTabOutcome[]): OutcomeBadgeValue {
+  let wins = 0;
+  let losses = 0;
+  let ties = 0;
+  let dnf = 0;
+
+  for (const outcome of outcomes) {
+    switch (outcome) {
+      case "win": {
+        wins += 1;
+        break;
+      }
+      case "loss": {
+        losses += 1;
+        break;
+      }
+      case "tie": {
+        ties += 1;
+        break;
+      }
+      case "dnf": {
+        dnf += 1;
+        break;
+      }
+      case "unknown": {
+        break;
+      }
+      default: {
+        throw new UnreachableError(outcome);
+      }
+    }
+  }
+
+  if (wins > losses) {
+    return "Win";
+  }
+  if (losses > wins) {
+    return "Loss";
+  }
+  if (wins === 0 && losses === 0 && dnf > 0) {
+    return "DNF";
+  }
+  if (ties > 0) {
+    return "Tie";
+  }
+  return "Unknown";
+}
+
+function matchHeaderBackgroundStyle(state: ViewerEntryState | undefined): React.CSSProperties {
+  if (state?.kind === "match" && state.state.status === "loaded") {
+    return {
+      "--match-bg": `url(${state.state.gameMapThumbnailUrl})`,
+    } as React.CSSProperties;
+  }
+
+  return {
+    "--match-bg": "linear-gradient(135deg, #0a0e14 0%, #1a1e24 100%)",
+  } as React.CSSProperties;
+}
+
 export function IndividualTrackerViewer({
   renderModel,
   connectionStatus,
-  selectedMatchId,
-  matchStatsPanelState,
+  expandedEntryKeys,
+  entryStates,
   canManage,
   refreshInProgress,
   refreshStartedAt,
   refreshPending,
   refreshMessage,
-  onSelectMatch,
-  onDeselect,
+  onToggleEntry,
   onBackToManage,
   onRefresh,
 }: IndividualTrackerViewerProps): React.ReactElement {
+  const latestEntryRef = React.useRef<HTMLDivElement | null>(null);
+  const lastTimelineLengthRef = React.useRef<number>(renderModel.timeline.length);
+  const nearBottomRef = React.useRef<boolean>(true);
+  const [isNearBottomNow, setIsNearBottomNow] = React.useState(true);
+  const [unseenEntries, setUnseenEntries] = React.useState(0);
+
+  const oldestFirstTimeline = React.useMemo(() => [...renderModel.timeline].reverse(), [renderModel.timeline]);
+
+  const scrollToLatest = React.useCallback((): void => {
+    latestEntryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  React.useEffect(() => {
+    function onScrollOrResize(): void {
+      const nearBottom = isNearBottom();
+      nearBottomRef.current = nearBottom;
+      setIsNearBottomNow(nearBottom);
+      if (nearBottom) {
+        setUnseenEntries(0);
+      }
+    }
+
+    onScrollOrResize();
+    window.addEventListener("scroll", onScrollOrResize, { passive: true });
+    window.addEventListener("resize", onScrollOrResize);
+    return (): void => {
+      window.removeEventListener("scroll", onScrollOrResize);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    const previousLength = lastTimelineLengthRef.current;
+    const nextLength = oldestFirstTimeline.length;
+    if (nextLength > previousLength) {
+      const delta = nextLength - previousLength;
+      if (nearBottomRef.current) {
+        scrollToLatest();
+      } else {
+        setUnseenEntries((current) => current + delta);
+      }
+    }
+    lastTimelineLengthRef.current = nextLength;
+  }, [oldestFirstTimeline.length, scrollToLatest]);
+
   const notice = connectionNotice(connectionStatus);
   const refreshStartedDate = parseDate(refreshStartedAt);
   const refreshHint = refreshInProgress
@@ -201,18 +348,195 @@ export function IndividualTrackerViewer({
 
         <section className={styles.matchesSection}>
           <h2 className={styles.sectionTitle}>Tracked Gameplay</h2>
-          <TabsBar
-            timeline={renderModel.timeline}
-            selectedMatchId={selectedMatchId}
-            onSelectMatch={onSelectMatch}
-            onDeselect={onDeselect}
-          />
+          {oldestFirstTimeline.length === 0 ? (
+            <Alert variant="info">No matches tracked yet.</Alert>
+          ) : (
+            <div className={styles.entriesList}>
+              {oldestFirstTimeline.map((item, index) => {
+                const key = entryKey(item);
+                const isExpanded = expandedEntryKeys.has(key);
+                const state = entryStates.get(key);
+                const isLatest = index === oldestFirstTimeline.length - 1;
 
-          <StatsPanel state={matchStatsPanelState} />
+                if (item.type === "match") {
+                  const { match } = item;
+                  const entryRef = isLatest
+                    ? (element: HTMLDivElement | null): void => {
+                        latestEntryRef.current = element;
+                      }
+                    : undefined;
 
-          <Timeline timeline={renderModel.timeline} />
+                  return (
+                    <div key={key} className={styles.entry} ref={entryRef}>
+                      <button
+                        type="button"
+                        className={styles.entryHeaderButton}
+                        onClick={(): void => {
+                          onToggleEntry(item);
+                        }}
+                        aria-expanded={isExpanded}
+                        aria-label={`Match ${match.mapName}`}
+                      >
+                        <StatsHeader
+                          title={match.mapName}
+                          metadata={[
+                            { label: "Score", value: match.score },
+                            { label: "Start time", value: new Date(match.startTime).toLocaleString() },
+                          ]}
+                          backgroundStyle={matchHeaderBackgroundStyle(state)}
+                          rightContent={
+                            <div className={styles.entryHeaderRight}>
+                              <div className={styles.entryHeaderVisuals}>
+                                <img
+                                  src={gameModeIconSrc(match.gameVariantCategory)}
+                                  alt="Game mode"
+                                  className={styles.entryModeIcon}
+                                />
+                                <OutcomeBadge outcome={toOutcomeLabel(match.outcome)} />
+                              </div>
+                              <span
+                                className={classNames(styles.entryChevron, {
+                                  [styles.entryChevronExpanded]: isExpanded,
+                                })}
+                                aria-hidden="true"
+                              />
+                            </div>
+                          }
+                        />
+                      </button>
+
+                      {isExpanded && (
+                        <div className={styles.entryBody}>
+                          {state == null || (state.kind === "match" && state.state.status === "loading") ? (
+                            <LoadingState text="Loading match stats..." />
+                          ) : state.kind === "match" && state.state.status === "error" ? (
+                            <Alert variant="error">{state.state.message}</Alert>
+                          ) : state.kind === "match" && state.state.status === "loaded" ? (
+                            <MatchStats
+                              data={state.state.data}
+                              id={`match-${state.state.matchId}`}
+                              backgroundImageUrl=""
+                              gameModeIconUrl={gameModeIconSrc(state.state.gameVariantCategory)}
+                              gameModeAlt=""
+                              matchNumber={index + 1}
+                              gameTypeAndMap={match.mapName}
+                              duration={state.state.duration}
+                              score={match.score}
+                              startTime={state.state.startTime}
+                              endTime={state.state.endTime}
+                              teamColors={renderModel.teamColors}
+                              killMatrixPivotData={state.state.killMatrixPivotData}
+                              transposedKillMatrixPivotData={state.state.transposedKillMatrixPivotData}
+                              showHeader={false}
+                            />
+                          ) : (
+                            <Alert variant="error">Unexpected entry state.</Alert>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                const { series } = item;
+                const [firstMatch] = series.matches;
+                const lastMatch = series.matches[series.matches.length - 1] ?? firstMatch;
+                const entryRef = isLatest
+                  ? (element: HTMLDivElement | null): void => {
+                      latestEntryRef.current = element;
+                    }
+                  : undefined;
+
+                return (
+                  <div key={key} className={styles.entry} ref={entryRef}>
+                    <button
+                      type="button"
+                      className={styles.entryHeaderButton}
+                      onClick={(): void => {
+                        onToggleEntry(item);
+                      }}
+                      aria-expanded={isExpanded}
+                      aria-label={`Series ${series.title}`}
+                    >
+                      <StatsHeader
+                        title={series.title}
+                        subtitle={series.subtitle}
+                        metadata={[
+                          { label: "Score", value: series.score },
+                          { label: "Matches", value: `${series.matches.length.toString()} matches` },
+                          {
+                            label: "Window",
+                            value: `${new Date(firstMatch.startTime).toLocaleString()} - ${new Date(lastMatch.endTime).toLocaleString()}`,
+                          },
+                        ]}
+                        backgroundStyle={
+                          { "--match-bg": "linear-gradient(135deg, #0a0e14 0%, #1a1e24 100%)" } as React.CSSProperties
+                        }
+                        rightContent={
+                          <div className={styles.entryHeaderRight}>
+                            <div className={styles.entryHeaderVisuals}>
+                              <div className={styles.seriesModeIcons}>
+                                {series.matches.map((seriesMatch, iconIndex) => (
+                                  <img
+                                    key={`${seriesMatch.matchId}:${iconIndex.toString()}`}
+                                    src={gameModeIconSrc(seriesMatch.gameVariantCategory)}
+                                    alt="Game mode"
+                                    className={classNames(styles.entryModeIcon, {
+                                      [styles.seriesModeIconMuted]: seriesMatch.outcome === "loss",
+                                    })}
+                                  />
+                                ))}
+                              </div>
+                              <OutcomeBadge
+                                outcome={summarizeSeriesOutcome(
+                                  series.matches.map((seriesMatch) => seriesMatch.outcome),
+                                )}
+                              />
+                            </div>
+                            <span
+                              className={classNames(styles.entryChevron, {
+                                [styles.entryChevronExpanded]: isExpanded,
+                              })}
+                              aria-hidden="true"
+                            />
+                          </div>
+                        }
+                      />
+                    </button>
+
+                    {isExpanded && (
+                      <div className={styles.entryBody}>
+                        {state == null || (state.kind === "series" && state.state.status === "loading") ? (
+                          <LoadingState text="Loading series stats..." />
+                        ) : state.kind === "series" && state.state.status === "error" ? (
+                          <Alert variant="error">{state.state.message}</Alert>
+                        ) : state.kind === "series" && state.state.status === "loaded" ? (
+                          <SeriesStatsView {...state.state.viewModel} />
+                        ) : (
+                          <Alert variant="error">Unexpected entry state.</Alert>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
       </Container>
+
+      {(!isNearBottomNow || unseenEntries > 0) && (
+        <button
+          type="button"
+          className={styles.jumpToLatestButton}
+          onClick={(): void => {
+            scrollToLatest();
+            setUnseenEntries(0);
+          }}
+        >
+          {unseenEntries > 0 ? `Jump to latest (${unseenEntries.toString()} new)` : "Jump to latest"}
+        </button>
+      )}
     </>
   );
 }

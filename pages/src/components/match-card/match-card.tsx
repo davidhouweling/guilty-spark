@@ -4,6 +4,7 @@ import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker
 import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
 import { Checkbox } from "../checkbox/checkbox";
 import { TeamIcon } from "../icons/team-icon";
+import { OutcomeBadge } from "../outcome-badge/outcome-badge";
 import styles from "./match-card.module.css";
 
 export interface MatchCardProps {
@@ -123,9 +124,7 @@ export function MatchCard({
             </div>
             <div className={styles.matchHeaderRight}>
               <img src={modeIconSrc} alt={entry.modeName} className={styles.gameModeIcon} />
-              <div className={styles.outcome} data-outcome={entry.outcome.toLowerCase()}>
-                {entry.outcome}
-              </div>
+              <OutcomeBadge outcome={entry.outcome} />
             </div>
           </div>
 

@@ -1,14 +1,11 @@
-import { useCallback, useState, type CSSProperties, type ReactElement } from "react";
+import { type CSSProperties, type ReactElement } from "react";
 import classNames from "classnames";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
-import { Button } from "../button/button";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats as SeriesTotalsStats } from "../stats/series-stats";
 import styles from "./series-stats.module.css";
 import type { SeriesMatchDetail, SeriesMatchSummary, SeriesStatsViewModel, SeriesTeamCard } from "./types";
-
-export type SeriesViewMode = "standard" | "wide";
 
 interface MatchSummaryItemProps {
   readonly summary: SeriesMatchSummary;
@@ -54,12 +51,11 @@ function TeamCardSection({ team }: TeamCardSectionProps): ReactElement {
 
 interface MatchDetailSectionProps {
   readonly detail: SeriesMatchDetail;
-  readonly contentWidthClass: string | undefined;
 }
 
-function MatchDetailSection({ detail, contentWidthClass }: MatchDetailSectionProps): ReactElement {
+function MatchDetailSection({ detail }: MatchDetailSectionProps): ReactElement {
   return (
-    <Container mobileDown="0" className={classNames(styles.contentContainer, contentWidthClass, styles.matchSection)}>
+    <Container mobileDown="0" className={classNames(styles.contentContainer, styles.matchSection)}>
       {detail.data != null ? (
         <MatchStatsView
           data={detail.data}
@@ -86,88 +82,59 @@ function MatchDetailSection({ detail, contentWidthClass }: MatchDetailSectionPro
 }
 
 export function SeriesStatsView({
-  title,
-  subtitle,
   seriesScore,
   matchSummaries,
   teams,
   seriesStats,
   matchDetails,
 }: SeriesStatsViewModel): ReactElement {
-  const [viewMode, setViewMode] = useState<SeriesViewMode>("standard");
-  const contentWidthClass = viewMode === "wide" ? styles.wide : undefined;
-  const handleToggleViewMode = useCallback((): void => {
-    setViewMode((current) => (current === "standard" ? "wide" : "standard"));
-  }, []);
-
   return (
-    <>
-      <Container>
-        <div className={styles.headerBar}>
-          <div className={styles.headerLeft}>
-            <h1 className={styles.headerTitle}>{title}</h1>
-            <div className={styles.headerSubtitle}>{subtitle}</div>
-          </div>
-          <div className={styles.headerRight}>
-            <Button
-              size="small"
-              variant="secondary"
-              className={styles.switchView}
-              aria-pressed={viewMode === "wide"}
-              onClick={handleToggleViewMode}
-            >
-              {viewMode === "standard" ? "Switch to wide view" : "Switch to standard view"}
-            </Button>
+    <Container mobileDown="0" className={classNames(styles.dataContainer, styles.contentContainer)}>
+      <Container className={styles.contentContainer}>
+        <h2 className={styles.sectionTitle}>Series overview</h2>
+        <div className={styles.seriesOverviewWrap}>
+          <div className={styles.seriesOverview}>
+            <section className={styles.seriesScores}>
+              <h3 className={styles.seriesScoresHeader} aria-label="Series scores">
+                {seriesScore}
+              </h3>
+              <ul className={styles.seriesScoresList}>
+                {matchSummaries.map((summary) => (
+                  <MatchSummaryItem key={summary.matchId} summary={summary} />
+                ))}
+              </ul>
+            </section>
+
+            {teams.map((team) => (
+              <TeamCardSection key={team.name} team={team} />
+            ))}
           </div>
         </div>
       </Container>
 
-      <Container mobileDown="0" className={classNames(styles.dataContainer, styles.contentContainer, contentWidthClass)}>
-        <Container className={classNames(styles.contentContainer, contentWidthClass)}>
-          <h2 className={styles.sectionTitle}>Series overview</h2>
-          <div className={styles.seriesOverviewWrap}>
-            <div className={styles.seriesOverview}>
-              <section className={styles.seriesScores}>
-                <h3 className={styles.seriesScoresHeader} aria-label="Series scores">
-                  {seriesScore}
-                </h3>
-                <ul className={styles.seriesScoresList}>
-                  {matchSummaries.map((summary) => (
-                    <MatchSummaryItem key={summary.matchId} summary={summary} />
-                  ))}
-                </ul>
-              </section>
-
-              {teams.map((team) => (
-                <TeamCardSection key={team.name} team={team} />
-              ))}
-            </div>
-          </div>
+      {seriesStats != null && (
+        <Container mobileDown="0" className={styles.contentContainer}>
+          <SeriesTotalsStats
+            teamData={seriesStats.teamData}
+            playerData={seriesStats.playerData}
+            title="Series Totals"
+            metadata={seriesStats.metadata}
+            teamColors={seriesStats.teamColors}
+            killMatrixPivotData={seriesStats.killMatrixPivotData}
+            transposedKillMatrixPivotData={seriesStats.transposedKillMatrixPivotData}
+            killMatrixStatus={seriesStats.killMatrixStatus}
+            showHeader={false}
+          />
         </Container>
+      )}
 
-        {seriesStats != null && (
-          <Container mobileDown="0" className={classNames(styles.contentContainer, contentWidthClass)}>
-            <SeriesTotalsStats
-              teamData={seriesStats.teamData}
-              playerData={seriesStats.playerData}
-              title="Series Totals"
-              metadata={seriesStats.metadata}
-              teamColors={seriesStats.teamColors}
-              killMatrixPivotData={seriesStats.killMatrixPivotData}
-              transposedKillMatrixPivotData={seriesStats.transposedKillMatrixPivotData}
-              killMatrixStatus={seriesStats.killMatrixStatus}
-            />
-          </Container>
-        )}
-
-        <Container className={classNames(styles.contentContainer, contentWidthClass)}>
-          <h2 className={styles.sectionTitle}>Matches</h2>
-        </Container>
-
-        {matchDetails.map((detail) => (
-          <MatchDetailSection key={detail.matchId} detail={detail} contentWidthClass={contentWidthClass} />
-        ))}
+      <Container className={styles.contentContainer}>
+        <h2 className={styles.sectionTitle}>Matches</h2>
       </Container>
-    </>
+
+      {matchDetails.map((detail) => (
+        <MatchDetailSection key={detail.matchId} detail={detail} />
+      ))}
+    </Container>
   );
 }

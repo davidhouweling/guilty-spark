@@ -7,7 +7,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  margin: var(--space-8) 0;
   position: relative;
   scroll-margin-top: 90px;
 }
@@ -42,6 +41,13 @@
   color: var(--halo-white, #fff);
   font-family: var(--font-heading, "Orbitron", sans-serif);
   font-size: var(--text-xl);
+  margin: 0 0 var(--space-2);
+}
+
+.matchSubtitle {
+  color: var(--halo-gray, #9ca3af);
+  font-family: var(--font-body, "Inter", sans-serif);
+  font-size: var(--text-sm);
   margin: 0 0 var(--space-2);
 }
 
@@ -103,6 +109,7 @@
 .teamTotals {
   border-bottom: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
   margin-bottom: var(--space-4);
+  margin-top: var(--space-4);
   padding-bottom: var(--space-4);
 }
 
