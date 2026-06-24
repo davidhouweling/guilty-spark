@@ -218,10 +218,11 @@
   cursor: pointer;
   font-family: var(--font-heading);
   font-size: var(--text-xs);
+  left: 50%;
   letter-spacing: 0.04em;
   padding: var(--space-2) var(--space-3);
   position: fixed;
-  right: var(--space-4);
+  transform: translateX(-50%);
   z-index: 20;
 }
 

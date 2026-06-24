@@ -71,6 +71,21 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByRole("button", { name: /match/i })).toBeInTheDocument();
   });
 
+  it("renders matches newest to oldest when the API returns newest first", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({ matchId: "m-newest", mapName: "Newest" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m-oldest", mapName: "Oldest" }),
+      ],
+    });
+
+    renderViewer(view);
+
+    const buttons = screen.getAllByRole("button", { name: /match/i });
+    expect(buttons[0]).toHaveTextContent("Newest");
+    expect(buttons[1]).toHaveTextContent("Oldest");
+  });
+
   it("renders a series entry with title and score", () => {
     const view = aFakeTrackerViewStateWith({
       matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],

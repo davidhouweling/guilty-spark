@@ -169,7 +169,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
     status: view.status,
     isLive: view.isLive,
     lastUpdateTime: view.lastUpdateTime,
-    timeline,
+    timeline: [...timeline],
     accumulated,
     topBarStats: view.topBarStats,
     teamColors: [getTeamColorOrDefault(preferredTeamColorId, 0), getTeamColorOrDefault(preferredEnemyColorId, 1)],

@@ -228,7 +228,7 @@ export function IndividualTrackerViewer({
   const [isNearBottomNow, setIsNearBottomNow] = React.useState(true);
   const [unseenEntries, setUnseenEntries] = React.useState(0);
 
-  const oldestFirstTimeline = React.useMemo(() => [...renderModel.timeline].reverse(), [renderModel.timeline]);
+  const { timeline } = renderModel;
 
   const scrollToLatest = React.useCallback((): void => {
     latestEntryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -255,7 +255,7 @@ export function IndividualTrackerViewer({
 
   React.useEffect(() => {
     const previousLength = lastTimelineLengthRef.current;
-    const nextLength = oldestFirstTimeline.length;
+    const nextLength = timeline.length;
     if (nextLength > previousLength) {
       const delta = nextLength - previousLength;
       if (nearBottomRef.current) {
@@ -265,7 +265,7 @@ export function IndividualTrackerViewer({
       }
     }
     lastTimelineLengthRef.current = nextLength;
-  }, [oldestFirstTimeline.length, scrollToLatest]);
+  }, [timeline.length, scrollToLatest]);
 
   const notice = connectionNotice(connectionStatus);
   const refreshStartedDate = parseDate(refreshStartedAt);
@@ -348,15 +348,15 @@ export function IndividualTrackerViewer({
 
         <section className={styles.matchesSection}>
           <h2 className={styles.sectionTitle}>Tracked Gameplay</h2>
-          {oldestFirstTimeline.length === 0 ? (
+          {timeline.length === 0 ? (
             <Alert variant="info">No matches tracked yet.</Alert>
           ) : (
             <div className={styles.entriesList}>
-              {oldestFirstTimeline.map((item, index) => {
+              {timeline.map((item, index) => {
                 const key = entryKey(item);
                 const isExpanded = expandedEntryKeys.has(key);
                 const state = entryStates.get(key);
-                const isLatest = index === oldestFirstTimeline.length - 1;
+                const isLatest = index === timeline.length - 1;
 
                 if (item.type === "match") {
                   const { match } = item;
