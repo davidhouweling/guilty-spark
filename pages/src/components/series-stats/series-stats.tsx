@@ -7,6 +7,10 @@ import { SeriesStats as SeriesTotalsStats } from "../stats/series-stats";
 import styles from "./series-stats.module.css";
 import type { SeriesMatchDetail, SeriesMatchSummary, SeriesStatsViewModel, SeriesTeamCard } from "./types";
 
+interface SeriesStatsViewProps extends SeriesStatsViewModel {
+  readonly noGutter?: boolean;
+}
+
 interface MatchSummaryItemProps {
   readonly summary: SeriesMatchSummary;
 }
@@ -51,11 +55,15 @@ function TeamCardSection({ team }: TeamCardSectionProps): ReactElement {
 
 interface MatchDetailSectionProps {
   readonly detail: SeriesMatchDetail;
+  readonly noGutter?: boolean;
 }
 
-function MatchDetailSection({ detail }: MatchDetailSectionProps): ReactElement {
+function MatchDetailSection({ detail, noGutter }: MatchDetailSectionProps): ReactElement {
   return (
-    <Container mobileDown="0" className={classNames(styles.contentContainer, styles.matchSection)}>
+    <Container
+      mobileDown="0"
+      className={classNames(styles.contentContainer, styles.matchSection, { [styles.noGutter]: noGutter })}
+    >
       {detail.data != null ? (
         <MatchStatsView
           data={detail.data}
@@ -87,9 +95,10 @@ export function SeriesStatsView({
   teams,
   seriesStats,
   matchDetails,
-}: SeriesStatsViewModel): ReactElement {
+  noGutter,
+}: SeriesStatsViewProps): ReactElement {
   return (
-    <Container mobileDown="0" className={classNames(styles.dataContainer, styles.contentContainer)}>
+    <>
       <Container className={styles.contentContainer}>
         <h2 className={styles.sectionTitle}>Series overview</h2>
         <div className={styles.seriesOverviewWrap}>
@@ -113,7 +122,7 @@ export function SeriesStatsView({
       </Container>
 
       {seriesStats != null && (
-        <Container mobileDown="0" className={styles.contentContainer}>
+        <Container mobileDown="0" className={classNames(styles.contentContainer, { [styles.noGutter]: noGutter })}>
           <SeriesTotalsStats
             teamData={seriesStats.teamData}
             playerData={seriesStats.playerData}
@@ -133,8 +142,8 @@ export function SeriesStatsView({
       </Container>
 
       {matchDetails.map((detail) => (
-        <MatchDetailSection key={detail.matchId} detail={detail} />
+        <MatchDetailSection key={detail.matchId} detail={detail} noGutter={noGutter} />
       ))}
-    </Container>
+    </>
   );
 }

@@ -511,7 +511,7 @@ export function IndividualTrackerViewer({
                         ) : state.kind === "series" && state.state.status === "error" ? (
                           <Alert variant="error">{state.state.message}</Alert>
                         ) : state.kind === "series" && state.state.status === "loaded" ? (
-                          <SeriesStatsView {...state.state.viewModel} />
+                          <SeriesStatsView {...state.state.viewModel} noGutter={true} />
                         ) : (
                           <Alert variant="error">Unexpected entry state.</Alert>
                         )}

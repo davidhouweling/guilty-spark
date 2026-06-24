@@ -9,6 +9,10 @@
   transition: max-width var(--transition-smooth);
 }
 
+.contentContainer.noGutter {
+  padding: 0;
+}
+
 .sectionTitle {
   color: var(--halo-white);
   font-family: var(--font-heading);
@@ -156,6 +160,18 @@
 
   .seriesOverview {
     flex-direction: row;
+
+    > :nth-child(1) {
+      order: 2;
+    }
+
+    > :nth-child(2) {
+      order: 1;
+    }
+
+    > :nth-child(3) {
+      order: 3;
+    }
   }
 }
 
