@@ -1,5 +1,7 @@
 .card {
-  background-image: linear-gradient(rgb(0 0 0 / 25%), rgb(0 0 0 / 75%)), var(--map-bg);
+  background-image:
+    linear-gradient(to bottom, transparent 50%, var(--halo-bg-secondary) 100%),
+    linear-gradient(rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.75)), var(--map-bg);
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
