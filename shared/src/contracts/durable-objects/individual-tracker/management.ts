@@ -20,3 +20,6 @@ export type IndividualTrackerViewStateResponse = z.infer<typeof individualTracke
 
 export const individualTrackerSelectMatchesContract = defineContract(z.object({ success: z.literal(true) }));
 export type IndividualTrackerSelectMatchesResponse = z.infer<typeof individualTrackerSelectMatchesContract.schema>;
+
+export const individualTrackerRefreshContract = defineContract(z.object({ success: z.literal(true) }));
+export type IndividualTrackerRefreshResponse = z.infer<typeof individualTrackerRefreshContract.schema>;

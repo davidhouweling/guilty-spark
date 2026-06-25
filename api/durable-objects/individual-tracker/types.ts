@@ -98,6 +98,7 @@ export interface TopBarStatItem {
 export interface IndividualTrackerInternalState extends IndividualTrackerState {
   searchStartTime: string;
   lastMatchDiscoveredAt: string | undefined;
+  lastSuccessfulFetch?: string;
   lastSeenMatchId?: string;
   checkCount: number;
   matchIds: string[];
@@ -184,6 +185,10 @@ export interface IndividualTrackerStopResponse {
   success: true;
 }
 
+export interface IndividualTrackerRefreshResponse {
+  success: true;
+}
+
 export interface IndividualTrackerStatusResponse {
   state: IndividualTrackerState | null;
 }
@@ -202,6 +207,7 @@ export interface IndividualTrackerViewState {
   series: IndividualTrackerSeriesGroup[];
   lastUpdateTime: string;
   lastMatchDiscoveredAt: string | null;
+  lastSuccessfulFetch?: string;
   hasActiveSeries: boolean;
   hasRecentCompletedSeries: boolean;
   activeSeriesContext?: ActiveSeriesContext;

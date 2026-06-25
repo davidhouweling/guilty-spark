@@ -51,6 +51,7 @@ export const trackerLiveViewSchema = z.object({
   series: z.array(trackerSeriesGroupSchema),
   lastUpdateTime: z.string(),
   lastMatchDiscoveredAt: z.string().nullable(),
+  lastSuccessfulFetch: z.string().optional(),
   hasActiveSeries: z.boolean(),
   hasRecentCompletedSeries: z.boolean(),
   searchStartTime: z.string().optional(),

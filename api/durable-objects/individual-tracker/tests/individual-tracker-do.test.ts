@@ -2087,6 +2087,19 @@ describe("IndividualTrackerDO", () => {
       expect(webSocketAdapter.broadcasts).toHaveLength(0);
     });
 
+    it("broadcasts the current view when a manual refresh discovers no new match", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValueOnce([]);
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ matchIds: [] }));
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+
+      expect(response.status).toBe(200);
+      expect(webSocketAdapter.broadcasts).toHaveLength(1);
+      const parsed = trackerViewMessageContract.parse(Preconditions.checkExists(webSocketAdapter.broadcasts[0]));
+      expect(parsed.type).toBe("view");
+      expect(parsed.view.matches).toHaveLength(0);
+    });
+
     it("does not broadcast on a steady-state poll where an already-enriched match is unchanged", async () => {
       ownerClient.getPlayerMatches
         .mockResolvedValueOnce([aFakePlayerMatch("m1", "2024-11-26T11:30:00.000Z")])

@@ -584,6 +584,19 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     }
   }
 
+  public async refreshTracker(trackerId: string): Promise<void> {
+    const response = await fetch(
+      this.buildUrl(`/api/individual-tracker/manage/${encodeURIComponent(trackerId)}/refresh`),
+      {
+        credentials: "include",
+        method: "POST",
+      },
+    );
+    if (!response.ok) {
+      throw await this.readError(response);
+    }
+  }
+
   public connectToTracker(_userId: string, trackerId: string): IndividualTrackerConnection {
     const apiUrl = new URL(this.apiHost);
     const protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:";

@@ -25,22 +25,16 @@
 }
 
 .header {
-  align-items: flex-start;
+  align-items: center;
   display: flex;
-  flex-direction: column;
+  flex-flow: row wrap;
   gap: var(--space-3);
   margin-bottom: var(--space-5);
 }
 
-.headerLeft {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-
-.gamertag {
+.title {
   color: var(--halo-white);
+  display: inline-block;
   font-family: var(--font-heading);
   font-size: var(--text-2xl);
   letter-spacing: 0.04em;
@@ -93,21 +87,6 @@
   letter-spacing: 0.1em;
   padding: 2px var(--space-2);
   text-transform: uppercase;
-}
-
-.headerRight {
-  align-items: flex-start;
-  color: var(--halo-gray);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.record {
-  color: var(--halo-white);
-  font-family: var(--font-heading);
-  font-size: var(--text-xl);
-  letter-spacing: 0.04em;
 }
 
 .lastUpdated {
@@ -172,8 +151,7 @@
 
 .seriesModeIcons {
   display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
+  flex-flow: row wrap;
   gap: var(--space-1);
   justify-content: flex-end;
   max-width: 60px;

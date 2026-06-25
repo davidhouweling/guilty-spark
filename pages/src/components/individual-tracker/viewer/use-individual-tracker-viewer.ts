@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
@@ -9,6 +10,7 @@ import { IndividualTrackerViewerStore } from "./viewer-store";
 import type { IndividualTrackerViewerViewModel, ViewerTimelineItem } from "./types";
 
 interface UseIndividualTrackerViewerOpts {
+  readonly individualTrackerService?: IndividualTrackerService;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
@@ -20,10 +22,12 @@ export interface IndividualTrackerViewerHookResult {
   readonly snapshot: IndividualTrackerViewerSnapshot;
   readonly model: IndividualTrackerViewerViewModel;
   readonly onToggleEntry: (item: ViewerTimelineItem) => void;
+  readonly onRefresh: () => void;
   readonly onRetry: () => void;
 }
 
 export function useIndividualTrackerViewer({
+  individualTrackerService,
   individualTrackerViewService,
   matchAnalyticsService,
   seriesMatchesService,
@@ -35,6 +39,7 @@ export function useIndividualTrackerViewer({
   const presenter = useMemo(
     () =>
       new IndividualTrackerViewerPresenter({
+        individualTrackerService,
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
@@ -42,7 +47,15 @@ export function useIndividualTrackerViewer({
         store,
         trackerId,
       }),
-    [individualTrackerViewService, matchAnalyticsService, seriesMatchesService, haloClient, store, trackerId],
+    [
+      individualTrackerService,
+      individualTrackerViewService,
+      matchAnalyticsService,
+      seriesMatchesService,
+      haloClient,
+      store,
+      trackerId,
+    ],
   );
 
   useEffect(() => {
@@ -71,5 +84,9 @@ export function useIndividualTrackerViewer({
     presenter.start();
   }, [presenter]);
 
-  return { snapshot, model, onToggleEntry, onRetry };
+  const onRefresh = useCallback((): void => {
+    presenter.refresh();
+  }, [presenter]);
+
+  return { snapshot, model, onToggleEntry, onRefresh, onRetry };
 }

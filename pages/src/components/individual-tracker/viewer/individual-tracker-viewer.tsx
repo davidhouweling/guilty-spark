@@ -24,10 +24,7 @@ interface IndividualTrackerViewerProps {
   readonly expandedEntryKeys: ReadonlySet<string>;
   readonly entryStates: ReadonlyMap<string, ViewerEntryState>;
   readonly canManage: boolean;
-  readonly refreshInProgress: boolean;
-  readonly refreshStartedAt: string | null;
   readonly refreshPending: boolean;
-  readonly refreshMessage: string | null;
   readonly onToggleEntry: (item: ViewerTimelineItem) => void;
   readonly onBackToManage: () => void;
   readonly onRefresh: () => void;
@@ -62,38 +59,6 @@ function statusLabel(status: TrackerStatus): string {
   }
 }
 
-function connectionNotice(status: TrackerViewConnectionStatus): string | null {
-  switch (status) {
-    case "connecting": {
-      return "Connecting...";
-    }
-    case "connected": {
-      return null;
-    }
-    case "stopped": {
-      return "Tracker stopped.";
-    }
-    case "error": {
-      return "Connection error.";
-    }
-    case "disconnected": {
-      return "Reconnecting...";
-    }
-    case "not_found": {
-      return "Tracker not found.";
-    }
-    default: {
-      throw new UnreachableError(status);
-    }
-  }
-}
-
-function recordText(renderModel: IndividualTrackerViewerRenderModel): string {
-  const { wins, losses, ties } = renderModel.accumulated;
-  const base = `${wins.toString()}:${losses.toString()}`;
-  return ties > 0 ? `${base}:${ties.toString()}` : base;
-}
-
 function parseDate(value: string | null): Date | null {
   if (value == null) {
     return null;
@@ -105,20 +70,46 @@ function parseDate(value: string | null): Date | null {
 
 function automaticRefreshText(renderModel: IndividualTrackerViewerRenderModel): string {
   if (renderModel.status === "paused") {
-    return "Automatic refresh paused.";
+    return "paused";
   }
 
   if (renderModel.status === "stopped") {
-    return "Automatic refresh stopped.";
+    return "stopped";
   }
 
   const lastUpdatedDate = parseDate(renderModel.lastUpdateTime);
   if (lastUpdatedDate == null) {
-    return "Automatic refresh schedule unavailable.";
+    return "unavailable";
   }
 
   const nextAutomaticRefreshDate = addMinutes(lastUpdatedDate, 3);
-  return `Next automatic refresh ${formatDistanceToNow(nextAutomaticRefreshDate, { addSuffix: true })}`;
+  return formatDistanceToNow(nextAutomaticRefreshDate, { addSuffix: true });
+}
+
+function connectionNotice(connectionStatus: TrackerViewConnectionStatus): string | null {
+  switch (connectionStatus) {
+    case "connected": {
+      return null;
+    }
+    case "connecting": {
+      return "Connecting...";
+    }
+    case "disconnected": {
+      return "Reconnecting...";
+    }
+    case "error": {
+      return "Connection error. Retrying...";
+    }
+    case "not_found": {
+      return "Tracker not found.";
+    }
+    case "stopped": {
+      return "Tracker stopped.";
+    }
+    default: {
+      throw new UnreachableError(connectionStatus);
+    }
+  }
 }
 
 function toOutcomeLabel(outcome: NormalizedMatchOutcome): OutcomeBadgeValue {
@@ -210,10 +201,7 @@ export function IndividualTrackerViewer({
   expandedEntryKeys,
   entryStates,
   canManage,
-  refreshInProgress,
-  refreshStartedAt,
   refreshPending,
-  refreshMessage,
   onToggleEntry,
   onBackToManage,
   onRefresh,
@@ -264,12 +252,8 @@ export function IndividualTrackerViewer({
   }, [timeline.length, scrollToLatest]);
 
   const notice = connectionNotice(connectionStatus);
-  const refreshStartedDate = parseDate(refreshStartedAt);
-  const refreshHint = refreshInProgress
-    ? refreshStartedDate != null
-      ? `Refresh started ${formatDistanceToNow(refreshStartedDate, { addSuffix: true })}`
-      : "Refreshing now."
-    : automaticRefreshText(renderModel);
+  const lastUpdateText = relativeTime(renderModel.lastUpdateTime);
+  const refreshHint = `Last update: ${lastUpdateText} | Next update: ${automaticRefreshText(renderModel)}`;
 
   return (
     <>
@@ -285,8 +269,9 @@ export function IndividualTrackerViewer({
               <Button
                 variant="secondary"
                 size="small"
+                loading={refreshPending}
                 onClick={onRefresh}
-                disabled={refreshPending || refreshInProgress || renderModel.status !== "active"}
+                disabled={refreshPending || renderModel.status !== "active"}
               >
                 Refresh
               </Button>
@@ -296,29 +281,21 @@ export function IndividualTrackerViewer({
       )}
 
       <Container>
-        <header className={styles.header}>
-          <div className={styles.headerLeft}>
-            <h1 className={styles.gamertag}>{renderModel.gamertag} Tracker</h1>
-            <div className={styles.badges}>
-              <span
-                className={classNames(styles.statusBadge, {
-                  [styles.statusActive]: renderModel.status === "active",
-                  [styles.statusPaused]: renderModel.status === "paused",
-                  [styles.statusStopped]: renderModel.status === "stopped",
-                })}
-              >
-                {statusLabel(renderModel.status)}
-              </span>
-              {renderModel.isLive && <span className={styles.liveBadge}>Live</span>}
-            </div>
-          </div>
-          <div className={styles.headerRight}>
-            <span className={styles.record} data-testid="record">
-              {recordText(renderModel)}
+        <div className={styles.header}>
+          <h1 className={styles.title}>{renderModel.gamertag} Tracker</h1>
+          <div className={styles.badges}>
+            <span
+              className={classNames(styles.statusBadge, {
+                [styles.statusActive]: renderModel.status === "active",
+                [styles.statusPaused]: renderModel.status === "paused",
+                [styles.statusStopped]: renderModel.status === "stopped",
+              })}
+            >
+              {statusLabel(renderModel.status)}
             </span>
-            <span className={styles.lastUpdated}>Last updated {relativeTime(renderModel.lastUpdateTime)}</span>
+            {renderModel.isLive && <span className={styles.liveBadge}>Live</span>}
           </div>
-        </header>
+        </div>
 
         {notice != null && (
           <p className={styles.connectionNotice} data-testid="connection-notice">
@@ -326,11 +303,9 @@ export function IndividualTrackerViewer({
           </p>
         )}
 
-        {refreshMessage != null && canManage && <Alert variant="info">{refreshMessage}</Alert>}
-
-        <section className={styles.accumulatedSection}>
-          <h2 className={styles.sectionTitle}>Accumulated Stats</h2>
-          {renderModel.topBarStats != null && renderModel.topBarStats.length > 0 && (
+        {renderModel.topBarStats != null && renderModel.topBarStats.length > 0 && (
+          <section className={styles.accumulatedSection}>
+            <h2 className={styles.sectionTitle}>Accumulated Stats</h2>
             <ul className={styles.statsList}>
               {renderModel.topBarStats.map((stat) => (
                 <li key={`${stat.label}-${stat.value}`} className={styles.statsItem}>
@@ -339,8 +314,8 @@ export function IndividualTrackerViewer({
                 </li>
               ))}
             </ul>
-          )}
-        </section>
+          </section>
+        )}
       </Container>
       <section className={styles.matchesSection}>
         <Container>

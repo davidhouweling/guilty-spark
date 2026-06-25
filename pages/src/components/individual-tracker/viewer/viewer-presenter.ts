@@ -6,6 +6,7 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
+import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type {
   IndividualTrackerViewService,
   TrackerViewConnection,
@@ -43,6 +44,7 @@ interface MatchStatsLoadedState {
 }
 
 interface Config {
+  readonly individualTrackerService?: IndividualTrackerService;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
@@ -198,6 +200,7 @@ export class IndividualTrackerViewerPresenter {
   private connection: TrackerViewConnection | null = null;
   private viewSubscription: TrackerViewSubscription | null = null;
   private statusSubscription: TrackerViewSubscription | null = null;
+  private awaitingRefresh = false;
 
   public constructor(config: Config) {
     this.config = config;
@@ -223,10 +226,27 @@ export class IndividualTrackerViewerPresenter {
               preferredEnemyColorId: styleFlags?.playerEnemyColor ?? styleFlags?.enemyColor,
             }),
       connectionStatus: snapshot.connectionStatus,
+      refreshPending: snapshot.refreshPending,
       expandedEntryKeys: snapshot.expandedEntryKeys,
       entryStates: snapshot.entryStates,
       streamerSettings,
     };
+  }
+
+  public refresh(): void {
+    if (this.config.individualTrackerService == null) {
+      void this.load();
+      return;
+    }
+
+    const snapshot = this.config.store.getSnapshot();
+    if (snapshot.refreshPending || snapshot.view?.status !== "active") {
+      return;
+    }
+
+    this.awaitingRefresh = true;
+    this.config.store.setRefreshState(true);
+    void this.refreshAsync();
   }
 
   public toggleEntry(item: ViewerTimelineItem): void {
@@ -394,12 +414,28 @@ export class IndividualTrackerViewerPresenter {
 
   public dispose(): void {
     this.isDisposed = true;
+    this.awaitingRefresh = false;
     this.viewSubscription?.unsubscribe();
     this.viewSubscription = null;
     this.statusSubscription?.unsubscribe();
     this.statusSubscription = null;
     this.connection?.disconnect();
     this.connection = null;
+  }
+
+  private async refreshAsync(): Promise<void> {
+    try {
+      await this.config.individualTrackerService?.refreshTracker(this.config.trackerId);
+      if (this.isDisposed) {
+        return;
+      }
+    } catch {
+      if (this.isDisposed) {
+        return;
+      }
+      this.awaitingRefresh = false;
+      this.config.store.setRefreshState(false);
+    }
   }
 
   private async load(): Promise<void> {
@@ -432,6 +468,10 @@ export class IndividualTrackerViewerPresenter {
         return;
       }
       this.config.store.setView(view);
+      if (this.awaitingRefresh) {
+        this.awaitingRefresh = false;
+        this.config.store.setRefreshState(false);
+      }
       this.prefetchTimeline();
     });
     this.statusSubscription = connection.subscribeStatus((status) => {

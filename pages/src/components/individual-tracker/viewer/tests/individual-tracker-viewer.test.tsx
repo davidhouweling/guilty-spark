@@ -27,10 +27,7 @@ function renderViewer(
       expandedEntryKeys={new Set()}
       entryStates={new Map()}
       canManage={true}
-      refreshInProgress={false}
-      refreshStartedAt={null}
       refreshPending={false}
-      refreshMessage={null}
       onToggleEntry={() => undefined}
       onBackToManage={() => undefined}
       onRefresh={() => undefined}
@@ -43,7 +40,7 @@ describe("IndividualTrackerViewer", () => {
     cleanup();
   });
 
-  it("renders the gamertag and accumulated record", () => {
+  it("renders the gamertag and active status", () => {
     const view = aFakeTrackerViewStateWith({
       gamertag: "Spartan One",
       isLive: false,
@@ -56,7 +53,7 @@ describe("IndividualTrackerViewer", () => {
     renderViewer(view);
 
     expect(screen.getByText("Spartan One Tracker")).toBeInTheDocument();
-    expect(screen.getByTestId("record")).toHaveTextContent("1:1");
+    expect(screen.getByText("Active")).toBeInTheDocument();
   });
 
   it("renders a standalone match entry with its map and score", () => {
@@ -133,6 +130,6 @@ describe("IndividualTrackerViewer", () => {
     renderViewer(view);
 
     expect(screen.getByText("Spartan One Tracker")).toBeInTheDocument();
-    expect(screen.getByText("Last updated unknown")).toBeInTheDocument();
+    expect(screen.getByText("Last update: unknown | Next update: unavailable")).toBeInTheDocument();
   });
 });

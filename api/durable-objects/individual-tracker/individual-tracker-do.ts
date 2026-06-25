@@ -29,6 +29,7 @@ import {
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
 import {
   individualTrackerStatusContract,
+  individualTrackerRefreshContract,
   individualTrackerViewStateContract,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/management";
 import {
@@ -159,6 +160,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           case "resume-series": {
             return await this.handleResumeSeries();
           }
+          case "refresh": {
+            return await this.handleRefresh();
+          }
           case "nudge": {
             return await this.handleNudge(request);
           }
@@ -241,20 +245,28 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         return;
       }
 
-      let discoveredNewMatch = false;
-      try {
-        discoveredNewMatch = await this.pollWithMarker(trackerState);
-      } catch (error) {
-        this.logService.error(error, new Map([["context", "IndividualTracker alarm poll failed"]]));
-        this.handleError(trackerState, error);
-      }
-
-      await this.setState(trackerState);
-      if (discoveredNewMatch) {
-        this.broadcastViewState(trackerState);
-      }
-      await this.state.storage.setAlarm(addMilliseconds(new Date(), this.getNextAlarmInterval(trackerState)).getTime());
+      await this.pollAndPersist(trackerState, false, "IndividualTracker alarm poll failed");
     });
+  }
+
+  private async pollAndPersist(
+    trackerState: IndividualTrackerInternalState,
+    broadcastWhenUnchanged: boolean,
+    errorContext: string,
+  ): Promise<void> {
+    let discoveredNewMatch = false;
+    try {
+      discoveredNewMatch = await this.pollWithMarker(trackerState);
+    } catch (error) {
+      this.logService.error(error, new Map([["context", errorContext]]));
+      this.handleError(trackerState, error);
+    }
+
+    await this.setState(trackerState);
+    if (broadcastWhenUnchanged || discoveredNewMatch) {
+      this.broadcastViewState(trackerState);
+    }
+    await this.state.storage.setAlarm(addMilliseconds(new Date(), this.getNextAlarmInterval(trackerState)).getTime());
   }
 
   private async pollWithMarker(trackerState: IndividualTrackerInternalState): Promise<boolean> {
@@ -399,6 +411,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     trackerState.checkCount += 1;
     trackerState.lastUpdateTime = now;
+    trackerState.lastSuccessfulFetch = now;
     trackerState.errorState.consecutiveErrors = 0;
     trackerState.errorState.backoffMinutes = NORMAL_INTERVAL_MINUTES;
     trackerState.errorState.lastSuccessTime = now;
@@ -1327,6 +1340,24 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return individualTrackerNudgeContract.toResponse({ success: true });
   }
 
+  private async handleRefresh(): Promise<Response> {
+    const trackerState = await this.getState();
+    if (trackerState == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    if (trackerState.status !== "active" || trackerState.isPaused) {
+      return errorContract.toResponse(
+        { error: "Only active trackers can be refreshed" },
+        { status: 409, noStore: true },
+      );
+    }
+
+    await this.pollAndPersist(trackerState, true, "IndividualTracker manual refresh failed");
+
+    return individualTrackerRefreshContract.toResponse({ success: true });
+  }
+
   private async handleStatus(): Promise<Response> {
     const trackerState = await this.getState();
     return individualTrackerStatusContract.toResponse({
@@ -1557,6 +1588,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       lastMatchDiscoveredAt: state.lastMatchDiscoveredAt ?? null,
       hasActiveSeries: state.activeSeries != null,
       hasRecentCompletedSeries,
+      ...(state.lastSuccessfulFetch !== undefined ? { lastSuccessfulFetch: state.lastSuccessfulFetch } : {}),
       ...(state.activeSeries != null
         ? {
             activeSeriesContext: {

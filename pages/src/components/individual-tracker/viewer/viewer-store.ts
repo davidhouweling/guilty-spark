@@ -28,6 +28,7 @@ export interface IndividualTrackerViewerSnapshot {
   readonly errorMessage: string | null;
   readonly view: TrackerViewState | null;
   readonly connectionStatus: TrackerViewConnectionStatus;
+  readonly refreshPending: boolean;
   readonly expandedEntryKeys: ReadonlySet<string>;
   readonly entryStates: ReadonlyMap<string, ViewerEntryState>;
 }
@@ -42,6 +43,7 @@ export class IndividualTrackerViewerStore {
       errorMessage: null,
       view: null,
       connectionStatus: "connecting",
+      refreshPending: false,
       expandedEntryKeys: new Set<string>(),
       entryStates: new Map<string, ViewerEntryState>(),
     };
@@ -79,6 +81,10 @@ export class IndividualTrackerViewerStore {
 
   public setConnectionStatus(connectionStatus: TrackerViewConnectionStatus): void {
     this.update({ connectionStatus });
+  }
+
+  public setRefreshState(refreshPending: boolean): void {
+    this.update({ refreshPending });
   }
 
   public setEntryExpanded(key: string, expanded: boolean): void {

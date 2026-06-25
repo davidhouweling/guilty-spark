@@ -4,6 +4,7 @@ import {
   editSeriesContract,
   editSeriesRequestSchema,
   endSeriesContract,
+  refreshTrackerContract,
   resumeSeriesContract,
   selectMatchesContract,
   selectMatchesRequestSchema,
@@ -48,6 +49,13 @@ class SyncMatchesError extends Error {
   public constructor(message: string) {
     super(message);
     this.name = "SyncMatchesError";
+  }
+}
+
+class RefreshTrackerConflictError extends Error {
+  public constructor(message: string) {
+    super(message);
+    this.name = "RefreshTrackerConflictError";
   }
 }
 
@@ -186,6 +194,27 @@ async function resumeSeriesDo(env: Env, userId: string, trackerId: string): Prom
   }
   assertDoOkWith404(response);
   await resumeSeriesContract.fromResponse(response);
+}
+
+async function refreshTrackerDo(env: Env, userId: string, trackerId: string): Promise<void> {
+  const stub = trackerDoStub(env, userId, trackerId);
+  const response = await stub.fetch("http://do/refresh", { method: "POST" });
+  if (response.status === 409) {
+    const responseBody = await response
+      .clone()
+      .json()
+      .catch(() => null);
+    if (responseBody != null) {
+      const payload = errorContract.safeParse(responseBody);
+      if (payload.success) {
+        throw new RefreshTrackerConflictError(payload.data.error);
+      }
+    }
+
+    throw new RefreshTrackerConflictError("Tracker cannot be refreshed right now");
+  }
+  assertDoOkWith404(response);
+  await refreshTrackerContract.fromResponse(response);
 }
 
 export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
@@ -684,6 +713,38 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
     } catch (error) {
       logService.error(error, new Map([["context", "Individual tracker resume series error"]]));
       return errorContract.toResponse({ error: "Failed to resume series" }, { status: 500, noStore: true });
+    }
+  });
+
+  router.post("/api/individual-tracker/manage/:trackerId/refresh", async (request, env: Env) => {
+    const services = installServices({ env });
+    const { authService, individualTrackerService, logService } = services;
+
+    try {
+      const auth = await requireSession(request, authService);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      const pathParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
+      if (!pathParams.success) {
+        return pathParams.response;
+      }
+
+      await individualTrackerService.getOwnedTracker(auth.session.userId, pathParams.data.trackerId);
+      await refreshTrackerDo(env, auth.session.userId, pathParams.data.trackerId);
+
+      return refreshTrackerContract.toResponse({ success: true }, { noStore: true });
+    } catch (error) {
+      if (error instanceof TrackerNotFoundError) {
+        return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
+      }
+      if (error instanceof RefreshTrackerConflictError) {
+        return errorContract.toResponse({ error: error.message }, { status: 409, noStore: true });
+      }
+
+      logService.error(error, new Map([["context", "Individual tracker refresh error"]]));
+      return errorContract.toResponse({ error: "Failed to refresh tracker" }, { status: 500, noStore: true });
     }
   });
 

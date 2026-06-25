@@ -163,5 +163,6 @@ export interface IndividualTrackerService {
   endSeries(trackerId: string): Promise<void>;
   editSeries(trackerId: string, request: EditSeriesRequest): Promise<void>;
   resumeSeries(trackerId: string): Promise<void>;
+  refreshTracker(trackerId: string): Promise<void>;
   connectToTracker(userId: string, trackerId: string): IndividualTrackerConnection;
 }

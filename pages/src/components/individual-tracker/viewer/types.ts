@@ -88,6 +88,7 @@ export type ViewerEntryState =
 export interface IndividualTrackerViewerViewModel {
   readonly renderModel: IndividualTrackerViewerRenderModel | null;
   readonly connectionStatus: TrackerViewConnectionStatus;
+  readonly refreshPending: boolean;
   readonly expandedEntryKeys: ReadonlySet<string>;
   readonly entryStates: ReadonlyMap<string, ViewerEntryState>;
   readonly streamerSettings: StreamerViewSettings | undefined;

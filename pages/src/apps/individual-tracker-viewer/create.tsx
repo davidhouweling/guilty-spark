@@ -74,6 +74,7 @@ export function IndividualTrackerViewerApp({ apiHost, trackerId }: IndividualTra
       loaded={
         services ? (
           <IndividualTrackerViewerPage
+            individualTrackerService={services.individualTrackerService}
             individualTrackerViewService={services.individualTrackerViewService}
             matchAnalyticsService={services.matchAnalyticsService}
             seriesMatchesService={services.seriesMatchesService}

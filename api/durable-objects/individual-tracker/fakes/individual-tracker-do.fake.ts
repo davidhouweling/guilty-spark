@@ -10,6 +10,7 @@ import type {
   IndividualTrackerViewState,
   IndividualTrackerViewStateResponse,
   IndividualTrackerSelectMatchesResponse,
+  IndividualTrackerRefreshResponse,
   IndividualTrackerStartSeriesResponse,
   IndividualTrackerNudgeResponse,
   IndividualTrackerEditSeriesResponse,
@@ -26,6 +27,7 @@ export interface FakeIndividualTrackerDOOpts {
   statusResponse?: IndividualTrackerStatusResponse;
   viewStateResponse?: IndividualTrackerViewStateResponse;
   selectMatchesResponse?: IndividualTrackerSelectMatchesResponse;
+  refreshResponse?: IndividualTrackerRefreshResponse;
   startSeriesResponse?: IndividualTrackerStartSeriesResponse;
   endSeriesResponse?: { success: true };
   editSeriesResponse?: IndividualTrackerEditSeriesResponse;
@@ -131,6 +133,7 @@ export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts =
     state: aFakeIndividualTrackerViewStateWith(),
   };
   const selectMatchesResponse: IndividualTrackerSelectMatchesResponse = opts.selectMatchesResponse ?? { success: true };
+  const refreshResponse: IndividualTrackerRefreshResponse = opts.refreshResponse ?? { success: true };
   const startSeriesResponse: IndividualTrackerStartSeriesResponse = opts.startSeriesResponse ?? { success: true };
   const endSeriesResponse: { success: true } = opts.endSeriesResponse ?? { success: true };
   const editSeriesResponse: IndividualTrackerEditSeriesResponse = opts.editSeriesResponse ?? { success: true };
@@ -177,6 +180,9 @@ export function aFakeIndividualTrackerDOWith(opts: FakeIndividualTrackerDOOpts =
         break;
       case "/select-matches":
         responseBody = JSON.stringify(selectMatchesResponse);
+        break;
+      case "/refresh":
+        responseBody = JSON.stringify(refreshResponse);
         break;
       case "/start-series":
         responseBody = JSON.stringify(startSeriesResponse);
