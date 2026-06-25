@@ -66,6 +66,7 @@ describe("IndividualTrackerViewer", () => {
 
     expect(screen.getByText("Slayer: Aquarius")).toBeInTheDocument();
     expect(screen.getByText("50:30")).toBeInTheDocument();
+    expect(screen.getByAltText("Slayer")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /match/i })).toBeInTheDocument();
   });
 

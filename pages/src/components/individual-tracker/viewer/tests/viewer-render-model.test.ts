@@ -210,4 +210,38 @@ describe("buildViewerRenderModel", () => {
       expect(loss.match.colorHex).toBe("#8FED23");
     }
   });
+
+  it("renders unknown match duration when timestamps are invalid", () => {
+    expect.assertions(1);
+    const view = aFakeTrackerViewStateWith({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1", startTime: "bad-start", endTime: "bad-end" })],
+    });
+
+    const model = buildViewerRenderModel({ view });
+    const [first] = model.timeline;
+    if (first.type === "match") {
+      expect(first.match.duration).toBe("unknown");
+    }
+  });
+
+  it("renders unknown series duration when any member has invalid bounds", () => {
+    expect.assertions(1);
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m1",
+          startTime: "2026-01-01T00:00:00.000Z",
+          endTime: "2026-01-01T00:10:00.000Z",
+        }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m2", startTime: "bad-start", endTime: "bad-end" }),
+      ],
+      series: [aFakeTrackerSeriesGroupWith({ id: "s1", matchIds: ["m1", "m2"] })],
+    });
+
+    const model = buildViewerRenderModel({ view });
+    const [first] = model.timeline;
+    if (first.type === "series") {
+      expect(first.series.duration).toBe("unknown");
+    }
+  });
 });

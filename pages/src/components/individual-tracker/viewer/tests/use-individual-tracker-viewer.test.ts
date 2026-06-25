@@ -246,4 +246,75 @@ describe("useIndividualTrackerViewer", () => {
       expect(getSeriesMatches).toHaveBeenCalledTimes(2);
     });
   });
+
+  it("chunks very large series requests to stay within the API matchId limit", async () => {
+    const matchIds = Array.from({ length: 61 }, (_, index) => `m-${(index + 1).toString()}`);
+    const matches = matchIds.map((matchId) => aFakeTrackerMatchSummaryWith({ matchId }));
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
+      view: aFakeTrackerViewStateWith({
+        trackerId: "tracker-1",
+        status: "active",
+        matches,
+        series: [aFakeTrackerSeriesGroupWith({ id: "series-1", title: "Huge Series", matchIds })],
+      }),
+    });
+    const matchAnalyticsService = {
+      getBatchMatchAnalytics: vi.fn().mockResolvedValue({}),
+    } as unknown as MatchAnalyticsService;
+    const getSeriesMatches = vi.fn<SeriesMatchesService["getSeriesMatches"]>().mockImplementation(async (ids) =>
+      Promise.resolve({
+        medalMetadata: {},
+        playerXuidToGametag: {},
+        matches: ids.map((matchId) => ({
+          matchId,
+          gameTypeAndMap: "Slayer: Live Fire",
+          gameVariantCategory: 0,
+          gameType: "Slayer",
+          gameMap: "Live Fire",
+          gameMapThumbnailUrl: "data:",
+          duration: "10m 00s",
+          gameScore: "50:45",
+          gameSubScore: null,
+          startTime: "2026-01-01T00:00:00.000Z",
+          endTime: "2026-01-01T00:10:00.000Z",
+          rawMatch: {},
+        })),
+      }),
+    );
+    const seriesMatchesService = {
+      getSeriesMatches,
+    } as unknown as SeriesMatchesService;
+    const haloClient = {} as HaloInfiniteClient;
+
+    const { result } = renderHook(() =>
+      useIndividualTrackerViewer({
+        individualTrackerViewService,
+        matchAnalyticsService,
+        seriesMatchesService,
+        haloClient,
+        trackerId: "tracker-1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+    });
+
+    const seriesItem = result.current.model.renderModel?.timeline.find((item) => item.type === "series");
+    expect(seriesItem?.type).toBe("series");
+
+    act(() => {
+      if (seriesItem?.type === "series") {
+        result.current.onToggleEntry(seriesItem);
+      }
+    });
+
+    await waitFor(() => {
+      expect(getSeriesMatches).toHaveBeenCalledTimes(3);
+    });
+
+    expect(getSeriesMatches).toHaveBeenNthCalledWith(1, matchIds.slice(0, 30));
+    expect(getSeriesMatches).toHaveBeenNthCalledWith(2, matchIds.slice(30, 60));
+    expect(getSeriesMatches).toHaveBeenNthCalledWith(3, matchIds.slice(60, 61));
+  });
 });

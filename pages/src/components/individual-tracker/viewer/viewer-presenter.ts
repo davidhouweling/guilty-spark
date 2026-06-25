@@ -54,6 +54,7 @@ interface Config {
 }
 
 const WIN_OUTCOME = 2;
+const SERIES_MATCHES_BATCH_SIZE = 30;
 
 function isMatchStats(value: unknown): value is MatchStats {
   if (typeof value !== "object" || value == null) {
@@ -360,17 +361,42 @@ export class IndividualTrackerViewerPresenter {
   private async fetchSeriesEntry(key: string, series: ViewerSeriesTab): Promise<void> {
     this.config.store.setEntryLoading(key, "series");
     try {
-      const matchIds = series.matches.map((match) => match.matchId);
-      const seriesData = await this.config.seriesMatchesService.getSeriesMatches(matchIds);
+      const requestedMatchIds = series.matches.map((match) => match.matchId);
+      const uniqueMatchIds = [...new Set(requestedMatchIds)];
+      const seriesDataChunks: SeriesMatchesResponse[] = [];
+
+      for (let index = 0; index < uniqueMatchIds.length; index += SERIES_MATCHES_BATCH_SIZE) {
+        const batchMatchIds = uniqueMatchIds.slice(index, index + SERIES_MATCHES_BATCH_SIZE);
+        const batchSeriesData = await this.config.seriesMatchesService.getSeriesMatches(batchMatchIds);
+        seriesDataChunks.push(batchSeriesData);
+      }
+
+      const mergedMatchesById = new Map(seriesDataChunks.flatMap((chunk) => chunk.matches).map((m) => [m.matchId, m]));
+      const mergedSeriesData: SeriesMatchesResponse = {
+        medalMetadata: Object.assign({}, ...seriesDataChunks.map((chunk) => chunk.medalMetadata)),
+        playerXuidToGametag: Object.assign({}, ...seriesDataChunks.map((chunk) => chunk.playerXuidToGametag)),
+        matches: requestedMatchIds
+          .map((matchId) => mergedMatchesById.get(matchId))
+          .filter((match): match is SeriesMatchesResponse["matches"][number] => match != null),
+      };
+
       if (this.isDisposed) {
         return;
       }
 
-      const playerMap = new Map(Object.entries(seriesData.playerXuidToGametag));
-      const rawMatches = seriesData.matches.map((m) => m.rawMatch).filter((m): m is MatchStats => isMatchStats(m));
+      const playerMap = new Map(Object.entries(mergedSeriesData.playerXuidToGametag));
+      const rawMatches = mergedSeriesData.matches
+        .map((m) => m.rawMatch)
+        .filter((m): m is MatchStats => isMatchStats(m));
 
       const teamColors = this.resolveTeamColors();
-      const viewModel = buildSeriesViewModel({ series, seriesData, rawMatches, playerMap, teamColors });
+      const viewModel = buildSeriesViewModel({
+        series,
+        seriesData: mergedSeriesData,
+        rawMatches,
+        playerMap,
+        teamColors,
+      });
 
       const state: SeriesEntryLoadedState = { seriesId: series.id, viewModel };
       this.config.store.setSeriesEntryLoaded(key, state);

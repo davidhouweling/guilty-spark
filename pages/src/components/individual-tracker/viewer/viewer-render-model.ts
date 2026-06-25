@@ -6,7 +6,7 @@ import type {
 import { getGameModeName } from "@guilty-spark/shared/halo/game-variants";
 import { getDurationInIsoString, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { normalizeOutcomeString, getOutcomeColor } from "@guilty-spark/shared/halo/match-enrichment";
-import { differenceInSeconds } from "date-fns";
+import { differenceInSeconds, isValid, parseISO } from "date-fns";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type {
@@ -23,11 +23,25 @@ export interface BuildViewerRenderModelOptions {
   readonly preferredEnemyColorId?: string;
 }
 
+function toReadableDurationOrUnknown(startTime: string, endTime: string): string {
+  const startDate = parseISO(startTime);
+  const endDate = parseISO(endTime);
+  if (!isValid(startDate) || !isValid(endDate)) {
+    return "unknown";
+  }
+
+  const durationInSeconds = differenceInSeconds(endDate, startDate);
+  if (durationInSeconds < 0) {
+    return "unknown";
+  }
+
+  const isoDuration = getDurationInIsoString(durationInSeconds);
+  return getReadableDuration(isoDuration);
+}
+
 function toMatchTab(summary: TrackerMatchSummary, teamHex: string, enemyHex: string): ViewerMatchTab {
   const outcome = normalizeOutcomeString(summary.outcome);
-  const durationInSeconds = differenceInSeconds(new Date(summary.endTime), new Date(summary.startTime));
-  const isoDuration = getDurationInIsoString(durationInSeconds);
-  const duration = getReadableDuration(isoDuration);
+  const duration = toReadableDurationOrUnknown(summary.startTime, summary.endTime);
 
   return {
     matchId: summary.matchId,
@@ -119,19 +133,34 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         }
       }
 
-      // Calculate series duration, startTime, and endTime
-      let seriesDuration = "0 hours";
+      let seriesDuration = "unknown";
       let seriesStartTime = "";
       let seriesEndTime = "";
 
       if (seriesSummaries.length > 0) {
-        // Sum all match durations
         let totalSeconds = 0;
+        let hasInvalidDurationBounds = false;
         for (const summary of seriesSummaries) {
-          totalSeconds += differenceInSeconds(new Date(summary.endTime), new Date(summary.startTime));
+          const startDate = parseISO(summary.startTime);
+          const endDate = parseISO(summary.endTime);
+          if (!isValid(startDate) || !isValid(endDate)) {
+            hasInvalidDurationBounds = true;
+            break;
+          }
+
+          const durationInSeconds = differenceInSeconds(endDate, startDate);
+          if (durationInSeconds < 0) {
+            hasInvalidDurationBounds = true;
+            break;
+          }
+
+          totalSeconds += durationInSeconds;
         }
-        const isoDuration = getDurationInIsoString(totalSeconds);
-        seriesDuration = getReadableDuration(isoDuration);
+
+        if (!hasInvalidDurationBounds) {
+          const isoDuration = getDurationInIsoString(totalSeconds);
+          seriesDuration = getReadableDuration(isoDuration);
+        }
 
         const startTimes = seriesSummaries.map((summary) => summary.startTime);
         const endTimes = seriesSummaries.map((summary) => summary.endTime);

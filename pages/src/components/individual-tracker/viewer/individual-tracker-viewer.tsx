@@ -388,7 +388,7 @@ export function IndividualTrackerViewer({
                             <div className={styles.entryHeaderVisuals}>
                               <img
                                 src={gameModeIconSrc(match.gameVariantCategory)}
-                                alt="Game mode"
+                                alt={match.gameModeName}
                                 className={styles.entryModeIcon}
                               />
                               <OutcomeBadge outcome={toOutcomeLabel(match.outcome)} />
@@ -483,7 +483,7 @@ export function IndividualTrackerViewer({
                                 <img
                                   key={`${seriesMatch.matchId}:${iconIndex.toString()}`}
                                   src={gameModeIconSrc(seriesMatch.gameVariantCategory)}
-                                  alt="Game mode"
+                                  alt={seriesMatch.gameModeName}
                                   className={classNames(styles.entryModeIcon, {
                                     [styles.seriesModeIconMuted]: seriesMatch.outcome === "loss",
                                   })}
