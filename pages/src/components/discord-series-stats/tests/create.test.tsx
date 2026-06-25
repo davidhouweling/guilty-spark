@@ -60,6 +60,7 @@ describe("DiscordSeriesStats", () => {
     expect(screen.getByText("Matches")).toBeInTheDocument();
     expect(screen.getByText("Eagle")).toBeInTheDocument();
     expect(screen.getByText("Cobra")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "1:0" })).toBeInTheDocument();
   });
 
   it("shows warning when a match has invalid raw match data", () => {

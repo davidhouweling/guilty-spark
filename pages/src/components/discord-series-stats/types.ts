@@ -1,7 +1,3 @@
-export type {
-  SeriesMatchDetail as DiscordSeriesMatchDetail,
-  SeriesMatchSummary as DiscordSeriesMatchSummary,
-  SeriesStatsSummary as DiscordSeriesSeriesStats,
-  SeriesStatsViewModel as DiscordSeriesStatsViewModel,
-  SeriesTeamCard as DiscordSeriesTeamCard,
-} from "../series-stats/types";
+// This module is intentionally empty.
+// Discord series components now import shared series stats types directly.
+export {};

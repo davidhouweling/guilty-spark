@@ -104,9 +104,7 @@ export function SeriesStatsView({
         <div className={styles.seriesOverviewWrap}>
           <div className={styles.seriesOverview}>
             <section className={styles.seriesScores}>
-              <h3 className={styles.seriesScoresHeader} aria-label="Series scores">
-                {seriesScore}
-              </h3>
+              <h3 className={styles.seriesScoresHeader}>{seriesScore}</h3>
               <ul className={styles.seriesScoresList}>
                 {matchSummaries.map((summary) => (
                   <MatchSummaryItem key={summary.matchId} summary={summary} />
