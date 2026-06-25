@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { aFakeIndividualTrackerServiceWith } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
 import {
@@ -316,5 +317,198 @@ describe("useIndividualTrackerViewer", () => {
     expect(getSeriesMatches).toHaveBeenNthCalledWith(1, matchIds.slice(0, 30));
     expect(getSeriesMatches).toHaveBeenNthCalledWith(2, matchIds.slice(30, 60));
     expect(getSeriesMatches).toHaveBeenNthCalledWith(3, matchIds.slice(60, 61));
+  });
+
+  it("uses the latest chronological match for series team cards", async () => {
+    const matchIds = ["m-1", "m-2"];
+    const matches = matchIds.map((matchId) => aFakeTrackerMatchSummaryWith({ matchId }));
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
+      view: aFakeTrackerViewStateWith({
+        trackerId: "tracker-1",
+        status: "active",
+        matches,
+        series: [aFakeTrackerSeriesGroupWith({ id: "series-1", title: "Roster Source", matchIds })],
+      }),
+    });
+    const matchAnalyticsService = {
+      getBatchMatchAnalytics: vi.fn().mockResolvedValue({}),
+    } as unknown as MatchAnalyticsService;
+    const matchA = aFakeMatchStatsWith({
+      MatchId: "m-1",
+      MatchInfo: {
+        ...aFakeMatchStatsWith().MatchInfo,
+        StartTime: "2026-01-01T00:00:00.000Z",
+        EndTime: "2026-01-01T00:10:00.000Z",
+      },
+      Teams: [
+        { ...aFakeMatchStatsWith().Teams[0], TeamId: 0 },
+        { ...aFakeMatchStatsWith().Teams[1], TeamId: 1 },
+      ],
+    });
+    const matchB = aFakeMatchStatsWith({
+      MatchId: "m-2",
+      MatchInfo: {
+        ...aFakeMatchStatsWith().MatchInfo,
+        StartTime: "2026-01-01T00:20:00.000Z",
+        EndTime: "2026-01-01T00:30:00.000Z",
+      },
+      Teams: [
+        { ...aFakeMatchStatsWith().Teams[0], TeamId: 4 },
+        { ...aFakeMatchStatsWith().Teams[1], TeamId: 5 },
+      ],
+    });
+
+    const getSeriesMatches = vi.fn<SeriesMatchesService["getSeriesMatches"]>().mockResolvedValue({
+      medalMetadata: {},
+      playerXuidToGametag: {},
+      matches: [
+        {
+          matchId: "m-1",
+          gameTypeAndMap: "Slayer: Live Fire",
+          gameVariantCategory: 0,
+          gameType: "Slayer",
+          gameMap: "Live Fire",
+          gameMapThumbnailUrl: "data:",
+          duration: "10m 00s",
+          gameScore: "50:45",
+          gameSubScore: null,
+          startTime: "2026-01-01T00:00:00.000Z",
+          endTime: "2026-01-01T00:10:00.000Z",
+          rawMatch: matchA,
+        },
+        {
+          matchId: "m-2",
+          gameTypeAndMap: "Slayer: Aquarius",
+          gameVariantCategory: 0,
+          gameType: "Slayer",
+          gameMap: "Aquarius",
+          gameMapThumbnailUrl: "data:",
+          duration: "10m 00s",
+          gameScore: "50:45",
+          gameSubScore: null,
+          startTime: "2026-01-01T00:20:00.000Z",
+          endTime: "2026-01-01T00:30:00.000Z",
+          rawMatch: matchB,
+        },
+      ],
+    });
+    const seriesMatchesService = {
+      getSeriesMatches,
+    } as unknown as SeriesMatchesService;
+    const haloClient = {} as HaloInfiniteClient;
+
+    const { result } = renderHook(() =>
+      useIndividualTrackerViewer({
+        individualTrackerViewService,
+        matchAnalyticsService,
+        seriesMatchesService,
+        haloClient,
+        trackerId: "tracker-1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+    });
+
+    const seriesItem = result.current.model.renderModel?.timeline.find((item) => item.type === "series");
+    expect(seriesItem?.type).toBe("series");
+
+    act(() => {
+      if (seriesItem?.type === "series") {
+        result.current.onToggleEntry(seriesItem);
+      }
+    });
+
+    await waitFor(() => {
+      const state = result.current.snapshot.entryStates.get("series:series-1");
+      expect(state?.kind).toBe("series");
+      if (state?.kind === "series" && state.state.status === "loaded") {
+        expect(state.state.viewModel.teams[0]?.name).toBe("Rampart");
+      }
+    });
+  });
+
+  it("stops requesting additional series batches after dispose", async () => {
+    const matchIds = Array.from({ length: 61 }, (_, index) => `m-${(index + 1).toString()}`);
+    const matches = matchIds.map((matchId) => aFakeTrackerMatchSummaryWith({ matchId }));
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
+      view: aFakeTrackerViewStateWith({
+        trackerId: "tracker-1",
+        status: "active",
+        matches,
+        series: [aFakeTrackerSeriesGroupWith({ id: "series-1", title: "Huge Series", matchIds })],
+      }),
+    });
+    const matchAnalyticsService = {
+      getBatchMatchAnalytics: vi.fn().mockResolvedValue({}),
+    } as unknown as MatchAnalyticsService;
+
+    let resolveFirstBatch: ((value: Awaited<ReturnType<SeriesMatchesService["getSeriesMatches"]>>) => void) | undefined;
+    const firstBatchPromise = new Promise<Awaited<ReturnType<SeriesMatchesService["getSeriesMatches"]>>>((resolve) => {
+      resolveFirstBatch = resolve;
+    });
+    const getSeriesMatches = vi
+      .fn<SeriesMatchesService["getSeriesMatches"]>()
+      .mockImplementationOnce(async () => firstBatchPromise)
+      .mockImplementation(async () => Promise.reject(new Error("Subsequent batch should not run after dispose")));
+
+    const seriesMatchesService = {
+      getSeriesMatches,
+    } as unknown as SeriesMatchesService;
+    const haloClient = {} as HaloInfiniteClient;
+
+    const { result, unmount } = renderHook(() =>
+      useIndividualTrackerViewer({
+        individualTrackerViewService,
+        matchAnalyticsService,
+        seriesMatchesService,
+        haloClient,
+        trackerId: "tracker-1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+    });
+
+    const seriesItem = result.current.model.renderModel?.timeline.find((item) => item.type === "series");
+    expect(seriesItem?.type).toBe("series");
+
+    act(() => {
+      if (seriesItem?.type === "series") {
+        result.current.onToggleEntry(seriesItem);
+      }
+    });
+
+    await waitFor(() => {
+      expect(getSeriesMatches).toHaveBeenCalledTimes(1);
+    });
+
+    unmount();
+
+    expect(resolveFirstBatch).toBeDefined();
+    resolveFirstBatch?.({
+      medalMetadata: {},
+      playerXuidToGametag: {},
+      matches: matchIds.slice(0, 30).map((matchId) => ({
+        matchId,
+        gameTypeAndMap: "Slayer: Live Fire",
+        gameVariantCategory: 0,
+        gameType: "Slayer",
+        gameMap: "Live Fire",
+        gameMapThumbnailUrl: "data:",
+        duration: "10m 00s",
+        gameScore: "50:45",
+        gameSubScore: null,
+        startTime: "2026-01-01T00:00:00.000Z",
+        endTime: "2026-01-01T00:10:00.000Z",
+        rawMatch: {},
+      })),
+    });
+
+    await waitFor(() => {
+      expect(getSeriesMatches).toHaveBeenCalledTimes(1);
+    });
   });
 });

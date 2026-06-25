@@ -85,6 +85,24 @@ interface BuildSeriesViewModelArgs {
   readonly teamColors: readonly TeamColor[];
 }
 
+function getLatestRawMatch(rawMatches: readonly MatchStats[]): MatchStats | undefined {
+  let latest: MatchStats | undefined;
+  let latestTime = Number.NEGATIVE_INFINITY;
+
+  for (const match of rawMatches) {
+    const endTime = new Date(match.MatchInfo.EndTime).getTime();
+    if (!Number.isFinite(endTime)) {
+      continue;
+    }
+    if (endTime > latestTime) {
+      latest = match;
+      latestTime = endTime;
+    }
+  }
+
+  return latest;
+}
+
 function buildSeriesViewModel({
   series,
   seriesData,
@@ -135,8 +153,8 @@ function buildSeriesViewModel({
     };
   });
 
-  // --- Team cards (derived from the last match's team/player layout) ---
-  const lastRawMatch = rawMatches.length > 0 ? rawMatches[rawMatches.length - 1] : undefined;
+  // --- Team cards (derived from the latest chronological match's team/player layout) ---
+  const lastRawMatch = getLatestRawMatch(rawMatches);
   const teams: SeriesTeamCard[] =
     lastRawMatch === undefined
       ? []
@@ -211,6 +229,10 @@ export class IndividualTrackerViewerPresenter {
       return `match:${item.match.matchId}`;
     }
     return `series:${item.series.id}`;
+  }
+
+  private shouldAbort(): boolean {
+    return this.isDisposed;
   }
 
   public static present(snapshot: IndividualTrackerViewerSnapshot): IndividualTrackerViewerViewModel {
@@ -366,8 +388,14 @@ export class IndividualTrackerViewerPresenter {
       const seriesDataChunks: SeriesMatchesResponse[] = [];
 
       for (let index = 0; index < uniqueMatchIds.length; index += SERIES_MATCHES_BATCH_SIZE) {
+        if (this.shouldAbort()) {
+          return;
+        }
         const batchMatchIds = uniqueMatchIds.slice(index, index + SERIES_MATCHES_BATCH_SIZE);
         const batchSeriesData = await this.config.seriesMatchesService.getSeriesMatches(batchMatchIds);
+        if (this.shouldAbort()) {
+          return;
+        }
         seriesDataChunks.push(batchSeriesData);
       }
 
@@ -379,10 +407,6 @@ export class IndividualTrackerViewerPresenter {
           .map((matchId) => mergedMatchesById.get(matchId))
           .filter((match): match is SeriesMatchesResponse["matches"][number] => match != null),
       };
-
-      if (this.isDisposed) {
-        return;
-      }
 
       const playerMap = new Map(Object.entries(mergedSeriesData.playerXuidToGametag));
       const rawMatches = mergedSeriesData.matches
