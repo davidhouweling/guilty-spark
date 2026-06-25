@@ -56,8 +56,9 @@ export const seriesMatchesRoute: RoutesRegisterHandler = (router, installService
     }
 
     const { matchIds } = queryParams.data;
+    const uniqueMatchIds = [...new Set(matchIds)];
 
-    const matches = await haloService.getMatchDetails(matchIds);
+    const matches = await haloService.getMatchDetails(uniqueMatchIds);
     const matchesById: Record<string, MatchStats> = {};
     for (const match of matches) {
       matchesById[match.MatchId] = match;

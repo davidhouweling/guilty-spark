@@ -37,9 +37,9 @@ function entryKey(item: ViewerTimelineItem): string {
   return `series:${item.series.id}`;
 }
 
-function isNearBottom(): boolean {
+function isNearLatest(): boolean {
   const threshold = 200;
-  return window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - threshold;
+  return window.scrollY <= threshold;
 }
 
 function statusLabel(status: TrackerStatus): string {
@@ -208,8 +208,8 @@ export function IndividualTrackerViewer({
 }: IndividualTrackerViewerProps): React.ReactElement {
   const latestEntryRef = React.useRef<HTMLDivElement | null>(null);
   const lastTimelineLengthRef = React.useRef<number>(renderModel.timeline.length);
-  const nearBottomRef = React.useRef<boolean>(true);
-  const [isNearBottomNow, setIsNearBottomNow] = React.useState(true);
+  const nearLatestRef = React.useRef<boolean>(true);
+  const [isNearLatestNow, setIsNearLatestNow] = React.useState(true);
   const [unseenEntries, setUnseenEntries] = React.useState(0);
 
   const { timeline } = renderModel;
@@ -220,10 +220,10 @@ export function IndividualTrackerViewer({
 
   React.useEffect(() => {
     function onScrollOrResize(): void {
-      const nearBottom = isNearBottom();
-      nearBottomRef.current = nearBottom;
-      setIsNearBottomNow(nearBottom);
-      if (nearBottom) {
+      const nearLatest = isNearLatest();
+      nearLatestRef.current = nearLatest;
+      setIsNearLatestNow(nearLatest);
+      if (nearLatest) {
         setUnseenEntries(0);
       }
     }
@@ -242,7 +242,7 @@ export function IndividualTrackerViewer({
     const nextLength = timeline.length;
     if (nextLength > previousLength) {
       const delta = nextLength - previousLength;
-      if (nearBottomRef.current) {
+      if (nearLatestRef.current) {
         scrollToLatest();
       } else {
         setUnseenEntries((current) => current + delta);
@@ -331,7 +331,7 @@ export function IndividualTrackerViewer({
               const key = entryKey(item);
               const isExpanded = expandedEntryKeys.has(key);
               const state = entryStates.get(key);
-              const isLatest = index === timeline.length - 1;
+              const isLatest = index === 0;
 
               if (item.type === "match") {
                 const { match } = item;
@@ -499,7 +499,7 @@ export function IndividualTrackerViewer({
         )}
       </section>
 
-      {(!isNearBottomNow || unseenEntries > 0) && (
+      {(!isNearLatestNow || unseenEntries > 0) && (
         <button
           type="button"
           className={styles.jumpToLatestButton}
