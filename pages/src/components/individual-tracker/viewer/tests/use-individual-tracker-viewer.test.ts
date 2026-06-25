@@ -167,6 +167,13 @@ describe("useIndividualTrackerViewer", () => {
     });
 
     expect(getSeriesMatches).toHaveBeenCalledWith(matchIds);
+
+    const state = result.current.snapshot.entryStates.get("series:series-1");
+    expect(state?.kind).toBe("series");
+    if (state?.kind === "series" && state.state.status === "loaded") {
+      expect(state.state.viewModel.seriesStats?.killMatrixStatus).toBe(ComponentLoaderStatus.LOADED);
+      expect(state.state.viewModel.matchDetails[0]?.killMatrixStatus).toBe(ComponentLoaderStatus.LOADED);
+    }
   });
 
   it("retries a series load after an error when the entry is collapsed and re-expanded", async () => {

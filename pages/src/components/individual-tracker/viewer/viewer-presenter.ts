@@ -129,7 +129,7 @@ function buildSeriesViewModel({
     teamColors,
     killMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
     transposedKillMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
-    killMatrixStatus: ComponentLoaderStatus.PENDING,
+    killMatrixStatus: ComponentLoaderStatus.LOADED,
   };
 
   // --- Match summaries (score cards) ---
@@ -197,7 +197,7 @@ function buildSeriesViewModel({
       teamColors,
       killMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
       transposedKillMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
-      killMatrixStatus: ComponentLoaderStatus.PENDING,
+      killMatrixStatus: ComponentLoaderStatus.LOADED,
     };
   });
 
