@@ -1,7 +1,16 @@
 import type { ReactElement } from "react";
+import { Container } from "../container/container";
 import { SeriesStatsView as SharedSeriesStatsView } from "../series-stats/series-stats";
 import type { DiscordSeriesStatsViewModel } from "./types";
 
-export function DiscordSeriesStatsView(props: DiscordSeriesStatsViewModel): ReactElement {
-  return <SharedSeriesStatsView {...props} />;
+export function DiscordSeriesStatsView({ title, subtitle, ...stats }: DiscordSeriesStatsViewModel): ReactElement {
+  return (
+    <>
+      <Container>
+        <h1>{title}</h1>
+        <p>{subtitle}</p>
+      </Container>
+      <SharedSeriesStatsView title={title} subtitle={subtitle} {...stats} />
+    </>
+  );
 }

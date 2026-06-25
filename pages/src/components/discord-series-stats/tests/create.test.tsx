@@ -54,6 +54,8 @@ describe("DiscordSeriesStats", () => {
       <DiscordSeriesStats data={aFakeResolvedDataWith()} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />,
     );
 
+    expect(screen.getByRole("heading", { name: "Queue #7777 Series Stats" })).toBeInTheDocument();
+    expect(screen.getByText("Guild 123456789012345678")).toBeInTheDocument();
     expect(screen.getByText("Series overview")).toBeInTheDocument();
     expect(screen.getByText("Matches")).toBeInTheDocument();
     expect(screen.getByText("Eagle")).toBeInTheDocument();
