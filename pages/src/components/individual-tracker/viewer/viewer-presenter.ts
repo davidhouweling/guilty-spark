@@ -254,7 +254,12 @@ export class IndividualTrackerViewerPresenter {
     const isExpanded = snapshot.expandedEntryKeys.has(key);
     this.config.store.setEntryExpanded(key, !isExpanded);
 
-    if (isExpanded || snapshot.entryStates.has(key)) {
+    if (isExpanded) {
+      return;
+    }
+
+    const cachedEntryState = snapshot.entryStates.get(key);
+    if (cachedEntryState != null && cachedEntryState.state.status !== "error") {
       return;
     }
 

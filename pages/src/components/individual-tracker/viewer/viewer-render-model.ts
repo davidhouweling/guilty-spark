@@ -133,9 +133,10 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         const isoDuration = getDurationInIsoString(totalSeconds);
         seriesDuration = getReadableDuration(isoDuration);
 
-        // Get first match start time and last match end time
-        seriesStartTime = seriesSummaries[0]?.startTime ?? "";
-        seriesEndTime = seriesSummaries[seriesSummaries.length - 1]?.endTime ?? "";
+        const startTimes = seriesSummaries.map((summary) => summary.startTime);
+        const endTimes = seriesSummaries.map((summary) => summary.endTime);
+        seriesStartTime = startTimes.reduce((earliest, current) => (current < earliest ? current : earliest));
+        seriesEndTime = endTimes.reduce((latest, current) => (current > latest ? current : latest));
       }
 
       const series: ViewerSeriesTab = {

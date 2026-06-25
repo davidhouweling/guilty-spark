@@ -1,63 +1,26 @@
 import { GameVariantCategory } from "halo-infinite-api";
 
-export function getGameModeName(gameVariantCategory: GameVariantCategory): string {
-  switch (gameVariantCategory) {
-    case GameVariantCategory.MultiplayerAttrition: {
-      return "Attrition";
-    }
-    case GameVariantCategory.MultiplayerElimination: {
-      return "Elimination";
-    }
-    case GameVariantCategory.MultiplayerStrongholds: {
-      return "Strongholds";
-    }
-    case GameVariantCategory.MultiplayerKingOfTheHill: {
-      return "King of the Hill";
-    }
-    case GameVariantCategory.MultiplayerTotalControl: {
-      return "Total Control";
-    }
-    case GameVariantCategory.MultiplayerCtf: {
-      return "Capture the Flag";
-    }
-    case GameVariantCategory.MultiplayerExtraction: {
-      return "Extraction";
-    }
-    case GameVariantCategory.MultiplayerOddball: {
-      return "Oddball";
-    }
-    case GameVariantCategory.MultiplayerStockpile: {
-      return "Stockpile";
-    }
-    case GameVariantCategory.MultiplayerInfection: {
-      return "Infection";
-    }
-    case GameVariantCategory.MultiplayerVIP: {
-      return "VIP";
-    }
-    case GameVariantCategory.MultiplayerLandGrab: {
-      return "Land Grab";
-    }
-    case GameVariantCategory.MultiplayerFirefight: {
-      return "Firefight";
-    }
-    case GameVariantCategory.MultiplayerSlayer: {
-      return "Slayer";
-    }
-    case GameVariantCategory.MultiplayerFiesta: {
-      return "Fiesta";
-    }
-    case GameVariantCategory.MultiplayerEscalation: {
-      return "Escalation";
-    }
-    case GameVariantCategory.MultiplayerGrifball: {
-      return "Grifball";
-    }
-    case GameVariantCategory.MultiplayerMinigame: {
-      return "Minigame";
-    }
-    default: {
-      return "Unknown";
-    }
-  }
+const GAME_MODE_NAMES: Record<number, string> = {
+  [GameVariantCategory.MultiplayerAttrition]: "Attrition",
+  [GameVariantCategory.MultiplayerElimination]: "Elimination",
+  [GameVariantCategory.MultiplayerStrongholds]: "Strongholds",
+  [GameVariantCategory.MultiplayerKingOfTheHill]: "King of the Hill",
+  [GameVariantCategory.MultiplayerTotalControl]: "Total Control",
+  [GameVariantCategory.MultiplayerCtf]: "Capture the Flag",
+  [GameVariantCategory.MultiplayerExtraction]: "Extraction",
+  [GameVariantCategory.MultiplayerOddball]: "Oddball",
+  [GameVariantCategory.MultiplayerStockpile]: "Stockpile",
+  [GameVariantCategory.MultiplayerInfection]: "Infection",
+  [GameVariantCategory.MultiplayerVIP]: "VIP",
+  [GameVariantCategory.MultiplayerLandGrab]: "Land Grab",
+  [GameVariantCategory.MultiplayerFirefight]: "Firefight",
+  [GameVariantCategory.MultiplayerSlayer]: "Slayer",
+  [GameVariantCategory.MultiplayerFiesta]: "Fiesta",
+  [GameVariantCategory.MultiplayerEscalation]: "Escalation",
+  [GameVariantCategory.MultiplayerGrifball]: "Grifball",
+  [GameVariantCategory.MultiplayerMinigame]: "Minigame",
+};
+
+export function getGameModeName(gameVariantCategory: number): string {
+  return GAME_MODE_NAMES[gameVariantCategory] ?? "Unknown";
 }
