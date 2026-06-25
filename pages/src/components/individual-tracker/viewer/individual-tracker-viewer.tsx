@@ -138,23 +138,23 @@ function summarizeSeriesOutcome(outcomes: readonly NormalizedMatchOutcome[]): No
 
   for (const outcome of outcomes) {
     switch (outcome) {
-      case "win": {
+      case "Win": {
         wins += 1;
         break;
       }
-      case "loss": {
+      case "Loss": {
         losses += 1;
         break;
       }
-      case "tie": {
+      case "Tie": {
         ties += 1;
         break;
       }
-      case "dnf": {
+      case "DNF": {
         dnf += 1;
         break;
       }
-      case "unknown": {
+      case "Unknown": {
         break;
       }
       default: {
@@ -164,18 +164,18 @@ function summarizeSeriesOutcome(outcomes: readonly NormalizedMatchOutcome[]): No
   }
 
   if (wins > losses) {
-    return "win";
+    return "Win";
   }
   if (losses > wins) {
-    return "loss";
+    return "Loss";
   }
   if (wins === 0 && losses === 0 && dnf > 0) {
-    return "dnf";
+    return "DNF";
   }
   if (ties > 0) {
-    return "tie";
+    return "Tie";
   }
-  return "unknown";
+  return "Unknown";
 }
 
 function matchHeaderBackgroundStyle(state: ViewerEntryState | undefined): React.CSSProperties {
@@ -462,7 +462,7 @@ export function IndividualTrackerViewer({
                                   src={gameModeIconSrc(seriesMatch.gameVariantCategory)}
                                   alt={seriesMatch.gameModeName}
                                   className={classNames(styles.entryModeIcon, {
-                                    [styles.seriesModeIconMuted]: seriesMatch.outcome === "loss",
+                                    [styles.seriesModeIconMuted]: seriesMatch.outcome === "Loss",
                                   })}
                                 />
                               ))}

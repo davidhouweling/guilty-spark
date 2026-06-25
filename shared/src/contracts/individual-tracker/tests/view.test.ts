@@ -80,6 +80,23 @@ describe("trackerViewContract", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("rejects an invalid match outcome", () => {
+    const result = trackerViewContract.safeParse({
+      ...validResponse,
+      view: {
+        ...validResponse.view,
+        matches: [
+          {
+            ...validResponse.view.matches[0],
+            outcome: "win",
+          },
+        ],
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("trackerViewMessageSchema", () => {

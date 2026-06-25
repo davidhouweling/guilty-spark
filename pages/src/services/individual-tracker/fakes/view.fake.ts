@@ -24,7 +24,7 @@ interface FakeMatchOverrides {
   readonly mapName?: string;
   readonly modeAssetId?: string;
   readonly gameVariantCategory?: number;
-  readonly outcome?: string;
+  readonly outcome?: TrackerMatchSummary["outcome"];
   readonly score?: string;
   readonly isMatchmaking?: boolean;
 }

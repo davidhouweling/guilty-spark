@@ -12,31 +12,31 @@
   white-space: nowrap;
 }
 
-.outcomeBadge[data-outcome="win"] {
+.outcomeBadge[data-outcome="Win"] {
   background: rgb(6 28 16 / 88%);
   border-color: rgb(34 197 94 / 60%);
   color: rgb(134 239 172);
 }
 
-.outcomeBadge[data-outcome="loss"] {
+.outcomeBadge[data-outcome="Loss"] {
   background: rgb(35 10 10 / 88%);
   border-color: rgb(239 68 68 / 60%);
   color: rgb(252 165 165);
 }
 
-.outcomeBadge[data-outcome="tie"] {
+.outcomeBadge[data-outcome="Tie"] {
   background: rgb(20 24 34 / 88%);
   border-color: rgb(148 163 184 / 55%);
   color: rgb(203 213 225);
 }
 
-.outcomeBadge[data-outcome="dnf"] {
+.outcomeBadge[data-outcome="DNF"] {
   background: rgb(35 10 10 / 88%);
   border-color: rgb(239 68 68 / 60%);
   color: rgb(252 165 165);
 }
 
-.outcomeBadge[data-outcome="unknown"] {
+.outcomeBadge[data-outcome="Unknown"] {
   background: rgb(20 24 34 / 88%);
   border-color: rgb(148 163 184 / 55%);
   color: rgb(203 213 225);

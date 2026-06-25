@@ -140,17 +140,17 @@ describe("buildViewerRenderModel", () => {
     }
   });
 
-  it("treats an unrecognised outcome string as unknown with no colour", () => {
+  it("keeps Unknown outcome neutral with no colour", () => {
     expect.assertions(2);
     const view = aFakeTrackerViewStateWith({
-      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1", outcome: "Bananas" })],
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1", outcome: "Unknown" })],
     });
 
     const model = buildViewerRenderModel({ view });
 
     const [first] = model.timeline;
     if (first.type === "match") {
-      expect(first.match.outcome).toBe("unknown");
+      expect(first.match.outcome).toBe("Unknown");
       expect(first.match.colorHex).toBeUndefined();
     }
   });

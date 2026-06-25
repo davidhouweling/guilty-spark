@@ -1,3 +1,4 @@
+import type { NormalizedMatchOutcome } from "@guilty-spark/shared/halo/match-enrichment";
 import type { IndividualTrackerStatus } from "../../services/database/types/individual_trackers";
 
 export interface IndividualTrackerState {
@@ -23,7 +24,7 @@ export interface IndividualTrackerMatchSummary {
   mapName: string;
   modeAssetId: string;
   gameVariantCategory: number;
-  outcome: string;
+  outcome: NormalizedMatchOutcome;
   score: string;
   isMatchmaking: boolean;
   teamRosterSignature: string | null;
@@ -39,7 +40,7 @@ export interface IndividualTrackerViewMatch {
   mapName: string;
   modeAssetId: string;
   gameVariantCategory: number;
-  outcome: string;
+  outcome: NormalizedMatchOutcome;
   score: string;
   isMatchmaking: boolean;
 }

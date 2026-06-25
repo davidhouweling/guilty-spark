@@ -64,20 +64,20 @@ function accumulate(matches: readonly TrackerMatchSummary[]): ViewerAccumulatedS
   for (const match of matches) {
     const outcome = normalizeOutcomeString(match.outcome);
     switch (outcome) {
-      case "win": {
+      case "Win": {
         wins += 1;
         break;
       }
-      case "loss": {
+      case "Loss": {
         losses += 1;
         break;
       }
-      case "tie": {
+      case "Tie": {
         ties += 1;
         break;
       }
-      case "dnf":
-      case "unknown": {
+      case "DNF":
+      case "Unknown": {
         break;
       }
       default: {
