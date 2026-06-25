@@ -44,14 +44,17 @@ export const seriesMatchesRoute: RoutesRegisterHandler = (router, installService
       for (const match of matches) {
         matchesById[match.MatchId] = match;
       }
+      const orderedMatches = uniqueMatchIds
+        .map((matchId) => matchesById[matchId])
+        .filter((match): match is MatchStats => match != null);
 
       const [playerXuidToGametagMap, medalMetadata] = await Promise.all([
-        haloService.getPlayerXuidsToGametags(matches),
+        haloService.getPlayerXuidsToGametags(orderedMatches),
         getBestEffortMedalMetadata(haloService, logService, matchesById),
       ]);
 
       const responseMatches = await Promise.all(
-        matches.map(async (match) => {
+        orderedMatches.map(async (match) => {
           const [{ gameType, gameMap }, mapThumbnailUrl] = await Promise.all([
             haloService.getGameTypeAndMapParts(match.MatchInfo),
             haloService.getMapThumbnailUrl(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),

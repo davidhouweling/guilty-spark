@@ -68,6 +68,35 @@ describe("/api/stats/series-matches", () => {
     expect(body).toEqual({ error: "Invalid query parameters" });
   });
 
+  it("returns matches in the same order as requested matchIds", async () => {
+    const playerMatches = getPlayerMatches();
+    const [firstPlayerMatch, secondPlayerMatch] = playerMatches;
+    if (firstPlayerMatch == null || secondPlayerMatch == null) {
+      throw new Error("Expected at least two fake player matches");
+    }
+
+    const firstMatch = getMatchStats(firstPlayerMatch.MatchId);
+    const secondMatch = getMatchStats(secondPlayerMatch.MatchId);
+    if (firstMatch == null || secondMatch == null) {
+      throw new Error("Expected fake match stats");
+    }
+
+    const services = installFakeServicesWith({ env });
+    vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([secondMatch, firstMatch]);
+    vi.spyOn(services.haloService, "getMapThumbnailUrl").mockResolvedValue("data:,");
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      new Request(`http://localhost/api/stats/series-matches?matchIds=${firstMatch.MatchId},${secondMatch.MatchId}`),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(200);
+    const body = await seriesMatchesContract.fromResponse(response);
+    expect(body.matches.map((match) => match.matchId)).toEqual([firstMatch.MatchId, secondMatch.MatchId]);
+  });
+
   it("returns a consistent 500 error payload when upstream fetches fail", async () => {
     const [playerMatch] = getPlayerMatches();
     if (playerMatch == null) {
