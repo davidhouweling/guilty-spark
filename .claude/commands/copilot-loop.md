@@ -29,7 +29,7 @@ else:
 "
 ```
 
-If `NO_REVIEW`: request one (Step 4) and stop — tell the user to re-run `/copilot-loop` once the review arrives (may take up to a few hours).
+If `NO_REVIEW`: request one (Step 4) and stop — tell the user to re-run `/copilot-loop` once the review arrives in ~10 minutes.
 
 ## Step 2 — Check if the review is clean
 

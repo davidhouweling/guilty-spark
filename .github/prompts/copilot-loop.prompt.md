@@ -28,7 +28,7 @@ else:
 "
 ```
 
-If `NO_REVIEW`: request a review (Step 6) and stop — tell me to re-run this prompt once the review arrives (may take up to a few hours).
+If `NO_REVIEW`: request a review (Step 6) and stop — tell me to re-run this prompt once the review arrives in ~10 minutes.
 
 ## Step 3 — Check if the review is clean
 
@@ -135,7 +135,7 @@ Note: `gh pr edit --add-reviewer copilot` and `gh pr edit --add-reviewer github-
 
 If fixes were committed and pushed:
 
-> "Done. Fixes committed as {SHA} and pushed. New review requested — re-run this prompt once the Copilot review arrives (may take up to a few hours)."
+> "Done. Fixes committed as {SHA} and pushed. New review requested — re-run this prompt once the Copilot review arrives in ~10 minutes."
 
 If all comments were refuted (no code changes):
 
