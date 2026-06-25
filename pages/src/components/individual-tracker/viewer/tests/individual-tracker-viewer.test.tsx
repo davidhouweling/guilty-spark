@@ -126,12 +126,14 @@ describe("IndividualTrackerViewer", () => {
       gamertag: "Spartan One",
       lastUpdateTime: "",
       matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1", startTime: "not-a-date" })],
+      series: [aFakeTrackerSeriesGroupWith({ matchIds: ["m-1"], title: "Bad Dates" })],
     });
 
     renderViewer(view);
 
     expect(screen.getByText("Spartan One Tracker")).toBeInTheDocument();
     expect(screen.getByText("Last update: unknown | Next update: unavailable")).toBeInTheDocument();
+    expect(screen.getAllByText("unknown").length).toBeGreaterThan(0);
   });
 
   it("hides manage actions when management is unavailable", () => {

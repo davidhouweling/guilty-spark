@@ -9,7 +9,7 @@ const matchIdsQuerySchema = z
       .map((id) => id.trim())
       .filter((id) => id.length > 0),
   )
-  .pipe(z.array(z.string()).min(1));
+  .pipe(z.array(z.string()).min(1).max(30));
 
 export const seriesMatchesQuerySchema = z.object({
   matchIds: matchIdsQuerySchema,

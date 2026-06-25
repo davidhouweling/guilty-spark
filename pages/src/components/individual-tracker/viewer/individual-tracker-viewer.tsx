@@ -68,6 +68,24 @@ function parseDate(value: string | null): Date | null {
   return isValid(date) ? date : null;
 }
 
+function formatDate(value: string | null): string {
+  const date = parseDate(value);
+  return date == null ? "unknown" : date.toLocaleString();
+}
+
+function handleEntryHeaderKeyDown(
+  event: React.KeyboardEvent<HTMLDivElement>,
+  item: ViewerTimelineItem,
+  onToggleEntry: (item: ViewerTimelineItem) => void,
+): void {
+  if (event.key !== "Enter" && event.key !== " ") {
+    return;
+  }
+
+  event.preventDefault();
+  onToggleEntry(item);
+}
+
 function automaticRefreshText(renderModel: IndividualTrackerViewerRenderModel): string {
   if (renderModel.status === "paused") {
     return "paused";
@@ -343,11 +361,15 @@ export function IndividualTrackerViewer({
 
                 return (
                   <div key={key} className={styles.entry} ref={entryRef}>
-                    <button
-                      type="button"
+                    <div
+                      role="button"
+                      tabIndex={0}
                       className={styles.entryHeaderButton}
                       onClick={(): void => {
                         onToggleEntry(item);
+                      }}
+                      onKeyDown={(event): void => {
+                        handleEntryHeaderKeyDown(event, item, onToggleEntry);
                       }}
                       aria-expanded={isExpanded}
                       aria-label={`Match ${match.gameModeName} on ${match.mapName}`}
@@ -357,8 +379,8 @@ export function IndividualTrackerViewer({
                         metadata={[
                           { label: "Score", value: match.score },
                           { label: "Duration", value: match.duration },
-                          { label: "Start time", value: new Date(match.startTime).toLocaleString() },
-                          { label: "End time", value: new Date(match.endTime).toLocaleString() },
+                          { label: "Start time", value: formatDate(match.startTime) },
+                          { label: "End time", value: formatDate(match.endTime) },
                         ]}
                         backgroundStyle={matchHeaderBackgroundStyle(state)}
                         rightContent={
@@ -380,7 +402,7 @@ export function IndividualTrackerViewer({
                           </div>
                         }
                       />
-                    </button>
+                    </div>
 
                     {isExpanded && (
                       <div className={styles.entryBody}>
@@ -424,11 +446,15 @@ export function IndividualTrackerViewer({
 
               return (
                 <div key={key} className={styles.entry} ref={entryRef}>
-                  <button
-                    type="button"
+                  <div
+                    role="button"
+                    tabIndex={0}
                     className={styles.entryHeaderButton}
                     onClick={(): void => {
                       onToggleEntry(item);
+                    }}
+                    onKeyDown={(event): void => {
+                      handleEntryHeaderKeyDown(event, item, onToggleEntry);
                     }}
                     aria-expanded={isExpanded}
                     aria-label={`Series ${series.title}`}
@@ -443,8 +469,8 @@ export function IndividualTrackerViewer({
                           value: `${series.matches.length.toString()} match${series.matches.length === 1 ? "" : "es"}`,
                         },
                         { label: "Duration", value: series.duration },
-                        { label: "Start time", value: new Date(series.startTime).toLocaleString() },
-                        { label: "End time", value: new Date(series.endTime).toLocaleString() },
+                        { label: "Start time", value: formatDate(series.startTime) },
+                        { label: "End time", value: formatDate(series.endTime) },
                       ]}
                       backgroundStyle={
                         { "--match-bg": "linear-gradient(135deg, #0a0e14 0%, #1a1e24 100%)" } as React.CSSProperties
@@ -477,7 +503,7 @@ export function IndividualTrackerViewer({
                         </div>
                       }
                     />
-                  </button>
+                  </div>
 
                   {isExpanded && (
                     <div className={styles.entryBody}>

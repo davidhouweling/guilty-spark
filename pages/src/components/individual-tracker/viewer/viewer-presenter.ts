@@ -272,35 +272,35 @@ export class IndividualTrackerViewerPresenter {
   }
 
   private async fetchMatchSource(matchId: string): Promise<MatchStatsLoadedState> {
-    const analyticsPromise = this.config.matchAnalyticsService
-      .getBatchMatchAnalytics([matchId])
-      .then((results) => results[matchId] ?? null)
-      .catch(() => null);
-    const matchThumbnailPromise = this.config.seriesMatchesService
-      .getSeriesMatches([matchId])
-      .then((response) => response.matches[0]?.gameMapThumbnailUrl ?? "data:,")
-      .catch(() => "data:,");
-    const stats = await this.config.haloClient.getMatchStats(matchId);
-    const xuids = stats.Players.filter((p) => p.PlayerType === 1).map((p) => getPlayerXuid(p));
-
-    const [users, medalsMetadataFile, analytics, gameMapThumbnailUrl] = await Promise.all([
-      this.config.haloClient.getUsers(xuids),
-      this.config.haloClient.getMedalsMetadataFile(),
-      analyticsPromise,
-      matchThumbnailPromise,
+    const [seriesMatches, analytics] = await Promise.all([
+      this.config.seriesMatchesService.getSeriesMatches([matchId]),
+      this.config.matchAnalyticsService
+        .getBatchMatchAnalytics([matchId])
+        .then((results) => results[matchId] ?? null)
+        .catch(() => null),
     ]);
-    const playerMap = new Map(users.map((u) => [u.xuid, u.gamertag]));
+
+    if (seriesMatches.matches.length === 0) {
+      throw new Error("Failed to load match source");
+    }
+
+    const [matchSummary] = seriesMatches.matches;
+    if (!isMatchStats(matchSummary.rawMatch)) {
+      throw new Error("Failed to load match source");
+    }
+
+    const stats = matchSummary.rawMatch;
+    const playerMap = new Map(Object.entries(seriesMatches.playerXuidToGametag));
+    const xuids = stats.Players.filter((p) => p.PlayerType === 1).map((p) => getPlayerXuid(p));
     for (const xuid of xuids) {
       if (!playerMap.has(xuid)) {
         playerMap.set(xuid, xuid);
       }
     }
 
-    const medalMetadata: MedalMetadata = Object.fromEntries(
-      medalsMetadataFile.medals.map((m) => [m.nameId, { name: m.name.value, sortingWeight: m.sortingWeight }]),
-    );
+    const medalMetadata: MedalMetadata = seriesMatches.medalMetadata;
 
-    return { stats, playerMap, medalMetadata, analytics, gameMapThumbnailUrl };
+    return { stats, playerMap, medalMetadata, analytics, gameMapThumbnailUrl: matchSummary.gameMapThumbnailUrl };
   }
 
   private toMatchEntryLoadedState(loadedState: MatchStatsLoadedState): MatchEntryLoadedState {
