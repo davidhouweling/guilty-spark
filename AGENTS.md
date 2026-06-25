@@ -228,6 +228,8 @@ Never use `max-width` queries. Base styles are mobile-first.
 
 **Data**: Use `aFake…With(overrides?)` factory functions from `fakes/` folders.
 
+Prefer typed fake instances plus `vi.spyOn` over ad hoc test doubles. Avoid `as unknown as` and inline object literals for service dependencies; if a typed fake helper does not exist, add one under the relevant `fakes/` folder and use that instead.
+
 **Conditional assertions**: Use `expect.assertions(n)` when assertions are inside conditionals or loops.
 
 **Typed mocks**: Always type mocks — `vi.fn<T>()` not bare `vi.fn()`. Use `MockInstance<typeof target.method>` not `ReturnType<typeof vi.spyOn>`.

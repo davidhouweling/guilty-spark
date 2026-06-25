@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
 import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { aFakeIndividualTrackerServiceWith } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
@@ -11,9 +12,26 @@ import {
   aFakeTrackerSeriesGroupWith,
   aFakeTrackerViewStateWith,
 } from "../../../../services/individual-tracker/fakes/view.fake";
+import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
+import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
+import { aFakeSeriesMatchesServiceWith } from "../../../../services/stats/fakes/series-matches.fake";
 import type { MatchAnalyticsService } from "../../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../../services/stats/series-matches-types";
 import { useIndividualTrackerViewer } from "../use-individual-tracker-viewer";
+
+interface ViewerTestDependencies {
+  readonly matchAnalyticsService: MatchAnalyticsService;
+  readonly seriesMatchesService: SeriesMatchesService;
+  readonly haloClient: HaloInfiniteClient;
+}
+
+function aViewerTestDependenciesWith(): ViewerTestDependencies {
+  return {
+    matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+    seriesMatchesService: aFakeSeriesMatchesServiceWith(),
+    haloClient: aFakeHaloClientWith(),
+  };
+}
 
 describe("useIndividualTrackerViewer", () => {
   it("clears refreshPending after the websocket view update arrives", async () => {
@@ -22,13 +40,7 @@ describe("useIndividualTrackerViewer", () => {
     const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
       view: aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
     });
-    const matchAnalyticsService = {
-      getBatchMatchAnalytics: vi.fn().mockResolvedValue({}),
-    } as unknown as MatchAnalyticsService;
-    const seriesMatchesService = {
-      getSeriesMatches: vi.fn(),
-    } as unknown as SeriesMatchesService;
-    const haloClient = {} as HaloInfiniteClient;
+    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
 
     const { result } = renderHook(() =>
       useIndividualTrackerViewer({
@@ -70,17 +82,9 @@ describe("useIndividualTrackerViewer", () => {
     const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
       view: aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
     });
-    const matchAnalyticsService = {
-      getBatchMatchAnalytics: vi.fn().mockResolvedValue({}),
-    } as unknown as MatchAnalyticsService;
-    const getSeriesMatches = vi.fn();
-    const seriesMatchesService = {
-      getSeriesMatches,
-    } as unknown as SeriesMatchesService;
-    const getMatchStats = vi.fn();
-    const haloClient = {
-      getMatchStats,
-    } as unknown as HaloInfiniteClient;
+    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const getSeriesMatchesSpy = vi.spyOn(seriesMatchesService, "getSeriesMatches");
+    const getMatchStatsSpy = vi.spyOn(haloClient, "getMatchStats");
 
     const { result } = renderHook(() =>
       useIndividualTrackerViewer({
@@ -96,8 +100,8 @@ describe("useIndividualTrackerViewer", () => {
       expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
     });
 
-    expect(getSeriesMatches).not.toHaveBeenCalled();
-    expect(getMatchStats).not.toHaveBeenCalled();
+    expect(getSeriesMatchesSpy).not.toHaveBeenCalled();
+    expect(getMatchStatsSpy).not.toHaveBeenCalled();
   });
 
   it("loads long series in a single request when a series entry expands", async () => {
@@ -111,10 +115,8 @@ describe("useIndividualTrackerViewer", () => {
         series: [aFakeTrackerSeriesGroupWith({ id: "series-1", title: "Long Series", matchIds })],
       }),
     });
-    const matchAnalyticsService = {
-      getBatchMatchAnalytics: vi.fn().mockResolvedValue({}),
-    } as unknown as MatchAnalyticsService;
-    const getSeriesMatches = vi.fn<SeriesMatchesService["getSeriesMatches"]>().mockImplementation(async (ids) =>
+    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const getSeriesMatchesSpy = vi.spyOn(seriesMatchesService, "getSeriesMatches").mockImplementation(async (ids) =>
       Promise.resolve({
         medalMetadata: {},
         playerXuidToGametag: {},
@@ -134,10 +136,6 @@ describe("useIndividualTrackerViewer", () => {
         })),
       }),
     );
-    const seriesMatchesService = {
-      getSeriesMatches,
-    } as unknown as SeriesMatchesService;
-    const haloClient = {} as HaloInfiniteClient;
 
     const { result } = renderHook(() =>
       useIndividualTrackerViewer({
@@ -163,10 +161,10 @@ describe("useIndividualTrackerViewer", () => {
     });
 
     await waitFor(() => {
-      expect(getSeriesMatches).toHaveBeenCalledTimes(1);
+      expect(getSeriesMatchesSpy).toHaveBeenCalledTimes(1);
     });
 
-    expect(getSeriesMatches).toHaveBeenCalledWith(matchIds);
+    expect(getSeriesMatchesSpy).toHaveBeenCalledWith(matchIds);
 
     const state = result.current.snapshot.entryStates.get("series:series-1");
     expect(state?.kind).toBe("series");
@@ -185,11 +183,9 @@ describe("useIndividualTrackerViewer", () => {
         series: [aFakeTrackerSeriesGroupWith({ id: "series-1", title: "Retry Series", matchIds: ["m-1", "m-2"] })],
       }),
     });
-    const matchAnalyticsService = {
-      getBatchMatchAnalytics: vi.fn().mockResolvedValue({}),
-    } as unknown as MatchAnalyticsService;
-    const getSeriesMatches = vi
-      .fn<SeriesMatchesService["getSeriesMatches"]>()
+    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const getSeriesMatchesSpy = vi
+      .spyOn(seriesMatchesService, "getSeriesMatches")
       .mockRejectedValueOnce(new Error("boom"))
       .mockResolvedValueOnce({
         medalMetadata: {},
@@ -209,10 +205,6 @@ describe("useIndividualTrackerViewer", () => {
           rawMatch: {},
         })),
       });
-    const seriesMatchesService = {
-      getSeriesMatches,
-    } as unknown as SeriesMatchesService;
-    const haloClient = {} as HaloInfiniteClient;
 
     const { result } = renderHook(() =>
       useIndividualTrackerViewer({
@@ -251,7 +243,7 @@ describe("useIndividualTrackerViewer", () => {
     });
 
     await waitFor(() => {
-      expect(getSeriesMatches).toHaveBeenCalledTimes(2);
+      expect(getSeriesMatchesSpy).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -266,10 +258,8 @@ describe("useIndividualTrackerViewer", () => {
         series: [aFakeTrackerSeriesGroupWith({ id: "series-1", title: "Huge Series", matchIds })],
       }),
     });
-    const matchAnalyticsService = {
-      getBatchMatchAnalytics: vi.fn().mockResolvedValue({}),
-    } as unknown as MatchAnalyticsService;
-    const getSeriesMatches = vi.fn<SeriesMatchesService["getSeriesMatches"]>().mockImplementation(async (ids) =>
+    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const getSeriesMatchesSpy = vi.spyOn(seriesMatchesService, "getSeriesMatches").mockImplementation(async (ids) =>
       Promise.resolve({
         medalMetadata: {},
         playerXuidToGametag: {},
@@ -289,10 +279,6 @@ describe("useIndividualTrackerViewer", () => {
         })),
       }),
     );
-    const seriesMatchesService = {
-      getSeriesMatches,
-    } as unknown as SeriesMatchesService;
-    const haloClient = {} as HaloInfiniteClient;
 
     const { result } = renderHook(() =>
       useIndividualTrackerViewer({
@@ -318,12 +304,12 @@ describe("useIndividualTrackerViewer", () => {
     });
 
     await waitFor(() => {
-      expect(getSeriesMatches).toHaveBeenCalledTimes(3);
+      expect(getSeriesMatchesSpy).toHaveBeenCalledTimes(3);
     });
 
-    expect(getSeriesMatches).toHaveBeenNthCalledWith(1, matchIds.slice(0, 30));
-    expect(getSeriesMatches).toHaveBeenNthCalledWith(2, matchIds.slice(30, 60));
-    expect(getSeriesMatches).toHaveBeenNthCalledWith(3, matchIds.slice(60, 61));
+    expect(getSeriesMatchesSpy).toHaveBeenNthCalledWith(1, matchIds.slice(0, 30));
+    expect(getSeriesMatchesSpy).toHaveBeenNthCalledWith(2, matchIds.slice(30, 60));
+    expect(getSeriesMatchesSpy).toHaveBeenNthCalledWith(3, matchIds.slice(60, 61));
   });
 
   it("uses the latest chronological match for series team cards", async () => {
@@ -337,9 +323,7 @@ describe("useIndividualTrackerViewer", () => {
         series: [aFakeTrackerSeriesGroupWith({ id: "series-1", title: "Roster Source", matchIds })],
       }),
     });
-    const matchAnalyticsService = {
-      getBatchMatchAnalytics: vi.fn().mockResolvedValue({}),
-    } as unknown as MatchAnalyticsService;
+    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
     const matchA = aFakeMatchStatsWith({
       MatchId: "m-1",
       MatchInfo: {
@@ -365,7 +349,7 @@ describe("useIndividualTrackerViewer", () => {
       ],
     });
 
-    const getSeriesMatches = vi.fn<SeriesMatchesService["getSeriesMatches"]>().mockResolvedValue({
+    vi.spyOn(seriesMatchesService, "getSeriesMatches").mockResolvedValue({
       medalMetadata: {},
       playerXuidToGametag: {},
       matches: [
@@ -399,10 +383,6 @@ describe("useIndividualTrackerViewer", () => {
         },
       ],
     });
-    const seriesMatchesService = {
-      getSeriesMatches,
-    } as unknown as SeriesMatchesService;
-    const haloClient = {} as HaloInfiniteClient;
 
     const { result } = renderHook(() =>
       useIndividualTrackerViewer({
@@ -447,23 +427,15 @@ describe("useIndividualTrackerViewer", () => {
         series: [aFakeTrackerSeriesGroupWith({ id: "series-1", title: "Huge Series", matchIds })],
       }),
     });
-    const matchAnalyticsService = {
-      getBatchMatchAnalytics: vi.fn().mockResolvedValue({}),
-    } as unknown as MatchAnalyticsService;
-
-    let resolveFirstBatch: ((value: Awaited<ReturnType<SeriesMatchesService["getSeriesMatches"]>>) => void) | undefined;
-    const firstBatchPromise = new Promise<Awaited<ReturnType<SeriesMatchesService["getSeriesMatches"]>>>((resolve) => {
+    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    let resolveFirstBatch: ((value: SeriesMatchesResponse) => void) | undefined;
+    const firstBatchPromise = new Promise<SeriesMatchesResponse>((resolve) => {
       resolveFirstBatch = resolve;
     });
-    const getSeriesMatches = vi
-      .fn<SeriesMatchesService["getSeriesMatches"]>()
+    const getSeriesMatchesSpy = vi
+      .spyOn(seriesMatchesService, "getSeriesMatches")
       .mockImplementationOnce(async () => firstBatchPromise)
       .mockImplementation(async () => Promise.reject(new Error("Subsequent batch should not run after dispose")));
-
-    const seriesMatchesService = {
-      getSeriesMatches,
-    } as unknown as SeriesMatchesService;
-    const haloClient = {} as HaloInfiniteClient;
 
     const { result, unmount } = renderHook(() =>
       useIndividualTrackerViewer({
@@ -489,7 +461,7 @@ describe("useIndividualTrackerViewer", () => {
     });
 
     await waitFor(() => {
-      expect(getSeriesMatches).toHaveBeenCalledTimes(1);
+      expect(getSeriesMatchesSpy).toHaveBeenCalledTimes(1);
     });
 
     unmount();
@@ -515,7 +487,7 @@ describe("useIndividualTrackerViewer", () => {
     });
 
     await waitFor(() => {
-      expect(getSeriesMatches).toHaveBeenCalledTimes(1);
+      expect(getSeriesMatchesSpy).toHaveBeenCalledTimes(1);
     });
   });
 });
