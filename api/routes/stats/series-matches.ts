@@ -2,7 +2,6 @@ import type { MatchStats } from "halo-infinite-api";
 import { parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getMedalMetadataFromMatches } from "@guilty-spark/shared/halo/medals";
-import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import { seriesMatchesContract, seriesMatchesQuerySchema } from "@guilty-spark/shared/contracts/stats/series-matches";
 import type { RoutesRegisterHandler } from "../base/types";
 import type { HaloService } from "../../services/halo/halo";
@@ -77,15 +76,6 @@ export const seriesMatchesRoute: RoutesRegisterHandler = (router, installService
         ]);
         const { gameType, gameMap } = splitGameTypeAndMap(gameTypeAndMap);
         const { gameScore, gameSubScore } = haloService.getMatchScore(match, "en-US");
-
-        const playerXuidToGametag: Record<string, string> = {};
-        for (const player of match.Players) {
-          if (!player.ParticipationInfo.PresentAtBeginning || player.PlayerType !== 1) {
-            continue;
-          }
-          const xuid = getPlayerXuid(player);
-          playerXuidToGametag[xuid] = playerXuidToGametagMap.get(xuid) ?? "*Unknown*";
-        }
 
         return {
           matchId: match.MatchId,
