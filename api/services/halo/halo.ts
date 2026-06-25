@@ -175,15 +175,20 @@ export class HaloService {
     );
   }
 
-  async getGameTypeAndMap(matchInfo: MatchInfo): Promise<string> {
+  async getGameTypeAndMapParts(matchInfo: MatchInfo): Promise<{ gameType: string; gameMap: string }> {
     const [mapNameResult, gameTypeResult] = await Promise.allSettled([
       this.getMapName(matchInfo.MapVariant.AssetId, matchInfo.MapVariant.VersionId),
       this.getGameType(matchInfo.UgcGameVariant.AssetId, matchInfo.UgcGameVariant.VersionId),
     ]);
-    const mapName = mapNameResult.status === "fulfilled" ? mapNameResult.value : "*Unknown Map*";
+    const gameMap = mapNameResult.status === "fulfilled" ? mapNameResult.value : "*Unknown Map*";
     const gameType = gameTypeResult.status === "fulfilled" ? gameTypeResult.value : "*Unknown Game Type*";
 
-    return `${gameType}: ${mapName}`;
+    return { gameType, gameMap };
+  }
+
+  async getGameTypeAndMap(matchInfo: MatchInfo): Promise<string> {
+    const { gameType, gameMap } = await this.getGameTypeAndMapParts(matchInfo);
+    return `${gameType}: ${gameMap}`;
   }
 
   getMatchOutcome(outcome: MatchOutcome): "Win" | "Loss" | "Tie" | "DNF" {
