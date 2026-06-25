@@ -38,7 +38,8 @@ describe("DiscordSeriesStatsApp", () => {
       <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />,
     );
 
-    expect(await screen.findByRole("heading", { name: "Queue #7777 Series Stats" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Series overview" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Matches" })).toBeInTheDocument();
   });
 
   it("renders pending message when stats are indexing", async () => {

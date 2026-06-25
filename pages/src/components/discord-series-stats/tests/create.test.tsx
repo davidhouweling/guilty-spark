@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { DiscordSeriesStats } from "../create";
 import { DiscordSeriesStatsPresenter } from "../discord-series-stats-presenter";
@@ -49,12 +49,11 @@ function aFakeResolvedDataWith(overrides: Partial<DiscordSeriesStatsResolved> = 
 }
 
 describe("DiscordSeriesStats", () => {
-  it("renders header and top-level sections", () => {
+  it("renders top-level sections", () => {
     render(
       <DiscordSeriesStats data={aFakeResolvedDataWith()} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />,
     );
 
-    expect(screen.getByRole("heading", { name: "Queue #7777 Series Stats" })).toBeInTheDocument();
     expect(screen.getByText("Series overview")).toBeInTheDocument();
     expect(screen.getByText("Matches")).toBeInTheDocument();
     expect(screen.getByText("Eagle")).toBeInTheDocument();
@@ -93,17 +92,13 @@ describe("DiscordSeriesStats", () => {
     expect(presenterInstance.renderData.medalMetadata).toEqual(medalMetadata);
   });
 
-  it("toggles between standard and wide view", () => {
+  it("renders the shared series stats layout", () => {
     render(
       <DiscordSeriesStats data={aFakeResolvedDataWith()} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />,
     );
 
-    const toggleButton = screen.getByRole("button", { name: "Switch to wide view" });
-    expect(toggleButton).toBeInTheDocument();
-
-    fireEvent.click(toggleButton);
-
-    expect(screen.getByRole("button", { name: "Switch to standard view" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Series overview" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Matches" })).toBeInTheDocument();
   });
 
   it("fetches batch match analytics for all matches in renderData", async () => {
