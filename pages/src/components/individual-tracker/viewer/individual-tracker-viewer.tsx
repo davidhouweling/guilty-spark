@@ -8,7 +8,7 @@ import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
 import { Container } from "../../container/container";
 import { LoadingState } from "../../loading-state/loading-state";
-import { OutcomeBadge, type OutcomeBadgeValue } from "../../outcome-badge/outcome-badge";
+import { OutcomeBadge } from "../../outcome-badge/outcome-badge";
 import { MatchStats } from "../../stats/match-stats";
 import { StatsHeader } from "../../stats/stats-header";
 import { SeriesStatsView } from "../../series-stats/series-stats";
@@ -130,30 +130,7 @@ function connectionNotice(connectionStatus: TrackerViewConnectionStatus): string
   }
 }
 
-function toOutcomeLabel(outcome: NormalizedMatchOutcome): OutcomeBadgeValue {
-  switch (outcome) {
-    case "win": {
-      return "Win";
-    }
-    case "loss": {
-      return "Loss";
-    }
-    case "tie": {
-      return "Tie";
-    }
-    case "dnf": {
-      return "DNF";
-    }
-    case "unknown": {
-      return "Unknown";
-    }
-    default: {
-      throw new UnreachableError(outcome);
-    }
-  }
-}
-
-function summarizeSeriesOutcome(outcomes: readonly NormalizedMatchOutcome[]): OutcomeBadgeValue {
+function summarizeSeriesOutcome(outcomes: readonly NormalizedMatchOutcome[]): NormalizedMatchOutcome {
   let wins = 0;
   let losses = 0;
   let ties = 0;
@@ -187,18 +164,18 @@ function summarizeSeriesOutcome(outcomes: readonly NormalizedMatchOutcome[]): Ou
   }
 
   if (wins > losses) {
-    return "Win";
+    return "win";
   }
   if (losses > wins) {
-    return "Loss";
+    return "loss";
   }
   if (wins === 0 && losses === 0 && dnf > 0) {
-    return "DNF";
+    return "dnf";
   }
   if (ties > 0) {
-    return "Tie";
+    return "tie";
   }
-  return "Unknown";
+  return "unknown";
 }
 
 function matchHeaderBackgroundStyle(state: ViewerEntryState | undefined): React.CSSProperties {
@@ -391,7 +368,7 @@ export function IndividualTrackerViewer({
                                 alt={match.gameModeName}
                                 className={styles.entryModeIcon}
                               />
-                              <OutcomeBadge outcome={toOutcomeLabel(match.outcome)} />
+                              <OutcomeBadge outcome={match.outcome} />
                             </div>
                             <span
                               className={classNames(styles.entryChevron, {

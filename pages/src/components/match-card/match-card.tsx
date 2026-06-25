@@ -1,5 +1,6 @@
 import React from "react";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
+import { normalizeOutcomeString } from "@guilty-spark/shared/halo/match-enrichment";
 import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
 import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
 import { Checkbox } from "../checkbox/checkbox";
@@ -61,6 +62,7 @@ export function MatchCard({
   onBreakFromGroup,
 }: MatchCardProps): React.JSX.Element {
   const modeIconSrc = gameModeIconSrc(entry.gameVariantCategory);
+  const outcome = normalizeOutcomeString(entry.outcome);
   const teamListFormatter = new Intl.ListFormat(undefined, { style: "narrow", type: "conjunction" });
   const categoryLabel = getCategoryLabel(entry.category);
 
@@ -124,7 +126,7 @@ export function MatchCard({
             </div>
             <div className={styles.matchHeaderRight}>
               <img src={modeIconSrc} alt={entry.modeName} className={styles.gameModeIcon} />
-              <OutcomeBadge outcome={entry.outcome} />
+              <OutcomeBadge outcome={outcome} />
             </div>
           </div>
 
