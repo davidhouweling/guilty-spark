@@ -298,7 +298,7 @@ describe("RealIndividualTrackerService", () => {
   });
 
   it("sends a POST request to refresh a tracker", async () => {
-    fetchSpy.mockResolvedValueOnce(new Response("", { status: 200 }));
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ success: true }));
     await service.refreshTracker("tracker-1");
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining("/api/individual-tracker/manage/tracker-1/refresh"),

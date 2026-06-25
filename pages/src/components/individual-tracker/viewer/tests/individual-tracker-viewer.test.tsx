@@ -19,6 +19,7 @@ function aModel(view: ReturnType<typeof aFakeTrackerViewStateWith>): IndividualT
 function renderViewer(
   view: ReturnType<typeof aFakeTrackerViewStateWith>,
   connectionStatus: TrackerViewConnectionStatus = "connected",
+  canManage = true,
 ): void {
   render(
     <IndividualTrackerViewer
@@ -26,7 +27,7 @@ function renderViewer(
       connectionStatus={connectionStatus}
       expandedEntryKeys={new Set()}
       entryStates={new Map()}
-      canManage={true}
+      canManage={canManage}
       refreshPending={false}
       onToggleEntry={() => undefined}
       onBackToManage={() => undefined}
@@ -131,5 +132,14 @@ describe("IndividualTrackerViewer", () => {
 
     expect(screen.getByText("Spartan One Tracker")).toBeInTheDocument();
     expect(screen.getByText("Last update: unknown | Next update: unavailable")).toBeInTheDocument();
+  });
+
+  it("hides manage actions when management is unavailable", () => {
+    const view = aFakeTrackerViewStateWith({ gamertag: "Spartan One" });
+
+    renderViewer(view, "connected", false);
+
+    expect(screen.queryByRole("button", { name: "Back to manager" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Refresh" })).not.toBeInTheDocument();
   });
 });

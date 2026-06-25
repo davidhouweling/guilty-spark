@@ -27,6 +27,8 @@ export function IndividualTrackerViewerPage({
   haloClient,
   trackerId,
 }: IndividualTrackerViewerPageProps): React.ReactElement {
+  const canManage = individualTrackerService != null;
+
   const { snapshot, model, onToggleEntry, onRefresh, onRetry } = useIndividualTrackerViewer({
     individualTrackerService,
     individualTrackerViewService,
@@ -48,12 +50,16 @@ export function IndividualTrackerViewerPage({
             connectionStatus={model.connectionStatus}
             expandedEntryKeys={model.expandedEntryKeys}
             entryStates={model.entryStates}
-            canManage={true}
+            canManage={canManage}
             refreshPending={model.refreshPending}
             onToggleEntry={onToggleEntry}
-            onBackToManage={(): void => {
-              window.location.assign("/individual-tracker");
-            }}
+            onBackToManage={
+              canManage
+                ? (): void => {
+                    window.location.assign("/individual-tracker");
+                  }
+                : (): void => undefined
+            }
             onRefresh={onRefresh}
           />
         ) : (

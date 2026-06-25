@@ -6,6 +6,8 @@ import { aFakeIndividualTrackerServiceWith } from "../../../../services/individu
 import {
   aFakeIndividualTrackerViewServiceWith,
   aFakeTrackerLiveViewWith,
+  aFakeTrackerMatchSummaryWith,
+  aFakeTrackerSeriesGroupWith,
   aFakeTrackerViewStateWith,
 } from "../../../../services/individual-tracker/fakes/view.fake";
 import type { MatchAnalyticsService } from "../../../../services/stats/match-analytics-types";
@@ -61,5 +63,108 @@ describe("useIndividualTrackerViewer", () => {
     await waitFor(() => {
       expect(result.current.snapshot.refreshPending).toBe(false);
     });
+  });
+
+  it("does not prefetch timeline entries on initial load", async () => {
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
+      view: aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
+    });
+    const matchAnalyticsService = {
+      getBatchMatchAnalytics: vi.fn().mockResolvedValue({}),
+    } as unknown as MatchAnalyticsService;
+    const getSeriesMatches = vi.fn();
+    const seriesMatchesService = {
+      getSeriesMatches,
+    } as unknown as SeriesMatchesService;
+    const getMatchStats = vi.fn();
+    const haloClient = {
+      getMatchStats,
+    } as unknown as HaloInfiniteClient;
+
+    const { result } = renderHook(() =>
+      useIndividualTrackerViewer({
+        individualTrackerViewService,
+        matchAnalyticsService,
+        seriesMatchesService,
+        haloClient,
+        trackerId: "tracker-1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+    });
+
+    expect(getSeriesMatches).not.toHaveBeenCalled();
+    expect(getMatchStats).not.toHaveBeenCalled();
+  });
+
+  it("loads long series in a single request when a series entry expands", async () => {
+    const matchIds = Array.from({ length: 13 }, (_, index) => `m-${(index + 1).toString()}`);
+    const matches = matchIds.map((matchId) => aFakeTrackerMatchSummaryWith({ matchId }));
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
+      view: aFakeTrackerViewStateWith({
+        trackerId: "tracker-1",
+        status: "active",
+        matches,
+        series: [aFakeTrackerSeriesGroupWith({ id: "series-1", title: "Long Series", matchIds })],
+      }),
+    });
+    const matchAnalyticsService = {
+      getBatchMatchAnalytics: vi.fn().mockResolvedValue({}),
+    } as unknown as MatchAnalyticsService;
+    const getSeriesMatches = vi.fn<SeriesMatchesService["getSeriesMatches"]>().mockImplementation(async (ids) =>
+      Promise.resolve({
+        medalMetadata: {},
+        playerXuidToGametag: {},
+        matches: ids.map((matchId) => ({
+          matchId,
+          gameTypeAndMap: "Slayer: Live Fire",
+          gameVariantCategory: 0,
+          gameType: "Slayer",
+          gameMap: "Live Fire",
+          gameMapThumbnailUrl: "data:",
+          duration: "10m 00s",
+          gameScore: "50:45",
+          gameSubScore: null,
+          startTime: "2026-01-01T00:00:00.000Z",
+          endTime: "2026-01-01T00:10:00.000Z",
+          rawMatch: {},
+        })),
+      }),
+    );
+    const seriesMatchesService = {
+      getSeriesMatches,
+    } as unknown as SeriesMatchesService;
+    const haloClient = {} as HaloInfiniteClient;
+
+    const { result } = renderHook(() =>
+      useIndividualTrackerViewer({
+        individualTrackerViewService,
+        matchAnalyticsService,
+        seriesMatchesService,
+        haloClient,
+        trackerId: "tracker-1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+    });
+
+    const seriesItem = result.current.model.renderModel?.timeline.find((item) => item.type === "series");
+    expect(seriesItem?.type).toBe("series");
+
+    act(() => {
+      if (seriesItem?.type === "series") {
+        result.current.onToggleEntry(seriesItem);
+      }
+    });
+
+    await waitFor(() => {
+      expect(getSeriesMatches).toHaveBeenCalledTimes(1);
+    });
+
+    expect(getSeriesMatches).toHaveBeenCalledWith(matchIds);
   });
 });

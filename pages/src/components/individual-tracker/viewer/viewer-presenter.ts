@@ -115,10 +115,9 @@ function buildSeriesViewModel({
 
   // --- Match summaries (score cards) ---
   const matchSummaries: SeriesMatchSummary[] = seriesData.matches.map((m) => {
-    const rawMatch = m.rawMatch as MatchStats | undefined;
     let winningTeamColorHex: string | null = null;
-    if (isMatchStats(rawMatch)) {
-      const winningTeamIndex = rawMatch.Teams.findIndex((t) => t.Outcome === WIN_OUTCOME);
+    if (isMatchStats(m.rawMatch)) {
+      const winningTeamIndex = m.rawMatch.Teams.findIndex((t) => t.Outcome === WIN_OUTCOME);
       if (winningTeamIndex >= 0) {
         winningTeamColorHex = getTeamColorOrDefault(teamColors[winningTeamIndex]?.id, winningTeamIndex).hex;
       }
@@ -356,7 +355,7 @@ export class IndividualTrackerViewerPresenter {
   private async fetchSeriesEntry(key: string, series: ViewerSeriesTab): Promise<void> {
     this.config.store.setEntryLoading(key, "series");
     try {
-      const matchIds = series.matches.map((m) => m.matchId);
+      const matchIds = series.matches.map((match) => match.matchId);
       const seriesData = await this.config.seriesMatchesService.getSeriesMatches(matchIds);
       if (this.isDisposed) {
         return;
@@ -385,27 +384,6 @@ export class IndividualTrackerViewerPresenter {
       getTeamColorOrDefault(styleFlags?.playerTeamColor ?? styleFlags?.teamColor ?? DEFAULT_TEAM_COLORS[0], 0),
       getTeamColorOrDefault(styleFlags?.playerEnemyColor ?? styleFlags?.enemyColor ?? DEFAULT_TEAM_COLORS[1], 1),
     ];
-  }
-
-  private prefetchTimeline(): void {
-    const snapshot = this.config.store.getSnapshot();
-    if (snapshot.view == null) {
-      return;
-    }
-
-    const renderModel = buildViewerRenderModel({ view: snapshot.view });
-    for (const item of renderModel.timeline) {
-      const key = IndividualTrackerViewerPresenter.entryKey(item);
-      if (snapshot.entryStates.has(key)) {
-        continue;
-      }
-
-      if (item.type === "match") {
-        void this.fetchMatchEntry(key, item.match.matchId);
-      } else {
-        void this.fetchSeriesEntry(key, item.series);
-      }
-    }
   }
 
   public start(): void {
@@ -446,7 +424,6 @@ export class IndividualTrackerViewerPresenter {
         return;
       }
       this.config.store.setLoaded(response.view);
-      this.prefetchTimeline();
       this.openConnection();
     } catch (error) {
       if (this.isDisposed) {
@@ -472,7 +449,6 @@ export class IndividualTrackerViewerPresenter {
         this.awaitingRefresh = false;
         this.config.store.setRefreshState(false);
       }
-      this.prefetchTimeline();
     });
     this.statusSubscription = connection.subscribeStatus((status) => {
       if (this.isDisposed) {
