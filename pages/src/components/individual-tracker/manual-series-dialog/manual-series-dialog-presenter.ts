@@ -15,9 +15,7 @@ interface Config {
 }
 
 function summaryToHistoryEntry(summary: TrackerMatchSummary): TrackerMatchHistoryEntry {
-  const outcome = (
-    ["Win", "Loss", "Tie", "DNF"].includes(summary.outcome) ? summary.outcome : "Unknown"
-  ) as TrackerMatchHistoryEntry["outcome"];
+  const outcome = ["Win", "Loss", "Tie", "DNF"].includes(summary.outcome) ? summary.outcome : "Unknown";
   return {
     matchId: summary.matchId,
     startTime: formatDisplayDateTime(summary.startTime),

@@ -1,6 +1,7 @@
 import React from "react";
 import classNames from "classnames";
-import { addMinutes, formatDistanceToNow, isValid, parseISO } from "date-fns";
+import ReactTimeAgo from "react-time-ago";
+import { addMinutes, isValid, parseISO } from "date-fns";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { NormalizedMatchOutcome } from "@guilty-spark/shared/halo/match-enrichment";
@@ -14,7 +15,6 @@ import { StatsHeader } from "../../stats/stats-header";
 import { SeriesStatsView } from "../../series-stats/series-stats";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import { gameModeIconSrc } from "../game-mode-icon";
-import { relativeTime } from "../timeline/timeline";
 import type { IndividualTrackerViewerRenderModel, ViewerEntryState, ViewerTimelineItem } from "./types";
 import styles from "./individual-tracker-viewer.module.css";
 
@@ -86,7 +86,16 @@ function handleEntryHeaderKeyDown(
   onToggleEntry(item);
 }
 
-function automaticRefreshText(renderModel: IndividualTrackerViewerRenderModel): string {
+function lastUpdateContent(renderModel: IndividualTrackerViewerRenderModel): React.ReactNode {
+  const lastUpdatedDate = parseDate(renderModel.lastUpdateTime);
+  if (lastUpdatedDate == null) {
+    return "unknown";
+  }
+
+  return <ReactTimeAgo date={lastUpdatedDate} locale="en" />;
+}
+
+function nextUpdateContent(renderModel: IndividualTrackerViewerRenderModel): React.ReactNode {
   if (renderModel.status === "paused") {
     return "paused";
   }
@@ -100,8 +109,7 @@ function automaticRefreshText(renderModel: IndividualTrackerViewerRenderModel): 
     return "unavailable";
   }
 
-  const nextAutomaticRefreshDate = addMinutes(lastUpdatedDate, 3);
-  return formatDistanceToNow(nextAutomaticRefreshDate, { addSuffix: true });
+  return <ReactTimeAgo date={addMinutes(lastUpdatedDate, 3)} locale="en" />;
 }
 
 function connectionNotice(connectionStatus: TrackerViewConnectionStatus): string | null {
@@ -247,8 +255,11 @@ export function IndividualTrackerViewer({
   }, [timeline.length, scrollToLatest]);
 
   const notice = connectionNotice(connectionStatus);
-  const lastUpdateText = relativeTime(renderModel.lastUpdateTime);
-  const refreshHint = `Last update: ${lastUpdateText} | Next update: ${automaticRefreshText(renderModel)}`;
+  const refreshHint = (
+    <>
+      Last update: {lastUpdateContent(renderModel)} | Next update: {nextUpdateContent(renderModel)}
+    </>
+  );
 
   return (
     <>

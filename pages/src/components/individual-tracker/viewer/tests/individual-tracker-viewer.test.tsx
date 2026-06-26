@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import {
   aFakeTrackerMatchSummaryWith,
@@ -11,6 +11,10 @@ import type { TrackerViewConnectionStatus } from "../../../../services/individua
 import { buildViewerRenderModel } from "../viewer-render-model";
 import type { IndividualTrackerViewerRenderModel } from "../types";
 import { IndividualTrackerViewer } from "../individual-tracker-viewer";
+
+vi.mock("react-time-ago", () => ({
+  default: ({ date }: { date: Date }): React.ReactNode => <span>{date.toISOString()}</span>,
+}));
 
 function aModel(view: ReturnType<typeof aFakeTrackerViewStateWith>): IndividualTrackerViewerRenderModel {
   return buildViewerRenderModel({ view });
