@@ -24,6 +24,7 @@ interface FakeMatchOverrides {
   readonly mapName?: string;
   readonly modeAssetId?: string;
   readonly gameVariantCategory?: number;
+  readonly mapBackgroundUrl?: string;
   readonly outcome?: TrackerMatchSummary["outcome"];
   readonly score?: string;
   readonly isMatchmaking?: boolean;
@@ -37,6 +38,7 @@ export function aFakeTrackerMatchSummaryWith(overrides: FakeMatchOverrides = {})
     mapAssetId: overrides.mapAssetId ?? "map-asset-1",
     mapVersionId: overrides.mapVersionId ?? "map-version-1",
     mapName: overrides.mapName ?? "Live Fire",
+    mapBackgroundUrl: overrides.mapBackgroundUrl ?? "data:,",
     modeAssetId: overrides.modeAssetId ?? "mode-asset-1",
     gameVariantCategory: overrides.gameVariantCategory ?? 6,
     outcome: overrides.outcome ?? "Win",
@@ -48,6 +50,7 @@ export function aFakeTrackerMatchSummaryWith(overrides: FakeMatchOverrides = {})
 interface FakeSeriesOverrides {
   readonly id?: string;
   readonly matchIds?: readonly string[];
+  readonly matchBackgroundUrls?: readonly string[];
   readonly score?: string;
   readonly title?: string;
   readonly subtitle?: string;
@@ -57,6 +60,7 @@ export function aFakeTrackerSeriesGroupWith(overrides: FakeSeriesOverrides = {})
   return {
     id: overrides.id ?? "series-1",
     matchIds: [...(overrides.matchIds ?? ["match-1", "match-2"])],
+    matchBackgroundUrls: [...(overrides.matchBackgroundUrls ?? ["data:,", "data:,"])],
     score: overrides.score ?? "2:1",
     title: overrides.title ?? "Series",
     subtitle: overrides.subtitle ?? "Best of 3",

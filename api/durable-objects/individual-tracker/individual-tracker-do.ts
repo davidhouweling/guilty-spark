@@ -310,6 +310,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         match.MatchInfo.MapVariant.AssetId,
         match.MatchInfo.MapVariant.VersionId,
       );
+      const mapBackgroundUrl = await this.resolveMapBackgroundUrl(
+        match.MatchInfo.MapVariant.AssetId,
+        match.MatchInfo.MapVariant.VersionId,
+      );
       const summary: IndividualTrackerMatchSummary = {
         matchId,
         startTime: match.MatchInfo.StartTime,
@@ -317,6 +321,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         mapAssetId: match.MatchInfo.MapVariant.AssetId,
         mapVersionId: match.MatchInfo.MapVariant.VersionId,
         mapName,
+        mapBackgroundUrl,
         modeAssetId: match.MatchInfo.UgcGameVariant.AssetId,
         gameVariantCategory: match.MatchInfo.GameVariantCategory,
         outcome,
@@ -394,6 +399,14 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         const mapName = await this.resolveMapName(summary.mapAssetId, summary.mapVersionId);
         if (mapName !== "") {
           summary.mapName = mapName;
+          viewChanged = true;
+        }
+      }
+
+      if (summary.mapBackgroundUrl === "") {
+        const mapBackgroundUrl = await this.resolveMapBackgroundUrl(summary.mapAssetId, summary.mapVersionId);
+        if (mapBackgroundUrl !== "") {
+          summary.mapBackgroundUrl = mapBackgroundUrl;
           viewChanged = true;
         }
       }
@@ -612,6 +625,26 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         ]),
       );
       return "";
+    }
+  }
+
+  private async resolveMapBackgroundUrl(assetId: string, versionId: string): Promise<string> {
+    try {
+      return (await this.haloService.getMapThumbnailUrl(assetId, versionId)) ?? "data:,";
+    } catch (error) {
+      if (this.isAuthError(error)) {
+        this.clearUserHaloService();
+        throw error;
+      }
+      this.logService.warn(
+        error,
+        new Map([
+          ["context", "IndividualTracker: getMapThumbnailUrl failed"],
+          ["assetId", assetId],
+          ["versionId", versionId],
+        ]),
+      );
+      return "data:,";
     }
   }
 
@@ -961,7 +994,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       matchStatsById.summaries,
     );
     const mapNameResults = await this.resolveMapNamesForMatches(validation.validatedMatches);
-    const result = this.buildMatchSummaries(validation.validatedMatches, validation.failingIds, mapNameResults);
+    const mapBackgroundUrls = await this.resolveMapBackgroundsForMatches(validation.validatedMatches);
+    const result = this.buildMatchSummaries(
+      validation.validatedMatches,
+      validation.failingIds,
+      mapNameResults,
+      mapBackgroundUrls,
+    );
 
     return result;
   }
@@ -1090,6 +1129,22 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return Promise.allSettled(mapNamePromises);
   }
 
+  private async resolveMapBackgroundsForMatches(
+    validatedMatches: {
+      matchId: string;
+      matchStats: MatchStats;
+      playerEntry: MatchStats["Players"][0];
+    }[],
+  ): Promise<string[]> {
+    const mapBackgroundPromises = validatedMatches.map(async (m) =>
+      this.resolveMapBackgroundUrl(
+        m.matchStats.MatchInfo.MapVariant.AssetId,
+        m.matchStats.MatchInfo.MapVariant.VersionId,
+      ),
+    );
+    return Promise.all(mapBackgroundPromises);
+  }
+
   private buildMatchSummaries(
     validatedMatches: {
       matchId: string;
@@ -1098,6 +1153,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }[],
     initialFailingIds: string[],
     mapNameResults: PromiseSettledResult<string>[],
+    mapBackgroundUrls: string[],
   ):
     | { success: true; summaries: Map<string, IndividualTrackerMatchSummary> }
     | { success: false; failingIds: string[] } {
@@ -1115,6 +1171,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       if (mapNameResult == null) {
         continue;
       }
+      const mapBackgroundUrl = mapBackgroundUrls[i] ?? "data:,";
 
       if (mapNameResult.status === "rejected") {
         if (this.isAuthError(mapNameResult.reason)) {
@@ -1142,6 +1199,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         mapAssetId: matchStats.MatchInfo.MapVariant.AssetId,
         mapVersionId: matchStats.MatchInfo.MapVariant.VersionId,
         mapName,
+        mapBackgroundUrl,
         modeAssetId: matchStats.MatchInfo.UgcGameVariant.AssetId,
         gameVariantCategory: matchStats.MatchInfo.GameVariantCategory,
         outcome,
@@ -1551,6 +1609,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return {
         id: `series:${buildSeriesGroupKey(matchIds)}`,
         matchIds,
+        matchBackgroundUrls: groupSummaries.map((summary) => summary.mapBackgroundUrl || "data:,"),
         score: teamWins.length === 0 ? "0:0" : teamWins.join(":"),
         title,
         subtitle,
@@ -1577,6 +1636,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         mapAssetId: summary.mapAssetId,
         mapVersionId: summary.mapVersionId,
         mapName: summary.mapName,
+        mapBackgroundUrl: summary.mapBackgroundUrl,
         modeAssetId: summary.modeAssetId,
         gameVariantCategory: summary.gameVariantCategory,
         outcome: summary.outcome,

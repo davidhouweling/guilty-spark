@@ -14,6 +14,7 @@ export const trackerMatchSummarySchema = z.object({
   mapName: z.string(),
   modeAssetId: z.string(),
   gameVariantCategory: z.number(),
+  mapBackgroundUrl: z.string().optional(),
   outcome: trackerMatchOutcomeSchema,
   score: z.string(),
   isMatchmaking: z.boolean(),
@@ -37,6 +38,7 @@ export type TrackerSeriesTeam = z.infer<typeof trackerSeriesTeamSchema>;
 export const trackerSeriesGroupSchema = z.object({
   id: z.string(),
   matchIds: z.array(z.string()),
+  matchBackgroundUrls: z.array(z.string()).optional(),
   score: z.string(),
   title: z.string(),
   subtitle: z.string(),

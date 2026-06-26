@@ -49,6 +49,7 @@ export function aFakeIndividualTrackerMatchSummaryWith(
     mapAssetId: "fake-map-asset",
     mapVersionId: "fake-map-version",
     mapName: "Fake Map",
+    mapBackgroundUrl: "https://example.com/fake-map-background.jpg",
     modeAssetId: "fake-mode-asset",
     gameVariantCategory: 6,
     outcome: "Win",

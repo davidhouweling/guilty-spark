@@ -46,6 +46,7 @@ function toMatchTab(summary: TrackerMatchSummary, teamHex: string, enemyHex: str
   return {
     matchId: summary.matchId,
     mapName: summary.mapName,
+    mapBackgroundUrl: summary.mapBackgroundUrl ?? "data:,",
     gameVariantCategory: summary.gameVariantCategory,
     gameModeName: getGameModeName(summary.gameVariantCategory),
     duration,
@@ -172,6 +173,8 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         id: anchoredSeries.id,
         title: anchoredSeries.title,
         subtitle: anchoredSeries.subtitle,
+        matchBackgroundUrls:
+          anchoredSeries.matchBackgroundUrls ?? seriesSummaries.map((summary) => summary.mapBackgroundUrl ?? "data:,"),
         score: anchoredSeries.score,
         duration: seriesDuration,
         startTime: seriesStartTime,

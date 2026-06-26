@@ -481,6 +481,7 @@ describe("IndividualTrackerDO", () => {
           "mapAssetId",
           "mapVersionId",
           "mapName",
+          "mapBackgroundUrl",
           "modeAssetId",
           "gameVariantCategory",
           "outcome",

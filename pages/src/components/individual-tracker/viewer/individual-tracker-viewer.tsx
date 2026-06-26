@@ -186,10 +186,32 @@ function summarizeSeriesOutcome(outcomes: readonly NormalizedMatchOutcome[]): No
   return "Unknown";
 }
 
-function matchHeaderBackgroundStyle(state: ViewerEntryState | undefined): React.CSSProperties {
+function matchHeaderBackgroundStyle(
+  mapBackgroundUrl: string,
+  state: ViewerEntryState | undefined,
+): React.CSSProperties {
+  if (mapBackgroundUrl !== "" && mapBackgroundUrl !== "data:,") {
+    return {
+      "--match-bg": `url(${mapBackgroundUrl})`,
+    } as React.CSSProperties;
+  }
+
   if (state?.kind === "match" && state.state.status === "loaded") {
     return {
       "--match-bg": `url(${state.state.gameMapThumbnailUrl})`,
+    } as React.CSSProperties;
+  }
+
+  return {
+    "--match-bg": "linear-gradient(135deg, #0a0e14 0%, #1a1e24 100%)",
+  } as React.CSSProperties;
+}
+
+function seriesHeaderBackgroundStyle(matchBackgroundUrls: readonly string[]): React.CSSProperties {
+  const primaryBackground = matchBackgroundUrls.find((url) => url !== "" && url !== "data:,") ?? "";
+  if (primaryBackground !== "") {
+    return {
+      "--match-bg": `url(${primaryBackground})`,
     } as React.CSSProperties;
   }
 
@@ -370,7 +392,7 @@ export function IndividualTrackerViewer({
                           { label: "Start time", value: formatDate(match.startTime) },
                           { label: "End time", value: formatDate(match.endTime) },
                         ]}
-                        backgroundStyle={matchHeaderBackgroundStyle(state)}
+                        backgroundStyle={matchHeaderBackgroundStyle(match.mapBackgroundUrl, state)}
                         rightContent={
                           <div className={styles.entryHeaderRight}>
                             <div className={styles.entryHeaderVisuals}>
@@ -460,9 +482,7 @@ export function IndividualTrackerViewer({
                         { label: "Start time", value: formatDate(series.startTime) },
                         { label: "End time", value: formatDate(series.endTime) },
                       ]}
-                      backgroundStyle={
-                        { "--match-bg": "linear-gradient(135deg, #0a0e14 0%, #1a1e24 100%)" } as React.CSSProperties
-                      }
+                      backgroundStyle={seriesHeaderBackgroundStyle(series.matchBackgroundUrls)}
                       rightContent={
                         <div className={styles.entryHeaderRight}>
                           <div className={styles.entryHeaderVisuals}>

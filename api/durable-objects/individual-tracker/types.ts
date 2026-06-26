@@ -22,6 +22,7 @@ export interface IndividualTrackerMatchSummary {
   mapAssetId: string;
   mapVersionId: string;
   mapName: string;
+  mapBackgroundUrl: string;
   modeAssetId: string;
   gameVariantCategory: number;
   outcome: NormalizedMatchOutcome;
@@ -38,6 +39,7 @@ export interface IndividualTrackerViewMatch {
   mapAssetId: string;
   mapVersionId: string;
   mapName: string;
+  mapBackgroundUrl: string;
   modeAssetId: string;
   gameVariantCategory: number;
   outcome: NormalizedMatchOutcome;
@@ -70,6 +72,7 @@ export interface ActiveSeries {
 export interface IndividualTrackerSeriesGroup {
   id: string;
   matchIds: string[];
+  matchBackgroundUrls: string[];
   score: string;
   title: string;
   subtitle: string;
