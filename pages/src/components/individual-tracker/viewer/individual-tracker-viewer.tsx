@@ -2,6 +2,7 @@ import React from "react";
 import classNames from "classnames";
 import ReactTimeAgo from "react-time-ago";
 import { addMinutes, isValid, parseISO } from "date-fns";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { NormalizedMatchOutcome } from "@guilty-spark/shared/halo/match-enrichment";
@@ -17,6 +18,10 @@ import type { TrackerViewConnectionStatus } from "../../../services/individual-t
 import { gameModeIconSrc } from "../game-mode-icon";
 import type { IndividualTrackerViewerRenderModel, ViewerEntryState, ViewerTimelineItem } from "./types";
 import styles from "./individual-tracker-viewer.module.css";
+
+const SERIES_BACKGROUND_ROTATION_MS = 10_000;
+const SERIES_BACKGROUND_FADE_MS = 900;
+const SERIES_BACKGROUND_GLITCH_MS = 260;
 
 interface IndividualTrackerViewerProps {
   readonly renderModel: IndividualTrackerViewerRenderModel;
@@ -186,6 +191,10 @@ function summarizeSeriesOutcome(outcomes: readonly NormalizedMatchOutcome[]): No
   return "Unknown";
 }
 
+function getBackgroundAt(backgrounds: readonly string[], index: number): string {
+  return Preconditions.checkExists(backgrounds[index], "Expected series background at index");
+}
+
 function matchHeaderBackgroundStyle(
   mapBackgroundUrl: string,
   state: ViewerEntryState | undefined,
@@ -207,11 +216,28 @@ function matchHeaderBackgroundStyle(
   } as React.CSSProperties;
 }
 
-function seriesHeaderBackgroundStyle(matchBackgroundUrls: readonly string[]): React.CSSProperties {
-  const primaryBackground = matchBackgroundUrls.find((url) => url !== "" && url !== "data:,") ?? "";
-  if (primaryBackground !== "") {
+function seriesHeaderBackgroundStyle(
+  matchBackgroundUrls: readonly string[],
+  rotationTick: number,
+  isTransitioning: boolean,
+  isGlitching: boolean,
+): React.CSSProperties {
+  const backgrounds = matchBackgroundUrls.filter((url) => url !== "" && url !== "data:,");
+
+  if (backgrounds.length > 0) {
+    const currentIndex = rotationTick % backgrounds.length;
+    const previousIndex = (currentIndex - 1 + backgrounds.length) % backgrounds.length;
+    const currentBackground = getBackgroundAt(backgrounds, currentIndex);
+    const previousBackground = getBackgroundAt(backgrounds, previousIndex);
+
+    const baseBackground = isTransitioning && backgrounds.length > 1 ? previousBackground : currentBackground;
+    const overlayBackground = currentBackground;
+
     return {
-      "--match-bg": `url(${primaryBackground})`,
+      "--match-bg": `url(${baseBackground})`,
+      "--match-bg-next": `url(${overlayBackground})`,
+      "--match-bg-next-opacity": isTransitioning ? 1 : 0,
+      "--match-glitch-opacity": isGlitching && backgrounds.length > 1 ? 0.28 : 0,
     } as React.CSSProperties;
   }
 
@@ -236,6 +262,11 @@ export function IndividualTrackerViewer({
   const nearLatestRef = React.useRef<boolean>(true);
   const [isNearLatestNow, setIsNearLatestNow] = React.useState(true);
   const [unseenEntries, setUnseenEntries] = React.useState(0);
+  const [seriesBackgroundTick, setSeriesBackgroundTick] = React.useState(0);
+  const [isSeriesBackgroundTransitioning, setIsSeriesBackgroundTransitioning] = React.useState(false);
+  const [isSeriesBackgroundGlitching, setIsSeriesBackgroundGlitching] = React.useState(false);
+  const seriesFadeTimeoutRef = React.useRef<number | null>(null);
+  const seriesGlitchTimeoutRef = React.useRef<number | null>(null);
 
   const { timeline } = renderModel;
 
@@ -275,6 +306,44 @@ export function IndividualTrackerViewer({
     }
     lastTimelineLengthRef.current = nextLength;
   }, [timeline.length, scrollToLatest]);
+
+  React.useEffect(() => {
+    const beginTransition = (): void => {
+      setSeriesBackgroundTick((current) => current + 1);
+      setIsSeriesBackgroundTransitioning(true);
+      setIsSeriesBackgroundGlitching(true);
+
+      if (seriesFadeTimeoutRef.current != null) {
+        window.clearTimeout(seriesFadeTimeoutRef.current);
+      }
+
+      if (seriesGlitchTimeoutRef.current != null) {
+        window.clearTimeout(seriesGlitchTimeoutRef.current);
+      }
+
+      seriesFadeTimeoutRef.current = window.setTimeout(() => {
+        setIsSeriesBackgroundTransitioning(false);
+      }, SERIES_BACKGROUND_FADE_MS);
+
+      seriesGlitchTimeoutRef.current = window.setTimeout(() => {
+        setIsSeriesBackgroundGlitching(false);
+      }, SERIES_BACKGROUND_GLITCH_MS);
+    };
+
+    const intervalId = window.setInterval(beginTransition, SERIES_BACKGROUND_ROTATION_MS);
+
+    return (): void => {
+      window.clearInterval(intervalId);
+
+      if (seriesFadeTimeoutRef.current != null) {
+        window.clearTimeout(seriesFadeTimeoutRef.current);
+      }
+
+      if (seriesGlitchTimeoutRef.current != null) {
+        window.clearTimeout(seriesGlitchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const notice = connectionNotice(connectionStatus);
   const refreshHint = (
@@ -482,7 +551,12 @@ export function IndividualTrackerViewer({
                         { label: "Start time", value: formatDate(series.startTime) },
                         { label: "End time", value: formatDate(series.endTime) },
                       ]}
-                      backgroundStyle={seriesHeaderBackgroundStyle(series.matchBackgroundUrls)}
+                      backgroundStyle={seriesHeaderBackgroundStyle(
+                        series.matchBackgroundUrls,
+                        seriesBackgroundTick,
+                        isSeriesBackgroundTransitioning,
+                        isSeriesBackgroundGlitching,
+                      )}
                       rightContent={
                         <div className={styles.entryHeaderRight}>
                           <div className={styles.entryHeaderVisuals}>
