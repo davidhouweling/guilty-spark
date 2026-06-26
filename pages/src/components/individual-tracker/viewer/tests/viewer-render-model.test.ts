@@ -70,6 +70,33 @@ describe("buildViewerRenderModel", () => {
     }
   });
 
+  it("derives series start and end times from the actual chronological bounds", () => {
+    expect.assertions(2);
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m1",
+          startTime: "2026-01-01T00:00:00.000Z",
+          endTime: "2026-01-01T00:10:00.000Z",
+        }),
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m2",
+          startTime: "2026-01-01T00:20:00.000Z",
+          endTime: "2026-01-01T00:30:00.000Z",
+        }),
+      ],
+      series: [aFakeTrackerSeriesGroupWith({ id: "s1", matchIds: ["m2", "m1"] })],
+    });
+
+    const model = buildViewerRenderModel({ view });
+
+    const [first] = model.timeline;
+    if (first.type === "series") {
+      expect(first.series.startTime).toBe("2026-01-01T00:00:00.000Z");
+      expect(first.series.endTime).toBe("2026-01-01T00:30:00.000Z");
+    }
+  });
+
   it("interleaves standalone matches and series in chronological order", () => {
     const view = aFakeTrackerViewStateWith({
       matches: [
@@ -113,17 +140,17 @@ describe("buildViewerRenderModel", () => {
     }
   });
 
-  it("treats an unrecognised outcome string as unknown with no colour", () => {
+  it("keeps Unknown outcome neutral with no colour", () => {
     expect.assertions(2);
     const view = aFakeTrackerViewStateWith({
-      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1", outcome: "Bananas" })],
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1", outcome: "Unknown" })],
     });
 
     const model = buildViewerRenderModel({ view });
 
     const [first] = model.timeline;
     if (first.type === "match") {
-      expect(first.match.outcome).toBe("unknown");
+      expect(first.match.outcome).toBe("Unknown");
       expect(first.match.colorHex).toBeUndefined();
     }
   });
@@ -181,6 +208,40 @@ describe("buildViewerRenderModel", () => {
     }
     if (loss.type === "match") {
       expect(loss.match.colorHex).toBe("#8FED23");
+    }
+  });
+
+  it("renders unknown match duration when timestamps are invalid", () => {
+    expect.assertions(1);
+    const view = aFakeTrackerViewStateWith({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1", startTime: "bad-start", endTime: "bad-end" })],
+    });
+
+    const model = buildViewerRenderModel({ view });
+    const [first] = model.timeline;
+    if (first.type === "match") {
+      expect(first.match.duration).toBe("unknown");
+    }
+  });
+
+  it("renders unknown series duration when any member has invalid bounds", () => {
+    expect.assertions(1);
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m1",
+          startTime: "2026-01-01T00:00:00.000Z",
+          endTime: "2026-01-01T00:10:00.000Z",
+        }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m2", startTime: "bad-start", endTime: "bad-end" }),
+      ],
+      series: [aFakeTrackerSeriesGroupWith({ id: "s1", matchIds: ["m1", "m2"] })],
+    });
+
+    const model = buildViewerRenderModel({ view });
+    const [first] = model.timeline;
+    if (first.type === "series") {
+      expect(first.series.duration).toBe("unknown");
     }
   });
 });

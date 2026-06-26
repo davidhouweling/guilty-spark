@@ -58,6 +58,7 @@ describe("/api/individual-tracker view route", () => {
               mapAssetId: "map-1",
               mapVersionId: "map-v-1",
               mapName: "Aquarius",
+              mapBackgroundUrl: "https://example.com/maps/aquarius.jpg",
               modeAssetId: "mode-1",
               gameVariantCategory: 6,
               outcome: "Win",
@@ -69,6 +70,7 @@ describe("/api/individual-tracker view route", () => {
             {
               id: "series:match-1:match-2",
               matchIds: ["match-1", "match-2"],
+              matchBackgroundUrls: ["https://example.com/maps/aquarius.jpg", "https://example.com/maps/aquarius.jpg"],
               score: "2:1",
               title: "Eagle vs Cobra",
               subtitle: "Best of 3",

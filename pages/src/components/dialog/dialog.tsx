@@ -7,6 +7,7 @@ interface DialogProps {
   readonly title: string;
   readonly onClose: () => void;
   readonly children: React.ReactNode;
+  readonly footer?: React.ReactNode;
   readonly panelClassName?: string;
   readonly bodyClassName?: string;
 }
@@ -16,6 +17,7 @@ export function Dialog({
   title,
   onClose,
   children,
+  footer,
   panelClassName,
   bodyClassName,
 }: DialogProps): React.ReactElement | null {
@@ -69,6 +71,7 @@ export function Dialog({
           {title}
         </h2>
         <div className={classNames(styles.body, bodyClassName)}>{children}</div>
+        {footer != null && <div className={styles.footer}>{footer}</div>}
       </div>
     </div>
   );

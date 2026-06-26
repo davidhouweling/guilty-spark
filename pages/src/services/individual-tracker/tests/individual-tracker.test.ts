@@ -296,4 +296,13 @@ describe("RealIndividualTrackerService", () => {
       expect.objectContaining({ method: "POST" }),
     );
   });
+
+  it("sends a POST request to refresh a tracker", async () => {
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ success: true }));
+    await service.refreshTracker("tracker-1");
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("/api/individual-tracker/manage/tracker-1/refresh"),
+      expect.objectContaining({ credentials: "include", method: "POST" }),
+    );
+  });
 });

@@ -56,6 +56,9 @@ export type TrackersResponse = z.infer<typeof trackersContract.schema>;
 export const stopTrackerContract = defineContract(z.object({ success: z.literal(true) }));
 export type StopTrackerResponse = z.infer<typeof stopTrackerContract.schema>;
 
+export const refreshTrackerContract = defineContract(z.object({ success: z.literal(true) }));
+export type RefreshTrackerResponse = z.infer<typeof refreshTrackerContract.schema>;
+
 export const selectMatchesSeriesGroupSchema = z.object({
   matchIds: z.array(z.string().min(1)).min(2),
   titleOverride: z.string().nullable(),

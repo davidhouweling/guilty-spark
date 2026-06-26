@@ -1,5 +1,6 @@
 import type { TrackerState, TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { TrackerLiveView } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import { getDefaultSeriesGroupTitle } from "@guilty-spark/shared/individual-tracker/series-grouping";
 import type {
   IndividualTrackerConnection,
   IndividualTrackerService,
@@ -8,6 +9,7 @@ import type {
 import { buildIndividualTrackerTrackerViewPath } from "../../individual-tracker/routes";
 import type { GameSelectionDialogState, ManualSeriesDialogState } from "../types";
 import type { SeriesInitialData } from "../../individual-tracker/manual-series-dialog/manual-series-dialog-store";
+import { getDefaultSeriesGroupSubtitle } from "../../individual-tracker/series-group-metadata";
 import type { TrackerDisplayStatus, TrackerListItem, TrackerRowAction } from "../tracker-list/tracker-list";
 import type { LiveTrackersStore } from "./live-trackers-store";
 import type { LiveTrackersSnapshot } from "./types";
@@ -20,6 +22,14 @@ interface Config {
 }
 
 const NON_LIVE_POLL_INTERVAL_MS = 30_000;
+
+function toOverrideOrNull(value: string, defaultValue: string): string | null {
+  const normalizedValue = value.trim();
+  if (normalizedValue === "") {
+    return null;
+  }
+  return normalizedValue === defaultValue ? null : normalizedValue;
+}
 
 function derivedStatus(status: TrackerStatus | undefined): TrackerDisplayStatus {
   if (status == null) {
@@ -643,6 +653,7 @@ export class LiveTrackersPresenter {
     }
 
     const liveView = this.activeLiveView?.trackerId === item.trackerId ? this.activeLiveView : null;
+    const matchById = new Map((liveView?.matches ?? []).map((match) => [match.matchId, match]));
     const dialogState: GameSelectionDialogState = {
       trackerId: item.trackerId,
       trackerLabel: item.gamertag,
@@ -650,7 +661,26 @@ export class LiveTrackersPresenter {
       initialSelectedMatchIds: liveView?.matches.map((m) => m.matchId) ?? [],
       initialGroupings: liveView?.series.map((s) => s.matchIds) ?? [],
       initialSeriesGroups:
-        liveView?.series.map((s) => ({ matchIds: s.matchIds, titleOverride: null, subtitleOverride: null })) ?? [],
+        liveView?.series.map((series) => {
+          const groupEntries = series.matchIds
+            .map((matchId) => matchById.get(matchId))
+            .filter((match): match is NonNullable<typeof match> => match != null)
+            .map((match) => ({
+              startTimeIso: undefined,
+              startTime: match.startTime,
+              mapAssetId: match.mapAssetId,
+              mapVersionId: match.mapVersionId,
+              gameVariantCategory: match.gameVariantCategory,
+              outcome: match.outcome,
+            }));
+          const defaultSubtitle = getDefaultSeriesGroupSubtitle(groupEntries);
+
+          return {
+            matchIds: series.matchIds,
+            titleOverride: toOverrideOrNull(series.title, getDefaultSeriesGroupTitle()),
+            subtitleOverride: toOverrideOrNull(series.subtitle, defaultSubtitle),
+          };
+        }) ?? [],
       ...(liveView?.searchStartTime !== undefined
         ? { searchStartTime: liveView.searchStartTime }
         : liveView?.matches != null && liveView.matches.length > 0

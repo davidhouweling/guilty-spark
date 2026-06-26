@@ -3,6 +3,8 @@ import { streamerViewSettingsSchema } from "../../individual-tracker/streamer-vi
 import { defineContract, defineMessageContract } from "../base";
 import { trackerStatusSchema } from "./tracker";
 
+export const trackerMatchOutcomeSchema = z.enum(["Win", "Loss", "Tie", "DNF", "Unknown"]);
+
 export const trackerMatchSummarySchema = z.object({
   matchId: z.string(),
   startTime: z.string(),
@@ -12,7 +14,8 @@ export const trackerMatchSummarySchema = z.object({
   mapName: z.string(),
   modeAssetId: z.string(),
   gameVariantCategory: z.number(),
-  outcome: z.string(),
+  mapBackgroundUrl: z.string().optional(),
+  outcome: trackerMatchOutcomeSchema,
   score: z.string(),
   isMatchmaking: z.boolean(),
 });
@@ -35,6 +38,7 @@ export type TrackerSeriesTeam = z.infer<typeof trackerSeriesTeamSchema>;
 export const trackerSeriesGroupSchema = z.object({
   id: z.string(),
   matchIds: z.array(z.string()),
+  matchBackgroundUrls: z.array(z.string()).optional(),
   score: z.string(),
   title: z.string(),
   subtitle: z.string(),
@@ -51,6 +55,7 @@ export const trackerLiveViewSchema = z.object({
   series: z.array(trackerSeriesGroupSchema),
   lastUpdateTime: z.string(),
   lastMatchDiscoveredAt: z.string().nullable(),
+  lastSuccessfulFetch: z.string().optional(),
   hasActiveSeries: z.boolean(),
   hasRecentCompletedSeries: z.boolean(),
   searchStartTime: z.string().optional(),

@@ -250,6 +250,11 @@ export class GameSelectionDialogPresenter {
         selectedMatchIds: Array.from(snapshot.selectedMatchIds),
         matchGroupings: snapshot.groupings,
         matches: snapshot.matches ?? [],
+        seriesGroups: snapshot.seriesGroups.map((group) => ({
+          matchIds: [...group.matchIds],
+          titleOverride: group.titleOverride,
+          subtitleOverride: group.subtitleOverride,
+        })),
       });
       if (this.isDisposed) {
         return;

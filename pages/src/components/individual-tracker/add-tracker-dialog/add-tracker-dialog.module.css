@@ -37,11 +37,10 @@
   grid-template-columns: 1fr;
 }
 
-.dialogActions {
+.footer {
   display: flex;
   gap: var(--space-3);
   justify-content: flex-end;
-  padding-top: var(--space-4);
 }
 
 .previewCard {

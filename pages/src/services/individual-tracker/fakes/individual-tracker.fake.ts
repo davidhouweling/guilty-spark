@@ -282,6 +282,11 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public async refreshTracker(_trackerId: string): Promise<void> {
+    await Promise.resolve();
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public connectToTracker(_userId: string, _trackerId: string): IndividualTrackerConnection {
     return {
       subscribe: () => ({

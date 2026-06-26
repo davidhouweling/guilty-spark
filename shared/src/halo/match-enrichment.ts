@@ -3,6 +3,8 @@ import { GameVariantCategory } from "halo-infinite-api";
 import { compareAsc } from "date-fns";
 import { getPlayerXuid } from "./match-stats";
 
+export type NormalizedMatchOutcome = "Win" | "Loss" | "Tie" | "DNF" | "Unknown";
+
 export function getMatchOutcomeLabel(outcomeCode: number | null): "Win" | "Loss" | "Tie" | "DNF" | "Unknown" {
   if (outcomeCode == null) {
     return "Unknown";
@@ -25,6 +27,36 @@ export function getMatchOutcomeLabel(outcomeCode: number | null): "Win" | "Loss"
       return "Unknown";
     }
   }
+}
+
+export function normalizeOutcomeString(outcome: string): NormalizedMatchOutcome {
+  if (outcome === "Win") {
+    return "Win";
+  }
+  if (outcome === "Loss") {
+    return "Loss";
+  }
+  if (outcome === "Tie") {
+    return "Tie";
+  }
+  if (outcome === "DNF") {
+    return "DNF";
+  }
+  return "Unknown";
+}
+
+export function getOutcomeColor(
+  outcome: NormalizedMatchOutcome,
+  teamColor: string,
+  enemyColor: string,
+): string | undefined {
+  if (outcome === "Win") {
+    return teamColor;
+  }
+  if (outcome === "Loss") {
+    return enemyColor;
+  }
+  return undefined;
 }
 
 export function buildMatchScore(matchStats: MatchStats, locale?: string): string {

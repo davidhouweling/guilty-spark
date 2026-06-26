@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Tracker, TrackerState } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
+import type { TrackerLiveView } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { FakeIndividualTrackerService } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
 import {
   aFakeTrackerWith,
@@ -216,6 +217,146 @@ describe("LiveTrackersPresenter", () => {
 
     presenter.closeGameSelectionDialog();
     expect(presenter.getSnapshot().gameSelectionDialogState).toBeNull();
+
+    presenter.dispose();
+  });
+
+  it("Game selection action preserves live series title/subtitle metadata", async () => {
+    const tracker = aFakeTrackerWith({
+      trackerId: "t1",
+      gamertag: "Chief",
+      status: "active",
+      isLive: true,
+      state: aFakeTrackerState({ trackerId: "t1", gamertag: "Chief", status: "active" }),
+    });
+    const { presenter } = aHarness({ trackers: [tracker] });
+
+    presenter.start();
+    presenter.setSessionContext("u1", null, null);
+    await presenter.refresh();
+
+    const liveView: TrackerLiveView = {
+      trackerId: "t1",
+      gamertag: "Chief",
+      status: "active",
+      matches: [
+        {
+          matchId: "m1",
+          startTime: "2026-01-01T00:00:00.000Z",
+          endTime: "2026-01-01T00:10:00.000Z",
+          mapAssetId: "map-a",
+          mapVersionId: "map-v1",
+          mapName: "Aquarius",
+          modeAssetId: "mode-a",
+          gameVariantCategory: 6,
+          outcome: "Win",
+          score: "50-40",
+          isMatchmaking: false,
+        },
+      ],
+      series: [
+        {
+          id: "series-1",
+          matchIds: ["m1"],
+          score: "1-0",
+          title: "Semifinals",
+          subtitle: "Best of 3",
+        },
+      ],
+      lastUpdateTime: "2026-01-01T00:11:00.000Z",
+      lastMatchDiscoveredAt: null,
+      hasActiveSeries: false,
+      hasRecentCompletedSeries: true,
+    };
+
+    (presenter as unknown as { activeLiveView: TrackerLiveView | null }).activeLiveView = liveView;
+
+    const [item] = presenter.getTrackerItems();
+    const gameSelectionAction = presenter.getActions(item).find((a) => a.label === "Game selection");
+    expect(gameSelectionAction).toBeDefined();
+    if (gameSelectionAction == null) {
+      return;
+    }
+
+    gameSelectionAction.onClick();
+
+    expect(presenter.getSnapshot().gameSelectionDialogState?.initialSeriesGroups).toEqual([
+      {
+        matchIds: ["m1"],
+        titleOverride: "Semifinals",
+        subtitleOverride: "Best of 3",
+      },
+    ]);
+
+    presenter.dispose();
+  });
+
+  it("Game selection action does not create overrides for default series labels", async () => {
+    const tracker = aFakeTrackerWith({
+      trackerId: "t1",
+      gamertag: "Chief",
+      status: "active",
+      isLive: true,
+      state: aFakeTrackerState({ trackerId: "t1", gamertag: "Chief", status: "active" }),
+    });
+    const { presenter } = aHarness({ trackers: [tracker] });
+
+    presenter.start();
+    presenter.setSessionContext("u1", null, null);
+    await presenter.refresh();
+
+    const liveView: TrackerLiveView = {
+      trackerId: "t1",
+      gamertag: "Chief",
+      status: "active",
+      matches: [
+        {
+          matchId: "m1",
+          startTime: "2026-01-01T00:00:00.000Z",
+          endTime: "2026-01-01T00:10:00.000Z",
+          mapAssetId: "map-a",
+          mapVersionId: "map-v1",
+          mapName: "Aquarius",
+          modeAssetId: "mode-a",
+          gameVariantCategory: 6,
+          outcome: "Win",
+          score: "50-40",
+          isMatchmaking: false,
+        },
+      ],
+      series: [
+        {
+          id: "series-1",
+          matchIds: ["m1"],
+          score: "1-0",
+          title: "Eagle vs Cobra",
+          subtitle: "Best of 1",
+        },
+      ],
+      lastUpdateTime: "2026-01-01T00:11:00.000Z",
+      lastMatchDiscoveredAt: null,
+      hasActiveSeries: false,
+      hasRecentCompletedSeries: true,
+    };
+
+    (presenter as unknown as { activeLiveView: TrackerLiveView | null }).activeLiveView = liveView;
+
+    const [item] = presenter.getTrackerItems();
+    const gameSelectionAction = presenter.getActions(item).find((a) => a.label === "Game selection");
+    expect(gameSelectionAction).toBeDefined();
+    if (gameSelectionAction == null) {
+      return;
+    }
+
+    gameSelectionAction.onClick();
+
+    expect(presenter.getSnapshot().gameSelectionDialogState?.initialSeriesGroups).toEqual([
+      {
+        matchIds: ["m1"],
+        titleOverride: null,
+        subtitleOverride: null,
+      },
+    ]);
 
     presenter.dispose();
   });

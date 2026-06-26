@@ -1,22 +1,50 @@
 import React from "react";
 import classNames from "classnames";
+import ReactTimeAgo from "react-time-ago";
+import { addMinutes, isValid, parseISO } from "date-fns";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
+import type { NormalizedMatchOutcome } from "@guilty-spark/shared/halo/match-enrichment";
+import { Alert } from "../../alert/alert";
+import { Button } from "../../button/button";
 import { Container } from "../../container/container";
+import { LoadingState } from "../../loading-state/loading-state";
+import { OutcomeBadge } from "../../outcome-badge/outcome-badge";
+import { MatchStats } from "../../stats/match-stats";
+import { StatsHeader } from "../../stats/stats-header";
+import { SeriesStatsView } from "../../series-stats/series-stats";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
-import { relativeTime, Timeline } from "../timeline/timeline";
-import type { IndividualTrackerViewerRenderModel, MatchStatsPanelState } from "./types";
-import { TabsBar } from "./viewer-tabs";
-import { StatsPanel } from "./stats-panel";
+import { gameModeIconSrc } from "../game-mode-icon";
+import type { IndividualTrackerViewerRenderModel, ViewerEntryState, ViewerTimelineItem } from "./types";
 import styles from "./individual-tracker-viewer.module.css";
+
+const SERIES_BACKGROUND_ROTATION_MS = 10_000;
+const SERIES_BACKGROUND_FADE_MS = 900;
+const SERIES_BACKGROUND_GLITCH_MS = 260;
 
 interface IndividualTrackerViewerProps {
   readonly renderModel: IndividualTrackerViewerRenderModel;
   readonly connectionStatus: TrackerViewConnectionStatus;
-  readonly selectedMatchId: string | null;
-  readonly matchStatsPanelState: MatchStatsPanelState | null;
-  readonly onSelectMatch: (matchId: string) => void;
-  readonly onDeselect: () => void;
+  readonly expandedEntryKeys: ReadonlySet<string>;
+  readonly entryStates: ReadonlyMap<string, ViewerEntryState>;
+  readonly canManage: boolean;
+  readonly refreshPending: boolean;
+  readonly onToggleEntry: (item: ViewerTimelineItem) => void;
+  readonly onBackToManage: () => void;
+  readonly onRefresh: () => void;
+}
+
+function entryKey(item: ViewerTimelineItem): string {
+  if (item.type === "match") {
+    return `match:${item.match.matchId}`;
+  }
+  return `series:${item.series.id}`;
+}
+
+function isNearLatest(): boolean {
+  const threshold = 200;
+  return window.scrollY <= threshold;
 }
 
 function statusLabel(status: TrackerStatus): string {
@@ -36,53 +64,322 @@ function statusLabel(status: TrackerStatus): string {
   }
 }
 
-function connectionNotice(status: TrackerViewConnectionStatus): string | null {
-  switch (status) {
-    case "connecting": {
-      return "Connecting...";
-    }
+function parseDate(value: string | null): Date | null {
+  if (value == null) {
+    return null;
+  }
+
+  const date = parseISO(value);
+  return isValid(date) ? date : null;
+}
+
+function formatDate(value: string | null): string {
+  const date = parseDate(value);
+  return date == null ? "unknown" : date.toLocaleString();
+}
+
+function handleEntryHeaderKeyDown(
+  event: React.KeyboardEvent<HTMLDivElement>,
+  item: ViewerTimelineItem,
+  onToggleEntry: (item: ViewerTimelineItem) => void,
+): void {
+  if (event.key !== "Enter" && event.key !== " ") {
+    return;
+  }
+
+  event.preventDefault();
+  onToggleEntry(item);
+}
+
+function lastUpdateContent(renderModel: IndividualTrackerViewerRenderModel): React.ReactNode {
+  const lastUpdatedDate = parseDate(renderModel.lastUpdateTime);
+  if (lastUpdatedDate == null) {
+    return "unknown";
+  }
+
+  return <ReactTimeAgo date={lastUpdatedDate} locale="en" />;
+}
+
+function nextUpdateContent(renderModel: IndividualTrackerViewerRenderModel): React.ReactNode {
+  if (renderModel.status === "paused") {
+    return "paused";
+  }
+
+  if (renderModel.status === "stopped") {
+    return "stopped";
+  }
+
+  const lastUpdatedDate = parseDate(renderModel.lastUpdateTime);
+  if (lastUpdatedDate == null) {
+    return "unavailable";
+  }
+
+  return <ReactTimeAgo date={addMinutes(lastUpdatedDate, 3)} locale="en" />;
+}
+
+function connectionNotice(connectionStatus: TrackerViewConnectionStatus): string | null {
+  switch (connectionStatus) {
     case "connected": {
       return null;
     }
-    case "stopped": {
-      return "Tracker stopped.";
-    }
-    case "error": {
-      return "Connection error.";
+    case "connecting": {
+      return "Connecting...";
     }
     case "disconnected": {
       return "Reconnecting...";
     }
+    case "error": {
+      return "Connection error. Retrying...";
+    }
     case "not_found": {
       return "Tracker not found.";
     }
+    case "stopped": {
+      return "Tracker stopped.";
+    }
     default: {
-      throw new UnreachableError(status);
+      throw new UnreachableError(connectionStatus);
     }
   }
 }
 
-function recordText(renderModel: IndividualTrackerViewerRenderModel): string {
-  const { wins, losses, ties } = renderModel.accumulated;
-  const base = `${wins.toString()}:${losses.toString()}`;
-  return ties > 0 ? `${base}:${ties.toString()}` : base;
+function summarizeSeriesOutcome(outcomes: readonly NormalizedMatchOutcome[]): NormalizedMatchOutcome {
+  let wins = 0;
+  let losses = 0;
+  let ties = 0;
+  let dnf = 0;
+
+  for (const outcome of outcomes) {
+    switch (outcome) {
+      case "Win": {
+        wins += 1;
+        break;
+      }
+      case "Loss": {
+        losses += 1;
+        break;
+      }
+      case "Tie": {
+        ties += 1;
+        break;
+      }
+      case "DNF": {
+        dnf += 1;
+        break;
+      }
+      case "Unknown": {
+        break;
+      }
+      default: {
+        throw new UnreachableError(outcome);
+      }
+    }
+  }
+
+  if (wins > losses) {
+    return "Win";
+  }
+  if (losses > wins) {
+    return "Loss";
+  }
+  if (wins === 0 && losses === 0 && dnf > 0) {
+    return "DNF";
+  }
+  if (ties > 0) {
+    return "Tie";
+  }
+  return "Unknown";
+}
+
+function getBackgroundAt(backgrounds: readonly string[], index: number): string {
+  return Preconditions.checkExists(backgrounds[index], "Expected series background at index");
+}
+
+function matchHeaderBackgroundStyle(
+  mapBackgroundUrl: string,
+  state: ViewerEntryState | undefined,
+): React.CSSProperties {
+  if (mapBackgroundUrl !== "" && mapBackgroundUrl !== "data:,") {
+    return {
+      "--match-bg": `url(${mapBackgroundUrl})`,
+    } as React.CSSProperties;
+  }
+
+  if (state?.kind === "match" && state.state.status === "loaded") {
+    return {
+      "--match-bg": `url(${state.state.gameMapThumbnailUrl})`,
+    } as React.CSSProperties;
+  }
+
+  return {
+    "--match-bg": "linear-gradient(135deg, #0a0e14 0%, #1a1e24 100%)",
+  } as React.CSSProperties;
+}
+
+function seriesHeaderBackgroundStyle(
+  matchBackgroundUrls: readonly string[],
+  rotationTick: number,
+  isTransitioning: boolean,
+  isGlitching: boolean,
+): React.CSSProperties {
+  const backgrounds = matchBackgroundUrls.filter((url) => url !== "" && url !== "data:,");
+
+  if (backgrounds.length > 0) {
+    const currentIndex = rotationTick % backgrounds.length;
+    const previousIndex = (currentIndex - 1 + backgrounds.length) % backgrounds.length;
+    const currentBackground = getBackgroundAt(backgrounds, currentIndex);
+    const previousBackground = getBackgroundAt(backgrounds, previousIndex);
+
+    const baseBackground = isTransitioning && backgrounds.length > 1 ? previousBackground : currentBackground;
+    const overlayBackground = currentBackground;
+
+    return {
+      "--match-bg": `url(${baseBackground})`,
+      "--match-bg-next": `url(${overlayBackground})`,
+      "--match-bg-next-opacity": isTransitioning ? 1 : 0,
+      "--match-glitch-opacity": isGlitching && backgrounds.length > 1 ? 0.28 : 0,
+    } as React.CSSProperties;
+  }
+
+  return {
+    "--match-bg": "linear-gradient(135deg, #0a0e14 0%, #1a1e24 100%)",
+  } as React.CSSProperties;
 }
 
 export function IndividualTrackerViewer({
   renderModel,
   connectionStatus,
-  selectedMatchId,
-  matchStatsPanelState,
-  onSelectMatch,
-  onDeselect,
+  expandedEntryKeys,
+  entryStates,
+  canManage,
+  refreshPending,
+  onToggleEntry,
+  onBackToManage,
+  onRefresh,
 }: IndividualTrackerViewerProps): React.ReactElement {
+  const latestEntryRef = React.useRef<HTMLDivElement | null>(null);
+  const lastTimelineLengthRef = React.useRef<number>(renderModel.timeline.length);
+  const nearLatestRef = React.useRef<boolean>(true);
+  const [isNearLatestNow, setIsNearLatestNow] = React.useState(true);
+  const [unseenEntries, setUnseenEntries] = React.useState(0);
+  const [seriesBackgroundTick, setSeriesBackgroundTick] = React.useState(0);
+  const [isSeriesBackgroundTransitioning, setIsSeriesBackgroundTransitioning] = React.useState(false);
+  const [isSeriesBackgroundGlitching, setIsSeriesBackgroundGlitching] = React.useState(false);
+  const seriesFadeTimeoutRef = React.useRef<number | null>(null);
+  const seriesGlitchTimeoutRef = React.useRef<number | null>(null);
+
+  const { timeline } = renderModel;
+
+  const scrollToLatest = React.useCallback((): void => {
+    latestEntryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  React.useEffect(() => {
+    function onScrollOrResize(): void {
+      const nearLatest = isNearLatest();
+      nearLatestRef.current = nearLatest;
+      setIsNearLatestNow(nearLatest);
+      if (nearLatest) {
+        setUnseenEntries(0);
+      }
+    }
+
+    onScrollOrResize();
+    window.addEventListener("scroll", onScrollOrResize, { passive: true });
+    window.addEventListener("resize", onScrollOrResize);
+    return (): void => {
+      window.removeEventListener("scroll", onScrollOrResize);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    const previousLength = lastTimelineLengthRef.current;
+    const nextLength = timeline.length;
+    if (nextLength > previousLength) {
+      const delta = nextLength - previousLength;
+      if (nearLatestRef.current) {
+        scrollToLatest();
+      } else {
+        setUnseenEntries((current) => current + delta);
+      }
+    }
+    lastTimelineLengthRef.current = nextLength;
+  }, [timeline.length, scrollToLatest]);
+
+  React.useEffect(() => {
+    const beginTransition = (): void => {
+      setSeriesBackgroundTick((current) => current + 1);
+      setIsSeriesBackgroundTransitioning(true);
+      setIsSeriesBackgroundGlitching(true);
+
+      if (seriesFadeTimeoutRef.current != null) {
+        window.clearTimeout(seriesFadeTimeoutRef.current);
+      }
+
+      if (seriesGlitchTimeoutRef.current != null) {
+        window.clearTimeout(seriesGlitchTimeoutRef.current);
+      }
+
+      seriesFadeTimeoutRef.current = window.setTimeout(() => {
+        setIsSeriesBackgroundTransitioning(false);
+      }, SERIES_BACKGROUND_FADE_MS);
+
+      seriesGlitchTimeoutRef.current = window.setTimeout(() => {
+        setIsSeriesBackgroundGlitching(false);
+      }, SERIES_BACKGROUND_GLITCH_MS);
+    };
+
+    const intervalId = window.setInterval(beginTransition, SERIES_BACKGROUND_ROTATION_MS);
+
+    return (): void => {
+      window.clearInterval(intervalId);
+
+      if (seriesFadeTimeoutRef.current != null) {
+        window.clearTimeout(seriesFadeTimeoutRef.current);
+      }
+
+      if (seriesGlitchTimeoutRef.current != null) {
+        window.clearTimeout(seriesGlitchTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const notice = connectionNotice(connectionStatus);
+  const refreshHint = (
+    <>
+      Last update: {lastUpdateContent(renderModel)} | Next update: {nextUpdateContent(renderModel)}
+    </>
+  );
 
   return (
-    <Container>
-      <header className={styles.header}>
-        <div className={styles.headerLeft}>
-          <h1 className={styles.gamertag}>{renderModel.gamertag}</h1>
+    <>
+      {canManage && (
+        <Container>
+          <div className={styles.viewerActionBar}>
+            <Button variant="secondary" size="small" className={styles.backButton} onClick={onBackToManage}>
+              Back to manager
+            </Button>
+
+            <div className={styles.viewerActionRight}>
+              <p className={styles.refreshHint}>{refreshHint}</p>
+              <Button
+                variant="secondary"
+                size="small"
+                loading={refreshPending}
+                onClick={onRefresh}
+                disabled={refreshPending || renderModel.status !== "active"}
+              >
+                Refresh
+              </Button>
+            </div>
+          </div>
+        </Container>
+      )}
+
+      <Container>
+        <div className={styles.header}>
+          <h1 className={styles.title}>{renderModel.gamertag} Tracker</h1>
           <div className={styles.badges}>
             <span
               className={classNames(styles.statusBadge, {
@@ -96,30 +393,232 @@ export function IndividualTrackerViewer({
             {renderModel.isLive && <span className={styles.liveBadge}>Live</span>}
           </div>
         </div>
-        <div className={styles.headerRight}>
-          <span className={styles.record} data-testid="record">
-            {recordText(renderModel)}
-          </span>
-          <span className={styles.lastUpdated}>Last updated {relativeTime(renderModel.lastUpdateTime)}</span>
-        </div>
-      </header>
 
-      {notice != null && (
-        <p className={styles.connectionNotice} data-testid="connection-notice">
-          {notice}
-        </p>
+        {notice != null && (
+          <p className={styles.connectionNotice} data-testid="connection-notice">
+            {notice}
+          </p>
+        )}
+
+        {renderModel.topBarStats != null && renderModel.topBarStats.length > 0 && (
+          <section className={styles.accumulatedSection}>
+            <h2 className={styles.sectionTitle}>Accumulated Stats</h2>
+            <ul className={styles.statsList}>
+              {renderModel.topBarStats.map((stat) => (
+                <li key={`${stat.label}-${stat.value}`} className={styles.statsItem}>
+                  <span className={styles.statsLabel}>{stat.label}</span>
+                  <span className={styles.statsValue}>{stat.value}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </Container>
+      <section className={styles.matchesSection}>
+        <Container>
+          <h2 className={styles.sectionTitle}>Tracked Gameplay</h2>
+        </Container>
+        {timeline.length === 0 ? (
+          <Container>
+            <Alert variant="info">No matches tracked yet.</Alert>
+          </Container>
+        ) : (
+          <Container mobileDown="0" className={styles.entriesList}>
+            {timeline.map((item, index) => {
+              const key = entryKey(item);
+              const isExpanded = expandedEntryKeys.has(key);
+              const state = entryStates.get(key);
+              const isLatest = index === 0;
+
+              if (item.type === "match") {
+                const { match } = item;
+                const entryRef = isLatest
+                  ? (element: HTMLDivElement | null): void => {
+                      latestEntryRef.current = element;
+                    }
+                  : undefined;
+
+                return (
+                  <div key={key} className={styles.entry} ref={entryRef}>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className={styles.entryHeaderButton}
+                      onClick={(): void => {
+                        onToggleEntry(item);
+                      }}
+                      onKeyDown={(event): void => {
+                        handleEntryHeaderKeyDown(event, item, onToggleEntry);
+                      }}
+                      aria-expanded={isExpanded}
+                      aria-label={`Match ${match.gameModeName} on ${match.mapName}`}
+                    >
+                      <StatsHeader
+                        title={`${match.gameModeName}: ${match.mapName}`}
+                        metadata={[
+                          { label: "Score", value: match.score },
+                          { label: "Duration", value: match.duration },
+                          { label: "Start time", value: formatDate(match.startTime) },
+                          { label: "End time", value: formatDate(match.endTime) },
+                        ]}
+                        backgroundStyle={matchHeaderBackgroundStyle(match.mapBackgroundUrl, state)}
+                        rightContent={
+                          <div className={styles.entryHeaderRight}>
+                            <div className={styles.entryHeaderVisuals}>
+                              <img
+                                src={gameModeIconSrc(match.gameVariantCategory)}
+                                alt={match.gameModeName}
+                                className={styles.entryModeIcon}
+                              />
+                              <OutcomeBadge outcome={match.outcome} />
+                            </div>
+                            <span
+                              className={classNames(styles.entryChevron, {
+                                [styles.entryChevronExpanded]: isExpanded,
+                              })}
+                              aria-hidden="true"
+                            />
+                          </div>
+                        }
+                      />
+                    </div>
+
+                    {isExpanded && (
+                      <div className={styles.entryBody}>
+                        {state == null || (state.kind === "match" && state.state.status === "loading") ? (
+                          <LoadingState text="Loading match stats..." />
+                        ) : state.kind === "match" && state.state.status === "error" ? (
+                          <Alert variant="error">{state.state.message}</Alert>
+                        ) : state.kind === "match" && state.state.status === "loaded" ? (
+                          <MatchStats
+                            data={state.state.data}
+                            id={`match-${state.state.matchId}`}
+                            backgroundImageUrl=""
+                            gameModeIconUrl={gameModeIconSrc(state.state.gameVariantCategory)}
+                            gameModeAlt=""
+                            matchNumber={index + 1}
+                            gameTypeAndMap={match.mapName}
+                            duration={state.state.duration}
+                            score={match.score}
+                            startTime={state.state.startTime}
+                            endTime={state.state.endTime}
+                            teamColors={renderModel.teamColors}
+                            killMatrixPivotData={state.state.killMatrixPivotData}
+                            transposedKillMatrixPivotData={state.state.transposedKillMatrixPivotData}
+                            showHeader={false}
+                          />
+                        ) : (
+                          <Alert variant="error">Unexpected entry state.</Alert>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              const { series } = item;
+              const entryRef = isLatest
+                ? (element: HTMLDivElement | null): void => {
+                    latestEntryRef.current = element;
+                  }
+                : undefined;
+
+              return (
+                <div key={key} className={styles.entry} ref={entryRef}>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    className={styles.entryHeaderButton}
+                    onClick={(): void => {
+                      onToggleEntry(item);
+                    }}
+                    onKeyDown={(event): void => {
+                      handleEntryHeaderKeyDown(event, item, onToggleEntry);
+                    }}
+                    aria-expanded={isExpanded}
+                    aria-label={`Series ${series.title}`}
+                  >
+                    <StatsHeader
+                      title={series.title}
+                      subtitle={series.subtitle}
+                      metadata={[
+                        { label: "Score", value: series.score },
+                        {
+                          label: "Matches",
+                          value: `${series.matches.length.toString()} match${series.matches.length === 1 ? "" : "es"}`,
+                        },
+                        { label: "Duration", value: series.duration },
+                        { label: "Start time", value: formatDate(series.startTime) },
+                        { label: "End time", value: formatDate(series.endTime) },
+                      ]}
+                      backgroundStyle={seriesHeaderBackgroundStyle(
+                        series.matchBackgroundUrls,
+                        seriesBackgroundTick,
+                        isSeriesBackgroundTransitioning,
+                        isSeriesBackgroundGlitching,
+                      )}
+                      rightContent={
+                        <div className={styles.entryHeaderRight}>
+                          <div className={styles.entryHeaderVisuals}>
+                            <div className={styles.seriesModeIcons}>
+                              {series.matches.map((seriesMatch, iconIndex) => (
+                                <img
+                                  key={`${seriesMatch.matchId}:${iconIndex.toString()}`}
+                                  src={gameModeIconSrc(seriesMatch.gameVariantCategory)}
+                                  alt={seriesMatch.gameModeName}
+                                  className={classNames(styles.entryModeIcon, {
+                                    [styles.seriesModeIconMuted]: seriesMatch.outcome === "Loss",
+                                  })}
+                                />
+                              ))}
+                            </div>
+                            <OutcomeBadge
+                              outcome={summarizeSeriesOutcome(series.matches.map((seriesMatch) => seriesMatch.outcome))}
+                            />
+                          </div>
+                          <span
+                            className={classNames(styles.entryChevron, {
+                              [styles.entryChevronExpanded]: isExpanded,
+                            })}
+                            aria-hidden="true"
+                          />
+                        </div>
+                      }
+                    />
+                  </div>
+
+                  {isExpanded && (
+                    <div className={classNames(styles.entryBody, styles.seriesEntryBody)}>
+                      {state == null || (state.kind === "series" && state.state.status === "loading") ? (
+                        <LoadingState text="Loading series stats..." />
+                      ) : state.kind === "series" && state.state.status === "error" ? (
+                        <Alert variant="error">{state.state.message}</Alert>
+                      ) : state.kind === "series" && state.state.status === "loaded" ? (
+                        <SeriesStatsView {...state.state.viewModel} noGutter={true} />
+                      ) : (
+                        <Alert variant="error">Unexpected entry state.</Alert>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </Container>
+        )}
+      </section>
+
+      {(!isNearLatestNow || unseenEntries > 0) && (
+        <button
+          type="button"
+          className={styles.jumpToLatestButton}
+          onClick={(): void => {
+            scrollToLatest();
+            setUnseenEntries(0);
+          }}
+        >
+          {unseenEntries > 0 ? `Jump to latest (${unseenEntries.toString()} new)` : "Jump to latest"}
+        </button>
       )}
-
-      <TabsBar
-        timeline={renderModel.timeline}
-        selectedMatchId={selectedMatchId}
-        onSelectMatch={onSelectMatch}
-        onDeselect={onDeselect}
-      />
-
-      <StatsPanel state={matchStatsPanelState} />
-
-      <Timeline timeline={renderModel.timeline} />
-    </Container>
+    </>
   );
 }

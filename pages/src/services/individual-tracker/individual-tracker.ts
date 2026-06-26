@@ -10,6 +10,7 @@ import type {
   TrackersResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import {
+  refreshTrackerContract,
   selectMatchesContract,
   stopTrackerContract,
   trackerContract,
@@ -582,6 +583,20 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     if (!response.ok) {
       throw await this.readError(response);
     }
+  }
+
+  public async refreshTracker(trackerId: string): Promise<void> {
+    const response = await fetch(
+      this.buildUrl(`/api/individual-tracker/manage/${encodeURIComponent(trackerId)}/refresh`),
+      {
+        credentials: "include",
+        method: "POST",
+      },
+    );
+    if (!response.ok) {
+      throw await this.readError(response);
+    }
+    await refreshTrackerContract.fromResponse(response);
   }
 
   public connectToTracker(_userId: string, trackerId: string): IndividualTrackerConnection {

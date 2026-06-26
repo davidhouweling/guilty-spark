@@ -14,13 +14,13 @@ import type { MatchAnalyticsService } from "../../services/stats/match-analytics
 import { ComponentLoaderStatus } from "../component-loader/component-loader";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault, type TeamColor } from "../team-colors/team-colors";
 import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
-import type { DiscordSeriesStatsSnapshot, DiscordSeriesStatsStore } from "./discord-series-stats-store";
 import type {
-  DiscordSeriesMatchDetail,
-  DiscordSeriesMatchSummary,
-  DiscordSeriesStatsViewModel,
-  DiscordSeriesTeamCard,
-} from "./types";
+  SeriesMatchDetail as DiscordSeriesMatchDetail,
+  SeriesMatchSummary as DiscordSeriesMatchSummary,
+  SeriesStatsViewModel as DiscordSeriesStatsViewModel,
+  SeriesTeamCard as DiscordSeriesTeamCard,
+} from "../series-stats/types";
+import type { DiscordSeriesStatsSnapshot, DiscordSeriesStatsStore } from "./discord-series-stats-store";
 
 const WIN_OUTCOME = 2;
 

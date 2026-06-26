@@ -2,8 +2,8 @@ import React, { useCallback, useMemo } from "react";
 import { StreamerOverlay } from "../../streamer-overlay/streamer-overlay";
 import { TopSection } from "../../streamer-overlay/top-section";
 import { StatsPanel } from "../viewer/stats-panel";
-import type { IndividualTrackerViewerRenderModel, MatchStatsPanelState } from "../viewer/types";
-import type { MatchStatsState } from "../viewer/viewer-store";
+import type { IndividualTrackerViewerRenderModel, MatchDetailsState } from "../viewer/types";
+import type { MatchStatsState } from "./individual-tracker-overlay-presenter";
 import {
   buildTabs,
   buildTickerGroups,
@@ -19,7 +19,7 @@ import styles from "./individual-tracker-overlay.module.css";
 interface IndividualTrackerOverlayProps {
   readonly renderModel: IndividualTrackerViewerRenderModel;
   readonly matchStatsState: MatchStatsState | null;
-  readonly matchStatsPanelState: MatchStatsPanelState | null;
+  readonly matchStatsPanelState: MatchDetailsState | null;
   readonly selectedMatchId: string | null;
   readonly onSelectMatch: (matchId: string) => void;
   readonly onDeselect: () => void;

@@ -1,3 +1,4 @@
+import type { NormalizedMatchOutcome } from "@guilty-spark/shared/halo/match-enrichment";
 import type { IndividualTrackerStatus } from "../../services/database/types/individual_trackers";
 
 export interface IndividualTrackerState {
@@ -21,9 +22,10 @@ export interface IndividualTrackerMatchSummary {
   mapAssetId: string;
   mapVersionId: string;
   mapName: string;
+  mapBackgroundUrl: string;
   modeAssetId: string;
   gameVariantCategory: number;
-  outcome: string;
+  outcome: NormalizedMatchOutcome;
   score: string;
   isMatchmaking: boolean;
   teamRosterSignature: string | null;
@@ -37,9 +39,10 @@ export interface IndividualTrackerViewMatch {
   mapAssetId: string;
   mapVersionId: string;
   mapName: string;
+  mapBackgroundUrl: string;
   modeAssetId: string;
   gameVariantCategory: number;
-  outcome: string;
+  outcome: NormalizedMatchOutcome;
   score: string;
   isMatchmaking: boolean;
 }
@@ -69,6 +72,7 @@ export interface ActiveSeries {
 export interface IndividualTrackerSeriesGroup {
   id: string;
   matchIds: string[];
+  matchBackgroundUrls: string[];
   score: string;
   title: string;
   subtitle: string;
@@ -98,6 +102,7 @@ export interface TopBarStatItem {
 export interface IndividualTrackerInternalState extends IndividualTrackerState {
   searchStartTime: string;
   lastMatchDiscoveredAt: string | undefined;
+  lastSuccessfulFetch?: string;
   lastSeenMatchId?: string;
   checkCount: number;
   matchIds: string[];
@@ -184,6 +189,10 @@ export interface IndividualTrackerStopResponse {
   success: true;
 }
 
+export interface IndividualTrackerRefreshResponse {
+  success: true;
+}
+
 export interface IndividualTrackerStatusResponse {
   state: IndividualTrackerState | null;
 }
@@ -202,6 +211,7 @@ export interface IndividualTrackerViewState {
   series: IndividualTrackerSeriesGroup[];
   lastUpdateTime: string;
   lastMatchDiscoveredAt: string | null;
+  lastSuccessfulFetch?: string;
   hasActiveSeries: boolean;
   hasRecentCompletedSeries: boolean;
   activeSeriesContext?: ActiveSeriesContext;

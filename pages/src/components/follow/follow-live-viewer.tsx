@@ -7,6 +7,7 @@ import { IndividualTrackerViewerPage } from "../individual-tracker/viewer/create
 import type { FollowLiveService } from "../../services/follow/follow-types";
 import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
+import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
 import { FollowTrackerTabs } from "./follow-tracker-tabs";
 import { useFollowLiveDirectory } from "./use-follow-live-directory";
 import styles from "./follow-live-viewer.module.css";
@@ -16,6 +17,7 @@ export interface FollowLiveViewerProps {
   readonly followLiveService: FollowLiveService;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
+  readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
 }
 
@@ -24,6 +26,7 @@ export function FollowLiveViewer({
   followLiveService,
   individualTrackerViewService,
   matchAnalyticsService,
+  seriesMatchesService,
   haloClient,
 }: FollowLiveViewerProps): React.ReactElement {
   const { directory, directoryStatus, selectedTrackerId, isFollowingLive, onSelectTracker, onFollowLive, onRetry } =
@@ -57,6 +60,7 @@ export function FollowLiveViewer({
             key={selectedTrackerId}
             individualTrackerViewService={individualTrackerViewService}
             matchAnalyticsService={matchAnalyticsService}
+            seriesMatchesService={seriesMatchesService}
             haloClient={haloClient}
             trackerId={selectedTrackerId}
           />

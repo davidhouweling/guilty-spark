@@ -14,10 +14,13 @@
   border: 1px solid var(--halo-teal-primary);
   border-radius: var(--radius-md);
   box-shadow: 0 8px 24px rgb(0 0 0 / 50%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
   max-height: calc(100vh - (var(--space-4) * 2));
-  max-width: 480px;
+  max-width: calc(var(--content-width) + (var(--gutter-desktop) * 2));
   padding: var(--space-6);
-  width: 100%;
+  width: 90%;
 }
 
 .panel:focus-visible {
@@ -30,12 +33,10 @@
   font-family: var(--font-heading);
   font-size: var(--text-xl);
   letter-spacing: 0.04em;
-  margin: 0 0 var(--space-4);
+  margin: 0;
   text-transform: uppercase;
 }
 
 .body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+  overflow-y: auto;
 }

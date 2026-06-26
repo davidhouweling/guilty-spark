@@ -1,9 +1,9 @@
-import type { MatchStatsData } from "../../controllers/stats/types";
-import type { KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
-import type { TeamColor } from "../team-colors/team-colors";
 import type { ComponentLoaderStatus } from "../component-loader/component-loader";
+import type { KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
+import type { MatchStatsData } from "../../controllers/stats/types";
+import type { TeamColor } from "../team-colors/team-colors";
 
-export interface DiscordSeriesMatchSummary {
+export interface SeriesMatchSummary {
   readonly matchId: string;
   readonly gameMapThumbnailUrl: string;
   readonly gameModeIconUrl: string;
@@ -14,13 +14,13 @@ export interface DiscordSeriesMatchSummary {
   readonly winningTeamColorHex: string | null;
 }
 
-export interface DiscordSeriesTeamCard {
+export interface SeriesTeamCard {
   readonly name: string;
   readonly players: readonly string[];
   readonly teamColorHex: string;
 }
 
-export interface DiscordSeriesMatchDetail {
+export interface SeriesMatchDetail {
   readonly matchId: string;
   readonly data: MatchStatsData[] | null;
   readonly gameMapThumbnailUrl: string;
@@ -38,7 +38,7 @@ export interface DiscordSeriesMatchDetail {
   readonly killMatrixStatus: ComponentLoaderStatus;
 }
 
-interface DiscordSeriesSeriesStats {
+export interface SeriesStatsSummary {
   readonly teamData: MatchStatsData[];
   readonly playerData: MatchStatsData[];
   readonly metadata: {
@@ -53,12 +53,12 @@ interface DiscordSeriesSeriesStats {
   readonly killMatrixStatus: ComponentLoaderStatus;
 }
 
-export interface DiscordSeriesStatsViewModel {
+export interface SeriesStatsViewModel {
   readonly title: string;
   readonly subtitle: string;
   readonly seriesScore: string;
-  readonly matchSummaries: readonly DiscordSeriesMatchSummary[];
-  readonly teams: readonly DiscordSeriesTeamCard[];
-  readonly seriesStats: DiscordSeriesSeriesStats | null;
-  readonly matchDetails: readonly DiscordSeriesMatchDetail[];
+  readonly matchSummaries: readonly SeriesMatchSummary[];
+  readonly teams: readonly SeriesTeamCard[];
+  readonly seriesStats: SeriesStatsSummary | null;
+  readonly matchDetails: readonly SeriesMatchDetail[];
 }
