@@ -1,5 +1,6 @@
 import type { TrackerMatchSummary } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { getDurationBetween } from "@guilty-spark/shared/halo/duration";
+import { getGameModeName } from "@guilty-spark/shared/halo/game-variants";
 import type { IndividualTrackerService, TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import { formatDisplayDateTime } from "../../../services/individual-tracker/match-history-helpers";
@@ -14,26 +15,37 @@ interface Config {
   readonly onSeriesEdited?: (() => void) | undefined;
 }
 
-function summaryToHistoryEntry(summary: TrackerMatchSummary): TrackerMatchHistoryEntry {
-  const outcome = ["Win", "Loss", "Tie", "DNF"].includes(summary.outcome) ? summary.outcome : "Unknown";
+function summaryToHistoryEntry({
+  matchId,
+  startTime,
+  endTime,
+  mapAssetId,
+  mapVersionId,
+  mapName,
+  modeAssetId,
+  gameVariantCategory,
+  outcome,
+  score,
+  isMatchmaking,
+}: TrackerMatchSummary): TrackerMatchHistoryEntry {
   return {
-    matchId: summary.matchId,
-    startTime: formatDisplayDateTime(summary.startTime),
-    endTime: formatDisplayDateTime(summary.endTime),
-    mapAssetId: summary.mapAssetId,
-    mapVersionId: summary.mapVersionId,
-    modeAssetId: summary.modeAssetId,
+    matchId,
+    startTime: formatDisplayDateTime(startTime),
+    endTime: formatDisplayDateTime(endTime),
+    mapAssetId,
+    mapVersionId,
+    modeAssetId,
     modeVersionId: "",
-    gameVariantCategory: summary.gameVariantCategory,
-    startTimeIso: summary.startTime,
-    endTimeIso: summary.endTime,
-    duration: getDurationBetween(summary.startTime, summary.endTime),
-    mapName: summary.mapName,
-    modeName: "Custom",
+    gameVariantCategory,
+    startTimeIso: startTime,
+    endTimeIso: endTime,
+    duration: getDurationBetween(startTime, endTime),
+    mapName,
+    modeName: getGameModeName(gameVariantCategory),
     outcome,
-    resultString: summary.score !== "" ? `${outcome} - ${summary.score}` : outcome,
-    isMatchmaking: summary.isMatchmaking,
-    category: summary.isMatchmaking ? "matchmaking" : "custom",
+    resultString: score !== "" ? `${outcome} - ${score}` : outcome,
+    isMatchmaking,
+    category: isMatchmaking ? "matchmaking" : "custom",
     teams: [],
     mapThumbnailUrl: "data:,",
   };
