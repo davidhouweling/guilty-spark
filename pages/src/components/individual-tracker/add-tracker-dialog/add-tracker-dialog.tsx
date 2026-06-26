@@ -68,7 +68,21 @@ export function AddTrackerDialog({
   onStartTracker,
 }: AddTrackerDialogProps): React.ReactElement | null {
   return (
-    <Dialog open={open} title="Add Tracker" onClose={onClose}>
+    <Dialog
+      open={open}
+      title="Add Tracker"
+      onClose={onClose}
+      footer={
+        <div className={styles.footer}>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={onStartTracker} disabled={!canStart || busy}>
+            {busy ? "Starting..." : "Start tracker"}
+          </Button>
+        </div>
+      }
+    >
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>1. Gamertag</h3>
         <div className={styles.searchRow}>
@@ -123,15 +137,6 @@ export function AddTrackerDialog({
           />
         )}
       </section>
-
-      <div className={styles.dialogActions}>
-        <Button variant="secondary" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button onClick={onStartTracker} disabled={!canStart || busy}>
-          {busy ? "Starting..." : "Start tracker"}
-        </Button>
-      </div>
     </Dialog>
   );
 }

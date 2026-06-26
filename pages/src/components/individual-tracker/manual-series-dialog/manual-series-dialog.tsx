@@ -107,7 +107,21 @@ export function ManualSeriesDialog({
   const showBackfillResults = snapshot.backfillState === "done" || snapshot.backfillState === "error";
 
   return (
-    <Dialog open={isOpen} onClose={onClose} title={snapshot.mode === "edit" ? "Edit Series" : "Start Series"}>
+    <Dialog
+      open={isOpen}
+      onClose={onClose}
+      title={snapshot.mode === "edit" ? "Edit Series" : "Start Series"}
+      footer={
+        <div className={styles.footer}>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={onStartSeries} disabled={snapshot.busy}>
+            {snapshot.mode === "edit" ? "Save series" : "Start series"}
+          </Button>
+        </div>
+      }
+    >
       <div className={styles.wrapper}>
         <Alert variant="info">
           Use this when you are running a custom series outside NeatQueue. If Guilty Spark is already monitoring your
@@ -166,10 +180,6 @@ export function ManualSeriesDialog({
             ))}
           </div>
 
-          <Alert variant="info">
-            Enter team members, then use this action to find shared custom matches across those players.
-          </Alert>
-
           <div className={styles.sectionHeader}>
             <Button variant="secondary" onClick={onDiscoverBackfill} disabled={snapshot.busy || isBackfillLoading}>
               {isBackfillLoading ? "Searching..." : "Add existing custom games"}
@@ -191,15 +201,6 @@ export function ManualSeriesDialog({
         </section>
 
         {snapshot.submitError != null && <Alert variant="error">{snapshot.submitError}</Alert>}
-
-        <div className={styles.footer}>
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={onStartSeries} disabled={snapshot.busy}>
-            {snapshot.mode === "edit" ? "Save series" : "Start series"}
-          </Button>
-        </div>
       </div>
     </Dialog>
   );

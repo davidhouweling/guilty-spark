@@ -73,6 +73,16 @@ export function GameSelectionDialog({
       onClose={onClose}
       panelClassName={styles.dialogPanel}
       bodyClassName={styles.dialogBody}
+      footer={
+        <div className={styles.footer}>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={onSyncAndClose} loading={isSyncing}>
+            Save
+          </Button>
+        </div>
+      }
     >
       <div className={styles.controlsRow}>
         <p className={styles.summaryText}>
@@ -117,10 +127,6 @@ export function GameSelectionDialog({
           />
         </div>
       )}
-
-      <Button onClick={onSyncAndClose} loading={isSyncing}>
-        Save
-      </Button>
     </Dialog>
   );
 }

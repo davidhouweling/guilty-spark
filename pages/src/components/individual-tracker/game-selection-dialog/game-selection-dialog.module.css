@@ -37,6 +37,12 @@
   padding: var(--space-3);
 }
 
+.footer {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
+
 @media (--tablet-viewport) {
   .dialogPanel {
     max-width: min(1240px, calc(100vw - (var(--space-6) * 2)));
