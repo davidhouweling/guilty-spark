@@ -494,7 +494,7 @@ export function IndividualTrackerViewer({
                   </div>
 
                   {isExpanded && (
-                    <div className={styles.entryBody}>
+                    <div className={classNames(styles.entryBody, styles.seriesEntryBody)}>
                       {state == null || (state.kind === "series" && state.state.status === "loading") ? (
                         <LoadingState text="Loading series stats..." />
                       ) : state.kind === "series" && state.state.status === "error" ? (

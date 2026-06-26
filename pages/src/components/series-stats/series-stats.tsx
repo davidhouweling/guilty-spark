@@ -8,6 +8,7 @@ import styles from "./series-stats.module.css";
 import type { SeriesMatchDetail, SeriesMatchSummary, SeriesStatsViewModel, SeriesTeamCard } from "./types";
 
 interface SeriesStatsViewProps extends SeriesStatsViewModel {
+  readonly showSeriesTitle?: boolean;
   readonly noGutter?: boolean;
 }
 
@@ -60,10 +61,7 @@ interface MatchDetailSectionProps {
 
 function MatchDetailSection({ detail, noGutter }: MatchDetailSectionProps): ReactElement {
   return (
-    <Container
-      mobileDown="0"
-      className={classNames(styles.contentContainer, styles.matchSection, { [styles.noGutter]: noGutter })}
-    >
+    <Container mobileDown="0" className={classNames(styles.contentContainer, { [styles.noGutter]: noGutter })}>
       {detail.data != null ? (
         <MatchStatsView
           data={detail.data}
@@ -95,10 +93,11 @@ export function SeriesStatsView({
   teams,
   seriesStats,
   matchDetails,
+  showSeriesTitle,
   noGutter,
 }: SeriesStatsViewProps): ReactElement {
   return (
-    <>
+    <div className={styles.seriesStats}>
       <Container className={styles.contentContainer}>
         <h2 className={styles.sectionTitle}>Series overview</h2>
         <div className={styles.seriesOverviewWrap}>
@@ -125,12 +124,12 @@ export function SeriesStatsView({
             teamData={seriesStats.teamData}
             playerData={seriesStats.playerData}
             title="Series Totals"
+            showHeader={showSeriesTitle}
             metadata={seriesStats.metadata}
             teamColors={seriesStats.teamColors}
             killMatrixPivotData={seriesStats.killMatrixPivotData}
             transposedKillMatrixPivotData={seriesStats.transposedKillMatrixPivotData}
             killMatrixStatus={seriesStats.killMatrixStatus}
-            showHeader={false}
           />
         </Container>
       )}
@@ -142,6 +141,6 @@ export function SeriesStatsView({
       {matchDetails.map((detail) => (
         <MatchDetailSection key={detail.matchId} detail={detail} noGutter={noGutter} />
       ))}
-    </>
+    </div>
   );
 }

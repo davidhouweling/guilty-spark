@@ -189,6 +189,10 @@
   border-top: 1px solid color-mix(in srgb, var(--halo-teal-primary) 15%, transparent);
 }
 
+.seriesEntryBody {
+  padding-top: var(--space-4);
+}
+
 .jumpToLatestButton {
   background: color-mix(in srgb, var(--halo-teal-primary) 20%, var(--halo-bg-elevated));
   border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 60%, transparent);

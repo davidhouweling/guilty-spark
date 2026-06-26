@@ -2,15 +2,18 @@ import type { ReactElement } from "react";
 import { Container } from "../container/container";
 import { SeriesStatsView as SharedSeriesStatsView } from "../series-stats/series-stats";
 import type { SeriesStatsViewModel as DiscordSeriesStatsViewModel } from "../series-stats/types";
+import styles from "./discord-series-stats.module.css";
 
 export function DiscordSeriesStatsView({ title, subtitle, ...stats }: DiscordSeriesStatsViewModel): ReactElement {
   return (
     <>
       <Container>
-        <h1>{title}</h1>
-        <p>{subtitle}</p>
+        <h1 className={styles.title}>{title}</h1>
+        <p className={styles.subtitle}>{subtitle}</p>
       </Container>
-      <SharedSeriesStatsView title={title} subtitle={subtitle} {...stats} />
+      <div className={styles.content}>
+        <SharedSeriesStatsView title={title} subtitle={subtitle} showSeriesTitle={true} {...stats} />
+      </div>
     </>
   );
 }

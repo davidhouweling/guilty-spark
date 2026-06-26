@@ -1,7 +1,7 @@
-.dataContainer {
-  background: var(--halo-bg-card);
-  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
-  padding: var(--space-6) 0;
+.seriesStats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
 }
 
 .contentContainer {
@@ -17,8 +17,7 @@
   color: var(--halo-white);
   font-family: var(--font-heading);
   font-size: var(--text-2xl);
-  margin-bottom: var(--space-3);
-  margin-top: 0;
+  margin: 0;
 }
 
 .seriesOverviewWrap {
@@ -147,10 +146,6 @@
   overflow-wrap: anywhere;
 }
 
-.matchSection {
-  margin-bottom: var(--space-5);
-}
-
 @media (--tablet-viewport) {
   .headerBar {
     align-items: flex-start;
@@ -175,19 +170,13 @@
   }
 }
 
-@media (--tablet-viewport) {
-  .dataContainer {
-    padding: var(--space-6);
-  }
-}
-
 @media (--desktop-viewport) {
-  .dataContainer {
-    border-left: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
-    border-right: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
+  .seriesScoresList {
+    flex-direction: row;
+    gap: var(--space-4);
   }
 
-  .contentContainer {
-    padding: var(--space-5);
+  .seriesScore {
+    flex: 1;
   }
 }
