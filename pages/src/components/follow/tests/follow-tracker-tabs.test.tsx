@@ -3,27 +3,59 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
+import type { TrackerDirectory, TrackerDirectoryEntry } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { FollowTrackerTabs } from "../follow-tracker-tabs";
+
+type TrackerMatchOutcome = TrackerDirectoryEntry["matches"][number]["outcome"];
+
+function aMatch(outcome: TrackerMatchOutcome): TrackerDirectoryEntry["matches"][number] {
+  return {
+    matchId: crypto.randomUUID(),
+    startTime: "2026-01-01T00:00:00.000Z",
+    endTime: "2026-01-01T00:10:00.000Z",
+    mapAssetId: "map-1",
+    mapVersionId: "map-version-1",
+    mapName: "Aquarius",
+    modeAssetId: "mode-1",
+    gameVariantCategory: 6,
+    outcome,
+    score: "50:42",
+    isMatchmaking: false,
+  };
+}
+
+function aTracker(overrides: Partial<TrackerDirectoryEntry> = {}): TrackerDirectoryEntry {
+  return {
+    trackerId: "tracker-1",
+    gamertag: "Spartan One",
+    status: "active",
+    isLive: false,
+    matches: [],
+    series: [],
+    lastUpdateTime: "2026-01-01T00:00:00.000Z",
+    lastMatchDiscoveredAt: null,
+    hasActiveSeries: false,
+    hasRecentCompletedSeries: false,
+    ...overrides,
+  };
+}
 
 function aDirectory(): TrackerDirectory {
   return {
     trackers: [
-      {
+      aTracker({
         trackerId: "tracker-1",
         gamertag: "Spartan One",
-        status: "active",
         isLive: true,
-        accumulated: { total: 5, wins: 3, losses: 2, ties: 0 },
-      },
-      {
+        matches: [aMatch("Win"), aMatch("Win"), aMatch("Win"), aMatch("Loss"), aMatch("Loss")],
+      }),
+      aTracker({
         trackerId: "tracker-2",
         gamertag: "Spartan Two",
-        status: "active",
-        isLive: false,
-        accumulated: { total: 4, wins: 1, losses: 3, ties: 0 },
-      },
+        matches: [aMatch("Win"), aMatch("Loss"), aMatch("Loss"), aMatch("Loss")],
+      }),
     ],
+    liveTrackerId: "tracker-1",
   };
 }
 
@@ -49,7 +81,7 @@ describe("FollowTrackerTabs", () => {
     expect(tabs[1]).toHaveTextContent("Spartan Two");
   });
 
-  it("shows the record for each tracker", () => {
+  it("shows the win-loss record for each tracker", () => {
     render(
       <FollowTrackerTabs
         directory={aDirectory()}
@@ -84,14 +116,14 @@ describe("FollowTrackerTabs", () => {
   it("does not show a Live badge when no tracker is live", () => {
     const dir: TrackerDirectory = {
       trackers: [
-        {
+        aTracker({
           trackerId: "tracker-1",
           gamertag: "Spartan One",
           status: "active",
           isLive: false,
-          accumulated: { total: 0, wins: 0, losses: 0, ties: 0 },
-        },
+        }),
       ],
+      liveTrackerId: null,
     };
 
     render(
@@ -158,14 +190,14 @@ describe("FollowTrackerTabs", () => {
   it("does not show Follow live button when no tracker is live", () => {
     const dir: TrackerDirectory = {
       trackers: [
-        {
+        aTracker({
           trackerId: "tracker-1",
           gamertag: "Spartan One",
           status: "active",
           isLive: false,
-          accumulated: { total: 0, wins: 0, losses: 0, ties: 0 },
-        },
+        }),
       ],
+      liveTrackerId: null,
     };
 
     render(

@@ -18,11 +18,19 @@ export interface FollowLiveDirectoryResult {
 }
 
 function findLiveTrackerId(directory: TrackerDirectory): string | null {
+  if (directory.liveTrackerId != null) {
+    const liveTracker = directory.trackers.find((entry) => entry.trackerId === directory.liveTrackerId);
+    if (liveTracker != null) {
+      return liveTracker.trackerId;
+    }
+  }
+
   for (const entry of directory.trackers) {
-    if (entry.isLive) {
+    if (entry.status === "active") {
       return entry.trackerId;
     }
   }
+
   return null;
 }
 

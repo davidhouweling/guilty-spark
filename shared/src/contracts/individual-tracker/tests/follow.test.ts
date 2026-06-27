@@ -6,11 +6,31 @@ const validEntry = {
   gamertag: "Spartan",
   status: "active" as const,
   isLive: true,
-  accumulated: { total: 3, wins: 2, losses: 1, ties: 0 },
+  matches: [
+    {
+      matchId: "m1",
+      startTime: "2026-01-01T00:00:00.000Z",
+      endTime: "2026-01-01T00:10:00.000Z",
+      mapAssetId: "map-1",
+      mapVersionId: "map-version-1",
+      mapName: "Aquarius",
+      modeAssetId: "mode-1",
+      gameVariantCategory: 6,
+      outcome: "Win" as const,
+      score: "50:42",
+      isMatchmaking: false,
+    },
+  ],
+  series: [],
+  lastUpdateTime: "2026-01-01T00:12:00.000Z",
+  lastMatchDiscoveredAt: "2026-01-01T00:10:00.000Z",
+  hasActiveSeries: false,
+  hasRecentCompletedSeries: false,
 };
 
 const validDirectory: TrackerDirectoryResponse = {
   trackers: [validEntry],
+  liveTrackerId: "t1",
 };
 
 describe("trackerDirectoryContract", () => {
@@ -21,13 +41,14 @@ describe("trackerDirectoryContract", () => {
   });
 
   it("parses a directory with no trackers", () => {
-    const result = trackerDirectoryContract.parse({ trackers: [] });
+    const result = trackerDirectoryContract.parse({ trackers: [], liveTrackerId: null });
     expect(result.trackers).toEqual([]);
   });
 
   it("parses a directory with streamerSettings", () => {
     const result = trackerDirectoryContract.parse({
       trackers: [],
+      liveTrackerId: null,
       streamerSettings: { styleFlags: { colorMode: "observer" } },
     });
     expect(result.streamerSettings?.styleFlags?.colorMode).toBe("observer");
@@ -40,12 +61,13 @@ describe("trackerDirectoryContract", () => {
 
     const parsed = await trackerDirectoryContract.fromResponse(response);
     expect(parsed.trackers[0]?.gamertag).toBe("Spartan");
-    expect(parsed.trackers[0]?.accumulated.wins).toBe(2);
+    expect(parsed.trackers[0]?.matches[0]?.outcome).toBe("Win");
   });
 
   it("rejects an entry with an invalid status", () => {
     expect(() =>
       trackerDirectoryContract.parse({
+        liveTrackerId: null,
         trackers: [{ ...validEntry, status: "invalid" }],
       }),
     ).toThrow();
@@ -56,7 +78,7 @@ describe("trackerDirectoryMessageContract", () => {
   it("serialises and parses a directory message", () => {
     const msg = trackerDirectoryMessageContract.serialize({
       type: "directory",
-      directory: { trackers: [validEntry] },
+      directory: { trackers: [validEntry], liveTrackerId: "t1" },
     });
     expect(typeof msg).toBe("string");
 
@@ -67,7 +89,9 @@ describe("trackerDirectoryMessageContract", () => {
 
   it("rejects a message with the wrong type", () => {
     expect(() =>
-      trackerDirectoryMessageContract.parse(JSON.stringify({ type: "wrong", directory: { trackers: [] } })),
+      trackerDirectoryMessageContract.parse(
+        JSON.stringify({ type: "wrong", directory: { trackers: [], liveTrackerId: null } }),
+      ),
     ).toThrow();
   });
 });

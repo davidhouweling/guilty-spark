@@ -1,24 +1,14 @@
 import { z } from "zod";
 import { streamerViewSettingsSchema } from "../../individual-tracker/streamer-view-settings";
 import { defineContract, defineMessageContract } from "../base";
-import { trackerStatusSchema } from "./tracker";
+import { trackerViewStateSchema } from "./view";
 
-export const trackerDirectoryEntrySchema = z.object({
-  trackerId: z.string(),
-  gamertag: z.string(),
-  status: trackerStatusSchema,
-  isLive: z.boolean(),
-  accumulated: z.object({
-    total: z.number(),
-    wins: z.number(),
-    losses: z.number(),
-    ties: z.number(),
-  }),
-});
+export const trackerDirectoryEntrySchema = trackerViewStateSchema.omit({ streamerSettings: true });
 export type TrackerDirectoryEntry = z.infer<typeof trackerDirectoryEntrySchema>;
 
 export const trackerDirectorySchema = z.object({
   trackers: z.array(trackerDirectoryEntrySchema),
+  liveTrackerId: z.string().nullable(),
   streamerSettings: streamerViewSettingsSchema.optional(),
 });
 export type TrackerDirectory = z.infer<typeof trackerDirectorySchema>;

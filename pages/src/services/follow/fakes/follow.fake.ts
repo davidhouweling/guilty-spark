@@ -53,7 +53,7 @@ export class FakeFollowLiveService implements FollowLiveService {
   public lastConnection: FakeDirectoryConnection | null = null;
 
   public constructor(options?: { readonly directory?: TrackerDirectory }) {
-    this.directory = options?.directory ?? { trackers: [] };
+    this.directory = options?.directory ?? { trackers: [], liveTrackerId: null };
   }
 
   public async getDirectory(): Promise<TrackerDirectory> {

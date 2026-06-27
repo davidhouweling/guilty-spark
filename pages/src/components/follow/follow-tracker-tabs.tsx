@@ -12,12 +12,32 @@ export interface FollowTrackerTabsProps {
 }
 
 function hasLiveTracker(directory: TrackerDirectory): boolean {
-  for (const entry of directory.trackers) {
-    if (entry.isLive) {
-      return true;
+  if (directory.liveTrackerId == null) {
+    return false;
+  }
+
+  return directory.trackers.some((entry) => entry.trackerId === directory.liveTrackerId);
+}
+
+function isTrackerLive(directory: TrackerDirectory, trackerId: string): boolean {
+  return directory.liveTrackerId != null && directory.liveTrackerId === trackerId;
+}
+
+function toWinLossRecord(matches: readonly { readonly outcome: string }[]): string {
+  let wins = 0;
+  let losses = 0;
+  for (const match of matches) {
+    if (match.outcome === "Win") {
+      wins += 1;
+      continue;
+    }
+
+    if (match.outcome === "Loss") {
+      losses += 1;
     }
   }
-  return false;
+
+  return `${wins.toString()}:${losses.toString()}`;
 }
 
 export function FollowTrackerTabs({
@@ -45,9 +65,9 @@ export function FollowTrackerTabs({
           >
             <span className={styles.tabGamertag}>{entry.gamertag}</span>
             <span className={styles.tabRecord} data-testid="tab-record">
-              {entry.accumulated.wins}:{entry.accumulated.losses}
+              {toWinLossRecord(entry.matches)}
             </span>
-            {entry.isLive && (
+            {isTrackerLive(directory, entry.trackerId) && (
               <span className={styles.liveBadge} data-testid="live-badge">
                 Live
               </span>
