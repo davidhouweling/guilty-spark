@@ -13,8 +13,19 @@ import { aFakeSeriesMatchesServiceWith } from "../../../services/stats/fakes/ser
 import { FollowLiveViewer, type FollowLiveViewerProps } from "../follow-live-viewer";
 
 vi.mock("../../individual-tracker/viewer/create", () => ({
-  IndividualTrackerViewerPage: ({ trackerId }: { trackerId: string }): React.ReactElement => (
-    <div data-testid="mock-viewer">{trackerId}</div>
+  IndividualTrackerViewerPage: ({
+    trackerId,
+    streamerSettings,
+  }: {
+    trackerId: string;
+    streamerSettings?: TrackerDirectory["streamerSettings"];
+  }): React.ReactElement => (
+    <div data-testid="mock-viewer">
+      {trackerId}
+      <span data-testid="mock-streamer-settings">
+        {streamerSettings?.styleFlags?.showMatchmakingStatsOnly === true ? "true" : "false"}
+      </span>
+    </div>
   ),
 }));
 
@@ -78,5 +89,23 @@ describe("FollowLiveViewer", () => {
     const trackerButtons = screen.getAllByRole("button", { name: /Spartan/ });
     expect(trackerButtons).toHaveLength(2);
     expect(screen.queryByTestId("mock-viewer")).toBeNull();
+  });
+
+  it("passes directory streamer settings into the viewer page", async () => {
+    const directoryWithSettings: TrackerDirectory = aDirectoryWith({
+      streamerSettings: {
+        styleFlags: {
+          showMatchmakingStatsOnly: true,
+        },
+      },
+    });
+
+    render(<FollowLiveViewer {...aViewerPropsWith(directoryWithSettings)} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-viewer")).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("mock-streamer-settings")).toHaveTextContent("true");
   });
 });

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
@@ -16,6 +17,7 @@ interface UseIndividualTrackerViewerOpts {
   readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
   readonly trackerId: string;
+  readonly streamerSettings?: StreamerViewSettings;
 }
 
 export interface IndividualTrackerViewerHookResult {
@@ -33,6 +35,7 @@ export function useIndividualTrackerViewer({
   seriesMatchesService,
   haloClient,
   trackerId,
+  streamerSettings,
 }: UseIndividualTrackerViewerOpts): IndividualTrackerViewerHookResult {
   const store = useMemo(() => new IndividualTrackerViewerStore(), []);
 
@@ -57,6 +60,10 @@ export function useIndividualTrackerViewer({
       trackerId,
     ],
   );
+
+  useEffect(() => {
+    presenter.setStreamerSettings(streamerSettings);
+  }, [presenter, streamerSettings]);
 
   useEffect(() => {
     presenter.start();

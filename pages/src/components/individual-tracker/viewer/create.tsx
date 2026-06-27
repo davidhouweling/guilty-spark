@@ -1,5 +1,6 @@
 import React from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { ComponentLoader } from "../../component-loader/component-loader";
 import { ErrorState } from "../../error-state/error-state";
 import { LoadingState } from "../../loading-state/loading-state";
@@ -17,6 +18,7 @@ interface IndividualTrackerViewerPageProps {
   readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
   readonly trackerId: string;
+  readonly streamerSettings?: StreamerViewSettings;
 }
 
 export function IndividualTrackerViewerPage({
@@ -26,6 +28,7 @@ export function IndividualTrackerViewerPage({
   seriesMatchesService,
   haloClient,
   trackerId,
+  streamerSettings,
 }: IndividualTrackerViewerPageProps): React.ReactElement {
   const canManage = individualTrackerService != null;
 
@@ -36,6 +39,7 @@ export function IndividualTrackerViewerPage({
     seriesMatchesService,
     haloClient,
     trackerId,
+    streamerSettings,
   });
 
   return (

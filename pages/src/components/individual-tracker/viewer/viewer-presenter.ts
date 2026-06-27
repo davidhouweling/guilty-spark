@@ -4,6 +4,7 @@ import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
@@ -219,6 +220,9 @@ export class IndividualTrackerViewerPresenter {
   private viewSubscription: TrackerViewSubscription | null = null;
   private statusSubscription: TrackerViewSubscription | null = null;
   private awaitingRefresh = false;
+  private streamerSettings: StreamerViewSettings | undefined;
+  private streamerSettingsKey = "null";
+  private hasServerStreamerSettings = false;
 
   public constructor(config: Config) {
     this.config = config;
@@ -269,6 +273,27 @@ export class IndividualTrackerViewerPresenter {
     this.awaitingRefresh = true;
     this.config.store.setRefreshState(true);
     void this.refreshAsync();
+  }
+
+  public setStreamerSettings(streamerSettings: StreamerViewSettings | undefined): void {
+    const nextKey = JSON.stringify(streamerSettings ?? null);
+    if (nextKey === this.streamerSettingsKey) {
+      return;
+    }
+
+    this.streamerSettings = streamerSettings;
+    this.streamerSettingsKey = nextKey;
+
+    if (this.hasServerStreamerSettings) {
+      return;
+    }
+
+    const snapshot = this.config.store.getSnapshot();
+    if (snapshot.view == null) {
+      return;
+    }
+
+    this.config.store.setLoaded({ ...snapshot.view, streamerSettings: this.streamerSettings });
   }
 
   public toggleEntry(item: ViewerTimelineItem): void {
@@ -478,7 +503,12 @@ export class IndividualTrackerViewerPresenter {
       if (this.isDisposed) {
         return;
       }
-      this.config.store.setLoaded(response.view);
+      this.hasServerStreamerSettings = response.view.streamerSettings !== undefined;
+      const view =
+        response.view.streamerSettings === undefined && this.streamerSettings !== undefined
+          ? { ...response.view, streamerSettings: this.streamerSettings }
+          : response.view;
+      this.config.store.setLoaded(view);
       this.openConnection();
     } catch (error) {
       if (this.isDisposed) {
