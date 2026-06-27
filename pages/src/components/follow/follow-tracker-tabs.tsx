@@ -1,6 +1,7 @@
 import React from "react";
 import cn from "classnames";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
+import type { TrackerMatchSummary } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import styles from "./follow-tracker-tabs.module.css";
 
 export interface FollowTrackerTabsProps {
@@ -20,13 +21,7 @@ function hasLiveTracker(directory: TrackerDirectory): boolean {
   return false;
 }
 
-function isTrackerLive(entry: TrackerDirectory["trackers"][number]): boolean {
-  return entry.isLive;
-}
-
-type TrackerMatch = TrackerDirectory["trackers"][number]["matches"][number];
-
-function toWinLossRecord(matches: readonly TrackerMatch[]): string {
+function toWinLossRecord(matches: readonly TrackerMatchSummary[]): string {
   let wins = 0;
   let losses = 0;
   for (const match of matches) {
@@ -70,7 +65,7 @@ export function FollowTrackerTabs({
             <span className={styles.tabRecord} data-testid="tab-record">
               {toWinLossRecord(entry.matches)}
             </span>
-            {isTrackerLive(entry) && (
+            {entry.isLive && (
               <span className={styles.liveBadge} data-testid="live-badge">
                 Live
               </span>
