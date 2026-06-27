@@ -20,9 +20,8 @@ function hasLiveTracker(directory: TrackerDirectory): boolean {
   return false;
 }
 
-function isTrackerLive(directory: TrackerDirectory, trackerId: string): boolean {
-  const tracker = directory.trackers.find((entry) => entry.trackerId === trackerId);
-  return tracker?.isLive === true;
+function isTrackerLive(entry: TrackerDirectory["trackers"][number]): boolean {
+  return entry.isLive;
 }
 
 function toWinLossRecord(matches: readonly { readonly outcome: string }[]): string {
@@ -69,7 +68,7 @@ export function FollowTrackerTabs({
             <span className={styles.tabRecord} data-testid="tab-record">
               {toWinLossRecord(entry.matches)}
             </span>
-            {isTrackerLive(directory, entry.trackerId) && (
+            {isTrackerLive(entry) && (
               <span className={styles.liveBadge} data-testid="live-badge">
                 Live
               </span>
