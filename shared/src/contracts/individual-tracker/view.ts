@@ -4,6 +4,7 @@ import { defineContract, defineMessageContract } from "../base";
 import { trackerStatusSchema } from "./tracker";
 
 export const trackerMatchOutcomeSchema = z.enum(["Win", "Loss", "Tie", "DNF", "Unknown"]);
+export type TrackerMatchOutcome = z.infer<typeof trackerMatchOutcomeSchema>;
 
 export const trackerMatchSummarySchema = z.object({
   matchId: z.string(),

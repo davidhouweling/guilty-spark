@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import type { TrackerDirectory, TrackerDirectoryEntry } from "@guilty-spark/shared/contracts/individual-tracker/follow";
+import type { TrackerMatchOutcome, TrackerMatchSummary } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { aFakeFollowLiveServiceWith } from "../../../services/follow/fakes/follow.fake";
 import { useFollowLiveDirectory } from "../use-follow-live-directory";
 
-type TrackerMatchOutcome = TrackerDirectoryEntry["matches"][number]["outcome"];
 let nextMatchId = 0;
 
-function aMatch(outcome: TrackerMatchOutcome): TrackerDirectoryEntry["matches"][number] {
+function aMatchWithOutcome(outcome: TrackerMatchOutcome): TrackerMatchSummary {
   return {
     matchId: `match-${(nextMatchId += 1).toString()}`,
     startTime: "2026-01-01T00:00:00.000Z",
@@ -23,13 +23,13 @@ function aMatch(outcome: TrackerMatchOutcome): TrackerDirectoryEntry["matches"][
   };
 }
 
-function aTracker(overrides: Partial<TrackerDirectoryEntry> = {}): TrackerDirectoryEntry {
+function aTrackerWith(overrides: Partial<TrackerDirectoryEntry> = {}): TrackerDirectoryEntry {
   return {
     trackerId: "tracker-1",
     gamertag: "Spartan One",
     status: "active",
     isLive: false,
-    matches: [aMatch("Win")],
+    matches: [aMatchWithOutcome("Win")],
     series: [],
     lastUpdateTime: "2026-01-01T00:00:00.000Z",
     lastMatchDiscoveredAt: null,
@@ -42,8 +42,8 @@ function aTracker(overrides: Partial<TrackerDirectoryEntry> = {}): TrackerDirect
 function aDirectory(overrides: Partial<TrackerDirectory> = {}): TrackerDirectory {
   return {
     trackers: [
-      aTracker({ trackerId: "tracker-1", gamertag: "Spartan One", isLive: true, status: "active" }),
-      aTracker({ trackerId: "tracker-2", gamertag: "Spartan Two", isLive: false, status: "active" }),
+      aTrackerWith({ trackerId: "tracker-1", gamertag: "Spartan One", isLive: true, status: "active" }),
+      aTrackerWith({ trackerId: "tracker-2", gamertag: "Spartan Two", isLive: false, status: "active" }),
     ],
     liveTrackerId: "tracker-1",
     ...overrides,
@@ -68,7 +68,7 @@ describe("useFollowLiveDirectory", () => {
 
   it("sets selectedTrackerId to first active when no live tracker is provided", async () => {
     const dir: TrackerDirectory = {
-      trackers: [aTracker({ trackerId: "tracker-1", isLive: false, status: "active" })],
+      trackers: [aTrackerWith({ trackerId: "tracker-1", isLive: false, status: "active" })],
       liveTrackerId: null,
     };
     const service = aFakeFollowLiveServiceWith({ directory: dir });
@@ -95,8 +95,8 @@ describe("useFollowLiveDirectory", () => {
 
     const updatedDir: TrackerDirectory = {
       trackers: [
-        aTracker({ trackerId: "tracker-1", matches: [aMatch("Win"), aMatch("Win")] }),
-        aTracker({ trackerId: "tracker-2", gamertag: "Spartan Two" }),
+        aTrackerWith({ trackerId: "tracker-1", matches: [aMatchWithOutcome("Win"), aMatchWithOutcome("Win")] }),
+        aTrackerWith({ trackerId: "tracker-2", gamertag: "Spartan Two" }),
       ],
       liveTrackerId: "tracker-1",
     };
@@ -120,8 +120,8 @@ describe("useFollowLiveDirectory", () => {
 
     const updatedDir: TrackerDirectory = {
       trackers: [
-        aTracker({ trackerId: "tracker-1", isLive: false }),
-        aTracker({ trackerId: "tracker-2", gamertag: "Spartan Two", isLive: true }),
+        aTrackerWith({ trackerId: "tracker-1", isLive: false }),
+        aTrackerWith({ trackerId: "tracker-2", gamertag: "Spartan Two", isLive: true }),
       ],
       liveTrackerId: "tracker-2",
     };
@@ -151,9 +151,9 @@ describe("useFollowLiveDirectory", () => {
 
     const updatedDir: TrackerDirectory = {
       trackers: [
-        aTracker({ trackerId: "tracker-1", isLive: false }),
-        aTracker({ trackerId: "tracker-2", gamertag: "Spartan Two", isLive: false }),
-        aTracker({ trackerId: "tracker-3", gamertag: "Spartan Three", isLive: true }),
+        aTrackerWith({ trackerId: "tracker-1", isLive: false }),
+        aTrackerWith({ trackerId: "tracker-2", gamertag: "Spartan Two", isLive: false }),
+        aTrackerWith({ trackerId: "tracker-3", gamertag: "Spartan Three", isLive: true }),
       ],
       liveTrackerId: "tracker-3",
     };
