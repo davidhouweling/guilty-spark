@@ -6,13 +6,25 @@ import styles from "./tabbed-section.module.css";
 
 interface TabbedSectionProps<TId extends string> {
   readonly tabs: readonly TabbedSectionTab<TId>[];
-  readonly selectedTabId: TId | null;
   readonly tabListAriaLabel: string;
   readonly onTabChange: (tabId: TId) => void;
-  readonly variant?: "section" | "navigation";
   readonly tabsClassName?: string;
   readonly tabContainerClassName?: string;
 }
+
+interface TabbedSectionSectionProps<TId extends string> extends TabbedSectionProps<TId> {
+  readonly variant?: "section";
+  readonly selectedTabId: TId;
+}
+
+interface TabbedSectionNavigationProps<TId extends string> extends TabbedSectionProps<TId> {
+  readonly variant: "navigation";
+  readonly selectedTabId: TId | null;
+}
+
+type TabbedSectionComponentProps<TId extends string> =
+  | TabbedSectionSectionProps<TId>
+  | TabbedSectionNavigationProps<TId>;
 
 export function TabbedSection<TId extends string>({
   tabs,
@@ -22,7 +34,7 @@ export function TabbedSection<TId extends string>({
   variant = "section",
   tabsClassName,
   tabContainerClassName,
-}: TabbedSectionProps<TId>): React.ReactElement {
+}: TabbedSectionComponentProps<TId>): React.ReactElement {
   const tabSetId = React.useId();
   const tabListRef = React.useRef<HTMLDivElement>(null);
 
