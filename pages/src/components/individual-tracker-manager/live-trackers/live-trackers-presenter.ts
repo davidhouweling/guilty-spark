@@ -1,4 +1,4 @@
-import type { TrackerState, TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
+import type { Tracker, TrackerState, TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { TrackerLiveView } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { getDefaultSeriesGroupTitle } from "@guilty-spark/shared/individual-tracker/series-grouping";
 import type {
@@ -22,6 +22,20 @@ interface Config {
 }
 
 const NON_LIVE_POLL_INTERVAL_MS = 30_000;
+
+function findFallbackLiveTracker(trackers: readonly Tracker[]): Tracker | null {
+  const currentLive = trackers.find((tracker) => tracker.isLive) ?? null;
+  const currentLiveStopped = currentLive?.state?.status === "stopped";
+
+  if (currentLive != null && !currentLiveStopped) {
+    return currentLive;
+  }
+
+  const fallback = trackers.find(
+    (tracker) => tracker.state?.status === "active" && tracker.trackerId !== currentLive?.trackerId,
+  );
+  return fallback ?? null;
+}
 
 function toOverrideOrNull(value: string, defaultValue: string): string | null {
   const normalizedValue = value.trim();
@@ -318,8 +332,18 @@ export class LiveTrackersPresenter {
 
     this.refreshInFlight = true;
     try {
-      const { trackers } = await this.config.individualTrackerService.listTrackers();
-      const liveTracker = trackers.find((t) => t.isLive);
+      const initialResponse = await this.config.individualTrackerService.listTrackers();
+      const desiredLive = findFallbackLiveTracker(initialResponse.trackers);
+      const currentLive = initialResponse.trackers.find((tracker) => tracker.isLive) ?? null;
+
+      let { trackers } = initialResponse;
+      if (desiredLive != null && desiredLive.trackerId !== currentLive?.trackerId) {
+        await this.config.individualTrackerService.selectActive(desiredLive.trackerId);
+        const refreshedResponse = await this.config.individualTrackerService.listTrackers();
+        ({ trackers } = refreshedResponse);
+      }
+
+      const liveTracker = findFallbackLiveTracker(trackers);
 
       this.updateSnapshot((current) => ({
         ...current,
@@ -427,8 +451,7 @@ export class LiveTrackersPresenter {
       if (status !== "stopped") {
         return;
       }
-      // Null activeTracker so that if the same tracker is restarted, syncRuntimeDependencies
-      // sees a key change and establishes a fresh WS connection.
+      // Null activeTracker immediately, then refresh to allow fallback live selection.
       this.updateSnapshot((snapshot) => {
         const existing = snapshot.trackerStatuses[trackerId] ?? null;
         return {
@@ -440,6 +463,7 @@ export class LiveTrackersPresenter {
               : { ...snapshot.trackerStatuses, [trackerId]: { ...existing, status: "stopped" as TrackerStatus } },
         };
       });
+      void this.refresh();
     });
   }
 

@@ -50,6 +50,8 @@ export function useFollowLiveDirectory({
   isFollowingLiveRef.current = isFollowingLive;
   const directoryRef = useRef(directory);
   directoryRef.current = directory;
+  const selectedTrackerIdRef = useRef(selectedTrackerId);
+  selectedTrackerIdRef.current = selectedTrackerId;
 
   const prevLiveTrackerIdRef = useRef<string | null>(null);
   const initialLoadDoneRef = useRef(false);
@@ -96,6 +98,16 @@ export function useFollowLiveDirectory({
 
       const newLiveId = findPreferredTrackerId(updatedDirectory);
       const prevLiveId = prevLiveTrackerIdRef.current;
+      const selectedId = selectedTrackerIdRef.current;
+      const selectedExists =
+        selectedId != null && updatedDirectory.trackers.some((tracker) => tracker.trackerId === selectedId);
+
+      if (!selectedExists) {
+        setSelectedTrackerId(newLiveId);
+        setIsFollowingLive(true);
+        prevLiveTrackerIdRef.current = newLiveId;
+        return;
+      }
 
       if (isFollowingLiveRef.current && newLiveId !== prevLiveId) {
         setSelectedTrackerId(newLiveId);
