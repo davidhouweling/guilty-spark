@@ -18,7 +18,7 @@ vi.mock("../../individual-tracker/viewer/create", () => ({
     streamerSettings,
   }: {
     trackerId: string;
-    streamerSettings?: { styleFlags?: { showMatchmakingStatsOnly?: boolean } };
+    streamerSettings?: TrackerDirectory["streamerSettings"];
   }): React.ReactElement => (
     <div data-testid="mock-viewer">
       {trackerId}
