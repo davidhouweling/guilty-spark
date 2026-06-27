@@ -498,7 +498,7 @@ describe("LiveTrackersPresenter", () => {
       gamertag: "Chief",
       status: "stopped",
       isLive: true,
-      state: aFakeTrackerState({ trackerId: "t1", gamertag: "Chief", status: "stopped" }),
+      state: null,
     });
     const activeTracker = aFakeTrackerWith({
       trackerId: "t2",
@@ -526,7 +526,7 @@ describe("LiveTrackersPresenter", () => {
       gamertag: "Chief",
       status: "stopped",
       isLive: true,
-      state: aFakeTrackerState({ trackerId: "t1", gamertag: "Chief", status: "stopped" }),
+      state: null,
     });
     const pausedTracker = aFakeTrackerWith({
       trackerId: "t2",

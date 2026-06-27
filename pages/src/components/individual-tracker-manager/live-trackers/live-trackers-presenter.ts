@@ -25,14 +25,14 @@ const NON_LIVE_POLL_INTERVAL_MS = 30_000;
 
 function findFallbackLiveTracker(trackers: readonly Tracker[]): Tracker | null {
   const currentLive = trackers.find((tracker) => tracker.isLive) ?? null;
-  const currentLiveStopped = currentLive?.state?.status === "stopped";
+  const currentLiveStopped = currentLive?.status === "stopped";
 
   if (currentLive != null && !currentLiveStopped) {
     return currentLive;
   }
 
   const fallback = trackers.find(
-    (tracker) => tracker.state?.status === "active" && tracker.trackerId !== currentLive?.trackerId,
+    (tracker) => tracker.status === "active" && tracker.trackerId !== currentLive?.trackerId,
   );
   return fallback ?? null;
 }
