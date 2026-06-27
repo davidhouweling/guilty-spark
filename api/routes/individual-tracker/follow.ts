@@ -18,9 +18,12 @@ function isNonStopped(row: IndividualTrackersRow): boolean {
 }
 
 async function buildDirectory(env: Env, userId: string, services: Services): Promise<TrackerDirectory> {
-  const allTrackers = await services.databaseService.findIndividualTrackersByUserId(userId);
+  const [allTrackers, streamerSettings] = await Promise.all([
+    services.databaseService.findIndividualTrackersByUserId(userId),
+    services.individualTrackerService.getSettingsForView(userId),
+  ]);
+
   const nonStopped = allTrackers.filter(isNonStopped);
-  const streamerSettings = await services.individualTrackerService.getSettingsForView(userId);
   const topBarStatSlots = streamerSettings.visibleSections?.topBarStatSlots;
 
   const entries = await Promise.all(

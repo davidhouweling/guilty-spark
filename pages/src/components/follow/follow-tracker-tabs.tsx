@@ -12,15 +12,17 @@ export interface FollowTrackerTabsProps {
 }
 
 function hasLiveTracker(directory: TrackerDirectory): boolean {
-  if (directory.liveTrackerId == null) {
-    return false;
+  for (const entry of directory.trackers) {
+    if (entry.isLive) {
+      return true;
+    }
   }
-
-  return directory.trackers.some((entry) => entry.trackerId === directory.liveTrackerId);
+  return false;
 }
 
 function isTrackerLive(directory: TrackerDirectory, trackerId: string): boolean {
-  return directory.liveTrackerId != null && directory.liveTrackerId === trackerId;
+  const tracker = directory.trackers.find((entry) => entry.trackerId === trackerId);
+  return tracker?.isLive === true;
 }
 
 function toWinLossRecord(matches: readonly { readonly outcome: string }[]): string {
