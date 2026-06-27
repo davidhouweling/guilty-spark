@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { aFakeIndividualTrackerServiceWith } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
@@ -34,6 +35,51 @@ function aViewerTestDependenciesWith(): ViewerTestDependencies {
 }
 
 describe("useIndividualTrackerViewer", () => {
+  it("does not recreate presenter when streamer settings values are unchanged", async () => {
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
+      view: aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
+    });
+    const connectSpy = vi.spyOn(individualTrackerViewService, "connect");
+    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+
+    const initialSettings: StreamerViewSettings = {
+      styleFlags: {
+        showMatchmakingStatsOnly: true,
+      },
+    };
+
+    const { rerender } = renderHook(
+      ({ settings }: { settings: StreamerViewSettings }) =>
+        useIndividualTrackerViewer({
+          individualTrackerViewService,
+          matchAnalyticsService,
+          seriesMatchesService,
+          haloClient,
+          trackerId: "tracker-1",
+          streamerSettings: settings,
+        }),
+      {
+        initialProps: { settings: initialSettings },
+      },
+    );
+
+    await waitFor(() => {
+      expect(connectSpy).toHaveBeenCalledTimes(1);
+    });
+
+    const nextSettings: StreamerViewSettings = {
+      styleFlags: {
+        showMatchmakingStatsOnly: true,
+      },
+    };
+
+    rerender({ settings: nextSettings });
+
+    await waitFor(() => {
+      expect(connectSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("clears refreshPending after the websocket view update arrives", async () => {
     const individualTrackerService = aFakeIndividualTrackerServiceWith();
     const refreshSpy = vi.spyOn(individualTrackerService, "refreshTracker").mockResolvedValue(undefined);

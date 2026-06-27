@@ -38,6 +38,8 @@ export function useIndividualTrackerViewer({
   streamerSettings,
 }: UseIndividualTrackerViewerOpts): IndividualTrackerViewerHookResult {
   const store = useMemo(() => new IndividualTrackerViewerStore(), []);
+  const streamerSettingsKey = useMemo(() => JSON.stringify(streamerSettings ?? null), [streamerSettings]);
+  const stableStreamerSettings = useMemo(() => streamerSettings, [streamerSettingsKey]);
 
   const presenter = useMemo(
     () =>
@@ -49,7 +51,7 @@ export function useIndividualTrackerViewer({
         haloClient,
         store,
         trackerId,
-        streamerSettings,
+        streamerSettings: stableStreamerSettings,
       }),
     [
       individualTrackerService,
@@ -59,7 +61,7 @@ export function useIndividualTrackerViewer({
       haloClient,
       store,
       trackerId,
-      streamerSettings,
+      stableStreamerSettings,
     ],
   );
 
