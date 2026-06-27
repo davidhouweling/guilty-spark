@@ -168,7 +168,7 @@ describe("TabbedSection", () => {
     expect(onTabChange).not.toHaveBeenCalled();
   });
 
-  it("does not call onTabChange on ArrowRight when selectedTabId is not in tabs", () => {
+  it("falls back to first tab on ArrowRight when selectedTabId is not in tabs", () => {
     const onTabChange = vi.fn<(tabId: "players" | "kill-matrix") => void>();
 
     render(
@@ -185,7 +185,8 @@ describe("TabbedSection", () => {
 
     fireEvent.keyDown(screen.getByRole("tablist"), { key: "ArrowRight" });
 
-    expect(onTabChange).not.toHaveBeenCalled();
+    expect(onTabChange).toHaveBeenCalledOnce();
+    expect(onTabChange).toHaveBeenCalledWith("players");
   });
 
   it("moves focus to the newly selected tab button on ArrowRight", () => {
@@ -267,5 +268,50 @@ describe("TabbedSection", () => {
     fireEvent.keyDown(screen.getByRole("tablist"), { key: "ArrowRight", metaKey: true });
 
     expect(onTabChange).not.toHaveBeenCalled();
+  });
+
+  it("renders navigation variant without tabpanel ARIA wiring", () => {
+    render(
+      <TabbedSection
+        tabListAriaLabel="Demo tabs"
+        selectedTabId="players"
+        onTabChange={() => undefined}
+        variant="navigation"
+        tabs={[
+          { id: "players", label: "Players", content: <div>Players panel</div> },
+          { id: "kill-matrix", label: "Kill Matrix", content: <div>Kill matrix panel</div> },
+        ]}
+      />,
+    );
+
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByRole("tabpanel")).toBeNull();
+    expect(screen.getByRole("button", { name: "Players" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Kill Matrix" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("uses first tab as fallback focus target when selectedTabId is null", () => {
+    const onTabChange = vi.fn<(tabId: "players" | "kill-matrix") => void>();
+
+    render(
+      <TabbedSection
+        tabListAriaLabel="Demo tabs"
+        selectedTabId={null}
+        onTabChange={onTabChange}
+        variant="navigation"
+        tabs={[
+          { id: "players", label: "Players", content: <div>Players panel</div> },
+          { id: "kill-matrix", label: "Kill Matrix", content: <div>Kill matrix panel</div> },
+        ]}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Players" })).toHaveAttribute("tabindex", "0");
+    expect(screen.getByRole("button", { name: "Kill Matrix" })).toHaveAttribute("tabindex", "-1");
+
+    fireEvent.keyDown(screen.getByLabelText("Demo tabs"), { key: "ArrowRight" });
+
+    expect(onTabChange).toHaveBeenCalledOnce();
+    expect(onTabChange).toHaveBeenCalledWith("players");
   });
 });
