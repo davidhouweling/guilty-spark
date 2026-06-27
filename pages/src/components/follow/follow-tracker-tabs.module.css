@@ -10,35 +10,14 @@
   gap: var(--space-2);
 }
 
-.tab {
+.tabLabel {
   align-items: center;
-  background: transparent;
-  border: 1px solid var(--halo-gray-dark, #444);
-  color: var(--halo-gray, #aaa);
-  cursor: pointer;
   display: flex;
   flex-direction: column;
   font-family: var(--font-body);
   font-size: var(--text-sm);
   gap: var(--space-1);
   min-width: 120px;
-  padding: var(--space-2) var(--space-4);
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease;
-}
-
-.tab:hover {
-  background: rgb(255 255 255 / 5%);
-  border-color: var(--halo-teal-primary);
-  color: var(--halo-white);
-}
-
-.tab.selected {
-  background: rgb(93 212 216 / 10%);
-  border-color: var(--halo-teal-primary);
-  color: var(--halo-white);
 }
 
 .tabGamertag {
@@ -52,10 +31,6 @@
   font-size: var(--text-xs);
 }
 
-.tab.selected .tabRecord {
-  color: var(--halo-gray-light, #ccc);
-}
-
 .liveBadge {
   background: var(--color-live, #e53935);
   border-radius: 2px;
@@ -66,6 +41,10 @@
   letter-spacing: 0.08em;
   padding: 1px 4px;
   text-transform: uppercase;
+}
+
+.tabPanel {
+  display: none;
 }
 
 .followLiveButton {
