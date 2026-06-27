@@ -1,30 +1,43 @@
 import "@testing-library/jest-dom/vitest";
-
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
+import {
+  aDirectoryWith,
+  aMatchWith,
+  aTrackerWith,
+} from "@guilty-spark/shared/contracts/individual-tracker/fakes/follow.fake";
 import { FollowTrackerTabs } from "../follow-tracker-tabs";
 
-function aDirectory(): TrackerDirectory {
-  return {
+function aTabsDirectoryWithWinsAndLosses(): TrackerDirectory {
+  return aDirectoryWith({
     trackers: [
-      {
+      aTrackerWith({
         trackerId: "tracker-1",
         gamertag: "Spartan One",
-        status: "active",
         isLive: true,
-        accumulated: { total: 5, wins: 3, losses: 2, ties: 0 },
-      },
-      {
+        matches: [
+          aMatchWith({ outcome: "Win" }),
+          aMatchWith({ outcome: "Win" }),
+          aMatchWith({ outcome: "Win" }),
+          aMatchWith({ outcome: "Loss" }),
+          aMatchWith({ outcome: "Loss" }),
+        ],
+      }),
+      aTrackerWith({
         trackerId: "tracker-2",
         gamertag: "Spartan Two",
-        status: "active",
-        isLive: false,
-        accumulated: { total: 4, wins: 1, losses: 3, ties: 0 },
-      },
+        matches: [
+          aMatchWith({ outcome: "Win" }),
+          aMatchWith({ outcome: "Loss" }),
+          aMatchWith({ outcome: "Loss" }),
+          aMatchWith({ outcome: "Loss" }),
+        ],
+      }),
     ],
-  };
+    liveTrackerId: "tracker-1",
+  });
 }
 
 describe("FollowTrackerTabs", () => {
@@ -35,7 +48,7 @@ describe("FollowTrackerTabs", () => {
   it("renders one button per tracker", () => {
     render(
       <FollowTrackerTabs
-        directory={aDirectory()}
+        directory={aTabsDirectoryWithWinsAndLosses()}
         selectedTrackerId="tracker-1"
         isFollowingLive={true}
         onSelectTracker={vi.fn<(trackerId: string) => void>()}
@@ -49,10 +62,10 @@ describe("FollowTrackerTabs", () => {
     expect(tabs[1]).toHaveTextContent("Spartan Two");
   });
 
-  it("shows the record for each tracker", () => {
+  it("shows the win-loss record for each tracker", () => {
     render(
       <FollowTrackerTabs
-        directory={aDirectory()}
+        directory={aTabsDirectoryWithWinsAndLosses()}
         selectedTrackerId="tracker-1"
         isFollowingLive={true}
         onSelectTracker={vi.fn<(trackerId: string) => void>()}
@@ -68,7 +81,7 @@ describe("FollowTrackerTabs", () => {
   it("shows Live badge on the live tracker", () => {
     render(
       <FollowTrackerTabs
-        directory={aDirectory()}
+        directory={aTabsDirectoryWithWinsAndLosses()}
         selectedTrackerId="tracker-1"
         isFollowingLive={true}
         onSelectTracker={vi.fn<(trackerId: string) => void>()}
@@ -84,14 +97,14 @@ describe("FollowTrackerTabs", () => {
   it("does not show a Live badge when no tracker is live", () => {
     const dir: TrackerDirectory = {
       trackers: [
-        {
+        aTrackerWith({
           trackerId: "tracker-1",
           gamertag: "Spartan One",
           status: "active",
           isLive: false,
-          accumulated: { total: 0, wins: 0, losses: 0, ties: 0 },
-        },
+        }),
       ],
+      liveTrackerId: null,
     };
 
     render(
@@ -112,7 +125,7 @@ describe("FollowTrackerTabs", () => {
 
     render(
       <FollowTrackerTabs
-        directory={aDirectory()}
+        directory={aTabsDirectoryWithWinsAndLosses()}
         selectedTrackerId="tracker-1"
         isFollowingLive={true}
         onSelectTracker={onSelectTracker}
@@ -130,7 +143,7 @@ describe("FollowTrackerTabs", () => {
   it("shows Follow live button when isFollowingLive is false and there is a live tracker", () => {
     render(
       <FollowTrackerTabs
-        directory={aDirectory()}
+        directory={aTabsDirectoryWithWinsAndLosses()}
         selectedTrackerId="tracker-2"
         isFollowingLive={false}
         onSelectTracker={vi.fn<(trackerId: string) => void>()}
@@ -144,7 +157,7 @@ describe("FollowTrackerTabs", () => {
   it("does not show Follow live button when isFollowingLive is true", () => {
     render(
       <FollowTrackerTabs
-        directory={aDirectory()}
+        directory={aTabsDirectoryWithWinsAndLosses()}
         selectedTrackerId="tracker-1"
         isFollowingLive={true}
         onSelectTracker={vi.fn<(trackerId: string) => void>()}
@@ -158,14 +171,14 @@ describe("FollowTrackerTabs", () => {
   it("does not show Follow live button when no tracker is live", () => {
     const dir: TrackerDirectory = {
       trackers: [
-        {
+        aTrackerWith({
           trackerId: "tracker-1",
           gamertag: "Spartan One",
           status: "active",
           isLive: false,
-          accumulated: { total: 0, wins: 0, losses: 0, ties: 0 },
-        },
+        }),
       ],
+      liveTrackerId: null,
     };
 
     render(
@@ -186,7 +199,7 @@ describe("FollowTrackerTabs", () => {
 
     render(
       <FollowTrackerTabs
-        directory={aDirectory()}
+        directory={aDirectoryWith()}
         selectedTrackerId="tracker-2"
         isFollowingLive={false}
         onSelectTracker={vi.fn<(trackerId: string) => void>()}

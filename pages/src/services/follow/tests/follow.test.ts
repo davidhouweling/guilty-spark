@@ -30,6 +30,7 @@ class MockWebSocket {
 function aFakeDirectory(overrides: Partial<TrackerDirectory> = {}): TrackerDirectory {
   return {
     trackers: [],
+    liveTrackerId: null,
     ...overrides,
   };
 }

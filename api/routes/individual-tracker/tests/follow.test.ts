@@ -82,6 +82,7 @@ describe("/u/:gamertag follow routes", () => {
       expect(res.status).toBe(200);
       const body = await res.json<TrackerDirectoryResponse>();
       expect(body.trackers).toEqual([]);
+      expect(body.liveTrackerId).toBeNull();
     });
 
     it("includes active and paused trackers but excludes stopped trackers", async () => {
@@ -128,9 +129,10 @@ describe("/u/:gamertag follow routes", () => {
       expect(trackerIds).toContain("t-active");
       expect(trackerIds).toContain("t-paused");
       expect(trackerIds).not.toContain("t-stopped");
+      expect(body.liveTrackerId).toBe("t-active");
     });
 
-    it("returns correct accumulated counts and isLive flag from DO state", async () => {
+    it("returns full tracker view payload and live metadata from DO state", async () => {
       const doStub = aFakeIndividualTrackerDOWith({
         viewStateResponse: {
           state: aFakeIndividualTrackerViewStateWith({
@@ -202,22 +204,20 @@ describe("/u/:gamertag follow routes", () => {
 
       const res = (await router.fetch(getRequest("/u/LivePlayer/view"), localEnv)) as Response;
 
-      expect.assertions(8);
+      expect.assertions(6);
       expect(res.status).toBe(200);
       const body = await res.json<TrackerDirectoryResponse>();
       expect(body.trackers).toHaveLength(1);
+      expect(body.liveTrackerId).toBe("t1");
       const [entry] = body.trackers;
       if (entry != null) {
         expect(entry.isLive).toBe(true);
-        expect(entry.accumulated.total).toBe(3);
-        expect(entry.accumulated.wins).toBe(1);
-        expect(entry.accumulated.losses).toBe(1);
-        expect(entry.accumulated.ties).toBe(1);
+        expect(entry.matches).toHaveLength(3);
         expect(entry.gamertag).toBe("LivePlayer");
       }
     });
 
-    it("returns zeros for accumulated when DO has no state", async () => {
+    it("returns empty matches when DO has no state", async () => {
       const doStub = aFakeIndividualTrackerDOWith({ viewStateResponse: { state: null } });
       const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
       const identity = aFakeLinkedIdentitiesRow({ UserId: "user-1", Gamertag: "PausedPlayer" });
@@ -239,15 +239,13 @@ describe("/u/:gamertag follow routes", () => {
 
       const res = (await router.fetch(getRequest("/u/PausedPlayer/view"), localEnv)) as Response;
 
-      expect.assertions(6);
+      expect.assertions(4);
       expect(res.status).toBe(200);
       const body = await res.json<TrackerDirectoryResponse>();
+      expect(body.liveTrackerId).toBeNull();
       const [entry] = body.trackers;
       if (entry != null) {
-        expect(entry.accumulated.total).toBe(0);
-        expect(entry.accumulated.wins).toBe(0);
-        expect(entry.accumulated.losses).toBe(0);
-        expect(entry.accumulated.ties).toBe(0);
+        expect(entry.matches).toEqual([]);
         expect(entry.isLive).toBe(false);
       }
     });

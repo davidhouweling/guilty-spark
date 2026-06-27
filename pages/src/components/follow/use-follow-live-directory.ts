@@ -17,12 +17,20 @@ export interface FollowLiveDirectoryResult {
   readonly onRetry: () => void;
 }
 
-function findLiveTrackerId(directory: TrackerDirectory): string | null {
+function findPreferredTrackerId(directory: TrackerDirectory): string | null {
+  if (directory.liveTrackerId != null) {
+    const liveTracker = directory.trackers.find((entry) => entry.trackerId === directory.liveTrackerId);
+    if (liveTracker != null) {
+      return liveTracker.trackerId;
+    }
+  }
+
   for (const entry of directory.trackers) {
-    if (entry.isLive) {
+    if (entry.status === "active") {
       return entry.trackerId;
     }
   }
+
   return null;
 }
 
@@ -64,7 +72,7 @@ export function useFollowLiveDirectory({
           return;
         }
         setDirectory(dir);
-        const liveId = findLiveTrackerId(dir);
+        const liveId = findPreferredTrackerId(dir);
         prevLiveTrackerIdRef.current = liveId;
         setSelectedTrackerId(liveId);
         setDirectoryStatus("connected");
@@ -86,7 +94,7 @@ export function useFollowLiveDirectory({
       }
       setDirectory(updatedDirectory);
 
-      const newLiveId = findLiveTrackerId(updatedDirectory);
+      const newLiveId = findPreferredTrackerId(updatedDirectory);
       const prevLiveId = prevLiveTrackerIdRef.current;
 
       if (isFollowingLiveRef.current && newLiveId !== prevLiveId) {
@@ -120,7 +128,7 @@ export function useFollowLiveDirectory({
 
   const onFollowLive = useCallback((): void => {
     const dir = directoryRef.current;
-    const liveId = dir != null ? findLiveTrackerId(dir) : null;
+    const liveId = dir != null ? findPreferredTrackerId(dir) : null;
     setIsFollowingLive(true);
     if (liveId != null) {
       setSelectedTrackerId(liveId);

@@ -1,34 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
+import {
+  aDirectoryWith,
+  aMatchWith,
+  aTrackerWith,
+} from "@guilty-spark/shared/contracts/individual-tracker/fakes/follow.fake";
 import { aFakeFollowLiveServiceWith } from "../../../services/follow/fakes/follow.fake";
 import { useFollowLiveDirectory } from "../use-follow-live-directory";
 
-function aDirectory(overrides: Partial<TrackerDirectory> = {}): TrackerDirectory {
-  return {
-    trackers: [
-      {
-        trackerId: "tracker-1",
-        gamertag: "Spartan One",
-        status: "active",
-        isLive: true,
-        accumulated: { total: 5, wins: 3, losses: 2, ties: 0 },
-      },
-      {
-        trackerId: "tracker-2",
-        gamertag: "Spartan Two",
-        status: "active",
-        isLive: false,
-        accumulated: { total: 2, wins: 1, losses: 1, ties: 0 },
-      },
-    ],
-    ...overrides,
-  };
-}
-
 describe("useFollowLiveDirectory", () => {
   it("loads directory on mount and sets selectedTrackerId to the live tracker", async () => {
-    const service = aFakeFollowLiveServiceWith({ directory: aDirectory() });
+    const service = aFakeFollowLiveServiceWith({ directory: aDirectoryWith() });
     const { result } = renderHook(() =>
       useFollowLiveDirectory({ followLiveService: service, gamertag: "Spartan One" }),
     );
@@ -42,17 +25,10 @@ describe("useFollowLiveDirectory", () => {
     expect(result.current.directoryStatus).toBe("connected");
   });
 
-  it("sets selectedTrackerId to null when no tracker is live", async () => {
+  it("sets selectedTrackerId to first active when no live tracker is provided", async () => {
     const dir: TrackerDirectory = {
-      trackers: [
-        {
-          trackerId: "tracker-1",
-          gamertag: "Spartan One",
-          status: "active",
-          isLive: false,
-          accumulated: { total: 0, wins: 0, losses: 0, ties: 0 },
-        },
-      ],
+      trackers: [aTrackerWith({ trackerId: "tracker-1", isLive: false, status: "active" })],
+      liveTrackerId: null,
     };
     const service = aFakeFollowLiveServiceWith({ directory: dir });
     const { result } = renderHook(() =>
@@ -63,11 +39,11 @@ describe("useFollowLiveDirectory", () => {
       expect(result.current.directory).not.toBeNull();
     });
 
-    expect(result.current.selectedTrackerId).toBeNull();
+    expect(result.current.selectedTrackerId).toBe("tracker-1");
   });
 
   it("propagates directory WS updates to directory state", async () => {
-    const service = aFakeFollowLiveServiceWith({ directory: aDirectory() });
+    const service = aFakeFollowLiveServiceWith({ directory: aDirectoryWith() });
     const { result } = renderHook(() =>
       useFollowLiveDirectory({ followLiveService: service, gamertag: "Spartan One" }),
     );
@@ -78,32 +54,24 @@ describe("useFollowLiveDirectory", () => {
 
     const updatedDir: TrackerDirectory = {
       trackers: [
-        {
+        aTrackerWith({
           trackerId: "tracker-1",
-          gamertag: "Spartan One",
-          status: "active",
-          isLive: true,
-          accumulated: { total: 6, wins: 4, losses: 2, ties: 0 },
-        },
-        {
-          trackerId: "tracker-2",
-          gamertag: "Spartan Two",
-          status: "active",
-          isLive: false,
-          accumulated: { total: 3, wins: 1, losses: 2, ties: 0 },
-        },
+          matches: [aMatchWith({ outcome: "Win" }), aMatchWith({ outcome: "Win" })],
+        }),
+        aTrackerWith({ trackerId: "tracker-2", gamertag: "Spartan Two" }),
       ],
+      liveTrackerId: "tracker-1",
     };
 
     act(() => {
       service.lastConnection?.emitDirectory(updatedDir);
     });
 
-    expect(result.current.directory?.trackers[0].accumulated.wins).toBe(4);
+    expect(result.current.directory?.trackers[0]?.matches.length).toBe(2);
   });
 
   it("auto-switches selectedTrackerId when isFollowingLive is true and live tracker changes", async () => {
-    const service = aFakeFollowLiveServiceWith({ directory: aDirectory() });
+    const service = aFakeFollowLiveServiceWith({ directory: aDirectoryWith() });
     const { result } = renderHook(() =>
       useFollowLiveDirectory({ followLiveService: service, gamertag: "Spartan One" }),
     );
@@ -114,21 +82,10 @@ describe("useFollowLiveDirectory", () => {
 
     const updatedDir: TrackerDirectory = {
       trackers: [
-        {
-          trackerId: "tracker-1",
-          gamertag: "Spartan One",
-          status: "active",
-          isLive: false,
-          accumulated: { total: 5, wins: 3, losses: 2, ties: 0 },
-        },
-        {
-          trackerId: "tracker-2",
-          gamertag: "Spartan Two",
-          status: "active",
-          isLive: true,
-          accumulated: { total: 2, wins: 1, losses: 1, ties: 0 },
-        },
+        aTrackerWith({ trackerId: "tracker-1", isLive: false }),
+        aTrackerWith({ trackerId: "tracker-2", gamertag: "Spartan Two", isLive: true }),
       ],
+      liveTrackerId: "tracker-2",
     };
 
     act(() => {
@@ -139,7 +96,7 @@ describe("useFollowLiveDirectory", () => {
   });
 
   it("does not auto-switch when isFollowingLive is false", async () => {
-    const service = aFakeFollowLiveServiceWith({ directory: aDirectory() });
+    const service = aFakeFollowLiveServiceWith({ directory: aDirectoryWith() });
     const { result } = renderHook(() =>
       useFollowLiveDirectory({ followLiveService: service, gamertag: "Spartan One" }),
     );
@@ -148,50 +105,30 @@ describe("useFollowLiveDirectory", () => {
       expect(result.current.selectedTrackerId).toBe("tracker-1");
     });
 
-    // User manually selects tracker-2 (non-live) → isFollowingLive becomes false
     act(() => {
       result.current.onSelectTracker("tracker-2");
     });
 
     expect(result.current.isFollowingLive).toBe(false);
 
-    // Live tracker changes to tracker-3 (different from the selected tracker-2)
     const updatedDir: TrackerDirectory = {
       trackers: [
-        {
-          trackerId: "tracker-1",
-          gamertag: "Spartan One",
-          status: "active",
-          isLive: false,
-          accumulated: { total: 5, wins: 3, losses: 2, ties: 0 },
-        },
-        {
-          trackerId: "tracker-2",
-          gamertag: "Spartan Two",
-          status: "active",
-          isLive: false,
-          accumulated: { total: 3, wins: 2, losses: 1, ties: 0 },
-        },
-        {
-          trackerId: "tracker-3",
-          gamertag: "Spartan Three",
-          status: "active",
-          isLive: true,
-          accumulated: { total: 1, wins: 1, losses: 0, ties: 0 },
-        },
+        aTrackerWith({ trackerId: "tracker-1", isLive: false }),
+        aTrackerWith({ trackerId: "tracker-2", gamertag: "Spartan Two", isLive: false }),
+        aTrackerWith({ trackerId: "tracker-3", gamertag: "Spartan Three", isLive: true }),
       ],
+      liveTrackerId: "tracker-3",
     };
 
     act(() => {
       service.lastConnection?.emitDirectory(updatedDir);
     });
 
-    // Should stay on tracker-2 despite tracker-3 becoming live
     expect(result.current.selectedTrackerId).toBe("tracker-2");
   });
 
   it("onSelectTracker sets isFollowingLive to false when selecting a non-live tracker", async () => {
-    const service = aFakeFollowLiveServiceWith({ directory: aDirectory() });
+    const service = aFakeFollowLiveServiceWith({ directory: aDirectoryWith() });
     const { result } = renderHook(() =>
       useFollowLiveDirectory({ followLiveService: service, gamertag: "Spartan One" }),
     );
@@ -209,7 +146,7 @@ describe("useFollowLiveDirectory", () => {
   });
 
   it("onSelectTracker sets isFollowingLive to true when selecting the live tracker", async () => {
-    const service = aFakeFollowLiveServiceWith({ directory: aDirectory() });
+    const service = aFakeFollowLiveServiceWith({ directory: aDirectoryWith() });
     const { result } = renderHook(() =>
       useFollowLiveDirectory({ followLiveService: service, gamertag: "Spartan One" }),
     );
@@ -247,7 +184,7 @@ describe("useFollowLiveDirectory", () => {
   });
 
   it("onRetry re-fetches the directory after an error", async () => {
-    const service = aFakeFollowLiveServiceWith({ directory: aDirectory() });
+    const service = aFakeFollowLiveServiceWith({ directory: aDirectoryWith() });
     vi.spyOn(service, "getDirectory").mockRejectedValueOnce(new Error("Network error"));
     const { result } = renderHook(() =>
       useFollowLiveDirectory({ followLiveService: service, gamertag: "Spartan One" }),
@@ -269,7 +206,7 @@ describe("useFollowLiveDirectory", () => {
   });
 
   it("onFollowLive sets isFollowingLive to true and selects the live tracker", async () => {
-    const service = aFakeFollowLiveServiceWith({ directory: aDirectory() });
+    const service = aFakeFollowLiveServiceWith({ directory: aDirectoryWith() });
     const { result } = renderHook(() =>
       useFollowLiveDirectory({ followLiveService: service, gamertag: "Spartan One" }),
     );

@@ -45,7 +45,7 @@ export function FollowLiveViewer({
             : "Disconnected — reload to refresh"}
         </Alert>
       )}
-      {directory !== null && directory.trackers.length > 0 && (
+      {directory !== null && directory.trackers.length > 1 && (
         <FollowTrackerTabs
           directory={directory}
           selectedTrackerId={selectedTrackerId}

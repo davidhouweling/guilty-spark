@@ -9,7 +9,7 @@ import {
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
 import type { Services } from "../../services/install";
 import type { RoutesRegisterHandler } from "../base/types";
-import { computeAccumulated, fetchTrackerDoViewState } from "./mapper";
+import { fetchTrackerDoViewState, toTrackerView } from "./mapper";
 
 const gamertagParamsSchema = z.object({ gamertag: z.string().min(1) });
 
@@ -18,28 +18,28 @@ function isNonStopped(row: IndividualTrackersRow): boolean {
 }
 
 async function buildDirectory(env: Env, userId: string, services: Services): Promise<TrackerDirectory> {
-  const allTrackers = await services.databaseService.findIndividualTrackersByUserId(userId);
-  const nonStopped = allTrackers.filter(isNonStopped);
-
-  const [entries, streamerSettings] = await Promise.all([
-    Promise.all(
-      nonStopped.map(async (row): Promise<TrackerDirectoryEntry> => {
-        const doState = await fetchTrackerDoViewState(env, row.UserId, row.TrackerId);
-        const matches = doState?.matches ?? [];
-        return {
-          trackerId: row.TrackerId,
-          gamertag: row.Gamertag,
-          status: row.Status,
-          isLive: row.IsLive === 1,
-          accumulated: computeAccumulated(matches),
-        };
-      }),
-    ),
+  const [allTrackers, streamerSettings] = await Promise.all([
+    services.databaseService.findIndividualTrackersByUserId(userId),
     services.individualTrackerService.getSettingsForView(userId),
   ]);
 
+  const nonStopped = allTrackers.filter(isNonStopped);
+  const topBarStatSlots = streamerSettings.visibleSections?.topBarStatSlots;
+
+  const entries = await Promise.all(
+    nonStopped.map(async (row): Promise<TrackerDirectoryEntry> => {
+      const doState = await fetchTrackerDoViewState(env, row.UserId, row.TrackerId, topBarStatSlots);
+      return toTrackerView(row, doState);
+    }),
+  );
+
+  const liveTracker = entries.find((entry) => entry.isLive);
+  const firstActiveTracker = entries.find((entry) => entry.status === "active");
+  const liveTrackerId = liveTracker?.trackerId ?? firstActiveTracker?.trackerId ?? null;
+
   return {
     trackers: entries,
+    liveTrackerId,
     streamerSettings: Object.keys(streamerSettings).length > 0 ? streamerSettings : undefined,
   };
 }
