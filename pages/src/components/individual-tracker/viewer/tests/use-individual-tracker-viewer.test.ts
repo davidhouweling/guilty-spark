@@ -73,11 +73,12 @@ describe("useIndividualTrackerViewer", () => {
       },
     };
 
-    rerender({ settings: nextSettings });
-
-    await waitFor(() => {
-      expect(connectSpy).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      rerender({ settings: nextSettings });
+      await Promise.resolve();
     });
+
+    expect(connectSpy).toHaveBeenCalledTimes(1);
   });
 
   it("clears refreshPending after the websocket view update arrives", async () => {
