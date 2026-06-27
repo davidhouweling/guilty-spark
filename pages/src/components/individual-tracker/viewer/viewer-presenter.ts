@@ -260,8 +260,8 @@ export class IndividualTrackerViewerPresenter {
   }
 
   public refresh(): void {
+    // Refresh is only available in managed context.
     if (this.config.individualTrackerService == null) {
-      void this.load();
       return;
     }
 
@@ -483,7 +483,11 @@ export class IndividualTrackerViewerPresenter {
 
   private async refreshAsync(): Promise<void> {
     try {
-      await this.config.individualTrackerService?.refreshTracker(this.config.trackerId);
+      // Only refresh in managed context when individual tracker service is available.
+      if (this.config.individualTrackerService == null) {
+        return;
+      }
+      await this.config.individualTrackerService.refreshTracker(this.config.trackerId);
       if (this.isDisposed) {
         return;
       }
@@ -522,6 +526,12 @@ export class IndividualTrackerViewerPresenter {
     this.viewSubscription?.unsubscribe();
     this.statusSubscription?.unsubscribe();
     this.connection?.disconnect();
+
+    // Only establish individual-tracker WS connection in managed context (when individualTrackerService is available).
+    // Public pages (follow viewer) should not connect to per-tracker endpoints.
+    if (this.config.individualTrackerService == null) {
+      return;
+    }
 
     const connection = this.config.individualTrackerViewService.connect(this.config.trackerId);
     this.connection = connection;

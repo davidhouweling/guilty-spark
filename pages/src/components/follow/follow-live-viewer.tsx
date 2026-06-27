@@ -29,8 +29,10 @@ export function FollowLiveViewer({
   seriesMatchesService,
   haloClient,
 }: FollowLiveViewerProps): React.ReactElement {
-  const { directory, directoryStatus, selectedTrackerId, isFollowingLive, onSelectTracker, onFollowLive, onRetry } =
-    useFollowLiveDirectory({ followLiveService, gamertag });
+  const { directory, directoryStatus, selectedTrackerId, onSelectTracker, onRetry } = useFollowLiveDirectory({
+    followLiveService,
+    gamertag,
+  });
 
   const showBanner = (directoryStatus === "error" && directory !== null) || directoryStatus === "disconnected";
 
@@ -49,9 +51,7 @@ export function FollowLiveViewer({
         <FollowTrackerTabs
           directory={directory}
           selectedTrackerId={selectedTrackerId}
-          isFollowingLive={isFollowingLive}
           onSelectTracker={onSelectTracker}
-          onFollowLive={onFollowLive}
         />
       )}
       <div className={styles.trackerContent}>

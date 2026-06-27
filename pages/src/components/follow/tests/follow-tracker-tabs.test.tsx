@@ -50,9 +50,7 @@ describe("FollowTrackerTabs", () => {
       <FollowTrackerTabs
         directory={aTabsDirectoryWithWinsAndLosses()}
         selectedTrackerId="tracker-1"
-        isFollowingLive={true}
         onSelectTracker={vi.fn<(trackerId: string) => void>()}
-        onFollowLive={vi.fn<() => void>()}
       />,
     );
 
@@ -62,30 +60,12 @@ describe("FollowTrackerTabs", () => {
     expect(trackerButtons[1]).toHaveTextContent("Spartan Two");
   });
 
-  it("shows the win-loss record for each tracker", () => {
-    render(
-      <FollowTrackerTabs
-        directory={aTabsDirectoryWithWinsAndLosses()}
-        selectedTrackerId="tracker-1"
-        isFollowingLive={true}
-        onSelectTracker={vi.fn<(trackerId: string) => void>()}
-        onFollowLive={vi.fn<() => void>()}
-      />,
-    );
-
-    const records = screen.getAllByTestId("tab-record");
-    expect(records[0]).toHaveTextContent("3:2");
-    expect(records[1]).toHaveTextContent("1:3");
-  });
-
   it("shows Live badge on the live tracker", () => {
     render(
       <FollowTrackerTabs
         directory={aTabsDirectoryWithWinsAndLosses()}
         selectedTrackerId="tracker-1"
-        isFollowingLive={true}
         onSelectTracker={vi.fn<(trackerId: string) => void>()}
-        onFollowLive={vi.fn<() => void>()}
       />,
     );
 
@@ -111,9 +91,7 @@ describe("FollowTrackerTabs", () => {
       <FollowTrackerTabs
         directory={dir}
         selectedTrackerId="tracker-1"
-        isFollowingLive={true}
         onSelectTracker={vi.fn<(trackerId: string) => void>()}
-        onFollowLive={vi.fn<() => void>()}
       />,
     );
 
@@ -127,9 +105,7 @@ describe("FollowTrackerTabs", () => {
       <FollowTrackerTabs
         directory={aTabsDirectoryWithWinsAndLosses()}
         selectedTrackerId="tracker-1"
-        isFollowingLive={true}
         onSelectTracker={onSelectTracker}
-        onFollowLive={vi.fn<() => void>()}
       />,
     );
 
@@ -138,78 +114,6 @@ describe("FollowTrackerTabs", () => {
 
     expect(onSelectTracker).toHaveBeenCalledOnce();
     expect(onSelectTracker).toHaveBeenCalledWith("tracker-2");
-  });
-
-  it("shows Follow live button when isFollowingLive is false and there is a live tracker", () => {
-    render(
-      <FollowTrackerTabs
-        directory={aTabsDirectoryWithWinsAndLosses()}
-        selectedTrackerId="tracker-2"
-        isFollowingLive={false}
-        onSelectTracker={vi.fn<(trackerId: string) => void>()}
-        onFollowLive={vi.fn<() => void>()}
-      />,
-    );
-
-    expect(screen.getByTestId("follow-live-btn")).toBeInTheDocument();
-  });
-
-  it("does not show Follow live button when isFollowingLive is true", () => {
-    render(
-      <FollowTrackerTabs
-        directory={aTabsDirectoryWithWinsAndLosses()}
-        selectedTrackerId="tracker-1"
-        isFollowingLive={true}
-        onSelectTracker={vi.fn<(trackerId: string) => void>()}
-        onFollowLive={vi.fn<() => void>()}
-      />,
-    );
-
-    expect(screen.queryByTestId("follow-live-btn")).toBeNull();
-  });
-
-  it("does not show Follow live button when no tracker is live", () => {
-    const dir: TrackerDirectory = {
-      trackers: [
-        aTrackerWith({
-          trackerId: "tracker-1",
-          gamertag: "Spartan One",
-          status: "active",
-          isLive: false,
-        }),
-      ],
-      liveTrackerId: null,
-    };
-
-    render(
-      <FollowTrackerTabs
-        directory={dir}
-        selectedTrackerId="tracker-1"
-        isFollowingLive={false}
-        onSelectTracker={vi.fn<(trackerId: string) => void>()}
-        onFollowLive={vi.fn<() => void>()}
-      />,
-    );
-
-    expect(screen.queryByTestId("follow-live-btn")).toBeNull();
-  });
-
-  it("calls onFollowLive when the Follow live button is clicked", async () => {
-    const onFollowLive = vi.fn<() => void>();
-
-    render(
-      <FollowTrackerTabs
-        directory={aDirectoryWith()}
-        selectedTrackerId="tracker-2"
-        isFollowingLive={false}
-        onSelectTracker={vi.fn<(trackerId: string) => void>()}
-        onFollowLive={onFollowLive}
-      />,
-    );
-
-    await userEvent.click(screen.getByTestId("follow-live-btn"));
-
-    expect(onFollowLive).toHaveBeenCalledOnce();
   });
 
   it("renders no tabs when directory is empty", () => {
@@ -222,15 +126,12 @@ describe("FollowTrackerTabs", () => {
       <FollowTrackerTabs
         directory={emptyDirectory}
         selectedTrackerId={null}
-        isFollowingLive={false}
         onSelectTracker={vi.fn<(trackerId: string) => void>()}
-        onFollowLive={vi.fn<() => void>()}
       />,
     );
 
     expect(screen.queryAllByRole("tab")).toHaveLength(0);
     expect(screen.queryByRole("tablist")).toBeNull();
-    expect(screen.queryByTestId("follow-live-btn")).toBeNull();
   });
 
   it("renders tracker navigation even when selectedTrackerId is null", async () => {
@@ -240,9 +141,7 @@ describe("FollowTrackerTabs", () => {
       <FollowTrackerTabs
         directory={aTabsDirectoryWithWinsAndLosses()}
         selectedTrackerId={null}
-        isFollowingLive={false}
         onSelectTracker={onSelectTracker}
-        onFollowLive={vi.fn<() => void>()}
       />,
     );
 

@@ -36,6 +36,7 @@ function aViewerTestDependenciesWith(): ViewerTestDependencies {
 
 describe("useIndividualTrackerViewer", () => {
   it("does not recreate presenter when streamer settings values are unchanged", async () => {
+    const individualTrackerService = aFakeIndividualTrackerServiceWith();
     const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
       view: aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
     });
@@ -51,6 +52,7 @@ describe("useIndividualTrackerViewer", () => {
     const { rerender } = renderHook(
       ({ settings }: { settings: StreamerViewSettings }) =>
         useIndividualTrackerViewer({
+          individualTrackerService,
           individualTrackerViewService,
           matchAnalyticsService,
           seriesMatchesService,
