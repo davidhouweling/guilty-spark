@@ -47,6 +47,10 @@ function getSelectedTabId(directory: TrackerDirectory, selectedTrackerId: string
     }
   }
 
+  if (directory.trackers.length === 0) {
+    return null;
+  }
+
   const [firstTracker] = directory.trackers;
   return firstTracker.trackerId;
 }
@@ -87,7 +91,6 @@ export function FollowTrackerTabs({
           tabListAriaLabel="Followed trackers"
           onTabChange={onSelectTracker}
           tabsClassName={styles.tabs}
-          tabContainerClassName={styles.tabPanel}
         />
       )}
       {showFollowLive && (

@@ -43,10 +43,6 @@
   text-transform: uppercase;
 }
 
-.tabPanel {
-  display: none;
-}
-
 .followLiveButton {
   align-self: flex-start;
   background: transparent;

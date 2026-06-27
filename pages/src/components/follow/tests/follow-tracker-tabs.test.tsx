@@ -211,4 +211,25 @@ describe("FollowTrackerTabs", () => {
 
     expect(onFollowLive).toHaveBeenCalledOnce();
   });
+
+  it("renders no tabs when directory is empty", () => {
+    const emptyDirectory: TrackerDirectory = {
+      trackers: [],
+      liveTrackerId: null,
+    };
+
+    render(
+      <FollowTrackerTabs
+        directory={emptyDirectory}
+        selectedTrackerId={null}
+        isFollowingLive={false}
+        onSelectTracker={vi.fn<(trackerId: string) => void>()}
+        onFollowLive={vi.fn<() => void>()}
+      />,
+    );
+
+    expect(screen.queryAllByRole("tab")).toHaveLength(0);
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByTestId("follow-live-btn")).toBeNull();
+  });
 });
