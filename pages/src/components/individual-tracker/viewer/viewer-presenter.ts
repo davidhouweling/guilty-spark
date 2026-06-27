@@ -52,7 +52,6 @@ interface Config {
   readonly haloClient: HaloInfiniteClient;
   readonly store: IndividualTrackerViewerStore;
   readonly trackerId: string;
-  readonly streamerSettings?: StreamerViewSettings;
 }
 
 const WIN_OUTCOME = 2;
@@ -221,6 +220,9 @@ export class IndividualTrackerViewerPresenter {
   private viewSubscription: TrackerViewSubscription | null = null;
   private statusSubscription: TrackerViewSubscription | null = null;
   private awaitingRefresh = false;
+  private streamerSettings: StreamerViewSettings | undefined;
+  private streamerSettingsKey = "null";
+  private hasServerStreamerSettings = false;
 
   public constructor(config: Config) {
     this.config = config;
@@ -271,6 +273,27 @@ export class IndividualTrackerViewerPresenter {
     this.awaitingRefresh = true;
     this.config.store.setRefreshState(true);
     void this.refreshAsync();
+  }
+
+  public setStreamerSettings(streamerSettings: StreamerViewSettings | undefined): void {
+    const nextKey = JSON.stringify(streamerSettings ?? null);
+    if (nextKey === this.streamerSettingsKey) {
+      return;
+    }
+
+    this.streamerSettings = streamerSettings;
+    this.streamerSettingsKey = nextKey;
+
+    if (this.hasServerStreamerSettings) {
+      return;
+    }
+
+    const snapshot = this.config.store.getSnapshot();
+    if (snapshot.view == null) {
+      return;
+    }
+
+    this.config.store.setLoaded({ ...snapshot.view, streamerSettings: this.streamerSettings });
   }
 
   public toggleEntry(item: ViewerTimelineItem): void {
@@ -480,9 +503,10 @@ export class IndividualTrackerViewerPresenter {
       if (this.isDisposed) {
         return;
       }
+      this.hasServerStreamerSettings = response.view.streamerSettings !== undefined;
       const view =
-        response.view.streamerSettings === undefined && this.config.streamerSettings !== undefined
-          ? { ...response.view, streamerSettings: this.config.streamerSettings }
+        response.view.streamerSettings === undefined && this.streamerSettings !== undefined
+          ? { ...response.view, streamerSettings: this.streamerSettings }
           : response.view;
       this.config.store.setLoaded(view);
       this.openConnection();
