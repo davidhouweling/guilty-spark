@@ -63,6 +63,7 @@ export function FollowLiveViewer({
             seriesMatchesService={seriesMatchesService}
             haloClient={haloClient}
             trackerId={selectedTrackerId}
+            streamerSettings={directory?.streamerSettings}
           />
         ) : directoryStatus === "error" && directory === null ? (
           <ErrorState message="Failed to load tracker directory" onRetry={onRetry} />

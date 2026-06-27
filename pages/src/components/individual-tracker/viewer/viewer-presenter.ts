@@ -4,6 +4,7 @@ import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
@@ -51,6 +52,7 @@ interface Config {
   readonly haloClient: HaloInfiniteClient;
   readonly store: IndividualTrackerViewerStore;
   readonly trackerId: string;
+  readonly streamerSettings?: StreamerViewSettings;
 }
 
 const WIN_OUTCOME = 2;
@@ -478,7 +480,11 @@ export class IndividualTrackerViewerPresenter {
       if (this.isDisposed) {
         return;
       }
-      this.config.store.setLoaded(response.view);
+      const view =
+        this.config.streamerSettings !== undefined
+          ? { ...response.view, streamerSettings: this.config.streamerSettings }
+          : response.view;
+      this.config.store.setLoaded(view);
       this.openConnection();
     } catch (error) {
       if (this.isDisposed) {
