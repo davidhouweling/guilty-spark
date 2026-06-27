@@ -127,6 +127,68 @@ describe("useFollowLiveDirectory", () => {
     expect(result.current.selectedTrackerId).toBe("tracker-2");
   });
 
+  it("falls back to preferred live tracker when manually selected tracker disappears", async () => {
+    const service = aFakeFollowLiveServiceWith({ directory: aDirectoryWith() });
+    const { result } = renderHook(() =>
+      useFollowLiveDirectory({ followLiveService: service, gamertag: "Spartan One" }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.selectedTrackerId).toBe("tracker-1");
+    });
+
+    act(() => {
+      result.current.onSelectTracker("tracker-2");
+    });
+
+    expect(result.current.isFollowingLive).toBe(false);
+
+    const updatedDir: TrackerDirectory = {
+      trackers: [
+        aTrackerWith({ trackerId: "tracker-1", isLive: false, status: "active" }),
+        aTrackerWith({ trackerId: "tracker-3", gamertag: "Spartan Three", isLive: true, status: "active" }),
+      ],
+      liveTrackerId: "tracker-3",
+    };
+
+    act(() => {
+      service.lastConnection?.emitDirectory(updatedDir);
+    });
+
+    expect(result.current.selectedTrackerId).toBe("tracker-3");
+    expect(result.current.isFollowingLive).toBe(true);
+  });
+
+  it("clears selectedTrackerId when selected tracker disappears and no tracker is active", async () => {
+    const service = aFakeFollowLiveServiceWith({ directory: aDirectoryWith() });
+    const { result } = renderHook(() =>
+      useFollowLiveDirectory({ followLiveService: service, gamertag: "Spartan One" }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.selectedTrackerId).toBe("tracker-1");
+    });
+
+    act(() => {
+      result.current.onSelectTracker("tracker-2");
+    });
+
+    const updatedDir: TrackerDirectory = {
+      trackers: [
+        aTrackerWith({ trackerId: "tracker-1", isLive: false, status: "stopped" }),
+        aTrackerWith({ trackerId: "tracker-3", gamertag: "Spartan Three", isLive: false, status: "paused" }),
+      ],
+      liveTrackerId: null,
+    };
+
+    act(() => {
+      service.lastConnection?.emitDirectory(updatedDir);
+    });
+
+    expect(result.current.selectedTrackerId).toBeNull();
+    expect(result.current.isFollowingLive).toBe(true);
+  });
+
   it("onSelectTracker sets isFollowingLive to false when selecting a non-live tracker", async () => {
     const service = aFakeFollowLiveServiceWith({ directory: aDirectoryWith() });
     const { result } = renderHook(() =>

@@ -492,6 +492,62 @@ describe("LiveTrackersPresenter", () => {
     presenter.dispose();
   });
 
+  it("promotes another active tracker when current live tracker is stopped", async () => {
+    const stoppedLiveTracker = aFakeTrackerWith({
+      trackerId: "t1",
+      gamertag: "Chief",
+      status: "stopped",
+      isLive: true,
+      state: null,
+    });
+    const activeTracker = aFakeTrackerWith({
+      trackerId: "t2",
+      gamertag: "Arbiter",
+      status: "active",
+      isLive: false,
+      state: aFakeTrackerState({ trackerId: "t2", gamertag: "Arbiter", status: "active" }),
+    });
+    const { presenter, service } = aHarness({ trackers: [stoppedLiveTracker, activeTracker] });
+    const selectActiveSpy = vi.spyOn(service, "selectActive");
+
+    presenter.start();
+    presenter.setSessionContext("u1", null, null);
+    await presenter.refresh();
+
+    expect(selectActiveSpy).toHaveBeenCalledWith("t2");
+    expect(presenter.getSnapshot().activeTracker?.trackerId).toBe("t2");
+
+    presenter.dispose();
+  });
+
+  it("keeps activeTracker null when no active fallback exists", async () => {
+    const stoppedLiveTracker = aFakeTrackerWith({
+      trackerId: "t1",
+      gamertag: "Chief",
+      status: "stopped",
+      isLive: true,
+      state: null,
+    });
+    const pausedTracker = aFakeTrackerWith({
+      trackerId: "t2",
+      gamertag: "Arbiter",
+      status: "paused",
+      isLive: false,
+      state: aFakeTrackerState({ trackerId: "t2", gamertag: "Arbiter", status: "paused" }),
+    });
+    const { presenter, service } = aHarness({ trackers: [stoppedLiveTracker, pausedTracker] });
+    const selectActiveSpy = vi.spyOn(service, "selectActive");
+
+    presenter.start();
+    presenter.setSessionContext("u1", null, null);
+    await presenter.refresh();
+
+    expect(selectActiveSpy).not.toHaveBeenCalled();
+    expect(presenter.getSnapshot().activeTracker).toBeNull();
+
+    presenter.dispose();
+  });
+
   it("resetForUnauthenticated clears all session state", async () => {
     const tracker = aFakeTrackerWith({ trackerId: "t1", gamertag: "Chief" });
     const { presenter, store } = aHarness({ trackers: [tracker] });
