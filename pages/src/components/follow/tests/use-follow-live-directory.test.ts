@@ -5,10 +5,11 @@ import { aFakeFollowLiveServiceWith } from "../../../services/follow/fakes/follo
 import { useFollowLiveDirectory } from "../use-follow-live-directory";
 
 type TrackerMatchOutcome = TrackerDirectoryEntry["matches"][number]["outcome"];
+let nextMatchId = 0;
 
 function aMatch(outcome: TrackerMatchOutcome): TrackerDirectoryEntry["matches"][number] {
   return {
-    matchId: crypto.randomUUID(),
+    matchId: `match-${(nextMatchId += 1).toString()}`,
     startTime: "2026-01-01T00:00:00.000Z",
     endTime: "2026-01-01T00:10:00.000Z",
     mapAssetId: "map-1",

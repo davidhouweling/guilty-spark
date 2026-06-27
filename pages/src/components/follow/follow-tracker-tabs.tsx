@@ -24,7 +24,9 @@ function isTrackerLive(entry: TrackerDirectory["trackers"][number]): boolean {
   return entry.isLive;
 }
 
-function toWinLossRecord(matches: readonly { readonly outcome: string }[]): string {
+type TrackerMatch = TrackerDirectory["trackers"][number]["matches"][number];
+
+function toWinLossRecord(matches: readonly TrackerMatch[]): string {
   let wins = 0;
   let losses = 0;
   for (const match of matches) {
