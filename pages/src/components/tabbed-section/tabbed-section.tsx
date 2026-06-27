@@ -6,9 +6,10 @@ import styles from "./tabbed-section.module.css";
 
 interface TabbedSectionProps<TId extends string> {
   readonly tabs: readonly TabbedSectionTab<TId>[];
-  readonly selectedTabId: TId;
+  readonly selectedTabId: TId | null;
   readonly tabListAriaLabel: string;
   readonly onTabChange: (tabId: TId) => void;
+  readonly variant?: "section" | "navigation";
   readonly tabsClassName?: string;
   readonly tabContainerClassName?: string;
 }
@@ -18,6 +19,7 @@ export function TabbedSection<TId extends string>({
   selectedTabId,
   tabListAriaLabel,
   onTabChange,
+  variant = "section",
   tabsClassName,
   tabContainerClassName,
 }: TabbedSectionProps<TId>): React.ReactElement {
@@ -42,19 +44,16 @@ export function TabbedSection<TId extends string>({
       if (event.ctrlKey || event.altKey || event.metaKey) {
         return;
       }
-      const currentIndex = tabs.findIndex((t) => t.id === selectedTabId);
-      if (currentIndex === -1) {
-        return;
-      }
+      const currentIndex = selectedTabId != null ? tabs.findIndex((t) => t.id === selectedTabId) : -1;
       let nextIndex: number | null = null;
 
       switch (event.key) {
         case "ArrowRight": {
-          nextIndex = (currentIndex + 1) % tabs.length;
+          nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % tabs.length;
           break;
         }
         case "ArrowLeft": {
-          nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+          nextIndex = currentIndex === -1 ? tabs.length - 1 : (currentIndex - 1 + tabs.length) % tabs.length;
           break;
         }
         case "Home": {
@@ -83,7 +82,7 @@ export function TabbedSection<TId extends string>({
       <div
         ref={tabListRef}
         className={classNames(styles.tabList, tabsClassName)}
-        role="tablist"
+        role={variant === "section" ? "tablist" : undefined}
         aria-label={tabListAriaLabel}
         onKeyDown={handleKeyDown}
       >
@@ -91,15 +90,17 @@ export function TabbedSection<TId extends string>({
           const tabDomId = `${tabSetId}-${tab.id}-tab`;
           const panelDomId = `${tabSetId}-${tab.id}-panel`;
           const isSelected = tab.id === selectedTabId;
+          const isFallbackFocusable = selectedTabId == null && tabs[0]?.id === tab.id;
           return (
             <button
               key={tab.id}
               id={tabDomId}
               type="button"
-              role="tab"
-              aria-selected={isSelected}
-              tabIndex={isSelected ? 0 : -1}
-              aria-controls={panelDomId}
+              role={variant === "section" ? "tab" : undefined}
+              aria-selected={variant === "section" ? isSelected : undefined}
+              aria-pressed={variant === "navigation" ? isSelected : undefined}
+              tabIndex={isSelected || isFallbackFocusable ? 0 : -1}
+              aria-controls={variant === "section" ? panelDomId : undefined}
               className={classNames(styles.tabButton, {
                 [styles.tabButtonActive]: isSelected,
               })}
@@ -113,23 +114,24 @@ export function TabbedSection<TId extends string>({
         })}
       </div>
 
-      {tabs.map((tab) => {
-        const tabDomId = `${tabSetId}-${tab.id}-tab`;
-        const panelDomId = `${tabSetId}-${tab.id}-panel`;
-        const isSelected = tab.id === selectedTabId;
-        return (
-          <div
-            key={tab.id}
-            id={panelDomId}
-            role="tabpanel"
-            aria-labelledby={tabDomId}
-            hidden={!isSelected}
-            className={classNames(styles.panel, tabContainerClassName)}
-          >
-            {tab.content}
-          </div>
-        );
-      })}
+      {variant === "section" &&
+        tabs.map((tab) => {
+          const tabDomId = `${tabSetId}-${tab.id}-tab`;
+          const panelDomId = `${tabSetId}-${tab.id}-panel`;
+          const isSelected = tab.id === selectedTabId;
+          return (
+            <div
+              key={tab.id}
+              id={panelDomId}
+              role="tabpanel"
+              aria-labelledby={tabDomId}
+              hidden={!isSelected}
+              className={classNames(styles.panel, tabContainerClassName)}
+            >
+              {tab.content}
+            </div>
+          );
+        })}
     </>
   );
 }

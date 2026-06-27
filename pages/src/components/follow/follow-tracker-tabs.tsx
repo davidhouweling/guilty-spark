@@ -39,20 +39,17 @@ function toWinLossRecord(matches: readonly TrackerMatchSummary[]): string {
 }
 
 function getSelectedTabId(directory: TrackerDirectory, selectedTrackerId: string | null): string | null {
-  if (selectedTrackerId != null) {
-    for (const tracker of directory.trackers) {
-      if (tracker.trackerId === selectedTrackerId) {
-        return selectedTrackerId;
-      }
-    }
-  }
-
-  if (directory.trackers.length === 0) {
+  if (selectedTrackerId == null) {
     return null;
   }
 
-  const [firstTracker] = directory.trackers;
-  return firstTracker.trackerId;
+  for (const tracker of directory.trackers) {
+    if (tracker.trackerId === selectedTrackerId) {
+      return selectedTrackerId;
+    }
+  }
+
+  return null;
 }
 
 export function FollowTrackerTabs({
@@ -84,12 +81,13 @@ export function FollowTrackerTabs({
 
   return (
     <div className={styles.tabBar}>
-      {selectedTabId != null && (
+      {tabs.length > 0 && (
         <TabbedSection
           tabs={tabs}
           selectedTabId={selectedTabId}
           tabListAriaLabel="Followed trackers"
           onTabChange={onSelectTracker}
+          variant="navigation"
           tabsClassName={styles.tabs}
         />
       )}

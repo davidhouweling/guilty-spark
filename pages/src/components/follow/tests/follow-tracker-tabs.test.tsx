@@ -56,10 +56,10 @@ describe("FollowTrackerTabs", () => {
       />,
     );
 
-    const tabs = screen.getAllByRole("tab");
-    expect(tabs).toHaveLength(2);
-    expect(tabs[0]).toHaveTextContent("Spartan One");
-    expect(tabs[1]).toHaveTextContent("Spartan Two");
+    const trackerButtons = screen.getAllByRole("button", { name: /Spartan/ });
+    expect(trackerButtons).toHaveLength(2);
+    expect(trackerButtons[0]).toHaveTextContent("Spartan One");
+    expect(trackerButtons[1]).toHaveTextContent("Spartan Two");
   });
 
   it("shows the win-loss record for each tracker", () => {
@@ -133,8 +133,8 @@ describe("FollowTrackerTabs", () => {
       />,
     );
 
-    const tabs = screen.getAllByRole("tab");
-    await userEvent.click(tabs[1]);
+    const trackerButtons = screen.getAllByRole("button", { name: /Spartan/ });
+    await userEvent.click(trackerButtons[1]);
 
     expect(onSelectTracker).toHaveBeenCalledOnce();
     expect(onSelectTracker).toHaveBeenCalledWith("tracker-2");
@@ -231,5 +231,24 @@ describe("FollowTrackerTabs", () => {
     expect(screen.queryAllByRole("tab")).toHaveLength(0);
     expect(screen.queryByRole("tablist")).toBeNull();
     expect(screen.queryByTestId("follow-live-btn")).toBeNull();
+  });
+
+  it("renders tracker navigation even when selectedTrackerId is null", async () => {
+    const onSelectTracker = vi.fn<(trackerId: string) => void>();
+
+    render(
+      <FollowTrackerTabs
+        directory={aTabsDirectoryWithWinsAndLosses()}
+        selectedTrackerId={null}
+        isFollowingLive={false}
+        onSelectTracker={onSelectTracker}
+        onFollowLive={vi.fn<() => void>()}
+      />,
+    );
+
+    const trackerButtons = screen.getAllByRole("button", { name: /Spartan/ });
+    await userEvent.click(trackerButtons[0]);
+
+    expect(onSelectTracker).toHaveBeenCalledWith("tracker-1");
   });
 });
