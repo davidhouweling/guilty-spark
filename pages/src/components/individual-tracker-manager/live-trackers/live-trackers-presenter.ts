@@ -64,6 +64,8 @@ export class LiveTrackersPresenter {
   private liveConnectionKey: string | null = null;
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private refreshInFlight = false;
+  private refreshRequested = false;
+  private refreshExecution: Promise<void> | null = null;
   private activeLiveView: TrackerLiveView | null = null;
 
   public constructor(config: Config) {
@@ -324,40 +326,59 @@ export class LiveTrackersPresenter {
   }
 
   public async refresh(): Promise<void> {
-    const snapshot = this.getSnapshot();
-    if (snapshot.userId == null) {
-      this.resetForUnauthenticated();
+    this.refreshRequested = true;
+    if (this.refreshExecution != null) {
+      await this.refreshExecution;
       return;
     }
 
-    this.refreshInFlight = true;
+    this.refreshExecution = this.runRefreshLoop();
     try {
-      const initialResponse = await this.config.individualTrackerService.listTrackers();
-      const desiredLive = findFallbackLiveTracker(initialResponse.trackers);
-      const currentLive = initialResponse.trackers.find((tracker) => tracker.isLive) ?? null;
+      await this.refreshExecution;
+    } finally {
+      this.refreshExecution = null;
+    }
+  }
 
-      let { trackers } = initialResponse;
-      if (desiredLive != null && desiredLive.trackerId !== currentLive?.trackerId) {
-        await this.config.individualTrackerService.selectActive(desiredLive.trackerId);
-        const refreshedResponse = await this.config.individualTrackerService.listTrackers();
-        ({ trackers } = refreshedResponse);
+  private async runRefreshLoop(): Promise<void> {
+    while (this.refreshRequested && !this.isDisposed) {
+      this.refreshRequested = false;
+
+      const snapshot = this.getSnapshot();
+      if (snapshot.userId == null) {
+        this.resetForUnauthenticated();
+        continue;
       }
 
-      const liveTracker = findFallbackLiveTracker(trackers);
+      this.refreshInFlight = true;
+      try {
+        const initialResponse = await this.config.individualTrackerService.listTrackers();
+        const desiredLive = findFallbackLiveTracker(initialResponse.trackers);
+        const currentLive = initialResponse.trackers.find((tracker) => tracker.isLive) ?? null;
 
-      this.updateSnapshot((current) => ({
-        ...current,
-        activeTracker: liveTracker?.state ?? null,
-        runningTrackers: trackers.map((t) => ({ trackerId: t.trackerId, gamertag: t.gamertag, xuid: t.xuid })),
-        trackerStatuses: Object.fromEntries<TrackerState | null>(trackers.map((t) => [t.trackerId, t.state ?? null])),
-      }));
-    } catch (error) {
-      this.updateSnapshot((current) => ({
-        ...current,
-        errorMessage: error instanceof Error ? error.message : "Failed to load individual tracker.",
-      }));
-    } finally {
-      this.refreshInFlight = false;
+        let { trackers } = initialResponse;
+        if (desiredLive != null && desiredLive.trackerId !== currentLive?.trackerId) {
+          await this.config.individualTrackerService.selectActive(desiredLive.trackerId);
+          const refreshedResponse = await this.config.individualTrackerService.listTrackers();
+          ({ trackers } = refreshedResponse);
+        }
+
+        const liveTracker = findFallbackLiveTracker(trackers);
+
+        this.updateSnapshot((current) => ({
+          ...current,
+          activeTracker: liveTracker?.state ?? null,
+          runningTrackers: trackers.map((t) => ({ trackerId: t.trackerId, gamertag: t.gamertag, xuid: t.xuid })),
+          trackerStatuses: Object.fromEntries<TrackerState | null>(trackers.map((t) => [t.trackerId, t.state ?? null])),
+        }));
+      } catch (error) {
+        this.updateSnapshot((current) => ({
+          ...current,
+          errorMessage: error instanceof Error ? error.message : "Failed to load individual tracker.",
+        }));
+      } finally {
+        this.refreshInFlight = false;
+      }
     }
   }
 
