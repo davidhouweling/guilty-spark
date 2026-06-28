@@ -139,6 +139,19 @@ function getRankKey(
   return `${rankTier}${tier.toString()}`;
 }
 
+function getRankName(rankTier: string | null, subTier: number | null): string {
+  if (rankTier === null) {
+    return "Unranked";
+  }
+
+  if (rankTier === "Onyx") {
+    return "Onyx";
+  }
+
+  const tier = subTier ?? 1;
+  return `${rankTier} ${tier.toString()}`;
+}
+
 export function RankIcon({
   rankTier,
   subTier,
@@ -157,7 +170,7 @@ export function RankIcon({
   }
 
   const sizePx = sizeMap.get(size) ?? 32;
-  const rankName = rankTier ?? "Unranked";
+  const rankName = getRankName(rankTier, subTier);
 
   return <img src={rankSrc} alt={rankName} title={rankName} width={sizePx} height={sizePx} />;
 }
