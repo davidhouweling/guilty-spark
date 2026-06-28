@@ -84,6 +84,7 @@ export function IndividualTrackerViewerApp({ apiHost, trackerId }: IndividualTra
             seriesMatchesService={services.seriesMatchesService}
             haloClient={services.haloClient}
             trackerId={trackerId}
+            pageTitleVariant="tracker"
           />
         ) : (
           <ErrorState message="Services failed to load" />

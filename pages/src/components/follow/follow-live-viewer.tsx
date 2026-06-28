@@ -1,10 +1,14 @@
 import React from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { ErrorState } from "../error-state/error-state";
 import { LoadingState } from "../loading-state/loading-state";
 import { IndividualTrackerViewerPage } from "../individual-tracker/viewer/create";
 import type { FollowLiveService } from "../../services/follow/follow-types";
-import type { TrackerViewConnectionStatus , IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
+import type {
+  TrackerViewConnectionStatus,
+  IndividualTrackerViewService,
+} from "../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
 import { FollowTrackerTabs } from "./follow-tracker-tabs";
@@ -33,6 +37,30 @@ function toTrackerConnectionStatus(
   }
 }
 
+function getLiveTracker(directory: TrackerDirectory | null): TrackerDirectory["trackers"][number] | null {
+  if (directory == null) {
+    return null;
+  }
+
+  if (directory.liveTrackerId != null) {
+    const liveTracker = directory.trackers.find((tracker) => tracker.trackerId === directory.liveTrackerId);
+    if (liveTracker != null) {
+      return liveTracker;
+    }
+  }
+
+  return directory.trackers.find((tracker) => tracker.isLive) ?? null;
+}
+
+function getViewerTitle(gamertag: string, directory: TrackerDirectory | null): string {
+  const liveTracker = getLiveTracker(directory);
+  if (liveTracker == null) {
+    return `${gamertag} live view - Guilty Spark`;
+  }
+
+  return `${gamertag} live view - ${liveTracker.gamertag} live - Guilty Spark`;
+}
+
 export interface FollowLiveViewerProps {
   readonly gamertag: string;
   readonly followLiveService: FollowLiveService;
@@ -55,6 +83,10 @@ export function FollowLiveViewer({
     gamertag,
   });
   const connectionStatusOverride = toTrackerConnectionStatus(directoryStatus);
+
+  React.useEffect(() => {
+    document.title = getViewerTitle(gamertag, directory);
+  }, [directory, gamertag]);
 
   return (
     <div className={styles.container}>

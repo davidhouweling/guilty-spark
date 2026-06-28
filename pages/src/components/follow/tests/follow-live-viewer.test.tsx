@@ -43,6 +43,7 @@ function aViewerPropsWith(directory: TrackerDirectory): FollowLiveViewerProps {
 describe("FollowLiveViewer", () => {
   afterEach(() => {
     cleanup();
+    document.title = "";
   });
 
   it("shows tracker navigation when directory has multiple trackers", async () => {
@@ -107,5 +108,21 @@ describe("FollowLiveViewer", () => {
     });
 
     expect(screen.getByTestId("mock-streamer-settings")).toHaveTextContent("true");
+  });
+
+  it("updates the document title to mention the current live tracker", async () => {
+    const liveDirectory: TrackerDirectory = aDirectoryWith({
+      trackers: [
+        aTrackerWith({ trackerId: "tracker-1", gamertag: "Spartan One", isLive: false, status: "active" }),
+        aTrackerWith({ trackerId: "tracker-2", gamertag: "Spartan Two", isLive: true, status: "active" }),
+      ],
+      liveTrackerId: "tracker-2",
+    });
+
+    render(<FollowLiveViewer {...aViewerPropsWith(liveDirectory)} />);
+
+    await waitFor(() => {
+      expect(document.title).toBe("Spartan One live view - Spartan Two live - Guilty Spark");
+    });
   });
 });

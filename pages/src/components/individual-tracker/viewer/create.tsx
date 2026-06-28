@@ -23,6 +23,7 @@ interface IndividualTrackerViewerPageProps {
   readonly trackerId: string;
   readonly streamerSettings?: StreamerViewSettings;
   readonly connectionStatusOverride?: TrackerViewConnectionStatus;
+  readonly pageTitleVariant?: "tracker";
 }
 
 export function IndividualTrackerViewerPage({
@@ -34,6 +35,7 @@ export function IndividualTrackerViewerPage({
   trackerId,
   streamerSettings,
   connectionStatusOverride,
+  pageTitleVariant,
 }: IndividualTrackerViewerPageProps): React.ReactElement {
   const canManage = individualTrackerService != null;
 
@@ -46,6 +48,19 @@ export function IndividualTrackerViewerPage({
     trackerId,
     streamerSettings,
   });
+
+  React.useEffect(() => {
+    if (pageTitleVariant !== "tracker") {
+      return;
+    }
+
+    const gamertag = model.renderModel?.gamertag;
+    if (gamertag == null || gamertag === "") {
+      return;
+    }
+
+    document.title = `${gamertag} tracker - Guilty Spark`;
+  }, [model.renderModel?.gamertag, pageTitleVariant]);
 
   return (
     <ComponentLoader
