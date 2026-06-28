@@ -431,11 +431,12 @@ export function IndividualTrackerViewer({
             {renderModel.isLive && <span className={styles.liveBadge}>Live</span>}
           </div>
         </div>
-
       </Container>
       <section className={styles.matchesSection}>
         <Container>
           <h2 className={styles.sectionTitle}>Tracked Gameplay</h2>
+        </Container>
+        <Container mobileDown="0">
           <ViewerTopBarStats items={renderModel.topBarStats ?? []} />
         </Container>
         {timeline.length === 0 ? (
