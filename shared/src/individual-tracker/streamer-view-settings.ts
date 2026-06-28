@@ -29,7 +29,9 @@ export type IndividualTopBarStatOption =
   | "damage-dealt-taken-ratio"
   | "avg-life-damage-per-life";
 
-export const INDIVIDUAL_TOP_BAR_SLOT_COUNT = 6;
+export const INDIVIDUAL_TOP_BAR_DEFAULT_SLOT_COUNT = 6;
+export const INDIVIDUAL_TOP_BAR_MAX_SLOT_COUNT = 8;
+export const INDIVIDUAL_TOP_BAR_SLOT_COUNT = INDIVIDUAL_TOP_BAR_MAX_SLOT_COUNT;
 
 export interface IndividualTopBarStatOptionDefinition {
   readonly value: IndividualTopBarStatOption;
@@ -69,6 +71,15 @@ export const INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS: readonly IndividualTopB
 
 export const INDIVIDUAL_TOP_BAR_STAT_OPTIONS: readonly IndividualTopBarStatOption[] =
   INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS.map((d) => d.value);
+
+export const DEFAULT_INDIVIDUAL_TOP_BAR_STAT_SLOTS: readonly IndividualTopBarStatOption[] = [
+  "matches-win-loss",
+  "series-win-loss",
+  "kills-deaths-assists-kda",
+  "damage-dealt-taken-ratio",
+  "avg-life-damage-per-life",
+  "current-rank",
+];
 
 const streamerViewColorModeSchema = z.enum(["player", "observer"]);
 

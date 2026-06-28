@@ -109,6 +109,10 @@ export class StreamerConnectionsStore {
     this.update({ fontSizeSettings });
   }
 
+  public setTopBarStatSlots(topBarStatSlots: readonly string[]): void {
+    this.update({ topBarStatSlots: [...topBarStatSlots] });
+  }
+
   public setSaving(): void {
     this.update({ saveStatus: "saving", saveErrorMessage: null });
   }

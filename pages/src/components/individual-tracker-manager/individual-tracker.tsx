@@ -13,6 +13,7 @@ interface IndividualTrackerShellProps {
   readonly onSignIn: () => void;
   readonly onSectionChange: (id: IndividualTrackerSectionId) => void;
   readonly liveTrackersContent: ReactNode;
+  readonly statsHighlightsContent: ReactNode;
   readonly streamerSettingsContent: ReactNode;
 }
 
@@ -23,6 +24,7 @@ export function IndividualTrackerShell({
   onSignIn,
   onSectionChange,
   liveTrackersContent,
+  statsHighlightsContent,
   streamerSettingsContent,
 }: IndividualTrackerShellProps): ReactElement {
   const sectionTabs = useMemo(
@@ -33,12 +35,17 @@ export function IndividualTrackerShell({
         content: liveTrackersContent,
       },
       {
+        id: "stats-highlights" as const,
+        label: "Stats Highlights",
+        content: statsHighlightsContent,
+      },
+      {
         id: "streamer-settings" as const,
         label: "Streamer Settings",
         content: streamerSettingsContent,
       },
     ],
-    [liveTrackersContent, streamerSettingsContent],
+    [liveTrackersContent, statsHighlightsContent, streamerSettingsContent],
   );
 
   return (

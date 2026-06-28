@@ -1,6 +1,11 @@
 import type {
+  IndividualTopBarStatOption,
   StreamerViewColorMode,
   StreamerViewSettings,
+} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import {
+  INDIVIDUAL_TOP_BAR_MAX_SLOT_COUNT,
+  INDIVIDUAL_TOP_BAR_STAT_OPTIONS,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerSettingsService } from "../../../services/individual-tracker/settings-types";
 import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../live-tracker/settings/types";
@@ -11,6 +16,22 @@ const DEBOUNCE_MS = 450;
 interface Config {
   readonly settingsService: IndividualTrackerSettingsService;
   readonly store: StreamerConnectionsStore;
+}
+
+const individualTopBarStatOptionSet = new Set<string>(INDIVIDUAL_TOP_BAR_STAT_OPTIONS);
+
+function isIndividualTopBarStatOption(value: string): value is IndividualTopBarStatOption {
+  return individualTopBarStatOptionSet.has(value);
+}
+
+function normalizeTopBarStatSlots(
+  topBarStatSlots: readonly string[] | undefined,
+): readonly IndividualTopBarStatOption[] {
+  if (topBarStatSlots == null) {
+    return [];
+  }
+
+  return topBarStatSlots.filter(isIndividualTopBarStatOption).slice(0, INDIVIDUAL_TOP_BAR_MAX_SLOT_COUNT);
 }
 
 function settingsToSnapshot(
@@ -51,7 +72,7 @@ function settingsToSnapshot(
       tabs: fontSizes.tabs ?? snapshot.fontSizeSettings.tabs,
       ticker: fontSizes.ticker ?? snapshot.fontSizeSettings.ticker,
     },
-    topBarStatSlots: [...(visibleSections.topBarStatSlots ?? snapshot.topBarStatSlots)],
+    topBarStatSlots: [...normalizeTopBarStatSlots(visibleSections.topBarStatSlots ?? snapshot.topBarStatSlots)],
   };
 }
 
@@ -179,6 +200,15 @@ export class StreamerConnectionsPresenter {
     }
     const current = this.config.store.getSnapshot().fontSizeSettings;
     this.config.store.setFontSizeSettings({ ...current, ...updates });
+    this.scheduleSave();
+  }
+
+  public setTopBarStatSlots(topBarStatSlots: readonly IndividualTopBarStatOption[]): void {
+    if (this.isDisposed) {
+      return;
+    }
+
+    this.config.store.setTopBarStatSlots(normalizeTopBarStatSlots(topBarStatSlots));
     this.scheduleSave();
   }
 

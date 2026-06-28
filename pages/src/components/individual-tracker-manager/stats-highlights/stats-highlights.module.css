@@ -1,0 +1,96 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sectionTitle {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-2xl);
+  margin: 0;
+}
+
+.sectionDescription {
+  color: var(--halo-gray);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: 1.7;
+  margin: 0;
+}
+
+.card {
+  background: color-mix(in srgb, var(--halo-bg-elevated) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.cardTitle {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  margin: 0;
+}
+
+.cardDescription {
+  color: var(--halo-gray);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fieldLabel {
+  color: var(--halo-white);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+}
+
+.select {
+  background: color-mix(in srgb, var(--halo-bg) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
+  border-radius: var(--radius-sm);
+  color: var(--halo-white);
+  font: inherit;
+  min-height: 2.75rem;
+  padding: 0 var(--space-2);
+}
+
+.select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.slotGrid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (--tablet-viewport) {
+  .slotGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.floatingSaveToast {
+  bottom: var(--space-4);
+  max-width: min(26rem, calc(100vw - (var(--space-4) * 2)));
+  position: fixed;
+  right: var(--space-4);
+  z-index: 50;
+}
+
+@media (--tablet-viewport) {
+  .floatingSaveToast {
+    bottom: var(--space-6);
+    right: var(--space-6);
+  }
+}

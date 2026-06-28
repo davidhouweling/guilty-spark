@@ -7,7 +7,10 @@ import { IndividualTrackerPresenter } from "./individual-tracker-presenter";
 import { IndividualTrackerStore } from "./individual-tracker-store";
 import { IndividualTrackerShell } from "./individual-tracker";
 import { createLiveTrackersSection } from "./live-trackers/create";
-import { StreamerConnectionsSection } from "./streamer-connections/create";
+import { StatsHighlightsSectionView } from "./stats-highlights/stats-highlights";
+import { StreamerConnectionsPresenter } from "./streamer-connections/streamer-connections-presenter";
+import { StreamerConnectionsSectionView } from "./streamer-connections/streamer-connections";
+import { StreamerConnectionsStore } from "./streamer-connections/streamer-connections-store";
 
 interface IndividualTrackerManagerPageProps {
   readonly authService: AuthService;
@@ -36,6 +39,11 @@ export function IndividualTrackerManagerPage({
   );
 
   const store = useMemo(() => new IndividualTrackerStore(), []);
+  const settingsStore = useMemo(() => new StreamerConnectionsStore(), []);
+  const settingsPresenter = useMemo(
+    () => new StreamerConnectionsPresenter({ settingsService, store: settingsStore }),
+    [settingsService, settingsStore],
+  );
 
   const presenter = useMemo(
     () =>
@@ -61,6 +69,22 @@ export function IndividualTrackerManagerPage({
     () => presenter.getSnapshot(),
   );
 
+  useEffect(() => {
+    settingsPresenter.loadSettings(snapshot.streamerSettings, snapshot.gamertag);
+  }, [settingsPresenter, snapshot.streamerSettings, snapshot.gamertag]);
+
+  useEffect(() => {
+    return (): void => {
+      settingsPresenter.dispose();
+    };
+  }, [settingsPresenter]);
+
+  const settingsSnapshot = useSyncExternalStore(
+    (listener) => settingsStore.subscribe(listener),
+    () => settingsStore.getSnapshot(),
+    () => settingsStore.getSnapshot(),
+  );
+
   return (
     <IndividualTrackerShell
       authState={snapshot.authState}
@@ -73,11 +97,47 @@ export function IndividualTrackerManagerPage({
         presenter.setActiveSection(id);
       }}
       liveTrackersContent={<LiveTrackersComponent />}
+      statsHighlightsContent={
+        <StatsHighlightsSectionView
+          topBarStatSlots={settingsSnapshot.topBarStatSlots}
+          saveStatus={settingsSnapshot.saveStatus}
+          saveErrorMessage={settingsSnapshot.saveErrorMessage}
+          onTopBarStatSlotsChange={(topBarStatSlots): void => {
+            settingsPresenter.setTopBarStatSlots(topBarStatSlots);
+          }}
+        />
+      }
       streamerSettingsContent={
-        <StreamerConnectionsSection
-          settings={snapshot.streamerSettings}
-          settingsService={settingsService}
-          gamertag={snapshot.gamertag}
+        <StreamerConnectionsSectionView
+          gamertag={settingsSnapshot.gamertag}
+          defaultColorMode={settingsSnapshot.defaultColorMode}
+          playerTeamColor={settingsSnapshot.playerTeamColor}
+          playerEnemyColor={settingsSnapshot.playerEnemyColor}
+          observerTeamColor={settingsSnapshot.observerTeamColor}
+          observerEnemyColor={settingsSnapshot.observerEnemyColor}
+          displaySettings={settingsSnapshot.displaySettings}
+          tickerSettings={settingsSnapshot.tickerSettings}
+          fontSizeSettings={settingsSnapshot.fontSizeSettings}
+          saveStatus={settingsSnapshot.saveStatus}
+          saveErrorMessage={settingsSnapshot.saveErrorMessage}
+          onDefaultColorModeChange={(mode): void => {
+            settingsPresenter.setDefaultColorMode(mode);
+          }}
+          onPlayerColorsChange={(teamColor, enemyColor): void => {
+            settingsPresenter.setPlayerColors(teamColor, enemyColor);
+          }}
+          onObserverColorsChange={(teamColor, enemyColor): void => {
+            settingsPresenter.setObserverColors(teamColor, enemyColor);
+          }}
+          onDisplaySettingsChange={(updates): void => {
+            settingsPresenter.setDisplaySettings(updates);
+          }}
+          onTickerSettingsChange={(updates): void => {
+            settingsPresenter.setTickerSettings(updates);
+          }}
+          onFontSizesChange={(updates): void => {
+            settingsPresenter.setFontSizes(updates);
+          }}
         />
       }
     />
