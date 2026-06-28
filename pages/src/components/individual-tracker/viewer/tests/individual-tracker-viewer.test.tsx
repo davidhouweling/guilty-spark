@@ -102,6 +102,51 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByText("2 matches")).toBeInTheDocument();
   });
 
+  it("renders In progress for an active series", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({ matchId: "m-1", outcome: "Win" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m-2", outcome: "Loss" }),
+      ],
+      series: [
+        aFakeTrackerSeriesGroupWith({ matchIds: ["m-1", "m-2"], title: "Ranked Series", subtitle: "Best of 3" }),
+      ],
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Ranked Series",
+        subtitle: "Best of 3",
+        teams: [],
+      },
+    });
+
+    renderViewer(view);
+
+    expect(screen.getByText("In progress")).toBeInTheDocument();
+  });
+
+  it("marks only the most recent series as In progress when active context is missing", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({ matchId: "m-1", outcome: "Win" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m-2", outcome: "Win" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m-3", outcome: "Win" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m-4", outcome: "Loss" }),
+      ],
+      series: [
+        aFakeTrackerSeriesGroupWith({ id: "series-older", title: "Older Series", matchIds: ["m-1", "m-2"] }),
+        aFakeTrackerSeriesGroupWith({ id: "series-recent", title: "Recent Series", matchIds: ["m-3", "m-4"] }),
+      ],
+      hasActiveSeries: true,
+      activeSeriesContext: undefined,
+    });
+
+    renderViewer(view);
+
+    expect(screen.getAllByText("In progress")).toHaveLength(1);
+    expect(screen.getByLabelText("Series Recent Series")).toHaveTextContent("In progress");
+    expect(screen.getByLabelText("Series Older Series")).not.toHaveTextContent("In progress");
+  });
+
   it("renders a Live badge when the tracker is live", () => {
     const view = aFakeTrackerViewStateWith({ isLive: true });
 
@@ -118,12 +163,21 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByText("No matches tracked yet.")).toBeInTheDocument();
   });
 
-  it("renders a connection notice for non-connected states", () => {
+  it("renders reconnecting status in the badge for disconnected state", () => {
     const view = aFakeTrackerViewStateWith({ gamertag: "Spartan One" });
 
     renderViewer(view, "disconnected");
 
-    expect(screen.getByTestId("connection-notice")).toHaveTextContent("Reconnecting...");
+    expect(screen.getByText("Reconnecting")).toBeInTheDocument();
+  });
+
+  it("disables refresh when connection is disconnected", () => {
+    const view = aFakeTrackerViewStateWith({ gamertag: "Spartan One", status: "active" });
+
+    renderViewer(view, "disconnected");
+
+    expect(screen.getByRole("button", { name: "Refresh" })).toBeDisabled();
+    expect(screen.getByText(/Next update:\s*reconnecting/i)).toBeInTheDocument();
   });
 
   it("renders without crashing when timestamps are not valid dates", () => {

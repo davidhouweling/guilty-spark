@@ -12,6 +12,7 @@ import type { RoutesRegisterHandler } from "../base/types";
 import { fetchTrackerDoViewState, toTrackerView } from "./mapper";
 
 const gamertagParamsSchema = z.object({ gamertag: z.string().min(1) });
+const FOLLOW_WS_POLL_INTERVAL_MS = 3000;
 
 function isNonStopped(row: IndividualTrackersRow): boolean {
   return row.Status !== "stopped";
@@ -93,10 +94,34 @@ export const trackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       const { 0: client, 1: server } = new WebSocketPair();
       server.accept();
-      server.send(trackerDirectoryMessageContract.serialize({ type: "directory", directory }));
-      // Push-on-change (tracker goes live, new tracker added) is deferred to a future PR
-      // that subscribes to individual tracker DOs. For now clients get the snapshot on
-      // connect and can reconnect to refresh.
+      let lastPayload = trackerDirectoryMessageContract.serialize({ type: "directory", directory });
+      server.send(lastPayload);
+
+      const pollInterval = setInterval(() => {
+        void (async (): Promise<void> => {
+          try {
+            const nextDirectory = await buildDirectory(env, identity.UserId, services);
+            const nextPayload = trackerDirectoryMessageContract.serialize({
+              type: "directory",
+              directory: nextDirectory,
+            });
+            if (nextPayload === lastPayload) {
+              return;
+            }
+            lastPayload = nextPayload;
+            server.send(nextPayload);
+          } catch (pollError) {
+            logService.error(pollError, new Map([["context", "Follow WebSocket poll error"]]));
+          }
+        })();
+      }, FOLLOW_WS_POLL_INTERVAL_MS);
+
+      const stopPolling = (): void => {
+        clearInterval(pollInterval);
+      };
+
+      server.addEventListener("close", stopPolling);
+      server.addEventListener("error", stopPolling);
 
       return new Response(null, { status: 101, webSocket: client });
     } catch (error) {

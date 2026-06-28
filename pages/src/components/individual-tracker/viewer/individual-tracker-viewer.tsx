@@ -64,6 +64,51 @@ function statusLabel(status: TrackerStatus): string {
   }
 }
 
+type ViewerStatusTone = "active" | "paused" | "stopped" | "syncing" | "degraded";
+
+function getViewerStatusBadge(
+  trackerStatus: TrackerStatus,
+  connectionStatus: TrackerViewConnectionStatus,
+): { label: string; tone: ViewerStatusTone } {
+  if (trackerStatus !== "active") {
+    switch (trackerStatus) {
+      case "paused": {
+        return { label: statusLabel(trackerStatus), tone: "paused" };
+      }
+      case "stopped": {
+        return { label: statusLabel(trackerStatus), tone: "stopped" };
+      }
+      default: {
+        throw new UnreachableError(trackerStatus);
+      }
+    }
+  }
+
+  switch (connectionStatus) {
+    case "connected": {
+      return { label: "Active", tone: "active" };
+    }
+    case "connecting": {
+      return { label: "Connecting", tone: "syncing" };
+    }
+    case "disconnected": {
+      return { label: "Reconnecting", tone: "syncing" };
+    }
+    case "error": {
+      return { label: "Connection issue", tone: "degraded" };
+    }
+    case "not_found": {
+      return { label: "Not found", tone: "degraded" };
+    }
+    case "stopped": {
+      return { label: "Stopped", tone: "stopped" };
+    }
+    default: {
+      throw new UnreachableError(connectionStatus);
+    }
+  }
+}
+
 function parseDate(value: string | null): Date | null {
   if (value == null) {
     return null;
@@ -117,30 +162,19 @@ function nextUpdateContent(renderModel: IndividualTrackerViewerRenderModel): Rea
   return <ReactTimeAgo date={addMinutes(lastUpdatedDate, 3)} locale="en" />;
 }
 
-function connectionNotice(connectionStatus: TrackerViewConnectionStatus): string | null {
-  switch (connectionStatus) {
-    case "connected": {
-      return null;
-    }
-    case "connecting": {
-      return "Connecting...";
-    }
-    case "disconnected": {
-      return "Reconnecting...";
-    }
-    case "error": {
-      return "Connection error. Retrying...";
-    }
-    case "not_found": {
-      return "Tracker not found.";
-    }
-    case "stopped": {
-      return "Tracker stopped.";
-    }
-    default: {
-      throw new UnreachableError(connectionStatus);
-    }
+function connectionAwareNextUpdate(
+  renderModel: IndividualTrackerViewerRenderModel,
+  statusBadge: { label: string; tone: ViewerStatusTone },
+): React.ReactNode {
+  if (statusBadge.tone === "syncing") {
+    return "reconnecting";
   }
+
+  if (statusBadge.tone === "degraded") {
+    return "connection issue";
+  }
+
+  return nextUpdateContent(renderModel);
 }
 
 function summarizeSeriesOutcome(outcomes: readonly NormalizedMatchOutcome[]): NormalizedMatchOutcome {
@@ -345,10 +379,11 @@ export function IndividualTrackerViewer({
     };
   }, []);
 
-  const notice = connectionNotice(connectionStatus);
+  const statusBadge = getViewerStatusBadge(renderModel.status, connectionStatus);
+  const canRefresh = statusBadge.tone === "active";
   const refreshHint = (
     <>
-      Last update: {lastUpdateContent(renderModel)} | Next update: {nextUpdateContent(renderModel)}
+      Last update: {lastUpdateContent(renderModel)} | Next update: {connectionAwareNextUpdate(renderModel, statusBadge)}
     </>
   );
 
@@ -368,7 +403,7 @@ export function IndividualTrackerViewer({
                 size="small"
                 loading={refreshPending}
                 onClick={onRefresh}
-                disabled={refreshPending || renderModel.status !== "active"}
+                disabled={refreshPending || !canRefresh}
               >
                 Refresh
               </Button>
@@ -383,22 +418,18 @@ export function IndividualTrackerViewer({
           <div className={styles.badges}>
             <span
               className={classNames(styles.statusBadge, {
-                [styles.statusActive]: renderModel.status === "active",
-                [styles.statusPaused]: renderModel.status === "paused",
-                [styles.statusStopped]: renderModel.status === "stopped",
+                [styles.statusActive]: statusBadge.tone === "active",
+                [styles.statusPaused]: statusBadge.tone === "paused",
+                [styles.statusStopped]: statusBadge.tone === "stopped",
+                [styles.statusSyncing]: statusBadge.tone === "syncing",
+                [styles.statusDegraded]: statusBadge.tone === "degraded",
               })}
             >
-              {statusLabel(renderModel.status)}
+              {statusBadge.label}
             </span>
             {renderModel.isLive && <span className={styles.liveBadge}>Live</span>}
           </div>
         </div>
-
-        {notice != null && (
-          <p className={styles.connectionNotice} data-testid="connection-notice">
-            {notice}
-          </p>
-        )}
 
         {renderModel.topBarStats != null && renderModel.topBarStats.length > 0 && (
           <section className={styles.accumulatedSection}>
@@ -573,7 +604,11 @@ export function IndividualTrackerViewer({
                               ))}
                             </div>
                             <OutcomeBadge
-                              outcome={summarizeSeriesOutcome(series.matches.map((seriesMatch) => seriesMatch.outcome))}
+                              outcome={
+                                series.isActive
+                                  ? "In progress"
+                                  : summarizeSeriesOutcome(series.matches.map((seriesMatch) => seriesMatch.outcome))
+                              }
                             />
                           </div>
                           <span

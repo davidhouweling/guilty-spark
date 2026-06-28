@@ -41,3 +41,9 @@
   border-color: rgb(148 163 184 / 55%);
   color: rgb(203 213 225);
 }
+
+.outcomeBadge[data-outcome="In progress"] {
+  background: rgb(10 24 35 / 88%);
+  border-color: rgb(93 212 216 / 60%);
+  color: rgb(93 212 216);
+}

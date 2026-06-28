@@ -76,6 +76,18 @@
   color: var(--halo-gray);
 }
 
+.statusSyncing {
+  background: color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 55%, transparent);
+  color: var(--halo-teal-primary);
+}
+
+.statusDegraded {
+  background: color-mix(in srgb, var(--color-warning) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 50%, transparent);
+  color: var(--color-warning);
+}
+
 .liveBadge {
   background: color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
   border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 60%, transparent);
@@ -91,12 +103,6 @@
 
 .lastUpdated {
   font-size: var(--text-sm);
-}
-
-.connectionNotice {
-  color: var(--halo-gray);
-  font-size: var(--text-sm);
-  margin: 0 0 var(--space-4);
 }
 
 .accumulatedSection,

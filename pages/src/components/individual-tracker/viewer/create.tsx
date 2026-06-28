@@ -5,7 +5,10 @@ import { ComponentLoader } from "../../component-loader/component-loader";
 import { ErrorState } from "../../error-state/error-state";
 import { LoadingState } from "../../loading-state/loading-state";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
-import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
+import type {
+  IndividualTrackerViewService,
+  TrackerViewConnectionStatus,
+} from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
 import { IndividualTrackerViewer } from "./individual-tracker-viewer";
@@ -19,6 +22,8 @@ interface IndividualTrackerViewerPageProps {
   readonly haloClient: HaloInfiniteClient;
   readonly trackerId: string;
   readonly streamerSettings?: StreamerViewSettings;
+  readonly connectionStatusOverride?: TrackerViewConnectionStatus;
+  readonly pageTitleVariant?: "tracker";
 }
 
 export function IndividualTrackerViewerPage({
@@ -29,6 +34,8 @@ export function IndividualTrackerViewerPage({
   haloClient,
   trackerId,
   streamerSettings,
+  connectionStatusOverride,
+  pageTitleVariant,
 }: IndividualTrackerViewerPageProps): React.ReactElement {
   const canManage = individualTrackerService != null;
 
@@ -42,6 +49,19 @@ export function IndividualTrackerViewerPage({
     streamerSettings,
   });
 
+  React.useEffect(() => {
+    if (pageTitleVariant !== "tracker") {
+      return;
+    }
+
+    const gamertag = model.renderModel?.gamertag;
+    if (gamertag == null || gamertag === "") {
+      return;
+    }
+
+    document.title = `${gamertag} tracker - Guilty Spark`;
+  }, [model.renderModel?.gamertag, pageTitleVariant]);
+
   return (
     <ComponentLoader
       status={snapshot.status}
@@ -51,7 +71,7 @@ export function IndividualTrackerViewerPage({
         model.renderModel != null ? (
           <IndividualTrackerViewer
             renderModel={model.renderModel}
-            connectionStatus={model.connectionStatus}
+            connectionStatus={connectionStatusOverride ?? model.connectionStatus}
             expandedEntryKeys={model.expandedEntryKeys}
             entryStates={model.entryStates}
             canManage={canManage}

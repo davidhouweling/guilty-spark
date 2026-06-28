@@ -248,29 +248,6 @@ export class LiveTrackersPresenter {
       });
     }
 
-    if (status === "active" || status === "paused") {
-      actions.push({
-        label: "Stop tracker",
-        disabled: snapshot.busy || trackerId == null,
-        onClick: (): void => {
-          if (trackerId != null) {
-            void this.stopTracker(trackerId);
-          }
-        },
-      });
-      if (item.hasActiveSeries) {
-        actions.push({
-          label: "End series",
-          disabled: snapshot.busy || trackerId == null,
-          onClick: (): void => {
-            if (trackerId != null) {
-              void this.endSeries(trackerId);
-            }
-          },
-        });
-      }
-    }
-
     if (status === "active" && trackerId != null) {
       actions.push({
         label: "Game selection",
@@ -307,6 +284,29 @@ export class LiveTrackersPresenter {
           },
         });
       }
+    }
+
+    if (status === "active" || status === "paused") {
+      if (item.hasActiveSeries) {
+        actions.push({
+          label: "End series",
+          disabled: snapshot.busy || trackerId == null,
+          onClick: (): void => {
+            if (trackerId != null) {
+              void this.endSeries(trackerId);
+            }
+          },
+        });
+      }
+      actions.push({
+        label: "Stop tracker",
+        disabled: snapshot.busy || trackerId == null,
+        onClick: (): void => {
+          if (trackerId != null) {
+            void this.stopTracker(trackerId);
+          }
+        },
+      });
     }
 
     if (!isPinned) {

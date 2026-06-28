@@ -2,6 +2,7 @@ import React from "react";
 import classNames from "classnames";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Alert } from "../../alert/alert";
+import { Button } from "../../button/button";
 import { Dropdown } from "../../dropdown/dropdown";
 import styles from "./tracker-list.module.css";
 
@@ -150,9 +151,9 @@ export function TrackerList({ items, onAddTracker, getActions }: TrackerListProp
     <div className={styles.listContainer}>
       <div className={styles.listHeader}>
         <h2 className={styles.listTitle}>Live Trackers</h2>
-        <button type="button" className={styles.addButton} onClick={onAddTracker} aria-label="Add tracker">
-          + Add tracker
-        </button>
+        <Button type="button" size="small" variant="secondary" onClick={onAddTracker}>
+          Add tracker
+        </Button>
       </div>
 
       {!hasItems ? (

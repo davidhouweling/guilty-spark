@@ -278,6 +278,92 @@ describe("/u/:gamertag follow routes", () => {
   });
 
   describe("GET /u/:gamertag/ws", () => {
+    it("pushes updated directory messages when live tracker changes", async () => {
+      const identity = aFakeLinkedIdentitiesRow({ UserId: "user-1", Gamertag: "LiveSwitchTag" });
+      const trackerOneLive = aFakeIndividualTrackersRow({
+        TrackerId: "t1",
+        UserId: "user-1",
+        Status: "active",
+        IsLive: 1,
+      });
+      const trackerTwo = aFakeIndividualTrackersRow({
+        TrackerId: "t2",
+        UserId: "user-1",
+        Status: "active",
+        IsLive: 0,
+      });
+      const trackerTwoLive = aFakeIndividualTrackersRow({
+        TrackerId: "t2",
+        UserId: "user-1",
+        Status: "active",
+        IsLive: 1,
+      });
+
+      let capturedServer: WebSocket | undefined;
+      const client = makeFakeWebSocket();
+      const server = makeFakeWebSocket();
+      vi.stubGlobal("WebSocketPair", function () {
+        capturedServer = server;
+        return { 0: client, 1: server };
+      });
+
+      const OriginalResponse = globalThis.Response;
+      vi.stubGlobal(
+        "Response",
+        class FakeResponse extends OriginalResponse {
+          constructor(body: BodyInit | null, init?: ResponseInit & { webSocket?: WebSocket }) {
+            super(body, { ...init, status: init?.status === 101 ? 200 : (init?.status ?? 200) });
+            if (init?.status === 101) {
+              Object.defineProperty(this, "status", { value: 101 });
+            }
+          }
+        },
+      );
+
+      let pollCallback: (() => void) | undefined;
+      vi.spyOn(globalThis, "setInterval").mockImplementation((callback) => {
+        pollCallback = callback;
+        return 1 as unknown as NodeJS.Timeout;
+      });
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(identity);
+        // First call returns t1 live, second call returns t2 live
+        vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
+          .mockResolvedValueOnce([trackerOneLive, trackerTwo])
+          .mockResolvedValueOnce([trackerTwo, trackerTwoLive]);
+        return services;
+      });
+      individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      const res = (await router.fetch(wsRequest("/u/LiveSwitchTag/ws"), env)) as Response;
+      expect(res.status).toBe(101);
+
+      const serverMocks = capturedServer as unknown as Record<string, ReturnType<typeof vi.fn>> | undefined;
+      const sendMock = serverMocks?.["send"];
+      expect(sendMock).toHaveBeenCalledOnce();
+
+      // Check that initial state has t1 as live
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const firstPayload = sendMock?.mock.calls[0]?.[0];
+      const firstMessage = trackerDirectoryMessageContract.parse(firstPayload as string);
+      expect(firstMessage.directory.liveTrackerId).toBe("t1");
+
+      expect(pollCallback).toBeDefined();
+      pollCallback?.();
+      await vi.waitFor(() => {
+        expect(sendMock).toHaveBeenCalledTimes(2);
+      });
+
+      // Should now have 2 sends (initial + updated)
+      expect(sendMock).toHaveBeenCalledTimes(2);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const secondPayload = sendMock?.mock.calls[1]?.[0];
+      const secondMessage = trackerDirectoryMessageContract.parse(secondPayload as string);
+      expect(secondMessage.directory.liveTrackerId).toBe("t2");
+    });
+
     it("returns 404 when gamertag is not found", async () => {
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });

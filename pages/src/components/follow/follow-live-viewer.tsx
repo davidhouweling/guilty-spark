@@ -1,16 +1,65 @@
 import React from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
-import { Alert } from "../alert/alert";
+import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { ErrorState } from "../error-state/error-state";
 import { LoadingState } from "../loading-state/loading-state";
 import { IndividualTrackerViewerPage } from "../individual-tracker/viewer/create";
 import type { FollowLiveService } from "../../services/follow/follow-types";
-import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
+import type {
+  TrackerViewConnectionStatus,
+  IndividualTrackerViewService,
+} from "../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
 import { FollowTrackerTabs } from "./follow-tracker-tabs";
 import { useFollowLiveDirectory } from "./use-follow-live-directory";
 import styles from "./follow-live-viewer.module.css";
+
+function toTrackerConnectionStatus(
+  directoryStatus: "connecting" | "connected" | "error" | "disconnected",
+): TrackerViewConnectionStatus | undefined {
+  switch (directoryStatus) {
+    case "connected": {
+      return undefined;
+    }
+    case "connecting": {
+      return "connecting";
+    }
+    case "disconnected": {
+      return "disconnected";
+    }
+    case "error": {
+      return "error";
+    }
+    default: {
+      return undefined;
+    }
+  }
+}
+
+function getLiveTracker(directory: TrackerDirectory | null): TrackerDirectory["trackers"][number] | null {
+  if (directory == null) {
+    return null;
+  }
+
+  if (directory.liveTrackerId != null) {
+    const liveTracker = directory.trackers.find((tracker) => tracker.trackerId === directory.liveTrackerId);
+    if (liveTracker != null) {
+      return liveTracker;
+    }
+  }
+
+  return directory.trackers.find((tracker) => tracker.isLive) ?? null;
+}
+
+function getViewerTitle(gamertag: string, directory: TrackerDirectory | null): string {
+  const liveTracker = getLiveTracker(directory);
+  if (liveTracker == null) {
+    return `${gamertag} live view - Guilty Spark`;
+  }
+
+  return `${gamertag} live view - ${liveTracker.gamertag} live - Guilty Spark`;
+}
 
 export interface FollowLiveViewerProps {
   readonly gamertag: string;
@@ -29,41 +78,38 @@ export function FollowLiveViewer({
   seriesMatchesService,
   haloClient,
 }: FollowLiveViewerProps): React.ReactElement {
-  const { directory, directoryStatus, selectedTrackerId, isFollowingLive, onSelectTracker, onFollowLive, onRetry } =
-    useFollowLiveDirectory({ followLiveService, gamertag });
+  const { directory, directoryStatus, selectedTrackerId, onSelectTracker, onRetry } = useFollowLiveDirectory({
+    followLiveService,
+    gamertag,
+  });
+  const connectionStatusOverride = toTrackerConnectionStatus(directoryStatus);
+  const selectedTracker =
+    selectedTrackerId == null ? null : directory?.trackers.find((tracker) => tracker.trackerId === selectedTrackerId);
 
-  const showBanner = (directoryStatus === "error" && directory !== null) || directoryStatus === "disconnected";
+  React.useEffect(() => {
+    document.title = getViewerTitle(gamertag, directory);
+  }, [directory, gamertag]);
 
   return (
     <div className={styles.container}>
-      {showBanner && (
-        <Alert variant={directoryStatus === "disconnected" ? "warning" : "error"}>
-          {directoryStatus === "error"
-            ? directory !== null
-              ? "Connection error — data may be stale"
-              : "Failed to load tracker directory"
-            : "Disconnected — reload to refresh"}
-        </Alert>
-      )}
       {directory !== null && directory.trackers.length > 1 && (
         <FollowTrackerTabs
           directory={directory}
           selectedTrackerId={selectedTrackerId}
-          isFollowingLive={isFollowingLive}
           onSelectTracker={onSelectTracker}
-          onFollowLive={onFollowLive}
         />
       )}
       <div className={styles.trackerContent}>
-        {selectedTrackerId !== null ? (
+        {selectedTracker != null ? (
           <IndividualTrackerViewerPage
-            key={selectedTrackerId}
+            key={`${selectedTracker.trackerId}:${selectedTracker.lastUpdateTime}`}
             individualTrackerViewService={individualTrackerViewService}
             matchAnalyticsService={matchAnalyticsService}
             seriesMatchesService={seriesMatchesService}
             haloClient={haloClient}
-            trackerId={selectedTrackerId}
+            trackerId={selectedTracker.trackerId}
             streamerSettings={directory?.streamerSettings}
+            connectionStatusOverride={connectionStatusOverride}
           />
         ) : directoryStatus === "error" && directory === null ? (
           <ErrorState message="Failed to load tracker directory" onRetry={onRetry} />

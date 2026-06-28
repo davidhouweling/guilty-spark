@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { aDirectoryWith, aTrackerWith } from "@guilty-spark/shared/contracts/individual-tracker/fakes/follow.fake";
 import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
@@ -12,21 +12,33 @@ import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/ma
 import { aFakeSeriesMatchesServiceWith } from "../../../services/stats/fakes/series-matches.fake";
 import { FollowLiveViewer, type FollowLiveViewerProps } from "../follow-live-viewer";
 
+let mockViewerInstanceCount = 0;
+
 vi.mock("../../individual-tracker/viewer/create", () => ({
   IndividualTrackerViewerPage: ({
     trackerId,
     streamerSettings,
+    connectionStatusOverride,
   }: {
     trackerId: string;
     streamerSettings?: TrackerDirectory["streamerSettings"];
-  }): React.ReactElement => (
-    <div data-testid="mock-viewer">
-      {trackerId}
-      <span data-testid="mock-streamer-settings">
-        {streamerSettings?.styleFlags?.showMatchmakingStatsOnly === true ? "true" : "false"}
-      </span>
-    </div>
-  ),
+    connectionStatusOverride?: string;
+  }): React.ReactElement => {
+    const [instanceId] = React.useState(() => {
+      mockViewerInstanceCount += 1;
+      return mockViewerInstanceCount;
+    });
+
+    return (
+      <div data-testid="mock-viewer" data-instance-id={instanceId.toString()}>
+        {trackerId}
+        <span data-testid="mock-streamer-settings">
+          {streamerSettings?.styleFlags?.showMatchmakingStatsOnly === true ? "true" : "false"}
+        </span>
+        <span data-testid="mock-connection-status-override">{connectionStatusOverride ?? "none"}</span>
+      </div>
+    );
+  },
 }));
 
 function aViewerPropsWith(directory: TrackerDirectory): FollowLiveViewerProps {
@@ -43,6 +55,8 @@ function aViewerPropsWith(directory: TrackerDirectory): FollowLiveViewerProps {
 describe("FollowLiveViewer", () => {
   afterEach(() => {
     cleanup();
+    document.title = "";
+    mockViewerInstanceCount = 0;
   });
 
   it("shows tracker navigation when directory has multiple trackers", async () => {
@@ -107,5 +121,108 @@ describe("FollowLiveViewer", () => {
     });
 
     expect(screen.getByTestId("mock-streamer-settings")).toHaveTextContent("true");
+  });
+
+  it("updates the document title to mention the current live tracker", async () => {
+    const liveDirectory: TrackerDirectory = aDirectoryWith({
+      trackers: [
+        aTrackerWith({ trackerId: "tracker-1", gamertag: "Spartan One", isLive: false, status: "active" }),
+        aTrackerWith({ trackerId: "tracker-2", gamertag: "Spartan Two", isLive: true, status: "active" }),
+      ],
+      liveTrackerId: "tracker-2",
+    });
+
+    render(<FollowLiveViewer {...aViewerPropsWith(liveDirectory)} />);
+
+    await waitFor(() => {
+      expect(document.title).toBe("Spartan One live view - Spartan Two live - Guilty Spark");
+    });
+  });
+
+  it("remounts the selected viewer when only the selected tracker last update time changes", async () => {
+    const initialDirectory: TrackerDirectory = aDirectoryWith({
+      trackers: [
+        aTrackerWith({
+          trackerId: "tracker-1",
+          gamertag: "Spartan One",
+          isLive: true,
+          status: "active",
+          lastUpdateTime: "2026-01-01T00:00:00.000Z",
+        }),
+      ],
+      liveTrackerId: "tracker-1",
+    });
+    const followLiveService = aFakeFollowLiveServiceWith({ directory: initialDirectory });
+
+    render(
+      <FollowLiveViewer
+        gamertag="Spartan One"
+        followLiveService={followLiveService}
+        individualTrackerViewService={aFakeIndividualTrackerViewServiceWith()}
+        matchAnalyticsService={aFakeMatchAnalyticsServiceWith()}
+        seriesMatchesService={aFakeSeriesMatchesServiceWith()}
+        haloClient={aFakeHaloClientWith()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-viewer")).toHaveAttribute("data-instance-id", "1");
+    });
+
+    const updatedDirectory: TrackerDirectory = {
+      ...initialDirectory,
+      trackers: [
+        {
+          ...initialDirectory.trackers[0],
+          lastUpdateTime: "2026-01-01T00:01:00.000Z",
+        },
+      ],
+    };
+
+    act(() => {
+      followLiveService.lastConnection?.emitDirectory(updatedDirectory);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-viewer")).toHaveAttribute("data-instance-id", "2");
+    });
+  });
+
+  it("passes connecting status override when follow directory is reconnecting", async () => {
+    const initialDirectory: TrackerDirectory = aDirectoryWith({
+      trackers: [
+        aTrackerWith({
+          trackerId: "tracker-1",
+          gamertag: "Spartan One",
+          isLive: true,
+          status: "active",
+        }),
+      ],
+      liveTrackerId: "tracker-1",
+    });
+    const followLiveService = aFakeFollowLiveServiceWith({ directory: initialDirectory });
+
+    render(
+      <FollowLiveViewer
+        gamertag="Spartan One"
+        followLiveService={followLiveService}
+        individualTrackerViewService={aFakeIndividualTrackerViewServiceWith()}
+        matchAnalyticsService={aFakeMatchAnalyticsServiceWith()}
+        seriesMatchesService={aFakeSeriesMatchesServiceWith()}
+        haloClient={aFakeHaloClientWith()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-connection-status-override")).toHaveTextContent("none");
+    });
+
+    act(() => {
+      followLiveService.lastConnection?.emitStatus("connecting");
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-connection-status-override")).toHaveTextContent("connecting");
+    });
   });
 });
