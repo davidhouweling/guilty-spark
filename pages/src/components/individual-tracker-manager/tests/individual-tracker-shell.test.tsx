@@ -4,13 +4,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { IndividualTrackerShell } from "../individual-tracker";
 
-function aFakeProps() {
+function aFakeProps(): React.ComponentProps<typeof IndividualTrackerShell> {
   return {
     authState: "loading" as const,
     errorMessage: null,
     activeSection: "live-trackers" as const,
-    onSignIn: () => undefined,
-    onSectionChange: () => undefined,
+    onSignIn: (): void => undefined,
+    onSectionChange: (): void => undefined,
     liveTrackersContent: <div>Live Trackers</div>,
     statsHighlightsContent: <div>Stats Highlights</div>,
     streamerSettingsContent: <div>Streamer Settings</div>,

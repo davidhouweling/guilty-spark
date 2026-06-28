@@ -78,8 +78,8 @@ describe("StatsHighlightsSectionView", () => {
       "damage-dealt-taken-ratio",
       "avg-life-damage-per-life",
       "current-rank",
-      "total-games",
-      "matchmaking-games",
+      "all-time-peak",
+      "esra",
     ]);
   });
 

@@ -1,10 +1,12 @@
-.grid {
-  display: grid;
-  gap: var(--space-2);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.statsHighlights {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-3);
   list-style: none;
-  margin: var(--space-4) 0 0;
-  padding: 0;
+  margin: 0;
+  overflow-x: auto;
+  padding-left: var(--gutter-mobile);
+  padding-right: var(--gutter-mobile);
 }
 
 .card {
@@ -13,9 +15,9 @@
   border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  min-width: 0;
-  padding: var(--space-3);
+  gap: var(--space-2);
+  min-width: 150px;
+  padding: var(--space-2);
 }
 
 .label {
@@ -39,17 +41,21 @@
 }
 
 @media (--tablet-viewport) {
-  .grid {
+  .statsHighlights {
+    display: grid;
+    gap: var(--space-2);
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .statsHighlights.gridEightItems {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
 @media (--desktop-viewport) {
-  .grid {
+  .statsHighlights {
     grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-
-  .gridEightItems {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

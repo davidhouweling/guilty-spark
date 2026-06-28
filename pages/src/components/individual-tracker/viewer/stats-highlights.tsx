@@ -14,7 +14,7 @@ export function StatsHighlights({ items }: StatsHighlightsProps): React.ReactEle
 
   return (
     <ul
-      className={classNames(styles.grid, {
+      className={classNames(styles.statsHighlights, {
         [styles.gridEightItems]: items.length === 8,
       })}
       aria-label="Stats highlights"
