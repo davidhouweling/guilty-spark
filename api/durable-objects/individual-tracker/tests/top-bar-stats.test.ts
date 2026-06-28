@@ -435,9 +435,36 @@ describe("topBarStats", () => {
       const response = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
       const body: IndividualTrackerViewStateResponse = await response.json();
 
-      expect(body.state?.topBarStats?.[0]).toEqual({ label: "Current Rank", value: "1,567" });
-      expect(body.state?.topBarStats?.[1]).toEqual({ label: "Season Peak", value: "1,450" });
-      expect(body.state?.topBarStats?.[2]).toEqual({ label: "All Time Peak", value: "1,600" });
+      expect(body.state?.topBarStats?.[0]).toEqual({
+        label: "Current Rank",
+        value: "1,567",
+        rankIcon: {
+          rankTier: "Onyx",
+          subTier: 0,
+          measurementMatchesRemaining: 0,
+          initialMeasurementMatches: 10,
+        },
+      });
+      expect(body.state?.topBarStats?.[1]).toEqual({
+        label: "Season Peak",
+        value: "1,450",
+        rankIcon: {
+          rankTier: "Onyx",
+          subTier: 0,
+          measurementMatchesRemaining: null,
+          initialMeasurementMatches: null,
+        },
+      });
+      expect(body.state?.topBarStats?.[2]).toEqual({
+        label: "All Time Peak",
+        value: "1,600",
+        rankIcon: {
+          rankTier: "Onyx",
+          subTier: 0,
+          measurementMatchesRemaining: null,
+          initialMeasurementMatches: null,
+        },
+      });
     });
 
     it("returns formatted ESRA for esra slot", async () => {
@@ -451,7 +478,16 @@ describe("topBarStats", () => {
       const response = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
       const body: IndividualTrackerViewStateResponse = await response.json();
 
-      expect(body.state?.topBarStats?.[0]).toEqual({ label: "ESRA", value: "1,235" });
+      expect(body.state?.topBarStats?.[0]).toEqual({
+        label: "ESRA",
+        value: "1,235",
+        rankIcon: {
+          rankTier: "Diamond",
+          subTier: 0,
+          measurementMatchesRemaining: null,
+          initialMeasurementMatches: null,
+        },
+      });
     });
 
     it("returns – when getRankedArenaCsrs throws (graceful degradation)", async () => {
@@ -499,7 +535,16 @@ describe("topBarStats", () => {
       const response = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
       const body: IndividualTrackerViewStateResponse = await response.json();
 
-      expect(body.state?.topBarStats?.[0]).toEqual({ label: "Current Rank", value: "–" });
+      expect(body.state?.topBarStats?.[0]).toEqual({
+        label: "Current Rank",
+        value: "–",
+        rankIcon: {
+          rankTier: null,
+          subTier: 0,
+          measurementMatchesRemaining: 3,
+          initialMeasurementMatches: 10,
+        },
+      });
       expect(body.state?.topBarStats?.[1]).toEqual({ label: "Season Peak", value: "–" });
       expect(body.state?.topBarStats?.[2]).toEqual({ label: "All Time Peak", value: "–" });
     });

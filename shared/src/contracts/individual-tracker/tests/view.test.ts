@@ -73,6 +73,37 @@ describe("trackerViewContract", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts topBarStats with rank icon metadata", () => {
+    const result = trackerViewContract.safeParse({
+      view: {
+        trackerId: "t3",
+        gamertag: "RankedTag",
+        status: "active",
+        isLive: true,
+        matches: [],
+        series: [],
+        lastUpdateTime: "2024-11-26T12:00:00.000Z",
+        lastMatchDiscoveredAt: null,
+        hasActiveSeries: false,
+        hasRecentCompletedSeries: false,
+        topBarStats: [
+          {
+            label: "Current Rank",
+            value: "1,567",
+            rankIcon: {
+              rankTier: "Onyx",
+              subTier: 0,
+              measurementMatchesRemaining: 0,
+              initialMeasurementMatches: 10,
+            },
+          },
+        ],
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it("rejects an unknown status", () => {
     const result = trackerViewContract.safeParse({
       ...validResponse,

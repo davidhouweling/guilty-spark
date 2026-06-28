@@ -70,9 +70,18 @@ export const trackerLiveViewSchema = z.object({
 });
 export type TrackerLiveView = z.infer<typeof trackerLiveViewSchema>;
 
+export const topBarStatRankIconSchema = z.object({
+  rankTier: z.string().nullable(),
+  subTier: z.number().nullable(),
+  measurementMatchesRemaining: z.number().nullable(),
+  initialMeasurementMatches: z.number().nullable(),
+});
+export type TopBarStatRankIcon = z.infer<typeof topBarStatRankIconSchema>;
+
 export const topBarStatItemSchema = z.object({
   label: z.string(),
   value: z.string(),
+  rankIcon: topBarStatRankIconSchema.optional(),
 });
 export type TopBarStatItem = z.infer<typeof topBarStatItemSchema>;
 

@@ -1,6 +1,7 @@
 import React from "react";
 import classNames from "classnames";
 import type { TopBarStatItem } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import { RankIcon } from "../../icons/rank-icon";
 import styles from "./stats-highlights.module.css";
 
 interface StatsHighlightsProps {
@@ -22,7 +23,18 @@ export function StatsHighlights({ items }: StatsHighlightsProps): React.ReactEle
       {items.map((item, index) => (
         <li key={`${item.label}-${item.value}-${index.toString()}`} className={styles.card}>
           <span className={styles.label}>{item.label}</span>
-          <span className={styles.value}>{item.value}</span>
+          <span className={styles.value}>
+            {item.rankIcon != null ? (
+              <RankIcon
+                rankTier={item.rankIcon.rankTier}
+                subTier={item.rankIcon.subTier}
+                measurementMatchesRemaining={item.rankIcon.measurementMatchesRemaining}
+                initialMeasurementMatches={item.rankIcon.initialMeasurementMatches}
+                size="small"
+              />
+            ) : null}
+            <span>{item.value}</span>
+          </span>
         </li>
       ))}
     </ul>

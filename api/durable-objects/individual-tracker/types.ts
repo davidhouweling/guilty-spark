@@ -97,6 +97,12 @@ export interface AccumulatedPlayerTotals {
 export interface TopBarStatItem {
   label: string;
   value: string;
+  rankIcon?: {
+    rankTier: string | null;
+    subTier: number | null;
+    measurementMatchesRemaining: number | null;
+    initialMeasurementMatches: number | null;
+  };
 }
 
 export interface IndividualTrackerInternalState extends IndividualTrackerState {

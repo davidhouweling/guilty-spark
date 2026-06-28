@@ -158,7 +158,16 @@ describe("IndividualTrackerViewer", () => {
   it("renders stats highlights under the Tracked Gameplay heading", () => {
     const view = aFakeTrackerViewStateWith({
       topBarStats: [
-        { label: "Won:Loss", value: "5:2" },
+        {
+          label: "Current Rank",
+          value: "1,567",
+          rankIcon: {
+            rankTier: "Onyx",
+            subTier: 0,
+            measurementMatchesRemaining: 0,
+            initialMeasurementMatches: 10,
+          },
+        },
         { label: "KDA", value: "3.4" },
       ],
     });

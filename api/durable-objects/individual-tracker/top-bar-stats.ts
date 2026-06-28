@@ -2,6 +2,7 @@ import { compareAsc } from "date-fns";
 import { type MatchStats, type PlaylistCsrContainer } from "halo-infinite-api";
 import { getDurationInIsoString, getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { analyzeMatchGroupings } from "@guilty-spark/shared/halo/match-enrichment";
+import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
 import { formatDamageRatio, formatStatValue } from "@guilty-spark/shared/halo/stat-formatting";
 import {
   INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS,
@@ -125,6 +126,13 @@ function computeKdaValue(totals: AccumulatedPlayerTotals): number {
   return totals.deaths === 0 ? totals.kills + totals.assists / 3 : (totals.kills + totals.assists / 3) / totals.deaths;
 }
 
+function normalizeRankTier(rankTier: string | null | undefined): string | null {
+  if (rankTier == null || rankTier === "") {
+    return null;
+  }
+  return rankTier;
+}
+
 interface TopBarStatContext {
   totals: AccumulatedPlayerTotals | undefined;
   total: number;
@@ -135,6 +143,70 @@ interface TopBarStatContext {
   state: IndividualTrackerInternalState;
   csrContainer: PlaylistCsrContainer | null | undefined;
   esraData: PlayerEsraData | null | undefined;
+}
+
+function getTopBarStatRankIcon(
+  option: IndividualTopBarStatOption,
+  ctx: TopBarStatContext,
+): TopBarStatItem["rankIcon"] | undefined {
+  const { csrContainer, esraData } = ctx;
+
+  switch (option) {
+    case "current-rank": {
+      const current = csrContainer?.Current;
+      if (current == null) {
+        return undefined;
+      }
+      return {
+        rankTier: normalizeRankTier(current.Tier),
+        subTier: current.SubTier,
+        measurementMatchesRemaining: current.MeasurementMatchesRemaining,
+        initialMeasurementMatches: current.InitialMeasurementMatches,
+      };
+    }
+    case "season-peak": {
+      const seasonPeak = csrContainer?.SeasonMax;
+      if (seasonPeak == null || seasonPeak.Value <= 0) {
+        return undefined;
+      }
+      return {
+        rankTier: normalizeRankTier(seasonPeak.Tier),
+        subTier: seasonPeak.SubTier,
+        measurementMatchesRemaining: null,
+        initialMeasurementMatches: null,
+      };
+    }
+    case "all-time-peak": {
+      const allTimePeak = csrContainer?.AllTimeMax;
+      if (allTimePeak == null || allTimePeak.Value <= 0) {
+        return undefined;
+      }
+      return {
+        rankTier: normalizeRankTier(allTimePeak.Tier),
+        subTier: allTimePeak.SubTier,
+        measurementMatchesRemaining: null,
+        initialMeasurementMatches: null,
+      };
+    }
+    case "esra": {
+      const esra = esraData?.esra;
+      if (esra == null || esra < 0) {
+        return undefined;
+      }
+
+      const roundedEsra = Math.round(esra);
+      const { rankTier, subTier } = getRankTierFromCsr(roundedEsra);
+      return {
+        rankTier,
+        subTier,
+        measurementMatchesRemaining: null,
+        initialMeasurementMatches: null,
+      };
+    }
+    default: {
+      return undefined;
+    }
+  }
 }
 
 function formatTopBarStatOption(option: IndividualTopBarStatOption, ctx: TopBarStatContext): string | null {
@@ -300,6 +372,22 @@ export function computeTopBarStats(
       csrContainer,
       esraData,
     });
-    return { label, value: value ?? "N/A" };
+    const rankIcon = getTopBarStatRankIcon(option, {
+      totals,
+      total,
+      wins,
+      losses,
+      matchmaking,
+      customOrLocal,
+      state,
+      csrContainer,
+      esraData,
+    });
+
+    return {
+      label,
+      value: value ?? "N/A",
+      ...(rankIcon != null ? { rankIcon } : {}),
+    };
   });
 }
