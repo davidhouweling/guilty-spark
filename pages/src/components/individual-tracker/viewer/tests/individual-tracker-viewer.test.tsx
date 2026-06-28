@@ -118,12 +118,21 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByText("No matches tracked yet.")).toBeInTheDocument();
   });
 
-  it("renders a connection notice for non-connected states", () => {
+  it("renders reconnecting status in the badge for disconnected state", () => {
     const view = aFakeTrackerViewStateWith({ gamertag: "Spartan One" });
 
     renderViewer(view, "disconnected");
 
-    expect(screen.getByTestId("connection-notice")).toHaveTextContent("Reconnecting...");
+    expect(screen.getByText("Reconnecting")).toBeInTheDocument();
+  });
+
+  it("disables refresh when connection is disconnected", () => {
+    const view = aFakeTrackerViewStateWith({ gamertag: "Spartan One", status: "active" });
+
+    renderViewer(view, "disconnected");
+
+    expect(screen.getByRole("button", { name: "Refresh" })).toBeDisabled();
+    expect(screen.getByText(/Next update:\s*reconnecting/i)).toBeInTheDocument();
   });
 
   it("renders without crashing when timestamps are not valid dates", () => {

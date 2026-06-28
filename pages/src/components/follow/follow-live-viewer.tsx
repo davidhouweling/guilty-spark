@@ -1,16 +1,37 @@
 import React from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
-import { Alert } from "../alert/alert";
 import { ErrorState } from "../error-state/error-state";
 import { LoadingState } from "../loading-state/loading-state";
 import { IndividualTrackerViewerPage } from "../individual-tracker/viewer/create";
 import type { FollowLiveService } from "../../services/follow/follow-types";
-import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
+import type { TrackerViewConnectionStatus , IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
 import { FollowTrackerTabs } from "./follow-tracker-tabs";
 import { useFollowLiveDirectory } from "./use-follow-live-directory";
 import styles from "./follow-live-viewer.module.css";
+
+function toTrackerConnectionStatus(
+  directoryStatus: "connecting" | "connected" | "error" | "disconnected",
+): TrackerViewConnectionStatus | undefined {
+  switch (directoryStatus) {
+    case "connected": {
+      return undefined;
+    }
+    case "connecting": {
+      return undefined;
+    }
+    case "disconnected": {
+      return "disconnected";
+    }
+    case "error": {
+      return "error";
+    }
+    default: {
+      return undefined;
+    }
+  }
+}
 
 export interface FollowLiveViewerProps {
   readonly gamertag: string;
@@ -33,20 +54,10 @@ export function FollowLiveViewer({
     followLiveService,
     gamertag,
   });
-
-  const showBanner = (directoryStatus === "error" && directory !== null) || directoryStatus === "disconnected";
+  const connectionStatusOverride = toTrackerConnectionStatus(directoryStatus);
 
   return (
     <div className={styles.container}>
-      {showBanner && (
-        <Alert variant={directoryStatus === "disconnected" ? "warning" : "error"}>
-          {directoryStatus === "error"
-            ? directory !== null
-              ? "Connection error — data may be stale"
-              : "Failed to load tracker directory"
-            : "Disconnected — reload to refresh"}
-        </Alert>
-      )}
       {directory !== null && directory.trackers.length > 1 && (
         <FollowTrackerTabs
           directory={directory}
@@ -64,6 +75,7 @@ export function FollowLiveViewer({
             haloClient={haloClient}
             trackerId={selectedTrackerId}
             streamerSettings={directory?.streamerSettings}
+            connectionStatusOverride={connectionStatusOverride}
           />
         ) : directoryStatus === "error" && directory === null ? (
           <ErrorState message="Failed to load tracker directory" onRetry={onRetry} />

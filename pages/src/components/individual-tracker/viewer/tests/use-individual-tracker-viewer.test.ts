@@ -153,6 +153,31 @@ describe("useIndividualTrackerViewer", () => {
     expect(getMatchStatsSpy).not.toHaveBeenCalled();
   });
 
+  it("treats the public viewer path as connected after the initial view loads", async () => {
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
+      view: aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
+    });
+    const connectSpy = vi.spyOn(individualTrackerViewService, "connect");
+    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+
+    const { result } = renderHook(() =>
+      useIndividualTrackerViewer({
+        individualTrackerViewService,
+        matchAnalyticsService,
+        seriesMatchesService,
+        haloClient,
+        trackerId: "tracker-1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+      expect(result.current.snapshot.connectionStatus).toBe("connected");
+    });
+
+    expect(connectSpy).not.toHaveBeenCalled();
+  });
+
   it("loads long series in a single request when a series entry expands", async () => {
     const matchIds = Array.from({ length: 13 }, (_, index) => `m-${(index + 1).toString()}`);
     const matches = matchIds.map((matchId) => aFakeTrackerMatchSummaryWith({ matchId }));

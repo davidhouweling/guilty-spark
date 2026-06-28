@@ -530,6 +530,7 @@ export class IndividualTrackerViewerPresenter {
     // Only establish individual-tracker WS connection in managed context (when individualTrackerService is available).
     // Public pages (follow viewer) should not connect to per-tracker endpoints.
     if (this.config.individualTrackerService == null) {
+      this.config.store.setConnectionStatus("connected");
       return;
     }
 

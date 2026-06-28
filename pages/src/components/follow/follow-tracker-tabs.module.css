@@ -7,10 +7,9 @@
 .tabLabel {
   align-items: center;
   display: flex;
-  flex-direction: column;
   font-family: var(--font-body);
   font-size: var(--text-sm);
-  gap: var(--space-1);
+  gap: var(--space-2);
   min-width: 120px;
 }
 
@@ -20,13 +19,14 @@
 }
 
 .liveBadge {
-  background: var(--color-live, #e53935);
-  border-radius: 2px;
-  color: #fff;
-  font-family: var(--font-mono);
+  background: color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 60%, transparent);
+  border-radius: var(--radius-full);
+  color: var(--halo-teal-primary);
+  font-family: var(--font-heading);
   font-size: var(--text-xs);
   font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 1px 4px;
+  letter-spacing: 0.1em;
+  padding: 2px var(--space-2);
   text-transform: uppercase;
 }
