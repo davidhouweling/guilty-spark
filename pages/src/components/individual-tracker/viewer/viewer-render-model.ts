@@ -199,9 +199,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         title: anchoredSeries.title,
         subtitle: anchoredSeries.subtitle,
         isActive:
-          activeSeriesId != null
-            ? anchoredSeries.id === activeSeriesId
-            : view.hasActiveSeries && seenSeriesCount === 0,
+          activeSeriesId != null ? anchoredSeries.id === activeSeriesId : view.hasActiveSeries && seenSeriesCount === 0,
         matchBackgroundUrls:
           anchoredSeries.matchBackgroundUrls ?? seriesSummaries.map((summary) => summary.mapBackgroundUrl ?? "data:,"),
         score: anchoredSeries.score,

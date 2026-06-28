@@ -108,7 +108,9 @@ describe("IndividualTrackerViewer", () => {
         aFakeTrackerMatchSummaryWith({ matchId: "m-1", outcome: "Win" }),
         aFakeTrackerMatchSummaryWith({ matchId: "m-2", outcome: "Loss" }),
       ],
-      series: [aFakeTrackerSeriesGroupWith({ matchIds: ["m-1", "m-2"], title: "Ranked Series", subtitle: "Best of 3" })],
+      series: [
+        aFakeTrackerSeriesGroupWith({ matchIds: ["m-1", "m-2"], title: "Ranked Series", subtitle: "Best of 3" }),
+      ],
       hasActiveSeries: true,
       activeSeriesContext: {
         title: "Ranked Series",
