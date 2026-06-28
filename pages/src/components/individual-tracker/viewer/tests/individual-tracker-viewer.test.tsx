@@ -157,7 +157,7 @@ describe("IndividualTrackerViewer", () => {
 
   it("renders stats highlights under the Tracked Gameplay heading", () => {
     const view = aFakeTrackerViewStateWith({
-      topBarStats: [
+      statsHighlights: [
         {
           label: "Current Rank",
           value: "1,567",
@@ -184,7 +184,7 @@ describe("IndividualTrackerViewer", () => {
 
   it("uses the 8-item grid modifier when eight stats highlights are present", () => {
     const view = aFakeTrackerViewStateWith({
-      topBarStats: [
+      statsHighlights: [
         { label: "1", value: "1" },
         { label: "2", value: "2" },
         { label: "3", value: "3" },

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { defineContract } from "../../base";
-import { topBarStatItemSchema, trackerLiveViewSchema } from "../../individual-tracker/view";
+import { statsHighlightItemSchema, trackerLiveViewSchema } from "../../individual-tracker/view";
 import { individualTrackerStateSchema } from "./lifecycle";
 
 export const individualTrackerStatusContract = defineContract(
@@ -9,7 +9,7 @@ export const individualTrackerStatusContract = defineContract(
 export type IndividualTrackerStatusResponse = z.infer<typeof individualTrackerStatusContract.schema>;
 
 const individualTrackerViewStateSchema = trackerLiveViewSchema.extend({
-  topBarStats: z.array(topBarStatItemSchema).optional(),
+  statsHighlights: z.array(statsHighlightItemSchema).optional(),
 });
 export type IndividualTrackerViewState = z.infer<typeof individualTrackerViewStateSchema>;
 

@@ -25,11 +25,11 @@ async function buildDirectory(env: Env, userId: string, services: Services): Pro
   ]);
 
   const nonStopped = allTrackers.filter(isNonStopped);
-  const topBarStatSlots = streamerSettings.visibleSections?.topBarStatSlots;
+  const statsHighlightSlots = streamerSettings.visibleSections?.statsHighlightSlots;
 
   const entries = await Promise.all(
     nonStopped.map(async (row): Promise<TrackerDirectoryEntry> => {
-      const doState = await fetchTrackerDoViewState(env, row.UserId, row.TrackerId, topBarStatSlots);
+      const doState = await fetchTrackerDoViewState(env, row.UserId, row.TrackerId, statsHighlightSlots);
       return toTrackerView(row, doState);
     }),
   );

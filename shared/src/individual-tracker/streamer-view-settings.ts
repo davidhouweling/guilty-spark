@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export type IndividualTopBarStatOption =
+export type IndividualStatsHighlightOption =
   | "matches-win-loss"
   | "series-win-loss"
   | "total-games"
@@ -29,52 +29,53 @@ export type IndividualTopBarStatOption =
   | "damage-dealt-taken-ratio"
   | "avg-life-damage-per-life";
 
-export const INDIVIDUAL_TOP_BAR_DEFAULT_SLOT_COUNT = 6;
-export const INDIVIDUAL_TOP_BAR_MAX_SLOT_COUNT = 8;
-export const INDIVIDUAL_TOP_BAR_SLOT_COUNT = INDIVIDUAL_TOP_BAR_MAX_SLOT_COUNT;
+export const INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT = 6;
+export const INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT = 8;
+export const INDIVIDUAL_STATS_HIGHLIGHTS_SLOT_COUNT = INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT;
 
-export type IndividualTopBarStatOptionGroup = "individual" | "compact" | "profile";
+export type IndividualStatsHighlightOptionGroup = "individual" | "compact" | "profile";
 
-export interface IndividualTopBarStatOptionDefinition {
-  readonly value: IndividualTopBarStatOption;
+export interface IndividualStatsHighlightOptionDefinition {
+  readonly value: IndividualStatsHighlightOption;
   readonly label: string;
-  readonly group: IndividualTopBarStatOptionGroup;
+  readonly group: IndividualStatsHighlightOptionGroup;
 }
 
-export const INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS: readonly IndividualTopBarStatOptionDefinition[] = [
-  { value: "matches-win-loss", label: "Matches Won/Loss", group: "individual" },
-  { value: "series-win-loss", label: "Series Won/Loss", group: "individual" },
-  { value: "total-games", label: "Total Games", group: "individual" },
-  { value: "matchmaking-games", label: "Matchmaking Games", group: "individual" },
-  { value: "custom-local-games", label: "Custom/Local Games", group: "individual" },
-  { value: "current-rank", label: "Current Rank", group: "profile" },
-  { value: "season-peak", label: "Season Peak", group: "profile" },
-  { value: "all-time-peak", label: "All Time Peak", group: "profile" },
-  { value: "esra", label: "ESRA", group: "profile" },
-  { value: "kills", label: "Kills", group: "individual" },
-  { value: "deaths", label: "Deaths", group: "individual" },
-  { value: "assists", label: "Assists", group: "individual" },
-  { value: "kda", label: "KDA", group: "individual" },
-  { value: "headshot-kills", label: "Headshot Kills", group: "individual" },
-  { value: "shots-hit", label: "Shots Hit", group: "individual" },
-  { value: "shots-fired", label: "Shots Fired", group: "individual" },
-  { value: "accuracy", label: "Accuracy", group: "individual" },
-  { value: "damage-dealt", label: "Damage Dealt", group: "individual" },
-  { value: "damage-taken", label: "Damage Taken", group: "individual" },
-  { value: "damage-ratio", label: "Damage Ratio", group: "individual" },
-  { value: "avg-life-time", label: "Avg Life Time", group: "individual" },
-  { value: "avg-damage-per-life", label: "Avg Damage Per Life", group: "individual" },
-  { value: "kills-deaths-kd", label: "Kills:Deaths (KD)", group: "compact" },
-  { value: "kills-deaths-assists-kda", label: "Kills:Deaths:Assists (KDA)", group: "compact" },
-  { value: "shots-hit-fired-accuracy", label: "Shots H:F (Acc)", group: "compact" },
-  { value: "damage-dealt-taken-ratio", label: "Damage D:T (D/T)", group: "compact" },
-  { value: "avg-life-damage-per-life", label: "Avg Life Time (Damage/Life)", group: "compact" },
-];
+export const INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTION_DEFINITIONS: readonly IndividualStatsHighlightOptionDefinition[] =
+  [
+    { value: "matches-win-loss", label: "Matches Won/Loss", group: "individual" },
+    { value: "series-win-loss", label: "Series Won/Loss", group: "individual" },
+    { value: "total-games", label: "Total Games", group: "individual" },
+    { value: "matchmaking-games", label: "Matchmaking Games", group: "individual" },
+    { value: "custom-local-games", label: "Custom/Local Games", group: "individual" },
+    { value: "current-rank", label: "Current Rank", group: "profile" },
+    { value: "season-peak", label: "Season Peak", group: "profile" },
+    { value: "all-time-peak", label: "All Time Peak", group: "profile" },
+    { value: "esra", label: "ESRA", group: "profile" },
+    { value: "kills", label: "Kills", group: "individual" },
+    { value: "deaths", label: "Deaths", group: "individual" },
+    { value: "assists", label: "Assists", group: "individual" },
+    { value: "kda", label: "KDA", group: "individual" },
+    { value: "headshot-kills", label: "Headshot Kills", group: "individual" },
+    { value: "shots-hit", label: "Shots Hit", group: "individual" },
+    { value: "shots-fired", label: "Shots Fired", group: "individual" },
+    { value: "accuracy", label: "Accuracy", group: "individual" },
+    { value: "damage-dealt", label: "Damage Dealt", group: "individual" },
+    { value: "damage-taken", label: "Damage Taken", group: "individual" },
+    { value: "damage-ratio", label: "Damage Ratio", group: "individual" },
+    { value: "avg-life-time", label: "Avg Life Time", group: "individual" },
+    { value: "avg-damage-per-life", label: "Avg Damage Per Life", group: "individual" },
+    { value: "kills-deaths-kd", label: "Kills:Deaths (KD)", group: "compact" },
+    { value: "kills-deaths-assists-kda", label: "Kills:Deaths:Assists (KDA)", group: "compact" },
+    { value: "shots-hit-fired-accuracy", label: "Shots H:F (Acc)", group: "compact" },
+    { value: "damage-dealt-taken-ratio", label: "Damage D:T (D/T)", group: "compact" },
+    { value: "avg-life-damage-per-life", label: "Avg Life Time (Damage/Life)", group: "compact" },
+  ];
 
-export const INDIVIDUAL_TOP_BAR_STAT_OPTIONS: readonly IndividualTopBarStatOption[] =
-  INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS.map((d) => d.value);
+export const INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS: readonly IndividualStatsHighlightOption[] =
+  INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTION_DEFINITIONS.map((d) => d.value);
 
-export const DEFAULT_INDIVIDUAL_TOP_BAR_STAT_SLOTS: readonly IndividualTopBarStatOption[] = [
+export const DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS: readonly IndividualStatsHighlightOption[] = [
   "matches-win-loss",
   "series-win-loss",
   "kills-deaths-assists-kda",
@@ -119,7 +120,7 @@ export const streamerViewVisibleSectionsSchema = z.object({
   showTitle: z.boolean().optional(),
   showSubtitle: z.boolean().optional(),
   showScore: z.boolean().optional(),
-  topBarStatSlots: z.array(z.string()).optional(),
+  statsHighlightSlots: z.array(z.string()).optional(),
   showPreSeriesInfo: z.boolean().optional(),
   selectedSlayerStats: z.array(z.string()).optional(),
   showObjectiveStats: z.boolean().optional(),

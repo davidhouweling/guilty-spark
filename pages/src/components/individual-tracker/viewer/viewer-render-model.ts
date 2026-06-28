@@ -249,7 +249,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
     lastUpdateTime: view.lastUpdateTime,
     timeline: [...timelineWithFallback],
     accumulated,
-    topBarStats: view.topBarStats,
+    statsHighlights: view.statsHighlights,
     teamColors: [getTeamColorOrDefault(preferredTeamColorId, 0), getTeamColorOrDefault(preferredEnemyColorId, 1)],
   };
 }

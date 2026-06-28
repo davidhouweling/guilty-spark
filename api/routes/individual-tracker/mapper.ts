@@ -14,13 +14,13 @@ export async function fetchTrackerDoViewState(
   env: Env,
   userId: string,
   trackerId: string,
-  topBarStatSlots?: readonly string[],
+  statsHighlightSlots?: readonly string[],
 ): Promise<IndividualTrackerViewState | null> {
   const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${userId}:${trackerId}`);
   const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
   const url = new URL("http://do/view-state");
-  if (topBarStatSlots != null && topBarStatSlots.length > 0) {
-    url.searchParams.set("topBarStatSlots", JSON.stringify(topBarStatSlots));
+  if (statsHighlightSlots != null && statsHighlightSlots.length > 0) {
+    url.searchParams.set("statsHighlightSlots", JSON.stringify(statsHighlightSlots));
   }
   const response = await stub.fetch(url.toString(), { method: "GET" });
   if (!response.ok) {
@@ -132,6 +132,6 @@ export function toTrackerView(
     hasActiveSeries: doState?.hasActiveSeries ?? false,
     hasRecentCompletedSeries: doState?.hasRecentCompletedSeries ?? false,
     ...(doState?.activeSeriesContext !== undefined ? { activeSeriesContext: doState.activeSeriesContext } : {}),
-    ...(doState?.topBarStats != null ? { topBarStats: [...doState.topBarStats] } : {}),
+    ...(doState?.statsHighlights != null ? { statsHighlights: [...doState.statsHighlights] } : {}),
   };
 }

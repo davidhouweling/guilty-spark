@@ -10,10 +10,10 @@ function aFakeProps(
   overrides: Partial<React.ComponentProps<typeof StatsHighlightsSectionView>> = {},
 ): React.ComponentProps<typeof StatsHighlightsSectionView> {
   return {
-    topBarStatSlots: [],
+    statsHighlightSlots: [],
     saveStatus: "idle",
     saveErrorMessage: null,
-    onTopBarStatSlotsChange: (): void => undefined,
+    onStatsHighlightSlotsChange: (): void => undefined,
     ...overrides,
   };
 }
@@ -23,7 +23,7 @@ describe("StatsHighlightsSectionView", () => {
     cleanup();
   });
 
-  it("shows the section as disabled when no top-bar slots are configured", () => {
+  it("shows the section as disabled when no stats highlights slots are configured", () => {
     render(<StatsHighlightsSectionView {...aFakeProps()} />);
 
     expect(screen.getByRole("checkbox", { name: /show stats highlights/i })).not.toBeChecked();
@@ -33,13 +33,13 @@ describe("StatsHighlightsSectionView", () => {
 
   it("enables stats highlights with the default six-slot layout", async () => {
     const user = userEvent.setup();
-    const onTopBarStatSlotsChange = vi.fn<(topBarStatSlots: readonly string[]) => void>();
+    const onStatsHighlightSlotsChange = vi.fn<(statsHighlightSlots: readonly string[]) => void>();
 
-    render(<StatsHighlightsSectionView {...aFakeProps({ onTopBarStatSlotsChange })} />);
+    render(<StatsHighlightsSectionView {...aFakeProps({ onStatsHighlightSlotsChange })} />);
 
     await user.click(screen.getByRole("checkbox", { name: /show stats highlights/i }));
 
-    expect(onTopBarStatSlotsChange).toHaveBeenCalledWith([
+    expect(onStatsHighlightSlotsChange).toHaveBeenCalledWith([
       "matches-win-loss",
       "series-win-loss",
       "kills-deaths-assists-kda",
@@ -51,12 +51,12 @@ describe("StatsHighlightsSectionView", () => {
 
   it("extends the slot list up to eight configured highlights", async () => {
     const user = userEvent.setup();
-    const onTopBarStatSlotsChange = vi.fn<(topBarStatSlots: readonly string[]) => void>();
+    const onStatsHighlightSlotsChange = vi.fn<(statsHighlightSlots: readonly string[]) => void>();
 
     render(
       <StatsHighlightsSectionView
         {...aFakeProps({
-          topBarStatSlots: [
+          statsHighlightSlots: [
             "matches-win-loss",
             "series-win-loss",
             "kills-deaths-assists-kda",
@@ -64,14 +64,14 @@ describe("StatsHighlightsSectionView", () => {
             "avg-life-damage-per-life",
             "current-rank",
           ],
-          onTopBarStatSlotsChange,
+          onStatsHighlightSlotsChange,
         })}
       />,
     );
 
     await user.selectOptions(screen.getByLabelText(/highlight count/i), "8");
 
-    expect(onTopBarStatSlotsChange).toHaveBeenCalledWith([
+    expect(onStatsHighlightSlotsChange).toHaveBeenCalledWith([
       "matches-win-loss",
       "series-win-loss",
       "kills-deaths-assists-kda",
@@ -85,27 +85,27 @@ describe("StatsHighlightsSectionView", () => {
 
   it("updates an individual highlight slot", async () => {
     const user = userEvent.setup();
-    const onTopBarStatSlotsChange = vi.fn<(topBarStatSlots: readonly string[]) => void>();
+    const onStatsHighlightSlotsChange = vi.fn<(statsHighlightSlots: readonly string[]) => void>();
 
     render(
       <StatsHighlightsSectionView
         {...aFakeProps({
-          topBarStatSlots: ["matches-win-loss", "series-win-loss"],
-          onTopBarStatSlotsChange,
+          statsHighlightSlots: ["matches-win-loss", "series-win-loss"],
+          onStatsHighlightSlotsChange,
         })}
       />,
     );
 
     await user.selectOptions(screen.getByLabelText(/highlight 1/i), "esra");
 
-    expect(onTopBarStatSlotsChange).toHaveBeenCalledWith(["esra", "series-win-loss"]);
+    expect(onStatsHighlightSlotsChange).toHaveBeenCalledWith(["esra", "series-win-loss"]);
   });
 
   it("groups stat options into individual, compacted, and profile sections", () => {
     const { container } = render(
       <StatsHighlightsSectionView
         {...aFakeProps({
-          topBarStatSlots: ["matches-win-loss"],
+          statsHighlightSlots: ["matches-win-loss"],
         })}
       />,
     );

@@ -94,7 +94,7 @@ export interface AccumulatedPlayerTotals {
   totalLifeSpawns?: number;
 }
 
-export interface TopBarStatItem {
+export interface StatsHighlightItem {
   label: string;
   value: string;
   rankIcon?: {
@@ -221,7 +221,7 @@ export interface IndividualTrackerViewState {
   hasActiveSeries: boolean;
   hasRecentCompletedSeries: boolean;
   activeSeriesContext?: ActiveSeriesContext;
-  topBarStats?: TopBarStatItem[];
+  statsHighlights?: StatsHighlightItem[];
 }
 
 export interface IndividualTrackerViewStateResponse {

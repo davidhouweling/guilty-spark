@@ -2,21 +2,21 @@ import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import { OverlayTopBarStats } from "../overlay-top-bar-stats";
+import { OverlayStatsHighlights } from "../overlay-stats-highlights";
 
 afterEach(() => {
   cleanup();
 });
 
-describe("OverlayTopBarStats", () => {
+describe("OverlayStatsHighlights", () => {
   it("renders nothing when items array is empty", () => {
-    const { container } = render(<OverlayTopBarStats items={[]} />);
+    const { container } = render(<OverlayStatsHighlights items={[]} />);
     expect(container.firstChild).toBeNull();
   });
 
   it("renders all provided stat items", () => {
     render(
-      <OverlayTopBarStats
+      <OverlayStatsHighlights
         items={[
           { label: "Won:Loss", value: "5:3" },
           { label: "KDA", value: "3.2" },
@@ -31,7 +31,7 @@ describe("OverlayTopBarStats", () => {
   });
 
   it("renders N/A value for a slot with no data", () => {
-    render(<OverlayTopBarStats items={[{ label: "Kills", value: "N/A" }]} />);
+    render(<OverlayStatsHighlights items={[{ label: "Kills", value: "N/A" }]} />);
 
     expect(screen.getByText("Kills")).toBeInTheDocument();
     expect(screen.getByText("N/A")).toBeInTheDocument();

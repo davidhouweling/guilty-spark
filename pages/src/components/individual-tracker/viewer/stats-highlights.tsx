@@ -1,11 +1,11 @@
 import React from "react";
 import classNames from "classnames";
-import type { TopBarStatItem } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import type { StatsHighlightItem } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { RankIcon } from "../../icons/rank-icon";
 import styles from "./stats-highlights.module.css";
 
 interface StatsHighlightsProps {
-  readonly items: readonly TopBarStatItem[];
+  readonly items: readonly StatsHighlightItem[];
 }
 
 export function StatsHighlights({ items }: StatsHighlightsProps): React.ReactElement | null {

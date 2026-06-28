@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
-import { INDIVIDUAL_TOP_BAR_MAX_SLOT_COUNT } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import { INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { aFakeIndividualTrackerSettingsServiceWith } from "../../../../services/individual-tracker/fakes/settings.fake";
 import type { FakeIndividualTrackerSettingsService } from "../../../../services/individual-tracker/fakes/settings.fake";
 import { StreamerConnectionsPresenter } from "../streamer-connections-presenter";
@@ -98,21 +98,21 @@ describe("StreamerConnectionsPresenter", () => {
       expect(store.getSnapshot().gamertag).toBe("gamertag-123");
     });
 
-    it("applies topBarStatSlots from visible sections to the store", () => {
+    it("applies statsHighlightSlots from visible sections to the store", () => {
       const { store, presenter } = aHarness();
 
-      presenter.loadSettings({ visibleSections: { topBarStatSlots: ["kills", "deaths"] } }, null);
+      presenter.loadSettings({ visibleSections: { statsHighlightSlots: ["kills", "deaths"] } }, null);
 
-      expect(store.getSnapshot().topBarStatSlots).toEqual(["kills", "deaths"]);
+      expect(store.getSnapshot().statsHighlightSlots).toEqual(["kills", "deaths"]);
     });
 
-    it("filters invalid topBarStatSlots and caps them to the maximum slot count", () => {
+    it("filters invalid statsHighlightSlots and caps them to the maximum slot count", () => {
       const { store, presenter } = aHarness();
 
       presenter.loadSettings(
         {
           visibleSections: {
-            topBarStatSlots: [
+            statsHighlightSlots: [
               "kills",
               "not-a-stat",
               "deaths",
@@ -128,10 +128,10 @@ describe("StreamerConnectionsPresenter", () => {
         null,
       );
 
-      expect(store.getSnapshot().topBarStatSlots).toEqual(
+      expect(store.getSnapshot().statsHighlightSlots).toEqual(
         ["kills", "deaths", "assists", "kda", "accuracy", "damage-dealt", "damage-taken", "damage-ratio"].slice(
           0,
-          INDIVIDUAL_TOP_BAR_MAX_SLOT_COUNT,
+          INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT,
         ),
       );
     });
@@ -278,51 +278,51 @@ describe("StreamerConnectionsPresenter", () => {
     });
   });
 
-  describe("setTopBarStatSlots", () => {
-    it("updates topBarStatSlots in the store and schedules a save", async () => {
+  describe("setStatsHighlightSlots", () => {
+    it("updates statsHighlightSlots in the store and schedules a save", async () => {
       const { store, presenter, settingsService } = aHarness();
       const updateSpy: MockInstance<typeof settingsService.updateSettings> = vi.spyOn(
         settingsService,
         "updateSettings",
       );
 
-      presenter.setTopBarStatSlots(["kills", "deaths", "accuracy"]);
+      presenter.setStatsHighlightSlots(["kills", "deaths", "accuracy"]);
 
-      expect(store.getSnapshot().topBarStatSlots).toEqual(["kills", "deaths", "accuracy"]);
+      expect(store.getSnapshot().statsHighlightSlots).toEqual(["kills", "deaths", "accuracy"]);
 
       await vi.runAllTimersAsync();
 
       const [[saved]] = updateSpy.mock.calls;
-      expect(saved.visibleSections?.topBarStatSlots).toEqual(["kills", "deaths", "accuracy"]);
+      expect(saved.visibleSections?.statsHighlightSlots).toEqual(["kills", "deaths", "accuracy"]);
     });
   });
 
   describe("snapshotToSettings round-trip", () => {
-    it("preserves topBarStatSlots in the save payload", async () => {
+    it("preserves statsHighlightSlots in the save payload", async () => {
       const { presenter, settingsService } = aHarness();
       const updateSpy: MockInstance<typeof settingsService.updateSettings> = vi.spyOn(
         settingsService,
         "updateSettings",
       );
 
-      presenter.loadSettings({ visibleSections: { topBarStatSlots: ["kills", "deaths"] } }, null);
+      presenter.loadSettings({ visibleSections: { statsHighlightSlots: ["kills", "deaths"] } }, null);
       presenter.setDefaultColorMode("observer");
 
       await vi.runAllTimersAsync();
 
       const [[saved]] = updateSpy.mock.calls;
-      expect(saved.visibleSections?.topBarStatSlots).toEqual(["kills", "deaths"]);
+      expect(saved.visibleSections?.statsHighlightSlots).toEqual(["kills", "deaths"]);
     });
 
-    it("preserves topBarStatSlots in the store snapshot after save response is applied", async () => {
+    it("preserves statsHighlightSlots in the store snapshot after save response is applied", async () => {
       const { store, presenter } = aHarness();
 
-      presenter.loadSettings({ visibleSections: { topBarStatSlots: ["kills", "deaths"] } }, null);
+      presenter.loadSettings({ visibleSections: { statsHighlightSlots: ["kills", "deaths"] } }, null);
       presenter.setDefaultColorMode("observer");
 
       await vi.runAllTimersAsync();
 
-      expect(store.getSnapshot().topBarStatSlots).toEqual(["kills", "deaths"]);
+      expect(store.getSnapshot().statsHighlightSlots).toEqual(["kills", "deaths"]);
     });
   });
 

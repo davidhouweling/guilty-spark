@@ -436,7 +436,7 @@ export function IndividualTrackerViewer({
           <h2 className={styles.sectionTitle}>Tracked Gameplay</h2>
         </Container>
         <Container mobileDown="0">
-          <StatsHighlights items={renderModel.topBarStats ?? []} />
+          <StatsHighlights items={renderModel.statsHighlights ?? []} />
         </Container>
         {timeline.length === 0 ? (
           <Container>

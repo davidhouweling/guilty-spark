@@ -99,11 +99,11 @@ export function IndividualTrackerManagerPage({
       liveTrackersContent={<LiveTrackersComponent />}
       statsHighlightsContent={
         <StatsHighlightsSectionView
-          topBarStatSlots={settingsSnapshot.topBarStatSlots}
+          statsHighlightSlots={settingsSnapshot.statsHighlightSlots}
           saveStatus={settingsSnapshot.saveStatus}
           saveErrorMessage={settingsSnapshot.saveErrorMessage}
-          onTopBarStatSlotsChange={(topBarStatSlots): void => {
-            settingsPresenter.setTopBarStatSlots(topBarStatSlots);
+          onStatsHighlightSlotsChange={(statsHighlightSlots): void => {
+            settingsPresenter.setStatsHighlightSlots(statsHighlightSlots);
           }}
         />
       }

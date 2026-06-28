@@ -169,22 +169,22 @@ describe("buildViewerRenderModel", () => {
     ]);
   });
 
-  it("passes topBarStats from the view state through to the render model", () => {
+  it("passes statsHighlights from the view state through to the render model", () => {
     const view = aFakeTrackerViewStateWith({
-      topBarStats: [{ label: "KDA", value: "3.2" }],
+      statsHighlights: [{ label: "KDA", value: "3.2" }],
     });
 
     const model = buildViewerRenderModel({ view });
 
-    expect(model.topBarStats).toEqual([{ label: "KDA", value: "3.2" }]);
+    expect(model.statsHighlights).toEqual([{ label: "KDA", value: "3.2" }]);
   });
 
-  it("passes undefined topBarStats when absent from the view state", () => {
+  it("passes undefined statsHighlights when absent from the view state", () => {
     const view = aFakeTrackerViewStateWith();
 
     const model = buildViewerRenderModel({ view });
 
-    expect(model.topBarStats).toBeUndefined();
+    expect(model.statsHighlights).toBeUndefined();
   });
 
   it("flows custom preferred colour ids into the hexes", () => {

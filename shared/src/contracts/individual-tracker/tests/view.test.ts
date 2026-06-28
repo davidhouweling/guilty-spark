@@ -73,7 +73,7 @@ describe("trackerViewContract", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts topBarStats with rank icon metadata", () => {
+  it("accepts statsHighlights with rank icon metadata", () => {
     const result = trackerViewContract.safeParse({
       view: {
         trackerId: "t3",
@@ -86,7 +86,7 @@ describe("trackerViewContract", () => {
         lastMatchDiscoveredAt: null,
         hasActiveSeries: false,
         hasRecentCompletedSeries: false,
-        topBarStats: [
+        statsHighlights: [
           {
             label: "Current Rank",
             value: "1,567",

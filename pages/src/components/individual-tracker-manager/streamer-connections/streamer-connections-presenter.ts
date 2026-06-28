@@ -1,11 +1,11 @@
 import type {
-  IndividualTopBarStatOption,
+  IndividualStatsHighlightOption,
   StreamerViewColorMode,
   StreamerViewSettings,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import {
-  INDIVIDUAL_TOP_BAR_MAX_SLOT_COUNT,
-  INDIVIDUAL_TOP_BAR_STAT_OPTIONS,
+  INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT,
+  INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerSettingsService } from "../../../services/individual-tracker/settings-types";
 import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../live-tracker/settings/types";
@@ -18,20 +18,22 @@ interface Config {
   readonly store: StreamerConnectionsStore;
 }
 
-const individualTopBarStatOptionSet = new Set<string>(INDIVIDUAL_TOP_BAR_STAT_OPTIONS);
+const individualStatsHighlightOptionSet = new Set<string>(INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS);
 
-function isIndividualTopBarStatOption(value: string): value is IndividualTopBarStatOption {
-  return individualTopBarStatOptionSet.has(value);
+function isIndividualStatsHighlightOption(value: string): value is IndividualStatsHighlightOption {
+  return individualStatsHighlightOptionSet.has(value);
 }
 
-function normalizeTopBarStatSlots(
-  topBarStatSlots: readonly string[] | undefined,
-): readonly IndividualTopBarStatOption[] {
-  if (topBarStatSlots == null) {
+function normalizeStatsHighlightSlots(
+  statsHighlightSlots: readonly string[] | undefined,
+): readonly IndividualStatsHighlightOption[] {
+  if (statsHighlightSlots == null) {
     return [];
   }
 
-  return topBarStatSlots.filter(isIndividualTopBarStatOption).slice(0, INDIVIDUAL_TOP_BAR_MAX_SLOT_COUNT);
+  return statsHighlightSlots
+    .filter(isIndividualStatsHighlightOption)
+    .slice(0, INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT);
 }
 
 function settingsToSnapshot(
@@ -72,7 +74,9 @@ function settingsToSnapshot(
       tabs: fontSizes.tabs ?? snapshot.fontSizeSettings.tabs,
       ticker: fontSizes.ticker ?? snapshot.fontSizeSettings.ticker,
     },
-    topBarStatSlots: [...normalizeTopBarStatSlots(visibleSections.topBarStatSlots ?? snapshot.topBarStatSlots)],
+    statsHighlightSlots: [
+      ...normalizeStatsHighlightSlots(visibleSections.statsHighlightSlots ?? snapshot.statsHighlightSlots),
+    ],
   };
 }
 
@@ -107,7 +111,7 @@ function snapshotToSettings(snapshot: StreamerConnectionsSnapshot): StreamerView
       showScore: snapshot.displaySettings.showScore,
       showTicker: snapshot.tickerSettings.showTicker,
       showTabs: snapshot.tickerSettings.showTabs,
-      topBarStatSlots: [...snapshot.topBarStatSlots],
+      statsHighlightSlots: [...snapshot.statsHighlightSlots],
     },
     layoutOptions: {
       fontSizes: {
@@ -203,12 +207,12 @@ export class StreamerConnectionsPresenter {
     this.scheduleSave();
   }
 
-  public setTopBarStatSlots(topBarStatSlots: readonly IndividualTopBarStatOption[]): void {
+  public setStatsHighlightSlots(statsHighlightSlots: readonly IndividualStatsHighlightOption[]): void {
     if (this.isDisposed) {
       return;
     }
 
-    this.config.store.setTopBarStatSlots(normalizeTopBarStatSlots(topBarStatSlots));
+    this.config.store.setStatsHighlightSlots(normalizeStatsHighlightSlots(statsHighlightSlots));
     this.scheduleSave();
   }
 

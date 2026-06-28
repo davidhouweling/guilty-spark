@@ -70,25 +70,25 @@ export const trackerLiveViewSchema = z.object({
 });
 export type TrackerLiveView = z.infer<typeof trackerLiveViewSchema>;
 
-export const topBarStatRankIconSchema = z.object({
+export const statsHighlightRankIconSchema = z.object({
   rankTier: z.string().nullable(),
   subTier: z.number().nullable(),
   measurementMatchesRemaining: z.number().nullable(),
   initialMeasurementMatches: z.number().nullable(),
 });
-export type TopBarStatRankIcon = z.infer<typeof topBarStatRankIconSchema>;
+export type StatsHighlightRankIcon = z.infer<typeof statsHighlightRankIconSchema>;
 
-export const topBarStatItemSchema = z.object({
+export const statsHighlightItemSchema = z.object({
   label: z.string(),
   value: z.string(),
-  rankIcon: topBarStatRankIconSchema.optional(),
+  rankIcon: statsHighlightRankIconSchema.optional(),
 });
-export type TopBarStatItem = z.infer<typeof topBarStatItemSchema>;
+export type StatsHighlightItem = z.infer<typeof statsHighlightItemSchema>;
 
 export const trackerViewStateSchema = trackerLiveViewSchema.extend({
   isLive: z.boolean(),
   streamerSettings: streamerViewSettingsSchema.optional(),
-  topBarStats: z.array(topBarStatItemSchema).optional(),
+  statsHighlights: z.array(statsHighlightItemSchema).optional(),
 });
 export type TrackerViewState = z.infer<typeof trackerViewStateSchema>;
 
