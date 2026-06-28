@@ -6,7 +6,13 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   readonly containerClassName?: string;
 }
 
-export function Select({ containerClassName, className, disabled, children, ...rest }: SelectProps): React.ReactElement {
+export function Select({
+  containerClassName,
+  className,
+  disabled,
+  children,
+  ...rest
+}: SelectProps): React.ReactElement {
   return (
     <div
       className={classNames(styles.wrapper, containerClassName, {

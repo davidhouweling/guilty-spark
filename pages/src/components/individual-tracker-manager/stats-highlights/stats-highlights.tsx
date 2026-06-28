@@ -5,6 +5,7 @@ import {
   INDIVIDUAL_TOP_BAR_DEFAULT_SLOT_COUNT,
   INDIVIDUAL_TOP_BAR_MAX_SLOT_COUNT,
   INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS,
+  type IndividualTopBarStatOptionGroup,
   type IndividualTopBarStatOption,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { Alert } from "../../alert/alert";
@@ -12,6 +13,20 @@ import { Checkbox } from "../../checkbox/checkbox";
 import { Select } from "../../select/select";
 import type { SaveStatus } from "../streamer-connections/streamer-connections-store";
 import styles from "./stats-highlights.module.css";
+
+const STATS_HIGHLIGHTS_GROUP_LABELS: Record<IndividualTopBarStatOptionGroup, string> = {
+  individual: "Individual stats",
+  compact: "Compacted stats",
+  profile: "Profile stats",
+};
+
+const statsHighlightOptionGroups = (
+  Object.keys(STATS_HIGHLIGHTS_GROUP_LABELS) as IndividualTopBarStatOptionGroup[]
+).map((group) => ({
+  group,
+  label: STATS_HIGHLIGHTS_GROUP_LABELS[group],
+  options: INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS.filter((definition) => definition.group === group),
+}));
 
 function buildTopBarStatSlots(
   targetCount: number,
@@ -144,7 +159,7 @@ export function StatsHighlightsSectionView({
             {configuredSlots.map((option, index) => (
               <div key={`${index.toString()}-${option}`} className={styles.field}>
                 <label htmlFor={`stats-highlight-slot-${index.toString()}`} className={styles.fieldLabel}>
-                  {`Highlight ${index + 1}`}
+                  {`Highlight ${(index + 1).toString()}`}
                 </label>
                 <Select
                   id={`stats-highlight-slot-${index.toString()}`}
@@ -155,10 +170,14 @@ export function StatsHighlightsSectionView({
                     onTopBarStatSlotsChange(nextSlots);
                   }}
                 >
-                  {INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS.map((definition) => (
-                    <option key={definition.value} value={definition.value}>
-                      {definition.label}
-                    </option>
+                  {statsHighlightOptionGroups.map(({ group, label, options }) => (
+                    <optgroup key={group} label={label}>
+                      {options.map((definition) => (
+                        <option key={definition.value} value={definition.value}>
+                          {definition.label}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </Select>
               </div>

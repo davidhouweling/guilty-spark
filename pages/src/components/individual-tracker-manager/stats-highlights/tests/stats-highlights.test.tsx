@@ -100,4 +100,20 @@ describe("StatsHighlightsSectionView", () => {
 
     expect(onTopBarStatSlotsChange).toHaveBeenCalledWith(["esra", "series-win-loss"]);
   });
+
+  it("groups stat options into individual, compacted, and profile sections", () => {
+    const { container } = render(
+      <StatsHighlightsSectionView
+        {...aFakeProps({
+          topBarStatSlots: ["matches-win-loss"],
+        })}
+      />,
+    );
+
+    const optgroupLabels = Array.from(container.querySelectorAll("optgroup")).map((optgroup) =>
+      optgroup.getAttribute("label"),
+    );
+
+    expect(optgroupLabels).toEqual(["Individual stats", "Compacted stats", "Profile stats"]);
+  });
 });
