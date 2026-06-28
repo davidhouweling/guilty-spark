@@ -83,6 +83,8 @@ export function FollowLiveViewer({
     gamertag,
   });
   const connectionStatusOverride = toTrackerConnectionStatus(directoryStatus);
+  const selectedTracker =
+    selectedTrackerId == null ? null : directory?.trackers.find((tracker) => tracker.trackerId === selectedTrackerId);
 
   React.useEffect(() => {
     document.title = getViewerTitle(gamertag, directory);
@@ -98,14 +100,14 @@ export function FollowLiveViewer({
         />
       )}
       <div className={styles.trackerContent}>
-        {selectedTrackerId !== null ? (
+        {selectedTracker != null ? (
           <IndividualTrackerViewerPage
-            key={selectedTrackerId}
+            key={`${selectedTracker.trackerId}:${selectedTracker.lastUpdateTime}`}
             individualTrackerViewService={individualTrackerViewService}
             matchAnalyticsService={matchAnalyticsService}
             seriesMatchesService={seriesMatchesService}
             haloClient={haloClient}
-            trackerId={selectedTrackerId}
+            trackerId={selectedTracker.trackerId}
             streamerSettings={directory?.streamerSettings}
             connectionStatusOverride={connectionStatusOverride}
           />

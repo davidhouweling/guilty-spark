@@ -23,6 +23,29 @@ export interface BuildViewerRenderModelOptions {
   readonly preferredEnemyColorId?: string;
 }
 
+function isActiveSeriesGroup(view: TrackerViewState, series: TrackerSeriesGroup): boolean {
+  if (!view.hasActiveSeries || view.activeSeriesContext == null) {
+    return false;
+  }
+
+  const activeSubtitle = view.activeSeriesContext.subtitle ?? "";
+  return series.title === view.activeSeriesContext.title && series.subtitle === activeSubtitle;
+}
+
+function findActiveSeriesId(view: TrackerViewState): string | null {
+  if (!view.hasActiveSeries) {
+    return null;
+  }
+
+  for (const series of view.series) {
+    if (isActiveSeriesGroup(view, series)) {
+      return series.id;
+    }
+  }
+
+  return null;
+}
+
 function toReadableDurationOrUnknown(startTime: string, endTime: string): string {
   const startDate = parseISO(startTime);
   const endDate = parseISO(endTime);
@@ -108,6 +131,8 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
 
   const seriesByAnchor = new Map<string, TrackerSeriesGroup>();
   const seriesMemberIds = new Set<string>();
+  const activeSeriesId = findActiveSeriesId(view);
+  let seenSeriesCount = 0;
   for (const series of view.series) {
     const knownIds = series.matchIds.filter((id) => matchesById.has(id));
     if (knownIds.length < 2) {
@@ -173,6 +198,10 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         id: anchoredSeries.id,
         title: anchoredSeries.title,
         subtitle: anchoredSeries.subtitle,
+        isActive:
+          activeSeriesId != null
+            ? anchoredSeries.id === activeSeriesId
+            : view.hasActiveSeries && seenSeriesCount === 0,
         matchBackgroundUrls:
           anchoredSeries.matchBackgroundUrls ?? seriesSummaries.map((summary) => summary.mapBackgroundUrl ?? "data:,"),
         score: anchoredSeries.score,
@@ -183,6 +212,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         colorHex: undefined,
       };
       timeline.push({ type: "series", series });
+      seenSeriesCount += 1;
       continue;
     }
 

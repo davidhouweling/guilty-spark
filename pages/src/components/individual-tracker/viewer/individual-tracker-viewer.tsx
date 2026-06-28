@@ -604,7 +604,11 @@ export function IndividualTrackerViewer({
                               ))}
                             </div>
                             <OutcomeBadge
-                              outcome={summarizeSeriesOutcome(series.matches.map((seriesMatch) => seriesMatch.outcome))}
+                              outcome={
+                                series.isActive
+                                  ? "In progress"
+                                  : summarizeSeriesOutcome(series.matches.map((seriesMatch) => seriesMatch.outcome))
+                              }
                             />
                           </div>
                           <span

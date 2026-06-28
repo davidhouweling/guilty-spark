@@ -102,6 +102,48 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByText("2 matches")).toBeInTheDocument();
   });
 
+  it("renders In progress for an active series", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({ matchId: "m-1", outcome: "Win" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m-2", outcome: "Loss" }),
+      ],
+      series: [aFakeTrackerSeriesGroupWith({ matchIds: ["m-1", "m-2"], title: "Ranked Series", subtitle: "Best of 3" })],
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Ranked Series",
+        subtitle: "Best of 3",
+        teams: [],
+      },
+    });
+
+    renderViewer(view);
+
+    expect(screen.getByText("In progress")).toBeInTheDocument();
+  });
+
+  it("marks only the most recent series as In progress when active context is missing", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({ matchId: "m-1", outcome: "Win" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m-2", outcome: "Loss" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m-3", outcome: "Win" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m-4", outcome: "Win" }),
+      ],
+      series: [
+        aFakeTrackerSeriesGroupWith({ id: "series-1", title: "Current Series", matchIds: ["m-1", "m-2"] }),
+        aFakeTrackerSeriesGroupWith({ id: "series-2", title: "Previous Series", matchIds: ["m-3", "m-4"] }),
+      ],
+      hasActiveSeries: true,
+      activeSeriesContext: undefined,
+    });
+
+    renderViewer(view);
+
+    expect(screen.getAllByText("In progress")).toHaveLength(1);
+    expect(screen.getByText("Win")).toBeInTheDocument();
+  });
+
   it("renders a Live badge when the tracker is live", () => {
     const view = aFakeTrackerViewStateWith({ isLive: true });
 

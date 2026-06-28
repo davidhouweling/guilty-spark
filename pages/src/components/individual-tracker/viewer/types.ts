@@ -26,6 +26,7 @@ export interface ViewerSeriesTab {
   readonly id: string;
   readonly title: string;
   readonly subtitle: string;
+  readonly isActive: boolean;
   readonly matchBackgroundUrls: readonly string[];
   readonly score: string;
   readonly duration: string;

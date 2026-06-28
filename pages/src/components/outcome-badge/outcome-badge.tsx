@@ -3,7 +3,7 @@ import type { NormalizedMatchOutcome } from "@guilty-spark/shared/halo/match-enr
 import styles from "./outcome-badge.module.css";
 
 interface OutcomeBadgeProps {
-  readonly outcome: NormalizedMatchOutcome;
+  readonly outcome: NormalizedMatchOutcome | "In progress";
 }
 
 export function OutcomeBadge({ outcome }: OutcomeBadgeProps): ReactElement {
