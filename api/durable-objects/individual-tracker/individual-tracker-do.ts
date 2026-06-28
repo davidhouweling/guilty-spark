@@ -232,6 +232,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           "IndividualTracker: idle timeout reached, stopping tracker",
           new Map<string, JsonAny>([
             ["trackerId", trackerState.trackerId],
+            ["gamertag", trackerState.gamertag],
             ["idleTimeoutHours", trackerState.idleTimeoutHours],
           ]),
         );
@@ -274,6 +275,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       "IndividualTracker: polling for new matches with marker strategy",
       new Map([
         ["trackerId", trackerState.trackerId],
+        ["gamertag", trackerState.gamertag],
         ["lastSeenMatchId", trackerState.lastSeenMatchId ?? "none"],
       ]),
     );
@@ -344,6 +346,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         "IndividualTracker: added new match to tracker",
         new Map([
           ["trackerId", trackerState.trackerId],
+          ["gamertag", trackerState.gamertag],
           ["matchId", matchId],
           ["mapName", summary.mapName],
           ["score", summary.score],
@@ -359,6 +362,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       "IndividualTracker: poll marker filter summary",
       new Map<string, JsonAny>([
         ["trackerId", trackerState.trackerId],
+        ["gamertag", trackerState.gamertag],
         ["strategy", strategy],
         ["totalFetched", allMatches.length],
         ["processedRange", matchesToProcess.length],
@@ -434,6 +438,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       "IndividualTracker: poll with marker complete",
       new Map<string, JsonAny>([
         ["trackerId", trackerState.trackerId],
+        ["gamertag", trackerState.gamertag],
         ["newMatches", newlyDiscovered.size],
         ["totalMatches", trackerState.matchIds.length],
         ["checkCount", trackerState.checkCount],
@@ -481,6 +486,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           new Map<string, JsonAny>([
             ["context", "IndividualTracker failed to retrieve player matches page"],
             ["trackerId", trackerState.trackerId],
+            ["gamertag", trackerState.gamertag],
             ["page", page],
           ]),
         );
@@ -495,6 +501,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       "IndividualTracker: fetched matches with marker scan",
       new Map<string, JsonAny>([
         ["trackerId", trackerState.trackerId],
+        ["gamertag", trackerState.gamertag],
         ["totalFetched", allMatches.length],
         ["markerFound", markerFound],
         ["markerFoundAtIndex", markerFoundAtIndex],
@@ -660,6 +667,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         new Map([
           ["context", "IndividualTracker: failed to mark registry stopped on idle timeout"],
           ["trackerId", trackerState.trackerId],
+          ["gamertag", trackerState.gamertag],
         ]),
       );
     }
@@ -815,7 +823,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
 
-    this.logService.info("IndividualTracker: tracker paused", new Map([["trackerId", trackerState.trackerId]]));
+    this.logService.info(
+      "IndividualTracker: tracker paused",
+      new Map([
+        ["trackerId", trackerState.trackerId],
+        ["gamertag", trackerState.gamertag],
+      ]),
+    );
 
     return individualTrackerPauseContract.toResponse({ success: true, state: this.sanitizeState(trackerState) });
   }
@@ -834,7 +848,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.state.storage.setAlarm(addMilliseconds(new Date(), resumeAlarmDelay).getTime());
     this.broadcastViewState(trackerState);
 
-    this.logService.info("IndividualTracker: tracker resumed", new Map([["trackerId", trackerState.trackerId]]));
+    this.logService.info(
+      "IndividualTracker: tracker resumed",
+      new Map([
+        ["trackerId", trackerState.trackerId],
+        ["gamertag", trackerState.gamertag],
+      ]),
+    );
 
     return individualTrackerResumeContract.toResponse({ success: true, state: this.sanitizeState(trackerState) });
   }
@@ -850,7 +870,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       trackerState.lastUpdateTime = new Date().toISOString();
       this.broadcastViewState(trackerState);
       this.closeWebSockets("Tracker stopped");
-      this.logService.info("IndividualTracker: tracker stopped", new Map([["trackerId", trackerState.trackerId]]));
+      this.logService.info(
+        "IndividualTracker: tracker stopped",
+        new Map([
+          ["trackerId", trackerState.trackerId],
+          ["gamertag", trackerState.gamertag],
+        ]),
+      );
     }
 
     return individualTrackerStopContract.toResponse({ success: true });
@@ -905,6 +931,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       "IndividualTracker: match selection updated",
       new Map<string, JsonAny>([
         ["trackerId", trackerState.trackerId],
+        ["gamertag", trackerState.gamertag],
         ["selectedCount", incoming.length],
         ["seriesGroupCount", body.seriesGroups.length],
       ]),
@@ -1280,7 +1307,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
 
-    this.logService.info("IndividualTracker: series started", new Map([["trackerId", trackerState.trackerId]]));
+    this.logService.info(
+      "IndividualTracker: series started",
+      new Map([
+        ["trackerId", trackerState.trackerId],
+        ["gamertag", trackerState.gamertag],
+      ]),
+    );
 
     return startSeriesContract.toResponse({ success: true });
   }
@@ -1301,7 +1334,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
 
-    this.logService.info("IndividualTracker: series ended", new Map([["trackerId", trackerState.trackerId]]));
+    this.logService.info(
+      "IndividualTracker: series ended",
+      new Map([
+        ["trackerId", trackerState.trackerId],
+        ["gamertag", trackerState.gamertag],
+      ]),
+    );
 
     return endSeriesContract.toResponse({ success: true });
   }
@@ -1362,7 +1401,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.setState(trackerState);
     this.broadcastViewState(trackerState);
 
-    this.logService.info("IndividualTracker: series resumed", new Map([["trackerId", trackerState.trackerId]]));
+    this.logService.info(
+      "IndividualTracker: series resumed",
+      new Map([
+        ["trackerId", trackerState.trackerId],
+        ["gamertag", trackerState.gamertag],
+      ]),
+    );
 
     return resumeSeriesContract.toResponse({ success: true });
   }
@@ -1674,7 +1719,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const trackerState = await this.getState();
     this.logService.info(
       "IndividualTracker: WebSocket connection requested",
-      new Map([["trackerId", trackerState?.trackerId ?? "unknown"]]),
+      new Map([
+        ["trackerId", trackerState?.trackerId ?? "unknown"],
+        ["gamertag", trackerState?.gamertag ?? "unknown"],
+      ]),
     );
     try {
       const response = this.webSocketAdapter.upgrade(
@@ -1683,7 +1731,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       );
       this.logService.info(
         "IndividualTracker: WebSocket connection established",
-        new Map([["trackerId", trackerState?.trackerId ?? "unknown"]]),
+        new Map([
+          ["trackerId", trackerState?.trackerId ?? "unknown"],
+          ["gamertag", trackerState?.gamertag ?? "unknown"],
+        ]),
       );
       return response;
     } catch (error) {
