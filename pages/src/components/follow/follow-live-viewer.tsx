@@ -23,7 +23,7 @@ function toTrackerConnectionStatus(
       return undefined;
     }
     case "connecting": {
-      return undefined;
+      return "connecting";
     }
     case "disconnected": {
       return "disconnected";

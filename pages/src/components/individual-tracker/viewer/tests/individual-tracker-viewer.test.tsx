@@ -128,13 +128,13 @@ describe("IndividualTrackerViewer", () => {
     const view = aFakeTrackerViewStateWith({
       matches: [
         aFakeTrackerMatchSummaryWith({ matchId: "m-1", outcome: "Win" }),
-        aFakeTrackerMatchSummaryWith({ matchId: "m-2", outcome: "Loss" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m-2", outcome: "Win" }),
         aFakeTrackerMatchSummaryWith({ matchId: "m-3", outcome: "Win" }),
-        aFakeTrackerMatchSummaryWith({ matchId: "m-4", outcome: "Win" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m-4", outcome: "Loss" }),
       ],
       series: [
-        aFakeTrackerSeriesGroupWith({ id: "series-1", title: "Current Series", matchIds: ["m-1", "m-2"] }),
-        aFakeTrackerSeriesGroupWith({ id: "series-2", title: "Previous Series", matchIds: ["m-3", "m-4"] }),
+        aFakeTrackerSeriesGroupWith({ id: "series-older", title: "Older Series", matchIds: ["m-1", "m-2"] }),
+        aFakeTrackerSeriesGroupWith({ id: "series-recent", title: "Recent Series", matchIds: ["m-3", "m-4"] }),
       ],
       hasActiveSeries: true,
       activeSeriesContext: undefined,
@@ -143,7 +143,8 @@ describe("IndividualTrackerViewer", () => {
     renderViewer(view);
 
     expect(screen.getAllByText("In progress")).toHaveLength(1);
-    expect(screen.getByText("Win")).toBeInTheDocument();
+    expect(screen.getByLabelText("Series Recent Series")).toHaveTextContent("In progress");
+    expect(screen.getByLabelText("Series Older Series")).not.toHaveTextContent("In progress");
   });
 
   it("renders a Live badge when the tracker is live", () => {

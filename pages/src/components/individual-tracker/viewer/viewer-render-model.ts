@@ -132,7 +132,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
   const seriesByAnchor = new Map<string, TrackerSeriesGroup>();
   const seriesMemberIds = new Set<string>();
   const activeSeriesId = findActiveSeriesId(view);
-  let seenSeriesCount = 0;
+  let fallbackActiveSeriesId: string | null = null;
   for (const series of view.series) {
     const knownIds = series.matchIds.filter((id) => matchesById.has(id));
     if (knownIds.length < 2) {
@@ -198,8 +198,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         id: anchoredSeries.id,
         title: anchoredSeries.title,
         subtitle: anchoredSeries.subtitle,
-        isActive:
-          activeSeriesId != null ? anchoredSeries.id === activeSeriesId : view.hasActiveSeries && seenSeriesCount === 0,
+        isActive: activeSeriesId != null ? anchoredSeries.id === activeSeriesId : false,
         matchBackgroundUrls:
           anchoredSeries.matchBackgroundUrls ?? seriesSummaries.map((summary) => summary.mapBackgroundUrl ?? "data:,"),
         score: anchoredSeries.score,
@@ -209,8 +208,10 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         matches: seriesMatches,
         colorHex: undefined,
       };
+      if (activeSeriesId == null && view.hasActiveSeries) {
+        fallbackActiveSeriesId = anchoredSeries.id;
+      }
       timeline.push({ type: "series", series });
-      seenSeriesCount += 1;
       continue;
     }
 
@@ -221,6 +222,23 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
     timeline.push({ type: "match", match: toMatchTab(match, teamHex, enemyHex) });
   }
 
+  const timelineWithFallback =
+    activeSeriesId == null && fallbackActiveSeriesId != null
+      ? timeline.map((item) => {
+          if (item.type === "match") {
+            return item;
+          }
+
+          return {
+            type: "series" as const,
+            series: {
+              ...item.series,
+              isActive: item.series.id === fallbackActiveSeriesId,
+            },
+          };
+        })
+      : timeline;
+
   const accumulated = accumulate(view.matches);
 
   return {
@@ -229,7 +247,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
     status: view.status,
     isLive: view.isLive,
     lastUpdateTime: view.lastUpdateTime,
-    timeline: [...timeline],
+    timeline: [...timelineWithFallback],
     accumulated,
     topBarStats: view.topBarStats,
     teamColors: [getTeamColorOrDefault(preferredTeamColorId, 0), getTeamColorOrDefault(preferredEnemyColorId, 1)],

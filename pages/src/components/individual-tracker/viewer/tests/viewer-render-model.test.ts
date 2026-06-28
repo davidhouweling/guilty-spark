@@ -244,4 +244,28 @@ describe("buildViewerRenderModel", () => {
       expect(first.series.duration).toBe("unknown");
     }
   });
+
+  it("marks only the most recent timeline series active when active context is missing", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({ matchId: "m1" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m2" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m3" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m4" }),
+      ],
+      series: [
+        aFakeTrackerSeriesGroupWith({ id: "series-older", matchIds: ["m1", "m2"] }),
+        aFakeTrackerSeriesGroupWith({ id: "series-recent", matchIds: ["m3", "m4"] }),
+      ],
+      hasActiveSeries: true,
+      activeSeriesContext: undefined,
+    });
+
+    const model = buildViewerRenderModel({ view });
+    const seriesItems = model.timeline.filter((item) => item.type === "series");
+
+    expect(seriesItems).toHaveLength(2);
+    expect(seriesItems.find((item) => item.series.id === "series-older")?.series.isActive).toBe(false);
+    expect(seriesItems.find((item) => item.series.id === "series-recent")?.series.isActive).toBe(true);
+  });
 });

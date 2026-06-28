@@ -18,9 +18,11 @@ vi.mock("../../individual-tracker/viewer/create", () => ({
   IndividualTrackerViewerPage: ({
     trackerId,
     streamerSettings,
+    connectionStatusOverride,
   }: {
     trackerId: string;
     streamerSettings?: TrackerDirectory["streamerSettings"];
+    connectionStatusOverride?: string;
   }): React.ReactElement => {
     const [instanceId] = React.useState(() => {
       mockViewerInstanceCount += 1;
@@ -33,6 +35,7 @@ vi.mock("../../individual-tracker/viewer/create", () => ({
         <span data-testid="mock-streamer-settings">
           {streamerSettings?.styleFlags?.showMatchmakingStatsOnly === true ? "true" : "false"}
         </span>
+        <span data-testid="mock-connection-status-override">{connectionStatusOverride ?? "none"}</span>
       </div>
     );
   },
@@ -182,6 +185,44 @@ describe("FollowLiveViewer", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-viewer")).toHaveAttribute("data-instance-id", "2");
+    });
+  });
+
+  it("passes connecting status override when follow directory is reconnecting", async () => {
+    const initialDirectory: TrackerDirectory = aDirectoryWith({
+      trackers: [
+        aTrackerWith({
+          trackerId: "tracker-1",
+          gamertag: "Spartan One",
+          isLive: true,
+          status: "active",
+        }),
+      ],
+      liveTrackerId: "tracker-1",
+    });
+    const followLiveService = aFakeFollowLiveServiceWith({ directory: initialDirectory });
+
+    render(
+      <FollowLiveViewer
+        gamertag="Spartan One"
+        followLiveService={followLiveService}
+        individualTrackerViewService={aFakeIndividualTrackerViewServiceWith()}
+        matchAnalyticsService={aFakeMatchAnalyticsServiceWith()}
+        seriesMatchesService={aFakeSeriesMatchesServiceWith()}
+        haloClient={aFakeHaloClientWith()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-connection-status-override")).toHaveTextContent("none");
+    });
+
+    act(() => {
+      followLiveService.lastConnection?.emitStatus("connecting");
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-connection-status-override")).toHaveTextContent("connecting");
     });
   });
 });
