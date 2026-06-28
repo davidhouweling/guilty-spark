@@ -1,5 +1,6 @@
 import React from "react";
 import classNames from "classnames";
+import { Select } from "../../select/select";
 import { HALO_TEAM_COLORS, getTeamColor } from "../../team-colors/team-colors";
 import { TeamColorPicker } from "../../team-colors/team-color-picker";
 import type { ColorMode } from "./types";
@@ -73,9 +74,8 @@ export function ColorSettingsSection({
               <label htmlFor="player-select" className={styles.fieldLabel}>
                 Select Your Player
               </label>
-              <select
+              <Select
                 id="player-select"
-                className={styles.select}
                 value={playerView.selectedPlayerId ?? ""}
                 onChange={(e): void => {
                   onPlayerViewChange({ selectedPlayerId: e.target.value || null });
@@ -87,7 +87,7 @@ export function ColorSettingsSection({
                     {player.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           )}
 

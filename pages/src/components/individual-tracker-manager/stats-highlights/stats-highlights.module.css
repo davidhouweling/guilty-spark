@@ -54,39 +54,6 @@
   font-size: var(--text-sm);
 }
 
-.select {
-  appearance: none;
-  background: var(--halo-bg-primary);
-  border: 1px solid var(--halo-teal-primary);
-  border-radius: var(--radius-sm);
-  color: var(--halo-white);
-  cursor: pointer;
-  font-size: var(--text-base);
-  min-height: 2.75rem;
-  padding: var(--space-2) var(--space-3);
-  transition: border-color 0.2s ease;
-}
-
-.select:hover {
-  border-color: var(--halo-accent);
-}
-
-.select:focus {
-  border-color: var(--halo-accent);
-  box-shadow: 0 0 0 3px rgb(var(--halo-accent-rgb, 59, 130, 246), 0.1);
-  outline: none;
-}
-
-.select option {
-  background: var(--halo-bg-primary);
-  color: var(--halo-white);
-}
-
-.select:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
 .slotGrid {
   display: grid;
   gap: var(--space-3);

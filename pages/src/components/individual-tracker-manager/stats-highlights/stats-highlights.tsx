@@ -9,6 +9,7 @@ import {
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { Alert } from "../../alert/alert";
 import { Checkbox } from "../../checkbox/checkbox";
+import { Select } from "../../select/select";
 import type { SaveStatus } from "../streamer-connections/streamer-connections-store";
 import styles from "./stats-highlights.module.css";
 
@@ -115,9 +116,8 @@ export function StatsHighlightsSectionView({
           <label htmlFor="stats-highlights-count" className={styles.fieldLabel}>
             Highlight count
           </label>
-          <select
+          <Select
             id="stats-highlights-count"
-            className={styles.select}
             value={slotCount.toString()}
             disabled={!isEnabled}
             onChange={(event): void => {
@@ -129,7 +129,7 @@ export function StatsHighlightsSectionView({
                 {count.toString()}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
 
@@ -146,9 +146,8 @@ export function StatsHighlightsSectionView({
                 <label htmlFor={`stats-highlight-slot-${index.toString()}`} className={styles.fieldLabel}>
                   {`Highlight ${index + 1}`}
                 </label>
-                <select
+                <Select
                   id={`stats-highlight-slot-${index.toString()}`}
-                  className={styles.select}
                   value={option}
                   onChange={(event): void => {
                     const nextSlots = [...configuredSlots];
@@ -161,7 +160,7 @@ export function StatsHighlightsSectionView({
                       {definition.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
             ))}
           </div>
