@@ -1,13 +1,13 @@
 import React from "react";
 import classNames from "classnames";
 import type { TopBarStatItem } from "@guilty-spark/shared/contracts/individual-tracker/view";
-import styles from "./viewer-top-bar-stats.module.css";
+import styles from "./stats-highlights.module.css";
 
-interface ViewerTopBarStatsProps {
+interface StatsHighlightsProps {
   readonly items: readonly TopBarStatItem[];
 }
 
-export function ViewerTopBarStats({ items }: ViewerTopBarStatsProps): React.ReactElement | null {
+export function StatsHighlights({ items }: StatsHighlightsProps): React.ReactElement | null {
   if (items.length === 0) {
     return null;
   }
@@ -17,7 +17,7 @@ export function ViewerTopBarStats({ items }: ViewerTopBarStatsProps): React.Reac
       className={classNames(styles.grid, {
         [styles.gridEightItems]: items.length === 8,
       })}
-      aria-label="Viewer top bar stats"
+      aria-label="Stats highlights"
     >
       {items.map((item, index) => (
         <li key={`${item.label}-${item.value}-${index.toString()}`} className={styles.card}>

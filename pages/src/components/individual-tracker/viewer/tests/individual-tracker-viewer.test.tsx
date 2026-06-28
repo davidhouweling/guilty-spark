@@ -155,7 +155,7 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByText("Live")).toBeInTheDocument();
   });
 
-  it("renders top bar stats under the Tracked Gameplay heading", () => {
+  it("renders stats highlights under the Tracked Gameplay heading", () => {
     const view = aFakeTrackerViewStateWith({
       topBarStats: [
         { label: "Won:Loss", value: "5:2" },
@@ -166,14 +166,14 @@ describe("IndividualTrackerViewer", () => {
     renderViewer(view, "connected", false);
 
     const trackedGameplayHeading = screen.getByRole("heading", { name: "Tracked Gameplay" });
-    const statsList = screen.getByLabelText("Viewer top bar stats");
+    const statsList = screen.getByLabelText("Stats highlights");
 
     expect(statsList).toBeInTheDocument();
     expect(trackedGameplayHeading.compareDocumentPosition(statsList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Accumulated Stats" })).not.toBeInTheDocument();
   });
 
-  it("uses the 8-item grid modifier when eight top bar stats are present", () => {
+  it("uses the 8-item grid modifier when eight stats highlights are present", () => {
     const view = aFakeTrackerViewStateWith({
       topBarStats: [
         { label: "1", value: "1" },
@@ -189,7 +189,7 @@ describe("IndividualTrackerViewer", () => {
 
     renderViewer(view, "connected", false);
 
-    expect(screen.getByLabelText("Viewer top bar stats").className).toMatch(/gridEightItems/);
+    expect(screen.getByLabelText("Stats highlights").className).toMatch(/gridEightItems/);
   });
 
   it("renders an empty state when there are no matches", () => {
