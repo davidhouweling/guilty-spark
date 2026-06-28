@@ -17,6 +17,7 @@ import { SeriesStatsView } from "../../series-stats/series-stats";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import { gameModeIconSrc } from "../game-mode-icon";
 import type { IndividualTrackerViewerRenderModel, ViewerEntryState, ViewerTimelineItem } from "./types";
+import { ViewerTopBarStats } from "./viewer-top-bar-stats";
 import styles from "./individual-tracker-viewer.module.css";
 
 const SERIES_BACKGROUND_ROTATION_MS = 10_000;
@@ -431,23 +432,11 @@ export function IndividualTrackerViewer({
           </div>
         </div>
 
-        {renderModel.topBarStats != null && renderModel.topBarStats.length > 0 && (
-          <section className={styles.accumulatedSection}>
-            <h2 className={styles.sectionTitle}>Accumulated Stats</h2>
-            <ul className={styles.statsList}>
-              {renderModel.topBarStats.map((stat) => (
-                <li key={`${stat.label}-${stat.value}`} className={styles.statsItem}>
-                  <span className={styles.statsLabel}>{stat.label}</span>
-                  <span className={styles.statsValue}>{stat.value}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
       </Container>
       <section className={styles.matchesSection}>
         <Container>
           <h2 className={styles.sectionTitle}>Tracked Gameplay</h2>
+          <ViewerTopBarStats items={renderModel.topBarStats ?? []} />
         </Container>
         {timeline.length === 0 ? (
           <Container>

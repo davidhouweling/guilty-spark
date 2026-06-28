@@ -155,6 +155,24 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByText("Live")).toBeInTheDocument();
   });
 
+  it("renders top bar stats under the Tracked Gameplay heading", () => {
+    const view = aFakeTrackerViewStateWith({
+      topBarStats: [
+        { label: "Won:Loss", value: "5:2" },
+        { label: "KDA", value: "3.4" },
+      ],
+    });
+
+    renderViewer(view, "connected", false);
+
+    const trackedGameplayHeading = screen.getByRole("heading", { name: "Tracked Gameplay" });
+    const statsList = screen.getByLabelText("Viewer top bar stats");
+
+    expect(statsList).toBeInTheDocument();
+    expect(trackedGameplayHeading.compareDocumentPosition(statsList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Accumulated Stats" })).not.toBeInTheDocument();
+  });
+
   it("renders an empty state when there are no matches", () => {
     const view = aFakeTrackerViewStateWith({ matches: [], series: [] });
 
