@@ -38,6 +38,10 @@ import {
   seriesContextNullablePayloadSchema,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import {
+  seriesNotifyRequestSchema,
+  seriesNotifyContract,
+} from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/series-notify";
+import {
   analyzeMatchGroupings,
   buildMatchScore,
   buildTeamRosterSignature,
@@ -209,6 +213,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           }
           case "resume-series": {
             return await this.handleResumeSeries();
+          }
+          case "series-notify": {
+            return await this.handleSeriesNotify(request);
           }
           case "refresh": {
             return await this.handleRefresh();
@@ -1337,7 +1344,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
     const body = parsed.data;
 
-    const teams: SeriesTeam[] = body.teams.map((team) => ({
+    const teams: SeriesTeam[] = body.teams.map((team, index) => ({
+      id: index,
       name: team.name,
       players: team.members.map((gamertag) => ({ discordId: null, discordName: null, gamertag, xboxId: null })),
     }));
@@ -1413,7 +1421,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       trackerState.activeSeries.subtitle = body.subtitleOverride;
     }
     if (body.teams !== undefined) {
-      trackerState.activeSeries.teams = body.teams.map((team) => ({
+      trackerState.activeSeries.teams = body.teams.map((team, index) => ({
+        id: index,
         name: team.name,
         players: team.members.map((gamertag) => ({ discordId: null, discordName: null, gamertag, xboxId: null })),
       }));
@@ -1460,6 +1469,169 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     );
 
     return resumeSeriesContract.toResponse({ success: true });
+  }
+
+  private async handleSeriesNotify(request: Request): Promise<Response> {
+    const trackerState = await this.getState();
+    if (trackerState == null) {
+      return new Response("Not Found", { status: 404 });
+    }
+
+    const parsed = await parseJsonBody(request, seriesNotifyRequestSchema, "Invalid series-notify request");
+    if (!parsed.success) {
+      return parsed.response;
+    }
+    const payload = parsed.data;
+
+    switch (payload.type) {
+      case "started": {
+        this.retireActiveSeries(trackerState);
+        trackerState.activeSeries = {
+          title: payload.title,
+          subtitle: payload.subtitle,
+          guildIconUrl: payload.guildIconUrl ?? null,
+          teams: payload.teams,
+          matchIds: [],
+          startedAt: new Date().toISOString(),
+          isActive: true,
+        };
+        trackerState.lastUpdateTime = new Date().toISOString();
+
+        await this.setState(trackerState);
+        this.broadcastViewState(trackerState);
+
+        this.logService.info(
+          "IndividualTracker: series started via series-notify",
+          new Map([
+            ["trackerId", trackerState.trackerId],
+            ["gamertag", trackerState.gamertag],
+            ["title", payload.title],
+          ]),
+        );
+        break;
+      }
+      case "ended": {
+        this.retireActiveSeries(trackerState);
+        trackerState.lastUpdateTime = new Date().toISOString();
+
+        await this.setState(trackerState);
+        this.broadcastViewState(trackerState);
+
+        this.logService.info(
+          "IndividualTracker: series ended via series-notify",
+          new Map([
+            ["trackerId", trackerState.trackerId],
+            ["gamertag", trackerState.gamertag],
+          ]),
+        );
+        break;
+      }
+      case "substituted": {
+        // Handle player substitution
+        const trackedGamertag = trackerState.gamertag;
+        const playerOutGamertag = payload.playerOut.gamertag;
+        const playerInGamertag = payload.playerIn.gamertag;
+
+        if (trackedGamertag === playerOutGamertag) {
+          // Tracked player is leaving the series
+          this.retireActiveSeries(trackerState);
+          trackerState.lastUpdateTime = new Date().toISOString();
+
+          await this.setState(trackerState);
+          this.broadcastViewState(trackerState);
+
+          this.logService.info(
+            "IndividualTracker: series retired (tracked player subbed out)",
+            new Map([
+              ["trackerId", trackerState.trackerId],
+              ["gamertag", trackerState.gamertag],
+            ]),
+          );
+        } else if (trackedGamertag === playerInGamertag && trackerState.activeSeries == null) {
+          // Tracked player is joining a new team; check if we can resume a previous series
+          const completedSeries = trackerState.completedSeries ?? [];
+          let resumedSeries = null;
+
+          // Look for a completed series with the same title/subtitle
+          for (const completed of completedSeries) {
+            // For now, use a simple heuristic: match recent series
+            // In production, might want more sophisticated matching
+            resumedSeries = completed;
+            break; // Use the most recent one
+          }
+
+          if (resumedSeries != null) {
+            // Resume the previous series
+            trackerState.activeSeries = {
+              ...resumedSeries,
+              matchIds: [],
+              startedAt: new Date().toISOString(),
+              isActive: true,
+            };
+            // Remove from completedSeries
+            trackerState.completedSeries = completedSeries.filter((s) => s !== resumedSeries);
+          } else {
+            // Start a new series for this tracker (minimal context)
+            trackerState.activeSeries = {
+              title: `Series`,
+              subtitle: null,
+              guildIconUrl: null,
+              teams: [],
+              matchIds: [],
+              startedAt: new Date().toISOString(),
+              isActive: true,
+            };
+          }
+
+          trackerState.lastUpdateTime = new Date().toISOString();
+          await this.setState(trackerState);
+          this.broadcastViewState(trackerState);
+
+          this.logService.info(
+            "IndividualTracker: tracked player subbed in, series resumed or created",
+            new Map([
+              ["trackerId", trackerState.trackerId],
+              ["gamertag", trackerState.gamertag],
+            ]),
+          );
+        } else if (trackerState.activeSeries != null) {
+          // Update the team roster without affecting our tracked player
+          const updatedTeams = trackerState.activeSeries.teams.map((team) => {
+            if (team.id === payload.teamId) {
+              return {
+                ...team,
+                players: team.players.map((p) => (p.gamertag === playerOutGamertag ? payload.playerIn : p)),
+              };
+            }
+            return team;
+          });
+
+          trackerState.activeSeries = {
+            ...trackerState.activeSeries,
+            teams: updatedTeams,
+          };
+          trackerState.lastUpdateTime = new Date().toISOString();
+
+          await this.setState(trackerState);
+          this.broadcastViewState(trackerState);
+
+          this.logService.debug(
+            "IndividualTracker: team roster updated via substitution",
+            new Map([
+              ["trackerId", trackerState.trackerId],
+              ["teamId", String(payload.teamId)],
+            ]),
+          );
+        }
+        break;
+      }
+      default: {
+        const _exhaustive: never = payload;
+        return _exhaustive;
+      }
+    }
+
+    return seriesNotifyContract.toResponse({ success: true });
   }
 
   private async handleNudge(request: Request): Promise<Response> {

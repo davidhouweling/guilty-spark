@@ -125,8 +125,8 @@ describe("seriesContextPayloadSchema", () => {
     subtitle: "Best of 3",
     guildIconUrl: null,
     teams: [
-      { name: "Eagles", players: [{ discordId: "d1", discordName: "Player1", gamertag: "Tag1", xboxId: "x1" }] },
-      { name: "Cobras", players: [] },
+      { id: 0, name: "Eagles", players: [{ discordId: "d1", discordName: "Player1", gamertag: "Tag1", xboxId: "x1" }] },
+      { id: 1, name: "Cobras", players: [] },
     ],
   };
 

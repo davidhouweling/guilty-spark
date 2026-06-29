@@ -670,6 +670,7 @@ export class NeatQueueService {
       const { title, guildIconUrl } = await this.fetchGuildDisplayInfo(request.guild);
 
       const seriesTeams: SeriesTeam[] = request.teams.map((team, teamIndex) => ({
+        id: teamIndex,
         name: team[0]?.team_name ?? getTeamName(teamIndex),
         players: team.map((player) =>
           this.buildSeriesPlayer(queueState.playersAssociationData[player.id], player.id, player.name),

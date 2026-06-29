@@ -2096,6 +2096,7 @@ describe("NeatQueueService", () => {
           guildIconUrl: null,
           teams: [
             {
+              id: 0,
               name: "Team 1",
               players: [
                 {
@@ -2162,6 +2163,7 @@ describe("NeatQueueService", () => {
           guildIconUrl: null,
           teams: [
             {
+              id: 0,
               name: "Team 1",
               players: [
                 {
