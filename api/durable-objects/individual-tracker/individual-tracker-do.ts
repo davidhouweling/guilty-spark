@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/cloudflare";
 import { addMilliseconds, compareAsc, differenceInHours } from "date-fns";
+import { z } from "zod";
 import {
   type PlayerMatchHistory,
   type MatchStats,
@@ -91,17 +92,45 @@ const STATE_STORAGE_KEY = "individualTrackerState";
 
 const individualStatsHighlightOptionSet = new Set<string>(INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS);
 
+const statsHighlightSlotsQuerySchema = z.object({
+  statsHighlightSlots: z.string().optional(),
+});
+
+const statsHighlightSlotsPayloadSchema = z
+  .preprocess((value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    try {
+      return JSON.parse(value) as unknown;
+    } catch {
+      return undefined;
+    }
+  }, z.array(z.string()).optional())
+  .transform((slots): readonly IndividualStatsHighlightOption[] => slots.filter(isIndividualStatsHighlightOption));
+
 function isIndividualStatsHighlightOption(value: string): value is IndividualStatsHighlightOption {
   return individualStatsHighlightOptionSet.has(value);
 }
 
-function parseStatsHighlightSlots(value: string): readonly IndividualStatsHighlightOption[] {
-  const parsed: unknown = JSON.parse(value);
-  if (!Array.isArray(parsed)) {
+function parseStatsHighlightSlots(url: URL): readonly IndividualStatsHighlightOption[] {
+  const parsedQuery = statsHighlightSlotsQuerySchema.safeParse(Object.fromEntries(url.searchParams.entries()));
+  if (!parsedQuery.success) {
     return [];
   }
 
-  return parsed.filter((entry): entry is string => typeof entry === "string").filter(isIndividualStatsHighlightOption);
+  const rawSlots = parsedQuery.data.statsHighlightSlots;
+  if (rawSlots == null) {
+    return [];
+  }
+
+  const parsedSlots = statsHighlightSlotsPayloadSchema.safeParse(rawSlots);
+  if (!parsedSlots.success) {
+    return [];
+  }
+
+  return parsedSlots.data;
 }
 
 export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
@@ -1488,15 +1517,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
   private async handleViewState(request: Request): Promise<Response> {
     const url = new URL(request.url);
-    const slotsParam = url.searchParams.get("statsHighlightSlots");
-    let statsHighlightSlots: readonly IndividualStatsHighlightOption[] = [];
-    if (slotsParam != null) {
-      try {
-        statsHighlightSlots = parseStatsHighlightSlots(slotsParam);
-      } catch {
-        // malformed JSON — treat as empty slots
-      }
-    }
+    const statsHighlightSlots = parseStatsHighlightSlots(url);
 
     const trackerState = await this.getState();
     const statsHighlights =
