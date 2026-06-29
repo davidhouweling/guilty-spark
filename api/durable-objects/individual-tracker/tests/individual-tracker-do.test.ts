@@ -2294,10 +2294,12 @@ describe("IndividualTrackerDO", () => {
       guildIconUrl: "https://cdn.discordapp.com/icons/guild-id/icon.webp",
       teams: [
         {
+          id: 0,
           name: "Eagle",
           players: [{ discordId: "discord-1", discordName: "PlayerOne", gamertag: "GT1", xboxId: "xuid-1" }],
         },
         {
+          id: 1,
           name: "Cobra",
           players: [{ discordId: "discord-2", discordName: "PlayerTwo", gamertag: "GT2", xboxId: "xuid-2" }],
         },
@@ -2424,8 +2426,12 @@ describe("IndividualTrackerDO", () => {
     it("applies activeSeries title, subtitle, guildIconUrl, and teams to the matching series group", async () => {
       const ids = ["match-nq-1", "match-nq-2"];
       const teams = [
-        { name: "Eagle", players: [{ discordId: "d-1", discordName: "Alice", gamertag: "AliceGT", xboxId: "x-1" }] },
-        { name: "Cobra", players: [{ discordId: "d-2", discordName: "Bob", gamertag: "BobGT", xboxId: "x-2" }] },
+        {
+          id: 0,
+          name: "Eagle",
+          players: [{ discordId: "d-1", discordName: "Alice", gamertag: "AliceGT", xboxId: "x-1" }],
+        },
+        { id: 1, name: "Cobra", players: [{ discordId: "d-2", discordName: "Bob", gamertag: "BobGT", xboxId: "x-2" }] },
       ];
       const activeSeries: ActiveSeries = {
         title: "Guilty Spark",
@@ -2670,6 +2676,7 @@ describe("IndividualTrackerDO", () => {
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries?.teams).toEqual([
         {
+          id: 0,
           name: "Team A",
           players: [
             { discordId: null, discordName: null, gamertag: "Player1", xboxId: null },
@@ -2677,6 +2684,7 @@ describe("IndividualTrackerDO", () => {
           ],
         },
         {
+          id: 1,
           name: "Team B",
           players: [{ discordId: null, discordName: null, gamertag: "Player3", xboxId: null }],
         },
@@ -2909,7 +2917,7 @@ describe("IndividualTrackerDO", () => {
 
     it("activeSeriesContext is present with correct data when activeSeries exists", async () => {
       const teams = [
-        { name: "Eagle", players: [{ discordId: null, discordName: null, gamertag: "GT1", xboxId: null }] },
+        { id: 0, name: "Eagle", players: [{ discordId: null, discordName: null, gamertag: "GT1", xboxId: null }] },
       ];
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({

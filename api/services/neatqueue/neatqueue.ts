@@ -670,6 +670,7 @@ export class NeatQueueService {
       const { title, guildIconUrl } = await this.fetchGuildDisplayInfo(request.guild);
 
       const seriesTeams: SeriesTeam[] = request.teams.map((team, teamIndex) => ({
+        id: teamIndex,
         name: team[0]?.team_name ?? getTeamName(teamIndex),
         players: team.map((player) =>
           this.buildSeriesPlayer(queueState.playersAssociationData[player.id], player.id, player.name),
@@ -820,24 +821,49 @@ export class NeatQueueService {
     try {
       const subOutXuid = state.playersAssociationData[request.player_subbed_out.id]?.xboxId ?? null;
       const subInAssoc = state.playersAssociationData[request.player_subbed_in.id];
-      const updatedTeams = state.seriesContext.teams.map((team) => ({
-        ...team,
-        players: team.players.map((player) =>
-          player.discordId === request.player_subbed_out.id
-            ? this.buildSeriesPlayer(subInAssoc, request.player_subbed_in.id, request.player_subbed_in.name)
-            : player,
-        ),
-      }));
+      const subInXuid = subInAssoc?.xboxId ?? null;
+
+      // Find the team where substitution occurred
+      let teamId = -1;
+      const updatedTeams = state.seriesContext.teams.map((team) => {
+        const hasSubbedOutPlayer = team.players.some((p) => p.discordId === request.player_subbed_out.id);
+        if (hasSubbedOutPlayer) {
+          teamId = team.id;
+        }
+
+        return {
+          ...team,
+          players: team.players.map((player) =>
+            player.discordId === request.player_subbed_out.id
+              ? this.buildSeriesPlayer(subInAssoc, request.player_subbed_in.id, request.player_subbed_in.name)
+              : player,
+          ),
+        };
+      });
+
+      const playerOut = this.buildSeriesPlayer(
+        state.playersAssociationData[request.player_subbed_out.id],
+        request.player_subbed_out.id,
+        request.player_subbed_out.name,
+      );
+      const playerIn = this.buildSeriesPlayer(subInAssoc, request.player_subbed_in.id, request.player_subbed_in.name);
+
       const updatedContext: SeriesContextPayload = { ...state.seriesContext, teams: updatedTeams };
       state.seriesContext = updatedContext;
       this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
-      const subInXuid = subInAssoc?.xboxId ?? null;
-      await Promise.all([
-        subOutXuid != null ? this.individualTrackerService.nudgeTrackers([subOutXuid], null) : Promise.resolve(),
-        subInXuid != null
-          ? this.individualTrackerService.nudgeTrackers([subInXuid], updatedContext)
-          : Promise.resolve(),
-      ]);
+
+      // Send substitution event to both affected players
+      if (teamId >= 0) {
+        const substitutionPayload = { type: "substituted" as const, teamId, playerOut, playerIn };
+        await Promise.all([
+          subOutXuid != null
+            ? this.individualTrackerService.nudgeTrackers([subOutXuid], substitutionPayload)
+            : Promise.resolve(),
+          subInXuid != null
+            ? this.individualTrackerService.nudgeTrackers([subInXuid], substitutionPayload)
+            : Promise.resolve(),
+        ]);
+      }
     } catch (nudgeError) {
       this.logService.warn(
         "Failed to nudge individual trackers for substitution",

@@ -2096,6 +2096,7 @@ describe("NeatQueueService", () => {
           guildIconUrl: null,
           teams: [
             {
+              id: 0,
               name: "Team 1",
               players: [
                 {
@@ -2137,20 +2138,18 @@ describe("NeatQueueService", () => {
 
         expect(nudgeTrackersSpy).toHaveBeenCalledTimes(2);
         const calls = nudgeTrackersSpy.mock.calls as [string[], unknown][];
-        const nullCall = calls.find(([, payload]) => payload === null);
-        const contextCall = calls.find(([, payload]) => payload !== null);
-        expect(nullCall?.[0]).toEqual(["xuid_discord_user_01"]);
-        expect(contextCall?.[0]).toEqual(["xuid_discord_user_03"]);
-        expect(contextCall?.[1]).toMatchObject({
-          title: "Test Server",
-          subtitle: "Queue #3",
-          teams: [
-            expect.objectContaining<Partial<SeriesTeam>>({
-              players: expect.arrayContaining<SeriesPlayer>([
-                expect.objectContaining<Partial<SeriesPlayer>>({ discordId: "discord_user_03" }) as SeriesPlayer,
-              ]) as SeriesPlayer[],
-            }) as SeriesTeam,
-          ],
+        const subOutCall = calls.find(
+          ([, payload]: [string[], unknown]) =>
+            payload !== null && typeof payload === "object" && "type" in payload && payload.type === "substituted",
+        );
+        const subInCall = calls.find(([xuids]) => xuids.includes("xuid_discord_user_03"));
+        expect(subOutCall?.[0]).toEqual(["xuid_discord_user_01"]);
+        expect(subInCall?.[0]).toEqual(["xuid_discord_user_03"]);
+        expect(subInCall?.[1]).toMatchObject({
+          type: "substituted",
+          teamId: 0,
+          playerOut: expect.objectContaining({ discordId: "discord_user_01" }) as SeriesPlayer,
+          playerIn: expect.objectContaining({ discordId: "discord_user_03" }) as SeriesPlayer,
         });
       });
 
@@ -2162,6 +2161,7 @@ describe("NeatQueueService", () => {
           guildIconUrl: null,
           teams: [
             {
+              id: 0,
               name: "Team 1",
               players: [
                 {
@@ -2199,10 +2199,13 @@ describe("NeatQueueService", () => {
 
         expect(nudgeTrackersSpy).toHaveBeenCalledTimes(2);
         const calls = nudgeTrackersSpy.mock.calls as [string[], unknown][];
-        const nullCall = calls.find(([, payload]) => payload === null);
-        const contextCall = calls.find(([, payload]) => payload !== null);
-        expect(nullCall?.[0]).toEqual(["xuid_discord_user_01"]);
-        expect(contextCall?.[0]).toEqual(["xuid_discord_user_03"]);
+        const subOutCall = calls.find(
+          ([, payload]: [string[], unknown]) =>
+            payload !== null && typeof payload === "object" && "type" in payload && payload.type === "substituted",
+        );
+        const subInCall = calls.find(([xuids]) => xuids.includes("xuid_discord_user_03"));
+        expect(subOutCall?.[0]).toEqual(["xuid_discord_user_01"]);
+        expect(subInCall?.[0]).toEqual(["xuid_discord_user_03"]);
       });
 
       it("skips nudge when seriesContext is not set", async () => {

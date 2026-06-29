@@ -35,7 +35,7 @@ import {
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/management";
 import {
   individualTrackerNudgeContract,
-  seriesContextNullablePayloadSchema,
+  nudgePayloadSchema,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import {
   analyzeMatchGroupings,
@@ -1337,7 +1337,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
     const body = parsed.data;
 
-    const teams: SeriesTeam[] = body.teams.map((team) => ({
+    const teams: SeriesTeam[] = body.teams.map((team, teamIndex) => ({
+      id: teamIndex,
       name: team.name,
       players: team.members.map((gamertag) => ({ discordId: null, discordName: null, gamertag, xboxId: null })),
     }));
@@ -1413,7 +1414,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       trackerState.activeSeries.subtitle = body.subtitleOverride;
     }
     if (body.teams !== undefined) {
-      trackerState.activeSeries.teams = body.teams.map((team) => ({
+      trackerState.activeSeries.teams = body.teams.map((team, teamIndex) => ({
+        id: teamIndex,
         name: team.name,
         players: team.members.map((gamertag) => ({ discordId: null, discordName: null, gamertag, xboxId: null })),
       }));
@@ -1468,20 +1470,118 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Not Found", { status: 404 });
     }
 
-    const parsed = await parseJsonBody(request, seriesContextNullablePayloadSchema, "Invalid nudge request");
+    const parsed = await parseJsonBody(request, nudgePayloadSchema, "Invalid nudge request");
     if (!parsed.success) {
       return parsed.response;
     }
     const payload = parsed.data;
 
-    this.retireActiveSeries(trackerState);
-    if (payload != null) {
+    // Handle three types of nudge events: started, ended, substituted (+ null for legacy ended)
+    if (payload === null) {
+      // Legacy: null = ended
+      this.retireActiveSeries(trackerState);
+    } else if (payload.type === "ended") {
+      // New: explicit ended event
+      this.retireActiveSeries(trackerState);
+    } else if (payload.type === "substituted") {
+      // Substitution event
+      const trackedGamertag = trackerState.gamertag;
+      const playerOutGamertag = payload.playerOut.gamertag;
+      const playerInGamertag = payload.playerIn.gamertag;
+
+      if (trackedGamertag === playerOutGamertag) {
+        // Tracked player is leaving the series
+        this.retireActiveSeries(trackerState);
+        this.logService.info(
+          "IndividualTracker: series retired (tracked player subbed out via nudge)",
+          new Map([
+            ["trackerId", trackerState.trackerId],
+            ["gamertag", trackerState.gamertag],
+          ]),
+        );
+      } else if (trackedGamertag === playerInGamertag && trackerState.activeSeries == null) {
+        // Tracked player is joining; try to resume a completed series
+        const completedSeries = trackerState.completedSeries ?? [];
+        let resumedSeries = null;
+
+        if (completedSeries.length > 0) {
+          resumedSeries = completedSeries[completedSeries.length - 1];
+        }
+
+        if (resumedSeries != null) {
+          trackerState.activeSeries = {
+            ...resumedSeries,
+            matchIds: [],
+            startedAt: new Date().toISOString(),
+            isActive: true,
+          };
+          trackerState.completedSeries = completedSeries.filter((s) => s !== resumedSeries);
+        } else {
+          // Create minimal series
+          trackerState.activeSeries = {
+            title: "Series",
+            subtitle: null,
+            guildIconUrl: null,
+            teams: [],
+            matchIds: [],
+            startedAt: new Date().toISOString(),
+            isActive: true,
+          };
+        }
+
+        this.logService.info(
+          "IndividualTracker: series resumed/created (tracked player subbed in via nudge)",
+          new Map([
+            ["trackerId", trackerState.trackerId],
+            ["gamertag", trackerState.gamertag],
+          ]),
+        );
+      } else if (trackerState.activeSeries != null) {
+        // Update team roster (neither in nor out is tracked player)
+        const updatedTeams = trackerState.activeSeries.teams.map((team) => {
+          if (team.id === payload.teamId) {
+            return {
+              ...team,
+              players: team.players.map((p) => (p.gamertag === playerOutGamertag ? payload.playerIn : p)),
+            };
+          }
+          return team;
+        });
+
+        trackerState.activeSeries = {
+          ...trackerState.activeSeries,
+          teams: updatedTeams,
+        };
+
+        this.logService.debug(
+          "IndividualTracker: team roster updated via nudge substitution",
+          new Map([
+            ["trackerId", trackerState.trackerId],
+            ["teamId", String(payload.teamId)],
+          ]),
+        );
+      }
+    } else {
+      // Default/started event (payload.type is undefined or "started")
+      this.retireActiveSeries(trackerState);
       trackerState.activeSeries = {
-        ...payload,
+        title: payload.title,
+        subtitle: payload.subtitle,
+        guildIconUrl: payload.guildIconUrl,
+        teams: payload.teams,
         matchIds: [],
         startedAt: new Date().toISOString(),
         isActive: true,
       };
+
+      this.logService.info(
+        "IndividualTracker: series started via nudge",
+        new Map([
+          ["trackerId", trackerState.trackerId],
+          ["gamertag", trackerState.gamertag],
+          ["title", payload.title],
+        ]),
+      );
     }
 
     trackerState.lastUpdateTime = new Date().toISOString();
