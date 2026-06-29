@@ -72,7 +72,7 @@ export function StatsHighlightsSectionView({
 
           <div className={styles.slotGrid}>
             {configuredSlots.map((option, index) => (
-              <div key={`${index.toString()}-${option}`} className={styles.field}>
+              <div key={`highlight-slot-${index.toString()}`} className={styles.field}>
                 <label htmlFor={`stats-highlight-slot-${index.toString()}`} className={styles.fieldLabel}>
                   {`Highlight ${(index + 1).toString()}`}
                 </label>
