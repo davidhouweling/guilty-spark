@@ -31,7 +31,6 @@ export type IndividualStatsHighlightOption =
 
 export const INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT = 6;
 export const INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT = 8;
-export const INDIVIDUAL_STATS_HIGHLIGHTS_SLOT_COUNT = INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT;
 
 export type IndividualStatsHighlightOptionGroup = "individual" | "compact" | "profile";
 

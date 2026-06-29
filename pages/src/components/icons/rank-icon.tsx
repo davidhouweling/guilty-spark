@@ -135,7 +135,7 @@ function getRankKey(
   }
 
   // For other ranks, use the subtier
-  const tier = subTier ?? 1;
+  const tier = (subTier ?? 0) + 1;
   return `${rankTier}${tier.toString()}`;
 }
 
@@ -148,7 +148,7 @@ function getRankName(rankTier: string | null, subTier: number | null): string {
     return "Onyx";
   }
 
-  const tier = subTier ?? 1;
+  const tier = (subTier ?? 0) + 1;
   return `${rankTier} ${tier.toString()}`;
 }
 
