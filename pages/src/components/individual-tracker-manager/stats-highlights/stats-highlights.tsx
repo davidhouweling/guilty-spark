@@ -57,7 +57,7 @@ function buildStatsHighlightSlots(
 
 function parseIndividualStatsHighlightOption(value: string): IndividualStatsHighlightOption {
   const definition = INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTION_DEFINITIONS.find((candidate) => candidate.value === value);
-  return Preconditions.checkExists(definition, "top bar stat option").value;
+  return Preconditions.checkExists(definition, "stats highlights option").value;
 }
 
 interface StatsHighlightsSectionViewProps {

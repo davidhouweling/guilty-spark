@@ -52,7 +52,10 @@ import {
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
-import { type IndividualStatsHighlightOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import {
+  INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS,
+  type IndividualStatsHighlightOption,
+} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { HaloService } from "../../services/halo/halo";
 import type { PlayerEsraData } from "../../services/halo/types";
 import type { JsonAny, LogService } from "../../services/log/types";
@@ -85,6 +88,21 @@ const PLAYER_MATCHES_PAGE_SIZE = 25;
 const MAX_MATCHES_TO_FETCH = 100;
 
 const STATE_STORAGE_KEY = "individualTrackerState";
+
+const individualStatsHighlightOptionSet = new Set<string>(INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS);
+
+function isIndividualStatsHighlightOption(value: string): value is IndividualStatsHighlightOption {
+  return individualStatsHighlightOptionSet.has(value);
+}
+
+function parseStatsHighlightSlots(value: string): readonly IndividualStatsHighlightOption[] {
+  const parsed: unknown = JSON.parse(value);
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+
+  return parsed.filter((entry): entry is string => typeof entry === "string").filter(isIndividualStatsHighlightOption);
+}
 
 export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
@@ -1474,7 +1492,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     let statsHighlightSlots: readonly IndividualStatsHighlightOption[] = [];
     if (slotsParam != null) {
       try {
-        statsHighlightSlots = JSON.parse(slotsParam) as IndividualStatsHighlightOption[];
+        statsHighlightSlots = parseStatsHighlightSlots(slotsParam);
       } catch {
         // malformed JSON — treat as empty slots
       }
