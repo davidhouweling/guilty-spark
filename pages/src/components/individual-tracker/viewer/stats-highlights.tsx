@@ -21,7 +21,7 @@ export function StatsHighlights({ items }: StatsHighlightsProps): React.ReactEle
       aria-label="Stats highlights"
     >
       {items.map((item, index) => (
-        <li key={`${item.label}-${item.value}-${index.toString()}`} className={styles.card}>
+        <li key={`highlight-slot-${index.toString()}`} className={styles.card}>
           <span className={styles.label}>{item.label}</span>
           <span className={styles.value}>
             {item.rankIcon != null ? (
