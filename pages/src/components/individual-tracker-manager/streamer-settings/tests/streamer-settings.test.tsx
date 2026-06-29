@@ -201,9 +201,7 @@ describe("StreamerSettingsSectionView", () => {
 
     it("shows an error message when saveStatus is error", () => {
       render(
-        <StreamerSettingsSectionView
-          {...aFakeProps({ saveStatus: "error", saveErrorMessage: "Network failure" })}
-        />,
+        <StreamerSettingsSectionView {...aFakeProps({ saveStatus: "error", saveErrorMessage: "Network failure" })} />,
       );
 
       expect(screen.getByRole("status")).toBeInTheDocument();

@@ -17,10 +17,7 @@ export function StreamerSettingsSection({
   gamertag,
 }: StreamerSettingsSectionProps): React.ReactElement {
   const store = useMemo(() => new StreamerSettingsStore(), []);
-  const presenter = useMemo(
-    () => new StreamerSettingsPresenter({ settingsService, store }),
-    [settingsService, store],
-  );
+  const presenter = useMemo(() => new StreamerSettingsPresenter({ settingsService, store }), [settingsService, store]);
 
   useEffect(() => {
     presenter.loadSettings(settings, gamertag);
