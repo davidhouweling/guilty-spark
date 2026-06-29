@@ -1,112 +1,29 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import {
-  DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS,
-  INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
-  INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT,
-  INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTION_DEFINITIONS,
-  type IndividualStatsHighlightOptionGroup,
-  type IndividualStatsHighlightOption,
-} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import React from "react";
+import { INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { Alert } from "../../alert/alert";
 import { Checkbox } from "../../checkbox/checkbox";
 import { Select } from "../../select/select";
-import type { SaveStatus } from "../streamer-connections/streamer-connections-store";
+import type { StatsHighlightsSectionViewModel } from "./types";
 import styles from "./stats-highlights.module.css";
 
-const STATS_HIGHLIGHTS_GROUP_LABELS: Record<IndividualStatsHighlightOptionGroup, string> = {
-  individual: "Individual stats",
-  compact: "Compacted stats",
-  profile: "Profile stats",
-};
-
-const statsHighlightOptionGroups = (
-  Object.keys(STATS_HIGHLIGHTS_GROUP_LABELS) as IndividualStatsHighlightOptionGroup[]
-).map((group) => ({
-  group,
-  label: STATS_HIGHLIGHTS_GROUP_LABELS[group],
-  options: INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTION_DEFINITIONS.filter((definition) => definition.group === group),
-}));
-
-function buildStatsHighlightSlots(
-  targetCount: number,
-  currentSlots: readonly IndividualStatsHighlightOption[],
-): readonly IndividualStatsHighlightOption[] {
-  const nextSlots = [...currentSlots].slice(0, targetCount);
-
-  for (const option of DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS) {
-    if (nextSlots.length >= targetCount) {
-      return nextSlots;
-    }
-    if (!nextSlots.includes(option)) {
-      nextSlots.push(option);
-    }
-  }
-
-  for (const definition of INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTION_DEFINITIONS) {
-    if (nextSlots.length >= targetCount) {
-      return nextSlots;
-    }
-    if (!nextSlots.includes(definition.value)) {
-      nextSlots.push(definition.value);
-    }
-  }
-
-  return nextSlots;
-}
-
-function parseIndividualStatsHighlightOption(value: string): IndividualStatsHighlightOption {
-  const definition = INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTION_DEFINITIONS.find((candidate) => candidate.value === value);
-  return Preconditions.checkExists(definition, "stats highlights option").value;
-}
-
-interface StatsHighlightsSectionViewProps {
-  readonly statsHighlightSlots: readonly IndividualStatsHighlightOption[];
-  readonly saveStatus: SaveStatus;
-  readonly saveErrorMessage: string | null;
-  readonly onStatsHighlightSlotsChange: (statsHighlightSlots: readonly IndividualStatsHighlightOption[]) => void;
+interface StatsHighlightsSectionViewProps extends StatsHighlightsSectionViewModel {
+  readonly onEnabledChange: (checked: boolean) => void;
+  readonly onSlotCountChange: (slotCount: number) => void;
+  readonly onSlotValueChange: (index: number, value: string) => void;
 }
 
 export function StatsHighlightsSectionView({
-  statsHighlightSlots,
+  isEnabled,
+  slotCount,
+  configuredSlots,
+  optionGroups,
   saveStatus,
   saveErrorMessage,
-  onStatsHighlightSlotsChange,
+  showSaveToast,
+  onEnabledChange,
+  onSlotCountChange,
+  onSlotValueChange,
 }: StatsHighlightsSectionViewProps): React.ReactElement {
-  const [showSaveToast, setShowSaveToast] = useState(false);
-  const previousSaveStatusRef = useRef<SaveStatus>("idle");
-  const isEnabled = statsHighlightSlots.length > 0;
-  const slotCount = isEnabled ? statsHighlightSlots.length : INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT;
-  const configuredSlots = buildStatsHighlightSlots(slotCount, statsHighlightSlots);
-
-  useEffect(() => {
-    const previousSaveStatus = previousSaveStatusRef.current;
-    previousSaveStatusRef.current = saveStatus;
-
-    if (saveStatus === "saving" || saveStatus === "error") {
-      setShowSaveToast(true);
-      return;
-    }
-
-    if (previousSaveStatus === "saving" && saveStatus === "saved") {
-      setShowSaveToast(true);
-    }
-  }, [saveStatus]);
-
-  useEffect(() => {
-    if (!showSaveToast || saveStatus === "saving") {
-      return;
-    }
-
-    const timeout = setTimeout(() => {
-      setShowSaveToast(false);
-    }, 2200);
-
-    return (): void => {
-      clearTimeout(timeout);
-    };
-  }, [showSaveToast, saveStatus]);
-
   return (
     <div className={styles.panel}>
       <h2 className={styles.sectionTitle}>Stats Highlights</h2>
@@ -118,11 +35,7 @@ export function StatsHighlightsSectionView({
       <div className={styles.card}>
         <Checkbox
           checked={isEnabled}
-          onChange={(checked): void => {
-            onStatsHighlightSlotsChange(
-              checked ? buildStatsHighlightSlots(INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT, configuredSlots) : [],
-            );
-          }}
+          onChange={onEnabledChange}
           label="Show stats highlights"
           description="When enabled, the viewer and overlay render a stats highlights row of selected metrics."
         />
@@ -136,7 +49,7 @@ export function StatsHighlightsSectionView({
             value={slotCount.toString()}
             disabled={!isEnabled}
             onChange={(event): void => {
-              onStatsHighlightSlotsChange(buildStatsHighlightSlots(Number(event.target.value), configuredSlots));
+              onSlotCountChange(Number(event.target.value));
             }}
           >
             {Array.from({ length: INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT }, (_, index) => index + 1).map(
@@ -167,12 +80,10 @@ export function StatsHighlightsSectionView({
                   id={`stats-highlight-slot-${index.toString()}`}
                   value={option}
                   onChange={(event): void => {
-                    const nextSlots = [...configuredSlots];
-                    nextSlots[index] = parseIndividualStatsHighlightOption(event.target.value);
-                    onStatsHighlightSlotsChange(nextSlots);
+                    onSlotValueChange(index, event.target.value);
                   }}
                 >
-                  {statsHighlightOptionGroups.map(({ group, label, options }) => (
+                  {optionGroups.map(({ group, label, options }) => (
                     <optgroup key={group} label={label}>
                       {options.map((definition) => (
                         <option key={definition.value} value={definition.value}>

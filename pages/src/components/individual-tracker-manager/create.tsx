@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useSyncExternalStore } from "react";
+import React, { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { AuthService } from "../../services/auth/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
@@ -7,7 +7,7 @@ import { IndividualTrackerPresenter } from "./individual-tracker-presenter";
 import { IndividualTrackerStore } from "./individual-tracker-store";
 import { IndividualTrackerShell } from "./individual-tracker";
 import { createLiveTrackersSection } from "./live-trackers/create";
-import { StatsHighlightsSectionView } from "./stats-highlights/stats-highlights";
+import { StatsHighlightsSection } from "./stats-highlights/create";
 import { StreamerConnectionsPresenter } from "./streamer-connections/streamer-connections-presenter";
 import { StreamerConnectionsSectionView } from "./streamer-connections/streamer-connections";
 import { StreamerConnectionsStore } from "./streamer-connections/streamer-connections-store";
@@ -85,6 +85,13 @@ export function IndividualTrackerManagerPage({
     () => settingsStore.getSnapshot(),
   );
 
+  const onStatsHighlightSlotsChange = useCallback(
+    (statsHighlightSlots: Parameters<StreamerConnectionsPresenter["setStatsHighlightSlots"]>[0]): void => {
+      settingsPresenter.setStatsHighlightSlots(statsHighlightSlots);
+    },
+    [settingsPresenter],
+  );
+
   return (
     <IndividualTrackerShell
       authState={snapshot.authState}
@@ -98,13 +105,11 @@ export function IndividualTrackerManagerPage({
       }}
       liveTrackersContent={<LiveTrackersComponent />}
       statsHighlightsContent={
-        <StatsHighlightsSectionView
+        <StatsHighlightsSection
           statsHighlightSlots={settingsSnapshot.statsHighlightSlots}
           saveStatus={settingsSnapshot.saveStatus}
           saveErrorMessage={settingsSnapshot.saveErrorMessage}
-          onStatsHighlightSlotsChange={(statsHighlightSlots): void => {
-            settingsPresenter.setStatsHighlightSlots(statsHighlightSlots);
-          }}
+          onStatsHighlightSlotsChange={onStatsHighlightSlotsChange}
         />
       }
       streamerSettingsContent={

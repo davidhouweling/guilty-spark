@@ -4,11 +4,11 @@ import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { StatsHighlightsSectionView } from "../stats-highlights";
+import { StatsHighlightsSection } from "../create";
 
 function aFakeProps(
-  overrides: Partial<React.ComponentProps<typeof StatsHighlightsSectionView>> = {},
-): React.ComponentProps<typeof StatsHighlightsSectionView> {
+  overrides: Partial<React.ComponentProps<typeof StatsHighlightsSection>> = {},
+): React.ComponentProps<typeof StatsHighlightsSection> {
   return {
     statsHighlightSlots: [],
     saveStatus: "idle",
@@ -24,7 +24,7 @@ describe("StatsHighlightsSectionView", () => {
   });
 
   it("shows the section as disabled when no stats highlights slots are configured", () => {
-    render(<StatsHighlightsSectionView {...aFakeProps()} />);
+    render(<StatsHighlightsSection {...aFakeProps()} />);
 
     expect(screen.getByRole("checkbox", { name: /show stats highlights/i })).not.toBeChecked();
     expect(screen.getByLabelText(/highlight count/i)).toBeDisabled();
@@ -35,7 +35,7 @@ describe("StatsHighlightsSectionView", () => {
     const user = userEvent.setup();
     const onStatsHighlightSlotsChange = vi.fn<(statsHighlightSlots: readonly string[]) => void>();
 
-    render(<StatsHighlightsSectionView {...aFakeProps({ onStatsHighlightSlotsChange })} />);
+    render(<StatsHighlightsSection {...aFakeProps({ onStatsHighlightSlotsChange })} />);
 
     await user.click(screen.getByRole("checkbox", { name: /show stats highlights/i }));
 
@@ -54,7 +54,7 @@ describe("StatsHighlightsSectionView", () => {
     const onStatsHighlightSlotsChange = vi.fn<(statsHighlightSlots: readonly string[]) => void>();
 
     render(
-      <StatsHighlightsSectionView
+      <StatsHighlightsSection
         {...aFakeProps({
           statsHighlightSlots: [
             "matches-win-loss",
@@ -88,7 +88,7 @@ describe("StatsHighlightsSectionView", () => {
     const onStatsHighlightSlotsChange = vi.fn<(statsHighlightSlots: readonly string[]) => void>();
 
     render(
-      <StatsHighlightsSectionView
+      <StatsHighlightsSection
         {...aFakeProps({
           statsHighlightSlots: ["matches-win-loss", "series-win-loss"],
           onStatsHighlightSlotsChange,
@@ -103,7 +103,7 @@ describe("StatsHighlightsSectionView", () => {
 
   it("groups stat options into individual, compacted, and profile sections", () => {
     const { container } = render(
-      <StatsHighlightsSectionView
+      <StatsHighlightsSection
         {...aFakeProps({
           statsHighlightSlots: ["matches-win-loss"],
         })}
