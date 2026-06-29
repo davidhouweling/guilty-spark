@@ -34,20 +34,17 @@ export const seriesSubstitutedPayloadSchema = z.object({
 });
 export type SeriesSubstitutedPayload = z.infer<typeof seriesSubstitutedPayloadSchema>;
 
-// Union of all nudge payloads (backward compat: SeriesStartedPayload can omit type)
+// Union of all nudge payloads
 export const nudgePayloadSchema = z.union([
   seriesStartedPayloadSchema,
   seriesEndedPayloadSchema,
   seriesSubstitutedPayloadSchema,
-  z.null(),
 ]);
 export type NudgePayload = z.infer<typeof nudgePayloadSchema>;
 
-// Legacy aliases for backward compat
+// Legacy aliases for backward compat (now point to started payload)
 export const seriesContextPayloadSchema = seriesStartedPayloadSchema;
 export type SeriesContextPayload = SeriesStartedPayload;
-export const seriesContextNullablePayloadSchema = z.union([seriesContextPayloadSchema, z.null()]);
-export type SeriesContextNullablePayload = z.infer<typeof seriesContextNullablePayloadSchema>;
 
 export const individualTrackerNudgeContract = defineContract(z.object({ success: z.literal(true) }));
 export type IndividualTrackerNudgeResponse = z.infer<typeof individualTrackerNudgeContract.schema>;

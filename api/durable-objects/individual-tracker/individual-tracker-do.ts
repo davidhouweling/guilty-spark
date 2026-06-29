@@ -1476,12 +1476,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
     const payload = parsed.data;
 
-    // Handle three types of nudge events: started, ended, substituted (+ null for legacy ended)
-    if (payload === null) {
-      // Legacy: null = ended
-      this.retireActiveSeries(trackerState);
-    } else if (payload.type === "ended") {
-      // New: explicit ended event
+    // Handle three types of nudge events: started, ended, substituted
+    if (payload.type === "ended") {
+      // Series ended event
       this.retireActiveSeries(trackerState);
     } else if (payload.type === "substituted") {
       // Substitution event

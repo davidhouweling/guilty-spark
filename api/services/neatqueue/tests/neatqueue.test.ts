@@ -2260,11 +2260,11 @@ describe("NeatQueueService", () => {
         await jobToComplete?.();
 
         expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
-        const [xuids, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], null];
+        const [xuids, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], { type: "ended" }];
         expect(xuids).toHaveLength(2);
         expect(xuids).toContain("xuid_discord_user_01");
         expect(xuids).toContain("xuid_discord_user_02");
-        expect(payload).toBeNull();
+        expect(payload).toEqual({ type: "ended" });
       });
 
       it("nudges with empty array when no players have XUIDs", async () => {
@@ -2283,7 +2283,7 @@ describe("NeatQueueService", () => {
         await jobToComplete?.();
 
         expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
-        expect(nudgeTrackersSpy).toHaveBeenCalledWith([], null);
+        expect(nudgeTrackersSpy).toHaveBeenCalledWith([], { type: "ended" });
       });
     });
   });

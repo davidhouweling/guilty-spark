@@ -1047,7 +1047,7 @@ export class NeatQueueService {
     const allPlayerXuids = this.extractXuids(completedQueueState.playersAssociationData);
 
     await Promise.all([
-      this.individualTrackerService.nudgeTrackers(allPlayerXuids, null).catch((error: unknown) => {
+      this.individualTrackerService.nudgeTrackers(allPlayerXuids, { type: "ended" }).catch((error: unknown) => {
         this.logService.warn(
           "Failed to nudge individual trackers for match completion",
           new Map([

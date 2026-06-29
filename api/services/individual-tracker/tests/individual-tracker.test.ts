@@ -435,10 +435,10 @@ describe("IndividualTrackerService", () => {
         aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Status: "active" }),
       ]);
 
-      await localService.nudgeTrackers(["xuid-1"], null);
+      await localService.nudgeTrackers(["xuid-1"], { type: "ended" });
 
       const [, init] = localFetchSpy.mock.calls[0] as [string, RequestInit];
-      expect(JSON.parse(init.body as string)).toBeNull();
+      expect(JSON.parse(init.body as string)).toEqual({ type: "ended" });
     });
 
     it("skips stopped trackers and nudges active and paused ones", async () => {
@@ -448,7 +448,7 @@ describe("IndividualTrackerService", () => {
         aFakeIndividualTrackersRow({ TrackerId: "t3", UserId: "user-1", Status: "paused" }),
       ]);
 
-      await nudgeService.nudgeTrackers(["xuid-1", "xuid-2", "xuid-3"], null);
+      await nudgeService.nudgeTrackers(["xuid-1", "xuid-2", "xuid-3"], { type: "ended" });
 
       expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
@@ -458,7 +458,7 @@ describe("IndividualTrackerService", () => {
         aFakeIndividualTrackersRow({ Status: "stopped" }),
       ]);
 
-      await nudgeService.nudgeTrackers(["xuid-1"], null);
+      await nudgeService.nudgeTrackers(["xuid-1"], { type: "ended" });
 
       expect(fetchSpy).not.toHaveBeenCalled();
     });
@@ -471,7 +471,7 @@ describe("IndividualTrackerService", () => {
       const warnSpy: MockInstance<LogService["warn"]> = vi.spyOn(logService, "warn");
       fetchSpy.mockRejectedValueOnce(new Error("DO unavailable")).mockResolvedValueOnce(new Response("ok"));
 
-      await expect(nudgeService.nudgeTrackers(["xuid-1", "xuid-2"], null)).resolves.toBeUndefined();
+      await expect(nudgeService.nudgeTrackers(["xuid-1", "xuid-2"], { type: "ended" })).resolves.toBeUndefined();
       expect(warnSpy).toHaveBeenCalledOnce();
       expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
@@ -481,7 +481,7 @@ describe("IndividualTrackerService", () => {
         .spyOn(databaseService, "findIndividualTrackersByXuids")
         .mockResolvedValue([]);
 
-      await nudgeService.nudgeTrackers([], null);
+      await nudgeService.nudgeTrackers([], { type: "ended" });
 
       expect(findSpy).toHaveBeenCalledWith([]);
       expect(fetchSpy).not.toHaveBeenCalled();

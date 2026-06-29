@@ -2366,7 +2366,7 @@ describe("IndividualTrackerDO", () => {
       expect(response.status).toBe(400);
     });
 
-    it("moves existing activeSeries to completedSeries when nudging with null", async () => {
+    it("moves existing activeSeries to completedSeries when nudging with ended event", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           activeSeries: anActiveSeries({ matchIds: ["match-1"] }),
@@ -2374,7 +2374,7 @@ describe("IndividualTrackerDO", () => {
       );
 
       const response = await individualTrackerDO.fetch(
-        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(null) }),
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify({ type: "ended" }) }),
       );
 
       expect(response.status).toBe(200);
