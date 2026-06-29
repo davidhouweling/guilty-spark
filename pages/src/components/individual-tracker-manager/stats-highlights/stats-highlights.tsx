@@ -111,8 +111,8 @@ export function StatsHighlightsSectionView({
     <div className={styles.panel}>
       <h2 className={styles.sectionTitle}>Stats Highlights</h2>
       <p className={styles.sectionDescription}>
-        Control the compact stat row shown above the tracker. Choose whether it is visible, how many highlight slots are
-        shown, and which metric appears in each slot.
+        Control the stats highlights row shown in the tracker view. Choose whether it is visible, how many highlight
+        slots are shown, and which metric appears in each slot.
       </p>
 
       <div className={styles.card}>
@@ -124,7 +124,7 @@ export function StatsHighlightsSectionView({
             );
           }}
           label="Show stats highlights"
-          description="When enabled, the viewer and overlay render a compact top bar of selected stats."
+          description="When enabled, the viewer and overlay render a stats highlights row of selected metrics."
         />
 
         <div className={styles.field}>
@@ -154,7 +154,7 @@ export function StatsHighlightsSectionView({
         <div className={styles.card}>
           <h3 className={styles.cardTitle}>Selected Highlights</h3>
           <p className={styles.cardDescription}>
-            Each slot keeps its own label in the top bar and updates live from the durable object.
+            Each slot keeps its own label in the stats highlights row and updates live from the durable object.
           </p>
 
           <div className={styles.slotGrid}>
