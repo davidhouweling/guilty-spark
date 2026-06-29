@@ -6,7 +6,7 @@ import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../li
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
-export interface StreamerConnectionsSnapshot {
+export interface StreamerSettingsSnapshot {
   readonly gamertag: string | null;
   readonly defaultColorMode: StreamerViewColorMode;
   readonly playerTeamColor: string;
@@ -48,8 +48,8 @@ const DEFAULT_FONT_SIZE_SETTINGS: FontSizeSettings = {
   ticker: 100,
 };
 
-export class StreamerConnectionsStore {
-  private snapshot: StreamerConnectionsSnapshot;
+export class StreamerSettingsStore {
+  private snapshot: StreamerSettingsSnapshot;
   private readonly subscribers = new Set<() => void>();
 
   public constructor() {
@@ -76,7 +76,7 @@ export class StreamerConnectionsStore {
     };
   }
 
-  public getSnapshot(): StreamerConnectionsSnapshot {
+  public getSnapshot(): StreamerSettingsSnapshot {
     return this.snapshot;
   }
 
@@ -84,7 +84,7 @@ export class StreamerConnectionsStore {
     this.update({ gamertag });
   }
 
-  public batchUpdate(partial: Partial<StreamerConnectionsSnapshot>): void {
+  public batchUpdate(partial: Partial<StreamerSettingsSnapshot>): void {
     this.update(partial);
   }
 
@@ -128,7 +128,7 @@ export class StreamerConnectionsStore {
     this.update({ saveStatus: "error", saveErrorMessage: message });
   }
 
-  private update(partial: Partial<StreamerConnectionsSnapshot>): void {
+  private update(partial: Partial<StreamerSettingsSnapshot>): void {
     this.snapshot = { ...this.snapshot, ...partial };
     for (const subscriber of this.subscribers) {
       subscriber();

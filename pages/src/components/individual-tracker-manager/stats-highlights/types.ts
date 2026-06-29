@@ -2,7 +2,7 @@ import type {
   IndividualStatsHighlightOption,
   IndividualStatsHighlightOptionDefinition,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import type { SaveStatus } from "../streamer-connections/streamer-connections-store";
+import type { SaveStatus } from "../streamer-settings/streamer-settings-store";
 
 export interface StatsHighlightsSectionProps {
   readonly statsHighlightSlots: readonly IndividualStatsHighlightOption[];

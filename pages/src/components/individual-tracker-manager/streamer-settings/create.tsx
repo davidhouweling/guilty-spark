@@ -1,26 +1,23 @@
 import React, { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerSettingsService } from "../../../services/individual-tracker/settings-types";
-import { StreamerConnectionsPresenter } from "./streamer-connections-presenter";
-import { StreamerConnectionsStore } from "./streamer-connections-store";
-import { StreamerConnectionsSectionView } from "./streamer-connections";
+import { StreamerSettingsPresenter } from "./streamer-settings-presenter";
+import { StreamerSettingsStore } from "./streamer-settings-store";
+import { StreamerSettingsSectionView } from "./streamer-settings";
 
-interface StreamerConnectionsSectionProps {
+interface StreamerSettingsSectionProps {
   readonly settings: StreamerViewSettings;
   readonly settingsService: IndividualTrackerSettingsService;
   readonly gamertag: string | null;
 }
 
-export function StreamerConnectionsSection({
+export function StreamerSettingsSection({
   settings,
   settingsService,
   gamertag,
-}: StreamerConnectionsSectionProps): React.ReactElement {
-  const store = useMemo(() => new StreamerConnectionsStore(), []);
-  const presenter = useMemo(
-    () => new StreamerConnectionsPresenter({ settingsService, store }),
-    [settingsService, store],
-  );
+}: StreamerSettingsSectionProps): React.ReactElement {
+  const store = useMemo(() => new StreamerSettingsStore(), []);
+  const presenter = useMemo(() => new StreamerSettingsPresenter({ settingsService, store }), [settingsService, store]);
 
   useEffect(() => {
     presenter.loadSettings(settings, gamertag);
@@ -39,7 +36,7 @@ export function StreamerConnectionsSection({
   );
 
   return (
-    <StreamerConnectionsSectionView
+    <StreamerSettingsSectionView
       gamertag={snapshot.gamertag}
       defaultColorMode={snapshot.defaultColorMode}
       playerTeamColor={snapshot.playerTeamColor}
