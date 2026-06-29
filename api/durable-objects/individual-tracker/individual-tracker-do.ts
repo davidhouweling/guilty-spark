@@ -54,6 +54,7 @@ import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import {
+  INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT,
   INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS,
   type IndividualStatsHighlightOption,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
@@ -92,6 +93,10 @@ const STATE_STORAGE_KEY = "individualTrackerState";
 
 const individualStatsHighlightOptionSet = new Set<string>(INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS);
 
+function isIndividualStatsHighlightOption(value: string): value is IndividualStatsHighlightOption {
+  return individualStatsHighlightOptionSet.has(value);
+}
+
 const statsHighlightSlotsQuerySchema = z.object({
   statsHighlightSlots: z.string().optional(),
 });
@@ -108,11 +113,9 @@ const statsHighlightSlotsPayloadSchema = z
       return undefined;
     }
   }, z.array(z.string()).optional())
-  .transform((slots): readonly IndividualStatsHighlightOption[] => slots.filter(isIndividualStatsHighlightOption));
-
-function isIndividualStatsHighlightOption(value: string): value is IndividualStatsHighlightOption {
-  return individualStatsHighlightOptionSet.has(value);
-}
+  .transform((slots): readonly IndividualStatsHighlightOption[] =>
+    (slots ?? []).filter(isIndividualStatsHighlightOption).slice(0, INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT),
+  );
 
 function parseStatsHighlightSlots(url: URL): readonly IndividualStatsHighlightOption[] {
   const parsedQuery = statsHighlightSlotsQuerySchema.safeParse(Object.fromEntries(url.searchParams.entries()));
