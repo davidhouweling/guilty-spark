@@ -21,7 +21,7 @@ export interface StatsHighlightsSectionSnapshot {
 }
 
 export interface StatsHighlightsOptionGroup {
-  readonly group: "individual" | "compact" | "profile";
+  readonly group: IndividualStatsHighlightOptionDefinition["group"];
   readonly label: string;
   readonly options: readonly IndividualStatsHighlightOptionDefinition[];
 }
