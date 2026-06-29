@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { Button } from "../button/button";
 import { LoadingState } from "../loading-state/loading-state";
 import { TabbedSection } from "../tabbed-section/tabbed-section";
+import type { TabbedSectionTab } from "../tabbed-section/types";
 import type { IndividualTrackerAuthState, IndividualTrackerSectionId } from "./individual-tracker-store";
 import styles from "./individual-tracker.module.css";
 
@@ -28,19 +29,19 @@ export function IndividualTrackerShell({
   streamerSettingsContent,
 }: IndividualTrackerShellProps): ReactElement {
   const sectionTabs = useMemo(
-    () => [
+    (): readonly TabbedSectionTab<IndividualTrackerSectionId>[] => [
       {
-        id: "live-trackers" as const,
+        id: "live-trackers",
         label: "Live Trackers",
         content: liveTrackersContent,
       },
       {
-        id: "stats-highlights" as const,
+        id: "stats-highlights",
         label: "Stats Highlights",
         content: statsHighlightsContent,
       },
       {
-        id: "streamer-settings" as const,
+        id: "streamer-settings",
         label: "Streamer Settings",
         content: streamerSettingsContent,
       },

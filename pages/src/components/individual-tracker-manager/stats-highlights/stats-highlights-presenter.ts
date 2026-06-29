@@ -29,9 +29,13 @@ const STATS_HIGHLIGHTS_GROUP_LABELS: Record<IndividualStatsHighlightOptionGroup,
   profile: "Profile stats",
 };
 
-const statsHighlightOptionGroups: readonly StatsHighlightsOptionGroup[] = (
-  Object.keys(STATS_HIGHLIGHTS_GROUP_LABELS) as IndividualStatsHighlightOptionGroup[]
-).map((group) => ({
+const STATS_HIGHLIGHTS_GROUP_ORDER: readonly IndividualStatsHighlightOptionGroup[] = [
+  "individual",
+  "compact",
+  "profile",
+];
+
+const statsHighlightOptionGroups: readonly StatsHighlightsOptionGroup[] = STATS_HIGHLIGHTS_GROUP_ORDER.map((group) => ({
   group,
   label: STATS_HIGHLIGHTS_GROUP_LABELS[group],
   options: INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTION_DEFINITIONS.filter((definition) => definition.group === group),
