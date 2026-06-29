@@ -1,0 +1,67 @@
+.wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.wrapperDisabled {
+  opacity: 0.6;
+}
+
+.select {
+  appearance: none;
+  background: var(--halo-bg-primary);
+  border: 1px solid var(--halo-teal-primary);
+  border-radius: var(--radius-sm);
+  color: var(--halo-white);
+  cursor: pointer;
+  font: inherit;
+  min-height: 2.75rem;
+  padding: var(--space-2) calc(var(--space-3) + 1.5rem) var(--space-2) var(--space-3);
+  transition: border-color 0.2s ease;
+  width: 100%;
+}
+
+.select:hover {
+  border-color: var(--halo-accent);
+}
+
+.select:focus {
+  border-color: var(--halo-accent);
+  box-shadow: 0 0 0 3px rgb(var(--halo-accent-rgb, 59, 130, 246), 0.1);
+  outline: none;
+}
+
+.select:disabled {
+  cursor: not-allowed;
+}
+
+.select option {
+  background: var(--halo-bg-primary);
+  color: var(--halo-white);
+}
+
+.chevron {
+  align-items: center;
+  color: var(--halo-gray);
+  display: flex;
+  inset-inline-end: var(--space-3);
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.chevronIcon {
+  display: block;
+  fill: none;
+  height: 0.875rem;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  width: 0.875rem;
+}
+
+.select:focus + .chevron {
+  color: var(--halo-white);
+}

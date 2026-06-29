@@ -1,4 +1,7 @@
-import type { StreamerViewColorMode } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type {
+  IndividualStatsHighlightOption,
+  StreamerViewColorMode,
+} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../live-tracker/settings/types";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -13,7 +16,7 @@ export interface StreamerConnectionsSnapshot {
   readonly displaySettings: DisplaySettings;
   readonly tickerSettings: TickerSettings;
   readonly fontSizeSettings: FontSizeSettings;
-  readonly topBarStatSlots: readonly string[];
+  readonly statsHighlightSlots: readonly IndividualStatsHighlightOption[];
   readonly saveStatus: SaveStatus;
   readonly saveErrorMessage: string | null;
 }
@@ -60,7 +63,7 @@ export class StreamerConnectionsStore {
       displaySettings: DEFAULT_DISPLAY_SETTINGS,
       tickerSettings: DEFAULT_TICKER_SETTINGS,
       fontSizeSettings: DEFAULT_FONT_SIZE_SETTINGS,
-      topBarStatSlots: [],
+      statsHighlightSlots: [],
       saveStatus: "idle",
       saveErrorMessage: null,
     };
@@ -107,6 +110,10 @@ export class StreamerConnectionsStore {
 
   public setFontSizeSettings(fontSizeSettings: FontSizeSettings): void {
     this.update({ fontSizeSettings });
+  }
+
+  public setStatsHighlightSlots(statsHighlightSlots: readonly IndividualStatsHighlightOption[]): void {
+    this.update({ statsHighlightSlots: [...statsHighlightSlots] });
   }
 
   public setSaving(): void {

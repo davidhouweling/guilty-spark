@@ -155,6 +155,52 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByText("Live")).toBeInTheDocument();
   });
 
+  it("renders stats highlights under the Tracked Gameplay heading", () => {
+    const view = aFakeTrackerViewStateWith({
+      statsHighlights: [
+        {
+          label: "Current Rank",
+          value: "1,567",
+          rankIcon: {
+            rankTier: "Onyx",
+            subTier: 0,
+            measurementMatchesRemaining: 0,
+            initialMeasurementMatches: 10,
+          },
+        },
+        { label: "KDA", value: "3.4" },
+      ],
+    });
+
+    renderViewer(view, "connected", false);
+
+    const trackedGameplayHeading = screen.getByRole("heading", { name: "Tracked Gameplay" });
+    const statsList = screen.getByLabelText("Stats highlights");
+
+    expect(statsList).toBeInTheDocument();
+    expect(trackedGameplayHeading.compareDocumentPosition(statsList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Accumulated Stats" })).not.toBeInTheDocument();
+  });
+
+  it("uses the 8-item grid modifier when eight stats highlights are present", () => {
+    const view = aFakeTrackerViewStateWith({
+      statsHighlights: [
+        { label: "1", value: "1" },
+        { label: "2", value: "2" },
+        { label: "3", value: "3" },
+        { label: "4", value: "4" },
+        { label: "5", value: "5" },
+        { label: "6", value: "6" },
+        { label: "7", value: "7" },
+        { label: "8", value: "8" },
+      ],
+    });
+
+    renderViewer(view, "connected", false);
+
+    expect(screen.getByLabelText("Stats highlights").className).toMatch(/gridEightItems/);
+  });
+
   it("renders an empty state when there are no matches", () => {
     const view = aFakeTrackerViewStateWith({ matches: [], series: [] });
 

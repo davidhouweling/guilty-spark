@@ -1,6 +1,11 @@
 import type {
+  IndividualStatsHighlightOption,
   StreamerViewColorMode,
   StreamerViewSettings,
+} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import {
+  INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT,
+  INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerSettingsService } from "../../../services/individual-tracker/settings-types";
 import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../live-tracker/settings/types";
@@ -11,6 +16,24 @@ const DEBOUNCE_MS = 450;
 interface Config {
   readonly settingsService: IndividualTrackerSettingsService;
   readonly store: StreamerConnectionsStore;
+}
+
+const individualStatsHighlightOptionSet = new Set<string>(INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS);
+
+function isIndividualStatsHighlightOption(value: string): value is IndividualStatsHighlightOption {
+  return individualStatsHighlightOptionSet.has(value);
+}
+
+function normalizeStatsHighlightSlots(
+  statsHighlightSlots: readonly string[] | undefined,
+): readonly IndividualStatsHighlightOption[] {
+  if (statsHighlightSlots == null) {
+    return [];
+  }
+
+  return statsHighlightSlots
+    .filter(isIndividualStatsHighlightOption)
+    .slice(0, INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT);
 }
 
 function settingsToSnapshot(
@@ -51,7 +74,9 @@ function settingsToSnapshot(
       tabs: fontSizes.tabs ?? snapshot.fontSizeSettings.tabs,
       ticker: fontSizes.ticker ?? snapshot.fontSizeSettings.ticker,
     },
-    topBarStatSlots: [...(visibleSections.topBarStatSlots ?? snapshot.topBarStatSlots)],
+    statsHighlightSlots: [
+      ...normalizeStatsHighlightSlots(visibleSections.statsHighlightSlots ?? snapshot.statsHighlightSlots),
+    ],
   };
 }
 
@@ -86,7 +111,7 @@ function snapshotToSettings(snapshot: StreamerConnectionsSnapshot): StreamerView
       showScore: snapshot.displaySettings.showScore,
       showTicker: snapshot.tickerSettings.showTicker,
       showTabs: snapshot.tickerSettings.showTabs,
-      topBarStatSlots: [...snapshot.topBarStatSlots],
+      statsHighlightSlots: [...snapshot.statsHighlightSlots],
     },
     layoutOptions: {
       fontSizes: {
@@ -179,6 +204,15 @@ export class StreamerConnectionsPresenter {
     }
     const current = this.config.store.getSnapshot().fontSizeSettings;
     this.config.store.setFontSizeSettings({ ...current, ...updates });
+    this.scheduleSave();
+  }
+
+  public setStatsHighlightSlots(statsHighlightSlots: readonly IndividualStatsHighlightOption[]): void {
+    if (this.isDisposed) {
+      return;
+    }
+
+    this.config.store.setStatsHighlightSlots(normalizeStatsHighlightSlots(statsHighlightSlots));
     this.scheduleSave();
   }
 

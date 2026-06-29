@@ -75,8 +75,8 @@ export class IndividualTrackerViewerStore {
   public setView(view: TrackerLiveView): void {
     const isLive = this.snapshot.view?.isLive ?? false;
     const streamerSettings = this.snapshot.view?.streamerSettings;
-    const topBarStats = this.snapshot.view?.topBarStats;
-    this.update({ status: ComponentLoaderStatus.LOADED, view: { ...view, isLive, streamerSettings, topBarStats } });
+    const statsHighlights = this.snapshot.view?.statsHighlights;
+    this.update({ status: ComponentLoaderStatus.LOADED, view: { ...view, isLive, streamerSettings, statsHighlights } });
   }
 
   public setConnectionStatus(connectionStatus: TrackerViewConnectionStatus): void {

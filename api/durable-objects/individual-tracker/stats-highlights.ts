@@ -2,10 +2,12 @@ import { compareAsc } from "date-fns";
 import { type MatchStats, type PlaylistCsrContainer } from "halo-infinite-api";
 import { getDurationInIsoString, getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { analyzeMatchGroupings } from "@guilty-spark/shared/halo/match-enrichment";
+import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
 import { formatDamageRatio, formatStatValue } from "@guilty-spark/shared/halo/stat-formatting";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import {
-  INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS,
-  type IndividualTopBarStatOption,
+  INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTION_DEFINITIONS,
+  type IndividualStatsHighlightOption,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { PlayerEsraData } from "../../services/halo/types";
@@ -13,7 +15,7 @@ import type {
   AccumulatedPlayerTotals,
   IndividualTrackerInternalState,
   IndividualTrackerMatchSummary,
-  TopBarStatItem,
+  StatsHighlightItem,
 } from "./types";
 
 export function getActiveMatchIds(state: IndividualTrackerInternalState): Set<string> {
@@ -67,11 +69,11 @@ export function accumulatePlayerStats(state: IndividualTrackerInternalState, mat
   return true;
 }
 
-const optionLabelByValue = new Map<IndividualTopBarStatOption, string>(
-  INDIVIDUAL_TOP_BAR_STAT_OPTION_DEFINITIONS.map((d) => [d.value, d.label]),
+const optionLabelByValue = new Map<IndividualStatsHighlightOption, string>(
+  INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTION_DEFINITIONS.map((d) => [d.value, d.label]),
 );
 
-function getTopBarStatLabel(option: IndividualTopBarStatOption): string {
+function getStatsHighlightLabel(option: IndividualStatsHighlightOption): string {
   if (option === "matches-win-loss") {
     return "Won:Loss";
   }
@@ -125,7 +127,14 @@ function computeKdaValue(totals: AccumulatedPlayerTotals): number {
   return totals.deaths === 0 ? totals.kills + totals.assists / 3 : (totals.kills + totals.assists / 3) / totals.deaths;
 }
 
-interface TopBarStatContext {
+function normalizeRankTier(rankTier: string | null | undefined): string | null {
+  if (rankTier == null || rankTier === "") {
+    return null;
+  }
+  return rankTier;
+}
+
+interface StatsHighlightContext {
   totals: AccumulatedPlayerTotals | undefined;
   total: number;
   wins: number;
@@ -137,7 +146,96 @@ interface TopBarStatContext {
   esraData: PlayerEsraData | null | undefined;
 }
 
-function formatTopBarStatOption(option: IndividualTopBarStatOption, ctx: TopBarStatContext): string | null {
+function getStatsHighlightRankIcon(
+  option: IndividualStatsHighlightOption,
+  ctx: StatsHighlightContext,
+): StatsHighlightItem["rankIcon"] | undefined {
+  const { csrContainer, esraData } = ctx;
+
+  switch (option) {
+    case "current-rank": {
+      const current = csrContainer?.Current;
+      if (current == null) {
+        return undefined;
+      }
+      return {
+        rankTier: normalizeRankTier(current.Tier),
+        subTier: current.SubTier,
+        measurementMatchesRemaining: current.MeasurementMatchesRemaining,
+        initialMeasurementMatches: current.InitialMeasurementMatches,
+      };
+    }
+    case "season-peak": {
+      const seasonPeak = csrContainer?.SeasonMax;
+      if (seasonPeak == null || seasonPeak.Value <= 0) {
+        return undefined;
+      }
+      return {
+        rankTier: normalizeRankTier(seasonPeak.Tier),
+        subTier: seasonPeak.SubTier,
+        measurementMatchesRemaining: null,
+        initialMeasurementMatches: null,
+      };
+    }
+    case "all-time-peak": {
+      const allTimePeak = csrContainer?.AllTimeMax;
+      if (allTimePeak == null || allTimePeak.Value <= 0) {
+        return undefined;
+      }
+      return {
+        rankTier: normalizeRankTier(allTimePeak.Tier),
+        subTier: allTimePeak.SubTier,
+        measurementMatchesRemaining: null,
+        initialMeasurementMatches: null,
+      };
+    }
+    case "esra": {
+      const esra = esraData?.esra;
+      if (esra == null || esra < 0) {
+        return undefined;
+      }
+
+      const roundedEsra = Math.round(esra);
+      const { rankTier, subTier } = getRankTierFromCsr(roundedEsra);
+      return {
+        rankTier,
+        subTier,
+        measurementMatchesRemaining: null,
+        initialMeasurementMatches: null,
+      };
+    }
+    case "matches-win-loss":
+    case "series-win-loss":
+    case "total-games":
+    case "matchmaking-games":
+    case "custom-local-games":
+    case "kills":
+    case "deaths":
+    case "assists":
+    case "kda":
+    case "headshot-kills":
+    case "shots-hit":
+    case "shots-fired":
+    case "accuracy":
+    case "damage-dealt":
+    case "damage-taken":
+    case "damage-ratio":
+    case "avg-life-time":
+    case "avg-damage-per-life":
+    case "kills-deaths-kd":
+    case "kills-deaths-assists-kda":
+    case "shots-hit-fired-accuracy":
+    case "damage-dealt-taken-ratio":
+    case "avg-life-damage-per-life": {
+      return undefined;
+    }
+    default: {
+      throw new UnreachableError(option);
+    }
+  }
+}
+
+function formatStatsHighlightOption(option: IndividualStatsHighlightOption, ctx: StatsHighlightContext): string | null {
   const { totals, total, wins, losses, matchmaking, customOrLocal, state, csrContainer, esraData } = ctx;
 
   switch (option) {
@@ -269,12 +367,12 @@ function formatTopBarStatOption(option: IndividualTopBarStatOption, ctx: TopBarS
   }
 }
 
-export function computeTopBarStats(
+export function computeStatsHighlights(
   state: IndividualTrackerInternalState,
-  topBarStatSlots: readonly IndividualTopBarStatOption[],
+  statsHighlightSlots: readonly IndividualStatsHighlightOption[],
   csrContainer?: PlaylistCsrContainer | null,
   esraData?: PlayerEsraData | null,
-): readonly TopBarStatItem[] {
+): readonly StatsHighlightItem[] {
   const totals = state.accumulatedPlayerTotals;
   const activeIds = getActiveMatchIds(state);
   const matches = state.matchIds
@@ -287,9 +385,9 @@ export function computeTopBarStats(
   const matchmaking = matches.filter((m) => m.isMatchmaking).length;
   const customOrLocal = total - matchmaking;
 
-  return topBarStatSlots.map((option): TopBarStatItem => {
-    const label = getTopBarStatLabel(option);
-    const value = formatTopBarStatOption(option, {
+  return statsHighlightSlots.map((option): StatsHighlightItem => {
+    const label = getStatsHighlightLabel(option);
+    const value = formatStatsHighlightOption(option, {
       totals,
       total,
       wins,
@@ -300,6 +398,22 @@ export function computeTopBarStats(
       csrContainer,
       esraData,
     });
-    return { label, value: value ?? "N/A" };
+    const rankIcon = getStatsHighlightRankIcon(option, {
+      totals,
+      total,
+      wins,
+      losses,
+      matchmaking,
+      customOrLocal,
+      state,
+      csrContainer,
+      esraData,
+    });
+
+    return {
+      label,
+      value: value ?? "N/A",
+      ...(rankIcon != null ? { rankIcon } : {}),
+    };
   });
 }

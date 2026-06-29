@@ -23,8 +23,8 @@ export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, 
       }
 
       const streamerSettings = await individualTrackerService.getSettingsForView(row.UserId);
-      const topBarStatSlots = streamerSettings.visibleSections?.topBarStatSlots;
-      const doState = await fetchTrackerDoViewState(env, row.UserId, trackerId, topBarStatSlots);
+      const statsHighlightSlots = streamerSettings.visibleSections?.statsHighlightSlots;
+      const doState = await fetchTrackerDoViewState(env, row.UserId, trackerId, statsHighlightSlots);
 
       return trackerViewContract.toResponse({ view: toTrackerView(row, doState, streamerSettings) }, { noStore: true });
     } catch (error) {

@@ -16,6 +16,7 @@ import { StatsHeader } from "../../stats/stats-header";
 import { SeriesStatsView } from "../../series-stats/series-stats";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import { gameModeIconSrc } from "../game-mode-icon";
+import { StatsHighlights } from "./stats-highlights";
 import type { IndividualTrackerViewerRenderModel, ViewerEntryState, ViewerTimelineItem } from "./types";
 import styles from "./individual-tracker-viewer.module.css";
 
@@ -411,7 +412,6 @@ export function IndividualTrackerViewer({
           </div>
         </Container>
       )}
-
       <Container>
         <div className={styles.header}>
           <h1 className={styles.title}>{renderModel.gamertag} Tracker</h1>
@@ -430,24 +430,13 @@ export function IndividualTrackerViewer({
             {renderModel.isLive && <span className={styles.liveBadge}>Live</span>}
           </div>
         </div>
-
-        {renderModel.topBarStats != null && renderModel.topBarStats.length > 0 && (
-          <section className={styles.accumulatedSection}>
-            <h2 className={styles.sectionTitle}>Accumulated Stats</h2>
-            <ul className={styles.statsList}>
-              {renderModel.topBarStats.map((stat) => (
-                <li key={`${stat.label}-${stat.value}`} className={styles.statsItem}>
-                  <span className={styles.statsLabel}>{stat.label}</span>
-                  <span className={styles.statsValue}>{stat.value}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
       </Container>
       <section className={styles.matchesSection}>
         <Container>
           <h2 className={styles.sectionTitle}>Tracked Gameplay</h2>
+        </Container>
+        <Container mobileDown="0">
+          <StatsHighlights items={renderModel.statsHighlights ?? []} />
         </Container>
         {timeline.length === 0 ? (
           <Container>

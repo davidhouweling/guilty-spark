@@ -1,7 +1,7 @@
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 
 export type IndividualTrackerAuthState = "loading" | "unauthenticated" | "authenticated";
-export type IndividualTrackerSectionId = "live-trackers" | "streamer-settings";
+export type IndividualTrackerSectionId = "live-trackers" | "stats-highlights" | "streamer-settings";
 
 export interface IndividualTrackerSnapshot {
   readonly authState: IndividualTrackerAuthState;

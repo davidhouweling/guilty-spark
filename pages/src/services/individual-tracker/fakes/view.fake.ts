@@ -1,5 +1,5 @@
 import type {
-  TopBarStatItem,
+  StatsHighlightItem,
   TrackerLiveView,
   TrackerMatchSummary,
   TrackerSeriesGroup,
@@ -97,14 +97,14 @@ export function aFakeTrackerLiveViewWith(overrides: FakeLiveViewOverrides = {}):
 
 interface FakeViewStateOverrides extends FakeLiveViewOverrides {
   readonly isLive?: boolean;
-  readonly topBarStats?: readonly TopBarStatItem[];
+  readonly statsHighlights?: readonly StatsHighlightItem[];
 }
 
 export function aFakeTrackerViewStateWith(overrides: FakeViewStateOverrides = {}): TrackerViewState {
   return {
     ...aFakeTrackerLiveViewWith(overrides),
     isLive: overrides.isLive ?? true,
-    ...(overrides.topBarStats !== undefined ? { topBarStats: [...overrides.topBarStats] } : {}),
+    ...(overrides.statsHighlights !== undefined ? { statsHighlights: [...overrides.statsHighlights] } : {}),
   };
 }
 

@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/cloudflare";
 import { addMilliseconds, compareAsc, differenceInHours } from "date-fns";
+import { z } from "zod";
 import {
   type PlayerMatchHistory,
   type MatchStats,
@@ -52,7 +53,11 @@ import {
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
-import { type IndividualTopBarStatOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import {
+  INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT,
+  INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS,
+  type IndividualStatsHighlightOption,
+} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { HaloService } from "../../services/halo/halo";
 import type { PlayerEsraData } from "../../services/halo/types";
 import type { JsonAny, LogService } from "../../services/log/types";
@@ -69,9 +74,9 @@ import type {
   IndividualTrackerViewState,
   ActiveSeries,
   SeriesTeam,
-  TopBarStatItem,
+  StatsHighlightItem,
 } from "./types";
-import { accumulatePlayerStats, computeTopBarStats, getActiveMatchIds } from "./top-bar-stats";
+import { accumulatePlayerStats, computeStatsHighlights, getActiveMatchIds } from "./stats-highlights";
 
 const DISPLAY_INTERVAL_MS = 3 * 60 * 1000;
 const EXECUTION_BUFFER_MS = 8 * 1000;
@@ -86,6 +91,51 @@ const MAX_MATCHES_TO_FETCH = 100;
 
 const STATE_STORAGE_KEY = "individualTrackerState";
 
+const individualStatsHighlightOptionSet = new Set<string>(INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS);
+
+function isIndividualStatsHighlightOption(value: string): value is IndividualStatsHighlightOption {
+  return individualStatsHighlightOptionSet.has(value);
+}
+
+const statsHighlightSlotsQuerySchema = z.object({
+  statsHighlightSlots: z.string().optional(),
+});
+
+const statsHighlightSlotsPayloadSchema = z
+  .preprocess((value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    try {
+      return JSON.parse(value) as unknown;
+    } catch {
+      return undefined;
+    }
+  }, z.array(z.string()).optional())
+  .transform((slots): readonly IndividualStatsHighlightOption[] =>
+    (slots ?? []).filter(isIndividualStatsHighlightOption).slice(0, INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT),
+  );
+
+function parseStatsHighlightSlots(url: URL): readonly IndividualStatsHighlightOption[] {
+  const parsedQuery = statsHighlightSlotsQuerySchema.safeParse(Object.fromEntries(url.searchParams.entries()));
+  if (!parsedQuery.success) {
+    return [];
+  }
+
+  const rawSlots = parsedQuery.data.statsHighlightSlots;
+  if (rawSlots == null) {
+    return [];
+  }
+
+  const parsedSlots = statsHighlightSlotsPayloadSchema.safeParse(rawSlots);
+  if (!parsedSlots.success) {
+    return [];
+  }
+
+  return parsedSlots.data;
+}
+
 export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
   private readonly state: DurableObjectState;
@@ -94,8 +144,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private readonly webSocketAdapter: WebSocketHibernationAdapter;
   private userHaloService: HaloService | null = null;
   private userHaloServiceUserId: string | null = null;
-  private topBarStatsCacheKey: string | undefined;
-  private cachedTopBarStats: readonly TopBarStatItem[] | undefined;
+  private statsHighlightsCacheKey: string | undefined;
+  private cachedStatsHighlights: readonly StatsHighlightItem[] | undefined;
   private cachedResolvedRosterCount: number | undefined;
 
   constructor(
@@ -1470,20 +1520,12 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
   private async handleViewState(request: Request): Promise<Response> {
     const url = new URL(request.url);
-    const slotsParam = url.searchParams.get("topBarStatSlots");
-    let topBarStatSlots: readonly IndividualTopBarStatOption[] = [];
-    if (slotsParam != null) {
-      try {
-        topBarStatSlots = JSON.parse(slotsParam) as IndividualTopBarStatOption[];
-      } catch {
-        // malformed JSON — treat as empty slots
-      }
-    }
+    const statsHighlightSlots = parseStatsHighlightSlots(url);
 
     const trackerState = await this.getState();
-    const topBarStats =
-      trackerState != null && topBarStatSlots.length > 0
-        ? await this.buildTopBarStats(trackerState, topBarStatSlots)
+    const statsHighlights =
+      trackerState != null && statsHighlightSlots.length > 0
+        ? await this.buildStatsHighlights(trackerState, statsHighlightSlots)
         : undefined;
 
     if (trackerState == null) {
@@ -1493,20 +1535,20 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return individualTrackerViewStateContract.toResponse({
       state: {
         ...viewState,
-        ...(topBarStats != null ? { topBarStats: [...topBarStats] } : {}),
+        ...(statsHighlights != null ? { statsHighlights: [...statsHighlights] } : {}),
       },
     });
   }
 
-  private async buildTopBarStats(
+  private async buildStatsHighlights(
     state: IndividualTrackerInternalState,
-    topBarStatSlots: readonly IndividualTopBarStatOption[],
-  ): Promise<readonly TopBarStatItem[]> {
+    statsHighlightSlots: readonly IndividualStatsHighlightOption[],
+  ): Promise<readonly StatsHighlightItem[]> {
     const hasRankSlot =
-      topBarStatSlots.includes("current-rank") ||
-      topBarStatSlots.includes("season-peak") ||
-      topBarStatSlots.includes("all-time-peak");
-    const hasEsraSlot = topBarStatSlots.includes("esra");
+      statsHighlightSlots.includes("current-rank") ||
+      statsHighlightSlots.includes("season-peak") ||
+      statsHighlightSlots.includes("all-time-peak");
+    const hasEsraSlot = statsHighlightSlots.includes("esra");
 
     if (!hasRankSlot && !hasEsraSlot) {
       const latestMatchId = state.matchIds.at(-1) ?? "";
@@ -1515,15 +1557,15 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         (s) => s.teamRosterSignature != null,
       ).length;
       const selectionKey = state.selectedMatchIds.join(",");
-      const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${this.cachedResolvedRosterCount.toString()}:${JSON.stringify(topBarStatSlots)}:${selectionKey}`;
+      const cacheKey = `${latestMatchId}:${accumulatedCount.toString()}:${this.cachedResolvedRosterCount.toString()}:${JSON.stringify(statsHighlightSlots)}:${selectionKey}`;
 
-      if (this.topBarStatsCacheKey === cacheKey && this.cachedTopBarStats != null) {
-        return this.cachedTopBarStats;
+      if (this.statsHighlightsCacheKey === cacheKey && this.cachedStatsHighlights != null) {
+        return this.cachedStatsHighlights;
       }
 
-      const stats = computeTopBarStats(state, topBarStatSlots, undefined, undefined);
-      this.topBarStatsCacheKey = cacheKey;
-      this.cachedTopBarStats = stats;
+      const stats = computeStatsHighlights(state, statsHighlightSlots, undefined, undefined);
+      this.statsHighlightsCacheKey = cacheKey;
+      this.cachedStatsHighlights = stats;
       return stats;
     }
 
@@ -1533,12 +1575,12 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       this.logService.warn(
         err,
         new Map([
-          ["context", "IndividualTracker: getUserHaloService failed in buildTopBarStats"],
+          ["context", "IndividualTracker: getUserHaloService failed in buildStatsHighlights"],
           ["userId", state.userId],
           ["xuid", state.xuid],
         ]),
       );
-      return computeTopBarStats(state, topBarStatSlots, null, null);
+      return computeStatsHighlights(state, statsHighlightSlots, null, null);
     }
 
     const [csrContainer, esraData] = await Promise.all([
@@ -1546,7 +1588,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       hasEsraSlot ? this.fetchPlayerEsra(state.xuid) : Promise.resolve(null),
     ]);
 
-    return computeTopBarStats(state, topBarStatSlots, csrContainer, esraData);
+    return computeStatsHighlights(state, statsHighlightSlots, csrContainer, esraData);
   }
 
   private async getState(): Promise<IndividualTrackerInternalState | null> {
