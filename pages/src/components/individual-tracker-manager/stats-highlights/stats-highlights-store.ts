@@ -1,6 +1,4 @@
-import type {
-  IndividualStatsHighlightOption,
-} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { IndividualStatsHighlightOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { SaveStatus } from "../streamer-connections/streamer-connections-store";
 import type { StatsHighlightsSectionSnapshot } from "./types";

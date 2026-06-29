@@ -14,10 +14,7 @@ import type {
   StatsHighlightsSectionViewModel,
 } from "./types";
 
-type SyncInput = Pick<
-  StatsHighlightsSectionProps,
-  "statsHighlightSlots" | "saveStatus" | "saveErrorMessage"
->;
+type SyncInput = Pick<StatsHighlightsSectionProps, "statsHighlightSlots" | "saveStatus" | "saveErrorMessage">;
 
 interface Config {
   readonly store: StatsHighlightsSectionStore;
@@ -171,7 +168,7 @@ export class StatsHighlightsSectionPresenter {
 
   private updateToastVisibility(saveStatus: SyncInput["saveStatus"]): void {
     const snapshot = this.config.store.getSnapshot();
-    let {showSaveToast} = snapshot;
+    let { showSaveToast } = snapshot;
 
     if (saveStatus === "saving" || saveStatus === "error") {
       showSaveToast = true;
