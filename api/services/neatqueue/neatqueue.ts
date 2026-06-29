@@ -819,9 +819,7 @@ export class NeatQueueService {
       return;
     }
     try {
-      const subOutXuid = state.playersAssociationData[request.player_subbed_out.id]?.xboxId ?? null;
       const subInAssoc = state.playersAssociationData[request.player_subbed_in.id];
-      const subInXuid = subInAssoc?.xboxId ?? null;
 
       // Find the team where substitution occurred
       let teamId = -1;
@@ -849,20 +847,54 @@ export class NeatQueueService {
       const playerIn = this.buildSeriesPlayer(subInAssoc, request.player_subbed_in.id, request.player_subbed_in.name);
 
       const updatedContext: SeriesContextPayload = { ...state.seriesContext, teams: updatedTeams };
+
+      // Save original teams before updating state for xuid collection
+      const originalTeams = state.seriesContext.teams;
+
       state.seriesContext = updatedContext;
       this.setQueueState(neatQueueConfig.GuildId, matchNumber, state);
 
-      // Send substitution event to both affected players
+      // Send substitution event to all players in the series
       if (teamId >= 0) {
         const substitutionPayload = { type: "substituted" as const, teamId, playerOut, playerIn };
-        await Promise.all([
-          subOutXuid != null
-            ? this.individualTrackerService.nudgeTrackers([subOutXuid], substitutionPayload)
-            : Promise.resolve(),
-          subInXuid != null
-            ? this.individualTrackerService.nudgeTrackers([subInXuid], substitutionPayload)
-            : Promise.resolve(),
-        ]);
+
+        // Collect all XUIDs from both original and updated teams to get both subbed-out and subbed-in players
+        const playerXuidSet = new Set<string>();
+
+        // Add XUIDs from original teams (includes player being subbed out)
+        originalTeams.forEach((team) => {
+          team.players.forEach((player) => {
+            const xuid = state.playersAssociationData[player.discordId ?? ""]?.xboxId;
+            if (xuid != null) {
+              playerXuidSet.add(xuid);
+            }
+          });
+        });
+
+        // Add XUIDs from updated teams (includes player being subbed in)
+        updatedTeams.forEach((team) => {
+          team.players.forEach((player) => {
+            const xuid = state.playersAssociationData[player.discordId ?? ""]?.xboxId;
+            if (xuid != null) {
+              playerXuidSet.add(xuid);
+            }
+          });
+        });
+
+        if (playerXuidSet.size > 0) {
+          await this.individualTrackerService
+            .nudgeTrackers(Array.from(playerXuidSet), substitutionPayload)
+            .catch((error: unknown) => {
+              this.logService.warn(
+                "Failed to nudge individual trackers for substitution",
+                new Map([
+                  ["guildId", request.guild],
+                  ["queueNumber", matchNumber.toString()],
+                  ["error", String(error)],
+                ]),
+              );
+            });
+        }
       }
     } catch (nudgeError) {
       this.logService.warn(
