@@ -9,13 +9,13 @@ import {
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerSettingsService } from "../../../services/individual-tracker/settings-types";
 import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../live-tracker/settings/types";
-import type { StreamerConnectionsSnapshot, StreamerConnectionsStore } from "./streamer-connections-store";
+import type { StreamerSettingsSnapshot, StreamerSettingsStore } from "./streamer-settings-store";
 
 const DEBOUNCE_MS = 450;
 
 interface Config {
   readonly settingsService: IndividualTrackerSettingsService;
-  readonly store: StreamerConnectionsStore;
+  readonly store: StreamerSettingsStore;
 }
 
 const individualStatsHighlightOptionSet = new Set<string>(INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS);
@@ -38,8 +38,8 @@ function normalizeStatsHighlightSlots(
 
 function settingsToSnapshot(
   settings: StreamerViewSettings,
-  snapshot: StreamerConnectionsSnapshot,
-): Omit<StreamerConnectionsSnapshot, "saveStatus" | "saveErrorMessage" | "gamertag"> {
+  snapshot: StreamerSettingsSnapshot,
+): Omit<StreamerSettingsSnapshot, "saveStatus" | "saveErrorMessage" | "gamertag"> {
   const styleFlags = settings.styleFlags ?? {};
   const visibleSections = settings.visibleSections ?? {};
   const fontSizes = settings.layoutOptions?.fontSizes ?? {};
@@ -81,14 +81,14 @@ function settingsToSnapshot(
 }
 
 function applyParsedSettingsToStore(
-  store: StreamerConnectionsStore,
-  parsed: Omit<StreamerConnectionsSnapshot, "saveStatus" | "saveErrorMessage" | "gamertag">,
+  store: StreamerSettingsStore,
+  parsed: Omit<StreamerSettingsSnapshot, "saveStatus" | "saveErrorMessage" | "gamertag">,
   gamertag: string | null,
 ): void {
   store.batchUpdate({ gamertag, ...parsed });
 }
 
-function snapshotToSettings(snapshot: StreamerConnectionsSnapshot): StreamerViewSettings {
+function snapshotToSettings(snapshot: StreamerSettingsSnapshot): StreamerViewSettings {
   return {
     styleFlags: {
       colorMode: snapshot.defaultColorMode,
@@ -125,7 +125,7 @@ function snapshotToSettings(snapshot: StreamerConnectionsSnapshot): StreamerView
   };
 }
 
-export class StreamerConnectionsPresenter {
+export class StreamerSettingsPresenter {
   private readonly config: Config;
   private isDisposed = false;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;

@@ -12,8 +12,8 @@ import {
   buildIndividualTrackerPublicOverlayPath,
   buildIndividualTrackerPublicViewPath,
 } from "../../individual-tracker/routes";
-import type { SaveStatus } from "./streamer-connections-store";
-import styles from "./streamer-connections.module.css";
+import type { SaveStatus } from "./streamer-settings-store";
+import styles from "./streamer-settings.module.css";
 
 type CopyTarget = "idle" | "view" | "overlay";
 
@@ -46,7 +46,7 @@ async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
-export interface StreamerConnectionsSectionViewProps {
+export interface StreamerSettingsSectionViewProps {
   readonly gamertag: string | null;
   readonly defaultColorMode: StreamerViewColorMode;
   readonly playerTeamColor: string;
@@ -66,7 +66,7 @@ export interface StreamerConnectionsSectionViewProps {
   readonly onFontSizesChange: (updates: Partial<FontSizeSettings>) => void;
 }
 
-export function StreamerConnectionsSectionView({
+export function StreamerSettingsSectionView({
   gamertag,
   defaultColorMode,
   playerTeamColor,
@@ -84,7 +84,7 @@ export function StreamerConnectionsSectionView({
   onDisplaySettingsChange,
   onTickerSettingsChange,
   onFontSizesChange,
-}: StreamerConnectionsSectionViewProps): React.ReactElement {
+}: StreamerSettingsSectionViewProps): React.ReactElement {
   const [copyTarget, setCopyTarget] = useState<CopyTarget>("idle");
   const [showSaveToast, setShowSaveToast] = useState(false);
   const prevSaveStatusRef = useRef<SaveStatus>("idle");

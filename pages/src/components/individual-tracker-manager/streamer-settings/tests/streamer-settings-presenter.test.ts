@@ -3,23 +3,23 @@ import type { MockInstance } from "vitest";
 import { INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { aFakeIndividualTrackerSettingsServiceWith } from "../../../../services/individual-tracker/fakes/settings.fake";
 import type { FakeIndividualTrackerSettingsService } from "../../../../services/individual-tracker/fakes/settings.fake";
-import { StreamerConnectionsPresenter } from "../streamer-connections-presenter";
-import { StreamerConnectionsStore } from "../streamer-connections-store";
+import { StreamerSettingsPresenter } from "../streamer-settings-presenter";
+import { StreamerSettingsStore } from "../streamer-settings-store";
 
 interface Harness {
-  readonly store: StreamerConnectionsStore;
-  readonly presenter: StreamerConnectionsPresenter;
+  readonly store: StreamerSettingsStore;
+  readonly presenter: StreamerSettingsPresenter;
   readonly settingsService: FakeIndividualTrackerSettingsService;
 }
 
 function aHarness(settingsService?: FakeIndividualTrackerSettingsService): Harness {
   const service = settingsService ?? aFakeIndividualTrackerSettingsServiceWith();
-  const store = new StreamerConnectionsStore();
-  const presenter = new StreamerConnectionsPresenter({ settingsService: service, store });
+  const store = new StreamerSettingsStore();
+  const presenter = new StreamerSettingsPresenter({ settingsService: service, store });
   return { store, presenter, settingsService: service };
 }
 
-describe("StreamerConnectionsPresenter", () => {
+describe("StreamerSettingsPresenter", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });

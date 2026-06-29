@@ -5,8 +5,8 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../../live-tracker/settings/types";
-import type { StreamerConnectionsSectionViewProps } from "../streamer-connections";
-import { StreamerConnectionsSectionView } from "../streamer-connections";
+import type { StreamerSettingsSectionViewProps } from "../streamer-settings";
+import { StreamerSettingsSectionView } from "../streamer-settings";
 
 vi.mock("../../../team-colors/team-color-picker", () => ({
   TeamColorPicker: ({ label }: { readonly label: string }): React.ReactElement => (
@@ -55,7 +55,7 @@ const DEFAULT_FONT_SIZE_SETTINGS: FontSizeSettings = {
   ticker: 100,
 };
 
-function aFakeProps(overrides?: Partial<StreamerConnectionsSectionViewProps>): StreamerConnectionsSectionViewProps {
+function aFakeProps(overrides?: Partial<StreamerSettingsSectionViewProps>): StreamerSettingsSectionViewProps {
   return {
     gamertag: "gamertag-123",
     defaultColorMode: "player",
@@ -78,7 +78,7 @@ function aFakeProps(overrides?: Partial<StreamerConnectionsSectionViewProps>): S
   };
 }
 
-describe("StreamerConnectionsSectionView", () => {
+describe("StreamerSettingsSectionView", () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
@@ -87,7 +87,7 @@ describe("StreamerConnectionsSectionView", () => {
   describe("URL panel", () => {
     it("renders the viewer and overlay URLs when gamertag is provided", () => {
       vi.stubGlobal("location", { origin: "https://example.com" });
-      render(<StreamerConnectionsSectionView {...aFakeProps({ gamertag: "gamertag-abc" })} />);
+      render(<StreamerSettingsSectionView {...aFakeProps({ gamertag: "gamertag-abc" })} />);
 
       expect(screen.getByText(/\/u\/gamertag-abc\/view/)).toBeInTheDocument();
       expect(screen.getByText(/\/u\/gamertag-abc\/overlay/)).toBeInTheDocument();
@@ -96,7 +96,7 @@ describe("StreamerConnectionsSectionView", () => {
     });
 
     it("renders a warning alert when gamertag is null", () => {
-      render(<StreamerConnectionsSectionView {...aFakeProps({ gamertag: null })} />);
+      render(<StreamerSettingsSectionView {...aFakeProps({ gamertag: null })} />);
 
       expect(screen.getByText(/No active Xbox identity is linked/)).toBeInTheDocument();
     });
@@ -107,7 +107,7 @@ describe("StreamerConnectionsSectionView", () => {
       vi.stubGlobal("navigator", { clipboard: { writeText } });
       vi.stubGlobal("location", { origin: "https://example.com" });
 
-      render(<StreamerConnectionsSectionView {...aFakeProps({ gamertag: "gamertag-abc" })} />);
+      render(<StreamerSettingsSectionView {...aFakeProps({ gamertag: "gamertag-abc" })} />);
 
       const copyButtons = screen.getAllByRole("button", { name: "Copy" });
       await user.click(copyButtons[0]);
@@ -125,7 +125,7 @@ describe("StreamerConnectionsSectionView", () => {
       });
       vi.stubGlobal("location", { origin: "https://example.com" });
 
-      render(<StreamerConnectionsSectionView {...aFakeProps({ gamertag: "gamertag-abc" })} />);
+      render(<StreamerSettingsSectionView {...aFakeProps({ gamertag: "gamertag-abc" })} />);
 
       const copyButtons = screen.getAllByRole("button", { name: "Copy" });
       await user.click(copyButtons[0]);
@@ -139,7 +139,7 @@ describe("StreamerConnectionsSectionView", () => {
 
   describe("presentation defaults", () => {
     it("highlights the active color mode button", () => {
-      render(<StreamerConnectionsSectionView {...aFakeProps({ defaultColorMode: "observer" })} />);
+      render(<StreamerSettingsSectionView {...aFakeProps({ defaultColorMode: "observer" })} />);
 
       const observerBtn = screen.getByRole("button", { name: "Observer Mode" });
       expect(observerBtn).toBeInTheDocument();
@@ -150,7 +150,7 @@ describe("StreamerConnectionsSectionView", () => {
       const onChange = vi.fn<(mode: "player" | "observer") => void>();
 
       render(
-        <StreamerConnectionsSectionView
+        <StreamerSettingsSectionView
           {...aFakeProps({ defaultColorMode: "observer", onDefaultColorModeChange: onChange })}
         />,
       );
@@ -165,7 +165,7 @@ describe("StreamerConnectionsSectionView", () => {
       const onChange = vi.fn<(mode: "player" | "observer") => void>();
 
       render(
-        <StreamerConnectionsSectionView
+        <StreamerSettingsSectionView
           {...aFakeProps({ defaultColorMode: "player", onDefaultColorModeChange: onChange })}
         />,
       );
@@ -176,7 +176,7 @@ describe("StreamerConnectionsSectionView", () => {
     });
 
     it("disables mode buttons while saving", () => {
-      render(<StreamerConnectionsSectionView {...aFakeProps({ saveStatus: "saving" })} />);
+      render(<StreamerSettingsSectionView {...aFakeProps({ saveStatus: "saving" })} />);
 
       expect(screen.getByRole("button", { name: "Player Mode" })).toBeDisabled();
       expect(screen.getByRole("button", { name: "Observer Mode" })).toBeDisabled();
@@ -193,7 +193,7 @@ describe("StreamerConnectionsSectionView", () => {
     });
 
     it("shows a saving message when saveStatus is saving", () => {
-      render(<StreamerConnectionsSectionView {...aFakeProps({ saveStatus: "saving" })} />);
+      render(<StreamerSettingsSectionView {...aFakeProps({ saveStatus: "saving" })} />);
 
       expect(screen.getByRole("status")).toBeInTheDocument();
       expect(screen.getByText("Saving streamer settings...")).toBeInTheDocument();
@@ -201,7 +201,7 @@ describe("StreamerConnectionsSectionView", () => {
 
     it("shows an error message when saveStatus is error", () => {
       render(
-        <StreamerConnectionsSectionView
+        <StreamerSettingsSectionView
           {...aFakeProps({ saveStatus: "error", saveErrorMessage: "Network failure" })}
         />,
       );
@@ -211,7 +211,7 @@ describe("StreamerConnectionsSectionView", () => {
     });
 
     it("does not show the toast when saveStatus is idle", () => {
-      render(<StreamerConnectionsSectionView {...aFakeProps({ saveStatus: "idle" })} />);
+      render(<StreamerSettingsSectionView {...aFakeProps({ saveStatus: "idle" })} />);
 
       expect(screen.queryByRole("status")).toBeNull();
     });
@@ -219,19 +219,19 @@ describe("StreamerConnectionsSectionView", () => {
 
   describe("sub-sections", () => {
     it("renders the display settings section", () => {
-      render(<StreamerConnectionsSectionView {...aFakeProps()} />);
+      render(<StreamerSettingsSectionView {...aFakeProps()} />);
 
       expect(screen.getByTestId("display-settings-section")).toBeInTheDocument();
     });
 
     it("renders the ticker settings section", () => {
-      render(<StreamerConnectionsSectionView {...aFakeProps()} />);
+      render(<StreamerSettingsSectionView {...aFakeProps()} />);
 
       expect(screen.getByTestId("ticker-settings-section")).toBeInTheDocument();
     });
 
     it("renders font size sliders for all sections", () => {
-      render(<StreamerConnectionsSectionView {...aFakeProps()} />);
+      render(<StreamerSettingsSectionView {...aFakeProps()} />);
 
       expect(screen.getByTestId("font-size-slider-Queue Info")).toBeInTheDocument();
       expect(screen.getByTestId("font-size-slider-Score")).toBeInTheDocument();
@@ -241,7 +241,7 @@ describe("StreamerConnectionsSectionView", () => {
     });
 
     it("renders color pickers for player and observer views", () => {
-      render(<StreamerConnectionsSectionView {...aFakeProps()} />);
+      render(<StreamerSettingsSectionView {...aFakeProps()} />);
 
       expect(screen.getByTestId("color-picker-Player team color")).toBeInTheDocument();
       expect(screen.getByTestId("color-picker-Player enemy color")).toBeInTheDocument();

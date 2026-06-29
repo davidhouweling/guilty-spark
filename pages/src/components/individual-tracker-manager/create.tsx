@@ -8,9 +8,9 @@ import { IndividualTrackerStore } from "./individual-tracker-store";
 import { IndividualTrackerShell } from "./individual-tracker";
 import { createLiveTrackersSection } from "./live-trackers/create";
 import { StatsHighlightsSection } from "./stats-highlights/create";
-import { StreamerConnectionsPresenter } from "./streamer-connections/streamer-connections-presenter";
-import { StreamerConnectionsSectionView } from "./streamer-connections/streamer-connections";
-import { StreamerConnectionsStore } from "./streamer-connections/streamer-connections-store";
+import { StreamerSettingsPresenter } from "./streamer-settings/streamer-settings-presenter";
+import { StreamerSettingsSectionView } from "./streamer-settings/streamer-settings";
+import { StreamerSettingsStore } from "./streamer-settings/streamer-settings-store";
 
 interface IndividualTrackerManagerPageProps {
   readonly authService: AuthService;
@@ -39,9 +39,9 @@ export function IndividualTrackerManagerPage({
   );
 
   const store = useMemo(() => new IndividualTrackerStore(), []);
-  const settingsStore = useMemo(() => new StreamerConnectionsStore(), []);
+  const settingsStore = useMemo(() => new StreamerSettingsStore(), []);
   const settingsPresenter = useMemo(
-    () => new StreamerConnectionsPresenter({ settingsService, store: settingsStore }),
+    () => new StreamerSettingsPresenter({ settingsService, store: settingsStore }),
     [settingsService, settingsStore],
   );
 
@@ -86,7 +86,7 @@ export function IndividualTrackerManagerPage({
   );
 
   const onStatsHighlightSlotsChange = useCallback(
-    (statsHighlightSlots: Parameters<StreamerConnectionsPresenter["setStatsHighlightSlots"]>[0]): void => {
+    (statsHighlightSlots: Parameters<StreamerSettingsPresenter["setStatsHighlightSlots"]>[0]): void => {
       settingsPresenter.setStatsHighlightSlots(statsHighlightSlots);
     },
     [settingsPresenter],
@@ -113,7 +113,7 @@ export function IndividualTrackerManagerPage({
         />
       }
       streamerSettingsContent={
-        <StreamerConnectionsSectionView
+        <StreamerSettingsSectionView
           gamertag={settingsSnapshot.gamertag}
           defaultColorMode={settingsSnapshot.defaultColorMode}
           playerTeamColor={settingsSnapshot.playerTeamColor}
