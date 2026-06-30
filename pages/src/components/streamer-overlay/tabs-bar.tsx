@@ -46,8 +46,7 @@ interface TabButtonProps {
 }
 
 const TabButton = memo(({ tab, isActive, isSelected, onTabClick }: TabButtonProps): React.ReactElement => {
-  const tabIndex = tab.type === "series" ? -1 : tab.index;
-  const tabKey = tab.type === "series" ? `series-${tab.seriesId}` : tab.matchId;
+  const tabIndex = tab.index;
   const tabIcons =
     tab.type === "series"
       ? (tab.icons ?? [])
@@ -55,7 +54,6 @@ const TabButton = memo(({ tab, isActive, isSelected, onTabClick }: TabButtonProp
 
   return (
     <button
-      key={tabKey}
       type="button"
       className={classNames(styles.tab, {
         [styles.tabActive]: isActive,
@@ -110,7 +108,7 @@ function OverlayTabsBarComponent({
   return (
     <div className={styles.tabBar}>
       {tabs.map((tab) => {
-        const tabIndex = tab.type === "series" ? -1 : tab.index;
+        const tabIndex = tab.index;
         const tabKey = tab.type === "series" ? `series-${tab.seriesId}` : tab.matchId;
         const isActive = activeTabIndex === tabIndex;
         const isSelected = selectedTab === tabIndex && isPanelOpen;

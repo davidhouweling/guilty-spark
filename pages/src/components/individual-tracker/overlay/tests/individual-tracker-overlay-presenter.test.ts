@@ -106,4 +106,21 @@ describe("individual-tracker-overlay-presenter", () => {
       expect(matchTab.icon).toBe(gameModeIconSrc(8));
     }
   });
+
+  it("assigns unique negative indices for each series tab", () => {
+    const timeline: ViewerTimelineItem[] = [
+      { type: "series", series: aSeriesWith({ id: "series-a", isActive: false }) },
+      { type: "series", series: aSeriesWith({ id: "series-b", isActive: false }) },
+      { type: "match", match: aMatchWith({ matchId: "solo" }) },
+    ];
+
+    const tabs = buildTabs(timeline);
+    const seriesTabs = tabs.filter((tab) => tab.type === "series");
+
+    expect(seriesTabs).toHaveLength(2);
+    if (seriesTabs.length === 2) {
+      expect(seriesTabs[0].index).toBe(-1);
+      expect(seriesTabs[1].index).toBe(-2);
+    }
+  });
 });

@@ -74,7 +74,7 @@ export function IndividualTrackerOverlay({
 
   const handleTabClick = useCallback(
     (tabIndex: number): void => {
-      if (tabIndex === -1) {
+      if (tabIndex < 0) {
         onDeselect();
         return;
       }

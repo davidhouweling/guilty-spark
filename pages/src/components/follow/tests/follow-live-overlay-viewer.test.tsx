@@ -60,7 +60,7 @@ describe("FollowLiveOverlayViewer", () => {
     render(<FollowLiveOverlayViewer {...aViewerPropsWith(directory)} />);
 
     await waitFor(() => {
-      expect(screen.getByText("No active tracker - waiting for a live game")).toBeInTheDocument();
+      expect(screen.getByText("No active tracker — waiting for a live game")).toBeInTheDocument();
     });
   });
 });

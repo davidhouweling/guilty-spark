@@ -53,12 +53,13 @@ export function buildTabs(timeline: readonly ViewerTimelineItem[]): readonly Ove
   }
 
   let matchIdx = 0;
+  let seriesIdx = -1;
   return timeline.map((item): OverlayTab => {
     if (item.type === "series") {
       return {
         type: "series",
         seriesId: item.series.id,
-        index: -1,
+        index: seriesIdx--,
         label: item.series.title,
         score: item.series.score,
         teamColor: undefined,

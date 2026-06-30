@@ -83,5 +83,5 @@ export function FollowLiveOverlayViewer({
     return <LoadingState text="Loading tracker directory..." />;
   }
 
-  return <LoadingState text="No active tracker - waiting for a live game" />;
+  return <LoadingState text="No active tracker — waiting for a live game" />;
 }
