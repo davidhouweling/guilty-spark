@@ -42,9 +42,5 @@ export const nudgePayloadSchema = z.union([
 ]);
 export type NudgePayload = z.infer<typeof nudgePayloadSchema>;
 
-// Legacy aliases for backward compat (now point to started payload)
-export const seriesContextPayloadSchema = seriesStartedPayloadSchema;
-export type SeriesContextPayload = SeriesStartedPayload;
-
 export const individualTrackerNudgeContract = defineContract(z.object({ success: z.literal(true) }));
 export type IndividualTrackerNudgeResponse = z.infer<typeof individualTrackerNudgeContract.schema>;

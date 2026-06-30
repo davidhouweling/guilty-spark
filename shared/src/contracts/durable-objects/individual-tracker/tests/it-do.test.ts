@@ -7,7 +7,7 @@ import {
   type IndividualTrackerStartResponse,
 } from "../lifecycle";
 import { individualTrackerStatusContract, individualTrackerViewStateContract } from "../management";
-import { seriesContextPayloadSchema, type SeriesContextPayload } from "../nudge";
+import { seriesStartedPayloadSchema, type SeriesStartedPayload } from "../nudge";
 import {
   editSeriesContract,
   endSeriesContract,
@@ -119,8 +119,8 @@ describe("individualTrackerViewStateContract", () => {
   });
 });
 
-describe("seriesContextPayloadSchema", () => {
-  const validPayload: SeriesContextPayload = {
+describe("seriesStartedPayloadSchema", () => {
+  const validPayload: SeriesStartedPayload = {
     title: "Eagles vs Cobras",
     subtitle: "Best of 3",
     guildIconUrl: null,
@@ -131,12 +131,12 @@ describe("seriesContextPayloadSchema", () => {
   };
 
   it("parses a valid series context payload", () => {
-    expect(seriesContextPayloadSchema.parse(validPayload)).toEqual(validPayload);
+    expect(seriesStartedPayloadSchema.parse(validPayload)).toEqual(validPayload);
   });
 
   it("rejects a missing title", () => {
     expect(
-      seriesContextPayloadSchema.safeParse({
+      seriesStartedPayloadSchema.safeParse({
         subtitle: "Best of 3",
         guildIconUrl: null,
         teams: [],

@@ -17,7 +17,7 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getSeriesGroupTitleFromTeams } from "@guilty-spark/shared/individual-tracker/series-grouping";
-import type { SeriesContextPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
+import type { SeriesStartedPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import type { DatabaseService } from "../database/database";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config";
@@ -676,7 +676,7 @@ export class NeatQueueService {
           this.buildSeriesPlayer(queueState.playersAssociationData[player.id], player.id, player.name),
         ),
       }));
-      const seriesContext: SeriesContextPayload = {
+      const seriesContext: SeriesStartedPayload = {
         title: getSeriesGroupTitleFromTeams(seriesTeams) ?? title,
         subtitle: `Queue #${request.match_number.toString()}`,
         guildIconUrl,
@@ -861,7 +861,7 @@ export class NeatQueueService {
         return;
       }
 
-      const updatedContext: SeriesContextPayload = { ...state.seriesContext, teams: updatedTeams };
+      const updatedContext: SeriesStartedPayload = { ...state.seriesContext, teams: updatedTeams };
 
       // Save original teams before updating state for xuid collection
       const originalTeams = state.seriesContext.teams;

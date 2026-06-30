@@ -1,6 +1,6 @@
 import type { MockInstance } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SeriesContextPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
+import type { SeriesStartedPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import {
   aFakeDatabaseServiceWith,
   aFakeIndividualTrackerProfilesRow,
@@ -407,7 +407,7 @@ describe("IndividualTrackerService", () => {
         Status: "active",
       });
       vi.spyOn(databaseService, "findIndividualTrackersByXuids").mockResolvedValue([tracker]);
-      const payload: SeriesContextPayload = {
+      const payload: SeriesStartedPayload = {
         title: "Test Server",
         subtitle: "Queue #1",
         guildIconUrl: null,

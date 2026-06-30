@@ -1,5 +1,5 @@
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
-import type { SeriesContextPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
+import type { SeriesStartedPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
 
@@ -122,7 +122,7 @@ export interface NeatQueueState {
   timeline: NeatQueueTimelineEvent[];
   playersMessageId: string | null;
   playersAssociationData: Record<string, PlayerAssociationData>;
-  seriesContext?: SeriesContextPayload;
+  seriesContext?: SeriesStartedPayload;
 }
 
 export interface FetchedPlayersData {

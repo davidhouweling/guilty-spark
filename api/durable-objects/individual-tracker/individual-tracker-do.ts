@@ -1689,78 +1689,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
   private async getState(): Promise<IndividualTrackerInternalState | null> {
     const state = await this.state.storage.get<IndividualTrackerInternalState>(STATE_STORAGE_KEY);
-    if (state == null) {
-      return null;
-    }
-
-    const { normalized, changed } = this.normalizeLegacySeriesState(state);
-    if (changed) {
-      await this.setState(normalized);
-    }
-
-    return normalized;
+    return state ?? null;
   }
 
   private async setState(state: IndividualTrackerInternalState): Promise<void> {
     await this.state.storage.put(STATE_STORAGE_KEY, state);
-  }
-
-  private normalizeLegacySeriesState(state: IndividualTrackerInternalState): {
-    normalized: IndividualTrackerInternalState;
-    changed: boolean;
-  } {
-    let changed = false;
-
-    const normalizeSeries = (series: ActiveSeries): ActiveSeries => {
-      for (const [teamIndex, team] of series.teams.entries()) {
-        if (team.id !== teamIndex) {
-          const teams = series.teams.map((t, index) => ({
-            ...t,
-            id: index,
-          }));
-          return {
-            ...series,
-            teams,
-          };
-        }
-      }
-
-      return series;
-    };
-
-    const normalized: IndividualTrackerInternalState = { ...state };
-
-    if (state.activeSeries == null) {
-      delete normalized.activeSeries;
-    } else {
-      const normalizedActiveSeries = normalizeSeries(state.activeSeries);
-      if (normalizedActiveSeries !== state.activeSeries) {
-        changed = true;
-      }
-      normalized.activeSeries = normalizedActiveSeries;
-    }
-
-    if (state.completedSeries == null) {
-      delete normalized.completedSeries;
-    } else {
-      const normalizedCompletedSeries = state.completedSeries.map((series) => normalizeSeries(series));
-      for (const [index, series] of normalizedCompletedSeries.entries()) {
-        if (series !== state.completedSeries[index]) {
-          changed = true;
-          break;
-        }
-      }
-      normalized.completedSeries = normalizedCompletedSeries;
-    }
-
-    if (!changed) {
-      return { normalized: state, changed: false };
-    }
-
-    return {
-      normalized,
-      changed: true,
-    };
   }
 
   private applySubstitutionToSeries(series: ActiveSeries, payload: SeriesSubstitutedPayload): ActiveSeries {

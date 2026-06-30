@@ -11,7 +11,7 @@ import { ChannelType } from "discord-api-types/v10";
 import { sub } from "date-fns";
 import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import type { SeriesContextPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
+import type { SeriesStartedPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import type { SeriesPlayer, SeriesTeam } from "../../../durable-objects/individual-tracker/types";
 import { NeatQueueService } from "../neatqueue";
 import type { DatabaseService } from "../../database/database";
@@ -2064,7 +2064,7 @@ describe("NeatQueueService", () => {
         await jobToComplete?.();
 
         expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
-        const [, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], SeriesContextPayload];
+        const [, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], SeriesStartedPayload];
         expect(payload.title).toBe("Eagles vs Cobras");
       });
 
@@ -2081,7 +2081,7 @@ describe("NeatQueueService", () => {
         const { jobToComplete } = neatQueueService.handleRequest(teamsCreatedRequest, neatQueueConfig);
         await expect(jobToComplete?.()).resolves.toBeUndefined();
         expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
-        const [, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], SeriesContextPayload];
+        const [, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], SeriesStartedPayload];
         expect(payload.title).toBe(teamsCreatedRequest.guild);
         expect(payload.guildIconUrl).toBeNull();
       });

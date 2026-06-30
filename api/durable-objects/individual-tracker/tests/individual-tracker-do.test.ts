@@ -19,7 +19,7 @@ import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 import type { IndividualTrackerStartRequest } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
 import type {
-  SeriesContextPayload,
+  SeriesStartedPayload,
   SeriesSubstitutedPayload,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import { IndividualTrackerDO } from "../individual-tracker-do";
@@ -2291,7 +2291,7 @@ describe("IndividualTrackerDO", () => {
   });
 
   describe("handleNudge()", () => {
-    const aSeriesPayload = (): SeriesContextPayload => ({
+    const aSeriesPayload = (): SeriesStartedPayload => ({
       title: "Guilty Spark",
       subtitle: "Queue #1",
       guildIconUrl: "https://cdn.discordapp.com/icons/guild-id/icon.webp",
@@ -2651,45 +2651,6 @@ describe("IndividualTrackerDO", () => {
       expect(group?.subtitle).toBe("Queue #5");
       expect(group?.guildIconUrl).toBe("https://cdn.discordapp.com/icons/guild-id/icon.webp");
       expect(group?.teams).toEqual(teams);
-    });
-
-    it("normalizes legacy activeSeries team ids on read so view-state remains valid", async () => {
-      const ids = ["match-nq-1", "match-nq-2"];
-      const teams = [
-        {
-          id: 0,
-          name: "Eagle",
-          players: [{ discordId: "d-1", discordName: "Alice", gamertag: "AliceGT", xboxId: "x-1" }],
-        },
-      ];
-      const activeSeries: ActiveSeries = {
-        title: "Guilty Spark",
-        subtitle: "Queue #5",
-        guildIconUrl: "https://cdn.discordapp.com/icons/guild-id/icon.webp",
-        matchIds: ids,
-        teams,
-        startedAt: new Date().toISOString(),
-        isActive: true,
-      };
-
-      const state = aFakeIndividualTrackerInternalStateWith({
-        ...makeSeriesMatches(ids),
-        activeSeries,
-      });
-      Reflect.deleteProperty(state.activeSeries?.teams[0] ?? {}, "id");
-      storageGetSpy.mockResolvedValue(state);
-
-      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
-
-      expect(response.status).toBe(200);
-      const body = await response.json<{
-        state: { series: { teams?: { id: number; name: string }[] }[] };
-      }>();
-      const [group] = body.state.series;
-      expect(group?.teams?.[0]?.id).toBe(0);
-
-      const persisted = lastPersistedState(storagePutSpy);
-      expect(persisted.activeSeries?.teams[0]?.id).toBe(0);
     });
 
     it("applies completedSeries metadata to a matching group after the series ends", async () => {
