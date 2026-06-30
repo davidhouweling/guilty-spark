@@ -63,4 +63,19 @@ describe("FollowLiveOverlayViewer", () => {
       expect(screen.getByText("No active tracker — waiting for a live game")).toBeInTheDocument();
     });
   });
+
+  it("does not render overlay for active tracker when no tracker is live", async () => {
+    const directory = aDirectoryWith({
+      trackers: [aTrackerWith({ trackerId: "tracker-1", gamertag: "Spartan One", isLive: false, status: "active" })],
+      liveTrackerId: null,
+    });
+
+    render(<FollowLiveOverlayViewer {...aViewerPropsWith(directory)} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("No active tracker — waiting for a live game")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId("mock-overlay-page")).not.toBeInTheDocument();
+  });
 });

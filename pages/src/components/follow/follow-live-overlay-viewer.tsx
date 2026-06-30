@@ -51,26 +51,25 @@ export function FollowLiveOverlayViewer({
   seriesMatchesService,
   haloClient,
 }: FollowLiveOverlayViewerProps): React.ReactElement {
-  const { directory, directoryStatus, selectedTrackerId, onRetry } = useFollowLiveDirectory({
+  const { directory, directoryStatus, onRetry } = useFollowLiveDirectory({
     followLiveService,
     gamertag,
   });
-  const selectedTracker =
-    selectedTrackerId == null ? null : directory?.trackers.find((tracker) => tracker.trackerId === selectedTrackerId);
+  const liveTracker = getLiveTracker(directory);
 
   React.useEffect(() => {
     document.title = getOverlayTitle(gamertag, directory);
   }, [directory, gamertag]);
 
-  if (selectedTracker != null) {
+  if (liveTracker != null) {
     return (
       <IndividualTrackerOverlayPage
-        key={`${selectedTracker.trackerId}:${selectedTracker.lastUpdateTime}`}
+        key={`${liveTracker.trackerId}:${liveTracker.lastUpdateTime}`}
         individualTrackerViewService={individualTrackerViewService}
         matchAnalyticsService={matchAnalyticsService}
         seriesMatchesService={seriesMatchesService}
         haloClient={haloClient}
-        trackerId={selectedTracker.trackerId}
+        trackerId={liveTracker.trackerId}
       />
     );
   }
