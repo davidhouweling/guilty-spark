@@ -2203,6 +2203,58 @@ describe("NeatQueueService", () => {
         expect(payload).toMatchObject({ type: "substituted" });
       });
 
+      it("collects XUIDs from series players when association data is missing", async () => {
+        const substitutionRequest = getFakeNeatQueueData("substitution");
+        const seriesContext = {
+          type: "started" as const,
+          title: "Test Server",
+          subtitle: "Queue #3",
+          guildIconUrl: null,
+          teams: [
+            {
+              id: 0,
+              name: "Team 1",
+              players: [
+                {
+                  discordId: "discord_user_01",
+                  discordName: "soundmanD",
+                  gamertag: "SoundmanD",
+                  xboxId: "xuid_discord_user_01",
+                },
+              ],
+            },
+          ],
+        };
+        const playersAssociationData = {
+          discord_user_03: createSamplePlayerAssociationData("discord_user_03", "newPlayer", "NewPlayer"),
+        };
+
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(
+          aFakeNeatQueueStateWith({ seriesContext, playersAssociationData }),
+        );
+        vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
+        vi.spyOn(databaseService, "getDiscordAssociations").mockResolvedValue([
+          aFakeDiscordAssociationsRow({ DiscordId: "discord_user_03", XboxId: "xuid_discord_user_03" }),
+        ]);
+        vi.spyOn(haloService, "getUsersByXuids").mockResolvedValue([]);
+        vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(new Map());
+        vi.spyOn(haloService, "getPlayersEsras").mockResolvedValue(new Map());
+        vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({
+          state: aFakeLiveTrackerStateWith({ status: "stopped" }),
+        });
+        vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
+          aFakeGuildConfigRow({ NeatQueueInformerPlayerConnections: "N" }),
+        );
+
+        const { jobToComplete } = neatQueueService.handleRequest(substitutionRequest, neatQueueConfig);
+        await jobToComplete?.();
+
+        expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
+        const [xuids] = nudgeTrackersSpy.mock.calls[0] as [string[], unknown];
+        expect(xuids).toContain("xuid_discord_user_01");
+        expect(xuids).toContain("xuid_discord_user_03");
+      });
+
       it("skips nudge when seriesContext is not set", async () => {
         const substitutionRequest = getFakeNeatQueueData("substitution");
         (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());

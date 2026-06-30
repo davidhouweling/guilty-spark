@@ -873,16 +873,25 @@ export class NeatQueueService {
       // Send substitution event to all players in the series
       const substitutionPayload = { type: "substituted" as const, teamId, playerOut, playerIn };
 
+      const getPlayerXuid = (player: SeriesPlayer): string | null => {
+        if (player.xboxId != null) {
+          return player.xboxId;
+        }
+
+        if (player.discordId == null) {
+          return null;
+        }
+
+        return state.playersAssociationData[player.discordId]?.xboxId ?? null;
+      };
+
       // Collect all XUIDs from both original and updated teams to get both subbed-out and subbed-in players
       const playerXuidSet = new Set<string>();
 
       // Add XUIDs from original teams (includes player being subbed out)
       for (const team of originalTeams) {
         for (const player of team.players) {
-          if (player.discordId == null) {
-            continue;
-          }
-          const xuid = state.playersAssociationData[player.discordId]?.xboxId;
+          const xuid = getPlayerXuid(player);
           if (xuid != null) {
             playerXuidSet.add(xuid);
           }
@@ -892,10 +901,7 @@ export class NeatQueueService {
       // Add XUIDs from updated teams (includes player being subbed in)
       for (const team of updatedTeams) {
         for (const player of team.players) {
-          if (player.discordId == null) {
-            continue;
-          }
-          const xuid = state.playersAssociationData[player.discordId]?.xboxId;
+          const xuid = getPlayerXuid(player);
           if (xuid != null) {
             playerXuidSet.add(xuid);
           }
