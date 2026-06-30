@@ -31,6 +31,7 @@ export const trackerSeriesPlayerSchema = z.object({
 export type TrackerSeriesPlayer = z.infer<typeof trackerSeriesPlayerSchema>;
 
 export const trackerSeriesTeamSchema = z.object({
+  id: z.number().int().min(0),
   name: z.string(),
   players: z.array(trackerSeriesPlayerSchema),
 });

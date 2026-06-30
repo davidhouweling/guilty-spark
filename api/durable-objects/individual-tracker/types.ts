@@ -55,6 +55,7 @@ export interface SeriesPlayer {
 }
 
 export interface SeriesTeam {
+  id: number;
   name: string;
   players: SeriesPlayer[];
 }

@@ -18,7 +18,10 @@ import {
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 import type { IndividualTrackerStartRequest } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
-import type { SeriesContextPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
+import type {
+  SeriesStartedPayload,
+  SeriesSubstitutedPayload,
+} from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import { IndividualTrackerDO } from "../individual-tracker-do";
 import { aFakeMapAssetWith } from "../../../services/halo/fakes/data";
 import { installFakeServicesWith } from "../../../services/fakes/services";
@@ -2288,16 +2291,19 @@ describe("IndividualTrackerDO", () => {
   });
 
   describe("handleNudge()", () => {
-    const aSeriesPayload = (): SeriesContextPayload => ({
+    const aSeriesPayload = (): SeriesStartedPayload => ({
+      type: "started",
       title: "Guilty Spark",
       subtitle: "Queue #1",
       guildIconUrl: "https://cdn.discordapp.com/icons/guild-id/icon.webp",
       teams: [
         {
+          id: 0,
           name: "Eagle",
           players: [{ discordId: "discord-1", discordName: "PlayerOne", gamertag: "GT1", xboxId: "xuid-1" }],
         },
         {
+          id: 1,
           name: "Cobra",
           players: [{ discordId: "discord-2", discordName: "PlayerTwo", gamertag: "GT2", xboxId: "xuid-2" }],
         },
@@ -2313,6 +2319,23 @@ describe("IndividualTrackerDO", () => {
       startedAt: new Date().toISOString(),
       isActive: true,
       ...overrides,
+    });
+
+    const aSubstitutionPayload = (): SeriesSubstitutedPayload => ({
+      type: "substituted",
+      teamId: 0,
+      playerOut: {
+        discordId: "discord-1",
+        discordName: "PlayerOne",
+        gamertag: "GT1",
+        xboxId: "xuid-1",
+      },
+      playerIn: {
+        discordId: "discord-3",
+        discordName: "PlayerThree",
+        gamertag: "GT3",
+        xboxId: "xuid-3",
+      },
     });
 
     it("returns 404 when no state exists", async () => {
@@ -2364,7 +2387,7 @@ describe("IndividualTrackerDO", () => {
       expect(response.status).toBe(400);
     });
 
-    it("moves existing activeSeries to completedSeries when nudging with null", async () => {
+    it("moves existing activeSeries to completedSeries when nudging with ended event", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           activeSeries: anActiveSeries({ matchIds: ["match-1"] }),
@@ -2372,7 +2395,7 @@ describe("IndividualTrackerDO", () => {
       );
 
       const response = await individualTrackerDO.fetch(
-        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(null) }),
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify({ type: "ended" }) }),
       );
 
       expect(response.status).toBe(200);
@@ -2381,6 +2404,201 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.activeSeries).toBeUndefined();
       expect(persisted.completedSeries).toHaveLength(1);
       expect(storageSetAlarmSpy).toHaveBeenCalledWith(Date.now());
+    });
+
+    it("retires active series when tracked player is subbed out", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          gamertag: "GT1",
+          activeSeries: anActiveSeries({
+            teams: [
+              {
+                id: 0,
+                name: "Eagle",
+                players: [{ discordId: "discord-1", discordName: "PlayerOne", gamertag: "GT1", xboxId: "xuid-1" }],
+              },
+            ],
+          }),
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aSubstitutionPayload()) }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toBeUndefined();
+      expect(persisted.completedSeries).toHaveLength(1);
+    });
+
+    it("resumes completed series and applies substitution when tracked player is subbed in", async () => {
+      const completedSeries: ActiveSeries = {
+        ...anActiveSeries(),
+        isActive: false,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [{ discordId: "discord-1", discordName: "PlayerOne", gamertag: "GT1", xboxId: "xuid-1" }],
+          },
+        ],
+      };
+
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          gamertag: "GT3",
+          completedSeries: [completedSeries],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aSubstitutionPayload()) }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.teams[0]?.players[0]?.gamertag).toBe("GT3");
+      expect(persisted.completedSeries).toHaveLength(0);
+    });
+
+    it("creates a new minimal active series when tracked player is subbed in with no completed series", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          gamertag: "GT3",
+          completedSeries: [],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aSubstitutionPayload()) }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toMatchObject({
+        title: "Series",
+        subtitle: null,
+        guildIconUrl: null,
+        teams: [],
+        matchIds: [],
+        isActive: true,
+      });
+      expect(persisted.completedSeries).toHaveLength(0);
+    });
+
+    it("resumes completed series when tracked player is subbed in by xboxId and gamertag is null", async () => {
+      const completedSeries: ActiveSeries = {
+        ...anActiveSeries(),
+        isActive: false,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [{ discordId: "discord-1", discordName: "PlayerOne", gamertag: null, xboxId: "xuid-1" }],
+          },
+        ],
+      };
+      const payloadWithNullGamertags: SeriesSubstitutedPayload = {
+        type: "substituted",
+        teamId: 0,
+        playerOut: {
+          discordId: "discord-1",
+          discordName: "PlayerOne",
+          gamertag: null,
+          xboxId: "xuid-1",
+        },
+        playerIn: {
+          discordId: "discord-3",
+          discordName: "PlayerThree",
+          gamertag: null,
+          xboxId: "xuid-3",
+        },
+      };
+
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          xuid: "xuid-3",
+          gamertag: "TrackedPlayer",
+          completedSeries: [completedSeries],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(payloadWithNullGamertags) }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.teams[0]?.players[0]?.xboxId).toBe("xuid-3");
+      expect(persisted.completedSeries).toHaveLength(0);
+    });
+
+    it("updates active team roster when tracked player is neither subbed in nor subbed out", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          gamertag: "GTX",
+          activeSeries: anActiveSeries({
+            teams: [
+              {
+                id: 0,
+                name: "Eagle",
+                players: [{ discordId: "discord-1", discordName: "PlayerOne", gamertag: "GT1", xboxId: "xuid-1" }],
+              },
+            ],
+          }),
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aSubstitutionPayload()) }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.teams[0]?.players[0]?.gamertag).toBe("GT3");
+    });
+
+    it("updates active team roster by xboxId when player gamertag is null", async () => {
+      const payloadWithNullGamertags: SeriesSubstitutedPayload = {
+        type: "substituted",
+        teamId: 0,
+        playerOut: {
+          discordId: "discord-1",
+          discordName: "PlayerOne",
+          gamertag: null,
+          xboxId: "xuid-1",
+        },
+        playerIn: {
+          discordId: "discord-3",
+          discordName: "PlayerThree",
+          gamertag: null,
+          xboxId: "xuid-3",
+        },
+      };
+
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          gamertag: "GTX",
+          activeSeries: anActiveSeries({
+            teams: [
+              {
+                id: 0,
+                name: "Eagle",
+                players: [{ discordId: "discord-1", discordName: "PlayerOne", gamertag: null, xboxId: "xuid-1" }],
+              },
+            ],
+          }),
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(payloadWithNullGamertags) }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.teams[0]?.players[0]?.xboxId).toBe("xuid-3");
     });
 
     it("moves existing activeSeries to completedSeries when starting a new one via nudge", async () => {
@@ -2424,8 +2642,12 @@ describe("IndividualTrackerDO", () => {
     it("applies activeSeries title, subtitle, guildIconUrl, and teams to the matching series group", async () => {
       const ids = ["match-nq-1", "match-nq-2"];
       const teams = [
-        { name: "Eagle", players: [{ discordId: "d-1", discordName: "Alice", gamertag: "AliceGT", xboxId: "x-1" }] },
-        { name: "Cobra", players: [{ discordId: "d-2", discordName: "Bob", gamertag: "BobGT", xboxId: "x-2" }] },
+        {
+          id: 0,
+          name: "Eagle",
+          players: [{ discordId: "d-1", discordName: "Alice", gamertag: "AliceGT", xboxId: "x-1" }],
+        },
+        { id: 1, name: "Cobra", players: [{ discordId: "d-2", discordName: "Bob", gamertag: "BobGT", xboxId: "x-2" }] },
       ];
       const activeSeries: ActiveSeries = {
         title: "Guilty Spark",
@@ -2670,6 +2892,7 @@ describe("IndividualTrackerDO", () => {
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries?.teams).toEqual([
         {
+          id: 0,
           name: "Team A",
           players: [
             { discordId: null, discordName: null, gamertag: "Player1", xboxId: null },
@@ -2677,6 +2900,7 @@ describe("IndividualTrackerDO", () => {
           ],
         },
         {
+          id: 1,
           name: "Team B",
           players: [{ discordId: null, discordName: null, gamertag: "Player3", xboxId: null }],
         },
@@ -2909,7 +3133,7 @@ describe("IndividualTrackerDO", () => {
 
     it("activeSeriesContext is present with correct data when activeSeries exists", async () => {
       const teams = [
-        { name: "Eagle", players: [{ discordId: null, discordName: null, gamertag: "GT1", xboxId: null }] },
+        { id: 0, name: "Eagle", players: [{ discordId: null, discordName: null, gamertag: "GT1", xboxId: null }] },
       ];
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({

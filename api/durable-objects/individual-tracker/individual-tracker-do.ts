@@ -35,7 +35,8 @@ import {
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/management";
 import {
   individualTrackerNudgeContract,
-  seriesContextNullablePayloadSchema,
+  nudgePayloadSchema,
+  type SeriesSubstitutedPayload,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import {
   analyzeMatchGroupings,
@@ -53,6 +54,7 @@ import {
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import {
   INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT,
   INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS,
@@ -73,6 +75,7 @@ import type {
   IndividualTrackerSeriesGroupOverride,
   IndividualTrackerViewState,
   ActiveSeries,
+  SeriesPlayer,
   SeriesTeam,
   StatsHighlightItem,
 } from "./types";
@@ -1337,7 +1340,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
     const body = parsed.data;
 
-    const teams: SeriesTeam[] = body.teams.map((team) => ({
+    const teams: SeriesTeam[] = body.teams.map((team, teamIndex) => ({
+      id: teamIndex,
       name: team.name,
       players: team.members.map((gamertag) => ({ discordId: null, discordName: null, gamertag, xboxId: null })),
     }));
@@ -1413,7 +1417,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       trackerState.activeSeries.subtitle = body.subtitleOverride;
     }
     if (body.teams !== undefined) {
-      trackerState.activeSeries.teams = body.teams.map((team) => ({
+      trackerState.activeSeries.teams = body.teams.map((team, teamIndex) => ({
+        id: teamIndex,
         name: team.name,
         players: team.members.map((gamertag) => ({ discordId: null, discordName: null, gamertag, xboxId: null })),
       }));
@@ -1468,20 +1473,110 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Not Found", { status: 404 });
     }
 
-    const parsed = await parseJsonBody(request, seriesContextNullablePayloadSchema, "Invalid nudge request");
+    const parsed = await parseJsonBody(request, nudgePayloadSchema, "Invalid nudge request");
     if (!parsed.success) {
       return parsed.response;
     }
     const payload = parsed.data;
 
-    this.retireActiveSeries(trackerState);
-    if (payload != null) {
-      trackerState.activeSeries = {
-        ...payload,
-        matchIds: [],
-        startedAt: new Date().toISOString(),
-        isActive: true,
-      };
+    switch (payload.type) {
+      case "ended": {
+        this.retireActiveSeries(trackerState);
+        break;
+      }
+      case "substituted": {
+        const trackedXuid = trackerState.xuid;
+        const trackedGamertag = trackerState.gamertag;
+        const isTrackedPlayerOut =
+          (payload.playerOut.xboxId != null && trackedXuid === payload.playerOut.xboxId) ||
+          trackedGamertag === payload.playerOut.gamertag;
+        const isTrackedPlayerIn =
+          (payload.playerIn.xboxId != null && trackedXuid === payload.playerIn.xboxId) ||
+          trackedGamertag === payload.playerIn.gamertag;
+
+        if (isTrackedPlayerOut) {
+          this.retireActiveSeries(trackerState);
+          this.logService.info(
+            "IndividualTracker: series retired (tracked player subbed out via nudge)",
+            new Map([
+              ["trackerId", trackerState.trackerId],
+              ["gamertag", trackerState.gamertag],
+            ]),
+          );
+        } else if (isTrackedPlayerIn && trackerState.activeSeries == null) {
+          const completedSeries = trackerState.completedSeries ?? [];
+          const resumedSeries: ActiveSeries | null = completedSeries.at(-1) ?? null;
+
+          if (resumedSeries != null) {
+            trackerState.activeSeries = this.applySubstitutionToSeries(
+              {
+                ...resumedSeries,
+                matchIds: [],
+                startedAt: new Date().toISOString(),
+                isActive: true,
+              },
+              payload,
+            );
+            trackerState.completedSeries = completedSeries.filter((s) => s !== resumedSeries);
+          } else {
+            trackerState.activeSeries = {
+              title: "Series",
+              subtitle: null,
+              guildIconUrl: null,
+              teams: [],
+              matchIds: [],
+              startedAt: new Date().toISOString(),
+              isActive: true,
+            };
+          }
+
+          this.logService.info(
+            "IndividualTracker: series resumed/created (tracked player subbed in via nudge)",
+            new Map([
+              ["trackerId", trackerState.trackerId],
+              ["gamertag", trackerState.gamertag],
+            ]),
+          );
+        } else if (trackerState.activeSeries != null) {
+          trackerState.activeSeries = this.applySubstitutionToSeries(trackerState.activeSeries, payload);
+
+          this.logService.debug(
+            "IndividualTracker: team roster updated via nudge substitution",
+            new Map([
+              ["trackerId", trackerState.trackerId],
+              ["teamId", String(payload.teamId)],
+            ]),
+          );
+        }
+
+        break;
+      }
+      case "started": {
+        this.retireActiveSeries(trackerState);
+        trackerState.activeSeries = {
+          title: payload.title,
+          subtitle: payload.subtitle,
+          guildIconUrl: payload.guildIconUrl,
+          teams: payload.teams,
+          matchIds: [],
+          startedAt: new Date().toISOString(),
+          isActive: true,
+        };
+
+        this.logService.info(
+          "IndividualTracker: series started via nudge",
+          new Map([
+            ["trackerId", trackerState.trackerId],
+            ["gamertag", trackerState.gamertag],
+            ["title", payload.title],
+          ]),
+        );
+
+        break;
+      }
+      default: {
+        throw new UnreachableError(payload);
+      }
     }
 
     trackerState.lastUpdateTime = new Date().toISOString();
@@ -1598,6 +1693,41 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
   private async setState(state: IndividualTrackerInternalState): Promise<void> {
     await this.state.storage.put(STATE_STORAGE_KEY, state);
+  }
+
+  private applySubstitutionToSeries(series: ActiveSeries, payload: SeriesSubstitutedPayload): ActiveSeries {
+    const matchesPlayerOut = (player: SeriesPlayer): boolean => {
+      if (payload.playerOut.xboxId != null && player.xboxId != null) {
+        return player.xboxId === payload.playerOut.xboxId;
+      }
+
+      if (payload.playerOut.discordId != null && player.discordId != null) {
+        return player.discordId === payload.playerOut.discordId;
+      }
+
+      return player.gamertag != null && player.gamertag === payload.playerOut.gamertag;
+    };
+
+    const updatedTeams = series.teams.map((team, teamIndex) => {
+      const normalizedTeamId = teamIndex;
+      if (normalizedTeamId === payload.teamId || team.id === payload.teamId) {
+        return {
+          ...team,
+          id: normalizedTeamId,
+          players: team.players.map((player) => (matchesPlayerOut(player) ? payload.playerIn : player)),
+        };
+      }
+
+      return {
+        ...team,
+        id: normalizedTeamId,
+      };
+    });
+
+    return {
+      ...series,
+      teams: updatedTeams,
+    };
   }
 
   private retireActiveSeries(state: IndividualTrackerInternalState): void {

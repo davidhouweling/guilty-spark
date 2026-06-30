@@ -7,7 +7,7 @@ import {
   type IndividualTrackerStartResponse,
 } from "../lifecycle";
 import { individualTrackerStatusContract, individualTrackerViewStateContract } from "../management";
-import { seriesContextPayloadSchema, type SeriesContextPayload } from "../nudge";
+import { seriesStartedPayloadSchema, seriesSubstitutedPayloadSchema, type SeriesStartedPayload } from "../nudge";
 import {
   editSeriesContract,
   endSeriesContract,
@@ -119,27 +119,41 @@ describe("individualTrackerViewStateContract", () => {
   });
 });
 
-describe("seriesContextPayloadSchema", () => {
-  const validPayload: SeriesContextPayload = {
+describe("seriesStartedPayloadSchema", () => {
+  const validPayload: SeriesStartedPayload = {
+    type: "started",
     title: "Eagles vs Cobras",
     subtitle: "Best of 3",
     guildIconUrl: null,
     teams: [
-      { name: "Eagles", players: [{ discordId: "d1", discordName: "Player1", gamertag: "Tag1", xboxId: "x1" }] },
-      { name: "Cobras", players: [] },
+      { id: 0, name: "Eagles", players: [{ discordId: "d1", discordName: "Player1", gamertag: "Tag1", xboxId: "x1" }] },
+      { id: 1, name: "Cobras", players: [] },
     ],
   };
 
-  it("parses a valid series context payload", () => {
-    expect(seriesContextPayloadSchema.parse(validPayload)).toEqual(validPayload);
+  it("parses a valid started payload", () => {
+    expect(seriesStartedPayloadSchema.parse(validPayload)).toEqual(validPayload);
   });
 
   it("rejects a missing title", () => {
     expect(
-      seriesContextPayloadSchema.safeParse({
+      seriesStartedPayloadSchema.safeParse({
         subtitle: "Best of 3",
         guildIconUrl: null,
         teams: [],
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("seriesSubstitutedPayloadSchema", () => {
+  it("rejects substitution payload when both players have no identifiers", () => {
+    expect(
+      seriesSubstitutedPayloadSchema.safeParse({
+        type: "substituted",
+        teamId: 0,
+        playerOut: { discordId: null, discordName: null, gamertag: null, xboxId: null },
+        playerIn: { discordId: null, discordName: null, gamertag: null, xboxId: null },
       }).success,
     ).toBe(false);
   });
