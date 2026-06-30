@@ -890,18 +890,18 @@ export class NeatQueueService {
         }
 
         if (playerXuidSet.size > 0) {
-          await this.individualTrackerService
-            .nudgeTrackers(Array.from(playerXuidSet), substitutionPayload)
-            .catch((error: unknown) => {
-              this.logService.warn(
-                "Failed to nudge individual trackers for substitution",
-                new Map([
-                  ["guildId", request.guild],
-                  ["queueNumber", matchNumber.toString()],
-                  ["error", String(error)],
-                ]),
-              );
-            });
+          try {
+            await this.individualTrackerService.nudgeTrackers(Array.from(playerXuidSet), substitutionPayload);
+          } catch (error: unknown) {
+            this.logService.warn(
+              "Failed to nudge individual trackers for substitution",
+              new Map([
+                ["guildId", request.guild],
+                ["queueNumber", matchNumber.toString()],
+                ["error", String(error)],
+              ]),
+            );
+          }
         }
       }
     } catch (nudgeError) {

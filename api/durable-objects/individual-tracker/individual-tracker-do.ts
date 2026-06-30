@@ -1470,6 +1470,16 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return new Response("Not Found", { status: 404 });
     }
 
+    if (trackerState.activeSeries != null) {
+      trackerState.activeSeries = {
+        ...trackerState.activeSeries,
+        teams: trackerState.activeSeries.teams.map((team, teamIndex) => ({
+          ...team,
+          id: teamIndex,
+        })),
+      };
+    }
+
     const parsed = await parseJsonBody(request, nudgePayloadSchema, "Invalid nudge request");
     if (!parsed.success) {
       return parsed.response;
