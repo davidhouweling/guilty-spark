@@ -7,7 +7,7 @@ import {
   type IndividualTrackerStartResponse,
 } from "../lifecycle";
 import { individualTrackerStatusContract, individualTrackerViewStateContract } from "../management";
-import { seriesStartedPayloadSchema, type SeriesStartedPayload } from "../nudge";
+import { seriesStartedPayloadSchema, seriesSubstitutedPayloadSchema, type SeriesStartedPayload } from "../nudge";
 import {
   editSeriesContract,
   endSeriesContract,
@@ -141,6 +141,19 @@ describe("seriesStartedPayloadSchema", () => {
         subtitle: "Best of 3",
         guildIconUrl: null,
         teams: [],
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("seriesSubstitutedPayloadSchema", () => {
+  it("rejects substitution payload when both players have no identifiers", () => {
+    expect(
+      seriesSubstitutedPayloadSchema.safeParse({
+        type: "substituted",
+        teamId: 0,
+        playerOut: { discordId: null, discordName: null, gamertag: null, xboxId: null },
+        playerIn: { discordId: null, discordName: null, gamertag: null, xboxId: null },
       }).success,
     ).toBe(false);
   });

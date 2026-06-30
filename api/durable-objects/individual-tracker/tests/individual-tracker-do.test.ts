@@ -2462,6 +2462,31 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.completedSeries).toHaveLength(0);
     });
 
+    it("creates a new minimal active series when tracked player is subbed in with no completed series", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          gamertag: "GT3",
+          completedSeries: [],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aSubstitutionPayload()) }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toMatchObject({
+        title: "Series",
+        subtitle: null,
+        guildIconUrl: null,
+        teams: [],
+        matchIds: [],
+        isActive: true,
+      });
+      expect(persisted.completedSeries).toHaveLength(0);
+    });
+
     it("resumes completed series when tracked player is subbed in by xboxId and gamertag is null", async () => {
       const completedSeries: ActiveSeries = {
         ...anActiveSeries(),

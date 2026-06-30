@@ -25,13 +25,34 @@ export const seriesEndedPayloadSchema = z.object({
 });
 export type SeriesEndedPayload = z.infer<typeof seriesEndedPayloadSchema>;
 
+const hasStablePlayerIdentifier = (player: SeriesPlayer): boolean =>
+  player.xboxId != null || player.discordId != null || player.gamertag != null;
+
 // Event: Player substitution (swap player in team)
-export const seriesSubstitutedPayloadSchema = z.object({
-  type: z.literal("substituted"),
-  teamId: z.number().int().min(0),
-  playerOut: seriesPlayerSchema,
-  playerIn: seriesPlayerSchema,
-});
+export const seriesSubstitutedPayloadSchema = z
+  .object({
+    type: z.literal("substituted"),
+    teamId: z.number().int().min(0),
+    playerOut: seriesPlayerSchema,
+    playerIn: seriesPlayerSchema,
+  })
+  .superRefine((payload, context) => {
+    if (!hasStablePlayerIdentifier(payload.playerOut)) {
+      context.addIssue({
+        code: "custom",
+        path: ["playerOut"],
+        message: "playerOut must include at least one identifier (xboxId, discordId, or gamertag)",
+      });
+    }
+
+    if (!hasStablePlayerIdentifier(payload.playerIn)) {
+      context.addIssue({
+        code: "custom",
+        path: ["playerIn"],
+        message: "playerIn must include at least one identifier (xboxId, discordId, or gamertag)",
+      });
+    }
+  });
 export type SeriesSubstitutedPayload = z.infer<typeof seriesSubstitutedPayloadSchema>;
 
 // Union of all nudge payloads
