@@ -1485,11 +1485,16 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         break;
       }
       case "substituted": {
+        const trackedXuid = trackerState.xuid;
         const trackedGamertag = trackerState.gamertag;
-        const playerOutGamertag = payload.playerOut.gamertag;
-        const playerInGamertag = payload.playerIn.gamertag;
+        const isTrackedPlayerOut =
+          (payload.playerOut.xboxId != null && trackedXuid === payload.playerOut.xboxId) ||
+          trackedGamertag === payload.playerOut.gamertag;
+        const isTrackedPlayerIn =
+          (payload.playerIn.xboxId != null && trackedXuid === payload.playerIn.xboxId) ||
+          trackedGamertag === payload.playerIn.gamertag;
 
-        if (trackedGamertag === playerOutGamertag) {
+        if (isTrackedPlayerOut) {
           this.retireActiveSeries(trackerState);
           this.logService.info(
             "IndividualTracker: series retired (tracked player subbed out via nudge)",
@@ -1498,7 +1503,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
               ["gamertag", trackerState.gamertag],
             ]),
           );
-        } else if (trackedGamertag === playerInGamertag && trackerState.activeSeries == null) {
+        } else if (isTrackedPlayerIn && trackerState.activeSeries == null) {
           const completedSeries = trackerState.completedSeries ?? [];
           const resumedSeries: ActiveSeries | null = completedSeries.at(-1) ?? null;
 
