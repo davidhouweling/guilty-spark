@@ -75,6 +75,7 @@ import type {
   IndividualTrackerSeriesGroupOverride,
   IndividualTrackerViewState,
   ActiveSeries,
+  SeriesPlayer,
   SeriesTeam,
   StatsHighlightItem,
 } from "./types";
@@ -1758,15 +1759,25 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private applySubstitutionToSeries(series: ActiveSeries, payload: SeriesSubstitutedPayload): ActiveSeries {
+    const matchesPlayerOut = (player: SeriesPlayer): boolean => {
+      if (payload.playerOut.xboxId != null && player.xboxId != null) {
+        return player.xboxId === payload.playerOut.xboxId;
+      }
+
+      if (payload.playerOut.discordId != null && player.discordId != null) {
+        return player.discordId === payload.playerOut.discordId;
+      }
+
+      return player.gamertag != null && player.gamertag === payload.playerOut.gamertag;
+    };
+
     const updatedTeams = series.teams.map((team, teamIndex) => {
       const normalizedTeamId = teamIndex;
       if (normalizedTeamId === payload.teamId || team.id === payload.teamId) {
         return {
           ...team,
           id: normalizedTeamId,
-          players: team.players.map((player) =>
-            player.gamertag === payload.playerOut.gamertag ? payload.playerIn : player,
-          ),
+          players: team.players.map((player) => (matchesPlayerOut(player) ? payload.playerIn : player)),
         };
       }
 

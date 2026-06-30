@@ -2486,6 +2486,48 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.activeSeries?.teams[0]?.players[0]?.gamertag).toBe("GT3");
     });
 
+    it("updates active team roster by xboxId when player gamertag is null", async () => {
+      const payloadWithNullGamertags: SeriesSubstitutedPayload = {
+        type: "substituted",
+        teamId: 0,
+        playerOut: {
+          discordId: "discord-1",
+          discordName: "PlayerOne",
+          gamertag: null,
+          xboxId: "xuid-1",
+        },
+        playerIn: {
+          discordId: "discord-3",
+          discordName: "PlayerThree",
+          gamertag: null,
+          xboxId: "xuid-3",
+        },
+      };
+
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          gamertag: "GTX",
+          activeSeries: anActiveSeries({
+            teams: [
+              {
+                id: 0,
+                name: "Eagle",
+                players: [{ discordId: "discord-1", discordName: "PlayerOne", gamertag: null, xboxId: "xuid-1" }],
+              },
+            ],
+          }),
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(payloadWithNullGamertags) }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.teams[0]?.players[0]?.xboxId).toBe("xuid-3");
+    });
+
     it("moves existing activeSeries to completedSeries when starting a new one via nudge", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
