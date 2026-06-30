@@ -1551,7 +1551,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
         break;
       }
-      case undefined:
       case "started": {
         this.retireActiveSeries(trackerState);
         trackerState.activeSeries = {

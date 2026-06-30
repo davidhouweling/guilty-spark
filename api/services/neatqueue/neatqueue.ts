@@ -677,6 +677,7 @@ export class NeatQueueService {
         ),
       }));
       const seriesContext: SeriesStartedPayload = {
+        type: "started",
         title: getSeriesGroupTitleFromTeams(seriesTeams) ?? title,
         subtitle: `Queue #${request.match_number.toString()}`,
         guildIconUrl,

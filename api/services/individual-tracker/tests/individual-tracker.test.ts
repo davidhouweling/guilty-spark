@@ -408,6 +408,7 @@ describe("IndividualTrackerService", () => {
       });
       vi.spyOn(databaseService, "findIndividualTrackersByXuids").mockResolvedValue([tracker]);
       const payload: SeriesStartedPayload = {
+        type: "started",
         title: "Test Server",
         subtitle: "Queue #1",
         guildIconUrl: null,

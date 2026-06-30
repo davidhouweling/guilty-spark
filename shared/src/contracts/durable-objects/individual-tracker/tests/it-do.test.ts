@@ -121,6 +121,7 @@ describe("individualTrackerViewStateContract", () => {
 
 describe("seriesStartedPayloadSchema", () => {
   const validPayload: SeriesStartedPayload = {
+    type: "started",
     title: "Eagles vs Cobras",
     subtitle: "Best of 3",
     guildIconUrl: null,
@@ -130,7 +131,7 @@ describe("seriesStartedPayloadSchema", () => {
     ],
   };
 
-  it("parses a valid series context payload", () => {
+  it("parses a valid started payload", () => {
     expect(seriesStartedPayloadSchema.parse(validPayload)).toEqual(validPayload);
   });
 

@@ -2091,6 +2091,7 @@ describe("NeatQueueService", () => {
       it("nudges sub-out with null and sub-in with updated context when seriesContext exists", async () => {
         const substitutionRequest = getFakeNeatQueueData("substitution");
         const seriesContext = {
+          type: "started" as const,
           title: "Test Server",
           subtitle: "Queue #3",
           guildIconUrl: null,
@@ -2152,6 +2153,7 @@ describe("NeatQueueService", () => {
       it("nudges even when live tracker is not active", async () => {
         const substitutionRequest = getFakeNeatQueueData("substitution");
         const seriesContext = {
+          type: "started" as const,
           title: "Test Server",
           subtitle: "Queue #3",
           guildIconUrl: null,

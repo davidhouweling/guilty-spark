@@ -11,7 +11,7 @@ export type SeriesTeam = z.infer<typeof seriesTeamSchema>;
 
 // Event: Series started (set new context)
 export const seriesStartedPayloadSchema = z.object({
-  type: z.literal("started").optional(),
+  type: z.literal("started"),
   title: z.string(),
   subtitle: z.string(),
   guildIconUrl: z.string().nullable(),
@@ -35,7 +35,7 @@ export const seriesSubstitutedPayloadSchema = z.object({
 export type SeriesSubstitutedPayload = z.infer<typeof seriesSubstitutedPayloadSchema>;
 
 // Union of all nudge payloads
-export const nudgePayloadSchema = z.union([
+export const nudgePayloadSchema = z.discriminatedUnion("type", [
   seriesStartedPayloadSchema,
   seriesEndedPayloadSchema,
   seriesSubstitutedPayloadSchema,

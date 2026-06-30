@@ -2292,6 +2292,7 @@ describe("IndividualTrackerDO", () => {
 
   describe("handleNudge()", () => {
     const aSeriesPayload = (): SeriesStartedPayload => ({
+      type: "started",
       title: "Guilty Spark",
       subtitle: "Queue #1",
       guildIconUrl: "https://cdn.discordapp.com/icons/guild-id/icon.webp",
