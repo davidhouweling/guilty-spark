@@ -94,6 +94,7 @@ describe("individual-tracker-overlay-presenter", () => {
     const [seriesTab, matchTab] = tabs;
     expect(seriesTab.type).toBe("series");
     if (seriesTab.type === "series") {
+      expect(seriesTab.seriesId).toBe("series-complete");
       expect(seriesTab.icons).toEqual([
         { src: gameModeIconSrc(6), dimmed: false },
         { src: gameModeIconSrc(7), dimmed: false },

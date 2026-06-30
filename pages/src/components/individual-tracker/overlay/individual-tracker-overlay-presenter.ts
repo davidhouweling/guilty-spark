@@ -57,6 +57,7 @@ export function buildTabs(timeline: readonly ViewerTimelineItem[]): readonly Ove
     if (item.type === "series") {
       return {
         type: "series",
+        seriesId: item.series.id,
         index: -1,
         label: item.series.title,
         score: item.series.score,

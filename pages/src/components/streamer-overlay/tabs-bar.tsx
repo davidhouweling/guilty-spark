@@ -4,6 +4,7 @@ import styles from "./streamer-overlay.module.css";
 
 interface SeriesTab {
   readonly type: "series";
+  readonly seriesId: string;
   readonly index: number;
   readonly label: string;
   readonly score: string;
@@ -46,6 +47,7 @@ interface TabButtonProps {
 
 const TabButton = memo(({ tab, isActive, isSelected, onTabClick }: TabButtonProps): React.ReactElement => {
   const tabIndex = tab.type === "series" ? -1 : tab.index;
+  const tabKey = tab.type === "series" ? `series-${tab.seriesId}` : tab.matchId;
   const tabIcons =
     tab.type === "series"
       ? (tab.icons ?? [])
@@ -53,7 +55,7 @@ const TabButton = memo(({ tab, isActive, isSelected, onTabClick }: TabButtonProp
 
   return (
     <button
-      key={tab.type === "series" ? "series" : tab.matchId}
+      key={tabKey}
       type="button"
       className={classNames(styles.tab, {
         [styles.tabActive]: isActive,
@@ -109,18 +111,11 @@ function OverlayTabsBarComponent({
     <div className={styles.tabBar}>
       {tabs.map((tab) => {
         const tabIndex = tab.type === "series" ? -1 : tab.index;
+        const tabKey = tab.type === "series" ? `series-${tab.seriesId}` : tab.matchId;
         const isActive = activeTabIndex === tabIndex;
         const isSelected = selectedTab === tabIndex && isPanelOpen;
 
-        return (
-          <TabButton
-            key={tab.type === "series" ? "series" : tab.matchId}
-            tab={tab}
-            isActive={isActive}
-            isSelected={isSelected}
-            onTabClick={onTabClick}
-          />
-        );
+        return <TabButton key={tabKey} tab={tab} isActive={isActive} isSelected={isSelected} onTabClick={onTabClick} />;
       })}
     </div>
   );

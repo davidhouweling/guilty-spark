@@ -499,6 +499,7 @@ function NeatQueueStreamerOverlay({
     () => [
       {
         type: "series" as const,
+        seriesId: "live-tracker-series",
         index: -1,
         label: "Series score",
         score: neatQueueState.seriesScore,
