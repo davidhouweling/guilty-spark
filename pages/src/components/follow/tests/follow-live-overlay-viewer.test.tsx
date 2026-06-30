@@ -53,9 +53,7 @@ describe("FollowLiveOverlayViewer", () => {
 
   it("shows waiting state when no active tracker is available", async () => {
     const directory = aDirectoryWith({
-      trackers: [
-        aTrackerWith({ trackerId: "tracker-1", gamertag: "Spartan One", isLive: false, status: "paused" }),
-      ],
+      trackers: [aTrackerWith({ trackerId: "tracker-1", gamertag: "Spartan One", isLive: false, status: "paused" })],
       liveTrackerId: null,
     });
 

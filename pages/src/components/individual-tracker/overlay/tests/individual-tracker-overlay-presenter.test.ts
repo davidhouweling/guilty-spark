@@ -20,7 +20,10 @@ function aMatchWith(overrides: Partial<ViewerMatchTab> = {}): ViewerMatchTab {
 }
 
 function aSeriesWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesTab {
-  const matches = overrides.matches ?? [aMatchWith({ matchId: "series-match-1" }), aMatchWith({ matchId: "series-match-2" })];
+  const matches = overrides.matches ?? [
+    aMatchWith({ matchId: "series-match-1" }),
+    aMatchWith({ matchId: "series-match-2" }),
+  ];
 
   return {
     id: overrides.id ?? "series-1",
@@ -53,7 +56,10 @@ describe("individual-tracker-overlay-presenter", () => {
     const activeSeries = aSeriesWith({
       id: "series-active",
       isActive: true,
-      matches: [aMatchWith({ matchId: "a", gameVariantCategory: 6 }), aMatchWith({ matchId: "b", gameVariantCategory: 8 })],
+      matches: [
+        aMatchWith({ matchId: "a", gameVariantCategory: 6 }),
+        aMatchWith({ matchId: "b", gameVariantCategory: 8 }),
+      ],
     });
     const timeline: ViewerTimelineItem[] = [
       { type: "series", series: aSeriesWith({ id: "series-old", isActive: false }) },
@@ -72,7 +78,10 @@ describe("individual-tracker-overlay-presenter", () => {
     const completedSeries = aSeriesWith({
       id: "series-complete",
       isActive: false,
-      matches: [aMatchWith({ matchId: "s1", gameVariantCategory: 6 }), aMatchWith({ matchId: "s2", gameVariantCategory: 7 })],
+      matches: [
+        aMatchWith({ matchId: "s1", gameVariantCategory: 6 }),
+        aMatchWith({ matchId: "s2", gameVariantCategory: 7 }),
+      ],
     });
     const timeline: ViewerTimelineItem[] = [
       { type: "series", series: completedSeries },
