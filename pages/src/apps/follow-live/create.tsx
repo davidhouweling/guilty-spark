@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { ComponentLoader, ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import { ErrorState } from "../../components/error-state/error-state";
 import { LoadingState } from "../../components/loading-state/loading-state";
+import { FollowLiveOverlayViewer } from "../../components/follow/follow-live-overlay-viewer";
 import { FollowLiveViewer } from "../../components/follow/follow-live-viewer";
 import type { Services } from "./services";
 import { installServices } from "./services";
@@ -62,19 +63,26 @@ export function FollowLiveApp({ apiHost, gamertag, variant = "viewer" }: FollowL
       loading={<LoadingState text={isOverlay ? "Loading overlay..." : "Loading..."} />}
       error={<ErrorState message={isOverlay ? "Failed to load overlay" : "Failed to load viewer"} />}
       loaded={
-        // TODO (F-4 polish): when variant === "overlay", render a StreamerOverlay
-        // layout (transparent, OBS-sized) instead of FollowLiveViewer. The overlay
-        // should show only the live tracker and use the StreamerOverlay components
-        // ported from the rework branch (BottomSection, TopSection, ticker).
         services != null ? (
-          <FollowLiveViewer
-            gamertag={gamertag}
-            followLiveService={services.followLiveService}
-            individualTrackerViewService={services.individualTrackerViewService}
-            matchAnalyticsService={services.matchAnalyticsService}
-            seriesMatchesService={services.seriesMatchesService}
-            haloClient={services.haloClient}
-          />
+          isOverlay ? (
+            <FollowLiveOverlayViewer
+              gamertag={gamertag}
+              followLiveService={services.followLiveService}
+              individualTrackerViewService={services.individualTrackerViewService}
+              matchAnalyticsService={services.matchAnalyticsService}
+              seriesMatchesService={services.seriesMatchesService}
+              haloClient={services.haloClient}
+            />
+          ) : (
+            <FollowLiveViewer
+              gamertag={gamertag}
+              followLiveService={services.followLiveService}
+              individualTrackerViewService={services.individualTrackerViewService}
+              matchAnalyticsService={services.matchAnalyticsService}
+              seriesMatchesService={services.seriesMatchesService}
+              haloClient={services.haloClient}
+            />
+          )
         ) : (
           <ErrorState message="Services failed to load" />
         )

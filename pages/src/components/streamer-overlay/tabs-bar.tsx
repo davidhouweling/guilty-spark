@@ -8,6 +8,7 @@ interface SeriesTab {
   readonly label: string;
   readonly score: string;
   readonly teamColor: undefined;
+  readonly icons?: readonly { readonly src: string; readonly dimmed: boolean }[];
 }
 
 interface MatchTabBase {
@@ -46,7 +47,9 @@ interface TabButtonProps {
 const TabButton = memo(({ tab, isActive, isSelected, onTabClick }: TabButtonProps): React.ReactElement => {
   const tabIndex = tab.type === "series" ? -1 : tab.index;
   const tabIcons =
-    tab.type === "match" ? (tab.icons ?? (tab.icon !== "" ? [{ src: tab.icon, dimmed: false as const }] : [])) : [];
+    tab.type === "series"
+      ? (tab.icons ?? [])
+      : (tab.icons ?? (tab.icon !== "" ? [{ src: tab.icon, dimmed: false as const }] : []));
 
   return (
     <button

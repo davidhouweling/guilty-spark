@@ -1,0 +1,87 @@
+import React from "react";
+import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
+import { ErrorState } from "../error-state/error-state";
+import { LoadingState } from "../loading-state/loading-state";
+import { IndividualTrackerOverlayPage } from "../individual-tracker/overlay/create";
+import type { FollowLiveService } from "../../services/follow/follow-types";
+import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
+import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
+import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
+import { useFollowLiveDirectory } from "./use-follow-live-directory";
+
+function getLiveTracker(directory: TrackerDirectory | null): TrackerDirectory["trackers"][number] | null {
+  if (directory == null) {
+    return null;
+  }
+
+  if (directory.liveTrackerId != null) {
+    const liveTracker = directory.trackers.find((tracker) => tracker.trackerId === directory.liveTrackerId);
+    if (liveTracker != null) {
+      return liveTracker;
+    }
+  }
+
+  return directory.trackers.find((tracker) => tracker.isLive) ?? null;
+}
+
+function getOverlayTitle(gamertag: string, directory: TrackerDirectory | null): string {
+  const liveTracker = getLiveTracker(directory);
+  if (liveTracker == null) {
+    return `${gamertag} overlay - Guilty Spark`;
+  }
+
+  return `${gamertag} overlay - ${liveTracker.gamertag} live - Guilty Spark`;
+}
+
+export interface FollowLiveOverlayViewerProps {
+  readonly gamertag: string;
+  readonly followLiveService: FollowLiveService;
+  readonly individualTrackerViewService: IndividualTrackerViewService;
+  readonly matchAnalyticsService: MatchAnalyticsService;
+  readonly seriesMatchesService: SeriesMatchesService;
+  readonly haloClient: HaloInfiniteClient;
+}
+
+export function FollowLiveOverlayViewer({
+  gamertag,
+  followLiveService,
+  individualTrackerViewService,
+  matchAnalyticsService,
+  seriesMatchesService,
+  haloClient,
+}: FollowLiveOverlayViewerProps): React.ReactElement {
+  const { directory, directoryStatus, selectedTrackerId, onRetry } = useFollowLiveDirectory({
+    followLiveService,
+    gamertag,
+  });
+  const selectedTracker =
+    selectedTrackerId == null ? null : directory?.trackers.find((tracker) => tracker.trackerId === selectedTrackerId);
+
+  React.useEffect(() => {
+    document.title = getOverlayTitle(gamertag, directory);
+  }, [directory, gamertag]);
+
+  if (selectedTracker != null) {
+    return (
+      <IndividualTrackerOverlayPage
+        key={`${selectedTracker.trackerId}:${selectedTracker.lastUpdateTime}`}
+        individualTrackerViewService={individualTrackerViewService}
+        matchAnalyticsService={matchAnalyticsService}
+        seriesMatchesService={seriesMatchesService}
+        haloClient={haloClient}
+        trackerId={selectedTracker.trackerId}
+      />
+    );
+  }
+
+  if (directoryStatus === "error" && directory === null) {
+    return <ErrorState message="Failed to load tracker directory" onRetry={onRetry} />;
+  }
+
+  if (directory === null) {
+    return <LoadingState text="Loading tracker directory..." />;
+  }
+
+  return <LoadingState text="No active tracker - waiting for a live game" />;
+}

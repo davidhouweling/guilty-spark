@@ -40,8 +40,8 @@ export function IndividualTrackerOverlay({
   const activeSeries = useMemo(() => getActiveSeries(renderModel.timeline), [renderModel.timeline]);
 
   const topSection = useMemo(() => {
-    const seriesSection =
-      activeSeries != null ? (
+    if (activeSeries != null) {
+      return (
         <TopSection
           title={activeSeries.title}
           subtitle={activeSeries.subtitle}
@@ -53,20 +53,14 @@ export function IndividualTrackerOverlay({
           teamLeft={null}
           teamRight={null}
         />
-      ) : null;
-    const statsSection =
-      renderModel.statsHighlights != null && renderModel.statsHighlights.length > 0 ? (
-        <OverlayStatsHighlights items={renderModel.statsHighlights} />
-      ) : null;
-    if (seriesSection == null && statsSection == null) {
+      );
+    }
+
+    if (renderModel.statsHighlights == null || renderModel.statsHighlights.length === 0) {
       return null;
     }
-    return (
-      <>
-        {seriesSection}
-        {statsSection}
-      </>
-    );
+
+    return <OverlayStatsHighlights items={renderModel.statsHighlights} />;
   }, [activeSeries, teamColors, renderModel.statsHighlights]);
 
   const tabs = useMemo(() => buildTabs(renderModel.timeline), [renderModel.timeline]);
