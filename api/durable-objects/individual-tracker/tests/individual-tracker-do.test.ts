@@ -18,7 +18,10 @@ import {
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 import type { IndividualTrackerStartRequest } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
-import type { SeriesContextPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
+import type {
+  SeriesContextPayload,
+  SeriesSubstitutedPayload,
+} from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import { IndividualTrackerDO } from "../individual-tracker-do";
 import { aFakeMapAssetWith } from "../../../services/halo/fakes/data";
 import { installFakeServicesWith } from "../../../services/fakes/services";
@@ -2317,6 +2320,23 @@ describe("IndividualTrackerDO", () => {
       ...overrides,
     });
 
+    const aSubstitutionPayload = (): SeriesSubstitutedPayload => ({
+      type: "substituted",
+      teamId: 0,
+      playerOut: {
+        discordId: "discord-1",
+        discordName: "PlayerOne",
+        gamertag: "GT1",
+        xboxId: "xuid-1",
+      },
+      playerIn: {
+        discordId: "discord-3",
+        discordName: "PlayerThree",
+        gamertag: "GT3",
+        xboxId: "xuid-3",
+      },
+    });
+
     it("returns 404 when no state exists", async () => {
       storageGetSpy.mockResolvedValue(null);
 
@@ -2383,6 +2403,87 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.activeSeries).toBeUndefined();
       expect(persisted.completedSeries).toHaveLength(1);
       expect(storageSetAlarmSpy).toHaveBeenCalledWith(Date.now());
+    });
+
+    it("retires active series when tracked player is subbed out", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          gamertag: "GT1",
+          activeSeries: anActiveSeries({
+            teams: [
+              {
+                id: 0,
+                name: "Eagle",
+                players: [{ discordId: "discord-1", discordName: "PlayerOne", gamertag: "GT1", xboxId: "xuid-1" }],
+              },
+            ],
+          }),
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aSubstitutionPayload()) }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toBeUndefined();
+      expect(persisted.completedSeries).toHaveLength(1);
+    });
+
+    it("resumes completed series and applies substitution when tracked player is subbed in", async () => {
+      const completedSeries: ActiveSeries = {
+        ...anActiveSeries(),
+        isActive: false,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [{ discordId: "discord-1", discordName: "PlayerOne", gamertag: "GT1", xboxId: "xuid-1" }],
+          },
+        ],
+      };
+
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          gamertag: "GT3",
+          completedSeries: [completedSeries],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aSubstitutionPayload()) }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.teams[0]?.players[0]?.gamertag).toBe("GT3");
+      expect(persisted.completedSeries).toHaveLength(0);
+    });
+
+    it("updates active team roster when tracked player is neither subbed in nor subbed out", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          gamertag: "GTX",
+          activeSeries: anActiveSeries({
+            teams: [
+              {
+                id: 0,
+                name: "Eagle",
+                players: [{ discordId: "discord-1", discordName: "PlayerOne", gamertag: "GT1", xboxId: "xuid-1" }],
+              },
+            ],
+          }),
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aSubstitutionPayload()) }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.teams[0]?.players[0]?.gamertag).toBe("GT3");
     });
 
     it("moves existing activeSeries to completedSeries when starting a new one via nudge", async () => {
@@ -2461,6 +2562,45 @@ describe("IndividualTrackerDO", () => {
       expect(group?.subtitle).toBe("Queue #5");
       expect(group?.guildIconUrl).toBe("https://cdn.discordapp.com/icons/guild-id/icon.webp");
       expect(group?.teams).toEqual(teams);
+    });
+
+    it("normalizes legacy activeSeries team ids on read so view-state remains valid", async () => {
+      const ids = ["match-nq-1", "match-nq-2"];
+      const teams = [
+        {
+          id: 0,
+          name: "Eagle",
+          players: [{ discordId: "d-1", discordName: "Alice", gamertag: "AliceGT", xboxId: "x-1" }],
+        },
+      ];
+      const activeSeries: ActiveSeries = {
+        title: "Guilty Spark",
+        subtitle: "Queue #5",
+        guildIconUrl: "https://cdn.discordapp.com/icons/guild-id/icon.webp",
+        matchIds: ids,
+        teams,
+        startedAt: new Date().toISOString(),
+        isActive: true,
+      };
+
+      const state = aFakeIndividualTrackerInternalStateWith({
+        ...makeSeriesMatches(ids),
+        activeSeries,
+      });
+      Reflect.deleteProperty(state.activeSeries?.teams[0] ?? {}, "id");
+      storageGetSpy.mockResolvedValue(state);
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+
+      expect(response.status).toBe(200);
+      const body = await response.json<{
+        state: { series: { teams?: { id: number; name: string }[] }[] };
+      }>();
+      const [group] = body.state.series;
+      expect(group?.teams?.[0]?.id).toBe(0);
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.teams[0]?.id).toBe(0);
     });
 
     it("applies completedSeries metadata to a matching group after the series ends", async () => {
