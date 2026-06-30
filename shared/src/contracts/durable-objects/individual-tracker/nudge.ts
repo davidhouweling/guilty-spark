@@ -28,7 +28,7 @@ export type SeriesEndedPayload = z.infer<typeof seriesEndedPayloadSchema>;
 // Event: Player substitution (swap player in team)
 export const seriesSubstitutedPayloadSchema = z.object({
   type: z.literal("substituted"),
-  teamId: z.number(),
+  teamId: z.number().int().min(0),
   playerOut: seriesPlayerSchema,
   playerIn: seriesPlayerSchema,
 });
