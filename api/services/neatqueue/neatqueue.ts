@@ -823,14 +823,16 @@ export class NeatQueueService {
 
       // Find the team where substitution occurred
       let teamId = -1;
-      const updatedTeams = state.seriesContext.teams.map((team) => {
+      const updatedTeams = state.seriesContext.teams.map((team, teamIndex) => {
+        const normalizedTeamId = teamIndex;
         const hasSubbedOutPlayer = team.players.some((p) => p.discordId === request.player_subbed_out.id);
         if (hasSubbedOutPlayer) {
-          teamId = team.id;
+          teamId = normalizedTeamId;
         }
 
         return {
           ...team,
+          id: normalizedTeamId,
           players: team.players.map((player) =>
             player.discordId === request.player_subbed_out.id
               ? this.buildSeriesPlayer(subInAssoc, request.player_subbed_in.id, request.player_subbed_in.name)
@@ -862,24 +864,30 @@ export class NeatQueueService {
         const playerXuidSet = new Set<string>();
 
         // Add XUIDs from original teams (includes player being subbed out)
-        originalTeams.forEach((team) => {
-          team.players.forEach((player) => {
-            const xuid = state.playersAssociationData[player.discordId ?? ""]?.xboxId;
+        for (const team of originalTeams) {
+          for (const player of team.players) {
+            if (player.discordId == null) {
+              continue;
+            }
+            const xuid = state.playersAssociationData[player.discordId]?.xboxId;
             if (xuid != null) {
               playerXuidSet.add(xuid);
             }
-          });
-        });
+          }
+        }
 
         // Add XUIDs from updated teams (includes player being subbed in)
-        updatedTeams.forEach((team) => {
-          team.players.forEach((player) => {
-            const xuid = state.playersAssociationData[player.discordId ?? ""]?.xboxId;
+        for (const team of updatedTeams) {
+          for (const player of team.players) {
+            if (player.discordId == null) {
+              continue;
+            }
+            const xuid = state.playersAssociationData[player.discordId]?.xboxId;
             if (xuid != null) {
               playerXuidSet.add(xuid);
             }
-          });
-        });
+          }
+        }
 
         if (playerXuidSet.size > 0) {
           await this.individualTrackerService

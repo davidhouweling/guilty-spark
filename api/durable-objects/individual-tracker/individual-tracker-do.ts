@@ -1499,11 +1499,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       } else if (trackedGamertag === playerInGamertag && trackerState.activeSeries == null) {
         // Tracked player is joining; try to resume a completed series
         const completedSeries = trackerState.completedSeries ?? [];
-        let resumedSeries = null;
-
-        if (completedSeries.length > 0) {
-          resumedSeries = completedSeries[completedSeries.length - 1];
-        }
+        const resumedSeries: ActiveSeries | null = completedSeries.at(-1) ?? null;
 
         if (resumedSeries != null) {
           trackerState.activeSeries = {
@@ -1535,14 +1531,19 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         );
       } else if (trackerState.activeSeries != null) {
         // Update team roster (neither in nor out is tracked player)
-        const updatedTeams = trackerState.activeSeries.teams.map((team) => {
-          if (team.id === payload.teamId) {
+        const updatedTeams = trackerState.activeSeries.teams.map((team, teamIndex) => {
+          const normalizedTeamId = teamIndex;
+          if (normalizedTeamId === payload.teamId || team.id === payload.teamId) {
             return {
               ...team,
+              id: normalizedTeamId,
               players: team.players.map((p) => (p.gamertag === playerOutGamertag ? payload.playerIn : p)),
             };
           }
-          return team;
+          return {
+            ...team,
+            id: normalizedTeamId,
+          };
         });
 
         trackerState.activeSeries = {
