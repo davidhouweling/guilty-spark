@@ -26,7 +26,7 @@ export function IndividualTrackerOverlayPage({
   haloClient,
   trackerId,
 }: IndividualTrackerOverlayPageProps): React.ReactElement {
-  const store = useMemo(() => new OverlayPageStore(), []);
+  const store = useMemo(() => new OverlayPageStore(), [trackerId]);
 
   const presenter = useMemo(
     () =>
@@ -35,7 +35,7 @@ export function IndividualTrackerOverlayPage({
         haloClient,
         matchAnalyticsService,
       }),
-    [haloClient, matchAnalyticsService, store, trackerId],
+    [haloClient, matchAnalyticsService, store],
   );
 
   const { snapshot, model, onRetry } = useIndividualTrackerViewer({

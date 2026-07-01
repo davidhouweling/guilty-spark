@@ -26,6 +26,10 @@ export class OverlayPagePresenter {
   private readonly config: OverlayPagePresenterConfig;
   private isDisposed = false;
 
+  private shouldAbort(): boolean {
+    return this.isDisposed;
+  }
+
   public constructor(config: OverlayPagePresenterConfig) {
     this.config = config;
   }
@@ -69,6 +73,10 @@ export class OverlayPagePresenter {
 
     try {
       const stats = await this.config.haloClient.getMatchStats(matchId);
+      if (this.shouldAbort()) {
+        return;
+      }
+
       const xuids = stats.Players.filter((player) => player.PlayerType === 1).map((player) => getPlayerXuid(player));
 
       const [users, analyticsByMatchId] = await Promise.all([
@@ -79,7 +87,7 @@ export class OverlayPagePresenter {
       ]);
       const medalMetadata: MedalMetadata = {};
 
-      if (this.isDisposed) {
+      if (this.shouldAbort()) {
         return;
       }
 
@@ -98,7 +106,7 @@ export class OverlayPagePresenter {
         analytics: analyticsByMatchId[matchId] ?? null,
       });
     } catch {
-      if (this.isDisposed) {
+      if (this.shouldAbort()) {
         return;
       }
 
