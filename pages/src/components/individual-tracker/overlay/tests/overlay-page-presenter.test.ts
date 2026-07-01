@@ -69,4 +69,31 @@ describe("OverlayPagePresenter", () => {
     expect(model.matchStatsState?.status).toBe("error");
     expect(model.matchStatsPanelState?.status).toBe("error");
   });
+
+  it("keeps loaded state when users and analytics lookups fail", async () => {
+    const store = new OverlayPageStore();
+    const haloClient = aFakeHaloClientWith({
+      getMatchStats: vi.fn(async () => Promise.resolve(aFakeMatchStatsWith({ MatchId: "match-1" }))),
+      getUsers: vi.fn(async () => Promise.reject(new Error("users down"))),
+    });
+
+    const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
+    vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics").mockRejectedValue(new Error("analytics down"));
+
+    const presenter = new OverlayPagePresenter({
+      store,
+      haloClient,
+      matchAnalyticsService,
+    });
+
+    presenter.selectMatch("match-1");
+
+    await waitFor(() => {
+      expect(store.getSnapshot().matchStatsByMatchId.get("match-1")?.status).toBe("loaded");
+    });
+
+    const model = presenter.present(store.getSnapshot());
+    expect(model.matchStatsState?.status).toBe("loaded");
+    expect(model.matchStatsPanelState?.status).toBe("loaded");
+  });
 });

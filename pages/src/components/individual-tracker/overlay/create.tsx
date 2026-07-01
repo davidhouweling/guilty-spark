@@ -35,7 +35,7 @@ export function IndividualTrackerOverlayPage({
         haloClient,
         matchAnalyticsService,
       }),
-    [haloClient, matchAnalyticsService, store],
+    [haloClient, matchAnalyticsService, store, trackerId],
   );
 
   const { snapshot, model, onRetry } = useIndividualTrackerViewer({
@@ -51,7 +51,7 @@ export function IndividualTrackerOverlayPage({
     return (): void => {
       presenter.dispose();
     };
-  }, [presenter, trackerId]);
+  }, [presenter]);
 
   const overlaySnapshot = useSyncExternalStore(
     (listener) => store.subscribe(listener),

@@ -146,4 +146,62 @@ describe("IndividualTrackerOverlayPage", () => {
       expect(screen.getByTestId("panel-state")).toHaveTextContent("error");
     });
   });
+
+  it("loads again after tracker id changes", async () => {
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
+      view: aFakeTrackerViewStateWith({
+        trackerId: "tracker-1",
+        status: "active",
+        matches: [aFakeTrackerMatchSummaryWith({ matchId: "match-1" })],
+      }),
+    });
+
+    const getMatchStats = vi.fn(
+      async (): Promise<ReturnType<typeof aFakeMatchStatsWith>> =>
+        Promise.resolve(aFakeMatchStatsWith({ MatchId: "match-1" })),
+    );
+    const haloClient = aFakeHaloClientWith({ getMatchStats });
+
+    const { rerender } = render(
+      <IndividualTrackerOverlayPage
+        individualTrackerViewService={individualTrackerViewService}
+        matchAnalyticsService={aFakeMatchAnalyticsServiceWith()}
+        seriesMatchesService={aFakeSeriesMatchesServiceWith()}
+        haloClient={haloClient}
+        trackerId="tracker-1"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("select")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByText("select"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("match-stats-state")).toHaveTextContent("loaded");
+    });
+
+    rerender(
+      <IndividualTrackerOverlayPage
+        individualTrackerViewService={individualTrackerViewService}
+        matchAnalyticsService={aFakeMatchAnalyticsServiceWith()}
+        seriesMatchesService={aFakeSeriesMatchesServiceWith()}
+        haloClient={haloClient}
+        trackerId="tracker-2"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("select")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByText("select"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("match-stats-state")).toHaveTextContent("loaded");
+    });
+
+    expect(getMatchStats).toHaveBeenCalledTimes(2);
+  });
 });
