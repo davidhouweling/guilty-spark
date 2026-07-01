@@ -2,7 +2,12 @@ import React, { useCallback, useMemo } from "react";
 import { StreamerOverlay } from "../../streamer-overlay/streamer-overlay";
 import { TopSection } from "../../streamer-overlay/top-section";
 import { StatsPanel } from "../viewer/stats-panel";
-import type { IndividualTrackerViewerRenderModel, MatchDetailsState, ViewerSeriesTeam } from "../viewer/types";
+import type {
+  IndividualTrackerViewerRenderModel,
+  MatchDetailsState,
+  ViewerSeriesTeam,
+  ViewerSeriesTeamPlayer,
+} from "../viewer/types";
 import type { MatchStatsState } from "./individual-tracker-overlay-presenter";
 import {
   buildTabs,
@@ -25,22 +30,16 @@ interface IndividualTrackerOverlayProps {
   readonly onDeselect: () => void;
 }
 
-function getSeriesPlayerDisplayName(player: {
-  readonly discordName: string | null;
-  readonly gamertag: string | null;
-}): string {
+function getSeriesPlayerDisplayName(player: ViewerSeriesTeamPlayer): string {
   return player.discordName ?? player.gamertag ?? "Unknown";
 }
 
-function renderTeamDetails(team: {
-  readonly name: string;
-  readonly players: readonly { readonly discordName: string | null; readonly gamertag: string | null }[];
-}): React.ReactElement {
+function renderTeamDetails(team: ViewerSeriesTeam): React.ReactElement {
   return (
     <>
       <div>{team.name}</div>
       {team.players.map((player, index) => (
-        <div key={`${team.name}-${index.toString()}`}>{getSeriesPlayerDisplayName(player)}</div>
+        <div key={`${team.id.toString()}-${index.toString()}`}>{getSeriesPlayerDisplayName(player)}</div>
       ))}
     </>
   );

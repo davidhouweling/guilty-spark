@@ -310,4 +310,46 @@ describe("buildViewerRenderModel", () => {
       expect(seriesItem.series.teams[1]?.players[0]?.gamertag).toBe("B-Xbox");
     }
   });
+
+  it("maps active series teams when active context subtitle is missing but title uniquely matches", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1" }), aFakeTrackerMatchSummaryWith({ matchId: "m2" })],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          id: "series-1",
+          title: "Alpha vs Beta",
+          subtitle: "Bo3",
+          matchIds: ["m1", "m2"],
+        }),
+      ],
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Alpha vs Beta",
+        subtitle: null,
+        teams: [
+          {
+            id: 0,
+            name: "Alpha",
+            players: [{ discordId: null, discordName: "A-Discord", gamertag: "A-Xbox", xboxId: null }],
+          },
+          {
+            id: 1,
+            name: "Beta",
+            players: [{ discordId: null, discordName: null, gamertag: "B-Xbox", xboxId: null }],
+          },
+        ],
+      },
+    });
+
+    const model = buildViewerRenderModel({ view });
+    const seriesItem = model.timeline.find((item) => item.type === "series");
+
+    expect(seriesItem?.type).toBe("series");
+    if (seriesItem?.type === "series") {
+      expect(seriesItem.series.isActive).toBe(true);
+      expect(seriesItem.series.teams).toHaveLength(2);
+      expect(seriesItem.series.teams[0]?.name).toBe("Alpha");
+      expect(seriesItem.series.teams[1]?.name).toBe("Beta");
+    }
+  });
 });
