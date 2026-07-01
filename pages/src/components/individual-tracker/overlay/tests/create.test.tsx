@@ -17,16 +17,20 @@ import { IndividualTrackerOverlayPage } from "../create";
 
 vi.mock("../individual-tracker-overlay", () => ({
   IndividualTrackerOverlay: (props: {
+    viewModel: object;
+    isPanelOpen: boolean;
+    matchesLength: number;
     selectedMatchId: string | null;
-    matchStatsState: { status: string } | null;
     matchStatsPanelState: { status: string } | null;
     onSelectMatch: (matchId: string) => void;
     onDeselect: () => void;
   }): React.ReactElement => {
     return (
       <div>
+        <div data-testid="has-view-model">yes</div>
+        <div data-testid="panel-open">{props.isPanelOpen ? "yes" : "no"}</div>
+        <div data-testid="matches-length">{props.matchesLength.toString()}</div>
         <div data-testid="selected-match">{props.selectedMatchId ?? "none"}</div>
-        <div data-testid="match-stats-state">{props.matchStatsState?.status ?? "none"}</div>
         <div data-testid="panel-state">{props.matchStatsPanelState?.status ?? "none"}</div>
         <button
           type="button"
@@ -93,8 +97,9 @@ describe("IndividualTrackerOverlayPage", () => {
     await userEvent.click(screen.getByText("select"));
 
     await waitFor(() => {
+      expect(screen.getByTestId("has-view-model")).toHaveTextContent("yes");
       expect(screen.getByTestId("selected-match")).toHaveTextContent("match-1");
-      expect(screen.getByTestId("match-stats-state")).toHaveTextContent("loaded");
+      expect(screen.getByTestId("panel-open")).toHaveTextContent("yes");
       expect(screen.getByTestId("panel-state")).toHaveTextContent("loaded");
     });
 
@@ -103,7 +108,7 @@ describe("IndividualTrackerOverlayPage", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("selected-match")).toHaveTextContent("match-1");
-      expect(screen.getByTestId("match-stats-state")).toHaveTextContent("loaded");
+      expect(screen.getByTestId("panel-open")).toHaveTextContent("yes");
       expect(screen.getByTestId("panel-state")).toHaveTextContent("loaded");
     });
 
@@ -142,7 +147,7 @@ describe("IndividualTrackerOverlayPage", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("selected-match")).toHaveTextContent("match-1");
-      expect(screen.getByTestId("match-stats-state")).toHaveTextContent("error");
+      expect(screen.getByTestId("panel-open")).toHaveTextContent("yes");
       expect(screen.getByTestId("panel-state")).toHaveTextContent("error");
     });
   });
@@ -179,7 +184,8 @@ describe("IndividualTrackerOverlayPage", () => {
     await userEvent.click(screen.getByText("select"));
 
     await waitFor(() => {
-      expect(screen.getByTestId("match-stats-state")).toHaveTextContent("loaded");
+      expect(screen.getByTestId("panel-open")).toHaveTextContent("yes");
+      expect(screen.getByTestId("panel-state")).toHaveTextContent("loaded");
     });
 
     rerender(
@@ -199,7 +205,8 @@ describe("IndividualTrackerOverlayPage", () => {
     await userEvent.click(screen.getByText("select"));
 
     await waitFor(() => {
-      expect(screen.getByTestId("match-stats-state")).toHaveTextContent("loaded");
+      expect(screen.getByTestId("panel-open")).toHaveTextContent("yes");
+      expect(screen.getByTestId("panel-state")).toHaveTextContent("loaded");
     });
 
     expect(getMatchStats).toHaveBeenCalledTimes(2);

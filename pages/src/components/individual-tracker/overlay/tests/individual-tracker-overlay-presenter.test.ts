@@ -1,7 +1,40 @@
 import { describe, expect, it } from "vitest";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { gameModeIconSrc } from "../../game-mode-icon";
-import type { ViewerMatchTab, ViewerSeriesTab, ViewerTimelineItem } from "../../viewer/types";
-import { buildPreSeriesTickerGroup, buildTabs, getActiveSeries } from "../individual-tracker-overlay-presenter";
+import type {
+  IndividualTrackerViewerRenderModel,
+  ViewerMatchTab,
+  ViewerSeriesTab,
+  ViewerTimelineItem,
+} from "../../viewer/types";
+import {
+  buildOverlayViewModel,
+  buildPreSeriesTickerGroup,
+  buildTabs,
+  getActiveSeries,
+} from "../individual-tracker-overlay-presenter";
+
+function aRenderModelWith(
+  overrides: Partial<IndividualTrackerViewerRenderModel> = {},
+): IndividualTrackerViewerRenderModel {
+  return {
+    trackerId: "tracker-1",
+    gamertag: "TrackedPlayer",
+    status: "active",
+    isLive: true,
+    hasActiveSeries: false,
+    activeSeriesContext: undefined,
+    lastUpdateTime: "2026-01-01T00:00:00.000Z",
+    timeline: [],
+    accumulated: { total: 0, wins: 0, losses: 0, ties: 0 },
+    statsHighlights: undefined,
+    teamColors: [
+      { id: "eagle", name: "Eagle", hex: "#0066CC" },
+      { id: "cobra", name: "Cobra", hex: "#CC0000" },
+    ],
+    ...overrides,
+  };
+}
 
 function aMatchWith(overrides: Partial<ViewerMatchTab> = {}): ViewerMatchTab {
   return {
@@ -158,5 +191,65 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(groups[0].label).toBe("Player Info");
     expect(groups[0].rows[0].showTeamIcon).toBe(false);
     expect(groups[0].rows[0].gamertag).toBe("TrackedPlayer");
+  });
+
+  it("builds top-section team details with xbox-only names when discord names are hidden", () => {
+    const model = buildOverlayViewModel({
+      renderModel: aRenderModelWith({
+        timeline: [
+          {
+            type: "series",
+            series: aSeriesWith({
+              isActive: true,
+              teams: [
+                { id: 0, name: "Alpha", players: [{ discordName: "DiscordAlpha", gamertag: "XboxAlpha" }] },
+                { id: 1, name: "Beta", players: [{ discordName: "DiscordBeta", gamertag: "XboxBeta" }] },
+              ],
+            }),
+          },
+        ],
+      }),
+      streamerSettings: {
+        visibleSections: {
+          showDiscordNames: false,
+          showXboxNames: true,
+        },
+      } satisfies StreamerViewSettings,
+      matchStatsState: null,
+      selectedMatchId: null,
+    });
+
+    expect(model.topSection?.teamLeft?.players).toEqual(["XboxAlpha"]);
+    expect(model.topSection?.teamRight?.players).toEqual(["XboxBeta"]);
+  });
+
+  it("omits player rows entirely when both discord and xbox names are hidden", () => {
+    const model = buildOverlayViewModel({
+      renderModel: aRenderModelWith({
+        timeline: [
+          {
+            type: "series",
+            series: aSeriesWith({
+              isActive: true,
+              teams: [
+                { id: 0, name: "Alpha", players: [{ discordName: "DiscordAlpha", gamertag: "XboxAlpha" }] },
+                { id: 1, name: "Beta", players: [{ discordName: "DiscordBeta", gamertag: "XboxBeta" }] },
+              ],
+            }),
+          },
+        ],
+      }),
+      streamerSettings: {
+        visibleSections: {
+          showDiscordNames: false,
+          showXboxNames: false,
+        },
+      } satisfies StreamerViewSettings,
+      matchStatsState: null,
+      selectedMatchId: null,
+    });
+
+    expect(model.topSection?.teamLeft?.players).toEqual([]);
+    expect(model.topSection?.teamRight?.players).toEqual([]);
   });
 });

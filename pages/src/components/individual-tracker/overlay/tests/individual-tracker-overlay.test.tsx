@@ -20,6 +20,7 @@ import {
 } from "../../../../services/individual-tracker/fakes/view.fake";
 import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { buildViewerRenderModel } from "../../viewer/viewer-render-model";
+import { buildOverlayViewModel, isPanelOpen as computeIsPanelOpen } from "../individual-tracker-overlay-presenter";
 import { IndividualTrackerOverlay } from "../individual-tracker-overlay";
 
 function aRenderModel(
@@ -28,23 +29,43 @@ function aRenderModel(
   return buildViewerRenderModel({ view: aFakeTrackerViewStateWith(overrides) });
 }
 
+function aPropsWith(options?: {
+  renderModel?: ReturnType<typeof buildViewerRenderModel>;
+  streamerSettings?: StreamerViewSettings;
+  matchStatsState?: Parameters<typeof buildOverlayViewModel>[0]["matchStatsState"];
+  matchStatsPanelState?: React.ComponentProps<typeof IndividualTrackerOverlay>["matchStatsPanelState"];
+  selectedMatchId?: string | null;
+  onSelectMatch?: (matchId: string) => void;
+  onDeselect?: () => void;
+}): React.ComponentProps<typeof IndividualTrackerOverlay> {
+  const renderModel = options?.renderModel ?? aRenderModel({ matches: [], series: [] });
+  const streamerSettings = options?.streamerSettings;
+  const matchStatsState = options?.matchStatsState ?? null;
+  const selectedMatchId = options?.selectedMatchId ?? null;
+
+  return {
+    viewModel: buildOverlayViewModel({
+      renderModel,
+      streamerSettings,
+      matchStatsState,
+      selectedMatchId,
+    }),
+    isPanelOpen: computeIsPanelOpen(selectedMatchId, matchStatsState),
+    matchesLength: renderModel.accumulated.total,
+    matchStatsPanelState: options?.matchStatsPanelState ?? null,
+    selectedMatchId,
+    onSelectMatch: options?.onSelectMatch ?? ((): void => undefined),
+    onDeselect: options?.onDeselect ?? ((): void => undefined),
+  };
+}
+
 describe("IndividualTrackerOverlay", () => {
   afterEach(() => {
     cleanup();
   });
 
   it("renders without crashing when the timeline is empty", () => {
-    const { container } = render(
-      <IndividualTrackerOverlay
-        renderModel={aRenderModel({ matches: [], series: [] })}
-        streamerSettings={undefined}
-        matchStatsState={null}
-        matchStatsPanelState={null}
-        selectedMatchId={null}
-        onSelectMatch={() => undefined}
-        onDeselect={() => undefined}
-      />,
-    );
+    const { container } = render(<IndividualTrackerOverlay {...aPropsWith()} />);
 
     expect(container.firstChild).toBeInTheDocument();
   });
@@ -52,13 +73,7 @@ describe("IndividualTrackerOverlay", () => {
   it("renders without crashing when the timeline has items", () => {
     const { container } = render(
       <IndividualTrackerOverlay
-        renderModel={aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] })}
-        streamerSettings={undefined}
-        matchStatsState={null}
-        matchStatsPanelState={null}
-        selectedMatchId={null}
-        onSelectMatch={() => undefined}
-        onDeselect={() => undefined}
+        {...aPropsWith({ renderModel: aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] }) })}
       />,
     );
 
@@ -68,13 +83,12 @@ describe("IndividualTrackerOverlay", () => {
   it("keeps the stats panel closed when a match is selected but stats are still loading", () => {
     render(
       <IndividualTrackerOverlay
-        renderModel={aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] })}
-        streamerSettings={undefined}
-        matchStatsState={{ status: "loading" }}
-        matchStatsPanelState={{ status: "loading" }}
-        selectedMatchId="m-1"
-        onSelectMatch={() => undefined}
-        onDeselect={() => undefined}
+        {...aPropsWith({
+          renderModel: aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] }),
+          matchStatsState: { status: "loading" },
+          matchStatsPanelState: { status: "loading" },
+          selectedMatchId: "m-1",
+        })}
       />,
     );
 
@@ -84,24 +98,22 @@ describe("IndividualTrackerOverlay", () => {
   it("opens the stats panel when stats are loaded for a selected match", () => {
     render(
       <IndividualTrackerOverlay
-        renderModel={aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] })}
-        streamerSettings={undefined}
-        matchStatsState={{
-          status: "loaded",
-          stats: aFakeMatchStatsWith(),
-          playerMap: new Map([
-            ["1111111111", "Alpha"],
-            ["2222222222", "Bravo"],
-            ["3333333333", "Charlie"],
-            ["4444444444", "Delta"],
-          ]),
-          medalMetadata: {},
-          analytics: null,
-        }}
-        matchStatsPanelState={null}
-        selectedMatchId="m-1"
-        onSelectMatch={() => undefined}
-        onDeselect={() => undefined}
+        {...aPropsWith({
+          renderModel: aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] }),
+          matchStatsState: {
+            status: "loaded",
+            stats: aFakeMatchStatsWith(),
+            playerMap: new Map([
+              ["1111111111", "Alpha"],
+              ["2222222222", "Bravo"],
+              ["3333333333", "Charlie"],
+              ["4444444444", "Delta"],
+            ]),
+            medalMetadata: {},
+            analytics: null,
+          },
+          selectedMatchId: "m-1",
+        })}
       />,
     );
 
@@ -111,13 +123,12 @@ describe("IndividualTrackerOverlay", () => {
   it("opens the stats panel when stats fail to load so the error is visible", () => {
     render(
       <IndividualTrackerOverlay
-        renderModel={aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] })}
-        streamerSettings={undefined}
-        matchStatsState={{ status: "error", message: "Network failure" }}
-        matchStatsPanelState={{ status: "error", message: "Network failure" }}
-        selectedMatchId="m-1"
-        onSelectMatch={() => undefined}
-        onDeselect={() => undefined}
+        {...aPropsWith({
+          renderModel: aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] }),
+          matchStatsState: { status: "error", message: "Network failure" },
+          matchStatsPanelState: { status: "error", message: "Network failure" },
+          selectedMatchId: "m-1",
+        })}
       />,
     );
 
@@ -130,24 +141,23 @@ describe("IndividualTrackerOverlay", () => {
 
     render(
       <IndividualTrackerOverlay
-        renderModel={aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] })}
-        streamerSettings={undefined}
-        matchStatsState={{
-          status: "loaded",
-          stats: aFakeMatchStatsWith(),
-          playerMap: new Map([
-            ["1111111111", "Alpha"],
-            ["2222222222", "Bravo"],
-            ["3333333333", "Charlie"],
-            ["4444444444", "Delta"],
-          ]),
-          medalMetadata: {},
-          analytics: null,
-        }}
-        matchStatsPanelState={null}
-        selectedMatchId="m-1"
-        onSelectMatch={() => undefined}
-        onDeselect={onDeselect}
+        {...aPropsWith({
+          renderModel: aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] }),
+          matchStatsState: {
+            status: "loaded",
+            stats: aFakeMatchStatsWith(),
+            playerMap: new Map([
+              ["1111111111", "Alpha"],
+              ["2222222222", "Bravo"],
+              ["3333333333", "Charlie"],
+              ["4444444444", "Delta"],
+            ]),
+            medalMetadata: {},
+            analytics: null,
+          },
+          selectedMatchId: "m-1",
+          onDeselect,
+        })}
       />,
     );
 
@@ -159,44 +169,43 @@ describe("IndividualTrackerOverlay", () => {
   it("renders active series team details using display-name fallbacks", () => {
     render(
       <IndividualTrackerOverlay
-        renderModel={aRenderModel({
-          matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
-          series: [
-            aFakeTrackerSeriesGroupWith({
-              id: "series-1",
+        {...aPropsWith({
+          renderModel: aRenderModel({
+            matches: [
+              aFakeTrackerMatchSummaryWith({ matchId: "m-1" }),
+              aFakeTrackerMatchSummaryWith({ matchId: "m-2" }),
+            ],
+            series: [
+              aFakeTrackerSeriesGroupWith({
+                id: "series-1",
+                title: "Alpha vs Beta",
+                subtitle: "Bo3",
+                matchIds: ["m-1", "m-2"],
+                score: "1:0",
+              }),
+            ],
+            hasActiveSeries: true,
+            activeSeriesContext: {
               title: "Alpha vs Beta",
               subtitle: "Bo3",
-              matchIds: ["m-1", "m-2"],
-              score: "1:0",
-            }),
-          ],
-          hasActiveSeries: true,
-          activeSeriesContext: {
-            title: "Alpha vs Beta",
-            subtitle: "Bo3",
-            teams: [
-              {
-                id: 0,
-                name: "Alpha",
-                players: [
-                  { discordId: null, discordName: "Discord Name", gamertag: "Gamertag Name", xboxId: null },
-                  { discordId: null, discordName: null, gamertag: "Xbox Only", xboxId: null },
-                ],
-              },
-              {
-                id: 1,
-                name: "Beta",
-                players: [{ discordId: null, discordName: null, gamertag: null, xboxId: null }],
-              },
-            ],
-          },
+              teams: [
+                {
+                  id: 0,
+                  name: "Alpha",
+                  players: [
+                    { discordId: null, discordName: "Discord Name", gamertag: "Gamertag Name", xboxId: null },
+                    { discordId: null, discordName: null, gamertag: "Xbox Only", xboxId: null },
+                  ],
+                },
+                {
+                  id: 1,
+                  name: "Beta",
+                  players: [{ discordId: null, discordName: null, gamertag: null, xboxId: null }],
+                },
+              ],
+            },
+          }),
         })}
-        streamerSettings={undefined}
-        matchStatsState={null}
-        matchStatsPanelState={null}
-        selectedMatchId={null}
-        onSelectMatch={() => undefined}
-        onDeselect={() => undefined}
       />,
     );
 
@@ -210,46 +219,45 @@ describe("IndividualTrackerOverlay", () => {
   it("maps team details by team id regardless of active-series team order", () => {
     render(
       <IndividualTrackerOverlay
-        renderModel={aRenderModel({
-          matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
-          series: [
-            aFakeTrackerSeriesGroupWith({
-              id: "series-1",
+        {...aPropsWith({
+          renderModel: aRenderModel({
+            matches: [
+              aFakeTrackerMatchSummaryWith({ matchId: "m-1" }),
+              aFakeTrackerMatchSummaryWith({ matchId: "m-2" }),
+            ],
+            series: [
+              aFakeTrackerSeriesGroupWith({
+                id: "series-1",
+                title: "Alpha vs Beta",
+                subtitle: "Bo3",
+                matchIds: ["m-1", "m-2"],
+                score: "1:0",
+              }),
+            ],
+            hasActiveSeries: true,
+            activeSeriesContext: {
               title: "Alpha vs Beta",
               subtitle: "Bo3",
-              matchIds: ["m-1", "m-2"],
-              score: "1:0",
-            }),
-          ],
-          hasActiveSeries: true,
-          activeSeriesContext: {
-            title: "Alpha vs Beta",
-            subtitle: "Bo3",
-            teams: [
-              {
-                id: 1,
-                name: "Beta",
-                players: [{ discordId: null, discordName: null, gamertag: "Beta Player", xboxId: null }],
-              },
-              {
-                id: 2,
-                name: "Gamma",
-                players: [{ discordId: null, discordName: null, gamertag: "Ignored Player", xboxId: null }],
-              },
-              {
-                id: 0,
-                name: "Alpha",
-                players: [{ discordId: null, discordName: null, gamertag: "Alpha Player", xboxId: null }],
-              },
-            ],
-          },
+              teams: [
+                {
+                  id: 1,
+                  name: "Beta",
+                  players: [{ discordId: null, discordName: null, gamertag: "Beta Player", xboxId: null }],
+                },
+                {
+                  id: 2,
+                  name: "Gamma",
+                  players: [{ discordId: null, discordName: null, gamertag: "Ignored Player", xboxId: null }],
+                },
+                {
+                  id: 0,
+                  name: "Alpha",
+                  players: [{ discordId: null, discordName: null, gamertag: "Alpha Player", xboxId: null }],
+                },
+              ],
+            },
+          }),
         })}
-        streamerSettings={undefined}
-        matchStatsState={null}
-        matchStatsPanelState={null}
-        selectedMatchId={null}
-        onSelectMatch={() => undefined}
-        onDeselect={() => undefined}
       />,
     );
 
@@ -280,17 +288,7 @@ describe("IndividualTrackerOverlay", () => {
       },
     };
 
-    render(
-      <IndividualTrackerOverlay
-        renderModel={renderModel}
-        streamerSettings={streamerSettings}
-        matchStatsState={null}
-        matchStatsPanelState={null}
-        selectedMatchId={null}
-        onSelectMatch={() => undefined}
-        onDeselect={() => undefined}
-      />,
-    );
+    render(<IndividualTrackerOverlay {...aPropsWith({ renderModel, streamerSettings })} />);
 
     expect(screen.getByRole("button", { name: /series score/i })).toBeInTheDocument();
     expect(screen.queryByText("Waiting for first match to complete...")).not.toBeInTheDocument();
@@ -314,17 +312,7 @@ describe("IndividualTrackerOverlay", () => {
       },
     };
 
-    render(
-      <IndividualTrackerOverlay
-        renderModel={renderModel}
-        streamerSettings={streamerSettings}
-        matchStatsState={null}
-        matchStatsPanelState={null}
-        selectedMatchId={null}
-        onSelectMatch={() => undefined}
-        onDeselect={() => undefined}
-      />,
-    );
+    render(<IndividualTrackerOverlay {...aPropsWith({ renderModel, streamerSettings })} />);
 
     expect(screen.getByText("Player Info")).toBeInTheDocument();
     expect(screen.getByText("TrackedPlayer")).toBeInTheDocument();
@@ -364,17 +352,7 @@ describe("IndividualTrackerOverlay", () => {
       },
     };
 
-    render(
-      <IndividualTrackerOverlay
-        renderModel={renderModel}
-        streamerSettings={streamerSettings}
-        matchStatsState={null}
-        matchStatsPanelState={null}
-        selectedMatchId={null}
-        onSelectMatch={() => undefined}
-        onDeselect={() => undefined}
-      />,
-    );
+    render(<IndividualTrackerOverlay {...aPropsWith({ renderModel, streamerSettings })} />);
 
     expect(screen.queryByRole("button", { name: /series score/i })).not.toBeInTheDocument();
     expect(screen.queryByText("Custom Series Title")).not.toBeInTheDocument();
@@ -421,17 +399,7 @@ describe("IndividualTrackerOverlay", () => {
       },
     };
 
-    render(
-      <IndividualTrackerOverlay
-        renderModel={renderModel}
-        streamerSettings={streamerSettings}
-        matchStatsState={null}
-        matchStatsPanelState={null}
-        selectedMatchId={null}
-        onSelectMatch={() => undefined}
-        onDeselect={() => undefined}
-      />,
-    );
+    render(<IndividualTrackerOverlay {...aPropsWith({ renderModel, streamerSettings })} />);
 
     expect(screen.getByText("XboxAlpha")).toBeInTheDocument();
     expect(screen.getByText("XboxBeta")).toBeInTheDocument();
@@ -477,17 +445,7 @@ describe("IndividualTrackerOverlay", () => {
       },
     };
 
-    render(
-      <IndividualTrackerOverlay
-        renderModel={renderModel}
-        streamerSettings={streamerSettings}
-        matchStatsState={null}
-        matchStatsPanelState={null}
-        selectedMatchId={null}
-        onSelectMatch={() => undefined}
-        onDeselect={() => undefined}
-      />,
-    );
+    render(<IndividualTrackerOverlay {...aPropsWith({ renderModel, streamerSettings })} />);
 
     expect(screen.getByText("Alpha")).toBeInTheDocument();
     expect(screen.getByText("Beta")).toBeInTheDocument();

@@ -3,6 +3,7 @@ import { getTeamName } from "@guilty-spark/shared/halo/team";
 import type { MatchStats } from "halo-infinite-api";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { TickerMatchGroup } from "../../information-ticker/information-ticker";
@@ -10,6 +11,13 @@ import { createMatchStatsFormatter } from "../../../controllers/stats/create";
 import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
 import type { IndividualTrackerViewerRenderModel, ViewerSeriesTab, ViewerTimelineItem } from "../viewer/types";
 import { gameModeIconSrc } from "../game-mode-icon";
+import type {
+  IndividualTrackerOverlayViewModel,
+  OverlayDisplaySettings,
+  OverlayTeamDetailsModel,
+  OverlayTopSectionModel,
+} from "./types";
+import { getOverlayDisplaySettings } from "./types";
 
 export type MatchStatsState =
   | { readonly status: "loading" }
@@ -26,6 +34,18 @@ export function getDefaultTeamColors(): [TeamColor, TeamColor] {
   return [getTeamColorOrDefault(undefined, 0), getTeamColorOrDefault(undefined, 1)];
 }
 
+function getFontSizeStyles(streamerSettings: StreamerViewSettings | undefined): React.CSSProperties {
+  const fontSizes = streamerSettings?.layoutOptions?.fontSizes;
+
+  return {
+    "--font-size-queue-info": ((fontSizes?.queueInfo ?? 100) / 100).toString(),
+    "--font-size-score": ((fontSizes?.score ?? 100) / 100).toString(),
+    "--font-size-teams": ((fontSizes?.teams ?? 100) / 100).toString(),
+    "--font-size-tabs": ((fontSizes?.tabs ?? 100) / 100).toString(),
+    "--font-size-ticker": ((fontSizes?.ticker ?? 100) / 100).toString(),
+  } as React.CSSProperties;
+}
+
 export function getActiveSeries(timeline: readonly ViewerTimelineItem[]): ViewerSeriesTab | null {
   for (const item of timeline) {
     if (item.type === "series" && item.series.isActive) {
@@ -34,6 +54,93 @@ export function getActiveSeries(timeline: readonly ViewerTimelineItem[]): Viewer
   }
 
   return null;
+}
+
+function getOverlayActiveSeries(renderModel: IndividualTrackerViewerRenderModel): ViewerSeriesTab | null {
+  const timelineSeries = getActiveSeries(renderModel.timeline);
+  if (timelineSeries != null) {
+    return timelineSeries;
+  }
+
+  if (!renderModel.hasActiveSeries || renderModel.activeSeriesContext == null) {
+    return null;
+  }
+
+  return {
+    id: "active-series-pre-match",
+    title: renderModel.activeSeriesContext.title,
+    subtitle: renderModel.activeSeriesContext.subtitle ?? "",
+    isActive: true,
+    teams: renderModel.activeSeriesContext.teams,
+    matchBackgroundUrls: [],
+    score: "0:0",
+    duration: "unknown",
+    startTime: "",
+    endTime: "",
+    matches: [],
+    colorHex: undefined,
+  };
+}
+
+function getSeriesPlayerDisplayNameForSettings(
+  player: { readonly discordName: string | null; readonly gamertag: string | null },
+  settings: Pick<OverlayDisplaySettings, "showDiscordNames" | "showXboxNames">,
+): string {
+  if (settings.showDiscordNames && settings.showXboxNames) {
+    return player.discordName ?? player.gamertag ?? "Unknown";
+  }
+
+  if (settings.showDiscordNames) {
+    return player.discordName ?? "Unknown";
+  }
+
+  if (settings.showXboxNames) {
+    return player.gamertag ?? "Unknown";
+  }
+
+  return player.discordName ?? player.gamertag ?? "Unknown";
+}
+
+function getTeamDetailsModel(
+  team: {
+    readonly name: string;
+    readonly players: readonly { readonly discordName: string | null; readonly gamertag: string | null }[];
+  },
+  settings: Pick<OverlayDisplaySettings, "showDiscordNames" | "showXboxNames">,
+): OverlayTeamDetailsModel {
+  const players =
+    !settings.showDiscordNames && !settings.showXboxNames
+      ? []
+      : team.players.map((player) => getSeriesPlayerDisplayNameForSettings(player, settings));
+
+  return {
+    name: team.name,
+    players,
+  };
+}
+
+function getTopSectionModel(activeSeries: ViewerSeriesTab, settings: OverlayDisplaySettings): OverlayTopSectionModel {
+  const teamLeft = activeSeries.teams.find((team) => team.id === 0);
+  const teamRight = activeSeries.teams.find((team) => team.id === 1);
+  const showTeamDetails = settings.showTeamDetails && teamLeft != null && teamRight != null;
+
+  return {
+    title: settings.showTitle ? activeSeries.title : null,
+    subtitle: settings.showSubtitle && activeSeries.subtitle !== "" ? activeSeries.subtitle : null,
+    showScore: settings.showScore,
+    seriesScore: activeSeries.score,
+    showTeamDetails,
+    teamLeft: showTeamDetails ? getTeamDetailsModel(teamLeft, settings) : null,
+    teamRight: showTeamDetails ? getTeamDetailsModel(teamRight, settings) : null,
+  };
+}
+
+function getTeamColors(renderModel: IndividualTrackerViewerRenderModel): TeamColor[] {
+  if (renderModel.teamColors.length >= 2) {
+    return [renderModel.teamColors[0], renderModel.teamColors[1]];
+  }
+
+  return getDefaultTeamColors();
 }
 
 export function buildTabs(
@@ -184,4 +291,43 @@ export function buildPreSeriesTickerGroup(options: {
 
 export function getShowTabs(renderModel: IndividualTrackerViewerRenderModel): boolean {
   return renderModel.timeline.length > 0 || renderModel.hasActiveSeries;
+}
+
+export function buildOverlayViewModel(options: {
+  readonly renderModel: IndividualTrackerViewerRenderModel;
+  readonly streamerSettings: StreamerViewSettings | undefined;
+  readonly matchStatsState: MatchStatsState | null;
+  readonly selectedMatchId: string | null;
+}): IndividualTrackerOverlayViewModel {
+  const { renderModel, streamerSettings, matchStatsState, selectedMatchId } = options;
+  const displaySettings = getOverlayDisplaySettings(streamerSettings);
+  const fontSizeStyles = getFontSizeStyles(streamerSettings);
+  const teamColors = getTeamColors(renderModel);
+  const activeSeries = getOverlayActiveSeries(renderModel);
+  const tabs = buildTabs(renderModel.timeline, activeSeries);
+  const selectedTabIndex = getSelectedTabIndex(tabs, selectedMatchId);
+  const loadedTickerGroups = buildTickerGroups(matchStatsState, selectedTabIndex);
+  const tickerMatchGroups =
+    loadedTickerGroups.length > 0
+      ? loadedTickerGroups
+      : buildPreSeriesTickerGroup({
+          showTicker: displaySettings.showTicker,
+          activeSeries,
+          playerName: renderModel.gamertag,
+          discordName: null,
+          gamertag: displaySettings.showXboxNames ? renderModel.gamertag : null,
+        });
+
+  return {
+    pinTopSection: activeSeries != null,
+    topSection: activeSeries != null ? getTopSectionModel(activeSeries, displaySettings) : null,
+    statsHighlights: renderModel.statsHighlights ?? [],
+    teamColors,
+    tabs,
+    tickerMatchGroups,
+    showTabs: displaySettings.showTabs && getShowTabs(renderModel),
+    showTicker: displaySettings.showTicker,
+    showPreSeriesInfo: tickerMatchGroups.length > 0 && activeSeries?.matches.length === 0,
+    fontSizeStyles,
+  };
 }
