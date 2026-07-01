@@ -25,6 +25,7 @@ describe("StreamerOverlay", () => {
   const tabs: readonly OverlayTab[] = [
     {
       type: "series",
+      seriesId: "series-1",
       index: -1,
       label: "Series score",
       score: "1:0",

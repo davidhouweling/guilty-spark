@@ -4,10 +4,12 @@ import styles from "./streamer-overlay.module.css";
 
 interface SeriesTab {
   readonly type: "series";
+  readonly seriesId: string;
   readonly index: number;
   readonly label: string;
   readonly score: string;
   readonly teamColor: undefined;
+  readonly icons?: readonly { readonly src: string; readonly dimmed: boolean }[];
 }
 
 interface MatchTabBase {
@@ -44,13 +46,14 @@ interface TabButtonProps {
 }
 
 const TabButton = memo(({ tab, isActive, isSelected, onTabClick }: TabButtonProps): React.ReactElement => {
-  const tabIndex = tab.type === "series" ? -1 : tab.index;
+  const tabIndex = tab.index;
   const tabIcons =
-    tab.type === "match" ? (tab.icons ?? (tab.icon !== "" ? [{ src: tab.icon, dimmed: false as const }] : [])) : [];
+    tab.type === "series"
+      ? (tab.icons ?? [])
+      : (tab.icons ?? (tab.icon !== "" ? [{ src: tab.icon, dimmed: false as const }] : []));
 
   return (
     <button
-      key={tab.type === "series" ? "series" : tab.matchId}
       type="button"
       className={classNames(styles.tab, {
         [styles.tabActive]: isActive,
@@ -105,19 +108,12 @@ function OverlayTabsBarComponent({
   return (
     <div className={styles.tabBar}>
       {tabs.map((tab) => {
-        const tabIndex = tab.type === "series" ? -1 : tab.index;
+        const tabIndex = tab.index;
+        const tabKey = tab.type === "series" ? `series-${tab.seriesId}` : tab.matchId;
         const isActive = activeTabIndex === tabIndex;
         const isSelected = selectedTab === tabIndex && isPanelOpen;
 
-        return (
-          <TabButton
-            key={tab.type === "series" ? "series" : tab.matchId}
-            tab={tab}
-            isActive={isActive}
-            isSelected={isSelected}
-            onTabClick={onTabClick}
-          />
-        );
+        return <TabButton key={tabKey} tab={tab} isActive={isActive} isSelected={isSelected} onTabClick={onTabClick} />;
       })}
     </div>
   );

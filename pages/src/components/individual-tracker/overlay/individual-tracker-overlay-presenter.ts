@@ -9,6 +9,7 @@ import type { TickerMatchGroup } from "../../information-ticker/information-tick
 import { createMatchStatsFormatter } from "../../../controllers/stats/create";
 import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
 import type { IndividualTrackerViewerRenderModel, ViewerSeriesTab, ViewerTimelineItem } from "../viewer/types";
+import { gameModeIconSrc } from "../game-mode-icon";
 
 export type MatchStatsState =
   | { readonly status: "loading" }
@@ -26,23 +27,46 @@ export function getDefaultTeamColors(): [TeamColor, TeamColor] {
 }
 
 export function getActiveSeries(timeline: readonly ViewerTimelineItem[]): ViewerSeriesTab | null {
-  const last = timeline.at(-1);
-  if (last?.type === "series") {
-    return last.series;
+  for (const item of timeline) {
+    if (item.type === "series" && item.series.isActive) {
+      return item.series;
+    }
   }
+
   return null;
 }
 
 export function buildTabs(timeline: readonly ViewerTimelineItem[]): readonly OverlayTab[] {
+  const activeSeries = getActiveSeries(timeline);
+  if (activeSeries != null) {
+    return activeSeries.matches.map(
+      (match, index): OverlayTab => ({
+        type: "match",
+        index,
+        matchId: match.matchId,
+        label: match.mapName,
+        score: match.score,
+        icon: gameModeIconSrc(match.gameVariantCategory),
+        teamColor: match.colorHex,
+      }),
+    );
+  }
+
   let matchIdx = 0;
+  let seriesIdx = -1;
   return timeline.map((item): OverlayTab => {
     if (item.type === "series") {
       return {
         type: "series",
-        index: -1,
+        seriesId: item.series.id,
+        index: seriesIdx--,
         label: item.series.title,
         score: item.series.score,
         teamColor: undefined,
+        icons: item.series.matches.map((match) => ({
+          src: gameModeIconSrc(match.gameVariantCategory),
+          dimmed: false,
+        })),
       };
     }
     return {
@@ -51,7 +75,7 @@ export function buildTabs(timeline: readonly ViewerTimelineItem[]): readonly Ove
       matchId: item.match.matchId,
       label: item.match.mapName,
       score: item.match.score,
-      icon: "",
+      icon: gameModeIconSrc(item.match.gameVariantCategory),
       teamColor: item.match.colorHex,
     };
   });
