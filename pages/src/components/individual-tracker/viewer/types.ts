@@ -27,6 +27,7 @@ export interface ViewerSeriesTab {
   readonly title: string;
   readonly subtitle: string;
   readonly isActive: boolean;
+  readonly teams: readonly ViewerSeriesTeam[];
   readonly matchBackgroundUrls: readonly string[];
   readonly score: string;
   readonly duration: string;
@@ -34,6 +35,17 @@ export interface ViewerSeriesTab {
   readonly endTime: string;
   readonly matches: readonly ViewerMatchTab[];
   readonly colorHex: string | undefined;
+}
+
+export interface ViewerSeriesTeamPlayer {
+  readonly discordName: string | null;
+  readonly gamertag: string | null;
+}
+
+export interface ViewerSeriesTeam {
+  readonly id: number;
+  readonly name: string;
+  readonly players: readonly ViewerSeriesTeamPlayer[];
 }
 
 export type ViewerTimelineItem =

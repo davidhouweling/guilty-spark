@@ -2,7 +2,12 @@ import React, { useCallback, useMemo } from "react";
 import { StreamerOverlay } from "../../streamer-overlay/streamer-overlay";
 import { TopSection } from "../../streamer-overlay/top-section";
 import { StatsPanel } from "../viewer/stats-panel";
-import type { IndividualTrackerViewerRenderModel, MatchDetailsState } from "../viewer/types";
+import type {
+  IndividualTrackerViewerRenderModel,
+  MatchDetailsState,
+  ViewerSeriesTeam,
+  ViewerSeriesTeamPlayer,
+} from "../viewer/types";
 import type { MatchStatsState } from "./individual-tracker-overlay-presenter";
 import {
   buildTabs,
@@ -25,6 +30,40 @@ interface IndividualTrackerOverlayProps {
   readonly onDeselect: () => void;
 }
 
+function getSeriesPlayerDisplayName(player: ViewerSeriesTeamPlayer): string {
+  return player.discordName ?? player.gamertag ?? "Unknown";
+}
+
+function renderTeamDetails(team: ViewerSeriesTeam): React.ReactElement {
+  return (
+    <>
+      <div>{team.name}</div>
+      {team.players.map((player, index) => (
+        <div key={`${team.id.toString()}-${index.toString()}`}>{getSeriesPlayerDisplayName(player)}</div>
+      ))}
+    </>
+  );
+}
+
+function getTopSectionTeamDetails(teams: readonly ViewerSeriesTeam[]): {
+  readonly showTeamDetails: boolean;
+  readonly teamLeft: React.ReactNode;
+  readonly teamRight: React.ReactNode;
+} {
+  const teamLeft = teams.find((team) => team.id === 0);
+  const teamRight = teams.find((team) => team.id === 1);
+
+  if (teamLeft == null || teamRight == null) {
+    return { showTeamDetails: false, teamLeft: null, teamRight: null };
+  }
+
+  return {
+    showTeamDetails: true,
+    teamLeft: renderTeamDetails(teamLeft),
+    teamRight: renderTeamDetails(teamRight),
+  };
+}
+
 export function IndividualTrackerOverlay({
   renderModel,
   matchStatsState,
@@ -41,6 +80,8 @@ export function IndividualTrackerOverlay({
 
   const topSection = useMemo(() => {
     if (activeSeries != null) {
+      const { showTeamDetails, teamLeft, teamRight } = getTopSectionTeamDetails(activeSeries.teams);
+
       return (
         <TopSection
           title={activeSeries.title}
@@ -48,10 +89,10 @@ export function IndividualTrackerOverlay({
           iconUrl={null}
           showScore={true}
           seriesScore={activeSeries.score}
-          showTeamDetails={false}
+          showTeamDetails={showTeamDetails}
           teamColors={teamColors}
-          teamLeft={null}
-          teamRight={null}
+          teamLeft={teamLeft}
+          teamRight={teamRight}
         />
       );
     }

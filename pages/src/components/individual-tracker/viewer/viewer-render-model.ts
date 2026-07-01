@@ -13,6 +13,7 @@ import type {
   IndividualTrackerViewerRenderModel,
   ViewerAccumulatedStats,
   ViewerMatchTab,
+  ViewerSeriesTeam,
   ViewerSeriesTab,
   ViewerTimelineItem,
 } from "./types";
@@ -23,27 +24,45 @@ export interface BuildViewerRenderModelOptions {
   readonly preferredEnemyColorId?: string;
 }
 
-function isActiveSeriesGroup(view: TrackerViewState, series: TrackerSeriesGroup): boolean {
-  if (!view.hasActiveSeries || view.activeSeriesContext == null) {
-    return false;
-  }
-
-  const activeSubtitle = view.activeSeriesContext.subtitle ?? "";
-  return series.title === view.activeSeriesContext.title && series.subtitle === activeSubtitle;
-}
-
 function findActiveSeriesId(view: TrackerViewState): string | null {
-  if (!view.hasActiveSeries) {
+  if (!view.hasActiveSeries || view.activeSeriesContext == null) {
     return null;
   }
 
+  const activeTitle = view.activeSeriesContext.title;
+  const activeSubtitle = view.activeSeriesContext.subtitle ?? "";
+
   for (const series of view.series) {
-    if (isActiveSeriesGroup(view, series)) {
+    if (series.title === activeTitle && series.subtitle === activeSubtitle) {
       return series.id;
     }
   }
 
+  const titleMatches = view.series.filter((series) => series.title === activeTitle);
+  if (titleMatches.length === 1) {
+    return titleMatches[0]?.id ?? null;
+  }
+
   return null;
+}
+
+function getSeriesTeams(
+  view: TrackerViewState,
+  series: TrackerSeriesGroup,
+  activeSeriesId: string | null,
+): readonly ViewerSeriesTeam[] {
+  if (view.activeSeriesContext == null || activeSeriesId == null || series.id !== activeSeriesId) {
+    return [];
+  }
+
+  return view.activeSeriesContext.teams.map((team) => ({
+    id: team.id,
+    name: team.name,
+    players: team.players.map((player) => ({
+      discordName: player.discordName,
+      gamertag: player.gamertag,
+    })),
+  }));
 }
 
 function toReadableDurationOrUnknown(startTime: string, endTime: string): string {
@@ -199,6 +218,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         title: anchoredSeries.title,
         subtitle: anchoredSeries.subtitle,
         isActive: activeSeriesId != null ? anchoredSeries.id === activeSeriesId : false,
+        teams: getSeriesTeams(view, anchoredSeries, activeSeriesId),
         matchBackgroundUrls:
           anchoredSeries.matchBackgroundUrls ?? seriesSummaries.map((summary) => summary.mapBackgroundUrl ?? "data:,"),
         score: anchoredSeries.score,
