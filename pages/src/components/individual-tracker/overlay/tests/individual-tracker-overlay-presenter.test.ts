@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { gameModeIconSrc } from "../../game-mode-icon";
 import type { ViewerMatchTab, ViewerSeriesTab, ViewerTimelineItem } from "../../viewer/types";
-import { buildTabs, getActiveSeries } from "../individual-tracker-overlay-presenter";
+import { buildPreSeriesTickerGroup, buildTabs, getActiveSeries } from "../individual-tracker-overlay-presenter";
 
 function aMatchWith(overrides: Partial<ViewerMatchTab> = {}): ViewerMatchTab {
   return {
@@ -123,5 +123,40 @@ describe("individual-tracker-overlay-presenter", () => {
       expect(seriesTabs[0].index).toBe(-1);
       expect(seriesTabs[1].index).toBe(-2);
     }
+  });
+
+  it("returns a series score tab when active series exists but has no matches", () => {
+    const activeSeries = aSeriesWith({
+      id: "series-active",
+      isActive: true,
+      score: "0:0",
+      matches: [],
+    });
+
+    const tabs = buildTabs([], activeSeries);
+
+    expect(tabs).toHaveLength(1);
+    const [seriesTab] = tabs;
+    expect(seriesTab.type).toBe("series");
+    if (seriesTab.type === "series") {
+      expect(seriesTab.label).toBe("Series score");
+      expect(seriesTab.score).toBe("0:0");
+      expect(seriesTab.index).toBe(-1);
+    }
+  });
+
+  it("builds pre-series ticker group only when ticker is enabled and active series has no matches", () => {
+    const groups = buildPreSeriesTickerGroup({
+      showTicker: true,
+      activeSeries: aSeriesWith({ matches: [], isActive: true }),
+      playerName: "TrackedPlayer",
+      discordName: null,
+      gamertag: "TrackedPlayer",
+    });
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].label).toBe("Player Info");
+    expect(groups[0].rows[0].showTeamIcon).toBe(false);
+    expect(groups[0].rows[0].gamertag).toBe("TrackedPlayer");
   });
 });

@@ -10,6 +10,7 @@ import { differenceInSeconds, isValid, parseISO } from "date-fns";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type {
+  ViewerActiveSeriesContext,
   IndividualTrackerViewerRenderModel,
   ViewerAccumulatedStats,
   ViewerMatchTab,
@@ -63,6 +64,25 @@ function getSeriesTeams(
       gamertag: player.gamertag,
     })),
   }));
+}
+
+function toViewerActiveSeriesContext(view: TrackerViewState): ViewerActiveSeriesContext | undefined {
+  if (view.activeSeriesContext == null) {
+    return undefined;
+  }
+
+  return {
+    title: view.activeSeriesContext.title,
+    subtitle: view.activeSeriesContext.subtitle,
+    teams: view.activeSeriesContext.teams.map((team) => ({
+      id: team.id,
+      name: team.name,
+      players: team.players.map((player) => ({
+        discordName: player.discordName,
+        gamertag: player.gamertag,
+      })),
+    })),
+  };
 }
 
 function toReadableDurationOrUnknown(startTime: string, endTime: string): string {
@@ -266,6 +286,8 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
     gamertag: view.gamertag,
     status: view.status,
     isLive: view.isLive,
+    hasActiveSeries: view.hasActiveSeries,
+    activeSeriesContext: toViewerActiveSeriesContext(view),
     lastUpdateTime: view.lastUpdateTime,
     timeline: [...timelineWithFallback],
     accumulated,

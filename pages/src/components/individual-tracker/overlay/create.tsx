@@ -70,6 +70,7 @@ export function IndividualTrackerOverlayPage({
         model.renderModel != null ? (
           <IndividualTrackerOverlay
             renderModel={model.renderModel}
+            streamerSettings={model.streamerSettings}
             matchStatsState={overlayModel.matchStatsState}
             matchStatsPanelState={overlayModel.matchStatsPanelState}
             selectedMatchId={overlayModel.selectedMatchId}

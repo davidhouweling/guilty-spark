@@ -167,6 +167,26 @@ describe("InformationTicker", () => {
     expect(screen.getByText("Unknown Player")).toBeInTheDocument();
   });
 
+  it("hides the team icon when showTeamIcon is false", () => {
+    const matchGroup = aFakeTickerMatchGroupWith({
+      rows: [
+        aFakeTickerStatRowWith({
+          type: "player",
+          teamId: 0,
+          name: "Tracked Player",
+          showTeamIcon: false,
+          discordName: null,
+          gamertag: "Tracked Player",
+        }),
+      ],
+    });
+
+    render(<InformationTicker currentMatchGroup={matchGroup} teamColors={teamColors} onScrollComplete={vi.fn()} />);
+
+    expect(screen.queryByTestId("team-icon-0")).not.toBeInTheDocument();
+    expect(screen.getByTestId("player-name")).toBeInTheDocument();
+  });
+
   it("displays multiple stats for a row", () => {
     const matchGroup = aFakeTickerMatchGroupWith({
       rows: [

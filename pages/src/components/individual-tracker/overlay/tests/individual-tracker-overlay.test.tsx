@@ -12,6 +12,7 @@ vi.mock("../../../icons/team-icon", () => ({
 vi.mock("../../../icons/medal-icon", () => ({
   MedalIcon: (): React.ReactNode => null,
 }));
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import {
   aFakeTrackerMatchSummaryWith,
   aFakeTrackerSeriesGroupWith,
@@ -36,6 +37,7 @@ describe("IndividualTrackerOverlay", () => {
     const { container } = render(
       <IndividualTrackerOverlay
         renderModel={aRenderModel({ matches: [], series: [] })}
+        streamerSettings={undefined}
         matchStatsState={null}
         matchStatsPanelState={null}
         selectedMatchId={null}
@@ -51,6 +53,7 @@ describe("IndividualTrackerOverlay", () => {
     const { container } = render(
       <IndividualTrackerOverlay
         renderModel={aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] })}
+        streamerSettings={undefined}
         matchStatsState={null}
         matchStatsPanelState={null}
         selectedMatchId={null}
@@ -66,6 +69,7 @@ describe("IndividualTrackerOverlay", () => {
     render(
       <IndividualTrackerOverlay
         renderModel={aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] })}
+        streamerSettings={undefined}
         matchStatsState={{ status: "loading" }}
         matchStatsPanelState={{ status: "loading" }}
         selectedMatchId="m-1"
@@ -81,6 +85,7 @@ describe("IndividualTrackerOverlay", () => {
     render(
       <IndividualTrackerOverlay
         renderModel={aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] })}
+        streamerSettings={undefined}
         matchStatsState={{
           status: "loaded",
           stats: aFakeMatchStatsWith(),
@@ -107,6 +112,7 @@ describe("IndividualTrackerOverlay", () => {
     render(
       <IndividualTrackerOverlay
         renderModel={aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] })}
+        streamerSettings={undefined}
         matchStatsState={{ status: "error", message: "Network failure" }}
         matchStatsPanelState={{ status: "error", message: "Network failure" }}
         selectedMatchId="m-1"
@@ -125,6 +131,7 @@ describe("IndividualTrackerOverlay", () => {
     render(
       <IndividualTrackerOverlay
         renderModel={aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] })}
+        streamerSettings={undefined}
         matchStatsState={{
           status: "loaded",
           stats: aFakeMatchStatsWith(),
@@ -184,6 +191,7 @@ describe("IndividualTrackerOverlay", () => {
             ],
           },
         })}
+        streamerSettings={undefined}
         matchStatsState={null}
         matchStatsPanelState={null}
         selectedMatchId={null}
@@ -236,6 +244,7 @@ describe("IndividualTrackerOverlay", () => {
             ],
           },
         })}
+        streamerSettings={undefined}
         matchStatsState={null}
         matchStatsPanelState={null}
         selectedMatchId={null}
@@ -252,5 +261,181 @@ describe("IndividualTrackerOverlay", () => {
     expect(rightTeamContainer?.textContent).toContain("Beta");
     expect(rightTeamContainer?.textContent).toContain("Beta Player");
     expect(screen.queryByText("Ignored Player")).not.toBeInTheDocument();
+  });
+
+  it("shows a 0:0 series tab and no waiting banner when in-series has no matches yet and ticker is disabled", () => {
+    const renderModel = aRenderModel({
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Alpha vs Beta",
+        subtitle: "Bo3",
+        teams: [],
+      },
+      matches: [],
+      series: [],
+    });
+    const streamerSettings: StreamerViewSettings = {
+      visibleSections: {
+        showTicker: false,
+      },
+    };
+
+    render(
+      <IndividualTrackerOverlay
+        renderModel={renderModel}
+        streamerSettings={streamerSettings}
+        matchStatsState={null}
+        matchStatsPanelState={null}
+        selectedMatchId={null}
+        onSelectMatch={() => undefined}
+        onDeselect={() => undefined}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /series score/i })).toBeInTheDocument();
+    expect(screen.queryByText("Waiting for first match to complete...")).not.toBeInTheDocument();
+  });
+
+  it("shows player pre-series ticker with no team icon when in-series has no matches and ticker is enabled", () => {
+    const renderModel = aRenderModel({
+      gamertag: "TrackedPlayer",
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Alpha vs Beta",
+        subtitle: "Bo3",
+        teams: [],
+      },
+      matches: [],
+      series: [],
+    });
+    const streamerSettings: StreamerViewSettings = {
+      visibleSections: {
+        showTicker: true,
+      },
+    };
+
+    render(
+      <IndividualTrackerOverlay
+        renderModel={renderModel}
+        streamerSettings={streamerSettings}
+        matchStatsState={null}
+        matchStatsPanelState={null}
+        selectedMatchId={null}
+        onSelectMatch={() => undefined}
+        onDeselect={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("Player Info")).toBeInTheDocument();
+    expect(screen.getByText("TrackedPlayer")).toBeInTheDocument();
+    expect(screen.queryByText("Waiting for first match to complete...")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("team-icon-0")).not.toBeInTheDocument();
+  });
+
+  it("respects visibility settings for tabs and top section content", () => {
+    const renderModel = aRenderModel({
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Custom Series Title",
+        subtitle: "Custom Series Subtitle",
+        teams: [
+          {
+            id: 0,
+            name: "Alpha",
+            players: [{ discordId: null, discordName: "AlphaDiscord", gamertag: "AlphaTag", xboxId: null }],
+          },
+          {
+            id: 1,
+            name: "Beta",
+            players: [{ discordId: null, discordName: "BetaDiscord", gamertag: "BetaTag", xboxId: null }],
+          },
+        ],
+      },
+      matches: [],
+      series: [],
+    });
+
+    const streamerSettings: StreamerViewSettings = {
+      visibleSections: {
+        showTabs: false,
+        showTitle: false,
+        showSubtitle: false,
+        showTeamDetails: false,
+      },
+    };
+
+    render(
+      <IndividualTrackerOverlay
+        renderModel={renderModel}
+        streamerSettings={streamerSettings}
+        matchStatsState={null}
+        matchStatsPanelState={null}
+        selectedMatchId={null}
+        onSelectMatch={() => undefined}
+        onDeselect={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /series score/i })).not.toBeInTheDocument();
+    expect(screen.queryByText("Custom Series Title")).not.toBeInTheDocument();
+    expect(screen.queryByText("Custom Series Subtitle")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("team-icon-0")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("team-icon-1")).not.toBeInTheDocument();
+  });
+
+  it("uses xbox names in team details when discord names are hidden", () => {
+    const renderModel = aRenderModel({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          id: "series-1",
+          title: "Alpha vs Beta",
+          subtitle: "Bo3",
+          matchIds: ["m-1", "m-2"],
+          score: "1:0",
+        }),
+      ],
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Alpha vs Beta",
+        subtitle: "Bo3",
+        teams: [
+          {
+            id: 0,
+            name: "Alpha",
+            players: [{ discordId: null, discordName: "DiscordAlpha", gamertag: "XboxAlpha", xboxId: null }],
+          },
+          {
+            id: 1,
+            name: "Beta",
+            players: [{ discordId: null, discordName: "DiscordBeta", gamertag: "XboxBeta", xboxId: null }],
+          },
+        ],
+      },
+    });
+
+    const streamerSettings: StreamerViewSettings = {
+      visibleSections: {
+        showDiscordNames: false,
+        showXboxNames: true,
+      },
+    };
+
+    render(
+      <IndividualTrackerOverlay
+        renderModel={renderModel}
+        streamerSettings={streamerSettings}
+        matchStatsState={null}
+        matchStatsPanelState={null}
+        selectedMatchId={null}
+        onSelectMatch={() => undefined}
+        onDeselect={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("XboxAlpha")).toBeInTheDocument();
+    expect(screen.getByText("XboxBeta")).toBeInTheDocument();
+    expect(screen.queryByText("DiscordAlpha")).not.toBeInTheDocument();
+    expect(screen.queryByText("DiscordBeta")).not.toBeInTheDocument();
   });
 });

@@ -36,9 +36,25 @@ export function getActiveSeries(timeline: readonly ViewerTimelineItem[]): Viewer
   return null;
 }
 
-export function buildTabs(timeline: readonly ViewerTimelineItem[]): readonly OverlayTab[] {
-  const activeSeries = getActiveSeries(timeline);
+export function buildTabs(
+  timeline: readonly ViewerTimelineItem[],
+  activeSeriesOverride: ViewerSeriesTab | null = null,
+): readonly OverlayTab[] {
+  const activeSeries = activeSeriesOverride ?? getActiveSeries(timeline);
   if (activeSeries != null) {
+    if (activeSeries.matches.length === 0) {
+      return [
+        {
+          type: "series",
+          seriesId: activeSeries.id,
+          index: -1,
+          label: "Series score",
+          score: activeSeries.score,
+          teamColor: undefined,
+        },
+      ];
+    }
+
     return activeSeries.matches.map(
       (match, index): OverlayTab => ({
         type: "match",
@@ -127,6 +143,45 @@ export function buildTickerGroups(matchStatsState: MatchStatsState | null, match
   ];
 }
 
+export function buildPreSeriesTickerGroup(options: {
+  readonly showTicker: boolean;
+  readonly activeSeries: ViewerSeriesTab | null;
+  readonly playerName: string;
+  readonly discordName: string | null;
+  readonly gamertag: string | null;
+}): TickerMatchGroup[] {
+  if (!options.showTicker || options.activeSeries == null || options.activeSeries.matches.length > 0) {
+    return [];
+  }
+
+  return [
+    {
+      matchIndex: -1,
+      label: "Player Info",
+      rows: [
+        {
+          type: "player",
+          teamId: 0,
+          name: options.playerName,
+          discordName: options.discordName,
+          gamertag: options.gamertag,
+          showTeamIcon: false,
+          stats: [
+            {
+              name: "Status",
+              value: 0,
+              bestInTeam: false,
+              bestInMatch: false,
+              display: "Waiting for first match",
+            },
+          ],
+          medals: [],
+        },
+      ],
+    },
+  ];
+}
+
 export function getShowTabs(renderModel: IndividualTrackerViewerRenderModel): boolean {
-  return renderModel.timeline.length > 0;
+  return renderModel.timeline.length > 0 || renderModel.hasActiveSeries;
 }
