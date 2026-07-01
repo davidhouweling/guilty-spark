@@ -438,4 +438,62 @@ describe("IndividualTrackerOverlay", () => {
     expect(screen.queryByText("DiscordAlpha")).not.toBeInTheDocument();
     expect(screen.queryByText("DiscordBeta")).not.toBeInTheDocument();
   });
+
+  it("shows only team names when both discord and xbox names are hidden", () => {
+    const renderModel = aRenderModel({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          id: "series-1",
+          title: "Alpha vs Beta",
+          subtitle: "Bo3",
+          matchIds: ["m-1", "m-2"],
+          score: "1:0",
+        }),
+      ],
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Alpha vs Beta",
+        subtitle: "Bo3",
+        teams: [
+          {
+            id: 0,
+            name: "Alpha",
+            players: [{ discordId: null, discordName: "DiscordAlpha", gamertag: "XboxAlpha", xboxId: null }],
+          },
+          {
+            id: 1,
+            name: "Beta",
+            players: [{ discordId: null, discordName: "DiscordBeta", gamertag: "XboxBeta", xboxId: null }],
+          },
+        ],
+      },
+    });
+
+    const streamerSettings: StreamerViewSettings = {
+      visibleSections: {
+        showDiscordNames: false,
+        showXboxNames: false,
+      },
+    };
+
+    render(
+      <IndividualTrackerOverlay
+        renderModel={renderModel}
+        streamerSettings={streamerSettings}
+        matchStatsState={null}
+        matchStatsPanelState={null}
+        selectedMatchId={null}
+        onSelectMatch={() => undefined}
+        onDeselect={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(screen.getByText("Beta")).toBeInTheDocument();
+    expect(screen.queryByText("DiscordAlpha")).not.toBeInTheDocument();
+    expect(screen.queryByText("XboxAlpha")).not.toBeInTheDocument();
+    expect(screen.queryByText("DiscordBeta")).not.toBeInTheDocument();
+    expect(screen.queryByText("XboxBeta")).not.toBeInTheDocument();
+  });
 });

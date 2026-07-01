@@ -177,6 +177,7 @@ function arePropsEqual(prevProps: InformationTickerProps, nextProps: Information
     if (
       prevRow.type !== nextRow.type ||
       prevRow.teamId !== nextRow.teamId ||
+      prevRow.showTeamIcon !== nextRow.showTeamIcon ||
       prevRow.name !== nextRow.name ||
       prevRow.stats.length !== nextRow.stats.length ||
       prevRow.medals.length !== nextRow.medals.length

@@ -120,14 +120,27 @@ function getSeriesPlayerDisplayNameForSettings(
   return getSeriesPlayerDisplayName(player);
 }
 
+function getVisibleTeamPlayers(
+  players: readonly ViewerSeriesTeamPlayer[],
+  settings: Pick<OverlayDisplaySettings, "showDiscordNames" | "showXboxNames">,
+): readonly ViewerSeriesTeamPlayer[] {
+  if (!settings.showDiscordNames && !settings.showXboxNames) {
+    return [];
+  }
+
+  return players;
+}
+
 function renderTeamDetails(
   team: ViewerSeriesTeam,
   settings: Pick<OverlayDisplaySettings, "showDiscordNames" | "showXboxNames">,
 ): React.ReactElement {
+  const visiblePlayers = getVisibleTeamPlayers(team.players, settings);
+
   return (
     <>
       <div>{team.name}</div>
-      {team.players.map((player, index) => (
+      {visiblePlayers.map((player, index) => (
         <div key={`${team.id.toString()}-${index.toString()}`}>
           {getSeriesPlayerDisplayNameForSettings(player, settings)}
         </div>
@@ -192,7 +205,7 @@ export function IndividualTrackerOverlay({
       return (
         <TopSection
           title={displaySettings.showTitle ? activeSeries.title : null}
-          subtitle={displaySettings.showSubtitle ? activeSeries.subtitle : null}
+          subtitle={displaySettings.showSubtitle && activeSeries.subtitle !== "" ? activeSeries.subtitle : null}
           iconUrl={null}
           showScore={displaySettings.showScore}
           seriesScore={activeSeries.score}
