@@ -51,11 +51,12 @@ function getTopSectionTeamDetails(teams: readonly ViewerSeriesTeam[]): {
   readonly teamLeft: React.ReactNode;
   readonly teamRight: React.ReactNode;
 } {
-  if (teams.length < 2) {
+  const teamLeft = teams.find((team) => team.id === 0);
+  const teamRight = teams.find((team) => team.id === 1);
+
+  if (teamLeft == null || teamRight == null) {
     return { showTeamDetails: false, teamLeft: null, teamRight: null };
   }
-
-  const [teamLeft, teamRight] = teams;
 
   return {
     showTeamDetails: true,

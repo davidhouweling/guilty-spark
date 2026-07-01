@@ -198,4 +198,59 @@ describe("IndividualTrackerOverlay", () => {
     expect(screen.getByText("Beta")).toBeInTheDocument();
     expect(screen.getByText("Unknown")).toBeInTheDocument();
   });
+
+  it("maps team details by team id regardless of active-series team order", () => {
+    render(
+      <IndividualTrackerOverlay
+        renderModel={aRenderModel({
+          matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
+          series: [
+            aFakeTrackerSeriesGroupWith({
+              id: "series-1",
+              title: "Alpha vs Beta",
+              subtitle: "Bo3",
+              matchIds: ["m-1", "m-2"],
+              score: "1:0",
+            }),
+          ],
+          hasActiveSeries: true,
+          activeSeriesContext: {
+            title: "Alpha vs Beta",
+            subtitle: "Bo3",
+            teams: [
+              {
+                id: 1,
+                name: "Beta",
+                players: [{ discordId: null, discordName: null, gamertag: "Beta Player", xboxId: null }],
+              },
+              {
+                id: 2,
+                name: "Gamma",
+                players: [{ discordId: null, discordName: null, gamertag: "Ignored Player", xboxId: null }],
+              },
+              {
+                id: 0,
+                name: "Alpha",
+                players: [{ discordId: null, discordName: null, gamertag: "Alpha Player", xboxId: null }],
+              },
+            ],
+          },
+        })}
+        matchStatsState={null}
+        matchStatsPanelState={null}
+        selectedMatchId={null}
+        onSelectMatch={() => undefined}
+        onDeselect={() => undefined}
+      />,
+    );
+
+    const leftTeamContainer = screen.getByTestId("team-icon-0").parentElement;
+    const rightTeamContainer = screen.getByTestId("team-icon-1").parentElement;
+
+    expect(leftTeamContainer?.textContent).toContain("Alpha");
+    expect(leftTeamContainer?.textContent).toContain("Alpha Player");
+    expect(rightTeamContainer?.textContent).toContain("Beta");
+    expect(rightTeamContainer?.textContent).toContain("Beta Player");
+    expect(screen.queryByText("Ignored Player")).not.toBeInTheDocument();
+  });
 });
