@@ -14,6 +14,7 @@ vi.mock("../../../icons/medal-icon", () => ({
 }));
 import {
   aFakeTrackerMatchSummaryWith,
+  aFakeTrackerSeriesGroupWith,
   aFakeTrackerViewStateWith,
 } from "../../../../services/individual-tracker/fakes/view.fake";
 import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
@@ -146,5 +147,55 @@ describe("IndividualTrackerOverlay", () => {
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
 
     expect(onDeselect).toHaveBeenCalledOnce();
+  });
+
+  it("renders active series team details using display-name fallbacks", () => {
+    render(
+      <IndividualTrackerOverlay
+        renderModel={aRenderModel({
+          matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
+          series: [
+            aFakeTrackerSeriesGroupWith({
+              id: "series-1",
+              title: "Alpha vs Beta",
+              subtitle: "Bo3",
+              matchIds: ["m-1", "m-2"],
+              score: "1:0",
+            }),
+          ],
+          hasActiveSeries: true,
+          activeSeriesContext: {
+            title: "Alpha vs Beta",
+            subtitle: "Bo3",
+            teams: [
+              {
+                id: 0,
+                name: "Alpha",
+                players: [
+                  { discordId: null, discordName: "Discord Name", gamertag: "Gamertag Name", xboxId: null },
+                  { discordId: null, discordName: null, gamertag: "Xbox Only", xboxId: null },
+                ],
+              },
+              {
+                id: 1,
+                name: "Beta",
+                players: [{ discordId: null, discordName: null, gamertag: null, xboxId: null }],
+              },
+            ],
+          },
+        })}
+        matchStatsState={null}
+        matchStatsPanelState={null}
+        selectedMatchId={null}
+        onSelectMatch={() => undefined}
+        onDeselect={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(screen.getByText("Discord Name")).toBeInTheDocument();
+    expect(screen.getByText("Xbox Only")).toBeInTheDocument();
+    expect(screen.getByText("Beta")).toBeInTheDocument();
+    expect(screen.getByText("Unknown")).toBeInTheDocument();
   });
 });

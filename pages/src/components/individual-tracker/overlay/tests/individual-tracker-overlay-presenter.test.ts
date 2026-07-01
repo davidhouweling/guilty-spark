@@ -30,6 +30,7 @@ function aSeriesWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesTab 
     title: overrides.title ?? "Eagle vs Cobra",
     subtitle: overrides.subtitle ?? "Best of 3",
     isActive: overrides.isActive ?? false,
+    teams: overrides.teams ?? [],
     matchBackgroundUrls: overrides.matchBackgroundUrls ?? matches.map(() => "data:,"),
     score: overrides.score ?? "2:1",
     duration: overrides.duration ?? "30m",

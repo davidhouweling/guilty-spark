@@ -13,6 +13,7 @@ import type {
   IndividualTrackerViewerRenderModel,
   ViewerAccumulatedStats,
   ViewerMatchTab,
+  ViewerSeriesTeam,
   ViewerSeriesTab,
   ViewerTimelineItem,
 } from "./types";
@@ -44,6 +45,21 @@ function findActiveSeriesId(view: TrackerViewState): string | null {
   }
 
   return null;
+}
+
+function getSeriesTeams(view: TrackerViewState, series: TrackerSeriesGroup): readonly ViewerSeriesTeam[] {
+  if (isActiveSeriesGroup(view, series) && view.activeSeriesContext != null) {
+    return view.activeSeriesContext.teams.map((team) => ({
+      id: team.id,
+      name: team.name,
+      players: team.players.map((player) => ({
+        discordName: player.discordName,
+        gamertag: player.gamertag,
+      })),
+    }));
+  }
+
+  return [];
 }
 
 function toReadableDurationOrUnknown(startTime: string, endTime: string): string {
@@ -199,6 +215,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         title: anchoredSeries.title,
         subtitle: anchoredSeries.subtitle,
         isActive: activeSeriesId != null ? anchoredSeries.id === activeSeriesId : false,
+        teams: getSeriesTeams(view, anchoredSeries),
         matchBackgroundUrls:
           anchoredSeries.matchBackgroundUrls ?? seriesSummaries.map((summary) => summary.mapBackgroundUrl ?? "data:,"),
         score: anchoredSeries.score,
