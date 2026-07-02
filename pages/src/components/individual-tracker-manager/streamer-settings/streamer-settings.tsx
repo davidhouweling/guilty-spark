@@ -218,9 +218,9 @@ export function StreamerSettingsSectionView({
                 {copyTarget === "view" ? "Copied!" : "Copy"}
               </Button>
             </div>
-          </div>
 
-          <div className={styles.card}>
+            <hr className={styles.sectionDivider} />
+
             <h3 className={styles.cardTitle}>Overlay URL</h3>
             <p className={styles.cardDescription}>Use this in OBS as a Browser Source.</p>
             <p className={styles.urlText}>{urls?.overlayUrl}</p>
