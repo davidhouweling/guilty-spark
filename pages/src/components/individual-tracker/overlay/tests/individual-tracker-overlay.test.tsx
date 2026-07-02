@@ -211,7 +211,7 @@ describe("IndividualTrackerOverlay", () => {
     );
 
     expect(screen.getByText("Alpha")).toBeInTheDocument();
-    expect(screen.getByText("Discord Name")).toBeInTheDocument();
+    expect(screen.getByText("Gamertag Name")).toBeInTheDocument();
     expect(screen.getByText("Xbox Only")).toBeInTheDocument();
     expect(screen.getByText("Beta")).toBeInTheDocument();
     expect(screen.getByText("Unknown")).toBeInTheDocument();
