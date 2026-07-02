@@ -12,7 +12,7 @@ interface TickerStatRow {
   readonly type: "team" | "player";
   readonly teamId: number;
   readonly showTeamIcon?: boolean;
-  readonly name: string;
+  readonly name: string | null;
   readonly discordName?: string | null;
   readonly gamertag?: string | null;
   readonly stats: MatchStatsValues[];
@@ -89,9 +89,9 @@ const InformationTickerComponent = function InformationTicker({
                 gamertag={currentRow.gamertag ?? null}
                 showIcons={false}
               />
-            ) : (
+            ) : currentRow.name != null ? (
               <span>{currentRow.name}</span>
-            )}
+            ) : null}
           </div>
         </div>
 

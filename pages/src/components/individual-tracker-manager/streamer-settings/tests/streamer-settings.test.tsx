@@ -65,6 +65,9 @@ function aFakeProps(overrides?: Partial<StreamerSettingsSectionViewProps>): Stre
     observerEnemyColor: "cerulean",
     displaySettings: DEFAULT_DISPLAY_SETTINGS,
     tickerSettings: DEFAULT_TICKER_SETTINGS,
+    inSeriesShowTicker: true,
+    matchmakingShowTicker: true,
+    matchmakingShowStatsHighlights: true,
     inSeriesMyStatsOnly: false,
     matchmakingMyStatsOnly: false,
     fontSizeSettings: DEFAULT_FONT_SIZE_SETTINGS,
@@ -75,6 +78,9 @@ function aFakeProps(overrides?: Partial<StreamerSettingsSectionViewProps>): Stre
     onObserverColorsChange: (): void => undefined,
     onDisplaySettingsChange: (): void => undefined,
     onTickerSettingsChange: (): void => undefined,
+    onInSeriesShowTickerChange: (): void => undefined,
+    onMatchmakingShowTickerChange: (): void => undefined,
+    onMatchmakingShowStatsHighlightsChange: (): void => undefined,
     onInSeriesMyStatsOnlyChange: (): void => undefined,
     onMatchmakingMyStatsOnlyChange: (): void => undefined,
     onFontSizesChange: (): void => undefined,
@@ -147,6 +153,8 @@ describe("StreamerSettingsSectionView", () => {
 
       const observerBtn = screen.getByRole("button", { name: "Observer Mode" });
       expect(observerBtn).toBeInTheDocument();
+      expect(observerBtn).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: "Player Mode" })).toHaveAttribute("aria-pressed", "false");
     });
 
     it("calls onDefaultColorModeChange when Player Mode is clicked", async () => {
@@ -251,13 +259,43 @@ describe("StreamerSettingsSectionView", () => {
       expect(screen.getByTestId("color-picker-Cobra")).toBeInTheDocument();
     });
 
+    it("renders context-first section headings", () => {
+      render(<StreamerSettingsSectionView {...aFakeProps()} />);
+
+      expect(screen.getByRole("heading", { name: "Global Defaults" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "In Series UI" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Matchmaking UI" })).toBeInTheDocument();
+    });
+
+    it("renders matchmaking top-section guidance for stats highlights", () => {
+      render(<StreamerSettingsSectionView {...aFakeProps()} />);
+
+      expect(screen.getByText("Show stats highlights")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "Controls top-bar stats in the overlay only. The Stats Highlights tab is the master source for which stats are available to viewers.",
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it("calls onMatchmakingShowStatsHighlightsChange when the matchmaking stats highlights toggle is clicked", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn<(enabled: boolean) => void>();
+
+      render(<StreamerSettingsSectionView {...aFakeProps({ onMatchmakingShowStatsHighlightsChange: onChange })} />);
+
+      await user.click(screen.getByText("Show stats highlights"));
+
+      expect(onChange).toHaveBeenCalledWith(false);
+    });
+
     it("calls onInSeriesMyStatsOnlyChange when the in-series toggle is clicked", async () => {
       const user = userEvent.setup();
       const onChange = vi.fn<(enabled: boolean) => void>();
 
       render(<StreamerSettingsSectionView {...aFakeProps({ onInSeriesMyStatsOnlyChange: onChange })} />);
 
-      await user.click(screen.getByText("In-Series: Show Only My Stats"));
+      await user.click(screen.getByRole("checkbox", { name: /in series\s*show only my stats/i }));
 
       expect(onChange).toHaveBeenCalledWith(true);
     });
@@ -268,9 +306,31 @@ describe("StreamerSettingsSectionView", () => {
 
       render(<StreamerSettingsSectionView {...aFakeProps({ onMatchmakingMyStatsOnlyChange: onChange })} />);
 
-      await user.click(screen.getByText("Matchmaking: Show Only My Stats"));
+      await user.click(screen.getByRole("checkbox", { name: /matchmaking\s*show only my stats/i }));
 
       expect(onChange).toHaveBeenCalledWith(true);
+    });
+
+    it("calls onInSeriesShowTickerChange when the in-series ticker toggle is clicked", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn<(enabled: boolean) => void>();
+
+      render(<StreamerSettingsSectionView {...aFakeProps({ onInSeriesShowTickerChange: onChange })} />);
+
+      await user.click(screen.getByRole("checkbox", { name: /in series\s*show information ticker/i }));
+
+      expect(onChange).toHaveBeenCalledWith(false);
+    });
+
+    it("calls onMatchmakingShowTickerChange when the matchmaking ticker toggle is clicked", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn<(enabled: boolean) => void>();
+
+      render(<StreamerSettingsSectionView {...aFakeProps({ onMatchmakingShowTickerChange: onChange })} />);
+
+      await user.click(screen.getByRole("checkbox", { name: /matchmaking\s*show information ticker/i }));
+
+      expect(onChange).toHaveBeenCalledWith(false);
     });
   });
 });

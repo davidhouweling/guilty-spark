@@ -58,7 +58,7 @@ export function getOverlayDisplaySettings(streamerSettings: StreamerViewSettings
     showSubtitle: visibleSections?.showSubtitle ?? true,
     showScore: visibleSections?.showScore ?? true,
     showTeamDetails: visibleSections?.showTeamDetails ?? true,
-    showDiscordNames: visibleSections?.showDiscordNames ?? true,
+    showDiscordNames: visibleSections?.showDiscordNames ?? false,
     showXboxNames: visibleSections?.showXboxNames ?? true,
   };
 }

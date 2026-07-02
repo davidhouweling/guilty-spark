@@ -67,6 +67,11 @@ function settingsToSnapshot(
       showObjectiveStats: styleFlags.showObjectiveStats ?? snapshot.tickerSettings.showObjectiveStats,
       medalRarityFilter: styleFlags.medalRarityFilter ?? snapshot.tickerSettings.medalRarityFilter,
     },
+    inSeriesShowTicker: styleFlags.inSeriesShowTicker ?? visibleSections.showTicker ?? snapshot.inSeriesShowTicker,
+    matchmakingShowTicker:
+      styleFlags.matchmakingShowTicker ?? visibleSections.showTicker ?? snapshot.matchmakingShowTicker,
+    matchmakingShowStatsHighlights:
+      styleFlags.matchmakingShowStatsHighlights ?? snapshot.matchmakingShowStatsHighlights,
     inSeriesMyStatsOnly: styleFlags.inSeriesMyStatsOnly ?? snapshot.inSeriesMyStatsOnly,
     matchmakingMyStatsOnly: styleFlags.matchmakingMyStatsOnly ?? snapshot.matchmakingMyStatsOnly,
     fontSizeSettings: {
@@ -102,6 +107,9 @@ function snapshotToSettings(snapshot: StreamerSettingsSnapshot): StreamerViewSet
       selectedSlayerStats: [...snapshot.tickerSettings.selectedSlayerStats],
       showObjectiveStats: snapshot.tickerSettings.showObjectiveStats,
       medalRarityFilter: [...snapshot.tickerSettings.medalRarityFilter],
+      inSeriesShowTicker: snapshot.inSeriesShowTicker,
+      matchmakingShowTicker: snapshot.matchmakingShowTicker,
+      matchmakingShowStatsHighlights: snapshot.matchmakingShowStatsHighlights,
       inSeriesMyStatsOnly: snapshot.inSeriesMyStatsOnly,
       matchmakingMyStatsOnly: snapshot.matchmakingMyStatsOnly,
     },
@@ -217,6 +225,33 @@ export class StreamerSettingsPresenter {
     }
 
     this.config.store.batchUpdate({ matchmakingMyStatsOnly: enabled });
+    this.scheduleSave();
+  }
+
+  public setInSeriesShowTicker(enabled: boolean): void {
+    if (this.isDisposed) {
+      return;
+    }
+
+    this.config.store.batchUpdate({ inSeriesShowTicker: enabled });
+    this.scheduleSave();
+  }
+
+  public setMatchmakingShowTicker(enabled: boolean): void {
+    if (this.isDisposed) {
+      return;
+    }
+
+    this.config.store.batchUpdate({ matchmakingShowTicker: enabled });
+    this.scheduleSave();
+  }
+
+  public setMatchmakingShowStatsHighlights(enabled: boolean): void {
+    if (this.isDisposed) {
+      return;
+    }
+
+    this.config.store.batchUpdate({ matchmakingShowStatsHighlights: enabled });
     this.scheduleSave();
   }
 

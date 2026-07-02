@@ -179,6 +179,7 @@ describe("individual-tracker-overlay-presenter", () => {
   it("builds pre-series ticker group only when ticker is enabled and active series has no matches", () => {
     const groups = presenter.buildPreSeriesTickerGroup({
       showTicker: true,
+      showPreSeriesInfo: true,
       activeSeries: aSeriesWith({ matches: [], isActive: true }),
       playerName: "TrackedPlayer",
       discordName: null,
@@ -189,6 +190,19 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(groups[0].label).toBe("Player Info");
     expect(groups[0].rows[0].showTeamIcon).toBe(false);
     expect(groups[0].rows[0].gamertag).toBe("TrackedPlayer");
+  });
+
+  it("hides the pre-series ticker group when pre-series info is disabled", () => {
+    const groups = presenter.buildPreSeriesTickerGroup({
+      showTicker: true,
+      showPreSeriesInfo: false,
+      activeSeries: aSeriesWith({ matches: [], isActive: true }),
+      playerName: "TrackedPlayer",
+      discordName: null,
+      gamertag: "TrackedPlayer",
+    });
+
+    expect(groups).toHaveLength(0);
   });
 
   it("maps pre-series tracked-player ticker row to the tracked-player color slot", () => {
@@ -312,9 +326,41 @@ describe("individual-tracker-overlay-presenter", () => {
     });
 
     expect(model.topSection?.teamLeft?.players).toEqual([
-      { key: "Same:Tag", label: "Same" },
-      { key: "Same:Tag:1", label: "Same" },
+      { key: "Same:Tag", label: "Tag" },
+      { key: "Same:Tag:1", label: "Tag" },
     ]);
+  });
+
+  it("shows matchmaking stats highlights by default when provided by viewer settings", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        statsHighlights: [{ label: "KDA", value: "3.2" }],
+      }),
+      streamerSettings: undefined,
+      matchStatsState: null,
+      selectedMatchId: null,
+    });
+
+    expect(model.topSection).toBeNull();
+    expect(model.statsHighlights).toEqual([{ label: "KDA", value: "3.2" }]);
+  });
+
+  it("hides matchmaking stats highlights when overlay toggle is disabled", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        statsHighlights: [{ label: "KDA", value: "3.2" }],
+      }),
+      streamerSettings: {
+        styleFlags: {
+          matchmakingShowStatsHighlights: false,
+        },
+      } satisfies StreamerViewSettings,
+      matchStatsState: null,
+      selectedMatchId: null,
+    });
+
+    expect(model.topSection).toBeNull();
+    expect(model.statsHighlights).toEqual([]);
   });
 
   it("shows only the tracked player row in matchmaking ticker when matchmakingMyStatsOnly is enabled", () => {
@@ -383,5 +429,45 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.type).toBe("player");
     expect(rows[0]?.name).toBe("TrackedPlayer");
+  });
+
+  it("hides ticker in-series when inSeriesShowTicker is false", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        timeline: [
+          {
+            type: "series",
+            series: aSeriesWith({
+              isActive: true,
+              matches: [aMatchWith({ matchId: "series-match-1" })],
+            }),
+          },
+        ],
+      }),
+      streamerSettings: {
+        styleFlags: {
+          inSeriesShowTicker: false,
+        },
+      },
+      matchStatsState: null,
+      selectedMatchId: null,
+    });
+
+    expect(model.showTicker).toBe(false);
+  });
+
+  it("hides ticker in matchmaking when matchmakingShowTicker is false", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith(),
+      streamerSettings: {
+        styleFlags: {
+          matchmakingShowTicker: false,
+        },
+      },
+      matchStatsState: null,
+      selectedMatchId: null,
+    });
+
+    expect(model.showTicker).toBe(false);
   });
 });

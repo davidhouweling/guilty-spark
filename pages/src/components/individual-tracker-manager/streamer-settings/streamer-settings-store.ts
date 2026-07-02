@@ -1,3 +1,7 @@
+import {
+  DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS,
+  INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
+} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type {
   IndividualStatsHighlightOption,
   StreamerViewColorMode,
@@ -15,6 +19,9 @@ export interface StreamerSettingsSnapshot {
   readonly observerEnemyColor: string;
   readonly displaySettings: DisplaySettings;
   readonly tickerSettings: TickerSettings;
+  readonly inSeriesShowTicker: boolean;
+  readonly matchmakingShowTicker: boolean;
+  readonly matchmakingShowStatsHighlights: boolean;
   readonly inSeriesMyStatsOnly: boolean;
   readonly matchmakingMyStatsOnly: boolean;
   readonly fontSizeSettings: FontSizeSettings;
@@ -24,14 +31,17 @@ export interface StreamerSettingsSnapshot {
 }
 
 const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
-  showTeamDetails: false,
-  showDiscordNames: true,
+  showTeamDetails: true,
+  showDiscordNames: false,
   showXboxNames: true,
   showServerIcon: true,
   showTitle: true,
   showSubtitle: true,
   showScore: true,
 };
+
+const DEFAULT_STATS_HIGHLIGHT_SLOTS: readonly IndividualStatsHighlightOption[] =
+  DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS.slice(0, INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT);
 
 const DEFAULT_TICKER_SETTINGS: TickerSettings = {
   showTicker: true,
@@ -64,10 +74,13 @@ export class StreamerSettingsStore {
       observerEnemyColor: "cerulean",
       displaySettings: DEFAULT_DISPLAY_SETTINGS,
       tickerSettings: DEFAULT_TICKER_SETTINGS,
+      inSeriesShowTicker: true,
+      matchmakingShowTicker: true,
+      matchmakingShowStatsHighlights: true,
       inSeriesMyStatsOnly: false,
       matchmakingMyStatsOnly: false,
       fontSizeSettings: DEFAULT_FONT_SIZE_SETTINGS,
-      statsHighlightSlots: [],
+      statsHighlightSlots: DEFAULT_STATS_HIGHLIGHT_SLOTS,
       saveStatus: "idle",
       saveErrorMessage: null,
     };

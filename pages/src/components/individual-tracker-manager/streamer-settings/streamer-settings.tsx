@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import classNames from "classnames";
 import type { StreamerViewColorMode } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
@@ -56,6 +57,9 @@ export interface StreamerSettingsSectionViewProps {
   readonly observerEnemyColor: string;
   readonly displaySettings: DisplaySettings;
   readonly tickerSettings: TickerSettings;
+  readonly inSeriesShowTicker: boolean;
+  readonly matchmakingShowTicker: boolean;
+  readonly matchmakingShowStatsHighlights: boolean;
   readonly inSeriesMyStatsOnly: boolean;
   readonly matchmakingMyStatsOnly: boolean;
   readonly fontSizeSettings: FontSizeSettings;
@@ -66,6 +70,9 @@ export interface StreamerSettingsSectionViewProps {
   readonly onObserverColorsChange: (teamColor: string, enemyColor: string) => void;
   readonly onDisplaySettingsChange: (updates: Partial<DisplaySettings>) => void;
   readonly onTickerSettingsChange: (updates: Partial<TickerSettings>) => void;
+  readonly onInSeriesShowTickerChange: (enabled: boolean) => void;
+  readonly onMatchmakingShowTickerChange: (enabled: boolean) => void;
+  readonly onMatchmakingShowStatsHighlightsChange: (enabled: boolean) => void;
   readonly onInSeriesMyStatsOnlyChange: (enabled: boolean) => void;
   readonly onMatchmakingMyStatsOnlyChange: (enabled: boolean) => void;
   readonly onFontSizesChange: (updates: Partial<FontSizeSettings>) => void;
@@ -80,6 +87,9 @@ export function StreamerSettingsSectionView({
   observerEnemyColor,
   displaySettings,
   tickerSettings,
+  inSeriesShowTicker,
+  matchmakingShowTicker,
+  matchmakingShowStatsHighlights,
   inSeriesMyStatsOnly,
   matchmakingMyStatsOnly,
   fontSizeSettings,
@@ -90,6 +100,9 @@ export function StreamerSettingsSectionView({
   onObserverColorsChange,
   onDisplaySettingsChange,
   onTickerSettingsChange,
+  onInSeriesShowTickerChange,
+  onMatchmakingShowTickerChange,
+  onMatchmakingShowStatsHighlightsChange,
   onInSeriesMyStatsOnlyChange,
   onMatchmakingMyStatsOnlyChange,
   onFontSizesChange,
@@ -187,6 +200,8 @@ export function StreamerSettingsSectionView({
             <p className={styles.urlText}>{urls?.viewUrl}</p>
             <div className={styles.buttonRow}>
               <Button
+                variant="secondary"
+                size="small"
                 onClick={(): void => {
                   handleOpenUrl(urls?.viewUrl ?? "");
                 }}
@@ -194,6 +209,8 @@ export function StreamerSettingsSectionView({
                 Open viewer
               </Button>
               <Button
+                variant="secondary"
+                size="small"
                 onClick={(): void => {
                   handleCopy("view", urls?.viewUrl ?? "");
                 }}
@@ -201,14 +218,16 @@ export function StreamerSettingsSectionView({
                 {copyTarget === "view" ? "Copied!" : "Copy"}
               </Button>
             </div>
-          </div>
 
-          <div className={styles.card}>
+            <hr className={styles.sectionDivider} />
+
             <h3 className={styles.cardTitle}>Overlay URL</h3>
             <p className={styles.cardDescription}>Use this in OBS as a Browser Source.</p>
             <p className={styles.urlText}>{urls?.overlayUrl}</p>
             <div className={styles.buttonRow}>
               <Button
+                variant="secondary"
+                size="small"
                 onClick={(): void => {
                   handleOpenUrl(urls?.overlayUrl ?? "");
                 }}
@@ -216,6 +235,8 @@ export function StreamerSettingsSectionView({
                 Open overlay
               </Button>
               <Button
+                variant="secondary"
+                size="small"
                 onClick={(): void => {
                   handleOpenUrl(buildOverlayPreviewUrl(urls?.overlayUrl ?? "", defaultColorMode));
                 }}
@@ -223,6 +244,8 @@ export function StreamerSettingsSectionView({
                 Open overlay with preview
               </Button>
               <Button
+                variant="secondary"
+                size="small"
                 onClick={(): void => {
                   handleCopy("overlay", urls?.overlayUrl ?? "");
                 }}
@@ -235,33 +258,47 @@ export function StreamerSettingsSectionView({
       )}
 
       <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Presentation defaults</h3>
-        <p className={styles.cardDescription}>Configure the default color mode for the overlay.</p>
-        <div className={styles.modeRow}>
-          <Button
-            variant={defaultColorMode === "player" ? "primary" : "secondary"}
+        <h3 className={styles.cardTitle}>Global Defaults</h3>
+        <p className={styles.cardDescription}>These controls apply to both In Series and Matchmaking overlay states.</p>
+        <div className={styles.subsection}>
+          <h4 className={styles.subsectionTitle}>Default Color Mode</h4>
+          <p className={styles.cardDescription}>Configure the default color mode for the overlay.</p>
+        </div>
+        <div className={styles.modeToggle} role="group" aria-label="Default color mode">
+          <button
+            type="button"
+            aria-pressed={defaultColorMode === "player"}
             disabled={isSaving}
+            className={classNames(styles.modeToggleButton, {
+              [styles.modeToggleButtonActive]: defaultColorMode === "player",
+            })}
             onClick={(): void => {
               onDefaultColorModeChange("player");
             }}
           >
             Player Mode
-          </Button>
-          <Button
-            variant={defaultColorMode === "observer" ? "primary" : "secondary"}
+          </button>
+          <button
+            type="button"
+            aria-pressed={defaultColorMode === "observer"}
             disabled={isSaving}
+            className={classNames(styles.modeToggleButton, {
+              [styles.modeToggleButtonActive]: defaultColorMode === "observer",
+            })}
             onClick={(): void => {
               onDefaultColorModeChange("observer");
             }}
           >
             Observer Mode
-          </Button>
+          </button>
         </div>
-      </div>
 
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Player View Colors</h3>
-        <p className={styles.cardDescription}>Used whenever color mode is set to player.</p>
+        <hr className={styles.sectionDivider} />
+
+        <div className={styles.subsection}>
+          <h4 className={styles.subsectionTitle}>Player Colors</h4>
+          <p className={styles.cardDescription}>Used whenever color mode is set to player.</p>
+        </div>
         <div className={styles.pickerGrid}>
           <div>
             <label className={styles.preferenceLabel}>Player team color</label>
@@ -284,11 +321,13 @@ export function StreamerSettingsSectionView({
             />
           </div>
         </div>
-      </div>
 
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Observer View Colors</h3>
-        <p className={styles.cardDescription}>Global observer colors for fixed-team mode.</p>
+        <hr className={styles.sectionDivider} />
+
+        <div className={styles.subsection}>
+          <h4 className={styles.subsectionTitle}>Observer Colors</h4>
+          <p className={styles.cardDescription}>Global observer colors for fixed-team mode.</p>
+        </div>
         <div className={styles.pickerGrid}>
           <div>
             <label className={styles.preferenceLabel}>Eagle</label>
@@ -311,41 +350,28 @@ export function StreamerSettingsSectionView({
             />
           </div>
         </div>
-      </div>
 
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Display Options</h3>
-        <p className={styles.cardDescription}>Control what information is shown on the viewer and overlay.</p>
-        <DisplaySettingsSection settings={displaySettings} onChange={onDisplaySettingsChange} />
-      </div>
+        <hr className={styles.sectionDivider} />
 
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Information Ticker</h3>
-        <p className={styles.cardDescription}>
-          In the overlay at the bottom, the Information Ticker provides detailed insights at a glance.
-        </p>
-        <TickerSettingsSection settings={tickerSettings} onChange={onTickerSettingsChange} />
-        <Checkbox
-          checked={inSeriesMyStatsOnly}
-          onChange={(checked): void => {
-            onInSeriesMyStatsOnlyChange(checked);
-          }}
-          label="In-Series: Show Only My Stats"
-          description="When enabled, the ticker only rotates your player row during an active series."
+        <div className={styles.subsection}>
+          <h4 className={styles.subsectionTitle}>Information Ticker</h4>
+          <p className={styles.cardDescription}>
+            These ticker stat and medal filters apply to both In Series and Matchmaking ticker rows.
+          </p>
+        </div>
+        <TickerSettingsSection
+          settings={tickerSettings}
+          onChange={onTickerSettingsChange}
+          showTickerVisibilityToggle={false}
+          showPreSeriesInfoToggle={false}
         />
-        <Checkbox
-          checked={matchmakingMyStatsOnly}
-          onChange={(checked): void => {
-            onMatchmakingMyStatsOnlyChange(checked);
-          }}
-          label="Matchmaking: Show Only My Stats"
-          description="When enabled, the ticker only rotates your player row during matchmaking matches."
-        />
-      </div>
 
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Text Sizes</h3>
-        <p className={styles.cardDescription}>Adjust the size of text for different sections.</p>
+        <hr className={styles.sectionDivider} />
+
+        <div className={styles.subsection}>
+          <h4 className={styles.subsectionTitle}>Text Sizes</h4>
+          <p className={styles.cardDescription}>Adjust the size of text for different sections.</p>
+        </div>
         <div className={styles.fontSizeContainer}>
           <FontSizeSlider
             label="Queue Info"
@@ -385,6 +411,117 @@ export function StreamerSettingsSectionView({
         </div>
       </div>
 
+      <div className={styles.card}>
+        <h3 className={styles.cardTitle}>In Series UI</h3>
+        <p className={styles.cardDescription}>
+          Controls in this section apply when the overlay is currently in a series.
+        </p>
+        <div className={styles.subsection}>
+          <h4 className={styles.subsectionTitle}>Top Section</h4>
+          <p className={styles.cardDescription}>
+            Control title, teams, and score display for in-series top bar rendering.
+          </p>
+        </div>
+        <DisplaySettingsSection settings={displaySettings} onChange={onDisplaySettingsChange} />
+
+        <hr className={styles.sectionDivider} />
+
+        <div className={styles.subsection}>
+          <h4 className={styles.subsectionTitle}>Bottom Section</h4>
+          <p className={styles.cardDescription}>
+            Configure in-series ticker behavior before and during active series match flow.
+          </p>
+        </div>
+        <Checkbox
+          checked={tickerSettings.showPreSeriesInfo}
+          onChange={(checked): void => {
+            onTickerSettingsChange({ showPreSeriesInfo: checked });
+          }}
+          label="Display Pre-Series Player Info"
+          description="Show individual player info before the first match starts"
+        />
+        <Checkbox
+          checked={inSeriesShowTicker}
+          onChange={(checked): void => {
+            onInSeriesShowTickerChange(checked);
+          }}
+          label={
+            <>
+              <span className={styles.srOnly}>In Series </span>
+              Show Information Ticker
+            </>
+          }
+          description="Toggle ticker visibility for in-series overlay state."
+        />
+        <Checkbox
+          checked={inSeriesMyStatsOnly}
+          onChange={(checked): void => {
+            onInSeriesMyStatsOnlyChange(checked);
+          }}
+          label={
+            <>
+              <span className={styles.srOnly}>In Series </span>
+              Show only my stats
+            </>
+          }
+          description="When enabled, the ticker only rotates your player row during an active series."
+        />
+      </div>
+
+      <div className={styles.card}>
+        <h3 className={styles.cardTitle}>Matchmaking UI</h3>
+        <p className={styles.cardDescription}>
+          Controls in this section apply when no active series context is present.
+        </p>
+        <div className={styles.subsection}>
+          <h4 className={styles.subsectionTitle}>Top Section</h4>
+          <p className={styles.cardDescription}>
+            Matchmaking top-section stats depend on Stats Highlights and this overlay visibility toggle.
+          </p>
+        </div>
+        <Checkbox
+          checked={matchmakingShowStatsHighlights}
+          onChange={(checked): void => {
+            onMatchmakingShowStatsHighlightsChange(checked);
+          }}
+          label="Show stats highlights"
+          description="Controls top-bar stats in the overlay only. The Stats Highlights tab is the master source for which stats are available to viewers."
+        />
+
+        <hr className={styles.sectionDivider} />
+
+        <div className={styles.subsection}>
+          <h4 className={styles.subsectionTitle}>Bottom Section</h4>
+          <p className={styles.cardDescription}>Configure matchmaking-only ticker behavior.</p>
+        </div>
+        <Checkbox
+          checked={matchmakingShowTicker}
+          onChange={(checked): void => {
+            onMatchmakingShowTickerChange(checked);
+          }}
+          label={
+            <>
+              <span className={styles.srOnly}>Matchmaking </span>
+              Show Information Ticker
+            </>
+          }
+          description="Toggle ticker visibility for matchmaking overlay state."
+        />
+        <Checkbox
+          checked={matchmakingMyStatsOnly}
+          onChange={(checked): void => {
+            onMatchmakingMyStatsOnlyChange(checked);
+          }}
+          label={
+            <>
+              <span className={styles.srOnly}>Matchmaking </span>
+              Show only my stats
+            </>
+          }
+          description="When enabled, the ticker only rotates your player row during matchmaking matches."
+        />
+      </div>
+
       {showSaveToast ? (
         <div className={styles.floatingSaveToast} role="status" aria-live="polite">
           {saveStatus === "saving" ? (
@@ -396,8 +533,6 @@ export function StreamerSettingsSectionView({
           )}
         </div>
       ) : null}
-
-      <Alert variant="info">Twitch automation and advanced overlay presets remain in the next Phase 4 slice.</Alert>
     </div>
   );
 }
