@@ -293,7 +293,7 @@ export class IndividualTrackerOverlayPresenter {
   }
 
   public present(options: BuildOverlayViewModelOptions): IndividualTrackerOverlayViewModel {
-    const { renderModel, streamerSettings, selectedMatchId } = options;
+    const { renderModel, streamerSettings } = options;
     const displaySettings = getOverlayDisplaySettings(streamerSettings);
     const fontSizeStyles = getFontSizeStyles(streamerSettings);
     const activeSeries = this.getOverlayActiveSeries(renderModel);

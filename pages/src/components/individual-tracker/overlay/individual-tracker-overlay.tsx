@@ -115,7 +115,6 @@ export function IndividualTrackerOverlay({
         tickerMatchGroups={viewModel.tickerMatchGroups}
         showTabs={viewModel.showTabs}
         showTicker={viewModel.showTicker}
-        showPreSeriesInfo={viewModel.showPreSeriesInfo}
         matchesLength={matchesLength}
         showPreview={showPreview}
         previewMode={previewMode}
