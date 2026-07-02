@@ -45,7 +45,7 @@ describe("useIndividualTrackerViewer", () => {
 
     const initialSettings: StreamerViewSettings = {
       styleFlags: {
-        showMatchmakingStatsOnly: true,
+        matchmakingMyStatsOnly: true,
       },
     };
 
@@ -71,7 +71,7 @@ describe("useIndividualTrackerViewer", () => {
 
     const nextSettings: StreamerViewSettings = {
       styleFlags: {
-        showMatchmakingStatsOnly: true,
+        matchmakingMyStatsOnly: true,
       },
     };
 

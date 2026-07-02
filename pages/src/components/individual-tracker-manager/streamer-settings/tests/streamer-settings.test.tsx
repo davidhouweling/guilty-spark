@@ -65,6 +65,8 @@ function aFakeProps(overrides?: Partial<StreamerSettingsSectionViewProps>): Stre
     observerEnemyColor: "cerulean",
     displaySettings: DEFAULT_DISPLAY_SETTINGS,
     tickerSettings: DEFAULT_TICKER_SETTINGS,
+    inSeriesMyStatsOnly: false,
+    matchmakingMyStatsOnly: false,
     fontSizeSettings: DEFAULT_FONT_SIZE_SETTINGS,
     saveStatus: "idle",
     saveErrorMessage: null,
@@ -73,6 +75,8 @@ function aFakeProps(overrides?: Partial<StreamerSettingsSectionViewProps>): Stre
     onObserverColorsChange: (): void => undefined,
     onDisplaySettingsChange: (): void => undefined,
     onTickerSettingsChange: (): void => undefined,
+    onInSeriesMyStatsOnlyChange: (): void => undefined,
+    onMatchmakingMyStatsOnlyChange: (): void => undefined,
     onFontSizesChange: (): void => undefined,
     ...overrides,
   };
@@ -245,6 +249,28 @@ describe("StreamerSettingsSectionView", () => {
       expect(screen.getByTestId("color-picker-Player enemy color")).toBeInTheDocument();
       expect(screen.getByTestId("color-picker-Eagle")).toBeInTheDocument();
       expect(screen.getByTestId("color-picker-Cobra")).toBeInTheDocument();
+    });
+
+    it("calls onInSeriesMyStatsOnlyChange when the in-series toggle is clicked", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn<(enabled: boolean) => void>();
+
+      render(<StreamerSettingsSectionView {...aFakeProps({ onInSeriesMyStatsOnlyChange: onChange })} />);
+
+      await user.click(screen.getByText("In-Series: Show Only My Stats"));
+
+      expect(onChange).toHaveBeenCalledWith(true);
+    });
+
+    it("calls onMatchmakingMyStatsOnlyChange when the matchmaking toggle is clicked", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn<(enabled: boolean) => void>();
+
+      render(<StreamerSettingsSectionView {...aFakeProps({ onMatchmakingMyStatsOnlyChange: onChange })} />);
+
+      await user.click(screen.getByText("Matchmaking: Show Only My Stats"));
+
+      expect(onChange).toHaveBeenCalledWith(true);
     });
   });
 });

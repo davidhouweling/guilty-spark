@@ -122,6 +122,8 @@ export function IndividualTrackerManagerPage({
           observerEnemyColor={settingsSnapshot.observerEnemyColor}
           displaySettings={settingsSnapshot.displaySettings}
           tickerSettings={settingsSnapshot.tickerSettings}
+          inSeriesMyStatsOnly={settingsSnapshot.inSeriesMyStatsOnly}
+          matchmakingMyStatsOnly={settingsSnapshot.matchmakingMyStatsOnly}
           fontSizeSettings={settingsSnapshot.fontSizeSettings}
           saveStatus={settingsSnapshot.saveStatus}
           saveErrorMessage={settingsSnapshot.saveErrorMessage}
@@ -139,6 +141,12 @@ export function IndividualTrackerManagerPage({
           }}
           onTickerSettingsChange={(updates): void => {
             settingsPresenter.setTickerSettings(updates);
+          }}
+          onInSeriesMyStatsOnlyChange={(enabled): void => {
+            settingsPresenter.setInSeriesMyStatsOnly(enabled);
+          }}
+          onMatchmakingMyStatsOnlyChange={(enabled): void => {
+            settingsPresenter.setMatchmakingMyStatsOnly(enabled);
           }}
           onFontSizesChange={(updates): void => {
             settingsPresenter.setFontSizes(updates);

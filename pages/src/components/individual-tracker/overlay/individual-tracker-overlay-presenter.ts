@@ -1,4 +1,3 @@
-import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import type { MatchStats } from "halo-infinite-api";
 import type { CSSProperties } from "react";
@@ -20,6 +19,11 @@ import type {
   OverlayTopSectionModel,
 } from "./types";
 import { getOverlayDisplaySettings } from "./types";
+
+interface TickerFilterOptions {
+  readonly trackedGamertag: string;
+  readonly includeOnlyTrackedPlayer: boolean;
+}
 
 export type MatchStatsState =
   | { readonly status: "loading" }
@@ -245,7 +249,10 @@ export class IndividualTrackerOverlayPresenter {
     const activeSeries = this.getOverlayActiveSeries(renderModel);
     const tabs = this.buildTabs(renderModel.timeline, activeSeries);
     const selectedTabIndex = this.getSelectedTabIndex(tabs, selectedMatchId);
-    const loadedTickerGroups = this.buildTickerGroups(matchStatsState, selectedTabIndex);
+    const loadedTickerGroups = this.buildTickerGroups(matchStatsState, selectedTabIndex, {
+      trackedGamertag: renderModel.gamertag,
+      includeOnlyTrackedPlayer: this.getIncludeOnlyTrackedPlayer(streamerSettings, activeSeries),
+    });
     const tickerMatchGroups =
       loadedTickerGroups.length > 0
         ? loadedTickerGroups
@@ -329,38 +336,80 @@ export class IndividualTrackerOverlayPresenter {
     return tab?.type === "match" ? tab.index : 0;
   }
 
-  private buildTickerGroups(matchStatsState: MatchStatsState | null, matchIndex: number): TickerMatchGroup[] {
+  private buildTickerGroups(
+    matchStatsState: MatchStatsState | null,
+    matchIndex: number,
+    filterOptions: TickerFilterOptions,
+  ): TickerMatchGroup[] {
     if (matchStatsState?.status !== "loaded") {
       return [];
     }
 
-    const { stats } = matchStatsState;
+    const { stats, playerMap } = matchStatsState;
     const formatter = createMatchStatsFormatter(stats.MatchInfo.GameVariantCategory);
-    const playerMap = new Map(stats.Players.map((p) => [getPlayerXuid(p), getPlayerXuid(p)]));
     const data = formatter.getData(stats, playerMap, {});
+
+    const rows = data.flatMap((teamData) => [
+      {
+        type: "team" as const,
+        teamId: teamData.teamId,
+        name: getTeamName(teamData.teamId),
+        stats: teamData.teamStats,
+        medals: teamData.teamMedals,
+      },
+      ...teamData.players.map((p) => ({
+        type: "player" as const,
+        teamId: teamData.teamId,
+        name: p.name,
+        stats: p.values,
+        medals: p.medals,
+      })),
+    ]);
+
+    const filteredRows = this.filterRowsForTrackedPlayer(rows, filterOptions);
 
     return [
       {
         matchIndex,
         label: "",
-        rows: data.flatMap((teamData) => [
-          {
-            type: "team" as const,
-            teamId: teamData.teamId,
-            name: getTeamName(teamData.teamId),
-            stats: teamData.teamStats,
-            medals: teamData.teamMedals,
-          },
-          ...teamData.players.map((p) => ({
-            type: "player" as const,
-            teamId: teamData.teamId,
-            name: p.name,
-            stats: p.values,
-            medals: p.medals,
-          })),
-        ]),
+        rows: filteredRows,
       },
     ];
+  }
+
+  private getIncludeOnlyTrackedPlayer(
+    streamerSettings: StreamerViewSettings | undefined,
+    activeSeries: ViewerSeriesTab | null,
+  ): boolean {
+    if (activeSeries != null) {
+      return streamerSettings?.styleFlags?.inSeriesMyStatsOnly === true;
+    }
+
+    return streamerSettings?.styleFlags?.matchmakingMyStatsOnly === true;
+  }
+
+  private filterRowsForTrackedPlayer(
+    rows: TickerMatchGroup["rows"],
+    filterOptions: TickerFilterOptions,
+  ): TickerMatchGroup["rows"] {
+    if (!filterOptions.includeOnlyTrackedPlayer) {
+      return rows;
+    }
+
+    const trackedGamertag = filterOptions.trackedGamertag.trim().toLowerCase();
+    if (trackedGamertag === "") {
+      return rows;
+    }
+
+    const trackedPlayerRows = rows.filter((row) => {
+      if (row.type !== "player") {
+        return false;
+      }
+
+      return row.name.trim().toLowerCase() === trackedGamertag;
+    });
+
+    return trackedPlayerRows.length > 0 ? trackedPlayerRows : rows;
   }
 
   private getShowTabs(renderModel: IndividualTrackerViewerRenderModel): boolean {

@@ -67,6 +67,8 @@ function settingsToSnapshot(
       showObjectiveStats: styleFlags.showObjectiveStats ?? snapshot.tickerSettings.showObjectiveStats,
       medalRarityFilter: styleFlags.medalRarityFilter ?? snapshot.tickerSettings.medalRarityFilter,
     },
+    inSeriesMyStatsOnly: styleFlags.inSeriesMyStatsOnly ?? snapshot.inSeriesMyStatsOnly,
+    matchmakingMyStatsOnly: styleFlags.matchmakingMyStatsOnly ?? snapshot.matchmakingMyStatsOnly,
     fontSizeSettings: {
       queueInfo: fontSizes.queueInfo ?? snapshot.fontSizeSettings.queueInfo,
       score: fontSizes.score ?? snapshot.fontSizeSettings.score,
@@ -100,6 +102,8 @@ function snapshotToSettings(snapshot: StreamerSettingsSnapshot): StreamerViewSet
       selectedSlayerStats: [...snapshot.tickerSettings.selectedSlayerStats],
       showObjectiveStats: snapshot.tickerSettings.showObjectiveStats,
       medalRarityFilter: [...snapshot.tickerSettings.medalRarityFilter],
+      inSeriesMyStatsOnly: snapshot.inSeriesMyStatsOnly,
+      matchmakingMyStatsOnly: snapshot.matchmakingMyStatsOnly,
     },
     visibleSections: {
       showTeamDetails: snapshot.displaySettings.showTeamDetails,
@@ -195,6 +199,24 @@ export class StreamerSettingsPresenter {
     }
     const current = this.config.store.getSnapshot().tickerSettings;
     this.config.store.setTickerSettings({ ...current, ...updates });
+    this.scheduleSave();
+  }
+
+  public setInSeriesMyStatsOnly(enabled: boolean): void {
+    if (this.isDisposed) {
+      return;
+    }
+
+    this.config.store.batchUpdate({ inSeriesMyStatsOnly: enabled });
+    this.scheduleSave();
+  }
+
+  public setMatchmakingMyStatsOnly(enabled: boolean): void {
+    if (this.isDisposed) {
+      return;
+    }
+
+    this.config.store.batchUpdate({ matchmakingMyStatsOnly: enabled });
     this.scheduleSave();
   }
 

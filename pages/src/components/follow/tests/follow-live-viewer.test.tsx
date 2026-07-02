@@ -33,7 +33,7 @@ vi.mock("../../individual-tracker/viewer/create", () => ({
       <div data-testid="mock-viewer" data-instance-id={instanceId.toString()}>
         {trackerId}
         <span data-testid="mock-streamer-settings">
-          {streamerSettings?.styleFlags?.showMatchmakingStatsOnly === true ? "true" : "false"}
+          {streamerSettings?.styleFlags?.matchmakingMyStatsOnly === true ? "true" : "false"}
         </span>
         <span data-testid="mock-connection-status-override">{connectionStatusOverride ?? "none"}</span>
       </div>
@@ -109,7 +109,7 @@ describe("FollowLiveViewer", () => {
     const directoryWithSettings: TrackerDirectory = aDirectoryWith({
       streamerSettings: {
         styleFlags: {
-          showMatchmakingStatsOnly: true,
+          matchmakingMyStatsOnly: true,
         },
       },
     });

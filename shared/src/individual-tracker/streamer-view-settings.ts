@@ -140,7 +140,8 @@ export const streamerViewStyleFlagsSchema = z.object({
   selectedSlayerStats: z.array(z.string()).optional(),
   showObjectiveStats: z.boolean().optional(),
   medalRarityFilter: z.array(z.number()).optional(),
-  showMatchmakingStatsOnly: z.boolean().optional(),
+  inSeriesMyStatsOnly: z.boolean().optional(),
+  matchmakingMyStatsOnly: z.boolean().optional(),
 });
 export type StreamerViewStyleFlags = z.infer<typeof streamerViewStyleFlagsSchema>;
 

@@ -41,7 +41,7 @@ function aHarness(session: SessionResponse = AUTHENTICATED_SESSION): Harness {
   const liveTrackersController = aFakeLiveTrackersController();
   const authService = aFakeAuthServiceWith({ session });
   const settingsService = aFakeIndividualTrackerSettingsServiceWith({
-    styleFlags: { showMatchmakingStatsOnly: true },
+    styleFlags: { matchmakingMyStatsOnly: true },
   });
   const presenter = new IndividualTrackerPresenter({
     authService,
@@ -91,7 +91,7 @@ describe("IndividualTrackerPresenter", () => {
       presenter.start();
       await flushPromises();
       expect(presenter.getSnapshot().streamerSettings).toMatchObject({
-        styleFlags: { showMatchmakingStatsOnly: true },
+        styleFlags: { matchmakingMyStatsOnly: true },
       });
     });
   });

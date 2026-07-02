@@ -80,7 +80,11 @@ describe("StreamerSettingsPresenter", () => {
       presenter.loadSettings(
         {
           visibleSections: { showTicker: false, showTabs: false },
-          styleFlags: { showPreSeriesInfo: false },
+          styleFlags: {
+            showPreSeriesInfo: false,
+            inSeriesMyStatsOnly: true,
+            matchmakingMyStatsOnly: true,
+          },
         },
         null,
       );
@@ -88,6 +92,8 @@ describe("StreamerSettingsPresenter", () => {
       expect(store.getSnapshot().tickerSettings.showTicker).toBe(false);
       expect(store.getSnapshot().tickerSettings.showTabs).toBe(false);
       expect(store.getSnapshot().tickerSettings.showPreSeriesInfo).toBe(false);
+      expect(store.getSnapshot().inSeriesMyStatsOnly).toBe(true);
+      expect(store.getSnapshot().matchmakingMyStatsOnly).toBe(true);
     });
 
     it("sets the gamertag on the store", () => {
@@ -254,6 +260,44 @@ describe("StreamerSettingsPresenter", () => {
 
       expect(store.getSnapshot().tickerSettings.showTicker).toBe(false);
       expect(store.getSnapshot().tickerSettings.showTabs).toBe(true);
+    });
+  });
+
+  describe("setInSeriesMyStatsOnly", () => {
+    it("updates inSeriesMyStatsOnly in the store and schedules a save", async () => {
+      const { store, presenter, settingsService } = aHarness();
+      const updateSpy: MockInstance<typeof settingsService.updateSettings> = vi.spyOn(
+        settingsService,
+        "updateSettings",
+      );
+
+      presenter.setInSeriesMyStatsOnly(true);
+
+      expect(store.getSnapshot().inSeriesMyStatsOnly).toBe(true);
+
+      await vi.runAllTimersAsync();
+
+      const [[saved]] = updateSpy.mock.calls;
+      expect(saved.styleFlags?.inSeriesMyStatsOnly).toBe(true);
+    });
+  });
+
+  describe("setMatchmakingMyStatsOnly", () => {
+    it("updates matchmakingMyStatsOnly in the store and schedules a save", async () => {
+      const { store, presenter, settingsService } = aHarness();
+      const updateSpy: MockInstance<typeof settingsService.updateSettings> = vi.spyOn(
+        settingsService,
+        "updateSettings",
+      );
+
+      presenter.setMatchmakingMyStatsOnly(true);
+
+      expect(store.getSnapshot().matchmakingMyStatsOnly).toBe(true);
+
+      await vi.runAllTimersAsync();
+
+      const [[saved]] = updateSpy.mock.calls;
+      expect(saved.styleFlags?.matchmakingMyStatsOnly).toBe(true);
     });
   });
 
