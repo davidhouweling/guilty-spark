@@ -190,6 +190,34 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(groups[0].rows[0].gamertag).toBe("TrackedPlayer");
   });
 
+  it("maps pre-series tracked-player ticker row to the tracked-player color slot", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        hasActiveSeries: true,
+        activeSeriesContext: {
+          title: "Alpha vs Beta",
+          subtitle: "Bo3",
+          teams: [],
+        },
+        teamColors: [
+          { id: "tracked", name: "Tracked", hex: "#00AA11" },
+          { id: "enemy", name: "Enemy", hex: "#AA0011" },
+        ],
+      }),
+      streamerSettings: {
+        visibleSections: {
+          showTicker: true,
+        },
+      } satisfies StreamerViewSettings,
+      matchStatsState: null,
+      selectedMatchId: null,
+    });
+
+    expect(model.tickerMatchGroups).toHaveLength(1);
+    expect(model.tickerMatchGroups[0]?.rows[0]?.teamId).toBe(0);
+    expect(model.teamColors[0]?.hex).toBe("#00AA11");
+  });
+
   it("builds top-section team details with xbox-only names when discord names are hidden", () => {
     const model = presenter.present({
       renderModel: aRenderModelWith({
