@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import { aFakeMatchStatsWith, aFakeMedalMetadata } from "../../../../controllers/stats/fakes/data";
 import { gameModeIconSrc } from "../../game-mode-icon";
 import type {
   IndividualTrackerViewerRenderModel,
@@ -314,5 +315,73 @@ describe("individual-tracker-overlay-presenter", () => {
       { key: "Same:Tag", label: "Same" },
       { key: "Same:Tag:1", label: "Same" },
     ]);
+  });
+
+  it("shows only the tracked player row in matchmaking ticker when matchmakingMyStatsOnly is enabled", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith(),
+      streamerSettings: {
+        styleFlags: {
+          matchmakingMyStatsOnly: true,
+        },
+      },
+      matchStatsState: {
+        status: "loaded",
+        stats: aFakeMatchStatsWith(),
+        playerMap: new Map<string, string>([
+          ["1111111111", "TrackedPlayer"],
+          ["2222222222", "PlayerTwo"],
+          ["3333333333", "PlayerThree"],
+          ["4444444444", "PlayerFour"],
+        ]),
+        medalMetadata: aFakeMedalMetadata(),
+        analytics: null,
+      },
+      selectedMatchId: null,
+    });
+
+    const rows = model.tickerMatchGroups[0]?.rows ?? [];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.type).toBe("player");
+    expect(rows[0]?.name).toBe("TrackedPlayer");
+  });
+
+  it("shows only the tracked player row in-series ticker when inSeriesMyStatsOnly is enabled", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        timeline: [
+          {
+            type: "series",
+            series: aSeriesWith({
+              isActive: true,
+              matches: [aMatchWith({ matchId: "series-match-1" })],
+            }),
+          },
+        ],
+      }),
+      streamerSettings: {
+        styleFlags: {
+          inSeriesMyStatsOnly: true,
+        },
+      },
+      matchStatsState: {
+        status: "loaded",
+        stats: aFakeMatchStatsWith(),
+        playerMap: new Map<string, string>([
+          ["1111111111", "TrackedPlayer"],
+          ["2222222222", "PlayerTwo"],
+          ["3333333333", "PlayerThree"],
+          ["4444444444", "PlayerFour"],
+        ]),
+        medalMetadata: aFakeMedalMetadata(),
+        analytics: null,
+      },
+      selectedMatchId: "series-match-1",
+    });
+
+    const rows = model.tickerMatchGroups[0]?.rows ?? [];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.type).toBe("player");
+    expect(rows[0]?.name).toBe("TrackedPlayer");
   });
 });

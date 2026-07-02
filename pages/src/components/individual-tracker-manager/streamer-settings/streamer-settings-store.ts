@@ -15,6 +15,8 @@ export interface StreamerSettingsSnapshot {
   readonly observerEnemyColor: string;
   readonly displaySettings: DisplaySettings;
   readonly tickerSettings: TickerSettings;
+  readonly inSeriesMyStatsOnly: boolean;
+  readonly matchmakingMyStatsOnly: boolean;
   readonly fontSizeSettings: FontSizeSettings;
   readonly statsHighlightSlots: readonly IndividualStatsHighlightOption[];
   readonly saveStatus: SaveStatus;
@@ -62,6 +64,8 @@ export class StreamerSettingsStore {
       observerEnemyColor: "cerulean",
       displaySettings: DEFAULT_DISPLAY_SETTINGS,
       tickerSettings: DEFAULT_TICKER_SETTINGS,
+      inSeriesMyStatsOnly: false,
+      matchmakingMyStatsOnly: false,
       fontSizeSettings: DEFAULT_FONT_SIZE_SETTINGS,
       statsHighlightSlots: [],
       saveStatus: "idle",

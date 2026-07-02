@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import type { StreamerViewColorMode } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
+import { Checkbox } from "../../checkbox/checkbox";
 import { TeamColorPicker } from "../../team-colors/team-color-picker";
 import { DisplaySettingsSection } from "../../live-tracker/settings/display-settings-section";
 import { TickerSettingsSection } from "../../live-tracker/settings/ticker-settings-section";
@@ -55,6 +56,8 @@ export interface StreamerSettingsSectionViewProps {
   readonly observerEnemyColor: string;
   readonly displaySettings: DisplaySettings;
   readonly tickerSettings: TickerSettings;
+  readonly inSeriesMyStatsOnly: boolean;
+  readonly matchmakingMyStatsOnly: boolean;
   readonly fontSizeSettings: FontSizeSettings;
   readonly saveStatus: SaveStatus;
   readonly saveErrorMessage: string | null;
@@ -63,6 +66,8 @@ export interface StreamerSettingsSectionViewProps {
   readonly onObserverColorsChange: (teamColor: string, enemyColor: string) => void;
   readonly onDisplaySettingsChange: (updates: Partial<DisplaySettings>) => void;
   readonly onTickerSettingsChange: (updates: Partial<TickerSettings>) => void;
+  readonly onInSeriesMyStatsOnlyChange: (enabled: boolean) => void;
+  readonly onMatchmakingMyStatsOnlyChange: (enabled: boolean) => void;
   readonly onFontSizesChange: (updates: Partial<FontSizeSettings>) => void;
 }
 
@@ -75,6 +80,8 @@ export function StreamerSettingsSectionView({
   observerEnemyColor,
   displaySettings,
   tickerSettings,
+  inSeriesMyStatsOnly,
+  matchmakingMyStatsOnly,
   fontSizeSettings,
   saveStatus,
   saveErrorMessage,
@@ -83,6 +90,8 @@ export function StreamerSettingsSectionView({
   onObserverColorsChange,
   onDisplaySettingsChange,
   onTickerSettingsChange,
+  onInSeriesMyStatsOnlyChange,
+  onMatchmakingMyStatsOnlyChange,
   onFontSizesChange,
 }: StreamerSettingsSectionViewProps): React.ReactElement {
   const [copyTarget, setCopyTarget] = useState<CopyTarget>("idle");
@@ -316,6 +325,22 @@ export function StreamerSettingsSectionView({
           In the overlay at the bottom, the Information Ticker provides detailed insights at a glance.
         </p>
         <TickerSettingsSection settings={tickerSettings} onChange={onTickerSettingsChange} />
+        <Checkbox
+          checked={inSeriesMyStatsOnly}
+          onChange={(checked): void => {
+            onInSeriesMyStatsOnlyChange(checked);
+          }}
+          label="In-Series: Show Only My Stats"
+          description="When enabled, the ticker only rotates your player row during an active series."
+        />
+        <Checkbox
+          checked={matchmakingMyStatsOnly}
+          onChange={(checked): void => {
+            onMatchmakingMyStatsOnlyChange(checked);
+          }}
+          label="Matchmaking: Show Only My Stats"
+          description="When enabled, the ticker only rotates your player row during matchmaking matches."
+        />
       </div>
 
       <div className={styles.card}>
