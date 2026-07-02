@@ -563,6 +563,34 @@ describe("LiveTrackerDO", () => {
       const data: { success: boolean } = await response.json();
       expect(data.success).toBe(true);
     });
+
+    it("passes emoji-wrapped initial series score to channel name updates", async () => {
+      const startData = createMockStartData();
+      const request = new Request("http://do/start", {
+        method: "POST",
+        body: JSON.stringify(startData),
+      });
+
+      vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue(apiMessage);
+      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+      const updateChannelNameSpy = vi
+        .spyOn(
+          liveTrackerDO as unknown as {
+            updateChannelName: (state: LiveTrackerState, seriesScore: string, force: boolean) => Promise<void>;
+          },
+          "updateChannelName",
+        )
+        .mockResolvedValue(undefined);
+
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+
+      const response = await liveTrackerDO.fetch(request);
+
+      expect(response.status).toBe(200);
+      expect(updateChannelNameSpy).toHaveBeenCalledWith(expect.any(Object), "🦅 0:0 🐍", true);
+    });
   });
 
   describe("handlePause()", () => {

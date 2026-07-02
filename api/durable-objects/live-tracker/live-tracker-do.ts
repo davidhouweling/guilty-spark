@@ -337,7 +337,9 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         embedData,
       );
 
-      await this.updateChannelName(trackerState, trackerState.seriesScore, true);
+      const initialChannelSeriesScore =
+        trackerState.teams.length === 2 ? `🦅 ${trackerState.seriesScore} 🐍` : trackerState.seriesScore;
+      await this.updateChannelName(trackerState, initialChannelSeriesScore, true);
       await this.discordService.editMessage(
         startRequest.channelId,
         loadingMessage.id,
