@@ -342,12 +342,14 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const searchStart = new Date(trackerState.searchStartTime);
     const strategy = markerFound ? "marker" : trackerState.lastSeenMatchId != null ? "fallback" : "initial";
     const matchesToProcess = this.getMatchesToProcessBeforeMarker(allMatches, markerFound, markerFoundAtIndex);
+    const matchesToProcessInTimeOrder = [...matchesToProcess].reverse();
     const knownIds = new Set(trackerState.matchIds);
+    const existingActiveSeriesMatchIds = new Set(trackerState.activeSeries?.matchIds ?? []);
 
     let skippedAlreadyKnown = 0;
     let skippedBeforeStart = 0;
 
-    for (const match of matchesToProcess) {
+    for (const match of matchesToProcessInTimeOrder) {
       const matchId = match.MatchId;
 
       if (knownIds.has(matchId)) {
@@ -358,6 +360,19 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       if (new Date(match.MatchInfo.StartTime) < searchStart) {
         skippedBeforeStart++;
         continue;
+      }
+
+      const isMatchmakingMatch = match.MatchInfo.Playlist != null;
+      if (trackerState.activeSeries != null && isMatchmakingMatch) {
+        this.retireActiveSeries(trackerState);
+        this.logService.info(
+          "IndividualTracker: series ended after matchmaking match was discovered",
+          new Map([
+            ["trackerId", trackerState.trackerId],
+            ["gamertag", trackerState.gamertag],
+            ["matchId", matchId],
+          ]),
+        );
       }
 
       const outcome = getMatchOutcomeLabel(match.Outcome);
@@ -381,7 +396,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         gameVariantCategory: match.MatchInfo.GameVariantCategory,
         outcome,
         score: "",
-        isMatchmaking: match.MatchInfo.Playlist != null,
+        isMatchmaking: isMatchmakingMatch,
         teamRosterSignature: null,
         teamOutcomes: null,
       };
@@ -392,6 +407,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       const durationSeconds = getDurationInSeconds(match.MatchInfo.Duration);
       if (durationSeconds >= 120) {
         trackerState.selectedMatchIds.push(matchId);
+      }
+      if (trackerState.activeSeries != null && !isMatchmakingMatch && !existingActiveSeriesMatchIds.has(matchId)) {
+        trackerState.activeSeries.matchIds.push(matchId);
+        existingActiveSeriesMatchIds.add(matchId);
       }
       newlyDiscovered.add(matchId);
       discoveredNewMatch = true;
@@ -426,15 +445,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     );
 
     this.updateLastSeenMatchIdMarker(trackerState, allMatches);
-
-    if (trackerState.activeSeries != null && newlyDiscovered.size > 0) {
-      const existingSeriesMatchIds = new Set(trackerState.activeSeries.matchIds);
-      for (const matchId of newlyDiscovered) {
-        if (!existingSeriesMatchIds.has(matchId)) {
-          trackerState.activeSeries.matchIds.push(matchId);
-        }
-      }
-    }
 
     for (const matchId of trackerState.matchIds) {
       if (newlyDiscovered.has(matchId)) {

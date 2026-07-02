@@ -78,7 +78,13 @@ const createMockStartRequest = (
   ...overrides,
 });
 
-const aFakePlayerMatch = (matchId: string, startTime: string, outcome = 2, duration = "PT10M"): PlayerMatchHistory =>
+const aFakePlayerMatch = (
+  matchId: string,
+  startTime: string,
+  outcome = 2,
+  duration = "PT10M",
+  isMatchmaking = false,
+): PlayerMatchHistory =>
   ({
     MatchId: matchId,
     Outcome: outcome,
@@ -89,6 +95,7 @@ const aFakePlayerMatch = (matchId: string, startTime: string, outcome = 2, durat
       GameVariantCategory: 6,
       MapVariant: { AssetId: "map-asset", VersionId: "v1" },
       UgcGameVariant: { AssetId: "mode-asset", VersionId: "v1" },
+      ...(isMatchmaking ? { Playlist: { AssetId: "playlist-asset", VersionId: "v1" } } : {}),
     },
   }) as unknown as PlayerMatchHistory;
 
@@ -1469,8 +1476,8 @@ describe("IndividualTrackerDO", () => {
       // Should find marker on page 1 and stop polling (no page 2 fetched)
       expect(ownerClient.getPlayerMatches).toHaveBeenCalledTimes(2);
       const persisted = lastPersistedState(storagePutSpy);
-      // Should only process matches before marker (match-new-1, match-new-2)
-      expect(persisted.matchIds).toEqual(["match-new-1", "match-new-2"]);
+      // Should only process matches before marker in time order (oldest to newest)
+      expect(persisted.matchIds).toEqual(["match-new-2", "match-new-1"]);
       expect(persisted.matchIds).not.toContain("match-old-3");
       // Marker becomes new lastSeenMatchId for next poll
       expect(persisted.lastSeenMatchId).toBe("match-new-1");
@@ -1593,6 +1600,129 @@ describe("IndividualTrackerDO", () => {
 
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.selectedMatchIds).toEqual(["match-new"]);
+    });
+
+    it("ends an active series before appending a newly discovered matchmaking match", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-matchmaking", "2024-11-26T11:30:00.000Z", 2, "PT5M", true)])
+        .mockResolvedValueOnce([]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: ["series-custom-match"],
+          discoveredMatches: {
+            "series-custom-match": aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "series-custom-match",
+              isMatchmaking: false,
+            }),
+          },
+          activeSeries: {
+            title: "Active Series",
+            subtitle: "Customs",
+            guildIconUrl: null,
+            teams: [],
+            matchIds: ["series-custom-match"],
+            startedAt: "2024-11-26T11:00:00.000Z",
+            isActive: true,
+          },
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toBeUndefined();
+      expect(persisted.completedSeries).toHaveLength(1);
+      expect(persisted.completedSeries?.[0]).toMatchObject({
+        title: "Active Series",
+        matchIds: ["series-custom-match"],
+        isActive: false,
+      });
+      expect(persisted.matchIds).toEqual(["series-custom-match", "match-matchmaking"]);
+      expect(persisted.discoveredMatches["match-matchmaking"]?.isMatchmaking).toBe(true);
+    });
+
+    it("keeps older custom matches in the completed series when a newer matchmaking match appears in the same batch", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([
+          aFakePlayerMatch("match-matchmaking", "2024-11-26T11:32:00.000Z", 2, "PT5M", true),
+          aFakePlayerMatch("match-custom-older", "2024-11-26T11:25:00.000Z", 2, "PT5M", false),
+        ])
+        .mockResolvedValueOnce([]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: ["series-custom-existing"],
+          discoveredMatches: {
+            "series-custom-existing": aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "series-custom-existing",
+              isMatchmaking: false,
+            }),
+          },
+          activeSeries: {
+            title: "Active Series",
+            subtitle: "Customs",
+            guildIconUrl: null,
+            teams: [],
+            matchIds: ["series-custom-existing"],
+            startedAt: "2024-11-26T11:00:00.000Z",
+            isActive: true,
+          },
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toBeUndefined();
+      expect(persisted.completedSeries).toHaveLength(1);
+      expect(persisted.completedSeries?.[0]?.matchIds).toEqual(["series-custom-existing", "match-custom-older"]);
+      expect(persisted.matchIds).toEqual(["series-custom-existing", "match-custom-older", "match-matchmaking"]);
+      expect(persisted.discoveredMatches["match-matchmaking"]?.isMatchmaking).toBe(true);
+      expect(persisted.discoveredMatches["match-custom-older"]?.isMatchmaking).toBe(false);
+    });
+
+    it("does not include newer custom matches in completed series when an older matchmaking match is the boundary", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([
+          aFakePlayerMatch("match-custom-newer", "2024-11-26T11:32:00.000Z", 2, "PT5M", false),
+          aFakePlayerMatch("match-matchmaking-older", "2024-11-26T11:25:00.000Z", 2, "PT5M", true),
+        ])
+        .mockResolvedValueOnce([]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: ["series-custom-existing"],
+          discoveredMatches: {
+            "series-custom-existing": aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "series-custom-existing",
+              isMatchmaking: false,
+            }),
+          },
+          activeSeries: {
+            title: "Active Series",
+            subtitle: "Customs",
+            guildIconUrl: null,
+            teams: [],
+            matchIds: ["series-custom-existing"],
+            startedAt: "2024-11-26T11:00:00.000Z",
+            isActive: true,
+          },
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toBeUndefined();
+      expect(persisted.completedSeries).toHaveLength(1);
+      expect(persisted.completedSeries?.[0]?.matchIds).toEqual(["series-custom-existing"]);
+      expect(persisted.matchIds).toEqual(["series-custom-existing", "match-matchmaking-older", "match-custom-newer"]);
+      expect(persisted.discoveredMatches["match-matchmaking-older"]?.isMatchmaking).toBe(true);
+      expect(persisted.discoveredMatches["match-custom-newer"]?.isMatchmaking).toBe(false);
     });
 
     it("stores outcome, score, and the resolved map name for a newly discovered match", async () => {
