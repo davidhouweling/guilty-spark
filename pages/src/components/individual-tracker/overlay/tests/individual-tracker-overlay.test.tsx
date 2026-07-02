@@ -321,6 +321,31 @@ describe("IndividualTrackerOverlay", () => {
     expect(screen.queryByTestId("team-icon-0")).not.toBeInTheDocument();
   });
 
+  it("hides the tracked gamertag in pre-series ticker when xbox names are hidden", () => {
+    const renderModel = aRenderModel({
+      gamertag: "TrackedPlayer",
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Alpha vs Beta",
+        subtitle: "Bo3",
+        teams: [],
+      },
+      matches: [],
+      series: [],
+    });
+    const streamerSettings: StreamerViewSettings = {
+      visibleSections: {
+        showTicker: true,
+        showXboxNames: false,
+      },
+    };
+
+    render(<IndividualTrackerOverlay {...aPropsWith({ renderModel, streamerSettings })} />);
+
+    expect(screen.getByText("Player Info")).toBeInTheDocument();
+    expect(screen.queryByText("TrackedPlayer")).not.toBeInTheDocument();
+  });
+
   it("respects visibility settings for tabs and top section content", () => {
     const renderModel = aRenderModel({
       hasActiveSeries: true,

@@ -206,7 +206,7 @@ export class IndividualTrackerOverlayPresenter {
     readonly showTicker: boolean;
     readonly showPreSeriesInfo: boolean;
     readonly activeSeries: ViewerSeriesTab | null;
-    readonly playerName: string;
+    readonly playerName: string | null;
     readonly discordName: string | null;
     readonly gamertag: string | null;
   }): TickerMatchGroup[] {
@@ -267,7 +267,7 @@ export class IndividualTrackerOverlayPresenter {
             showTicker,
             showPreSeriesInfo: streamerSettings?.styleFlags?.showPreSeriesInfo ?? true,
             activeSeries,
-            playerName: renderModel.gamertag,
+            playerName: displaySettings.showXboxNames ? renderModel.gamertag : null,
             discordName: null,
             gamertag: displaySettings.showXboxNames ? renderModel.gamertag : null,
           });
@@ -439,6 +439,9 @@ export class IndividualTrackerOverlayPresenter {
 
     const trackedPlayerRows = rows.filter((row) => {
       if (row.type !== "player") {
+        return false;
+      }
+      if (row.name == null) {
         return false;
       }
 
