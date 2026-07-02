@@ -251,6 +251,22 @@ describe("StreamerSettingsSectionView", () => {
       expect(screen.getByTestId("color-picker-Cobra")).toBeInTheDocument();
     });
 
+    it("renders context-first section headings", () => {
+      render(<StreamerSettingsSectionView {...aFakeProps()} />);
+
+      expect(screen.getByRole("heading", { name: "Global Defaults" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "In Series UI" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Matchmaking UI" })).toBeInTheDocument();
+    });
+
+    it("renders matchmaking top-section guidance for stats highlights", () => {
+      render(<StreamerSettingsSectionView {...aFakeProps()} />);
+
+      expect(
+        screen.getByText("Matchmaking top-section stats are configured in the Stats Highlights tab in this manager."),
+      ).toBeInTheDocument();
+    });
+
     it("calls onInSeriesMyStatsOnlyChange when the in-series toggle is clicked", async () => {
       const user = userEvent.setup();
       const onChange = vi.fn<(enabled: boolean) => void>();

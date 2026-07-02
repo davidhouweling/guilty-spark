@@ -235,7 +235,12 @@ export function StreamerSettingsSectionView({
       )}
 
       <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Presentation defaults</h3>
+        <h3 className={styles.cardTitle}>Global Defaults</h3>
+        <p className={styles.cardDescription}>These controls apply to both In Series and Matchmaking overlay states.</p>
+      </div>
+
+      <div className={styles.card}>
+        <h3 className={styles.cardTitle}>Default Color Mode</h3>
         <p className={styles.cardDescription}>Configure the default color mode for the overlay.</p>
         <div className={styles.modeRow}>
           <Button
@@ -260,7 +265,7 @@ export function StreamerSettingsSectionView({
       </div>
 
       <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Player View Colors</h3>
+        <h3 className={styles.cardTitle}>Player Colors</h3>
         <p className={styles.cardDescription}>Used whenever color mode is set to player.</p>
         <div className={styles.pickerGrid}>
           <div>
@@ -287,7 +292,7 @@ export function StreamerSettingsSectionView({
       </div>
 
       <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Observer View Colors</h3>
+        <h3 className={styles.cardTitle}>Observer Colors</h3>
         <p className={styles.cardDescription}>Global observer colors for fixed-team mode.</p>
         <div className={styles.pickerGrid}>
           <div>
@@ -311,36 +316,6 @@ export function StreamerSettingsSectionView({
             />
           </div>
         </div>
-      </div>
-
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Display Options</h3>
-        <p className={styles.cardDescription}>Control what information is shown on the viewer and overlay.</p>
-        <DisplaySettingsSection settings={displaySettings} onChange={onDisplaySettingsChange} />
-      </div>
-
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Information Ticker</h3>
-        <p className={styles.cardDescription}>
-          In the overlay at the bottom, the Information Ticker provides detailed insights at a glance.
-        </p>
-        <TickerSettingsSection settings={tickerSettings} onChange={onTickerSettingsChange} />
-        <Checkbox
-          checked={inSeriesMyStatsOnly}
-          onChange={(checked): void => {
-            onInSeriesMyStatsOnlyChange(checked);
-          }}
-          label="In-Series: Show Only My Stats"
-          description="When enabled, the ticker only rotates your player row during an active series."
-        />
-        <Checkbox
-          checked={matchmakingMyStatsOnly}
-          onChange={(checked): void => {
-            onMatchmakingMyStatsOnlyChange(checked);
-          }}
-          label="Matchmaking: Show Only My Stats"
-          description="When enabled, the ticker only rotates your player row during matchmaking matches."
-        />
       </div>
 
       <div className={styles.card}>
@@ -383,6 +358,79 @@ export function StreamerSettingsSectionView({
             }}
           />
         </div>
+      </div>
+
+      <div className={styles.card}>
+        <h3 className={styles.cardTitle}>In Series UI</h3>
+        <p className={styles.cardDescription}>
+          Controls in this section apply when the overlay is currently in a series.
+        </p>
+      </div>
+
+      <div className={styles.card}>
+        <h3 className={styles.cardTitle}>Top Section</h3>
+        <p className={styles.cardDescription}>
+          Control title, teams, and score display for in-series top bar rendering.
+        </p>
+        <DisplaySettingsSection settings={displaySettings} onChange={onDisplaySettingsChange} />
+      </div>
+
+      <div className={styles.card}>
+        <h3 className={styles.cardTitle}>Bottom Section</h3>
+        <p className={styles.cardDescription}>
+          Configure in-series ticker behavior before and during active series match flow.
+        </p>
+        <Checkbox
+          checked={tickerSettings.showPreSeriesInfo}
+          onChange={(checked): void => {
+            onTickerSettingsChange({ showPreSeriesInfo: checked });
+          }}
+          label="Display Pre-Series Player Info"
+          description="Show individual player info before the first match starts"
+        />
+        <Checkbox
+          checked={inSeriesMyStatsOnly}
+          onChange={(checked): void => {
+            onInSeriesMyStatsOnlyChange(checked);
+          }}
+          label="In-Series: Show Only My Stats"
+          description="When enabled, the ticker only rotates your player row during an active series."
+        />
+      </div>
+
+      <div className={styles.card}>
+        <h3 className={styles.cardTitle}>Matchmaking UI</h3>
+        <p className={styles.cardDescription}>
+          Controls in this section apply when no active series context is present.
+        </p>
+      </div>
+
+      <div className={styles.card}>
+        <h3 className={styles.cardTitle}>Top Section</h3>
+        <p className={styles.cardDescription}>Matchmaking top section uses Stats Highlights configuration.</p>
+        <Alert variant="info">
+          Matchmaking top-section stats are configured in the Stats Highlights tab in this manager.
+        </Alert>
+      </div>
+
+      <div className={styles.card}>
+        <h3 className={styles.cardTitle}>Bottom Section</h3>
+        <p className={styles.cardDescription}>
+          In the overlay at the bottom, the Information Ticker provides detailed insights at a glance.
+        </p>
+        <TickerSettingsSection
+          settings={tickerSettings}
+          onChange={onTickerSettingsChange}
+          showPreSeriesInfoToggle={false}
+        />
+        <Checkbox
+          checked={matchmakingMyStatsOnly}
+          onChange={(checked): void => {
+            onMatchmakingMyStatsOnlyChange(checked);
+          }}
+          label="Matchmaking: Show Only My Stats"
+          description="When enabled, the ticker only rotates your player row during matchmaking matches."
+        />
       </div>
 
       {showSaveToast ? (

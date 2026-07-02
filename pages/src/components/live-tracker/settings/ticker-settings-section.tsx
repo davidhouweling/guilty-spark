@@ -16,9 +16,16 @@ function formatStatName(stat: string): string {
 interface TickerSettingsSectionProps {
   readonly settings: TickerSettings;
   readonly onChange: (updates: Partial<TickerSettings>) => void;
+  readonly showTickerVisibilityToggle?: boolean;
+  readonly showPreSeriesInfoToggle?: boolean;
 }
 
-export function TickerSettingsSection({ settings, onChange }: TickerSettingsSectionProps): React.ReactElement {
+export function TickerSettingsSection({
+  settings,
+  onChange,
+  showTickerVisibilityToggle = true,
+  showPreSeriesInfoToggle = true,
+}: TickerSettingsSectionProps): React.ReactElement {
   const handleStatToggle = (stat: string): void => {
     const isEnabled = settings.selectedSlayerStats.includes(stat);
     const newStats = isEnabled
@@ -45,13 +52,15 @@ export function TickerSettingsSection({ settings, onChange }: TickerSettingsSect
 
   return (
     <div className={styles.container}>
-      <Checkbox
-        checked={settings.showTicker}
-        onChange={(checked): void => {
-          onChange({ showTicker: checked });
-        }}
-        label="Show Information Ticker"
-      />
+      {showTickerVisibilityToggle ? (
+        <Checkbox
+          checked={settings.showTicker}
+          onChange={(checked): void => {
+            onChange({ showTicker: checked });
+          }}
+          label="Show Information Ticker"
+        />
+      ) : null}
 
       {/* Stats Selection */}
       <div className={styles.section}>
@@ -114,16 +123,18 @@ export function TickerSettingsSection({ settings, onChange }: TickerSettingsSect
       </div>
 
       {/* Pre-Series Info Toggle */}
-      <div className={styles.section}>
-        <Checkbox
-          checked={settings.showPreSeriesInfo}
-          onChange={(checked): void => {
-            onChange({ showPreSeriesInfo: checked });
-          }}
-          label="Display Pre-Series Player Info"
-          description="Show individual player info before the first match starts"
-        />
-      </div>
+      {showPreSeriesInfoToggle ? (
+        <div className={styles.section}>
+          <Checkbox
+            checked={settings.showPreSeriesInfo}
+            onChange={(checked): void => {
+              onChange({ showPreSeriesInfo: checked });
+            }}
+            label="Display Pre-Series Player Info"
+            description="Show individual player info before the first match starts"
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
