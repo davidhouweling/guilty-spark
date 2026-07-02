@@ -1,6 +1,7 @@
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import type { MatchStats } from "halo-infinite-api";
+import type { CSSProperties } from "react";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
@@ -32,6 +33,55 @@ export type MatchStatsState =
 
 function getDefaultTeamColors(): [TeamColor, TeamColor] {
   return [getTeamColorOrDefault(undefined, 0), getTeamColorOrDefault(undefined, 1)];
+}
+
+function getFontSizeStyles(streamerSettings: StreamerViewSettings | undefined): CSSProperties {
+  const fontSizes = streamerSettings?.layoutOptions?.fontSizes;
+
+  return {
+    "--font-size-queue-info": ((fontSizes?.queueInfo ?? 100) / 100).toString(),
+    "--font-size-score": ((fontSizes?.score ?? 100) / 100).toString(),
+    "--font-size-teams": ((fontSizes?.teams ?? 100) / 100).toString(),
+    "--font-size-tabs": ((fontSizes?.tabs ?? 100) / 100).toString(),
+    "--font-size-ticker": ((fontSizes?.ticker ?? 100) / 100).toString(),
+  } as CSSProperties;
+}
+
+function getSeriesPlayerDisplayNameForSettings(
+  player: { readonly discordName: string | null; readonly gamertag: string | null },
+  settings: Pick<OverlayDisplaySettings, "showDiscordNames" | "showXboxNames">,
+): string {
+  if (settings.showDiscordNames && settings.showXboxNames) {
+    return player.discordName ?? player.gamertag ?? "Unknown";
+  }
+
+  if (settings.showDiscordNames) {
+    return player.discordName ?? "Unknown";
+  }
+
+  if (settings.showXboxNames) {
+    return player.gamertag ?? "Unknown";
+  }
+
+  return player.discordName ?? player.gamertag ?? "Unknown";
+}
+
+function getTeamDetailsModel(
+  team: {
+    readonly name: string;
+    readonly players: readonly { readonly discordName: string | null; readonly gamertag: string | null }[];
+  },
+  settings: Pick<OverlayDisplaySettings, "showDiscordNames" | "showXboxNames">,
+): OverlayTeamDetailsModel {
+  const players =
+    !settings.showDiscordNames && !settings.showXboxNames
+      ? []
+      : team.players.map((player) => getSeriesPlayerDisplayNameForSettings(player, settings));
+
+  return {
+    name: team.name,
+    players,
+  };
 }
 
 interface BuildOverlayViewModelOptions {
@@ -296,53 +346,3 @@ export class IndividualTrackerOverlayPresenter {
     return renderModel.timeline.length > 0 || renderModel.hasActiveSeries;
   }
 }
-
-function getFontSizeStyles(streamerSettings: StreamerViewSettings | undefined): React.CSSProperties {
-  const fontSizes = streamerSettings?.layoutOptions?.fontSizes;
-
-  return {
-    "--font-size-queue-info": ((fontSizes?.queueInfo ?? 100) / 100).toString(),
-    "--font-size-score": ((fontSizes?.score ?? 100) / 100).toString(),
-    "--font-size-teams": ((fontSizes?.teams ?? 100) / 100).toString(),
-    "--font-size-tabs": ((fontSizes?.tabs ?? 100) / 100).toString(),
-    "--font-size-ticker": ((fontSizes?.ticker ?? 100) / 100).toString(),
-  } as React.CSSProperties;
-}
-
-function getSeriesPlayerDisplayNameForSettings(
-  player: { readonly discordName: string | null; readonly gamertag: string | null },
-  settings: Pick<OverlayDisplaySettings, "showDiscordNames" | "showXboxNames">,
-): string {
-  if (settings.showDiscordNames && settings.showXboxNames) {
-    return player.discordName ?? player.gamertag ?? "Unknown";
-  }
-
-  if (settings.showDiscordNames) {
-    return player.discordName ?? "Unknown";
-  }
-
-  if (settings.showXboxNames) {
-    return player.gamertag ?? "Unknown";
-  }
-
-  return player.discordName ?? player.gamertag ?? "Unknown";
-}
-
-function getTeamDetailsModel(
-  team: {
-    readonly name: string;
-    readonly players: readonly { readonly discordName: string | null; readonly gamertag: string | null }[];
-  },
-  settings: Pick<OverlayDisplaySettings, "showDiscordNames" | "showXboxNames">,
-): OverlayTeamDetailsModel {
-  const players =
-    !settings.showDiscordNames && !settings.showXboxNames
-      ? []
-      : team.players.map((player) => getSeriesPlayerDisplayNameForSettings(player, settings));
-
-  return {
-    name: team.name,
-    players,
-  };
-}
-

@@ -72,7 +72,13 @@ export function IndividualTrackerOverlayPage({
             selectedMatchId: overlayModel.selectedMatchId,
           })
         : null,
-    [model.renderModel, model.streamerSettings, overlayModel.matchStatsState, overlayModel.selectedMatchId, overlayPresenter],
+    [
+      model.renderModel,
+      model.streamerSettings,
+      overlayModel.matchStatsState,
+      overlayModel.selectedMatchId,
+      overlayPresenter,
+    ],
   );
   const isPanelOpen = useMemo(
     () => overlayPresenter.isPanelOpen(overlayModel.selectedMatchId, overlayModel.matchStatsState),
