@@ -158,6 +158,12 @@
   margin: 0;
 }
 
+.sectionDivider {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--halo-teal-primary) 22%, transparent);
+  margin: var(--space-1) 0;
+}
+
 .floatingSaveToast {
   bottom: var(--space-4);
   max-width: min(26rem, calc(100vw - (var(--space-4) * 2)));
