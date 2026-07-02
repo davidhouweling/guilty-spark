@@ -295,8 +295,7 @@ describe("StreamerSettingsSectionView", () => {
 
       render(<StreamerSettingsSectionView {...aFakeProps({ onInSeriesMyStatsOnlyChange: onChange })} />);
 
-      const labels = screen.getAllByText("Show only my stats");
-      await user.click(labels[0]);
+      await user.click(screen.getByRole("checkbox", { name: /in series\s*show only my stats/i }));
 
       expect(onChange).toHaveBeenCalledWith(true);
     });
@@ -307,8 +306,7 @@ describe("StreamerSettingsSectionView", () => {
 
       render(<StreamerSettingsSectionView {...aFakeProps({ onMatchmakingMyStatsOnlyChange: onChange })} />);
 
-      const labels = screen.getAllByText("Show only my stats");
-      await user.click(labels[1]);
+      await user.click(screen.getByRole("checkbox", { name: /matchmaking\s*show only my stats/i }));
 
       expect(onChange).toHaveBeenCalledWith(true);
     });
@@ -319,8 +317,7 @@ describe("StreamerSettingsSectionView", () => {
 
       render(<StreamerSettingsSectionView {...aFakeProps({ onInSeriesShowTickerChange: onChange })} />);
 
-      const labels = screen.getAllByText("Show Information Ticker");
-      await user.click(labels[0]);
+      await user.click(screen.getByRole("checkbox", { name: /in series\s*show information ticker/i }));
 
       expect(onChange).toHaveBeenCalledWith(false);
     });
@@ -331,8 +328,7 @@ describe("StreamerSettingsSectionView", () => {
 
       render(<StreamerSettingsSectionView {...aFakeProps({ onMatchmakingShowTickerChange: onChange })} />);
 
-      const labels = screen.getAllByText("Show Information Ticker");
-      await user.click(labels[1]);
+      await user.click(screen.getByRole("checkbox", { name: /matchmaking\s*show information ticker/i }));
 
       expect(onChange).toHaveBeenCalledWith(false);
     });

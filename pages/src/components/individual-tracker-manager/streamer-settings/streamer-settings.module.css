@@ -116,6 +116,11 @@
   opacity: 0.5;
 }
 
+.modeToggleButton:focus-visible {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--halo-white) 88%, transparent);
+  outline: none;
+}
+
 .modeToggleButtonActive {
   background: color-mix(in srgb, var(--halo-teal-primary) 22%, transparent);
   color: var(--halo-white);
