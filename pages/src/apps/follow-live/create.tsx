@@ -17,12 +17,10 @@ interface FollowLiveAppProps {
 export function FollowLiveApp({ apiHost, gamertag, variant = "viewer" }: FollowLiveAppProps): ReactElement {
   const [state, setState] = useState(ComponentLoaderStatus.PENDING);
   const [services, setServices] = useState<Services | null>(null);
-  const [overlayPreview, setOverlayPreview] = useState<{ showPreview: boolean; previewMode: "player" | "observer" }>(
-    {
-      showPreview: false,
-      previewMode: "observer",
-    },
-  );
+  const [overlayPreview, setOverlayPreview] = useState<{ showPreview: boolean; previewMode: "player" | "observer" }>({
+    showPreview: false,
+    previewMode: "observer",
+  });
 
   useEffect(() => {
     if (variant !== "overlay") {

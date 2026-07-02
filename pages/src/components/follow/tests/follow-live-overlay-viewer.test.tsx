@@ -21,7 +21,9 @@ vi.mock("../../individual-tracker/overlay/create", () => ({
     trackerId: string;
     showPreview?: boolean;
     previewMode?: "player" | "observer";
-  }): React.ReactElement => <div data-testid="mock-overlay-page">{`${trackerId}:${String(showPreview)}:${previewMode ?? "observer"}`}</div>,
+  }): React.ReactElement => (
+    <div data-testid="mock-overlay-page">{`${trackerId}:${String(showPreview)}:${previewMode ?? "observer"}`}</div>
+  ),
 }));
 
 function aViewerPropsWith(directory: TrackerDirectory): FollowLiveOverlayViewerProps {

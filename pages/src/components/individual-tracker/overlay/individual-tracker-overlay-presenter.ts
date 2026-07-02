@@ -6,7 +6,7 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
-import type { TickerMatchGroup , TickerStatRow } from "../../information-ticker/information-ticker";
+import type { TickerMatchGroup, TickerStatRow } from "../../information-ticker/information-ticker";
 import { createMatchStatsFormatter } from "../../../controllers/stats/create";
 import type { MatchStatsValues } from "../../../controllers/stats/types";
 import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
@@ -232,10 +232,7 @@ export class IndividualTrackerOverlayPresenter {
     ];
 
     // Case 1: Pre-series with active series that has teams (series exists but no matches yet)
-    if (
-      options.activeSeries?.matches.length === 0 &&
-      options.activeSeries.teams.length > 0
-    ) {
+    if (options.activeSeries?.matches.length === 0 && options.activeSeries.teams.length > 0) {
       const { activeSeries } = options;
       const seriesLabel = activeSeries.title || "Series Info";
       const rows: TickerStatRow[] = [];
@@ -391,7 +388,10 @@ export class IndividualTrackerOverlayPresenter {
     };
   }
 
-  private getTeamColors(renderModel: IndividualTrackerViewerRenderModel, activeSeries: ViewerSeriesTab | null): TeamColor[] {
+  private getTeamColors(
+    renderModel: IndividualTrackerViewerRenderModel,
+    activeSeries: ViewerSeriesTab | null,
+  ): TeamColor[] {
     if (renderModel.teamColors.length < 2) {
       return [...this.defaultTeamColors];
     }
@@ -416,9 +416,7 @@ export class IndividualTrackerOverlayPresenter {
     // Map player perspective colors to actual team positions
     // If player is on team 0, playerTeamColor goes to team 0
     // If player is on team 1, playerTeamColor goes to team 1, enemyTeamColor to team 0
-    return trackedPlayerTeamId === 0
-      ? [playerTeamColor, enemyTeamColor]
-      : [enemyTeamColor, playerTeamColor];
+    return trackedPlayerTeamId === 0 ? [playerTeamColor, enemyTeamColor] : [enemyTeamColor, playerTeamColor];
   }
 
   private buildTickerGroups(
