@@ -3091,6 +3091,46 @@ describe("LiveTrackerDO", () => {
     });
   });
 
+  describe("player matches cache lifecycle", () => {
+    it("clears both in-memory caches before each series fetch so a warm DO instance does not miss newly completed matches", async () => {
+      const trackerState = aFakeStateWith({
+        status: "active",
+        isPaused: false,
+      });
+      storageGetSpy.mockResolvedValue(trackerState);
+
+      const clearPlayerMatchesCacheSpy = vi.spyOn(services.haloService, "clearPlayerMatchesCache");
+      const clearUserCacheSpy = vi.spyOn(services.haloService, "clearUserCache");
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+
+      await liveTrackerDO.alarm();
+
+      expect(clearPlayerMatchesCacheSpy).toHaveBeenCalledOnce();
+      expect(clearUserCacheSpy).toHaveBeenCalledOnce();
+    });
+
+    it("clears both caches on every alarm cycle for deterministic warm DO state", async () => {
+      const baseState = aFakeStateWith({ status: "active", isPaused: false });
+      // Return a fresh copy on each getState() so the second alarm is not
+      // blocked by the stale-lock guard (refreshInProgress mutated on the same ref).
+      storageGetSpy.mockImplementation(async () => Promise.resolve({ ...baseState }));
+
+      const clearPlayerMatchesCacheSpy = vi.spyOn(services.haloService, "clearPlayerMatchesCache");
+      const clearUserCacheSpy = vi.spyOn(services.haloService, "clearUserCache");
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+
+      await liveTrackerDO.alarm();
+      await liveTrackerDO.alarm();
+
+      expect(clearPlayerMatchesCacheSpy).toHaveBeenCalledTimes(2);
+      expect(clearUserCacheSpy).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe("KV Storage Integration", () => {
     it("saves newly discovered matches to KV storage during alarm", async () => {
       const eightPlayerSetup = createEightPlayerSetup();

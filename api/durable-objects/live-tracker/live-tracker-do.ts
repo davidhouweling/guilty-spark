@@ -1053,6 +1053,12 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       const startDateTime = new Date(trackerState.searchStartTime);
       const endDateTime = new Date();
 
+      // Clear the in-memory caches so each fetch cycle is deterministic on a warm DO instance.
+      // playerMatchesCache: ensures we refetch from page 0 of match history
+      // userCache: ensures we re-check users even if previously cached as GamesRetrievable.NO
+      this.haloService.clearPlayerMatchesCache();
+      this.haloService.clearUserCache();
+
       const matches = await this.haloService.getSeriesFromDiscordQueue(
         {
           teams,
