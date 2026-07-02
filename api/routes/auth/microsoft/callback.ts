@@ -10,21 +10,45 @@ export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, instal
     const { authService, xboxService, databaseService, logService } = services;
 
     try {
+      logService.info("Auth callback initiated");
+
       const url = new URL(request.url);
       const parsedQuery = parseQueryParams(url, authCallbackQuerySchema, "Authentication failed");
       if (!parsedQuery.success) {
+        logService.warn("OAuth query parameter validation failed", new Map([["error", "invalid params"]]));
         return parsedQuery.response;
       }
 
       const { code, state } = parsedQuery.data;
+      logService.info(
+        "OAuth query parameters validated, Exchanging OAuth code for tokens",
+        new Map([
+          ["code", code],
+          ["state", state],
+        ]),
+      );
 
       const { sessionPayload, redirectTo } = await authService.handleCallback(request, code, state);
+      logService.info(
+        "Session created in database",
+        new Map([
+          ["userId", sessionPayload.userId],
+          ["sessionId", sessionPayload.sessionId],
+          ["redirectTo", redirectTo],
+        ]),
+      );
 
       let xboxUser: XboxUserInfo;
       try {
+        logService.info("Fetching Xbox profile from Microsoft", new Map([["userId", sessionPayload.userId]]));
         xboxUser = await xboxService.getUserFromMicrosoftAccessToken(sessionPayload.accessToken);
+        logService.info("Xbox profile fetched successfully", new Map([["xuid", xboxUser.xuid]]));
       } catch (xboxError) {
         logService.error(xboxError, new Map([["context", "Xbox profile required for sign-in"]]));
+        logService.info(
+          "Deleting session due to Xbox profile failure",
+          new Map([["sessionId", sessionPayload.sessionId]]),
+        );
         await databaseService.deleteUserSession(sessionPayload.sessionId);
         const rejectUrl = new URL("/login", env.PAGES_URL);
         rejectUrl.searchParams.set("error", "xbox-required");
@@ -34,19 +58,41 @@ export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, instal
       }
 
       try {
+        logService.info("Attaching Xbox identity to session", new Map([["xuid", xboxUser.xuid]]));
         await authService.attachSessionProfile(sessionPayload.sessionId, {
           xboxXuid: xboxUser.xuid,
           xboxProfileCheckedAt: Date.now(),
           ...(xboxUser.avatarUrl != null ? { avatarUrl: xboxUser.avatarUrl } : {}),
           ...(xboxUser.gamertag !== "" && xboxUser.gamertag !== "Unknown" ? { xboxGamertag: xboxUser.gamertag } : {}),
         });
+        logService.info("Xbox identity attached successfully", new Map([["xuid", xboxUser.xuid]]));
       } catch (attachError) {
+        logService.error(
+          attachError,
+          new Map([
+            ["context", "attachSessionProfile failed"],
+            ["xuid", xboxUser.xuid],
+            ["sessionId", sessionPayload.sessionId],
+          ]),
+        );
+        logService.info(
+          "Deleting session due to profile attachment failure",
+          new Map([["sessionId", sessionPayload.sessionId]]),
+        );
         await databaseService.deleteUserSession(sessionPayload.sessionId);
         throw attachError;
       }
 
+      logService.info("Creating session token", new Map([["userId", sessionPayload.userId]]));
       const sessionToken = await authService.createSessionToken(sessionPayload);
       const pagesRedirectUrl = new URL(redirectTo, env.PAGES_URL);
+      logService.info(
+        "Auth callback successful, redirecting to pages",
+        new Map([
+          ["userId", sessionPayload.userId],
+          ["redirectUrl", pagesRedirectUrl.toString()],
+        ]),
+      );
 
       const response = new Response(null, {
         status: 302,
@@ -61,7 +107,13 @@ export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, instal
 
       return response;
     } catch (error) {
-      logService.error(error, new Map([["context", "Auth callback error"]]));
+      logService.error(
+        error,
+        new Map([
+          ["context", "Auth callback error"],
+          ["errorType", error instanceof Error ? error.constructor.name : "unknown"],
+        ]),
+      );
       return errorContract.toResponse({ error: "Authentication failed" }, { status: 400, noStore: true });
     }
   });
