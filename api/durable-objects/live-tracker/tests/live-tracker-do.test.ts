@@ -442,7 +442,9 @@ describe("LiveTrackerDO", () => {
       storageGetSpy.mockResolvedValue(trackerState);
       vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
-      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+      vi.spyOn(services.haloService, "getSeriesScore").mockImplementation((_matches, _locale, includeEmoji) =>
+        includeEmoji === true ? "🦅 0:0 🐍" : "0:0",
+      );
 
       const response = await liveTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
 
@@ -534,7 +536,9 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
       vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
-      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+      vi.spyOn(services.haloService, "getSeriesScore").mockImplementation((_matches, _locale, includeEmoji) =>
+        includeEmoji === true ? "🦅 0:0 🐍" : "0:0",
+      );
 
       const response = await liveTrackerDO.fetch(request);
 
@@ -562,6 +566,43 @@ describe("LiveTrackerDO", () => {
       expect(response.status).toBe(200);
       const data: { success: boolean } = await response.json();
       expect(data.success).toBe(true);
+    });
+
+    it("passes emoji-wrapped initial series score to channel name updates", async () => {
+      const startData = createMockStartData();
+      const request = new Request("http://do/start", {
+        method: "POST",
+        body: JSON.stringify(startData),
+      });
+
+      vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue(apiMessage);
+      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+      const updateChannelNameSpy = vi
+        .spyOn(
+          liveTrackerDO as unknown as {
+            updateChannelName: (state: LiveTrackerState, seriesScore: string, force: boolean) => Promise<void>;
+          },
+          "updateChannelName",
+        )
+        .mockResolvedValue(undefined);
+
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockImplementation((_matches, _locale, includeEmoji) =>
+        includeEmoji === true ? "🦅 0:0 🐍" : "0:0",
+      );
+
+      const response = await liveTrackerDO.fetch(request);
+
+      expect(response.status).toBe(200);
+      const [initialChannelNameCall] = updateChannelNameSpy.mock.calls;
+      expect(initialChannelNameCall).toBeDefined();
+      if (initialChannelNameCall == null) {
+        return;
+      }
+      const [, scoreArg, forceArg] = initialChannelNameCall;
+      expect(scoreArg).toBe("🦅 0:0 🐍");
+      expect(forceArg).toBe(true);
     });
   });
 

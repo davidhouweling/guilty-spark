@@ -337,7 +337,8 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         embedData,
       );
 
-      await this.updateChannelName(trackerState, trackerState.seriesScore, true);
+      const initialChannelSeriesScore = this.haloService.getSeriesScore([], "en-US", trackerState.teams.length === 2);
+      await this.updateChannelName(trackerState, initialChannelSeriesScore, true);
       await this.discordService.editMessage(
         startRequest.channelId,
         loadingMessage.id,
