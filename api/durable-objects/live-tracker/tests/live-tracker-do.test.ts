@@ -442,7 +442,9 @@ describe("LiveTrackerDO", () => {
       storageGetSpy.mockResolvedValue(trackerState);
       vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
-      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+      vi.spyOn(services.haloService, "getSeriesScore").mockImplementation((_matches, _locale, includeEmoji) =>
+        includeEmoji === true ? "🦅 0:0 🐍" : "0:0",
+      );
 
       const response = await liveTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
 
@@ -534,7 +536,9 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
       vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
-      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+      vi.spyOn(services.haloService, "getSeriesScore").mockImplementation((_matches, _locale, includeEmoji) =>
+        includeEmoji === true ? "🦅 0:0 🐍" : "0:0",
+      );
 
       const response = await liveTrackerDO.fetch(request);
 
@@ -584,12 +588,21 @@ describe("LiveTrackerDO", () => {
         .mockResolvedValue(undefined);
 
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
-      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+      vi.spyOn(services.haloService, "getSeriesScore").mockImplementation((_matches, _locale, includeEmoji) =>
+        includeEmoji === true ? "🦅 0:0 🐍" : "0:0",
+      );
 
       const response = await liveTrackerDO.fetch(request);
 
       expect(response.status).toBe(200);
-      expect(updateChannelNameSpy).toHaveBeenCalledWith(expect.any(Object), "🦅 0:0 🐍", true);
+      const initialChannelNameCall = updateChannelNameSpy.mock.calls[0];
+      expect(initialChannelNameCall).toBeDefined();
+      if (initialChannelNameCall == null) {
+        return;
+      }
+      const [, scoreArg, forceArg] = initialChannelNameCall;
+      expect(scoreArg).toBe("🦅 0:0 🐍");
+      expect(forceArg).toBe(true);
     });
   });
 
