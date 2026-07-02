@@ -74,6 +74,7 @@ import type {
   IndividualTrackerSeriesGroup,
   IndividualTrackerSeriesGroupOverride,
   IndividualTrackerViewState,
+  PreSeriesPlayerInfo,
   ActiveSeries,
   SeriesPlayer,
   SeriesTeam,
@@ -137,6 +138,14 @@ function parseStatsHighlightSlots(url: URL): readonly IndividualStatsHighlightOp
   }
 
   return parsedSlots.data;
+}
+
+function normalizeRankTier(rankTier: string | null | undefined): string | null {
+  if (rankTier == null || rankTier === "") {
+    return null;
+  }
+
+  return rankTier;
 }
 
 export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
@@ -1632,6 +1641,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       trackerState != null && statsHighlightSlots.length > 0
         ? await this.buildStatsHighlights(trackerState, statsHighlightSlots)
         : undefined;
+    const preSeriesPlayerInfo = trackerState != null ? await this.buildPreSeriesPlayerInfo(trackerState) : undefined;
 
     if (trackerState == null) {
       return individualTrackerViewStateContract.toResponse({ state: null });
@@ -1641,8 +1651,53 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       state: {
         ...viewState,
         ...(statsHighlights != null ? { statsHighlights: [...statsHighlights] } : {}),
+        ...(preSeriesPlayerInfo != null ? { preSeriesPlayerInfo } : {}),
       },
     });
+  }
+
+  private async buildPreSeriesPlayerInfo(state: IndividualTrackerInternalState): Promise<PreSeriesPlayerInfo | undefined> {
+    try {
+      await this.getUserHaloService(state.userId);
+    } catch (err: unknown) {
+      this.logService.warn(
+        err,
+        new Map([
+          ["context", "IndividualTracker: getUserHaloService failed in buildPreSeriesPlayerInfo"],
+          ["userId", state.userId],
+          ["xuid", state.xuid],
+        ]),
+      );
+      return undefined;
+    }
+
+    const [csrContainer, esraData] = await Promise.all([this.fetchRankedArenaCsr(state.xuid), this.fetchPlayerEsra(state.xuid)]);
+
+    const currentRank = csrContainer?.Current.Value;
+    const allTimePeakRank = csrContainer?.AllTimeMax.Value;
+    const esra = esraData?.esra;
+
+    const info: PreSeriesPlayerInfo = {
+      currentRank: currentRank != null && currentRank > 0 ? currentRank : null,
+      currentRankTier: normalizeRankTier(csrContainer?.Current.Tier),
+      currentRankSubTier: csrContainer?.Current.SubTier ?? null,
+      currentRankMeasurementMatchesRemaining: csrContainer?.Current.MeasurementMatchesRemaining ?? null,
+      currentRankInitialMeasurementMatches: csrContainer?.Current.InitialMeasurementMatches ?? null,
+      allTimePeakRank: allTimePeakRank != null && allTimePeakRank > 0 ? allTimePeakRank : null,
+      esra: esra != null && esra >= 0 ? esra : null,
+      lastRankedGamePlayed: esraData?.lastRankedGamePlayed ?? null,
+    };
+
+    if (
+      info.currentRank == null &&
+      info.allTimePeakRank == null &&
+      info.esra == null &&
+      info.lastRankedGamePlayed == null
+    ) {
+      return undefined;
+    }
+
+    return info;
   }
 
   private async buildStatsHighlights(

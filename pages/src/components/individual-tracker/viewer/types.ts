@@ -1,4 +1,4 @@
-import type { StatsHighlightItem } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import type { PreSeriesPlayerInfo, StatsHighlightItem } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { NormalizedMatchOutcome } from "@guilty-spark/shared/halo/match-enrichment";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
@@ -76,6 +76,7 @@ export interface IndividualTrackerViewerRenderModel {
   readonly timeline: readonly ViewerTimelineItem[];
   readonly accumulated: ViewerAccumulatedStats;
   readonly statsHighlights: readonly StatsHighlightItem[] | undefined;
+  readonly preSeriesPlayerInfo: PreSeriesPlayerInfo | undefined;
   readonly teamColors: readonly TeamColor[];
 }
 

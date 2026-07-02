@@ -24,6 +24,7 @@ function aRenderModelWith(
     timeline: [],
     accumulated: { total: 0, wins: 0, losses: 0, ties: 0 },
     statsHighlights: undefined,
+    preSeriesPlayerInfo: undefined,
     teamColors: [
       { id: "eagle", name: "Eagle", hex: "#0066CC" },
       { id: "cobra", name: "Cobra", hex: "#CC0000" },
@@ -184,6 +185,7 @@ describe("individual-tracker-overlay-presenter", () => {
       playerName: "TrackedPlayer",
       discordName: null,
       gamertag: "TrackedPlayer",
+      preSeriesPlayerInfo: undefined,
     });
 
     expect(groups).toHaveLength(1);
@@ -200,6 +202,7 @@ describe("individual-tracker-overlay-presenter", () => {
       playerName: "TrackedPlayer",
       discordName: null,
       gamertag: "TrackedPlayer",
+      preSeriesPlayerInfo: undefined,
     });
 
     expect(groups).toHaveLength(0);
@@ -232,6 +235,7 @@ describe("individual-tracker-overlay-presenter", () => {
       playerName: "TrackedPlayer",
       discordName: null,
       gamertag: "TrackedPlayer",
+      preSeriesPlayerInfo: undefined,
     });
 
     expect(groups).toHaveLength(1);
@@ -247,6 +251,36 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(groups[0].rows[3]?.name).toBe("Cobra");
     expect(groups[0].rows[4]?.type).toBe("player");
     expect(groups[0].rows[4]?.gamertag).toBe("Player3");
+  });
+
+  it("uses pre-series player info in matchmaking pre-series ticker when available", () => {
+    const groups = presenter.buildPreSeriesTickerGroup({
+      showTicker: true,
+      showPreSeriesInfo: true,
+      activeSeries: null,
+      playerName: "TrackedPlayer",
+      discordName: null,
+      gamertag: "TrackedPlayer",
+      preSeriesPlayerInfo: {
+        currentRank: 1550,
+        currentRankTier: "Diamond",
+        currentRankSubTier: 2,
+        currentRankMeasurementMatchesRemaining: null,
+        currentRankInitialMeasurementMatches: null,
+        allTimePeakRank: 1625,
+        esra: 1502.4,
+        lastRankedGamePlayed: "2026-01-01T00:00:00.000Z",
+      },
+    });
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].rows[0]?.stats[0]?.name).toBe("Current rank");
+    expect(groups[0].rows[0]?.stats[0]?.display).toBe("1,550");
+    expect(groups[0].rows[0]?.stats[1]?.name).toBe("Peak rank");
+    expect(groups[0].rows[0]?.stats[1]?.display).toBe("1,625");
+    expect(groups[0].rows[0]?.stats[2]?.name).toBe("ESRA");
+    expect(groups[0].rows[0]?.stats[2]?.display).toBe("1,502");
+    expect(groups[0].rows[0]?.stats[3]?.name).toBe("Last ranked match played");
   });
 
   it("maps pre-series tracked-player ticker row to the tracked-player color slot", () => {

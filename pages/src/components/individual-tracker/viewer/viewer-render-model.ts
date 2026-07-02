@@ -292,6 +292,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
     timeline: [...timelineWithFallback],
     accumulated,
     statsHighlights: view.statsHighlights,
+    preSeriesPlayerInfo: view.preSeriesPlayerInfo,
     teamColors: [getTeamColorOrDefault(preferredTeamColorId, 0), getTeamColorOrDefault(preferredEnemyColorId, 1)],
   };
 }

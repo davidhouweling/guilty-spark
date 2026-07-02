@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { defineContract } from "../../base";
-import { statsHighlightItemSchema, trackerLiveViewSchema } from "../../individual-tracker/view";
+import { preSeriesPlayerInfoSchema, statsHighlightItemSchema, trackerLiveViewSchema } from "../../individual-tracker/view";
 import { individualTrackerStateSchema } from "./lifecycle";
 
 export const individualTrackerStatusContract = defineContract(
@@ -10,6 +10,7 @@ export type IndividualTrackerStatusResponse = z.infer<typeof individualTrackerSt
 
 const individualTrackerViewStateSchema = trackerLiveViewSchema.extend({
   statsHighlights: z.array(statsHighlightItemSchema).optional(),
+  preSeriesPlayerInfo: preSeriesPlayerInfoSchema.optional(),
 });
 export type IndividualTrackerViewState = z.infer<typeof individualTrackerViewStateSchema>;
 
