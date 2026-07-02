@@ -187,6 +187,27 @@ describe("InformationTicker", () => {
     expect(screen.getByTestId("player-name")).toBeInTheDocument();
   });
 
+  it("applies the row color CSS variable from the row team id", () => {
+    const matchGroup = aFakeTickerMatchGroupWith({
+      rows: [
+        aFakeTickerStatRowWith({
+          type: "player",
+          teamId: 1,
+          name: "Tracked Player",
+          showTeamIcon: false,
+          discordName: null,
+          gamertag: "Tracked Player",
+        }),
+      ],
+    });
+
+    const { container } = render(
+      <InformationTicker currentMatchGroup={matchGroup} teamColors={teamColors} onScrollComplete={vi.fn()} />,
+    );
+
+    expect(container.firstChild).toHaveStyle("--row-color: #CC0000");
+  });
+
   it("displays multiple stats for a row", () => {
     const matchGroup = aFakeTickerMatchGroupWith({
       rows: [
