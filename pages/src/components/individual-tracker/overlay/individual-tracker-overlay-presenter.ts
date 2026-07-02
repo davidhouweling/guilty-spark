@@ -299,8 +299,8 @@ export class IndividualTrackerOverlayPresenter {
     const { renderModel, streamerSettings, matchStatsState, selectedMatchId } = options;
     const displaySettings = getOverlayDisplaySettings(streamerSettings);
     const fontSizeStyles = getFontSizeStyles(streamerSettings);
-    const teamColors = this.getTeamColors(renderModel);
     const activeSeries = this.getOverlayActiveSeries(renderModel);
+    const teamColors = this.getTeamColors(renderModel, activeSeries);
     const showTicker = this.getShowTicker(streamerSettings, activeSeries, displaySettings.showTicker);
     const tabs = this.buildTabs(renderModel.timeline, activeSeries);
     const selectedTabIndex = this.getSelectedTabIndex(tabs, selectedMatchId);
@@ -392,12 +392,34 @@ export class IndividualTrackerOverlayPresenter {
     };
   }
 
-  private getTeamColors(renderModel: IndividualTrackerViewerRenderModel): TeamColor[] {
-    if (renderModel.teamColors.length >= 2) {
-      return [renderModel.teamColors[0], renderModel.teamColors[1]];
+  private getTeamColors(renderModel: IndividualTrackerViewerRenderModel, activeSeries: ViewerSeriesTab | null): TeamColor[] {
+    if (renderModel.teamColors.length < 2) {
+      return [...this.defaultTeamColors];
     }
 
-    return [...this.defaultTeamColors];
+    const [playerTeamColor, enemyTeamColor] = renderModel.teamColors;
+
+    // If no active series or no teams, use colors as-is (player perspective for matchmaking)
+    if (activeSeries == null || activeSeries.teams.length < 2) {
+      return [playerTeamColor, enemyTeamColor];
+    }
+
+    // Find which team the tracked player is on
+    const trackedPlayerTeamId = activeSeries.teams.find((team) =>
+      team.players.some((player) => player.gamertag === renderModel.gamertag),
+    )?.id;
+
+    // If player not found in series, use colors as-is
+    if (trackedPlayerTeamId == null) {
+      return [playerTeamColor, enemyTeamColor];
+    }
+
+    // Map player perspective colors to actual team positions
+    // If player is on team 0, playerTeamColor goes to team 0
+    // If player is on team 1, playerTeamColor goes to team 1, enemyTeamColor to team 0
+    return trackedPlayerTeamId === 0
+      ? [playerTeamColor, enemyTeamColor]
+      : [enemyTeamColor, playerTeamColor];
   }
 
   private getSelectedTabIndex(tabs: readonly OverlayTab[], selectedMatchId: string | null): number {

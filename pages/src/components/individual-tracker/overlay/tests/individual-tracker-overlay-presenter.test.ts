@@ -277,6 +277,44 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(model.teamColors[0]?.hex).toBe("#00AA11");
   });
 
+  it("maps player perspective colors onto team positions when tracked player is on team 1", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        gamertag: "TrackedPlayer",
+        timeline: [
+          {
+            type: "series",
+            series: aSeriesWith({
+              isActive: true,
+              teams: [
+                {
+                  id: 0,
+                  name: "Alpha",
+                  players: [{ discordName: "AlphaPlayer", gamertag: "AlphaTag" }],
+                },
+                {
+                  id: 1,
+                  name: "Beta",
+                  players: [{ discordName: "TrackedPlayer", gamertag: "TrackedPlayer" }],
+                },
+              ],
+            }),
+          },
+        ],
+        teamColors: [
+          { id: "tracked", name: "Tracked", hex: "#00AA11" },
+          { id: "enemy", name: "Enemy", hex: "#AA0011" },
+        ],
+      }),
+      streamerSettings: undefined,
+      matchStatsState: null,
+      selectedMatchId: null,
+    });
+
+    expect(model.teamColors[0]?.hex).toBe("#AA0011");
+    expect(model.teamColors[1]?.hex).toBe("#00AA11");
+  });
+
   it("builds top-section team details with xbox-only names when discord names are hidden", () => {
     const model = presenter.present({
       renderModel: aRenderModelWith({
