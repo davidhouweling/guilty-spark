@@ -201,25 +201,36 @@ describe("createResilientFetch", () => {
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
 
-      // Advance timers to trigger the debounced KV writes
-      await vi.advanceTimersByTimeAsync(1000);
+      // Flush all pending debounced KV writes.
+      await vi.runAllTimersAsync();
+
+      const errorWindowCalls = kvPutSpy.mock.calls.filter((call) => String(call[0]).startsWith(KV_KEYS.ERROR_WINDOW));
+      const circuitBreakerCalls = kvPutSpy.mock.calls.filter((call) => call[0] === KV_KEYS.CIRCUIT_BREAKER);
 
       // Should have tracked the error and activated circuit breaker
-      expect(kvPutSpy).toHaveBeenCalledWith(
-        expect.stringContaining(KV_KEYS.ERROR_WINDOW),
-        expect.any(String),
-        expect.objectContaining({
-          expirationTtl: CIRCUIT_BREAKER_CONFIG.ERROR_TRACKING_TTL_SECONDS,
-        }),
+      expect(errorWindowCalls).toEqual(
+        expect.arrayContaining([
+          [
+            expect.stringContaining(KV_KEYS.ERROR_WINDOW),
+            expect.any(String),
+            expect.objectContaining({
+              expirationTtl: CIRCUIT_BREAKER_CONFIG.ERROR_TRACKING_TTL_SECONDS,
+            }),
+          ],
+        ]),
       );
 
       // Circuit breaker should be activated
-      expect(kvPutSpy).toHaveBeenCalledWith(
-        KV_KEYS.CIRCUIT_BREAKER,
-        expect.any(String),
-        expect.objectContaining({
-          expirationTtl: expect.any(Number) as number,
-        }),
+      expect(circuitBreakerCalls).toEqual(
+        expect.arrayContaining([
+          [
+            KV_KEYS.CIRCUIT_BREAKER,
+            expect.any(String),
+            expect.objectContaining({
+              expirationTtl: expect.any(Number) as number,
+            }),
+          ],
+        ]),
       );
 
       expect(logServiceWarnSpy).toHaveBeenCalledWith(
@@ -658,17 +669,28 @@ describe("createResilientFetch", () => {
       });
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
-      await vi.advanceTimersByTimeAsync(1000);
+      await vi.runAllTimersAsync();
 
-      expect(kvPutSpy).toHaveBeenCalledWith(
-        expect.stringContaining("halo:film:errors"),
-        expect.any(String),
-        expect.objectContaining({ expirationTtl: CIRCUIT_BREAKER_CONFIG.ERROR_TRACKING_TTL_SECONDS }),
+      const errorWindowCalls = kvPutSpy.mock.calls.filter((call) => String(call[0]).startsWith("halo:film:errors"));
+      const circuitBreakerCalls = kvPutSpy.mock.calls.filter((call) => call[0] === "halo:film:circuit_breaker");
+
+      expect(errorWindowCalls).toEqual(
+        expect.arrayContaining([
+          [
+            expect.stringContaining("halo:film:errors"),
+            expect.any(String),
+            expect.objectContaining({ expirationTtl: CIRCUIT_BREAKER_CONFIG.ERROR_TRACKING_TTL_SECONDS }),
+          ],
+        ]),
       );
-      expect(kvPutSpy).toHaveBeenCalledWith(
-        "halo:film:circuit_breaker",
-        expect.any(String),
-        expect.objectContaining({ expirationTtl: expect.any(Number) as number }),
+      expect(circuitBreakerCalls).toEqual(
+        expect.arrayContaining([
+          [
+            "halo:film:circuit_breaker",
+            expect.any(String),
+            expect.objectContaining({ expirationTtl: expect.any(Number) as number }),
+          ],
+        ]),
       );
       expect(kvPutSpy).not.toHaveBeenCalledWith(KV_KEYS.CIRCUIT_BREAKER, expect.anything(), expect.anything());
     });

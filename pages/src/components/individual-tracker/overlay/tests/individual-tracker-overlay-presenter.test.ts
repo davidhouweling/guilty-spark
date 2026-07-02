@@ -1,7 +1,35 @@
 import { describe, expect, it } from "vitest";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { gameModeIconSrc } from "../../game-mode-icon";
-import type { ViewerMatchTab, ViewerSeriesTab, ViewerTimelineItem } from "../../viewer/types";
-import { buildTabs, getActiveSeries } from "../individual-tracker-overlay-presenter";
+import type {
+  IndividualTrackerViewerRenderModel,
+  ViewerMatchTab,
+  ViewerSeriesTab,
+  ViewerTimelineItem,
+} from "../../viewer/types";
+import { IndividualTrackerOverlayPresenter } from "../individual-tracker-overlay-presenter";
+
+function aRenderModelWith(
+  overrides: Partial<IndividualTrackerViewerRenderModel> = {},
+): IndividualTrackerViewerRenderModel {
+  return {
+    trackerId: "tracker-1",
+    gamertag: "TrackedPlayer",
+    status: "active",
+    isLive: true,
+    hasActiveSeries: false,
+    activeSeriesContext: undefined,
+    lastUpdateTime: "2026-01-01T00:00:00.000Z",
+    timeline: [],
+    accumulated: { total: 0, wins: 0, losses: 0, ties: 0 },
+    statsHighlights: undefined,
+    teamColors: [
+      { id: "eagle", name: "Eagle", hex: "#0066CC" },
+      { id: "cobra", name: "Cobra", hex: "#CC0000" },
+    ],
+    ...overrides,
+  };
+}
 
 function aMatchWith(overrides: Partial<ViewerMatchTab> = {}): ViewerMatchTab {
   return {
@@ -42,6 +70,8 @@ function aSeriesWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesTab 
 }
 
 describe("individual-tracker-overlay-presenter", () => {
+  const presenter = new IndividualTrackerOverlayPresenter();
+
   it("finds the active series in timeline", () => {
     const timeline: ViewerTimelineItem[] = [
       { type: "series", series: aSeriesWith({ id: "series-old", isActive: false }) },
@@ -49,7 +79,7 @@ describe("individual-tracker-overlay-presenter", () => {
       { type: "series", series: aSeriesWith({ id: "series-active", isActive: true }) },
     ];
 
-    const activeSeries = getActiveSeries(timeline);
+    const activeSeries = presenter.getActiveSeries(timeline);
     expect(activeSeries?.id).toBe("series-active");
   });
 
@@ -68,7 +98,7 @@ describe("individual-tracker-overlay-presenter", () => {
       { type: "match", match: aMatchWith({ matchId: "outside-series" }) },
     ];
 
-    const tabs = buildTabs(timeline);
+    const tabs = presenter.buildTabs(timeline);
 
     expect(tabs).toHaveLength(2);
     expect(tabs.every((tab) => tab.type === "match")).toBe(true);
@@ -89,7 +119,7 @@ describe("individual-tracker-overlay-presenter", () => {
       { type: "match", match: aMatchWith({ matchId: "solo", gameVariantCategory: 8 }) },
     ];
 
-    const tabs = buildTabs(timeline);
+    const tabs = presenter.buildTabs(timeline);
 
     expect(tabs).toHaveLength(2);
     const [seriesTab, matchTab] = tabs;
@@ -115,7 +145,7 @@ describe("individual-tracker-overlay-presenter", () => {
       { type: "match", match: aMatchWith({ matchId: "solo" }) },
     ];
 
-    const tabs = buildTabs(timeline);
+    const tabs = presenter.buildTabs(timeline);
     const seriesTabs = tabs.filter((tab) => tab.type === "series");
 
     expect(seriesTabs).toHaveLength(2);
@@ -123,5 +153,100 @@ describe("individual-tracker-overlay-presenter", () => {
       expect(seriesTabs[0].index).toBe(-1);
       expect(seriesTabs[1].index).toBe(-2);
     }
+  });
+
+  it("returns a series score tab when active series exists but has no matches", () => {
+    const activeSeries = aSeriesWith({
+      id: "series-active",
+      isActive: true,
+      score: "0:0",
+      matches: [],
+    });
+
+    const tabs = presenter.buildTabs([], activeSeries);
+
+    expect(tabs).toHaveLength(1);
+    const [seriesTab] = tabs;
+    expect(seriesTab.type).toBe("series");
+    if (seriesTab.type === "series") {
+      expect(seriesTab.label).toBe("Series score");
+      expect(seriesTab.score).toBe("0:0");
+      expect(seriesTab.index).toBe(-1);
+    }
+  });
+
+  it("builds pre-series ticker group only when ticker is enabled and active series has no matches", () => {
+    const groups = presenter.buildPreSeriesTickerGroup({
+      showTicker: true,
+      activeSeries: aSeriesWith({ matches: [], isActive: true }),
+      playerName: "TrackedPlayer",
+      discordName: null,
+      gamertag: "TrackedPlayer",
+    });
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].label).toBe("Player Info");
+    expect(groups[0].rows[0].showTeamIcon).toBe(false);
+    expect(groups[0].rows[0].gamertag).toBe("TrackedPlayer");
+  });
+
+  it("builds top-section team details with xbox-only names when discord names are hidden", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        timeline: [
+          {
+            type: "series",
+            series: aSeriesWith({
+              isActive: true,
+              teams: [
+                { id: 0, name: "Alpha", players: [{ discordName: "DiscordAlpha", gamertag: "XboxAlpha" }] },
+                { id: 1, name: "Beta", players: [{ discordName: "DiscordBeta", gamertag: "XboxBeta" }] },
+              ],
+            }),
+          },
+        ],
+      }),
+      streamerSettings: {
+        visibleSections: {
+          showDiscordNames: false,
+          showXboxNames: true,
+        },
+      } satisfies StreamerViewSettings,
+      matchStatsState: null,
+      selectedMatchId: null,
+    });
+
+    expect(model.topSection?.teamLeft?.players).toEqual(["XboxAlpha"]);
+    expect(model.topSection?.teamRight?.players).toEqual(["XboxBeta"]);
+  });
+
+  it("omits player rows entirely when both discord and xbox names are hidden", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        timeline: [
+          {
+            type: "series",
+            series: aSeriesWith({
+              isActive: true,
+              teams: [
+                { id: 0, name: "Alpha", players: [{ discordName: "DiscordAlpha", gamertag: "XboxAlpha" }] },
+                { id: 1, name: "Beta", players: [{ discordName: "DiscordBeta", gamertag: "XboxBeta" }] },
+              ],
+            }),
+          },
+        ],
+      }),
+      streamerSettings: {
+        visibleSections: {
+          showDiscordNames: false,
+          showXboxNames: false,
+        },
+      } satisfies StreamerViewSettings,
+      matchStatsState: null,
+      selectedMatchId: null,
+    });
+
+    expect(model.topSection?.teamLeft?.players).toEqual([]);
+    expect(model.topSection?.teamRight?.players).toEqual([]);
   });
 });

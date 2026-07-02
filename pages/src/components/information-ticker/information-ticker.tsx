@@ -11,6 +11,7 @@ import styles from "./information-ticker.module.css";
 interface TickerStatRow {
   readonly type: "team" | "player";
   readonly teamId: number;
+  readonly showTeamIcon?: boolean;
   readonly name: string;
   readonly discordName?: string | null;
   readonly gamertag?: string | null;
@@ -81,7 +82,7 @@ const InformationTickerComponent = function InformationTicker({
 
           {/* Team Icon + Name */}
           <div className={styles.tickerName}>
-            <TeamIcon teamId={currentRow.teamId} size="small" />
+            {currentRow.showTeamIcon !== false && <TeamIcon teamId={currentRow.teamId} size="small" />}
             {currentRow.type === "player" && (currentRow.discordName != null || currentRow.gamertag != null) ? (
               <PlayerName
                 discordName={currentRow.discordName ?? null}
@@ -176,6 +177,7 @@ function arePropsEqual(prevProps: InformationTickerProps, nextProps: Information
     if (
       prevRow.type !== nextRow.type ||
       prevRow.teamId !== nextRow.teamId ||
+      prevRow.showTeamIcon !== nextRow.showTeamIcon ||
       prevRow.name !== nextRow.name ||
       prevRow.stats.length !== nextRow.stats.length ||
       prevRow.medals.length !== nextRow.medals.length

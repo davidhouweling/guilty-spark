@@ -82,6 +82,14 @@ Each feature follows the SPC split: Store → Presenter → Component (view).
 - **Presenter**: owns all business logic and async work. `start()` drives fetches and pushes results to the store. `present(snapshot)` is a pure computation that converts a snapshot into a fully display-ready view model — all formatting, icon URLs, hex colour values, sorted arrays, and computed strings must be done here, not in the view.
 - **View (component)**: pure renderer. Receives specific named props only (see **View Props** below). No business logic, no utility calls, no `useMemo` for data derivation.
 
+**Presenter shape and ownership**:
+
+- Presenters should be class-based by default (for example, `FooPresenter`) rather than modules that expose many independent exported functions.
+- Front-load shared setup in the presenter constructor (defaults, static mappings, reusable options) so call sites remain thin and consistent.
+- Keep presenter public API small and intentional (for example, `present(...)` and a few UI state helpers), with helper logic implemented as private methods.
+- `create.tsx` owns presenter instantiation (`useMemo(() => new FooPresenter(...), [...])`) and orchestrates calls; components remain render-only.
+- Do not move business/data-shaping logic into components to satisfy short-term convenience. If logic is shared by multiple presenter methods, extract private presenter methods first.
+
 ```typescript
 // create.tsx — wires the three layers together
 const store = useMemo(() => new FooStore(), []);
@@ -96,6 +104,8 @@ return <FooView {...model} />;
 ```
 
 **View Props**: Views must receive specific named props — never a generic `model` object or raw contract types (e.g. `renderData: Contract["renderData"]`). The `create.tsx` file is the mapping layer between presenter output and view props; spreading the model is idiomatic: `<FooView {...model} />`. `useMemo` inside a view is acceptable only for pure view-layer derivations such as column definitions — never for business logic or data transformation.
+
+When a feature needs view-model computation beyond simple pass-through, prefer presenter methods invoked from `create.tsx` over ad hoc utility calls in the component.
 
 **Shared types between presenter and view**: If a type is used by both the presenter and the view, it lives in `types.ts` in the same folder. The presenter does not import from the view; the view does not import from the presenter. Both import from `types.ts`.
 
@@ -241,6 +251,13 @@ Prefer typed fake instances plus `vi.spyOn` over ad hoc test doubles. Avoid `as 
 - Pages presenter tests: construct `Store` + `Presenter` directly (no React), drive via public methods, assert on `store.getSnapshot()`
 - Pages component tests: `@testing-library/react` — `render`/`screen`/`userEvent`; mock icons/providers
 - Proxy client tests: `vi.spyOn(globalThis, "fetch")`
+
+**Post-review hardening expectations**:
+
+- If a code review uncovers a regression risk, add a focused regression test in the same PR before merge.
+- For list/detail mapping, prefer stable identifiers over positional assumptions (for example, team IDs over array order).
+- For memoized components (`React.memo`), comparators must include all render-affecting props.
+- Normalize display-boundary values in presenter/create layers (for example, treat empty subtitle values as absent) instead of encoding that logic in view rendering.
 
 ## Security
 

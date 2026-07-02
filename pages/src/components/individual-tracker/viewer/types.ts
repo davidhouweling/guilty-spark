@@ -48,6 +48,12 @@ export interface ViewerSeriesTeam {
   readonly players: readonly ViewerSeriesTeamPlayer[];
 }
 
+export interface ViewerActiveSeriesContext {
+  readonly title: string;
+  readonly subtitle: string | null;
+  readonly teams: readonly ViewerSeriesTeam[];
+}
+
 export type ViewerTimelineItem =
   | { readonly type: "match"; readonly match: ViewerMatchTab }
   | { readonly type: "series"; readonly series: ViewerSeriesTab };
@@ -64,6 +70,8 @@ export interface IndividualTrackerViewerRenderModel {
   readonly gamertag: string;
   readonly status: TrackerStatus;
   readonly isLive: boolean;
+  readonly hasActiveSeries: boolean;
+  readonly activeSeriesContext: ViewerActiveSeriesContext | undefined;
   readonly lastUpdateTime: string;
   readonly timeline: readonly ViewerTimelineItem[];
   readonly accumulated: ViewerAccumulatedStats;

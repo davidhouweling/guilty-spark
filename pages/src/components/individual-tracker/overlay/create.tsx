@@ -8,6 +8,7 @@ import type { MatchAnalyticsService } from "../../../services/stats/match-analyt
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
 import { useIndividualTrackerViewer } from "../viewer/use-individual-tracker-viewer";
 import { IndividualTrackerOverlay } from "./individual-tracker-overlay";
+import { IndividualTrackerOverlayPresenter } from "./individual-tracker-overlay-presenter";
 import { OverlayPagePresenter } from "./overlay-page-presenter";
 import { OverlayPageStore } from "./overlay-page-store";
 
@@ -60,6 +61,29 @@ export function IndividualTrackerOverlayPage({
   );
 
   const overlayModel = useMemo(() => presenter.present(overlaySnapshot), [overlaySnapshot, presenter]);
+  const overlayPresenter = useMemo(() => new IndividualTrackerOverlayPresenter(), []);
+  const overlayViewModel = useMemo(
+    () =>
+      model.renderModel != null
+        ? overlayPresenter.present({
+            renderModel: model.renderModel,
+            streamerSettings: model.streamerSettings,
+            matchStatsState: overlayModel.matchStatsState,
+            selectedMatchId: overlayModel.selectedMatchId,
+          })
+        : null,
+    [
+      model.renderModel,
+      model.streamerSettings,
+      overlayModel.matchStatsState,
+      overlayModel.selectedMatchId,
+      overlayPresenter,
+    ],
+  );
+  const isPanelOpen = useMemo(
+    () => overlayPresenter.isPanelOpen(overlayModel.selectedMatchId, overlayModel.matchStatsState),
+    [overlayModel.matchStatsState, overlayModel.selectedMatchId, overlayPresenter],
+  );
 
   return (
     <ComponentLoader
@@ -67,10 +91,11 @@ export function IndividualTrackerOverlayPage({
       loading={<LoadingState text="Loading tracker..." />}
       error={<ErrorState message={snapshot.errorMessage ?? "Failed to load tracker"} onRetry={onRetry} />}
       loaded={
-        model.renderModel != null ? (
+        model.renderModel != null && overlayViewModel != null ? (
           <IndividualTrackerOverlay
-            renderModel={model.renderModel}
-            matchStatsState={overlayModel.matchStatsState}
+            viewModel={overlayViewModel}
+            isPanelOpen={isPanelOpen}
+            matchesLength={model.renderModel.accumulated.total}
             matchStatsPanelState={overlayModel.matchStatsPanelState}
             selectedMatchId={overlayModel.selectedMatchId}
             onSelectMatch={(matchId): void => {
