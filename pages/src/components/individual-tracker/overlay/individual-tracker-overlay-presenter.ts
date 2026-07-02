@@ -15,6 +15,7 @@ import { gameModeIconSrc } from "../game-mode-icon";
 import type {
   IndividualTrackerOverlayViewModel,
   OverlayDisplaySettings,
+  OverlayTeamPlayerModel,
   OverlayTeamDetailsModel,
   OverlayTopSectionModel,
 } from "./types";
@@ -66,6 +67,12 @@ function getSeriesPlayerDisplayNameForSettings(
   return player.discordName ?? player.gamertag ?? "Unknown";
 }
 
+function getSeriesPlayerStableKey(
+  player: { readonly discordName: string | null; readonly gamertag: string | null },
+): string {
+  return `${player.discordName ?? "none"}:${player.gamertag ?? "none"}`;
+}
+
 function getTeamDetailsModel(
   team: {
     readonly name: string;
@@ -73,10 +80,13 @@ function getTeamDetailsModel(
   },
   settings: Pick<OverlayDisplaySettings, "showDiscordNames" | "showXboxNames">,
 ): OverlayTeamDetailsModel {
-  const players =
+  const players: readonly OverlayTeamPlayerModel[] =
     !settings.showDiscordNames && !settings.showXboxNames
       ? []
-      : team.players.map((player) => getSeriesPlayerDisplayNameForSettings(player, settings));
+      : team.players.map((player) => ({
+          key: getSeriesPlayerStableKey(player),
+          label: getSeriesPlayerDisplayNameForSettings(player, settings),
+        }));
 
   return {
     name: team.name,

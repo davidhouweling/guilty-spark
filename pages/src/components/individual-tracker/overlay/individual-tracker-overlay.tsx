@@ -41,8 +41,8 @@ export function IndividualTrackerOverlay({
             viewModel.topSection.teamLeft != null ? (
               <>
                 <div>{viewModel.topSection.teamLeft.name}</div>
-                {viewModel.topSection.teamLeft.players.map((player, index) => (
-                  <div key={`left-${index.toString()}`}>{player}</div>
+                {viewModel.topSection.teamLeft.players.map((player) => (
+                  <div key={`left-${player.key}`}>{player.label}</div>
                 ))}
               </>
             ) : null
@@ -51,8 +51,8 @@ export function IndividualTrackerOverlay({
             viewModel.topSection.teamRight != null ? (
               <>
                 <div>{viewModel.topSection.teamRight.name}</div>
-                {viewModel.topSection.teamRight.players.map((player, index) => (
-                  <div key={`right-${index.toString()}`}>{player}</div>
+                {viewModel.topSection.teamRight.players.map((player) => (
+                  <div key={`right-${player.key}`}>{player.label}</div>
                 ))}
               </>
             ) : null

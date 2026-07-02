@@ -18,7 +18,12 @@ export interface OverlayDisplaySettings {
 
 export interface OverlayTeamDetailsModel {
   readonly name: string;
-  readonly players: readonly string[];
+  readonly players: readonly OverlayTeamPlayerModel[];
+}
+
+export interface OverlayTeamPlayerModel {
+  readonly key: string;
+  readonly label: string;
 }
 
 export interface OverlayTopSectionModel {
