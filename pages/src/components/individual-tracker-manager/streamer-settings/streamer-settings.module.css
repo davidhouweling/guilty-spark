@@ -164,6 +164,18 @@
   margin: var(--space-1) 0;
 }
 
+.srOnly {
+  border: 0;
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
 .floatingSaveToast {
   bottom: var(--space-4);
   max-width: min(26rem, calc(100vw - (var(--space-4) * 2)));

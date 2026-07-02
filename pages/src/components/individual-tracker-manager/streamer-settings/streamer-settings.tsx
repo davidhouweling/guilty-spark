@@ -445,7 +445,12 @@ export function StreamerSettingsSectionView({
           onChange={(checked): void => {
             onInSeriesShowTickerChange(checked);
           }}
-          label="Show Information Ticker"
+          label={
+            <>
+              <span className={styles.srOnly}>In Series </span>
+              Show Information Ticker
+            </>
+          }
           description="Toggle ticker visibility for in-series overlay state."
         />
         <Checkbox
@@ -453,7 +458,12 @@ export function StreamerSettingsSectionView({
           onChange={(checked): void => {
             onInSeriesMyStatsOnlyChange(checked);
           }}
-          label="Show only my stats"
+          label={
+            <>
+              <span className={styles.srOnly}>In Series </span>
+              Show only my stats
+            </>
+          }
           description="When enabled, the ticker only rotates your player row during an active series."
         />
       </div>
@@ -489,7 +499,12 @@ export function StreamerSettingsSectionView({
           onChange={(checked): void => {
             onMatchmakingShowTickerChange(checked);
           }}
-          label="Show Information Ticker"
+          label={
+            <>
+              <span className={styles.srOnly}>Matchmaking </span>
+              Show Information Ticker
+            </>
+          }
           description="Toggle ticker visibility for matchmaking overlay state."
         />
         <Checkbox
@@ -497,7 +512,12 @@ export function StreamerSettingsSectionView({
           onChange={(checked): void => {
             onMatchmakingMyStatsOnlyChange(checked);
           }}
-          label="Show only my stats"
+          label={
+            <>
+              <span className={styles.srOnly}>Matchmaking </span>
+              Show only my stats
+            </>
+          }
           description="When enabled, the ticker only rotates your player row during matchmaking matches."
         />
       </div>
