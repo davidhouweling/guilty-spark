@@ -124,6 +124,7 @@ export function IndividualTrackerManagerPage({
           tickerSettings={settingsSnapshot.tickerSettings}
           inSeriesShowTicker={settingsSnapshot.inSeriesShowTicker}
           matchmakingShowTicker={settingsSnapshot.matchmakingShowTicker}
+          matchmakingShowStatsHighlights={settingsSnapshot.matchmakingShowStatsHighlights}
           inSeriesMyStatsOnly={settingsSnapshot.inSeriesMyStatsOnly}
           matchmakingMyStatsOnly={settingsSnapshot.matchmakingMyStatsOnly}
           fontSizeSettings={settingsSnapshot.fontSizeSettings}
@@ -149,6 +150,9 @@ export function IndividualTrackerManagerPage({
           }}
           onMatchmakingShowTickerChange={(enabled): void => {
             settingsPresenter.setMatchmakingShowTicker(enabled);
+          }}
+          onMatchmakingShowStatsHighlightsChange={(enabled): void => {
+            settingsPresenter.setMatchmakingShowStatsHighlights(enabled);
           }}
           onInSeriesMyStatsOnlyChange={(enabled): void => {
             settingsPresenter.setInSeriesMyStatsOnly(enabled);

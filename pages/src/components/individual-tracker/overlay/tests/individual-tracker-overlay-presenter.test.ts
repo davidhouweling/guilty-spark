@@ -312,8 +312,8 @@ describe("individual-tracker-overlay-presenter", () => {
     });
 
     expect(model.topSection?.teamLeft?.players).toEqual([
-      { key: "Same:Tag", label: "Same" },
-      { key: "Same:Tag:1", label: "Same" },
+      { key: "Same:Tag", label: "Tag" },
+      { key: "Same:Tag:1", label: "Tag" },
     ]);
   });
 
