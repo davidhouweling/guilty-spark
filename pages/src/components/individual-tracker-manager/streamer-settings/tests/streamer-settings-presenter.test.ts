@@ -82,6 +82,9 @@ describe("StreamerSettingsPresenter", () => {
           visibleSections: { showTicker: false, showTabs: false },
           styleFlags: {
             showPreSeriesInfo: false,
+            inSeriesShowTicker: false,
+            matchmakingShowTicker: true,
+            matchmakingShowStatsHighlights: false,
             inSeriesMyStatsOnly: true,
             matchmakingMyStatsOnly: true,
           },
@@ -92,6 +95,9 @@ describe("StreamerSettingsPresenter", () => {
       expect(store.getSnapshot().tickerSettings.showTicker).toBe(false);
       expect(store.getSnapshot().tickerSettings.showTabs).toBe(false);
       expect(store.getSnapshot().tickerSettings.showPreSeriesInfo).toBe(false);
+      expect(store.getSnapshot().inSeriesShowTicker).toBe(false);
+      expect(store.getSnapshot().matchmakingShowTicker).toBe(true);
+      expect(store.getSnapshot().matchmakingShowStatsHighlights).toBe(false);
       expect(store.getSnapshot().inSeriesMyStatsOnly).toBe(true);
       expect(store.getSnapshot().matchmakingMyStatsOnly).toBe(true);
     });
@@ -298,6 +304,63 @@ describe("StreamerSettingsPresenter", () => {
 
       const [[saved]] = updateSpy.mock.calls;
       expect(saved.styleFlags?.matchmakingMyStatsOnly).toBe(true);
+    });
+  });
+
+  describe("setInSeriesShowTicker", () => {
+    it("updates inSeriesShowTicker in the store and schedules a save", async () => {
+      const { store, presenter, settingsService } = aHarness();
+      const updateSpy: MockInstance<typeof settingsService.updateSettings> = vi.spyOn(
+        settingsService,
+        "updateSettings",
+      );
+
+      presenter.setInSeriesShowTicker(false);
+
+      expect(store.getSnapshot().inSeriesShowTicker).toBe(false);
+
+      await vi.runAllTimersAsync();
+
+      const [[saved]] = updateSpy.mock.calls;
+      expect(saved.styleFlags?.inSeriesShowTicker).toBe(false);
+    });
+  });
+
+  describe("setMatchmakingShowTicker", () => {
+    it("updates matchmakingShowTicker in the store and schedules a save", async () => {
+      const { store, presenter, settingsService } = aHarness();
+      const updateSpy: MockInstance<typeof settingsService.updateSettings> = vi.spyOn(
+        settingsService,
+        "updateSettings",
+      );
+
+      presenter.setMatchmakingShowTicker(false);
+
+      expect(store.getSnapshot().matchmakingShowTicker).toBe(false);
+
+      await vi.runAllTimersAsync();
+
+      const [[saved]] = updateSpy.mock.calls;
+      expect(saved.styleFlags?.matchmakingShowTicker).toBe(false);
+    });
+  });
+
+  describe("setMatchmakingShowStatsHighlights", () => {
+    it("updates matchmakingShowStatsHighlights in the store and schedules a save", async () => {
+      const { store, presenter, settingsService } = aHarness();
+      const updateSpy: MockInstance<typeof settingsService.updateSettings> = vi.spyOn(
+        settingsService,
+        "updateSettings",
+      );
+
+      presenter.setMatchmakingShowStatsHighlights(false);
+
+      expect(store.getSnapshot().matchmakingShowStatsHighlights).toBe(false);
+
+      await vi.runAllTimersAsync();
+
+      const [[saved]] = updateSpy.mock.calls;
+      expect(saved.styleFlags?.matchmakingShowStatsHighlights).toBe(false);
     });
   });
 

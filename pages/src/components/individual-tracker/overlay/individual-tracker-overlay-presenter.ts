@@ -247,6 +247,7 @@ export class IndividualTrackerOverlayPresenter {
     const fontSizeStyles = getFontSizeStyles(streamerSettings);
     const teamColors = this.getTeamColors(renderModel);
     const activeSeries = this.getOverlayActiveSeries(renderModel);
+    const showTicker = this.getShowTicker(streamerSettings, activeSeries, displaySettings.showTicker);
     const tabs = this.buildTabs(renderModel.timeline, activeSeries);
     const selectedTabIndex = this.getSelectedTabIndex(tabs, selectedMatchId);
     const loadedTickerGroups = this.buildTickerGroups(matchStatsState, selectedTabIndex, {
@@ -257,7 +258,7 @@ export class IndividualTrackerOverlayPresenter {
       loadedTickerGroups.length > 0
         ? loadedTickerGroups
         : this.buildPreSeriesTickerGroup({
-            showTicker: displaySettings.showTicker,
+            showTicker,
             activeSeries,
             playerName: renderModel.gamertag,
             discordName: null,
@@ -267,15 +268,31 @@ export class IndividualTrackerOverlayPresenter {
     return {
       pinTopSection: activeSeries != null,
       topSection: activeSeries != null ? this.getTopSectionModel(activeSeries, displaySettings) : null,
-      statsHighlights: renderModel.statsHighlights ?? [],
+      statsHighlights: this.getMatchmakingStatsHighlights(streamerSettings, activeSeries, renderModel.statsHighlights),
       teamColors,
       tabs,
       tickerMatchGroups,
       showTabs: displaySettings.showTabs && this.getShowTabs(renderModel),
-      showTicker: displaySettings.showTicker,
+      showTicker,
       showPreSeriesInfo: tickerMatchGroups.length > 0 && activeSeries?.matches.length === 0,
       fontSizeStyles,
     };
+  }
+
+  private getMatchmakingStatsHighlights(
+    streamerSettings: StreamerViewSettings | undefined,
+    activeSeries: ViewerSeriesTab | null,
+    statsHighlights: IndividualTrackerViewerRenderModel["statsHighlights"],
+  ): IndividualTrackerOverlayViewModel["statsHighlights"] {
+    if (activeSeries != null) {
+      return [];
+    }
+
+    if (streamerSettings?.styleFlags?.matchmakingShowStatsHighlights === false) {
+      return [];
+    }
+
+    return statsHighlights ?? [];
   }
 
   private getOverlayActiveSeries(renderModel: IndividualTrackerViewerRenderModel): ViewerSeriesTab | null {
@@ -386,6 +403,18 @@ export class IndividualTrackerOverlayPresenter {
     }
 
     return streamerSettings?.styleFlags?.matchmakingMyStatsOnly === true;
+  }
+
+  private getShowTicker(
+    streamerSettings: StreamerViewSettings | undefined,
+    activeSeries: ViewerSeriesTab | null,
+    fallbackShowTicker: boolean,
+  ): boolean {
+    if (activeSeries != null) {
+      return streamerSettings?.styleFlags?.inSeriesShowTicker ?? fallbackShowTicker;
+    }
+
+    return streamerSettings?.styleFlags?.matchmakingShowTicker ?? fallbackShowTicker;
   }
 
   private filterRowsForTrackedPlayer(

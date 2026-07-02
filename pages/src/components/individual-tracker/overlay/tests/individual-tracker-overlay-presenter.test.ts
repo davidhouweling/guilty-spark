@@ -317,6 +317,38 @@ describe("individual-tracker-overlay-presenter", () => {
     ]);
   });
 
+  it("shows matchmaking stats highlights by default when provided by viewer settings", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        statsHighlights: [{ label: "KDA", value: "3.2" }],
+      }),
+      streamerSettings: undefined,
+      matchStatsState: null,
+      selectedMatchId: null,
+    });
+
+    expect(model.topSection).toBeNull();
+    expect(model.statsHighlights).toEqual([{ label: "KDA", value: "3.2" }]);
+  });
+
+  it("hides matchmaking stats highlights when overlay toggle is disabled", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        statsHighlights: [{ label: "KDA", value: "3.2" }],
+      }),
+      streamerSettings: {
+        styleFlags: {
+          matchmakingShowStatsHighlights: false,
+        },
+      } satisfies StreamerViewSettings,
+      matchStatsState: null,
+      selectedMatchId: null,
+    });
+
+    expect(model.topSection).toBeNull();
+    expect(model.statsHighlights).toEqual([]);
+  });
+
   it("shows only the tracked player row in matchmaking ticker when matchmakingMyStatsOnly is enabled", () => {
     const model = presenter.present({
       renderModel: aRenderModelWith(),
@@ -383,5 +415,45 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.type).toBe("player");
     expect(rows[0]?.name).toBe("TrackedPlayer");
+  });
+
+  it("hides ticker in-series when inSeriesShowTicker is false", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        timeline: [
+          {
+            type: "series",
+            series: aSeriesWith({
+              isActive: true,
+              matches: [aMatchWith({ matchId: "series-match-1" })],
+            }),
+          },
+        ],
+      }),
+      streamerSettings: {
+        styleFlags: {
+          inSeriesShowTicker: false,
+        },
+      },
+      matchStatsState: null,
+      selectedMatchId: null,
+    });
+
+    expect(model.showTicker).toBe(false);
+  });
+
+  it("hides ticker in matchmaking when matchmakingShowTicker is false", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith(),
+      streamerSettings: {
+        styleFlags: {
+          matchmakingShowTicker: false,
+        },
+      },
+      matchStatsState: null,
+      selectedMatchId: null,
+    });
+
+    expect(model.showTicker).toBe(false);
   });
 });

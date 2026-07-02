@@ -45,6 +45,9 @@ export function StreamerSettingsSection({
       observerEnemyColor={snapshot.observerEnemyColor}
       displaySettings={snapshot.displaySettings}
       tickerSettings={snapshot.tickerSettings}
+      inSeriesShowTicker={snapshot.inSeriesShowTicker}
+      matchmakingShowTicker={snapshot.matchmakingShowTicker}
+      matchmakingShowStatsHighlights={snapshot.matchmakingShowStatsHighlights}
       inSeriesMyStatsOnly={snapshot.inSeriesMyStatsOnly}
       matchmakingMyStatsOnly={snapshot.matchmakingMyStatsOnly}
       fontSizeSettings={snapshot.fontSizeSettings}
@@ -64,6 +67,15 @@ export function StreamerSettingsSection({
       }}
       onTickerSettingsChange={(updates): void => {
         presenter.setTickerSettings(updates);
+      }}
+      onInSeriesShowTickerChange={(enabled): void => {
+        presenter.setInSeriesShowTicker(enabled);
+      }}
+      onMatchmakingShowTickerChange={(enabled): void => {
+        presenter.setMatchmakingShowTicker(enabled);
+      }}
+      onMatchmakingShowStatsHighlightsChange={(enabled): void => {
+        presenter.setMatchmakingShowStatsHighlights(enabled);
       }}
       onInSeriesMyStatsOnlyChange={(enabled): void => {
         presenter.setInSeriesMyStatsOnly(enabled);
