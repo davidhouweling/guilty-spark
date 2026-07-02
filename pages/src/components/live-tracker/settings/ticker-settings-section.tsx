@@ -15,16 +15,16 @@ function formatStatName(stat: string): string {
 
 interface TickerSettingsSectionProps {
   readonly settings: TickerSettings;
-  readonly onChange: (updates: Partial<TickerSettings>) => void;
   readonly showTickerVisibilityToggle?: boolean;
   readonly showPreSeriesInfoToggle?: boolean;
+  readonly onChange: (updates: Partial<TickerSettings>) => void;
 }
 
 export function TickerSettingsSection({
   settings,
-  onChange,
   showTickerVisibilityToggle = true,
   showPreSeriesInfoToggle = true,
+  onChange,
 }: TickerSettingsSectionProps): React.ReactElement {
   const handleStatToggle = (stat: string): void => {
     const isEnabled = settings.selectedSlayerStats.includes(stat);
