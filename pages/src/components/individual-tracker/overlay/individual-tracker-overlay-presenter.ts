@@ -6,8 +6,9 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
-import type { TickerMatchGroup } from "../../information-ticker/information-ticker";
+import type { TickerMatchGroup , TickerStatRow } from "../../information-ticker/information-ticker";
 import { createMatchStatsFormatter } from "../../../controllers/stats/create";
+import type { MatchStatsValues } from "../../../controllers/stats/types";
 import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
 import type { IndividualTrackerViewerRenderModel, ViewerSeriesTab, ViewerTimelineItem } from "../viewer/types";
 import { gameModeIconSrc } from "../game-mode-icon";
@@ -210,15 +211,70 @@ export class IndividualTrackerOverlayPresenter {
     readonly discordName: string | null;
     readonly gamertag: string | null;
   }): TickerMatchGroup[] {
-    if (
-      !options.showTicker ||
-      !options.showPreSeriesInfo ||
-      options.activeSeries == null ||
-      options.activeSeries.matches.length > 0
-    ) {
+    if (!options.showTicker || !options.showPreSeriesInfo) {
       return [];
     }
 
+    // If in a series with matches already completed, don't show pre-series ticker
+    if (options.activeSeries != null && options.activeSeries.matches.length > 0) {
+      return [];
+    }
+
+    // Create placeholder stat for "no data yet" - show dash
+    const createPlaceholderStats = (): MatchStatsValues[] => [
+      {
+        name: "Matches",
+        value: 0,
+        bestInTeam: false,
+        bestInMatch: false,
+        display: "–",
+      },
+    ];
+
+    // Case 1: Pre-series with active series that has teams (series exists but no matches yet)
+    if (
+      options.activeSeries?.matches.length === 0 &&
+      options.activeSeries.teams.length > 0
+    ) {
+      const { activeSeries } = options;
+      const seriesLabel = activeSeries.title || "Series Info";
+      const rows: TickerStatRow[] = [];
+
+      // Add each team and its players
+      for (const team of activeSeries.teams) {
+        // Add team row
+        rows.push({
+          type: "team",
+          teamId: team.id,
+          name: team.name,
+          stats: createPlaceholderStats(),
+          medals: [],
+        });
+
+        // Add each player in the team
+        for (const player of team.players) {
+          rows.push({
+            type: "player",
+            teamId: team.id,
+            discordName: player.discordName,
+            gamertag: player.gamertag,
+            name: player.discordName ?? player.gamertag,
+            stats: createPlaceholderStats(),
+            medals: [],
+          });
+        }
+      }
+
+      return [
+        {
+          matchIndex: -1,
+          label: seriesLabel,
+          rows,
+        },
+      ];
+    }
+
+    // Case 2: Fallback for matchmaking UI or series with no teams yet - show tracked player info
     return [
       {
         matchIndex: -1,
@@ -231,15 +287,7 @@ export class IndividualTrackerOverlayPresenter {
             discordName: options.discordName,
             gamertag: options.gamertag,
             showTeamIcon: false,
-            stats: [
-              {
-                name: "Status",
-                value: 0,
-                bestInTeam: false,
-                bestInMatch: false,
-                display: "Waiting for first match",
-              },
-            ],
+            stats: createPlaceholderStats(),
             medals: [],
           },
         ],
