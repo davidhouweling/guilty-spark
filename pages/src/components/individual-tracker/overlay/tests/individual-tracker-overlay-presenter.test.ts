@@ -249,4 +249,42 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(model.topSection?.teamLeft?.players).toEqual([]);
     expect(model.topSection?.teamRight?.players).toEqual([]);
   });
+
+  it("deduplicates top-section player keys when display names repeat", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        timeline: [
+          {
+            type: "series",
+            series: aSeriesWith({
+              isActive: true,
+              teams: [
+                {
+                  id: 0,
+                  name: "Alpha",
+                  players: [
+                    { discordName: "Same", gamertag: "Tag" },
+                    { discordName: "Same", gamertag: "Tag" },
+                  ],
+                },
+                {
+                  id: 1,
+                  name: "Beta",
+                  players: [{ discordName: "Other", gamertag: "OtherTag" }],
+                },
+              ],
+            }),
+          },
+        ],
+      }),
+      streamerSettings: undefined,
+      matchStatsState: null,
+      selectedMatchId: null,
+    });
+
+    expect(model.topSection?.teamLeft?.players).toEqual([
+      { key: "Same:Tag", label: "Same" },
+      { key: "Same:Tag:1", label: "Same" },
+    ]);
+  });
 });
