@@ -41,6 +41,8 @@ export interface FollowLiveOverlayViewerProps {
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
+  readonly showPreview?: boolean;
+  readonly previewMode?: "player" | "observer";
 }
 
 export function FollowLiveOverlayViewer({
@@ -50,6 +52,8 @@ export function FollowLiveOverlayViewer({
   matchAnalyticsService,
   seriesMatchesService,
   haloClient,
+  showPreview = false,
+  previewMode = "observer",
 }: FollowLiveOverlayViewerProps): React.ReactElement {
   const { directory, directoryStatus, onRetry } = useFollowLiveDirectory({
     followLiveService,
@@ -70,6 +74,8 @@ export function FollowLiveOverlayViewer({
         seriesMatchesService={seriesMatchesService}
         haloClient={haloClient}
         trackerId={liveTracker.trackerId}
+        showPreview={showPreview}
+        previewMode={previewMode}
       />
     );
   }

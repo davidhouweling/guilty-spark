@@ -13,9 +13,15 @@ import { aFakeSeriesMatchesServiceWith } from "../../../services/stats/fakes/ser
 import { FollowLiveOverlayViewer, type FollowLiveOverlayViewerProps } from "../follow-live-overlay-viewer";
 
 vi.mock("../../individual-tracker/overlay/create", () => ({
-  IndividualTrackerOverlayPage: ({ trackerId }: { trackerId: string }): React.ReactElement => (
-    <div data-testid="mock-overlay-page">{trackerId}</div>
-  ),
+  IndividualTrackerOverlayPage: ({
+    trackerId,
+    showPreview,
+    previewMode,
+  }: {
+    trackerId: string;
+    showPreview?: boolean;
+    previewMode?: "player" | "observer";
+  }): React.ReactElement => <div data-testid="mock-overlay-page">{`${trackerId}:${String(showPreview)}:${previewMode ?? "observer"}`}</div>,
 }));
 
 function aViewerPropsWith(directory: TrackerDirectory): FollowLiveOverlayViewerProps {
@@ -26,6 +32,8 @@ function aViewerPropsWith(directory: TrackerDirectory): FollowLiveOverlayViewerP
     matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     seriesMatchesService: aFakeSeriesMatchesServiceWith(),
     haloClient: aFakeHaloClientWith(),
+    showPreview: false,
+    previewMode: "observer",
   };
 }
 
@@ -47,7 +55,20 @@ describe("FollowLiveOverlayViewer", () => {
     render(<FollowLiveOverlayViewer {...aViewerPropsWith(directory)} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("mock-overlay-page")).toHaveTextContent("tracker-2");
+      expect(screen.getByTestId("mock-overlay-page")).toHaveTextContent("tracker-2:false:observer");
+    });
+  });
+
+  it("forwards preview flags to the overlay page", async () => {
+    const directory = aDirectoryWith({
+      trackers: [aTrackerWith({ trackerId: "tracker-3", gamertag: "Spartan Three", isLive: true, status: "active" })],
+      liveTrackerId: "tracker-3",
+    });
+
+    render(<FollowLiveOverlayViewer {...aViewerPropsWith(directory)} showPreview previewMode="player" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-overlay-page")).toHaveTextContent("tracker-3:true:player");
     });
   });
 

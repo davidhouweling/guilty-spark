@@ -18,6 +18,8 @@ interface IndividualTrackerOverlayPageProps {
   readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
   readonly trackerId: string;
+  readonly showPreview?: boolean;
+  readonly previewMode?: "player" | "observer";
 }
 
 export function IndividualTrackerOverlayPage({
@@ -26,6 +28,8 @@ export function IndividualTrackerOverlayPage({
   seriesMatchesService,
   haloClient,
   trackerId,
+  showPreview = false,
+  previewMode = "observer",
 }: IndividualTrackerOverlayPageProps): React.ReactElement {
   const store = useMemo(() => new OverlayPageStore(), [trackerId]);
 
@@ -98,6 +102,8 @@ export function IndividualTrackerOverlayPage({
             matchesLength={model.renderModel.accumulated.total}
             matchStatsPanelState={overlayModel.matchStatsPanelState}
             selectedMatchId={overlayModel.selectedMatchId}
+            showPreview={showPreview}
+            previewMode={previewMode}
             onSelectMatch={(matchId): void => {
               presenter.selectMatch(matchId);
             }}

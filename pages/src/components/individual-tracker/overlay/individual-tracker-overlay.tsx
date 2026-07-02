@@ -13,6 +13,8 @@ interface IndividualTrackerOverlayProps {
   readonly matchesLength: number;
   readonly matchStatsPanelState: MatchDetailsState | null;
   readonly selectedMatchId: string | null;
+  readonly showPreview?: boolean;
+  readonly previewMode?: "player" | "observer";
   readonly onSelectMatch: (matchId: string) => void;
   readonly onDeselect: () => void;
 }
@@ -23,6 +25,8 @@ export function IndividualTrackerOverlay({
   matchesLength,
   matchStatsPanelState,
   selectedMatchId,
+  showPreview = false,
+  previewMode = "observer",
   onSelectMatch,
   onDeselect,
 }: IndividualTrackerOverlayProps): React.ReactElement {
@@ -113,8 +117,8 @@ export function IndividualTrackerOverlay({
         showTicker={viewModel.showTicker}
         showPreSeriesInfo={viewModel.showPreSeriesInfo}
         matchesLength={matchesLength}
-        showPreview={false}
-        previewMode="observer"
+        showPreview={showPreview}
+        previewMode={previewMode}
         fontSizeStyles={viewModel.fontSizeStyles}
         settingsUi={null}
         hasPanelContent={hasPanelContent}

@@ -17,6 +17,25 @@ interface FollowLiveAppProps {
 export function FollowLiveApp({ apiHost, gamertag, variant = "viewer" }: FollowLiveAppProps): ReactElement {
   const [state, setState] = useState(ComponentLoaderStatus.PENDING);
   const [services, setServices] = useState<Services | null>(null);
+  const [overlayPreview, setOverlayPreview] = useState<{ showPreview: boolean; previewMode: "player" | "observer" }>(
+    {
+      showPreview: false,
+      previewMode: "observer",
+    },
+  );
+
+  useEffect(() => {
+    if (variant !== "overlay") {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const showPreview = params.get("preview") === "1";
+    const previewModeParam = params.get("previewMode");
+    const previewMode = previewModeParam === "player" ? "player" : "observer";
+
+    setOverlayPreview({ showPreview, previewMode });
+  }, [variant]);
 
   useEffect(() => {
     if (gamertag === "") {
@@ -72,6 +91,8 @@ export function FollowLiveApp({ apiHost, gamertag, variant = "viewer" }: FollowL
               matchAnalyticsService={services.matchAnalyticsService}
               seriesMatchesService={services.seriesMatchesService}
               haloClient={services.haloClient}
+              showPreview={overlayPreview.showPreview}
+              previewMode={overlayPreview.previewMode}
             />
           ) : (
             <FollowLiveViewer

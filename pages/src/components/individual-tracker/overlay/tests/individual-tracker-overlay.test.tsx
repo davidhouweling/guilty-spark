@@ -376,6 +376,9 @@ describe("IndividualTrackerOverlay", () => {
         showSubtitle: false,
         showTeamDetails: false,
       },
+      styleFlags: {
+        showPreSeriesInfo: false,
+      },
     };
 
     render(<IndividualTrackerOverlay {...aPropsWith({ renderModel, streamerSettings })} />);
