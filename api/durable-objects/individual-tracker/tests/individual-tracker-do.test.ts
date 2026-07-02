@@ -78,7 +78,13 @@ const createMockStartRequest = (
   ...overrides,
 });
 
-const aFakePlayerMatch = (matchId: string, startTime: string, outcome = 2, duration = "PT10M"): PlayerMatchHistory =>
+const aFakePlayerMatch = (
+  matchId: string,
+  startTime: string,
+  outcome = 2,
+  duration = "PT10M",
+  isMatchmaking = false,
+): PlayerMatchHistory =>
   ({
     MatchId: matchId,
     Outcome: outcome,
@@ -89,6 +95,7 @@ const aFakePlayerMatch = (matchId: string, startTime: string, outcome = 2, durat
       GameVariantCategory: 6,
       MapVariant: { AssetId: "map-asset", VersionId: "v1" },
       UgcGameVariant: { AssetId: "mode-asset", VersionId: "v1" },
+      ...(isMatchmaking ? { Playlist: { AssetId: "playlist-asset", VersionId: "v1" } } : {}),
     },
   }) as unknown as PlayerMatchHistory;
 
@@ -1593,6 +1600,47 @@ describe("IndividualTrackerDO", () => {
 
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.selectedMatchIds).toEqual(["match-new"]);
+    });
+
+    it("ends an active series before appending a newly discovered matchmaking match", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-matchmaking", "2024-11-26T11:30:00.000Z", 2, "PT5M", true)])
+        .mockResolvedValueOnce([]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: ["series-custom-match"],
+          discoveredMatches: {
+            "series-custom-match": aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "series-custom-match",
+              isMatchmaking: false,
+            }),
+          },
+          activeSeries: {
+            title: "Active Series",
+            subtitle: "Customs",
+            guildIconUrl: null,
+            teams: [],
+            matchIds: ["series-custom-match"],
+            startedAt: "2024-11-26T11:00:00.000Z",
+            isActive: true,
+          },
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toBeUndefined();
+      expect(persisted.completedSeries).toHaveLength(1);
+      expect(persisted.completedSeries?.[0]).toMatchObject({
+        title: "Active Series",
+        matchIds: ["series-custom-match"],
+        isActive: false,
+      });
+      expect(persisted.matchIds).toEqual(["series-custom-match", "match-matchmaking"]);
+      expect(persisted.discoveredMatches["match-matchmaking"]?.isMatchmaking).toBe(true);
     });
 
     it("stores outcome, score, and the resolved map name for a newly discovered match", async () => {
