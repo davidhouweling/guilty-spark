@@ -1643,6 +1643,47 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.discoveredMatches["match-matchmaking"]?.isMatchmaking).toBe(true);
     });
 
+    it("keeps older custom matches in the completed series when a newer matchmaking match appears in the same batch", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([
+          aFakePlayerMatch("match-matchmaking", "2024-11-26T11:32:00.000Z", 2, "PT5M", true),
+          aFakePlayerMatch("match-custom-older", "2024-11-26T11:25:00.000Z", 2, "PT5M", false),
+        ])
+        .mockResolvedValueOnce([]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: ["series-custom-existing"],
+          discoveredMatches: {
+            "series-custom-existing": aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "series-custom-existing",
+              isMatchmaking: false,
+            }),
+          },
+          activeSeries: {
+            title: "Active Series",
+            subtitle: "Customs",
+            guildIconUrl: null,
+            teams: [],
+            matchIds: ["series-custom-existing"],
+            startedAt: "2024-11-26T11:00:00.000Z",
+            isActive: true,
+          },
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toBeUndefined();
+      expect(persisted.completedSeries).toHaveLength(1);
+      expect(persisted.completedSeries?.[0]?.matchIds).toEqual(["series-custom-existing", "match-custom-older"]);
+      expect(persisted.matchIds).toEqual(["series-custom-existing", "match-matchmaking", "match-custom-older"]);
+      expect(persisted.discoveredMatches["match-matchmaking"]?.isMatchmaking).toBe(true);
+      expect(persisted.discoveredMatches["match-custom-older"]?.isMatchmaking).toBe(false);
+    });
+
     it("stores outcome, score, and the resolved map name for a newly discovered match", async () => {
       ownerClient.getPlayerMatches
         .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 3)])

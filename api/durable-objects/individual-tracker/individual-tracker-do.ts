@@ -344,6 +344,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const matchesToProcess = this.getMatchesToProcessBeforeMarker(allMatches, markerFound, markerFoundAtIndex);
     const knownIds = new Set(trackerState.matchIds);
     const existingActiveSeriesMatchIds = new Set(trackerState.activeSeries?.matchIds ?? []);
+    let seriesRetiredByMatchmakingThisPoll = false;
 
     let skippedAlreadyKnown = 0;
     let skippedBeforeStart = 0;
@@ -364,6 +365,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       const isMatchmakingMatch = match.MatchInfo.Playlist != null;
       if (trackerState.activeSeries != null && isMatchmakingMatch) {
         this.retireActiveSeries(trackerState);
+        seriesRetiredByMatchmakingThisPoll = true;
         this.logService.info(
           "IndividualTracker: series ended after matchmaking match was discovered",
           new Map([
@@ -410,6 +412,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       if (trackerState.activeSeries != null && !isMatchmakingMatch && !existingActiveSeriesMatchIds.has(matchId)) {
         trackerState.activeSeries.matchIds.push(matchId);
         existingActiveSeriesMatchIds.add(matchId);
+      } else if (seriesRetiredByMatchmakingThisPoll && !isMatchmakingMatch) {
+        const lastCompletedSeries = trackerState.completedSeries?.at(-1);
+        if (lastCompletedSeries != null && !lastCompletedSeries.matchIds.includes(matchId)) {
+          lastCompletedSeries.matchIds.push(matchId);
+        }
       }
       newlyDiscovered.add(matchId);
       discoveredNewMatch = true;
