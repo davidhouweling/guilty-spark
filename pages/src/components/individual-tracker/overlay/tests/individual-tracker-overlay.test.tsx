@@ -20,7 +20,7 @@ import {
 } from "../../../../services/individual-tracker/fakes/view.fake";
 import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { buildViewerRenderModel } from "../../viewer/viewer-render-model";
-import { buildOverlayViewModel, isPanelOpen as computeIsPanelOpen } from "../individual-tracker-overlay-presenter";
+import { IndividualTrackerOverlayPresenter, type MatchStatsState } from "../individual-tracker-overlay-presenter";
 import { IndividualTrackerOverlay } from "../individual-tracker-overlay";
 
 function aRenderModel(
@@ -32,25 +32,26 @@ function aRenderModel(
 function aPropsWith(options?: {
   renderModel?: ReturnType<typeof buildViewerRenderModel>;
   streamerSettings?: StreamerViewSettings;
-  matchStatsState?: Parameters<typeof buildOverlayViewModel>[0]["matchStatsState"];
+  matchStatsState?: MatchStatsState;
   matchStatsPanelState?: React.ComponentProps<typeof IndividualTrackerOverlay>["matchStatsPanelState"];
   selectedMatchId?: string | null;
   onSelectMatch?: (matchId: string) => void;
   onDeselect?: () => void;
 }): React.ComponentProps<typeof IndividualTrackerOverlay> {
+  const presenter = new IndividualTrackerOverlayPresenter();
   const renderModel = options?.renderModel ?? aRenderModel({ matches: [], series: [] });
   const streamerSettings = options?.streamerSettings;
   const matchStatsState = options?.matchStatsState ?? null;
   const selectedMatchId = options?.selectedMatchId ?? null;
 
   return {
-    viewModel: buildOverlayViewModel({
+    viewModel: presenter.present({
       renderModel,
       streamerSettings,
       matchStatsState,
       selectedMatchId,
     }),
-    isPanelOpen: computeIsPanelOpen(selectedMatchId, matchStatsState),
+    isPanelOpen: presenter.isPanelOpen(selectedMatchId, matchStatsState),
     matchesLength: renderModel.accumulated.total,
     matchStatsPanelState: options?.matchStatsPanelState ?? null,
     selectedMatchId,

@@ -7,12 +7,7 @@ import type {
   ViewerSeriesTab,
   ViewerTimelineItem,
 } from "../../viewer/types";
-import {
-  buildOverlayViewModel,
-  buildPreSeriesTickerGroup,
-  buildTabs,
-  getActiveSeries,
-} from "../individual-tracker-overlay-presenter";
+import { IndividualTrackerOverlayPresenter } from "../individual-tracker-overlay-presenter";
 
 function aRenderModelWith(
   overrides: Partial<IndividualTrackerViewerRenderModel> = {},
@@ -75,6 +70,8 @@ function aSeriesWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesTab 
 }
 
 describe("individual-tracker-overlay-presenter", () => {
+  const presenter = new IndividualTrackerOverlayPresenter();
+
   it("finds the active series in timeline", () => {
     const timeline: ViewerTimelineItem[] = [
       { type: "series", series: aSeriesWith({ id: "series-old", isActive: false }) },
@@ -82,7 +79,7 @@ describe("individual-tracker-overlay-presenter", () => {
       { type: "series", series: aSeriesWith({ id: "series-active", isActive: true }) },
     ];
 
-    const activeSeries = getActiveSeries(timeline);
+    const activeSeries = presenter.getActiveSeries(timeline);
     expect(activeSeries?.id).toBe("series-active");
   });
 
@@ -101,7 +98,7 @@ describe("individual-tracker-overlay-presenter", () => {
       { type: "match", match: aMatchWith({ matchId: "outside-series" }) },
     ];
 
-    const tabs = buildTabs(timeline);
+    const tabs = presenter.buildTabs(timeline);
 
     expect(tabs).toHaveLength(2);
     expect(tabs.every((tab) => tab.type === "match")).toBe(true);
@@ -122,7 +119,7 @@ describe("individual-tracker-overlay-presenter", () => {
       { type: "match", match: aMatchWith({ matchId: "solo", gameVariantCategory: 8 }) },
     ];
 
-    const tabs = buildTabs(timeline);
+    const tabs = presenter.buildTabs(timeline);
 
     expect(tabs).toHaveLength(2);
     const [seriesTab, matchTab] = tabs;
@@ -148,7 +145,7 @@ describe("individual-tracker-overlay-presenter", () => {
       { type: "match", match: aMatchWith({ matchId: "solo" }) },
     ];
 
-    const tabs = buildTabs(timeline);
+    const tabs = presenter.buildTabs(timeline);
     const seriesTabs = tabs.filter((tab) => tab.type === "series");
 
     expect(seriesTabs).toHaveLength(2);
@@ -166,7 +163,7 @@ describe("individual-tracker-overlay-presenter", () => {
       matches: [],
     });
 
-    const tabs = buildTabs([], activeSeries);
+    const tabs = presenter.buildTabs([], activeSeries);
 
     expect(tabs).toHaveLength(1);
     const [seriesTab] = tabs;
@@ -179,7 +176,7 @@ describe("individual-tracker-overlay-presenter", () => {
   });
 
   it("builds pre-series ticker group only when ticker is enabled and active series has no matches", () => {
-    const groups = buildPreSeriesTickerGroup({
+    const groups = presenter.buildPreSeriesTickerGroup({
       showTicker: true,
       activeSeries: aSeriesWith({ matches: [], isActive: true }),
       playerName: "TrackedPlayer",
@@ -194,7 +191,7 @@ describe("individual-tracker-overlay-presenter", () => {
   });
 
   it("builds top-section team details with xbox-only names when discord names are hidden", () => {
-    const model = buildOverlayViewModel({
+    const model = presenter.present({
       renderModel: aRenderModelWith({
         timeline: [
           {
@@ -224,7 +221,7 @@ describe("individual-tracker-overlay-presenter", () => {
   });
 
   it("omits player rows entirely when both discord and xbox names are hidden", () => {
-    const model = buildOverlayViewModel({
+    const model = presenter.present({
       renderModel: aRenderModelWith({
         timeline: [
           {
