@@ -292,6 +292,9 @@ export function StreamerSettingsSectionView({
             Observer Mode
           </button>
         </div>
+
+        <hr className={styles.sectionDivider} />
+
         <div className={styles.subsection}>
           <h4 className={styles.subsectionTitle}>Player Colors</h4>
           <p className={styles.cardDescription}>Used whenever color mode is set to player.</p>
@@ -318,6 +321,9 @@ export function StreamerSettingsSectionView({
             />
           </div>
         </div>
+
+        <hr className={styles.sectionDivider} />
+
         <div className={styles.subsection}>
           <h4 className={styles.subsectionTitle}>Observer Colors</h4>
           <p className={styles.cardDescription}>Global observer colors for fixed-team mode.</p>
@@ -344,6 +350,24 @@ export function StreamerSettingsSectionView({
             />
           </div>
         </div>
+
+        <hr className={styles.sectionDivider} />
+
+        <div className={styles.subsection}>
+          <h4 className={styles.subsectionTitle}>Information Ticker</h4>
+          <p className={styles.cardDescription}>
+            These ticker stat and medal filters apply to both In Series and Matchmaking ticker rows.
+          </p>
+        </div>
+        <TickerSettingsSection
+          settings={tickerSettings}
+          onChange={onTickerSettingsChange}
+          showTickerVisibilityToggle={false}
+          showPreSeriesInfoToggle={false}
+        />
+
+        <hr className={styles.sectionDivider} />
+
         <div className={styles.subsection}>
           <h4 className={styles.subsectionTitle}>Text Sizes</h4>
           <p className={styles.cardDescription}>Adjust the size of text for different sections.</p>
@@ -385,19 +409,6 @@ export function StreamerSettingsSectionView({
             }}
           />
         </div>
-
-        <div className={styles.subsection}>
-          <h4 className={styles.subsectionTitle}>Information Ticker</h4>
-          <p className={styles.cardDescription}>
-            These ticker stat and medal filters apply to both In Series and Matchmaking ticker rows.
-          </p>
-        </div>
-        <TickerSettingsSection
-          settings={tickerSettings}
-          onChange={onTickerSettingsChange}
-          showTickerVisibilityToggle={false}
-          showPreSeriesInfoToggle={false}
-        />
       </div>
 
       <div className={styles.card}>
@@ -412,6 +423,8 @@ export function StreamerSettingsSectionView({
           </p>
         </div>
         <DisplaySettingsSection settings={displaySettings} onChange={onDisplaySettingsChange} />
+
+        <hr className={styles.sectionDivider} />
 
         <div className={styles.subsection}>
           <h4 className={styles.subsectionTitle}>Bottom Section</h4>
@@ -464,6 +477,8 @@ export function StreamerSettingsSectionView({
           label="Show stats highlights"
           description="Controls top-bar stats in the overlay only. The Stats Highlights tab is the master source for which stats are available to viewers."
         />
+
+        <hr className={styles.sectionDivider} />
 
         <div className={styles.subsection}>
           <h4 className={styles.subsectionTitle}>Bottom Section</h4>
