@@ -179,6 +179,7 @@ describe("individual-tracker-overlay-presenter", () => {
   it("builds pre-series ticker group only when ticker is enabled and active series has no matches", () => {
     const groups = presenter.buildPreSeriesTickerGroup({
       showTicker: true,
+      showPreSeriesInfo: true,
       activeSeries: aSeriesWith({ matches: [], isActive: true }),
       playerName: "TrackedPlayer",
       discordName: null,
@@ -189,6 +190,19 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(groups[0].label).toBe("Player Info");
     expect(groups[0].rows[0].showTeamIcon).toBe(false);
     expect(groups[0].rows[0].gamertag).toBe("TrackedPlayer");
+  });
+
+  it("hides the pre-series ticker group when pre-series info is disabled", () => {
+    const groups = presenter.buildPreSeriesTickerGroup({
+      showTicker: true,
+      showPreSeriesInfo: false,
+      activeSeries: aSeriesWith({ matches: [], isActive: true }),
+      playerName: "TrackedPlayer",
+      discordName: null,
+      gamertag: "TrackedPlayer",
+    });
+
+    expect(groups).toHaveLength(0);
   });
 
   it("maps pre-series tracked-player ticker row to the tracked-player color slot", () => {

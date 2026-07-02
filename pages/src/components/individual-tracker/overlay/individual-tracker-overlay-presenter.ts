@@ -204,12 +204,18 @@ export class IndividualTrackerOverlayPresenter {
 
   public buildPreSeriesTickerGroup(options: {
     readonly showTicker: boolean;
+    readonly showPreSeriesInfo: boolean;
     readonly activeSeries: ViewerSeriesTab | null;
     readonly playerName: string;
     readonly discordName: string | null;
     readonly gamertag: string | null;
   }): TickerMatchGroup[] {
-    if (!options.showTicker || options.activeSeries == null || options.activeSeries.matches.length > 0) {
+    if (
+      !options.showTicker ||
+      !options.showPreSeriesInfo ||
+      options.activeSeries == null ||
+      options.activeSeries.matches.length > 0
+    ) {
       return [];
     }
 
@@ -259,6 +265,7 @@ export class IndividualTrackerOverlayPresenter {
         ? loadedTickerGroups
         : this.buildPreSeriesTickerGroup({
             showTicker,
+            showPreSeriesInfo: streamerSettings?.styleFlags?.showPreSeriesInfo ?? true,
             activeSeries,
             playerName: renderModel.gamertag,
             discordName: null,
