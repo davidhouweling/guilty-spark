@@ -18,6 +18,8 @@ interface IndividualTrackerOverlayPageProps {
   readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
   readonly trackerId: string;
+  readonly showPreview?: boolean;
+  readonly previewMode?: "player" | "observer";
 }
 
 export function IndividualTrackerOverlayPage({
@@ -26,6 +28,8 @@ export function IndividualTrackerOverlayPage({
   seriesMatchesService,
   haloClient,
   trackerId,
+  showPreview = false,
+  previewMode = "observer",
 }: IndividualTrackerOverlayPageProps): React.ReactElement {
   const store = useMemo(() => new OverlayPageStore(), [trackerId]);
 
@@ -54,6 +58,26 @@ export function IndividualTrackerOverlayPage({
     };
   }, [presenter]);
 
+  useEffect(() => {
+    if (model.renderModel == null) {
+      return;
+    }
+
+    const matchIds = new Set<string>();
+    for (const item of model.renderModel.timeline) {
+      if (item.type === "match") {
+        matchIds.add(item.match.matchId);
+        continue;
+      }
+
+      for (const match of item.series.matches) {
+        matchIds.add(match.matchId);
+      }
+    }
+
+    presenter.preloadMatchStats([...matchIds]);
+  }, [model.renderModel, presenter]);
+
   const overlaySnapshot = useSyncExternalStore(
     (listener) => store.subscribe(listener),
     () => store.getSnapshot(),
@@ -68,14 +92,14 @@ export function IndividualTrackerOverlayPage({
         ? overlayPresenter.present({
             renderModel: model.renderModel,
             streamerSettings: model.streamerSettings,
-            matchStatsState: overlayModel.matchStatsState,
+            matchStatsByMatchId: overlaySnapshot.matchStatsByMatchId,
             selectedMatchId: overlayModel.selectedMatchId,
           })
         : null,
     [
       model.renderModel,
       model.streamerSettings,
-      overlayModel.matchStatsState,
+      overlaySnapshot.matchStatsByMatchId,
       overlayModel.selectedMatchId,
       overlayPresenter,
     ],
@@ -98,6 +122,8 @@ export function IndividualTrackerOverlayPage({
             matchesLength={model.renderModel.accumulated.total}
             matchStatsPanelState={overlayModel.matchStatsPanelState}
             selectedMatchId={overlayModel.selectedMatchId}
+            showPreview={showPreview}
+            previewMode={previewMode}
             onSelectMatch={(matchId): void => {
               presenter.selectMatch(matchId);
             }}

@@ -13,10 +13,33 @@ interface PlayerNameProps {
 }
 
 export function PlayerName({ discordName, gamertag, showIcons = false, className }: PlayerNameProps): JSX.Element {
-  const [showDiscord, setShowDiscord] = useState(true);
+  if (discordName == null && gamertag == null) {
+    return <span className={classNames(styles.playerName, className)} />;
+  }
 
-  const displayDiscordName = discordName ?? "Unknown";
-  const displayGamertag = gamertag ?? "-";
+  if (discordName == null) {
+    return (
+      <span className={classNames(styles.playerName, className)}>
+        <span className={classNames(styles.nameWithIcon, styles.xbox)}>
+          {showIcons && <img src={XboxLogo.src} alt="Xbox" className={styles.icon} />}
+          <span>{gamertag}</span>
+        </span>
+      </span>
+    );
+  }
+
+  if (gamertag == null) {
+    return (
+      <span className={classNames(styles.playerName, className)}>
+        <span className={classNames(styles.nameWithIcon, styles.discord)}>
+          {showIcons && <img src={discordLogo.src} alt="Discord" className={styles.icon} />}
+          <span>{discordName}</span>
+        </span>
+      </span>
+    );
+  }
+
+  const [showDiscord, setShowDiscord] = useState(true);
 
   // Always fade between Discord and Xbox every 10 seconds
   useEffect((): (() => void) => {
@@ -40,11 +63,11 @@ export function PlayerName({ discordName, gamertag, showIcons = false, className
       >
         <span className={classNames(styles.nameWithIcon, styles.discord)}>
           {showIcons && <img src={discordLogo.src} alt="Discord" className={styles.icon} />}
-          <span>{displayDiscordName}</span>
+          <span>{discordName}</span>
         </span>
         <span className={classNames(styles.nameWithIcon, styles.xbox)}>
           {showIcons && <img src={XboxLogo.src} alt="Xbox" className={styles.icon} />}
-          <span>{displayGamertag}</span>
+          <span>{gamertag}</span>
         </span>
       </span>
     </span>

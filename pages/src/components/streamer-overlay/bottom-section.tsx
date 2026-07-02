@@ -7,8 +7,6 @@ import styles from "./streamer-overlay.module.css";
 interface BottomSectionProps {
   readonly showTabs: boolean;
   readonly showTicker: boolean;
-  readonly showPreSeriesInfo: boolean;
-  readonly matchesLength: number;
   readonly currentMatchGroup: TickerMatchGroup | undefined;
   readonly teamColors: TeamColor[];
   readonly tabs: readonly OverlayTab[];
@@ -22,8 +20,6 @@ interface BottomSectionProps {
 function BottomSectionComponent({
   showTabs,
   showTicker,
-  showPreSeriesInfo,
-  matchesLength,
   currentMatchGroup,
   teamColors,
   tabs,
@@ -55,10 +51,6 @@ function BottomSectionComponent({
           teamColors={teamColors}
           onScrollComplete={onScrollComplete}
         />
-      )}
-
-      {showTicker && currentMatchGroup == null && !showPreSeriesInfo && matchesLength === 0 && (
-        <div className={styles.tickerPlaceholder}>Waiting for first match to complete...</div>
       )}
     </div>
   );

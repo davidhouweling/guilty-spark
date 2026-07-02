@@ -6,6 +6,10 @@ import {
   trackerDirectoryContract,
   trackerDirectoryMessageContract,
 } from "@guilty-spark/shared/contracts/individual-tracker/follow";
+import {
+  DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS,
+  INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
+} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
 import type { Services } from "../../services/install";
 import type { RoutesRegisterHandler } from "../base/types";
@@ -25,7 +29,9 @@ async function buildDirectory(env: Env, userId: string, services: Services): Pro
   ]);
 
   const nonStopped = allTrackers.filter(isNonStopped);
-  const statsHighlightSlots = streamerSettings.visibleSections?.statsHighlightSlots;
+  const statsHighlightSlots =
+    streamerSettings.visibleSections?.statsHighlightSlots ??
+    DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS.slice(0, INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT);
 
   const entries = await Promise.all(
     nonStopped.map(async (row): Promise<TrackerDirectoryEntry> => {

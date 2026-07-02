@@ -6,7 +6,7 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
-import type { TickerMatchGroup , TickerStatRow } from "../../information-ticker/information-ticker";
+import type { TickerMatchGroup, TickerStatRow } from "../../information-ticker/information-ticker";
 import { createMatchStatsFormatter } from "../../../controllers/stats/create";
 import type { MatchStatsValues } from "../../../controllers/stats/types";
 import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
@@ -113,7 +113,7 @@ function getTeamDetailsModel(
 interface BuildOverlayViewModelOptions {
   readonly renderModel: IndividualTrackerViewerRenderModel;
   readonly streamerSettings: StreamerViewSettings | undefined;
-  readonly matchStatsState: MatchStatsState | null;
+  readonly matchStatsByMatchId: ReadonlyMap<string, MatchStatsState>;
   readonly selectedMatchId: string | null;
 }
 
@@ -232,10 +232,7 @@ export class IndividualTrackerOverlayPresenter {
     ];
 
     // Case 1: Pre-series with active series that has teams (series exists but no matches yet)
-    if (
-      options.activeSeries?.matches.length === 0 &&
-      options.activeSeries.teams.length > 0
-    ) {
+    if (options.activeSeries?.matches.length === 0 && options.activeSeries.teams.length > 0) {
       const { activeSeries } = options;
       const seriesLabel = activeSeries.title || "Series Info";
       const rows: TickerStatRow[] = [];
@@ -296,15 +293,14 @@ export class IndividualTrackerOverlayPresenter {
   }
 
   public present(options: BuildOverlayViewModelOptions): IndividualTrackerOverlayViewModel {
-    const { renderModel, streamerSettings, matchStatsState, selectedMatchId } = options;
+    const { renderModel, streamerSettings } = options;
     const displaySettings = getOverlayDisplaySettings(streamerSettings);
     const fontSizeStyles = getFontSizeStyles(streamerSettings);
-    const teamColors = this.getTeamColors(renderModel);
     const activeSeries = this.getOverlayActiveSeries(renderModel);
+    const teamColors = this.getTeamColors(renderModel, activeSeries);
     const showTicker = this.getShowTicker(streamerSettings, activeSeries, displaySettings.showTicker);
     const tabs = this.buildTabs(renderModel.timeline, activeSeries);
-    const selectedTabIndex = this.getSelectedTabIndex(tabs, selectedMatchId);
-    const loadedTickerGroups = this.buildTickerGroups(matchStatsState, selectedTabIndex, {
+    const loadedTickerGroups = this.buildTickerGroups(options.matchStatsByMatchId, tabs, {
       trackedGamertag: renderModel.gamertag,
       includeOnlyTrackedPlayer: this.getIncludeOnlyTrackedPlayer(streamerSettings, activeSeries),
     });
@@ -392,61 +388,89 @@ export class IndividualTrackerOverlayPresenter {
     };
   }
 
-  private getTeamColors(renderModel: IndividualTrackerViewerRenderModel): TeamColor[] {
-    if (renderModel.teamColors.length >= 2) {
-      return [renderModel.teamColors[0], renderModel.teamColors[1]];
+  private getTeamColors(
+    renderModel: IndividualTrackerViewerRenderModel,
+    activeSeries: ViewerSeriesTab | null,
+  ): TeamColor[] {
+    if (renderModel.teamColors.length < 2) {
+      return [...this.defaultTeamColors];
     }
 
-    return [...this.defaultTeamColors];
-  }
+    const [playerTeamColor, enemyTeamColor] = renderModel.teamColors;
 
-  private getSelectedTabIndex(tabs: readonly OverlayTab[], selectedMatchId: string | null): number {
-    if (selectedMatchId == null) {
-      return 0;
+    // If no active series or no teams, use colors as-is (player perspective for matchmaking)
+    if (activeSeries == null || activeSeries.teams.length < 2) {
+      return [playerTeamColor, enemyTeamColor];
     }
-    const tab = tabs.find((t) => t.type === "match" && t.matchId === selectedMatchId);
-    return tab?.type === "match" ? tab.index : 0;
+
+    // Find which team the tracked player is on
+    const trackedPlayerTeamId = activeSeries.teams.find((team) =>
+      team.players.some((player) => player.gamertag === renderModel.gamertag),
+    )?.id;
+
+    // If player not found in series, use colors as-is
+    if (trackedPlayerTeamId == null) {
+      return [playerTeamColor, enemyTeamColor];
+    }
+
+    // Map player perspective colors to actual team positions
+    // If player is on team 0, playerTeamColor goes to team 0
+    // If player is on team 1, playerTeamColor goes to team 1, enemyTeamColor to team 0
+    return trackedPlayerTeamId === 0 ? [playerTeamColor, enemyTeamColor] : [enemyTeamColor, playerTeamColor];
   }
 
   private buildTickerGroups(
-    matchStatsState: MatchStatsState | null,
-    matchIndex: number,
+    matchStatsByMatchId: ReadonlyMap<string, MatchStatsState>,
+    tabs: readonly OverlayTab[],
     filterOptions: TickerFilterOptions,
   ): TickerMatchGroup[] {
-    if (matchStatsState?.status !== "loaded") {
-      return [];
+    const groups: TickerMatchGroup[] = [];
+
+    for (const tab of tabs) {
+      if (tab.type !== "match") {
+        continue;
+      }
+
+      const matchState = matchStatsByMatchId.get(tab.matchId);
+      if (matchState?.status !== "loaded") {
+        continue;
+      }
+
+      const formatter = createMatchStatsFormatter(matchState.stats.MatchInfo.GameVariantCategory);
+      const data = formatter.getData(matchState.stats, matchState.playerMap, {});
+
+      const rows = data.flatMap((teamData) => [
+        {
+          type: "team" as const,
+          teamId: teamData.teamId,
+          name: getTeamName(teamData.teamId),
+          stats: teamData.teamStats,
+          medals: teamData.teamMedals,
+        },
+        ...teamData.players.map((player) => ({
+          type: "player" as const,
+          teamId: teamData.teamId,
+          name: player.name,
+          discordName: null,
+          gamertag: player.name,
+          stats: player.values,
+          medals: player.medals,
+        })),
+      ]);
+
+      const filteredRows = this.filterRowsForTrackedPlayer(rows, filterOptions);
+      if (filteredRows.length === 0) {
+        continue;
+      }
+
+      groups.push({
+        matchIndex: tab.index,
+        label: tab.label,
+        rows: filteredRows,
+      });
     }
 
-    const { stats, playerMap } = matchStatsState;
-    const formatter = createMatchStatsFormatter(stats.MatchInfo.GameVariantCategory);
-    const data = formatter.getData(stats, playerMap, {});
-
-    const rows = data.flatMap((teamData) => [
-      {
-        type: "team" as const,
-        teamId: teamData.teamId,
-        name: getTeamName(teamData.teamId),
-        stats: teamData.teamStats,
-        medals: teamData.teamMedals,
-      },
-      ...teamData.players.map((p) => ({
-        type: "player" as const,
-        teamId: teamData.teamId,
-        name: p.name,
-        stats: p.values,
-        medals: p.medals,
-      })),
-    ]);
-
-    const filteredRows = this.filterRowsForTrackedPlayer(rows, filterOptions);
-
-    return [
-      {
-        matchIndex,
-        label: "",
-        rows: filteredRows,
-      },
-    ];
+    return groups;
   }
 
   private getIncludeOnlyTrackedPlayer(
@@ -489,11 +513,13 @@ export class IndividualTrackerOverlayPresenter {
       if (row.type !== "player") {
         return false;
       }
-      if (row.name == null) {
+
+      const candidate = row.gamertag ?? row.name;
+      if (candidate == null) {
         return false;
       }
 
-      return row.name.trim().toLowerCase() === trackedGamertag;
+      return candidate.trim().toLowerCase() === trackedGamertag;
     });
 
     return trackedPlayerRows.length > 0 ? trackedPlayerRows : rows;

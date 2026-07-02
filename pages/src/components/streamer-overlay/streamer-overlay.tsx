@@ -15,7 +15,6 @@ export interface StreamerOverlayProps {
   readonly tickerMatchGroups: readonly TickerMatchGroup[];
   readonly showTabs: boolean;
   readonly showTicker: boolean;
-  readonly showPreSeriesInfo: boolean;
   readonly matchesLength: number;
   readonly showPreview: boolean;
   readonly previewMode: "player" | "observer";
@@ -36,7 +35,6 @@ export function StreamerOverlay({
   tickerMatchGroups,
   showTabs,
   showTicker,
-  showPreSeriesInfo,
   matchesLength,
   showPreview,
   previewMode,
@@ -133,8 +131,6 @@ export function StreamerOverlay({
       <BottomSection
         showTabs={showTabs}
         showTicker={showTicker}
-        showPreSeriesInfo={showPreSeriesInfo}
-        matchesLength={matchesLength}
         currentMatchGroup={currentMatchGroup}
         teamColors={teamColors}
         tabs={tabs}

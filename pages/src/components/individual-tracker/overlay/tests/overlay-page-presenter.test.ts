@@ -96,4 +96,32 @@ describe("OverlayPagePresenter", () => {
     expect(model.matchStatsState?.status).toBe("loaded");
     expect(model.matchStatsPanelState?.status).toBe("loaded");
   });
+
+  it("preloads stats for all provided matches", async () => {
+    const store = new OverlayPageStore();
+    const getMatchStats = vi
+      .fn(async (matchId: string) => Promise.resolve(aFakeMatchStatsWith({ MatchId: matchId })))
+      .mockName("getMatchStats");
+    const haloClient = aFakeHaloClientWith({
+      getMatchStats,
+      getUsers: vi.fn(async (xuids: string[]) => Promise.resolve(aUsersFor(xuids))),
+    });
+
+    const presenter = new OverlayPagePresenter({
+      store,
+      haloClient,
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+    });
+
+    presenter.preloadMatchStats(["match-1", "match-2", "match-3"]);
+
+    await waitFor(() => {
+      expect(store.getSnapshot().matchStatsByMatchId.get("match-1")?.status).toBe("loaded");
+      expect(store.getSnapshot().matchStatsByMatchId.get("match-2")?.status).toBe("loaded");
+      expect(store.getSnapshot().matchStatsByMatchId.get("match-3")?.status).toBe("loaded");
+    });
+
+    presenter.preloadMatchStats(["match-1", "match-2"]);
+    expect(getMatchStats).toHaveBeenCalledTimes(3);
+  });
 });

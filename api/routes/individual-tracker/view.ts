@@ -2,6 +2,10 @@ import { parsePathParams } from "@guilty-spark/shared/base/request-parsing";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { trackerParamsSchema } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import { trackerViewContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import {
+  DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS,
+  INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
+} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { RoutesRegisterHandler } from "../base/types";
 import { fetchTrackerDoViewState, toTrackerView } from "./mapper";
 
@@ -23,7 +27,9 @@ export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, 
       }
 
       const streamerSettings = await individualTrackerService.getSettingsForView(row.UserId);
-      const statsHighlightSlots = streamerSettings.visibleSections?.statsHighlightSlots;
+      const statsHighlightSlots =
+        streamerSettings.visibleSections?.statsHighlightSlots ??
+        DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS.slice(0, INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT);
       const doState = await fetchTrackerDoViewState(env, row.UserId, trackerId, statsHighlightSlots);
 
       return trackerViewContract.toResponse({ view: toTrackerView(row, doState, streamerSettings) }, { noStore: true });

@@ -205,6 +205,50 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(groups).toHaveLength(0);
   });
 
+  it("shows series with teams and players when pre-series with active teams", () => {
+    const groups = presenter.buildPreSeriesTickerGroup({
+      showTicker: true,
+      showPreSeriesInfo: true,
+      activeSeries: aSeriesWith({
+        matches: [],
+        isActive: true,
+        title: "Eagle vs Cobra",
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [
+              { discordName: "DiscordPlayer1", gamertag: "Player1" },
+              { discordName: null, gamertag: "Player2" },
+            ],
+          },
+          {
+            id: 1,
+            name: "Cobra",
+            players: [{ discordName: "DiscordPlayer3", gamertag: "Player3" }],
+          },
+        ],
+      }),
+      playerName: "TrackedPlayer",
+      discordName: null,
+      gamertag: "TrackedPlayer",
+    });
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].label).toBe("Eagle vs Cobra");
+    expect(groups[0].rows).toHaveLength(5); // 2 teams + 3 players
+    expect(groups[0].rows[0]?.type).toBe("team");
+    expect(groups[0].rows[0]?.name).toBe("Eagle");
+    expect(groups[0].rows[1]?.type).toBe("player");
+    expect(groups[0].rows[1]?.gamertag).toBe("Player1");
+    expect(groups[0].rows[2]?.type).toBe("player");
+    expect(groups[0].rows[2]?.gamertag).toBe("Player2");
+    expect(groups[0].rows[3]?.type).toBe("team");
+    expect(groups[0].rows[3]?.name).toBe("Cobra");
+    expect(groups[0].rows[4]?.type).toBe("player");
+    expect(groups[0].rows[4]?.gamertag).toBe("Player3");
+  });
+
   it("maps pre-series tracked-player ticker row to the tracked-player color slot", () => {
     const model = presenter.present({
       renderModel: aRenderModelWith({
@@ -224,13 +268,51 @@ describe("individual-tracker-overlay-presenter", () => {
           showTicker: true,
         },
       } satisfies StreamerViewSettings,
-      matchStatsState: null,
+      matchStatsByMatchId: new Map(),
       selectedMatchId: null,
     });
 
     expect(model.tickerMatchGroups).toHaveLength(1);
     expect(model.tickerMatchGroups[0]?.rows[0]?.teamId).toBe(0);
     expect(model.teamColors[0]?.hex).toBe("#00AA11");
+  });
+
+  it("maps player perspective colors onto team positions when tracked player is on team 1", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        gamertag: "TrackedPlayer",
+        timeline: [
+          {
+            type: "series",
+            series: aSeriesWith({
+              isActive: true,
+              teams: [
+                {
+                  id: 0,
+                  name: "Alpha",
+                  players: [{ discordName: "AlphaPlayer", gamertag: "AlphaTag" }],
+                },
+                {
+                  id: 1,
+                  name: "Beta",
+                  players: [{ discordName: "TrackedPlayer", gamertag: "TrackedPlayer" }],
+                },
+              ],
+            }),
+          },
+        ],
+        teamColors: [
+          { id: "tracked", name: "Tracked", hex: "#00AA11" },
+          { id: "enemy", name: "Enemy", hex: "#AA0011" },
+        ],
+      }),
+      streamerSettings: undefined,
+      matchStatsByMatchId: new Map(),
+      selectedMatchId: null,
+    });
+
+    expect(model.teamColors[0]?.hex).toBe("#AA0011");
+    expect(model.teamColors[1]?.hex).toBe("#00AA11");
   });
 
   it("builds top-section team details with xbox-only names when discord names are hidden", () => {
@@ -255,7 +337,7 @@ describe("individual-tracker-overlay-presenter", () => {
           showXboxNames: true,
         },
       } satisfies StreamerViewSettings,
-      matchStatsState: null,
+      matchStatsByMatchId: new Map(),
       selectedMatchId: null,
     });
 
@@ -285,7 +367,7 @@ describe("individual-tracker-overlay-presenter", () => {
           showXboxNames: false,
         },
       } satisfies StreamerViewSettings,
-      matchStatsState: null,
+      matchStatsByMatchId: new Map(),
       selectedMatchId: null,
     });
 
@@ -321,7 +403,7 @@ describe("individual-tracker-overlay-presenter", () => {
         ],
       }),
       streamerSettings: undefined,
-      matchStatsState: null,
+      matchStatsByMatchId: new Map(),
       selectedMatchId: null,
     });
 
@@ -337,7 +419,7 @@ describe("individual-tracker-overlay-presenter", () => {
         statsHighlights: [{ label: "KDA", value: "3.2" }],
       }),
       streamerSettings: undefined,
-      matchStatsState: null,
+      matchStatsByMatchId: new Map(),
       selectedMatchId: null,
     });
 
@@ -355,7 +437,7 @@ describe("individual-tracker-overlay-presenter", () => {
           matchmakingShowStatsHighlights: false,
         },
       } satisfies StreamerViewSettings,
-      matchStatsState: null,
+      matchStatsByMatchId: new Map(),
       selectedMatchId: null,
     });
 
@@ -364,25 +446,34 @@ describe("individual-tracker-overlay-presenter", () => {
   });
 
   it("shows only the tracked player row in matchmaking ticker when matchmakingMyStatsOnly is enabled", () => {
+    const matchId = "matchmaking-1";
+
     const model = presenter.present({
-      renderModel: aRenderModelWith(),
+      renderModel: aRenderModelWith({
+        timeline: [{ type: "match", match: aMatchWith({ matchId }) }],
+      }),
       streamerSettings: {
         styleFlags: {
           matchmakingMyStatsOnly: true,
         },
       },
-      matchStatsState: {
-        status: "loaded",
-        stats: aFakeMatchStatsWith(),
-        playerMap: new Map<string, string>([
-          ["1111111111", "TrackedPlayer"],
-          ["2222222222", "PlayerTwo"],
-          ["3333333333", "PlayerThree"],
-          ["4444444444", "PlayerFour"],
-        ]),
-        medalMetadata: aFakeMedalMetadata(),
-        analytics: null,
-      },
+      matchStatsByMatchId: new Map([
+        [
+          matchId,
+          {
+            status: "loaded" as const,
+            stats: aFakeMatchStatsWith({ MatchId: matchId }),
+            playerMap: new Map<string, string>([
+              ["1111111111", "TrackedPlayer"],
+              ["2222222222", "PlayerTwo"],
+              ["3333333333", "PlayerThree"],
+              ["4444444444", "PlayerFour"],
+            ]),
+            medalMetadata: aFakeMedalMetadata(),
+            analytics: null,
+          },
+        ],
+      ]),
       selectedMatchId: null,
     });
 
@@ -410,18 +501,23 @@ describe("individual-tracker-overlay-presenter", () => {
           inSeriesMyStatsOnly: true,
         },
       },
-      matchStatsState: {
-        status: "loaded",
-        stats: aFakeMatchStatsWith(),
-        playerMap: new Map<string, string>([
-          ["1111111111", "TrackedPlayer"],
-          ["2222222222", "PlayerTwo"],
-          ["3333333333", "PlayerThree"],
-          ["4444444444", "PlayerFour"],
-        ]),
-        medalMetadata: aFakeMedalMetadata(),
-        analytics: null,
-      },
+      matchStatsByMatchId: new Map([
+        [
+          "series-match-1",
+          {
+            status: "loaded" as const,
+            stats: aFakeMatchStatsWith({ MatchId: "series-match-1" }),
+            playerMap: new Map<string, string>([
+              ["1111111111", "TrackedPlayer"],
+              ["2222222222", "PlayerTwo"],
+              ["3333333333", "PlayerThree"],
+              ["4444444444", "PlayerFour"],
+            ]),
+            medalMetadata: aFakeMedalMetadata(),
+            analytics: null,
+          },
+        ],
+      ]),
       selectedMatchId: "series-match-1",
     });
 
@@ -429,6 +525,61 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.type).toBe("player");
     expect(rows[0]?.name).toBe("TrackedPlayer");
+  });
+
+  it("builds ticker groups for each loaded match and rotates by tab labels", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        timeline: [
+          { type: "match", match: aMatchWith({ matchId: "match-1", mapName: "Live Fire" }) },
+          { type: "match", match: aMatchWith({ matchId: "match-2", mapName: "Streets" }) },
+        ],
+      }),
+      streamerSettings: {
+        visibleSections: {
+          showTicker: true,
+        },
+      } satisfies StreamerViewSettings,
+      matchStatsByMatchId: new Map([
+        [
+          "match-1",
+          {
+            status: "loaded" as const,
+            stats: aFakeMatchStatsWith({ MatchId: "match-1" }),
+            playerMap: new Map<string, string>([
+              ["1111111111", "TrackedPlayer"],
+              ["2222222222", "PlayerTwo"],
+              ["3333333333", "PlayerThree"],
+              ["4444444444", "PlayerFour"],
+            ]),
+            medalMetadata: aFakeMedalMetadata(),
+            analytics: null,
+          },
+        ],
+        [
+          "match-2",
+          {
+            status: "loaded" as const,
+            stats: aFakeMatchStatsWith({ MatchId: "match-2" }),
+            playerMap: new Map<string, string>([
+              ["1111111111", "TrackedPlayer"],
+              ["2222222222", "PlayerTwo"],
+              ["3333333333", "PlayerThree"],
+              ["4444444444", "PlayerFour"],
+            ]),
+            medalMetadata: aFakeMedalMetadata(),
+            analytics: null,
+          },
+        ],
+      ]),
+      selectedMatchId: null,
+    });
+
+    expect(model.tickerMatchGroups).toHaveLength(2);
+    expect(model.tickerMatchGroups[0]?.label).toBe("Live Fire");
+    expect(model.tickerMatchGroups[1]?.label).toBe("Streets");
+    expect(model.tickerMatchGroups[0]?.rows.length).toBeGreaterThan(0);
+    expect(model.tickerMatchGroups[1]?.rows.length).toBeGreaterThan(0);
   });
 
   it("hides ticker in-series when inSeriesShowTicker is false", () => {
@@ -449,7 +600,7 @@ describe("individual-tracker-overlay-presenter", () => {
           inSeriesShowTicker: false,
         },
       },
-      matchStatsState: null,
+      matchStatsByMatchId: new Map(),
       selectedMatchId: null,
     });
 
@@ -464,7 +615,7 @@ describe("individual-tracker-overlay-presenter", () => {
           matchmakingShowTicker: false,
         },
       },
-      matchStatsState: null,
+      matchStatsByMatchId: new Map(),
       selectedMatchId: null,
     });
 

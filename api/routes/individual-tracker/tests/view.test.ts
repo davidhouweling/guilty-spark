@@ -1,6 +1,10 @@
 import type { AutoRouterType } from "itty-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrackerViewResponse } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import {
+  DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS,
+  INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
+} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeDurableObjectNamespaceWith } from "../../../base/fakes/do.fake";
@@ -135,6 +139,72 @@ describe("/api/individual-tracker view route", () => {
     expect(body.view.status).toBe("stopped");
     expect(body.view.isLive).toBe(false);
     expect(body.view.matches).toEqual([]);
+  });
+
+  it("requests default stats highlight slots when settings omit explicit slots", async () => {
+    const doStub = aFakeIndividualTrackerDOWith({ viewStateResponse: { state: null } });
+    const fetchSpy = vi.spyOn(doStub, "fetch");
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
+
+    const row = aFakeIndividualTrackersRow({
+      TrackerId: "t-default-slots",
+      UserId: "user-123",
+      Gamertag: "DefaultSlotsTag",
+      Status: "active",
+      IsLive: 1,
+    });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env: localEnv });
+      vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(row);
+      vi.spyOn(services.individualTrackerService, "getSettingsForView").mockResolvedValue({});
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("/api/individual-tracker/t-default-slots/view"), localEnv)) as Response;
+
+    expect(res.status).toBe(200);
+    const call = fetchSpy.mock.calls[0]?.[0];
+    const rawUrl = typeof call === "string" ? call : call instanceof URL ? call.toString() : call?.url;
+    const parsedUrl = new URL(rawUrl ?? "http://do/view-state");
+    expect(parsedUrl.searchParams.get("statsHighlightSlots")).toBe(
+      JSON.stringify(
+        DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS.slice(0, INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT),
+      ),
+    );
+  });
+
+  it("does not request stats highlight slots when settings explicitly disable them", async () => {
+    const doStub = aFakeIndividualTrackerDOWith({ viewStateResponse: { state: null } });
+    const fetchSpy = vi.spyOn(doStub, "fetch");
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
+
+    const row = aFakeIndividualTrackersRow({
+      TrackerId: "t-empty-slots",
+      UserId: "user-123",
+      Gamertag: "EmptySlotsTag",
+      Status: "active",
+      IsLive: 1,
+    });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env: localEnv });
+      vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(row);
+      vi.spyOn(services.individualTrackerService, "getSettingsForView").mockResolvedValue({
+        visibleSections: {
+          statsHighlightSlots: [],
+        },
+      });
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("/api/individual-tracker/t-empty-slots/view"), localEnv)) as Response;
+
+    expect(res.status).toBe(200);
+    const call = fetchSpy.mock.calls[0]?.[0];
+    const rawUrl = typeof call === "string" ? call : call instanceof URL ? call.toString() : call?.url;
+    const parsedUrl = new URL(rawUrl ?? "http://do/view-state");
+    expect(parsedUrl.searchParams.get("statsHighlightSlots")).toBeNull();
   });
 
   describe("ws", () => {

@@ -56,7 +56,6 @@ describe("StreamerOverlay", () => {
     tickerMatchGroups,
     showTabs: true,
     showTicker: true,
-    showPreSeriesInfo: true,
     matchesLength: 1,
     showPreview: false,
     previewMode: "observer",
