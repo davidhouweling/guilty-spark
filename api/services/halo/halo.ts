@@ -1011,6 +1011,10 @@ export class HaloService {
     this.userCache.clear();
   }
 
+  clearPlayerMatchesCache(): void {
+    this.playerMatchesCache.clear();
+  }
+
   private async populateUserCache(users: MatchPlayer[], startDate: Date, endDate: Date): Promise<void> {
     const processResult = async (
       processedUsers: MatchPlayer[],
@@ -1235,21 +1239,19 @@ export class HaloService {
   ): Promise<PlayerMatchHistory[]> {
     const history = this.playerMatchesCache.get(xboxUserId) ?? [];
 
-    if (!this.playerMatchesCache.has(xboxUserId) || history.length > 0) {
-      while (
-        history.length == 0 ||
-        isAfter(new Date(Preconditions.checkExists(history[history.length - 1]).MatchInfo.StartTime), startDate)
-      ) {
-        const matches = await this.getPlayerMatches(xboxUserId, MatchType.Custom, 25, history.length);
-        history.push(...matches);
+    while (
+      history.length === 0 ||
+      isAfter(new Date(Preconditions.checkExists(history[history.length - 1]).MatchInfo.StartTime), startDate)
+    ) {
+      const matches = await this.getPlayerMatches(xboxUserId, MatchType.Custom, 25, history.length);
+      history.push(...matches);
 
-        if (matches.length === 0) {
-          break;
-        }
+      if (matches.length === 0) {
+        break;
       }
-
-      this.playerMatchesCache.set(xboxUserId, history);
     }
+
+    this.playerMatchesCache.set(xboxUserId, history);
 
     const playerMatches = Preconditions.checkExists(this.playerMatchesCache.get(xboxUserId));
     const matchesCloseToDate = playerMatches.filter((match) => {

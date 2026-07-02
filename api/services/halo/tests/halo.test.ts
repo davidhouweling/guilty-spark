@@ -1756,6 +1756,33 @@ describe("Halo service", () => {
     });
   });
 
+  describe("clearPlayerMatchesCache()", () => {
+    it("allows getSeriesFromDiscordQueue to re-fetch page 0 after a call that found no matches", async () => {
+      // First call: no custom games exist yet (e.g. series not started).
+      infiniteClient.getPlayerMatches.mockResolvedValue([]);
+      await expect(haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData())).rejects.toThrow();
+      const firstCallCount = infiniteClient.getPlayerMatches.mock.calls.length;
+      expect(firstCallCount).toBeGreaterThan(0);
+
+      // After clearing both caches: page 0 is fetched fresh and matches are found.
+      // clearUserCache is needed so users are not stuck with GamesRetrievable.NO
+      // from the first call; clearPlayerMatchesCache resets the match fetch history.
+      haloService.clearUserCache();
+      haloService.clearPlayerMatchesCache();
+      infiniteClient.getPlayerMatches.mockClear();
+      // Restore the default fake implementation that returns real match data.
+      infiniteClient.getPlayerMatches.mockImplementation(async (xboxUserId, _matchType, _count, start) => {
+        if (xboxUserId === "0000000000001" && (start === 0 || start == null)) {
+          return Promise.resolve(getPlayerMatches());
+        }
+        return Promise.resolve([]);
+      });
+
+      await expect(haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData())).resolves.toBeDefined();
+      expect(infiniteClient.getPlayerMatches.mock.calls.length).toBeGreaterThan(0);
+    });
+  });
+
   describe("getMatchDetails()", () => {
     it("returns the match details", async () => {
       const matchDetails = await haloService.getMatchDetails(["d81554d7-ddfe-44da-a6cb-000000000ctf"]);
