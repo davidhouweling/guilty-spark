@@ -595,7 +595,7 @@ describe("LiveTrackerDO", () => {
       const response = await liveTrackerDO.fetch(request);
 
       expect(response.status).toBe(200);
-      const initialChannelNameCall = updateChannelNameSpy.mock.calls[0];
+      const [initialChannelNameCall] = updateChannelNameSpy.mock.calls;
       expect(initialChannelNameCall).toBeDefined();
       if (initialChannelNameCall == null) {
         return;
