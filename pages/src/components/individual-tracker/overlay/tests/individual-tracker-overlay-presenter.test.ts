@@ -268,7 +268,7 @@ describe("individual-tracker-overlay-presenter", () => {
           showTicker: true,
         },
       } satisfies StreamerViewSettings,
-      matchStatsState: null,
+      matchStatsByMatchId: new Map(),
       selectedMatchId: null,
     });
 
@@ -307,7 +307,7 @@ describe("individual-tracker-overlay-presenter", () => {
         ],
       }),
       streamerSettings: undefined,
-      matchStatsState: null,
+      matchStatsByMatchId: new Map(),
       selectedMatchId: null,
     });
 
@@ -337,7 +337,7 @@ describe("individual-tracker-overlay-presenter", () => {
           showXboxNames: true,
         },
       } satisfies StreamerViewSettings,
-      matchStatsState: null,
+      matchStatsByMatchId: new Map(),
       selectedMatchId: null,
     });
 
@@ -367,7 +367,7 @@ describe("individual-tracker-overlay-presenter", () => {
           showXboxNames: false,
         },
       } satisfies StreamerViewSettings,
-      matchStatsState: null,
+      matchStatsByMatchId: new Map(),
       selectedMatchId: null,
     });
 
@@ -403,7 +403,7 @@ describe("individual-tracker-overlay-presenter", () => {
         ],
       }),
       streamerSettings: undefined,
-      matchStatsState: null,
+      matchStatsByMatchId: new Map(),
       selectedMatchId: null,
     });
 
@@ -419,7 +419,7 @@ describe("individual-tracker-overlay-presenter", () => {
         statsHighlights: [{ label: "KDA", value: "3.2" }],
       }),
       streamerSettings: undefined,
-      matchStatsState: null,
+      matchStatsByMatchId: new Map(),
       selectedMatchId: null,
     });
 
@@ -437,7 +437,7 @@ describe("individual-tracker-overlay-presenter", () => {
           matchmakingShowStatsHighlights: false,
         },
       } satisfies StreamerViewSettings,
-      matchStatsState: null,
+      matchStatsByMatchId: new Map(),
       selectedMatchId: null,
     });
 
@@ -446,25 +446,34 @@ describe("individual-tracker-overlay-presenter", () => {
   });
 
   it("shows only the tracked player row in matchmaking ticker when matchmakingMyStatsOnly is enabled", () => {
+    const matchId = "matchmaking-1";
+
     const model = presenter.present({
-      renderModel: aRenderModelWith(),
+      renderModel: aRenderModelWith({
+        timeline: [{ type: "match", match: aMatchWith({ matchId }) }],
+      }),
       streamerSettings: {
         styleFlags: {
           matchmakingMyStatsOnly: true,
         },
       },
-      matchStatsState: {
-        status: "loaded",
-        stats: aFakeMatchStatsWith(),
-        playerMap: new Map<string, string>([
-          ["1111111111", "TrackedPlayer"],
-          ["2222222222", "PlayerTwo"],
-          ["3333333333", "PlayerThree"],
-          ["4444444444", "PlayerFour"],
-        ]),
-        medalMetadata: aFakeMedalMetadata(),
-        analytics: null,
-      },
+      matchStatsByMatchId: new Map([
+        [
+          matchId,
+          {
+            status: "loaded" as const,
+            stats: aFakeMatchStatsWith({ MatchId: matchId }),
+            playerMap: new Map<string, string>([
+              ["1111111111", "TrackedPlayer"],
+              ["2222222222", "PlayerTwo"],
+              ["3333333333", "PlayerThree"],
+              ["4444444444", "PlayerFour"],
+            ]),
+            medalMetadata: aFakeMedalMetadata(),
+            analytics: null,
+          },
+        ],
+      ]),
       selectedMatchId: null,
     });
 
@@ -492,18 +501,23 @@ describe("individual-tracker-overlay-presenter", () => {
           inSeriesMyStatsOnly: true,
         },
       },
-      matchStatsState: {
-        status: "loaded",
-        stats: aFakeMatchStatsWith(),
-        playerMap: new Map<string, string>([
-          ["1111111111", "TrackedPlayer"],
-          ["2222222222", "PlayerTwo"],
-          ["3333333333", "PlayerThree"],
-          ["4444444444", "PlayerFour"],
-        ]),
-        medalMetadata: aFakeMedalMetadata(),
-        analytics: null,
-      },
+      matchStatsByMatchId: new Map([
+        [
+          "series-match-1",
+          {
+            status: "loaded" as const,
+            stats: aFakeMatchStatsWith({ MatchId: "series-match-1" }),
+            playerMap: new Map<string, string>([
+              ["1111111111", "TrackedPlayer"],
+              ["2222222222", "PlayerTwo"],
+              ["3333333333", "PlayerThree"],
+              ["4444444444", "PlayerFour"],
+            ]),
+            medalMetadata: aFakeMedalMetadata(),
+            analytics: null,
+          },
+        ],
+      ]),
       selectedMatchId: "series-match-1",
     });
 
@@ -511,6 +525,61 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.type).toBe("player");
     expect(rows[0]?.name).toBe("TrackedPlayer");
+  });
+
+  it("builds ticker groups for each loaded match and rotates by tab labels", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        timeline: [
+          { type: "match", match: aMatchWith({ matchId: "match-1", mapName: "Live Fire" }) },
+          { type: "match", match: aMatchWith({ matchId: "match-2", mapName: "Streets" }) },
+        ],
+      }),
+      streamerSettings: {
+        visibleSections: {
+          showTicker: true,
+        },
+      } satisfies StreamerViewSettings,
+      matchStatsByMatchId: new Map([
+        [
+          "match-1",
+          {
+            status: "loaded" as const,
+            stats: aFakeMatchStatsWith({ MatchId: "match-1" }),
+            playerMap: new Map<string, string>([
+              ["1111111111", "TrackedPlayer"],
+              ["2222222222", "PlayerTwo"],
+              ["3333333333", "PlayerThree"],
+              ["4444444444", "PlayerFour"],
+            ]),
+            medalMetadata: aFakeMedalMetadata(),
+            analytics: null,
+          },
+        ],
+        [
+          "match-2",
+          {
+            status: "loaded" as const,
+            stats: aFakeMatchStatsWith({ MatchId: "match-2" }),
+            playerMap: new Map<string, string>([
+              ["1111111111", "TrackedPlayer"],
+              ["2222222222", "PlayerTwo"],
+              ["3333333333", "PlayerThree"],
+              ["4444444444", "PlayerFour"],
+            ]),
+            medalMetadata: aFakeMedalMetadata(),
+            analytics: null,
+          },
+        ],
+      ]),
+      selectedMatchId: null,
+    });
+
+    expect(model.tickerMatchGroups).toHaveLength(2);
+    expect(model.tickerMatchGroups[0]?.label).toBe("Live Fire");
+    expect(model.tickerMatchGroups[1]?.label).toBe("Streets");
+    expect(model.tickerMatchGroups[0]?.rows.length).toBeGreaterThan(0);
+    expect(model.tickerMatchGroups[1]?.rows.length).toBeGreaterThan(0);
   });
 
   it("hides ticker in-series when inSeriesShowTicker is false", () => {
@@ -531,7 +600,7 @@ describe("individual-tracker-overlay-presenter", () => {
           inSeriesShowTicker: false,
         },
       },
-      matchStatsState: null,
+      matchStatsByMatchId: new Map(),
       selectedMatchId: null,
     });
 
@@ -546,7 +615,7 @@ describe("individual-tracker-overlay-presenter", () => {
           matchmakingShowTicker: false,
         },
       },
-      matchStatsState: null,
+      matchStatsByMatchId: new Map(),
       selectedMatchId: null,
     });
 

@@ -42,6 +42,17 @@ export class OverlayPagePresenter {
     this.config.store.reset();
   }
 
+  public preloadMatchStats(matchIds: readonly string[]): void {
+    for (const matchId of matchIds) {
+      const existingState = this.config.store.getSnapshot().matchStatsByMatchId.get(matchId);
+      if (existingState?.status === "loaded" || existingState?.status === "loading") {
+        continue;
+      }
+
+      void this.loadMatchStatsAsync(matchId);
+    }
+  }
+
   public selectMatch(matchId: string): void {
     this.config.store.setSelectedMatchId(matchId);
 

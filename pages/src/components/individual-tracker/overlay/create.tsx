@@ -58,6 +58,26 @@ export function IndividualTrackerOverlayPage({
     };
   }, [presenter]);
 
+  useEffect(() => {
+    if (model.renderModel == null) {
+      return;
+    }
+
+    const matchIds = new Set<string>();
+    for (const item of model.renderModel.timeline) {
+      if (item.type === "match") {
+        matchIds.add(item.match.matchId);
+        continue;
+      }
+
+      for (const match of item.series.matches) {
+        matchIds.add(match.matchId);
+      }
+    }
+
+    presenter.preloadMatchStats([...matchIds]);
+  }, [model.renderModel, presenter]);
+
   const overlaySnapshot = useSyncExternalStore(
     (listener) => store.subscribe(listener),
     () => store.getSnapshot(),
@@ -72,14 +92,14 @@ export function IndividualTrackerOverlayPage({
         ? overlayPresenter.present({
             renderModel: model.renderModel,
             streamerSettings: model.streamerSettings,
-            matchStatsState: overlayModel.matchStatsState,
+            matchStatsByMatchId: overlaySnapshot.matchStatsByMatchId,
             selectedMatchId: overlayModel.selectedMatchId,
           })
         : null,
     [
       model.renderModel,
       model.streamerSettings,
-      overlayModel.matchStatsState,
+      overlaySnapshot.matchStatsByMatchId,
       overlayModel.selectedMatchId,
       overlayPresenter,
     ],

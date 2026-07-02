@@ -83,7 +83,7 @@ const InformationTickerComponent = function InformationTicker({
           {/* Team Icon + Name */}
           <div className={styles.tickerName}>
             {currentRow.showTeamIcon !== false && <TeamIcon teamId={currentRow.teamId} size="small" />}
-            {currentRow.type === "player" && (currentRow.discordName != null || currentRow.gamertag != null) ? (
+            {currentRow.type === "player" && currentRow.discordName != null && currentRow.gamertag != null ? (
               <PlayerName
                 discordName={currentRow.discordName ?? null}
                 gamertag={currentRow.gamertag ?? null}

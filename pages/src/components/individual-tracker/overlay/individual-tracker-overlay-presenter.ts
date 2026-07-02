@@ -113,7 +113,7 @@ function getTeamDetailsModel(
 interface BuildOverlayViewModelOptions {
   readonly renderModel: IndividualTrackerViewerRenderModel;
   readonly streamerSettings: StreamerViewSettings | undefined;
-  readonly matchStatsState: MatchStatsState | null;
+  readonly matchStatsByMatchId: ReadonlyMap<string, MatchStatsState>;
   readonly selectedMatchId: string | null;
 }
 
@@ -296,15 +296,14 @@ export class IndividualTrackerOverlayPresenter {
   }
 
   public present(options: BuildOverlayViewModelOptions): IndividualTrackerOverlayViewModel {
-    const { renderModel, streamerSettings, matchStatsState, selectedMatchId } = options;
+    const { renderModel, streamerSettings, selectedMatchId } = options;
     const displaySettings = getOverlayDisplaySettings(streamerSettings);
     const fontSizeStyles = getFontSizeStyles(streamerSettings);
     const activeSeries = this.getOverlayActiveSeries(renderModel);
     const teamColors = this.getTeamColors(renderModel, activeSeries);
     const showTicker = this.getShowTicker(streamerSettings, activeSeries, displaySettings.showTicker);
     const tabs = this.buildTabs(renderModel.timeline, activeSeries);
-    const selectedTabIndex = this.getSelectedTabIndex(tabs, selectedMatchId);
-    const loadedTickerGroups = this.buildTickerGroups(matchStatsState, selectedTabIndex, {
+    const loadedTickerGroups = this.buildTickerGroups(options.matchStatsByMatchId, tabs, {
       trackedGamertag: renderModel.gamertag,
       includeOnlyTrackedPlayer: this.getIncludeOnlyTrackedPlayer(streamerSettings, activeSeries),
     });
@@ -422,53 +421,58 @@ export class IndividualTrackerOverlayPresenter {
       : [enemyTeamColor, playerTeamColor];
   }
 
-  private getSelectedTabIndex(tabs: readonly OverlayTab[], selectedMatchId: string | null): number {
-    if (selectedMatchId == null) {
-      return 0;
-    }
-    const tab = tabs.find((t) => t.type === "match" && t.matchId === selectedMatchId);
-    return tab?.type === "match" ? tab.index : 0;
-  }
-
   private buildTickerGroups(
-    matchStatsState: MatchStatsState | null,
-    matchIndex: number,
+    matchStatsByMatchId: ReadonlyMap<string, MatchStatsState>,
+    tabs: readonly OverlayTab[],
     filterOptions: TickerFilterOptions,
   ): TickerMatchGroup[] {
-    if (matchStatsState?.status !== "loaded") {
-      return [];
+    const groups: TickerMatchGroup[] = [];
+
+    for (const tab of tabs) {
+      if (tab.type !== "match") {
+        continue;
+      }
+
+      const matchState = matchStatsByMatchId.get(tab.matchId);
+      if (matchState?.status !== "loaded") {
+        continue;
+      }
+
+      const formatter = createMatchStatsFormatter(matchState.stats.MatchInfo.GameVariantCategory);
+      const data = formatter.getData(matchState.stats, matchState.playerMap, {});
+
+      const rows = data.flatMap((teamData) => [
+        {
+          type: "team" as const,
+          teamId: teamData.teamId,
+          name: getTeamName(teamData.teamId),
+          stats: teamData.teamStats,
+          medals: teamData.teamMedals,
+        },
+        ...teamData.players.map((player) => ({
+          type: "player" as const,
+          teamId: teamData.teamId,
+          name: player.name,
+          discordName: null,
+          gamertag: player.name,
+          stats: player.values,
+          medals: player.medals,
+        })),
+      ]);
+
+      const filteredRows = this.filterRowsForTrackedPlayer(rows, filterOptions);
+      if (filteredRows.length === 0) {
+        continue;
+      }
+
+      groups.push({
+        matchIndex: tab.index,
+        label: tab.label,
+        rows: filteredRows,
+      });
     }
 
-    const { stats, playerMap } = matchStatsState;
-    const formatter = createMatchStatsFormatter(stats.MatchInfo.GameVariantCategory);
-    const data = formatter.getData(stats, playerMap, {});
-
-    const rows = data.flatMap((teamData) => [
-      {
-        type: "team" as const,
-        teamId: teamData.teamId,
-        name: getTeamName(teamData.teamId),
-        stats: teamData.teamStats,
-        medals: teamData.teamMedals,
-      },
-      ...teamData.players.map((p) => ({
-        type: "player" as const,
-        teamId: teamData.teamId,
-        name: p.name,
-        stats: p.values,
-        medals: p.medals,
-      })),
-    ]);
-
-    const filteredRows = this.filterRowsForTrackedPlayer(rows, filterOptions);
-
-    return [
-      {
-        matchIndex,
-        label: "",
-        rows: filteredRows,
-      },
-    ];
+    return groups;
   }
 
   private getIncludeOnlyTrackedPlayer(
@@ -511,11 +515,13 @@ export class IndividualTrackerOverlayPresenter {
       if (row.type !== "player") {
         return false;
       }
-      if (row.name == null) {
+
+      const candidate = row.gamertag ?? row.name;
+      if (candidate == null) {
         return false;
       }
 
-      return row.name.trim().toLowerCase() === trackedGamertag;
+      return candidate.trim().toLowerCase() === trackedGamertag;
     });
 
     return trackedPlayerRows.length > 0 ? trackedPlayerRows : rows;

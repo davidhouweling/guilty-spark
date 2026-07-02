@@ -43,12 +43,14 @@ function aPropsWith(options?: {
   const streamerSettings = options?.streamerSettings;
   const matchStatsState = options?.matchStatsState ?? null;
   const selectedMatchId = options?.selectedMatchId ?? null;
+  const matchStatsByMatchId =
+    selectedMatchId != null && matchStatsState != null ? new Map([[selectedMatchId, matchStatsState]]) : new Map();
 
   return {
     viewModel: presenter.present({
       renderModel,
       streamerSettings,
-      matchStatsState,
+      matchStatsByMatchId,
       selectedMatchId,
     }),
     isPanelOpen: presenter.isPanelOpen(selectedMatchId, matchStatsState),
