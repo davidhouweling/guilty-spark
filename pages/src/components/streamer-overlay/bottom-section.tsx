@@ -56,10 +56,6 @@ function BottomSectionComponent({
           onScrollComplete={onScrollComplete}
         />
       )}
-
-      {showTicker && currentMatchGroup == null && !showPreSeriesInfo && matchesLength === 0 && (
-        <div className={styles.tickerPlaceholder}>Waiting for first match to complete...</div>
-      )}
     </div>
   );
 }

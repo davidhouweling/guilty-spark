@@ -205,6 +205,50 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(groups).toHaveLength(0);
   });
 
+  it("shows series with teams and players when pre-series with active teams", () => {
+    const groups = presenter.buildPreSeriesTickerGroup({
+      showTicker: true,
+      showPreSeriesInfo: true,
+      activeSeries: aSeriesWith({
+        matches: [],
+        isActive: true,
+        title: "Eagle vs Cobra",
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [
+              { discordName: "DiscordPlayer1", gamertag: "Player1" },
+              { discordName: null, gamertag: "Player2" },
+            ],
+          },
+          {
+            id: 1,
+            name: "Cobra",
+            players: [{ discordName: "DiscordPlayer3", gamertag: "Player3" }],
+          },
+        ],
+      }),
+      playerName: "TrackedPlayer",
+      discordName: null,
+      gamertag: "TrackedPlayer",
+    });
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].label).toBe("Eagle vs Cobra");
+    expect(groups[0].rows).toHaveLength(5); // 2 teams + 3 players
+    expect(groups[0].rows[0]?.type).toBe("team");
+    expect(groups[0].rows[0]?.name).toBe("Eagle");
+    expect(groups[0].rows[1]?.type).toBe("player");
+    expect(groups[0].rows[1]?.gamertag).toBe("Player1");
+    expect(groups[0].rows[2]?.type).toBe("player");
+    expect(groups[0].rows[2]?.gamertag).toBe("Player2");
+    expect(groups[0].rows[3]?.type).toBe("team");
+    expect(groups[0].rows[3]?.name).toBe("Cobra");
+    expect(groups[0].rows[4]?.type).toBe("player");
+    expect(groups[0].rows[4]?.gamertag).toBe("Player3");
+  });
+
   it("maps pre-series tracked-player ticker row to the tracked-player color slot", () => {
     const model = presenter.present({
       renderModel: aRenderModelWith({
