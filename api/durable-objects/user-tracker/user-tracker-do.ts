@@ -416,19 +416,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     let shouldContinueWithQueuedPush = false;
 
     try {
-      for (;;) {
-        this.pendingPush = false;
-
-        try {
-          await this.refreshAndBroadcastIfChanged();
-        } catch (error) {
-          this.logService.error(error, new Map([["context", "UserTracker directory refresh error"]]));
-        }
-
-        if (!this.hasPendingPush()) {
-          break;
-        }
-      }
+      await this.drainPendingPushes();
     } finally {
       this.pushInProgress = false;
       shouldContinueWithQueuedPush = this.hasPendingPush();
@@ -442,6 +430,20 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
     if (shouldContinueWithQueuedPush) {
       await this.queueDirectoryPush();
+    }
+  }
+
+  private async drainPendingPushes(): Promise<void> {
+    this.pendingPush = true;
+
+    while (this.pendingPush) {
+      this.pendingPush = false;
+
+      try {
+        await this.refreshAndBroadcastIfChanged();
+      } catch (error) {
+        this.logService.error(error, new Map([["context", "UserTracker directory refresh error"]]));
+      }
     }
   }
 
