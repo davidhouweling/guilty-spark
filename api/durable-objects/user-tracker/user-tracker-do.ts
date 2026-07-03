@@ -48,6 +48,8 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   };
   private pushInProgress = false;
   private pendingPush = false;
+  private pushCompletionPromise: Promise<void> | null = null;
+  private resolvePushCompletion: (() => void) | null = null;
   private trackerSubscriptionsInstalled = false;
 
   constructor(
@@ -160,7 +162,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       }
 
       try {
-        await this.refreshAndBroadcastIfChanged();
+        await this.queueDirectoryPush();
       } catch (error) {
         this.logService.error(error, new Map([["context", "UserTracker alarm error"]]));
         Sentry.captureException(error);
@@ -204,7 +206,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return parsedBody.response;
     }
 
-    this.queueDirectoryPush();
+    void this.queueDirectoryPush();
     return userTrackerNudgeContract.toResponse({ success: true }, { noStore: true });
   }
 
@@ -366,7 +368,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
             socket.accept();
             socket.addEventListener("message", (): void => {
-              this.queueDirectoryPush();
+              void this.queueDirectoryPush();
             });
             return socket;
           } catch (error) {
@@ -394,17 +396,21 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     };
   }
 
-  private queueDirectoryPush(): void {
+  private async queueDirectoryPush(): Promise<void> {
     if (this.pushInProgress) {
       this.pendingPush = true;
-      return;
+      return this.getOrCreatePushCompletionPromise();
     }
 
     this.pushInProgress = true;
+    const pushCompletionPromise = this.getOrCreatePushCompletionPromise();
     void this.queueDirectoryPushAsync();
+    return pushCompletionPromise;
   }
 
   private async queueDirectoryPushAsync(): Promise<void> {
+    let shouldContinueWithQueuedPush = false;
+
     try {
       for (;;) {
         this.pendingPush = false;
@@ -421,9 +427,17 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       }
     } finally {
       this.pushInProgress = false;
-      if (this.hasPendingPush()) {
-        this.queueDirectoryPush();
+      shouldContinueWithQueuedPush = this.hasPendingPush();
+      if (!shouldContinueWithQueuedPush) {
+        const resolve = this.resolvePushCompletion;
+        this.resolvePushCompletion = null;
+        this.pushCompletionPromise = null;
+        resolve?.();
       }
+    }
+
+    if (shouldContinueWithQueuedPush) {
+      await this.queueDirectoryPush();
     }
   }
 
@@ -457,5 +471,17 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
   private hasPendingPush(): boolean {
     return this.pendingPush;
+  }
+
+  private async getOrCreatePushCompletionPromise(): Promise<void> {
+    if (this.pushCompletionPromise != null) {
+      return this.pushCompletionPromise;
+    }
+
+    this.pushCompletionPromise = new Promise<void>((resolve) => {
+      this.resolvePushCompletion = resolve;
+    });
+
+    return this.pushCompletionPromise;
   }
 }
