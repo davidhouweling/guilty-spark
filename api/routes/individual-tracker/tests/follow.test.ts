@@ -1,4 +1,5 @@
 import type { AutoRouterType } from "itty-router";
+import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrackerDirectoryResponse } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { trackerDirectoryMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/follow";
@@ -11,6 +12,7 @@ import {
 } from "../../../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
 import { aFakeIndividualTrackersRow, aFakeLinkedIdentitiesRow } from "../../../services/database/fakes/database.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
+import type { Services } from "../../../services/install";
 import { individualTrackerRoutesRegisterHandler } from "../individual-tracker";
 
 function getRequest(path: string): Request {
@@ -46,7 +48,7 @@ function makeFakeWebSocket(): WebSocket {
       }
       return true;
     }),
-    readyState: 0,
+    readyState: 1,
   } as unknown as WebSocket;
 }
 
@@ -466,6 +468,179 @@ describe("/u/:gamertag follow routes", () => {
 
       await vi.waitFor(() => {
         expect(sendMock).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it("schedules another push when tracker updates arrive during a pending push", async () => {
+      const identity = aFakeLinkedIdentitiesRow({ UserId: "user-1", Gamertag: "QueuedPushTag" });
+      const trackerRowLive = aFakeIndividualTrackersRow({
+        TrackerId: "t1",
+        UserId: "user-1",
+        Status: "active",
+        IsLive: 1,
+      });
+      const trackerRowPaused = aFakeIndividualTrackersRow({
+        TrackerId: "t1",
+        UserId: "user-1",
+        Status: "paused",
+        IsLive: 0,
+      });
+
+      let resolvePendingRows: ((rows: (typeof trackerRowPaused)[]) => void) | undefined;
+      const pendingRowsPromise = new Promise<(typeof trackerRowPaused)[]>((resolve) => {
+        resolvePendingRows = resolve;
+      });
+      let findTrackersSpy: MockInstance<Services["databaseService"]["findIndividualTrackersByUserId"]> | undefined;
+
+      let capturedServer: WebSocket | undefined;
+      const client = makeFakeWebSocket();
+      const server = makeFakeWebSocket();
+      const trackerSocket = makeFakeWebSocket();
+      vi.stubGlobal("WebSocketPair", function () {
+        capturedServer = server;
+        return { 0: client, 1: server };
+      });
+
+      const OriginalResponse = globalThis.Response;
+      vi.stubGlobal(
+        "Response",
+        class FakeResponse extends OriginalResponse {
+          constructor(body: BodyInit | null, init?: ResponseInit & { webSocket?: WebSocket }) {
+            super(body, { ...init, status: init?.status === 101 ? 200 : (init?.status ?? 200) });
+            if (init?.status === 101) {
+              Object.defineProperty(this, "status", { value: 101 });
+            }
+            if (init?.webSocket != null) {
+              Object.defineProperty(this, "webSocket", { value: init.webSocket });
+            }
+          }
+        },
+      );
+
+      const doStub = {
+        fetch: vi.fn(async (input: RequestInfo | URL) => {
+          const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+          const parsedUrl = new URL(url);
+
+          if (parsedUrl.pathname === "/websocket") {
+            return Promise.resolve(new Response(null, { status: 101, webSocket: trackerSocket }));
+          }
+
+          return Promise.resolve(
+            new Response(JSON.stringify({ state: aFakeIndividualTrackerViewStateWith({ trackerId: "t1" }) }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }),
+        connect: (): Socket => {
+          throw new Error("Socket connections not supported in fake");
+        },
+        id: {
+          toString: (): string => "fake-do-id",
+          equals: (): boolean => true,
+        },
+        __DURABLE_OBJECT_BRAND: undefined as never,
+      };
+
+      const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env: localEnv });
+        vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(identity);
+        findTrackersSpy = vi
+          .spyOn(services.databaseService, "findIndividualTrackersByUserId")
+          .mockResolvedValueOnce([trackerRowLive])
+          .mockResolvedValueOnce([trackerRowLive])
+          .mockImplementationOnce(async () => pendingRowsPromise)
+          .mockResolvedValueOnce([trackerRowLive]);
+        return services;
+      });
+      individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      vi.spyOn(globalThis, "setInterval").mockReturnValue(1 as unknown as NodeJS.Timeout);
+
+      const res = (await router.fetch(wsRequest("/u/QueuedPushTag/ws"), localEnv)) as Response;
+      expect(res.status).toBe(101);
+
+      const serverMocks = capturedServer as unknown as Record<string, ReturnType<typeof vi.fn>> | undefined;
+      const sendMock = serverMocks?.["send"];
+      expect(sendMock).toHaveBeenCalledTimes(1);
+
+      await vi.waitFor(() => {
+        expect(findTrackersSpy?.mock.calls).toHaveLength(2);
+      });
+
+      trackerSocket.dispatchEvent(new Event("message"));
+      trackerSocket.dispatchEvent(new Event("message"));
+      resolvePendingRows?.([trackerRowPaused]);
+
+      await vi.waitFor(() => {
+        expect(sendMock).toHaveBeenCalledTimes(3);
+      });
+
+      const firstMessage = trackerDirectoryMessageContract.parse(sendMock?.mock.calls[0]?.[0] as string);
+      const secondMessage = trackerDirectoryMessageContract.parse(sendMock?.mock.calls[1]?.[0] as string);
+      const thirdMessage = trackerDirectoryMessageContract.parse(sendMock?.mock.calls[2]?.[0] as string);
+      expect(firstMessage.directory.liveTrackerId).toBe("t1");
+      expect(secondMessage.directory.liveTrackerId).toBeNull();
+      expect(thirdMessage.directory.liveTrackerId).toBe("t1");
+    });
+
+    it("logs background subscription setup failures without breaking the handshake", async () => {
+      const identity = aFakeLinkedIdentitiesRow({ UserId: "user-1", Gamertag: "BrokenSetupTag" });
+      const trackerRow = aFakeIndividualTrackersRow({
+        TrackerId: "t1",
+        UserId: "user-1",
+        Status: "active",
+        IsLive: 1,
+      });
+
+      let capturedServer: WebSocket | undefined;
+      const client = makeFakeWebSocket();
+      const server = makeFakeWebSocket();
+      vi.stubGlobal("WebSocketPair", function () {
+        capturedServer = server;
+        return { 0: client, 1: server };
+      });
+
+      const OriginalResponse = globalThis.Response;
+      vi.stubGlobal(
+        "Response",
+        class FakeResponse extends OriginalResponse {
+          constructor(body: BodyInit | null, init?: ResponseInit & { webSocket?: WebSocket }) {
+            super(body, { ...init, status: init?.status === 101 ? 200 : (init?.status ?? 200) });
+            if (init?.status === 101) {
+              Object.defineProperty(this, "status", { value: 101 });
+            }
+          }
+        },
+      );
+
+      const setupError = new Error("subscription setup failed");
+      let errorSpy: MockInstance<Services["logService"]["error"]> | undefined;
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        errorSpy = vi.spyOn(services.logService, "error");
+        vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(identity);
+        vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
+          .mockResolvedValueOnce([trackerRow])
+          .mockRejectedValueOnce(setupError);
+        return services;
+      });
+      individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      vi.spyOn(globalThis, "setInterval").mockReturnValue(1 as unknown as NodeJS.Timeout);
+
+      const res = (await router.fetch(wsRequest("/u/BrokenSetupTag/ws"), env)) as Response;
+
+      expect(res.status).toBe(101);
+      const serverMocks = capturedServer as unknown as Record<string, ReturnType<typeof vi.fn>> | undefined;
+      expect(serverMocks?.["send"]).toHaveBeenCalledOnce();
+
+      await vi.waitFor(() => {
+        expect(errorSpy?.mock.calls).toHaveLength(1);
+        expect(errorSpy?.mock.calls[0]?.[0]).toBe(setupError);
+        expect(errorSpy?.mock.calls[0]?.[1]).toEqual(expect.any(Map));
       });
     });
 

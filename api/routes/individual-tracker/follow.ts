@@ -160,15 +160,20 @@ export const trackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (router
       server.send(lastPayload);
 
       let pushing = false;
-      let queuedPushes = 0;
+      let pendingPush = false;
       let closeTrackerSubscriptions = (): void => {
         // replaced once the background subscription setup completes
       };
       const subscriptionState = { closed: false };
+      const hasPendingPush = (): boolean => pendingPush;
 
       const pushDirectoryIfChanged = (): void => {
+        if (subscriptionState.closed) {
+          return;
+        }
+
         if (pushing) {
-          queuedPushes += 1;
+          pendingPush = true;
           return;
         }
 
@@ -176,13 +181,15 @@ export const trackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (router
         void (async (): Promise<void> => {
           try {
             for (;;) {
+              pendingPush = false;
+
               try {
                 const nextDirectory = await buildDirectory(env, identity.UserId, services);
                 const nextPayload = trackerDirectoryMessageContract.serialize({
                   type: "directory",
                   directory: nextDirectory,
                 });
-                if (nextPayload !== lastPayload) {
+                if (server.readyState === WebSocket.OPEN && nextPayload !== lastPayload) {
                   lastPayload = nextPayload;
                   server.send(nextPayload);
                 }
@@ -190,13 +197,15 @@ export const trackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (router
                 logService.error(pollError, new Map([["context", "Follow WebSocket poll error"]]));
               }
 
-              if (queuedPushes === 0) {
+              if (!hasPendingPush()) {
                 break;
               }
-              queuedPushes = 0;
             }
           } finally {
             pushing = false;
+            if (pendingPush && !subscriptionState.closed) {
+              pushDirectoryIfChanged();
+            }
           }
         })();
       };
@@ -210,19 +219,23 @@ export const trackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (router
       };
 
       void (async (): Promise<void> => {
-        const closeSubscriptions = await subscribeToTrackerUpdateSockets({
-          env,
-          userId: identity.UserId,
-          services,
-          onTrackerUpdate: pushDirectoryIfChanged,
-        });
+        try {
+          const closeSubscriptions = await subscribeToTrackerUpdateSockets({
+            env,
+            userId: identity.UserId,
+            services,
+            onTrackerUpdate: pushDirectoryIfChanged,
+          });
 
-        if (subscriptionState.closed) {
-          closeSubscriptions();
-          return;
+          if (subscriptionState.closed) {
+            closeSubscriptions();
+            return;
+          }
+
+          closeTrackerSubscriptions = closeSubscriptions;
+        } catch (error) {
+          logService.error(error, new Map([["context", "Follow WebSocket subscription setup error"]]));
         }
-
-        closeTrackerSubscriptions = closeSubscriptions;
       })();
 
       server.addEventListener("close", stopPolling);
