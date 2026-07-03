@@ -168,6 +168,133 @@ describe("UserTrackerDO", () => {
     await expect(response.json()).resolves.toEqual({ success: true });
   });
 
+  it("deduplicates repeated tracker nudges with the same marker", async () => {
+    mockState.storage.get = (async (key: string | string[]) => {
+      if (typeof key !== "string") {
+        return await Promise.resolve(new Map<string, unknown>());
+      }
+
+      return await Promise.resolve({
+        state: {
+          userId: "user-1",
+          lastUpdateTime: "2026-07-04T00:00:00.000Z",
+        },
+        viewState: null,
+      });
+    }) as DurableObjectStorage["get"];
+    const trackerDo = aFakeIndividualTrackerDOWith({
+      viewStateResponse: {
+        state: aFakeIndividualTrackerViewStateWith({
+          trackerId: "t1",
+          gamertag: "KnownTag",
+          matches: [],
+          lastUpdateTime: "2026-07-04T00:00:00.000Z",
+        }),
+      },
+    });
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const services = installFakeServicesWith({ env: localEnv });
+    const findTrackersByUserIdSpy = vi.spyOn(services.databaseService, "findIndividualTrackersByUserId");
+    findTrackersByUserIdSpy.mockResolvedValue([
+      aFakeIndividualTrackersRow({
+        TrackerId: "t1",
+        UserId: "user-1",
+        Gamertag: "KnownTag",
+        Status: "active",
+        IsLive: 1,
+      }),
+    ]);
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    const baselineCalls = findTrackersByUserIdSpy.mock.calls.length;
+    const payload = {
+      userId: "user-1",
+      trackerId: "t1",
+      lastUpdateTime: "2026-07-04T00:00:00.000Z",
+    };
+
+    const firstResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/nudge", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    );
+    expect(firstResponse.status).toBe(200);
+
+    await vi.waitFor(() => {
+      expect(findTrackersByUserIdSpy.mock.calls.length).toBeGreaterThan(baselineCalls);
+    });
+    const callsAfterFirstNudge = findTrackersByUserIdSpy.mock.calls.length;
+
+    const secondResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/nudge", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    );
+    expect(secondResponse.status).toBe(200);
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(findTrackersByUserIdSpy.mock.calls.length).toBe(callsAfterFirstNudge);
+  });
+
+  it("ignores nudges when payload userId does not match stored userId", async () => {
+    mockState.storage.get = (async (key: string | string[]) => {
+      if (typeof key !== "string") {
+        return await Promise.resolve(new Map<string, unknown>());
+      }
+
+      return await Promise.resolve({
+        state: {
+          userId: "user-1",
+          lastUpdateTime: "2026-07-04T00:00:00.000Z",
+        },
+        viewState: null,
+      });
+    }) as DurableObjectStorage["get"];
+    const trackerDo = aFakeIndividualTrackerDOWith({
+      viewStateResponse: {
+        state: aFakeIndividualTrackerViewStateWith({
+          trackerId: "t1",
+          gamertag: "KnownTag",
+          matches: [],
+        }),
+      },
+    });
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const services = installFakeServicesWith({ env: localEnv });
+    const findTrackersByUserIdSpy = vi.spyOn(services.databaseService, "findIndividualTrackersByUserId");
+    findTrackersByUserIdSpy.mockResolvedValue([
+      aFakeIndividualTrackersRow({
+        TrackerId: "t1",
+        UserId: "user-1",
+        Gamertag: "KnownTag",
+        Status: "active",
+        IsLive: 1,
+      }),
+    ]);
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    const baselineCalls = findTrackersByUserIdSpy.mock.calls.length;
+
+    const response = await localUserTrackerDO.fetch(
+      new Request("http://do/nudge", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: "different-user",
+          trackerId: "t1",
+          lastUpdateTime: "2026-07-04T00:00:00.000Z",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ success: true });
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(findTrackersByUserIdSpy.mock.calls.length).toBe(baselineCalls);
+  });
+
   it("returns 405 when nudge is called with a non-POST method", async () => {
     const response = await userTrackerDO.fetch(new Request("http://do/nudge", { method: "GET" }));
 

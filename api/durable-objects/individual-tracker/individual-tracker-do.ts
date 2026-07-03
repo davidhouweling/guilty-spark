@@ -871,7 +871,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     };
 
     await this.setState(trackerState);
-  this.notifyUserTracker(trackerState);
+    this.notifyUserTracker(trackerState);
     await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
 
     this.logService.info(
@@ -1002,7 +1002,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     this.applySelectMatchesChanges(trackerState, incoming, body.seriesGroups, selectionChanged);
 
     await this.setState(trackerState);
-  this.notifyUserTracker(trackerState);
+    this.notifyUserTracker(trackerState);
     this.broadcastViewState(trackerState);
     if (selectionChanged && !trackerState.isPaused) {
       await this.state.storage.setAlarm(Date.now());
@@ -1387,7 +1387,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.lastUpdateTime = new Date().toISOString();
 
     await this.setState(trackerState);
-  this.notifyUserTracker(trackerState);
+    this.notifyUserTracker(trackerState);
     this.broadcastViewState(trackerState);
 
     this.logService.info(
@@ -1415,7 +1415,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.lastUpdateTime = new Date().toISOString();
 
     await this.setState(trackerState);
-  this.notifyUserTracker(trackerState);
+    this.notifyUserTracker(trackerState);
     this.broadcastViewState(trackerState);
 
     this.logService.info(
@@ -1457,7 +1457,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.lastUpdateTime = new Date().toISOString();
 
     await this.setState(trackerState);
-  this.notifyUserTracker(trackerState);
+    this.notifyUserTracker(trackerState);
     this.broadcastViewState(trackerState);
 
     return editSeriesContract.toResponse({ success: true });
@@ -1613,7 +1613,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.lastUpdateTime = new Date().toISOString();
 
     await this.setState(trackerState);
-  this.notifyUserTracker(trackerState);
+    this.notifyUserTracker(trackerState);
     this.broadcastViewState(trackerState);
     await this.state.storage.setAlarm(Date.now());
 

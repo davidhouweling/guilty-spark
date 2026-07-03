@@ -29,7 +29,11 @@ import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import type { Services } from "../../../services/install";
 import type { UserTokenProvider } from "../../../services/halo/user-token-provider";
-import { aFakeDurableObjectNamespaceWith, aFakeDurableObjectStateWith, aFakeWebSocket } from "../../../base/fakes/do.fake";
+import {
+  aFakeDurableObjectNamespaceWith,
+  aFakeDurableObjectStateWith,
+  aFakeWebSocket,
+} from "../../../base/fakes/do.fake";
 import {
   aFakeWebSocketHibernationAdapter,
   type FakeWebSocketHibernationAdapter,

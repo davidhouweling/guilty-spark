@@ -9,6 +9,7 @@ import {
 } from "@guilty-spark/shared/contracts/durable-objects/user-tracker/management";
 import type { TrackerDirectory, TrackerDirectoryEntry } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import {
+  type TrackerChangedPayload,
   trackerChangedPayloadSchema,
   userTrackerNudgeContract,
 } from "@guilty-spark/shared/contracts/durable-objects/user-tracker/nudge";
@@ -51,6 +52,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private pushCompletionPromise: Promise<void> | null = null;
   private resolvePushCompletion: (() => void) | null = null;
   private trackerSubscriptionsInstalled = false;
+  private readonly trackerUpdateMarkers = new Map<string, string>();
 
   constructor(
     state: DurableObjectState,
@@ -204,6 +206,15 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     const parsedBody = await parseJsonBody(request, trackerChangedPayloadSchema, "Invalid user tracker nudge payload");
     if (!parsedBody.success) {
       return parsedBody.response;
+    }
+
+    const payload = parsedBody.data;
+    if (!(await this.shouldAcceptNudge(payload))) {
+      return userTrackerNudgeContract.toResponse({ success: true }, { noStore: true });
+    }
+
+    if (!this.shouldQueuePushForNudge(payload)) {
+      return userTrackerNudgeContract.toResponse({ success: true }, { noStore: true });
     }
 
     void this.queueDirectoryPush();
@@ -466,6 +477,35 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
   private async scheduleNextAlarm(): Promise<void> {
     await this.state.storage.setAlarm(Date.now() + FOLLOW_WS_POLL_INTERVAL_MS);
+  }
+
+  private async shouldAcceptNudge(payload: TrackerChangedPayload): Promise<boolean> {
+    const stored = await this.loadState();
+    const storedUserId = stored.state?.userId;
+    if (storedUserId == null || storedUserId === payload.userId) {
+      return true;
+    }
+
+    this.logService.warn(
+      "UserTracker nudge ignored due to user mismatch",
+      new Map([
+        ["context", "UserTracker nudge ignored"],
+        ["storedUserId", storedUserId],
+        ["payloadUserId", payload.userId],
+        ["trackerId", payload.trackerId],
+      ]),
+    );
+    return false;
+  }
+
+  private shouldQueuePushForNudge(payload: TrackerChangedPayload): boolean {
+    const previousMarker = this.trackerUpdateMarkers.get(payload.trackerId);
+    if (previousMarker != null && payload.lastUpdateTime <= previousMarker) {
+      return false;
+    }
+
+    this.trackerUpdateMarkers.set(payload.trackerId, payload.lastUpdateTime);
+    return true;
   }
 
   private serializeDirectory(directory: TrackerDirectory): string {
