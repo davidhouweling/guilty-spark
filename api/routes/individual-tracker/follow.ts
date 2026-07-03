@@ -4,10 +4,10 @@ import { userTrackerViewStateContract } from "@guilty-spark/shared/contracts/dur
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { trackerDirectoryContract } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import type { UserTrackerDO } from "../../durable-objects/user-tracker/user-tracker-do";
+import { emptyTrackerDirectory } from "../../durable-objects/user-tracker/types";
 import type { RoutesRegisterHandler } from "../base/types";
 
 const gamertagParamsSchema = z.object({ gamertag: z.string().min(1) });
-const EMPTY_TRACKER_DIRECTORY = { trackers: [], liveTrackerId: null };
 
 function getUserTrackerStub(env: Env, userId: string): DurableObjectStub<UserTrackerDO> {
   const doId = env.USER_TRACKER_DO.idFromName(userId);
@@ -41,7 +41,7 @@ export const trackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (router
       }
 
       const result = await userTrackerViewStateContract.fromResponse(response);
-      return trackerDirectoryContract.toResponse(result.state?.directory ?? EMPTY_TRACKER_DIRECTORY, { noStore: true });
+      return trackerDirectoryContract.toResponse(result.state?.directory ?? emptyTrackerDirectory, { noStore: true });
     } catch (error) {
       logService.error(error, new Map([["context", "Follow view error"]]));
       return errorContract.toResponse({ error: "Failed to fetch follow directory" }, { status: 500, noStore: true });

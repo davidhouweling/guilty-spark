@@ -41,12 +41,12 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private readonly services: Services;
   private readonly logService: LogService;
   private readonly webSocketAdapter: WebSocketHibernationAdapter;
-  private pollInterval: ReturnType<typeof setInterval> | null = null;
   private closeTrackerSubscriptions: () => void = () => {
     // replaced once tracker subscriptions are installed
   };
   private pushInProgress = false;
   private pendingPush = false;
+  private trackerSubscriptionsInstalled = false;
 
   constructor(
     state: DurableObjectState,
@@ -143,6 +143,27 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   async webSocketError(_ws: WebSocket, error: unknown): Promise<void> {
     this.logService.warn("UserTracker: WebSocket error", new Map([["error", String(error)]]));
     return Promise.resolve();
+  }
+
+  async alarm(): Promise<void> {
+    await Sentry.withScope(async () => {
+      Sentry.setTag("durableObject", "UserTrackerDO");
+      Sentry.setTag("method", "alarm");
+
+      if (this.state.getWebSockets().length === 0) {
+        await this.state.storage.deleteAlarm();
+        return;
+      }
+
+      try {
+        await this.refreshAndBroadcastIfChanged();
+      } catch (error) {
+        this.logService.error(error, new Map([["context", "UserTracker alarm error"]]));
+        Sentry.captureException(error);
+      }
+
+      await this.scheduleNextAlarm();
+    });
   }
 
   private async loadState(): Promise<UserTrackerInternalState> {
@@ -273,32 +294,30 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private ensureUpdateLoopStarted(): void {
-    if (this.pollInterval != null) {
+    void this.scheduleNextAlarm();
+
+    if (this.trackerSubscriptionsInstalled) {
       return;
     }
 
-    this.pollInterval = setInterval(() => {
-      this.queueDirectoryPush();
-    }, FOLLOW_WS_POLL_INTERVAL_MS);
+    this.trackerSubscriptionsInstalled = true;
     void this.installTrackerSubscriptionsAsync();
   }
 
   private stopUpdateLoop(): void {
-    if (this.pollInterval != null) {
-      clearInterval(this.pollInterval);
-      this.pollInterval = null;
-    }
-
     this.closeTrackerSubscriptions();
     this.closeTrackerSubscriptions = (): void => {
       // reset after closing
     };
+    this.trackerSubscriptionsInstalled = false;
+    void this.state.storage.deleteAlarm();
   }
 
   private async installTrackerSubscriptionsAsync(): Promise<void> {
     const stored = await this.loadState();
     const userId = stored.state?.userId;
     if (userId == null) {
+      this.trackerSubscriptionsInstalled = false;
       return;
     }
 
@@ -306,6 +325,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       const closeSubscriptions = await this.subscribeToTrackerUpdateSockets(userId);
       if (this.state.getWebSockets().length === 0) {
         closeSubscriptions();
+        this.trackerSubscriptionsInstalled = false;
         return;
       }
 
@@ -416,6 +436,10 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     if (previousPayload == null || nextPayload !== previousPayload) {
       this.webSocketAdapter.broadcast(this.state, nextPayload);
     }
+  }
+
+  private async scheduleNextAlarm(): Promise<void> {
+    await this.state.storage.setAlarm(Date.now() + FOLLOW_WS_POLL_INTERVAL_MS);
   }
 
   private serializeDirectory(directory: TrackerDirectory): string {
