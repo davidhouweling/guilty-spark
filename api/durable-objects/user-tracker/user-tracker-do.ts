@@ -21,9 +21,10 @@ import {
   type WebSocketHibernationAdapter,
 } from "../../base/websocket-hibernation-adapter";
 import { fetchTrackerDoViewState, toTrackerView } from "../../routes/individual-tracker/mapper";
+import type { DatabaseService } from "../../services/database/database";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
+import type { IndividualTrackerService } from "../../services/individual-tracker/individual-tracker";
 import { installServices as installServicesImpl } from "../../services/install";
-import type { Services } from "../../services/install";
 import type { LogService } from "../../services/log/types";
 import { emptyTrackerDirectory, type UserTrackerInternalState } from "./types";
 
@@ -38,8 +39,9 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
   private readonly state: DurableObjectState;
   private readonly env: Env;
-  private readonly services: Services;
   private readonly logService: LogService;
+  private readonly databaseService: DatabaseService;
+  private readonly individualTrackerService: IndividualTrackerService;
   private readonly webSocketAdapter: WebSocketHibernationAdapter;
   private closeTrackerSubscriptions: () => void = () => {
     // replaced once tracker subscriptions are installed
@@ -56,8 +58,10 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   ) {
     this.state = state;
     this.env = env;
-    this.services = installServices({ env });
-    this.logService = this.services.logService;
+    const { logService, databaseService, individualTrackerService } = installServices({ env });
+    this.logService = logService;
+    this.databaseService = databaseService;
+    this.individualTrackerService = individualTrackerService;
     this.webSocketAdapter = webSocketAdapter;
   }
 
@@ -248,8 +252,8 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
   private async buildDirectory(userId: string): Promise<TrackerDirectory> {
     const [allTrackers, streamerSettings] = await Promise.all([
-      this.services.databaseService.findIndividualTrackersByUserId(userId),
-      this.services.individualTrackerService.getSettingsForView(userId),
+      this.databaseService.findIndividualTrackersByUserId(userId),
+      this.individualTrackerService.getSettingsForView(userId),
     ]);
 
     const nonStopped = allTrackers.filter(isNonStopped);
@@ -337,7 +341,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async subscribeToTrackerUpdateSockets(userId: string): Promise<() => void> {
-    const rows = await this.services.databaseService.findIndividualTrackersByUserId(userId);
+    const rows = await this.databaseService.findIndividualTrackersByUserId(userId);
     const nonStoppedRows = rows.filter(isNonStopped);
     const sockets = (
       await Promise.all(

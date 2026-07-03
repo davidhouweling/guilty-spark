@@ -111,6 +111,45 @@ describe("UserTrackerDO", () => {
     expect(parsed.state?.directory.trackers).toHaveLength(1);
   });
 
+  it("filters stopped trackers, keeps paused trackers, and selects liveTrackerId from included trackers", async () => {
+    const trackerDo = aFakeIndividualTrackerDOWith({ viewStateResponse: { state: null } });
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const services = installFakeServicesWith({ env: localEnv });
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([
+      aFakeIndividualTrackersRow({
+        TrackerId: "t-active",
+        UserId: "user-1",
+        Gamertag: "KnownTag",
+        Status: "active",
+        IsLive: 1,
+      }),
+      aFakeIndividualTrackersRow({
+        TrackerId: "t-paused",
+        UserId: "user-1",
+        Gamertag: "KnownTag",
+        Status: "paused",
+        IsLive: 0,
+      }),
+      aFakeIndividualTrackersRow({
+        TrackerId: "t-stopped",
+        UserId: "user-1",
+        Gamertag: "KnownTag",
+        Status: "stopped",
+        IsLive: 1,
+      }),
+    ]);
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    const response = await localUserTrackerDO.fetch(
+      new Request("http://do/view-state?userId=user-1", { method: "GET" }),
+    );
+
+    expect(response.status).toBe(200);
+    const parsed = await userTrackerViewStateContract.fromResponse(response);
+    expect(parsed.state?.directory.trackers.map((tracker) => tracker.trackerId)).toEqual(["t-active", "t-paused"]);
+    expect(parsed.state?.directory.liveTrackerId).toBe("t-active");
+  });
+
   it("accepts a valid tracker changed nudge payload", async () => {
     const response = await userTrackerDO.fetch(
       new Request("http://do/nudge", {
