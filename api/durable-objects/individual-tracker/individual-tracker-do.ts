@@ -1656,7 +1656,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     });
   }
 
-  private async buildPreSeriesPlayerInfo(state: IndividualTrackerInternalState): Promise<PreSeriesPlayerInfo | undefined> {
+  private async buildPreSeriesPlayerInfo(
+    state: IndividualTrackerInternalState,
+  ): Promise<PreSeriesPlayerInfo | undefined> {
     try {
       await this.getUserHaloService(state.userId);
     } catch (err: unknown) {
@@ -1671,7 +1673,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return undefined;
     }
 
-    const [csrContainer, esraData] = await Promise.all([this.fetchRankedArenaCsr(state.xuid), this.fetchPlayerEsra(state.xuid)]);
+    const [csrContainer, esraData] = await Promise.all([
+      this.fetchRankedArenaCsr(state.xuid),
+      this.fetchPlayerEsra(state.xuid),
+    ]);
 
     const currentRank = csrContainer?.Current.Value;
     const allTimePeakRank = csrContainer?.AllTimeMax.Value;

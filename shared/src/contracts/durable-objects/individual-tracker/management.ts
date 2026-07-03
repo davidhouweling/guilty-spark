@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { defineContract } from "../../base";
-import { preSeriesPlayerInfoSchema, statsHighlightItemSchema, trackerLiveViewSchema } from "../../individual-tracker/view";
+import {
+  preSeriesPlayerInfoSchema,
+  statsHighlightItemSchema,
+  trackerLiveViewSchema,
+} from "../../individual-tracker/view";
 import { individualTrackerStateSchema } from "./lifecycle";
 
 export const individualTrackerStatusContract = defineContract(

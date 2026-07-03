@@ -246,7 +246,8 @@ export class IndividualTrackerOverlayPresenter {
         return createPlaceholderStats();
       }
 
-      const currentRankDisplay = info.currentRank != null && info.currentRank > 0 ? info.currentRank.toLocaleString() : "Unranked";
+      const currentRankDisplay =
+        info.currentRank != null && info.currentRank > 0 ? info.currentRank.toLocaleString() : "Unranked";
       const peakRankDisplay = info.allTimePeakRank != null ? info.allTimePeakRank.toLocaleString() : "-";
       const esraDisplay = info.esra != null ? Math.round(info.esra).toLocaleString() : "-";
       let lastRankedDisplay = "-";
