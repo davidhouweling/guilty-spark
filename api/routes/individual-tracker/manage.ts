@@ -39,9 +39,9 @@ import {
   TrackerNotFoundError,
 } from "../../services/individual-tracker/errors";
 import type { CreateTrackerOptions } from "../../services/individual-tracker/types";
+import { toTracker } from "../../individual-tracker/mapper";
 import type { RoutesRegisterHandler } from "../base/types";
 import { requireSession } from "../base/require-session";
-import { toTracker } from "./mapper";
 
 const DEFAULT_IDLE_TIMEOUT_HOURS = 6;
 

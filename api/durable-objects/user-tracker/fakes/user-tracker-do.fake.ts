@@ -63,6 +63,9 @@ export function aFakeUserTrackerDOWith(opts: FakeUserTrackerDOOpts = {}): FakeUs
           }),
         );
       }
+      case "/websocket": {
+        return Promise.resolve(new Response(null, { status: 200, headers: { "x-fake-upgrade": "websocket" } }));
+      }
       default: {
         return Promise.resolve(new Response("Not Found", { status: 404 }));
       }

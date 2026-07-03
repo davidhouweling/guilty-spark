@@ -6,8 +6,8 @@ import {
   DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS,
   INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import { fetchTrackerDoViewState, toTrackerView } from "../../individual-tracker/mapper";
 import type { RoutesRegisterHandler } from "../base/types";
-import { fetchTrackerDoViewState, toTrackerView } from "./mapper";
 
 export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/individual-tracker/:trackerId/view", async (request, env: Env) => {
