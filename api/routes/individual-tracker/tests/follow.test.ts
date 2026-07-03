@@ -329,8 +329,10 @@ describe("/u/:gamertag follow routes", () => {
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
         vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(identity);
-        // First call returns t1 live, second call returns t2 live
+        // First call builds initial payload, second call builds tracker subscriptions,
+        // third call (poll) returns t2 as live.
         vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
+          .mockResolvedValueOnce([trackerOneLive, trackerTwo])
           .mockResolvedValueOnce([trackerOneLive, trackerTwo])
           .mockResolvedValueOnce([trackerTwo, trackerTwoLive]);
         return services;

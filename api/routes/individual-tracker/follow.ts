@@ -51,6 +51,59 @@ async function buildDirectory(env: Env, userId: string, services: Services): Pro
   };
 }
 
+async function subscribeToTrackerUpdateSockets(options: {
+  readonly env: Env;
+  readonly userId: string;
+  readonly services: Services;
+  readonly onTrackerUpdate: () => void;
+}): Promise<() => void> {
+  const { env, userId, services, onTrackerUpdate } = options;
+  const rows = await services.databaseService.findIndividualTrackersByUserId(userId);
+  const nonStoppedRows = rows.filter(isNonStopped);
+  const sockets: WebSocket[] = [];
+
+  for (const row of nonStoppedRows) {
+    try {
+      const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${row.UserId}:${row.TrackerId}`);
+      const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
+      const response = await stub.fetch(
+        new Request("http://do/websocket", {
+          headers: {
+            Upgrade: "websocket",
+          },
+        }),
+      );
+
+      const socket = response.webSocket;
+      if (socket == null) {
+        continue;
+      }
+
+      socket.accept();
+      socket.addEventListener("message", onTrackerUpdate);
+      sockets.push(socket);
+    } catch (error) {
+      services.logService.warn(
+        error,
+        new Map([
+          ["context", "Follow WebSocket tracker subscription error"],
+          ["trackerId", row.TrackerId],
+        ]),
+      );
+    }
+  }
+
+  return (): void => {
+    for (const socket of sockets) {
+      try {
+        socket.close(1000, "Follow websocket closing");
+      } catch {
+        // ignore close failures
+      }
+    }
+  };
+}
+
 export const trackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
   router.get("/u/:gamertag/view", async (request, env: Env) => {
     const services = installServices({ env });
@@ -103,27 +156,56 @@ export const trackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (router
       let lastPayload = trackerDirectoryMessageContract.serialize({ type: "directory", directory });
       server.send(lastPayload);
 
-      const pollInterval = setInterval(() => {
+      let pushing = false;
+      let queuedPushes = 0;
+
+      const pushDirectoryIfChanged = (): void => {
+        if (pushing) {
+          queuedPushes += 1;
+          return;
+        }
+
+        pushing = true;
         void (async (): Promise<void> => {
           try {
-            const nextDirectory = await buildDirectory(env, identity.UserId, services);
-            const nextPayload = trackerDirectoryMessageContract.serialize({
-              type: "directory",
-              directory: nextDirectory,
-            });
-            if (nextPayload === lastPayload) {
-              return;
+            for (;;) {
+              try {
+                const nextDirectory = await buildDirectory(env, identity.UserId, services);
+                const nextPayload = trackerDirectoryMessageContract.serialize({
+                  type: "directory",
+                  directory: nextDirectory,
+                });
+                if (nextPayload !== lastPayload) {
+                  lastPayload = nextPayload;
+                  server.send(nextPayload);
+                }
+              } catch (pollError) {
+                logService.error(pollError, new Map([["context", "Follow WebSocket poll error"]]));
+              }
+
+              if (queuedPushes === 0) {
+                break;
+              }
+              queuedPushes = 0;
             }
-            lastPayload = nextPayload;
-            server.send(nextPayload);
-          } catch (pollError) {
-            logService.error(pollError, new Map([["context", "Follow WebSocket poll error"]]));
+          } finally {
+            pushing = false;
           }
         })();
-      }, FOLLOW_WS_POLL_INTERVAL_MS);
+      };
+
+      const closeTrackerSubscriptions = await subscribeToTrackerUpdateSockets({
+        env,
+        userId: identity.UserId,
+        services,
+        onTrackerUpdate: pushDirectoryIfChanged,
+      });
+
+      const pollInterval = setInterval(pushDirectoryIfChanged, FOLLOW_WS_POLL_INTERVAL_MS);
 
       const stopPolling = (): void => {
         clearInterval(pollInterval);
+        closeTrackerSubscriptions();
       };
 
       server.addEventListener("close", stopPolling);
