@@ -14,7 +14,15 @@ function getRequest(path: string): Request {
 }
 
 function wsRequest(path: string): Request {
-  return new Request(`http://localhost${path}`, { method: "GET", headers: { Upgrade: "websocket" } });
+  return new Request(`http://localhost${path}`, {
+    method: "GET",
+    headers: {
+      Upgrade: "websocket",
+      Connection: "Upgrade",
+      "Sec-WebSocket-Key": "test-websocket-key",
+      "Sec-WebSocket-Version": "13",
+    },
+  });
 }
 
 function getRawUrl(input: RequestInfo | URL): string {
@@ -190,6 +198,9 @@ describe("/u/:gamertag follow routes", () => {
       expect(parsedUrl.pathname).toBe("/websocket");
       expect(parsedUrl.searchParams.get("userId")).toBe("user-1");
       expect(request.headers.get("Upgrade")).toBe("websocket");
+      expect(request.headers.get("Connection")).toBe("Upgrade");
+      expect(request.headers.get("Sec-WebSocket-Key")).toBe("test-websocket-key");
+      expect(request.headers.get("Sec-WebSocket-Version")).toBe("13");
     });
   });
 });

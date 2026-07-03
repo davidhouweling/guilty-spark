@@ -71,12 +71,14 @@ export const trackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (router
       const stub = getUserTrackerStub(env, identity.UserId);
       const url = new URL("http://do/websocket");
       url.searchParams.set("userId", identity.UserId);
+
+      const forwardedHeaders = new Headers(request.headers);
+      forwardedHeaders.set("Upgrade", "websocket");
+
       return await stub.fetch(
         new Request(url.toString(), {
           method: "GET",
-          headers: {
-            Upgrade: "websocket",
-          },
+          headers: forwardedHeaders,
         }),
       );
     } catch (error) {
