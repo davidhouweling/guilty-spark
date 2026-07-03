@@ -1,6 +1,9 @@
 import { getTeamName } from "@guilty-spark/shared/halo/team";
+import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
 import type { MatchStats } from "halo-infinite-api";
-import type { CSSProperties } from "react";
+import { differenceInHours } from "date-fns";
+import TimeAgo from "javascript-time-ago";
+import { createElement, type CSSProperties } from "react";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
@@ -12,6 +15,7 @@ import type { MatchStatsValues } from "../../../controllers/stats/types";
 import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
 import type { IndividualTrackerViewerRenderModel, ViewerSeriesTab, ViewerTimelineItem } from "../viewer/types";
 import { gameModeIconSrc } from "../game-mode-icon";
+import { RankIcon } from "../../icons/rank-icon";
 import type {
   IndividualTrackerOverlayViewModel,
   OverlayDisplaySettings,
@@ -20,6 +24,9 @@ import type {
   OverlayTopSectionModel,
 } from "./types";
 import { getOverlayDisplaySettings } from "./types";
+import "javascript-time-ago/locale/en";
+
+const timeAgo = new TimeAgo("en");
 
 interface TickerFilterOptions {
   readonly trackedGamertag: string;
@@ -210,6 +217,7 @@ export class IndividualTrackerOverlayPresenter {
     readonly playerName: string | null;
     readonly discordName: string | null;
     readonly gamertag: string | null;
+    readonly preSeriesPlayerInfo: IndividualTrackerViewerRenderModel["preSeriesPlayerInfo"];
   }): TickerMatchGroup[] {
     if (!options.showTicker || !options.showPreSeriesInfo) {
       return [];
@@ -227,9 +235,83 @@ export class IndividualTrackerOverlayPresenter {
         value: 0,
         bestInTeam: false,
         bestInMatch: false,
-        display: "–",
+        display: "-",
       },
     ];
+
+    const createPreSeriesPlayerStats = (): MatchStatsValues[] => {
+      const info = options.preSeriesPlayerInfo;
+
+      if (info == null) {
+        return createPlaceholderStats();
+      }
+
+      const currentRankDisplay =
+        info.currentRank != null && info.currentRank > 0 ? info.currentRank.toLocaleString() : "Unranked";
+      const peakRankDisplay = info.allTimePeakRank != null ? info.allTimePeakRank.toLocaleString() : "-";
+      const esraDisplay = info.esra != null ? Math.round(info.esra).toLocaleString() : "-";
+      let lastRankedDisplay = "-";
+      if (info.lastRankedGamePlayed != null) {
+        const ago = differenceInHours(new Date(), new Date(info.lastRankedGamePlayed));
+        lastRankedDisplay = ago < 1 ? "Less than an hour ago" : timeAgo.format(new Date(info.lastRankedGamePlayed));
+      }
+
+      return [
+        {
+          name: "Current rank",
+          value: info.currentRank ?? 0,
+          bestInTeam: false,
+          bestInMatch: false,
+          display: currentRankDisplay,
+          icon: createElement(RankIcon, {
+            rankTier: info.currentRankTier,
+            subTier: info.currentRankSubTier,
+            measurementMatchesRemaining: info.currentRankMeasurementMatchesRemaining,
+            initialMeasurementMatches: info.currentRankInitialMeasurementMatches,
+            size: "x-small",
+          }),
+        },
+        {
+          name: "Peak rank",
+          value: info.allTimePeakRank ?? 0,
+          bestInTeam: false,
+          bestInMatch: false,
+          display: peakRankDisplay,
+          icon:
+            info.allTimePeakRank != null
+              ? createElement(RankIcon, {
+                  ...getRankTierFromCsr(info.allTimePeakRank),
+                  measurementMatchesRemaining: null,
+                  initialMeasurementMatches: null,
+                  size: "x-small",
+                })
+              : undefined,
+        },
+        {
+          name: "ESRA",
+          value: info.esra ?? 0,
+          bestInTeam: false,
+          bestInMatch: false,
+          display: esraDisplay,
+          icon:
+            info.esra != null
+              ? createElement(RankIcon, {
+                  ...getRankTierFromCsr(Math.round(info.esra)),
+                  measurementMatchesRemaining: null,
+                  initialMeasurementMatches: null,
+                  size: "x-small",
+                })
+              : undefined,
+        },
+        {
+          name: "Last ranked match played",
+          value: info.lastRankedGamePlayed != null ? new Date(info.lastRankedGamePlayed).getTime() : 0,
+          bestInTeam: false,
+          bestInMatch: false,
+          display: lastRankedDisplay,
+        },
+      ];
+    };
 
     // Case 1: Pre-series with active series that has teams (series exists but no matches yet)
     if (options.activeSeries?.matches.length === 0 && options.activeSeries.teams.length > 0) {
@@ -284,7 +366,7 @@ export class IndividualTrackerOverlayPresenter {
             discordName: options.discordName,
             gamertag: options.gamertag,
             showTeamIcon: false,
-            stats: createPlaceholderStats(),
+            stats: createPreSeriesPlayerStats(),
             medals: [],
           },
         ],
@@ -314,6 +396,7 @@ export class IndividualTrackerOverlayPresenter {
             playerName: displaySettings.showXboxNames ? renderModel.gamertag : null,
             discordName: null,
             gamertag: displaySettings.showXboxNames ? renderModel.gamertag : null,
+            preSeriesPlayerInfo: renderModel.preSeriesPlayerInfo,
           });
 
     return {

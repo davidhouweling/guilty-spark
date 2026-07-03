@@ -139,7 +139,7 @@ describe("FollowLiveViewer", () => {
     });
   });
 
-  it("remounts the selected viewer when only the selected tracker last update time changes", async () => {
+  it("does not remount the selected viewer when only the selected tracker last update time changes", async () => {
     const initialDirectory: TrackerDirectory = aDirectoryWith({
       trackers: [
         aTrackerWith({
@@ -184,7 +184,7 @@ describe("FollowLiveViewer", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId("mock-viewer")).toHaveAttribute("data-instance-id", "2");
+      expect(screen.getByTestId("mock-viewer")).toHaveAttribute("data-instance-id", "1");
     });
   });
 

@@ -133,5 +133,6 @@ export function toTrackerView(
     hasRecentCompletedSeries: doState?.hasRecentCompletedSeries ?? false,
     ...(doState?.activeSeriesContext !== undefined ? { activeSeriesContext: doState.activeSeriesContext } : {}),
     ...(doState?.statsHighlights != null ? { statsHighlights: [...doState.statsHighlights] } : {}),
+    ...(doState?.preSeriesPlayerInfo != null ? { preSeriesPlayerInfo: doState.preSeriesPlayerInfo } : {}),
   };
 }

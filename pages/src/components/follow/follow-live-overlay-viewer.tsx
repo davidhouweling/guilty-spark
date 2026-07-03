@@ -68,7 +68,7 @@ export function FollowLiveOverlayViewer({
   if (liveTracker != null) {
     return (
       <IndividualTrackerOverlayPage
-        key={`${liveTracker.trackerId}:${liveTracker.lastUpdateTime}`}
+        key={liveTracker.trackerId}
         individualTrackerViewService={individualTrackerViewService}
         matchAnalyticsService={matchAnalyticsService}
         seriesMatchesService={seriesMatchesService}

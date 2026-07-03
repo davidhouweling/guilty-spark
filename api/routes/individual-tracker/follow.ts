@@ -51,6 +51,62 @@ async function buildDirectory(env: Env, userId: string, services: Services): Pro
   };
 }
 
+async function subscribeToTrackerUpdateSockets(options: {
+  readonly env: Env;
+  readonly userId: string;
+  readonly services: Services;
+  readonly onTrackerUpdate: () => void;
+}): Promise<() => void> {
+  const { env, userId, services, onTrackerUpdate } = options;
+  const rows = await services.databaseService.findIndividualTrackersByUserId(userId);
+  const nonStoppedRows = rows.filter(isNonStopped);
+  const sockets = (
+    await Promise.all(
+      nonStoppedRows.map(async (row): Promise<WebSocket | null> => {
+        try {
+          const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${row.UserId}:${row.TrackerId}`);
+          const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
+          const response = await stub.fetch(
+            new Request("http://do/websocket", {
+              headers: {
+                Upgrade: "websocket",
+              },
+            }),
+          );
+
+          const socket = response.webSocket;
+          if (socket == null) {
+            return null;
+          }
+
+          socket.accept();
+          socket.addEventListener("message", onTrackerUpdate);
+          return socket;
+        } catch (error) {
+          services.logService.warn(
+            error,
+            new Map([
+              ["context", "Follow WebSocket tracker subscription error"],
+              ["trackerId", row.TrackerId],
+            ]),
+          );
+          return null;
+        }
+      }),
+    )
+  ).filter((socket): socket is WebSocket => socket != null);
+
+  return (): void => {
+    for (const socket of sockets) {
+      try {
+        socket.close(1000, "Follow websocket closing");
+      } catch {
+        // ignore close failures
+      }
+    }
+  };
+}
+
 export const trackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
   router.get("/u/:gamertag/view", async (request, env: Env) => {
     const services = installServices({ env });
@@ -103,28 +159,84 @@ export const trackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (router
       let lastPayload = trackerDirectoryMessageContract.serialize({ type: "directory", directory });
       server.send(lastPayload);
 
-      const pollInterval = setInterval(() => {
+      let pushing = false;
+      let pendingPush = false;
+      let closeTrackerSubscriptions = (): void => {
+        // replaced once the background subscription setup completes
+      };
+      const subscriptionState = { closed: false };
+      const hasPendingPush = (): boolean => pendingPush;
+
+      const pushDirectoryIfChanged = (): void => {
+        if (subscriptionState.closed) {
+          return;
+        }
+
+        if (pushing) {
+          pendingPush = true;
+          return;
+        }
+
+        pushing = true;
         void (async (): Promise<void> => {
           try {
-            const nextDirectory = await buildDirectory(env, identity.UserId, services);
-            const nextPayload = trackerDirectoryMessageContract.serialize({
-              type: "directory",
-              directory: nextDirectory,
-            });
-            if (nextPayload === lastPayload) {
-              return;
+            for (;;) {
+              pendingPush = false;
+
+              try {
+                const nextDirectory = await buildDirectory(env, identity.UserId, services);
+                const nextPayload = trackerDirectoryMessageContract.serialize({
+                  type: "directory",
+                  directory: nextDirectory,
+                });
+                if (server.readyState === WebSocket.OPEN && nextPayload !== lastPayload) {
+                  lastPayload = nextPayload;
+                  server.send(nextPayload);
+                }
+              } catch (pollError) {
+                logService.error(pollError, new Map([["context", "Follow WebSocket poll error"]]));
+              }
+
+              if (!hasPendingPush()) {
+                break;
+              }
             }
-            lastPayload = nextPayload;
-            server.send(nextPayload);
-          } catch (pollError) {
-            logService.error(pollError, new Map([["context", "Follow WebSocket poll error"]]));
+          } finally {
+            pushing = false;
+            if (pendingPush && !subscriptionState.closed) {
+              pushDirectoryIfChanged();
+            }
           }
         })();
-      }, FOLLOW_WS_POLL_INTERVAL_MS);
+      };
+
+      const pollInterval = setInterval(pushDirectoryIfChanged, FOLLOW_WS_POLL_INTERVAL_MS);
 
       const stopPolling = (): void => {
         clearInterval(pollInterval);
+        subscriptionState.closed = true;
+        closeTrackerSubscriptions();
       };
+
+      void (async (): Promise<void> => {
+        try {
+          const closeSubscriptions = await subscribeToTrackerUpdateSockets({
+            env,
+            userId: identity.UserId,
+            services,
+            onTrackerUpdate: pushDirectoryIfChanged,
+          });
+
+          if (subscriptionState.closed) {
+            closeSubscriptions();
+            return;
+          }
+
+          closeTrackerSubscriptions = closeSubscriptions;
+        } catch (error) {
+          logService.error(error, new Map([["context", "Follow WebSocket subscription setup error"]]));
+        }
+      })();
 
       server.addEventListener("close", stopPolling);
       server.addEventListener("error", stopPolling);

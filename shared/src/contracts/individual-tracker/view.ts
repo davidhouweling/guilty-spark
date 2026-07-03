@@ -86,10 +86,23 @@ export const statsHighlightItemSchema = z.object({
 });
 export type StatsHighlightItem = z.infer<typeof statsHighlightItemSchema>;
 
+export const preSeriesPlayerInfoSchema = z.object({
+  currentRank: z.number().nullable(),
+  currentRankTier: z.string().nullable(),
+  currentRankSubTier: z.number().nullable(),
+  currentRankMeasurementMatchesRemaining: z.number().nullable(),
+  currentRankInitialMeasurementMatches: z.number().nullable(),
+  allTimePeakRank: z.number().nullable(),
+  esra: z.number().nullable(),
+  lastRankedGamePlayed: z.string().nullable(),
+});
+export type PreSeriesPlayerInfo = z.infer<typeof preSeriesPlayerInfoSchema>;
+
 export const trackerViewStateSchema = trackerLiveViewSchema.extend({
   isLive: z.boolean(),
   streamerSettings: streamerViewSettingsSchema.optional(),
   statsHighlights: z.array(statsHighlightItemSchema).optional(),
+  preSeriesPlayerInfo: preSeriesPlayerInfoSchema.optional(),
 });
 export type TrackerViewState = z.infer<typeof trackerViewStateSchema>;
 

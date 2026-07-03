@@ -98,6 +98,7 @@ export function aFakeTrackerLiveViewWith(overrides: FakeLiveViewOverrides = {}):
 interface FakeViewStateOverrides extends FakeLiveViewOverrides {
   readonly isLive?: boolean;
   readonly statsHighlights?: readonly StatsHighlightItem[];
+  readonly preSeriesPlayerInfo?: TrackerViewState["preSeriesPlayerInfo"];
 }
 
 export function aFakeTrackerViewStateWith(overrides: FakeViewStateOverrides = {}): TrackerViewState {
@@ -105,6 +106,7 @@ export function aFakeTrackerViewStateWith(overrides: FakeViewStateOverrides = {}
     ...aFakeTrackerLiveViewWith(overrides),
     isLive: overrides.isLive ?? true,
     ...(overrides.statsHighlights !== undefined ? { statsHighlights: [...overrides.statsHighlights] } : {}),
+    ...(overrides.preSeriesPlayerInfo !== undefined ? { preSeriesPlayerInfo: overrides.preSeriesPlayerInfo } : {}),
   };
 }
 

@@ -45,7 +45,10 @@
 }
 
 .statValue {
+  align-items: center;
   color: var(--halo-white);
+  display: inline-flex;
   font-size: 1em;
   font-weight: 700;
+  gap: var(--space-1);
 }

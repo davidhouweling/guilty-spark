@@ -257,19 +257,19 @@ function formatStatsHighlightOption(option: IndividualStatsHighlightOption, ctx:
     }
     case "current-rank": {
       const value = csrContainer?.Current.Value;
-      return value != null && value > 0 ? formatStatValue(value) : "–";
+      return value != null && value > 0 ? formatStatValue(value) : "-";
     }
     case "season-peak": {
       const value = csrContainer?.SeasonMax.Value;
-      return value != null && value > 0 ? formatStatValue(value) : "–";
+      return value != null && value > 0 ? formatStatValue(value) : "-";
     }
     case "all-time-peak": {
       const value = csrContainer?.AllTimeMax.Value;
-      return value != null && value > 0 ? formatStatValue(value) : "–";
+      return value != null && value > 0 ? formatStatValue(value) : "-";
     }
     case "esra": {
       const esra = esraData?.esra;
-      return esra != null && esra >= 0 ? formatStatValue(Math.round(esra)) : "–";
+      return esra != null && esra >= 0 ? formatStatValue(Math.round(esra)) : "-";
     }
     case "kills": {
       return totals != null ? formatStatValue(totals.kills) : null;

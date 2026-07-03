@@ -106,6 +106,17 @@ export interface StatsHighlightItem {
   };
 }
 
+export interface PreSeriesPlayerInfo {
+  currentRank: number | null;
+  currentRankTier: string | null;
+  currentRankSubTier: number | null;
+  currentRankMeasurementMatchesRemaining: number | null;
+  currentRankInitialMeasurementMatches: number | null;
+  allTimePeakRank: number | null;
+  esra: number | null;
+  lastRankedGamePlayed: string | null;
+}
+
 export interface IndividualTrackerInternalState extends IndividualTrackerState {
   searchStartTime: string;
   lastMatchDiscoveredAt: string | undefined;
@@ -117,6 +128,8 @@ export interface IndividualTrackerInternalState extends IndividualTrackerState {
   selectedMatchIds: string[];
   accumulatedPlayerTotals?: AccumulatedPlayerTotals;
   accumulatedMatchIds?: string[];
+  preSeriesPlayerInfo?: PreSeriesPlayerInfo;
+  preSeriesPlayerInfoLatestMatchId?: string | null;
   activeSeries?: ActiveSeries;
   completedSeries?: ActiveSeries[];
   seriesGroupOverrides?: IndividualTrackerSeriesGroupOverride[];
@@ -223,6 +236,7 @@ export interface IndividualTrackerViewState {
   hasRecentCompletedSeries: boolean;
   activeSeriesContext?: ActiveSeriesContext;
   statsHighlights?: StatsHighlightItem[];
+  preSeriesPlayerInfo?: PreSeriesPlayerInfo;
 }
 
 export interface IndividualTrackerViewStateResponse {

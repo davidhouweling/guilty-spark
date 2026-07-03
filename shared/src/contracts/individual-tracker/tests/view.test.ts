@@ -104,6 +104,35 @@ describe("trackerViewContract", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts preSeriesPlayerInfo", () => {
+    const result = trackerViewContract.safeParse({
+      view: {
+        trackerId: "t4",
+        gamertag: "ProfileTag",
+        status: "active",
+        isLive: true,
+        matches: [],
+        series: [],
+        lastUpdateTime: "2024-11-26T12:00:00.000Z",
+        lastMatchDiscoveredAt: null,
+        hasActiveSeries: false,
+        hasRecentCompletedSeries: false,
+        preSeriesPlayerInfo: {
+          currentRank: 1520,
+          currentRankTier: "Diamond",
+          currentRankSubTier: 1,
+          currentRankMeasurementMatchesRemaining: null,
+          currentRankInitialMeasurementMatches: null,
+          allTimePeakRank: 1650,
+          esra: 1501,
+          lastRankedGamePlayed: "2024-11-26T10:00:00.000Z",
+        },
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it("rejects an unknown status", () => {
     const result = trackerViewContract.safeParse({
       ...validResponse,
