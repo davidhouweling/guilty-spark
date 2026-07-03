@@ -145,7 +145,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   async webSocketError(_ws: WebSocket, error: unknown): Promise<void> {
-    this.logService.warn("UserTracker: WebSocket error", new Map([["error", String(error)]]));
+    this.logService.warn(error, new Map([["context", "UserTracker: WebSocket error"]]));
     return Promise.resolve();
   }
 
