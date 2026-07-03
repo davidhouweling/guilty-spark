@@ -1,6 +1,8 @@
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import {
   userTrackerDirectoryMessageContract,
+  type UserTrackerStatusResponse,
+  type UserTrackerViewStateResponse,
   userTrackerStatusContract,
   userTrackerViewStateContract,
 } from "@guilty-spark/shared/contracts/durable-objects/user-tracker/management";
@@ -11,11 +13,10 @@ import {
 import { installServices as installServicesImpl } from "../../services/install";
 import type { LogService } from "../../services/log/types";
 import {
-  emptyTrackerDirectory,
-  type UserTrackerInternalState,
-  type UserTrackerStatusResponse,
-  type UserTrackerViewStateResponse,
-} from "./types";
+  CloudflareWebSocketHibernationAdapter,
+  type WebSocketHibernationAdapter,
+} from "../../base/websocket-hibernation-adapter";
+import { emptyTrackerDirectory, type UserTrackerInternalState } from "./types";
 
 const USER_TRACKER_STATE_KEY = "userTrackerState";
 
@@ -23,10 +24,17 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
   private readonly state: DurableObjectState;
   private readonly logService: LogService;
+  private readonly webSocketAdapter: WebSocketHibernationAdapter;
 
-  constructor(state: DurableObjectState, env: Env, installServices = installServicesImpl) {
+  constructor(
+    state: DurableObjectState,
+    env: Env,
+    installServices = installServicesImpl,
+    webSocketAdapter: WebSocketHibernationAdapter = new CloudflareWebSocketHibernationAdapter(),
+  ) {
     this.state = state;
     this.logService = installServices({ env }).logService;
+    this.webSocketAdapter = webSocketAdapter;
   }
 
   public async fetch(request: Request): Promise<Response> {
@@ -98,19 +106,13 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return new Response("Expected WebSocket upgrade", { status: 426 });
     }
 
-    const { 0: client, 1: server } = new WebSocketPair();
-    server.accept();
-
     const stored = await this.loadState();
     const directory = stored.viewState?.directory ?? emptyTrackerDirectory;
     const payload = userTrackerDirectoryMessageContract.serialize({
       type: "directory",
       directory,
     });
-    if (server.readyState === WebSocket.OPEN) {
-      server.send(payload);
-    }
 
-    return new Response(null, { status: 101, webSocket: client });
+    return this.webSocketAdapter.upgrade(this.state, payload);
   }
 }

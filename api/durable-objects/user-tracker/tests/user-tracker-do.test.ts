@@ -1,22 +1,30 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  userTrackerDirectoryMessageContract,
   userTrackerStatusContract,
   userTrackerViewStateContract,
 } from "@guilty-spark/shared/contracts/durable-objects/user-tracker/management";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UserTrackerDO } from "../user-tracker-do";
 import { aFakeDurableObjectStateWith } from "../../../base/fakes/do.fake";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
+import {
+  aFakeWebSocketHibernationAdapter,
+  type FakeWebSocketHibernationAdapter,
+} from "../../../base/fakes/websocket-hibernation-adapter.fake";
 
 describe("UserTrackerDO", () => {
   let userTrackerDO: UserTrackerDO;
   let env: Env;
   let mockState: DurableObjectState & { storage: DurableObjectStorage };
+  let webSocketAdapter: FakeWebSocketHibernationAdapter;
 
   beforeEach(() => {
     env = aFakeEnvWith();
     mockState = aFakeDurableObjectStateWith();
-    userTrackerDO = new UserTrackerDO(mockState, env, installFakeServicesWith);
+    webSocketAdapter = aFakeWebSocketHibernationAdapter();
+    userTrackerDO = new UserTrackerDO(mockState, env, installFakeServicesWith, webSocketAdapter);
   });
 
   afterEach(() => {
@@ -65,5 +73,27 @@ describe("UserTrackerDO", () => {
 
     expect(response.status).toBe(426);
     await expect(response.text()).resolves.toBe("Expected WebSocket upgrade");
+  });
+
+  it("returns websocket upgrade and sends initial directory message", async () => {
+    const response = await userTrackerDO.fetch(
+      new Request("http://do/websocket", {
+        method: "GET",
+        headers: { Upgrade: "websocket" },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-fake-upgrade")).toBe("websocket");
+    expect(webSocketAdapter.initialMessages).toHaveLength(1);
+
+    const initialMessage = Preconditions.checkExists(
+      webSocketAdapter.initialMessages[0],
+      "expected websocket upgrade to include an initial message",
+    );
+    const parsed = userTrackerDirectoryMessageContract.parse(initialMessage);
+    expect(parsed.type).toBe("directory");
+    expect(parsed.directory.trackers).toEqual([]);
+    expect(parsed.directory.liveTrackerId).toBeNull();
   });
 });
