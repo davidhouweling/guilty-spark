@@ -235,7 +235,7 @@ export class IndividualTrackerOverlayPresenter {
         value: 0,
         bestInTeam: false,
         bestInMatch: false,
-        display: "–",
+        display: "-",
       },
     ];
 

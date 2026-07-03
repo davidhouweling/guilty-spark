@@ -1641,7 +1641,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       trackerState != null && statsHighlightSlots.length > 0
         ? await this.buildStatsHighlights(trackerState, statsHighlightSlots)
         : undefined;
-    const preSeriesPlayerInfo = trackerState != null ? await this.buildPreSeriesPlayerInfo(trackerState) : undefined;
+    const preSeriesPlayerInfo = trackerState != null ? await this.getPreSeriesPlayerInfo(trackerState) : undefined;
 
     if (trackerState == null) {
       return individualTrackerViewStateContract.toResponse({ state: null });
@@ -1654,6 +1654,23 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         ...(preSeriesPlayerInfo != null ? { preSeriesPlayerInfo } : {}),
       },
     });
+  }
+
+  private getPreSeriesPlayerInfoCacheKey(state: IndividualTrackerInternalState): string | null {
+    return state.lastSeenMatchId ?? state.matchIds.at(-1) ?? null;
+  }
+
+  private async getPreSeriesPlayerInfo(state: IndividualTrackerInternalState): Promise<PreSeriesPlayerInfo | undefined> {
+    const cacheKey = this.getPreSeriesPlayerInfoCacheKey(state);
+    if (state.preSeriesPlayerInfoLatestMatchId === cacheKey) {
+      return state.preSeriesPlayerInfo;
+    }
+
+    const preSeriesPlayerInfo = await this.buildPreSeriesPlayerInfo(state);
+    state.preSeriesPlayerInfo = preSeriesPlayerInfo;
+    state.preSeriesPlayerInfoLatestMatchId = cacheKey;
+    await this.setState(state);
+    return preSeriesPlayerInfo;
   }
 
   private async buildPreSeriesPlayerInfo(

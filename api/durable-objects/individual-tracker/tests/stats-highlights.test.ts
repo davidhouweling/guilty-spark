@@ -540,7 +540,7 @@ describe("statsHighlights", () => {
       });
     });
 
-    it("returns – when getRankedArenaCsrs throws (graceful degradation)", async () => {
+    it("returns - when getRankedArenaCsrs throws (graceful degradation)", async () => {
       vi.spyOn(services.haloService, "getRankedArenaCsrs").mockRejectedValue(new Error("CSR fetch failed"));
 
       const url = new URL("http://do/view-state");
@@ -548,11 +548,11 @@ describe("statsHighlights", () => {
       const response = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
       const body: IndividualTrackerViewStateResponse = await response.json();
 
-      expect(body.state?.statsHighlights?.[0]).toEqual({ label: "Current Rank", value: "–" });
-      expect(body.state?.statsHighlights?.[1]).toEqual({ label: "Season Peak", value: "–" });
+      expect(body.state?.statsHighlights?.[0]).toEqual({ label: "Current Rank", value: "-" });
+      expect(body.state?.statsHighlights?.[1]).toEqual({ label: "Season Peak", value: "-" });
     });
 
-    it("returns – when getPlayerEsra throws (graceful degradation)", async () => {
+    it("returns - when getPlayerEsra throws (graceful degradation)", async () => {
       vi.spyOn(services.haloService, "getPlayerEsra").mockRejectedValue(new Error("ESRA fetch failed"));
 
       const url = new URL("http://do/view-state");
@@ -560,10 +560,10 @@ describe("statsHighlights", () => {
       const response = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
       const body: IndividualTrackerViewStateResponse = await response.json();
 
-      expect(body.state?.statsHighlights?.[0]).toEqual({ label: "ESRA", value: "–" });
+      expect(body.state?.statsHighlights?.[0]).toEqual({ label: "ESRA", value: "-" });
     });
 
-    it("returns – when no CSR found for xuid (player not ranked)", async () => {
+    it("returns - when no CSR found for xuid (player not ranked)", async () => {
       vi.spyOn(services.haloService, "getRankedArenaCsrs").mockResolvedValue(new Map());
 
       const url = new URL("http://do/view-state");
@@ -571,10 +571,10 @@ describe("statsHighlights", () => {
       const response = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
       const body: IndividualTrackerViewStateResponse = await response.json();
 
-      expect(body.state?.statsHighlights?.[0]).toEqual({ label: "Current Rank", value: "–" });
+      expect(body.state?.statsHighlights?.[0]).toEqual({ label: "Current Rank", value: "-" });
     });
 
-    it("returns – for CSR slots when Value is 0 (placement/unranked sentinel)", async () => {
+    it("returns - for CSR slots when Value is 0 (placement/unranked sentinel)", async () => {
       const unrankedCsr = { ...fakeCsr, Value: 0, Tier: "", MeasurementMatchesRemaining: 3 };
       vi.spyOn(services.haloService, "getRankedArenaCsrs").mockResolvedValue(
         new Map([[trackedXuid, { Current: unrankedCsr, SeasonMax: unrankedCsr, AllTimeMax: unrankedCsr }]]),
@@ -587,7 +587,7 @@ describe("statsHighlights", () => {
 
       expect(body.state?.statsHighlights?.[0]).toEqual({
         label: "Current Rank",
-        value: "–",
+        value: "-",
         rankIcon: {
           rankTier: null,
           subTier: 0,
@@ -595,13 +595,31 @@ describe("statsHighlights", () => {
           initialMeasurementMatches: 10,
         },
       });
-      expect(body.state?.statsHighlights?.[1]).toEqual({ label: "Season Peak", value: "–" });
-      expect(body.state?.statsHighlights?.[2]).toEqual({ label: "All Time Peak", value: "–" });
+      expect(body.state?.statsHighlights?.[1]).toEqual({ label: "Season Peak", value: "-" });
+      expect(body.state?.statsHighlights?.[2]).toEqual({ label: "All Time Peak", value: "-" });
     });
 
-    it("still computes non-rank slots while pre-series profile data fetches run", async () => {
+    it("reuses cached pre-series profile data when latest match id is unchanged", async () => {
       const csrSpy = vi.spyOn(services.haloService, "getRankedArenaCsrs");
       const esraSpy = vi.spyOn(services.haloService, "getPlayerEsra");
+
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          xuid: trackedXuid,
+          lastSeenMatchId: "m1",
+          preSeriesPlayerInfoLatestMatchId: "m1",
+          preSeriesPlayerInfo: {
+            currentRank: 1500,
+            currentRankTier: "Onyx",
+            currentRankSubTier: 0,
+            currentRankMeasurementMatchesRemaining: 0,
+            currentRankInitialMeasurementMatches: 10,
+            allTimePeakRank: 1600,
+            esra: 1450,
+            lastRankedGamePlayed: "2024-11-26T10:00:00.000Z",
+          },
+        }),
+      );
 
       const url = new URL("http://do/view-state");
       url.searchParams.set("statsHighlightSlots", JSON.stringify(["kills", "deaths"]));
@@ -610,8 +628,47 @@ describe("statsHighlights", () => {
 
       expect(body.state?.statsHighlights?.[0]?.label).toBe("Kills");
       expect(body.state?.statsHighlights?.[1]?.label).toBe("Deaths");
+      expect(body.state?.preSeriesPlayerInfo?.currentRank).toBe(1500);
+      expect(csrSpy).not.toHaveBeenCalled();
+      expect(esraSpy).not.toHaveBeenCalled();
+    });
+
+    it("refreshes pre-series profile data when latest match id changes", async () => {
+      const csrSpy = vi.spyOn(services.haloService, "getRankedArenaCsrs").mockResolvedValue(
+        new Map([[trackedXuid, fakeCsrContainer]]),
+      );
+      const esraSpy = vi.spyOn(services.haloService, "getPlayerEsra").mockResolvedValue({
+        esra: 1337,
+        lastRankedGamePlayed: "2024-11-26T10:30:00.000Z",
+      });
+
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          xuid: trackedXuid,
+          lastSeenMatchId: "m2",
+          preSeriesPlayerInfoLatestMatchId: "m1",
+          preSeriesPlayerInfo: {
+            currentRank: 1200,
+            currentRankTier: "Gold",
+            currentRankSubTier: 1,
+            currentRankMeasurementMatchesRemaining: null,
+            currentRankInitialMeasurementMatches: null,
+            allTimePeakRank: 1250,
+            esra: 1200,
+            lastRankedGamePlayed: "2024-11-25T10:00:00.000Z",
+          },
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.preSeriesPlayerInfo?.currentRank).toBe(1567);
+      expect(body.state?.preSeriesPlayerInfo?.allTimePeakRank).toBe(1600);
+      expect(body.state?.preSeriesPlayerInfo?.esra).toBe(1337);
       expect(csrSpy).toHaveBeenCalledTimes(1);
       expect(esraSpy).toHaveBeenCalledTimes(1);
+      expect(lastPersistedState(storagePutSpy).preSeriesPlayerInfoLatestMatchId).toBe("m2");
     });
   });
 

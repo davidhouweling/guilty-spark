@@ -22,13 +22,30 @@ function wsRequest(path: string): Request {
 }
 
 function makeFakeWebSocket(): WebSocket {
+  const listeners = new Map<string, EventListener[]>();
+
   return {
     accept: vi.fn(),
     send: vi.fn(),
     close: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
+    addEventListener: vi.fn((type: string, listener: EventListener) => {
+      const existing = listeners.get(type) ?? [];
+      listeners.set(type, [...existing, listener]);
+    }),
+    removeEventListener: vi.fn((type: string, listener: EventListener) => {
+      const existing = listeners.get(type) ?? [];
+      listeners.set(
+        type,
+        existing.filter((candidate) => candidate !== listener),
+      );
+    }),
+    dispatchEvent: vi.fn((event: Event) => {
+      const existing = listeners.get(event.type) ?? [];
+      for (const listener of existing) {
+        listener(event);
+      }
+      return true;
+    }),
     readyState: 0,
   } as unknown as WebSocket;
 }
@@ -366,6 +383,96 @@ describe("/u/:gamertag follow routes", () => {
       expect(secondMessage.directory.liveTrackerId).toBe("t2");
     });
 
+    it("pushes an updated directory immediately when a tracker websocket message arrives", async () => {
+      const identity = aFakeLinkedIdentitiesRow({ UserId: "user-1", Gamertag: "ImmediatePushTag" });
+      const trackerRow = aFakeIndividualTrackersRow({
+        TrackerId: "t1",
+        UserId: "user-1",
+        Status: "active",
+        IsLive: 1,
+      });
+
+      let capturedServer: WebSocket | undefined;
+      const client = makeFakeWebSocket();
+      const server = makeFakeWebSocket();
+      const trackerSocket = makeFakeWebSocket();
+      vi.stubGlobal("WebSocketPair", function () {
+        capturedServer = server;
+        return { 0: client, 1: server };
+      });
+
+      const OriginalResponse = globalThis.Response;
+      vi.stubGlobal(
+        "Response",
+        class FakeResponse extends OriginalResponse {
+          constructor(body: BodyInit | null, init?: ResponseInit & { webSocket?: WebSocket }) {
+            super(body, { ...init, status: init?.status === 101 ? 200 : (init?.status ?? 200) });
+            if (init?.status === 101) {
+              Object.defineProperty(this, "status", { value: 101 });
+            }
+            if (init?.webSocket != null) {
+              Object.defineProperty(this, "webSocket", { value: init.webSocket });
+            }
+          }
+        },
+      );
+
+      const doStub = {
+        fetch: vi.fn((input: RequestInfo | URL) => {
+          const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+          const parsedUrl = new URL(url);
+
+          if (parsedUrl.pathname === "/websocket") {
+            return new Response(null, { status: 101, webSocket: trackerSocket });
+          }
+
+          return new Response(JSON.stringify({ state: aFakeIndividualTrackerViewStateWith({ trackerId: "t1" }) }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }),
+        connect: (): Socket => {
+          throw new Error("Socket connections not supported in fake");
+        },
+        id: {
+          toString: (): string => "fake-do-id",
+          equals: (): boolean => true,
+        },
+        __DURABLE_OBJECT_BRAND: undefined as never,
+      };
+
+      const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env: localEnv });
+        vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(identity);
+        vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
+          .mockResolvedValueOnce([trackerRow])
+          .mockResolvedValueOnce([trackerRow])
+          .mockResolvedValueOnce([trackerRow]);
+        return services;
+      });
+      individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      const res = (await router.fetch(wsRequest("/u/ImmediatePushTag/ws"), localEnv)) as Response;
+      expect(res.status).toBe(101);
+
+      const serverMocks = capturedServer as unknown as Record<string, ReturnType<typeof vi.fn>> | undefined;
+      const sendMock = serverMocks?.["send"];
+      expect(sendMock).toHaveBeenCalledTimes(1);
+
+      const trackerSocketMocks = trackerSocket as unknown as Record<string, ReturnType<typeof vi.fn>>;
+      const addEventListenerMock = trackerSocketMocks["addEventListener"];
+      const messageListener = addEventListenerMock?.mock.calls.find((call) => call[0] === "message")?.[1];
+      expect(typeof messageListener).toBe("function");
+      if (typeof messageListener === "function") {
+        messageListener(new Event("message"));
+      }
+
+      await vi.waitFor(() => {
+        expect(sendMock).toHaveBeenCalledTimes(2);
+      });
+    });
+
     it("returns 404 when gamertag is not found", async () => {
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
@@ -496,6 +603,30 @@ describe("/u/:gamertag follow routes", () => {
       expect(typeof sentArg).toBe("string");
       const msg = trackerDirectoryMessageContract.parse(sentArg as string);
       expect(msg.type).toBe("directory");
+    });
+
+    it("does not request pre-series player info while building follow directories", async () => {
+      const doStub = aFakeIndividualTrackerDOWith({ viewStateResponse: { state: null } });
+      const fetchSpy = vi.spyOn(doStub, "fetch");
+      const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
+      const identity = aFakeLinkedIdentitiesRow({ UserId: "user-1", Gamertag: "NoPreSeriesTag" });
+      const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Status: "active", IsLive: 1 });
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env: localEnv });
+        vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(identity);
+        vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([row]);
+        return services;
+      });
+      individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      const res = (await router.fetch(getRequest("/u/NoPreSeriesTag/view"), localEnv)) as Response;
+
+      expect(res.status).toBe(200);
+      const call = fetchSpy.mock.calls[0]?.[0];
+      const rawUrl = typeof call === "string" ? call : call instanceof URL ? call.toString() : call?.url;
+      const parsedUrl = new URL(rawUrl ?? "http://do/view-state");
+      expect(parsedUrl.searchParams.get("includePreSeriesPlayerInfo")).toBeNull();
     });
   });
 });

@@ -128,6 +128,8 @@ export interface IndividualTrackerInternalState extends IndividualTrackerState {
   selectedMatchIds: string[];
   accumulatedPlayerTotals?: AccumulatedPlayerTotals;
   accumulatedMatchIds?: string[];
+  preSeriesPlayerInfo?: PreSeriesPlayerInfo;
+  preSeriesPlayerInfoLatestMatchId?: string | null;
   activeSeries?: ActiveSeries;
   completedSeries?: ActiveSeries[];
   seriesGroupOverrides?: IndividualTrackerSeriesGroupOverride[];
