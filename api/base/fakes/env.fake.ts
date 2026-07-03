@@ -1,5 +1,6 @@
 import { aFakeLiveTrackerDOWith } from "../../durable-objects/live-tracker/fakes/live-tracker-do.fake";
 import { aFakeIndividualTrackerDOWith } from "../../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
+import { aFakeUserTrackerDOWith } from "../../durable-objects/user-tracker/fakes/user-tracker-do.fake";
 import { aFakeDurableObjectNamespaceWith } from "./do.fake";
 
 const fakeNamespace = (): KVNamespace =>
@@ -60,6 +61,7 @@ const fakeDb = (): D1Database => ({
 export function aFakeEnvWith(env: Partial<Env> = {}): Env {
   const liveTrackerGet = aFakeLiveTrackerDOWith();
   const individualTrackerGet = aFakeIndividualTrackerDOWith();
+  const userTrackerGet = aFakeUserTrackerDOWith();
 
   const defaultOpts: Env = {
     HOST_URL: "http://localhost:8787",
@@ -84,6 +86,7 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
     TOKEN_ENCRYPTION_SECRET: "c".repeat(64),
     LIVE_TRACKER_DO: aFakeDurableObjectNamespaceWith(liveTrackerGet),
     INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(individualTrackerGet),
+    USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(userTrackerGet),
   };
 
   return {

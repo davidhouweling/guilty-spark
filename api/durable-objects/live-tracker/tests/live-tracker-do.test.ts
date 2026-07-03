@@ -72,6 +72,7 @@ const createMockDurableObjectState = (): {
       get: vi.fn(),
       abort: () => void 0,
       delete: () => void 0,
+      clone: () => void 0,
     },
   };
 

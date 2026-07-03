@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/cloudflare";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import {
   userTrackerDirectoryMessageContract,
@@ -38,30 +39,41 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   public async fetch(request: Request): Promise<Response> {
-    try {
+    return await Sentry.withScope(async () => {
       const { pathname } = new URL(request.url);
+      const action = pathname.split("/").pop();
 
-      switch (`${request.method} ${pathname}`) {
-        case "GET /status": {
-          return await this.handleStatus();
+      Sentry.setTag("durableObject", "UserTrackerDO");
+      Sentry.setTag("action", action ?? "unknown");
+      Sentry.setContext("request", {
+        method: request.method,
+        path: pathname,
+      });
+
+      try {
+        switch (`${request.method} ${pathname}`) {
+          case "GET /status": {
+            return await this.handleStatus();
+          }
+          case "GET /view-state": {
+            return await this.handleViewState();
+          }
+          case "POST /nudge": {
+            return await this.handleNudge(request);
+          }
+          case "GET /websocket": {
+            return await this.handleWebSocket(request);
+          }
+          default: {
+            return new Response("Not Found", { status: 404 });
+          }
         }
-        case "GET /view-state": {
-          return await this.handleViewState();
-        }
-        case "POST /nudge": {
-          return await this.handleNudge(request);
-        }
-        case "GET /websocket": {
-          return await this.handleWebSocket(request);
-        }
-        default: {
-          return new Response("Not Found", { status: 404 });
-        }
+      } catch (error) {
+        this.logService.error(error, new Map([["context", "UserTrackerDO fetch error"]]));
+        Sentry.captureException(error);
+        return new Response("Internal Server Error", { status: 500 });
       }
-    } catch (error) {
-      this.logService.error(error, new Map([["context", "UserTrackerDO fetch error"]]));
-      return new Response("Internal Server Error", { status: 500 });
-    }
+    });
   }
 
   private async loadState(): Promise<UserTrackerInternalState> {
