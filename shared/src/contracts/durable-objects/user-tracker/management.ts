@@ -10,14 +10,10 @@ export const userTrackerViewStateSchema = z.object({
 });
 export type UserTrackerViewState = z.infer<typeof userTrackerViewStateSchema>;
 
-export const userTrackerStatusContract = defineContract(
-  z.object({ state: userTrackerStateSchema.nullable() }),
-);
+export const userTrackerStatusContract = defineContract(z.object({ state: userTrackerStateSchema.nullable() }));
 export type UserTrackerStatusResponse = z.infer<typeof userTrackerStatusContract.schema>;
 
-export const userTrackerViewStateContract = defineContract(
-  z.object({ state: userTrackerViewStateSchema.nullable() }),
-);
+export const userTrackerViewStateContract = defineContract(z.object({ state: userTrackerViewStateSchema.nullable() }));
 export type UserTrackerViewStateResponse = z.infer<typeof userTrackerViewStateContract.schema>;
 
 export const userTrackerDirectoryMessageSchema = z.object({
