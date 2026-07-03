@@ -81,6 +81,7 @@ export function aFakeDurableObjectStateWith(
       get: vi.fn(),
       abort: () => void 0,
       delete: () => void 0,
+      clone: () => void 0,
     },
     ...opts,
   };
