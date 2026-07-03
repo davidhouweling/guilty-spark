@@ -182,7 +182,7 @@ describe("UserTrackerDO", () => {
     await expect(response.text()).resolves.toBe("Expected WebSocket upgrade");
   });
 
-  it("returns websocket upgrade and sends initial directory message", async () => {
+  it("returns 400 for websocket upgrades without stored or requested userId", async () => {
     const response = await userTrackerDO.fetch(
       new Request("http://do/websocket", {
         method: "GET",
@@ -190,19 +190,10 @@ describe("UserTrackerDO", () => {
       }),
     );
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get("x-fake-upgrade")).toBe("websocket");
-    expect(webSocketAdapter.initialMessages).toHaveLength(1);
-
-    const initialMessage = Preconditions.checkExists(
-      webSocketAdapter.initialMessages[0],
-      "expected websocket upgrade to include an initial message",
-    );
-    const parsed = userTrackerDirectoryMessageContract.parse(initialMessage);
-    expect(parsed.type).toBe("directory");
-    expect(parsed.directory.trackers).toEqual([]);
-    expect(parsed.directory.liveTrackerId).toBeNull();
-    expect(setAlarmMock).toHaveBeenCalledOnce();
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe("Missing userId");
+    expect(webSocketAdapter.initialMessages).toHaveLength(0);
+    expect(setAlarmMock).not.toHaveBeenCalled();
   });
 
   it("builds websocket initial directory message when userId is passed in the request", async () => {

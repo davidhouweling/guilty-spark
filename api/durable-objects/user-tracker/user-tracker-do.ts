@@ -216,7 +216,11 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     }
 
     const stored = await this.getOrBuildState(request);
-    const directory = stored?.viewState?.directory ?? emptyTrackerDirectory;
+    if (stored?.state?.userId == null) {
+      return new Response("Missing userId", { status: 400 });
+    }
+
+    const directory = stored.viewState?.directory ?? emptyTrackerDirectory;
     const payload = this.serializeDirectory(directory);
     await this.ensureUpdateLoopStarted();
     const response = this.webSocketAdapter.upgrade(this.state, payload);
