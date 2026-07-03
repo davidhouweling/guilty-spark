@@ -336,6 +336,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       this.closeTrackerSubscriptions();
       this.closeTrackerSubscriptions = closeSubscriptions;
     } catch (error) {
+      this.trackerSubscriptionsInstalled = false;
       this.logService.error(error, new Map([["context", "UserTracker WebSocket subscription setup error"]]));
     }
   }

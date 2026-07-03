@@ -291,4 +291,37 @@ describe("UserTrackerDO", () => {
 
     expect(setAlarmMock).toHaveBeenCalledTimes(1);
   });
+
+  it("retries tracker subscription setup after a transient installation failure", async () => {
+    const localEnv = aFakeEnvWith();
+    const services = installFakeServicesWith({ env: localEnv });
+    const subscriptionError = new Error("transient subscription failure");
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    const findTrackersSpy = vi
+      .spyOn(services.databaseService, "findIndividualTrackersByUserId")
+      .mockRejectedValueOnce(subscriptionError)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    await localUserTrackerDO.fetch(
+      new Request("http://do/websocket?userId=user-1", {
+        method: "GET",
+        headers: { Upgrade: "websocket" },
+      }),
+    );
+    await vi.waitFor(() => {
+      expect(findTrackersSpy).toHaveBeenCalledTimes(1);
+    });
+
+    await localUserTrackerDO.fetch(
+      new Request("http://do/websocket?userId=user-1", {
+        method: "GET",
+        headers: { Upgrade: "websocket" },
+      }),
+    );
+    await vi.waitFor(() => {
+      expect(findTrackersSpy).toHaveBeenCalledTimes(2);
+    });
+  });
 });
