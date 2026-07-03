@@ -34,6 +34,10 @@
         "name": "INDIVIDUAL_TRACKER_DO",
         "class_name": "IndividualTrackerDO",
       },
+      {
+        "name": "USER_TRACKER_DO",
+        "class_name": "UserTrackerDO",
+      },
     ],
   },
 
@@ -54,6 +58,10 @@
     {
       "tag": "v4",
       "new_classes": ["IndividualTrackerDO"],
+    },
+    {
+      "tag": "v5",
+      "new_classes": ["UserTrackerDO"],
     },
   ],
 
@@ -99,6 +107,10 @@
             "name": "INDIVIDUAL_TRACKER_DO",
             "class_name": "IndividualTrackerDO",
           },
+          {
+            "name": "USER_TRACKER_DO",
+            "class_name": "UserTrackerDO",
+          },
         ],
       },
       "vars": {
@@ -134,6 +146,10 @@
           {
             "name": "INDIVIDUAL_TRACKER_DO",
             "class_name": "IndividualTrackerDO",
+          },
+          {
+            "name": "USER_TRACKER_DO",
+            "class_name": "UserTrackerDO",
           },
         ],
       },
