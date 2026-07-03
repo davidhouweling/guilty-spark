@@ -60,38 +60,41 @@ async function subscribeToTrackerUpdateSockets(options: {
   const { env, userId, services, onTrackerUpdate } = options;
   const rows = await services.databaseService.findIndividualTrackersByUserId(userId);
   const nonStoppedRows = rows.filter(isNonStopped);
-  const sockets: WebSocket[] = [];
+  const sockets = (
+    await Promise.all(
+      nonStoppedRows.map(async (row): Promise<WebSocket | null> => {
+        try {
+          const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${row.UserId}:${row.TrackerId}`);
+          const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
+          const response = await stub.fetch(
+            new Request("http://do/websocket", {
+              headers: {
+                Upgrade: "websocket",
+              },
+            }),
+          );
 
-  for (const row of nonStoppedRows) {
-    try {
-      const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${row.UserId}:${row.TrackerId}`);
-      const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
-      const response = await stub.fetch(
-        new Request("http://do/websocket", {
-          headers: {
-            Upgrade: "websocket",
-          },
-        }),
-      );
+          const socket = response.webSocket;
+          if (socket == null) {
+            return null;
+          }
 
-      const socket = response.webSocket;
-      if (socket == null) {
-        continue;
-      }
-
-      socket.accept();
-      socket.addEventListener("message", onTrackerUpdate);
-      sockets.push(socket);
-    } catch (error) {
-      services.logService.warn(
-        error,
-        new Map([
-          ["context", "Follow WebSocket tracker subscription error"],
-          ["trackerId", row.TrackerId],
-        ]),
-      );
-    }
-  }
+          socket.accept();
+          socket.addEventListener("message", onTrackerUpdate);
+          return socket;
+        } catch (error) {
+          services.logService.warn(
+            error,
+            new Map([
+              ["context", "Follow WebSocket tracker subscription error"],
+              ["trackerId", row.TrackerId],
+            ]),
+          );
+          return null;
+        }
+      }),
+    )
+  ).filter((socket): socket is WebSocket => socket != null);
 
   return (): void => {
     for (const socket of sockets) {
@@ -158,6 +161,10 @@ export const trackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       let pushing = false;
       let queuedPushes = 0;
+      let closeTrackerSubscriptions = (): void => {
+        // replaced once the background subscription setup completes
+      };
+      const subscriptionState = { closed: false };
 
       const pushDirectoryIfChanged = (): void => {
         if (pushing) {
@@ -194,19 +201,29 @@ export const trackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (router
         })();
       };
 
-      const closeTrackerSubscriptions = await subscribeToTrackerUpdateSockets({
-        env,
-        userId: identity.UserId,
-        services,
-        onTrackerUpdate: pushDirectoryIfChanged,
-      });
-
       const pollInterval = setInterval(pushDirectoryIfChanged, FOLLOW_WS_POLL_INTERVAL_MS);
 
       const stopPolling = (): void => {
         clearInterval(pollInterval);
+        subscriptionState.closed = true;
         closeTrackerSubscriptions();
       };
+
+      void (async (): Promise<void> => {
+        const closeSubscriptions = await subscribeToTrackerUpdateSockets({
+          env,
+          userId: identity.UserId,
+          services,
+          onTrackerUpdate: pushDirectoryIfChanged,
+        });
+
+        if (subscriptionState.closed) {
+          closeSubscriptions();
+          return;
+        }
+
+        closeTrackerSubscriptions = closeSubscriptions;
+      })();
 
       server.addEventListener("close", stopPolling);
       server.addEventListener("error", stopPolling);
