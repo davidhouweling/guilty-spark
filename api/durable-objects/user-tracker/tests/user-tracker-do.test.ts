@@ -6,8 +6,13 @@ import {
 } from "@guilty-spark/shared/contracts/durable-objects/user-tracker/management";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UserTrackerDO } from "../user-tracker-do";
-import { aFakeDurableObjectStateWith } from "../../../base/fakes/do.fake";
+import { aFakeDurableObjectNamespaceWith, aFakeDurableObjectStateWith } from "../../../base/fakes/do.fake";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
+import {
+  aFakeIndividualTrackerDOWith,
+  aFakeIndividualTrackerViewStateWith,
+} from "../../individual-tracker/fakes/individual-tracker-do.fake";
+import { aFakeIndividualTrackersRow } from "../../../services/database/fakes/database.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import {
   aFakeWebSocketHibernationAdapter,
@@ -57,6 +62,40 @@ describe("UserTrackerDO", () => {
 
     expect(response.status).toBe(200);
     await expect(userTrackerViewStateContract.fromResponse(response)).resolves.toEqual({ state: null });
+  });
+
+  it("builds view-state on demand when userId is passed in the request", async () => {
+    const trackerDo = aFakeIndividualTrackerDOWith({
+      viewStateResponse: {
+        state: aFakeIndividualTrackerViewStateWith({
+          trackerId: "t1",
+          gamertag: "KnownTag",
+          matches: [],
+        }),
+      },
+    });
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const services = installFakeServicesWith({ env: localEnv });
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([
+      aFakeIndividualTrackersRow({
+        TrackerId: "t1",
+        UserId: "user-1",
+        Gamertag: "KnownTag",
+        Status: "active",
+        IsLive: 1,
+      }),
+    ]);
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    const response = await localUserTrackerDO.fetch(
+      new Request("http://do/view-state?userId=user-1", { method: "GET" }),
+    );
+
+    expect(response.status).toBe(200);
+    const parsed = await userTrackerViewStateContract.fromResponse(response);
+    expect(parsed.state?.userId).toBe("user-1");
+    expect(parsed.state?.directory.liveTrackerId).toBe("t1");
+    expect(parsed.state?.directory.trackers).toHaveLength(1);
   });
 
   it("accepts a valid tracker changed nudge payload", async () => {
@@ -109,5 +148,45 @@ describe("UserTrackerDO", () => {
     expect(parsed.type).toBe("directory");
     expect(parsed.directory.trackers).toEqual([]);
     expect(parsed.directory.liveTrackerId).toBeNull();
+  });
+
+  it("builds websocket initial directory message when userId is passed in the request", async () => {
+    const trackerDo = aFakeIndividualTrackerDOWith({
+      viewStateResponse: {
+        state: aFakeIndividualTrackerViewStateWith({
+          trackerId: "t1",
+          gamertag: "KnownTag",
+          matches: [],
+        }),
+      },
+    });
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const services = installFakeServicesWith({ env: localEnv });
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([
+      aFakeIndividualTrackersRow({
+        TrackerId: "t1",
+        UserId: "user-1",
+        Gamertag: "KnownTag",
+        Status: "active",
+        IsLive: 1,
+      }),
+    ]);
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    const response = await localUserTrackerDO.fetch(
+      new Request("http://do/websocket?userId=user-1", {
+        method: "GET",
+        headers: { Upgrade: "websocket" },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const initialMessage = Preconditions.checkExists(
+      webSocketAdapter.initialMessages.at(-1),
+      "expected websocket upgrade to include a built directory message",
+    );
+    const parsed = userTrackerDirectoryMessageContract.parse(initialMessage);
+    expect(parsed.directory.liveTrackerId).toBe("t1");
+    expect(parsed.directory.trackers).toHaveLength(1);
   });
 });

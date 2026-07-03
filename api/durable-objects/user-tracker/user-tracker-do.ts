@@ -7,25 +7,46 @@ import {
   userTrackerStatusContract,
   userTrackerViewStateContract,
 } from "@guilty-spark/shared/contracts/durable-objects/user-tracker/management";
+import type { TrackerDirectory, TrackerDirectoryEntry } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import {
   trackerChangedPayloadSchema,
   userTrackerNudgeContract,
 } from "@guilty-spark/shared/contracts/durable-objects/user-tracker/nudge";
-import { installServices as installServicesImpl } from "../../services/install";
-import type { LogService } from "../../services/log/types";
+import {
+  DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS,
+  INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
+} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import {
   CloudflareWebSocketHibernationAdapter,
   type WebSocketHibernationAdapter,
 } from "../../base/websocket-hibernation-adapter";
+import { fetchTrackerDoViewState, toTrackerView } from "../../routes/individual-tracker/mapper";
+import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
+import { installServices as installServicesImpl } from "../../services/install";
+import type { Services } from "../../services/install";
+import type { LogService } from "../../services/log/types";
 import { emptyTrackerDirectory, type UserTrackerInternalState } from "./types";
 
 const USER_TRACKER_STATE_KEY = "userTrackerState";
+const FOLLOW_WS_POLL_INTERVAL_MS = 3000;
+
+function isNonStopped(row: IndividualTrackersRow): boolean {
+  return row.Status !== "stopped";
+}
 
 export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
   private readonly state: DurableObjectState;
+  private readonly env: Env;
+  private readonly services: Services;
   private readonly logService: LogService;
   private readonly webSocketAdapter: WebSocketHibernationAdapter;
+  private pollInterval: ReturnType<typeof setInterval> | null = null;
+  private closeTrackerSubscriptions: () => void = () => {
+    // replaced once tracker subscriptions are installed
+  };
+  private pushInProgress = false;
+  private pendingPush = false;
 
   constructor(
     state: DurableObjectState,
@@ -34,7 +55,9 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     webSocketAdapter: WebSocketHibernationAdapter = new CloudflareWebSocketHibernationAdapter(),
   ) {
     this.state = state;
-    this.logService = installServices({ env }).logService;
+    this.env = env;
+    this.services = installServices({ env });
+    this.logService = this.services.logService;
     this.webSocketAdapter = webSocketAdapter;
   }
 
@@ -62,7 +85,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
             if (request.method !== "GET") {
               return new Response("Method Not Allowed", { status: 405 });
             }
-            return await this.handleViewState();
+            return await this.handleViewState(request);
           }
           case "nudge": {
             if (request.method !== "POST") {
@@ -91,6 +114,37 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     });
   }
 
+  async webSocketMessage(_ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    this.logService.debug(
+      "UserTracker: WebSocket message received (ignored)",
+      new Map([["messageType", typeof message]]),
+    );
+    return Promise.resolve();
+  }
+
+  async webSocketClose(_ws: WebSocket, code: number, reason: string, wasClean: boolean): Promise<void> {
+    this.logService.debug(
+      "UserTracker: WebSocket client disconnected",
+      new Map([
+        ["code", code.toString()],
+        ["reason", reason],
+        ["wasClean", wasClean.toString()],
+        ["remainingClients", this.state.getWebSockets().length.toString()],
+      ]),
+    );
+
+    if (this.state.getWebSockets().length === 0) {
+      this.stopUpdateLoop();
+    }
+
+    return Promise.resolve();
+  }
+
+  async webSocketError(_ws: WebSocket, error: unknown): Promise<void> {
+    this.logService.warn("UserTracker: WebSocket error", new Map([["error", String(error)]]));
+    return Promise.resolve();
+  }
+
   private async loadState(): Promise<UserTrackerInternalState> {
     const stored = await this.state.storage.get<UserTrackerInternalState>(USER_TRACKER_STATE_KEY);
     if (stored != null) {
@@ -111,10 +165,10 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     return userTrackerStatusContract.toResponse(response, { noStore: true });
   }
 
-  private async handleViewState(): Promise<Response> {
-    const stored = await this.loadState();
+  private async handleViewState(request: Request): Promise<Response> {
+    const stored = await this.getOrBuildState(request);
     const response: UserTrackerViewStateResponse = {
-      state: stored.viewState,
+      state: stored?.viewState ?? null,
     };
     return userTrackerViewStateContract.toResponse(response, { noStore: true });
   }
@@ -125,6 +179,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return parsedBody.response;
     }
 
+    this.queueDirectoryPush();
     return userTrackerNudgeContract.toResponse({ success: true }, { noStore: true });
   }
 
@@ -133,13 +188,244 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return new Response("Expected WebSocket upgrade", { status: 426 });
     }
 
+    const stored = await this.getOrBuildState(request);
+    const directory = stored?.viewState?.directory ?? emptyTrackerDirectory;
+    const payload = this.serializeDirectory(directory);
+    const response = this.webSocketAdapter.upgrade(this.state, payload);
+    this.ensureUpdateLoopStarted();
+    return response;
+  }
+
+  private async getOrBuildState(request: Request): Promise<UserTrackerInternalState | null> {
     const stored = await this.loadState();
-    const directory = stored.viewState?.directory ?? emptyTrackerDirectory;
-    const payload = userTrackerDirectoryMessageContract.serialize({
+    const userId = stored.state?.userId ?? this.getRequestedUserId(request);
+
+    if (userId == null) {
+      return stored.viewState == null ? null : stored;
+    }
+
+    if (stored.viewState != null && stored.state?.userId === userId) {
+      return stored;
+    }
+
+    return await this.rebuildDirectoryState(userId);
+  }
+
+  private getRequestedUserId(request: Request): string | null {
+    const userId = new URL(request.url).searchParams.get("userId");
+    if (userId == null || userId.trim() === "") {
+      return null;
+    }
+
+    return userId;
+  }
+
+  private async rebuildDirectoryState(userId: string): Promise<UserTrackerInternalState> {
+    const directory = await this.buildDirectory(userId);
+    return await this.storeDirectoryState(userId, directory);
+  }
+
+  private async buildDirectory(userId: string): Promise<TrackerDirectory> {
+    const [allTrackers, streamerSettings] = await Promise.all([
+      this.services.databaseService.findIndividualTrackersByUserId(userId),
+      this.services.individualTrackerService.getSettingsForView(userId),
+    ]);
+
+    const nonStopped = allTrackers.filter(isNonStopped);
+    const statsHighlightSlots =
+      streamerSettings.visibleSections?.statsHighlightSlots ??
+      DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS.slice(0, INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT);
+
+    const entries = await Promise.all(
+      nonStopped.map(async (row): Promise<TrackerDirectoryEntry> => {
+        const doState = await fetchTrackerDoViewState(this.env, row.UserId, row.TrackerId, statsHighlightSlots);
+        return toTrackerView(row, doState);
+      }),
+    );
+
+    const liveTracker = entries.find((entry) => entry.isLive);
+    const firstActiveTracker = entries.find((entry) => entry.status === "active");
+    const liveTrackerId = liveTracker?.trackerId ?? firstActiveTracker?.trackerId ?? null;
+
+    return {
+      trackers: entries,
+      liveTrackerId,
+      streamerSettings: Object.keys(streamerSettings).length > 0 ? streamerSettings : undefined,
+    };
+  }
+
+  private async storeDirectoryState(userId: string, directory: TrackerDirectory): Promise<UserTrackerInternalState> {
+    const lastUpdateTime = new Date().toISOString();
+    const nextState: UserTrackerInternalState = {
+      state: {
+        userId,
+        lastUpdateTime,
+      },
+      viewState: {
+        userId,
+        lastUpdateTime,
+        directory,
+      },
+    };
+
+    await this.state.storage.put(USER_TRACKER_STATE_KEY, nextState);
+    return nextState;
+  }
+
+  private ensureUpdateLoopStarted(): void {
+    if (this.pollInterval != null) {
+      return;
+    }
+
+    this.pollInterval = setInterval(() => {
+      this.queueDirectoryPush();
+    }, FOLLOW_WS_POLL_INTERVAL_MS);
+    void this.installTrackerSubscriptionsAsync();
+  }
+
+  private stopUpdateLoop(): void {
+    if (this.pollInterval != null) {
+      clearInterval(this.pollInterval);
+      this.pollInterval = null;
+    }
+
+    this.closeTrackerSubscriptions();
+    this.closeTrackerSubscriptions = (): void => {
+      // reset after closing
+    };
+  }
+
+  private async installTrackerSubscriptionsAsync(): Promise<void> {
+    const stored = await this.loadState();
+    const userId = stored.state?.userId;
+    if (userId == null) {
+      return;
+    }
+
+    try {
+      const closeSubscriptions = await this.subscribeToTrackerUpdateSockets(userId);
+      if (this.state.getWebSockets().length === 0) {
+        closeSubscriptions();
+        return;
+      }
+
+      this.closeTrackerSubscriptions();
+      this.closeTrackerSubscriptions = closeSubscriptions;
+    } catch (error) {
+      this.logService.error(error, new Map([["context", "UserTracker WebSocket subscription setup error"]]));
+    }
+  }
+
+  private async subscribeToTrackerUpdateSockets(userId: string): Promise<() => void> {
+    const rows = await this.services.databaseService.findIndividualTrackersByUserId(userId);
+    const nonStoppedRows = rows.filter(isNonStopped);
+    const sockets = (
+      await Promise.all(
+        nonStoppedRows.map(async (row): Promise<WebSocket | null> => {
+          try {
+            const doId = this.env.INDIVIDUAL_TRACKER_DO.idFromName(`${row.UserId}:${row.TrackerId}`);
+            const stub = this.env.INDIVIDUAL_TRACKER_DO.get(doId);
+            const response = await stub.fetch(
+              new Request("http://do/websocket", {
+                headers: {
+                  Upgrade: "websocket",
+                },
+              }),
+            );
+
+            const socket = response.webSocket;
+            if (socket == null) {
+              return null;
+            }
+
+            socket.accept();
+            socket.addEventListener("message", (): void => {
+              this.queueDirectoryPush();
+            });
+            return socket;
+          } catch (error) {
+            this.logService.warn(
+              error,
+              new Map([
+                ["context", "UserTracker WebSocket tracker subscription error"],
+                ["trackerId", row.TrackerId],
+              ]),
+            );
+            return null;
+          }
+        }),
+      )
+    ).filter((socket): socket is WebSocket => socket != null);
+
+    return (): void => {
+      for (const socket of sockets) {
+        try {
+          socket.close(1000, "User tracker websocket closing");
+        } catch {
+          // ignore close failures
+        }
+      }
+    };
+  }
+
+  private queueDirectoryPush(): void {
+    if (this.pushInProgress) {
+      this.pendingPush = true;
+      return;
+    }
+
+    this.pushInProgress = true;
+    void this.queueDirectoryPushAsync();
+  }
+
+  private async queueDirectoryPushAsync(): Promise<void> {
+    try {
+      for (;;) {
+        this.pendingPush = false;
+
+        try {
+          await this.refreshAndBroadcastIfChanged();
+        } catch (error) {
+          this.logService.error(error, new Map([["context", "UserTracker directory refresh error"]]));
+        }
+
+        if (!this.hasPendingPush()) {
+          break;
+        }
+      }
+    } finally {
+      this.pushInProgress = false;
+      if (this.hasPendingPush()) {
+        this.queueDirectoryPush();
+      }
+    }
+  }
+
+  private async refreshAndBroadcastIfChanged(): Promise<void> {
+    const stored = await this.loadState();
+    const userId = stored.state?.userId;
+    if (userId == null) {
+      return;
+    }
+
+    const previousPayload = stored.viewState == null ? null : this.serializeDirectory(stored.viewState.directory);
+    const nextDirectory = await this.buildDirectory(userId);
+    const nextPayload = this.serializeDirectory(nextDirectory);
+    await this.storeDirectoryState(userId, nextDirectory);
+
+    if (previousPayload == null || nextPayload !== previousPayload) {
+      this.webSocketAdapter.broadcast(this.state, nextPayload);
+    }
+  }
+
+  private serializeDirectory(directory: TrackerDirectory): string {
+    return userTrackerDirectoryMessageContract.serialize({
       type: "directory",
       directory,
     });
+  }
 
-    return this.webSocketAdapter.upgrade(this.state, payload);
+  private hasPendingPush(): boolean {
+    return this.pendingPush;
   }
 }
