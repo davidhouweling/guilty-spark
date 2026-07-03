@@ -1,5 +1,4 @@
 import type { RoutesRegisterHandler } from "../base/types";
-import { trackerFollowRoutesRegisterHandler } from "./follow";
 import { trackerManageRoutesRegisterHandler } from "./manage";
 import { trackerProfileRoutesRegisterHandler } from "./profile";
 import { trackerSettingsRoutesRegisterHandler } from "./settings";
@@ -10,5 +9,4 @@ export const individualTrackerRoutesRegisterHandler: RoutesRegisterHandler = (ro
   trackerManageRoutesRegisterHandler(router, installServices);
   trackerSettingsRoutesRegisterHandler(router, installServices);
   trackerViewRoutesRegisterHandler(router, installServices);
-  trackerFollowRoutesRegisterHandler(router, installServices);
 };

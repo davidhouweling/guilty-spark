@@ -14,7 +14,7 @@ function getUserTrackerStub(env: Env, userId: string): DurableObjectStub<UserTra
   return env.USER_TRACKER_DO.get(doId);
 }
 
-export const trackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
+export const userTrackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
   router.get("/u/:gamertag/view", async (request, env: Env) => {
     const services = installServices({ env });
     const { databaseService, logService } = services;
