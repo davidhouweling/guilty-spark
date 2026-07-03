@@ -599,16 +599,19 @@ describe("statsHighlights", () => {
       expect(body.state?.statsHighlights?.[2]).toEqual({ label: "All Time Peak", value: "–" });
     });
 
-    it("does not call getRankedArenaCsrs or getPlayerEsra when those slots are not requested", async () => {
+    it("still computes non-rank slots while pre-series profile data fetches run", async () => {
       const csrSpy = vi.spyOn(services.haloService, "getRankedArenaCsrs");
       const esraSpy = vi.spyOn(services.haloService, "getPlayerEsra");
 
       const url = new URL("http://do/view-state");
       url.searchParams.set("statsHighlightSlots", JSON.stringify(["kills", "deaths"]));
-      await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
+      const response = await individualTrackerDO.fetch(new Request(url.toString(), { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
 
-      expect(csrSpy).not.toHaveBeenCalled();
-      expect(esraSpy).not.toHaveBeenCalled();
+      expect(body.state?.statsHighlights?.[0]?.label).toBe("Kills");
+      expect(body.state?.statsHighlights?.[1]?.label).toBe("Deaths");
+      expect(csrSpy).toHaveBeenCalledTimes(1);
+      expect(esraSpy).toHaveBeenCalledTimes(1);
     });
   });
 
