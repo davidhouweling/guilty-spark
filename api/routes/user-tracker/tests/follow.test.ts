@@ -7,7 +7,7 @@ import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeUserTrackerDOWith } from "../../../durable-objects/user-tracker/fakes/user-tracker-do.fake";
 import { aFakeLinkedIdentitiesRow } from "../../../services/database/fakes/database.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
-import { individualTrackerRoutesRegisterHandler } from "../individual-tracker";
+import { userTrackerRoutesRegisterHandler } from "../user-tracker";
 
 function getRequest(path: string): Request {
   return new Request(`http://localhost${path}`, { method: "GET" });
@@ -57,7 +57,7 @@ describe("/u/:gamertag follow routes", () => {
         vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(null);
         return services;
       });
-      individualTrackerRoutesRegisterHandler(router, localInstallServices);
+      userTrackerRoutesRegisterHandler(router, localInstallServices);
 
       const res = (await router.fetch(getRequest("/u/UnknownTag/view"), env)) as Response;
 
@@ -99,7 +99,7 @@ describe("/u/:gamertag follow routes", () => {
         vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(identity);
         return services;
       });
-      individualTrackerRoutesRegisterHandler(router, localInstallServices);
+      userTrackerRoutesRegisterHandler(router, localInstallServices);
 
       const res = (await router.fetch(getRequest("/u/KnownTag/view"), localEnv)) as Response;
 
@@ -138,7 +138,7 @@ describe("/u/:gamertag follow routes", () => {
         vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(identity);
         return services;
       });
-      individualTrackerRoutesRegisterHandler(router, localInstallServices);
+      userTrackerRoutesRegisterHandler(router, localInstallServices);
 
       const res = (await router.fetch(getRequest("/u/EmptyTag/view"), localEnv)) as Response;
 
@@ -154,7 +154,7 @@ describe("/u/:gamertag follow routes", () => {
         vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(null);
         return services;
       });
-      individualTrackerRoutesRegisterHandler(router, localInstallServices);
+      userTrackerRoutesRegisterHandler(router, localInstallServices);
 
       const res = (await router.fetch(wsRequest("/u/UnknownTag/ws"), env)) as Response;
 
@@ -168,7 +168,7 @@ describe("/u/:gamertag follow routes", () => {
         vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(identity);
         return services;
       });
-      individualTrackerRoutesRegisterHandler(router, localInstallServices);
+      userTrackerRoutesRegisterHandler(router, localInstallServices);
 
       const res = (await router.fetch(getRequest("/u/SomeTag/ws"), env)) as Response;
 
@@ -186,7 +186,7 @@ describe("/u/:gamertag follow routes", () => {
         vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(identity);
         return services;
       });
-      individualTrackerRoutesRegisterHandler(router, localInstallServices);
+      userTrackerRoutesRegisterHandler(router, localInstallServices);
 
       const res = (await router.fetch(wsRequest("/u/WsTag/ws"), localEnv)) as Response;
 
