@@ -45,6 +45,13 @@ describe("UserTrackerDO", () => {
     await expect(userTrackerStatusContract.fromResponse(response)).resolves.toEqual({ state: null });
   });
 
+  it("routes status requests by final action segment", async () => {
+    const response = await userTrackerDO.fetch(new Request("http://do/user-tracker/status", { method: "GET" }));
+
+    expect(response.status).toBe(200);
+    await expect(userTrackerStatusContract.fromResponse(response)).resolves.toEqual({ state: null });
+  });
+
   it("returns null state for view-state when no state is stored", async () => {
     const response = await userTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
 
@@ -66,6 +73,13 @@ describe("UserTrackerDO", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ success: true });
+  });
+
+  it("returns 405 when nudge is called with a non-POST method", async () => {
+    const response = await userTrackerDO.fetch(new Request("http://do/nudge", { method: "GET" }));
+
+    expect(response.status).toBe(405);
+    await expect(response.text()).resolves.toBe("Method Not Allowed");
   });
 
   it("rejects websocket endpoint when request is not an upgrade", async () => {

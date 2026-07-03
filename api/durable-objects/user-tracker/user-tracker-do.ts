@@ -40,29 +40,44 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
   public async fetch(request: Request): Promise<Response> {
     return await Sentry.withScope(async () => {
-      const { pathname } = new URL(request.url);
-      const action = pathname.split("/").pop();
+      const url = new URL(request.url);
+      const action = url.pathname.split("/").pop();
 
       Sentry.setTag("durableObject", "UserTrackerDO");
       Sentry.setTag("action", action ?? "unknown");
       Sentry.setContext("request", {
         method: request.method,
-        path: pathname,
+        path: url.pathname,
       });
 
       try {
-        switch (`${request.method} ${pathname}`) {
-          case "GET /status": {
+        switch (action) {
+          case "status": {
+            if (request.method !== "GET") {
+              return new Response("Method Not Allowed", { status: 405 });
+            }
             return await this.handleStatus();
           }
-          case "GET /view-state": {
+          case "view-state": {
+            if (request.method !== "GET") {
+              return new Response("Method Not Allowed", { status: 405 });
+            }
             return await this.handleViewState();
           }
-          case "POST /nudge": {
+          case "nudge": {
+            if (request.method !== "POST") {
+              return new Response("Method Not Allowed", { status: 405 });
+            }
             return await this.handleNudge(request);
           }
-          case "GET /websocket": {
+          case "websocket": {
+            if (request.method !== "GET") {
+              return new Response("Method Not Allowed", { status: 405 });
+            }
             return await this.handleWebSocket(request);
+          }
+          case undefined: {
+            return new Response("Bad Request", { status: 400 });
           }
           default: {
             return new Response("Not Found", { status: 404 });

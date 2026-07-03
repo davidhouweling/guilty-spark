@@ -40,22 +40,28 @@ export function aFakeUserTrackerDOWith(opts: FakeUserTrackerDOOpts = {}): FakeUs
 
     switch (path) {
       case "/status": {
-        return Promise.resolve(new Response(JSON.stringify(statusResponse), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }));
+        return Promise.resolve(
+          new Response(JSON.stringify(statusResponse), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
       }
       case "/view-state": {
-        return Promise.resolve(new Response(JSON.stringify(viewStateResponse), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }));
+        return Promise.resolve(
+          new Response(JSON.stringify(viewStateResponse), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
       }
       case "/nudge": {
-        return Promise.resolve(new Response(JSON.stringify(nudgeResponse), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }));
+        return Promise.resolve(
+          new Response(JSON.stringify(nudgeResponse), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
       }
       default: {
         return Promise.resolve(new Response("Not Found", { status: 404 }));
