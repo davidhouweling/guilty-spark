@@ -155,7 +155,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       Sentry.setTag("method", "alarm");
 
       if (this.state.getWebSockets().length === 0) {
-        await this.state.storage.deleteAlarm();
+        await this.stopUpdateLoop();
         return;
       }
 
@@ -238,11 +238,12 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
   private getRequestedUserId(request: Request): string | null {
     const userId = new URL(request.url).searchParams.get("userId");
-    if (userId == null || userId.trim() === "") {
+    const normalizedUserId = userId?.trim();
+    if (normalizedUserId == null || normalizedUserId === "") {
       return null;
     }
 
-    return userId;
+    return normalizedUserId;
   }
 
   private async rebuildDirectoryState(userId: string): Promise<UserTrackerInternalState> {

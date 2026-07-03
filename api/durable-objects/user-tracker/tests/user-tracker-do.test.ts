@@ -89,7 +89,8 @@ describe("UserTrackerDO", () => {
     });
     const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
     const services = installFakeServicesWith({ env: localEnv });
-    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([
+    const findTrackersByUserIdSpy = vi.spyOn(services.databaseService, "findIndividualTrackersByUserId");
+    findTrackersByUserIdSpy.mockResolvedValue([
       aFakeIndividualTrackersRow({
         TrackerId: "t1",
         UserId: "user-1",
@@ -101,12 +102,13 @@ describe("UserTrackerDO", () => {
     const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
 
     const response = await localUserTrackerDO.fetch(
-      new Request("http://do/view-state?userId=user-1", { method: "GET" }),
+      new Request("http://do/view-state?userId=%20user-1%20", { method: "GET" }),
     );
 
     expect(response.status).toBe(200);
     const parsed = await userTrackerViewStateContract.fromResponse(response);
     expect(parsed.state?.userId).toBe("user-1");
+    expect(findTrackersByUserIdSpy).toHaveBeenCalledWith("user-1");
     expect(parsed.state?.directory.liveTrackerId).toBe("t1");
     expect(parsed.state?.directory.trackers).toHaveLength(1);
   });
@@ -290,6 +292,14 @@ describe("UserTrackerDO", () => {
     await localUserTrackerDO.alarm();
 
     expect(setAlarmMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops the update loop through alarm when no websocket clients are connected", async () => {
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([]);
+
+    await userTrackerDO.alarm();
+
+    expect(deleteAlarmMock).toHaveBeenCalledOnce();
   });
 
   it("retries tracker subscription setup after a transient installation failure", async () => {
