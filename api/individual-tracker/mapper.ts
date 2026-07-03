@@ -7,8 +7,8 @@ import {
   individualTrackerViewStateContract,
   type IndividualTrackerViewState,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/management";
-import type { IndividualTrackerProfilesRow } from "../../services/database/types/individual_tracker_profiles";
-import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
+import type { IndividualTrackerProfilesRow } from "../services/database/types/individual_tracker_profiles";
+import type { IndividualTrackersRow } from "../services/database/types/individual_trackers";
 
 export async function fetchTrackerDoViewState(
   env: Env,

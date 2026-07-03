@@ -20,7 +20,7 @@ import {
   CloudflareWebSocketHibernationAdapter,
   type WebSocketHibernationAdapter,
 } from "../../base/websocket-hibernation-adapter";
-import { fetchTrackerDoViewState, toTrackerView } from "../../routes/individual-tracker/mapper";
+import { fetchTrackerDoViewState, toTrackerView } from "../../individual-tracker/mapper";
 import type { DatabaseService } from "../../services/database/database";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
 import type { IndividualTrackerService } from "../../services/individual-tracker/individual-tracker";
@@ -138,7 +138,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     );
 
     if (this.state.getWebSockets().length === 0) {
-      this.stopUpdateLoop();
+      await this.stopUpdateLoop();
     }
 
     return Promise.resolve();
@@ -216,8 +216,8 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     const stored = await this.getOrBuildState(request);
     const directory = stored?.viewState?.directory ?? emptyTrackerDirectory;
     const payload = this.serializeDirectory(directory);
+    await this.ensureUpdateLoopStarted();
     const response = this.webSocketAdapter.upgrade(this.state, payload);
-    this.ensureUpdateLoopStarted();
     return response;
   }
 
@@ -297,8 +297,8 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     return nextState;
   }
 
-  private ensureUpdateLoopStarted(): void {
-    void this.scheduleNextAlarm();
+  private async ensureUpdateLoopStarted(): Promise<void> {
+    await this.scheduleNextAlarm();
 
     if (this.trackerSubscriptionsInstalled) {
       return;
@@ -308,13 +308,13 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     void this.installTrackerSubscriptionsAsync();
   }
 
-  private stopUpdateLoop(): void {
+  private async stopUpdateLoop(): Promise<void> {
     this.closeTrackerSubscriptions();
     this.closeTrackerSubscriptions = (): void => {
       // reset after closing
     };
     this.trackerSubscriptionsInstalled = false;
-    void this.state.storage.deleteAlarm();
+    await this.state.storage.deleteAlarm();
   }
 
   private async installTrackerSubscriptionsAsync(): Promise<void> {

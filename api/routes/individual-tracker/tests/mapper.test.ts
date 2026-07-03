@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeAccumulated } from "../mapper";
+import { computeAccumulated } from "../../../individual-tracker/mapper";
 
 describe("computeAccumulated", () => {
   it("returns zeros for an empty match list", () => {

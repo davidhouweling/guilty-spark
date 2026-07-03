@@ -4,11 +4,11 @@ import {
   updateTrackerProfileRequestSchema,
 } from "@guilty-spark/shared/contracts/individual-tracker/profile";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
+import { toTrackerProfile } from "../../individual-tracker/mapper";
 import { IdentityNotOwnedError, ProfileNotFoundError } from "../../services/individual-tracker/errors";
 import type { UpdateProfileOptions } from "../../services/individual-tracker/types";
 import type { RoutesRegisterHandler } from "../base/types";
 import { requireSession } from "../base/require-session";
-import { toTrackerProfile } from "./mapper";
 
 export const trackerProfileRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/individual-tracker/profile", async (request, env: Env) => {
