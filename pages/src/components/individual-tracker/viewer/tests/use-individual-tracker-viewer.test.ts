@@ -153,7 +153,7 @@ describe("useIndividualTrackerViewer", () => {
     expect(getMatchStatsSpy).not.toHaveBeenCalled();
   });
 
-  it("connects websocket in public viewer path after initial view loads", async () => {
+  it("treats the public viewer path as connected after the initial view loads", async () => {
     const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
       view: aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
     });
@@ -172,18 +172,10 @@ describe("useIndividualTrackerViewer", () => {
 
     await waitFor(() => {
       expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
-    });
-
-    expect(connectSpy).toHaveBeenCalledTimes(1);
-    expect(result.current.snapshot.connectionStatus).toBe("connecting");
-
-    act(() => {
-      individualTrackerViewService.lastConnection?.emitStatus("connected");
-    });
-
-    await waitFor(() => {
       expect(result.current.snapshot.connectionStatus).toBe("connected");
     });
+
+    expect(connectSpy).not.toHaveBeenCalled();
   });
 
   it("loads long series in a single request when a series entry expands", async () => {
