@@ -1660,14 +1660,20 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return state.lastSeenMatchId ?? state.matchIds.at(-1) ?? null;
   }
 
-  private async getPreSeriesPlayerInfo(state: IndividualTrackerInternalState): Promise<PreSeriesPlayerInfo | undefined> {
+  private async getPreSeriesPlayerInfo(
+    state: IndividualTrackerInternalState,
+  ): Promise<PreSeriesPlayerInfo | undefined> {
     const cacheKey = this.getPreSeriesPlayerInfoCacheKey(state);
     if (state.preSeriesPlayerInfoLatestMatchId === cacheKey) {
       return state.preSeriesPlayerInfo;
     }
 
     const preSeriesPlayerInfo = await this.buildPreSeriesPlayerInfo(state);
-    state.preSeriesPlayerInfo = preSeriesPlayerInfo;
+    if (preSeriesPlayerInfo !== undefined) {
+      state.preSeriesPlayerInfo = preSeriesPlayerInfo;
+    } else {
+      delete state.preSeriesPlayerInfo;
+    }
     state.preSeriesPlayerInfoLatestMatchId = cacheKey;
     await this.setState(state);
     return preSeriesPlayerInfo;

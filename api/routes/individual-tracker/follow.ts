@@ -35,7 +35,7 @@ async function buildDirectory(env: Env, userId: string, services: Services): Pro
 
   const entries = await Promise.all(
     nonStopped.map(async (row): Promise<TrackerDirectoryEntry> => {
-      const doState = await fetchTrackerDoViewState(env, row.UserId, row.TrackerId, statsHighlightSlots, false);
+      const doState = await fetchTrackerDoViewState(env, row.UserId, row.TrackerId, statsHighlightSlots);
       return toTrackerView(row, doState);
     }),
   );

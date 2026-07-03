@@ -634,9 +634,9 @@ describe("statsHighlights", () => {
     });
 
     it("refreshes pre-series profile data when latest match id changes", async () => {
-      const csrSpy = vi.spyOn(services.haloService, "getRankedArenaCsrs").mockResolvedValue(
-        new Map([[trackedXuid, fakeCsrContainer]]),
-      );
+      const csrSpy = vi
+        .spyOn(services.haloService, "getRankedArenaCsrs")
+        .mockResolvedValue(new Map([[trackedXuid, fakeCsrContainer]]));
       const esraSpy = vi.spyOn(services.haloService, "getPlayerEsra").mockResolvedValue({
         esra: 1337,
         lastRankedGamePlayed: "2024-11-26T10:30:00.000Z",

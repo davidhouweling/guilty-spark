@@ -418,18 +418,20 @@ describe("/u/:gamertag follow routes", () => {
       );
 
       const doStub = {
-        fetch: vi.fn((input: RequestInfo | URL) => {
+        fetch: vi.fn(async (input: RequestInfo | URL) => {
           const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
           const parsedUrl = new URL(url);
 
           if (parsedUrl.pathname === "/websocket") {
-            return new Response(null, { status: 101, webSocket: trackerSocket });
+            return Promise.resolve(new Response(null, { status: 101, webSocket: trackerSocket }));
           }
 
-          return new Response(JSON.stringify({ state: aFakeIndividualTrackerViewStateWith({ trackerId: "t1" }) }), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          });
+          return Promise.resolve(
+            new Response(JSON.stringify({ state: aFakeIndividualTrackerViewStateWith({ trackerId: "t1" }) }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
         }),
         connect: (): Socket => {
           throw new Error("Socket connections not supported in fake");
@@ -460,13 +462,7 @@ describe("/u/:gamertag follow routes", () => {
       const sendMock = serverMocks?.["send"];
       expect(sendMock).toHaveBeenCalledTimes(1);
 
-      const trackerSocketMocks = trackerSocket as unknown as Record<string, ReturnType<typeof vi.fn>>;
-      const addEventListenerMock = trackerSocketMocks["addEventListener"];
-      const messageListener = addEventListenerMock?.mock.calls.find((call) => call[0] === "message")?.[1];
-      expect(typeof messageListener).toBe("function");
-      if (typeof messageListener === "function") {
-        messageListener(new Event("message"));
-      }
+      trackerSocket.dispatchEvent(new Event("message"));
 
       await vi.waitFor(() => {
         expect(sendMock).toHaveBeenCalledTimes(2);
