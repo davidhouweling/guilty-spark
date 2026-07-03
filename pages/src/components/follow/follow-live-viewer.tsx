@@ -102,7 +102,7 @@ export function FollowLiveViewer({
       <div className={styles.trackerContent}>
         {selectedTracker != null ? (
           <IndividualTrackerViewerPage
-            key={`${selectedTracker.trackerId}:${selectedTracker.lastUpdateTime}`}
+            key={selectedTracker.trackerId}
             individualTrackerViewService={individualTrackerViewService}
             matchAnalyticsService={matchAnalyticsService}
             seriesMatchesService={seriesMatchesService}

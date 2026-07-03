@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { aDirectoryWith, aTrackerWith } from "@guilty-spark/shared/contracts/individual-tracker/fakes/follow.fake";
 import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
@@ -11,6 +11,8 @@ import { aFakeIndividualTrackerViewServiceWith } from "../../../services/individ
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../services/stats/fakes/series-matches.fake";
 import { FollowLiveOverlayViewer, type FollowLiveOverlayViewerProps } from "../follow-live-overlay-viewer";
+
+let mockOverlayInstanceCount = 0;
 
 vi.mock("../../individual-tracker/overlay/create", () => ({
   IndividualTrackerOverlayPage: ({
@@ -21,9 +23,18 @@ vi.mock("../../individual-tracker/overlay/create", () => ({
     trackerId: string;
     showPreview?: boolean;
     previewMode?: "player" | "observer";
-  }): React.ReactElement => (
-    <div data-testid="mock-overlay-page">{`${trackerId}:${String(showPreview)}:${previewMode ?? "observer"}`}</div>
-  ),
+  }): React.ReactElement => {
+    const [instanceId] = React.useState(() => {
+      mockOverlayInstanceCount += 1;
+      return mockOverlayInstanceCount;
+    });
+
+    return (
+      <div data-testid="mock-overlay-page" data-instance-id={instanceId.toString()}>
+        {`${trackerId}:${String(showPreview)}:${previewMode ?? "observer"}`}
+      </div>
+    );
+  },
 }));
 
 function aViewerPropsWith(directory: TrackerDirectory): FollowLiveOverlayViewerProps {
@@ -43,6 +54,7 @@ describe("FollowLiveOverlayViewer", () => {
   afterEach(() => {
     cleanup();
     document.title = "";
+    mockOverlayInstanceCount = 0;
   });
 
   it("renders the overlay page for the selected live tracker", async () => {
@@ -100,5 +112,54 @@ describe("FollowLiveOverlayViewer", () => {
     });
 
     expect(screen.queryByTestId("mock-overlay-page")).not.toBeInTheDocument();
+  });
+
+  it("does not remount overlay when only selected tracker last update time changes", async () => {
+    const initialDirectory: TrackerDirectory = aDirectoryWith({
+      trackers: [
+        aTrackerWith({
+          trackerId: "tracker-1",
+          gamertag: "Spartan One",
+          isLive: true,
+          status: "active",
+          lastUpdateTime: "2026-01-01T00:00:00.000Z",
+        }),
+      ],
+      liveTrackerId: "tracker-1",
+    });
+    const followLiveService = aFakeFollowLiveServiceWith({ directory: initialDirectory });
+
+    render(
+      <FollowLiveOverlayViewer
+        gamertag="Spartan One"
+        followLiveService={followLiveService}
+        individualTrackerViewService={aFakeIndividualTrackerViewServiceWith()}
+        matchAnalyticsService={aFakeMatchAnalyticsServiceWith()}
+        seriesMatchesService={aFakeSeriesMatchesServiceWith()}
+        haloClient={aFakeHaloClientWith()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-overlay-page")).toHaveAttribute("data-instance-id", "1");
+    });
+
+    const updatedDirectory: TrackerDirectory = {
+      ...initialDirectory,
+      trackers: [
+        {
+          ...initialDirectory.trackers[0],
+          lastUpdateTime: "2026-01-01T00:01:00.000Z",
+        },
+      ],
+    };
+
+    act(() => {
+      followLiveService.lastConnection?.emitDirectory(updatedDirectory);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-overlay-page")).toHaveAttribute("data-instance-id", "1");
+    });
   });
 });
