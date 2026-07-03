@@ -22,17 +22,19 @@ import type {
   SeriesStartedPayload,
   SeriesSubstitutedPayload,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
+import { trackerChangedPayloadSchema } from "@guilty-spark/shared/contracts/durable-objects/user-tracker/nudge";
 import { IndividualTrackerDO } from "../individual-tracker-do";
 import { aFakeMapAssetWith } from "../../../services/halo/fakes/data";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import type { Services } from "../../../services/install";
 import type { UserTokenProvider } from "../../../services/halo/user-token-provider";
-import { aFakeDurableObjectStateWith, aFakeWebSocket } from "../../../base/fakes/do.fake";
+import { aFakeDurableObjectNamespaceWith, aFakeDurableObjectStateWith, aFakeWebSocket } from "../../../base/fakes/do.fake";
 import {
   aFakeWebSocketHibernationAdapter,
   type FakeWebSocketHibernationAdapter,
 } from "../../../base/fakes/websocket-hibernation-adapter.fake";
+import { aFakeUserTrackerDOWith } from "../../user-tracker/fakes/user-tracker-do.fake";
 import type {
   IndividualTrackerInternalState,
   IndividualTrackerStartResponse,
@@ -223,6 +225,38 @@ describe("IndividualTrackerDO", () => {
       await individualTrackerDO.fetch(request);
 
       expect(storageSetAlarmSpy).toHaveBeenCalled();
+    });
+
+    it("notifies UserTrackerDO after start state is persisted", async () => {
+      const userTrackerDo = aFakeUserTrackerDOWith();
+      const userTrackerFetchSpy = vi.spyOn(userTrackerDo, "fetch");
+      const localEnv = aFakeEnvWith({ USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(userTrackerDo) });
+      const localDO = new IndividualTrackerDO(mockState, localEnv, () => services);
+      const request = new Request("http://do/start", {
+        method: "POST",
+        body: JSON.stringify(createMockStartRequest()),
+      });
+
+      const response = await localDO.fetch(request);
+      expect(response.status).toBe(200);
+
+      await vi.waitFor(() => {
+        expect(userTrackerFetchSpy).toHaveBeenCalled();
+      });
+
+      const requestArg = userTrackerFetchSpy.mock.calls[0]?.[0];
+      expect(requestArg).toBeInstanceOf(Request);
+      const nudgeRequest = requestArg as Request;
+      expect(new URL(nudgeRequest.url).pathname).toBe("/nudge");
+
+      const parsedPayload = trackerChangedPayloadSchema.safeParse(await nudgeRequest.json());
+      expect(parsedPayload.success).toBe(true);
+      if (!parsedPayload.success) {
+        return;
+      }
+      expect(parsedPayload.data.userId).toBe("test-user-id");
+      expect(parsedPayload.data.trackerId).toBe("test-tracker-id");
+      expect(typeof parsedPayload.data.lastUpdateTime).toBe("string");
     });
 
     it("does not include internal-only fields in the returned state", async () => {
