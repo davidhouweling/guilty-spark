@@ -898,7 +898,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.lastUpdateTime = new Date().toISOString();
     await this.state.storage.deleteAlarm();
     await this.setState(trackerState);
-    this.notifyUserTracker(trackerState);
     this.broadcastViewState(trackerState);
 
     this.logService.info(
@@ -922,7 +921,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.status = "active";
     trackerState.lastUpdateTime = new Date().toISOString();
     await this.setState(trackerState);
-    this.notifyUserTracker(trackerState);
     const resumeAlarmDelay = this.hasPendingRecompute(trackerState) ? 0 : ALARM_INTERVAL_MS;
     await this.state.storage.setAlarm(addMilliseconds(new Date(), resumeAlarmDelay).getTime());
     this.broadcastViewState(trackerState);
@@ -947,7 +945,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     if (trackerState != null) {
       trackerState.status = "stopped";
       trackerState.lastUpdateTime = new Date().toISOString();
-      this.notifyUserTracker(trackerState);
       this.broadcastViewState(trackerState);
       this.closeWebSockets("Tracker stopped");
       this.logService.info(

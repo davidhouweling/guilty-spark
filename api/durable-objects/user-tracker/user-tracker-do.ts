@@ -73,6 +73,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private trackerSubscriptionsInstalled = false;
   private readonly trackerUpdateMarkers = new Map<string, string>();
   private trackerUpdateMarkersHydrated = false;
+  private trackerUpdateMarkersHydrationPromise: Promise<void> | null = null;
   private trackerMarkerPersistenceChain: Promise<void> = Promise.resolve();
 
   constructor(
@@ -554,21 +555,34 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return;
     }
 
-    this.trackerUpdateMarkersHydrated = true;
-    const storedEntries = await this.state.storage.get(USER_TRACKER_MARKERS_KEY);
-    if (!Array.isArray(storedEntries)) {
+    if (this.trackerUpdateMarkersHydrationPromise != null) {
+      await this.trackerUpdateMarkersHydrationPromise;
       return;
     }
 
-    for (const entry of storedEntries) {
-      if (!isTrackerMarkerEntry(entry)) {
-        continue;
+    this.trackerUpdateMarkersHydrationPromise = (async (): Promise<void> => {
+      const storedEntries = await this.state.storage.get(USER_TRACKER_MARKERS_KEY);
+      if (!Array.isArray(storedEntries)) {
+        this.trackerUpdateMarkersHydrated = true;
+        return;
       }
 
-      const [markerKey, markerValue] = entry;
+      for (const entry of storedEntries) {
+        if (!isTrackerMarkerEntry(entry)) {
+          continue;
+        }
 
-      this.trackerUpdateMarkers.set(markerKey, markerValue);
-    }
+        const [markerKey, markerValue] = entry;
+
+        this.trackerUpdateMarkers.set(markerKey, markerValue);
+      }
+
+      this.trackerUpdateMarkersHydrated = true;
+    })().finally(() => {
+      this.trackerUpdateMarkersHydrationPromise = null;
+    });
+
+    await this.trackerUpdateMarkersHydrationPromise;
   }
 
   private enforceTrackerMarkerLimit(): void {

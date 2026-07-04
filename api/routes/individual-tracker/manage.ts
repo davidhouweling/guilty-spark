@@ -29,6 +29,10 @@ import {
   type IndividualTrackerStartRequest,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
 import { individualTrackerStatusContract } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/management";
+import {
+  trackerChangedPayloadSchema,
+  userTrackerNudgeContract,
+} from "@guilty-spark/shared/contracts/durable-objects/user-tracker/nudge";
 import { parseJsonBody, parsePathParams } from "@guilty-spark/shared/base/request-parsing";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
 import {
@@ -62,6 +66,11 @@ class RefreshTrackerConflictError extends Error {
 function trackerDoStub(env: Env, userId: string, trackerId: string): DurableObjectStub {
   const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${userId}:${trackerId}`);
   return env.INDIVIDUAL_TRACKER_DO.get(doId);
+}
+
+function userTrackerDoStub(env: Env, userId: string): DurableObjectStub {
+  const doId = env.USER_TRACKER_DO.idFromName(userId);
+  return env.USER_TRACKER_DO.get(doId);
 }
 
 function assertDoOk(response: Response): void {
@@ -106,6 +115,21 @@ async function stopTrackerDo(env: Env, userId: string, trackerId: string): Promi
   const response = await stub.fetch("http://do/stop", { method: "POST" });
   assertDoOk(response);
   await individualTrackerStopContract.fromResponse(response);
+}
+
+async function nudgeUserTrackerDo(
+  env: Env,
+  payload: { userId: string; trackerId: string; lastUpdateTime: string },
+): Promise<void> {
+  const parsedPayload = trackerChangedPayloadSchema.parse(payload);
+  const stub = userTrackerDoStub(env, parsedPayload.userId);
+  const response = await stub.fetch("http://do/nudge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(parsedPayload),
+  });
+  assertDoOk(response);
+  await userTrackerNudgeContract.fromResponse(response);
 }
 
 async function statusTrackerDo(env: Env, userId: string, trackerId: string): Promise<IndividualTrackerDoState | null> {
@@ -307,6 +331,11 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       await stopTrackerDo(env, auth.session.userId, tracker.TrackerId);
       await individualTrackerService.markTrackerStatus(tracker, "stopped");
+      await nudgeUserTrackerDo(env, {
+        userId: auth.session.userId,
+        trackerId: tracker.TrackerId,
+        lastUpdateTime: new Date().toISOString(),
+      });
 
       logService.info("Individual tracker stopped", new Map([["trackerId", tracker.TrackerId]]));
 
@@ -345,6 +374,11 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       const state = await pauseTrackerDo(env, auth.session.userId, tracker.TrackerId);
       const paused = await individualTrackerService.markTrackerStatus(tracker, "paused");
+      await nudgeUserTrackerDo(env, {
+        userId: auth.session.userId,
+        trackerId: tracker.TrackerId,
+        lastUpdateTime: state.lastUpdateTime,
+      });
 
       logService.info("Individual tracker paused", new Map([["trackerId", tracker.TrackerId]]));
 
@@ -383,6 +417,11 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       const state = await resumeTrackerDo(env, auth.session.userId, tracker.TrackerId);
       const resumed = await individualTrackerService.markTrackerStatus(tracker, "active");
+      await nudgeUserTrackerDo(env, {
+        userId: auth.session.userId,
+        trackerId: tracker.TrackerId,
+        lastUpdateTime: state.lastUpdateTime,
+      });
 
       logService.info("Individual tracker resumed", new Map([["trackerId", tracker.TrackerId]]));
 
