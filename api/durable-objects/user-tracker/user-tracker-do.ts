@@ -64,6 +64,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private trackerSubscriptionsInstalled = false;
   private readonly trackerUpdateMarkers = new Map<string, string>();
   private trackerUpdateMarkersHydrated = false;
+  private trackerMarkerPersistenceChain: Promise<void> = Promise.resolve();
 
   constructor(
     state: DurableObjectState,
@@ -560,18 +561,25 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async persistTrackerUpdateMarkers(): Promise<void> {
-    try {
-      const markerEntries = Array.from(this.trackerUpdateMarkers.entries());
-      await this.state.storage.put(USER_TRACKER_MARKERS_KEY, markerEntries);
-    } catch (error) {
-      this.logService.warn(
-        error,
-        new Map([
-          ["context", "UserTracker marker persistence error"],
-          ["markerCount", this.trackerUpdateMarkers.size.toString()],
-        ]),
-      );
-    }
+    this.trackerMarkerPersistenceChain = this.trackerMarkerPersistenceChain
+      .catch(() => {
+        // previous persistence errors are already logged; keep chain alive
+      })
+      .then(async () => {
+        const markerEntries = Array.from(this.trackerUpdateMarkers.entries());
+        await this.state.storage.put(USER_TRACKER_MARKERS_KEY, markerEntries);
+      })
+      .catch((error: unknown) => {
+        this.logService.warn(
+          error,
+          new Map([
+            ["context", "UserTracker marker persistence error"],
+            ["markerCount", this.trackerUpdateMarkers.size.toString()],
+          ]),
+        );
+      });
+
+    await this.trackerMarkerPersistenceChain;
   }
 
   private serializeDirectory(directory: TrackerDirectory): string {

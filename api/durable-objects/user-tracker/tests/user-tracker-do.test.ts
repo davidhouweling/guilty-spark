@@ -328,6 +328,92 @@ describe("UserTrackerDO", () => {
     expect(findTrackersByUserIdSpy.mock.calls.length).toBe(callsAfterFirstInstanceNudge);
   });
 
+  it("persists the latest marker when nudges overlap", async () => {
+    const persistedStorage = new Map<string, unknown>();
+    persistedStorage.set("userTrackerState", {
+      state: {
+        userId: "user-1",
+        lastUpdateTime: "2026-07-04T00:00:00.000Z",
+      },
+      viewState: null,
+    });
+
+    let releaseFirstMarkerWrite: () => void = () => {
+      // replaced when first marker write blocks
+    };
+    let firstMarkerWriteBlocked = false;
+    let markerWriteCount = 0;
+    const sharedStorage = aFakeDurableObjectStorageWith({
+      get: (async (key: string | string[]) => {
+        if (typeof key !== "string") {
+          const values = new Map<string, unknown>();
+          for (const currentKey of key) {
+            const currentValue = persistedStorage.get(currentKey);
+            if (currentValue !== undefined) {
+              values.set(currentKey, currentValue);
+            }
+          }
+
+          return await Promise.resolve(values);
+        }
+
+        return await Promise.resolve(persistedStorage.get(key));
+      }) as DurableObjectStorage["get"],
+      put: (async (key: string, value: unknown) => {
+        if (key === "userTrackerMarkers") {
+          markerWriteCount += 1;
+          if (markerWriteCount === 1) {
+            await new Promise<void>((resolve) => {
+              firstMarkerWriteBlocked = true;
+              releaseFirstMarkerWrite = resolve;
+            });
+          }
+        }
+
+        persistedStorage.set(key, value);
+        await Promise.resolve();
+      }) as DurableObjectStorage["put"],
+    });
+
+    const localEnv = aFakeEnvWith();
+    const state = aFakeDurableObjectStateWith({ storage: sharedStorage });
+    const localUserTrackerDO = new UserTrackerDO(state, localEnv, installFakeServicesWith, webSocketAdapter);
+
+    const firstNudgePromise = localUserTrackerDO.fetch(
+      new Request("http://do/nudge", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: "user-1",
+          trackerId: "t1",
+          lastUpdateTime: "2026-07-04T00:00:00.000Z",
+        }),
+      }),
+    );
+
+    await vi.waitFor(() => {
+      expect(firstMarkerWriteBlocked).toBe(true);
+    });
+
+    const secondNudgePromise = localUserTrackerDO.fetch(
+      new Request("http://do/nudge", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: "user-1",
+          trackerId: "t1",
+          lastUpdateTime: "2026-07-04T00:01:00.000Z",
+        }),
+      }),
+    );
+
+    releaseFirstMarkerWrite();
+    const [firstNudgeResponse, secondNudgeResponse] = await Promise.all([firstNudgePromise, secondNudgePromise]);
+    expect(firstNudgeResponse.status).toBe(200);
+    expect(secondNudgeResponse.status).toBe(200);
+
+    const storedMarkers = persistedStorage.get("userTrackerMarkers");
+    expect(storedMarkers).toEqual([["user-1:t1", "2026-07-04T00:01:00.000Z"]]);
+  });
+
   it("ignores nudges when payload userId does not match stored userId", async () => {
     mockState.storage.get = (async (key: string | string[]) => {
       if (typeof key !== "string") {
