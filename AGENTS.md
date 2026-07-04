@@ -272,10 +272,14 @@ Prefer typed fake instances plus `vi.spyOn` over ad hoc test doubles. Avoid `as 
 3. If set of requirements exceeds 3 pull requests, create a plan document but do not check it in. Ensure this plan records all decisions that may be discussed throughout any conversing with the prompter.
 4. If working with a plan, prompt on whether to work as a single agent, or an orchestrator delegating possible parallelized tasks with the main agent taking on the responsibilities of ensuring adherence to this file
 5. Building a feature:
-   1. Follow nearest neighbor approach in terms of software engineering patterns, practices, and architecture
-   2. When feature is deemed "complete", commit the change
-   3. Then put yourself (or a subagent) into a loop of doing "/code-review" and fixing issues that are identified until clean. Commit each iteration.
-   4. Run format + lint + typecheck + test ensuring all pass and commit any outstanding issues.
-6. If instructed by prompter, raise PR with concise description of the feature.
-7. Provide summary of changes, link to pull request, and confirmation that `/code-review` has ran until clean with what fixes were done.
+   1. Ensure all work starts on a new branch, never commit or push to main
+   2. Follow nearest neighbor approach in terms of software engineering patterns, practices, and architecture
+   3. When feature is deemed "complete", commit the change
+   4. If `/code-review` is available, put yourself (or a subagent) into a loop of doing "/code-review" and fixing issues that are identified until clean. Commit each iteration.
+   5. Run format + lint + typecheck + test ensuring all pass and commit any outstanding issues.
+6. If instructed by prompter, raise PR using `gh` with 3 sections
+   1. Context - describe the overarching feature (summary of the plan if it is from a plan)
+   2. This change - what does this PR do in context of the overall plan
+   3. [Optional] Subsequent work - dot point summary of work to happen after this
+7. Provide summary of changes, link to pull request, suggest to kick off copilot loop
 8. If work is based on a plan, update the plan with the progress, and prompt for next action.

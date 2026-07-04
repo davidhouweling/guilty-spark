@@ -22,6 +22,10 @@ import {
   aFakeIndividualTrackerStateWith,
   type FakeIndividualTrackerDO,
 } from "../../../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
+import {
+  aFakeUserTrackerDOWith,
+  type FakeUserTrackerDO,
+} from "../../../durable-objects/user-tracker/fakes/user-tracker-do.fake";
 import { aFakeIndividualTrackersRow } from "../../../services/database/fakes/database.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/individual-tracker";
@@ -178,7 +182,12 @@ describe("/api/individual-tracker manage routes", () => {
   it("stops a tracker: calls the DO stop and marks the registry row stopped", async () => {
     const doStub = aFakeIndividualTrackerDOWith();
     const stopSpy: MockInstance<FakeIndividualTrackerDO["fetch"]> = vi.spyOn(doStub, "fetch");
-    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
+    const userTrackerDo = aFakeUserTrackerDOWith();
+    const userTrackerNudgeSpy: MockInstance<FakeUserTrackerDO["fetch"]> = vi.spyOn(userTrackerDo, "fetch");
+    const localEnv = aFakeEnvWith({
+      INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub),
+      USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(userTrackerDo),
+    });
 
     const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123", Status: "active" });
     let markStatusSpy: MockInstance<IndividualTrackerService["markTrackerStatus"]> | null = null;
@@ -199,7 +208,33 @@ describe("/api/individual-tracker manage routes", () => {
     const body = await res.json<StopTrackerResponse>();
     expect(body.success).toBe(true);
     expect(stopSpy).toHaveBeenCalledWith("http://do/stop", expect.objectContaining({ method: "POST" }));
-    expect(Preconditions.checkExists(markStatusSpy, "markStatus spy")).toHaveBeenCalledWith(row, "stopped");
+    const requiredMarkStatusSpy = Preconditions.checkExists(markStatusSpy, "markStatus spy");
+    expect(requiredMarkStatusSpy).toHaveBeenCalledWith(row, "stopped");
+
+    expect(userTrackerNudgeSpy).toHaveBeenCalledWith("http://do/nudge", expect.objectContaining({ method: "POST" }));
+  });
+
+  it("still stops a tracker when UserTracker nudge fails", async () => {
+    const doStub = aFakeIndividualTrackerDOWith();
+    const localEnv = aFakeEnvWith({
+      INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub),
+      USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(aFakeUserTrackerDOWith({ shouldThrowError: true })),
+    });
+
+    const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123", Status: "active" });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env: localEnv });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith({ userId: "user-123" }));
+      vi.spyOn(services.individualTrackerService, "getOwnedTracker").mockResolvedValue(row);
+      vi.spyOn(services.individualTrackerService, "markTrackerStatus").mockResolvedValue({ ...row, Status: "stopped" });
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(postRequest("/api/individual-tracker/t1/stop", {}), localEnv)) as Response;
+
+    expect(res.status).toBe(200);
+    await expect(res.json<StopTrackerResponse>()).resolves.toEqual({ success: true });
   });
 
   it("returns 404 on pause when the tracker is not owned", async () => {
@@ -224,7 +259,12 @@ describe("/api/individual-tracker manage routes", () => {
       },
     });
     const pauseSpy: MockInstance<FakeIndividualTrackerDO["fetch"]> = vi.spyOn(doStub, "fetch");
-    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
+    const userTrackerDo = aFakeUserTrackerDOWith();
+    const userTrackerNudgeSpy: MockInstance<FakeUserTrackerDO["fetch"]> = vi.spyOn(userTrackerDo, "fetch");
+    const localEnv = aFakeEnvWith({
+      INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub),
+      USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(userTrackerDo),
+    });
 
     const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123", Status: "active" });
     let markStatusSpy: MockInstance<IndividualTrackerService["markTrackerStatus"]> | null = null;
@@ -245,7 +285,39 @@ describe("/api/individual-tracker manage routes", () => {
     const body = await res.json<TrackerResponse>();
     expect(body.tracker.status).toBe("paused");
     expect(pauseSpy).toHaveBeenCalledWith("http://do/pause", expect.objectContaining({ method: "POST" }));
-    expect(Preconditions.checkExists(markStatusSpy, "markStatus spy")).toHaveBeenCalledWith(row, "paused");
+    const requiredMarkStatusSpy = Preconditions.checkExists(markStatusSpy, "markStatus spy");
+    expect(requiredMarkStatusSpy).toHaveBeenCalledWith(row, "paused");
+
+    expect(userTrackerNudgeSpy).toHaveBeenCalledWith("http://do/nudge", expect.objectContaining({ method: "POST" }));
+  });
+
+  it("still pauses a tracker when UserTracker nudge fails", async () => {
+    const doStub = aFakeIndividualTrackerDOWith({
+      pauseResponse: {
+        success: true,
+        state: aFakeIndividualTrackerStateWith({ trackerId: "t1", status: "paused", isPaused: true }),
+      },
+    });
+    const localEnv = aFakeEnvWith({
+      INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub),
+      USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(aFakeUserTrackerDOWith({ shouldThrowError: true })),
+    });
+
+    const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123", Status: "active" });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env: localEnv });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith({ userId: "user-123" }));
+      vi.spyOn(services.individualTrackerService, "getOwnedTracker").mockResolvedValue(row);
+      vi.spyOn(services.individualTrackerService, "markTrackerStatus").mockResolvedValue({ ...row, Status: "paused" });
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(postRequest("/api/individual-tracker/t1/pause", {}), localEnv)) as Response;
+
+    expect(res.status).toBe(200);
+    const body = await res.json<TrackerResponse>();
+    expect(body.tracker.status).toBe("paused");
   });
 
   it("returns 404 on resume when the tracker is not owned", async () => {
@@ -270,7 +342,12 @@ describe("/api/individual-tracker manage routes", () => {
       },
     });
     const resumeSpy: MockInstance<FakeIndividualTrackerDO["fetch"]> = vi.spyOn(doStub, "fetch");
-    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
+    const userTrackerDo = aFakeUserTrackerDOWith();
+    const userTrackerNudgeSpy: MockInstance<FakeUserTrackerDO["fetch"]> = vi.spyOn(userTrackerDo, "fetch");
+    const localEnv = aFakeEnvWith({
+      INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub),
+      USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(userTrackerDo),
+    });
 
     const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123", Status: "paused" });
     let markStatusSpy: MockInstance<IndividualTrackerService["markTrackerStatus"]> | null = null;
@@ -291,7 +368,39 @@ describe("/api/individual-tracker manage routes", () => {
     const body = await res.json<TrackerResponse>();
     expect(body.tracker.status).toBe("active");
     expect(resumeSpy).toHaveBeenCalledWith("http://do/resume", expect.objectContaining({ method: "POST" }));
-    expect(Preconditions.checkExists(markStatusSpy, "markStatus spy")).toHaveBeenCalledWith(row, "active");
+    const requiredMarkStatusSpy = Preconditions.checkExists(markStatusSpy, "markStatus spy");
+    expect(requiredMarkStatusSpy).toHaveBeenCalledWith(row, "active");
+
+    expect(userTrackerNudgeSpy).toHaveBeenCalledWith("http://do/nudge", expect.objectContaining({ method: "POST" }));
+  });
+
+  it("still resumes a tracker when UserTracker nudge fails", async () => {
+    const doStub = aFakeIndividualTrackerDOWith({
+      resumeResponse: {
+        success: true,
+        state: aFakeIndividualTrackerStateWith({ trackerId: "t1", status: "active", isPaused: false }),
+      },
+    });
+    const localEnv = aFakeEnvWith({
+      INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub),
+      USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(aFakeUserTrackerDOWith({ shouldThrowError: true })),
+    });
+
+    const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123", Status: "paused" });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env: localEnv });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith({ userId: "user-123" }));
+      vi.spyOn(services.individualTrackerService, "getOwnedTracker").mockResolvedValue(row);
+      vi.spyOn(services.individualTrackerService, "markTrackerStatus").mockResolvedValue({ ...row, Status: "active" });
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(postRequest("/api/individual-tracker/t1/resume", {}), localEnv)) as Response;
+
+    expect(res.status).toBe(200);
+    const body = await res.json<TrackerResponse>();
+    expect(body.tracker.status).toBe("active");
   });
 
   it("returns 404 on select-active when the tracker is not owned", async () => {

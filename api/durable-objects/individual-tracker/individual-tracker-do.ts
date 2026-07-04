@@ -151,6 +151,7 @@ function normalizeRankTier(rankTier: string | null | undefined): string | null {
 export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
   private readonly state: DurableObjectState;
+  private readonly env: Env;
   private readonly services: Services;
   private readonly logService: LogService;
   private readonly webSocketAdapter: WebSocketHibernationAdapter;
@@ -167,6 +168,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     webSocketAdapter: WebSocketHibernationAdapter = new CloudflareWebSocketHibernationAdapter(),
   ) {
     this.state = state;
+    this.env = env;
 
     this.services = installServices({ env });
     this.logService = this.services.logService;
@@ -305,6 +307,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         this.broadcastViewState(trackerState);
         this.closeWebSockets("Tracker idle timeout");
         await this.markRegistryStopped(trackerState);
+        this.notifyUserTracker(trackerState);
         return;
       }
 
@@ -325,8 +328,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       this.handleError(trackerState, error);
     }
 
+    const shouldNotifyUserTracker = broadcastWhenUnchanged || discoveredNewMatch;
+
     await this.setState(trackerState);
-    if (broadcastWhenUnchanged || discoveredNewMatch) {
+    if (shouldNotifyUserTracker) {
+      this.notifyUserTracker(trackerState);
+    }
+    if (shouldNotifyUserTracker) {
       this.broadcastViewState(trackerState);
     }
     await this.state.storage.setAlarm(addMilliseconds(new Date(), this.getNextAlarmInterval(trackerState)).getTime());
@@ -867,6 +875,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     };
 
     await this.setState(trackerState);
+    this.notifyUserTracker(trackerState);
     await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
 
     this.logService.info(
@@ -994,6 +1003,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     this.applySelectMatchesChanges(trackerState, incoming, body.seriesGroups, selectionChanged);
 
     await this.setState(trackerState);
+    this.notifyUserTracker(trackerState);
     this.broadcastViewState(trackerState);
     if (selectionChanged && !trackerState.isPaused) {
       await this.state.storage.setAlarm(Date.now());
@@ -1378,6 +1388,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.lastUpdateTime = new Date().toISOString();
 
     await this.setState(trackerState);
+    this.notifyUserTracker(trackerState);
     this.broadcastViewState(trackerState);
 
     this.logService.info(
@@ -1405,6 +1416,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.lastUpdateTime = new Date().toISOString();
 
     await this.setState(trackerState);
+    this.notifyUserTracker(trackerState);
     this.broadcastViewState(trackerState);
 
     this.logService.info(
@@ -1446,6 +1458,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.lastUpdateTime = new Date().toISOString();
 
     await this.setState(trackerState);
+    this.notifyUserTracker(trackerState);
     this.broadcastViewState(trackerState);
 
     return editSeriesContract.toResponse({ success: true });
@@ -1601,6 +1614,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.lastUpdateTime = new Date().toISOString();
 
     await this.setState(trackerState);
+    this.notifyUserTracker(trackerState);
     this.broadcastViewState(trackerState);
     await this.state.storage.setAlarm(Date.now());
 
@@ -1786,6 +1800,51 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
   private async setState(state: IndividualTrackerInternalState): Promise<void> {
     await this.state.storage.put(STATE_STORAGE_KEY, state);
+  }
+
+  private notifyUserTracker(state: IndividualTrackerInternalState): void {
+    void this.notifyUserTrackerAsync(state);
+  }
+
+  private async notifyUserTrackerAsync(state: IndividualTrackerInternalState): Promise<void> {
+    try {
+      const doId = this.env.USER_TRACKER_DO.idFromName(state.userId);
+      const stub = this.env.USER_TRACKER_DO.get(doId);
+      const response = await stub.fetch(
+        new Request("http://do/nudge", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId: state.userId,
+            trackerId: state.trackerId,
+            lastUpdateTime: state.lastUpdateTime,
+          }),
+        }),
+      );
+
+      if (!response.ok) {
+        this.logService.warn(
+          `UserTracker nudge returned status ${response.status.toString()}`,
+          new Map([
+            ["context", "IndividualTracker: UserTracker nudge error"],
+            ["userId", state.userId],
+            ["trackerId", state.trackerId],
+            ["status", response.status.toString()],
+          ]),
+        );
+      }
+    } catch (error) {
+      this.logService.warn(
+        error,
+        new Map([
+          ["context", "IndividualTracker: UserTracker nudge exception"],
+          ["userId", state.userId],
+          ["trackerId", state.trackerId],
+        ]),
+      );
+    }
   }
 
   private applySubstitutionToSeries(series: ActiveSeries, payload: SeriesSubstitutedPayload): ActiveSeries {
