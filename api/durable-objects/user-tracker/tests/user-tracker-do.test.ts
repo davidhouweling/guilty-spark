@@ -169,19 +169,42 @@ describe("UserTrackerDO", () => {
   });
 
   it("deduplicates repeated tracker nudges with the same marker", async () => {
-    mockState.storage.get = (async (key: string | string[]) => {
-      if (typeof key !== "string") {
-        return await Promise.resolve(new Map<string, unknown>());
-      }
+    const persistedStorage = new Map<string, unknown>();
+    persistedStorage.set("userTrackerState", {
+      state: {
+        userId: "user-1",
+        lastUpdateTime: "2026-07-04T00:00:00.000Z",
+      },
+      viewState: null,
+    });
 
-      return await Promise.resolve({
-        state: {
-          userId: "user-1",
-          lastUpdateTime: "2026-07-04T00:00:00.000Z",
-        },
-        viewState: null,
-      });
-    }) as DurableObjectStorage["get"];
+    let markerWriteCount = 0;
+    const sharedStorage = aFakeDurableObjectStorageWith({
+      get: (async (key: string | string[]) => {
+        if (typeof key !== "string") {
+          const values = new Map<string, unknown>();
+          for (const currentKey of key) {
+            const currentValue = persistedStorage.get(currentKey);
+            if (currentValue !== undefined) {
+              values.set(currentKey, currentValue);
+            }
+          }
+
+          return await Promise.resolve(values);
+        }
+
+        return await Promise.resolve(persistedStorage.get(key));
+      }) as DurableObjectStorage["get"],
+      put: (async (key: string, value: unknown) => {
+        if (key === "userTrackerMarkers") {
+          markerWriteCount += 1;
+        }
+
+        persistedStorage.set(key, value);
+        await Promise.resolve();
+      }) as DurableObjectStorage["put"],
+    });
+
     const trackerDo = aFakeIndividualTrackerDOWith({
       viewStateResponse: {
         state: aFakeIndividualTrackerViewStateWith({
@@ -194,8 +217,7 @@ describe("UserTrackerDO", () => {
     });
     const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
     const services = installFakeServicesWith({ env: localEnv });
-    const findTrackersByUserIdSpy = vi.spyOn(services.databaseService, "findIndividualTrackersByUserId");
-    findTrackersByUserIdSpy.mockResolvedValue([
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([
       aFakeIndividualTrackersRow({
         TrackerId: "t1",
         UserId: "user-1",
@@ -204,9 +226,9 @@ describe("UserTrackerDO", () => {
         IsLive: 1,
       }),
     ]);
-    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+    const state = aFakeDurableObjectStateWith({ storage: sharedStorage });
+    const localUserTrackerDO = new UserTrackerDO(state, localEnv, () => services, webSocketAdapter);
 
-    const baselineCalls = findTrackersByUserIdSpy.mock.calls.length;
     const payload = {
       userId: "user-1",
       trackerId: "t1",
@@ -221,11 +243,6 @@ describe("UserTrackerDO", () => {
     );
     expect(firstResponse.status).toBe(200);
 
-    await vi.waitFor(() => {
-      expect(findTrackersByUserIdSpy.mock.calls.length).toBeGreaterThan(baselineCalls);
-    });
-    const callsAfterFirstNudge = findTrackersByUserIdSpy.mock.calls.length;
-
     const secondResponse = await localUserTrackerDO.fetch(
       new Request("http://do/nudge", {
         method: "POST",
@@ -234,8 +251,8 @@ describe("UserTrackerDO", () => {
     );
     expect(secondResponse.status).toBe(200);
 
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    expect(findTrackersByUserIdSpy.mock.calls.length).toBe(callsAfterFirstNudge);
+    expect(markerWriteCount).toBe(1);
+    expect(persistedStorage.get("userTrackerMarkers")).toEqual([["user-1:t1", "2026-07-04T00:00:00.000Z"]]);
   });
 
   it("deduplicates stale tracker nudges after a DO restart", async () => {
@@ -415,19 +432,42 @@ describe("UserTrackerDO", () => {
   });
 
   it("ignores nudges when payload userId does not match stored userId", async () => {
-    mockState.storage.get = (async (key: string | string[]) => {
-      if (typeof key !== "string") {
-        return await Promise.resolve(new Map<string, unknown>());
-      }
+    const persistedStorage = new Map<string, unknown>();
+    persistedStorage.set("userTrackerState", {
+      state: {
+        userId: "user-1",
+        lastUpdateTime: "2026-07-04T00:00:00.000Z",
+      },
+      viewState: null,
+    });
 
-      return await Promise.resolve({
-        state: {
-          userId: "user-1",
-          lastUpdateTime: "2026-07-04T00:00:00.000Z",
-        },
-        viewState: null,
-      });
-    }) as DurableObjectStorage["get"];
+    let markerWriteCount = 0;
+    const sharedStorage = aFakeDurableObjectStorageWith({
+      get: (async (key: string | string[]) => {
+        if (typeof key !== "string") {
+          const values = new Map<string, unknown>();
+          for (const currentKey of key) {
+            const currentValue = persistedStorage.get(currentKey);
+            if (currentValue !== undefined) {
+              values.set(currentKey, currentValue);
+            }
+          }
+
+          return await Promise.resolve(values);
+        }
+
+        return await Promise.resolve(persistedStorage.get(key));
+      }) as DurableObjectStorage["get"],
+      put: (async (key: string, value: unknown) => {
+        if (key === "userTrackerMarkers") {
+          markerWriteCount += 1;
+        }
+
+        persistedStorage.set(key, value);
+        await Promise.resolve();
+      }) as DurableObjectStorage["put"],
+    });
+
     const trackerDo = aFakeIndividualTrackerDOWith({
       viewStateResponse: {
         state: aFakeIndividualTrackerViewStateWith({
@@ -439,8 +479,7 @@ describe("UserTrackerDO", () => {
     });
     const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
     const services = installFakeServicesWith({ env: localEnv });
-    const findTrackersByUserIdSpy = vi.spyOn(services.databaseService, "findIndividualTrackersByUserId");
-    findTrackersByUserIdSpy.mockResolvedValue([
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([
       aFakeIndividualTrackersRow({
         TrackerId: "t1",
         UserId: "user-1",
@@ -449,9 +488,8 @@ describe("UserTrackerDO", () => {
         IsLive: 1,
       }),
     ]);
-    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
-
-    const baselineCalls = findTrackersByUserIdSpy.mock.calls.length;
+    const state = aFakeDurableObjectStateWith({ storage: sharedStorage });
+    const localUserTrackerDO = new UserTrackerDO(state, localEnv, () => services, webSocketAdapter);
 
     const response = await localUserTrackerDO.fetch(
       new Request("http://do/nudge", {
@@ -467,8 +505,8 @@ describe("UserTrackerDO", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ success: true });
 
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    expect(findTrackersByUserIdSpy.mock.calls.length).toBe(baselineCalls);
+    expect(markerWriteCount).toBe(0);
+    expect(persistedStorage.get("userTrackerMarkers")).toBeUndefined();
   });
 
   it("returns 405 when nudge is called with a non-POST method", async () => {
