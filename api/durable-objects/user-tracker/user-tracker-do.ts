@@ -46,6 +46,15 @@ function isTrackerMarkerEntry(value: unknown): value is [string, string] {
   return typeof value[0] === "string" && typeof value[1] === "string";
 }
 
+function toUpdateTimeMs(value: string): number | null {
+  const parsedValue = Date.parse(value);
+  if (Number.isNaN(parsedValue)) {
+    return null;
+  }
+
+  return parsedValue;
+}
+
 export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
   private readonly state: DurableObjectState;
@@ -517,14 +526,27 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
     const markerKey = `${payload.userId}:${payload.trackerId}`;
     const previousMarker = this.trackerUpdateMarkers.get(markerKey);
-    if (previousMarker != null && payload.lastUpdateTime <= previousMarker) {
+    if (previousMarker != null && this.isStaleOrDuplicateMarker(payload.lastUpdateTime, previousMarker)) {
       return false;
     }
 
+    // Refresh insertion order for existing keys so frequently-updated trackers are not evicted first.
+    this.trackerUpdateMarkers.delete(markerKey);
     this.trackerUpdateMarkers.set(markerKey, payload.lastUpdateTime);
     this.enforceTrackerMarkerLimit();
     await this.persistTrackerUpdateMarkers();
     return true;
+  }
+
+  private isStaleOrDuplicateMarker(nextMarker: string, previousMarker: string): boolean {
+    const nextMarkerMs = toUpdateTimeMs(nextMarker);
+    const previousMarkerMs = toUpdateTimeMs(previousMarker);
+    if (nextMarkerMs != null && previousMarkerMs != null) {
+      return nextMarkerMs <= previousMarkerMs;
+    }
+
+    // If either marker is not parseable as a date, only exact duplicates are considered stale.
+    return nextMarker === previousMarker;
   }
 
   private async hydrateTrackerUpdateMarkers(): Promise<void> {

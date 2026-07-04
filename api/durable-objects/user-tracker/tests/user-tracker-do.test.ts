@@ -341,8 +341,72 @@ describe("UserTrackerDO", () => {
     );
     expect(secondResponse.status).toBe(200);
 
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    const markersAfterSecondNudge = persistedStorage.get("userTrackerMarkers");
+    expect(markersAfterSecondNudge).toEqual([["user-1:t1", "2026-07-04T00:00:00.000Z"]]);
     expect(findTrackersByUserIdSpy.mock.calls.length).toBe(callsAfterFirstInstanceNudge);
+  });
+
+  it("accepts a newer marker when timestamps are not lexicographically ordered", async () => {
+    const persistedStorage = new Map<string, unknown>();
+    persistedStorage.set("userTrackerState", {
+      state: {
+        userId: "user-1",
+        lastUpdateTime: "2026-07-04T00:00:00.000Z",
+      },
+      viewState: null,
+    });
+
+    const sharedStorage = aFakeDurableObjectStorageWith({
+      get: (async (key: string | string[]) => {
+        if (typeof key !== "string") {
+          const values = new Map<string, unknown>();
+          for (const currentKey of key) {
+            const currentValue = persistedStorage.get(currentKey);
+            if (currentValue !== undefined) {
+              values.set(currentKey, currentValue);
+            }
+          }
+
+          return await Promise.resolve(values);
+        }
+
+        return await Promise.resolve(persistedStorage.get(key));
+      }) as DurableObjectStorage["get"],
+      put: (async (key: string, value: unknown) => {
+        persistedStorage.set(key, value);
+        await Promise.resolve();
+      }) as DurableObjectStorage["put"],
+    });
+
+    const localEnv = aFakeEnvWith();
+    const state = aFakeDurableObjectStateWith({ storage: sharedStorage });
+    const localUserTrackerDO = new UserTrackerDO(state, localEnv, installFakeServicesWith, webSocketAdapter);
+
+    const firstResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/nudge", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: "user-1",
+          trackerId: "t1",
+          lastUpdateTime: "2026-07-04T00:00:00+02:00",
+        }),
+      }),
+    );
+    expect(firstResponse.status).toBe(200);
+
+    const secondResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/nudge", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: "user-1",
+          trackerId: "t1",
+          lastUpdateTime: "2026-07-03T23:30:00Z",
+        }),
+      }),
+    );
+    expect(secondResponse.status).toBe(200);
+
+    expect(persistedStorage.get("userTrackerMarkers")).toEqual([["user-1:t1", "2026-07-03T23:30:00Z"]]);
   });
 
   it("persists the latest marker when nudges overlap", async () => {
