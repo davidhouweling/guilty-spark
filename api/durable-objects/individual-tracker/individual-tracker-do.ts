@@ -304,10 +304,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         trackerState.lastUpdateTime = new Date().toISOString();
         await this.state.storage.deleteAlarm();
         await this.setState(trackerState);
-        this.notifyUserTracker(trackerState);
         this.broadcastViewState(trackerState);
         this.closeWebSockets("Tracker idle timeout");
         await this.markRegistryStopped(trackerState);
+        this.notifyUserTracker(trackerState);
         return;
       }
 
@@ -328,9 +328,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       this.handleError(trackerState, error);
     }
 
+    const shouldNotifyUserTracker = broadcastWhenUnchanged || discoveredNewMatch;
+
     await this.setState(trackerState);
-    this.notifyUserTracker(trackerState);
-    if (broadcastWhenUnchanged || discoveredNewMatch) {
+    if (shouldNotifyUserTracker) {
+      this.notifyUserTracker(trackerState);
+    }
+    if (shouldNotifyUserTracker) {
       this.broadcastViewState(trackerState);
     }
     await this.state.storage.setAlarm(addMilliseconds(new Date(), this.getNextAlarmInterval(trackerState)).getTime());

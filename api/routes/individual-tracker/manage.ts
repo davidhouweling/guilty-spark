@@ -42,6 +42,7 @@ import {
   TrackerLimitReachedError,
   TrackerNotFoundError,
 } from "../../services/individual-tracker/errors";
+import type { LogService } from "../../services/log/types";
 import type { CreateTrackerOptions } from "../../services/individual-tracker/types";
 import { toTracker } from "../../individual-tracker/mapper";
 import type { RoutesRegisterHandler } from "../base/types";
@@ -130,6 +131,27 @@ async function nudgeUserTrackerDo(
   });
   assertDoOk(response);
   await userTrackerNudgeContract.fromResponse(response);
+}
+
+async function nudgeUserTrackerDoBestEffort(
+  env: Env,
+  payload: { userId: string; trackerId: string; lastUpdateTime: string },
+  logService: LogService,
+  action: "stop" | "pause" | "resume",
+): Promise<void> {
+  try {
+    await nudgeUserTrackerDo(env, payload);
+  } catch (error) {
+    logService.warn(
+      error,
+      new Map([
+        ["context", "Individual tracker user tracker nudge warning"],
+        ["action", action],
+        ["trackerId", payload.trackerId],
+        ["userId", payload.userId],
+      ]),
+    );
+  }
 }
 
 async function statusTrackerDo(env: Env, userId: string, trackerId: string): Promise<IndividualTrackerDoState | null> {
@@ -331,11 +353,16 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       await stopTrackerDo(env, auth.session.userId, tracker.TrackerId);
       await individualTrackerService.markTrackerStatus(tracker, "stopped");
-      await nudgeUserTrackerDo(env, {
-        userId: auth.session.userId,
-        trackerId: tracker.TrackerId,
-        lastUpdateTime: new Date().toISOString(),
-      });
+      await nudgeUserTrackerDoBestEffort(
+        env,
+        {
+          userId: auth.session.userId,
+          trackerId: tracker.TrackerId,
+          lastUpdateTime: new Date().toISOString(),
+        },
+        logService,
+        "stop",
+      );
 
       logService.info("Individual tracker stopped", new Map([["trackerId", tracker.TrackerId]]));
 
@@ -374,11 +401,16 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       const state = await pauseTrackerDo(env, auth.session.userId, tracker.TrackerId);
       const paused = await individualTrackerService.markTrackerStatus(tracker, "paused");
-      await nudgeUserTrackerDo(env, {
-        userId: auth.session.userId,
-        trackerId: tracker.TrackerId,
-        lastUpdateTime: state.lastUpdateTime,
-      });
+      await nudgeUserTrackerDoBestEffort(
+        env,
+        {
+          userId: auth.session.userId,
+          trackerId: tracker.TrackerId,
+          lastUpdateTime: state.lastUpdateTime,
+        },
+        logService,
+        "pause",
+      );
 
       logService.info("Individual tracker paused", new Map([["trackerId", tracker.TrackerId]]));
 
@@ -417,11 +449,16 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
 
       const state = await resumeTrackerDo(env, auth.session.userId, tracker.TrackerId);
       const resumed = await individualTrackerService.markTrackerStatus(tracker, "active");
-      await nudgeUserTrackerDo(env, {
-        userId: auth.session.userId,
-        trackerId: tracker.TrackerId,
-        lastUpdateTime: state.lastUpdateTime,
-      });
+      await nudgeUserTrackerDoBestEffort(
+        env,
+        {
+          userId: auth.session.userId,
+          trackerId: tracker.TrackerId,
+          lastUpdateTime: state.lastUpdateTime,
+        },
+        logService,
+        "resume",
+      );
 
       logService.info("Individual tracker resumed", new Map([["trackerId", tracker.TrackerId]]));
 

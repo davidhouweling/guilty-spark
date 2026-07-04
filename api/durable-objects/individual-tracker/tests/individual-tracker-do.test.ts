@@ -2052,6 +2052,70 @@ describe("IndividualTrackerDO", () => {
       expect(markSpy).toHaveBeenCalledWith(row, "stopped");
     });
 
+    it("notifies UserTrackerDO only after idle-timeout registry status is persisted", async () => {
+      const row = aFakeIndividualTrackersRow({ TrackerId: "idle-tracker", Status: "active" });
+      vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(row);
+      const markSpy = vi.spyOn(services.individualTrackerService, "markTrackerStatus");
+      const userTrackerDo = aFakeUserTrackerDOWith();
+      const userTrackerFetchSpy = vi.spyOn(userTrackerDo, "fetch");
+      const localEnv = aFakeEnvWith({ USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(userTrackerDo) });
+      const localDO = new IndividualTrackerDO(mockState, localEnv, () => services);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          trackerId: "idle-tracker",
+          idleTimeoutHours: 6,
+          startTime: "2024-11-26T05:00:00.000Z",
+          lastMatchDiscoveredAt: "2024-11-26T05:00:00.000Z",
+        }),
+      );
+
+      await localDO.alarm();
+
+      await vi.waitFor(() => {
+        expect(userTrackerFetchSpy).toHaveBeenCalled();
+      });
+
+      expect(markSpy).toHaveBeenCalledWith(row, "stopped");
+      const markStatusCallOrder = Preconditions.checkExists(markSpy.mock.invocationCallOrder[0]);
+      const userTrackerNudgeCallOrder = Preconditions.checkExists(userTrackerFetchSpy.mock.invocationCallOrder[0]);
+      expect(markStatusCallOrder).toBeLessThan(userTrackerNudgeCallOrder);
+    });
+
+    it("does not notify UserTrackerDO on steady-state polls without new matches", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValueOnce([]);
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ matchIds: [] }));
+      const userTrackerDo = aFakeUserTrackerDOWith();
+      const userTrackerFetchSpy = vi.spyOn(userTrackerDo, "fetch");
+      const localEnv = aFakeEnvWith({ USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(userTrackerDo) });
+      const localDO = new IndividualTrackerDO(mockState, localEnv, () => services);
+
+      await localDO.alarm();
+
+      expect(userTrackerFetchSpy).not.toHaveBeenCalled();
+    });
+
+    it("notifies UserTrackerDO on manual refresh even when no new matches are discovered", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValueOnce([]);
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ matchIds: [] }));
+      const userTrackerDo = aFakeUserTrackerDOWith();
+      const userTrackerFetchSpy = vi.spyOn(userTrackerDo, "fetch");
+      const localEnv = aFakeEnvWith({ USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(userTrackerDo) });
+      const localDO = new IndividualTrackerDO(mockState, localEnv, () => services);
+
+      const response = await localDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+      expect(response.status).toBe(200);
+
+      await vi.waitFor(() => {
+        expect(userTrackerFetchSpy).toHaveBeenCalled();
+      });
+
+      const nudgeRequestArg = userTrackerFetchSpy.mock.calls[0]?.[0];
+      expect(nudgeRequestArg).toBeInstanceOf(Request);
+      const nudgeRequest = nudgeRequestArg as Request;
+      expect(new URL(nudgeRequest.url).pathname).toBe("/nudge");
+      expect(nudgeRequest.method).toBe("POST");
+    });
+
     it("increments consecutiveErrors, grows backoff, reschedules at backoff and does not throw on poll failure", async () => {
       ownerClient.getPlayerMatches.mockRejectedValue(new Error("Halo unavailable"));
       storageGetSpy.mockResolvedValue(
