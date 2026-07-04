@@ -220,11 +220,13 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     }
 
     const payload = parsedBody.data;
-    if (!(await this.shouldAcceptNudge(payload))) {
+    const shouldAcceptNudge = await this.shouldAcceptNudge(payload);
+    if (!shouldAcceptNudge) {
       return userTrackerNudgeContract.toResponse({ success: true }, { noStore: true });
     }
 
-    if (!(await this.shouldQueuePushForNudge(payload))) {
+    const shouldQueuePushForNudge = await this.shouldQueuePushForNudge(payload);
+    if (!shouldQueuePushForNudge) {
       return userTrackerNudgeContract.toResponse({ success: true }, { noStore: true });
     }
 
