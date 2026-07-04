@@ -30,10 +30,20 @@ import type { LogService } from "../../services/log/types";
 import { emptyTrackerDirectory, type UserTrackerInternalState } from "./types";
 
 const USER_TRACKER_STATE_KEY = "userTrackerState";
+const USER_TRACKER_MARKERS_KEY = "userTrackerMarkers";
 const FOLLOW_WS_POLL_INTERVAL_MS = 3000;
+const TRACKER_MARKER_LIMIT = 500;
 
 function isNonStopped(row: IndividualTrackersRow): boolean {
   return row.Status !== "stopped";
+}
+
+function isTrackerMarkerEntry(value: unknown): value is [string, string] {
+  if (!Array.isArray(value) || value.length !== 2) {
+    return false;
+  }
+
+  return typeof value[0] === "string" && typeof value[1] === "string";
 }
 
 export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
@@ -53,6 +63,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private resolvePushCompletion: (() => void) | null = null;
   private trackerSubscriptionsInstalled = false;
   private readonly trackerUpdateMarkers = new Map<string, string>();
+  private trackerUpdateMarkersHydrated = false;
 
   constructor(
     state: DurableObjectState,
@@ -213,7 +224,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return userTrackerNudgeContract.toResponse({ success: true }, { noStore: true });
     }
 
-    if (!this.shouldQueuePushForNudge(payload)) {
+    if (!(await this.shouldQueuePushForNudge(payload))) {
       return userTrackerNudgeContract.toResponse({ success: true }, { noStore: true });
     }
 
@@ -498,14 +509,67 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     return false;
   }
 
-  private shouldQueuePushForNudge(payload: TrackerChangedPayload): boolean {
-    const previousMarker = this.trackerUpdateMarkers.get(payload.trackerId);
+  private async shouldQueuePushForNudge(payload: TrackerChangedPayload): Promise<boolean> {
+    await this.hydrateTrackerUpdateMarkers();
+
+    const markerKey = `${payload.userId}:${payload.trackerId}`;
+    const previousMarker = this.trackerUpdateMarkers.get(markerKey);
     if (previousMarker != null && payload.lastUpdateTime <= previousMarker) {
       return false;
     }
 
-    this.trackerUpdateMarkers.set(payload.trackerId, payload.lastUpdateTime);
+    this.trackerUpdateMarkers.set(markerKey, payload.lastUpdateTime);
+    this.enforceTrackerMarkerLimit();
+    await this.persistTrackerUpdateMarkers();
     return true;
+  }
+
+  private async hydrateTrackerUpdateMarkers(): Promise<void> {
+    if (this.trackerUpdateMarkersHydrated) {
+      return;
+    }
+
+    this.trackerUpdateMarkersHydrated = true;
+    const storedEntries = await this.state.storage.get(USER_TRACKER_MARKERS_KEY);
+    if (!Array.isArray(storedEntries)) {
+      return;
+    }
+
+    for (const entry of storedEntries) {
+      if (!isTrackerMarkerEntry(entry)) {
+        continue;
+      }
+
+      const [markerKey, markerValue] = entry;
+
+      this.trackerUpdateMarkers.set(markerKey, markerValue);
+    }
+  }
+
+  private enforceTrackerMarkerLimit(): void {
+    while (this.trackerUpdateMarkers.size > TRACKER_MARKER_LIMIT) {
+      const oldestMarkerKey = this.trackerUpdateMarkers.keys().next().value;
+      if (oldestMarkerKey == null) {
+        break;
+      }
+
+      this.trackerUpdateMarkers.delete(oldestMarkerKey);
+    }
+  }
+
+  private async persistTrackerUpdateMarkers(): Promise<void> {
+    try {
+      const markerEntries = Array.from(this.trackerUpdateMarkers.entries());
+      await this.state.storage.put(USER_TRACKER_MARKERS_KEY, markerEntries);
+    } catch (error) {
+      this.logService.warn(
+        error,
+        new Map([
+          ["context", "UserTracker marker persistence error"],
+          ["markerCount", this.trackerUpdateMarkers.size.toString()],
+        ]),
+      );
+    }
   }
 
   private serializeDirectory(directory: TrackerDirectory): string {
