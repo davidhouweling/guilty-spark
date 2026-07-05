@@ -24,8 +24,10 @@ for r in reviews:
     if 'copilot' in r.get('user', {}).get('login', ''):
         last = r
 if last:
+    body = last.get('body') or ''
     print(last['id'], last['submitted_at'], last['commit_id'][:8])
-    print('BODY:', (last.get('body') or '').replace('\n', ' ')[:500])
+    print('BODY_CLEAN:', 'generated no new comments' in body)
+    print('BODY:', body.replace('\n', ' ')[:500])
 else:
     print('NO_REVIEW')
 "
@@ -55,7 +57,7 @@ print(int((now - then).total_seconds() / 60))
 "
 ```
 
-If ≥ 15 minutes have elapsed, reschedule with `/after 10m #copilot-loop.prompt.md` instead.
+If ≥ 15 minutes have elapsed, reschedule with `/after 10m #copilot-loop.prompt.md` instead. Stop — do not proceed further.
 
 ## Step 3 — Check if the review is clean
 
@@ -75,7 +77,7 @@ If the output equals `{REVIEW_ID}`, a new review has not yet arrived. Read line 
 gh api "repos/{owner}/{repo}/pulls/{PR}/reviews/{REVIEW_ID}/comments"
 ```
 
-Clean if the array is empty or the `BODY:` line printed in Step 2 contains "generated no new comments".
+Clean if the array is empty or `BODY_CLEAN: True` was printed in Step 2.
 
 **Check 2 — latest `copilot-swe-agent[bot]` issue comment:**
 

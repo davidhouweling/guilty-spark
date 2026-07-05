@@ -15,7 +15,7 @@ Parse these from the invocation prompt if present (default to zero values on man
 - `iteration` — consecutive polls without a new review (e.g. `iteration:3`; default `0`)
 - `lastReviewId` — ID of the last processed review (e.g. `lastReviewId:4631032003`; default empty)
 
-Stop any active loop schedule by listing and stopping the one whose prompt contains "copilot-loop skill to process the Copilot PR review":
+Stop any active loop schedule by listing and stopping the one whose prompt contains "copilot-loop skill to process the Copilot PR review. PR:{PR}":
 
 ```
 manage_schedule(action: 'list')
@@ -33,8 +33,10 @@ for r in reviews:
     if 'copilot' in r.get('user', {}).get('login', ''):
         last = r
 if last:
+    body = last.get('body') or ''
     print(last['id'], last['submitted_at'], last['commit_id'][:8])
-    print('BODY:', (last.get('body') or '').replace('\n', ' ')[:500])
+    print('BODY_CLEAN:', 'generated no new comments' in body)
+    print('BODY:', body.replace('\n', ' ')[:500])
 else:
     print('NO_REVIEW')
 "
@@ -72,7 +74,7 @@ Fetch the review's inline comments:
 gh api "repos/{owner}/{repo}/pulls/{PR}/reviews/{REVIEW_ID}/comments"
 ```
 
-**Clean** if the JSON array is empty (`[]`), OR if the `BODY:` line printed in Step 1 contains "generated no new comments".
+**Clean** if the JSON array is empty (`[]`), OR if `BODY_CLEAN: True` was printed in Step 1.
 
 If clean: emit the final report and stop — do not reschedule.
 
