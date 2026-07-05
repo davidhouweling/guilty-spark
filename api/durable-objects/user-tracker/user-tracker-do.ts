@@ -224,7 +224,16 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       try {
         await this.queueDirectoryPush();
       } catch (error) {
-        this.logService.error(error, new Map([["context", "UserTracker alarm error"]]));
+        const stored = await this.loadStateForErrorContext("UserTracker alarm error context load failed");
+        this.logService.error(
+          error,
+          new Map([
+            ["context", "UserTracker alarm error"],
+            ["userId", stored.state?.userId ?? "unknown"],
+            ["tickType", tickType],
+            ["hasConnectedClients", hasConnectedClients.toString()],
+          ]),
+        );
         Sentry.captureException(error);
       }
 
@@ -537,12 +546,35 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
     while (this.pendingPush) {
       this.pendingPush = false;
+      const dirtyTrackerCountAtRefreshStart = this.dirtyTrackerIds.size;
 
       try {
         await this.refreshAndBroadcastIfChanged();
       } catch (error) {
-        this.logService.error(error, new Map([["context", "UserTracker directory refresh error"]]));
+        const stored = await this.loadStateForErrorContext("UserTracker directory refresh error context load failed");
+        const refreshMode = stored.viewState == null || dirtyTrackerCountAtRefreshStart === 0 ? "full" : "incremental";
+        this.logService.error(
+          error,
+          new Map([
+            ["context", "UserTracker directory refresh error"],
+            ["userId", stored.state?.userId ?? "unknown"],
+            ["refreshMode", refreshMode],
+            ["dirtyTrackerCount", dirtyTrackerCountAtRefreshStart.toString()],
+          ]),
+        );
       }
+    }
+  }
+
+  private async loadStateForErrorContext(loadFailureContext: string): Promise<UserTrackerInternalState> {
+    try {
+      return await this.loadState();
+    } catch (error) {
+      this.logService.warn(error, new Map([["context", loadFailureContext]]));
+      return {
+        state: null,
+        viewState: null,
+      };
     }
   }
 
