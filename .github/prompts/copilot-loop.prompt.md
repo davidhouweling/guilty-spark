@@ -1,9 +1,11 @@
 ---
 agent: agent
-description: "Process the latest Copilot PR review: fix valid issues, reply to all comments, resolve threads, request a new review. Copilot does not auto-fire — re-run this prompt manually each iteration once the new review arrives."
+description: "Process the latest Copilot PR review: fix valid issues, reply to all comments, resolve threads, request a new review, and reschedule itself with /after until the review is clean."
 ---
 
-Run one iteration of the Copilot review loop on the current PR. Copilot does **not** auto-fire on push — I will manually re-run this prompt each time. At the end, request a new review and tell me when to come back.
+Run one iteration of the Copilot review loop on the current PR in the GitHub Copilot CLI interactive session. From the VS Code integrated terminal, start that session with `copilot`. Experimental scheduling must be enabled first with `/experimental on` or `--experimental`.
+
+Keep the loop quiet between iterations. Do not give a per-iteration handoff message to the user. Instead, accumulate a running findings ledger in the session context and continue rescheduling with `/after 10m` until the review is clean. Only when the review is clean should you produce the final report, including a markdown table of every Copilot review finding from the whole loop, whether it was fixed or refuted, and how it was handled.
 
 ## Step 1 — Identify the PR
 
@@ -28,7 +30,7 @@ else:
 "
 ```
 
-If `NO_REVIEW`: request a review (Step 6) and stop — tell me to re-run this prompt once the review arrives in ~10 minutes.
+If `NO_REVIEW`: request a review (Step 6), schedule this same prompt again with `/after 10m`, and continue the loop without a user-facing status update.
 
 ## Step 3 — Check if the review is clean
 
@@ -55,7 +57,7 @@ for c in reversed(comments):
 
 Clean if the body contains any of: `clean`, `no issues`, `good to merge`, `no new comments`, `all.*tests pass`.
 
-**If clean: stop. Tell me Copilot found no issues and the loop is complete.**
+If clean: stop scheduling, preserve the accumulated findings ledger, and emit the final report with a markdown table of all findings from the loop.
 
 ## Step 4 — Process each inline comment
 
@@ -73,7 +75,9 @@ For each comment:
 
 3. **If invalid/refuted:** Note the reason. No code changes.
 
-4. Commit all fixes together once all comments are processed:
+4. Add one row to the findings ledger for every comment you process. Include the review round, the finding, whether it was fixed or refuted, and how it was handled.
+
+5. Commit all fixes together once all comments are processed:
 
    ```bash
    git add <changed files>
@@ -121,7 +125,7 @@ Resolve each unresolved thread whose first comment author login contains `"copil
 gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "{NODE_ID}"}) { thread { isResolved } } }'
 ```
 
-## Step 6 — Request review and hand back
+## Step 6 — Request review and reschedule
 
 Request a new review:
 
@@ -131,15 +135,23 @@ gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
 
 Note: `gh pr edit --add-reviewer copilot` and `gh pr edit --add-reviewer github-copilot` do not work — use `copilot-pull-request-reviewer` exactly. Do **not** post `@copilot review` — that triggers the unrelated `copilot-swe-agent[bot]` bot.
 
-**Report back:**
+If the review is not clean, schedule the next iteration with `/after 10m` and stop without a user-facing handoff.
 
-If fixes were committed and pushed:
+If the review is clean, do not schedule another run. Produce the final report only once, with this shape:
 
-> "Done. Fixes committed as {SHA} and pushed. New review requested — re-run this prompt once the Copilot review arrives in ~10 minutes."
+| Round | Finding | Status | How handled | Evidence |
+| --- | --- | --- | --- | --- |
+| 1 | ... | fixed/refuted | ... | thread id, commit SHA, or relevant path |
 
-If all comments were refuted (no code changes):
+## How To Start
 
-> "Done. All comments refuted — no code changes. New review requested — re-run this prompt once the Copilot review arrives."
+In the VS Code integrated terminal, run `copilot` to open the interactive CLI session, then enable experimental scheduling:
+
+```copilot
+/experimental on
+```
+
+After that, run this prompt once and let the loop reschedule itself with `/after 10m` until Copilot reports no issues.
 
 ## Repo-specific notes
 
