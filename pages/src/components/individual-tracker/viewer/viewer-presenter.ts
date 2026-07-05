@@ -475,6 +475,7 @@ export class IndividualTrackerViewerPresenter {
   public dispose(): void {
     this.isDisposed = true;
     this.awaitingRefresh = false;
+    this.hydrateQueued = false;
     this.viewSubscription?.unsubscribe();
     this.viewSubscription = null;
     this.statusSubscription?.unsubscribe();
@@ -525,6 +526,10 @@ export class IndividualTrackerViewerPresenter {
   }
 
   private queueEnrichedViewHydration(): void {
+    if (this.isDisposed) {
+      return;
+    }
+
     if (this.isHydratingEnrichedView) {
       this.hydrateQueued = true;
       return;
@@ -541,19 +546,19 @@ export class IndividualTrackerViewerPresenter {
         return;
       }
 
-      this.hasServerStreamerSettings = response.view.streamerSettings !== undefined;
-
       const snapshot = this.config.store.getSnapshot();
       if (snapshot.view == null) {
         return;
       }
+
+      this.hasServerStreamerSettings ||= response.view.streamerSettings !== undefined;
 
       const streamerSettings =
         response.view.streamerSettings === undefined &&
         this.streamerSettings !== undefined &&
         !this.hasServerStreamerSettings
           ? this.streamerSettings
-          : response.view.streamerSettings;
+          : (response.view.streamerSettings ?? snapshot.view.streamerSettings);
 
       this.config.store.setLoaded({
         ...snapshot.view,
@@ -566,7 +571,7 @@ export class IndividualTrackerViewerPresenter {
       // Hydration failures should not interrupt live timeline updates.
     } finally {
       this.isHydratingEnrichedView = false;
-      if (this.hydrateQueued) {
+      if (this.hydrateQueued && !this.isDisposed) {
         this.hydrateQueued = false;
         void this.hydrateEnrichedViewAsync();
       }

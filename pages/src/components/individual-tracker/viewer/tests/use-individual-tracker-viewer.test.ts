@@ -230,6 +230,131 @@ describe("useIndividualTrackerViewer", () => {
     });
   });
 
+  it("does not enqueue another hydration request after dispose", async () => {
+    const firstView = aFakeTrackerViewStateWith({
+      trackerId: "tracker-1",
+      status: "active",
+      statsHighlights: [{ label: "KDA", value: "2.1" }],
+    });
+    const hydratedView = aFakeTrackerViewStateWith({
+      trackerId: "tracker-1",
+      status: "active",
+      statsHighlights: [{ label: "KDA", value: "3.4" }],
+    });
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({ view: firstView });
+    let resolveHydration:
+      | ((value: { readonly view: ReturnType<typeof aFakeTrackerViewStateWith> }) => void)
+      | undefined;
+    const hydrationPromise = new Promise<{ readonly view: ReturnType<typeof aFakeTrackerViewStateWith> }>((resolve) => {
+      resolveHydration = resolve;
+    });
+    const getViewSpy = vi
+      .spyOn(individualTrackerViewService, "getView")
+      .mockResolvedValueOnce({ view: firstView })
+      .mockImplementationOnce(async () => hydrationPromise)
+      .mockImplementation(async () => Promise.reject(new Error("Hydration should not run after dispose")));
+    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+
+    const { result, unmount } = renderHook(() =>
+      useIndividualTrackerViewer({
+        individualTrackerViewService,
+        matchAnalyticsService,
+        seriesMatchesService,
+        haloClient,
+        trackerId: "tracker-1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+      expect(individualTrackerViewService.lastConnection).not.toBeNull();
+    });
+
+    act(() => {
+      individualTrackerViewService.lastConnection?.emitView(
+        aFakeTrackerLiveViewWith({ trackerId: "tracker-1", status: "active" }),
+      );
+      individualTrackerViewService.lastConnection?.emitView(
+        aFakeTrackerLiveViewWith({ trackerId: "tracker-1", status: "active" }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(getViewSpy).toHaveBeenCalledTimes(2);
+    });
+
+    unmount();
+
+    expect(resolveHydration).toBeDefined();
+    await act(async () => {
+      resolveHydration?.({ view: hydratedView });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(getViewSpy).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("preserves server streamer settings when hydration omits streamerSettings", async () => {
+    const serverSettings: StreamerViewSettings = {
+      styleFlags: {
+        colorMode: "observer",
+      },
+    };
+    const localSettings: StreamerViewSettings = {
+      styleFlags: {
+        colorMode: "player",
+      },
+    };
+    const firstView = {
+      ...aFakeTrackerViewStateWith({
+        trackerId: "tracker-1",
+        status: "active",
+      }),
+      streamerSettings: serverSettings,
+    };
+    const hydratedViewWithoutSettings = aFakeTrackerViewStateWith({
+      trackerId: "tracker-1",
+      status: "active",
+      statsHighlights: [{ label: "KDA", value: "3.4" }],
+    });
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({ view: firstView });
+    const getViewSpy = vi
+      .spyOn(individualTrackerViewService, "getView")
+      .mockResolvedValueOnce({ view: firstView })
+      .mockResolvedValueOnce({ view: hydratedViewWithoutSettings });
+    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+
+    const { result } = renderHook(() =>
+      useIndividualTrackerViewer({
+        individualTrackerViewService,
+        matchAnalyticsService,
+        seriesMatchesService,
+        haloClient,
+        trackerId: "tracker-1",
+        streamerSettings: localSettings,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+      expect(result.current.model.streamerSettings?.styleFlags?.colorMode).toBe("observer");
+      expect(individualTrackerViewService.lastConnection).not.toBeNull();
+    });
+
+    act(() => {
+      individualTrackerViewService.lastConnection?.emitView(
+        aFakeTrackerLiveViewWith({ trackerId: "tracker-1", status: "active" }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(getViewSpy).toHaveBeenCalledTimes(2);
+      expect(result.current.model.streamerSettings?.styleFlags?.colorMode).toBe("observer");
+    });
+  });
+
   it("loads long series in a single request when a series entry expands", async () => {
     const matchIds = Array.from({ length: 13 }, (_, index) => `m-${(index + 1).toString()}`);
     const matches = matchIds.map((matchId) => aFakeTrackerMatchSummaryWith({ matchId }));
