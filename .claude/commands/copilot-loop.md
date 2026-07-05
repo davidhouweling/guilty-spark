@@ -53,7 +53,7 @@ Then (for all NO_REVIEW polls), compute `nextIteration = iteration + 1`, use int
 
 ```
 manage_schedule(action: 'create', interval: '{interval}',
-  prompt: 'Run the copilot-loop skill to process the Copilot PR review. PR:{PR} iteration:{nextIteration} lastReviewId:')
+  prompt: 'Run the copilot-loop skill to process the Copilot PR review. PR:{PR} iteration:{nextIteration}')
 ```
 
 ## Step 2 — Check if a new review has arrived
