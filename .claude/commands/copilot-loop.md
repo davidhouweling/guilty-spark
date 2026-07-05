@@ -10,7 +10,7 @@ Resolve `PR` using the first match:
 2. `PR:` key in the invocation prompt — e.g. `PR:643` (present on scheduled runs)
 3. Fallback — `gh pr view --json number --jq '.number'`
 
-Parse these from the invocation prompt if present (default to zero values on manual runs):
+Parse these from the invocation prompt if present (tokens follow the format `key:value` and can appear anywhere in the prompt text; default to zero values on manual runs):
 
 - `iteration` — consecutive polls without a new review (e.g. `iteration:3`; default `0`)
 - `lastReviewId` — ID of the last processed review (e.g. `lastReviewId:4631032003`; default empty)

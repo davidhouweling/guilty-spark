@@ -5,7 +5,7 @@ description: "Process the latest Copilot PR review: fix valid issues, reply to a
 
 Run one iteration of the Copilot review loop on the current PR in the GitHub Copilot CLI interactive session. From the VS Code integrated terminal, start that session with `copilot`. Experimental scheduling must be enabled first with `/experimental on` or `--experimental`.
 
-Keep the loop quiet. Accumulate a running findings ledger in the session context. Persist state to `/tmp/copilot-loop-{PR}.txt` (each `/after` invocation is stateless): line 1 is `pollingStartedAt` (ISO timestamp), line 2 is `lastProcessedReviewId`. Poll every 1 minute for up to 15 minutes, then fall back to 10 minutes. Emit the final report only when the review is clean.
+Keep the loop quiet. Polling state is persisted to `/tmp/copilot-loop-{PR}.txt` (each `/after` invocation is stateless): line 1 is `pollingStartedAt` (ISO timestamp), line 2 is `lastProcessedReviewId`. The findings ledger is only maintained within a single continuous session; emit the final report only when the review is clean. Poll every 1 minute for up to 15 minutes, then fall back to 10 minutes.
 
 ## Step 1 — Identify the PR
 
@@ -42,7 +42,7 @@ if [ ! -f /tmp/copilot-loop-{PR}.txt ]; then
 fi
 ```
 
-Schedule the next poll with `/after 1m #copilot-loop.prompt.md`. On each subsequent run, read the start time and compute elapsed minutes:
+Compute elapsed minutes since polling started:
 
 ```bash
 python3 -c "
@@ -54,7 +54,7 @@ print(int((now - then).total_seconds() / 60))
 "
 ```
 
-If ≥ 15 minutes have elapsed, reschedule with `/after 10m #copilot-loop.prompt.md` instead. Stop — do not proceed further.
+Then schedule exactly one next poll: `/after 1m #copilot-loop.prompt.md` if < 15 minutes have elapsed, `/after 10m #copilot-loop.prompt.md` if ≥ 15. Stop — do not proceed further.
 
 ## Step 3 — Check if the review is clean
 
