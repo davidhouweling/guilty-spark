@@ -231,6 +231,202 @@ describe("UserTrackerDO", () => {
     });
   });
 
+  it("restores consumed dirty tracker ids when a full rebuild fails", async () => {
+    const persistedStorage = new Map<string, unknown>();
+    const sharedStorage = aFakeDurableObjectStorageWith({
+      get: (async (key: string | string[]) => {
+        if (typeof key !== "string") {
+          const values = new Map<string, unknown>();
+          for (const currentKey of key) {
+            const currentValue = persistedStorage.get(currentKey);
+            if (currentValue !== undefined) {
+              values.set(currentKey, currentValue);
+            }
+          }
+
+          return await Promise.resolve(values);
+        }
+
+        return await Promise.resolve(persistedStorage.get(key));
+      }) as DurableObjectStorage["get"],
+      put: (async (key: string, value: unknown) => {
+        persistedStorage.set(key, value);
+        await Promise.resolve();
+      }) as DurableObjectStorage["put"],
+    });
+
+    const trackerDo = aFakeIndividualTrackerDOWith({
+      viewStateResponse: {
+        state: aFakeIndividualTrackerViewStateWith({
+          trackerId: "t1",
+          gamertag: "KnownTag",
+          matches: [],
+          lastUpdateTime: "2026-07-05T00:00:00.000Z",
+        }),
+      },
+    });
+    const trackerDoFetchSpy = vi.spyOn(trackerDo, "fetch");
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const services = installFakeServicesWith({ env: localEnv });
+    const findTrackersByUserIdSpy = vi.spyOn(services.databaseService, "findIndividualTrackersByUserId");
+    findTrackersByUserIdSpy
+      .mockResolvedValueOnce([
+        aFakeIndividualTrackersRow({
+          TrackerId: "t1",
+          UserId: "user-1",
+          Gamertag: "KnownTag",
+          Status: "active",
+          IsLive: 1,
+        }),
+      ])
+      .mockRejectedValueOnce(new Error("rebuild failed"))
+      .mockResolvedValueOnce([
+        aFakeIndividualTrackersRow({
+          TrackerId: "t1",
+          UserId: "user-1",
+          Gamertag: "KnownTag",
+          Status: "active",
+          IsLive: 1,
+        }),
+      ]);
+    const state = aFakeDurableObjectStateWith({ storage: sharedStorage });
+    const localUserTrackerDO = new UserTrackerDO(state, localEnv, () => services, webSocketAdapter);
+
+    const initialResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/view-state?userId=user-1", { method: "GET" }),
+    );
+    expect(initialResponse.status).toBe(200);
+    expect(trackerDoFetchSpy).toHaveBeenCalledTimes(1);
+
+    const nudgeResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/nudge", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: "user-1",
+          trackerId: "t1",
+          lastUpdateTime: "2026-07-05T00:01:00.000Z",
+        }),
+      }),
+    );
+    expect(nudgeResponse.status).toBe(200);
+
+    await vi.waitFor(() => {
+      expect(findTrackersByUserIdSpy).toHaveBeenCalledTimes(2);
+    });
+
+    const secondNudgeResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/nudge", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: "user-1",
+          trackerId: "t1",
+          lastUpdateTime: "2026-07-05T00:02:00.000Z",
+        }),
+      }),
+    );
+    expect(secondNudgeResponse.status).toBe(200);
+
+    await vi.waitFor(() => {
+      expect(findTrackersByUserIdSpy).toHaveBeenCalledTimes(3);
+    });
+
+    await vi.waitFor(() => {
+      expect(trackerDoFetchSpy).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("falls back to full rebuild when stats highlight slots change", async () => {
+    const persistedStorage = new Map<string, unknown>();
+    const sharedStorage = aFakeDurableObjectStorageWith({
+      get: (async (key: string | string[]) => {
+        if (typeof key !== "string") {
+          const values = new Map<string, unknown>();
+          for (const currentKey of key) {
+            const currentValue = persistedStorage.get(currentKey);
+            if (currentValue !== undefined) {
+              values.set(currentKey, currentValue);
+            }
+          }
+
+          return await Promise.resolve(values);
+        }
+
+        return await Promise.resolve(persistedStorage.get(key));
+      }) as DurableObjectStorage["get"],
+      put: (async (key: string, value: unknown) => {
+        persistedStorage.set(key, value);
+        await Promise.resolve();
+      }) as DurableObjectStorage["put"],
+    });
+
+    const trackerDo = aFakeIndividualTrackerDOWith({
+      viewStateResponse: {
+        state: aFakeIndividualTrackerViewStateWith({
+          trackerId: "t1",
+          gamertag: "KnownTag",
+          matches: [],
+          lastUpdateTime: "2026-07-05T00:00:00.000Z",
+        }),
+      },
+    });
+    const trackerDoFetchSpy = vi.spyOn(trackerDo, "fetch");
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const services = installFakeServicesWith({ env: localEnv });
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([
+      aFakeIndividualTrackersRow({
+        TrackerId: "t1",
+        UserId: "user-1",
+        Gamertag: "KnownTag",
+        Status: "active",
+        IsLive: 1,
+      }),
+      aFakeIndividualTrackersRow({
+        TrackerId: "t2",
+        UserId: "user-1",
+        Gamertag: "KnownTag2",
+        Status: "active",
+        IsLive: 0,
+      }),
+    ]);
+    const getSettingsForViewSpy = vi.spyOn(services.individualTrackerService, "getSettingsForView");
+    getSettingsForViewSpy
+      .mockResolvedValueOnce({
+        visibleSections: {
+          statsHighlightSlots: ["kills", "deaths"],
+        },
+      })
+      .mockResolvedValueOnce({
+        visibleSections: {
+          statsHighlightSlots: ["assists", "kda"],
+        },
+      });
+
+    const state = aFakeDurableObjectStateWith({ storage: sharedStorage });
+    const localUserTrackerDO = new UserTrackerDO(state, localEnv, () => services, webSocketAdapter);
+
+    const initialResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/view-state?userId=user-1", { method: "GET" }),
+    );
+    expect(initialResponse.status).toBe(200);
+    expect(trackerDoFetchSpy).toHaveBeenCalledTimes(2);
+
+    const nudgeResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/nudge", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: "user-1",
+          trackerId: "t1",
+          lastUpdateTime: "2026-07-05T00:01:00.000Z",
+        }),
+      }),
+    );
+    expect(nudgeResponse.status).toBe(200);
+
+    await vi.waitFor(() => {
+      expect(trackerDoFetchSpy).toHaveBeenCalledTimes(4);
+    });
+  });
+
   it("accepts a valid tracker changed nudge payload", async () => {
     const response = await userTrackerDO.fetch(
       new Request("http://do/nudge", {

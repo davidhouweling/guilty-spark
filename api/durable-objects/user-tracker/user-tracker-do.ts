@@ -55,6 +55,28 @@ function toUpdateTimeMs(value: string): number | null {
   return parsedValue;
 }
 
+function normalizeStatsHighlightSlots(statsHighlightSlots: readonly string[] | undefined): readonly string[] {
+  if (statsHighlightSlots == null) {
+    return DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS.slice(0, INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT);
+  }
+
+  return statsHighlightSlots;
+}
+
+function statsHighlightSlotsAreEqual(left: readonly string[], right: readonly string[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
   private readonly state: DurableObjectState;
@@ -493,15 +515,15 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     const previousPayload = stored.viewState == null ? null : this.serializeDirectory(stored.viewState.directory);
     const dirtyTrackerIds = this.consumeDirtyTrackerIds();
     let nextDirectory: TrackerDirectory;
-    if (dirtyTrackerIds.size === 0 || stored.viewState == null) {
-      nextDirectory = await this.buildDirectory(userId);
-    } else {
-      try {
+    try {
+      if (dirtyTrackerIds.size === 0 || stored.viewState == null) {
+        nextDirectory = await this.buildDirectory(userId);
+      } else {
         nextDirectory = await this.buildDirectoryWithDirtyTrackers(userId, stored.viewState.directory, dirtyTrackerIds);
-      } catch (error) {
-        this.restoreDirtyTrackerIds(dirtyTrackerIds);
-        throw error;
       }
+    } catch (error) {
+      this.restoreDirtyTrackerIds(dirtyTrackerIds);
+      throw error;
     }
 
     const nextPayload = this.serializeDirectory(nextDirectory);
@@ -593,9 +615,15 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       }
     }
 
-    const statsHighlightSlots =
-      streamerSettings.visibleSections?.statsHighlightSlots ??
-      DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS.slice(0, INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT);
+    const previousStatsHighlightSlots = normalizeStatsHighlightSlots(
+      previousDirectory.streamerSettings?.visibleSections?.statsHighlightSlots,
+    );
+    const nextStatsHighlightSlots = normalizeStatsHighlightSlots(streamerSettings.visibleSections?.statsHighlightSlots);
+    if (!statsHighlightSlotsAreEqual(previousStatsHighlightSlots, nextStatsHighlightSlots)) {
+      return await this.buildDirectory(userId);
+    }
+
+    const statsHighlightSlots = nextStatsHighlightSlots;
 
     for (const trackerId of dirtyTrackerIds) {
       const row = rowsByTrackerId.get(trackerId);
