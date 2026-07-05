@@ -1,6 +1,8 @@
 # Copilot Review Loop
 
-Processes the latest Copilot PR review: fixes valid issues, replies to all comments, resolves threads, then requests a new review. Copilot does **not** auto-fire on push — the user manually invokes this command each time they want to run a loop iteration.
+Processes the latest Copilot PR review: fixes valid issues, replies to all comments, resolves threads, requests a new review, then polls every minute for up to 15 minutes for the new review to arrive before falling back to a 10-minute reschedule.
+
+Keep the loop quiet between iterations. Do not give a per-iteration handoff message to the user. Instead, accumulate a running findings ledger in the session context. While waiting for a fresh Copilot review, poll the PR every 1 minute for up to 15 minutes by scheduling the next run with `manage_schedule` (action: `create`, interval: `1m`, prompt: `Run the copilot-loop skill to process the Copilot PR review on this repository`). If no new review arrives in that window, fall back to `manage_schedule` with interval `10m`. Only when the review is clean should you produce the final report, including a markdown table of every Copilot review finding from the whole loop, whether it was fixed or refuted, and how it was handled.
 
 ## Setup
 
@@ -29,7 +31,7 @@ else:
 "
 ```
 
-If `NO_REVIEW`: request one (Step 4) and stop — tell the user to re-run `/copilot-loop` once the review arrives in ~10 minutes.
+If `NO_REVIEW`: request one (Step 4) and schedule the next poll with `manage_schedule` (action: `create`, interval: `1m`, prompt: `Run the copilot-loop skill to process the Copilot PR review on this repository`). Keep polling every minute until a new review appears or 15 minutes have elapsed; if the 15-minute window expires with no review, reschedule with interval `10m`. Do not give a user-facing status update.
 
 ## Step 2 — Check if the review is clean
 
@@ -41,7 +43,7 @@ gh api "repos/{owner}/{repo}/pulls/{PR}/reviews/{REVIEW_ID}/comments"
 
 **Clean** if the JSON array is empty (`[]`), OR if the review body contains "generated no new comments".
 
-**If clean: stop and tell the user Copilot found no issues. The loop is complete.**
+**If clean: stop scheduling, preserve the accumulated findings ledger, and emit the final report with a markdown table of all findings from the loop.**
 
 ## Step 3 — Process each comment
 
@@ -59,7 +61,9 @@ For each inline comment from the review:
 
 3. **If invalid/refuted:** Note the reason clearly. Do not make code changes for this comment.
 
-4. Commit all fixes together once all comments are processed:
+4. Add one row to the findings ledger for every comment you process. Include the review round, the finding, whether it was fixed or refuted, and how it was handled.
+
+5. Commit all fixes together once all comments are processed:
 
    ```bash
    git add <changed files>
@@ -115,7 +119,13 @@ gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "{NODE
 gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
 ```
 
-The review may take up to a few hours to arrive. Stop here and tell the user to re-run `/copilot-loop` once the new review appears.
+The review may take up to a few minutes to arrive. Schedule the next poll with `manage_schedule` (action: `create`, interval: `1m`, prompt: `Run the copilot-loop skill to process the Copilot PR review on this repository`) while within the 15-minute polling window; otherwise use interval `10m`. Do not give a user-facing handoff.
+
+If the review is clean, do not schedule another run. Produce the final report only once, with this shape:
+
+| Round | Finding | Status        | How handled | Evidence                                |
+| ----- | ------- | ------------- | ----------- | --------------------------------------- |
+| 1     | ...     | fixed/refuted | ...         | thread id, commit SHA, or relevant path |
 
 Note: `gh pr edit --add-reviewer copilot` and `gh pr edit --add-reviewer github-copilot` do not work (GraphQL cannot resolve those logins). Do **not** post `@copilot review` — that triggers the unrelated `copilot-swe-agent[bot]` bot.
 
