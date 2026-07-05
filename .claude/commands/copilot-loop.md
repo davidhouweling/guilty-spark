@@ -2,7 +2,7 @@
 
 Processes the latest Copilot PR review: fixes valid issues, replies to all comments, resolves threads, requests a new review, then polls every minute for up to 15 minutes for the new review to arrive before falling back to a 10-minute reschedule.
 
-Keep the loop quiet between iterations. Do not give a per-iteration handoff message to the user. Instead, accumulate a running findings ledger in the session context. While waiting for a fresh Copilot review, poll the PR every 1 minute for up to 15 minutes by scheduling the next run with `manage_schedule` (action: `create`, interval: `1m`, prompt: `Run the copilot-loop skill to process the Copilot PR review on this repository`). Track the polling start time in the SQL session database (`sql` tool) so elapsed time can be computed reliably across stateless invocations — see Step 1 and Step 4 for details. If no new review arrives in that window, fall back to `manage_schedule` with interval `10m`. Only when the review is clean should you produce the final report, including a markdown table of every Copilot review finding from the whole loop, whether it was fixed or refuted, and how it was handled.
+Keep the loop quiet. Accumulate a running findings ledger in the session context. Poll every 1 minute for up to 15 minutes, then fall back to 10 minutes. Track polling start time and active schedule ID in the SQL session database (`sql` tool) — see Steps 1 and 4. Emit the final report only when the review is clean.
 
 ## Setup
 
@@ -15,6 +15,19 @@ gh pr view --json number --jq '.number'
 Use that number throughout (referred to as `{PR}` below).
 
 ## Step 1 — Find the latest Copilot PR review
+
+**First, stop the schedule that triggered this run:**
+
+```sql
+CREATE TABLE IF NOT EXISTS poll_state (key TEXT PRIMARY KEY, value TEXT);
+SELECT value FROM poll_state WHERE key = 'scheduleId:{PR}';
+```
+
+If a row is returned, call `manage_schedule(action: 'stop', id: <value>)`, then delete it:
+
+```sql
+DELETE FROM poll_state WHERE key = 'scheduleId:{PR}';
+```
 
 ```bash
 gh api "repos/{owner}/{repo}/pulls/{PR}/reviews?per_page=100" | python3 -c "
@@ -31,14 +44,19 @@ else:
 "
 ```
 
-If `NO_REVIEW`: request one (Step 4) and record the polling start time in the SQL session database if not already set:
+If `NO_REVIEW`: request one (Step 4) and record the polling start time if not already set:
 
 ```sql
-CREATE TABLE IF NOT EXISTS poll_state (key TEXT PRIMARY KEY, value TEXT);
 INSERT OR IGNORE INTO poll_state (key, value) VALUES ('pollingStartedAt:{PR}', datetime('now'));
 ```
 
-Then schedule the next poll with `manage_schedule` (action: `create`, interval: `1m`, prompt: `Run the copilot-loop skill to process the Copilot PR review on this repository`). On each subsequent run, compute elapsed minutes with `SELECT CAST((julianday('now') - julianday(value)) * 24 * 60 AS INTEGER) FROM poll_state WHERE key = 'pollingStartedAt:{PR}'`; if ≥ 15, use interval `10m` instead. Do not give a user-facing status update.
+Then schedule the next poll with `manage_schedule` (action: `create`, interval: `1m`, prompt: `Run the copilot-loop skill to process the Copilot PR review on this repository`) and store the returned schedule ID:
+
+```sql
+INSERT OR REPLACE INTO poll_state (key, value) VALUES ('scheduleId:{PR}', '<id returned by manage_schedule>');
+```
+
+On each subsequent run, compute elapsed minutes with `SELECT CAST((julianday('now') - julianday(value)) * 24 * 60 AS INTEGER) FROM poll_state WHERE key = 'pollingStartedAt:{PR}'`; if ≥ 15, use interval `10m` instead. Do not give a user-facing status update.
 
 ## Step 2 — Check if the review is clean
 
@@ -50,7 +68,17 @@ gh api "repos/{owner}/{repo}/pulls/{PR}/reviews/{REVIEW_ID}/comments"
 
 **Clean** if the JSON array is empty (`[]`), OR if the review body contains "generated no new comments".
 
-**If clean: stop scheduling, preserve the accumulated findings ledger, and emit the final report with a markdown table of all findings from the loop.**
+**If clean:** clean up remaining SQL state:
+
+```sql
+DELETE FROM poll_state WHERE key = 'pollingStartedAt:{PR}';
+```
+
+Emit the final report:
+
+| Round | Finding | Status | How handled | Evidence |
+| ----- | ------- | ------ | ----------- | -------- |
+| 1 | ... | fixed/refuted | ... | thread id, commit SHA, or path |
 
 ## Step 3 — Process each comment
 
@@ -63,8 +91,6 @@ For each inline comment from the review:
    ```bash
    npm run done
    ```
-
-   `npm run done` runs: prettier → typecheck → eslint --fix → vitest run related. Fix any errors it reports and re-run until clean.
 
 3. **If invalid/refuted:** Note the reason clearly. Do not make code changes for this comment.
 
@@ -126,15 +152,23 @@ gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "{NODE
 gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
 ```
 
-The review may take up to a few minutes to arrive. Reset `pollingStartedAt` for this PR in the SQL session database to restart the polling window: `INSERT OR REPLACE INTO poll_state (key, value) VALUES ('pollingStartedAt:{PR}', datetime('now'))`. Then compute elapsed minutes with `SELECT CAST((julianday('now') - julianday(value)) * 24 * 60 AS INTEGER) FROM poll_state WHERE key = 'pollingStartedAt:{PR}'`; if < 15, schedule the next poll with `manage_schedule` (action: `create`, interval: `1m`, prompt: `Run the copilot-loop skill to process the Copilot PR review on this repository`); otherwise use interval `10m`. Do not give a user-facing handoff.
+Reset `pollingStartedAt` and schedule the next poll (1m if < 15 min elapsed, else 10m):
 
-If the review is clean, do not schedule another run. Produce the final report only once, with this shape:
+```sql
+INSERT OR REPLACE INTO poll_state (key, value) VALUES ('pollingStartedAt:{PR}', datetime('now'));
+```
 
-| Round | Finding | Status        | How handled | Evidence                                |
-| ----- | ------- | ------------- | ----------- | --------------------------------------- |
-| 1     | ...     | fixed/refuted | ...         | thread id, commit SHA, or relevant path |
+```sql
+SELECT CAST((julianday('now') - julianday(value)) * 24 * 60 AS INTEGER) FROM poll_state WHERE key = 'pollingStartedAt:{PR}';
+```
 
-Note: `gh pr edit --add-reviewer copilot` and `gh pr edit --add-reviewer github-copilot` do not work (GraphQL cannot resolve those logins). Do **not** post `@copilot review` — that triggers the unrelated `copilot-swe-agent[bot]` bot.
+`manage_schedule` (action: `create`, interval: `1m` or `10m`, prompt: `Run the copilot-loop skill to process the Copilot PR review on this repository`). Store the returned ID:
+
+```sql
+INSERT OR REPLACE INTO poll_state (key, value) VALUES ('scheduleId:{PR}', '<returned id>');
+```
+
+Note: `gh pr edit --add-reviewer copilot` and `gh pr edit --add-reviewer github-copilot` do not work. Use `copilot-pull-request-reviewer`. Do **not** post `@copilot review` — that triggers `copilot-swe-agent[bot]`.
 
 ## Repo-specific notes
 
