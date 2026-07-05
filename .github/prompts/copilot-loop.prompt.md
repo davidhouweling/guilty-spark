@@ -1,9 +1,11 @@
 ---
 agent: agent
-description: "Process the latest Copilot PR review: fix valid issues, reply to all comments, resolve threads, request a new review. Copilot does not auto-fire — re-run this prompt manually each iteration once the new review arrives."
+description: "Process the latest Copilot PR review: fix valid issues, reply to all comments, resolve threads, request a new review, poll every minute for up to 15 minutes, and reschedule itself with /after until the review is clean."
 ---
 
-Run one iteration of the Copilot review loop on the current PR. Copilot does **not** auto-fire on push — I will manually re-run this prompt each time. At the end, request a new review and tell me when to come back.
+Run one iteration of the Copilot review loop on the current PR in the GitHub Copilot CLI interactive session. From the VS Code integrated terminal, start that session with `copilot`. Experimental scheduling must be enabled first with `/experimental on` or `--experimental`.
+
+Keep the loop quiet. Each `/after` invocation runs in a fresh stateless context — only `/tmp/copilot-loop-{PR}.txt` persists across runs (line 1: `pollingStartedAt` ISO timestamp; line 2: `lastProcessedReviewId`). The findings ledger lives in session memory and is lost between invocations; rebuild it from git log if needed. Emit the final report only when the review is clean. Poll every 1 minute for up to 15 minutes, then fall back to 10 minutes.
 
 ## Step 1 — Identify the PR
 
@@ -22,15 +24,49 @@ for r in reviews:
     if 'copilot' in r.get('user', {}).get('login', ''):
         last = r
 if last:
+    body = last.get('body') or ''
     print(last['id'], last['submitted_at'], last['commit_id'][:8])
+    print('BODY_CLEAN:', 'generated no new comments' in body)
+    print('BODY:', body.replace('\n', ' ')[:500])
 else:
     print('NO_REVIEW')
 "
 ```
 
-If `NO_REVIEW`: request a review (Step 6) and stop — tell me to re-run this prompt once the review arrives in ~10 minutes.
+If `NO_REVIEW`: on the first poll (temp file does not yet exist), request a review and initialize the temp file:
+
+```bash
+if [ ! -f /tmp/copilot-loop-{PR}.txt ]; then
+  gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
+  printf "%s\n\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > /tmp/copilot-loop-{PR}.txt
+fi
+```
+
+Compute elapsed minutes since polling started:
+
+```bash
+python3 -c "
+from datetime import datetime, timezone
+start = open('/tmp/copilot-loop-{PR}.txt').readlines()[0].strip()
+now = datetime.now(timezone.utc)
+then = datetime.fromisoformat(start.replace('Z', '+00:00'))
+print(int((now - then).total_seconds() / 60))
+"
+```
+
+Then schedule exactly one next poll: `/after 1m #copilot-loop.prompt.md` if < 15 minutes have elapsed, `/after 10m #copilot-loop.prompt.md` if ≥ 15. Stop — do not proceed further.
 
 ## Step 3 — Check if the review is clean
+
+**Before checking clean — confirm this is a new review:**
+
+Read the last processed review ID from line 2 of the temp file:
+
+```bash
+[ -f /tmp/copilot-loop-{PR}.txt ] && sed -n '2p' /tmp/copilot-loop-{PR}.txt || echo ""
+```
+
+If the output equals `{REVIEW_ID}`, a new review has not yet arrived. Read line 1 for the polling start time, compute elapsed minutes, and reschedule (same 1m/10m logic as above). Stop — do not process.
 
 **Check 1 — inline comments on the PR review:**
 
@@ -38,7 +74,7 @@ If `NO_REVIEW`: request a review (Step 6) and stop — tell me to re-run this pr
 gh api "repos/{owner}/{repo}/pulls/{PR}/reviews/{REVIEW_ID}/comments"
 ```
 
-Clean if the array is empty or the review body contains "generated no new comments".
+Clean if the array is empty or `BODY_CLEAN: True` was printed in Step 2.
 
 **Check 2 — latest `copilot-swe-agent[bot]` issue comment:**
 
@@ -55,7 +91,17 @@ for c in reversed(comments):
 
 Clean if the body contains any of: `clean`, `no issues`, `good to merge`, `no new comments`, `all.*tests pass`.
 
-**If clean: stop. Tell me Copilot found no issues and the loop is complete.**
+If clean: do not schedule another run. Delete the temp file:
+
+```bash
+rm -f /tmp/copilot-loop-{PR}.txt
+```
+
+Emit the final report:
+
+| Round | Finding | Status        | How handled | Evidence                       |
+| ----- | ------- | ------------- | ----------- | ------------------------------ |
+| 1     | ...     | fixed/refuted | ...         | thread id, commit SHA, or path |
 
 ## Step 4 — Process each inline comment
 
@@ -69,11 +115,11 @@ For each comment:
    npm run done
    ```
 
-   (`npm run done` = prettier → typecheck → eslint --fix → vitest run related.) Fix any errors it reports and re-run until clean.
-
 3. **If invalid/refuted:** Note the reason. No code changes.
 
-4. Commit all fixes together once all comments are processed:
+4. Add one row to the findings ledger for every comment you process. Include the review round, the finding, whether it was fixed or refuted, and how it was handled.
+
+5. Commit all fixes together once all comments are processed:
 
    ```bash
    git add <changed files>
@@ -121,7 +167,7 @@ Resolve each unresolved thread whose first comment author login contains `"copil
 gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "{NODE_ID}"}) { thread { isResolved } } }'
 ```
 
-## Step 6 — Request review and hand back
+## Step 6 — Request review and reschedule
 
 Request a new review:
 
@@ -129,17 +175,15 @@ Request a new review:
 gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
 ```
 
-Note: `gh pr edit --add-reviewer copilot` and `gh pr edit --add-reviewer github-copilot` do not work — use `copilot-pull-request-reviewer` exactly. Do **not** post `@copilot review` — that triggers the unrelated `copilot-swe-agent[bot]` bot.
+Note: use `copilot-pull-request-reviewer` exactly — `copilot` and `github-copilot` do not resolve. Do **not** post `@copilot review` — that triggers `copilot-swe-agent[bot]`.
 
-**Report back:**
+Reset the polling window by overwriting the temp file with the current timestamp on line 1 and the just-processed review ID on line 2:
 
-If fixes were committed and pushed:
+```bash
+printf "%s\n%s\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "{REVIEW_ID}" > /tmp/copilot-loop-{PR}.txt
+```
 
-> "Done. Fixes committed as {SHA} and pushed. New review requested — re-run this prompt once the Copilot review arrives in ~10 minutes."
-
-If all comments were refuted (no code changes):
-
-> "Done. All comments refuted — no code changes. New review requested — re-run this prompt once the Copilot review arrives."
+Then schedule the next iteration with `/after 1m #copilot-loop.prompt.md`. On subsequent polls where Step 3 detects the same review ID (no new review yet), compare the current time to line 1 of the temp file; if ≥ 15 minutes have elapsed, use `/after 10m #copilot-loop.prompt.md` instead.
 
 ## Repo-specific notes
 
