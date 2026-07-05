@@ -101,7 +101,7 @@ jobs:
         with:
           token: ${{ secrets.DEPLOY_TOKEN }}
           ref: ${{ github.event.workflow_run.head_sha }}
-          environment: ${{ github.event.workflow_run.head_branch == 'main' && 'api-production' || 'api-staging' }}
+          environment: ${{ github.event.workflow_run.head_branch == 'main' && 'Production' || 'api-staging' }}
           environment-url: ${{ steps.deploy.outputs.deployment-url }}
           initial-status: success
           auto-inactive: true
@@ -162,8 +162,13 @@ jobs:
             }
 
             const shouldDeactivate = (environment, index) => {
-              if (environment === "api-production" || environment === "api-staging") {
+              if (environment === "Production" || environment === "api-staging") {
                 return index > 0;
+              }
+
+              // Legacy API production naming.
+              if (environment === "api-production") {
+                return true;
               }
 
               // Legacy environments from earlier API workflow naming.

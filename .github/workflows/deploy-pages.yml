@@ -117,7 +117,7 @@ jobs:
         with:
           token: ${{ secrets.DEPLOY_TOKEN }}
           ref: ${{ github.event_name == 'push' && github.sha || github.event.pull_request.head.sha }}
-          environment: ${{ github.event_name == 'push' && 'pages-production' || format('pages-preview-pr-{0}', github.event.number) }}
+          environment: ${{ github.event_name == 'push' && 'Production-Pages' || 'preview' }}
           environment-url: ${{ steps.deploy-production.outputs.deployment-url || steps.preview-url.outputs.url }}
           initial-status: success
           auto-inactive: true
@@ -132,23 +132,39 @@ jobs:
       - name: Delete PR preview deployments
         uses: actions/github-script@v7
         env:
-          PREVIEW_ENVIRONMENT: ${{ format('pages-preview-pr-{0}', github.event.number) }}
+          PREVIEW_ENVIRONMENT: preview
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
         with:
           github-token: ${{ secrets.DEPLOY_TOKEN }}
           script: |
             const environment = process.env.PREVIEW_ENVIRONMENT;
-            if (!environment?.startsWith("pages-preview-pr-")) {
+            if (environment !== "preview") {
               throw new Error(`Unexpected preview environment: ${environment ?? "<missing>"}`);
             }
+            const prHeadSha = process.env.PR_HEAD_SHA;
+            const prHeadRef = process.env.PR_HEAD_REF;
             const { owner, repo } = context.repo;
-            const deployments = await github.paginate(github.rest.repos.listDeployments, {
+            const allDeployments = await github.paginate(github.rest.repos.listDeployments, {
               owner,
               repo,
               environment,
               per_page: 100,
             });
 
-            core.info(`Found ${deployments.length} deployments in ${environment}`);
+            // Only delete preview deployments that belong to this PR branch/SHA.
+            const deployments = allDeployments.filter((deployment) => {
+              const deploymentRef = deployment.ref ?? "";
+              return (
+                deployment.sha === prHeadSha ||
+                deploymentRef === prHeadRef ||
+                deploymentRef === `refs/heads/${prHeadRef}`
+              );
+            });
+
+            core.info(
+              `Found ${deployments.length} matching preview deployments for ref ${prHeadRef} (${prHeadSha})`,
+            );
 
             for (const deployment of deployments) {
               try {
@@ -198,8 +214,13 @@ jobs:
             }
 
             const shouldDeactivate = (environment, index) => {
-              if (environment === "pages-production") {
+              if (environment === "Production-Pages") {
                 return index > 0;
+              }
+
+              // Legacy Pages production naming.
+              if (environment === "pages-production") {
+                return true;
               }
 
               if (environment.startsWith("pages-preview-pr-")) {
@@ -212,7 +233,7 @@ jobs:
               }
 
               if (environment === "preview") {
-                return true;
+                return index > 0;
               }
 
               return false;
