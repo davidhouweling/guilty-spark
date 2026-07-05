@@ -214,8 +214,9 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         }
       }
 
+      const tickType = hasConnectedClients ? "follow" : "reconcile";
       this.logService.debug(
-        "UserTracker reconcile tick",
+        `UserTracker ${tickType} tick`,
         new Map([["hasConnectedClients", hasConnectedClients.toString()]]),
       );
 
