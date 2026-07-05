@@ -12,6 +12,7 @@ import {
   aFakeDurableObjectStorageWith,
 } from "../../../base/fakes/do.fake";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
+import { aFakeLogServiceWith } from "../../../services/log/fakes/log.fake";
 import {
   aFakeIndividualTrackerDOWith,
   aFakeIndividualTrackerViewStateWith,
@@ -1140,6 +1141,82 @@ describe("UserTrackerDO", () => {
     expect(reconciledPayload.state?.directory.trackers).toHaveLength(0);
     expect(localSetAlarmMock).toHaveBeenCalledTimes(2);
     expect(localDeleteAlarmMock).not.toHaveBeenCalled();
+  });
+
+  it("re-arms reconcile alarm and logs directory refresh failures when rebuild fails transiently", async () => {
+    const persistedStorage = new Map<string, unknown>();
+    let alarmTime: number | null = null;
+    const localSetAlarmMock = vi.fn<DurableObjectStorage["setAlarm"]>(async (scheduledTime) => {
+      alarmTime = typeof scheduledTime === "number" ? scheduledTime : scheduledTime.getTime();
+      return Promise.resolve();
+    });
+    const localGetAlarmMock = vi.fn<DurableObjectStorage["getAlarm"]>(async () => {
+      return Promise.resolve(alarmTime);
+    });
+    const localDeleteAlarmMock = vi.fn<DurableObjectStorage["deleteAlarm"]>(async () => {
+      alarmTime = null;
+      return Promise.resolve();
+    });
+    const sharedStorage = aFakeDurableObjectStorageWith({
+      get: (async (key: string | string[]) => {
+        if (typeof key !== "string") {
+          const values = new Map<string, unknown>();
+          for (const currentKey of key) {
+            const currentValue = persistedStorage.get(currentKey);
+            if (currentValue !== undefined) {
+              values.set(currentKey, currentValue);
+            }
+          }
+
+          return await Promise.resolve(values);
+        }
+
+        return await Promise.resolve(persistedStorage.get(key));
+      }) as DurableObjectStorage["get"],
+      put: (async (key: string, value: unknown) => {
+        persistedStorage.set(key, value);
+        await Promise.resolve();
+      }) as DurableObjectStorage["put"],
+      setAlarm: localSetAlarmMock,
+      getAlarm: localGetAlarmMock,
+      deleteAlarm: localDeleteAlarmMock,
+    });
+    const localState = aFakeDurableObjectStateWith({ storage: sharedStorage });
+    const trackerDo = aFakeIndividualTrackerDOWith({ viewStateResponse: { state: null } });
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const logService = aFakeLogServiceWith();
+    const errorSpy = vi.spyOn(logService, "error");
+    const services = installFakeServicesWith({ env: localEnv, logService });
+    vi.spyOn(localState, "getWebSockets").mockReturnValue([]);
+    const transientFailure = new Error("transient reconcile failure");
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
+      .mockResolvedValueOnce([
+        aFakeIndividualTrackersRow({
+          TrackerId: "t1",
+          UserId: "user-1",
+          Gamertag: "KnownTag",
+          Status: "active",
+          IsLive: 1,
+        }),
+      ])
+      .mockRejectedValueOnce(transientFailure);
+    const localUserTrackerDO = new UserTrackerDO(localState, localEnv, () => services, webSocketAdapter);
+
+    const initialResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/view-state?userId=user-1", { method: "GET" }),
+    );
+    expect(initialResponse.status).toBe(200);
+    expect(localSetAlarmMock).toHaveBeenCalledOnce();
+
+    alarmTime = null;
+    await localUserTrackerDO.alarm();
+
+    expect(localSetAlarmMock).toHaveBeenCalledTimes(2);
+    expect(localDeleteAlarmMock).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
+    const [loggedError, loggedContext] = errorSpy.mock.calls.at(-1) ?? [];
+    expect(loggedError).toBe(transientFailure);
+    expect(loggedContext?.get("context")).toBe("UserTracker directory refresh error");
   });
 
   it("stops the update loop through alarm when no websocket clients are connected", async () => {
