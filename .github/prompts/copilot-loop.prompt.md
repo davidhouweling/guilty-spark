@@ -5,7 +5,7 @@ description: "Process the latest Copilot PR review: fix valid issues, reply to a
 
 Run one iteration of the Copilot review loop on the current PR in the GitHub Copilot CLI interactive session. From the VS Code integrated terminal, start that session with `copilot`. Experimental scheduling must be enabled first with `/experimental on` or `--experimental`.
 
-Keep the loop quiet. Polling state is persisted to `/tmp/copilot-loop-{PR}.txt` (each `/after` invocation is stateless): line 1 is `pollingStartedAt` (ISO timestamp), line 2 is `lastProcessedReviewId`. The findings ledger is only maintained within a single continuous session; emit the final report only when the review is clean. Poll every 1 minute for up to 15 minutes, then fall back to 10 minutes.
+Keep the loop quiet. Each `/after` invocation runs in a fresh stateless context — only `/tmp/copilot-loop-{PR}.txt` persists across runs (line 1: `pollingStartedAt` ISO timestamp; line 2: `lastProcessedReviewId`). The findings ledger lives in session memory and is lost between invocations; rebuild it from git log if needed. Emit the final report only when the review is clean. Poll every 1 minute for up to 15 minutes, then fall back to 10 minutes.
 
 ## Step 1 — Identify the PR
 

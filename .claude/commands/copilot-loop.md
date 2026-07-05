@@ -15,10 +15,11 @@ Parse these from the invocation prompt if present (tokens follow the format `key
 - `iteration` — consecutive polls without a new review (e.g. `iteration:3`; default `0`)
 - `lastReviewId` — ID of the last processed review (e.g. `lastReviewId:4631032003`; default empty)
 
-Stop any active loop schedule by listing and stopping the one whose prompt contains "copilot-loop skill to process the Copilot PR review. PR:{PR}":
+Stop all active loop schedules for this PR by listing and stopping every schedule whose prompt contains "copilot-loop skill to process the Copilot PR review. PR:{PR}":
 
 ```
 manage_schedule(action: 'list')
+// for each matching schedule:
 manage_schedule(action: 'stop', id: <matching id>)
 ```
 
