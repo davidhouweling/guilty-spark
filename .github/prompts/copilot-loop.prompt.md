@@ -33,16 +33,13 @@ else:
 "
 ```
 
-If `NO_REVIEW`: request a new review:
+If `NO_REVIEW`: on the first poll (temp file does not yet exist), request a review and initialize the temp file:
 
 ```bash
-gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
-```
-
-On first poll, initialize the temp file with the current timestamp (line 1) and a blank review ID (line 2) if it does not already exist:
-
-```bash
-[ -f /tmp/copilot-loop-{PR}.txt ] || printf "%s\n\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > /tmp/copilot-loop-{PR}.txt
+if [ ! -f /tmp/copilot-loop-{PR}.txt ]; then
+  gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
+  printf "%s\n\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > /tmp/copilot-loop-{PR}.txt
+fi
 ```
 
 Schedule the next poll with `/after 1m #copilot-loop.prompt.md`. On each subsequent run, read the start time and compute elapsed minutes:

@@ -42,13 +42,14 @@ else:
 "
 ```
 
-**If `NO_REVIEW`:** request a new review:
+**If `NO_REVIEW`:** only request a new review on the first poll (`iteration == 0`):
 
 ```bash
+# run only when iteration is 0
 gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
 ```
 
-Then compute `nextIteration = iteration + 1`, use interval `1m` if `nextIteration ≤ 15` else `10m`, schedule the next poll, and stop:
+Subsequent NO_REVIEW polls (iteration > 0) skip the reviewer request. Compute `nextIteration = iteration + 1`, use interval `1m` if `nextIteration ≤ 15` else `10m`, schedule the next poll, and stop:
 
 ```
 manage_schedule(action: 'create', interval: '{interval}',
