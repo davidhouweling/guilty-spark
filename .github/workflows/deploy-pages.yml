@@ -117,7 +117,7 @@ jobs:
         with:
           token: ${{ secrets.DEPLOY_TOKEN }}
           ref: ${{ github.event_name == 'push' && github.sha || github.event.pull_request.head.sha }}
-          environment: ${{ github.event_name == 'push' && 'pages-production' || 'preview' }}
+          environment: ${{ github.event_name == 'push' && 'Production-Pages' || 'preview' }}
           environment-url: ${{ steps.deploy-production.outputs.deployment-url || steps.preview-url.outputs.url }}
           initial-status: success
           auto-inactive: true
@@ -214,8 +214,13 @@ jobs:
             }
 
             const shouldDeactivate = (environment, index) => {
-              if (environment === "pages-production") {
+              if (environment === "Production-Pages") {
                 return index > 0;
+              }
+
+              // Legacy Pages production naming.
+              if (environment === "pages-production") {
+                return true;
               }
 
               if (environment.startsWith("pages-preview-pr-")) {
