@@ -1307,10 +1307,10 @@ describe("UserTrackerDO", () => {
       return Promise.resolve();
     });
     const sharedStorage = aFakeDurableObjectStorageWith({
-      get: (async () => {
+      get: async () => {
         await Promise.resolve();
         throw stateLoadFailure;
-      }),
+      },
       setAlarm: localSetAlarmMock,
       getAlarm: localGetAlarmMock,
       deleteAlarm: localDeleteAlarmMock,
