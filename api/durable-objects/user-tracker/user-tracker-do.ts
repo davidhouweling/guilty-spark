@@ -615,6 +615,13 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       }
     }
 
+    const trackerIdsToRefresh = new Set(dirtyTrackerIds);
+    for (const trackerId of rowsByTrackerId.keys()) {
+      if (!nextTrackersById.has(trackerId)) {
+        trackerIdsToRefresh.add(trackerId);
+      }
+    }
+
     const previousStatsHighlightSlots = normalizeStatsHighlightSlots(
       previousDirectory.streamerSettings?.visibleSections?.statsHighlightSlots,
     );
@@ -626,7 +633,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     const statsHighlightSlots = nextStatsHighlightSlots;
 
     const dirtyTrackerUpdates = await Promise.all(
-      Array.from(dirtyTrackerIds, async (trackerId) => {
+      Array.from(trackerIdsToRefresh, async (trackerId) => {
         const row = rowsByTrackerId.get(trackerId);
         if (row == null) {
           return { trackerId, tracker: null };
