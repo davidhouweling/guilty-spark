@@ -10,16 +10,16 @@ Resolve `PR` using the first match:
 2. `PR:` key in the invocation prompt — e.g. `PR:643` (present on scheduled runs)
 3. Fallback — `gh pr view --json number --jq '.number'`
 
-Also parse these from the invocation prompt if present (all default to their zero values on manual runs):
+Parse these from the invocation prompt if present (default to zero values on manual runs):
 
-- `scheduleId` — schedule to stop on entry (e.g. `scheduleId:5`; default absent)
 - `iteration` — consecutive polls without a new review (e.g. `iteration:3`; default `0`)
 - `lastReviewId` — ID of the last processed review (e.g. `lastReviewId:4631032003`; default empty)
 
-If `scheduleId` is present, stop it immediately:
+Stop any active loop schedule by listing and stopping the one whose prompt contains "copilot-loop skill to process the Copilot PR review":
 
 ```
-manage_schedule(action: 'stop', id: <scheduleId>)
+manage_schedule(action: 'list')
+manage_schedule(action: 'stop', id: <matching id>)
 ```
 
 ## Step 1 — Find the latest Copilot PR review
@@ -40,11 +40,11 @@ else:
 "
 ```
 
-**If `NO_REVIEW`:** request a review (Step 4) then schedule the next poll and stop:
+**If `NO_REVIEW`:** request a review (Step 4) then compute `nextIteration = iteration + 1`, use interval `1m` if `nextIteration ≤ 15` else `10m`, schedule the next poll, and stop:
 
 ```
-manage_schedule(action: 'create', interval: '1m',
-  prompt: 'Run the copilot-loop skill to process the Copilot PR review. PR:{PR} scheduleId:{returnedId} iteration:1 lastReviewId:')
+manage_schedule(action: 'create', interval: '{interval}',
+  prompt: 'Run the copilot-loop skill to process the Copilot PR review. PR:{PR} iteration:{nextIteration} lastReviewId:')
 ```
 
 ## Step 2 — Check if a new review has arrived
@@ -55,7 +55,7 @@ Compute `nextIteration = iteration + 1`. Use interval `1m` if `nextIteration ≤
 
 ```
 manage_schedule(action: 'create', interval: '{interval}',
-  prompt: 'Run the copilot-loop skill to process the Copilot PR review. PR:{PR} scheduleId:{returnedId} iteration:{nextIteration} lastReviewId:{lastReviewId}')
+  prompt: 'Run the copilot-loop skill to process the Copilot PR review. PR:{PR} iteration:{nextIteration} lastReviewId:{lastReviewId}')
 ```
 
 ## Step 3 — Check if the review is clean
@@ -152,7 +152,7 @@ Schedule the next poll at 1m, carrying the just-processed review ID forward so S
 
 ```
 manage_schedule(action: 'create', interval: '1m',
-  prompt: 'Run the copilot-loop skill to process the Copilot PR review. PR:{PR} scheduleId:{returnedId} iteration:1 lastReviewId:{REVIEW_ID}')
+  prompt: 'Run the copilot-loop skill to process the Copilot PR review. PR:{PR} iteration:1 lastReviewId:{REVIEW_ID}')
 ```
 
 ## Repo-specific notes
