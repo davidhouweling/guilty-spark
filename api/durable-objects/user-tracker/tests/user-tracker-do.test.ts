@@ -1059,6 +1059,74 @@ describe("UserTrackerDO", () => {
     expect(setAlarmMock).toHaveBeenCalledTimes(1);
   });
 
+  it("reconciles through alarm when no websocket clients are connected but state exists", async () => {
+    const persistedStorage = new Map<string, unknown>();
+    const sharedStorage = aFakeDurableObjectStorageWith({
+      get: (async (key: string | string[]) => {
+        if (typeof key !== "string") {
+          const values = new Map<string, unknown>();
+          for (const currentKey of key) {
+            const currentValue = persistedStorage.get(currentKey);
+            if (currentValue !== undefined) {
+              values.set(currentKey, currentValue);
+            }
+          }
+
+          return await Promise.resolve(values);
+        }
+
+        return await Promise.resolve(persistedStorage.get(key));
+      }) as DurableObjectStorage["get"],
+      put: (async (key: string, value: unknown) => {
+        persistedStorage.set(key, value);
+        await Promise.resolve();
+      }) as DurableObjectStorage["put"],
+      setAlarm: setAlarmMock,
+      deleteAlarm: deleteAlarmMock,
+    });
+    const localState = aFakeDurableObjectStateWith({ storage: sharedStorage });
+    const trackerDo = aFakeIndividualTrackerDOWith({ viewStateResponse: { state: null } });
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const services = installFakeServicesWith({ env: localEnv });
+    vi.spyOn(localState, "getWebSockets").mockReturnValue([]);
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
+      .mockResolvedValueOnce([
+        aFakeIndividualTrackersRow({
+          TrackerId: "t1",
+          UserId: "user-1",
+          Gamertag: "KnownTag",
+          Status: "active",
+          IsLive: 1,
+        }),
+      ])
+      .mockResolvedValueOnce([
+        aFakeIndividualTrackersRow({
+          TrackerId: "t1",
+          UserId: "user-1",
+          Gamertag: "KnownTag",
+          Status: "stopped",
+          IsLive: 1,
+        }),
+      ]);
+    const localUserTrackerDO = new UserTrackerDO(localState, localEnv, () => services, webSocketAdapter);
+
+    const initialResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/view-state?userId=user-1", { method: "GET" }),
+    );
+    const initialPayload = await userTrackerViewStateContract.fromResponse(initialResponse);
+    expect(initialPayload.state?.directory.trackers).toHaveLength(1);
+
+    await localUserTrackerDO.alarm();
+
+    const reconciledResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/view-state?userId=user-1", { method: "GET" }),
+    );
+    const reconciledPayload = await userTrackerViewStateContract.fromResponse(reconciledResponse);
+    expect(reconciledPayload.state?.directory.trackers).toHaveLength(0);
+    expect(setAlarmMock).toHaveBeenCalled();
+    expect(deleteAlarmMock).not.toHaveBeenCalled();
+  });
+
   it("stops the update loop through alarm when no websocket clients are connected", async () => {
     vi.spyOn(mockState, "getWebSockets").mockReturnValue([]);
 

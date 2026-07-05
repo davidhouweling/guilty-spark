@@ -32,6 +32,7 @@ import { emptyTrackerDirectory, type UserTrackerInternalState } from "./types";
 const USER_TRACKER_STATE_KEY = "userTrackerState";
 const USER_TRACKER_MARKERS_KEY = "userTrackerMarkers";
 const FOLLOW_WS_POLL_INTERVAL_MS = 3000;
+const USER_TRACKER_RECONCILE_INTERVAL_MS = 30000;
 const TRACKER_MARKER_LIMIT = 500;
 
 function isNonStopped(row: IndividualTrackersRow): boolean {
@@ -203,10 +204,20 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       Sentry.setTag("durableObject", "UserTrackerDO");
       Sentry.setTag("method", "alarm");
 
-      if (this.state.getWebSockets().length === 0) {
+      const hasConnectedClients = this.state.getWebSockets().length > 0;
+      if (!hasConnectedClients) {
         await this.stopUpdateLoop();
-        return;
+
+        const stored = await this.loadState();
+        if (stored.state?.userId == null) {
+          return;
+        }
       }
+
+      this.logService.debug(
+        "UserTracker reconcile tick",
+        new Map([["hasConnectedClients", hasConnectedClients.toString()]]),
+      );
 
       try {
         await this.queueDirectoryPush();
@@ -215,7 +226,9 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         Sentry.captureException(error);
       }
 
-      await this.scheduleNextAlarm();
+      await this.scheduleNextAlarm(
+        hasConnectedClients ? FOLLOW_WS_POLL_INTERVAL_MS : USER_TRACKER_RECONCILE_INTERVAL_MS,
+      );
     });
   }
 
@@ -241,6 +254,10 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
   private async handleViewState(request: Request): Promise<Response> {
     const stored = await this.getOrBuildState(request);
+    if (stored?.state?.userId != null && this.state.getWebSockets().length === 0) {
+      await this.scheduleNextAlarm(USER_TRACKER_RECONCILE_INTERVAL_MS);
+    }
+
     const response: UserTrackerViewStateResponse = {
       state: stored?.viewState ?? null,
     };
@@ -363,7 +380,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async ensureUpdateLoopStarted(): Promise<void> {
-    await this.scheduleNextAlarm();
+    await this.scheduleNextAlarm(FOLLOW_WS_POLL_INTERVAL_MS);
 
     if (this.trackerSubscriptionsInstalled) {
       return;
@@ -379,7 +396,14 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       // reset after closing
     };
     this.trackerSubscriptionsInstalled = false;
-    await this.state.storage.deleteAlarm();
+
+    const stored = await this.loadState();
+    if (stored.state?.userId == null) {
+      await this.state.storage.deleteAlarm();
+      return;
+    }
+
+    await this.scheduleNextAlarm(USER_TRACKER_RECONCILE_INTERVAL_MS);
   }
 
   private async installTrackerSubscriptionsAsync(): Promise<void> {
@@ -534,8 +558,8 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     }
   }
 
-  private async scheduleNextAlarm(): Promise<void> {
-    await this.state.storage.setAlarm(Date.now() + FOLLOW_WS_POLL_INTERVAL_MS);
+  private async scheduleNextAlarm(intervalMs: number): Promise<void> {
+    await this.state.storage.setAlarm(Date.now() + intervalMs);
   }
 
   private async shouldAcceptNudge(payload: TrackerChangedPayload): Promise<boolean> {
