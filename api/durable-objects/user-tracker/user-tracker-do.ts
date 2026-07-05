@@ -206,12 +206,13 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
       const hasConnectedClients = this.state.getWebSockets().length > 0;
       if (!hasConnectedClients) {
-        await this.stopUpdateLoop({ scheduleReconcile: false });
-
         const stored = await this.loadState();
         if (stored.state?.userId == null) {
+          await this.stopUpdateLoop({ scheduleReconcile: false, stored });
           return;
         }
+
+        await this.stopUpdateLoop({ scheduleReconcile: false, stored });
       }
 
       const tickType = hasConnectedClients ? "follow" : "reconcile";
@@ -391,14 +392,16 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     void this.installTrackerSubscriptionsAsync();
   }
 
-  private async stopUpdateLoop(options: { scheduleReconcile: boolean } = { scheduleReconcile: true }): Promise<void> {
+  private async stopUpdateLoop(
+    options: { scheduleReconcile: boolean; stored?: UserTrackerInternalState } = { scheduleReconcile: true },
+  ): Promise<void> {
     this.closeTrackerSubscriptions();
     this.closeTrackerSubscriptions = (): void => {
       // reset after closing
     };
     this.trackerSubscriptionsInstalled = false;
 
-    const stored = await this.loadState();
+    const stored = options.stored ?? (await this.loadState());
     if (stored.state?.userId == null) {
       await this.state.storage.deleteAlarm();
       return;
