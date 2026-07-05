@@ -255,7 +255,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private async handleViewState(request: Request): Promise<Response> {
     const stored = await this.getOrBuildState(request);
     if (stored?.state?.userId != null && this.state.getWebSockets().length === 0) {
-      await this.scheduleNextAlarm(USER_TRACKER_RECONCILE_INTERVAL_MS);
+      await this.scheduleReconcileAlarmIfNeeded();
     }
 
     const response: UserTrackerViewStateResponse = {
@@ -400,6 +400,15 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     const stored = await this.loadState();
     if (stored.state?.userId == null) {
       await this.state.storage.deleteAlarm();
+      return;
+    }
+
+    await this.scheduleReconcileAlarmIfNeeded();
+  }
+
+  private async scheduleReconcileAlarmIfNeeded(): Promise<void> {
+    const nextAlarmTime = await this.state.storage.getAlarm();
+    if (nextAlarmTime != null) {
       return;
     }
 

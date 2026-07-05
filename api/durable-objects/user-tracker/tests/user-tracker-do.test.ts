@@ -1061,6 +1061,18 @@ describe("UserTrackerDO", () => {
 
   it("reconciles through alarm when no websocket clients are connected but state exists", async () => {
     const persistedStorage = new Map<string, unknown>();
+    let alarmTime: number | null = null;
+    const localSetAlarmMock = vi.fn<DurableObjectStorage["setAlarm"]>(async (scheduledTime) => {
+      alarmTime = typeof scheduledTime === "number" ? scheduledTime : scheduledTime.getTime();
+      return Promise.resolve();
+    });
+    const localGetAlarmMock = vi.fn<DurableObjectStorage["getAlarm"]>(async () => {
+      return Promise.resolve(alarmTime);
+    });
+    const localDeleteAlarmMock = vi.fn<DurableObjectStorage["deleteAlarm"]>(async () => {
+      alarmTime = null;
+      return Promise.resolve();
+    });
     const sharedStorage = aFakeDurableObjectStorageWith({
       get: (async (key: string | string[]) => {
         if (typeof key !== "string") {
@@ -1081,8 +1093,9 @@ describe("UserTrackerDO", () => {
         persistedStorage.set(key, value);
         await Promise.resolve();
       }) as DurableObjectStorage["put"],
-      setAlarm: setAlarmMock,
-      deleteAlarm: deleteAlarmMock,
+      setAlarm: localSetAlarmMock,
+      getAlarm: localGetAlarmMock,
+      deleteAlarm: localDeleteAlarmMock,
     });
     const localState = aFakeDurableObjectStateWith({ storage: sharedStorage });
     const trackerDo = aFakeIndividualTrackerDOWith({ viewStateResponse: { state: null } });
@@ -1115,6 +1128,7 @@ describe("UserTrackerDO", () => {
     );
     const initialPayload = await userTrackerViewStateContract.fromResponse(initialResponse);
     expect(initialPayload.state?.directory.trackers).toHaveLength(1);
+    expect(localSetAlarmMock).toHaveBeenCalledOnce();
 
     await localUserTrackerDO.alarm();
 
@@ -1123,8 +1137,8 @@ describe("UserTrackerDO", () => {
     );
     const reconciledPayload = await userTrackerViewStateContract.fromResponse(reconciledResponse);
     expect(reconciledPayload.state?.directory.trackers).toHaveLength(0);
-    expect(setAlarmMock).toHaveBeenCalled();
-    expect(deleteAlarmMock).not.toHaveBeenCalled();
+    expect(localSetAlarmMock).toHaveBeenCalledTimes(2);
+    expect(localDeleteAlarmMock).not.toHaveBeenCalled();
   });
 
   it("stops the update loop through alarm when no websocket clients are connected", async () => {
