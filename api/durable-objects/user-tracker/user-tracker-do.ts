@@ -625,15 +625,25 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
     const statsHighlightSlots = nextStatsHighlightSlots;
 
-    for (const trackerId of dirtyTrackerIds) {
-      const row = rowsByTrackerId.get(trackerId);
-      if (row == null) {
-        nextTrackersById.delete(trackerId);
+    const dirtyTrackerUpdates = await Promise.all(
+      Array.from(dirtyTrackerIds, async (trackerId) => {
+        const row = rowsByTrackerId.get(trackerId);
+        if (row == null) {
+          return { trackerId, tracker: null };
+        }
+
+        const doState = await fetchTrackerDoViewState(this.env, row.UserId, row.TrackerId, statsHighlightSlots);
+        return { trackerId, tracker: toTrackerView(row, doState) };
+      }),
+    );
+
+    for (const update of dirtyTrackerUpdates) {
+      if (update.tracker == null) {
+        nextTrackersById.delete(update.trackerId);
         continue;
       }
 
-      const doState = await fetchTrackerDoViewState(this.env, row.UserId, row.TrackerId, statsHighlightSlots);
-      nextTrackersById.set(trackerId, toTrackerView(row, doState));
+      nextTrackersById.set(update.trackerId, update.tracker);
     }
 
     const entries = Array.from(nextTrackersById.values());

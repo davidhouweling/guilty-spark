@@ -231,7 +231,7 @@ describe("UserTrackerDO", () => {
     });
   });
 
-  it("restores consumed dirty tracker ids when a full rebuild fails", async () => {
+  it("restores consumed dirty tracker ids when directory refresh fails", async () => {
     const persistedStorage = new Map<string, unknown>();
     const sharedStorage = aFakeDurableObjectStorageWith({
       get: (async (key: string | string[]) => {
