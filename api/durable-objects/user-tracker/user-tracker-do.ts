@@ -556,7 +556,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
             ["userId", stored.state?.userId ?? "unknown"],
             ["refreshMode", this.dirtyTrackerIds.size === 0 || stored.viewState == null ? "full" : "incremental"],
             ["dirtyTrackerCount", this.dirtyTrackerIds.size.toString()],
-          ])
+          ]),
         );
       }
     }
