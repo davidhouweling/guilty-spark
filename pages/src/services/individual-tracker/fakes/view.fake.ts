@@ -1,5 +1,6 @@
 import type {
   StatsHighlightItem,
+  TrackerLiveMessageView,
   TrackerLiveView,
   TrackerMatchSummary,
   TrackerSeriesGroup,
@@ -143,7 +144,7 @@ class FakeTrackerViewConnection implements TrackerViewConnection {
     }
   }
 
-  public emitView(view: TrackerLiveView): void {
+  public emitView(view: TrackerLiveMessageView): void {
     for (const listener of this.listeners) {
       listener(view);
     }

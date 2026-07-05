@@ -186,6 +186,7 @@ describe("trackerViewMessageSchema", () => {
       lastMatchDiscoveredAt: "2024-11-26T11:55:00.000Z",
       hasActiveSeries: false,
       hasRecentCompletedSeries: false,
+      statsHighlights: [{ label: "KDA", value: "3.0" }],
     },
   };
 
@@ -193,8 +194,29 @@ describe("trackerViewMessageSchema", () => {
     expect(trackerViewMessageSchema.parse(validMessage)).toEqual(validMessage);
   });
 
-  it("does not include isLive in the live-view payload", () => {
+  it("does not include isLive in the websocket live-view payload", () => {
     expect("isLive" in validMessage.view).toBe(false);
+  });
+
+  it("accepts preSeriesPlayerInfo in websocket payload", () => {
+    const result = trackerViewMessageSchema.safeParse({
+      ...validMessage,
+      view: {
+        ...validMessage.view,
+        preSeriesPlayerInfo: {
+          currentRank: 1500,
+          currentRankTier: "Diamond",
+          currentRankSubTier: 2,
+          currentRankMeasurementMatchesRemaining: null,
+          currentRankInitialMeasurementMatches: null,
+          allTimePeakRank: 1610,
+          esra: 1488,
+          lastRankedGamePlayed: "2024-11-26T10:00:00.000Z",
+        },
+      },
+    });
+
+    expect(result.success).toBe(true);
   });
 
   it("rejects a message with the wrong type literal", () => {

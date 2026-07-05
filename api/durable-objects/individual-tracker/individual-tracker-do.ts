@@ -56,6 +56,8 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import {
+  DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS,
+  INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
   INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT,
   INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS,
   type IndividualStatsHighlightOption,
@@ -140,6 +142,11 @@ function parseStatsHighlightSlots(url: URL): readonly IndividualStatsHighlightOp
   return parsedSlots.data;
 }
 
+const DEFAULT_WEBSOCKET_STATS_HIGHLIGHT_SLOTS = DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS.slice(
+  0,
+  INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
+);
+
 function normalizeRankTier(rankTier: string | null | undefined): string | null {
   if (rankTier == null || rankTier === "") {
     return null;
@@ -160,6 +167,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private statsHighlightsCacheKey: string | undefined;
   private cachedStatsHighlights: readonly StatsHighlightItem[] | undefined;
   private cachedResolvedRosterCount: number | undefined;
+  private websocketStatsHighlightSlots: readonly IndividualStatsHighlightOption[] =
+    DEFAULT_WEBSOCKET_STATS_HIGHLIGHT_SLOTS;
 
   constructor(
     state: DurableObjectState,
@@ -304,7 +313,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         trackerState.lastUpdateTime = new Date().toISOString();
         await this.state.storage.deleteAlarm();
         await this.setState(trackerState);
-        this.broadcastViewState(trackerState);
+        await this.broadcastViewState(trackerState);
         this.closeWebSockets("Tracker idle timeout");
         await this.markRegistryStopped(trackerState);
         this.notifyUserTracker(trackerState);
@@ -335,7 +344,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       this.notifyUserTracker(trackerState);
     }
     if (shouldNotifyUserTracker) {
-      this.broadcastViewState(trackerState);
+      await this.broadcastViewState(trackerState);
     }
     await this.state.storage.setAlarm(addMilliseconds(new Date(), this.getNextAlarmInterval(trackerState)).getTime());
   }
@@ -902,7 +911,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.lastUpdateTime = new Date().toISOString();
     await this.state.storage.deleteAlarm();
     await this.setState(trackerState);
-    this.broadcastViewState(trackerState);
+    await this.broadcastViewState(trackerState);
 
     this.logService.info(
       "IndividualTracker: tracker paused",
@@ -927,7 +936,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.setState(trackerState);
     const resumeAlarmDelay = this.hasPendingRecompute(trackerState) ? 0 : ALARM_INTERVAL_MS;
     await this.state.storage.setAlarm(addMilliseconds(new Date(), resumeAlarmDelay).getTime());
-    this.broadcastViewState(trackerState);
+    await this.broadcastViewState(trackerState);
 
     this.logService.info(
       "IndividualTracker: tracker resumed",
@@ -949,7 +958,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     if (trackerState != null) {
       trackerState.status = "stopped";
       trackerState.lastUpdateTime = new Date().toISOString();
-      this.broadcastViewState(trackerState);
+      await this.broadcastViewState(trackerState);
       this.closeWebSockets("Tracker stopped");
       this.logService.info(
         "IndividualTracker: tracker stopped",
@@ -1004,7 +1013,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     await this.setState(trackerState);
     this.notifyUserTracker(trackerState);
-    this.broadcastViewState(trackerState);
+    await this.broadcastViewState(trackerState);
     if (selectionChanged && !trackerState.isPaused) {
       await this.state.storage.setAlarm(Date.now());
     }
@@ -1389,7 +1398,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     await this.setState(trackerState);
     this.notifyUserTracker(trackerState);
-    this.broadcastViewState(trackerState);
+    await this.broadcastViewState(trackerState);
 
     this.logService.info(
       "IndividualTracker: series started",
@@ -1417,7 +1426,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     await this.setState(trackerState);
     this.notifyUserTracker(trackerState);
-    this.broadcastViewState(trackerState);
+    await this.broadcastViewState(trackerState);
 
     this.logService.info(
       "IndividualTracker: series ended",
@@ -1459,7 +1468,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     await this.setState(trackerState);
     this.notifyUserTracker(trackerState);
-    this.broadcastViewState(trackerState);
+    await this.broadcastViewState(trackerState);
 
     return editSeriesContract.toResponse({ success: true });
   }
@@ -1486,7 +1495,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     trackerState.lastUpdateTime = new Date().toISOString();
 
     await this.setState(trackerState);
-    this.broadcastViewState(trackerState);
+    await this.broadcastViewState(trackerState);
 
     this.logService.info(
       "IndividualTracker: series resumed",
@@ -1615,7 +1624,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     await this.setState(trackerState);
     this.notifyUserTracker(trackerState);
-    this.broadcastViewState(trackerState);
+    await this.broadcastViewState(trackerState);
     await this.state.storage.setAlarm(Date.now());
 
     return individualTrackerNudgeContract.toResponse({ success: true });
@@ -2030,8 +2039,23 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     };
   }
 
-  private viewMessage(state: IndividualTrackerInternalState): string {
-    return trackerViewMessageContract.serialize({ type: "view", view: this.toViewState(state) });
+  private async buildRealtimeViewState(state: IndividualTrackerInternalState): Promise<IndividualTrackerViewState> {
+    const statsHighlights =
+      this.websocketStatsHighlightSlots.length > 0
+        ? await this.buildStatsHighlights(state, this.websocketStatsHighlightSlots)
+        : undefined;
+    const preSeriesPlayerInfo = await this.getPreSeriesPlayerInfo(state);
+
+    return {
+      ...this.toViewState(state),
+      ...(statsHighlights != null ? { statsHighlights: [...statsHighlights] } : {}),
+      ...(preSeriesPlayerInfo != null ? { preSeriesPlayerInfo } : {}),
+    };
+  }
+
+  private async viewMessage(state: IndividualTrackerInternalState): Promise<string> {
+    const view = await this.buildRealtimeViewState(state);
+    return trackerViewMessageContract.serialize({ type: "view", view });
   }
 
   private async handleWebSocket(request: Request): Promise<Response> {
@@ -2041,6 +2065,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     const trackerState = await this.getState();
+    const url = new URL(request.url);
+    const requestedStatsHighlightSlots = parseStatsHighlightSlots(url);
+    this.websocketStatsHighlightSlots =
+      requestedStatsHighlightSlots.length > 0 ? requestedStatsHighlightSlots : DEFAULT_WEBSOCKET_STATS_HIGHLIGHT_SLOTS;
+
     this.logService.info(
       "IndividualTracker: WebSocket connection requested",
       new Map([
@@ -2049,9 +2078,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       ]),
     );
     try {
+      const initialMessage = trackerState != null ? await this.viewMessage(trackerState) : undefined;
       const response = this.webSocketAdapter.upgrade(
         this.state,
-        trackerState != null ? this.viewMessage(trackerState) : undefined,
+        initialMessage,
       );
       this.logService.info(
         "IndividualTracker: WebSocket connection established",
@@ -2089,8 +2119,12 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     this.logService.warn(error, new Map([["context", "IndividualTracker: WebSocket error"]]));
   }
 
-  private broadcastViewState(state: IndividualTrackerInternalState): void {
-    this.webSocketAdapter.broadcast(this.state, this.viewMessage(state));
+  private async broadcastViewState(state: IndividualTrackerInternalState): Promise<void> {
+    try {
+      this.webSocketAdapter.broadcast(this.state, await this.viewMessage(state));
+    } catch (error: unknown) {
+      this.logService.warn(error, new Map([["context", "IndividualTracker: failed to broadcast view state"]]));
+    }
   }
 
   private closeWebSockets(reason: string): void {

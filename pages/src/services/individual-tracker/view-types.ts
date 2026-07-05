@@ -1,6 +1,6 @@
-import type { TrackerLiveView, TrackerViewResponse } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import type { TrackerLiveMessageView, TrackerViewResponse } from "@guilty-spark/shared/contracts/individual-tracker/view";
 
-export type TrackerViewListener = (view: TrackerLiveView) => void;
+export type TrackerViewListener = (view: TrackerLiveMessageView) => void;
 
 export type TrackerViewConnectionStatus =
   | "connecting"
