@@ -95,23 +95,13 @@ jobs:
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
           TOKEN_ENCRYPTION_SECRET: ${{ secrets.TOKEN_ENCRYPTION_SECRET }}
 
-      - name: Resolve deployment URL
-        id: deployment-url
-        env:
-          WRANGLER_OUTPUT: ${{ steps.deploy.outputs.command-output }}
-        run: |
-          url=$(printf '%s' "$WRANGLER_OUTPUT" \
-            | grep -oE 'https://[a-z0-9.-]+\.workers\.dev' \
-            | head -1)
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-
       - name: Update GitHub deployment
         id: update_deployment
         uses: chrnorm/deployment-action@v2
         with:
           token: ${{ secrets.DEPLOY_TOKEN }}
           environment: ${{ github.event.workflow_run.head_branch == 'main' && 'api-production' || 'api-staging' }}
-          environment-url: ${{ steps.deployment-url.outputs.url }}
+          environment-url: ${{ steps.deploy.outputs.deployment-url }}
           initial-status: success
           auto-inactive: true
           transient-environment: ${{ github.event.workflow_run.head_branch != 'main' }}

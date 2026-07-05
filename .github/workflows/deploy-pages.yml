@@ -204,7 +204,7 @@ jobs:
 
               // Legacy environments from the previous workflow naming.
               if (environment === "production") {
-                return index > 0;
+                return true;
               }
 
               if (environment === "preview") {
