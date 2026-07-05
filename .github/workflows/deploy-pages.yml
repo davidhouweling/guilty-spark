@@ -175,7 +175,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Delete stale preview deployments
+      - name: Delete stale Pages deployments
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.DEPLOY_TOKEN }}
