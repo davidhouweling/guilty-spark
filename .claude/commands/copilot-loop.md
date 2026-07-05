@@ -39,6 +39,7 @@ for r in reviews:
         last = r
 if last:
     print(last['id'], last['submitted_at'], last['commit_id'][:8])
+    print('BODY:', (last.get('body') or '').replace('\n', ' ')[:500])
 else:
     print('NO_REVIEW')
 "
@@ -60,18 +61,26 @@ On each subsequent run, compute elapsed minutes with `SELECT CAST((julianday('no
 
 ## Step 2 — Check if the review is clean
 
+**Before checking clean — confirm this is a new review:**
+
+```sql
+SELECT value FROM poll_state WHERE key = 'lastProcessedReviewId:{PR}';
+```
+
+If the returned value equals `{REVIEW_ID}`, a new review has not yet arrived. Compute elapsed time and reschedule (same 1m/10m logic based on `pollingStartedAt`) and stop.
+
 Fetch the review's inline comments:
 
 ```bash
 gh api "repos/{owner}/{repo}/pulls/{PR}/reviews/{REVIEW_ID}/comments"
 ```
 
-**Clean** if the JSON array is empty (`[]`), OR if the review body contains "generated no new comments".
+**Clean** if the JSON array is empty (`[]`), OR if the `BODY:` line printed in Step 1 contains "generated no new comments".
 
 **If clean:** clean up remaining SQL state:
 
 ```sql
-DELETE FROM poll_state WHERE key = 'pollingStartedAt:{PR}';
+DELETE FROM poll_state WHERE key IN ('pollingStartedAt:{PR}', 'lastProcessedReviewId:{PR}');
 ```
 
 Emit the final report:
@@ -150,6 +159,12 @@ gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "{NODE
 
 ```bash
 gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
+```
+
+Store the just-processed review ID so polling can detect when a new review arrives:
+
+```sql
+INSERT OR REPLACE INTO poll_state (key, value) VALUES ('lastProcessedReviewId:{PR}', '{REVIEW_ID}');
 ```
 
 Reset `pollingStartedAt` and schedule the next poll (1m if < 15 min elapsed, else 10m):

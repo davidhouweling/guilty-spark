@@ -40,13 +40,23 @@ If `NO_REVIEW`: request a review (Step 6). On first poll, write the current ISO 
 Schedule the next poll with `/after 1m #copilot-loop.prompt.md`. On each subsequent run, read the start time and compute elapsed minutes:
 
 ```bash
-start=$(cat /tmp/copilot-loop-{PR}.txt)
+start=$(sed -n '1p' /tmp/copilot-loop-{PR}.txt)
 echo $(( ( $(date -u +%s) - $(date -u -d "$start" +%s) ) / 60 ))
 ```
 
 If ≥ 15 minutes have elapsed, reschedule with `/after 10m #copilot-loop.prompt.md` instead.
 
 ## Step 3 — Check if the review is clean
+
+**Before checking clean — confirm this is a new review:**
+
+Read the last processed review ID from line 2 of the temp file:
+
+```bash
+[ -f /tmp/copilot-loop-{PR}.txt ] && sed -n '2p' /tmp/copilot-loop-{PR}.txt || echo ""
+```
+
+If the output equals `{REVIEW_ID}`, a new review has not yet arrived. Read line 1 for the polling start time, compute elapsed minutes, and reschedule (same 1m/10m logic as above). Stop — do not process.
 
 **Check 1 — inline comments on the PR review:**
 
@@ -157,13 +167,13 @@ gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
 
 Note: use `copilot-pull-request-reviewer` exactly — `copilot` and `github-copilot` do not resolve. Do **not** post `@copilot review` — that triggers `copilot-swe-agent[bot]`.
 
-Reset the polling window by overwriting the temp file:
+Reset the polling window by overwriting the temp file with the current timestamp on line 1 and the just-processed review ID on line 2:
 
 ```bash
-date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/copilot-loop-{PR}.txt
+printf "%s\n%s\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "{REVIEW_ID}" > /tmp/copilot-loop-{PR}.txt
 ```
 
-Then schedule the next iteration with `/after 1m #copilot-loop.prompt.md`. On subsequent polls where no new review has arrived, compare the current time to `/tmp/copilot-loop-{PR}.txt`; if ≥ 15 minutes have elapsed, use `/after 10m #copilot-loop.prompt.md` instead.
+Then schedule the next iteration with `/after 1m #copilot-loop.prompt.md`. On subsequent polls where Step 3 detects the same review ID (no new review yet), compare the current time to line 1 of the temp file; if ≥ 15 minutes have elapsed, use `/after 10m #copilot-loop.prompt.md` instead.
 
 ## Repo-specific notes
 
