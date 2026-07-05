@@ -546,19 +546,18 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
     while (this.pendingPush) {
       this.pendingPush = false;
-      const stateAtRefreshStart = await this.loadState();
       const dirtyTrackerCountAtRefreshStart = this.dirtyTrackerIds.size;
-      const refreshMode =
-        dirtyTrackerCountAtRefreshStart === 0 || stateAtRefreshStart.viewState == null ? "full" : "incremental";
 
       try {
         await this.refreshAndBroadcastIfChanged();
       } catch (error) {
+        const stored = await this.loadState();
+        const refreshMode = dirtyTrackerCountAtRefreshStart === 0 || stored.viewState == null ? "full" : "incremental";
         this.logService.error(
           error,
           new Map([
             ["context", "UserTracker directory refresh error"],
-            ["userId", stateAtRefreshStart.state?.userId ?? "unknown"],
+            ["userId", stored.state?.userId ?? "unknown"],
             ["refreshMode", refreshMode],
             ["dirtyTrackerCount", dirtyTrackerCountAtRefreshStart.toString()],
           ]),
