@@ -55,6 +55,28 @@ function toUpdateTimeMs(value: string): number | null {
   return parsedValue;
 }
 
+function normalizeStatsHighlightSlots(statsHighlightSlots: readonly string[] | undefined): readonly string[] {
+  if (statsHighlightSlots == null) {
+    return DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS.slice(0, INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT);
+  }
+
+  return statsHighlightSlots;
+}
+
+function statsHighlightSlotsAreEqual(left: readonly string[], right: readonly string[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
   private readonly state: DurableObjectState;
@@ -71,6 +93,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private pushCompletionPromise: Promise<void> | null = null;
   private resolvePushCompletion: (() => void) | null = null;
   private trackerSubscriptionsInstalled = false;
+  private readonly dirtyTrackerIds = new Set<string>();
   private readonly trackerUpdateMarkers = new Map<string, string>();
   private trackerUpdateMarkersHydrated = false;
   private trackerUpdateMarkersHydrationPromise: Promise<void> | null = null;
@@ -490,7 +513,19 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     }
 
     const previousPayload = stored.viewState == null ? null : this.serializeDirectory(stored.viewState.directory);
-    const nextDirectory = await this.buildDirectory(userId);
+    const dirtyTrackerIds = this.consumeDirtyTrackerIds();
+    let nextDirectory: TrackerDirectory;
+    try {
+      if (dirtyTrackerIds.size === 0 || stored.viewState == null) {
+        nextDirectory = await this.buildDirectory(userId);
+      } else {
+        nextDirectory = await this.buildDirectoryWithDirtyTrackers(userId, stored.viewState.directory, dirtyTrackerIds);
+      }
+    } catch (error) {
+      this.restoreDirtyTrackerIds(dirtyTrackerIds);
+      throw error;
+    }
+
     const nextPayload = this.serializeDirectory(nextDirectory);
     await this.storeDirectoryState(userId, nextDirectory);
 
@@ -534,9 +569,100 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     // Refresh insertion order for existing keys so frequently-updated trackers are not evicted first.
     this.trackerUpdateMarkers.delete(markerKey);
     this.trackerUpdateMarkers.set(markerKey, payload.lastUpdateTime);
+    this.markTrackerDirty(payload.trackerId);
     this.enforceTrackerMarkerLimit();
     await this.persistTrackerUpdateMarkers();
     return true;
+  }
+
+  private markTrackerDirty(trackerId: string): void {
+    this.dirtyTrackerIds.add(trackerId);
+  }
+
+  private consumeDirtyTrackerIds(): Set<string> {
+    if (this.dirtyTrackerIds.size === 0) {
+      return new Set<string>();
+    }
+
+    const dirtyTrackerIds = new Set(this.dirtyTrackerIds);
+    this.dirtyTrackerIds.clear();
+    return dirtyTrackerIds;
+  }
+
+  private restoreDirtyTrackerIds(trackerIds: Set<string>): void {
+    for (const trackerId of trackerIds) {
+      this.dirtyTrackerIds.add(trackerId);
+    }
+  }
+
+  private async buildDirectoryWithDirtyTrackers(
+    userId: string,
+    previousDirectory: TrackerDirectory,
+    dirtyTrackerIds: Set<string>,
+  ): Promise<TrackerDirectory> {
+    const [allTrackers, streamerSettings] = await Promise.all([
+      this.databaseService.findIndividualTrackersByUserId(userId),
+      this.individualTrackerService.getSettingsForView(userId),
+    ]);
+
+    const nonStoppedRows = allTrackers.filter(isNonStopped);
+    const rowsByTrackerId = new Map(nonStoppedRows.map((row) => [row.TrackerId, row]));
+    const nextTrackersById = new Map(previousDirectory.trackers.map((tracker) => [tracker.trackerId, tracker]));
+
+    for (const trackerId of nextTrackersById.keys()) {
+      if (!rowsByTrackerId.has(trackerId)) {
+        nextTrackersById.delete(trackerId);
+      }
+    }
+
+    const trackerIdsToRefresh = new Set(dirtyTrackerIds);
+    for (const trackerId of rowsByTrackerId.keys()) {
+      if (!nextTrackersById.has(trackerId)) {
+        trackerIdsToRefresh.add(trackerId);
+      }
+    }
+
+    const previousStatsHighlightSlots = normalizeStatsHighlightSlots(
+      previousDirectory.streamerSettings?.visibleSections?.statsHighlightSlots,
+    );
+    const nextStatsHighlightSlots = normalizeStatsHighlightSlots(streamerSettings.visibleSections?.statsHighlightSlots);
+    if (!statsHighlightSlotsAreEqual(previousStatsHighlightSlots, nextStatsHighlightSlots)) {
+      return await this.buildDirectory(userId);
+    }
+
+    const statsHighlightSlots = nextStatsHighlightSlots;
+
+    const dirtyTrackerUpdates = await Promise.all(
+      Array.from(trackerIdsToRefresh, async (trackerId) => {
+        const row = rowsByTrackerId.get(trackerId);
+        if (row == null) {
+          return { trackerId, tracker: null };
+        }
+
+        const doState = await fetchTrackerDoViewState(this.env, row.UserId, row.TrackerId, statsHighlightSlots);
+        return { trackerId, tracker: toTrackerView(row, doState) };
+      }),
+    );
+
+    for (const update of dirtyTrackerUpdates) {
+      if (update.tracker == null) {
+        nextTrackersById.delete(update.trackerId);
+        continue;
+      }
+
+      nextTrackersById.set(update.trackerId, update.tracker);
+    }
+
+    const entries = Array.from(nextTrackersById.values());
+    const liveTracker = entries.find((entry) => entry.isLive);
+    const firstActiveTracker = entries.find((entry) => entry.status === "active");
+    const liveTrackerId = liveTracker?.trackerId ?? firstActiveTracker?.trackerId ?? null;
+
+    return {
+      trackers: entries,
+      liveTrackerId,
+      streamerSettings: Object.keys(streamerSettings).length > 0 ? streamerSettings : undefined,
+    };
   }
 
   private isStaleOrDuplicateMarker(nextMarker: string, previousMarker: string): boolean {
