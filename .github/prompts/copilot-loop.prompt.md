@@ -40,8 +40,13 @@ If `NO_REVIEW`: request a review (Step 6). On first poll, write the current ISO 
 Schedule the next poll with `/after 1m #copilot-loop.prompt.md`. On each subsequent run, read the start time and compute elapsed minutes:
 
 ```bash
-start=$(sed -n '1p' /tmp/copilot-loop-{PR}.txt)
-echo $(( ( $(date -u +%s) - $(date -u -d "$start" +%s) ) / 60 ))
+python3 -c "
+from datetime import datetime, timezone
+start = open('/tmp/copilot-loop-{PR}.txt').readlines()[0].strip()
+now = datetime.now(timezone.utc)
+then = datetime.fromisoformat(start.replace('Z', '+00:00'))
+print(int((now - then).total_seconds() / 60))
+"
 ```
 
 If ≥ 15 minutes have elapsed, reschedule with `/after 10m #copilot-loop.prompt.md` instead.
