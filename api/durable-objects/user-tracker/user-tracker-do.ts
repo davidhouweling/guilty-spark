@@ -224,7 +224,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       try {
         await this.queueDirectoryPush();
       } catch (error) {
-        const stored = await this.loadState();
+        const stored = await this.loadStateForErrorContext("UserTracker alarm error context load failed");
         this.logService.error(
           error,
           new Map([
@@ -551,8 +551,8 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       try {
         await this.refreshAndBroadcastIfChanged();
       } catch (error) {
-        const stored = await this.loadState();
-        const refreshMode = dirtyTrackerCountAtRefreshStart === 0 || stored.viewState == null ? "full" : "incremental";
+        const stored = await this.loadStateForErrorContext("UserTracker directory refresh error context load failed");
+        const refreshMode = stored.viewState == null || dirtyTrackerCountAtRefreshStart === 0 ? "full" : "incremental";
         this.logService.error(
           error,
           new Map([
@@ -563,6 +563,18 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
           ]),
         );
       }
+    }
+  }
+
+  private async loadStateForErrorContext(loadFailureContext: string): Promise<UserTrackerInternalState> {
+    try {
+      return await this.loadState();
+    } catch (error) {
+      this.logService.warn(error, new Map([["context", loadFailureContext]]));
+      return {
+        state: null,
+        viewState: null,
+      };
     }
   }
 

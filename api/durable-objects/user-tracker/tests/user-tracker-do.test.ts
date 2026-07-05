@@ -1295,6 +1295,53 @@ describe("UserTrackerDO", () => {
     expect(loggedContext?.get("tickType")).toBe("reconcile");
   });
 
+  it("logs alarm errors with fallback context when state enrichment fails", async () => {
+    const stateLoadFailure = new Error("state load failed in alarm catch");
+    const localSetAlarmMock = vi.fn<DurableObjectStorage["setAlarm"]>(async () => {
+      return Promise.resolve();
+    });
+    const localGetAlarmMock = vi.fn<DurableObjectStorage["getAlarm"]>(async () => {
+      return Promise.resolve(null);
+    });
+    const localDeleteAlarmMock = vi.fn<DurableObjectStorage["deleteAlarm"]>(async () => {
+      return Promise.resolve();
+    });
+    const sharedStorage = aFakeDurableObjectStorageWith({
+      get: (async () => {
+        await Promise.resolve();
+        throw stateLoadFailure;
+      }),
+      setAlarm: localSetAlarmMock,
+      getAlarm: localGetAlarmMock,
+      deleteAlarm: localDeleteAlarmMock,
+    });
+    const localState = aFakeDurableObjectStateWith({ storage: sharedStorage });
+    const localEnv = aFakeEnvWith();
+    const logService = aFakeLogServiceWith();
+    const errorSpy = vi.spyOn(logService, "error");
+    const warnSpy = vi.spyOn(logService, "warn");
+    const services = installFakeServicesWith({ env: localEnv, logService });
+    vi.spyOn(localState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    const localUserTrackerDO = new UserTrackerDO(localState, localEnv, () => services, webSocketAdapter);
+    const alarmFailure = new Error("alarm queue failure");
+    vi.spyOn(
+      localUserTrackerDO as unknown as { queueDirectoryPush: () => Promise<void> },
+      "queueDirectoryPush",
+    ).mockRejectedValueOnce(alarmFailure);
+
+    await localUserTrackerDO.alarm();
+
+    expect(localSetAlarmMock).toHaveBeenCalledOnce();
+    expect(warnSpy).toHaveBeenCalled();
+    const [warnError, warnContext] = warnSpy.mock.calls.at(-1) ?? [];
+    expect(warnError).toBe(stateLoadFailure);
+    expect(warnContext?.get("context")).toBe("UserTracker alarm error context load failed");
+    const [loggedError, loggedContext] = errorSpy.mock.calls.at(-1) ?? [];
+    expect(loggedError).toBe(alarmFailure);
+    expect(loggedContext?.get("context")).toBe("UserTracker alarm error");
+    expect(loggedContext?.get("userId")).toBe("unknown");
+  });
+
   it("logs attempted incremental refresh context when a post-consume refresh fails", async () => {
     const persistedStorage = new Map<string, unknown>();
     const postConsumeFailure = new Error("post-consume store failure");
@@ -1376,6 +1423,68 @@ describe("UserTrackerDO", () => {
     expect(loggedContext?.get("userId")).toBe("user-1");
     expect(loggedContext?.get("refreshMode")).toBe("incremental");
     expect(loggedContext?.get("dirtyTrackerCount")).toBe("1");
+  });
+
+  it("logs refresh errors with fallback context when state enrichment fails", async () => {
+    const refreshFailure = new Error("refresh state load failed");
+    const enrichFailure = new Error("refresh context load failed");
+    let getCalls = 0;
+    let alarmTime: number | null = null;
+    const localSetAlarmMock = vi.fn<DurableObjectStorage["setAlarm"]>(async (scheduledTime) => {
+      alarmTime = typeof scheduledTime === "number" ? scheduledTime : scheduledTime.getTime();
+      return Promise.resolve();
+    });
+    const localGetAlarmMock = vi.fn<DurableObjectStorage["getAlarm"]>(async () => {
+      return Promise.resolve(alarmTime);
+    });
+    const localDeleteAlarmMock = vi.fn<DurableObjectStorage["deleteAlarm"]>(async () => {
+      alarmTime = null;
+      return Promise.resolve();
+    });
+    const sharedStorage = aFakeDurableObjectStorageWith({
+      get: (async (key: string | string[]) => {
+        getCalls += 1;
+        if (getCalls === 1) {
+          throw refreshFailure;
+        }
+        if (getCalls === 2) {
+          throw enrichFailure;
+        }
+        if (typeof key === "string") {
+          await Promise.resolve(undefined);
+          return;
+        }
+
+        return await Promise.resolve(new Map<string, unknown>());
+      }) as DurableObjectStorage["get"],
+      setAlarm: localSetAlarmMock,
+      getAlarm: localGetAlarmMock,
+      deleteAlarm: localDeleteAlarmMock,
+    });
+    const localState = aFakeDurableObjectStateWith({ storage: sharedStorage });
+    const localEnv = aFakeEnvWith();
+    const logService = aFakeLogServiceWith();
+    const errorSpy = vi.spyOn(logService, "error");
+    const warnSpy = vi.spyOn(logService, "warn");
+    const services = installFakeServicesWith({ env: localEnv, logService });
+    vi.spyOn(localState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    const localUserTrackerDO = new UserTrackerDO(localState, localEnv, () => services, webSocketAdapter);
+
+    await localUserTrackerDO.alarm();
+
+    expect(localSetAlarmMock).toHaveBeenCalledOnce();
+    expect(localDeleteAlarmMock).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
+    const [warnError, warnContext] = warnSpy.mock.calls.at(-1) ?? [];
+    expect(warnError).toBe(enrichFailure);
+    expect(warnContext?.get("context")).toBe("UserTracker directory refresh error context load failed");
+    expect(errorSpy).toHaveBeenCalled();
+    const [loggedError, loggedContext] = errorSpy.mock.calls.at(-1) ?? [];
+    expect(loggedError).toBe(refreshFailure);
+    expect(loggedContext?.get("context")).toBe("UserTracker directory refresh error");
+    expect(loggedContext?.get("userId")).toBe("unknown");
+    expect(loggedContext?.get("refreshMode")).toBe("full");
+    expect(loggedContext?.get("dirtyTrackerCount")).toBe("0");
   });
 
   it("stops the update loop through alarm when no websocket clients are connected", async () => {
