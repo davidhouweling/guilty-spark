@@ -1217,6 +1217,9 @@ describe("UserTrackerDO", () => {
     const [loggedError, loggedContext] = errorSpy.mock.calls.at(-1) ?? [];
     expect(loggedError).toBe(transientFailure);
     expect(loggedContext?.get("context")).toBe("UserTracker directory refresh error");
+    expect(loggedContext?.get("userId")).toBe("user-1");
+    expect(loggedContext?.get("refreshMode")).toBe("full");
+    expect(loggedContext?.get("dirtyTrackerCount")).toBe("0");
   });
 
   it("stops the update loop through alarm when no websocket clients are connected", async () => {

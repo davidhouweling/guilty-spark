@@ -224,7 +224,14 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       try {
         await this.queueDirectoryPush();
       } catch (error) {
-        this.logService.error(error, new Map([["context", "UserTracker alarm error"]]));
+        this.logService.error(
+          error,
+          new Map([
+            ["context", "UserTracker alarm error"],
+            ["tickType", tickType],
+            ["hasConnectedClients", hasConnectedClients.toString()],
+          ]),
+        );
         Sentry.captureException(error);
       }
 
@@ -541,7 +548,16 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       try {
         await this.refreshAndBroadcastIfChanged();
       } catch (error) {
-        this.logService.error(error, new Map([["context", "UserTracker directory refresh error"]]));
+        const stored = await this.loadState();
+        this.logService.error(
+          error,
+          new Map([
+            ["context", "UserTracker directory refresh error"],
+            ["userId", stored.state?.userId ?? "unknown"],
+            ["refreshMode", this.dirtyTrackerIds.size === 0 || stored.viewState == null ? "full" : "incremental"],
+            ["dirtyTrackerCount", this.dirtyTrackerIds.size.toString()],
+          ])
+        );
       }
     }
   }
