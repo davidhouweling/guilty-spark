@@ -31,10 +31,16 @@ else:
 "
 ```
 
-If `NO_REVIEW`: request a review (Step 6). On first poll, write the current ISO timestamp to the temp file if it does not already exist:
+If `NO_REVIEW`: request a new review:
 
 ```bash
-[ -f /tmp/copilot-loop-{PR}.txt ] || date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/copilot-loop-{PR}.txt
+gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
+```
+
+On first poll, initialize the temp file with the current timestamp (line 1) and a blank review ID (line 2) if it does not already exist:
+
+```bash
+[ -f /tmp/copilot-loop-{PR}.txt ] || printf "%s\n\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > /tmp/copilot-loop-{PR}.txt
 ```
 
 Schedule the next poll with `/after 1m #copilot-loop.prompt.md`. On each subsequent run, read the start time and compute elapsed minutes:

@@ -40,7 +40,13 @@ else:
 "
 ```
 
-**If `NO_REVIEW`:** request a review (Step 4) then compute `nextIteration = iteration + 1`, use interval `1m` if `nextIteration ≤ 15` else `10m`, schedule the next poll, and stop:
+**If `NO_REVIEW`:** request a new review:
+
+```bash
+gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
+```
+
+Then compute `nextIteration = iteration + 1`, use interval `1m` if `nextIteration ≤ 15` else `10m`, schedule the next poll, and stop:
 
 ```
 manage_schedule(action: 'create', interval: '{interval}',
