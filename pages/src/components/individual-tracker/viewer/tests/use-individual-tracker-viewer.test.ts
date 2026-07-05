@@ -153,7 +153,7 @@ describe("useIndividualTrackerViewer", () => {
     expect(getMatchStatsSpy).not.toHaveBeenCalled();
   });
 
-  it("treats the public viewer path as connected after the initial view loads", async () => {
+  it("connects the public viewer path after the initial view loads", async () => {
     const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
       view: aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
     });
@@ -172,10 +172,62 @@ describe("useIndividualTrackerViewer", () => {
 
     await waitFor(() => {
       expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
-      expect(result.current.snapshot.connectionStatus).toBe("connected");
     });
 
-    expect(connectSpy).not.toHaveBeenCalled();
+    expect(connectSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("hydrates stats highlights after websocket updates", async () => {
+    const firstView = aFakeTrackerViewStateWith({
+      trackerId: "tracker-1",
+      status: "active",
+      statsHighlights: [{ label: "KDA", value: "2.1" }],
+    });
+    const secondView = aFakeTrackerViewStateWith({
+      trackerId: "tracker-1",
+      status: "active",
+      statsHighlights: [{ label: "KDA", value: "3.4" }],
+    });
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({ view: firstView });
+    const getViewSpy = vi
+      .spyOn(individualTrackerViewService, "getView")
+      .mockResolvedValueOnce({ view: firstView })
+      .mockResolvedValueOnce({ view: secondView });
+    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+
+    const { result } = renderHook(() =>
+      useIndividualTrackerViewer({
+        individualTrackerViewService,
+        matchAnalyticsService,
+        seriesMatchesService,
+        haloClient,
+        trackerId: "tracker-1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+      expect(result.current.model.renderModel?.statsHighlights?.[0]?.value).toBe("2.1");
+      expect(individualTrackerViewService.lastConnection).not.toBeNull();
+    });
+
+    act(() => {
+      individualTrackerViewService.lastConnection?.emitView(
+        aFakeTrackerLiveViewWith({
+          trackerId: "tracker-1",
+          status: "active",
+          matches: [
+            aFakeTrackerMatchSummaryWith({ matchId: "match-1" }),
+            aFakeTrackerMatchSummaryWith({ matchId: "match-2" }),
+          ],
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(getViewSpy).toHaveBeenCalledTimes(2);
+      expect(result.current.model.renderModel?.statsHighlights?.[0]?.value).toBe("3.4");
+    });
   });
 
   it("loads long series in a single request when a series entry expands", async () => {

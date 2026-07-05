@@ -220,6 +220,8 @@ export class IndividualTrackerViewerPresenter {
   private viewSubscription: TrackerViewSubscription | null = null;
   private statusSubscription: TrackerViewSubscription | null = null;
   private awaitingRefresh = false;
+  private isHydratingEnrichedView = false;
+  private hydrateQueued = false;
   private streamerSettings: StreamerViewSettings | undefined;
   private streamerSettingsKey = "null";
   private hasServerStreamerSettings = false;
@@ -522,17 +524,57 @@ export class IndividualTrackerViewerPresenter {
     }
   }
 
+  private queueEnrichedViewHydration(): void {
+    if (this.isHydratingEnrichedView) {
+      this.hydrateQueued = true;
+      return;
+    }
+
+    void this.hydrateEnrichedViewAsync();
+  }
+
+  private async hydrateEnrichedViewAsync(): Promise<void> {
+    this.isHydratingEnrichedView = true;
+    try {
+      const response = await this.config.individualTrackerViewService.getView(this.config.trackerId);
+      if (this.isDisposed) {
+        return;
+      }
+
+      this.hasServerStreamerSettings = response.view.streamerSettings !== undefined;
+
+      const snapshot = this.config.store.getSnapshot();
+      if (snapshot.view == null) {
+        return;
+      }
+
+      const streamerSettings =
+        response.view.streamerSettings === undefined && this.streamerSettings !== undefined && !this.hasServerStreamerSettings
+          ? this.streamerSettings
+          : response.view.streamerSettings;
+
+      this.config.store.setLoaded({
+        ...snapshot.view,
+        isLive: response.view.isLive,
+        streamerSettings,
+        statsHighlights: response.view.statsHighlights,
+        preSeriesPlayerInfo: response.view.preSeriesPlayerInfo,
+      });
+    } catch {
+      // Hydration failures should not interrupt live timeline updates.
+    } finally {
+      this.isHydratingEnrichedView = false;
+      if (this.hydrateQueued) {
+        this.hydrateQueued = false;
+        void this.hydrateEnrichedViewAsync();
+      }
+    }
+  }
+
   private openConnection(): void {
     this.viewSubscription?.unsubscribe();
     this.statusSubscription?.unsubscribe();
     this.connection?.disconnect();
-
-    // Only establish individual-tracker WS connection in managed context (when individualTrackerService is available).
-    // Public pages (follow viewer) should not connect to per-tracker endpoints.
-    if (this.config.individualTrackerService == null) {
-      this.config.store.setConnectionStatus("connected");
-      return;
-    }
 
     const connection = this.config.individualTrackerViewService.connect(this.config.trackerId);
     this.connection = connection;
@@ -545,6 +587,8 @@ export class IndividualTrackerViewerPresenter {
         this.awaitingRefresh = false;
         this.config.store.setRefreshState(false);
       }
+
+      this.queueEnrichedViewHydration();
     });
     this.statusSubscription = connection.subscribeStatus((status) => {
       if (this.isDisposed) {
