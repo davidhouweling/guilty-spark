@@ -549,7 +549,9 @@ export class IndividualTrackerViewerPresenter {
       }
 
       const streamerSettings =
-        response.view.streamerSettings === undefined && this.streamerSettings !== undefined && !this.hasServerStreamerSettings
+        response.view.streamerSettings === undefined &&
+        this.streamerSettings !== undefined &&
+        !this.hasServerStreamerSettings
           ? this.streamerSettings
           : response.view.streamerSettings;
 
