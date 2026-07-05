@@ -139,9 +139,9 @@ If the review is not clean, schedule the next iteration with `/after 10m` and st
 
 If the review is clean, do not schedule another run. Produce the final report only once, with this shape:
 
-| Round | Finding | Status | How handled | Evidence |
-| --- | --- | --- | --- | --- |
-| 1 | ... | fixed/refuted | ... | thread id, commit SHA, or relevant path |
+| Round | Finding | Status        | How handled | Evidence                                |
+| ----- | ------- | ------------- | ----------- | --------------------------------------- |
+| 1     | ...     | fixed/refuted | ...         | thread id, commit SHA, or relevant path |
 
 ## How To Start
 
