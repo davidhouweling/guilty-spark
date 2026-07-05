@@ -224,10 +224,12 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       try {
         await this.queueDirectoryPush();
       } catch (error) {
+        const stored = await this.loadState();
         this.logService.error(
           error,
           new Map([
             ["context", "UserTracker alarm error"],
+            ["userId", stored.state?.userId ?? "unknown"],
             ["tickType", tickType],
             ["hasConnectedClients", hasConnectedClients.toString()],
           ]),
@@ -544,18 +546,21 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
     while (this.pendingPush) {
       this.pendingPush = false;
+      const stateAtRefreshStart = await this.loadState();
+      const dirtyTrackerCountAtRefreshStart = this.dirtyTrackerIds.size;
+      const refreshMode =
+        dirtyTrackerCountAtRefreshStart === 0 || stateAtRefreshStart.viewState == null ? "full" : "incremental";
 
       try {
         await this.refreshAndBroadcastIfChanged();
       } catch (error) {
-        const stored = await this.loadState();
         this.logService.error(
           error,
           new Map([
             ["context", "UserTracker directory refresh error"],
-            ["userId", stored.state?.userId ?? "unknown"],
-            ["refreshMode", this.dirtyTrackerIds.size === 0 || stored.viewState == null ? "full" : "incremental"],
-            ["dirtyTrackerCount", this.dirtyTrackerIds.size.toString()],
+            ["userId", stateAtRefreshStart.state?.userId ?? "unknown"],
+            ["refreshMode", refreshMode],
+            ["dirtyTrackerCount", dirtyTrackerCountAtRefreshStart.toString()],
           ]),
         );
       }
