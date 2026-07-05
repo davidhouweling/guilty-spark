@@ -1,16 +1,33 @@
 name: Deploy Pages
 
+permissions:
+  contents: read
+  deployments: write
+
 on:
+  workflow_dispatch:
+    inputs:
+      cleanup_old_deployments:
+        description: "Delete stale Pages preview deployments"
+        required: false
+        type: boolean
+        default: false
   push:
     branches:
       - main
   pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - closed
     branches:
       - main
 
 jobs:
   deploy:
     name: Deploy
+    if: github.event_name == 'push' || (github.event_name == 'pull_request_target' && github.event.action != 'closed')
     runs-on: ubuntu-latest
 
     steps:
@@ -98,8 +115,138 @@ jobs:
         id: update_deployment
         uses: chrnorm/deployment-action@v2
         with:
-          token: "${{ secrets.DEPLOY_TOKEN }}"
-          environment: ${{ github.event_name == 'push' && 'production' || 'preview' }}
+          token: ${{ secrets.DEPLOY_TOKEN }}
+          environment: ${{ github.event_name == 'push' && 'pages-production' || format('pages-preview-pr-{0}', github.event.number) }}
           environment-url: ${{ steps.deploy-production.outputs.deployment-url || steps.preview-url.outputs.url }}
           initial-status: success
+          auto-inactive: true
           transient-environment: ${{ github.event_name != 'push' }}
+
+  close-preview-deployment:
+    name: Close preview deployment
+    if: github.event_name == 'pull_request_target' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Delete PR preview deployments
+        uses: actions/github-script@v7
+        env:
+          PREVIEW_ENVIRONMENT: ${{ format('pages-preview-pr-{0}', github.event.number) }}
+        with:
+          github-token: ${{ secrets.DEPLOY_TOKEN }}
+          script: |
+            const environment = process.env.PREVIEW_ENVIRONMENT;
+            const { owner, repo } = context.repo;
+            const deployments = await github.paginate(github.rest.repos.listDeployments, {
+              owner,
+              repo,
+              environment,
+              per_page: 100,
+            });
+
+            core.info(`Found ${deployments.length} deployments in ${environment}`);
+
+            for (const deployment of deployments) {
+              try {
+                await github.rest.repos.createDeploymentStatus({
+                  owner,
+                  repo,
+                  deployment_id: deployment.id,
+                  state: "inactive",
+                  description: "PR closed",
+                  auto_inactive: false,
+                });
+
+                await github.rest.repos.deleteDeployment({
+                  owner,
+                  repo,
+                  deployment_id: deployment.id,
+                });
+              } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                core.warning(`Failed to delete deployment ${deployment.id}: ${message}`);
+              }
+            }
+
+  cleanup-old-deployments:
+    name: Cleanup stale deployments
+    if: github.event_name == 'workflow_dispatch' && inputs.cleanup_old_deployments == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Delete stale preview deployments
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.DEPLOY_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const deployments = await github.paginate(github.rest.repos.listDeployments, {
+              owner,
+              repo,
+              per_page: 100,
+            });
+
+            const byEnvironment = new Map();
+            for (const deployment of deployments) {
+              const list = byEnvironment.get(deployment.environment) ?? [];
+              list.push(deployment);
+              byEnvironment.set(deployment.environment, list);
+            }
+
+            const shouldDeactivate = (environment, index) => {
+              if (environment === "pages-production") {
+                return index > 0;
+              }
+
+              if (environment.startsWith("pages-preview-pr-")) {
+                return true;
+              }
+
+              // Legacy environments from the previous workflow naming.
+              if (environment === "production") {
+                return index > 0;
+              }
+
+              if (environment === "preview") {
+                return true;
+              }
+
+              return false;
+            };
+
+            let deletedCount = 0;
+
+            for (const [environment, envDeployments] of byEnvironment.entries()) {
+              envDeployments.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+
+              for (let index = 0; index < envDeployments.length; index += 1) {
+                const deployment = envDeployments[index];
+                if (!shouldDeactivate(environment, index)) {
+                  continue;
+                }
+
+                try {
+                  await github.rest.repos.createDeploymentStatus({
+                    owner,
+                    repo,
+                    deployment_id: deployment.id,
+                    state: "inactive",
+                    description: "Stale deployment cleanup",
+                    auto_inactive: false,
+                  });
+
+                  await github.rest.repos.deleteDeployment({
+                    owner,
+                    repo,
+                    deployment_id: deployment.id,
+                  });
+
+                  deletedCount += 1;
+                } catch (error) {
+                  const message = error instanceof Error ? error.message : String(error);
+                  core.warning(`Failed to delete deployment ${deployment.id}: ${message}`);
+                }
+              }
+            }
+
+            core.notice(`Deleted ${deletedCount} stale deployments.`);

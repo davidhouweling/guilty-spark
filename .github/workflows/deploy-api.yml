@@ -1,5 +1,9 @@
 name: Deploy API
 
+permissions:
+  contents: read
+  deployments: write
+
 on:
   workflow_dispatch:
     inputs:
@@ -7,6 +11,11 @@ on:
         description: "Debug the event payload"
         required: false
         type: boolean
+      cleanup_old_deployments:
+        description: "Delete stale API deployments, including legacy Staging"
+        required: false
+        type: boolean
+        default: false
   workflow_run:
     workflows: [Typecheck]
     types: [completed]
@@ -86,6 +95,27 @@ jobs:
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
           TOKEN_ENCRYPTION_SECRET: ${{ secrets.TOKEN_ENCRYPTION_SECRET }}
 
+      - name: Resolve deployment URL
+        id: deployment-url
+        env:
+          WRANGLER_OUTPUT: ${{ steps.deploy.outputs.command-output }}
+        run: |
+          url=$(printf '%s' "$WRANGLER_OUTPUT" \
+            | grep -oE 'https://[a-z0-9.-]+\.workers\.dev' \
+            | head -1)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Update GitHub deployment
+        id: update_deployment
+        uses: chrnorm/deployment-action@v2
+        with:
+          token: ${{ secrets.DEPLOY_TOKEN }}
+          environment: ${{ github.event.workflow_run.head_branch == 'main' && 'api-production' || 'api-staging' }}
+          environment-url: ${{ steps.deployment-url.outputs.url }}
+          initial-status: success
+          auto-inactive: true
+          transient-environment: ${{ github.event.workflow_run.head_branch != 'main' }}
+
       - name: Set output directories
         run: |
           echo "WRANGLER_BUILD_DIR=api/.wrangler/build" >> $GITHUB_ENV
@@ -116,3 +146,81 @@ jobs:
     steps:
       - run: echo 'The triggering workflow failed'
       - run: exit 1
+
+  cleanup-old-deployments:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.cleanup_old_deployments == true
+    steps:
+      - name: Delete stale API deployments
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.DEPLOY_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const deployments = await github.paginate(github.rest.repos.listDeployments, {
+              owner,
+              repo,
+              per_page: 100,
+            });
+
+            const byEnvironment = new Map();
+            for (const deployment of deployments) {
+              const list = byEnvironment.get(deployment.environment) ?? [];
+              list.push(deployment);
+              byEnvironment.set(deployment.environment, list);
+            }
+
+            const shouldDeactivate = (environment, index) => {
+              if (environment === "api-production" || environment === "api-staging") {
+                return index > 0;
+              }
+
+              // Legacy environments from earlier API workflow naming.
+              if (environment === "staging") {
+                return index > 0;
+              }
+
+              // Older legacy environment name.
+              if (environment === "Staging") {
+                return true;
+              }
+
+              return false;
+            };
+
+            let deletedCount = 0;
+
+            for (const [environment, envDeployments] of byEnvironment.entries()) {
+              envDeployments.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+
+              for (let index = 0; index < envDeployments.length; index += 1) {
+                const deployment = envDeployments[index];
+                if (!shouldDeactivate(environment, index)) {
+                  continue;
+                }
+
+                try {
+                  await github.rest.repos.createDeploymentStatus({
+                    owner,
+                    repo,
+                    deployment_id: deployment.id,
+                    state: "inactive",
+                    description: "Stale deployment cleanup",
+                    auto_inactive: false,
+                  });
+
+                  await github.rest.repos.deleteDeployment({
+                    owner,
+                    repo,
+                    deployment_id: deployment.id,
+                  });
+
+                  deletedCount += 1;
+                } catch (error) {
+                  const message = error instanceof Error ? error.message : String(error);
+                  core.warning(`Failed to delete deployment ${deployment.id}: ${message}`);
+                }
+              }
+            }
+
+            core.notice(`Deleted ${deletedCount} stale API deployments.`);
