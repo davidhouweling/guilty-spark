@@ -177,7 +177,7 @@ jobs:
 
               // Legacy environments from earlier API workflow naming.
               if (environment === "staging") {
-                return index > 0;
+                return true;
               }
 
               // Older legacy environment name.
