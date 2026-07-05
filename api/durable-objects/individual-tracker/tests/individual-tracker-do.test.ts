@@ -2232,8 +2232,8 @@ describe("IndividualTrackerDO", () => {
       individualTrackerDO = new IndividualTrackerDO(mockState, env, () => services, webSocketAdapter);
     });
 
-    const wsRequest = (): Request =>
-      new Request("http://do/websocket", { method: "GET", headers: { Upgrade: "websocket" } });
+    const wsRequest = (query = ""): Request =>
+      new Request(`http://do/websocket${query}`, { method: "GET", headers: { Upgrade: "websocket" } });
 
     it("returns 426 when the Upgrade header is missing", async () => {
       const response = await individualTrackerDO.fetch(new Request("http://do/websocket", { method: "GET" }));
@@ -2282,6 +2282,69 @@ describe("IndividualTrackerDO", () => {
       expect(parsed.view.trackerId).toBe("t1");
       expect(parsed.view.status).toBe("active");
       expect(parsed.view.matches).toHaveLength(1);
+    });
+
+    it("uses default stats highlight slots when websocket query is absent", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          trackerId: "t1",
+          gamertag: "Tag1",
+          status: "active",
+          matchIds: ["m1"],
+          selectedMatchIds: ["m1"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m1",
+              startTime: "s",
+              endTime: "e",
+              mapAssetId: "map",
+              mapVersionId: "map-v",
+              mapName: "Streets",
+              modeAssetId: "mode",
+              gameVariantCategory: 6,
+              outcome: "Win",
+              score: "50:42",
+            }),
+          },
+        }),
+      );
+
+      await individualTrackerDO.fetch(wsRequest());
+
+      const parsed = trackerViewMessageContract.parse(Preconditions.checkExists(webSocketAdapter.initialMessages[0]));
+      expect(parsed.view.statsHighlights).toBeDefined();
+      expect(parsed.view.statsHighlights?.length).toBeGreaterThan(0);
+    });
+
+    it("keeps statsHighlights as an empty array when statsHighlightSlots is explicitly empty", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          trackerId: "t1",
+          gamertag: "Tag1",
+          status: "active",
+          matchIds: ["m1"],
+          selectedMatchIds: ["m1"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m1",
+              startTime: "s",
+              endTime: "e",
+              mapAssetId: "map",
+              mapVersionId: "map-v",
+              mapName: "Streets",
+              modeAssetId: "mode",
+              gameVariantCategory: 6,
+              outcome: "Win",
+              score: "50:42",
+            }),
+          },
+        }),
+      );
+
+      await individualTrackerDO.fetch(wsRequest("?statsHighlightSlots=%5B%5D"));
+
+      const parsed = trackerViewMessageContract.parse(Preconditions.checkExists(webSocketAdapter.initialMessages[0]));
+      expect(parsed.view.statsHighlights).toEqual([]);
     });
 
     it("does not send an initial message when no state exists", async () => {

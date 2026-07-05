@@ -75,11 +75,15 @@ export class IndividualTrackerViewerStore {
   public setView(view: TrackerLiveMessageView): void {
     const isLive = this.snapshot.view?.isLive ?? false;
     const streamerSettings = this.snapshot.view?.streamerSettings;
-    const statsHighlights = view.statsHighlights ?? this.snapshot.view?.statsHighlights;
-    const preSeriesPlayerInfo = view.preSeriesPlayerInfo ?? this.snapshot.view?.preSeriesPlayerInfo;
     this.update({
       status: ComponentLoaderStatus.LOADED,
-      view: { ...view, isLive, streamerSettings, statsHighlights, preSeriesPlayerInfo },
+      view: {
+        ...view,
+        isLive,
+        streamerSettings,
+        statsHighlights: view.statsHighlights,
+        preSeriesPlayerInfo: view.preSeriesPlayerInfo,
+      },
     });
   }
 

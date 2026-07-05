@@ -2043,12 +2043,12 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const statsHighlights =
       this.websocketStatsHighlightSlots.length > 0
         ? await this.buildStatsHighlights(state, this.websocketStatsHighlightSlots)
-        : undefined;
+        : [];
     const preSeriesPlayerInfo = await this.getPreSeriesPlayerInfo(state);
 
     return {
       ...this.toViewState(state),
-      ...(statsHighlights != null ? { statsHighlights: [...statsHighlights] } : {}),
+      statsHighlights: [...statsHighlights],
       ...(preSeriesPlayerInfo != null ? { preSeriesPlayerInfo } : {}),
     };
   }
@@ -2067,8 +2067,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const trackerState = await this.getState();
     const url = new URL(request.url);
     const requestedStatsHighlightSlots = parseStatsHighlightSlots(url);
-    this.websocketStatsHighlightSlots =
-      requestedStatsHighlightSlots.length > 0 ? requestedStatsHighlightSlots : DEFAULT_WEBSOCKET_STATS_HIGHLIGHT_SLOTS;
+    this.websocketStatsHighlightSlots = url.searchParams.has("statsHighlightSlots")
+      ? requestedStatsHighlightSlots
+      : DEFAULT_WEBSOCKET_STATS_HIGHLIGHT_SLOTS;
 
     this.logService.info(
       "IndividualTracker: WebSocket connection requested",

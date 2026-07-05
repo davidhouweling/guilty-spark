@@ -219,6 +219,48 @@ describe("useIndividualTrackerViewer", () => {
     });
   });
 
+  it("clears stats highlights when websocket payload omits them", async () => {
+    const firstView = aFakeTrackerViewStateWith({
+      trackerId: "tracker-1",
+      status: "active",
+      statsHighlights: [{ label: "KDA", value: "2.1" }],
+    });
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({ view: firstView });
+    const getViewSpy = vi.spyOn(individualTrackerViewService, "getView");
+    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+
+    const { result } = renderHook(() =>
+      useIndividualTrackerViewer({
+        individualTrackerViewService,
+        matchAnalyticsService,
+        seriesMatchesService,
+        haloClient,
+        trackerId: "tracker-1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+      expect(result.current.model.renderModel?.statsHighlights?.[0]?.value).toBe("2.1");
+      expect(individualTrackerViewService.lastConnection).not.toBeNull();
+    });
+
+    act(() => {
+      individualTrackerViewService.lastConnection?.emitView(
+        aFakeTrackerLiveViewWith({
+          trackerId: "tracker-1",
+          status: "active",
+          matches: [aFakeTrackerMatchSummaryWith({ matchId: "match-2" })],
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(getViewSpy).toHaveBeenCalledTimes(1);
+      expect(result.current.model.renderModel?.statsHighlights).toBeUndefined();
+    });
+  });
+
   it("preserves server streamer settings when websocket payload omits streamerSettings", async () => {
     const serverSettings: StreamerViewSettings = {
       styleFlags: {
