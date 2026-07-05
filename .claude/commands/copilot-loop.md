@@ -2,7 +2,7 @@
 
 Processes the latest Copilot PR review: fixes valid issues, replies to all comments, resolves threads, requests a new review, then polls every minute for up to 15 minutes for the new review to arrive before falling back to a 10-minute reschedule.
 
-Keep the loop quiet between iterations. Do not give a per-iteration handoff message to the user. Instead, accumulate a running findings ledger in the session context. While waiting for a fresh Copilot review, poll the PR every 1 minute for up to 15 minutes by scheduling the next run with `manage_schedule` (action: `create`, interval: `1m`, prompt: `Run the copilot-loop skill to process the Copilot PR review on this repository`). If no new review arrives in that window, fall back to `manage_schedule` with interval `10m`. Only when the review is clean should you produce the final report, including a markdown table of every Copilot review finding from the whole loop, whether it was fixed or refuted, and how it was handled.
+Keep the loop quiet between iterations. Do not give a per-iteration handoff message to the user. Instead, accumulate a running findings ledger in the session context. While waiting for a fresh Copilot review, poll the PR every 1 minute for up to 15 minutes by scheduling the next run with `manage_schedule` (action: `create`, interval: `1m`, prompt: `Run the copilot-loop skill to process the Copilot PR review on this repository`). Track the polling start time in the SQL session database (`sql` tool) so elapsed time can be computed reliably across stateless invocations — see Step 1 and Step 4 for details. If no new review arrives in that window, fall back to `manage_schedule` with interval `10m`. Only when the review is clean should you produce the final report, including a markdown table of every Copilot review finding from the whole loop, whether it was fixed or refuted, and how it was handled.
 
 ## Setup
 
@@ -31,7 +31,14 @@ else:
 "
 ```
 
-If `NO_REVIEW`: request one (Step 4) and schedule the next poll with `manage_schedule` (action: `create`, interval: `1m`, prompt: `Run the copilot-loop skill to process the Copilot PR review on this repository`). Keep polling every minute until a new review appears or 15 minutes have elapsed; if the 15-minute window expires with no review, reschedule with interval `10m`. Do not give a user-facing status update.
+If `NO_REVIEW`: request one (Step 4) and record the polling start time in the SQL session database if not already set:
+
+```sql
+CREATE TABLE IF NOT EXISTS poll_state (key TEXT PRIMARY KEY, value TEXT);
+INSERT OR IGNORE INTO poll_state (key, value) VALUES ('pollingStartedAt', datetime('now'));
+```
+
+Then schedule the next poll with `manage_schedule` (action: `create`, interval: `1m`, prompt: `Run the copilot-loop skill to process the Copilot PR review on this repository`). On each subsequent run, compute elapsed minutes with `SELECT CAST((julianday('now') - julianday(value)) * 24 * 60 AS INTEGER) FROM poll_state WHERE key = 'pollingStartedAt'`; if ≥ 15, use interval `10m` instead. Do not give a user-facing status update.
 
 ## Step 2 — Check if the review is clean
 
@@ -119,7 +126,7 @@ gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "{NODE
 gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
 ```
 
-The review may take up to a few minutes to arrive. Schedule the next poll with `manage_schedule` (action: `create`, interval: `1m`, prompt: `Run the copilot-loop skill to process the Copilot PR review on this repository`) while within the 15-minute polling window; otherwise use interval `10m`. Do not give a user-facing handoff.
+The review may take up to a few minutes to arrive. Set `pollingStartedAt` in the SQL session database if not already set (same `INSERT OR IGNORE` as in Step 1). Then compute elapsed minutes with `SELECT CAST((julianday('now') - julianday(value)) * 24 * 60 AS INTEGER) FROM poll_state WHERE key = 'pollingStartedAt'`; if < 15, schedule the next poll with `manage_schedule` (action: `create`, interval: `1m`, prompt: `Run the copilot-loop skill to process the Copilot PR review on this repository`); otherwise use interval `10m`. Do not give a user-facing handoff.
 
 If the review is clean, do not schedule another run. Produce the final report only once, with this shape:
 

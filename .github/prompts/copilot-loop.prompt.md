@@ -5,7 +5,7 @@ description: "Process the latest Copilot PR review: fix valid issues, reply to a
 
 Run one iteration of the Copilot review loop on the current PR in the GitHub Copilot CLI interactive session. From the VS Code integrated terminal, start that session with `copilot`. Experimental scheduling must be enabled first with `/experimental on` or `--experimental`.
 
-Keep the loop quiet between iterations. Do not give a per-iteration handoff message to the user. Instead, accumulate a running findings ledger in the session context. While waiting for a fresh Copilot review, poll the PR every 1 minute for up to 15 minutes by scheduling the next run with `/after 1m #copilot-loop.prompt.md`. If no new review arrives in that window, fall back to `/after 10m #copilot-loop.prompt.md`. Only when the review is clean should you produce the final report, including a markdown table of every Copilot review finding from the whole loop, whether it was fixed or refuted, and how it was handled.
+Keep the loop quiet between iterations. Do not give a per-iteration handoff message to the user. Instead, accumulate a running findings ledger in the session context — include a `pollingStartedAt` field (ISO timestamp) that is set once when polling first begins and used on every subsequent iteration to determine whether the 15-minute window has elapsed. While waiting for a fresh Copilot review, poll the PR every 1 minute for up to 15 minutes by scheduling the next run with `/after 1m #copilot-loop.prompt.md`. If no new review arrives in that window, fall back to `/after 10m #copilot-loop.prompt.md`. Only when the review is clean should you produce the final report, including a markdown table of every Copilot review finding from the whole loop, whether it was fixed or refuted, and how it was handled.
 
 ## Step 1 — Identify the PR
 
@@ -25,12 +25,13 @@ for r in reviews:
         last = r
 if last:
     print(last['id'], last['submitted_at'], last['commit_id'][:8])
+    print('BODY:', last.get('body', ''))
 else:
     print('NO_REVIEW')
 "
 ```
 
-If `NO_REVIEW`: request a review (Step 6) and schedule this same prompt again with `/after 1m #copilot-loop.prompt.md`. Keep polling every minute until either a new review appears or 15 minutes have elapsed; if the 15-minute polling window expires with no new review, reschedule with `/after 10m #copilot-loop.prompt.md`.
+If `NO_REVIEW`: request a review (Step 6), set `pollingStartedAt` in the session findings ledger (ISO timestamp, set once on first poll), and schedule this same prompt again with `/after 1m #copilot-loop.prompt.md`. On each subsequent run, compare the current time to `pollingStartedAt`; if ≥ 15 minutes have elapsed, reschedule with `/after 10m #copilot-loop.prompt.md` instead.
 
 ## Step 3 — Check if the review is clean
 
@@ -40,7 +41,7 @@ If `NO_REVIEW`: request a review (Step 6) and schedule this same prompt again wi
 gh api "repos/{owner}/{repo}/pulls/{PR}/reviews/{REVIEW_ID}/comments"
 ```
 
-Clean if the array is empty or the review body contains "generated no new comments".
+Clean if the array is empty or the `BODY:` line printed in Step 2 contains "generated no new comments".
 
 **Check 2 — latest `copilot-swe-agent[bot]` issue comment:**
 
@@ -135,7 +136,7 @@ gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
 
 Note: `gh pr edit --add-reviewer copilot` and `gh pr edit --add-reviewer github-copilot` do not work — use `copilot-pull-request-reviewer` exactly. Do **not** post `@copilot review` — that triggers the unrelated `copilot-swe-agent[bot]` bot.
 
-If the review is not clean, schedule the next iteration with `/after 1m #copilot-loop.prompt.md` while you are still within the 15-minute polling window; otherwise schedule with `/after 10m #copilot-loop.prompt.md`. Do not give a user-facing handoff.
+If the review is not clean, check `pollingStartedAt` in the session findings ledger. If the current time minus `pollingStartedAt` is less than 15 minutes, schedule the next iteration with `/after 1m #copilot-loop.prompt.md`; otherwise schedule with `/after 10m #copilot-loop.prompt.md`. Do not give a user-facing handoff.
 
 If the review is clean, do not schedule another run. Produce the final report only once, with this shape:
 
