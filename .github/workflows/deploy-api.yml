@@ -100,6 +100,7 @@ jobs:
         uses: chrnorm/deployment-action@v2
         with:
           token: ${{ secrets.DEPLOY_TOKEN }}
+          ref: ${{ github.event.workflow_run.head_sha }}
           environment: ${{ github.event.workflow_run.head_branch == 'main' && 'api-production' || 'api-staging' }}
           environment-url: ${{ steps.deploy.outputs.deployment-url }}
           initial-status: success

@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       cleanup_old_deployments:
-        description: "Delete stale Pages preview deployments"
+        description: "Delete stale Pages deployments (preview, legacy, and old production)"
         required: false
         type: boolean
         default: false
@@ -116,6 +116,7 @@ jobs:
         uses: chrnorm/deployment-action@v2
         with:
           token: ${{ secrets.DEPLOY_TOKEN }}
+          ref: ${{ github.event_name == 'push' && github.sha || github.event.pull_request.head.sha }}
           environment: ${{ github.event_name == 'push' && 'pages-production' || format('pages-preview-pr-{0}', github.event.number) }}
           environment-url: ${{ steps.deploy-production.outputs.deployment-url || steps.preview-url.outputs.url }}
           initial-status: success
