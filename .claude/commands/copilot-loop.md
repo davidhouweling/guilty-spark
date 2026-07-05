@@ -35,10 +35,10 @@ If `NO_REVIEW`: request one (Step 4) and record the polling start time in the SQ
 
 ```sql
 CREATE TABLE IF NOT EXISTS poll_state (key TEXT PRIMARY KEY, value TEXT);
-INSERT OR IGNORE INTO poll_state (key, value) VALUES ('pollingStartedAt', datetime('now'));
+INSERT OR IGNORE INTO poll_state (key, value) VALUES ('pollingStartedAt:{PR}', datetime('now'));
 ```
 
-Then schedule the next poll with `manage_schedule` (action: `create`, interval: `1m`, prompt: `Run the copilot-loop skill to process the Copilot PR review on this repository`). On each subsequent run, compute elapsed minutes with `SELECT CAST((julianday('now') - julianday(value)) * 24 * 60 AS INTEGER) FROM poll_state WHERE key = 'pollingStartedAt'`; if ≥ 15, use interval `10m` instead. Do not give a user-facing status update.
+Then schedule the next poll with `manage_schedule` (action: `create`, interval: `1m`, prompt: `Run the copilot-loop skill to process the Copilot PR review on this repository`). On each subsequent run, compute elapsed minutes with `SELECT CAST((julianday('now') - julianday(value)) * 24 * 60 AS INTEGER) FROM poll_state WHERE key = 'pollingStartedAt:{PR}'`; if ≥ 15, use interval `10m` instead. Do not give a user-facing status update.
 
 ## Step 2 — Check if the review is clean
 
@@ -126,7 +126,7 @@ gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "{NODE
 gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
 ```
 
-The review may take up to a few minutes to arrive. Set `pollingStartedAt` in the SQL session database if not already set (same `INSERT OR IGNORE` as in Step 1). Then compute elapsed minutes with `SELECT CAST((julianday('now') - julianday(value)) * 24 * 60 AS INTEGER) FROM poll_state WHERE key = 'pollingStartedAt'`; if < 15, schedule the next poll with `manage_schedule` (action: `create`, interval: `1m`, prompt: `Run the copilot-loop skill to process the Copilot PR review on this repository`); otherwise use interval `10m`. Do not give a user-facing handoff.
+The review may take up to a few minutes to arrive. Reset `pollingStartedAt` for this PR in the SQL session database to restart the polling window: `INSERT OR REPLACE INTO poll_state (key, value) VALUES ('pollingStartedAt:{PR}', datetime('now'))`. Then compute elapsed minutes with `SELECT CAST((julianday('now') - julianday(value)) * 24 * 60 AS INTEGER) FROM poll_state WHERE key = 'pollingStartedAt:{PR}'`; if < 15, schedule the next poll with `manage_schedule` (action: `create`, interval: `1m`, prompt: `Run the copilot-loop skill to process the Copilot PR review on this repository`); otherwise use interval `10m`. Do not give a user-facing handoff.
 
 If the review is clean, do not schedule another run. Produce the final report only once, with this shape:
 

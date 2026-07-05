@@ -5,7 +5,7 @@ description: "Process the latest Copilot PR review: fix valid issues, reply to a
 
 Run one iteration of the Copilot review loop on the current PR in the GitHub Copilot CLI interactive session. From the VS Code integrated terminal, start that session with `copilot`. Experimental scheduling must be enabled first with `/experimental on` or `--experimental`.
 
-Keep the loop quiet between iterations. Do not give a per-iteration handoff message to the user. Instead, accumulate a running findings ledger in the session context — include a `pollingStartedAt` field (ISO timestamp) that is set once when polling first begins and used on every subsequent iteration to determine whether the 15-minute window has elapsed. While waiting for a fresh Copilot review, poll the PR every 1 minute for up to 15 minutes by scheduling the next run with `/after 1m #copilot-loop.prompt.md`. If no new review arrives in that window, fall back to `/after 10m #copilot-loop.prompt.md`. Only when the review is clean should you produce the final report, including a markdown table of every Copilot review finding from the whole loop, whether it was fixed or refuted, and how it was handled.
+Keep the loop quiet between iterations. Do not give a per-iteration handoff message to the user. Instead, accumulate a running findings ledger in the session context — include a `pollingStartedAt` field (ISO timestamp) that is reset each time a new review is requested; on poll iterations that find no new review yet, compare the current time to `pollingStartedAt` to determine whether to use the 1m or 10m cadence. While waiting for a fresh Copilot review, poll the PR every 1 minute for up to 15 minutes by scheduling the next run with `/after 1m #copilot-loop.prompt.md`. If no new review arrives in that window, fall back to `/after 10m #copilot-loop.prompt.md`. Only when the review is clean should you produce the final report, including a markdown table of every Copilot review finding from the whole loop, whether it was fixed or refuted, and how it was handled.
 
 ## Step 1 — Identify the PR
 
@@ -25,7 +25,7 @@ for r in reviews:
         last = r
 if last:
     print(last['id'], last['submitted_at'], last['commit_id'][:8])
-    print('BODY:', last.get('body', ''))
+    print('BODY:', (last.get('body') or '').replace('\n', ' ')[:500])
 else:
     print('NO_REVIEW')
 "
@@ -136,7 +136,7 @@ gh pr edit {PR} --add-reviewer copilot-pull-request-reviewer
 
 Note: `gh pr edit --add-reviewer copilot` and `gh pr edit --add-reviewer github-copilot` do not work — use `copilot-pull-request-reviewer` exactly. Do **not** post `@copilot review` — that triggers the unrelated `copilot-swe-agent[bot]` bot.
 
-If the review is not clean, check `pollingStartedAt` in the session findings ledger. If the current time minus `pollingStartedAt` is less than 15 minutes, schedule the next iteration with `/after 1m #copilot-loop.prompt.md`; otherwise schedule with `/after 10m #copilot-loop.prompt.md`. Do not give a user-facing handoff.
+If the review is not clean, reset `pollingStartedAt` in the session findings ledger to the current ISO timestamp (this restarts the 15-minute polling window). Then schedule the next iteration with `/after 1m #copilot-loop.prompt.md`. On subsequent poll iterations where no new review has arrived yet, compare the current time to `pollingStartedAt`; if 15 or more minutes have elapsed, use `/after 10m #copilot-loop.prompt.md` instead. Do not give a user-facing handoff.
 
 If the review is clean, do not schedule another run. Produce the final report only once, with this shape:
 
