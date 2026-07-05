@@ -137,6 +137,9 @@ jobs:
           github-token: ${{ secrets.DEPLOY_TOKEN }}
           script: |
             const environment = process.env.PREVIEW_ENVIRONMENT;
+            if (!environment?.startsWith("pages-preview-pr-")) {
+              throw new Error(`Unexpected preview environment: ${environment ?? "<missing>"}`);
+            }
             const { owner, repo } = context.repo;
             const deployments = await github.paginate(github.rest.repos.listDeployments, {
               owner,
