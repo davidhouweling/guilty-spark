@@ -1130,6 +1130,7 @@ describe("UserTrackerDO", () => {
     expect(initialPayload.state?.directory.trackers).toHaveLength(1);
     expect(localSetAlarmMock).toHaveBeenCalledOnce();
 
+    alarmTime = null;
     await localUserTrackerDO.alarm();
 
     const reconciledResponse = await localUserTrackerDO.fetch(

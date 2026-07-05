@@ -206,7 +206,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
       const hasConnectedClients = this.state.getWebSockets().length > 0;
       if (!hasConnectedClients) {
-        await this.stopUpdateLoop();
+        await this.stopUpdateLoop({ scheduleReconcile: false });
 
         const stored = await this.loadState();
         if (stored.state?.userId == null) {
@@ -390,7 +390,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     void this.installTrackerSubscriptionsAsync();
   }
 
-  private async stopUpdateLoop(): Promise<void> {
+  private async stopUpdateLoop(options: { scheduleReconcile: boolean } = { scheduleReconcile: true }): Promise<void> {
     this.closeTrackerSubscriptions();
     this.closeTrackerSubscriptions = (): void => {
       // reset after closing
@@ -400,6 +400,10 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     const stored = await this.loadState();
     if (stored.state?.userId == null) {
       await this.state.storage.deleteAlarm();
+      return;
+    }
+
+    if (!options.scheduleReconcile) {
       return;
     }
 
