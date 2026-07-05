@@ -2079,10 +2079,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     );
     try {
       const initialMessage = trackerState != null ? await this.viewMessage(trackerState) : undefined;
-      const response = this.webSocketAdapter.upgrade(
-        this.state,
-        initialMessage,
-      );
+      const response = this.webSocketAdapter.upgrade(this.state, initialMessage);
       this.logService.info(
         "IndividualTracker: WebSocket connection established",
         new Map([
