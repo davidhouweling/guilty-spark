@@ -8,8 +8,7 @@ import { useFollowLiveDirectory } from "../use-follow-live-directory";
 import { FollowLiveViewerPresenter } from "./follow-live-viewer-presenter";
 import { FollowLiveViewer } from "./follow-live-viewer";
 
-export interface FollowLiveViewerCreateProps {
-  readonly gamertag: string;
+export interface FollowLiveViewerDependencies {
   readonly followLiveService: FollowLiveService;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
@@ -17,40 +16,45 @@ export interface FollowLiveViewerCreateProps {
   readonly haloClient: HaloInfiniteClient;
 }
 
-export function FollowLiveViewerCreate({
-  gamertag,
+export interface FollowLiveViewerProps {
+  readonly gamertag: string;
+}
+
+export function createFollowLiveViewer({
   followLiveService,
   individualTrackerViewService,
   matchAnalyticsService,
   seriesMatchesService,
   haloClient,
-}: FollowLiveViewerCreateProps): React.ReactElement {
-  const presenter = React.useMemo(() => new FollowLiveViewerPresenter(), []);
-  const { directory, directoryStatus, selectedTrackerId, onSelectTracker, onRetry } = useFollowLiveDirectory({
-    followLiveService,
-    gamertag,
-  });
-  const model = React.useMemo(
-    () => presenter.present({ gamertag, directory, directoryStatus, selectedTrackerId }),
-    [directory, directoryStatus, gamertag, presenter, selectedTrackerId],
-  );
+}: FollowLiveViewerDependencies) {
+  return function FollowLiveViewerCreate({ gamertag }: FollowLiveViewerProps): React.ReactElement {
+    const presenter = React.useMemo(() => new FollowLiveViewerPresenter(), []);
+    const { directory, directoryStatus, selectedTrackerId, onSelectTracker, onRetry } = useFollowLiveDirectory({
+      followLiveService,
+      gamertag,
+    });
+    const model = React.useMemo(
+      () => presenter.present({ gamertag, directory, directoryStatus, selectedTrackerId }),
+      [directory, directoryStatus, gamertag, presenter, selectedTrackerId],
+    );
 
-  React.useEffect(() => {
-    document.title = model.title;
-  }, [model.title]);
+    React.useEffect(() => {
+      document.title = model.title;
+    }, [model.title]);
 
-  return (
-    <FollowLiveViewer
-      directory={directory}
-      directoryStatus={directoryStatus}
-      selectedTrackerId={selectedTrackerId}
-      model={model}
-      onSelectTracker={onSelectTracker}
-      onRetry={onRetry}
-      individualTrackerViewService={individualTrackerViewService}
-      matchAnalyticsService={matchAnalyticsService}
-      seriesMatchesService={seriesMatchesService}
-      haloClient={haloClient}
-    />
-  );
+    return (
+      <FollowLiveViewer
+        directory={directory}
+        directoryStatus={directoryStatus}
+        selectedTrackerId={selectedTrackerId}
+        model={model}
+        onSelectTracker={onSelectTracker}
+        onRetry={onRetry}
+        individualTrackerViewService={individualTrackerViewService}
+        matchAnalyticsService={matchAnalyticsService}
+        seriesMatchesService={seriesMatchesService}
+        haloClient={haloClient}
+      />
+    );
+  };
 }

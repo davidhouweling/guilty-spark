@@ -11,7 +11,7 @@ import { aFakeFollowLiveServiceWith } from "../../../../services/follow/fakes/fo
 import { aFakeIndividualTrackerViewServiceWith } from "../../../../services/individual-tracker/fakes/view.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../../services/stats/fakes/series-matches.fake";
-import { FollowLiveOverlayCreate, type FollowLiveOverlayCreateProps } from "../create";
+import { createFollowLiveOverlay } from "../create";
 
 let mockOverlayInstanceCount = 0;
 
@@ -41,16 +41,31 @@ vi.mock("../../../individual-tracker/overlay/create", () => ({
   },
 }));
 
-function aViewerPropsWith(directory: TrackerDirectory): FollowLiveOverlayCreateProps {
-  return {
-    gamertag: "Spartan One",
-    followLiveService: aFakeFollowLiveServiceWith({ directory }),
+function createFollowLiveOverlayWith(
+  directory: TrackerDirectory,
+  options: { readonly showPreview?: boolean; readonly previewMode?: "player" | "observer" } = {},
+  followLiveService = aFakeFollowLiveServiceWith({ directory }),
+): {
+  readonly element: React.ReactElement;
+  readonly followLiveService: ReturnType<typeof aFakeFollowLiveServiceWith>;
+} {
+  const FollowLiveOverlay = createFollowLiveOverlay({
+    followLiveService,
     individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
     matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     seriesMatchesService: aFakeSeriesMatchesServiceWith(),
     haloClient: aFakeHaloClientWith(),
-    showPreview: false,
-    previewMode: "observer",
+  });
+
+  return {
+    element: (
+      <FollowLiveOverlay
+        gamertag="Spartan One"
+        showPreview={options.showPreview ?? false}
+        previewMode={options.previewMode ?? "observer"}
+      />
+    ),
+    followLiveService,
   };
 }
 
@@ -70,7 +85,7 @@ describe("FollowLiveOverlayCreate", () => {
       liveTrackerId: "tracker-2",
     });
 
-    render(<FollowLiveOverlayCreate {...aViewerPropsWith(directory)} />);
+    render(createFollowLiveOverlayWith(directory).element);
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-overlay-page")).toHaveTextContent("tracker-2:false:observer");
@@ -85,7 +100,7 @@ describe("FollowLiveOverlayCreate", () => {
       liveTrackerId: "tracker-3",
     });
 
-    render(<FollowLiveOverlayCreate {...aViewerPropsWith(directory)} showPreview previewMode="player" />);
+    render(createFollowLiveOverlayWith(directory, { showPreview: true, previewMode: "player" }).element);
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-overlay-page")).toHaveTextContent("tracker-3:true:player");
@@ -98,7 +113,7 @@ describe("FollowLiveOverlayCreate", () => {
       liveTrackerId: null,
     });
 
-    render(<FollowLiveOverlayCreate {...aViewerPropsWith(directory)} />);
+    render(createFollowLiveOverlayWith(directory).element);
 
     await waitFor(() => {
       expect(screen.getByText("No active tracker — waiting for a live game")).toBeInTheDocument();
@@ -111,7 +126,7 @@ describe("FollowLiveOverlayCreate", () => {
       liveTrackerId: null,
     });
 
-    render(<FollowLiveOverlayCreate {...aViewerPropsWith(directory)} />);
+    render(createFollowLiveOverlayWith(directory).element);
 
     await waitFor(() => {
       expect(screen.getByText("No active tracker — waiting for a live game")).toBeInTheDocument();
@@ -133,18 +148,9 @@ describe("FollowLiveOverlayCreate", () => {
       ],
       liveTrackerId: "tracker-1",
     });
-    const followLiveService = aFakeFollowLiveServiceWith({ directory: initialDirectory });
+    const { element, followLiveService } = createFollowLiveOverlayWith(initialDirectory);
 
-    render(
-      <FollowLiveOverlayCreate
-        gamertag="Spartan One"
-        followLiveService={followLiveService}
-        individualTrackerViewService={aFakeIndividualTrackerViewServiceWith()}
-        matchAnalyticsService={aFakeMatchAnalyticsServiceWith()}
-        seriesMatchesService={aFakeSeriesMatchesServiceWith()}
-        haloClient={aFakeHaloClientWith()}
-      />,
-    );
+    render(element);
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-overlay-page")).toHaveAttribute("data-instance-id", "1");

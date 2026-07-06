@@ -8,50 +8,56 @@ import { useFollowLiveDirectory } from "../use-follow-live-directory";
 import { FollowLiveOverlay } from "./follow-live-overlay";
 import { FollowLiveOverlayPresenter } from "./follow-live-overlay-presenter";
 
-export interface FollowLiveOverlayCreateProps {
-  readonly gamertag: string;
+export interface FollowLiveOverlayDependencies {
   readonly followLiveService: FollowLiveService;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
+}
+
+export interface FollowLiveOverlayProps {
+  readonly gamertag: string;
   readonly showPreview?: boolean;
   readonly previewMode?: "player" | "observer";
 }
 
-export function FollowLiveOverlayCreate({
-  gamertag,
+export function createFollowLiveOverlay({
   followLiveService,
   individualTrackerViewService,
   matchAnalyticsService,
   seriesMatchesService,
   haloClient,
-  showPreview = false,
-  previewMode = "observer",
-}: FollowLiveOverlayCreateProps): React.ReactElement {
-  const presenter = React.useMemo(() => new FollowLiveOverlayPresenter(), []);
-  const { directory, directoryStatus, onRetry } = useFollowLiveDirectory({
-    followLiveService,
+}: FollowLiveOverlayDependencies) {
+  return function FollowLiveOverlayCreate({
     gamertag,
-  });
-  const model = React.useMemo(() => presenter.present({ gamertag, directory }), [directory, gamertag, presenter]);
+    showPreview = false,
+    previewMode = "observer",
+  }: FollowLiveOverlayProps): React.ReactElement {
+    const presenter = React.useMemo(() => new FollowLiveOverlayPresenter(), []);
+    const { directory, directoryStatus, onRetry } = useFollowLiveDirectory({
+      followLiveService,
+      gamertag,
+    });
+    const model = React.useMemo(() => presenter.present({ gamertag, directory }), [directory, gamertag, presenter]);
 
-  React.useEffect(() => {
-    document.title = model.title;
-  }, [model.title]);
+    React.useEffect(() => {
+      document.title = model.title;
+    }, [model.title]);
 
-  return (
-    <FollowLiveOverlay
-      directoryStatus={directoryStatus}
-      directory={directory}
-      model={model}
-      onRetry={onRetry}
-      individualTrackerViewService={individualTrackerViewService}
-      matchAnalyticsService={matchAnalyticsService}
-      seriesMatchesService={seriesMatchesService}
-      haloClient={haloClient}
-      showPreview={showPreview}
-      previewMode={previewMode}
-    />
-  );
+    return (
+      <FollowLiveOverlay
+        directoryStatus={directoryStatus}
+        directory={directory}
+        model={model}
+        onRetry={onRetry}
+        individualTrackerViewService={individualTrackerViewService}
+        matchAnalyticsService={matchAnalyticsService}
+        seriesMatchesService={seriesMatchesService}
+        haloClient={haloClient}
+        showPreview={showPreview}
+        previewMode={previewMode}
+      />
+    );
+  };
 }
