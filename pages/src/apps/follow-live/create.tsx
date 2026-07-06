@@ -118,8 +118,17 @@ export function FollowLiveApp({ apiHost, gamertag, variant = "viewer" }: FollowL
       status={state}
       loading={<LoadingState text={isOverlay ? "Loading overlay..." : "Loading..."} />}
       error={<ErrorState message={isOverlay ? "Failed to load overlay" : "Failed to load viewer"} />}
-      loaded={isOverlay ? <FollowLiveOverlay gamertag={gamertag} showPreview={overlayPreview.showPreview} previewMode={overlayPreview.previewMode} /> : <FollowLiveViewer gamertag={gamertag} />}
+      loaded={
+        isOverlay ? (
+          <FollowLiveOverlay
+            gamertag={gamertag}
+            showPreview={overlayPreview.showPreview}
+            previewMode={overlayPreview.previewMode}
+          />
+        ) : (
+          <FollowLiveViewer gamertag={gamertag} />
+        )
+      }
     />
   );
 }
-
