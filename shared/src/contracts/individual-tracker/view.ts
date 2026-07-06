@@ -109,9 +109,15 @@ export type TrackerViewState = z.infer<typeof trackerViewStateSchema>;
 export const trackerViewContract = defineContract(z.object({ view: trackerViewStateSchema }));
 export type TrackerViewResponse = z.infer<typeof trackerViewContract.schema>;
 
+export const trackerLiveMessageViewSchema = trackerLiveViewSchema.extend({
+  statsHighlights: z.array(statsHighlightItemSchema).optional(),
+  preSeriesPlayerInfo: preSeriesPlayerInfoSchema.optional(),
+});
+export type TrackerLiveMessageView = z.infer<typeof trackerLiveMessageViewSchema>;
+
 export const trackerViewMessageSchema = z.object({
   type: z.literal("view"),
-  view: trackerLiveViewSchema,
+  view: trackerLiveMessageViewSchema,
 });
 export type TrackerViewMessage = z.infer<typeof trackerViewMessageSchema>;
 

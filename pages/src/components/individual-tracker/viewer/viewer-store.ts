@@ -1,4 +1,4 @@
-import type { TrackerLiveView, TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import type { TrackerLiveMessageView, TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import type { MatchStatsData } from "../../../controllers/stats/types";
 import type { KillMatrixPivotData } from "../../../controllers/stats/kill-matrix/types";
@@ -72,14 +72,18 @@ export class IndividualTrackerViewerStore {
     this.update({ status: ComponentLoaderStatus.ERROR, errorMessage });
   }
 
-  public setView(view: TrackerLiveView): void {
+  public setView(view: TrackerLiveMessageView): void {
     const isLive = this.snapshot.view?.isLive ?? false;
     const streamerSettings = this.snapshot.view?.streamerSettings;
-    const statsHighlights = this.snapshot.view?.statsHighlights;
-    const preSeriesPlayerInfo = this.snapshot.view?.preSeriesPlayerInfo;
     this.update({
       status: ComponentLoaderStatus.LOADED,
-      view: { ...view, isLive, streamerSettings, statsHighlights, preSeriesPlayerInfo },
+      view: {
+        ...view,
+        isLive,
+        streamerSettings,
+        statsHighlights: view.statsHighlights,
+        preSeriesPlayerInfo: view.preSeriesPlayerInfo,
+      },
     });
   }
 

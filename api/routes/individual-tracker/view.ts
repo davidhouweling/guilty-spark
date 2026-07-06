@@ -41,7 +41,7 @@ export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, 
 
   router.get("/api/individual-tracker/:trackerId/ws", async (request, env: Env) => {
     const services = installServices({ env });
-    const { databaseService, logService } = services;
+    const { databaseService, individualTrackerService, logService } = services;
 
     try {
       const parsedParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
@@ -59,11 +59,17 @@ export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, 
         return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
       }
 
+      const streamerSettings = await individualTrackerService.getSettingsForView(row.UserId);
+      const statsHighlightSlots =
+        streamerSettings.visibleSections?.statsHighlightSlots ??
+        DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS.slice(0, INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT);
+
       const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${row.UserId}:${trackerId}`);
       const stub = env.INDIVIDUAL_TRACKER_DO.get(doId);
 
       const forwardedUrl = new URL(request.url);
       forwardedUrl.pathname = "/websocket";
+      forwardedUrl.searchParams.set("statsHighlightSlots", JSON.stringify(statsHighlightSlots));
 
       return await stub.fetch(new Request(forwardedUrl.toString(), { headers: request.headers }));
     } catch (error) {
