@@ -26,7 +26,7 @@ describe("FollowLiveViewerPresenter", () => {
       selectedTrackerId: "tracker-2",
     });
 
-    expect(result.selectedTrackerTrackerId).toBe("tracker-2");
+    expect(result.resolvedSelectedTrackerId).toBe("tracker-2");
     expect(result.selectedTrackerView?.trackerId).toBe("tracker-2");
     expect(result.selectedTrackerView?.streamerSettings?.styleFlags?.matchmakingMyStatsOnly).toBe(true);
     expect(result.selectedTrackerStreamerSettings?.styleFlags?.matchmakingMyStatsOnly).toBe(true);

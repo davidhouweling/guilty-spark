@@ -16,7 +16,7 @@ export interface FollowLiveViewerProps {
   readonly showTabs: boolean;
   readonly trackerTabs: readonly FollowTrackerTab[];
   readonly selectedTrackerId: string | null;
-  readonly selectedTrackerTrackerId: string | null;
+  readonly resolvedSelectedTrackerId: string | null;
   readonly selectedTrackerView: Parameters<typeof IndividualTrackerViewerPage>[0]["externalView"];
   readonly selectedTrackerStreamerSettings: Parameters<typeof IndividualTrackerViewerPage>[0]["streamerSettings"];
   readonly connectionStatusOverride: Parameters<typeof IndividualTrackerViewerPage>[0]["connectionStatusOverride"];
@@ -34,7 +34,7 @@ export function FollowLiveViewer({
   showTabs,
   trackerTabs,
   selectedTrackerId,
-  selectedTrackerTrackerId,
+  resolvedSelectedTrackerId,
   selectedTrackerView,
   selectedTrackerStreamerSettings,
   connectionStatusOverride,
@@ -55,14 +55,14 @@ export function FollowLiveViewer({
         />
       )}
       <div className={styles.trackerContent}>
-        {selectedTrackerTrackerId != null ? (
+        {resolvedSelectedTrackerId != null ? (
           <IndividualTrackerViewerPage
-            key={selectedTrackerTrackerId}
+            key={resolvedSelectedTrackerId}
             individualTrackerViewService={individualTrackerViewService}
             matchAnalyticsService={matchAnalyticsService}
             seriesMatchesService={seriesMatchesService}
             haloClient={haloClient}
-            trackerId={selectedTrackerTrackerId}
+            trackerId={resolvedSelectedTrackerId}
             streamerSettings={selectedTrackerStreamerSettings}
             externalView={selectedTrackerView}
             connectionStatusOverride={connectionStatusOverride}

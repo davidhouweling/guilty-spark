@@ -21,7 +21,7 @@ export class FollowLiveViewerPresenter extends FollowLiveBasePresenter {
           isLive: tracker.isLive,
         })) ?? [],
       selectedTrackerId: args.selectedTrackerId,
-      selectedTrackerTrackerId: selectedTracker?.trackerId ?? null,
+      resolvedSelectedTrackerId: selectedTracker?.trackerId ?? null,
       selectedTrackerView: this.toTrackerView(selectedTracker, args.directory),
       selectedTrackerStreamerSettings: args.directory?.streamerSettings,
       connectionStatusOverride: this.toTrackerConnectionStatus(args.directoryStatus),

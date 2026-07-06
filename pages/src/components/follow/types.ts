@@ -17,7 +17,7 @@ export interface FollowLiveViewerPresentation {
   readonly showTabs: boolean;
   readonly trackerTabs: readonly FollowTrackerTab[];
   readonly selectedTrackerId: string | null;
-  readonly selectedTrackerTrackerId: string | null;
+  readonly resolvedSelectedTrackerId: string | null;
   readonly selectedTrackerView: TrackerViewState | undefined;
   readonly selectedTrackerStreamerSettings: StreamerViewSettings | undefined;
   readonly connectionStatusOverride: TrackerViewConnectionStatus | undefined;
