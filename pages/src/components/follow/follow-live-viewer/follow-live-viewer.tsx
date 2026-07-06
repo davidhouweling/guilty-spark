@@ -1,11 +1,16 @@
 import React from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { ComponentLoader } from "../../component-loader/component-loader";
 import { ErrorState } from "../../error-state/error-state";
 import { LoadingState } from "../../loading-state/loading-state";
 import { IndividualTrackerViewerPage } from "../../individual-tracker/viewer/create";
-import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
+import type {
+  IndividualTrackerViewService,
+  TrackerViewConnectionStatus,
+} from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
 import { FollowTrackerTabs } from "../follow-tracker-tabs/follow-tracker-tabs";
@@ -18,9 +23,9 @@ export interface FollowLiveViewerProps {
   readonly trackerTabs: readonly FollowTrackerTab[];
   readonly selectedTrackerId: string | null;
   readonly resolvedSelectedTrackerId: string | null;
-  readonly selectedTrackerView: Parameters<typeof IndividualTrackerViewerPage>[0]["externalView"];
-  readonly selectedTrackerStreamerSettings: Parameters<typeof IndividualTrackerViewerPage>[0]["streamerSettings"];
-  readonly connectionStatusOverride: Parameters<typeof IndividualTrackerViewerPage>[0]["connectionStatusOverride"];
+  readonly selectedTrackerView: TrackerViewState | undefined;
+  readonly selectedTrackerStreamerSettings: StreamerViewSettings | undefined;
+  readonly connectionStatusOverride: TrackerViewConnectionStatus | undefined;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
