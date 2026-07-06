@@ -3,8 +3,8 @@ import type { ReactElement } from "react";
 import { ComponentLoader, ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import { ErrorState } from "../../components/error-state/error-state";
 import { LoadingState } from "../../components/loading-state/loading-state";
-import { FollowLiveOverlayViewerCreate } from "../../components/follow/follow-live-overlay-viewer-create";
-import { FollowLiveViewerCreate } from "../../components/follow/follow-live-viewer-create";
+import { FollowLiveOverlayViewerCreate } from "../../components/follow/follow-live-overlay-viewer/create";
+import { FollowLiveViewerCreate } from "../../components/follow/follow-live-viewer/create";
 import type { Services } from "./services";
 import { installServices } from "./services";
 

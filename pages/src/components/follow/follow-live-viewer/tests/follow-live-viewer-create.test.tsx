@@ -6,16 +6,16 @@ import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { aDirectoryWith, aTrackerWith } from "@guilty-spark/shared/contracts/individual-tracker/fakes/follow.fake";
-import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
-import { aFakeFollowLiveServiceWith } from "../../../services/follow/fakes/follow.fake";
-import { aFakeIndividualTrackerViewServiceWith } from "../../../services/individual-tracker/fakes/view.fake";
-import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
-import { aFakeSeriesMatchesServiceWith } from "../../../services/stats/fakes/series-matches.fake";
-import { FollowLiveViewerCreate, type FollowLiveViewerCreateProps } from "../follow-live-viewer-create";
+import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
+import { aFakeFollowLiveServiceWith } from "../../../../services/follow/fakes/follow.fake";
+import { aFakeIndividualTrackerViewServiceWith } from "../../../../services/individual-tracker/fakes/view.fake";
+import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
+import { aFakeSeriesMatchesServiceWith } from "../../../../services/stats/fakes/series-matches.fake";
+import { FollowLiveViewerCreate, type FollowLiveViewerCreateProps } from "../create";
 
 let mockViewerInstanceCount = 0;
 
-vi.mock("../../individual-tracker/viewer/create", () => ({
+vi.mock("../../../individual-tracker/viewer/create", () => ({
   IndividualTrackerViewerPage: ({
     trackerId,
     streamerSettings,
