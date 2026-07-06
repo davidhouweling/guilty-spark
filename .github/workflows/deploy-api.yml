@@ -95,6 +95,39 @@ jobs:
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
           TOKEN_ENCRYPTION_SECRET: ${{ secrets.TOKEN_ENCRYPTION_SECRET }}
 
+      - name: Resolve deployment URL
+        id: resolve-url
+        env:
+          WRANGLER_DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+          WRANGLER_OUTPUT: ${{ steps.deploy.outputs.command-output }}
+          DEPLOY_ENV: ${{ github.event.workflow_run.head_branch == 'main' && 'production' || 'staging' }}
+        run: |
+          url=""
+
+          # Use wrangler's URL output when it already includes an http(s) scheme.
+          if [ -z "$url" ] && printf '%s' "$WRANGLER_DEPLOYMENT_URL" | grep -Eq '^https?://'; then
+            url="$WRANGLER_DEPLOYMENT_URL"
+          fi
+
+          # If wrangler returned a bare host, normalize it to an https URL.
+          if [ -z "$url" ] && [ -n "$WRANGLER_DEPLOYMENT_URL" ]; then
+            if printf '%s' "$WRANGLER_DEPLOYMENT_URL" | grep -Eq '^[a-z0-9.-]+(/.*)?$'; then
+              url="https://$WRANGLER_DEPLOYMENT_URL"
+            fi
+          fi
+
+          # Fallback: parse the first URL from wrangler command output.
+          if [ -z "$url" ]; then
+            url=$(printf '%s' "$WRANGLER_OUTPUT" | grep -oE 'https://[^[:space:]]+' | head -1)
+          fi
+
+          # Final fallback to stable API hostnames.
+          if [ -z "$url" ]; then
+            url="https://api-staging.guilty-spark.app"
+          fi
+
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
       - name: Update GitHub deployment
         id: update_deployment
         uses: chrnorm/deployment-action@v2
@@ -102,7 +135,7 @@ jobs:
           token: ${{ secrets.DEPLOY_TOKEN }}
           ref: ${{ github.event.workflow_run.head_sha }}
           environment: ${{ github.event.workflow_run.head_branch == 'main' && 'Production' || 'api-staging' }}
-          environment-url: ${{ steps.deploy.outputs.deployment-url }}
+          environment-url: ${{ github.event.workflow_run.head_branch == 'main' && 'https://guilty-spark.app' || steps.resolve-url.outputs.url }}
           initial-status: success
           auto-inactive: true
           transient-environment: ${{ github.event.workflow_run.head_branch != 'main' }}
