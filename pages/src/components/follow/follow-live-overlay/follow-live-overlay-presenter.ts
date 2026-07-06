@@ -7,7 +7,9 @@ export class FollowLiveOverlayPresenter extends FollowLiveBasePresenter {
 
     return {
       title: this.getOverlayTitle(args.gamertag, args.directory),
-      liveTracker,
+      showDirectoryError: args.directoryStatus === "error" && args.directory == null,
+      showDirectoryLoading: args.directory == null,
+      liveTrackerId: liveTracker?.trackerId ?? null,
       liveTrackerView: this.toTrackerView(liveTracker, args.directory),
     };
   }

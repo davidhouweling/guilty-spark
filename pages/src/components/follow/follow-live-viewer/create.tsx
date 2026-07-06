@@ -44,10 +44,7 @@ export function createFollowLiveViewer({
 
     return (
       <FollowLiveViewer
-        directory={directory}
-        directoryStatus={directoryStatus}
-        selectedTrackerId={selectedTrackerId}
-        model={model}
+        {...model}
         onSelectTracker={onSelectTracker}
         onRetry={onRetry}
         individualTrackerViewService={individualTrackerViewService}

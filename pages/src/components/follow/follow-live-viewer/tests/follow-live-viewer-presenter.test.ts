@@ -26,11 +26,14 @@ describe("FollowLiveViewerPresenter", () => {
       selectedTrackerId: "tracker-2",
     });
 
-    expect(result.selectedTracker?.trackerId).toBe("tracker-2");
+    expect(result.selectedTrackerTrackerId).toBe("tracker-2");
     expect(result.selectedTrackerView?.trackerId).toBe("tracker-2");
     expect(result.selectedTrackerView?.streamerSettings?.styleFlags?.matchmakingMyStatsOnly).toBe(true);
+    expect(result.selectedTrackerStreamerSettings?.styleFlags?.matchmakingMyStatsOnly).toBe(true);
     expect(result.connectionStatusOverride).toBeUndefined();
     expect(result.showTabs).toBe(true);
+    expect(result.showDirectoryError).toBe(false);
+    expect(result.showDirectoryLoading).toBe(false);
     expect(result.title).toBe("Streamer live view - Spartan Two live - Guilty Spark");
   });
 

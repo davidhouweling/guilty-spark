@@ -39,7 +39,10 @@ export function createFollowLiveOverlay({
       followLiveService,
       gamertag,
     });
-    const model = React.useMemo(() => presenter.present({ gamertag, directory }), [directory, gamertag, presenter]);
+    const model = React.useMemo(
+      () => presenter.present({ gamertag, directory, directoryStatus }),
+      [directory, directoryStatus, gamertag, presenter],
+    );
 
     React.useEffect(() => {
       document.title = model.title;
@@ -47,9 +50,7 @@ export function createFollowLiveOverlay({
 
     return (
       <FollowLiveOverlay
-        directoryStatus={directoryStatus}
-        directory={directory}
-        model={model}
+        {...model}
         onRetry={onRetry}
         individualTrackerViewService={individualTrackerViewService}
         matchAnalyticsService={matchAnalyticsService}

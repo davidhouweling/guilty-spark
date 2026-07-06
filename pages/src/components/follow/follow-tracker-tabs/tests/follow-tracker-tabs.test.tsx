@@ -10,7 +10,7 @@ import {
 } from "@guilty-spark/shared/contracts/individual-tracker/fakes/follow.fake";
 import { FollowTrackerTabs } from "../follow-tracker-tabs";
 
-function aTabsDirectoryWithWinsAndLosses(): TrackerDirectory {
+function aTabsTrackersWithWinsAndLosses(): TrackerDirectory["trackers"] {
   return aDirectoryWith({
     trackers: [
       aTrackerWith({
@@ -37,7 +37,7 @@ function aTabsDirectoryWithWinsAndLosses(): TrackerDirectory {
       }),
     ],
     liveTrackerId: "tracker-1",
-  });
+  }).trackers;
 }
 
 describe("FollowTrackerTabs", () => {
@@ -48,7 +48,7 @@ describe("FollowTrackerTabs", () => {
   it("renders one button per tracker", () => {
     render(
       <FollowTrackerTabs
-        directory={aTabsDirectoryWithWinsAndLosses()}
+        trackers={aTabsTrackersWithWinsAndLosses()}
         selectedTrackerId="tracker-1"
         onSelectTracker={vi.fn<(trackerId: string) => void>()}
       />,
@@ -63,7 +63,7 @@ describe("FollowTrackerTabs", () => {
   it("shows Live badge on the live tracker", () => {
     render(
       <FollowTrackerTabs
-        directory={aTabsDirectoryWithWinsAndLosses()}
+        trackers={aTabsTrackersWithWinsAndLosses()}
         selectedTrackerId="tracker-1"
         onSelectTracker={vi.fn<(trackerId: string) => void>()}
       />,
@@ -89,7 +89,7 @@ describe("FollowTrackerTabs", () => {
 
     render(
       <FollowTrackerTabs
-        directory={dir}
+        trackers={dir.trackers}
         selectedTrackerId="tracker-1"
         onSelectTracker={vi.fn<(trackerId: string) => void>()}
       />,
@@ -103,7 +103,7 @@ describe("FollowTrackerTabs", () => {
 
     render(
       <FollowTrackerTabs
-        directory={aTabsDirectoryWithWinsAndLosses()}
+        trackers={aTabsTrackersWithWinsAndLosses()}
         selectedTrackerId="tracker-1"
         onSelectTracker={onSelectTracker}
       />,
@@ -124,7 +124,7 @@ describe("FollowTrackerTabs", () => {
 
     render(
       <FollowTrackerTabs
-        directory={emptyDirectory}
+        trackers={emptyDirectory.trackers}
         selectedTrackerId={null}
         onSelectTracker={vi.fn<(trackerId: string) => void>()}
       />,
@@ -139,7 +139,7 @@ describe("FollowTrackerTabs", () => {
 
     render(
       <FollowTrackerTabs
-        directory={aTabsDirectoryWithWinsAndLosses()}
+        trackers={aTabsTrackersWithWinsAndLosses()}
         selectedTrackerId={null}
         onSelectTracker={onSelectTracker}
       />,

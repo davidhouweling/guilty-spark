@@ -1,20 +1,20 @@
 import React from "react";
-import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { TabbedSection } from "../../tabbed-section/tabbed-section";
+import type { FollowTrackerTab } from "../types";
 import styles from "./follow-tracker-tabs.module.css";
 
 export interface FollowTrackerTabsProps {
-  readonly directory: TrackerDirectory;
+  readonly trackers: readonly FollowTrackerTab[];
   readonly selectedTrackerId: string | null;
   readonly onSelectTracker: (trackerId: string) => void;
 }
 
-function getSelectedTabId(directory: TrackerDirectory, selectedTrackerId: string | null): string | null {
+function getSelectedTabId(trackers: readonly FollowTrackerTab[], selectedTrackerId: string | null): string | null {
   if (selectedTrackerId == null) {
     return null;
   }
 
-  for (const tracker of directory.trackers) {
+  for (const tracker of trackers) {
     if (tracker.trackerId === selectedTrackerId) {
       return selectedTrackerId;
     }
@@ -24,12 +24,12 @@ function getSelectedTabId(directory: TrackerDirectory, selectedTrackerId: string
 }
 
 export function FollowTrackerTabs({
-  directory,
+  trackers,
   selectedTrackerId,
   onSelectTracker,
 }: FollowTrackerTabsProps): React.ReactElement {
-  const selectedTabId = getSelectedTabId(directory, selectedTrackerId);
-  const tabs = directory.trackers.map((entry) => ({
+  const selectedTabId = getSelectedTabId(trackers, selectedTrackerId);
+  const tabs = trackers.map((entry) => ({
     id: entry.trackerId,
     label: (
       <span className={styles.tabLabel}>

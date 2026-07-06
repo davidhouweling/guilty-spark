@@ -136,7 +136,7 @@ describe("/api/individual-tracker view route", () => {
     expect(JSON.stringify(body)).not.toContain("user-123");
   });
 
-  it("returns 403 for /view when authenticated user does not own the tracker", async () => {
+  it("returns 404 for /view when authenticated user does not own the tracker", async () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = withAuth(installFakeServicesWith)({ env });
       vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(
@@ -148,7 +148,7 @@ describe("/api/individual-tracker view route", () => {
 
     const res = (await router.fetch(getRequest("/api/individual-tracker/t1/view"), env)) as Response;
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
   });
 
   it("returns 200 with empty matches when the DO has no state", async () => {
@@ -283,7 +283,7 @@ describe("/api/individual-tracker view route", () => {
       expect(res.headers.get("x-fake-upgrade")).toBe("websocket");
     });
 
-    it("returns 403 for /ws when authenticated user does not own the tracker", async () => {
+    it("returns 404 for /ws when authenticated user does not own the tracker", async () => {
       const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "another-user" });
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = withAuth(installFakeServicesWith)({ env });
@@ -294,7 +294,7 @@ describe("/api/individual-tracker view route", () => {
 
       const res = (await router.fetch(wsRequest("/api/individual-tracker/t1/ws"), env)) as Response;
 
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(404);
     });
 
     it("returns 426 when the request is not a websocket upgrade", async () => {

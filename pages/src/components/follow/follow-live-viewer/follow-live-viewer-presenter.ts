@@ -11,9 +11,19 @@ export class FollowLiveViewerPresenter extends FollowLiveBasePresenter {
 
     return {
       title: this.getViewerTitle(args.gamertag, args.directory),
+      showDirectoryError: args.directoryStatus === "error" && args.directory == null,
+      showDirectoryLoading: args.directory == null,
       showTabs: args.directory != null && args.directory.trackers.length > 1,
-      selectedTracker,
+      trackerTabs:
+        args.directory?.trackers.map((tracker) => ({
+          trackerId: tracker.trackerId,
+          gamertag: tracker.gamertag,
+          isLive: tracker.isLive,
+        })) ?? [],
+      selectedTrackerId: args.selectedTrackerId,
+      selectedTrackerTrackerId: selectedTracker?.trackerId ?? null,
       selectedTrackerView: this.toTrackerView(selectedTracker, args.directory),
+      selectedTrackerStreamerSettings: args.directory?.streamerSettings,
       connectionStatusOverride: this.toTrackerConnectionStatus(args.directoryStatus),
     };
   }

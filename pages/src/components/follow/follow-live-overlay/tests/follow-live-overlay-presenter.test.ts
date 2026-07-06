@@ -17,10 +17,13 @@ describe("FollowLiveOverlayPresenter", () => {
     const overlay = presenter.present({
       gamertag: "Streamer",
       directory,
+      directoryStatus: "connected",
     });
 
-    expect(overlay.liveTracker?.trackerId).toBe("tracker-2");
+    expect(overlay.liveTrackerId).toBe("tracker-2");
     expect(overlay.liveTrackerView?.trackerId).toBe("tracker-2");
+    expect(overlay.showDirectoryError).toBe(false);
+    expect(overlay.showDirectoryLoading).toBe(false);
     expect(overlay.title).toBe("Streamer overlay - Spartan Two live - Guilty Spark");
   });
 
@@ -34,6 +37,7 @@ describe("FollowLiveOverlayPresenter", () => {
     const overlay = presenter.present({
       gamertag: "Streamer",
       directory,
+      directoryStatus: "connected",
     });
 
     expect(overlay.title).toBe("Streamer overlay - Guilty Spark");

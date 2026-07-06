@@ -32,7 +32,7 @@ export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, 
         return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
       }
       if (row.UserId !== sessionResult.session.userId) {
-        return errorContract.toResponse({ error: "Forbidden" }, { status: 403, noStore: true });
+        return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
       }
 
       const streamerSettings = await individualTrackerService.getSettingsForView(row.UserId);
@@ -73,7 +73,7 @@ export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, 
         return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
       }
       if (row.UserId !== sessionResult.session.userId) {
-        return errorContract.toResponse({ error: "Forbidden" }, { status: 403, noStore: true });
+        return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
       }
 
       const streamerSettings = await individualTrackerService.getSettingsForView(row.UserId);

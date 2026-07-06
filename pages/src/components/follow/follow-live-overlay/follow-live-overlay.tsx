@@ -1,19 +1,17 @@
 import React from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
-import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
-import type { DirectoryConnectionStatus } from "../../../services/follow/follow-types";
 import { ErrorState } from "../../error-state/error-state";
 import { LoadingState } from "../../loading-state/loading-state";
 import { IndividualTrackerOverlayPage } from "../../individual-tracker/overlay/create";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
-import type { FollowLiveOverlayPresentation } from "../types";
 
 export interface FollowLiveOverlayProps {
-  readonly directoryStatus: DirectoryConnectionStatus;
-  readonly directory: TrackerDirectory | null;
-  readonly model: FollowLiveOverlayPresentation;
+  readonly showDirectoryError: boolean;
+  readonly showDirectoryLoading: boolean;
+  readonly liveTrackerId: string | null;
+  readonly liveTrackerView: Parameters<typeof IndividualTrackerOverlayPage>[0]["externalView"];
   readonly onRetry: () => void;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
@@ -24,9 +22,10 @@ export interface FollowLiveOverlayProps {
 }
 
 export function FollowLiveOverlay({
-  directoryStatus,
-  directory,
-  model,
+  showDirectoryError,
+  showDirectoryLoading,
+  liveTrackerId,
+  liveTrackerView,
   onRetry,
   individualTrackerViewService,
   matchAnalyticsService,
@@ -35,27 +34,27 @@ export function FollowLiveOverlay({
   showPreview = false,
   previewMode = "observer",
 }: FollowLiveOverlayProps): React.ReactElement {
-  if (model.liveTracker != null) {
+  if (liveTrackerId != null) {
     return (
       <IndividualTrackerOverlayPage
-        key={model.liveTracker.trackerId}
+        key={liveTrackerId}
         individualTrackerViewService={individualTrackerViewService}
         matchAnalyticsService={matchAnalyticsService}
         seriesMatchesService={seriesMatchesService}
         haloClient={haloClient}
-        trackerId={model.liveTracker.trackerId}
-        externalView={model.liveTrackerView}
+        trackerId={liveTrackerId}
+        externalView={liveTrackerView}
         showPreview={showPreview}
         previewMode={previewMode}
       />
     );
   }
 
-  if (directoryStatus === "error" && directory === null) {
+  if (showDirectoryError) {
     return <ErrorState message="Failed to load tracker directory" onRetry={onRetry} />;
   }
 
-  if (directory === null) {
+  if (showDirectoryLoading) {
     return <LoadingState text="Loading tracker directory..." />;
   }
 
