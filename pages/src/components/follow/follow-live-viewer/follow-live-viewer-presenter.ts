@@ -16,4 +16,35 @@ export class FollowLiveViewerPresenter extends FollowLiveBasePresenter {
       connectionStatusOverride: this.toTrackerConnectionStatus(args.directoryStatus),
     };
   }
+
+  private getViewerTitle(gamertag: string, directory: FollowLiveViewerPresentArgs["directory"]): string {
+    const liveTracker = this.getLiveTracker(directory);
+    if (liveTracker == null) {
+      return `${gamertag} live view - Guilty Spark`;
+    }
+
+    return `${gamertag} live view - ${liveTracker.gamertag} live - Guilty Spark`;
+  }
+
+  private toTrackerConnectionStatus(
+    directoryStatus: FollowLiveViewerPresentArgs["directoryStatus"],
+  ): FollowLiveViewerPresentation["connectionStatusOverride"] {
+    switch (directoryStatus) {
+      case "connected": {
+        return undefined;
+      }
+      case "connecting": {
+        return "connecting";
+      }
+      case "disconnected": {
+        return "disconnected";
+      }
+      case "error": {
+        return "error";
+      }
+      default: {
+        return undefined;
+      }
+    }
+  }
 }

@@ -11,4 +11,13 @@ export class FollowLiveOverlayViewerPresenter extends FollowLiveBasePresenter {
       liveTrackerView: this.toTrackerView(liveTracker, args.directory),
     };
   }
+
+  private getOverlayTitle(gamertag: string, directory: FollowLiveOverlayPresentArgs["directory"]): string {
+    const liveTracker = this.getLiveTracker(directory);
+    if (liveTracker == null) {
+      return `${gamertag} overlay - Guilty Spark`;
+    }
+
+    return `${gamertag} overlay - ${liveTracker.gamertag} live - Guilty Spark`;
+  }
 }
