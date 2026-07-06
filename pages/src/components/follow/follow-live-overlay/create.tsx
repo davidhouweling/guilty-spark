@@ -4,9 +4,9 @@ import type { FollowLiveService } from "../../../services/follow/follow-types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
+import { useFollowLiveDirectory } from "../use-follow-live-directory";
 import { FollowLiveOverlay } from "./follow-live-overlay";
 import { FollowLiveOverlayPresenter } from "./follow-live-overlay-presenter";
-import { useFollowLiveDirectory } from "../use-follow-live-directory";
 
 export interface FollowLiveOverlayCreateProps {
   readonly gamertag: string;

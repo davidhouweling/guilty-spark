@@ -1,3 +1,4 @@
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { FollowLiveViewerPresentArgs, FollowLiveViewerPresentation } from "../types";
 import { FollowLiveBasePresenter } from "../follow-live-base-presenter";
 
@@ -43,7 +44,7 @@ export class FollowLiveViewerPresenter extends FollowLiveBasePresenter {
         return "error";
       }
       default: {
-        return undefined;
+        throw new UnreachableError(directoryStatus);
       }
     }
   }
