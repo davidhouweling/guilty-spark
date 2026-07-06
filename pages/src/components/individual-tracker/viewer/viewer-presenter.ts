@@ -298,6 +298,7 @@ export class IndividualTrackerViewerPresenter {
   }
 
   public setExternalView(view: TrackerViewState): void {
+    this.closeConnection();
     this.hasServerStreamerSettings = view.streamerSettings !== undefined;
     const resolvedView =
       view.streamerSettings === undefined && this.streamerSettings !== undefined
@@ -484,12 +485,7 @@ export class IndividualTrackerViewerPresenter {
   public dispose(): void {
     this.isDisposed = true;
     this.awaitingRefresh = false;
-    this.viewSubscription?.unsubscribe();
-    this.viewSubscription = null;
-    this.statusSubscription?.unsubscribe();
-    this.statusSubscription = null;
-    this.connection?.disconnect();
-    this.connection = null;
+    this.closeConnection();
   }
 
   private async refreshAsync(): Promise<void> {
@@ -534,9 +530,7 @@ export class IndividualTrackerViewerPresenter {
   }
 
   private openConnection(): void {
-    this.viewSubscription?.unsubscribe();
-    this.statusSubscription?.unsubscribe();
-    this.connection?.disconnect();
+    this.closeConnection();
 
     const connection = this.config.individualTrackerViewService.connect(this.config.trackerId);
     this.connection = connection;
@@ -556,5 +550,14 @@ export class IndividualTrackerViewerPresenter {
       }
       this.config.store.setConnectionStatus(status);
     });
+  }
+
+  private closeConnection(): void {
+    this.viewSubscription?.unsubscribe();
+    this.viewSubscription = null;
+    this.statusSubscription?.unsubscribe();
+    this.statusSubscription = null;
+    this.connection?.disconnect();
+    this.connection = null;
   }
 }

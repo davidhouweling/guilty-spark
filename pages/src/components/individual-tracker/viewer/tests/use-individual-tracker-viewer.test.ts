@@ -257,6 +257,63 @@ describe("useIndividualTrackerViewer", () => {
     });
   });
 
+  it("disconnects managed websocket updates when switching to external view", async () => {
+    const managedView = aFakeTrackerViewStateWith({
+      trackerId: "tracker-1",
+      status: "active",
+      statsHighlights: [{ label: "KDA", value: "2.1" }],
+    });
+    const externalView = aFakeTrackerViewStateWith({
+      trackerId: "tracker-1",
+      status: "active",
+      statsHighlights: [{ label: "KDA", value: "9.9" }],
+    });
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({ view: managedView });
+    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+
+    const { result, rerender } = renderHook<
+      ReturnType<typeof useIndividualTrackerViewer>,
+      { nextExternalView: ReturnType<typeof aFakeTrackerViewStateWith> | undefined }
+    >(
+      ({ nextExternalView }: { nextExternalView: ReturnType<typeof aFakeTrackerViewStateWith> | undefined }) =>
+        useIndividualTrackerViewer({
+          individualTrackerViewService,
+          matchAnalyticsService,
+          seriesMatchesService,
+          haloClient,
+          trackerId: "tracker-1",
+          externalView: nextExternalView,
+        }),
+      { initialProps: { nextExternalView: undefined } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+      expect(result.current.model.renderModel?.statsHighlights?.[0]?.value).toBe("2.1");
+      expect(individualTrackerViewService.lastConnection).not.toBeNull();
+    });
+
+    const managedConnection = individualTrackerViewService.lastConnection;
+
+    rerender({ nextExternalView: externalView });
+
+    await waitFor(() => {
+      expect(result.current.model.renderModel?.statsHighlights?.[0]?.value).toBe("9.9");
+    });
+
+    act(() => {
+      managedConnection?.emitView({
+        ...aFakeTrackerLiveViewWith({
+          trackerId: "tracker-1",
+          status: "active",
+        }),
+        statsHighlights: [{ label: "KDA", value: "1.1" }],
+      });
+    });
+
+    expect(result.current.model.renderModel?.statsHighlights?.[0]?.value).toBe("9.9");
+  });
+
   it("updates stats highlights directly from websocket payloads", async () => {
     const firstView = aFakeTrackerViewStateWith({
       trackerId: "tracker-1",
