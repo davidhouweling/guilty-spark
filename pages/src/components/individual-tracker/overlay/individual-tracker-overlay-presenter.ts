@@ -4,7 +4,7 @@ import type { MatchStats } from "halo-infinite-api";
 import { differenceInHours } from "date-fns";
 import TimeAgo from "javascript-time-ago";
 import { createElement, type CSSProperties } from "react";
-import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
+import type { MedalEntry, MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
@@ -617,7 +617,10 @@ export class IndividualTrackerOverlayPresenter {
     );
   }
 
-  private filterTickerStats(stats: readonly MatchStatsValues[], filterOptions: TickerFilterOptions): MatchStatsValues[] {
+  private filterTickerStats(
+    stats: readonly MatchStatsValues[],
+    filterOptions: TickerFilterOptions,
+  ): MatchStatsValues[] {
     return stats.filter((stat) => {
       if (filterOptions.selectedSlayerStats.includes(stat.name)) {
         return true;
@@ -632,17 +635,17 @@ export class IndividualTrackerOverlayPresenter {
   }
 
   private filterTickerMedals(
-    medals: TickerStatRow["medals"],
+    medals: readonly MedalEntry[],
     medalRarityFilter: readonly number[],
   ): TickerStatRow["medals"] {
-    return medals.filter((medal) => {
+    return medals.flatMap((medal) => {
       for (const [difficultyIndex, [minimumWeight, maximumWeight]] of DIFFICULTY_RANGE.entries()) {
         if (medal.sortingWeight >= minimumWeight && medal.sortingWeight <= maximumWeight) {
-          return medalRarityFilter.includes(difficultyIndex);
+          return medalRarityFilter.includes(difficultyIndex) ? [{ name: medal.name, count: medal.count }] : [];
         }
       }
 
-      return false;
+      return [];
     });
   }
 
