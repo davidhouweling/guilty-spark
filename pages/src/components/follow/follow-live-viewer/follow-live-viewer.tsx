@@ -1,5 +1,7 @@
 import React from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { ComponentLoaderStatus } from "../../component-loader/component-loader";
+import { ComponentLoader } from "../../component-loader/component-loader";
 import { ErrorState } from "../../error-state/error-state";
 import { LoadingState } from "../../loading-state/loading-state";
 import { IndividualTrackerViewerPage } from "../../individual-tracker/viewer/create";
@@ -11,8 +13,7 @@ import type { FollowTrackerTab } from "../types";
 import styles from "./follow-live-viewer.module.css";
 
 export interface FollowLiveViewerProps {
-  readonly showDirectoryError: boolean;
-  readonly showDirectoryLoading: boolean;
+  readonly loadStatus: ComponentLoaderStatus;
   readonly showTabs: boolean;
   readonly trackerTabs: readonly FollowTrackerTab[];
   readonly selectedTrackerId: string | null;
@@ -29,8 +30,7 @@ export interface FollowLiveViewerProps {
 }
 
 export function FollowLiveViewer({
-  showDirectoryError,
-  showDirectoryLoading,
+  loadStatus,
   showTabs,
   trackerTabs,
   selectedTrackerId,
@@ -45,6 +45,23 @@ export function FollowLiveViewer({
   onSelectTracker,
   onRetry,
 }: FollowLiveViewerProps): React.ReactElement {
+  const loadedState =
+    resolvedSelectedTrackerId != null ? (
+      <IndividualTrackerViewerPage
+        key={resolvedSelectedTrackerId}
+        individualTrackerViewService={individualTrackerViewService}
+        matchAnalyticsService={matchAnalyticsService}
+        seriesMatchesService={seriesMatchesService}
+        haloClient={haloClient}
+        trackerId={resolvedSelectedTrackerId}
+        streamerSettings={selectedTrackerStreamerSettings}
+        externalView={selectedTrackerView}
+        connectionStatusOverride={connectionStatusOverride}
+      />
+    ) : (
+      <LoadingState text="No active tracker — waiting for a live game" />
+    );
+
   return (
     <div className={styles.container}>
       {showTabs && (
@@ -55,25 +72,12 @@ export function FollowLiveViewer({
         />
       )}
       <div className={styles.trackerContent}>
-        {resolvedSelectedTrackerId != null ? (
-          <IndividualTrackerViewerPage
-            key={resolvedSelectedTrackerId}
-            individualTrackerViewService={individualTrackerViewService}
-            matchAnalyticsService={matchAnalyticsService}
-            seriesMatchesService={seriesMatchesService}
-            haloClient={haloClient}
-            trackerId={resolvedSelectedTrackerId}
-            streamerSettings={selectedTrackerStreamerSettings}
-            externalView={selectedTrackerView}
-            connectionStatusOverride={connectionStatusOverride}
-          />
-        ) : showDirectoryError ? (
-          <ErrorState message="Failed to load tracker directory" onRetry={onRetry} />
-        ) : showDirectoryLoading ? (
-          <LoadingState text="Loading tracker directory..." />
-        ) : (
-          <LoadingState text="No active tracker — waiting for a live game" />
-        )}
+        <ComponentLoader
+          status={loadStatus}
+          loading={<LoadingState text="Loading tracker directory..." />}
+          error={<ErrorState message="Failed to load tracker directory" onRetry={onRetry} />}
+          loaded={loadedState}
+        />
       </div>
     </div>
   );

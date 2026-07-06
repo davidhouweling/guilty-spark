@@ -484,7 +484,7 @@ export class IndividualTrackerViewerPresenter {
 
   public start(): void {
     this.modeVersion += 1;
-    const {modeVersion} = this;
+    const { modeVersion } = this;
     void this.load(modeVersion);
   }
 

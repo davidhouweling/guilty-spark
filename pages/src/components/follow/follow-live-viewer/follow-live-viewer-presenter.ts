@@ -2,6 +2,7 @@ import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import type { DirectoryConnectionStatus } from "../../../services/follow/follow-types";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import type { FollowTrackerTab } from "../types";
@@ -14,10 +15,11 @@ interface FollowLiveViewerPresentOpts {
   readonly selectedTrackerId: string | null;
 }
 
+type FollowTracker = TrackerDirectory["trackers"][number];
+
 interface FollowLiveViewerPresentation {
   readonly title: string;
-  readonly showDirectoryError: boolean;
-  readonly showDirectoryLoading: boolean;
+  readonly loadStatus: ComponentLoaderStatus;
   readonly showTabs: boolean;
   readonly trackerTabs: readonly FollowTrackerTab[];
   readonly selectedTrackerId: string | null;
@@ -36,8 +38,7 @@ export class FollowLiveViewerPresenter extends FollowLiveBasePresenter {
 
     return {
       title: this.getViewerTitle(args.gamertag, args.directory),
-      showDirectoryError: args.directoryStatus === "error" && args.directory == null,
-      showDirectoryLoading: args.directory == null,
+      loadStatus: this.toLoadStatus(args.directoryStatus, selectedTracker),
       showTabs: args.directory != null && args.directory.trackers.length > 1,
       trackerTabs:
         args.directory?.trackers.map((tracker) => ({
@@ -51,6 +52,25 @@ export class FollowLiveViewerPresenter extends FollowLiveBasePresenter {
       selectedTrackerStreamerSettings: args.directory?.streamerSettings,
       connectionStatusOverride: this.toTrackerConnectionStatus(args.directoryStatus),
     };
+  }
+
+  private toLoadStatus(
+    directoryStatus: FollowLiveViewerPresentOpts["directoryStatus"],
+    selectedTracker: FollowTracker | null,
+  ): ComponentLoaderStatus {
+    if (selectedTracker != null) {
+      return ComponentLoaderStatus.LOADED;
+    }
+
+    if (directoryStatus === "error") {
+      return ComponentLoaderStatus.ERROR;
+    }
+
+    if (directoryStatus === "connecting") {
+      return ComponentLoaderStatus.LOADING;
+    }
+
+    return ComponentLoaderStatus.LOADED;
   }
 
   private getViewerTitle(gamertag: string, directory: FollowLiveViewerPresentOpts["directory"]): string {

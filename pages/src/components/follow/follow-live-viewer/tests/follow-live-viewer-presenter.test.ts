@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { aDirectoryWith, aTrackerWith } from "@guilty-spark/shared/contracts/individual-tracker/fakes/follow.fake";
+import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { FollowLiveViewerPresenter } from "../follow-live-viewer-presenter";
 
 describe("FollowLiveViewerPresenter", () => {
@@ -31,9 +32,8 @@ describe("FollowLiveViewerPresenter", () => {
     expect(result.selectedTrackerView?.streamerSettings?.styleFlags?.matchmakingMyStatsOnly).toBe(true);
     expect(result.selectedTrackerStreamerSettings?.styleFlags?.matchmakingMyStatsOnly).toBe(true);
     expect(result.connectionStatusOverride).toBeUndefined();
+    expect(result.loadStatus).toBe(ComponentLoaderStatus.LOADED);
     expect(result.showTabs).toBe(true);
-    expect(result.showDirectoryError).toBe(false);
-    expect(result.showDirectoryLoading).toBe(false);
     expect(result.title).toBe("Streamer live view - Spartan Two live - Guilty Spark");
   });
 
@@ -62,6 +62,9 @@ describe("FollowLiveViewerPresenter", () => {
     expect(connecting.connectionStatusOverride).toBe("connecting");
     expect(disconnected.connectionStatusOverride).toBe("disconnected");
     expect(error.connectionStatusOverride).toBe("error");
+    expect(connecting.loadStatus).toBe(ComponentLoaderStatus.LOADING);
+    expect(disconnected.loadStatus).toBe(ComponentLoaderStatus.LOADED);
+    expect(error.loadStatus).toBe(ComponentLoaderStatus.ERROR);
   });
 
   it("returns non-live viewer title when there is no live tracker", () => {
