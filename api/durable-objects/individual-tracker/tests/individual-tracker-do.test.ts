@@ -2385,6 +2385,50 @@ describe("IndividualTrackerDO", () => {
       expect(secondMessage.view.statsHighlights).toEqual([]);
     });
 
+    it("does not persist pre-series profile updates during websocket view generation", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          trackerId: "t1",
+          gamertag: "Tag1",
+          status: "active",
+          xuid: "tracked-xuid",
+          lastSeenMatchId: "m2",
+          preSeriesPlayerInfoLatestMatchId: "m1",
+          preSeriesPlayerInfo: {
+            currentRank: 1200,
+            currentRankTier: "Gold",
+            currentRankSubTier: 1,
+            currentRankMeasurementMatchesRemaining: null,
+            currentRankInitialMeasurementMatches: null,
+            allTimePeakRank: 1250,
+            esra: 1200,
+            lastRankedGamePlayed: "2024-11-25T10:00:00.000Z",
+          },
+          matchIds: ["m1"],
+          selectedMatchIds: ["m1"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m1",
+              startTime: "s",
+              endTime: "e",
+              mapAssetId: "map",
+              mapVersionId: "map-v",
+              mapName: "Streets",
+              modeAssetId: "mode",
+              gameVariantCategory: 6,
+              outcome: "Win",
+              score: "50:42",
+            }),
+          },
+        }),
+      );
+      storagePutSpy.mockClear();
+
+      await individualTrackerDO.fetch(wsRequest());
+
+      expect(storagePutSpy).not.toHaveBeenCalled();
+    });
+
     it("does not send an initial message when no state exists", async () => {
       storageGetSpy.mockResolvedValue(null);
 

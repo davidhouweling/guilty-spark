@@ -1685,6 +1685,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
   private async getPreSeriesPlayerInfo(
     state: IndividualTrackerInternalState,
+    persist = true,
   ): Promise<PreSeriesPlayerInfo | undefined> {
     const cacheKey = this.getPreSeriesPlayerInfoCacheKey(state);
     if (state.preSeriesPlayerInfoLatestMatchId === cacheKey) {
@@ -1692,6 +1693,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     const preSeriesPlayerInfo = await this.buildPreSeriesPlayerInfo(state);
+    if (!persist) {
+      return preSeriesPlayerInfo;
+    }
+
     if (preSeriesPlayerInfo !== undefined) {
       state.preSeriesPlayerInfo = preSeriesPlayerInfo;
     } else {
@@ -2044,7 +2049,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       this.websocketStatsHighlightSlots.length > 0
         ? await this.buildStatsHighlights(state, this.websocketStatsHighlightSlots)
         : [];
-    const preSeriesPlayerInfo = await this.getPreSeriesPlayerInfo(state);
+    const preSeriesPlayerInfo = await this.getPreSeriesPlayerInfo(state, false);
 
     return {
       ...this.toViewState(state),
