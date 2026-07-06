@@ -2,10 +2,10 @@
 export const prerender = false;
 import OverlayLayout from "../../../layouts/overlay-layout.astro";
 import { API_HOST } from "../../../constants";
-import { FollowLiveApp as FollowLiveOverlayApp } from "../../../apps/follow-live/create";
+import { FollowLiveApp } from "../../../apps/follow-live/create";
 const { gamertag } = Astro.params;
 ---
 
 <OverlayLayout title={`${gamertag ?? ""} Overlay — Guilty Spark`}>
-  <FollowLiveOverlayApp client:only="react" apiHost={API_HOST} gamertag={gamertag ?? ""} variant="overlay" />
+  <FollowLiveApp client:only="react" apiHost={API_HOST} gamertag={gamertag ?? ""} variant="overlay" />
 </OverlayLayout>
