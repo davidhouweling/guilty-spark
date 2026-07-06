@@ -1,5 +1,5 @@
 import type { FollowLiveOverlayPresentArgs, FollowLiveOverlayPresentation } from "../types";
-import { FollowLiveBasePresenter } from "../follow-live-presenter";
+import { FollowLiveBasePresenter } from "../follow-live-base-presenter";
 
 export class FollowLiveOverlayViewerPresenter extends FollowLiveBasePresenter {
   public present(args: FollowLiveOverlayPresentArgs): FollowLiveOverlayPresentation {

@@ -1,5 +1,5 @@
 import type { FollowLiveViewerPresentArgs, FollowLiveViewerPresentation } from "../types";
-import { FollowLiveBasePresenter } from "../follow-live-presenter";
+import { FollowLiveBasePresenter } from "../follow-live-base-presenter";
 
 export class FollowLiveViewerPresenter extends FollowLiveBasePresenter {
   public present(args: FollowLiveViewerPresentArgs): FollowLiveViewerPresentation {
