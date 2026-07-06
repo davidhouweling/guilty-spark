@@ -383,4 +383,12 @@ describe("InformationTicker", () => {
     const rowElement = container.querySelector("[style*='--row-color']");
     expect(rowElement).toBeInTheDocument();
   });
+
+  it("does not crash when current match group has no rows", () => {
+    const matchGroup = aFakeTickerMatchGroupWith({ rows: [] });
+
+    expect(() => {
+      render(<InformationTicker currentMatchGroup={matchGroup} teamColors={teamColors} onScrollComplete={vi.fn()} />);
+    }).not.toThrow();
+  });
 });

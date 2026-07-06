@@ -37,15 +37,36 @@ const InformationTickerComponent = function InformationTicker({
   onScrollComplete,
 }: InformationTickerProps): React.ReactElement {
   const [currentRowIndex, setCurrentRowIndex] = React.useState(0);
+  const { rows } = currentMatchGroup;
+  const hasRows = rows.length > 0;
+  const safeRowIndex = hasRows ? Math.min(currentRowIndex, rows.length - 1) : 0;
 
   // Reset to first row when match group changes
   useEffect(() => {
     setCurrentRowIndex(0);
   }, [currentMatchGroup]);
 
+  useEffect(() => {
+    if (!hasRows) {
+      if (currentRowIndex !== 0) {
+        setCurrentRowIndex(0);
+      }
+      return;
+    }
+
+    if (currentRowIndex >= rows.length) {
+      setCurrentRowIndex(rows.length - 1);
+    }
+  }, [currentRowIndex, hasRows, rows.length]);
+
   const handleRowScrollComplete = (): void => {
+    if (!hasRows) {
+      onScrollComplete();
+      return;
+    }
+
     // Move to next row or complete the cycle
-    if (currentRowIndex < currentMatchGroup.rows.length - 1) {
+    if (safeRowIndex < rows.length - 1) {
       setCurrentRowIndex(currentRowIndex + 1);
     } else {
       // All rows complete, notify parent
@@ -54,7 +75,11 @@ const InformationTickerComponent = function InformationTicker({
     }
   };
 
-  const currentRow = currentMatchGroup.rows[currentRowIndex];
+  if (!hasRows) {
+    return <div className={styles.ticker} />;
+  }
+
+  const currentRow = rows[safeRowIndex];
   const teamColor = teamColors[currentRow.teamId];
 
   return (
