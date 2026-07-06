@@ -4,6 +4,7 @@ import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
+import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
@@ -52,6 +53,7 @@ interface Config {
   readonly haloClient: HaloInfiniteClient;
   readonly store: IndividualTrackerViewerStore;
   readonly trackerId: string;
+  readonly externalView?: TrackerViewState;
 }
 
 const WIN_OUTCOME = 2;
@@ -296,6 +298,15 @@ export class IndividualTrackerViewerPresenter {
     this.config.store.setLoaded({ ...snapshot.view, streamerSettings: this.streamerSettings });
   }
 
+  public setExternalView(view: TrackerViewState): void {
+    this.hasServerStreamerSettings = view.streamerSettings !== undefined;
+    const resolvedView =
+      view.streamerSettings === undefined && this.streamerSettings !== undefined
+        ? { ...view, streamerSettings: this.streamerSettings }
+        : view;
+    this.config.store.setLoaded(resolvedView);
+  }
+
   public toggleEntry(item: ViewerTimelineItem): void {
     const key = IndividualTrackerViewerPresenter.entryKey(item);
     const snapshot = this.config.store.getSnapshot();
@@ -467,6 +478,11 @@ export class IndividualTrackerViewerPresenter {
   }
 
   public start(): void {
+    if (this.config.externalView != null) {
+      this.setExternalView(this.config.externalView);
+      return;
+    }
+
     void this.load();
   }
 

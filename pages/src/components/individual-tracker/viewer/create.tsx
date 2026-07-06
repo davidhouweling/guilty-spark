@@ -1,5 +1,6 @@
 import React from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { ComponentLoader } from "../../component-loader/component-loader";
 import { ErrorState } from "../../error-state/error-state";
@@ -22,6 +23,7 @@ interface IndividualTrackerViewerPageProps {
   readonly haloClient: HaloInfiniteClient;
   readonly trackerId: string;
   readonly streamerSettings?: StreamerViewSettings;
+  readonly externalView?: TrackerViewState;
   readonly connectionStatusOverride?: TrackerViewConnectionStatus;
   readonly pageTitleVariant?: "tracker";
 }
@@ -34,6 +36,7 @@ export function IndividualTrackerViewerPage({
   haloClient,
   trackerId,
   streamerSettings,
+  externalView,
   connectionStatusOverride,
   pageTitleVariant,
 }: IndividualTrackerViewerPageProps): React.ReactElement {
@@ -47,6 +50,7 @@ export function IndividualTrackerViewerPage({
     haloClient,
     trackerId,
     streamerSettings,
+    externalView,
   });
 
   React.useEffect(() => {

@@ -8,6 +8,7 @@ import {
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeDurableObjectNamespaceWith } from "../../../base/fakes/do.fake";
+import { aFakeAuthSessionWith } from "../../../services/auth/fakes/data";
 import {
   aFakeIndividualTrackerDOWith,
   aFakeIndividualTrackerViewStateWith,
@@ -15,6 +16,18 @@ import {
 import { aFakeIndividualTrackersRow } from "../../../services/database/fakes/database.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { individualTrackerRoutesRegisterHandler } from "../individual-tracker";
+
+const SESSION_USER_ID = "user-123";
+
+function withAuth(installServicesFn: typeof installFakeServicesWith): typeof installFakeServicesWith {
+  return (opts) => {
+    const services = installServicesFn(opts);
+    vi.spyOn(services.authService, "validateSession").mockResolvedValue(
+      aFakeAuthSessionWith({ userId: SESSION_USER_ID }),
+    );
+    return services;
+  };
+}
 
 function getRequest(path: string): Request {
   return new Request(`http://localhost${path}`, { method: "GET" });
@@ -33,9 +46,18 @@ describe("/api/individual-tracker view route", () => {
     router = createApiRouter();
   });
 
+  it("returns 401 for /view when not authenticated", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => installFakeServicesWith({ env }));
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("/api/individual-tracker/t1/view"), env)) as Response;
+
+    expect(res.status).toBe(401);
+  });
+
   it("returns 404 when the tracker does not exist", async () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
-      const services = installFakeServicesWith({ env });
+      const services = withAuth(installFakeServicesWith)({ env });
       vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(null);
       return services;
     });
@@ -46,7 +68,7 @@ describe("/api/individual-tracker view route", () => {
     expect(res.status).toBe(404);
   });
 
-  it("returns 200 with the view for any caller who knows the trackerId", async () => {
+  it("returns 200 with the view for the owning authenticated user", async () => {
     const doStub = aFakeIndividualTrackerDOWith({
       viewStateResponse: {
         state: aFakeIndividualTrackerViewStateWith({
@@ -93,7 +115,7 @@ describe("/api/individual-tracker view route", () => {
       IsLive: 1,
     });
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
-      const services = installFakeServicesWith({ env: localEnv });
+      const services = withAuth(installFakeServicesWith)({ env: localEnv });
       vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(row);
       return services;
     });
@@ -114,6 +136,21 @@ describe("/api/individual-tracker view route", () => {
     expect(JSON.stringify(body)).not.toContain("user-123");
   });
 
+  it("returns 403 for /view when authenticated user does not own the tracker", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = withAuth(installFakeServicesWith)({ env });
+      vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(
+        aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "another-user" }),
+      );
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("/api/individual-tracker/t1/view"), env)) as Response;
+
+    expect(res.status).toBe(403);
+  });
+
   it("returns 200 with empty matches when the DO has no state", async () => {
     const doStub = aFakeIndividualTrackerDOWith({ viewStateResponse: { state: null } });
     const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
@@ -126,7 +163,7 @@ describe("/api/individual-tracker view route", () => {
       IsLive: 0,
     });
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
-      const services = installFakeServicesWith({ env: localEnv });
+      const services = withAuth(installFakeServicesWith)({ env: localEnv });
       vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(row);
       return services;
     });
@@ -154,7 +191,7 @@ describe("/api/individual-tracker view route", () => {
       IsLive: 1,
     });
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
-      const services = installFakeServicesWith({ env: localEnv });
+      const services = withAuth(installFakeServicesWith)({ env: localEnv });
       vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(row);
       vi.spyOn(services.individualTrackerService, "getSettingsForView").mockResolvedValue({});
       return services;
@@ -187,7 +224,7 @@ describe("/api/individual-tracker view route", () => {
       IsLive: 1,
     });
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
-      const services = installFakeServicesWith({ env: localEnv });
+      const services = withAuth(installFakeServicesWith)({ env: localEnv });
       vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(row);
       vi.spyOn(services.individualTrackerService, "getSettingsForView").mockResolvedValue({
         visibleSections: {
@@ -208,9 +245,18 @@ describe("/api/individual-tracker view route", () => {
   });
 
   describe("ws", () => {
+    it("returns 401 when not authenticated", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => installFakeServicesWith({ env }));
+      individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      const res = (await router.fetch(wsRequest("/api/individual-tracker/t1/ws"), env)) as Response;
+
+      expect(res.status).toBe(401);
+    });
+
     it("returns 404 for an unknown tracker", async () => {
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
-        const services = installFakeServicesWith({ env });
+        const services = withAuth(installFakeServicesWith)({ env });
         vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(null);
         return services;
       });
@@ -221,12 +267,12 @@ describe("/api/individual-tracker view route", () => {
       expect(res.status).toBe(404);
     });
 
-    it("forwards the websocket upgrade to the DO for any caller who knows the trackerId", async () => {
+    it("forwards the websocket upgrade to the DO for the owning authenticated user", async () => {
       const doStub = aFakeIndividualTrackerDOWith();
       const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
       const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123" });
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
-        const services = installFakeServicesWith({ env: localEnv });
+        const services = withAuth(installFakeServicesWith)({ env: localEnv });
         vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(row);
         return services;
       });
@@ -237,10 +283,24 @@ describe("/api/individual-tracker view route", () => {
       expect(res.headers.get("x-fake-upgrade")).toBe("websocket");
     });
 
+    it("returns 403 for /ws when authenticated user does not own the tracker", async () => {
+      const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "another-user" });
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = withAuth(installFakeServicesWith)({ env });
+        vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(row);
+        return services;
+      });
+      individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      const res = (await router.fetch(wsRequest("/api/individual-tracker/t1/ws"), env)) as Response;
+
+      expect(res.status).toBe(403);
+    });
+
     it("returns 426 when the request is not a websocket upgrade", async () => {
       const row = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-123" });
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
-        const services = installFakeServicesWith({ env });
+        const services = withAuth(installFakeServicesWith)({ env });
         vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(row);
         return services;
       });

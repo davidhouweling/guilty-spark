@@ -1,5 +1,6 @@
 import React from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { ErrorState } from "../error-state/error-state";
 import { LoadingState } from "../loading-state/loading-state";
@@ -85,6 +86,13 @@ export function FollowLiveViewer({
   const connectionStatusOverride = toTrackerConnectionStatus(directoryStatus);
   const selectedTracker =
     selectedTrackerId == null ? null : directory?.trackers.find((tracker) => tracker.trackerId === selectedTrackerId);
+  const selectedTrackerView: TrackerViewState | undefined =
+    selectedTracker == null
+      ? undefined
+      : {
+          ...selectedTracker,
+          ...(directory?.streamerSettings !== undefined ? { streamerSettings: directory.streamerSettings } : {}),
+        };
 
   React.useEffect(() => {
     document.title = getViewerTitle(gamertag, directory);
@@ -109,6 +117,7 @@ export function FollowLiveViewer({
             haloClient={haloClient}
             trackerId={selectedTracker.trackerId}
             streamerSettings={directory?.streamerSettings}
+            externalView={selectedTrackerView}
             connectionStatusOverride={connectionStatusOverride}
           />
         ) : directoryStatus === "error" && directory === null ? (

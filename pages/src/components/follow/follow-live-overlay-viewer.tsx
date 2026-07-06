@@ -1,5 +1,6 @@
 import React from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { ErrorState } from "../error-state/error-state";
 import { LoadingState } from "../loading-state/loading-state";
@@ -60,6 +61,13 @@ export function FollowLiveOverlayViewer({
     gamertag,
   });
   const liveTracker = getLiveTracker(directory);
+  const liveTrackerView: TrackerViewState | undefined =
+    liveTracker == null
+      ? undefined
+      : {
+          ...liveTracker,
+          ...(directory?.streamerSettings !== undefined ? { streamerSettings: directory.streamerSettings } : {}),
+        };
 
   React.useEffect(() => {
     document.title = getOverlayTitle(gamertag, directory);
@@ -74,6 +82,7 @@ export function FollowLiveOverlayViewer({
         seriesMatchesService={seriesMatchesService}
         haloClient={haloClient}
         trackerId={liveTracker.trackerId}
+        externalView={liveTrackerView}
         showPreview={showPreview}
         previewMode={previewMode}
       />
