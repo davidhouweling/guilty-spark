@@ -51,10 +51,15 @@ vi.mock("../../../individual-tracker/viewer/create", () => ({
 function createFollowLiveViewerWith(
   directory: TrackerDirectory,
   followLiveService = aFakeFollowLiveServiceWith({ directory }),
-): { readonly element: React.ReactElement; readonly followLiveService: ReturnType<typeof aFakeFollowLiveServiceWith> } {
+  individualTrackerViewService = aFakeIndividualTrackerViewServiceWith(),
+): {
+  readonly element: React.ReactElement;
+  readonly followLiveService: ReturnType<typeof aFakeFollowLiveServiceWith>;
+  readonly individualTrackerViewService: ReturnType<typeof aFakeIndividualTrackerViewServiceWith>;
+} {
   const FollowLiveViewer = createFollowLiveViewer({
     followLiveService,
-    individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
+    individualTrackerViewService,
     matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     seriesMatchesService: aFakeSeriesMatchesServiceWith(),
     haloClient: aFakeHaloClientWith(),
@@ -63,6 +68,7 @@ function createFollowLiveViewerWith(
   return {
     element: <FollowLiveViewer gamertag="Spartan One" />,
     followLiveService,
+    individualTrackerViewService,
   };
 }
 
@@ -238,6 +244,66 @@ describe("FollowLiveViewerCreate", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-connection-status-override")).toHaveTextContent("connecting");
+    });
+  });
+
+  it("does not call owner-only tracker view service methods in follow viewer mode", async () => {
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith();
+    const getViewSpy = vi.spyOn(individualTrackerViewService, "getView");
+    const connectSpy = vi.spyOn(individualTrackerViewService, "connect");
+
+    render(createFollowLiveViewerWith(aDirectoryWith(), aFakeFollowLiveServiceWith({ directory: aDirectoryWith() }), individualTrackerViewService).element);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-viewer")).toBeInTheDocument();
+    });
+
+    expect(getViewSpy).not.toHaveBeenCalled();
+    expect(connectSpy).not.toHaveBeenCalled();
+  });
+
+  it("recovers after websocket error and resumes updates from later directory pushes", async () => {
+    const initialDirectory: TrackerDirectory = aDirectoryWith({
+      trackers: [
+        aTrackerWith({ trackerId: "tracker-1", gamertag: "Spartan One", isLive: true, status: "active" }),
+        aTrackerWith({ trackerId: "tracker-2", gamertag: "Spartan Two", isLive: false, status: "active" }),
+      ],
+      liveTrackerId: "tracker-1",
+    });
+    const { element, followLiveService } = createFollowLiveViewerWith(initialDirectory);
+
+    render(element);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-external-view-tracker-id")).toHaveTextContent("tracker-1");
+      expect(screen.getByTestId("mock-connection-status-override")).toHaveTextContent("none");
+    });
+
+    act(() => {
+      followLiveService.lastConnection?.emitStatus("error");
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-connection-status-override")).toHaveTextContent("error");
+    });
+
+    const resumedDirectory: TrackerDirectory = {
+      ...initialDirectory,
+      trackers: [
+        { ...initialDirectory.trackers[0], isLive: false },
+        { ...initialDirectory.trackers[1], isLive: true },
+      ],
+      liveTrackerId: "tracker-2",
+    };
+
+    act(() => {
+      followLiveService.lastConnection?.emitStatus("connected");
+      followLiveService.lastConnection?.emitDirectory(resumedDirectory);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-connection-status-override")).toHaveTextContent("none");
+      expect(screen.getByTestId("mock-external-view-tracker-id")).toHaveTextContent("tracker-2");
     });
   });
 });

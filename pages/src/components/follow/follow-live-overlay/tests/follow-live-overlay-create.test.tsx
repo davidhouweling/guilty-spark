@@ -45,13 +45,15 @@ function createFollowLiveOverlayWith(
   directory: TrackerDirectory,
   options: { readonly showPreview?: boolean; readonly previewMode?: "player" | "observer" } = {},
   followLiveService = aFakeFollowLiveServiceWith({ directory }),
+  individualTrackerViewService = aFakeIndividualTrackerViewServiceWith(),
 ): {
   readonly element: React.ReactElement;
   readonly followLiveService: ReturnType<typeof aFakeFollowLiveServiceWith>;
+  readonly individualTrackerViewService: ReturnType<typeof aFakeIndividualTrackerViewServiceWith>;
 } {
   const FollowLiveOverlay = createFollowLiveOverlay({
     followLiveService,
-    individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
+    individualTrackerViewService,
     matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     seriesMatchesService: aFakeSeriesMatchesServiceWith(),
     haloClient: aFakeHaloClientWith(),
@@ -66,6 +68,7 @@ function createFollowLiveOverlayWith(
       />
     ),
     followLiveService,
+    individualTrackerViewService,
   };
 }
 
@@ -173,5 +176,31 @@ describe("FollowLiveOverlayCreate", () => {
     await waitFor(() => {
       expect(screen.getByTestId("mock-overlay-page")).toHaveAttribute("data-instance-id", "1");
     });
+  });
+
+  it("does not call owner-only tracker view service methods in follow overlay mode", async () => {
+    const directory = aDirectoryWith({
+      trackers: [aTrackerWith({ trackerId: "tracker-3", gamertag: "Spartan Three", isLive: true, status: "active" })],
+      liveTrackerId: "tracker-3",
+    });
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith();
+    const getViewSpy = vi.spyOn(individualTrackerViewService, "getView");
+    const connectSpy = vi.spyOn(individualTrackerViewService, "connect");
+
+    render(
+      createFollowLiveOverlayWith(
+        directory,
+        { showPreview: false, previewMode: "observer" },
+        aFakeFollowLiveServiceWith({ directory }),
+        individualTrackerViewService,
+      ).element,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-overlay-page")).toBeInTheDocument();
+    });
+
+    expect(getViewSpy).not.toHaveBeenCalled();
+    expect(connectSpy).not.toHaveBeenCalled();
   });
 });
