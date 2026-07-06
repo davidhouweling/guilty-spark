@@ -1,9 +1,34 @@
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import type { FollowLiveViewerPresentArgs, FollowLiveViewerPresentation } from "../types";
+import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
+import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { DirectoryConnectionStatus } from "../../../services/follow/follow-types";
+import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
+import type { FollowTrackerTab } from "../types";
 import { FollowLiveBasePresenter } from "../follow-live-base-presenter";
 
+interface FollowLiveViewerPresentOpts {
+  readonly gamertag: string;
+  readonly directory: TrackerDirectory | null;
+  readonly directoryStatus: DirectoryConnectionStatus;
+  readonly selectedTrackerId: string | null;
+}
+
+interface FollowLiveViewerPresentation {
+  readonly title: string;
+  readonly showDirectoryError: boolean;
+  readonly showDirectoryLoading: boolean;
+  readonly showTabs: boolean;
+  readonly trackerTabs: readonly FollowTrackerTab[];
+  readonly selectedTrackerId: string | null;
+  readonly resolvedSelectedTrackerId: string | null;
+  readonly selectedTrackerView: TrackerViewState | undefined;
+  readonly selectedTrackerStreamerSettings: StreamerViewSettings | undefined;
+  readonly connectionStatusOverride: TrackerViewConnectionStatus | undefined;
+}
+
 export class FollowLiveViewerPresenter extends FollowLiveBasePresenter {
-  public present(args: FollowLiveViewerPresentArgs): FollowLiveViewerPresentation {
+  public present(args: FollowLiveViewerPresentOpts): FollowLiveViewerPresentation {
     const selectedTracker =
       args.selectedTrackerId == null
         ? null
@@ -28,7 +53,7 @@ export class FollowLiveViewerPresenter extends FollowLiveBasePresenter {
     };
   }
 
-  private getViewerTitle(gamertag: string, directory: FollowLiveViewerPresentArgs["directory"]): string {
+  private getViewerTitle(gamertag: string, directory: FollowLiveViewerPresentOpts["directory"]): string {
     const liveTracker = this.getLiveTracker(directory);
     if (liveTracker == null) {
       return `${gamertag} live view - Guilty Spark`;
@@ -38,7 +63,7 @@ export class FollowLiveViewerPresenter extends FollowLiveBasePresenter {
   }
 
   private toTrackerConnectionStatus(
-    directoryStatus: FollowLiveViewerPresentArgs["directoryStatus"],
+    directoryStatus: FollowLiveViewerPresentOpts["directoryStatus"],
   ): FollowLiveViewerPresentation["connectionStatusOverride"] {
     switch (directoryStatus) {
       case "connected": {
