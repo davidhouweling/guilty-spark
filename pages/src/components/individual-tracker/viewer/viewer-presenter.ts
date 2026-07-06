@@ -305,6 +305,7 @@ export class IndividualTrackerViewerPresenter {
         ? { ...view, streamerSettings: this.streamerSettings }
         : view;
     this.config.store.setLoaded(resolvedView);
+    this.config.store.setConnectionStatus("connected");
   }
 
   public toggleEntry(item: ViewerTimelineItem): void {

@@ -204,6 +204,7 @@ describe("useIndividualTrackerViewer", () => {
     await waitFor(() => {
       expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
       expect(result.current.model.renderModel?.statsHighlights?.[0]?.value).toBe("2.1");
+      expect(result.current.model.connectionStatus).toBe("connected");
     });
 
     expect(getViewSpy).not.toHaveBeenCalled();
