@@ -1,5 +1,5 @@
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
+import type { TrackerDirectory, TrackerDirectoryEntry } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
@@ -14,8 +14,6 @@ interface FollowLiveViewerPresentOpts {
   readonly directoryStatus: DirectoryConnectionStatus;
   readonly selectedTrackerId: string | null;
 }
-
-type FollowTracker = TrackerDirectory["trackers"][number];
 
 interface FollowLiveViewerPresentation {
   readonly title: string;
@@ -56,7 +54,7 @@ export class FollowLiveViewerPresenter extends FollowLiveBasePresenter {
 
   private toLoadStatus(
     directoryStatus: FollowLiveViewerPresentOpts["directoryStatus"],
-    selectedTracker: FollowTracker | null,
+    selectedTracker: TrackerDirectoryEntry | null,
   ): ComponentLoaderStatus {
     if (selectedTracker != null) {
       return ComponentLoaderStatus.LOADED;
