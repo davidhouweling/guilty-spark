@@ -99,7 +99,7 @@ describe("StreamerSettingsSectionView", () => {
       vi.stubGlobal("location", { origin: "https://example.com" });
       render(<StreamerSettingsSectionView {...aFakeProps({ gamertag: "gamertag-abc" })} />);
 
-      expect(screen.getByText(/\/u\/gamertag-abc\/view/)).toBeInTheDocument();
+      expect(screen.getByText("https://example.com/u/gamertag-abc")).toBeInTheDocument();
       expect(screen.getByText(/\/u\/gamertag-abc\/overlay/)).toBeInTheDocument();
 
       vi.unstubAllGlobals();
@@ -122,7 +122,7 @@ describe("StreamerSettingsSectionView", () => {
       const copyButtons = screen.getAllByRole("button", { name: "Copy" });
       await user.click(copyButtons[0]);
 
-      expect(writeText).toHaveBeenCalledWith(expect.stringContaining("/u/gamertag-abc/view"));
+      expect(writeText).toHaveBeenCalledWith(expect.stringContaining("/u/gamertag-abc"));
 
       vi.unstubAllGlobals();
     });

@@ -39,7 +39,7 @@ export class RealFollowLiveService implements FollowLiveService {
   }
 
   public async getDirectory(gamertag: string): Promise<TrackerDirectory> {
-    const response = await fetch(this.buildUrl(`/u/${encodeURIComponent(gamertag)}/view`), {
+    const response = await fetch(this.buildUrl(`/u/${encodeURIComponent(gamertag)}`), {
       method: "GET",
     });
 
