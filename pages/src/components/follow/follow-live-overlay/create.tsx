@@ -4,11 +4,11 @@ import type { FollowLiveService } from "../../../services/follow/follow-types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
-import { FollowLiveOverlayViewer } from "./follow-live-overlay-viewer";
-import { FollowLiveOverlayViewerPresenter } from "./follow-live-overlay-viewer-presenter";
+import { FollowLiveOverlay } from "./follow-live-overlay";
+import { FollowLiveOverlayPresenter } from "./follow-live-overlay-presenter";
 import { useFollowLiveDirectory } from "../use-follow-live-directory";
 
-export interface FollowLiveOverlayViewerCreateProps {
+export interface FollowLiveOverlayCreateProps {
   readonly gamertag: string;
   readonly followLiveService: FollowLiveService;
   readonly individualTrackerViewService: IndividualTrackerViewService;
@@ -19,7 +19,7 @@ export interface FollowLiveOverlayViewerCreateProps {
   readonly previewMode?: "player" | "observer";
 }
 
-export function FollowLiveOverlayViewerCreate({
+export function FollowLiveOverlayCreate({
   gamertag,
   followLiveService,
   individualTrackerViewService,
@@ -28,8 +28,8 @@ export function FollowLiveOverlayViewerCreate({
   haloClient,
   showPreview = false,
   previewMode = "observer",
-}: FollowLiveOverlayViewerCreateProps): React.ReactElement {
-  const presenter = React.useMemo(() => new FollowLiveOverlayViewerPresenter(), []);
+}: FollowLiveOverlayCreateProps): React.ReactElement {
+  const presenter = React.useMemo(() => new FollowLiveOverlayPresenter(), []);
   const { directory, directoryStatus, onRetry } = useFollowLiveDirectory({
     followLiveService,
     gamertag,
@@ -41,7 +41,7 @@ export function FollowLiveOverlayViewerCreate({
   }, [model.title]);
 
   return (
-    <FollowLiveOverlayViewer
+    <FollowLiveOverlay
       directoryStatus={directoryStatus}
       directory={directory}
       model={model}

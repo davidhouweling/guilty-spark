@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { aDirectoryWith, aTrackerWith } from "@guilty-spark/shared/contracts/individual-tracker/fakes/follow.fake";
-import { FollowLiveOverlayViewerPresenter } from "../follow-live-overlay-viewer-presenter";
+import { FollowLiveOverlayPresenter } from "../follow-live-overlay-presenter";
 
-describe("FollowLiveOverlayViewerPresenter", () => {
+describe("FollowLiveOverlayPresenter", () => {
   it("falls back to an isLive tracker when liveTrackerId does not match", () => {
     const directory: TrackerDirectory = aDirectoryWith({
       trackers: [
@@ -12,7 +12,7 @@ describe("FollowLiveOverlayViewerPresenter", () => {
       ],
       liveTrackerId: "tracker-missing",
     });
-    const presenter = new FollowLiveOverlayViewerPresenter();
+    const presenter = new FollowLiveOverlayPresenter();
 
     const overlay = presenter.present({
       gamertag: "Streamer",
@@ -29,7 +29,7 @@ describe("FollowLiveOverlayViewerPresenter", () => {
       trackers: [aTrackerWith({ trackerId: "tracker-1", gamertag: "Spartan One", isLive: false })],
       liveTrackerId: null,
     });
-    const presenter = new FollowLiveOverlayViewerPresenter();
+    const presenter = new FollowLiveOverlayPresenter();
 
     const overlay = presenter.present({
       gamertag: "Streamer",

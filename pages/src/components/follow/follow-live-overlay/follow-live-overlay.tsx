@@ -10,7 +10,7 @@ import type { MatchAnalyticsService } from "../../../services/stats/match-analyt
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
 import type { FollowLiveOverlayPresentation } from "../types";
 
-export interface FollowLiveOverlayViewerProps {
+export interface FollowLiveOverlayProps {
   readonly directoryStatus: DirectoryConnectionStatus;
   readonly directory: TrackerDirectory | null;
   readonly model: FollowLiveOverlayPresentation;
@@ -23,7 +23,7 @@ export interface FollowLiveOverlayViewerProps {
   readonly previewMode?: "player" | "observer";
 }
 
-export function FollowLiveOverlayViewer({
+export function FollowLiveOverlay({
   directoryStatus,
   directory,
   model,
@@ -34,7 +34,7 @@ export function FollowLiveOverlayViewer({
   haloClient,
   showPreview = false,
   previewMode = "observer",
-}: FollowLiveOverlayViewerProps): React.ReactElement {
+}: FollowLiveOverlayProps): React.ReactElement {
   if (model.liveTracker != null) {
     return (
       <IndividualTrackerOverlayPage
