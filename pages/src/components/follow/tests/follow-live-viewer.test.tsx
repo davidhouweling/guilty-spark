@@ -4,6 +4,7 @@ import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
+import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { aDirectoryWith, aTrackerWith } from "@guilty-spark/shared/contracts/individual-tracker/fakes/follow.fake";
 import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
 import { aFakeFollowLiveServiceWith } from "../../../services/follow/fakes/follow.fake";
@@ -18,10 +19,12 @@ vi.mock("../../individual-tracker/viewer/create", () => ({
   IndividualTrackerViewerPage: ({
     trackerId,
     streamerSettings,
+    externalView,
     connectionStatusOverride,
   }: {
     trackerId: string;
     streamerSettings?: TrackerDirectory["streamerSettings"];
+    externalView?: TrackerViewState;
     connectionStatusOverride?: string;
   }): React.ReactElement => {
     const [instanceId] = React.useState(() => {
@@ -34,6 +37,10 @@ vi.mock("../../individual-tracker/viewer/create", () => ({
         {trackerId}
         <span data-testid="mock-streamer-settings">
           {streamerSettings?.styleFlags?.matchmakingMyStatsOnly === true ? "true" : "false"}
+        </span>
+        <span data-testid="mock-external-view-tracker-id">{externalView?.trackerId ?? "none"}</span>
+        <span data-testid="mock-external-view-streamer-settings">
+          {externalView?.streamerSettings?.styleFlags?.matchmakingMyStatsOnly === true ? "true" : "false"}
         </span>
         <span data-testid="mock-connection-status-override">{connectionStatusOverride ?? "none"}</span>
       </div>
@@ -121,6 +128,25 @@ describe("FollowLiveViewer", () => {
     });
 
     expect(screen.getByTestId("mock-streamer-settings")).toHaveTextContent("true");
+    expect(screen.getByTestId("mock-external-view-streamer-settings")).toHaveTextContent("true");
+  });
+
+  it("passes selected tracker as external view", async () => {
+    const directory: TrackerDirectory = aDirectoryWith({
+      trackers: [
+        aTrackerWith({ trackerId: "tracker-1", gamertag: "Spartan One", isLive: false, status: "active" }),
+        aTrackerWith({ trackerId: "tracker-2", gamertag: "Spartan Two", isLive: true, status: "active" }),
+      ],
+      liveTrackerId: "tracker-2",
+    });
+
+    render(<FollowLiveViewer {...aViewerPropsWith(directory)} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-viewer")).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("mock-external-view-tracker-id")).toHaveTextContent("tracker-2");
   });
 
   it("updates the document title to mention the current live tracker", async () => {

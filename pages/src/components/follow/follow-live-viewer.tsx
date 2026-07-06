@@ -1,66 +1,16 @@
 import React from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
-import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
-import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { ErrorState } from "../error-state/error-state";
 import { LoadingState } from "../loading-state/loading-state";
 import { IndividualTrackerViewerPage } from "../individual-tracker/viewer/create";
 import type { FollowLiveService } from "../../services/follow/follow-types";
-import type {
-  TrackerViewConnectionStatus,
-  IndividualTrackerViewService,
-} from "../../services/individual-tracker/view-types";
+import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
 import { FollowTrackerTabs } from "./follow-tracker-tabs";
+import { FollowLivePresenter } from "./follow-live-presenter";
 import { useFollowLiveDirectory } from "./use-follow-live-directory";
 import styles from "./follow-live-viewer.module.css";
-
-function toTrackerConnectionStatus(
-  directoryStatus: "connecting" | "connected" | "error" | "disconnected",
-): TrackerViewConnectionStatus | undefined {
-  switch (directoryStatus) {
-    case "connected": {
-      return undefined;
-    }
-    case "connecting": {
-      return "connecting";
-    }
-    case "disconnected": {
-      return "disconnected";
-    }
-    case "error": {
-      return "error";
-    }
-    default: {
-      return undefined;
-    }
-  }
-}
-
-function getLiveTracker(directory: TrackerDirectory | null): TrackerDirectory["trackers"][number] | null {
-  if (directory == null) {
-    return null;
-  }
-
-  if (directory.liveTrackerId != null) {
-    const liveTracker = directory.trackers.find((tracker) => tracker.trackerId === directory.liveTrackerId);
-    if (liveTracker != null) {
-      return liveTracker;
-    }
-  }
-
-  return directory.trackers.find((tracker) => tracker.isLive) ?? null;
-}
-
-function getViewerTitle(gamertag: string, directory: TrackerDirectory | null): string {
-  const liveTracker = getLiveTracker(directory);
-  if (liveTracker == null) {
-    return `${gamertag} live view - Guilty Spark`;
-  }
-
-  return `${gamertag} live view - ${liveTracker.gamertag} live - Guilty Spark`;
-}
 
 export interface FollowLiveViewerProps {
   readonly gamertag: string;
@@ -79,28 +29,29 @@ export function FollowLiveViewer({
   seriesMatchesService,
   haloClient,
 }: FollowLiveViewerProps): React.ReactElement {
+  const presenter = React.useMemo(() => new FollowLivePresenter(), []);
   const { directory, directoryStatus, selectedTrackerId, onSelectTracker, onRetry } = useFollowLiveDirectory({
     followLiveService,
     gamertag,
   });
-  const connectionStatusOverride = toTrackerConnectionStatus(directoryStatus);
-  const selectedTracker =
-    selectedTrackerId == null ? null : directory?.trackers.find((tracker) => tracker.trackerId === selectedTrackerId);
-  const selectedTrackerView: TrackerViewState | undefined =
-    selectedTracker == null
-      ? undefined
-      : {
-          ...selectedTracker,
-          ...(directory?.streamerSettings !== undefined ? { streamerSettings: directory.streamerSettings } : {}),
-        };
+  const model = React.useMemo(
+    () =>
+      presenter.presentViewer({
+        gamertag,
+        directory,
+        directoryStatus,
+        selectedTrackerId,
+      }),
+    [directory, directoryStatus, gamertag, presenter, selectedTrackerId],
+  );
 
   React.useEffect(() => {
-    document.title = getViewerTitle(gamertag, directory);
-  }, [directory, gamertag]);
+    document.title = model.title;
+  }, [model.title]);
 
   return (
     <div className={styles.container}>
-      {directory !== null && directory.trackers.length > 1 && (
+      {model.showTabs && directory !== null && (
         <FollowTrackerTabs
           directory={directory}
           selectedTrackerId={selectedTrackerId}
@@ -108,17 +59,17 @@ export function FollowLiveViewer({
         />
       )}
       <div className={styles.trackerContent}>
-        {selectedTracker != null ? (
+        {model.selectedTracker != null ? (
           <IndividualTrackerViewerPage
-            key={selectedTracker.trackerId}
+            key={model.selectedTracker.trackerId}
             individualTrackerViewService={individualTrackerViewService}
             matchAnalyticsService={matchAnalyticsService}
             seriesMatchesService={seriesMatchesService}
             haloClient={haloClient}
-            trackerId={selectedTracker.trackerId}
+            trackerId={model.selectedTracker.trackerId}
             streamerSettings={directory?.streamerSettings}
-            externalView={selectedTrackerView}
-            connectionStatusOverride={connectionStatusOverride}
+            externalView={model.selectedTrackerView}
+            connectionStatusOverride={model.connectionStatusOverride}
           />
         ) : directoryStatus === "error" && directory === null ? (
           <ErrorState message="Failed to load tracker directory" onRetry={onRetry} />

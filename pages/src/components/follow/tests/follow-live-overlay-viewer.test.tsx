@@ -4,6 +4,7 @@ import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
+import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { aDirectoryWith, aTrackerWith } from "@guilty-spark/shared/contracts/individual-tracker/fakes/follow.fake";
 import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
 import { aFakeFollowLiveServiceWith } from "../../../services/follow/fakes/follow.fake";
@@ -17,10 +18,12 @@ let mockOverlayInstanceCount = 0;
 vi.mock("../../individual-tracker/overlay/create", () => ({
   IndividualTrackerOverlayPage: ({
     trackerId,
+    externalView,
     showPreview,
     previewMode,
   }: {
     trackerId: string;
+    externalView?: TrackerViewState;
     showPreview?: boolean;
     previewMode?: "player" | "observer";
   }): React.ReactElement => {
@@ -32,6 +35,7 @@ vi.mock("../../individual-tracker/overlay/create", () => ({
     return (
       <div data-testid="mock-overlay-page" data-instance-id={instanceId.toString()}>
         {`${trackerId}:${String(showPreview)}:${previewMode ?? "observer"}`}
+        <span data-testid="mock-overlay-external-view-tracker-id">{externalView?.trackerId ?? "none"}</span>
       </div>
     );
   },
@@ -71,6 +75,8 @@ describe("FollowLiveOverlayViewer", () => {
     await waitFor(() => {
       expect(screen.getByTestId("mock-overlay-page")).toHaveTextContent("tracker-2:false:observer");
     });
+
+    expect(screen.getByTestId("mock-overlay-external-view-tracker-id")).toHaveTextContent("tracker-2");
   });
 
   it("forwards preview flags to the overlay page", async () => {
