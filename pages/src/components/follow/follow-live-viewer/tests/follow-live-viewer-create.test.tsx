@@ -4,24 +4,27 @@ import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
+import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { aDirectoryWith, aTrackerWith } from "@guilty-spark/shared/contracts/individual-tracker/fakes/follow.fake";
-import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
-import { aFakeFollowLiveServiceWith } from "../../../services/follow/fakes/follow.fake";
-import { aFakeIndividualTrackerViewServiceWith } from "../../../services/individual-tracker/fakes/view.fake";
-import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
-import { aFakeSeriesMatchesServiceWith } from "../../../services/stats/fakes/series-matches.fake";
-import { FollowLiveViewer, type FollowLiveViewerProps } from "../follow-live-viewer";
+import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
+import { aFakeFollowLiveServiceWith } from "../../../../services/follow/fakes/follow.fake";
+import { aFakeIndividualTrackerViewServiceWith } from "../../../../services/individual-tracker/fakes/view.fake";
+import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
+import { aFakeSeriesMatchesServiceWith } from "../../../../services/stats/fakes/series-matches.fake";
+import { createFollowLiveViewer } from "../create";
 
 let mockViewerInstanceCount = 0;
 
-vi.mock("../../individual-tracker/viewer/create", () => ({
+vi.mock("../../../individual-tracker/viewer/create", () => ({
   IndividualTrackerViewerPage: ({
     trackerId,
     streamerSettings,
+    externalView,
     connectionStatusOverride,
   }: {
     trackerId: string;
     streamerSettings?: TrackerDirectory["streamerSettings"];
+    externalView?: TrackerViewState;
     connectionStatusOverride?: string;
   }): React.ReactElement => {
     const [instanceId] = React.useState(() => {
@@ -35,24 +38,35 @@ vi.mock("../../individual-tracker/viewer/create", () => ({
         <span data-testid="mock-streamer-settings">
           {streamerSettings?.styleFlags?.matchmakingMyStatsOnly === true ? "true" : "false"}
         </span>
+        <span data-testid="mock-external-view-tracker-id">{externalView?.trackerId ?? "none"}</span>
+        <span data-testid="mock-external-view-streamer-settings">
+          {externalView?.streamerSettings?.styleFlags?.matchmakingMyStatsOnly === true ? "true" : "false"}
+        </span>
         <span data-testid="mock-connection-status-override">{connectionStatusOverride ?? "none"}</span>
       </div>
     );
   },
 }));
 
-function aViewerPropsWith(directory: TrackerDirectory): FollowLiveViewerProps {
-  return {
-    gamertag: "Spartan One",
-    followLiveService: aFakeFollowLiveServiceWith({ directory }),
+function createFollowLiveViewerWith(
+  directory: TrackerDirectory,
+  followLiveService = aFakeFollowLiveServiceWith({ directory }),
+): { readonly element: React.ReactElement; readonly followLiveService: ReturnType<typeof aFakeFollowLiveServiceWith> } {
+  const FollowLiveViewer = createFollowLiveViewer({
+    followLiveService,
     individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
     matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     seriesMatchesService: aFakeSeriesMatchesServiceWith(),
     haloClient: aFakeHaloClientWith(),
+  });
+
+  return {
+    element: <FollowLiveViewer gamertag="Spartan One" />,
+    followLiveService,
   };
 }
 
-describe("FollowLiveViewer", () => {
+describe("FollowLiveViewerCreate", () => {
   afterEach(() => {
     cleanup();
     document.title = "";
@@ -60,7 +74,7 @@ describe("FollowLiveViewer", () => {
   });
 
   it("shows tracker navigation when directory has multiple trackers", async () => {
-    render(<FollowLiveViewer {...aViewerPropsWith(aDirectoryWith())} />);
+    render(createFollowLiveViewerWith(aDirectoryWith()).element);
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-viewer")).toBeInTheDocument();
@@ -76,7 +90,7 @@ describe("FollowLiveViewer", () => {
       liveTrackerId: "tracker-1",
     });
 
-    render(<FollowLiveViewer {...aViewerPropsWith(singleDirectory)} />);
+    render(createFollowLiveViewerWith(singleDirectory).element);
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-viewer")).toBeInTheDocument();
@@ -94,7 +108,7 @@ describe("FollowLiveViewer", () => {
       liveTrackerId: null,
     });
 
-    render(<FollowLiveViewer {...aViewerPropsWith(inactiveDirectory)} />);
+    render(createFollowLiveViewerWith(inactiveDirectory).element);
 
     await waitFor(() => {
       expect(screen.getByText("No active tracker — waiting for a live game")).toBeInTheDocument();
@@ -114,13 +128,32 @@ describe("FollowLiveViewer", () => {
       },
     });
 
-    render(<FollowLiveViewer {...aViewerPropsWith(directoryWithSettings)} />);
+    render(createFollowLiveViewerWith(directoryWithSettings).element);
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-viewer")).toBeInTheDocument();
     });
 
     expect(screen.getByTestId("mock-streamer-settings")).toHaveTextContent("true");
+    expect(screen.getByTestId("mock-external-view-streamer-settings")).toHaveTextContent("true");
+  });
+
+  it("passes selected tracker as external view", async () => {
+    const directory: TrackerDirectory = aDirectoryWith({
+      trackers: [
+        aTrackerWith({ trackerId: "tracker-1", gamertag: "Spartan One", isLive: false, status: "active" }),
+        aTrackerWith({ trackerId: "tracker-2", gamertag: "Spartan Two", isLive: true, status: "active" }),
+      ],
+      liveTrackerId: "tracker-2",
+    });
+
+    render(createFollowLiveViewerWith(directory).element);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-viewer")).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("mock-external-view-tracker-id")).toHaveTextContent("tracker-2");
   });
 
   it("updates the document title to mention the current live tracker", async () => {
@@ -132,7 +165,7 @@ describe("FollowLiveViewer", () => {
       liveTrackerId: "tracker-2",
     });
 
-    render(<FollowLiveViewer {...aViewerPropsWith(liveDirectory)} />);
+    render(createFollowLiveViewerWith(liveDirectory).element);
 
     await waitFor(() => {
       expect(document.title).toBe("Spartan One live view - Spartan Two live - Guilty Spark");
@@ -152,18 +185,9 @@ describe("FollowLiveViewer", () => {
       ],
       liveTrackerId: "tracker-1",
     });
-    const followLiveService = aFakeFollowLiveServiceWith({ directory: initialDirectory });
+    const { element, followLiveService } = createFollowLiveViewerWith(initialDirectory);
 
-    render(
-      <FollowLiveViewer
-        gamertag="Spartan One"
-        followLiveService={followLiveService}
-        individualTrackerViewService={aFakeIndividualTrackerViewServiceWith()}
-        matchAnalyticsService={aFakeMatchAnalyticsServiceWith()}
-        seriesMatchesService={aFakeSeriesMatchesServiceWith()}
-        haloClient={aFakeHaloClientWith()}
-      />,
-    );
+    render(element);
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-viewer")).toHaveAttribute("data-instance-id", "1");
@@ -200,18 +224,9 @@ describe("FollowLiveViewer", () => {
       ],
       liveTrackerId: "tracker-1",
     });
-    const followLiveService = aFakeFollowLiveServiceWith({ directory: initialDirectory });
+    const { element, followLiveService } = createFollowLiveViewerWith(initialDirectory);
 
-    render(
-      <FollowLiveViewer
-        gamertag="Spartan One"
-        followLiveService={followLiveService}
-        individualTrackerViewService={aFakeIndividualTrackerViewServiceWith()}
-        matchAnalyticsService={aFakeMatchAnalyticsServiceWith()}
-        seriesMatchesService={aFakeSeriesMatchesServiceWith()}
-        haloClient={aFakeHaloClientWith()}
-      />,
-    );
+    render(element);
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-connection-status-override")).toHaveTextContent("none");

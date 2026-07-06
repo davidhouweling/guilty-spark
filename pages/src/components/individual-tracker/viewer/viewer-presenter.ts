@@ -4,6 +4,7 @@ import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
+import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
@@ -223,6 +224,7 @@ export class IndividualTrackerViewerPresenter {
   private streamerSettings: StreamerViewSettings | undefined;
   private streamerSettingsKey = "null";
   private hasServerStreamerSettings = false;
+  private modeVersion = 0;
 
   public constructor(config: Config) {
     this.config = config;
@@ -294,6 +296,20 @@ export class IndividualTrackerViewerPresenter {
     }
 
     this.config.store.setLoaded({ ...snapshot.view, streamerSettings: this.streamerSettings });
+  }
+
+  public setExternalView(view: TrackerViewState): void {
+    this.modeVersion += 1;
+    this.closeConnection();
+    this.awaitingRefresh = false;
+    this.config.store.setRefreshState(false);
+    this.hasServerStreamerSettings = view.streamerSettings !== undefined;
+    const resolvedView =
+      view.streamerSettings === undefined && this.streamerSettings !== undefined
+        ? { ...view, streamerSettings: this.streamerSettings }
+        : view;
+    this.config.store.setLoaded(resolvedView);
+    this.config.store.setConnectionStatus("connected");
   }
 
   public toggleEntry(item: ViewerTimelineItem): void {
@@ -467,18 +483,15 @@ export class IndividualTrackerViewerPresenter {
   }
 
   public start(): void {
-    void this.load();
+    this.modeVersion += 1;
+    const { modeVersion } = this;
+    void this.load(modeVersion);
   }
 
   public dispose(): void {
     this.isDisposed = true;
     this.awaitingRefresh = false;
-    this.viewSubscription?.unsubscribe();
-    this.viewSubscription = null;
-    this.statusSubscription?.unsubscribe();
-    this.statusSubscription = null;
-    this.connection?.disconnect();
-    this.connection = null;
+    this.closeConnection();
   }
 
   private async refreshAsync(): Promise<void> {
@@ -500,11 +513,11 @@ export class IndividualTrackerViewerPresenter {
     }
   }
 
-  private async load(): Promise<void> {
+  private async load(modeVersion: number): Promise<void> {
     this.config.store.setLoading();
     try {
       const response = await this.config.individualTrackerViewService.getView(this.config.trackerId);
-      if (this.isDisposed) {
+      if (this.isDisposed || this.modeVersion !== modeVersion) {
         return;
       }
       this.hasServerStreamerSettings = response.view.streamerSettings !== undefined;
@@ -515,7 +528,7 @@ export class IndividualTrackerViewerPresenter {
       this.config.store.setLoaded(view);
       this.openConnection();
     } catch (error) {
-      if (this.isDisposed) {
+      if (this.isDisposed || this.modeVersion !== modeVersion) {
         return;
       }
       this.config.store.setError(error instanceof Error ? error.message : "Failed to load tracker");
@@ -523,9 +536,7 @@ export class IndividualTrackerViewerPresenter {
   }
 
   private openConnection(): void {
-    this.viewSubscription?.unsubscribe();
-    this.statusSubscription?.unsubscribe();
-    this.connection?.disconnect();
+    this.closeConnection();
 
     const connection = this.config.individualTrackerViewService.connect(this.config.trackerId);
     this.connection = connection;
@@ -545,5 +556,14 @@ export class IndividualTrackerViewerPresenter {
       }
       this.config.store.setConnectionStatus(status);
     });
+  }
+
+  private closeConnection(): void {
+    this.viewSubscription?.unsubscribe();
+    this.viewSubscription = null;
+    this.statusSubscription?.unsubscribe();
+    this.statusSubscription = null;
+    this.connection?.disconnect();
+    this.connection = null;
   }
 }

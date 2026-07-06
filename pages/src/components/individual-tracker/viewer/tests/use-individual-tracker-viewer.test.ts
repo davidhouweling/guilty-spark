@@ -177,6 +177,191 @@ describe("useIndividualTrackerViewer", () => {
     expect(connectSpy).toHaveBeenCalledTimes(1);
   });
 
+  it("does not call individual tracker getView/connect when external view is provided", async () => {
+    const externalView = aFakeTrackerViewStateWith({
+      trackerId: "tracker-1",
+      status: "active",
+      statsHighlights: [{ label: "KDA", value: "2.1" }],
+    });
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
+      view: aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
+    });
+    const getViewSpy = vi.spyOn(individualTrackerViewService, "getView");
+    const connectSpy = vi.spyOn(individualTrackerViewService, "connect");
+    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+
+    const { result } = renderHook(() =>
+      useIndividualTrackerViewer({
+        individualTrackerViewService,
+        matchAnalyticsService,
+        seriesMatchesService,
+        haloClient,
+        trackerId: "tracker-1",
+        externalView,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+      expect(result.current.model.renderModel?.statsHighlights?.[0]?.value).toBe("2.1");
+      expect(result.current.model.connectionStatus).toBe("connected");
+    });
+
+    expect(getViewSpy).not.toHaveBeenCalled();
+    expect(connectSpy).not.toHaveBeenCalled();
+  });
+
+  it("updates model when external view changes", async () => {
+    const initialView = aFakeTrackerViewStateWith({
+      trackerId: "tracker-1",
+      status: "active",
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })],
+      statsHighlights: [{ label: "KDA", value: "2.1" }],
+    });
+    const updatedView = aFakeTrackerViewStateWith({
+      trackerId: "tracker-1",
+      status: "active",
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
+      statsHighlights: [{ label: "KDA", value: "3.4" }],
+    });
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
+      view: aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
+    });
+    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+
+    const { result, rerender } = renderHook(
+      ({ externalView }: { externalView: ReturnType<typeof aFakeTrackerViewStateWith> }) =>
+        useIndividualTrackerViewer({
+          individualTrackerViewService,
+          matchAnalyticsService,
+          seriesMatchesService,
+          haloClient,
+          trackerId: "tracker-1",
+          externalView,
+        }),
+      {
+        initialProps: { externalView: initialView },
+      },
+    );
+
+    await waitFor(() => {
+      expect(result.current.model.renderModel?.timeline.length).toBe(1);
+      expect(result.current.model.renderModel?.statsHighlights?.[0]?.value).toBe("2.1");
+    });
+
+    rerender({ externalView: updatedView });
+
+    await waitFor(() => {
+      expect(result.current.model.renderModel?.timeline.length).toBe(2);
+      expect(result.current.model.renderModel?.statsHighlights?.[0]?.value).toBe("3.4");
+    });
+  });
+
+  it("ignores stale managed load completion after switching to external view", async () => {
+    const managedView = aFakeTrackerViewStateWith({
+      trackerId: "tracker-1",
+      status: "active",
+      statsHighlights: [{ label: "KDA", value: "2.1" }],
+    });
+    const externalView = aFakeTrackerViewStateWith({
+      trackerId: "tracker-1",
+      status: "active",
+      statsHighlights: [{ label: "KDA", value: "9.9" }],
+    });
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({ view: managedView });
+    const connectSpy = vi.spyOn(individualTrackerViewService, "connect");
+
+    let resolveGetView: ((value: { view: ReturnType<typeof aFakeTrackerViewStateWith> }) => void) | undefined;
+    const getViewPending = new Promise<{ view: ReturnType<typeof aFakeTrackerViewStateWith> }>((resolve) => {
+      resolveGetView = resolve;
+    });
+    vi.spyOn(individualTrackerViewService, "getView").mockImplementationOnce(async () => getViewPending);
+
+    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+
+    const { result, rerender } = renderHook<
+      ReturnType<typeof useIndividualTrackerViewer>,
+      { nextExternalView: ReturnType<typeof aFakeTrackerViewStateWith> | undefined }
+    >(
+      ({ nextExternalView }) =>
+        useIndividualTrackerViewer({
+          individualTrackerViewService,
+          matchAnalyticsService,
+          seriesMatchesService,
+          haloClient,
+          trackerId: "tracker-1",
+          externalView: nextExternalView,
+        }),
+      { initialProps: { nextExternalView: undefined } },
+    );
+
+    rerender({ nextExternalView: externalView });
+    resolveGetView?.({ view: managedView });
+
+    await waitFor(() => {
+      expect(result.current.model.renderModel?.statsHighlights?.[0]?.value).toBe("9.9");
+    });
+
+    expect(connectSpy).not.toHaveBeenCalled();
+  });
+
+  it("disconnects managed websocket updates when switching to external view", async () => {
+    const managedView = aFakeTrackerViewStateWith({
+      trackerId: "tracker-1",
+      status: "active",
+      statsHighlights: [{ label: "KDA", value: "2.1" }],
+    });
+    const externalView = aFakeTrackerViewStateWith({
+      trackerId: "tracker-1",
+      status: "active",
+      statsHighlights: [{ label: "KDA", value: "9.9" }],
+    });
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({ view: managedView });
+    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+
+    const { result, rerender } = renderHook<
+      ReturnType<typeof useIndividualTrackerViewer>,
+      { nextExternalView: ReturnType<typeof aFakeTrackerViewStateWith> | undefined }
+    >(
+      ({ nextExternalView }: { nextExternalView: ReturnType<typeof aFakeTrackerViewStateWith> | undefined }) =>
+        useIndividualTrackerViewer({
+          individualTrackerViewService,
+          matchAnalyticsService,
+          seriesMatchesService,
+          haloClient,
+          trackerId: "tracker-1",
+          externalView: nextExternalView,
+        }),
+      { initialProps: { nextExternalView: undefined } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+      expect(result.current.model.renderModel?.statsHighlights?.[0]?.value).toBe("2.1");
+      expect(individualTrackerViewService.lastConnection).not.toBeNull();
+    });
+
+    const managedConnection = individualTrackerViewService.lastConnection;
+
+    rerender({ nextExternalView: externalView });
+
+    await waitFor(() => {
+      expect(result.current.model.renderModel?.statsHighlights?.[0]?.value).toBe("9.9");
+    });
+
+    act(() => {
+      managedConnection?.emitView({
+        ...aFakeTrackerLiveViewWith({
+          trackerId: "tracker-1",
+          status: "active",
+        }),
+        statsHighlights: [{ label: "KDA", value: "1.1" }],
+      });
+    });
+
+    expect(result.current.model.renderModel?.statsHighlights?.[0]?.value).toBe("9.9");
+  });
+
   it("updates stats highlights directly from websocket payloads", async () => {
     const firstView = aFakeTrackerViewStateWith({
       trackerId: "tracker-1",

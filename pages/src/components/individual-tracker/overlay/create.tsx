@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { ComponentLoader } from "../../component-loader/component-loader";
 import { ErrorState } from "../../error-state/error-state";
 import { LoadingState } from "../../loading-state/loading-state";
@@ -18,6 +19,7 @@ interface IndividualTrackerOverlayPageProps {
   readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
   readonly trackerId: string;
+  readonly externalView?: TrackerViewState;
   readonly showPreview?: boolean;
   readonly previewMode?: "player" | "observer";
 }
@@ -28,6 +30,7 @@ export function IndividualTrackerOverlayPage({
   seriesMatchesService,
   haloClient,
   trackerId,
+  externalView,
   showPreview = false,
   previewMode = "observer",
 }: IndividualTrackerOverlayPageProps): React.ReactElement {
@@ -49,6 +52,7 @@ export function IndividualTrackerOverlayPage({
     seriesMatchesService,
     haloClient,
     trackerId,
+    externalView,
   });
 
   useEffect(() => {

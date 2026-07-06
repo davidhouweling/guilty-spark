@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
@@ -18,6 +19,7 @@ interface UseIndividualTrackerViewerOpts {
   readonly haloClient: HaloInfiniteClient;
   readonly trackerId: string;
   readonly streamerSettings?: StreamerViewSettings;
+  readonly externalView?: TrackerViewState;
 }
 
 export interface IndividualTrackerViewerHookResult {
@@ -36,6 +38,7 @@ export function useIndividualTrackerViewer({
   haloClient,
   trackerId,
   streamerSettings,
+  externalView,
 }: UseIndividualTrackerViewerOpts): IndividualTrackerViewerHookResult {
   const store = useMemo(() => new IndividualTrackerViewerStore(), []);
 
@@ -66,11 +69,19 @@ export function useIndividualTrackerViewer({
   }, [presenter, streamerSettings]);
 
   useEffect(() => {
+    if (externalView != null) {
+      presenter.setExternalView(externalView);
+      return;
+    }
     presenter.start();
-    return (): void => {
+  }, [externalView, presenter]);
+
+  useEffect(
+    () => (): void => {
       presenter.dispose();
-    };
-  }, [presenter]);
+    },
+    [presenter],
+  );
 
   const snapshot = useSyncExternalStore(
     (listener) => store.subscribe(listener),

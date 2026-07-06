@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { ComponentLoader, ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import { ErrorState } from "../../components/error-state/error-state";
 import { LoadingState } from "../../components/loading-state/loading-state";
-import { FollowLiveOverlayViewer } from "../../components/follow/follow-live-overlay-viewer";
-import { FollowLiveViewer } from "../../components/follow/follow-live-viewer";
+import { createFollowLiveOverlay } from "../../components/follow/follow-live-overlay/create";
+import { createFollowLiveViewer } from "../../components/follow/follow-live-viewer/create";
 import type { Services } from "./services";
 import { installServices } from "./services";
 
@@ -68,48 +68,60 @@ export function FollowLiveApp({ apiHost, gamertag, variant = "viewer" }: FollowL
     };
   }, [apiHost, gamertag]);
 
+  const FollowLiveViewer = useMemo(
+    () =>
+      services == null
+        ? null
+        : createFollowLiveViewer({
+            followLiveService: services.followLiveService,
+            individualTrackerViewService: services.individualTrackerViewService,
+            matchAnalyticsService: services.matchAnalyticsService,
+            seriesMatchesService: services.seriesMatchesService,
+            haloClient: services.haloClient,
+          }),
+    [services],
+  );
+
+  const FollowLiveOverlay = useMemo(
+    () =>
+      services == null
+        ? null
+        : createFollowLiveOverlay({
+            followLiveService: services.followLiveService,
+            individualTrackerViewService: services.individualTrackerViewService,
+            matchAnalyticsService: services.matchAnalyticsService,
+            seriesMatchesService: services.seriesMatchesService,
+            haloClient: services.haloClient,
+          }),
+    [services],
+  );
+
   if (gamertag === "") {
     return <ErrorState message="No gamertag provided" />;
   }
 
   const isOverlay = variant === "overlay";
 
+  if (services == null || FollowLiveViewer == null || FollowLiveOverlay == null) {
+    return <LoadingState text="Loading..." />;
+  }
+
   return (
     <ComponentLoader
       status={state}
-      loading={<LoadingState text={isOverlay ? "Loading overlay..." : "Loading..."} />}
-      error={<ErrorState message={isOverlay ? "Failed to load overlay" : "Failed to load viewer"} />}
+      loading={<LoadingState text="Loading..." />}
+      error={<ErrorState message="Failed to load" />}
       loaded={
-        services != null ? (
-          isOverlay ? (
-            <FollowLiveOverlayViewer
-              gamertag={gamertag}
-              followLiveService={services.followLiveService}
-              individualTrackerViewService={services.individualTrackerViewService}
-              matchAnalyticsService={services.matchAnalyticsService}
-              seriesMatchesService={services.seriesMatchesService}
-              haloClient={services.haloClient}
-              showPreview={overlayPreview.showPreview}
-              previewMode={overlayPreview.previewMode}
-            />
-          ) : (
-            <FollowLiveViewer
-              gamertag={gamertag}
-              followLiveService={services.followLiveService}
-              individualTrackerViewService={services.individualTrackerViewService}
-              matchAnalyticsService={services.matchAnalyticsService}
-              seriesMatchesService={services.seriesMatchesService}
-              haloClient={services.haloClient}
-            />
-          )
+        isOverlay ? (
+          <FollowLiveOverlay
+            gamertag={gamertag}
+            showPreview={overlayPreview.showPreview}
+            previewMode={overlayPreview.previewMode}
+          />
         ) : (
-          <ErrorState message="Services failed to load" />
+          <FollowLiveViewer gamertag={gamertag} />
         )
       }
     />
   );
 }
-
-// Re-export a named alias for the overlay route so the Astro page import stays
-// explicit about what it's rendering.
-export { FollowLiveApp as FollowLiveOverlayApp };

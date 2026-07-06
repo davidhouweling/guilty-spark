@@ -7,14 +7,20 @@ import {
   INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { fetchTrackerDoViewState, toTrackerView } from "../../individual-tracker/mapper";
+import { requireSession } from "../base/require-session";
 import type { RoutesRegisterHandler } from "../base/types";
 
 export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/individual-tracker/:trackerId/view", async (request, env: Env) => {
     const services = installServices({ env });
-    const { databaseService, individualTrackerService, logService } = services;
+    const { authService, databaseService, individualTrackerService, logService } = services;
 
     try {
+      const sessionResult = await requireSession(request, authService);
+      if (!sessionResult.ok) {
+        return sessionResult.response;
+      }
+
       const parsedParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
       if (!parsedParams.success) {
         return parsedParams.response;
@@ -23,6 +29,9 @@ export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, 
 
       const row = await databaseService.getIndividualTracker(trackerId);
       if (row == null) {
+        return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
+      }
+      if (row.UserId !== sessionResult.session.userId) {
         return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
       }
 
@@ -41,9 +50,14 @@ export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, 
 
   router.get("/api/individual-tracker/:trackerId/ws", async (request, env: Env) => {
     const services = installServices({ env });
-    const { databaseService, individualTrackerService, logService } = services;
+    const { authService, databaseService, individualTrackerService, logService } = services;
 
     try {
+      const sessionResult = await requireSession(request, authService);
+      if (!sessionResult.ok) {
+        return sessionResult.response;
+      }
+
       const parsedParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
       if (!parsedParams.success) {
         return parsedParams.response;
@@ -56,6 +70,9 @@ export const trackerViewRoutesRegisterHandler: RoutesRegisterHandler = (router, 
 
       const row = await databaseService.getIndividualTracker(trackerId);
       if (row == null) {
+        return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
+      }
+      if (row.UserId !== sessionResult.session.userId) {
         return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
       }
 
