@@ -4,7 +4,7 @@ import type { MatchStats } from "halo-infinite-api";
 import { differenceInHours } from "date-fns";
 import TimeAgo from "javascript-time-ago";
 import { createElement, type CSSProperties } from "react";
-import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
+import type { MedalEntry, MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
@@ -16,6 +16,7 @@ import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
 import type { IndividualTrackerViewerRenderModel, ViewerSeriesTab, ViewerTimelineItem } from "../viewer/types";
 import { gameModeIconSrc } from "../game-mode-icon";
 import { RankIcon } from "../../icons/rank-icon";
+import { ALL_SLAYER_STATS, DEFAULT_TICKER_SETTINGS } from "../../live-tracker/settings/types";
 import type {
   IndividualTrackerOverlayViewModel,
   OverlayDisplaySettings,
@@ -28,9 +29,19 @@ import "javascript-time-ago/locale/en";
 
 const timeAgo = new TimeAgo("en");
 
+const DIFFICULTY_RANGE = new Map<number, readonly [number, number]>([
+  [0, [0, 99]],
+  [1, [100, 149]],
+  [2, [150, 199]],
+  [3, [200, Infinity]],
+]);
+
 interface TickerFilterOptions {
   readonly trackedGamertag: string;
   readonly includeOnlyTrackedPlayer: boolean;
+  readonly selectedSlayerStats: readonly string[];
+  readonly showObjectiveStats: boolean;
+  readonly medalRarityFilter: readonly number[];
 }
 
 export type MatchStatsState =
@@ -385,6 +396,9 @@ export class IndividualTrackerOverlayPresenter {
     const loadedTickerGroups = this.buildTickerGroups(options.matchStatsByMatchId, tabs, {
       trackedGamertag: renderModel.gamertag,
       includeOnlyTrackedPlayer: this.getIncludeOnlyTrackedPlayer(streamerSettings, activeSeries),
+      selectedSlayerStats: this.getSelectedSlayerStats(streamerSettings),
+      showObjectiveStats: this.getShowObjectiveStats(streamerSettings),
+      medalRarityFilter: this.getMedalRarityFilter(streamerSettings),
     });
     const tickerMatchGroups =
       loadedTickerGroups.length > 0
@@ -520,15 +534,15 @@ export class IndividualTrackerOverlayPresenter {
       }
 
       const formatter = createMatchStatsFormatter(matchState.stats.MatchInfo.GameVariantCategory);
-      const data = formatter.getData(matchState.stats, matchState.playerMap, {});
+      const data = formatter.getData(matchState.stats, matchState.playerMap, matchState.medalMetadata);
 
       const rows = data.flatMap((teamData) => [
         {
           type: "team" as const,
           teamId: teamData.teamId,
           name: getTeamName(teamData.teamId),
-          stats: teamData.teamStats,
-          medals: teamData.teamMedals,
+          stats: this.filterTickerStats(teamData.teamStats, filterOptions),
+          medals: this.filterTickerMedals(teamData.teamMedals, filterOptions.medalRarityFilter),
         },
         ...teamData.players.map((player) => ({
           type: "player" as const,
@@ -536,8 +550,8 @@ export class IndividualTrackerOverlayPresenter {
           name: player.name,
           discordName: null,
           gamertag: player.name,
-          stats: player.values,
-          medals: player.medals,
+          stats: this.filterTickerStats(player.values, filterOptions),
+          medals: this.filterTickerMedals(player.medals, filterOptions.medalRarityFilter),
         })),
       ]);
 
@@ -577,6 +591,62 @@ export class IndividualTrackerOverlayPresenter {
     }
 
     return streamerSettings?.styleFlags?.matchmakingShowTicker ?? fallbackShowTicker;
+  }
+
+  private getSelectedSlayerStats(streamerSettings: StreamerViewSettings | undefined): readonly string[] {
+    return (
+      streamerSettings?.styleFlags?.selectedSlayerStats ??
+      streamerSettings?.visibleSections?.selectedSlayerStats ??
+      DEFAULT_TICKER_SETTINGS.selectedSlayerStats
+    );
+  }
+
+  private getShowObjectiveStats(streamerSettings: StreamerViewSettings | undefined): boolean {
+    return (
+      streamerSettings?.styleFlags?.showObjectiveStats ??
+      streamerSettings?.visibleSections?.showObjectiveStats ??
+      DEFAULT_TICKER_SETTINGS.showObjectiveStats
+    );
+  }
+
+  private getMedalRarityFilter(streamerSettings: StreamerViewSettings | undefined): readonly number[] {
+    return (
+      streamerSettings?.styleFlags?.medalRarityFilter ??
+      streamerSettings?.visibleSections?.medalRarityFilter ??
+      DEFAULT_TICKER_SETTINGS.medalRarityFilter
+    );
+  }
+
+  private filterTickerStats(
+    stats: readonly MatchStatsValues[],
+    filterOptions: TickerFilterOptions,
+  ): MatchStatsValues[] {
+    return stats.filter((stat) => {
+      if (filterOptions.selectedSlayerStats.includes(stat.name)) {
+        return true;
+      }
+
+      if (filterOptions.showObjectiveStats) {
+        return !(ALL_SLAYER_STATS as readonly string[]).includes(stat.name);
+      }
+
+      return false;
+    });
+  }
+
+  private filterTickerMedals(
+    medals: readonly MedalEntry[],
+    medalRarityFilter: readonly number[],
+  ): TickerStatRow["medals"] {
+    return medals.flatMap((medal) => {
+      for (const [difficultyIndex, [minimumWeight, maximumWeight]] of DIFFICULTY_RANGE.entries()) {
+        if (medal.sortingWeight >= minimumWeight && medal.sortingWeight <= maximumWeight) {
+          return medalRarityFilter.includes(difficultyIndex) ? [{ name: medal.name, count: medal.count }] : [];
+        }
+      }
+
+      return [];
+    });
   }
 
   private filterRowsForTrackedPlayer(
