@@ -1,5 +1,6 @@
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import type { DirectoryConnectionStatus } from "../../../services/follow/follow-types";
 import { FollowLiveBasePresenter } from "../follow-live-base-presenter";
 
@@ -11,8 +12,7 @@ interface FollowLiveOverlayPresentOpts {
 
 interface FollowLiveOverlayPresentation {
   readonly title: string;
-  readonly showDirectoryError: boolean;
-  readonly showDirectoryLoading: boolean;
+  readonly loadStatus: ComponentLoaderStatus;
   readonly liveTrackerId: string | null;
   readonly liveTrackerView: TrackerViewState | undefined;
 }
@@ -23,11 +23,30 @@ export class FollowLiveOverlayPresenter extends FollowLiveBasePresenter {
 
     return {
       title: this.getOverlayTitle(args.gamertag, args.directory),
-      showDirectoryError: args.directoryStatus === "error" && args.directory == null,
-      showDirectoryLoading: args.directory == null,
+      loadStatus: this.toLoadStatus(args.directoryStatus, args.directory, liveTracker),
       liveTrackerId: liveTracker?.trackerId ?? null,
       liveTrackerView: this.toTrackerView(liveTracker, args.directory),
     };
+  }
+
+  private toLoadStatus(
+    directoryStatus: FollowLiveOverlayPresentOpts["directoryStatus"],
+    directory: FollowLiveOverlayPresentOpts["directory"],
+    liveTracker: TrackerDirectory["trackers"][number] | null,
+  ): ComponentLoaderStatus {
+    if (liveTracker != null) {
+      return ComponentLoaderStatus.LOADED;
+    }
+
+    if (directoryStatus === "error" && directory == null) {
+      return ComponentLoaderStatus.ERROR;
+    }
+
+    if (directory == null) {
+      return ComponentLoaderStatus.LOADING;
+    }
+
+    return ComponentLoaderStatus.LOADED;
   }
 
   private getOverlayTitle(gamertag: string, directory: FollowLiveOverlayPresentOpts["directory"]): string {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { aDirectoryWith, aTrackerWith } from "@guilty-spark/shared/contracts/individual-tracker/fakes/follow.fake";
+import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { FollowLiveOverlayPresenter } from "../follow-live-overlay-presenter";
 
 describe("FollowLiveOverlayPresenter", () => {
@@ -22,8 +23,7 @@ describe("FollowLiveOverlayPresenter", () => {
 
     expect(overlay.liveTrackerId).toBe("tracker-2");
     expect(overlay.liveTrackerView?.trackerId).toBe("tracker-2");
-    expect(overlay.showDirectoryError).toBe(false);
-    expect(overlay.showDirectoryLoading).toBe(false);
+    expect(overlay.loadStatus).toBe(ComponentLoaderStatus.LOADED);
     expect(overlay.title).toBe("Streamer overlay - Spartan Two live - Guilty Spark");
   });
 
@@ -40,6 +40,7 @@ describe("FollowLiveOverlayPresenter", () => {
       directoryStatus: "connected",
     });
 
+    expect(overlay.loadStatus).toBe(ComponentLoaderStatus.LOADED);
     expect(overlay.title).toBe("Streamer overlay - Guilty Spark");
   });
 });

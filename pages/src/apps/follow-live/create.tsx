@@ -103,21 +103,14 @@ export function FollowLiveApp({ apiHost, gamertag, variant = "viewer" }: FollowL
   const isOverlay = variant === "overlay";
 
   if (services == null || FollowLiveViewer == null || FollowLiveOverlay == null) {
-    return (
-      <ComponentLoader
-        status={state}
-        loading={<LoadingState text={isOverlay ? "Loading overlay..." : "Loading..."} />}
-        error={<ErrorState message={isOverlay ? "Failed to load overlay" : "Failed to load viewer"} />}
-        loaded={<ErrorState message="Services failed to load" />}
-      />
-    );
+    return <LoadingState text="Loading..." />;
   }
 
   return (
     <ComponentLoader
       status={state}
-      loading={<LoadingState text={isOverlay ? "Loading overlay..." : "Loading..."} />}
-      error={<ErrorState message={isOverlay ? "Failed to load overlay" : "Failed to load viewer"} />}
+      loading={<LoadingState text="Loading..." />}
+      error={<ErrorState message="Failed to load" />}
       loaded={
         isOverlay ? (
           <FollowLiveOverlay

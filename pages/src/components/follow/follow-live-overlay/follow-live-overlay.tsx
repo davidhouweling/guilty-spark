@@ -1,5 +1,6 @@
 import React from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import { ComponentLoader, ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { ErrorState } from "../../error-state/error-state";
 import { LoadingState } from "../../loading-state/loading-state";
 import { IndividualTrackerOverlayPage } from "../../individual-tracker/overlay/create";
@@ -8,8 +9,7 @@ import type { MatchAnalyticsService } from "../../../services/stats/match-analyt
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
 
 export interface FollowLiveOverlayProps {
-  readonly showDirectoryError: boolean;
-  readonly showDirectoryLoading: boolean;
+  readonly loadStatus: ComponentLoaderStatus;
   readonly liveTrackerId: string | null;
   readonly liveTrackerView: Parameters<typeof IndividualTrackerOverlayPage>[0]["externalView"];
   readonly individualTrackerViewService: IndividualTrackerViewService;
@@ -22,8 +22,7 @@ export interface FollowLiveOverlayProps {
 }
 
 export function FollowLiveOverlay({
-  showDirectoryError,
-  showDirectoryLoading,
+  loadStatus,
   liveTrackerId,
   liveTrackerView,
   individualTrackerViewService,
@@ -34,8 +33,8 @@ export function FollowLiveOverlay({
   previewMode = "observer",
   onRetry,
 }: FollowLiveOverlayProps): React.ReactElement {
-  if (liveTrackerId != null) {
-    return (
+  const loadedState =
+    liveTrackerId != null ? (
       <IndividualTrackerOverlayPage
         key={liveTrackerId}
         individualTrackerViewService={individualTrackerViewService}
@@ -47,16 +46,16 @@ export function FollowLiveOverlay({
         showPreview={showPreview}
         previewMode={previewMode}
       />
+    ) : (
+      <LoadingState text="No active tracker — waiting for a live game" />
     );
-  }
 
-  if (showDirectoryError) {
-    return <ErrorState message="Failed to load tracker directory" onRetry={onRetry} />;
-  }
-
-  if (showDirectoryLoading) {
-    return <LoadingState text="Loading tracker directory..." />;
-  }
-
-  return <LoadingState text="No active tracker — waiting for a live game" />;
+  return (
+    <ComponentLoader
+      status={loadStatus}
+      loading={<LoadingState text="Loading tracker directory..." />}
+      error={<ErrorState message="Failed to load tracker directory" onRetry={onRetry} />}
+      loaded={loadedState}
+    />
+  );
 }
