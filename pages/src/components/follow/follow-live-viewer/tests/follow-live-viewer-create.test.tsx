@@ -252,7 +252,13 @@ describe("FollowLiveViewerCreate", () => {
     const getViewSpy = vi.spyOn(individualTrackerViewService, "getView");
     const connectSpy = vi.spyOn(individualTrackerViewService, "connect");
 
-    render(createFollowLiveViewerWith(aDirectoryWith(), aFakeFollowLiveServiceWith({ directory: aDirectoryWith() }), individualTrackerViewService).element);
+    render(
+      createFollowLiveViewerWith(
+        aDirectoryWith(),
+        aFakeFollowLiveServiceWith({ directory: aDirectoryWith() }),
+        individualTrackerViewService,
+      ).element,
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-viewer")).toBeInTheDocument();
