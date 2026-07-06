@@ -11,7 +11,7 @@ import { aFakeFollowLiveServiceWith } from "../../../services/follow/fakes/follo
 import { aFakeIndividualTrackerViewServiceWith } from "../../../services/individual-tracker/fakes/view.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../services/stats/fakes/series-matches.fake";
-import { FollowLiveViewer, type FollowLiveViewerProps } from "../follow-live-viewer";
+import { FollowLiveViewerCreate, type FollowLiveViewerCreateProps } from "../follow-live-viewer-create";
 
 let mockViewerInstanceCount = 0;
 
@@ -48,7 +48,7 @@ vi.mock("../../individual-tracker/viewer/create", () => ({
   },
 }));
 
-function aViewerPropsWith(directory: TrackerDirectory): FollowLiveViewerProps {
+function aViewerPropsWith(directory: TrackerDirectory): FollowLiveViewerCreateProps {
   return {
     gamertag: "Spartan One",
     followLiveService: aFakeFollowLiveServiceWith({ directory }),
@@ -59,7 +59,7 @@ function aViewerPropsWith(directory: TrackerDirectory): FollowLiveViewerProps {
   };
 }
 
-describe("FollowLiveViewer", () => {
+describe("FollowLiveViewerCreate", () => {
   afterEach(() => {
     cleanup();
     document.title = "";
@@ -67,7 +67,7 @@ describe("FollowLiveViewer", () => {
   });
 
   it("shows tracker navigation when directory has multiple trackers", async () => {
-    render(<FollowLiveViewer {...aViewerPropsWith(aDirectoryWith())} />);
+    render(<FollowLiveViewerCreate {...aViewerPropsWith(aDirectoryWith())} />);
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-viewer")).toBeInTheDocument();
@@ -83,7 +83,7 @@ describe("FollowLiveViewer", () => {
       liveTrackerId: "tracker-1",
     });
 
-    render(<FollowLiveViewer {...aViewerPropsWith(singleDirectory)} />);
+    render(<FollowLiveViewerCreate {...aViewerPropsWith(singleDirectory)} />);
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-viewer")).toBeInTheDocument();
@@ -101,7 +101,7 @@ describe("FollowLiveViewer", () => {
       liveTrackerId: null,
     });
 
-    render(<FollowLiveViewer {...aViewerPropsWith(inactiveDirectory)} />);
+    render(<FollowLiveViewerCreate {...aViewerPropsWith(inactiveDirectory)} />);
 
     await waitFor(() => {
       expect(screen.getByText("No active tracker — waiting for a live game")).toBeInTheDocument();
@@ -121,7 +121,7 @@ describe("FollowLiveViewer", () => {
       },
     });
 
-    render(<FollowLiveViewer {...aViewerPropsWith(directoryWithSettings)} />);
+    render(<FollowLiveViewerCreate {...aViewerPropsWith(directoryWithSettings)} />);
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-viewer")).toBeInTheDocument();
@@ -140,7 +140,7 @@ describe("FollowLiveViewer", () => {
       liveTrackerId: "tracker-2",
     });
 
-    render(<FollowLiveViewer {...aViewerPropsWith(directory)} />);
+    render(<FollowLiveViewerCreate {...aViewerPropsWith(directory)} />);
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-viewer")).toBeInTheDocument();
@@ -158,7 +158,7 @@ describe("FollowLiveViewer", () => {
       liveTrackerId: "tracker-2",
     });
 
-    render(<FollowLiveViewer {...aViewerPropsWith(liveDirectory)} />);
+    render(<FollowLiveViewerCreate {...aViewerPropsWith(liveDirectory)} />);
 
     await waitFor(() => {
       expect(document.title).toBe("Spartan One live view - Spartan Two live - Guilty Spark");
@@ -181,7 +181,7 @@ describe("FollowLiveViewer", () => {
     const followLiveService = aFakeFollowLiveServiceWith({ directory: initialDirectory });
 
     render(
-      <FollowLiveViewer
+      <FollowLiveViewerCreate
         gamertag="Spartan One"
         followLiveService={followLiveService}
         individualTrackerViewService={aFakeIndividualTrackerViewServiceWith()}
@@ -229,7 +229,7 @@ describe("FollowLiveViewer", () => {
     const followLiveService = aFakeFollowLiveServiceWith({ directory: initialDirectory });
 
     render(
-      <FollowLiveViewer
+      <FollowLiveViewerCreate
         gamertag="Spartan One"
         followLiveService={followLiveService}
         individualTrackerViewService={aFakeIndividualTrackerViewServiceWith()}

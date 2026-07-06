@@ -1,18 +1,20 @@
 import React from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
+import type { DirectoryConnectionStatus } from "../../services/follow/follow-types";
 import { ErrorState } from "../error-state/error-state";
 import { LoadingState } from "../loading-state/loading-state";
 import { IndividualTrackerOverlayPage } from "../individual-tracker/overlay/create";
-import type { FollowLiveService } from "../../services/follow/follow-types";
 import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
-import { FollowLivePresenter } from "./follow-live-presenter";
-import { useFollowLiveDirectory } from "./use-follow-live-directory";
+import type { FollowLiveOverlayPresentation } from "./types";
 
 export interface FollowLiveOverlayViewerProps {
-  readonly gamertag: string;
-  readonly followLiveService: FollowLiveService;
+  readonly directoryStatus: DirectoryConnectionStatus;
+  readonly directory: TrackerDirectory | null;
+  readonly model: FollowLiveOverlayPresentation;
+  readonly onRetry: () => void;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
@@ -22,8 +24,10 @@ export interface FollowLiveOverlayViewerProps {
 }
 
 export function FollowLiveOverlayViewer({
-  gamertag,
-  followLiveService,
+  directoryStatus,
+  directory,
+  model,
+  onRetry,
   individualTrackerViewService,
   matchAnalyticsService,
   seriesMatchesService,
@@ -31,24 +35,6 @@ export function FollowLiveOverlayViewer({
   showPreview = false,
   previewMode = "observer",
 }: FollowLiveOverlayViewerProps): React.ReactElement {
-  const presenter = React.useMemo(() => new FollowLivePresenter(), []);
-  const { directory, directoryStatus, onRetry } = useFollowLiveDirectory({
-    followLiveService,
-    gamertag,
-  });
-  const model = React.useMemo(
-    () =>
-      presenter.presentOverlay({
-        gamertag,
-        directory,
-      }),
-    [directory, gamertag, presenter],
-  );
-
-  React.useEffect(() => {
-    document.title = model.title;
-  }, [model.title]);
-
   if (model.liveTracker != null) {
     return (
       <IndividualTrackerOverlayPage

@@ -1,20 +1,24 @@
 import React from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { ErrorState } from "../error-state/error-state";
 import { LoadingState } from "../loading-state/loading-state";
 import { IndividualTrackerViewerPage } from "../individual-tracker/viewer/create";
-import type { FollowLiveService } from "../../services/follow/follow-types";
+import type { DirectoryConnectionStatus } from "../../services/follow/follow-types";
 import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
 import { FollowTrackerTabs } from "./follow-tracker-tabs";
-import { FollowLivePresenter } from "./follow-live-presenter";
-import { useFollowLiveDirectory } from "./use-follow-live-directory";
+import type { FollowLiveViewerPresentation } from "./types";
 import styles from "./follow-live-viewer.module.css";
 
 export interface FollowLiveViewerProps {
-  readonly gamertag: string;
-  readonly followLiveService: FollowLiveService;
+  readonly directory: TrackerDirectory | null;
+  readonly directoryStatus: DirectoryConnectionStatus;
+  readonly selectedTrackerId: string | null;
+  readonly model: FollowLiveViewerPresentation;
+  readonly onSelectTracker: (trackerId: string) => void;
+  readonly onRetry: () => void;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
@@ -22,33 +26,17 @@ export interface FollowLiveViewerProps {
 }
 
 export function FollowLiveViewer({
-  gamertag,
-  followLiveService,
+  directory,
+  directoryStatus,
+  selectedTrackerId,
+  model,
+  onSelectTracker,
+  onRetry,
   individualTrackerViewService,
   matchAnalyticsService,
   seriesMatchesService,
   haloClient,
 }: FollowLiveViewerProps): React.ReactElement {
-  const presenter = React.useMemo(() => new FollowLivePresenter(), []);
-  const { directory, directoryStatus, selectedTrackerId, onSelectTracker, onRetry } = useFollowLiveDirectory({
-    followLiveService,
-    gamertag,
-  });
-  const model = React.useMemo(
-    () =>
-      presenter.presentViewer({
-        gamertag,
-        directory,
-        directoryStatus,
-        selectedTrackerId,
-      }),
-    [directory, directoryStatus, gamertag, presenter, selectedTrackerId],
-  );
-
-  React.useEffect(() => {
-    document.title = model.title;
-  }, [model.title]);
-
   return (
     <div className={styles.container}>
       {model.showTabs && directory !== null && (

@@ -11,7 +11,10 @@ import { aFakeFollowLiveServiceWith } from "../../../services/follow/fakes/follo
 import { aFakeIndividualTrackerViewServiceWith } from "../../../services/individual-tracker/fakes/view.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../services/stats/fakes/series-matches.fake";
-import { FollowLiveOverlayViewer, type FollowLiveOverlayViewerProps } from "../follow-live-overlay-viewer";
+import {
+  FollowLiveOverlayViewerCreate,
+  type FollowLiveOverlayViewerCreateProps,
+} from "../follow-live-overlay-viewer-create";
 
 let mockOverlayInstanceCount = 0;
 
@@ -41,7 +44,7 @@ vi.mock("../../individual-tracker/overlay/create", () => ({
   },
 }));
 
-function aViewerPropsWith(directory: TrackerDirectory): FollowLiveOverlayViewerProps {
+function aViewerPropsWith(directory: TrackerDirectory): FollowLiveOverlayViewerCreateProps {
   return {
     gamertag: "Spartan One",
     followLiveService: aFakeFollowLiveServiceWith({ directory }),
@@ -54,7 +57,7 @@ function aViewerPropsWith(directory: TrackerDirectory): FollowLiveOverlayViewerP
   };
 }
 
-describe("FollowLiveOverlayViewer", () => {
+describe("FollowLiveOverlayViewerCreate", () => {
   afterEach(() => {
     cleanup();
     document.title = "";
@@ -70,7 +73,7 @@ describe("FollowLiveOverlayViewer", () => {
       liveTrackerId: "tracker-2",
     });
 
-    render(<FollowLiveOverlayViewer {...aViewerPropsWith(directory)} />);
+    render(<FollowLiveOverlayViewerCreate {...aViewerPropsWith(directory)} />);
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-overlay-page")).toHaveTextContent("tracker-2:false:observer");
@@ -85,7 +88,7 @@ describe("FollowLiveOverlayViewer", () => {
       liveTrackerId: "tracker-3",
     });
 
-    render(<FollowLiveOverlayViewer {...aViewerPropsWith(directory)} showPreview previewMode="player" />);
+    render(<FollowLiveOverlayViewerCreate {...aViewerPropsWith(directory)} showPreview previewMode="player" />);
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-overlay-page")).toHaveTextContent("tracker-3:true:player");
@@ -98,7 +101,7 @@ describe("FollowLiveOverlayViewer", () => {
       liveTrackerId: null,
     });
 
-    render(<FollowLiveOverlayViewer {...aViewerPropsWith(directory)} />);
+    render(<FollowLiveOverlayViewerCreate {...aViewerPropsWith(directory)} />);
 
     await waitFor(() => {
       expect(screen.getByText("No active tracker — waiting for a live game")).toBeInTheDocument();
@@ -111,7 +114,7 @@ describe("FollowLiveOverlayViewer", () => {
       liveTrackerId: null,
     });
 
-    render(<FollowLiveOverlayViewer {...aViewerPropsWith(directory)} />);
+    render(<FollowLiveOverlayViewerCreate {...aViewerPropsWith(directory)} />);
 
     await waitFor(() => {
       expect(screen.getByText("No active tracker — waiting for a live game")).toBeInTheDocument();
@@ -136,7 +139,7 @@ describe("FollowLiveOverlayViewer", () => {
     const followLiveService = aFakeFollowLiveServiceWith({ directory: initialDirectory });
 
     render(
-      <FollowLiveOverlayViewer
+      <FollowLiveOverlayViewerCreate
         gamertag="Spartan One"
         followLiveService={followLiveService}
         individualTrackerViewService={aFakeIndividualTrackerViewServiceWith()}
