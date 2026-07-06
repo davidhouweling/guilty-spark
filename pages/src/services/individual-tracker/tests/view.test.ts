@@ -42,7 +42,7 @@ describe("RealIndividualTrackerViewService", () => {
     const result = await service.getView("tracker 1");
 
     expect(fetchSpy).toHaveBeenCalledWith(
-      "https://api.example.com/api/individual-tracker/tracker%201/view",
+      "https://api.example.com/api/individual-tracker/tracker%201",
       expect.objectContaining({ method: "GET" }),
     );
     const [firstCall] = fetchSpy.mock.calls;
