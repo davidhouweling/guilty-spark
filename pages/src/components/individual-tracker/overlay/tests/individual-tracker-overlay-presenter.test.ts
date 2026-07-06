@@ -517,6 +517,49 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(rows[0]?.name).toBe("TrackedPlayer");
   });
 
+  it("uses player perspective ticker color slot for matchmaking tracked-player rows", () => {
+    const matchId = "matchmaking-1";
+
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        gamertag: "PlayerThree",
+        timeline: [{ type: "match", match: aMatchWith({ matchId }) }],
+        teamColors: [
+          { id: "tracked", name: "Tracked", hex: "#00AA11" },
+          { id: "enemy", name: "Enemy", hex: "#AA0011" },
+        ],
+      }),
+      streamerSettings: {
+        styleFlags: {
+          matchmakingMyStatsOnly: true,
+        },
+      },
+      matchStatsByMatchId: new Map([
+        [
+          matchId,
+          {
+            status: "loaded" as const,
+            stats: aFakeMatchStatsWith({ MatchId: matchId }),
+            playerMap: new Map<string, string>([
+              ["1111111111", "TrackedPlayer"],
+              ["2222222222", "PlayerTwo"],
+              ["3333333333", "PlayerThree"],
+              ["4444444444", "PlayerFour"],
+            ]),
+            medalMetadata: aFakeMedalMetadata(),
+            analytics: null,
+          },
+        ],
+      ]),
+      selectedMatchId: null,
+    });
+
+    const rows = model.tickerMatchGroups[0]?.rows ?? [];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.teamId).toBe(1);
+    expect(rows[0]?.teamColorIndex).toBe(0);
+  });
+
   it("shows only the tracked player row in-series ticker when inSeriesMyStatsOnly is enabled", () => {
     const model = presenter.present({
       renderModel: aRenderModelWith({

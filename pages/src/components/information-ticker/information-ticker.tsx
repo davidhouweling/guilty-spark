@@ -11,6 +11,7 @@ import styles from "./information-ticker.module.css";
 interface TickerStatRow {
   readonly type: "team" | "player";
   readonly teamId: number;
+  readonly teamColorIndex?: number;
   readonly showTeamIcon?: boolean;
   readonly name: string | null;
   readonly discordName?: string | null;
@@ -80,7 +81,8 @@ const InformationTickerComponent = function InformationTicker({
   }
 
   const currentRow = rows[safeRowIndex];
-  const teamColor = teamColors[currentRow.teamId];
+  const teamColorIndex = currentRow.teamColorIndex ?? currentRow.teamId;
+  const teamColor = teamColors[teamColorIndex] ?? teamColors[0];
 
   return (
     <div
@@ -202,6 +204,7 @@ function arePropsEqual(prevProps: InformationTickerProps, nextProps: Information
     if (
       prevRow.type !== nextRow.type ||
       prevRow.teamId !== nextRow.teamId ||
+      prevRow.teamColorIndex !== nextRow.teamColorIndex ||
       prevRow.showTeamIcon !== nextRow.showTeamIcon ||
       prevRow.name !== nextRow.name ||
       prevRow.stats.length !== nextRow.stats.length ||

@@ -39,6 +39,7 @@ const DIFFICULTY_RANGE = new Map<number, readonly [number, number]>([
 interface TickerFilterOptions {
   readonly trackedGamertag: string;
   readonly includeOnlyTrackedPlayer: boolean;
+  readonly applyPlayerPerspectiveTickerColors: boolean;
   readonly selectedSlayerStats: readonly string[];
   readonly showObjectiveStats: boolean;
   readonly medalRarityFilter: readonly number[];
@@ -396,6 +397,7 @@ export class IndividualTrackerOverlayPresenter {
     const loadedTickerGroups = this.buildTickerGroups(options.matchStatsByMatchId, tabs, {
       trackedGamertag: renderModel.gamertag,
       includeOnlyTrackedPlayer: this.getIncludeOnlyTrackedPlayer(streamerSettings, activeSeries),
+      applyPlayerPerspectiveTickerColors: activeSeries == null,
       selectedSlayerStats: this.getSelectedSlayerStats(streamerSettings),
       showObjectiveStats: this.getShowObjectiveStats(streamerSettings),
       medalRarityFilter: this.getMedalRarityFilter(streamerSettings),
@@ -555,7 +557,9 @@ export class IndividualTrackerOverlayPresenter {
         })),
       ]);
 
-      const filteredRows = this.filterRowsForTrackedPlayer(rows, filterOptions);
+      const rowsWithColorSlots = this.applyTickerColorSlots(rows, filterOptions);
+
+      const filteredRows = this.filterRowsForTrackedPlayer(rowsWithColorSlots, filterOptions);
       if (filteredRows.length === 0) {
         continue;
       }
@@ -676,6 +680,38 @@ export class IndividualTrackerOverlayPresenter {
     });
 
     return trackedPlayerRows.length > 0 ? trackedPlayerRows : rows;
+  }
+
+  private applyTickerColorSlots(
+    rows: TickerMatchGroup["rows"],
+    filterOptions: Pick<TickerFilterOptions, "trackedGamertag" | "applyPlayerPerspectiveTickerColors">,
+  ): TickerMatchGroup["rows"] {
+    if (!filterOptions.applyPlayerPerspectiveTickerColors) {
+      return rows;
+    }
+
+    const trackedGamertag = filterOptions.trackedGamertag.trim().toLowerCase();
+    if (trackedGamertag === "") {
+      return rows;
+    }
+
+    const trackedPlayerTeamId = rows.find((row) => {
+      if (row.type !== "player") {
+        return false;
+      }
+
+      const candidate = row.gamertag ?? row.name;
+      return candidate?.trim().toLowerCase() === trackedGamertag;
+    })?.teamId;
+
+    if (trackedPlayerTeamId == null) {
+      return rows;
+    }
+
+    return rows.map((row) => ({
+      ...row,
+      teamColorIndex: row.teamId === trackedPlayerTeamId ? 0 : 1,
+    }));
   }
 
   private getShowTabs(renderModel: IndividualTrackerViewerRenderModel): boolean {

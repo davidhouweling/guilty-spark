@@ -208,6 +208,28 @@ describe("InformationTicker", () => {
     expect(container.firstChild).toHaveStyle("--row-color: #CC0000");
   });
 
+  it("uses teamColorIndex for row color when provided", () => {
+    const matchGroup = aFakeTickerMatchGroupWith({
+      rows: [
+        aFakeTickerStatRowWith({
+          type: "player",
+          teamId: 1,
+          teamColorIndex: 0,
+          name: "Tracked Player",
+          showTeamIcon: false,
+          discordName: null,
+          gamertag: "Tracked Player",
+        }),
+      ],
+    });
+
+    const { container } = render(
+      <InformationTicker currentMatchGroup={matchGroup} teamColors={teamColors} onScrollComplete={vi.fn()} />,
+    );
+
+    expect(container.firstChild).toHaveStyle("--row-color: #0066CC");
+  });
+
   it("displays multiple stats for a row", () => {
     const matchGroup = aFakeTickerMatchGroupWith({
       rows: [
