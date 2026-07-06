@@ -2066,10 +2066,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     const trackerState = await this.getState();
     const url = new URL(request.url);
-    const requestedStatsHighlightSlots = parseStatsHighlightSlots(url);
-    this.websocketStatsHighlightSlots = url.searchParams.has("statsHighlightSlots")
-      ? requestedStatsHighlightSlots
-      : DEFAULT_WEBSOCKET_STATS_HIGHLIGHT_SLOTS;
+    if (url.searchParams.has("statsHighlightSlots")) {
+      this.websocketStatsHighlightSlots = parseStatsHighlightSlots(url);
+    }
 
     this.logService.info(
       "IndividualTracker: WebSocket connection requested",

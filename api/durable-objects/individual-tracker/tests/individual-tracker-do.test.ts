@@ -2347,6 +2347,44 @@ describe("IndividualTrackerDO", () => {
       expect(parsed.view.statsHighlights).toEqual([]);
     });
 
+    it("does not overwrite configured stats highlight slots when websocket query is absent", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          trackerId: "t1",
+          gamertag: "Tag1",
+          status: "active",
+          matchIds: ["m1"],
+          selectedMatchIds: ["m1"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m1",
+              startTime: "s",
+              endTime: "e",
+              mapAssetId: "map",
+              mapVersionId: "map-v",
+              mapName: "Streets",
+              modeAssetId: "mode",
+              gameVariantCategory: 6,
+              outcome: "Win",
+              score: "50:42",
+            }),
+          },
+        }),
+      );
+
+      await individualTrackerDO.fetch(wsRequest("?statsHighlightSlots=%5B%5D"));
+      await individualTrackerDO.fetch(wsRequest());
+
+      const firstMessage = trackerViewMessageContract.parse(
+        Preconditions.checkExists(webSocketAdapter.initialMessages[0]),
+      );
+      const secondMessage = trackerViewMessageContract.parse(
+        Preconditions.checkExists(webSocketAdapter.initialMessages[1]),
+      );
+      expect(firstMessage.view.statsHighlights).toEqual([]);
+      expect(secondMessage.view.statsHighlights).toEqual([]);
+    });
+
     it("does not send an initial message when no state exists", async () => {
       storageGetSpy.mockResolvedValue(null);
 
