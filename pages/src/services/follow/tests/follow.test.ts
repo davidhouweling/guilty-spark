@@ -40,7 +40,7 @@ function directoryMessageData(directory: TrackerDirectory): string {
 }
 
 describe("RealFollowLiveService.getDirectory", () => {
-  it("fetches /u/<gamertag>/view with no credentials and returns the parsed directory", async () => {
+  it("fetches /u/<gamertag> with no credentials and returns the parsed directory", async () => {
     const service = new RealFollowLiveService({ apiHost: "https://api.example.com" });
     const directory = aFakeDirectory();
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
@@ -52,7 +52,7 @@ describe("RealFollowLiveService.getDirectory", () => {
 
     const result = await service.getDirectory("SomeTag");
 
-    expect(fetchSpy).toHaveBeenCalledWith("https://api.example.com/u/SomeTag/view", { method: "GET" });
+    expect(fetchSpy).toHaveBeenCalledWith("https://api.example.com/u/SomeTag", { method: "GET" });
     expect(result).toEqual(directory);
     fetchSpy.mockRestore();
   });

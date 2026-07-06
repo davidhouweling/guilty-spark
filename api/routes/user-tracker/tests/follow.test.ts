@@ -50,7 +50,7 @@ describe("/u/:gamertag follow routes", () => {
     vi.unstubAllGlobals();
   });
 
-  describe("GET /u/:gamertag/view", () => {
+  describe("GET /u/:gamertag", () => {
     it("returns 404 when gamertag is not found", async () => {
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
@@ -59,7 +59,7 @@ describe("/u/:gamertag follow routes", () => {
       });
       userTrackerRoutesRegisterHandler(router, localInstallServices);
 
-      const res = (await router.fetch(getRequest("/u/UnknownTag/view"), env)) as Response;
+      const res = (await router.fetch(getRequest("/u/UnknownTag"), env)) as Response;
 
       expect(res.status).toBe(404);
     });
@@ -101,7 +101,7 @@ describe("/u/:gamertag follow routes", () => {
       });
       userTrackerRoutesRegisterHandler(router, localInstallServices);
 
-      const res = (await router.fetch(getRequest("/u/KnownTag/view"), localEnv)) as Response;
+      const res = (await router.fetch(getRequest("/u/KnownTag"), localEnv)) as Response;
 
       expect(res.status).toBe(200);
       await expect(res.json<TrackerDirectoryResponse>()).resolves.toEqual({
@@ -140,7 +140,7 @@ describe("/u/:gamertag follow routes", () => {
       });
       userTrackerRoutesRegisterHandler(router, localInstallServices);
 
-      const res = (await router.fetch(getRequest("/u/EmptyTag/view"), localEnv)) as Response;
+      const res = (await router.fetch(getRequest("/u/EmptyTag"), localEnv)) as Response;
 
       expect(res.status).toBe(200);
       await expect(res.json<TrackerDirectoryResponse>()).resolves.toEqual({ trackers: [], liveTrackerId: null });

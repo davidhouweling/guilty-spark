@@ -23,7 +23,7 @@ export function buildIndividualTrackerTrackerViewPath(trackerId: string): string
 }
 
 export function buildIndividualTrackerPublicViewPath(gamertag: string): string {
-  return `/u/${encodeURIComponent(gamertag)}/view`;
+  return `/u/${encodeURIComponent(gamertag)}`;
 }
 
 export function buildIndividualTrackerPublicOverlayPath(gamertag: string): string {

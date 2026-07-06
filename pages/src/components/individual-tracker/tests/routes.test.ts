@@ -30,12 +30,12 @@ describe("buildIndividualTrackerTrackerViewPath", () => {
 });
 
 describe("buildIndividualTrackerPublicViewPath", () => {
-  it("returns the /u/<gamertag>/view path", () => {
-    expect(buildIndividualTrackerPublicViewPath("SpartanOne")).toBe("/u/SpartanOne/view");
+  it("returns the /u/<gamertag> path", () => {
+    expect(buildIndividualTrackerPublicViewPath("SpartanOne")).toBe("/u/SpartanOne");
   });
 
   it("percent-encodes special characters in the gamertag", () => {
-    expect(buildIndividualTrackerPublicViewPath("Spartan One")).toBe("/u/Spartan%20One/view");
+    expect(buildIndividualTrackerPublicViewPath("Spartan One")).toBe("/u/Spartan%20One");
   });
 });
 
