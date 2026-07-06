@@ -1,34 +1,9 @@
 import type { TrackerDirectory, TrackerDirectoryEntry } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
-import type { FollowLiveOverlayPresentArgs, FollowLiveOverlayPresentation, FollowLiveViewerPresentArgs, FollowLiveViewerPresentation } from "./types";
+import type { FollowLiveViewerPresentArgs, FollowLiveViewerPresentation } from "./types";
 
-export class FollowLivePresenter {
-  public presentViewer(args: FollowLiveViewerPresentArgs): FollowLiveViewerPresentation {
-    const selectedTracker =
-      args.selectedTrackerId == null
-        ? null
-        : (args.directory?.trackers.find((tracker) => tracker.trackerId === args.selectedTrackerId) ?? null);
-
-    return {
-      title: this.getViewerTitle(args.gamertag, args.directory),
-      showTabs: args.directory != null && args.directory.trackers.length > 1,
-      selectedTracker,
-      selectedTrackerView: this.toTrackerView(selectedTracker, args.directory),
-      connectionStatusOverride: this.toTrackerConnectionStatus(args.directoryStatus),
-    };
-  }
-
-  public presentOverlay(args: FollowLiveOverlayPresentArgs): FollowLiveOverlayPresentation {
-    const liveTracker = this.getLiveTracker(args.directory);
-
-    return {
-      title: this.getOverlayTitle(args.gamertag, args.directory),
-      liveTracker,
-      liveTrackerView: this.toTrackerView(liveTracker, args.directory),
-    };
-  }
-
-  private getLiveTracker(directory: TrackerDirectory | null): TrackerDirectoryEntry | null {
+export abstract class FollowLiveBasePresenter {
+  protected getLiveTracker(directory: TrackerDirectory | null): TrackerDirectoryEntry | null {
     if (directory == null) {
       return null;
     }
@@ -43,7 +18,7 @@ export class FollowLivePresenter {
     return directory.trackers.find((tracker) => tracker.isLive) ?? null;
   }
 
-  private getViewerTitle(gamertag: string, directory: TrackerDirectory | null): string {
+  protected getViewerTitle(gamertag: string, directory: TrackerDirectory | null): string {
     const liveTracker = this.getLiveTracker(directory);
     if (liveTracker == null) {
       return `${gamertag} live view - Guilty Spark`;
@@ -52,7 +27,7 @@ export class FollowLivePresenter {
     return `${gamertag} live view - ${liveTracker.gamertag} live - Guilty Spark`;
   }
 
-  private getOverlayTitle(gamertag: string, directory: TrackerDirectory | null): string {
+  protected getOverlayTitle(gamertag: string, directory: TrackerDirectory | null): string {
     const liveTracker = this.getLiveTracker(directory);
     if (liveTracker == null) {
       return `${gamertag} overlay - Guilty Spark`;
@@ -61,7 +36,7 @@ export class FollowLivePresenter {
     return `${gamertag} overlay - ${liveTracker.gamertag} live - Guilty Spark`;
   }
 
-  private toTrackerConnectionStatus(
+  protected toTrackerConnectionStatus(
     directoryStatus: FollowLiveViewerPresentArgs["directoryStatus"],
   ): FollowLiveViewerPresentation["connectionStatusOverride"] {
     switch (directoryStatus) {
@@ -83,7 +58,7 @@ export class FollowLivePresenter {
     }
   }
 
-  private toTrackerView(
+  protected toTrackerView(
     tracker: TrackerDirectoryEntry | null,
     directory: TrackerDirectory | null,
   ): TrackerViewState | undefined {

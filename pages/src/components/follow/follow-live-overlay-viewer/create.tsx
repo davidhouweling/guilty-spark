@@ -5,7 +5,7 @@ import type { IndividualTrackerViewService } from "../../../services/individual-
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
 import { FollowLiveOverlayViewer } from "./follow-live-overlay-viewer";
-import { FollowLivePresenter } from "../follow-live-presenter";
+import { FollowLiveOverlayViewerPresenter } from "./follow-live-overlay-viewer-presenter";
 import { useFollowLiveDirectory } from "../use-follow-live-directory";
 
 export interface FollowLiveOverlayViewerCreateProps {
@@ -29,19 +29,12 @@ export function FollowLiveOverlayViewerCreate({
   showPreview = false,
   previewMode = "observer",
 }: FollowLiveOverlayViewerCreateProps): React.ReactElement {
-  const presenter = React.useMemo(() => new FollowLivePresenter(), []);
+  const presenter = React.useMemo(() => new FollowLiveOverlayViewerPresenter(), []);
   const { directory, directoryStatus, onRetry } = useFollowLiveDirectory({
     followLiveService,
     gamertag,
   });
-  const model = React.useMemo(
-    () =>
-      presenter.presentOverlay({
-        gamertag,
-        directory,
-      }),
-    [directory, gamertag, presenter],
-  );
+  const model = React.useMemo(() => presenter.present({ gamertag, directory }), [directory, gamertag, presenter]);
 
   React.useEffect(() => {
     document.title = model.title;

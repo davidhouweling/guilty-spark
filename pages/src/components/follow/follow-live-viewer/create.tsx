@@ -4,7 +4,7 @@ import type { FollowLiveService } from "../../../services/follow/follow-types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
-import { FollowLivePresenter } from "../follow-live-presenter";
+import { FollowLiveViewerPresenter } from "./follow-live-viewer-presenter";
 import { FollowLiveViewer } from "./follow-live-viewer";
 import { useFollowLiveDirectory } from "../use-follow-live-directory";
 
@@ -25,19 +25,13 @@ export function FollowLiveViewerCreate({
   seriesMatchesService,
   haloClient,
 }: FollowLiveViewerCreateProps): React.ReactElement {
-  const presenter = React.useMemo(() => new FollowLivePresenter(), []);
+  const presenter = React.useMemo(() => new FollowLiveViewerPresenter(), []);
   const { directory, directoryStatus, selectedTrackerId, onSelectTracker, onRetry } = useFollowLiveDirectory({
     followLiveService,
     gamertag,
   });
   const model = React.useMemo(
-    () =>
-      presenter.presentViewer({
-        gamertag,
-        directory,
-        directoryStatus,
-        selectedTrackerId,
-      }),
+    () => presenter.present({ gamertag, directory, directoryStatus, selectedTrackerId }),
     [directory, directoryStatus, gamertag, presenter, selectedTrackerId],
   );
 
