@@ -11,10 +11,7 @@ import { aFakeFollowLiveServiceWith } from "../../../../services/follow/fakes/fo
 import { aFakeIndividualTrackerViewServiceWith } from "../../../../services/individual-tracker/fakes/view.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../../services/stats/fakes/series-matches.fake";
-import {
-  FollowLiveOverlayCreate,
-  type FollowLiveOverlayCreateProps,
-} from "../create";
+import { FollowLiveOverlayCreate, type FollowLiveOverlayCreateProps } from "../create";
 
 let mockOverlayInstanceCount = 0;
 
