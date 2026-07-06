@@ -1,6 +1,7 @@
 import React from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
-import { ComponentLoader, ComponentLoaderStatus } from "../../component-loader/component-loader";
+import type { ComponentLoaderStatus } from "../../component-loader/component-loader";
+import { ComponentLoader } from "../../component-loader/component-loader";
 import { ErrorState } from "../../error-state/error-state";
 import { LoadingState } from "../../loading-state/loading-state";
 import { IndividualTrackerOverlayPage } from "../../individual-tracker/overlay/create";
