@@ -71,14 +71,6 @@ export function useIndividualTrackerViewer({
   }, [presenter, streamerSettings]);
 
   useEffect(() => {
-    if (externalView == null) {
-      return;
-    }
-
-    presenter.setExternalView(externalView);
-  }, [externalView, presenter]);
-
-  useEffect(() => {
     presenter.start();
     return (): void => {
       presenter.dispose();
