@@ -204,13 +204,13 @@ describe("useIndividualTrackerViewer", () => {
     });
 
     act(() => {
-      individualTrackerViewService.lastConnection?.emitView(
-        aFakeTrackerViewStateWith({
+      individualTrackerViewService.lastConnection?.emitView({
+        ...aFakeTrackerLiveViewWith({
           trackerId: "tracker-1",
           status: "active",
-          statsHighlights: [{ label: "KDA", value: "3.4" }],
         }),
-      );
+        statsHighlights: [{ label: "KDA", value: "3.4" }],
+      });
     });
 
     await waitFor(() => {
