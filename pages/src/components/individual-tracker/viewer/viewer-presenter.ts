@@ -53,7 +53,6 @@ interface Config {
   readonly haloClient: HaloInfiniteClient;
   readonly store: IndividualTrackerViewerStore;
   readonly trackerId: string;
-  readonly externalView?: TrackerViewState;
 }
 
 const WIN_OUTCOME = 2;
@@ -479,11 +478,6 @@ export class IndividualTrackerViewerPresenter {
   }
 
   public start(): void {
-    if (this.config.externalView != null) {
-      this.setExternalView(this.config.externalView);
-      return;
-    }
-
     void this.load();
   }
 

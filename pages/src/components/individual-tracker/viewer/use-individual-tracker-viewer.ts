@@ -52,7 +52,6 @@ export function useIndividualTrackerViewer({
         haloClient,
         store,
         trackerId,
-        externalView,
       }),
     [
       individualTrackerService,
@@ -62,7 +61,6 @@ export function useIndividualTrackerViewer({
       haloClient,
       store,
       trackerId,
-      externalView,
     ],
   );
 
@@ -71,11 +69,19 @@ export function useIndividualTrackerViewer({
   }, [presenter, streamerSettings]);
 
   useEffect(() => {
+    if (externalView != null) {
+      presenter.setExternalView(externalView);
+      return;
+    }
     presenter.start();
-    return (): void => {
+  }, [externalView, presenter]);
+
+  useEffect(
+    () => (): void => {
       presenter.dispose();
-    };
-  }, [presenter]);
+    },
+    [presenter],
+  );
 
   const snapshot = useSyncExternalStore(
     (listener) => store.subscribe(listener),
