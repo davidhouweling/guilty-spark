@@ -257,6 +257,54 @@ describe("useIndividualTrackerViewer", () => {
     });
   });
 
+  it("ignores stale managed load completion after switching to external view", async () => {
+    const managedView = aFakeTrackerViewStateWith({
+      trackerId: "tracker-1",
+      status: "active",
+      statsHighlights: [{ label: "KDA", value: "2.1" }],
+    });
+    const externalView = aFakeTrackerViewStateWith({
+      trackerId: "tracker-1",
+      status: "active",
+      statsHighlights: [{ label: "KDA", value: "9.9" }],
+    });
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({ view: managedView });
+    const connectSpy = vi.spyOn(individualTrackerViewService, "connect");
+
+    let resolveGetView: ((value: { view: ReturnType<typeof aFakeTrackerViewStateWith> }) => void) | undefined;
+    const getViewPending = new Promise<{ view: ReturnType<typeof aFakeTrackerViewStateWith> }>((resolve) => {
+      resolveGetView = resolve;
+    });
+    vi.spyOn(individualTrackerViewService, "getView").mockImplementationOnce(async () => getViewPending);
+
+    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+
+    const { result, rerender } = renderHook<
+      ReturnType<typeof useIndividualTrackerViewer>,
+      { nextExternalView: ReturnType<typeof aFakeTrackerViewStateWith> | undefined }
+    >(
+      ({ nextExternalView }) =>
+        useIndividualTrackerViewer({
+          individualTrackerViewService,
+          matchAnalyticsService,
+          seriesMatchesService,
+          haloClient,
+          trackerId: "tracker-1",
+          externalView: nextExternalView,
+        }),
+      { initialProps: { nextExternalView: undefined } },
+    );
+
+    rerender({ nextExternalView: externalView });
+    resolveGetView?.({ view: managedView });
+
+    await waitFor(() => {
+      expect(result.current.model.renderModel?.statsHighlights?.[0]?.value).toBe("9.9");
+    });
+
+    expect(connectSpy).not.toHaveBeenCalled();
+  });
+
   it("disconnects managed websocket updates when switching to external view", async () => {
     const managedView = aFakeTrackerViewStateWith({
       trackerId: "tracker-1",

@@ -224,6 +224,7 @@ export class IndividualTrackerViewerPresenter {
   private streamerSettings: StreamerViewSettings | undefined;
   private streamerSettingsKey = "null";
   private hasServerStreamerSettings = false;
+  private modeVersion = 0;
 
   public constructor(config: Config) {
     this.config = config;
@@ -298,7 +299,10 @@ export class IndividualTrackerViewerPresenter {
   }
 
   public setExternalView(view: TrackerViewState): void {
+    this.modeVersion += 1;
     this.closeConnection();
+    this.awaitingRefresh = false;
+    this.config.store.setRefreshState(false);
     this.hasServerStreamerSettings = view.streamerSettings !== undefined;
     const resolvedView =
       view.streamerSettings === undefined && this.streamerSettings !== undefined
@@ -479,7 +483,9 @@ export class IndividualTrackerViewerPresenter {
   }
 
   public start(): void {
-    void this.load();
+    this.modeVersion += 1;
+    const {modeVersion} = this;
+    void this.load(modeVersion);
   }
 
   public dispose(): void {
@@ -507,11 +513,11 @@ export class IndividualTrackerViewerPresenter {
     }
   }
 
-  private async load(): Promise<void> {
+  private async load(modeVersion: number): Promise<void> {
     this.config.store.setLoading();
     try {
       const response = await this.config.individualTrackerViewService.getView(this.config.trackerId);
-      if (this.isDisposed) {
+      if (this.isDisposed || this.modeVersion !== modeVersion) {
         return;
       }
       this.hasServerStreamerSettings = response.view.streamerSettings !== undefined;
@@ -522,7 +528,7 @@ export class IndividualTrackerViewerPresenter {
       this.config.store.setLoaded(view);
       this.openConnection();
     } catch (error) {
-      if (this.isDisposed) {
+      if (this.isDisposed || this.modeVersion !== modeVersion) {
         return;
       }
       this.config.store.setError(error instanceof Error ? error.message : "Failed to load tracker");

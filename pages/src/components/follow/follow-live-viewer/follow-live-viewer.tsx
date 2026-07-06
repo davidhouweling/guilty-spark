@@ -20,12 +20,12 @@ export interface FollowLiveViewerProps {
   readonly selectedTrackerView: Parameters<typeof IndividualTrackerViewerPage>[0]["externalView"];
   readonly selectedTrackerStreamerSettings: Parameters<typeof IndividualTrackerViewerPage>[0]["streamerSettings"];
   readonly connectionStatusOverride: Parameters<typeof IndividualTrackerViewerPage>[0]["connectionStatusOverride"];
-  readonly onSelectTracker: (trackerId: string) => void;
-  readonly onRetry: () => void;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
+  readonly onSelectTracker: (trackerId: string) => void;
+  readonly onRetry: () => void;
 }
 
 export function FollowLiveViewer({
@@ -38,12 +38,12 @@ export function FollowLiveViewer({
   selectedTrackerView,
   selectedTrackerStreamerSettings,
   connectionStatusOverride,
-  onSelectTracker,
-  onRetry,
   individualTrackerViewService,
   matchAnalyticsService,
   seriesMatchesService,
   haloClient,
+  onSelectTracker,
+  onRetry,
 }: FollowLiveViewerProps): React.ReactElement {
   return (
     <div className={styles.container}>

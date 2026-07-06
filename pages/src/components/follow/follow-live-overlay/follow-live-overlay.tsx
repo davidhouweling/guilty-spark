@@ -12,13 +12,13 @@ export interface FollowLiveOverlayProps {
   readonly showDirectoryLoading: boolean;
   readonly liveTrackerId: string | null;
   readonly liveTrackerView: Parameters<typeof IndividualTrackerOverlayPage>[0]["externalView"];
-  readonly onRetry: () => void;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
   readonly showPreview?: boolean;
   readonly previewMode?: "player" | "observer";
+  readonly onRetry: () => void;
 }
 
 export function FollowLiveOverlay({
@@ -26,13 +26,13 @@ export function FollowLiveOverlay({
   showDirectoryLoading,
   liveTrackerId,
   liveTrackerView,
-  onRetry,
   individualTrackerViewService,
   matchAnalyticsService,
   seriesMatchesService,
   haloClient,
   showPreview = false,
   previewMode = "observer",
+  onRetry,
 }: FollowLiveOverlayProps): React.ReactElement {
   if (liveTrackerId != null) {
     return (
