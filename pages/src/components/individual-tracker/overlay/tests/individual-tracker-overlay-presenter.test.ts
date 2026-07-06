@@ -616,6 +616,50 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(model.tickerMatchGroups[1]?.rows.length).toBeGreaterThan(0);
   });
 
+  it("applies ticker stat and medal filters from streamer settings", () => {
+    const matchId = "match-filtered";
+
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        timeline: [{ type: "match", match: aMatchWith({ matchId, mapName: "Live Fire" }) }],
+      }),
+      streamerSettings: {
+        visibleSections: {
+          showTicker: true,
+        },
+        styleFlags: {
+          selectedSlayerStats: ["Kills"],
+          showObjectiveStats: false,
+          medalRarityFilter: [1],
+        },
+      } satisfies StreamerViewSettings,
+      matchStatsByMatchId: new Map([
+        [
+          matchId,
+          {
+            status: "loaded" as const,
+            stats: aFakeMatchStatsWith({ MatchId: matchId }),
+            playerMap: new Map<string, string>([
+              ["1111111111", "TrackedPlayer"],
+              ["2222222222", "PlayerTwo"],
+              ["3333333333", "PlayerThree"],
+              ["4444444444", "PlayerFour"],
+            ]),
+            medalMetadata: aFakeMedalMetadata(),
+            analytics: null,
+          },
+        ],
+      ]),
+      selectedMatchId: null,
+    });
+
+    const rows = model.tickerMatchGroups[0]?.rows ?? [];
+    const trackedPlayerRow = rows.find((row) => row.type === "player" && row.name === "TrackedPlayer");
+
+    expect(trackedPlayerRow?.stats.map((stat) => stat.name)).toEqual(["Kills"]);
+    expect(trackedPlayerRow?.medals.map((medal) => medal.name)).toEqual(["Killing Spree"]);
+  });
+
   it("hides ticker in-series when inSeriesShowTicker is false", () => {
     const model = presenter.present({
       renderModel: aRenderModelWith({
