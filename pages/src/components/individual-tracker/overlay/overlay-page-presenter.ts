@@ -83,7 +83,6 @@ export class OverlayPagePresenter {
 
   public deselect(): void {
     this.config.store.setSelectedMatchId(null);
-    this.config.store.setSelectedSeriesId(null);
   }
 
   public present(snapshot: OverlayPageSnapshot): OverlayPageViewModel {

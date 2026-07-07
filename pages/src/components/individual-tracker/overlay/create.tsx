@@ -97,6 +97,10 @@ export function IndividualTrackerOverlayPage({
 
     return model.entryStates.get(`series:${overlayModel.selectedSeriesId}`) ?? null;
   }, [model.entryStates, overlayModel.selectedSeriesId]);
+  const selectedSeriesPanelState = useMemo(
+    () => (selectedSeriesEntryState?.kind === "series" ? selectedSeriesEntryState.state : null),
+    [selectedSeriesEntryState],
+  );
   const overlayViewModel = useMemo(
     () =>
       model.renderModel != null
@@ -123,14 +127,14 @@ export function IndividualTrackerOverlayPage({
         overlayModel.selectedMatchId,
         overlayModel.matchStatsState,
         overlayModel.selectedSeriesId,
-        selectedSeriesEntryState?.state ?? null,
+        selectedSeriesPanelState,
       ),
     [
       overlayModel.matchStatsState,
       overlayModel.selectedMatchId,
       overlayModel.selectedSeriesId,
       overlayPresenter,
-      selectedSeriesEntryState,
+      selectedSeriesPanelState,
     ],
   );
 
@@ -146,7 +150,7 @@ export function IndividualTrackerOverlayPage({
             isPanelOpen={isPanelOpen}
             matchesLength={model.renderModel.accumulated.total}
             matchStatsPanelState={overlayModel.matchStatsPanelState}
-            seriesStatsPanelState={selectedSeriesEntryState?.kind === "series" ? selectedSeriesEntryState.state : null}
+            seriesStatsPanelState={selectedSeriesPanelState}
             selectedMatchId={overlayModel.selectedMatchId}
             selectedSeriesId={overlayModel.selectedSeriesId}
             showPreview={showPreview}

@@ -161,4 +161,27 @@ describe("OverlayPagePresenter", () => {
     expect(store.getSnapshot().selectedSeriesId).toBe("series-1");
     expect(onToggleEntry).toHaveBeenCalledOnce();
   });
+
+  it("clears selection with a single store notification", () => {
+    const store = new OverlayPageStore();
+    const presenter = new OverlayPagePresenter({
+      store,
+      haloClient: aFakeHaloClientWith({
+        getMatchStats: vi.fn(async () => Promise.resolve(aFakeMatchStatsWith())),
+      }),
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+    });
+    const listener = vi.fn<() => void>();
+    const unsubscribe = store.subscribe(listener);
+
+    presenter.selectSeriesAndToggleIfAvailable(null, "series-1", vi.fn<(item: ViewerTimelineItem) => void>());
+    listener.mockClear();
+
+    presenter.deselect();
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(store.getSnapshot().selectedMatchId).toBeNull();
+    expect(store.getSnapshot().selectedSeriesId).toBeNull();
+    unsubscribe();
+  });
 });
