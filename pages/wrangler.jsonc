@@ -1,11 +1,15 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "guilty-spark-web",
-  // `main` and `assets` are intentionally omitted: the @astrojs/cloudflare adapter
-  // generates them (dist/server/entry.mjs + the dist/client assets dir bound to ASSETS)
-  // into dist/server/wrangler.json and redirects wrangler to that config on deploy.
+  // `main` is intentionally omitted: the @astrojs/cloudflare adapter generates it
+  // (dist/server/entry.mjs) and redirects wrangler to dist/server/wrangler.json on deploy.
+  // We still set asset routing behavior here so Cloudflare canonicalizes HTML URLs
+  // without trailing slashes, matching Astro's trailingSlash: "never" setting.
   "compatibility_date": "2026-05-15",
   "compatibility_flags": ["global_fetch_strictly_public"],
+  "assets": {
+    "html_handling": "drop-trailing-slash",
+  },
   // The @astrojs/cloudflare adapter enables Astro KV sessions and binds them to "SESSION".
   // Declaring the existing namespace by id stops Wrangler from re-provisioning it on every deploy.
   "kv_namespaces": [
