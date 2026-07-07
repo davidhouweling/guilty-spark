@@ -85,7 +85,11 @@ export function IndividualTrackerOverlay({
   const handleTabClick = useCallback(
     (tabIndex: number): void => {
       const selectedTab = viewModel.tabs.find((currentTab) => currentTab.index === tabIndex);
-      if (selectedTab?.type === "series") {
+      if (selectedTab == null) {
+        return;
+      }
+
+      if (selectedTab.type === "series") {
         if (selectedTab.seriesId === selectedSeriesId) {
           onDeselect();
         } else {
@@ -94,13 +98,10 @@ export function IndividualTrackerOverlay({
         return;
       }
 
-      const selectedMatchTab = viewModel.tabs.find((t) => t.type === "match" && t.index === tabIndex);
-      if (selectedMatchTab?.type === "match") {
-        if (selectedMatchTab.matchId === selectedMatchId) {
-          onDeselect();
-        } else {
-          onSelectMatch(selectedMatchTab.matchId);
-        }
+      if (selectedTab.matchId === selectedMatchId) {
+        onDeselect();
+      } else {
+        onSelectMatch(selectedTab.matchId);
       }
     },
     [onDeselect, onSelectMatch, onSelectSeries, selectedMatchId, selectedSeriesId, viewModel.tabs],
