@@ -67,6 +67,7 @@ function aFakeProps(overrides?: Partial<StreamerSettingsSectionViewProps>): Stre
     tickerSettings: DEFAULT_TICKER_SETTINGS,
     inSeriesShowSeriesTab: true,
     matchmakingShowSummaryTab: true,
+    disableTeamPlayerNames: false,
     inSeriesShowTicker: true,
     matchmakingShowTicker: true,
     matchmakingShowStatsHighlights: true,
@@ -82,6 +83,7 @@ function aFakeProps(overrides?: Partial<StreamerSettingsSectionViewProps>): Stre
     onTickerSettingsChange: (): void => undefined,
     onInSeriesShowSeriesTabChange: (): void => undefined,
     onMatchmakingShowSummaryTabChange: (): void => undefined,
+    onDisableTeamPlayerNamesChange: (): void => undefined,
     onInSeriesShowTickerChange: (): void => undefined,
     onMatchmakingShowTickerChange: (): void => undefined,
     onMatchmakingShowStatsHighlightsChange: (): void => undefined,
@@ -256,6 +258,12 @@ describe("StreamerSettingsSectionView", () => {
       expect(screen.getByRole("checkbox", { name: /show summary tab/i })).toBeInTheDocument();
     });
 
+    it("renders the disable team player names toggle in the in-series top section", () => {
+      render(<StreamerSettingsSectionView {...aFakeProps()} />);
+
+      expect(screen.getByRole("checkbox", { name: /disable toggling to player names/i })).toBeInTheDocument();
+    });
+
     it("renders font size sliders for all sections", () => {
       render(<StreamerSettingsSectionView {...aFakeProps()} />);
 
@@ -358,6 +366,17 @@ describe("StreamerSettingsSectionView", () => {
       await user.click(screen.getByRole("checkbox", { name: /show summary tab/i }));
 
       expect(onChange).toHaveBeenCalledWith(false);
+    });
+
+    it("calls onDisableTeamPlayerNamesChange when the top-section toggle is clicked", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn<(enabled: boolean) => void>();
+
+      render(<StreamerSettingsSectionView {...aFakeProps({ onDisableTeamPlayerNamesChange: onChange })} />);
+
+      await user.click(screen.getByRole("checkbox", { name: /disable toggling to player names/i }));
+
+      expect(onChange).toHaveBeenCalledWith(true);
     });
 
     it("calls onMatchmakingShowTickerChange when the matchmaking ticker toggle is clicked", async () => {

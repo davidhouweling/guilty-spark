@@ -47,6 +47,7 @@ export function StreamerSettingsSection({
       tickerSettings={snapshot.tickerSettings}
       inSeriesShowSeriesTab={snapshot.inSeriesShowSeriesTab}
       matchmakingShowSummaryTab={snapshot.matchmakingShowSummaryTab}
+      disableTeamPlayerNames={snapshot.disableTeamPlayerNames}
       inSeriesShowTicker={snapshot.inSeriesShowTicker}
       matchmakingShowTicker={snapshot.matchmakingShowTicker}
       matchmakingShowStatsHighlights={snapshot.matchmakingShowStatsHighlights}
@@ -75,6 +76,9 @@ export function StreamerSettingsSection({
       }}
       onMatchmakingShowSummaryTabChange={(enabled): void => {
         presenter.setMatchmakingShowSummaryTab(enabled);
+      }}
+      onDisableTeamPlayerNamesChange={(enabled): void => {
+        presenter.setDisableTeamPlayerNames(enabled);
       }}
       onInSeriesShowTickerChange={(enabled): void => {
         presenter.setInSeriesShowTicker(enabled);

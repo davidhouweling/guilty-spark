@@ -483,7 +483,8 @@ export class IndividualTrackerOverlayPresenter {
 
     return {
       pinTopSection: activeSeries != null,
-      topSection: activeSeries != null ? this.getTopSectionModel(activeSeries, displaySettings) : null,
+      topSection:
+        activeSeries != null ? this.getTopSectionModel(activeSeries, displaySettings, streamerSettings) : null,
       statsHighlights: this.getMatchmakingStatsHighlights(streamerSettings, activeSeries, renderModel.statsHighlights),
       teamColors,
       tabs,
@@ -537,7 +538,11 @@ export class IndividualTrackerOverlayPresenter {
     };
   }
 
-  private getTopSectionModel(activeSeries: ViewerSeriesTab, settings: OverlayDisplaySettings): OverlayTopSectionModel {
+  private getTopSectionModel(
+    activeSeries: ViewerSeriesTab,
+    settings: OverlayDisplaySettings,
+    streamerSettings: StreamerViewSettings | undefined,
+  ): OverlayTopSectionModel {
     const teamLeft = activeSeries.teams.find((team) => team.id === 0);
     const teamRight = activeSeries.teams.find((team) => team.id === 1);
     const showTeamDetails = settings.showTeamDetails && teamLeft != null && teamRight != null;
@@ -548,6 +553,7 @@ export class IndividualTrackerOverlayPresenter {
       showScore: settings.showScore,
       seriesScore: activeSeries.score,
       showTeamDetails,
+      disableTeamPlayerNames: streamerSettings?.styleFlags?.disableTeamPlayerNames === true,
       teamLeft: showTeamDetails ? getTeamDetailsModel(teamLeft, settings) : null,
       teamRight: showTeamDetails ? getTeamDetailsModel(teamRight, settings) : null,
     };

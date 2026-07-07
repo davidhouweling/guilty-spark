@@ -84,6 +84,7 @@ describe("StreamerSettingsPresenter", () => {
             showPreSeriesInfo: false,
             inSeriesShowSeriesTab: false,
             matchmakingShowSummaryTab: false,
+            disableTeamPlayerNames: true,
             inSeriesShowTicker: false,
             matchmakingShowTicker: true,
             matchmakingShowStatsHighlights: false,
@@ -99,6 +100,7 @@ describe("StreamerSettingsPresenter", () => {
       expect(store.getSnapshot().tickerSettings.showPreSeriesInfo).toBe(false);
       expect(store.getSnapshot().inSeriesShowSeriesTab).toBe(false);
       expect(store.getSnapshot().matchmakingShowSummaryTab).toBe(false);
+      expect(store.getSnapshot().disableTeamPlayerNames).toBe(true);
       expect(store.getSnapshot().inSeriesShowTicker).toBe(false);
       expect(store.getSnapshot().matchmakingShowTicker).toBe(true);
       expect(store.getSnapshot().matchmakingShowStatsHighlights).toBe(false);
@@ -308,6 +310,25 @@ describe("StreamerSettingsPresenter", () => {
 
       const [[saved]] = updateSpy.mock.calls;
       expect(saved.styleFlags?.matchmakingShowSummaryTab).toBe(false);
+    });
+  });
+
+  describe("setDisableTeamPlayerNames", () => {
+    it("updates disableTeamPlayerNames in the store and schedules a save", async () => {
+      const { store, presenter, settingsService } = aHarness();
+      const updateSpy: MockInstance<typeof settingsService.updateSettings> = vi.spyOn(
+        settingsService,
+        "updateSettings",
+      );
+
+      presenter.setDisableTeamPlayerNames(true);
+
+      expect(store.getSnapshot().disableTeamPlayerNames).toBe(true);
+
+      await vi.runAllTimersAsync();
+
+      const [[saved]] = updateSpy.mock.calls;
+      expect(saved.styleFlags?.disableTeamPlayerNames).toBe(true);
     });
   });
 

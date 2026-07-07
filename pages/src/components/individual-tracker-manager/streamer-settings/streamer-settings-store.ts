@@ -21,6 +21,7 @@ export interface StreamerSettingsSnapshot {
   readonly tickerSettings: TickerSettings;
   readonly inSeriesShowSeriesTab: boolean;
   readonly matchmakingShowSummaryTab: boolean;
+  readonly disableTeamPlayerNames: boolean;
   readonly inSeriesShowTicker: boolean;
   readonly matchmakingShowTicker: boolean;
   readonly matchmakingShowStatsHighlights: boolean;
@@ -78,6 +79,7 @@ export class StreamerSettingsStore {
       tickerSettings: DEFAULT_TICKER_SETTINGS,
       inSeriesShowSeriesTab: true,
       matchmakingShowSummaryTab: true,
+      disableTeamPlayerNames: false,
       inSeriesShowTicker: true,
       matchmakingShowTicker: true,
       matchmakingShowStatsHighlights: true,

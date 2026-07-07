@@ -32,6 +32,7 @@ export interface OverlayTopSectionModel {
   readonly showScore: boolean;
   readonly seriesScore: string;
   readonly showTeamDetails: boolean;
+  readonly disableTeamPlayerNames: boolean;
   readonly teamLeft: OverlayTeamDetailsModel | null;
   readonly teamRight: OverlayTeamDetailsModel | null;
 }
