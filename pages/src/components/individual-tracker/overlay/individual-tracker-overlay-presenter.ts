@@ -14,7 +14,12 @@ import type { TickerMatchGroup, TickerStatRow } from "../../information-ticker/i
 import { createMatchStatsFormatter } from "../../../controllers/stats/create";
 import type { MatchStatsValues } from "../../../controllers/stats/types";
 import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
-import type { IndividualTrackerViewerRenderModel, ViewerSeriesTab, ViewerTimelineItem } from "../viewer/types";
+import type {
+  IndividualTrackerViewerRenderModel,
+  SeriesDetailsState,
+  ViewerSeriesTab,
+  ViewerTimelineItem,
+} from "../viewer/types";
 import { gameModeIconSrc } from "../game-mode-icon";
 import { RankIcon } from "../../icons/rank-icon";
 import { ALL_SLAYER_STATS, DEFAULT_TICKER_SETTINGS } from "../../live-tracker/settings/types";
@@ -271,7 +276,7 @@ export class IndividualTrackerOverlayPresenter {
     selectedMatchId: string | null,
     matchStatsState: MatchStatsState | null,
     selectedSeriesId: string | null,
-    seriesEntryState: { readonly status: string } | null,
+    seriesEntryState: SeriesDetailsState | null,
   ): boolean {
     if (selectedMatchId != null && (matchStatsState?.status === "loaded" || matchStatsState?.status === "error")) {
       return true;

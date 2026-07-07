@@ -501,7 +501,7 @@ export function StreamerSettingsSectionView({
             onMatchmakingShowSummaryTabChange(checked);
           }}
           label="Show summary tab"
-          description="Show a first tab that opens a compact matchmaking summary when no series is active."
+          description="Show matchmaking summary/series tabs when no active series is in progress."
         />
         <Checkbox
           checked={matchmakingShowStatsHighlights}
