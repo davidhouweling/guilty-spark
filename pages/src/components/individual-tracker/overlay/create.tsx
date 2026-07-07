@@ -146,9 +146,7 @@ export function IndividualTrackerOverlayPage({
             isPanelOpen={isPanelOpen}
             matchesLength={model.renderModel.accumulated.total}
             matchStatsPanelState={overlayModel.matchStatsPanelState}
-            seriesStatsPanelState={
-              selectedSeriesEntryState?.kind === "series" ? selectedSeriesEntryState.state : null
-            }
+            seriesStatsPanelState={selectedSeriesEntryState?.kind === "series" ? selectedSeriesEntryState.state : null}
             selectedMatchId={overlayModel.selectedMatchId}
             selectedSeriesId={overlayModel.selectedSeriesId}
             showPreview={showPreview}
