@@ -5,7 +5,7 @@ import { addMinutes, isValid, parseISO } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
-import type { NormalizedMatchOutcome } from "@guilty-spark/shared/halo/match-enrichment";
+import { summarizeSeriesOutcome } from "@guilty-spark/shared/halo/match-enrichment";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
 import { Container } from "../../container/container";
@@ -176,54 +176,6 @@ function connectionAwareNextUpdate(
   }
 
   return nextUpdateContent(renderModel);
-}
-
-function summarizeSeriesOutcome(outcomes: readonly NormalizedMatchOutcome[]): NormalizedMatchOutcome {
-  let wins = 0;
-  let losses = 0;
-  let ties = 0;
-  let dnf = 0;
-
-  for (const outcome of outcomes) {
-    switch (outcome) {
-      case "Win": {
-        wins += 1;
-        break;
-      }
-      case "Loss": {
-        losses += 1;
-        break;
-      }
-      case "Tie": {
-        ties += 1;
-        break;
-      }
-      case "DNF": {
-        dnf += 1;
-        break;
-      }
-      case "Unknown": {
-        break;
-      }
-      default: {
-        throw new UnreachableError(outcome);
-      }
-    }
-  }
-
-  if (wins > losses) {
-    return "Win";
-  }
-  if (losses > wins) {
-    return "Loss";
-  }
-  if (wins === 0 && losses === 0 && dnf > 0) {
-    return "DNF";
-  }
-  if (ties > 0) {
-    return "Tie";
-  }
-  return "Unknown";
 }
 
 function getBackgroundAt(backgrounds: readonly string[], index: number): string {

@@ -1,6 +1,7 @@
 import type { MatchStats } from "halo-infinite-api";
 import { GameVariantCategory } from "halo-infinite-api";
 import { compareAsc } from "date-fns";
+import { UnreachableError } from "../base/unreachable-error";
 import { getPlayerXuid } from "./match-stats";
 
 export type NormalizedMatchOutcome = "Win" | "Loss" | "Tie" | "DNF" | "Unknown";
@@ -57,6 +58,58 @@ export function getOutcomeColor(
     return enemyColor;
   }
   return undefined;
+}
+
+export function summarizeSeriesOutcome(outcomes: readonly NormalizedMatchOutcome[]): NormalizedMatchOutcome {
+  let wins = 0;
+  let losses = 0;
+  let ties = 0;
+  let dnf = 0;
+
+  for (const outcome of outcomes) {
+    switch (outcome) {
+      case "Win": {
+        wins += 1;
+        break;
+      }
+      case "Loss": {
+        losses += 1;
+        break;
+      }
+      case "Tie": {
+        ties += 1;
+        break;
+      }
+      case "DNF": {
+        dnf += 1;
+        break;
+      }
+      case "Unknown": {
+        break;
+      }
+      default: {
+        throw new UnreachableError(outcome);
+      }
+    }
+  }
+
+  if (wins > losses) {
+    return "Win";
+  }
+
+  if (losses > wins) {
+    return "Loss";
+  }
+
+  if (wins === 0 && losses === 0 && dnf > 0) {
+    return "DNF";
+  }
+
+  if (ties > 0) {
+    return "Tie";
+  }
+
+  return "Unknown";
 }
 
 export function buildMatchScore(matchStats: MatchStats, locale?: string): string {

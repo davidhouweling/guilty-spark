@@ -7,6 +7,7 @@ import { createElement, type CSSProperties } from "react";
 import type { MedalEntry, MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import { summarizeSeriesOutcome } from "@guilty-spark/shared/halo/match-enrichment";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { TickerMatchGroup, TickerStatRow } from "../../information-ticker/information-ticker";
@@ -43,6 +44,20 @@ interface TickerFilterOptions {
   readonly selectedSlayerStats: readonly string[];
   readonly showObjectiveStats: boolean;
   readonly medalRarityFilter: readonly number[];
+}
+
+function getSeriesOutcomeColorHex(series: ViewerSeriesTab): string | undefined {
+  const seriesOutcome = summarizeSeriesOutcome(series.matches.map((match) => match.outcome));
+
+  if (seriesOutcome === "Win") {
+    return series.matches.find((match) => match.outcome === "Win")?.colorHex;
+  }
+
+  if (seriesOutcome === "Loss") {
+    return series.matches.find((match) => match.outcome === "Loss")?.colorHex;
+  }
+
+  return undefined;
 }
 
 export type MatchStatsState =
@@ -193,16 +208,18 @@ export class IndividualTrackerOverlayPresenter {
     let seriesIdx = -1;
     return timeline.map((item): OverlayTab => {
       if (item.type === "series") {
+        const isMatchmakingSeries = item.series.matches.every((match) => match.isMatchmaking);
+
         return {
           type: "series",
           seriesId: item.series.id,
           index: seriesIdx--,
           label: item.series.title,
           score: item.series.score,
-          teamColor: undefined,
+          teamColor: getSeriesOutcomeColorHex(item.series),
           icons: item.series.matches.map((match) => ({
             src: gameModeIconSrc(match.gameVariantCategory),
-            dimmed: false,
+            dimmed: isMatchmakingSeries && match.outcome === "Loss",
           })),
         };
       }

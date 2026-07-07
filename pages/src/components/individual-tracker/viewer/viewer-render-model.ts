@@ -110,6 +110,7 @@ function toMatchTab(summary: TrackerMatchSummary, teamHex: string, enemyHex: str
     mapName: summary.mapName,
     mapBackgroundUrl: summary.mapBackgroundUrl ?? "data:,",
     gameVariantCategory: summary.gameVariantCategory,
+    isMatchmaking: summary.isMatchmaking,
     gameModeName: getGameModeName(summary.gameVariantCategory),
     duration,
     outcome,

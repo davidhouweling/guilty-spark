@@ -1992,7 +1992,7 @@ describe("NeatQueueService", () => {
         expect(xuids).toContain("xuid_discord_user_01");
         expect(xuids).toContain("xuid_discord_user_02");
         expect(payload).toMatchObject({
-          title: "Eagle vs Cobra",
+          title: "Test Server",
           subtitle: `Queue #${teamsCreatedRequest.match_number.toString()}`,
           guildIconUrl: null,
           teams: expect.arrayContaining<SeriesTeam>([
@@ -2038,7 +2038,7 @@ describe("NeatQueueService", () => {
         expect(xuids).toContain("xuid_discord_user_02");
       });
 
-      it("derives title from explicit team names when set", async () => {
+      it("uses guild display name for title even when explicit team names are set", async () => {
         const teamsCreatedRequest = getFakeNeatQueueData("teamsCreated");
         const team0Player = teamsCreatedRequest.teams[0]?.[0];
         const team1Player = teamsCreatedRequest.teams[1]?.[0];
@@ -2065,7 +2065,7 @@ describe("NeatQueueService", () => {
 
         expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
         const [, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], SeriesStartedPayload];
-        expect(payload.title).toBe("Eagles vs Cobras");
+        expect(payload.title).toBe("Test Server");
       });
 
       it("uses guild ID as title fallback when getGuild fails and team names are unavailable", async () => {

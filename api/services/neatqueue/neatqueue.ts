@@ -16,7 +16,6 @@ import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
-import { getSeriesGroupTitleFromTeams } from "@guilty-spark/shared/individual-tracker/series-grouping";
 import type { SeriesStartedPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import type { DatabaseService } from "../database/database";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
@@ -678,7 +677,7 @@ export class NeatQueueService {
       }));
       const seriesContext: SeriesStartedPayload = {
         type: "started",
-        title: getSeriesGroupTitleFromTeams(seriesTeams) ?? title,
+        title,
         subtitle: `Queue #${request.match_number.toString()}`,
         guildIconUrl,
         teams: seriesTeams,
