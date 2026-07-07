@@ -7,7 +7,7 @@ import { createElement, type CSSProperties } from "react";
 import type { MedalEntry, MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
+import { summarizeSeriesOutcome } from "@guilty-spark/shared/halo/match-enrichment";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { TickerMatchGroup, TickerStatRow } from "../../information-ticker/information-ticker";
@@ -46,62 +46,8 @@ interface TickerFilterOptions {
   readonly medalRarityFilter: readonly number[];
 }
 
-function summarizeSeriesOutcome(
-  matches: readonly ViewerSeriesTab["matches"][number][],
-): "Win" | "Loss" | "Tie" | "DNF" | "Unknown" {
-  let wins = 0;
-  let losses = 0;
-  let ties = 0;
-  let dnf = 0;
-
-  for (const match of matches) {
-    switch (match.outcome) {
-      case "Win": {
-        wins += 1;
-        break;
-      }
-      case "Loss": {
-        losses += 1;
-        break;
-      }
-      case "Tie": {
-        ties += 1;
-        break;
-      }
-      case "DNF": {
-        dnf += 1;
-        break;
-      }
-      case "Unknown": {
-        break;
-      }
-      default: {
-        throw new UnreachableError(match.outcome);
-      }
-    }
-  }
-
-  if (wins > losses) {
-    return "Win";
-  }
-
-  if (losses > wins) {
-    return "Loss";
-  }
-
-  if (wins === 0 && losses === 0 && dnf > 0) {
-    return "DNF";
-  }
-
-  if (ties > 0) {
-    return "Tie";
-  }
-
-  return "Unknown";
-}
-
 function getSeriesOutcomeColorHex(series: ViewerSeriesTab): string | undefined {
-  const seriesOutcome = summarizeSeriesOutcome(series.matches);
+  const seriesOutcome = summarizeSeriesOutcome(series.matches.map((match) => match.outcome));
 
   if (seriesOutcome === "Win") {
     return series.matches.find((match) => match.outcome === "Win")?.colorHex;

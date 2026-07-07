@@ -8,6 +8,7 @@ import {
   collapseSequentialSeriesEntries,
   getMatchOutcomeLabel,
   normalizeModeName,
+  summarizeSeriesOutcome,
 } from "../match-enrichment";
 
 describe("getMatchOutcomeLabel()", () => {
@@ -20,6 +21,28 @@ describe("getMatchOutcomeLabel()", () => {
     [99, "Unknown"],
   ])("returns %s for outcome code %s", (outcomeCode, expected) => {
     expect(getMatchOutcomeLabel(outcomeCode)).toBe(expected);
+  });
+});
+
+describe("summarizeSeriesOutcome()", () => {
+  it("returns Win when wins exceed losses", () => {
+    expect(summarizeSeriesOutcome(["Win", "Loss", "Win"])).toBe("Win");
+  });
+
+  it("returns Loss when losses exceed wins", () => {
+    expect(summarizeSeriesOutcome(["Loss", "Loss", "Win"])).toBe("Loss");
+  });
+
+  it("returns DNF when there are no wins or losses and at least one DNF", () => {
+    expect(summarizeSeriesOutcome(["Unknown", "DNF"])).toBe("DNF");
+  });
+
+  it("returns Tie when wins and losses are even and there is at least one tie", () => {
+    expect(summarizeSeriesOutcome(["Win", "Loss", "Tie"])).toBe("Tie");
+  });
+
+  it("returns Unknown when no outcome establishes a series result", () => {
+    expect(summarizeSeriesOutcome(["Unknown", "Unknown"])).toBe("Unknown");
   });
 });
 
