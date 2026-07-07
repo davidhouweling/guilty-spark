@@ -1,0 +1,77 @@
+import { describe, expect, it } from "vitest";
+import type { OverlayTab } from "../tabs-bar";
+import { getOverlayTabDisplayLimit, getVisibleTabsForWidth } from "../tabs-bar";
+
+function aSeriesTabWith(overrides?: Partial<OverlayTab>): OverlayTab {
+  return {
+    type: "series",
+    seriesId: "series-1",
+    index: -1,
+    label: "Series",
+    score: "2:1",
+    teamColor: "#00AAFF",
+    ...overrides,
+  } as OverlayTab;
+}
+
+function aMatchTabWith(index: number): OverlayTab {
+  return {
+    type: "match",
+    index,
+    matchId: `match-${index.toString()}`,
+    label: `Match ${index.toString()}`,
+    score: "50:45",
+    icon: "/mode.png",
+    teamColor: "#00AAFF",
+  };
+}
+
+describe("tabs-bar width behavior", () => {
+  it("computes display limit from container width", () => {
+    const tabs: readonly OverlayTab[] = [aSeriesTabWith(), aMatchTabWith(0), aMatchTabWith(1), aMatchTabWith(2)];
+
+    expect(getOverlayTabDisplayLimit(264, tabs)).toBe(2);
+    expect(getOverlayTabDisplayLimit(120, tabs)).toBe(1);
+  });
+
+  it("keeps series summary and newest tabs when overflowing", () => {
+    const tabs: readonly OverlayTab[] = [
+      aSeriesTabWith(),
+      aMatchTabWith(0),
+      aMatchTabWith(1),
+      aMatchTabWith(2),
+      aMatchTabWith(3),
+      aMatchTabWith(4),
+    ];
+
+    const visibleTabs = getVisibleTabsForWidth({
+      tabs,
+      displayLimit: 4,
+      activeTabIndex: undefined,
+      selectedTab: -99,
+    });
+
+    expect(visibleTabs.map((tab) => tab.index)).toEqual([-1, 2, 3, 4]);
+  });
+
+  it("preserves active and selected tabs when overflowing", () => {
+    const tabs: readonly OverlayTab[] = [
+      aSeriesTabWith(),
+      aMatchTabWith(0),
+      aMatchTabWith(1),
+      aMatchTabWith(2),
+      aMatchTabWith(3),
+      aMatchTabWith(4),
+      aMatchTabWith(5),
+    ];
+
+    const visibleTabs = getVisibleTabsForWidth({
+      tabs,
+      displayLimit: 4,
+      activeTabIndex: 1,
+      selectedTab: 3,
+    });
+
+    expect(visibleTabs.map((tab) => tab.index)).toEqual([-1, 1, 3, 5]);
+  });
+});
