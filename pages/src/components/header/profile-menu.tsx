@@ -91,8 +91,8 @@ export function ProfileMenu({ apiHost }: ProfileMenuProps): React.ReactElement {
     <Dropdown trigger={profileTrigger} ariaLabel="Profile menu" dropdownWidth={220} dropdownHeight={180}>
       <div className={styles.profileMenuList}>
         {gamertag != null && gamertag !== "" ? <span className={styles.profileMenuLabel}>{gamertag}</span> : null}
-        <a href="/" className={styles.profileMenuItem}>
-          Individual Tracker (Coming Soon)
+        <a href="/individual-tracker" className={styles.profileMenuItem}>
+          Individual Tracker
         </a>
         <button type="button" className={styles.profileMenuItem} onClick={handleLogout}>
           Sign out
