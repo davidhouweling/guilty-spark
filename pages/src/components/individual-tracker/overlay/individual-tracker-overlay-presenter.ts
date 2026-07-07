@@ -31,6 +31,7 @@ import type {
   OverlayTopSectionModel,
 } from "./types";
 import { getOverlayDisplaySettings } from "./types";
+import haloTrophyIconPng from "../../../assets/halo-trophy-icon.png";
 import "javascript-time-ago/locale/en";
 
 const timeAgo = new TimeAgo("en");
@@ -526,6 +527,7 @@ export class IndividualTrackerOverlayPresenter {
       id: "active-series-pre-match",
       title: renderModel.activeSeriesContext.title,
       subtitle: renderModel.activeSeriesContext.subtitle ?? "",
+      guildIconUrl: renderModel.activeSeriesContext.guildIconUrl ?? null,
       isActive: true,
       teams: renderModel.activeSeriesContext.teams,
       matchBackgroundUrls: [],
@@ -550,6 +552,7 @@ export class IndividualTrackerOverlayPresenter {
     return {
       title: settings.showTitle ? activeSeries.title : null,
       subtitle: settings.showSubtitle && activeSeries.subtitle !== "" ? activeSeries.subtitle : null,
+      iconUrl: settings.showServerIcon ? (activeSeries.guildIconUrl ?? haloTrophyIconPng.src) : null,
       showScore: settings.showScore,
       seriesScore: activeSeries.score,
       showTeamDetails,

@@ -352,4 +352,35 @@ describe("buildViewerRenderModel", () => {
       expect(seriesItem.series.teams[1]?.name).toBe("Beta");
     }
   });
+
+  it("maps guild icon url onto active series context and series timeline items", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1" }), aFakeTrackerMatchSummaryWith({ matchId: "m2" })],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          id: "series-1",
+          title: "Alpha vs Beta",
+          subtitle: "Bo3",
+          guildIconUrl: "https://cdn.example.com/series-icon.png",
+          matchIds: ["m1", "m2"],
+        }),
+      ],
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Alpha vs Beta",
+        subtitle: "Bo3",
+        guildIconUrl: "https://cdn.example.com/context-icon.png",
+        teams: [],
+      },
+    });
+
+    const model = buildViewerRenderModel({ view });
+    const seriesItem = model.timeline.find((item) => item.type === "series");
+
+    expect(model.activeSeriesContext?.guildIconUrl).toBe("https://cdn.example.com/context-icon.png");
+    expect(seriesItem?.type).toBe("series");
+    if (seriesItem?.type === "series") {
+      expect(seriesItem.series.guildIconUrl).toBe("https://cdn.example.com/series-icon.png");
+    }
+  });
 });

@@ -55,6 +55,7 @@ interface FakeSeriesOverrides {
   readonly score?: string;
   readonly title?: string;
   readonly subtitle?: string;
+  readonly guildIconUrl?: string | null;
 }
 
 export function aFakeTrackerSeriesGroupWith(overrides: FakeSeriesOverrides = {}): TrackerSeriesGroup {
@@ -65,6 +66,7 @@ export function aFakeTrackerSeriesGroupWith(overrides: FakeSeriesOverrides = {})
     score: overrides.score ?? "2:1",
     title: overrides.title ?? "Series",
     subtitle: overrides.subtitle ?? "Best of 3",
+    guildIconUrl: overrides.guildIconUrl ?? null,
   };
 }
 

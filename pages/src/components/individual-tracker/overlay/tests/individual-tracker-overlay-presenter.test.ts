@@ -9,6 +9,7 @@ import type {
   ViewerTimelineItem,
 } from "../../viewer/types";
 import { IndividualTrackerOverlayPresenter } from "../individual-tracker-overlay-presenter";
+import haloTrophyIconPng from "../../../../assets/halo-trophy-icon.png";
 
 function aRenderModelWith(
   overrides: Partial<IndividualTrackerViewerRenderModel> = {},
@@ -60,6 +61,7 @@ function aSeriesWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesTab 
     id: overrides.id ?? "series-1",
     title: overrides.title ?? "Eagle vs Cobra",
     subtitle: overrides.subtitle ?? "Best of 3",
+    guildIconUrl: overrides.guildIconUrl ?? null,
     isActive: overrides.isActive ?? false,
     teams: overrides.teams ?? [],
     matchBackgroundUrls: overrides.matchBackgroundUrls ?? matches.map(() => "data:,"),
@@ -633,6 +635,85 @@ describe("individual-tracker-overlay-presenter", () => {
     });
 
     expect(model.topSection?.disableTeamPlayerNames).toBe(false);
+  });
+
+  it("uses series guild icon url in top section when available", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        timeline: [
+          {
+            type: "series",
+            series: aSeriesWith({
+              isActive: true,
+              guildIconUrl: "https://cdn.example.com/server-icon.png",
+              teams: [
+                { id: 0, name: "Alpha", players: [{ discordName: "AlphaDiscord", gamertag: "AlphaTag" }] },
+                { id: 1, name: "Beta", players: [{ discordName: "BetaDiscord", gamertag: "BetaTag" }] },
+              ],
+            }),
+          },
+        ],
+      }),
+      streamerSettings: undefined,
+      matchStatsByMatchId: new Map(),
+      selectedMatchId: null,
+    });
+
+    expect(model.topSection?.iconUrl).toBe("https://cdn.example.com/server-icon.png");
+  });
+
+  it("uses local trophy icon fallback when series guild icon url is missing", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        timeline: [
+          {
+            type: "series",
+            series: aSeriesWith({
+              isActive: true,
+              guildIconUrl: null,
+              teams: [
+                { id: 0, name: "Alpha", players: [{ discordName: "AlphaDiscord", gamertag: "AlphaTag" }] },
+                { id: 1, name: "Beta", players: [{ discordName: "BetaDiscord", gamertag: "BetaTag" }] },
+              ],
+            }),
+          },
+        ],
+      }),
+      streamerSettings: undefined,
+      matchStatsByMatchId: new Map(),
+      selectedMatchId: null,
+    });
+
+    expect(model.topSection?.iconUrl).toBe(haloTrophyIconPng.src);
+  });
+
+  it("hides top-section icon when showServerIcon is disabled", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        timeline: [
+          {
+            type: "series",
+            series: aSeriesWith({
+              isActive: true,
+              guildIconUrl: "https://cdn.example.com/server-icon.png",
+              teams: [
+                { id: 0, name: "Alpha", players: [{ discordName: "AlphaDiscord", gamertag: "AlphaTag" }] },
+                { id: 1, name: "Beta", players: [{ discordName: "BetaDiscord", gamertag: "BetaTag" }] },
+              ],
+            }),
+          },
+        ],
+      }),
+      streamerSettings: {
+        visibleSections: {
+          showServerIcon: false,
+        },
+      },
+      matchStatsByMatchId: new Map(),
+      selectedMatchId: null,
+    });
+
+    expect(model.topSection?.iconUrl).toBeNull();
   });
 
   it("shows matchmaking stats highlights by default when provided by viewer settings", () => {

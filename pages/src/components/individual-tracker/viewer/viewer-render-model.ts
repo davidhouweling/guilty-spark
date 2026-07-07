@@ -74,6 +74,7 @@ function toViewerActiveSeriesContext(view: TrackerViewState): ViewerActiveSeries
   return {
     title: view.activeSeriesContext.title,
     subtitle: view.activeSeriesContext.subtitle,
+    guildIconUrl: view.activeSeriesContext.guildIconUrl ?? null,
     teams: view.activeSeriesContext.teams.map((team) => ({
       id: team.id,
       name: team.name,
@@ -238,6 +239,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         id: anchoredSeries.id,
         title: anchoredSeries.title,
         subtitle: anchoredSeries.subtitle,
+        guildIconUrl: anchoredSeries.guildIconUrl ?? null,
         isActive: activeSeriesId != null ? anchoredSeries.id === activeSeriesId : false,
         teams: getSeriesTeams(view, anchoredSeries, activeSeriesId),
         matchBackgroundUrls:

@@ -8,6 +8,7 @@ import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
 export interface OverlayDisplaySettings {
   readonly showTicker: boolean;
   readonly showTabs: boolean;
+  readonly showServerIcon: boolean;
   readonly showTitle: boolean;
   readonly showSubtitle: boolean;
   readonly showScore: boolean;
@@ -29,6 +30,7 @@ export interface OverlayTeamPlayerModel {
 export interface OverlayTopSectionModel {
   readonly title: string | null;
   readonly subtitle: string | null;
+  readonly iconUrl: string | null;
   readonly showScore: boolean;
   readonly seriesScore: string;
   readonly showTeamDetails: boolean;
@@ -55,6 +57,7 @@ export function getOverlayDisplaySettings(streamerSettings: StreamerViewSettings
   return {
     showTicker: visibleSections?.showTicker ?? true,
     showTabs: visibleSections?.showTabs ?? true,
+    showServerIcon: visibleSections?.showServerIcon ?? true,
     showTitle: visibleSections?.showTitle ?? true,
     showSubtitle: visibleSections?.showSubtitle ?? true,
     showScore: visibleSections?.showScore ?? true,

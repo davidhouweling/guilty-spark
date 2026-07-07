@@ -27,6 +27,7 @@ export interface ViewerSeriesTab {
   readonly id: string;
   readonly title: string;
   readonly subtitle: string;
+  readonly guildIconUrl?: string | null;
   readonly isActive: boolean;
   readonly teams: readonly ViewerSeriesTeam[];
   readonly matchBackgroundUrls: readonly string[];
@@ -52,6 +53,7 @@ export interface ViewerSeriesTeam {
 export interface ViewerActiveSeriesContext {
   readonly title: string;
   readonly subtitle: string | null;
+  readonly guildIconUrl?: string | null;
   readonly teams: readonly ViewerSeriesTeam[];
 }
 
