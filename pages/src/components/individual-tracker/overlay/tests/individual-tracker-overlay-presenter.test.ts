@@ -583,6 +583,58 @@ describe("individual-tracker-overlay-presenter", () => {
     ]);
   });
 
+  it("sets disableTeamPlayerNames in top section when style flag is enabled", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        timeline: [
+          {
+            type: "series",
+            series: aSeriesWith({
+              isActive: true,
+              teams: [
+                { id: 0, name: "Alpha", players: [{ discordName: "AlphaDiscord", gamertag: "AlphaTag" }] },
+                { id: 1, name: "Beta", players: [{ discordName: "BetaDiscord", gamertag: "BetaTag" }] },
+              ],
+            }),
+          },
+        ],
+      }),
+      streamerSettings: {
+        styleFlags: {
+          disableTeamPlayerNames: true,
+        },
+      },
+      matchStatsByMatchId: new Map(),
+      selectedMatchId: null,
+    });
+
+    expect(model.topSection?.disableTeamPlayerNames).toBe(true);
+  });
+
+  it("defaults disableTeamPlayerNames to false in top section", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        timeline: [
+          {
+            type: "series",
+            series: aSeriesWith({
+              isActive: true,
+              teams: [
+                { id: 0, name: "Alpha", players: [{ discordName: "AlphaDiscord", gamertag: "AlphaTag" }] },
+                { id: 1, name: "Beta", players: [{ discordName: "BetaDiscord", gamertag: "BetaTag" }] },
+              ],
+            }),
+          },
+        ],
+      }),
+      streamerSettings: undefined,
+      matchStatsByMatchId: new Map(),
+      selectedMatchId: null,
+    });
+
+    expect(model.topSection?.disableTeamPlayerNames).toBe(false);
+  });
+
   it("shows matchmaking stats highlights by default when provided by viewer settings", () => {
     const model = presenter.present({
       renderModel: aRenderModelWith({

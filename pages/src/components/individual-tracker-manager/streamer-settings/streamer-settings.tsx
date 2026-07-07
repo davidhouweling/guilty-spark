@@ -59,6 +59,7 @@ export interface StreamerSettingsSectionViewProps {
   readonly tickerSettings: TickerSettings;
   readonly inSeriesShowSeriesTab: boolean;
   readonly matchmakingShowSummaryTab: boolean;
+  readonly disableTeamPlayerNames: boolean;
   readonly inSeriesShowTicker: boolean;
   readonly matchmakingShowTicker: boolean;
   readonly matchmakingShowStatsHighlights: boolean;
@@ -74,6 +75,7 @@ export interface StreamerSettingsSectionViewProps {
   readonly onTickerSettingsChange: (updates: Partial<TickerSettings>) => void;
   readonly onInSeriesShowSeriesTabChange: (enabled: boolean) => void;
   readonly onMatchmakingShowSummaryTabChange: (enabled: boolean) => void;
+  readonly onDisableTeamPlayerNamesChange: (enabled: boolean) => void;
   readonly onInSeriesShowTickerChange: (enabled: boolean) => void;
   readonly onMatchmakingShowTickerChange: (enabled: boolean) => void;
   readonly onMatchmakingShowStatsHighlightsChange: (enabled: boolean) => void;
@@ -93,6 +95,7 @@ export function StreamerSettingsSectionView({
   tickerSettings,
   inSeriesShowSeriesTab,
   matchmakingShowSummaryTab,
+  disableTeamPlayerNames,
   inSeriesShowTicker,
   matchmakingShowTicker,
   matchmakingShowStatsHighlights,
@@ -108,6 +111,7 @@ export function StreamerSettingsSectionView({
   onTickerSettingsChange,
   onInSeriesShowSeriesTabChange,
   onMatchmakingShowSummaryTabChange,
+  onDisableTeamPlayerNamesChange,
   onInSeriesShowTickerChange,
   onMatchmakingShowTickerChange,
   onMatchmakingShowStatsHighlightsChange,
@@ -431,6 +435,14 @@ export function StreamerSettingsSectionView({
           </p>
         </div>
         <DisplaySettingsSection settings={displaySettings} onChange={onDisplaySettingsChange} />
+        <Checkbox
+          checked={disableTeamPlayerNames}
+          onChange={(checked): void => {
+            onDisableTeamPlayerNamesChange(checked);
+          }}
+          label="Disable toggling to player names"
+          description="Show only team names in the top section instead of fading to player names."
+        />
 
         <hr className={styles.sectionDivider} />
 

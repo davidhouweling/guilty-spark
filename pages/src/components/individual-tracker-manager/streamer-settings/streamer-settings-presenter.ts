@@ -69,6 +69,7 @@ function settingsToSnapshot(
     },
     inSeriesShowSeriesTab: styleFlags.inSeriesShowSeriesTab ?? snapshot.inSeriesShowSeriesTab,
     matchmakingShowSummaryTab: styleFlags.matchmakingShowSummaryTab ?? snapshot.matchmakingShowSummaryTab,
+    disableTeamPlayerNames: styleFlags.disableTeamPlayerNames ?? snapshot.disableTeamPlayerNames,
     inSeriesShowTicker: styleFlags.inSeriesShowTicker ?? visibleSections.showTicker ?? snapshot.inSeriesShowTicker,
     matchmakingShowTicker:
       styleFlags.matchmakingShowTicker ?? visibleSections.showTicker ?? snapshot.matchmakingShowTicker,
@@ -111,6 +112,7 @@ function snapshotToSettings(snapshot: StreamerSettingsSnapshot): StreamerViewSet
       medalRarityFilter: [...snapshot.tickerSettings.medalRarityFilter],
       inSeriesShowSeriesTab: snapshot.inSeriesShowSeriesTab,
       matchmakingShowSummaryTab: snapshot.matchmakingShowSummaryTab,
+      disableTeamPlayerNames: snapshot.disableTeamPlayerNames,
       inSeriesShowTicker: snapshot.inSeriesShowTicker,
       matchmakingShowTicker: snapshot.matchmakingShowTicker,
       matchmakingShowStatsHighlights: snapshot.matchmakingShowStatsHighlights,
@@ -229,6 +231,15 @@ export class StreamerSettingsPresenter {
     }
 
     this.config.store.batchUpdate({ matchmakingShowSummaryTab: enabled });
+    this.scheduleSave();
+  }
+
+  public setDisableTeamPlayerNames(enabled: boolean): void {
+    if (this.isDisposed) {
+      return;
+    }
+
+    this.config.store.batchUpdate({ disableTeamPlayerNames: enabled });
     this.scheduleSave();
   }
 

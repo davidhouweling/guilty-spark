@@ -2,6 +2,7 @@ import React, { useCallback, useMemo } from "react";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { StreamerOverlay } from "../../streamer-overlay/streamer-overlay";
 import { TopSection } from "../../streamer-overlay/top-section";
+import { TeamDetailsContent } from "../../streamer-overlay/team-details-content";
 import { StatsPanel } from "../viewer/stats-panel";
 import { SeriesStatsView } from "../../series-stats/series-stats";
 import { Alert } from "../../alert/alert";
@@ -53,22 +54,32 @@ export function IndividualTrackerOverlay({
           teamColors={viewModel.teamColors}
           teamLeft={
             viewModel.topSection.teamLeft != null ? (
-              <>
-                <div>{viewModel.topSection.teamLeft.name}</div>
-                {viewModel.topSection.teamLeft.players.map((player) => (
-                  <div key={`left-${player.key}`}>{player.label}</div>
-                ))}
-              </>
+              <TeamDetailsContent
+                team={{
+                  players: viewModel.topSection.teamLeft.players.map((player) => ({
+                    id: player.key,
+                    displayName: player.label,
+                  })),
+                }}
+                teamName={viewModel.topSection.teamLeft.name}
+                disableTeamPlayerNames={viewModel.topSection.disableTeamPlayerNames}
+                renderPlayerNameContent={(_playerId, displayName): React.ReactElement => <>{displayName}</>}
+              />
             ) : null
           }
           teamRight={
             viewModel.topSection.teamRight != null ? (
-              <>
-                <div>{viewModel.topSection.teamRight.name}</div>
-                {viewModel.topSection.teamRight.players.map((player) => (
-                  <div key={`right-${player.key}`}>{player.label}</div>
-                ))}
-              </>
+              <TeamDetailsContent
+                team={{
+                  players: viewModel.topSection.teamRight.players.map((player) => ({
+                    id: player.key,
+                    displayName: player.label,
+                  })),
+                }}
+                teamName={viewModel.topSection.teamRight.name}
+                disableTeamPlayerNames={viewModel.topSection.disableTeamPlayerNames}
+                renderPlayerNameContent={(_playerId, displayName): React.ReactElement => <>{displayName}</>}
+              />
             ) : null
           }
         />

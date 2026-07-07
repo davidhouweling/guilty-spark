@@ -139,6 +139,7 @@ export const streamerViewStyleFlagsSchema = z.object({
   showPreSeriesInfo: z.boolean().optional(),
   inSeriesShowSeriesTab: z.boolean().optional(),
   matchmakingShowSummaryTab: z.boolean().optional(),
+  disableTeamPlayerNames: z.boolean().optional(),
   selectedSlayerStats: z.array(z.string()).optional(),
   showObjectiveStats: z.boolean().optional(),
   medalRarityFilter: z.array(z.number()).optional(),
