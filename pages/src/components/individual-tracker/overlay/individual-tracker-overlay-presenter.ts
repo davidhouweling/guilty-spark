@@ -23,6 +23,7 @@ import type {
 import { gameModeIconSrc } from "../game-mode-icon";
 import { RankIcon } from "../../icons/rank-icon";
 import { ALL_SLAYER_STATS, DEFAULT_TICKER_SETTINGS } from "../../live-tracker/settings/types";
+import haloTrophyIconPng from "../../../assets/halo-trophy-icon.png";
 import type {
   IndividualTrackerOverlayViewModel,
   OverlayDisplaySettings,
@@ -31,7 +32,6 @@ import type {
   OverlayTopSectionModel,
 } from "./types";
 import { getOverlayDisplaySettings } from "./types";
-import haloTrophyIconPng from "../../../assets/halo-trophy-icon.png";
 import "javascript-time-ago/locale/en";
 
 const timeAgo = new TimeAgo("en");
