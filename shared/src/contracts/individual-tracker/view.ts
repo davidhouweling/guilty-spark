@@ -65,6 +65,7 @@ export const trackerLiveViewSchema = z.object({
     .object({
       title: z.string(),
       subtitle: z.string().nullable(),
+      guildIconUrl: z.string().nullable().optional(),
       teams: z.array(trackerSeriesTeamSchema),
     })
     .optional(),

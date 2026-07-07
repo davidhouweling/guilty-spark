@@ -23,6 +23,7 @@ import type {
 import { gameModeIconSrc } from "../game-mode-icon";
 import { RankIcon } from "../../icons/rank-icon";
 import { ALL_SLAYER_STATS, DEFAULT_TICKER_SETTINGS } from "../../live-tracker/settings/types";
+import haloTrophyIconPng from "../../../assets/halo-trophy-icon.png";
 import type {
   IndividualTrackerOverlayViewModel,
   OverlayDisplaySettings,
@@ -526,6 +527,7 @@ export class IndividualTrackerOverlayPresenter {
       id: "active-series-pre-match",
       title: renderModel.activeSeriesContext.title,
       subtitle: renderModel.activeSeriesContext.subtitle ?? "",
+      guildIconUrl: renderModel.activeSeriesContext.guildIconUrl ?? null,
       isActive: true,
       teams: renderModel.activeSeriesContext.teams,
       matchBackgroundUrls: [],
@@ -550,6 +552,7 @@ export class IndividualTrackerOverlayPresenter {
     return {
       title: settings.showTitle ? activeSeries.title : null,
       subtitle: settings.showSubtitle && activeSeries.subtitle !== "" ? activeSeries.subtitle : null,
+      iconUrl: settings.showServerIcon ? (activeSeries.guildIconUrl ?? haloTrophyIconPng.src) : null,
       showScore: settings.showScore,
       seriesScore: activeSeries.score,
       showTeamDetails,

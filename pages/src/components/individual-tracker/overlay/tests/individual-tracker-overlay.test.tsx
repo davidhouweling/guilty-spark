@@ -547,4 +547,89 @@ describe("IndividualTrackerOverlay", () => {
     expect(screen.queryByText("DiscordBeta")).not.toBeInTheDocument();
     expect(screen.queryByText("XboxBeta")).not.toBeInTheDocument();
   });
+
+  it("renders the server icon when showServerIcon is enabled", () => {
+    const renderModel = aRenderModel({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          id: "series-1",
+          title: "Alpha vs Beta",
+          subtitle: "Bo3",
+          guildIconUrl: "https://cdn.example.com/server-icon.png",
+          matchIds: ["m-1", "m-2"],
+          score: "1:0",
+        }),
+      ],
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Alpha vs Beta",
+        subtitle: "Bo3",
+        guildIconUrl: "https://cdn.example.com/server-icon.png",
+        teams: [
+          {
+            id: 0,
+            name: "Alpha",
+            players: [{ discordId: null, discordName: "DiscordAlpha", gamertag: "XboxAlpha", xboxId: null }],
+          },
+          {
+            id: 1,
+            name: "Beta",
+            players: [{ discordId: null, discordName: "DiscordBeta", gamertag: "XboxBeta", xboxId: null }],
+          },
+        ],
+      },
+    });
+
+    render(<IndividualTrackerOverlay {...aPropsWith({ renderModel })} />);
+
+    expect(screen.getByRole("img", { name: "Server" })).toHaveAttribute(
+      "src",
+      "https://cdn.example.com/server-icon.png",
+    );
+  });
+
+  it("hides the server icon when showServerIcon is disabled", () => {
+    const renderModel = aRenderModel({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          id: "series-1",
+          title: "Alpha vs Beta",
+          subtitle: "Bo3",
+          guildIconUrl: "https://cdn.example.com/server-icon.png",
+          matchIds: ["m-1", "m-2"],
+          score: "1:0",
+        }),
+      ],
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Alpha vs Beta",
+        subtitle: "Bo3",
+        guildIconUrl: "https://cdn.example.com/server-icon.png",
+        teams: [
+          {
+            id: 0,
+            name: "Alpha",
+            players: [{ discordId: null, discordName: "DiscordAlpha", gamertag: "XboxAlpha", xboxId: null }],
+          },
+          {
+            id: 1,
+            name: "Beta",
+            players: [{ discordId: null, discordName: "DiscordBeta", gamertag: "XboxBeta", xboxId: null }],
+          },
+        ],
+      },
+    });
+
+    const streamerSettings: StreamerViewSettings = {
+      visibleSections: {
+        showServerIcon: false,
+      },
+    };
+
+    render(<IndividualTrackerOverlay {...aPropsWith({ renderModel, streamerSettings })} />);
+
+    expect(screen.queryByRole("img", { name: "Server" })).not.toBeInTheDocument();
+  });
 });

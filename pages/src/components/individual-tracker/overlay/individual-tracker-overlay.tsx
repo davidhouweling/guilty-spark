@@ -47,7 +47,7 @@ export function IndividualTrackerOverlay({
         <TopSection
           title={viewModel.topSection.title}
           subtitle={viewModel.topSection.subtitle}
-          iconUrl={null}
+          iconUrl={viewModel.topSection.iconUrl}
           showScore={viewModel.topSection.showScore}
           seriesScore={viewModel.topSection.seriesScore}
           showTeamDetails={viewModel.topSection.showTeamDetails}
