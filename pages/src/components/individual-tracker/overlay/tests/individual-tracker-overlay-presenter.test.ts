@@ -39,6 +39,7 @@ function aMatchWith(overrides: Partial<ViewerMatchTab> = {}): ViewerMatchTab {
     mapName: overrides.mapName ?? "Live Fire",
     mapBackgroundUrl: overrides.mapBackgroundUrl ?? "data:,",
     gameVariantCategory: overrides.gameVariantCategory ?? 6,
+    isMatchmaking: overrides.isMatchmaking ?? false,
     gameModeName: overrides.gameModeName ?? "Slayer",
     duration: overrides.duration ?? "10m",
     outcome: overrides.outcome ?? "Win",
@@ -137,6 +138,77 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(matchTab.type).toBe("match");
     if (matchTab.type === "match") {
       expect(matchTab.icon).toBe(gameModeIconSrc(8));
+    }
+  });
+
+  it("applies series tab color from the aggregated tracked-player outcome", () => {
+    const timeline: ViewerTimelineItem[] = [
+      {
+        type: "series",
+        series: aSeriesWith({
+          id: "series-loss",
+          isActive: false,
+          matches: [
+            aMatchWith({ matchId: "m-1", outcome: "Loss", colorHex: "#AA0011", isMatchmaking: true }),
+            aMatchWith({ matchId: "m-2", outcome: "Loss", colorHex: "#AA0011", isMatchmaking: true }),
+            aMatchWith({ matchId: "m-3", outcome: "Win", colorHex: "#00AA11", isMatchmaking: true }),
+          ],
+        }),
+      },
+    ];
+
+    const [seriesTab] = presenter.buildTabs(timeline);
+
+    expect(seriesTab.type).toBe("series");
+    if (seriesTab.type === "series") {
+      expect(seriesTab.teamColor).toBe("#AA0011");
+    }
+  });
+
+  it("dims lost icons only for matchmaking series tabs", () => {
+    const timeline: ViewerTimelineItem[] = [
+      {
+        type: "series",
+        series: aSeriesWith({
+          id: "series-matchmaking",
+          isActive: false,
+          matches: [
+            aMatchWith({ matchId: "mm-1", outcome: "Win", isMatchmaking: true }),
+            aMatchWith({ matchId: "mm-2", outcome: "Loss", isMatchmaking: true }),
+          ],
+        }),
+      },
+      {
+        type: "series",
+        series: aSeriesWith({
+          id: "series-custom",
+          isActive: false,
+          matches: [
+            aMatchWith({ matchId: "custom-1", outcome: "Loss", isMatchmaking: false }),
+            aMatchWith({ matchId: "custom-2", outcome: "Win", isMatchmaking: false }),
+          ],
+        }),
+      },
+    ];
+
+    const tabs = presenter.buildTabs(timeline);
+    const matchmakingTab = tabs.find((tab) => tab.type === "series" && tab.seriesId === "series-matchmaking");
+    const customTab = tabs.find((tab) => tab.type === "series" && tab.seriesId === "series-custom");
+
+    expect(matchmakingTab?.type).toBe("series");
+    if (matchmakingTab?.type === "series") {
+      expect(matchmakingTab.icons).toEqual([
+        { src: gameModeIconSrc(6), dimmed: false },
+        { src: gameModeIconSrc(6), dimmed: true },
+      ]);
+    }
+
+    expect(customTab?.type).toBe("series");
+    if (customTab?.type === "series") {
+      expect(customTab.icons).toEqual([
+        { src: gameModeIconSrc(6), dimmed: false },
+        { src: gameModeIconSrc(6), dimmed: false },
+      ]);
     }
   });
 

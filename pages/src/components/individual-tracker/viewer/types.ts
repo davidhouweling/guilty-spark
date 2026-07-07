@@ -13,6 +13,7 @@ export interface ViewerMatchTab {
   readonly mapName: string;
   readonly mapBackgroundUrl: string;
   readonly gameVariantCategory: number;
+  readonly isMatchmaking: boolean;
   readonly gameModeName: string;
   readonly duration: string;
   readonly outcome: NormalizedMatchOutcome;

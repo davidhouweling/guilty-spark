@@ -8,7 +8,7 @@ interface SeriesTab {
   readonly index: number;
   readonly label: string;
   readonly score: string;
-  readonly teamColor: undefined;
+  readonly teamColor: string | undefined;
   readonly icons?: readonly { readonly src: string; readonly dimmed: boolean }[];
 }
 
