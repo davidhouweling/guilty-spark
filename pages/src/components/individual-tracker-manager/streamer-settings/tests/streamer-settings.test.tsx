@@ -65,6 +65,8 @@ function aFakeProps(overrides?: Partial<StreamerSettingsSectionViewProps>): Stre
     observerEnemyColor: "cerulean",
     displaySettings: DEFAULT_DISPLAY_SETTINGS,
     tickerSettings: DEFAULT_TICKER_SETTINGS,
+    inSeriesShowSeriesTab: true,
+    matchmakingShowSummaryTab: true,
     inSeriesShowTicker: true,
     matchmakingShowTicker: true,
     matchmakingShowStatsHighlights: true,
@@ -78,6 +80,8 @@ function aFakeProps(overrides?: Partial<StreamerSettingsSectionViewProps>): Stre
     onObserverColorsChange: (): void => undefined,
     onDisplaySettingsChange: (): void => undefined,
     onTickerSettingsChange: (): void => undefined,
+    onInSeriesShowSeriesTabChange: (): void => undefined,
+    onMatchmakingShowSummaryTabChange: (): void => undefined,
     onInSeriesShowTickerChange: (): void => undefined,
     onMatchmakingShowTickerChange: (): void => undefined,
     onMatchmakingShowStatsHighlightsChange: (): void => undefined,
@@ -240,6 +244,18 @@ describe("StreamerSettingsSectionView", () => {
       expect(screen.getByTestId("ticker-settings-section")).toBeInTheDocument();
     });
 
+    it("renders the series tab toggle in the in-series section", () => {
+      render(<StreamerSettingsSectionView {...aFakeProps()} />);
+
+      expect(screen.getByRole("checkbox", { name: /show series score tab/i })).toBeInTheDocument();
+    });
+
+    it("renders the summary tab toggle in the matchmaking section", () => {
+      render(<StreamerSettingsSectionView {...aFakeProps()} />);
+
+      expect(screen.getByRole("checkbox", { name: /show summary tab/i })).toBeInTheDocument();
+    });
+
     it("renders font size sliders for all sections", () => {
       render(<StreamerSettingsSectionView {...aFakeProps()} />);
 
@@ -318,6 +334,28 @@ describe("StreamerSettingsSectionView", () => {
       render(<StreamerSettingsSectionView {...aFakeProps({ onInSeriesShowTickerChange: onChange })} />);
 
       await user.click(screen.getByRole("checkbox", { name: /in series\s*show information ticker/i }));
+
+      expect(onChange).toHaveBeenCalledWith(false);
+    });
+
+    it("calls onInSeriesShowSeriesTabChange when the series tab toggle is clicked", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn<(enabled: boolean) => void>();
+
+      render(<StreamerSettingsSectionView {...aFakeProps({ onInSeriesShowSeriesTabChange: onChange })} />);
+
+      await user.click(screen.getByRole("checkbox", { name: /show series score tab/i }));
+
+      expect(onChange).toHaveBeenCalledWith(false);
+    });
+
+    it("calls onMatchmakingShowSummaryTabChange when the summary tab toggle is clicked", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn<(enabled: boolean) => void>();
+
+      render(<StreamerSettingsSectionView {...aFakeProps({ onMatchmakingShowSummaryTabChange: onChange })} />);
+
+      await user.click(screen.getByRole("checkbox", { name: /show summary tab/i }));
 
       expect(onChange).toHaveBeenCalledWith(false);
     });

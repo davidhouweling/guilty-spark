@@ -149,6 +149,7 @@ interface BuildOverlayViewModelOptions {
   readonly streamerSettings: StreamerViewSettings | undefined;
   readonly matchStatsByMatchId: ReadonlyMap<string, MatchStatsState>;
   readonly selectedMatchId: string | null;
+  readonly selectedSeriesId?: string | null;
 }
 
 interface IndividualTrackerOverlayPresenterConfig {
@@ -178,30 +179,40 @@ export class IndividualTrackerOverlayPresenter {
   ): readonly OverlayTab[] {
     const activeSeries = activeSeriesOverride ?? this.getActiveSeries(timeline);
     if (activeSeries != null) {
+      const seriesTab: OverlayTab = {
+        type: "series",
+        seriesId: activeSeries.id,
+        index: -1,
+        label: activeSeries.matches.length === 0 ? "Series score" : activeSeries.title,
+        score: activeSeries.score,
+        teamColor: getSeriesOutcomeColorHex(activeSeries),
+        icons:
+          activeSeries.matches.length > 0
+            ? activeSeries.matches.map((match) => ({
+                src: gameModeIconSrc(match.gameVariantCategory),
+                dimmed: false,
+              }))
+            : undefined,
+      };
+
       if (activeSeries.matches.length === 0) {
-        return [
-          {
-            type: "series",
-            seriesId: activeSeries.id,
-            index: -1,
-            label: "Series score",
-            score: activeSeries.score,
-            teamColor: undefined,
-          },
-        ];
+        return [seriesTab];
       }
 
-      return activeSeries.matches.map(
-        (match, index): OverlayTab => ({
-          type: "match",
-          index,
-          matchId: match.matchId,
-          label: match.mapName,
-          score: match.score,
-          icon: gameModeIconSrc(match.gameVariantCategory),
-          teamColor: match.colorHex,
-        }),
-      );
+      return [
+        seriesTab,
+        ...activeSeries.matches.map(
+          (match, index): OverlayTab => ({
+            type: "match",
+            index,
+            matchId: match.matchId,
+            label: match.mapName,
+            score: match.score,
+            icon: gameModeIconSrc(match.gameVariantCategory),
+            teamColor: match.colorHex,
+          }),
+        ),
+      ];
     }
 
     let matchIdx = 0;
@@ -235,8 +246,17 @@ export class IndividualTrackerOverlayPresenter {
     });
   }
 
-  public isPanelOpen(selectedMatchId: string | null, matchStatsState: MatchStatsState | null): boolean {
-    return selectedMatchId != null && (matchStatsState?.status === "loaded" || matchStatsState?.status === "error");
+  public isPanelOpen(
+    selectedMatchId: string | null,
+    matchStatsState: MatchStatsState | null,
+    selectedSeriesId: string | null,
+    seriesEntryState: { readonly status: string } | null,
+  ): boolean {
+    if (selectedMatchId != null && (matchStatsState?.status === "loaded" || matchStatsState?.status === "error")) {
+      return true;
+    }
+
+    return selectedSeriesId != null && seriesEntryState != null;
   }
 
   public buildPreSeriesTickerGroup(options: {

@@ -122,6 +122,8 @@ export function IndividualTrackerManagerPage({
           observerEnemyColor={settingsSnapshot.observerEnemyColor}
           displaySettings={settingsSnapshot.displaySettings}
           tickerSettings={settingsSnapshot.tickerSettings}
+          inSeriesShowSeriesTab={settingsSnapshot.inSeriesShowSeriesTab}
+          matchmakingShowSummaryTab={settingsSnapshot.matchmakingShowSummaryTab}
           inSeriesShowTicker={settingsSnapshot.inSeriesShowTicker}
           matchmakingShowTicker={settingsSnapshot.matchmakingShowTicker}
           matchmakingShowStatsHighlights={settingsSnapshot.matchmakingShowStatsHighlights}
@@ -144,6 +146,12 @@ export function IndividualTrackerManagerPage({
           }}
           onTickerSettingsChange={(updates): void => {
             settingsPresenter.setTickerSettings(updates);
+          }}
+          onInSeriesShowSeriesTabChange={(enabled): void => {
+            settingsPresenter.setInSeriesShowSeriesTab(enabled);
+          }}
+          onMatchmakingShowSummaryTabChange={(enabled): void => {
+            settingsPresenter.setMatchmakingShowSummaryTab(enabled);
           }}
           onInSeriesShowTickerChange={(enabled): void => {
             settingsPresenter.setInSeriesShowTicker(enabled);

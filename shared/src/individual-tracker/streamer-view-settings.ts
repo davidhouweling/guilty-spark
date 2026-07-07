@@ -137,6 +137,8 @@ export const streamerViewStyleFlagsSchema = z.object({
   enemyColor: z.string().optional(),
   observerColorOverrides: streamerViewObserverColorOverridesSchema.optional(),
   showPreSeriesInfo: z.boolean().optional(),
+  inSeriesShowSeriesTab: z.boolean().optional(),
+  matchmakingShowSummaryTab: z.boolean().optional(),
   selectedSlayerStats: z.array(z.string()).optional(),
   showObjectiveStats: z.boolean().optional(),
   medalRarityFilter: z.array(z.number()).optional(),

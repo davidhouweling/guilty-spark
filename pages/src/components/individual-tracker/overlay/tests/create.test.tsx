@@ -21,8 +21,11 @@ vi.mock("../individual-tracker-overlay", () => ({
     isPanelOpen: boolean;
     matchesLength: number;
     selectedMatchId: string | null;
+    selectedSeriesId: string | null;
     matchStatsPanelState: { status: string } | null;
+    seriesStatsPanelState: { status: string } | null;
     onSelectMatch: (matchId: string) => void;
+    onSelectSeries: (seriesId: string) => void;
     onDeselect: () => void;
   }): React.ReactElement => {
     return (
@@ -31,6 +34,7 @@ vi.mock("../individual-tracker-overlay", () => ({
         <div data-testid="panel-open">{props.isPanelOpen ? "yes" : "no"}</div>
         <div data-testid="matches-length">{props.matchesLength.toString()}</div>
         <div data-testid="selected-match">{props.selectedMatchId ?? "none"}</div>
+        <div data-testid="selected-series">{props.selectedSeriesId ?? "none"}</div>
         <div data-testid="panel-state">{props.matchStatsPanelState?.status ?? "none"}</div>
         <button
           type="button"

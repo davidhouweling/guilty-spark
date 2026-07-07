@@ -57,6 +57,8 @@ export interface StreamerSettingsSectionViewProps {
   readonly observerEnemyColor: string;
   readonly displaySettings: DisplaySettings;
   readonly tickerSettings: TickerSettings;
+  readonly inSeriesShowSeriesTab: boolean;
+  readonly matchmakingShowSummaryTab: boolean;
   readonly inSeriesShowTicker: boolean;
   readonly matchmakingShowTicker: boolean;
   readonly matchmakingShowStatsHighlights: boolean;
@@ -70,6 +72,8 @@ export interface StreamerSettingsSectionViewProps {
   readonly onObserverColorsChange: (teamColor: string, enemyColor: string) => void;
   readonly onDisplaySettingsChange: (updates: Partial<DisplaySettings>) => void;
   readonly onTickerSettingsChange: (updates: Partial<TickerSettings>) => void;
+  readonly onInSeriesShowSeriesTabChange: (enabled: boolean) => void;
+  readonly onMatchmakingShowSummaryTabChange: (enabled: boolean) => void;
   readonly onInSeriesShowTickerChange: (enabled: boolean) => void;
   readonly onMatchmakingShowTickerChange: (enabled: boolean) => void;
   readonly onMatchmakingShowStatsHighlightsChange: (enabled: boolean) => void;
@@ -87,6 +91,8 @@ export function StreamerSettingsSectionView({
   observerEnemyColor,
   displaySettings,
   tickerSettings,
+  inSeriesShowSeriesTab,
+  matchmakingShowSummaryTab,
   inSeriesShowTicker,
   matchmakingShowTicker,
   matchmakingShowStatsHighlights,
@@ -100,6 +106,8 @@ export function StreamerSettingsSectionView({
   onObserverColorsChange,
   onDisplaySettingsChange,
   onTickerSettingsChange,
+  onInSeriesShowSeriesTabChange,
+  onMatchmakingShowSummaryTabChange,
   onInSeriesShowTickerChange,
   onMatchmakingShowTickerChange,
   onMatchmakingShowStatsHighlightsChange,
@@ -433,6 +441,14 @@ export function StreamerSettingsSectionView({
           </p>
         </div>
         <Checkbox
+          checked={inSeriesShowSeriesTab}
+          onChange={(checked): void => {
+            onInSeriesShowSeriesTabChange(checked);
+          }}
+          label="Show series score tab"
+          description="Show a first tab that opens the overall series stats panel when a series is active."
+        />
+        <Checkbox
           checked={tickerSettings.showPreSeriesInfo}
           onChange={(checked): void => {
             onTickerSettingsChange({ showPreSeriesInfo: checked });
@@ -479,6 +495,14 @@ export function StreamerSettingsSectionView({
             Matchmaking top-section stats depend on Stats Highlights and this overlay visibility toggle.
           </p>
         </div>
+        <Checkbox
+          checked={matchmakingShowSummaryTab}
+          onChange={(checked): void => {
+            onMatchmakingShowSummaryTabChange(checked);
+          }}
+          label="Show summary tab"
+          description="Show a first tab that opens a compact matchmaking summary when no series is active."
+        />
         <Checkbox
           checked={matchmakingShowStatsHighlights}
           onChange={(checked): void => {

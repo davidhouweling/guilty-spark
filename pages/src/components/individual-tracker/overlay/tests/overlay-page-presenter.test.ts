@@ -3,6 +3,7 @@ import { waitFor } from "@testing-library/react";
 import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
+import type { ViewerTimelineItem } from "../../viewer/types";
 import { OverlayPagePresenter } from "../overlay-page-presenter";
 import { OverlayPageStore } from "../overlay-page-store";
 
@@ -123,5 +124,41 @@ describe("OverlayPagePresenter", () => {
 
     presenter.preloadMatchStats(["match-1", "match-2"]);
     expect(getMatchStats).toHaveBeenCalledTimes(3);
+  });
+
+  it("selects a series and toggles the matching timeline item when present", () => {
+    const store = new OverlayPageStore();
+    const presenter = new OverlayPagePresenter({
+      store,
+      haloClient: aFakeHaloClientWith({
+        getMatchStats: vi.fn(async () => Promise.resolve(aFakeMatchStatsWith())),
+      }),
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+    });
+    const timeline: readonly ViewerTimelineItem[] = [
+      {
+        type: "series",
+        series: {
+          id: "series-1",
+          title: "Series 1",
+          subtitle: "Best of 1",
+          isActive: true,
+          teams: [],
+          matchBackgroundUrls: [],
+          score: "1:0",
+          duration: "10m",
+          startTime: "2026-01-01T00:00:00.000Z",
+          endTime: "2026-01-01T00:10:00.000Z",
+          matches: [],
+          colorHex: undefined,
+        },
+      },
+    ];
+    const onToggleEntry = vi.fn<(item: ViewerTimelineItem) => void>();
+
+    presenter.selectSeriesAndToggleIfAvailable(timeline, "series-1", onToggleEntry);
+
+    expect(store.getSnapshot().selectedSeriesId).toBe("series-1");
+    expect(onToggleEntry).toHaveBeenCalledOnce();
   });
 });

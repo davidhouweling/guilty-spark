@@ -46,7 +46,7 @@ export function IndividualTrackerOverlayPage({
     [haloClient, matchAnalyticsService, store],
   );
 
-  const { snapshot, model, onRetry } = useIndividualTrackerViewer({
+  const { snapshot, model, onRetry, onToggleEntry } = useIndividualTrackerViewer({
     individualTrackerViewService,
     matchAnalyticsService,
     seriesMatchesService,
@@ -90,6 +90,13 @@ export function IndividualTrackerOverlayPage({
 
   const overlayModel = useMemo(() => presenter.present(overlaySnapshot), [overlaySnapshot, presenter]);
   const overlayPresenter = useMemo(() => new IndividualTrackerOverlayPresenter(), []);
+  const selectedSeriesEntryState = useMemo(() => {
+    if (overlayModel.selectedSeriesId == null) {
+      return null;
+    }
+
+    return model.entryStates.get(`series:${overlayModel.selectedSeriesId}`) ?? null;
+  }, [model.entryStates, overlayModel.selectedSeriesId]);
   const overlayViewModel = useMemo(
     () =>
       model.renderModel != null
@@ -98,6 +105,7 @@ export function IndividualTrackerOverlayPage({
             streamerSettings: model.streamerSettings,
             matchStatsByMatchId: overlaySnapshot.matchStatsByMatchId,
             selectedMatchId: overlayModel.selectedMatchId,
+            selectedSeriesId: overlayModel.selectedSeriesId,
           })
         : null,
     [
@@ -105,12 +113,25 @@ export function IndividualTrackerOverlayPage({
       model.streamerSettings,
       overlaySnapshot.matchStatsByMatchId,
       overlayModel.selectedMatchId,
+      overlayModel.selectedSeriesId,
       overlayPresenter,
     ],
   );
   const isPanelOpen = useMemo(
-    () => overlayPresenter.isPanelOpen(overlayModel.selectedMatchId, overlayModel.matchStatsState),
-    [overlayModel.matchStatsState, overlayModel.selectedMatchId, overlayPresenter],
+    () =>
+      overlayPresenter.isPanelOpen(
+        overlayModel.selectedMatchId,
+        overlayModel.matchStatsState,
+        overlayModel.selectedSeriesId,
+        selectedSeriesEntryState?.state ?? null,
+      ),
+    [
+      overlayModel.matchStatsState,
+      overlayModel.selectedMatchId,
+      overlayModel.selectedSeriesId,
+      overlayPresenter,
+      selectedSeriesEntryState,
+    ],
   );
 
   return (
@@ -125,11 +146,18 @@ export function IndividualTrackerOverlayPage({
             isPanelOpen={isPanelOpen}
             matchesLength={model.renderModel.accumulated.total}
             matchStatsPanelState={overlayModel.matchStatsPanelState}
+            seriesStatsPanelState={
+              selectedSeriesEntryState?.kind === "series" ? selectedSeriesEntryState.state : null
+            }
             selectedMatchId={overlayModel.selectedMatchId}
+            selectedSeriesId={overlayModel.selectedSeriesId}
             showPreview={showPreview}
             previewMode={previewMode}
             onSelectMatch={(matchId): void => {
               presenter.selectMatch(matchId);
+            }}
+            onSelectSeries={(seriesId): void => {
+              presenter.selectSeriesAndToggleIfAvailable(model.renderModel?.timeline ?? null, seriesId, onToggleEntry);
             }}
             onDeselect={(): void => {
               presenter.deselect();

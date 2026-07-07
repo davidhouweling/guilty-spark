@@ -6,7 +6,7 @@ import { StatsController } from "../../../controllers/stats/stats-controller";
 import { KillMatrixFormatter } from "../../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import { EMPTY_KILL_MATRIX_PIVOT_DATA, type KillMatrixPlayer } from "../../../controllers/stats/kill-matrix/types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
-import type { MatchDetailsState } from "../viewer/types";
+import type { MatchDetailsState, ViewerTimelineItem } from "../viewer/types";
 import type { MatchStatsState } from "./individual-tracker-overlay-presenter";
 import type { OverlayPageSnapshot, OverlayPageStore } from "./overlay-page-store";
 
@@ -18,6 +18,7 @@ interface OverlayPagePresenterConfig {
 
 export interface OverlayPageViewModel {
   readonly selectedMatchId: string | null;
+  readonly selectedSeriesId: string | null;
   readonly matchStatsState: MatchStatsState | null;
   readonly matchStatsPanelState: MatchDetailsState | null;
 }
@@ -64,8 +65,25 @@ export class OverlayPagePresenter {
     void this.loadMatchStatsAsync(matchId);
   }
 
+  public selectSeriesAndToggleIfAvailable(
+    timeline: readonly ViewerTimelineItem[] | null,
+    seriesId: string,
+    onToggleEntry: (item: ViewerTimelineItem) => void,
+  ): void {
+    this.config.store.setSelectedSeriesId(seriesId);
+    if (timeline == null) {
+      return;
+    }
+
+    const timelineItem = this.findSeriesInTimeline(timeline, seriesId);
+    if (timelineItem != null) {
+      onToggleEntry(timelineItem);
+    }
+  }
+
   public deselect(): void {
     this.config.store.setSelectedMatchId(null);
+    this.config.store.setSelectedSeriesId(null);
   }
 
   public present(snapshot: OverlayPageSnapshot): OverlayPageViewModel {
@@ -74,6 +92,7 @@ export class OverlayPagePresenter {
 
     return {
       selectedMatchId: snapshot.selectedMatchId,
+      selectedSeriesId: snapshot.selectedSeriesId,
       matchStatsState,
       matchStatsPanelState: this.toMatchStatsPanelState(snapshot.selectedMatchId, matchStatsState),
     };
@@ -178,5 +197,15 @@ export class OverlayPagePresenter {
           ? KillMatrixFormatter.transpose(killMatrixRows, orderedPlayers)
           : EMPTY_KILL_MATRIX_PIVOT_DATA,
     };
+  }
+
+  private findSeriesInTimeline(timeline: readonly ViewerTimelineItem[], seriesId: string): ViewerTimelineItem | null {
+    for (const item of timeline) {
+      if (item.type === "series" && item.series.id === seriesId) {
+        return item;
+      }
+    }
+
+    return null;
   }
 }

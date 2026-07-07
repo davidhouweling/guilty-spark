@@ -34,8 +34,11 @@ function aPropsWith(options?: {
   streamerSettings?: StreamerViewSettings;
   matchStatsState?: MatchStatsState;
   matchStatsPanelState?: React.ComponentProps<typeof IndividualTrackerOverlay>["matchStatsPanelState"];
+  seriesStatsPanelState?: React.ComponentProps<typeof IndividualTrackerOverlay>["seriesStatsPanelState"];
   selectedMatchId?: string | null;
+  selectedSeriesId?: string | null;
   onSelectMatch?: (matchId: string) => void;
+  onSelectSeries?: (seriesId: string) => void;
   onDeselect?: () => void;
 }): React.ComponentProps<typeof IndividualTrackerOverlay> {
   const presenter = new IndividualTrackerOverlayPresenter();
@@ -53,11 +56,19 @@ function aPropsWith(options?: {
       matchStatsByMatchId,
       selectedMatchId,
     }),
-    isPanelOpen: presenter.isPanelOpen(selectedMatchId, matchStatsState),
+    isPanelOpen: presenter.isPanelOpen(
+      selectedMatchId,
+      matchStatsState,
+      options?.selectedSeriesId ?? null,
+      options?.seriesStatsPanelState ?? null,
+    ),
     matchesLength: renderModel.accumulated.total,
     matchStatsPanelState: options?.matchStatsPanelState ?? null,
+    seriesStatsPanelState: options?.seriesStatsPanelState ?? null,
     selectedMatchId,
+    selectedSeriesId: options?.selectedSeriesId ?? null,
     onSelectMatch: options?.onSelectMatch ?? ((): void => undefined),
+    onSelectSeries: options?.onSelectSeries ?? ((): void => undefined),
     onDeselect: options?.onDeselect ?? ((): void => undefined),
   };
 }
