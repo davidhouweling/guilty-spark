@@ -86,7 +86,7 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(activeSeries?.id).toBe("series-active");
   });
 
-  it("builds only active series match tabs when active series exists", () => {
+  it("builds a first series tab before active-series match tabs", () => {
     const activeSeries = aSeriesWith({
       id: "series-active",
       isActive: true,
@@ -95,6 +95,7 @@ describe("individual-tracker-overlay-presenter", () => {
         aMatchWith({ matchId: "b", gameVariantCategory: 8 }),
       ],
     });
+
     const timeline: ViewerTimelineItem[] = [
       { type: "series", series: aSeriesWith({ id: "series-old", isActive: false }) },
       { type: "series", series: activeSeries },
@@ -103,9 +104,47 @@ describe("individual-tracker-overlay-presenter", () => {
 
     const tabs = presenter.buildTabs(timeline);
 
-    expect(tabs).toHaveLength(2);
-    expect(tabs.every((tab) => tab.type === "match")).toBe(true);
-    expect(tabs.map((tab) => (tab.type === "match" ? tab.matchId : "series"))).toEqual(["a", "b"]);
+    expect(tabs).toHaveLength(3);
+    expect(tabs[0]?.type).toBe("series");
+    expect(tabs[1]?.type).toBe("match");
+    expect(tabs[2]?.type).toBe("match");
+    expect(tabs.map((tab) => (tab.type === "series" ? tab.seriesId : tab.matchId))).toEqual([
+      "series-active",
+      "a",
+      "b",
+    ]);
+  });
+
+  it("omits the in-series summary tab when inSeriesShowSeriesTab is disabled", () => {
+    const activeSeries = aSeriesWith({
+      id: "series-active",
+      isActive: true,
+      matches: [
+        aMatchWith({ matchId: "a", gameVariantCategory: 6 }),
+        aMatchWith({ matchId: "b", gameVariantCategory: 8 }),
+      ],
+    });
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        hasActiveSeries: true,
+        activeSeriesContext: {
+          title: "Series",
+          subtitle: "Bo3",
+          teams: [],
+        },
+        timeline: [{ type: "series", series: activeSeries }],
+      }),
+      streamerSettings: {
+        styleFlags: {
+          inSeriesShowSeriesTab: false,
+        },
+      } satisfies StreamerViewSettings,
+      matchStatsByMatchId: new Map(),
+      selectedMatchId: null,
+    });
+
+    expect(model.tabs.map((tab) => (tab.type === "match" ? tab.matchId : tab.seriesId))).toEqual(["a", "b"]);
+    expect(model.tabs.every((tab) => tab.type === "match")).toBe(true);
   });
 
   it("builds series-consolidated tabs with per-match mode icons when no active series", () => {
@@ -117,6 +156,7 @@ describe("individual-tracker-overlay-presenter", () => {
         aMatchWith({ matchId: "s2", gameVariantCategory: 7 }),
       ],
     });
+
     const timeline: ViewerTimelineItem[] = [
       { type: "series", series: completedSeries },
       { type: "match", match: aMatchWith({ matchId: "solo", gameVariantCategory: 8 }) },
@@ -138,6 +178,30 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(matchTab.type).toBe("match");
     if (matchTab.type === "match") {
       expect(matchTab.icon).toBe(gameModeIconSrc(8));
+    }
+  });
+
+  it("omits matchmaking summary tabs when matchmakingShowSummaryTab is disabled", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        timeline: [
+          { type: "series", series: aSeriesWith({ id: "series-complete", isActive: false }) },
+          { type: "match", match: aMatchWith({ matchId: "solo", gameVariantCategory: 8 }) },
+        ],
+      }),
+      streamerSettings: {
+        styleFlags: {
+          matchmakingShowSummaryTab: false,
+        },
+      } satisfies StreamerViewSettings,
+      matchStatsByMatchId: new Map(),
+      selectedMatchId: null,
+    });
+
+    expect(model.tabs).toHaveLength(1);
+    expect(model.tabs[0]?.type).toBe("match");
+    if (model.tabs[0]?.type === "match") {
+      expect(model.tabs[0].matchId).toBe("solo");
     }
   });
 

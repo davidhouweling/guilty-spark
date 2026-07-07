@@ -1,8 +1,12 @@
 import React, { useCallback, useMemo } from "react";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { StreamerOverlay } from "../../streamer-overlay/streamer-overlay";
 import { TopSection } from "../../streamer-overlay/top-section";
 import { StatsPanel } from "../viewer/stats-panel";
-import type { MatchDetailsState } from "../viewer/types";
+import { SeriesStatsView } from "../../series-stats/series-stats";
+import { Alert } from "../../alert/alert";
+import { LoadingState } from "../../loading-state/loading-state";
+import type { MatchDetailsState, SeriesDetailsState } from "../viewer/types";
 import { OverlayStatsHighlights } from "./overlay-stats-highlights";
 import type { IndividualTrackerOverlayViewModel } from "./types";
 import styles from "./individual-tracker-overlay.module.css";
@@ -12,10 +16,13 @@ interface IndividualTrackerOverlayProps {
   readonly isPanelOpen: boolean;
   readonly matchesLength: number;
   readonly matchStatsPanelState: MatchDetailsState | null;
+  readonly seriesStatsPanelState: SeriesDetailsState | null;
   readonly selectedMatchId: string | null;
+  readonly selectedSeriesId: string | null;
   readonly showPreview?: boolean;
   readonly previewMode?: "player" | "observer";
   readonly onSelectMatch: (matchId: string) => void;
+  readonly onSelectSeries: (seriesId: string) => void;
   readonly onDeselect: () => void;
 }
 
@@ -24,10 +31,13 @@ export function IndividualTrackerOverlay({
   isPanelOpen,
   matchesLength,
   matchStatsPanelState,
+  seriesStatsPanelState,
   selectedMatchId,
+  selectedSeriesId,
   showPreview = false,
   previewMode = "observer",
   onSelectMatch,
+  onSelectSeries,
   onDeselect,
 }: IndividualTrackerOverlayProps): React.ReactElement {
   const topSection = useMemo(() => {
@@ -74,27 +84,62 @@ export function IndividualTrackerOverlay({
 
   const handleTabClick = useCallback(
     (tabIndex: number): void => {
-      if (tabIndex < 0) {
-        onDeselect();
+      const selectedTab = viewModel.tabs.find((currentTab) => currentTab.index === tabIndex);
+      if (selectedTab == null) {
         return;
       }
-      const tab = viewModel.tabs.find((t) => t.type === "match" && t.index === tabIndex);
-      if (tab?.type === "match") {
-        if (tab.matchId === selectedMatchId) {
+
+      if (selectedTab.type === "series") {
+        if (selectedTab.seriesId === selectedSeriesId) {
           onDeselect();
         } else {
-          onSelectMatch(tab.matchId);
+          onSelectSeries(selectedTab.seriesId);
         }
+        return;
+      }
+
+      if (selectedTab.matchId === selectedMatchId) {
+        onDeselect();
+      } else {
+        onSelectMatch(selectedTab.matchId);
       }
     },
-    [onDeselect, onSelectMatch, selectedMatchId, viewModel.tabs],
+    [onDeselect, onSelectMatch, onSelectSeries, selectedMatchId, selectedSeriesId, viewModel.tabs],
   );
 
-  const hasPanelContent = useCallback((): boolean => false, []);
+  const hasPanelContent = useCallback(
+    (tabIndex: number): boolean => viewModel.tabs.some((tab) => tab.index === tabIndex),
+    [viewModel.tabs],
+  );
 
   const renderPanelContent = useCallback(
-    (): React.ReactElement | null => <StatsPanel state={matchStatsPanelState} />,
-    [matchStatsPanelState],
+    (tabIndex: number): React.ReactElement | null => {
+      const selectedTab = viewModel.tabs.find((currentTab) => currentTab.index === tabIndex);
+
+      if (selectedTab?.type === "series") {
+        if (seriesStatsPanelState == null) {
+          return null;
+        }
+
+        switch (seriesStatsPanelState.status) {
+          case "loading": {
+            return <LoadingState text="Loading series stats..." />;
+          }
+          case "error": {
+            return <Alert variant="error">{seriesStatsPanelState.message}</Alert>;
+          }
+          case "loaded": {
+            return <SeriesStatsView {...seriesStatsPanelState.viewModel} noGutter={true} />;
+          }
+          default: {
+            throw new UnreachableError(seriesStatsPanelState);
+          }
+        }
+      }
+
+      return <StatsPanel state={matchStatsPanelState} />;
+    },
+    [matchStatsPanelState, seriesStatsPanelState, viewModel.tabs],
   );
 
   return (

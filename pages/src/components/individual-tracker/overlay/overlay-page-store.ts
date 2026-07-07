@@ -2,12 +2,14 @@ import type { MatchStatsState } from "./individual-tracker-overlay-presenter";
 
 export interface OverlayPageSnapshot {
   readonly selectedMatchId: string | null;
+  readonly selectedSeriesId: string | null;
   readonly matchStatsByMatchId: ReadonlyMap<string, MatchStatsState>;
 }
 
 export class OverlayPageStore {
   private snapshot: OverlayPageSnapshot = {
     selectedMatchId: null,
+    selectedSeriesId: null,
     matchStatsByMatchId: new Map(),
   };
 
@@ -27,12 +29,17 @@ export class OverlayPageStore {
   public reset(): void {
     this.update({
       selectedMatchId: null,
+      selectedSeriesId: null,
       matchStatsByMatchId: new Map(),
     });
   }
 
   public setSelectedMatchId(selectedMatchId: string | null): void {
-    this.update({ selectedMatchId });
+    this.update({ selectedMatchId, selectedSeriesId: null });
+  }
+
+  public setSelectedSeriesId(selectedSeriesId: string | null): void {
+    this.update({ selectedMatchId: null, selectedSeriesId });
   }
 
   public setMatchStatsState(matchId: string, state: MatchStatsState): void {

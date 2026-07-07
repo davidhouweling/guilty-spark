@@ -14,7 +14,12 @@ import type { TickerMatchGroup, TickerStatRow } from "../../information-ticker/i
 import { createMatchStatsFormatter } from "../../../controllers/stats/create";
 import type { MatchStatsValues } from "../../../controllers/stats/types";
 import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
-import type { IndividualTrackerViewerRenderModel, ViewerSeriesTab, ViewerTimelineItem } from "../viewer/types";
+import type {
+  IndividualTrackerViewerRenderModel,
+  SeriesDetailsState,
+  ViewerSeriesTab,
+  ViewerTimelineItem,
+} from "../viewer/types";
 import { gameModeIconSrc } from "../game-mode-icon";
 import { RankIcon } from "../../icons/rank-icon";
 import { ALL_SLAYER_STATS, DEFAULT_TICKER_SETTINGS } from "../../live-tracker/settings/types";
@@ -149,6 +154,12 @@ interface BuildOverlayViewModelOptions {
   readonly streamerSettings: StreamerViewSettings | undefined;
   readonly matchStatsByMatchId: ReadonlyMap<string, MatchStatsState>;
   readonly selectedMatchId: string | null;
+  readonly selectedSeriesId?: string | null;
+}
+
+interface BuildTabsOptions {
+  readonly includeInSeriesSummaryTab: boolean;
+  readonly includeMatchmakingSummaryTab: boolean;
 }
 
 interface IndividualTrackerOverlayPresenterConfig {
@@ -175,23 +186,14 @@ export class IndividualTrackerOverlayPresenter {
   public buildTabs(
     timeline: readonly ViewerTimelineItem[],
     activeSeriesOverride: ViewerSeriesTab | null = null,
+    options: BuildTabsOptions = {
+      includeInSeriesSummaryTab: true,
+      includeMatchmakingSummaryTab: true,
+    },
   ): readonly OverlayTab[] {
     const activeSeries = activeSeriesOverride ?? this.getActiveSeries(timeline);
     if (activeSeries != null) {
-      if (activeSeries.matches.length === 0) {
-        return [
-          {
-            type: "series",
-            seriesId: activeSeries.id,
-            index: -1,
-            label: "Series score",
-            score: activeSeries.score,
-            teamColor: undefined,
-          },
-        ];
-      }
-
-      return activeSeries.matches.map(
+      const matchTabs = activeSeries.matches.map(
         (match, index): OverlayTab => ({
           type: "match",
           index,
@@ -202,41 +204,85 @@ export class IndividualTrackerOverlayPresenter {
           teamColor: match.colorHex,
         }),
       );
+
+      if (!options.includeInSeriesSummaryTab) {
+        return matchTabs;
+      }
+
+      const seriesTab: OverlayTab = {
+        type: "series",
+        seriesId: activeSeries.id,
+        index: -1,
+        label: activeSeries.matches.length === 0 ? "Series score" : activeSeries.title,
+        score: activeSeries.score,
+        teamColor: getSeriesOutcomeColorHex(activeSeries),
+        icons:
+          activeSeries.matches.length > 0
+            ? activeSeries.matches.map((match) => ({
+                src: gameModeIconSrc(match.gameVariantCategory),
+                dimmed: false,
+              }))
+            : undefined,
+      };
+
+      if (activeSeries.matches.length === 0) {
+        return [seriesTab];
+      }
+
+      return [seriesTab, ...matchTabs];
     }
 
     let matchIdx = 0;
     let seriesIdx = -1;
-    return timeline.map((item): OverlayTab => {
+    return timeline.flatMap((item): readonly OverlayTab[] => {
       if (item.type === "series") {
+        if (!options.includeMatchmakingSummaryTab) {
+          return [];
+        }
+
         const isMatchmakingSeries = item.series.matches.every((match) => match.isMatchmaking);
 
-        return {
-          type: "series",
-          seriesId: item.series.id,
-          index: seriesIdx--,
-          label: item.series.title,
-          score: item.series.score,
-          teamColor: getSeriesOutcomeColorHex(item.series),
-          icons: item.series.matches.map((match) => ({
-            src: gameModeIconSrc(match.gameVariantCategory),
-            dimmed: isMatchmakingSeries && match.outcome === "Loss",
-          })),
-        };
+        return [
+          {
+            type: "series",
+            seriesId: item.series.id,
+            index: seriesIdx--,
+            label: item.series.title,
+            score: item.series.score,
+            teamColor: getSeriesOutcomeColorHex(item.series),
+            icons: item.series.matches.map((match) => ({
+              src: gameModeIconSrc(match.gameVariantCategory),
+              dimmed: isMatchmakingSeries && match.outcome === "Loss",
+            })),
+          },
+        ];
       }
-      return {
-        type: "match",
-        index: matchIdx++,
-        matchId: item.match.matchId,
-        label: item.match.mapName,
-        score: item.match.score,
-        icon: gameModeIconSrc(item.match.gameVariantCategory),
-        teamColor: item.match.colorHex,
-      };
+
+      return [
+        {
+          type: "match",
+          index: matchIdx++,
+          matchId: item.match.matchId,
+          label: item.match.mapName,
+          score: item.match.score,
+          icon: gameModeIconSrc(item.match.gameVariantCategory),
+          teamColor: item.match.colorHex,
+        },
+      ];
     });
   }
 
-  public isPanelOpen(selectedMatchId: string | null, matchStatsState: MatchStatsState | null): boolean {
-    return selectedMatchId != null && (matchStatsState?.status === "loaded" || matchStatsState?.status === "error");
+  public isPanelOpen(
+    selectedMatchId: string | null,
+    matchStatsState: MatchStatsState | null,
+    selectedSeriesId: string | null,
+    seriesEntryState: SeriesDetailsState | null,
+  ): boolean {
+    if (selectedMatchId != null && (matchStatsState?.status === "loaded" || matchStatsState?.status === "error")) {
+      return true;
+    }
+
+    return selectedSeriesId != null && seriesEntryState != null;
   }
 
   public buildPreSeriesTickerGroup(options: {
@@ -410,7 +456,10 @@ export class IndividualTrackerOverlayPresenter {
     const activeSeries = this.getOverlayActiveSeries(renderModel);
     const teamColors = this.getTeamColors(renderModel, activeSeries);
     const showTicker = this.getShowTicker(streamerSettings, activeSeries, displaySettings.showTicker);
-    const tabs = this.buildTabs(renderModel.timeline, activeSeries);
+    const tabs = this.buildTabs(renderModel.timeline, activeSeries, {
+      includeInSeriesSummaryTab: streamerSettings?.styleFlags?.inSeriesShowSeriesTab ?? true,
+      includeMatchmakingSummaryTab: streamerSettings?.styleFlags?.matchmakingShowSummaryTab ?? true,
+    });
     const loadedTickerGroups = this.buildTickerGroups(options.matchStatsByMatchId, tabs, {
       trackedGamertag: renderModel.gamertag,
       includeOnlyTrackedPlayer: this.getIncludeOnlyTrackedPlayer(streamerSettings, activeSeries),
@@ -439,7 +488,7 @@ export class IndividualTrackerOverlayPresenter {
       teamColors,
       tabs,
       tickerMatchGroups,
-      showTabs: displaySettings.showTabs && this.getShowTabs(renderModel),
+      showTabs: displaySettings.showTabs && tabs.length > 0,
       showTicker,
       showPreSeriesInfo: tickerMatchGroups.length > 0 && activeSeries?.matches.length === 0,
       fontSizeStyles,
@@ -729,9 +778,5 @@ export class IndividualTrackerOverlayPresenter {
       ...row,
       teamColorIndex: row.teamId === trackedPlayerTeamId ? 0 : 1,
     }));
-  }
-
-  private getShowTabs(renderModel: IndividualTrackerViewerRenderModel): boolean {
-    return renderModel.timeline.length > 0 || renderModel.hasActiveSeries;
   }
 }

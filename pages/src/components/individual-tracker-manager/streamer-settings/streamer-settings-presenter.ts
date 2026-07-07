@@ -67,6 +67,8 @@ function settingsToSnapshot(
       showObjectiveStats: styleFlags.showObjectiveStats ?? snapshot.tickerSettings.showObjectiveStats,
       medalRarityFilter: styleFlags.medalRarityFilter ?? snapshot.tickerSettings.medalRarityFilter,
     },
+    inSeriesShowSeriesTab: styleFlags.inSeriesShowSeriesTab ?? snapshot.inSeriesShowSeriesTab,
+    matchmakingShowSummaryTab: styleFlags.matchmakingShowSummaryTab ?? snapshot.matchmakingShowSummaryTab,
     inSeriesShowTicker: styleFlags.inSeriesShowTicker ?? visibleSections.showTicker ?? snapshot.inSeriesShowTicker,
     matchmakingShowTicker:
       styleFlags.matchmakingShowTicker ?? visibleSections.showTicker ?? snapshot.matchmakingShowTicker,
@@ -107,6 +109,8 @@ function snapshotToSettings(snapshot: StreamerSettingsSnapshot): StreamerViewSet
       selectedSlayerStats: [...snapshot.tickerSettings.selectedSlayerStats],
       showObjectiveStats: snapshot.tickerSettings.showObjectiveStats,
       medalRarityFilter: [...snapshot.tickerSettings.medalRarityFilter],
+      inSeriesShowSeriesTab: snapshot.inSeriesShowSeriesTab,
+      matchmakingShowSummaryTab: snapshot.matchmakingShowSummaryTab,
       inSeriesShowTicker: snapshot.inSeriesShowTicker,
       matchmakingShowTicker: snapshot.matchmakingShowTicker,
       matchmakingShowStatsHighlights: snapshot.matchmakingShowStatsHighlights,
@@ -207,6 +211,24 @@ export class StreamerSettingsPresenter {
     }
     const current = this.config.store.getSnapshot().tickerSettings;
     this.config.store.setTickerSettings({ ...current, ...updates });
+    this.scheduleSave();
+  }
+
+  public setInSeriesShowSeriesTab(enabled: boolean): void {
+    if (this.isDisposed) {
+      return;
+    }
+
+    this.config.store.batchUpdate({ inSeriesShowSeriesTab: enabled });
+    this.scheduleSave();
+  }
+
+  public setMatchmakingShowSummaryTab(enabled: boolean): void {
+    if (this.isDisposed) {
+      return;
+    }
+
+    this.config.store.batchUpdate({ matchmakingShowSummaryTab: enabled });
     this.scheduleSave();
   }
 
