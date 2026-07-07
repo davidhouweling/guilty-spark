@@ -1,0 +1,23 @@
+---
+import Layout from "../layouts/layout.astro";
+import Button from "../components/button/button.astro";
+import ErrorState from "../components/error-state/error-state.astro";
+import styles from "./_styles/error-page.module.css";
+
+const pageTitle = "404 - Resource Not Found | Guilty Spark";
+const pageDescription = "The requested resource was not found in this sector.";
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <section class={styles.section}>
+    <div class={styles.content}>
+      <ErrorState
+        title="Resource Not Found"
+        message="The page or endpoint you requested does not exist. Verify the URL and try again."
+      />
+      <div class={styles.actions}>
+        <Button href="/" variant="secondary">Return to Command Center</Button>
+      </div>
+    </div>
+  </section>
+</Layout>
