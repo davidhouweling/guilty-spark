@@ -1,0 +1,31 @@
+---
+import Layout from "../layouts/layout.astro";
+import Button from "../components/button/button.astro";
+import ErrorState from "../components/error-state/error-state.astro";
+import styles from "./_styles/error-page.module.css";
+
+interface Props {
+  readonly error: unknown;
+}
+
+const { error } = Astro.props;
+
+const pageTitle = "500 - System Fault | Guilty Spark";
+const pageDescription = "An unexpected internal fault interrupted rendering.";
+
+const userMessage =
+  error instanceof Error
+    ? "An internal operation failed while processing your request. Please retry shortly."
+    : "An unexpected internal error occurred while processing your request. Please retry shortly.";
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <section class={styles.section}>
+    <div class={styles.content}>
+      <ErrorState title="System Fault" message={userMessage} />
+      <div class={styles.actions}>
+        <Button href="/" variant="secondary">Return to Command Center</Button>
+      </div>
+    </div>
+  </section>
+</Layout>

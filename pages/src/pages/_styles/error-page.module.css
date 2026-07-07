@@ -1,0 +1,24 @@
+.section {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  min-height: calc(100vh - 220px);
+  padding: var(--space-10) var(--gutter-mobile);
+}
+
+.content {
+  width: min(680px, 100%);
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-2);
+}
+
+@media (--desktop-viewport) {
+  .section {
+    min-height: calc(100vh - 250px);
+  }
+}
