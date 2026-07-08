@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import classNames from "classnames";
 import type { TeamColor } from "../team-colors/team-colors";
 import type { TickerMatchGroup } from "../information-ticker/information-ticker";
 import type { OverlayTab } from "./tabs-bar";
 import { BottomSection } from "./bottom-section";
 import { StatsPanel } from "./stats-panel/stats-panel";
+import { StreamerOverlayPresenter } from "./streamer-overlay-presenter";
+import { StreamerOverlayStore } from "./streamer-overlay-store";
 import styles from "./streamer-overlay.module.css";
 
 export interface StreamerOverlayProps {
@@ -46,74 +48,54 @@ export function StreamerOverlay({
   onTabClick,
   onClosePanel,
 }: StreamerOverlayProps): React.ReactElement {
-  const [selectedTab, setSelectedTab] = useState(-1); // -1 = series, 0+ = match index
-  const [internalIsPanelOpen, setInternalIsPanelOpen] = useState(false);
-  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
-  const [previousMatchCount, setPreviousMatchCount] = useState(0);
+  const store = useMemo(() => new StreamerOverlayStore(), []);
+  const presenter = useMemo(() => new StreamerOverlayPresenter({ store }), [store]);
+  const subscribe = useCallback((listener: () => void) => store.subscribe(listener), [store]);
+  const getSnapshot = useCallback(() => store.getSnapshot(), [store]);
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   const nodeRef = useRef<HTMLDivElement>(null);
 
-  const isPanelOpen = panelOpen ?? internalIsPanelOpen;
-
-  const handleScrollComplete = (): void => {
-    if (tickerMatchGroups.length === 0) {
-      return;
-    }
-
-    setCurrentMatchIndex((prevIndex) => (prevIndex + 1) % tickerMatchGroups.length);
-  };
+  const handleScrollComplete = useCallback((): void => {
+    presenter.onScrollComplete(tickerMatchGroups);
+  }, [presenter, tickerMatchGroups]);
 
   useEffect(() => {
-    if (currentMatchIndex < tickerMatchGroups.length) {
-      return;
-    }
-
-    setCurrentMatchIndex(0);
-  }, [currentMatchIndex, tickerMatchGroups.length]);
+    presenter.syncCurrentMatchIndex(tickerMatchGroups);
+  }, [presenter, tickerMatchGroups]);
 
   useEffect(() => {
-    if (!showTicker) {
-      return;
-    }
-
-    const currentMatchCount = matchesLength;
-
-    if (currentMatchCount > previousMatchCount && previousMatchCount > 0) {
-      const latestMatchIndex = tickerMatchGroups.findIndex((group) => group.matchIndex === currentMatchCount - 1);
-      if (latestMatchIndex !== -1) {
-        setCurrentMatchIndex(latestMatchIndex);
-      }
-    }
-
-    setPreviousMatchCount(currentMatchCount);
-  }, [matchesLength, showTicker, tickerMatchGroups, previousMatchCount]);
+    presenter.syncLatestMatch({
+      showTicker,
+      matchesLength,
+      tickerMatchGroups,
+    });
+  }, [matchesLength, presenter, showTicker, tickerMatchGroups]);
 
   const handleTabClick = useCallback(
     (tabIndex: number): void => {
-      onTabClick?.(tabIndex);
-      setSelectedTab(tabIndex);
-      if (!hasPanelContent(tabIndex)) {
-        return;
-      }
-
-      const openPanel = selectedTab === tabIndex ? !isPanelOpen : true;
-      setInternalIsPanelOpen(openPanel);
+      presenter.handleTabClick({
+        tabIndex,
+        hasPanelContent,
+        onTabClick,
+        panelOpen,
+      });
     },
-    [hasPanelContent, isPanelOpen, onTabClick, selectedTab],
+    [hasPanelContent, onTabClick, panelOpen, presenter],
   );
 
   const handleClosePanel = useCallback((): void => {
-    setInternalIsPanelOpen(false);
-    onClosePanel?.();
-  }, [onClosePanel]);
+    presenter.handleClosePanel(onClosePanel);
+  }, [onClosePanel, presenter]);
 
-  const hasTickerGroups = tickerMatchGroups.length > 0;
-  const currentMatchGroup = hasTickerGroups
-    ? tickerMatchGroups[currentMatchIndex % tickerMatchGroups.length]
-    : undefined;
-  const activeTabIndex = showTicker && hasTickerGroups ? currentMatchGroup?.matchIndex : undefined;
-  const panelContent = useMemo<React.ReactElement | null>(
-    () => renderPanelContent(selectedTab),
-    [renderPanelContent, selectedTab],
+  const viewModel = useMemo(
+    () =>
+      presenter.present(snapshot, {
+        showTicker,
+        tickerMatchGroups,
+        panelOpen,
+        renderPanelContent,
+      }),
+    [panelOpen, presenter, renderPanelContent, showTicker, snapshot, tickerMatchGroups],
   );
 
   return (
@@ -131,21 +113,21 @@ export function StreamerOverlay({
       <BottomSection
         showTabs={showTabs}
         showTicker={showTicker}
-        currentMatchGroup={currentMatchGroup}
+        currentMatchGroup={viewModel.currentMatchGroup}
         teamColors={teamColors}
         tabs={tabs}
-        activeTabIndex={activeTabIndex}
-        selectedTab={selectedTab}
-        isPanelOpen={isPanelOpen}
+        activeTabIndex={viewModel.activeTabIndex}
+        selectedTab={viewModel.selectedTab}
+        isPanelOpen={viewModel.isPanelOpen}
         onTabClick={handleTabClick}
         onScrollComplete={handleScrollComplete}
       />
 
       <StatsPanel
-        isPanelOpen={isPanelOpen}
+        isPanelOpen={viewModel.isPanelOpen}
         nodeRef={nodeRef}
         onClosePanel={handleClosePanel}
-        panelContent={panelContent}
+        panelContent={viewModel.panelContent}
       />
     </div>
   );
