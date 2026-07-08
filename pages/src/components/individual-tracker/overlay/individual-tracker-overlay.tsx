@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from "react";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import { StreamerOverlay } from "../../streamer-overlay/streamer-overlay";
+import { StreamerOverlayCreate } from "../../streamer-overlay/create";
 import { TopSection } from "../../streamer-overlay/top-section";
 import { TeamDetailsContent } from "../../streamer-overlay/team-details-content";
 import { StatsPanel } from "../viewer/stats-panel";
@@ -163,7 +163,7 @@ export function IndividualTrackerOverlay({
         } as React.CSSProperties
       }
     >
-      <StreamerOverlay
+      <StreamerOverlayCreate
         topSection={topSection}
         pinTopSection={viewModel.pinTopSection}
         teamColors={viewModel.teamColors}

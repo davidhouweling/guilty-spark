@@ -1,32 +1,31 @@
-import React, { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import React, { useRef } from "react";
 import classNames from "classnames";
 import type { TeamColor } from "../team-colors/team-colors";
 import type { TickerMatchGroup } from "../information-ticker/information-ticker";
 import type { OverlayTab } from "./tabs-bar";
 import { BottomSection } from "./bottom-section";
 import { StatsPanel } from "./stats-panel/stats-panel";
-import { StreamerOverlayPresenter } from "./streamer-overlay-presenter";
-import { StreamerOverlayStore } from "./streamer-overlay-store";
 import styles from "./streamer-overlay.module.css";
 
-export interface StreamerOverlayProps {
+export interface StreamerOverlayComponentProps {
   readonly topSection: React.ReactNode;
   readonly pinTopSection?: boolean;
   readonly teamColors: TeamColor[];
   readonly tabs: readonly OverlayTab[];
-  readonly tickerMatchGroups: readonly TickerMatchGroup[];
   readonly showTabs: boolean;
   readonly showTicker: boolean;
-  readonly matchesLength: number;
   readonly showPreview: boolean;
   readonly previewMode: "player" | "observer";
   readonly fontSizeStyles: React.CSSProperties;
   readonly settingsUi: React.ReactNode;
-  readonly hasPanelContent: (tabIndex: number) => boolean;
-  readonly renderPanelContent: (tabIndex: number) => React.ReactElement | null;
-  readonly panelOpen?: boolean;
-  readonly onTabClick?: (tabIndex: number) => void;
-  readonly onClosePanel?: () => void;
+  readonly currentMatchGroup: TickerMatchGroup | undefined;
+  readonly activeTabIndex: number | undefined;
+  readonly selectedTab: number;
+  readonly isPanelOpen: boolean;
+  readonly panelContent: React.ReactElement | null;
+  readonly onTabClick: (tabIndex: number) => void;
+  readonly onScrollComplete: () => void;
+  readonly onClosePanel: () => void;
 }
 
 export function StreamerOverlay({
@@ -34,69 +33,22 @@ export function StreamerOverlay({
   pinTopSection = false,
   teamColors,
   tabs,
-  tickerMatchGroups,
   showTabs,
   showTicker,
-  matchesLength,
   showPreview,
   previewMode,
   fontSizeStyles,
   settingsUi,
-  hasPanelContent,
-  renderPanelContent,
-  panelOpen,
+  currentMatchGroup,
+  activeTabIndex,
+  selectedTab,
+  isPanelOpen,
+  panelContent,
   onTabClick,
+  onScrollComplete,
   onClosePanel,
-}: StreamerOverlayProps): React.ReactElement {
-  const store = useMemo(() => new StreamerOverlayStore(), []);
-  const presenter = useMemo(() => new StreamerOverlayPresenter({ store }), [store]);
-  const subscribe = useCallback((listener: () => void) => store.subscribe(listener), [store]);
-  const getSnapshot = useCallback(() => store.getSnapshot(), [store]);
-  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}: StreamerOverlayComponentProps): React.ReactElement {
   const nodeRef = useRef<HTMLDivElement>(null);
-
-  const handleScrollComplete = useCallback((): void => {
-    presenter.onScrollComplete(tickerMatchGroups);
-  }, [presenter, tickerMatchGroups]);
-
-  useEffect(() => {
-    presenter.syncCurrentMatchIndex(tickerMatchGroups);
-  }, [presenter, tickerMatchGroups]);
-
-  useEffect(() => {
-    presenter.syncLatestMatch({
-      showTicker,
-      matchesLength,
-      tickerMatchGroups,
-    });
-  }, [matchesLength, presenter, showTicker, tickerMatchGroups]);
-
-  const handleTabClick = useCallback(
-    (tabIndex: number): void => {
-      presenter.handleTabClick({
-        tabIndex,
-        hasPanelContent,
-        onTabClick,
-        panelOpen,
-      });
-    },
-    [hasPanelContent, onTabClick, panelOpen, presenter],
-  );
-
-  const handleClosePanel = useCallback((): void => {
-    presenter.handleClosePanel(onClosePanel);
-  }, [onClosePanel, presenter]);
-
-  const viewModel = useMemo(
-    () =>
-      presenter.present(snapshot, {
-        showTicker,
-        tickerMatchGroups,
-        panelOpen,
-        renderPanelContent,
-      }),
-    [panelOpen, presenter, renderPanelContent, showTicker, snapshot, tickerMatchGroups],
-  );
 
   return (
     <div
@@ -113,22 +65,17 @@ export function StreamerOverlay({
       <BottomSection
         showTabs={showTabs}
         showTicker={showTicker}
-        currentMatchGroup={viewModel.currentMatchGroup}
+        currentMatchGroup={currentMatchGroup}
         teamColors={teamColors}
         tabs={tabs}
-        activeTabIndex={viewModel.activeTabIndex}
-        selectedTab={viewModel.selectedTab}
-        isPanelOpen={viewModel.isPanelOpen}
-        onTabClick={handleTabClick}
-        onScrollComplete={handleScrollComplete}
+        activeTabIndex={activeTabIndex}
+        selectedTab={selectedTab}
+        isPanelOpen={isPanelOpen}
+        onTabClick={onTabClick}
+        onScrollComplete={onScrollComplete}
       />
 
-      <StatsPanel
-        isPanelOpen={viewModel.isPanelOpen}
-        nodeRef={nodeRef}
-        onClosePanel={handleClosePanel}
-        panelContent={viewModel.panelContent}
-      />
+      <StatsPanel isPanelOpen={isPanelOpen} nodeRef={nodeRef} onClosePanel={onClosePanel} panelContent={panelContent} />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { OverlayTab } from "../tabs-bar";
 import type { TickerMatchGroup } from "../../information-ticker/information-ticker";
-import { StreamerOverlay, type StreamerOverlayProps } from "../streamer-overlay";
+import { StreamerOverlayCreate, type StreamerOverlayProps } from "../create";
 
 vi.mock("../../information-ticker/information-ticker", () => ({
   InformationTicker: (): React.ReactNode => <div data-testid="information-ticker">Information Ticker</div>,
@@ -66,20 +66,20 @@ describe("StreamerOverlay", () => {
   };
 
   it("renders settings and top section", () => {
-    render(<StreamerOverlay {...defaultProps} />);
+    render(<StreamerOverlayCreate {...defaultProps} />);
 
     expect(screen.getByText("Settings UI")).toBeInTheDocument();
     expect(screen.getByText("Top Section")).toBeInTheDocument();
   });
 
   it("renders information ticker when enabled", () => {
-    render(<StreamerOverlay {...defaultProps} />);
+    render(<StreamerOverlayCreate {...defaultProps} />);
 
     expect(screen.getByTestId("information-ticker")).toBeInTheDocument();
   });
 
   it("opens panel when tab is clicked", () => {
-    render(<StreamerOverlay {...defaultProps} />);
+    render(<StreamerOverlayCreate {...defaultProps} />);
 
     fireEvent.click(screen.getByRole("button", { name: /series score/i }));
 
@@ -87,7 +87,7 @@ describe("StreamerOverlay", () => {
   });
 
   it("hides bottom section when tabs and ticker are disabled", () => {
-    render(<StreamerOverlay {...defaultProps} showTabs={false} showTicker={false} />);
+    render(<StreamerOverlayCreate {...defaultProps} showTabs={false} showTicker={false} />);
 
     expect(screen.queryByRole("button", { name: /series score/i })).not.toBeInTheDocument();
     expect(screen.queryByTestId("information-ticker")).not.toBeInTheDocument();
