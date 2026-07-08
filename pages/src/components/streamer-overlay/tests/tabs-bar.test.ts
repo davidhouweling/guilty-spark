@@ -75,6 +75,26 @@ describe("tabs-bar width behavior", () => {
     expect(visibleTabs.map((tab) => tab.index)).toEqual([-1, 1, 3, 5]);
   });
 
+  it("fills remaining slots when active and selected tabs are the same tab", () => {
+    const tabs: readonly OverlayTab[] = [
+      aSeriesTabWith(),
+      aMatchTabWith(0),
+      aMatchTabWith(1),
+      aMatchTabWith(2),
+      aMatchTabWith(3),
+      aMatchTabWith(4),
+    ];
+
+    const visibleTabs = getVisibleTabsForWidth({
+      tabs,
+      displayLimit: 3,
+      activeTabIndex: 2,
+      selectedTab: 2,
+    });
+
+    expect(visibleTabs.map((tab) => tab.index)).toEqual([-1, 2, 4]);
+  });
+
   it("prioritizes active ticker tab over selected tab when only one slot is available", () => {
     const tabs: readonly OverlayTab[] = [
       aSeriesTabWith(),

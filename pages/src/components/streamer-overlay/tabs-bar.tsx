@@ -94,18 +94,19 @@ export function getVisibleTabsForWidth(options: GetVisibleTabsOptions): readonly
   const activePosition = activeTabIndex == null ? undefined : tabs.findIndex((tab) => tab.index === activeTabIndex);
   const selectedPosition = tabs.findIndex((tab) => tab.index === selectedTab);
 
-  const priorityPositions = [activePosition, selectedPosition, summaryPosition].filter(
+  const rawPriorityPositions = [activePosition, selectedPosition, summaryPosition].filter(
     (position): position is number => position != null && position >= 0,
   );
+  const uniquePriorityPositions = Array.from(new Set(rawPriorityPositions));
 
-  if (priorityPositions.length >= displayLimit) {
-    const clampedPriorityPositions = Array.from(new Set(priorityPositions)).slice(0, displayLimit);
+  if (uniquePriorityPositions.length >= displayLimit) {
+    const clampedPriorityPositions = uniquePriorityPositions.slice(0, displayLimit);
     const clampedPositionSet = new Set(clampedPriorityPositions);
 
     return tabs.filter((_tab, position) => clampedPositionSet.has(position));
   }
 
-  const includedPositions = new Set(priorityPositions);
+  const includedPositions = new Set(uniquePriorityPositions);
 
   for (let position = tabs.length - 1; position >= 0 && includedPositions.size < displayLimit; position -= 1) {
     includedPositions.add(position);
