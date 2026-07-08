@@ -22,7 +22,7 @@
   "dependencies": {
     "@guilty-spark/shared": "file:../shared",
     "@sentry/cli": "^3.6.0",
-    "@sentry/cloudflare": "^10.65.0",
+    "@sentry/cloudflare": "^10.64.0",
     "@xboxreplay/xboxlive-auth": "^5.1.0",
     "date-fns": "^4.4.0",
     "discord-api-types": "^0.38.49",
@@ -36,6 +36,6 @@
   "devDependencies": {
     "@types/luxon": "^3.7.2",
     "dotenv": "^17.4.2",
-    "wrangler": "^4.110.0"
+    "wrangler": "^4.108.0"
   }
 }
