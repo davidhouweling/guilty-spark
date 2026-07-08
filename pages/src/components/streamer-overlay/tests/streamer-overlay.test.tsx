@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import React from "react";
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { OverlayTab } from "../tabs-bar";
@@ -17,7 +17,11 @@ afterEach(() => {
 });
 
 describe("StreamerOverlay", () => {
-  const StreamerOverlaySection = createStreamerOverlaySection();
+  let StreamerOverlaySection: ReturnType<typeof createStreamerOverlaySection>;
+
+  beforeEach(() => {
+    StreamerOverlaySection = createStreamerOverlaySection();
+  });
 
   const teamColors: TeamColor[] = [
     { id: "eagle", name: "Eagle", hex: "#0066CC" },
