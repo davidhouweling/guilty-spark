@@ -6,7 +6,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { OverlayTab } from "../tabs-bar";
 import type { TickerMatchGroup } from "../../information-ticker/information-ticker";
-import { StreamerOverlayCreate, type StreamerOverlayProps } from "../create";
+import { createStreamerOverlaySection, type StreamerOverlayProps } from "../create";
 
 vi.mock("../../information-ticker/information-ticker", () => ({
   InformationTicker: (): React.ReactNode => <div data-testid="information-ticker">Information Ticker</div>,
@@ -17,6 +17,8 @@ afterEach(() => {
 });
 
 describe("StreamerOverlay", () => {
+  const StreamerOverlaySection = createStreamerOverlaySection();
+
   const teamColors: TeamColor[] = [
     { id: "eagle", name: "Eagle", hex: "#0066CC" },
     { id: "cobra", name: "Cobra", hex: "#CC0000" },
@@ -66,20 +68,20 @@ describe("StreamerOverlay", () => {
   };
 
   it("renders settings and top section", () => {
-    render(<StreamerOverlayCreate {...defaultProps} />);
+    render(<StreamerOverlaySection {...defaultProps} />);
 
     expect(screen.getByText("Settings UI")).toBeInTheDocument();
     expect(screen.getByText("Top Section")).toBeInTheDocument();
   });
 
   it("renders information ticker when enabled", () => {
-    render(<StreamerOverlayCreate {...defaultProps} />);
+    render(<StreamerOverlaySection {...defaultProps} />);
 
     expect(screen.getByTestId("information-ticker")).toBeInTheDocument();
   });
 
   it("opens panel when tab is clicked", () => {
-    render(<StreamerOverlayCreate {...defaultProps} />);
+    render(<StreamerOverlaySection {...defaultProps} />);
 
     fireEvent.click(screen.getByRole("button", { name: /series score/i }));
 
@@ -87,7 +89,7 @@ describe("StreamerOverlay", () => {
   });
 
   it("hides bottom section when tabs and ticker are disabled", () => {
-    render(<StreamerOverlayCreate {...defaultProps} showTabs={false} showTicker={false} />);
+    render(<StreamerOverlaySection {...defaultProps} showTabs={false} showTicker={false} />);
 
     expect(screen.queryByRole("button", { name: /series score/i })).not.toBeInTheDocument();
     expect(screen.queryByTestId("information-ticker")).not.toBeInTheDocument();

@@ -26,7 +26,12 @@ export interface StreamerOverlayProps {
   readonly onClosePanel?: () => void;
 }
 
-export function StreamerOverlayCreate({
+interface StreamerOverlaySectionInternalProps extends StreamerOverlayProps {
+  readonly store: StreamerOverlayStore;
+  readonly presenter: StreamerOverlayPresenter;
+}
+
+function StreamerOverlaySectionInternal({
   topSection,
   pinTopSection = false,
   teamColors,
@@ -44,9 +49,9 @@ export function StreamerOverlayCreate({
   panelOpen,
   onTabClick,
   onClosePanel,
-}: StreamerOverlayProps): React.ReactElement {
-  const store = useMemo(() => new StreamerOverlayStore(), []);
-  const presenter = useMemo(() => new StreamerOverlayPresenter({ store }), [store]);
+  store,
+  presenter,
+}: StreamerOverlaySectionInternalProps): React.ReactElement {
   const subscribe = useCallback((listener: () => void) => store.subscribe(listener), [store]);
   const getSnapshot = useCallback(() => store.getSnapshot(), [store]);
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
@@ -118,4 +123,13 @@ export function StreamerOverlayCreate({
   );
 }
 
-export const StreamerOverlaySection = StreamerOverlayCreate;
+export function createStreamerOverlaySection(): (props: StreamerOverlayProps) => React.ReactElement {
+  const store = new StreamerOverlayStore();
+  const presenter = new StreamerOverlayPresenter({ store });
+
+  const Component = (props: StreamerOverlayProps): React.ReactElement => (
+    <StreamerOverlaySectionInternal {...props} store={store} presenter={presenter} />
+  );
+
+  return Component;
+}

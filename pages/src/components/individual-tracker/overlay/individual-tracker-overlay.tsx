@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from "react";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import { StreamerOverlayCreate } from "../../streamer-overlay/create";
+import { createStreamerOverlaySection } from "../../streamer-overlay/create";
 import { TopSection } from "../../streamer-overlay/top-section";
 import { TeamDetailsContent } from "../../streamer-overlay/team-details-content";
 import { StatsPanel } from "../viewer/stats-panel";
@@ -41,6 +41,8 @@ export function IndividualTrackerOverlay({
   onSelectSeries,
   onDeselect,
 }: IndividualTrackerOverlayProps): React.ReactElement {
+  const StreamerOverlaySection = useMemo(() => createStreamerOverlaySection(), []);
+
   const topSection = useMemo(() => {
     if (viewModel.topSection != null) {
       return (
@@ -163,7 +165,7 @@ export function IndividualTrackerOverlay({
         } as React.CSSProperties
       }
     >
-      <StreamerOverlayCreate
+      <StreamerOverlaySection
         topSection={topSection}
         pinTopSection={viewModel.pinTopSection}
         teamColors={viewModel.teamColors}
