@@ -205,6 +205,35 @@
   margin-bottom: var(--space-12);
 }
 
+.ctaGrid {
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: 1fr;
+}
+
+.ctaColumn {
+  background: color-mix(in srgb, var(--halo-bg-secondary) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 35%, transparent);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+}
+
+.ctaColumnTitle {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: clamp(1.1rem, 2.8vw, 1.5rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-3);
+  text-transform: uppercase;
+}
+
+.ctaColumnText {
+  color: var(--halo-gray);
+  font-family: var(--font-body);
+  margin: 0 0 var(--space-5);
+}
+
 /* ============================================ */
 
 /* Media Queries - Tablet and Above            */
@@ -265,6 +294,10 @@
   /* CTA Section */
   .ctaSection {
     padding: var(--space-24) 0;
+  }
+
+  .ctaGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .demoGrid {

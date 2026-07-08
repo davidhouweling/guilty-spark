@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Requested asset: Individual Tracker manager screenshot</title>
+  <desc id="desc">Capture the individual tracker manager dashboard showing tracker list, status, and controls.</desc>
+  <rect width="1280" height="720" fill="#0d1117" />
+  <rect x="40" y="40" width="1200" height="640" rx="20" fill="#111827" stroke="#22d3ee" stroke-width="3" />
+  <text x="80" y="120" fill="#22d3ee" font-family="Arial, sans-serif" font-size="40" font-weight="700">Asset Needed: Individual Tracker Dashboard</text>
+  <text x="80" y="180" fill="#e5e7eb" font-family="Arial, sans-serif" font-size="28">What to capture:</text>
+  <text x="80" y="225" fill="#e5e7eb" font-family="Arial, sans-serif" font-size="24">- Tracker list with at least one active tracker</text>
+  <text x="80" y="265" fill="#e5e7eb" font-family="Arial, sans-serif" font-size="24">- Start, pause, and stop controls visible</text>
+  <text x="80" y="305" fill="#e5e7eb" font-family="Arial, sans-serif" font-size="24">- Overlay settings action visible</text>
+  <text x="80" y="345" fill="#e5e7eb" font-family="Arial, sans-serif" font-size="24">- Clean browser crop at 1280x720 or 1920x1080</text>
+  <text x="80" y="410" fill="#9ca3af" font-family="Arial, sans-serif" font-size="22">Replace this file with a real screenshot using the same filename.</text>
+  <text x="80" y="450" fill="#9ca3af" font-family="Arial, sans-serif" font-size="22">File: /images/content-refresh/home-individual-tracker-request.svg</text>
+</svg>

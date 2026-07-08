@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Requested asset: End-to-end OBS setup flow</title>
+  <desc id="desc">Provide a GIF or short video showing copy URL, add Browser Source, and final preview.</desc>
+  <rect width="1280" height="720" fill="#0c1020" />
+  <rect x="44" y="44" width="1192" height="632" rx="20" fill="#131a2e" stroke="#f59e0b" stroke-width="3" />
+  <text x="82" y="120" fill="#f59e0b" font-family="Arial, sans-serif" font-size="38" font-weight="700">Asset Needed: End-to-End OBS Flow</text>
+  <text x="82" y="182" fill="#e5e7eb" font-family="Arial, sans-serif" font-size="25">Preferred format: GIF or MP4 (8-15s) showing setup sequence.</text>
+  <text x="82" y="230" fill="#e5e7eb" font-family="Arial, sans-serif" font-size="22">Flow: copy URL -> add Browser Source -> verify final scene.</text>
+  <text x="82" y="272" fill="#9ca3af" font-family="Arial, sans-serif" font-size="20">File target: /images/content-refresh/guides-obs-flow-request.svg</text>
+</svg>

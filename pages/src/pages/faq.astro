@@ -6,56 +6,46 @@ import styles from "./_styles/faq.module.css";
 const faqItems = [
   {
     question: "How can I support this project?",
-    answer: `My services are provided without cost to the Halo community. Should you wish to contribute to operational sustainability, my creator accepts sponsorships through <a href="https://github.com/sponsors/davidhouweling" target="_blank" rel="noopener noreferrer">GitHub Sponsors</a> or via <a href="https://paypal.me/dhouweling" target="_blank" rel="noopener noreferrer">PayPal</a>. Support ensures continued development and infrastructure maintenance.`,
+    answer: `Guilty Spark is currently provided to the Halo community at no cost. If you want to support ongoing development and infrastructure, sponsorships are available through <a href="https://github.com/sponsors/davidhouweling" target="_blank" rel="noopener noreferrer">GitHub Sponsors</a> or <a href="https://paypal.me/dhouweling" target="_blank" rel="noopener noreferrer">PayPal</a>.`,
   },
   {
-    question: "How do I connect my Xbox gamertag to Discord?",
-    answer: `Simply invoke <code>/connect</code> in any channel where I am present. I shall search for your Xbox gamertag, verify the correct account, and establish the link. This enables automatic retrieval of your combat records for future queries.`,
+    question: "Where can I see the full feature and capability breakdown?",
+    answer: `Use <a href="/capabilities">/capabilities</a> for the latest mission map across Discord operations, live tracking, individual tracker workflows, and overlay output.`,
+  },
+  {
+    question: "Where is the full command list for setup and account linking?",
+    answer: `Use <a href="/discord-commands">/discord-commands</a> for slash command coverage, including <code>/setup</code>, <code>/connect</code>, and stats workflows.`,
   },
   {
     question: "Does Guilty Spark track ranked matches or only custom games?",
-    answer: `I specialize in <strong>custom game telemetry</strong>, particularly NeatQueue-organized series. While I can retrieve any match via <code>/stats match</code> using its identifier, my automated systems are optimized for custom games. Ranked matchmaking falls outside standard operational parameters.`,
+    answer: `Primary automation is optimized for <strong>custom game series</strong>, especially NeatQueue-linked workflows. You can still query a specific match using <code>/stats match &lt;match_id&gt;</code>.`,
   },
   {
-    question: "How does live match tracking work?",
-    answer: `When a NeatQueue series begins, I initialize real-time monitoring that refreshes every 3 minutes. The live tracker displays series status and match outcomes, updating automatically. Manual controls (🔄 refresh, ⏸️ pause, ▶️ resume) are available. The system handles player substitutions throughout the series.`,
-  },
-  {
-    question: "How do I configure the stream overlay URL for OBS?",
-    answer: `Use this exact workflow to go from live tracker to OBS.<ol>
-      <li><strong>Open your live tracker</strong> and verify the series you want to stream.<figure><img src="/images/faq/tracker-step-1-live-tracker.png" alt="Live tracker page showing series overview and Settings button" loading="lazy" /><figcaption>Step 1: Open the tracker and locate the Settings button in the overview panel.</figcaption></figure></li>
-      <li><strong>Open Overlay Settings</strong> from the tracker, then set your preferred colors, display options, tabs, and ticker choices.<figure><img src="/images/faq/tracker-step-2-settings-dialog.png" alt="Overlay settings dialog opened from the live tracker" loading="lazy" /><figcaption>Step 2: Configure the overlay in the settings dialog.</figcaption></figure></li>
-      <li><strong>Select Streamer Overlay mode</strong> in View Mode, then click <code>Copy URL for OBS</code>.<figure><img src="/images/faq/tracker-step-3-streamer-and-copy-url.png" alt="Overlay settings showing Streamer Overlay mode and Copy URL for OBS button" loading="lazy" /><figcaption>Step 3: Switch to Streamer Overlay and copy the generated URL.</figcaption></figure></li>
-      <li><strong>In OBS</strong>, add a new <code>Browser Source</code>, paste the copied URL, set your preferred width/height, and enable audio control options only if needed.<figure><img src="/images/faq/obs-step-1-browser-source-settings.png" alt="Placeholder for OBS Browser Source settings screenshot" loading="lazy" /><figcaption>Step 4 (OBS): Browser Source configuration screen (placeholder).</figcaption></figure></li>
-      <li><strong>Confirm in OBS preview/program</strong> that the overlay is visible and aligned with your scene layout. Save the source after validating readability at stream resolution.<figure><img src="/images/faq/obs-step-2-overlay-preview.png" alt="Placeholder for OBS preview showing the live tracker overlay" loading="lazy" /><figcaption>Step 5 (OBS): Final overlay appearance in OBS preview/program (placeholder).</figcaption></figure></li>
-    </ol><p>Tip: whenever you change tracker settings, recopy the URL and update the Browser Source so OBS reflects the latest configuration.</p><p>Tip: Stream OBS to Discord by following these <a href="https://discordlabs.org/faqs/how-to-stream-obs-to-discord" rel="noopener noreferrer" target="_blank">instructions</a>.</p>`,
+    question: "Where is the full Live Tracker and Individual Tracker OBS setup guide?",
+    answer: `Use the dedicated guide at <a href="/guides/obs-overlays">/guides/obs-overlays</a> for end-to-end setup flows, Browser Source recommendations, and troubleshooting notes for both overlay paths.`,
   },
   {
     question: "Can I customize which stats are displayed?",
-    answer: `Indeed. Server administrators may use <code>/setup</code> to configure display parameters: series-only versus series plus individual games, threaded replies versus dedicated channels, and live tracking enablement. These settings tailor output to your community's requirements.`,
+    answer: `Yes. Server operators can tune Discord posting behavior via <code>/setup</code>, while tracker owners can tune overlay sections, ticker behavior, stat slot visibility, and style flags from tracker settings. The <a href="/capabilities">capabilities page</a> summarizes these surfaces.`,
   },
   {
     question: "Is my data stored securely?",
-    answer: `I collect only essential data: Discord user IDs, Xbox gamertags, and server configurations. No sensitive authentication tokens are stored. Webhook communications use HMAC authentication. I respect Halo Waypoint privacy settings, and combat records remain under your control via Waypoint's public APIs.`,
+    answer: `Guilty Spark stores operational data required for features such as account links, server setup, and tracker state. Sensitive tokens are handled server-side with strict controls. Webhook calls are protected with HMAC validation, and Halo privacy boundaries are respected.`,
   },
   {
     question: "Why aren't my matches showing up?",
-    answer: `Verify your Halo Waypoint privacy settings permit public match history access. Ensure account linking via <code>/connect</code>. Matches must be custom games with all participants present. Note that Waypoint APIs may experience latency—recent matches may require patience to appear.`,
-  },
-  {
-    question: "How do I set up NeatQueue integration?",
-    answer: `Configure a webhook in NeatQueue pointing to my endpoint. Use <code>/setup</code> to establish the webhook secret and map channels. Select your preferred display mode. I shall then automatically monitor series, retrieve statistics upon completion, and post results per your specifications.`,
+    answer: `Check Halo privacy visibility, verify <code>/connect</code> is complete, and confirm the match composition fits the workflow you are querying. Recent matches can also lag in upstream APIs, so a short delay is normal.`,
   },
   {
     question: "Does the bot require special permissions?",
-    answer: `I require: <strong>View Channel</strong>, <strong>Send Messages</strong>, <strong>Use External Emojis</strong>, and <strong>Manage Webhooks</strong> for NeatQueue integration. The invitation link includes these automatically. Insufficient permissions trigger self-diagnostic warnings and graceful feature degradation.`,
+    answer: `Core permissions include <strong>View Channel</strong>, <strong>Send Messages</strong>, and <strong>Use External Emojis</strong>. For webhook-driven NeatQueue workflows, <strong>Manage Webhooks</strong> is required. Missing permissions can disable parts of the automation flow.`,
   },
 ];
 ---
 
 <Layout
   title="FAQ - Guilty Spark"
-  description="Frequently asked questions about Guilty Spark, the Halo Infinite Discord bot for match statistics and NeatQueue integration."
+  description="Frequently asked questions about Guilty Spark, including Discord automation, Individual Tracker workflows, and OBS overlay setup."
 >
   <div class={styles.faqPage}>
     <FAQ items={faqItems} />

@@ -1,0 +1,90 @@
+---
+import Layout from "../layouts/layout.astro";
+import Container from "../components/container/container.astro";
+import SectionHeader from "../components/section-header/section-header.astro";
+import Heading from "../components/heading/heading.astro";
+import CommandCard from "../components/cards/command-card.astro";
+import styles from "./_styles/content-page.module.css";
+
+const commandGroups = [
+  {
+    title: "Server Setup and Integrations",
+    commands: [
+      {
+        command: "/setup",
+        description: "Configure server behavior, posting mode, channel mappings, and NeatQueue integration settings.",
+      },
+    ],
+  },
+  {
+    title: "Statistics and Match Resolution",
+    commands: [
+      {
+        command: "/stats neatqueue",
+        description: "Resolve completed NeatQueue series statistics from Discord results.",
+      },
+      {
+        command: "/stats match",
+        description: "Retrieve analysis for a specific Halo match identifier.",
+      },
+      {
+        command: "/servicerecord",
+        description: "Inspect service record history and competitive rank telemetry.",
+      },
+    ],
+  },
+  {
+    title: "Player and Live Workflows",
+    commands: [
+      {
+        command: "/connect",
+        description: "Link Discord identities with Xbox gamertags for tracker and stats workflows.",
+      },
+      {
+        command: "/track",
+        description: "Manually activate live tracking for an ongoing queue when automation is unavailable.",
+      },
+    ],
+  },
+  {
+    title: "Utility Commands",
+    commands: [
+      {
+        command: "/maps",
+        description: "Generate HCS map pools with selectable format and map counts.",
+      },
+    ],
+  },
+];
+---
+
+<Layout
+  title="Discord Commands - Guilty Spark"
+  description="Reference guide for Guilty Spark Discord slash commands across setup, stats, live tracking, and utility workflows."
+>
+  <section class={styles.contentPage}>
+    <Container>
+      <header class={styles.heroBlock}>
+        <p class={styles.eyebrow}>Command Uplink</p>
+        <Heading tagName="h1" class={styles.title}>Discord Commands</Heading>
+        <p class={styles.subtitle}>
+          Quick-reference index for Guilty Spark slash commands. Use this page as your operator handbook for setup, stat
+          retrieval, and live operations.
+        </p>
+      </header>
+
+      {
+        commandGroups.map((group) => (
+          <section class={styles.section} aria-label={group.title}>
+            <SectionHeader title={group.title} subtitle="Operational command set" />
+            <div class={styles.grid}>
+              {group.commands.map((item) => (
+                <CommandCard command={item.command} description={item.description} />
+              ))}
+            </div>
+          </section>
+        ))
+      }
+    </Container>
+  </section>
+</Layout>

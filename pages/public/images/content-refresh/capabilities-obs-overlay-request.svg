@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Requested asset: OBS overlay composition showcase</title>
+  <desc id="desc">Capture OBS with Guilty Spark browser source layered in a finished stream scene.</desc>
+  <rect width="1280" height="720" fill="#111827" />
+  <rect x="44" y="44" width="1192" height="632" rx="20" fill="#0f172a" stroke="#22c55e" stroke-width="3" />
+  <text x="82" y="120" fill="#22c55e" font-family="Arial, sans-serif" font-size="38" font-weight="700">Asset Needed: OBS Overlay Composition</text>
+  <text x="82" y="182" fill="#e2e8f0" font-family="Arial, sans-serif" font-size="25">Show Browser Source + source list + final scene preview in OBS.</text>
+  <text x="82" y="230" fill="#e2e8f0" font-family="Arial, sans-serif" font-size="22">Include readable tab/ticker text at target stream resolution.</text>
+  <text x="82" y="272" fill="#94a3b8" font-family="Arial, sans-serif" font-size="20">File target: /images/content-refresh/capabilities-obs-overlay-request.svg</text>
+</svg>
