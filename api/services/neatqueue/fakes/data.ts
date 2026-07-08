@@ -30,13 +30,7 @@ async function readFakeData<T>(filename: string): Promise<T> {
 }
 
 type NeatQueueEvent =
-  | "joinQueue"
-  | "leaveQueue"
-  | "matchStarted"
-  | "teamsCreated"
-  | "substitution"
-  | "matchCompleted"
-  | "matchCancelled";
+  "joinQueue" | "leaveQueue" | "matchStarted" | "teamsCreated" | "substitution" | "matchCompleted" | "matchCancelled";
 
 interface NeatQueueEventDataMap {
   joinQueue: NeatQueueJoinQueueRequest;

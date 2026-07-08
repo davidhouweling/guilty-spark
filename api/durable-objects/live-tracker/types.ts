@@ -77,14 +77,7 @@ export function isCooldownError(
 
 // Branded types for route validation
 export type LiveTrackerAction =
-  | "start"
-  | "pause"
-  | "resume"
-  | "stop"
-  | "refresh"
-  | "substitution"
-  | "status"
-  | "repost";
+  "start" | "pause" | "resume" | "stop" | "refresh" | "substitution" | "status" | "repost";
 
 export interface LiveTrackerRoute {
   action: LiveTrackerAction;

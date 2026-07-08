@@ -254,8 +254,7 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
 
     // Test with a format that has many objective rounds (where map overlap is highest)
     const formatSequence = ["objective", "objective", "objective", "objective", "objective"] as (
-      | "slayer"
-      | "objective"
+      "slayer" | "objective"
     )[];
 
     const ourResults = Array.from({ length: 20 }, (_, i) => {
