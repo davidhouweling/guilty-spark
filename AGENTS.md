@@ -74,6 +74,15 @@ export const settingsContract = defineContract(z.object({ settings: streamerView
 
 **App Islands**: Each feature in `pages/src/apps/` has `create.tsx` (React island entry) and `services.ts` (real vs fake via `getMode()`). Astro page passes `apiHost={API_HOST}` to the island.
 
+**Create Entry Point Guardrails (required)**:
+
+- Every `pages/src/components/**/create.tsx` module must export a `create*` factory API (for example `createFooSection`, `createBarPage`) rather than exporting a direct wiring component.
+- A create factory may close over stable dependency config (services, environment adapters, static options), then return a renderable component.
+- Disposable runtime collaborators (stores, presenters, controllers, subscriptions) must be mount-scoped inside the returned component (for example via `useMemo`/`useEffect` in that component), never factory-scoped singletons.
+- Consumers should instantiate factory-returned components once per mount boundary (typically with `useMemo(() => createX(config), [configDeps])`) and render the returned component.
+- Tests must avoid shared factory-created state across test cases. Instantiate returned components per test (or in `beforeEach`) instead of sharing one component instance at `describe` scope.
+- For migrations and reviews, treat these as required checks: factory API shape, remount safety, and focused regression coverage for lifecycle-sensitive paths.
+
 **Presenter/Store Pattern** (all stateful components):
 
 Each feature follows the SPC split: Store → Presenter → Component (view).
