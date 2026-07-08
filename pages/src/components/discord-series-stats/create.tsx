@@ -6,12 +6,20 @@ import { DiscordSeriesStatsStore } from "./discord-series-stats-store";
 import { DiscordSeriesStatsPresenter } from "./discord-series-stats-presenter";
 import { DiscordSeriesStatsView } from "./discord-series-stats";
 
-interface DiscordSeriesStatsProps {
-  readonly data: DiscordSeriesStatsResolved;
+export interface CreateDiscordSeriesStatsConfig {
   readonly matchAnalyticsService: MatchAnalyticsService;
 }
 
-export function DiscordSeriesStats({ data, matchAnalyticsService }: DiscordSeriesStatsProps): ReactElement {
+export interface DiscordSeriesStatsProps {
+  readonly data: DiscordSeriesStatsResolved;
+}
+
+interface DiscordSeriesStatsInternalProps extends DiscordSeriesStatsProps {
+  readonly config: CreateDiscordSeriesStatsConfig;
+}
+
+function DiscordSeriesStatsInternal({ data, config }: DiscordSeriesStatsInternalProps): ReactElement {
+  const { matchAnalyticsService } = config;
   const store = useMemo(() => new DiscordSeriesStatsStore(), [data.renderData]);
   const controller = useMemo(() => new StatsController(), [data.renderData]);
   const presenter = useMemo(
@@ -35,4 +43,14 @@ export function DiscordSeriesStats({ data, matchAnalyticsService }: DiscordSerie
   const model = useMemo(() => presenter.present(snapshot), [presenter, snapshot]);
 
   return <DiscordSeriesStatsView {...model} />;
+}
+
+export function createDiscordSeriesStats(
+  config: CreateDiscordSeriesStatsConfig,
+): (props: DiscordSeriesStatsProps) => ReactElement {
+  const Component = (props: DiscordSeriesStatsProps): ReactElement => (
+    <DiscordSeriesStatsInternal {...props} config={config} />
+  );
+
+  return Component;
 }

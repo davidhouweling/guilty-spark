@@ -9,7 +9,7 @@ import type { AuthService } from "../../services/auth/types";
 import { Login } from "./login";
 import styles from "./login.module.css";
 
-interface LoginPageProps {
+export interface CreateLoginPageConfig {
   readonly authService: AuthService;
   readonly apiHost: string;
 }
@@ -39,7 +39,7 @@ function readSignInErrorMessage(): string | null {
   return null;
 }
 
-export function LoginPage({ authService, apiHost }: LoginPageProps): React.ReactElement {
+function LoginPageInternal({ authService, apiHost }: CreateLoginPageConfig): React.ReactElement {
   const [state, setState] = useState(ComponentLoaderStatus.LOADING);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -93,4 +93,10 @@ export function LoginPage({ authService, apiHost }: LoginPageProps): React.React
       />
     </div>
   );
+}
+
+export function createLoginPage(config: CreateLoginPageConfig): () => React.ReactElement {
+  const Component = (): React.ReactElement => <LoginPageInternal {...config} />;
+
+  return Component;
 }

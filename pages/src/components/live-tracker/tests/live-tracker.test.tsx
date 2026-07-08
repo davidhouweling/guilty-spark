@@ -16,7 +16,7 @@ import type {
 import { aFakeLiveTrackerScenarioWith } from "../../../services/live-tracker/fakes/scenario";
 import { aFakeLiveTrackerServiceWith } from "../../../services/live-tracker/fakes/live-tracker.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
-import { LiveTracker } from "../create";
+import { createLiveTracker } from "../create";
 
 function isSteppableLiveTrackerConnection(
   connection: LiveTrackerConnection,
@@ -80,8 +80,9 @@ async function renderLiveTrackerWith(
   const liveTrackerService = aFakeLiveTrackerServiceWith({ scenario, mode: "manual" });
   const connection = await liveTrackerService.connect({ type: "team" as const, guildId: "1", queueNumber: "3" });
   vi.spyOn(liveTrackerService, "connect").mockResolvedValue(connection);
+  const LiveTracker = createLiveTracker({ liveTrackerService, matchAnalyticsService: analyticsService });
 
-  render(<LiveTracker liveTrackerService={liveTrackerService} matchAnalyticsService={analyticsService} />);
+  render(<LiveTracker />);
   await waitFor(() => expect(screen.getByText("Connecting...")).toBeInTheDocument());
 
   if (!isSteppableLiveTrackerConnection(connection)) {
@@ -153,10 +154,12 @@ describe("LiveTracker", () => {
     vi.spyOn(liveTrackerService, "connect").mockImplementation(async () => {
       return Promise.resolve(connection);
     });
+    const LiveTracker = createLiveTracker({
+      liveTrackerService,
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+    });
 
-    render(
-      <LiveTracker liveTrackerService={liveTrackerService} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />,
-    );
+    render(<LiveTracker />);
 
     await waitFor(() => {
       expect(screen.getByText("Connecting...")).toBeInTheDocument();
@@ -254,10 +257,12 @@ describe("LiveTracker", () => {
 
     const liveTrackerService = aFakeLiveTrackerServiceWith();
     vi.spyOn(liveTrackerService, "connect").mockResolvedValue(notFoundConnection);
+    const LiveTracker = createLiveTracker({
+      liveTrackerService,
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+    });
 
-    render(
-      <LiveTracker liveTrackerService={liveTrackerService} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />,
-    );
+    render(<LiveTracker />);
 
     await waitFor(() => {
       expect(screen.getByText("Connection Failed")).toBeInTheDocument();

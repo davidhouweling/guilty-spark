@@ -3,7 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { LoginPage } from "../create";
+import { createLoginPage } from "../create";
 import type { AuthService } from "../../../services/auth/types";
 import { aFakeAuthServiceWith } from "../../../services/auth/fakes/auth.fake";
 
@@ -24,8 +24,9 @@ describe("LoginPage", () => {
 
   it("renders a sign-in card linking to the API start endpoint when unauthenticated", async () => {
     vi.spyOn(authService, "getSession").mockResolvedValue({ authenticated: false });
+    const LoginPage = createLoginPage({ authService, apiHost: API_HOST });
 
-    render(<LoginPage authService={authService} apiHost={API_HOST} />);
+    render(<LoginPage />);
 
     const signIn = await screen.findByRole("link", { name: "Continue With Microsoft" });
     const url = new URL(signIn.getAttribute("href") ?? "");
@@ -42,8 +43,9 @@ describe("LoginPage", () => {
   ])("builds the sign-in URL with a safe redirect for %s", async (_label, query, expectedRedirect) => {
     window.history.pushState({}, "", `/login${query}`);
     vi.spyOn(authService, "getSession").mockResolvedValue({ authenticated: false });
+    const LoginPage = createLoginPage({ authService, apiHost: API_HOST });
 
-    render(<LoginPage authService={authService} apiHost={API_HOST} />);
+    render(<LoginPage />);
 
     const signIn = await screen.findByRole("link", { name: "Continue With Microsoft" });
     const url = new URL(signIn.getAttribute("href") ?? "");
@@ -56,8 +58,9 @@ describe("LoginPage", () => {
       .spyOn(authService, "getSession")
       .mockRejectedValueOnce(new Error("Session unavailable"))
       .mockResolvedValueOnce({ authenticated: false });
+    const LoginPage = createLoginPage({ authService, apiHost: API_HOST });
 
-    render(<LoginPage authService={authService} apiHost={API_HOST} />);
+    render(<LoginPage />);
 
     await waitFor(() => {
       expect(screen.getByText("Session unavailable")).toBeInTheDocument();
@@ -75,8 +78,9 @@ describe("LoginPage", () => {
     const user = userEvent.setup();
     window.history.pushState({}, "", "/login?error=xbox-required");
     const getSessionSpy = vi.spyOn(authService, "getSession").mockResolvedValue({ authenticated: false });
+    const LoginPage = createLoginPage({ authService, apiHost: API_HOST });
 
-    render(<LoginPage authService={authService} apiHost={API_HOST} />);
+    render(<LoginPage />);
 
     await waitFor(() => {
       expect(screen.getByText(/couldn't verify your Xbox profile/i)).toBeInTheDocument();

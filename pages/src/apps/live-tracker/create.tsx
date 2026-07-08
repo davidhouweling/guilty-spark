@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import TimeAgo from "javascript-time-ago";
 import en from "javascript-time-ago/locale/en";
 import { ComponentLoader, ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import { ErrorState } from "../../components/error-state/error-state";
 import { LoadingState } from "../../components/loading-state/loading-state";
-import { LiveTracker } from "../../components/live-tracker/create";
+import { createLiveTracker } from "../../components/live-tracker/create";
 import type { Services } from "./services";
 import { installServices } from "./services";
 
@@ -20,6 +20,16 @@ export function LiveTrackerApp({ apiHost }: LiveTrackerAppProps): ReactElement {
   const [services, setServices] = useState<Services | null>(null);
   const [shouldConnectToTracker, setShouldConnectToTracker] = useState(false);
   const [invalidParams, setInvalidParams] = useState(false);
+  const LiveTracker = useMemo(
+    () =>
+      services == null
+        ? null
+        : createLiveTracker({
+            liveTrackerService: services.liveTrackerService,
+            matchAnalyticsService: services.matchAnalyticsService,
+          }),
+    [services],
+  );
 
   // Check URL params to determine if we need to connect to a tracker
   // Use useEffect to avoid hydration mismatch (server has no window)
@@ -83,16 +93,7 @@ export function LiveTrackerApp({ apiHost }: LiveTrackerAppProps): ReactElement {
       status={loadingServices}
       loading={<LoadingState />}
       error={<ErrorState />}
-      loaded={
-        services ? (
-          <LiveTracker
-            liveTrackerService={services.liveTrackerService}
-            matchAnalyticsService={services.matchAnalyticsService}
-          />
-        ) : (
-          <ErrorState message="Services failed to load" />
-        )
-      }
+      loaded={LiveTracker != null ? <LiveTracker /> : <ErrorState message="Services failed to load" />}
     />
   );
 }
