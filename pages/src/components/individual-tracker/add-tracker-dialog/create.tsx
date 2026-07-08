@@ -4,23 +4,41 @@ import { AddTrackerDialogPresenter } from "./add-tracker-dialog-presenter";
 import { AddTrackerDialogStore } from "./add-tracker-dialog-store";
 import { AddTrackerDialog } from "./add-tracker-dialog";
 
-interface AddTrackerDialogSectionProps {
-  readonly isOpen: boolean;
-  readonly onClose: () => void;
-  readonly onTrackerStarted: () => void;
+export interface CreateAddTrackerDialogSectionConfig {
   readonly individualTrackerService: IndividualTrackerService;
 }
 
-export function AddTrackerDialogSection({
+export interface AddTrackerDialogSectionProps {
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly onTrackerStarted: () => void;
+}
+
+interface AddTrackerDialogSectionInternalProps extends AddTrackerDialogSectionProps {
+  readonly config: CreateAddTrackerDialogSectionConfig;
+}
+
+function AddTrackerDialogSectionInternal({
+  config,
   isOpen,
   onClose,
   onTrackerStarted,
-  individualTrackerService,
-}: AddTrackerDialogSectionProps): React.ReactElement {
+}: AddTrackerDialogSectionInternalProps): React.ReactElement {
+  const onTrackerStartedRef = React.useRef(onTrackerStarted);
+  onTrackerStartedRef.current = onTrackerStarted;
+
+  const { individualTrackerService } = config;
   const store = useMemo(() => new AddTrackerDialogStore(), []);
   const presenter = useMemo(
-    () => new AddTrackerDialogPresenter({ store, individualTrackerService, onTrackerStarted }),
-    [store, individualTrackerService, onTrackerStarted],
+    () =>
+      new AddTrackerDialogPresenter({
+        store,
+        individualTrackerService,
+        onTrackerStarted: (): void => {
+          onTrackerStartedRef.current();
+        },
+      }),
+    [store, individualTrackerService],
   );
 
   useEffect(() => {
@@ -97,4 +115,14 @@ export function AddTrackerDialogSection({
       }}
     />
   );
+}
+
+export function createAddTrackerDialogSection(
+  config: CreateAddTrackerDialogSectionConfig,
+): (props: AddTrackerDialogSectionProps) => React.ReactElement {
+  const Component = (props: AddTrackerDialogSectionProps): React.ReactElement => (
+    <AddTrackerDialogSectionInternal {...props} config={config} />
+  );
+
+  return Component;
 }

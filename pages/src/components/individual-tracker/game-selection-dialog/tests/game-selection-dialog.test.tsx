@@ -2,12 +2,9 @@ import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type {
-  IndividualTrackerService,
-  TrackerMatchHistoryResponse,
-} from "../../../../services/individual-tracker/types";
+import type { TrackerMatchHistoryResponse } from "../../../../services/individual-tracker/types";
 import { FakeIndividualTrackerService } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
-import { GameSelectionDialogSection } from "../create";
+import { createGameSelectionDialogSection } from "../create";
 
 afterEach(() => {
   cleanup();
@@ -55,6 +52,9 @@ describe("GameSelectionDialogSection", () => {
           /* keep pending */
         }),
     );
+    const GameSelectionDialogSection = createGameSelectionDialogSection({
+      individualTrackerService: service,
+    });
 
     render(
       <GameSelectionDialogSection
@@ -67,7 +67,6 @@ describe("GameSelectionDialogSection", () => {
         initialSeriesGroups={[]}
         onClose={vi.fn()}
         onSynced={vi.fn()}
-        individualTrackerService={service as IndividualTrackerService}
       />,
     );
 
@@ -79,6 +78,9 @@ describe("GameSelectionDialogSection", () => {
   it("shows error alert and hides match list when getMatchHistory fails", async () => {
     const service = new FakeIndividualTrackerService();
     vi.spyOn(service, "getMatchHistory").mockRejectedValue(new Error("Network error"));
+    const GameSelectionDialogSection = createGameSelectionDialogSection({
+      individualTrackerService: service,
+    });
 
     render(
       <GameSelectionDialogSection
@@ -91,7 +93,6 @@ describe("GameSelectionDialogSection", () => {
         initialSeriesGroups={[]}
         onClose={vi.fn()}
         onSynced={vi.fn()}
-        individualTrackerService={service as IndividualTrackerService}
       />,
     );
 
@@ -105,6 +106,9 @@ describe("GameSelectionDialogSection", () => {
   it("loads and displays matches when opened", async () => {
     const service = new FakeIndividualTrackerService();
     vi.spyOn(service, "getMatchHistory").mockResolvedValue(aResponse({ matches: [aMatch("m1"), aMatch("m2")] }));
+    const GameSelectionDialogSection = createGameSelectionDialogSection({
+      individualTrackerService: service,
+    });
 
     render(
       <GameSelectionDialogSection
@@ -117,7 +121,6 @@ describe("GameSelectionDialogSection", () => {
         initialSeriesGroups={[]}
         onClose={vi.fn()}
         onSynced={vi.fn()}
-        individualTrackerService={service as IndividualTrackerService}
       />,
     );
 
@@ -176,6 +179,9 @@ describe("GameSelectionDialogSection", () => {
         ],
       }),
     );
+    const GameSelectionDialogSection = createGameSelectionDialogSection({
+      individualTrackerService: service,
+    });
 
     render(
       <GameSelectionDialogSection
@@ -188,7 +194,6 @@ describe("GameSelectionDialogSection", () => {
         initialSeriesGroups={[]}
         onClose={vi.fn()}
         onSynced={vi.fn()}
-        individualTrackerService={service as IndividualTrackerService}
       />,
     );
 
@@ -207,6 +212,9 @@ describe("GameSelectionDialogSection", () => {
     vi.spyOn(service, "getMatchHistory").mockResolvedValue(aResponse({ matches: [aMatch("m1")] }));
     const syncSpy = vi.spyOn(service, "syncMatchesToTracker").mockResolvedValue(undefined);
     const onSynced = vi.fn();
+    const GameSelectionDialogSection = createGameSelectionDialogSection({
+      individualTrackerService: service,
+    });
 
     render(
       <GameSelectionDialogSection
@@ -219,7 +227,6 @@ describe("GameSelectionDialogSection", () => {
         initialSeriesGroups={[]}
         onClose={vi.fn()}
         onSynced={onSynced}
-        individualTrackerService={service as IndividualTrackerService}
       />,
     );
 
@@ -246,6 +253,9 @@ describe("GameSelectionDialogSection", () => {
     const syncSpy = vi.spyOn(service, "syncMatchesToTracker").mockResolvedValue(undefined);
     const onSynced = vi.fn();
     const onClose = vi.fn();
+    const GameSelectionDialogSection = createGameSelectionDialogSection({
+      individualTrackerService: service,
+    });
 
     render(
       <GameSelectionDialogSection
@@ -258,7 +268,6 @@ describe("GameSelectionDialogSection", () => {
         initialSeriesGroups={[]}
         onClose={onClose}
         onSynced={onSynced}
-        individualTrackerService={service as IndividualTrackerService}
       />,
     );
 

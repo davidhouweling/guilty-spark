@@ -1,9 +1,9 @@
 import React, { useEffect, useSyncExternalStore } from "react";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
-import { AddTrackerDialogSection } from "../../individual-tracker/add-tracker-dialog/create";
-import { GameSelectionDialogSection } from "../../individual-tracker/game-selection-dialog/create";
-import { ManualSeriesDialogSection } from "../../individual-tracker/manual-series-dialog/create";
+import { createAddTrackerDialogSection } from "../../individual-tracker/add-tracker-dialog/create";
+import { createGameSelectionDialogSection } from "../../individual-tracker/game-selection-dialog/create";
+import { createManualSeriesDialogSection } from "../../individual-tracker/manual-series-dialog/create";
 import { LiveTrackersPresenter } from "./live-trackers-presenter";
 import { LiveTrackersStore } from "./live-trackers-store";
 import type { LiveTrackersController, LiveTrackersSectionController } from "./types";
@@ -20,6 +20,29 @@ function LiveTrackersSectionInternal({
   individualTrackerService,
   individualTrackerViewService,
 }: LiveTrackersSectionInternalProps): React.ReactElement {
+  const AddTrackerDialogSection = React.useMemo(
+    () =>
+      createAddTrackerDialogSection({
+        individualTrackerService,
+      }),
+    [individualTrackerService],
+  );
+  const GameSelectionDialogSection = React.useMemo(
+    () =>
+      createGameSelectionDialogSection({
+        individualTrackerService,
+      }),
+    [individualTrackerService],
+  );
+  const ManualSeriesDialogSection = React.useMemo(
+    () =>
+      createManualSeriesDialogSection({
+        individualTrackerService,
+        viewService: individualTrackerViewService,
+      }),
+    [individualTrackerService, individualTrackerViewService],
+  );
+
   useEffect(() => {
     controller.start();
     return (): void => {
@@ -52,7 +75,6 @@ function LiveTrackersSectionInternal({
               controller.closeAddDialog();
               void controller.refresh();
             }}
-            individualTrackerService={individualTrackerService}
           />
           {snapshot.gameSelectionDialogState != null && (
             <GameSelectionDialogSection
@@ -72,7 +94,6 @@ function LiveTrackersSectionInternal({
                 controller.closeGameSelectionDialog();
                 void controller.refresh();
               }}
-              individualTrackerService={individualTrackerService}
             />
           )}
           {snapshot.manualSeriesDialogState != null && (
@@ -92,8 +113,6 @@ function LiveTrackersSectionInternal({
                 void controller.refresh();
               }}
               initialData={snapshot.manualSeriesDialogState.initialData}
-              individualTrackerService={individualTrackerService}
-              viewService={individualTrackerViewService}
             />
           )}
         </>

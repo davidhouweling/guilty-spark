@@ -6,33 +6,41 @@ import { ManualSeriesDialogStore } from "./manual-series-dialog-store";
 import type { SeriesInitialData } from "./manual-series-dialog-store";
 import { ManualSeriesDialog } from "./manual-series-dialog";
 
-interface ManualSeriesDialogSectionProps {
+export interface CreateManualSeriesDialogSectionConfig {
+  readonly individualTrackerService: IndividualTrackerService;
+  readonly viewService: IndividualTrackerViewService;
+}
+
+export interface ManualSeriesDialogSectionProps {
   readonly trackerId: string;
   readonly trackerLabel: string;
   readonly isOpen: boolean;
   readonly onClose: () => void;
   readonly onSeriesStarted: () => void;
-  readonly individualTrackerService: IndividualTrackerService;
-  readonly viewService: IndividualTrackerViewService;
   readonly initialData?: SeriesInitialData;
   readonly onSeriesEdited?: () => void;
 }
 
-export function ManualSeriesDialogSection({
+interface ManualSeriesDialogSectionInternalProps extends ManualSeriesDialogSectionProps {
+  readonly config: CreateManualSeriesDialogSectionConfig;
+}
+
+function ManualSeriesDialogSectionInternal({
+  config,
   trackerId,
   trackerLabel,
   isOpen,
   onClose,
   onSeriesStarted,
-  individualTrackerService,
-  viewService,
   initialData,
   onSeriesEdited,
-}: ManualSeriesDialogSectionProps): React.ReactElement | null {
+}: ManualSeriesDialogSectionInternalProps): React.ReactElement | null {
   const onSeriesStartedRef = useRef(onSeriesStarted);
   onSeriesStartedRef.current = onSeriesStarted;
   const onSeriesEditedRef = useRef(onSeriesEdited);
   onSeriesEditedRef.current = onSeriesEdited;
+
+  const { individualTrackerService, viewService } = config;
 
   const store = useMemo(() => new ManualSeriesDialogStore(initialData), []);
   const presenter = useMemo(
@@ -109,4 +117,14 @@ export function ManualSeriesDialogSection({
       onStartSeries={handleSubmit}
     />
   );
+}
+
+export function createManualSeriesDialogSection(
+  config: CreateManualSeriesDialogSectionConfig,
+): (props: ManualSeriesDialogSectionProps) => React.ReactElement | null {
+  const Component = (props: ManualSeriesDialogSectionProps): React.ReactElement | null => (
+    <ManualSeriesDialogSectionInternal {...props} config={config} />
+  );
+
+  return Component;
 }
