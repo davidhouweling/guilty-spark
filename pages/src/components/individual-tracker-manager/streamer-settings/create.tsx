@@ -5,17 +5,25 @@ import { StreamerSettingsPresenter } from "./streamer-settings-presenter";
 import { StreamerSettingsStore } from "./streamer-settings-store";
 import { StreamerSettingsSectionView } from "./streamer-settings";
 
-interface StreamerSettingsSectionProps {
-  readonly settings: StreamerViewSettings;
+export interface CreateStreamerSettingsSectionConfig {
   readonly settingsService: IndividualTrackerSettingsService;
+}
+
+export interface StreamerSettingsSectionProps {
+  readonly settings: StreamerViewSettings;
   readonly gamertag: string | null;
 }
 
-export function StreamerSettingsSection({
+interface StreamerSettingsSectionInternalProps extends StreamerSettingsSectionProps {
+  readonly config: CreateStreamerSettingsSectionConfig;
+}
+
+function StreamerSettingsSectionInternal({
+  config,
   settings,
-  settingsService,
   gamertag,
-}: StreamerSettingsSectionProps): React.ReactElement {
+}: StreamerSettingsSectionInternalProps): React.ReactElement {
+  const { settingsService } = config;
   const store = useMemo(() => new StreamerSettingsStore(), []);
   const presenter = useMemo(() => new StreamerSettingsPresenter({ settingsService, store }), [settingsService, store]);
 
@@ -100,4 +108,14 @@ export function StreamerSettingsSection({
       }}
     />
   );
+}
+
+export function createStreamerSettingsSection(
+  config: CreateStreamerSettingsSectionConfig,
+): (props: StreamerSettingsSectionProps) => React.ReactElement {
+  const Component = (props: StreamerSettingsSectionProps): React.ReactElement => (
+    <StreamerSettingsSectionInternal {...props} config={config} />
+  );
+
+  return Component;
 }

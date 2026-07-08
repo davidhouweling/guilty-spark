@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 import { MatchHistory } from "../match-history";
-import { MatchHistorySection } from "../create";
+import { createMatchHistorySection } from "../create";
 import { HALO_TEAM_COLORS } from "../../team-colors/team-colors";
 import type { MatchHistoryModel } from "../match-history-presenter";
 
@@ -40,6 +40,7 @@ function aMatchWith(
 
 describe("MatchHistorySection", () => {
   it("calls add-to-above for a custom single match with a custom match above", () => {
+    const MatchHistorySection = createMatchHistorySection();
     const onAddToAboveGroup = vi.fn<(matchId: string) => void>();
 
     render(
@@ -56,6 +57,8 @@ describe("MatchHistorySection", () => {
   });
 
   it("hides add controls for a matchmaking match", () => {
+    const MatchHistorySection = createMatchHistorySection();
+
     render(<MatchHistorySection entries={[aMatchWith("m1", "matchmaking", "Slayer")]} allowManualGrouping={true} />);
 
     expect(screen.queryByTitle("Add to group above")).not.toBeInTheDocument();
@@ -64,6 +67,8 @@ describe("MatchHistorySection", () => {
   });
 
   it("renders only break controls for grouped matches without eligible adjacent groupable matches", () => {
+    const MatchHistorySection = createMatchHistorySection();
+
     render(
       <MatchHistorySection
         entries={[
@@ -83,6 +88,8 @@ describe("MatchHistorySection", () => {
   });
 
   it("renders Load more button when hasMore is true", () => {
+    const MatchHistorySection = createMatchHistorySection();
+
     render(
       <MatchHistorySection
         entries={[aMatchWith("m1", "custom", "Slayer")]}
@@ -95,6 +102,8 @@ describe("MatchHistorySection", () => {
   });
 
   it("does not render Load more button when hasMore is false", () => {
+    const MatchHistorySection = createMatchHistorySection();
+
     render(<MatchHistorySection entries={[aMatchWith("m1", "custom", "Slayer")]} hasMore={false} />);
 
     expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
@@ -117,6 +126,7 @@ describe("MatchHistorySection", () => {
   });
 
   it("calls onLoadMore when Load more button is clicked", () => {
+    const MatchHistorySection = createMatchHistorySection();
     const onLoadMore = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
 
     render(
@@ -129,6 +139,8 @@ describe("MatchHistorySection", () => {
   });
 
   it("rotates series colors by visible series order", () => {
+    const MatchHistorySection = createMatchHistorySection();
+
     const { container } = render(
       <MatchHistorySection
         entries={[

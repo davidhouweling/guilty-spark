@@ -1,14 +1,12 @@
 import "@testing-library/jest-dom/vitest";
 
-import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { StatsHighlightsSection } from "../create";
+import { createStatsHighlightsSection } from "../create";
+import type { StatsHighlightsSectionProps } from "../types";
 
-function aFakeProps(
-  overrides: Partial<React.ComponentProps<typeof StatsHighlightsSection>> = {},
-): React.ComponentProps<typeof StatsHighlightsSection> {
+function aFakeProps(overrides: Partial<StatsHighlightsSectionProps> = {}): StatsHighlightsSectionProps {
   return {
     statsHighlightSlots: [],
     saveStatus: "idle",
@@ -24,6 +22,8 @@ describe("StatsHighlightsSectionView", () => {
   });
 
   it("shows the section as disabled when no stats highlights slots are configured", () => {
+    const StatsHighlightsSection = createStatsHighlightsSection();
+
     render(<StatsHighlightsSection {...aFakeProps()} />);
 
     expect(screen.getByRole("checkbox", { name: /show stats highlights/i })).not.toBeChecked();
@@ -32,6 +32,7 @@ describe("StatsHighlightsSectionView", () => {
   });
 
   it("enables stats highlights with the default six-slot layout", async () => {
+    const StatsHighlightsSection = createStatsHighlightsSection();
     const user = userEvent.setup();
     const onStatsHighlightSlotsChange = vi.fn<(statsHighlightSlots: readonly string[]) => void>();
 
@@ -50,6 +51,7 @@ describe("StatsHighlightsSectionView", () => {
   });
 
   it("extends the slot list up to eight configured highlights", async () => {
+    const StatsHighlightsSection = createStatsHighlightsSection();
     const user = userEvent.setup();
     const onStatsHighlightSlotsChange = vi.fn<(statsHighlightSlots: readonly string[]) => void>();
 
@@ -84,6 +86,7 @@ describe("StatsHighlightsSectionView", () => {
   });
 
   it("updates an individual highlight slot", async () => {
+    const StatsHighlightsSection = createStatsHighlightsSection();
     const user = userEvent.setup();
     const onStatsHighlightSlotsChange = vi.fn<(statsHighlightSlots: readonly string[]) => void>();
 
@@ -102,6 +105,8 @@ describe("StatsHighlightsSectionView", () => {
   });
 
   it("groups stat options into individual, compacted, and profile sections", () => {
+    const StatsHighlightsSection = createStatsHighlightsSection();
+
     const { container } = render(
       <StatsHighlightsSection
         {...aFakeProps({

@@ -3,7 +3,7 @@ import { Button } from "../../button/button";
 import { Dialog } from "../../dialog/dialog";
 import { Input } from "../../input/input";
 import { Alert } from "../../alert/alert";
-import { MatchHistorySection } from "../../match-history/create";
+import { createMatchHistorySection } from "../../match-history/create";
 import type { ManualSeriesDialogSnapshot, ManualSeriesTeamSnapshot } from "./manual-series-dialog-store";
 import styles from "./manual-series-dialog.module.css";
 
@@ -99,6 +99,8 @@ export function ManualSeriesDialog({
   onBackfillMatchToggle,
   onStartSeries,
 }: ManualSeriesDialogProps): React.ReactElement | null {
+  const MatchHistorySection = React.useMemo(() => createMatchHistorySection(), []);
+
   if (!isOpen) {
     return null;
   }
