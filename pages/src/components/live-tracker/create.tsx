@@ -9,12 +9,17 @@ import { LiveTrackerStore } from "./live-tracker-store";
 import { LiveTrackerView } from "./live-tracker";
 import { LiveTrackerProvider } from "./live-tracker-context";
 
-interface LiveTrackerProps {
+export interface CreateLiveTrackerConfig {
   readonly liveTrackerService: LiveTrackerService;
   readonly matchAnalyticsService: MatchAnalyticsService;
 }
 
-export function LiveTracker({ liveTrackerService, matchAnalyticsService }: LiveTrackerProps): React.ReactElement {
+interface LiveTrackerInternalProps {
+  readonly config: CreateLiveTrackerConfig;
+}
+
+function LiveTrackerInternal({ config }: LiveTrackerInternalProps): React.ReactElement {
+  const { liveTrackerService, matchAnalyticsService } = config;
   const store = useMemo(() => new LiveTrackerStore(), []);
 
   const presenter = useMemo(
@@ -83,4 +88,10 @@ export function LiveTracker({ liveTrackerService, matchAnalyticsService }: LiveT
       }
     />
   );
+}
+
+export function createLiveTracker(config: CreateLiveTrackerConfig): () => React.ReactElement {
+  const Component = (): React.ReactElement => <LiveTrackerInternal config={config} />;
+
+  return Component;
 }

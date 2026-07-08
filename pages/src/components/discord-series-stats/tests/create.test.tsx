@@ -3,7 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
-import { DiscordSeriesStats } from "../create";
+import { createDiscordSeriesStats } from "../create";
 import { DiscordSeriesStatsPresenter } from "../discord-series-stats-presenter";
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 
@@ -50,9 +50,9 @@ function aFakeResolvedDataWith(overrides: Partial<DiscordSeriesStatsResolved> = 
 
 describe("DiscordSeriesStats", () => {
   it("renders top-level sections", () => {
-    render(
-      <DiscordSeriesStats data={aFakeResolvedDataWith()} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />,
-    );
+    const DiscordSeriesStats = createDiscordSeriesStats({ matchAnalyticsService: aFakeMatchAnalyticsServiceWith() });
+
+    render(<DiscordSeriesStats data={aFakeResolvedDataWith()} />);
 
     expect(screen.getByRole("heading", { name: "Queue #7777 Series Stats" })).toBeInTheDocument();
     expect(screen.getByText("Guild 123456789012345678")).toBeInTheDocument();
@@ -64,17 +64,17 @@ describe("DiscordSeriesStats", () => {
   });
 
   it("shows warning when a match has invalid raw match data", () => {
-    render(
-      <DiscordSeriesStats data={aFakeResolvedDataWith()} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />,
-    );
+    const DiscordSeriesStats = createDiscordSeriesStats({ matchAnalyticsService: aFakeMatchAnalyticsServiceWith() });
+
+    render(<DiscordSeriesStats data={aFakeResolvedDataWith()} />);
 
     expect(screen.getByText("Failed to load detailed stats for match match-1.")).toBeInTheDocument();
   });
 
   it("does not render series totals when no valid raw match data exists", () => {
-    render(
-      <DiscordSeriesStats data={aFakeResolvedDataWith()} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />,
-    );
+    const DiscordSeriesStats = createDiscordSeriesStats({ matchAnalyticsService: aFakeMatchAnalyticsServiceWith() });
+
+    render(<DiscordSeriesStats data={aFakeResolvedDataWith()} />);
 
     expect(screen.queryByText("Series Totals")).not.toBeInTheDocument();
   });
@@ -82,11 +82,11 @@ describe("DiscordSeriesStats", () => {
   it("passes medal metadata from renderData into the presenter", () => {
     const medalMetadata = { 3334154676: { name: "Killing Spree", sortingWeight: 1500 } };
     const presentSpy = vi.spyOn(DiscordSeriesStatsPresenter.prototype, "present");
+    const DiscordSeriesStats = createDiscordSeriesStats({ matchAnalyticsService: aFakeMatchAnalyticsServiceWith() });
 
     render(
       <DiscordSeriesStats
         data={aFakeResolvedDataWith({ renderData: { ...aFakeResolvedDataWith().renderData, medalMetadata } })}
-        matchAnalyticsService={aFakeMatchAnalyticsServiceWith()}
       />,
     );
 
@@ -96,9 +96,9 @@ describe("DiscordSeriesStats", () => {
   });
 
   it("renders the shared series stats layout", () => {
-    render(
-      <DiscordSeriesStats data={aFakeResolvedDataWith()} matchAnalyticsService={aFakeMatchAnalyticsServiceWith()} />,
-    );
+    const DiscordSeriesStats = createDiscordSeriesStats({ matchAnalyticsService: aFakeMatchAnalyticsServiceWith() });
+
+    render(<DiscordSeriesStats data={aFakeResolvedDataWith()} />);
 
     expect(screen.getByRole("heading", { name: "Series overview" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Matches" })).toBeInTheDocument();
@@ -109,6 +109,7 @@ describe("DiscordSeriesStats", () => {
     const getBatchMatchAnalyticsSpy = vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics");
     const base = aFakeResolvedDataWith();
     const secondMatch = { ...base.renderData.matches[0], matchId: "match-2" };
+    const DiscordSeriesStats = createDiscordSeriesStats({ matchAnalyticsService });
 
     render(
       <DiscordSeriesStats
@@ -116,7 +117,6 @@ describe("DiscordSeriesStats", () => {
           matchIds: ["match-1", "match-2"],
           renderData: { ...base.renderData, matches: [...base.renderData.matches, secondMatch] },
         })}
-        matchAnalyticsService={matchAnalyticsService}
       />,
     );
 

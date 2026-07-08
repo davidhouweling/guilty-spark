@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { ComponentLoader, ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import { ErrorState } from "../../components/error-state/error-state";
 import { LoadingState } from "../../components/loading-state/loading-state";
-import { DiscordSeriesStats } from "../../components/discord-series-stats/create";
+import { createDiscordSeriesStats } from "../../components/discord-series-stats/create";
 import type { DiscordSeriesStatsService } from "../../services/stats/discord-series-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import { DiscordSeriesStatsPresenter } from "./discord-series-stats-presenter";
@@ -30,6 +30,10 @@ function DiscordSeriesStatsData({
   guildId,
   queueNumber,
 }: DiscordSeriesStatsDataProps): ReactElement {
+  const DiscordSeriesStats = useMemo(
+    () => createDiscordSeriesStats({ matchAnalyticsService }),
+    [matchAnalyticsService],
+  );
   const store = useMemo(() => new DiscordSeriesStatsStore(), []);
 
   const presenter = useMemo(() => {
@@ -71,7 +75,7 @@ function DiscordSeriesStatsData({
       error={<ErrorState message={model.state === "error" ? model.message : "Failed to load stats"} />}
       loaded={
         model.state === "resolved" ? (
-          <DiscordSeriesStats data={model.data} matchAnalyticsService={matchAnalyticsService} />
+          <DiscordSeriesStats data={model.data} />
         ) : model.state === "pending-index" ? (
           <LoadingState
             text={`Stats are still indexing. Retry in ${Math.ceil(model.retryAfterSeconds).toString()}s.`}
