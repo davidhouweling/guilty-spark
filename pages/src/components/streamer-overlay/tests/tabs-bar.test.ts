@@ -34,6 +34,15 @@ describe("tabs-bar width behavior", () => {
     expect(getOverlayTabDisplayLimit(120, tabs)).toBe(1);
   });
 
+  it("accounts for series tab width when series tab is not first in the list", () => {
+    const tabs: readonly OverlayTab[] = [aMatchTabWith(0), aMatchTabWith(1), aSeriesTabWith()];
+
+    // containerWidth 168: with match-first ordering a naive walk yields limit=2 (80+84=164≤168),
+    // but the visible set would include the wider series tab (100px) causing overflow.
+    // Sorting widths descending (100 first) gives limit=1, preventing that overflow.
+    expect(getOverlayTabDisplayLimit(168, tabs)).toBe(1);
+  });
+
   it("keeps series summary and newest tabs when overflowing", () => {
     const tabs: readonly OverlayTab[] = [
       aSeriesTabWith(),
@@ -52,6 +61,25 @@ describe("tabs-bar width behavior", () => {
     });
 
     expect(visibleTabs.map((tab) => tab.index)).toEqual([-1, 2, 3, 4]);
+  });
+
+  it("keeps series summary tab when it is not first and tabs are overflowing", () => {
+    const tabs: readonly OverlayTab[] = [
+      aMatchTabWith(0),
+      aMatchTabWith(1),
+      aMatchTabWith(2),
+      aMatchTabWith(3),
+      aSeriesTabWith(),
+    ];
+
+    const visibleTabs = getVisibleTabsForWidth({
+      tabs,
+      displayLimit: 3,
+      activeTabIndex: undefined,
+      selectedTab: -99,
+    });
+
+    expect(visibleTabs.map((tab) => tab.index)).toEqual([2, 3, -1]);
   });
 
   it("preserves active and selected tabs when overflowing", () => {

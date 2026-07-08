@@ -58,11 +58,16 @@ export function getOverlayTabDisplayLimit(containerWidth: number, tabs: readonly
     return 1;
   }
 
+  // Sort widths descending so the wider series tab (if present) is counted first,
+  // keeping the limit conservative regardless of where the series tab sits in the list.
+  const tabWidths = tabs
+    .map((tab) => (tab.type === "series" ? MIN_SERIES_TAB_WIDTH : MIN_MATCH_TAB_WIDTH))
+    .sort((a, b) => b - a);
+
   let usedWidth = 0;
   let visibleCount = 0;
 
-  for (const tab of tabs) {
-    const tabWidth = tab.type === "series" ? MIN_SERIES_TAB_WIDTH : MIN_MATCH_TAB_WIDTH;
+  for (const tabWidth of tabWidths) {
     const nextWidth = usedWidth + tabWidth + (visibleCount > 0 ? TAB_GAP_WIDTH : 0);
 
     if (nextWidth > containerWidth) {
@@ -90,7 +95,7 @@ export function getVisibleTabsForWidth(options: GetVisibleTabsOptions): readonly
     return tabs;
   }
 
-  const summaryPosition = tabs[0]?.type === "series" ? 0 : undefined;
+  const summaryPosition = tabs.findIndex((tab) => tab.type === "series");
   const activePosition = activeTabIndex == null ? undefined : tabs.findIndex((tab) => tab.index === activeTabIndex);
   const selectedPosition = tabs.findIndex((tab) => tab.index === selectedTab);
 
