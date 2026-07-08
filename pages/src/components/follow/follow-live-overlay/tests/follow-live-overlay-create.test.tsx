@@ -16,28 +16,30 @@ import { createFollowLiveOverlay } from "../create";
 let mockOverlayInstanceCount = 0;
 
 vi.mock("../../../individual-tracker/overlay/create", () => ({
-  IndividualTrackerOverlayPage: ({
-    trackerId,
-    externalView,
-    showPreview,
-    previewMode,
-  }: {
-    trackerId: string;
-    externalView?: TrackerViewState;
-    showPreview?: boolean;
-    previewMode?: "player" | "observer";
-  }): React.ReactElement => {
-    const [instanceId] = React.useState(() => {
-      mockOverlayInstanceCount += 1;
-      return mockOverlayInstanceCount;
-    });
+  createIndividualTrackerOverlayPage: () => {
+    return function MockIndividualTrackerOverlayPage({
+      trackerId,
+      externalView,
+      showPreview,
+      previewMode,
+    }: {
+      trackerId: string;
+      externalView?: TrackerViewState;
+      showPreview?: boolean;
+      previewMode?: "player" | "observer";
+    }): React.ReactElement {
+      const [instanceId] = React.useState(() => {
+        mockOverlayInstanceCount += 1;
+        return mockOverlayInstanceCount;
+      });
 
-    return (
-      <div data-testid="mock-overlay-page" data-instance-id={instanceId.toString()}>
-        {`${trackerId}:${String(showPreview)}:${previewMode ?? "observer"}`}
-        <span data-testid="mock-overlay-external-view-tracker-id">{externalView?.trackerId ?? "none"}</span>
-      </div>
-    );
+      return (
+        <div data-testid="mock-overlay-page" data-instance-id={instanceId.toString()}>
+          {`${trackerId}:${String(showPreview)}:${previewMode ?? "observer"}`}
+          <span data-testid="mock-overlay-external-view-tracker-id">{externalView?.trackerId ?? "none"}</span>
+        </div>
+      );
+    };
   },
 }));
 

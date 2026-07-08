@@ -13,29 +13,33 @@ import { IndividualTrackerOverlayPresenter } from "./individual-tracker-overlay-
 import { OverlayPagePresenter } from "./overlay-page-presenter";
 import { OverlayPageStore } from "./overlay-page-store";
 
-interface IndividualTrackerOverlayPageProps {
+export interface CreateIndividualTrackerOverlayPageConfig {
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
+}
+
+export interface IndividualTrackerOverlayPageProps {
   readonly trackerId: string;
   readonly externalView?: TrackerViewState;
   readonly showPreview?: boolean;
   readonly previewMode?: "player" | "observer";
 }
 
-export function IndividualTrackerOverlayPage({
-  individualTrackerViewService,
-  matchAnalyticsService,
-  seriesMatchesService,
-  haloClient,
+interface IndividualTrackerOverlayPageInternalProps extends IndividualTrackerOverlayPageProps {
+  readonly config: CreateIndividualTrackerOverlayPageConfig;
+}
+
+function IndividualTrackerOverlayPageInternal({
+  config,
   trackerId,
   externalView,
   showPreview = false,
   previewMode = "observer",
-}: IndividualTrackerOverlayPageProps): React.ReactElement {
-  const store = useMemo(() => new OverlayPageStore(), [trackerId]);
-
+}: IndividualTrackerOverlayPageInternalProps): React.ReactElement {
+  const { individualTrackerViewService, matchAnalyticsService, seriesMatchesService, haloClient } = config;
+  const store = useMemo(() => new OverlayPageStore(), []);
   const presenter = useMemo(
     () =>
       new OverlayPagePresenter({
@@ -56,11 +60,14 @@ export function IndividualTrackerOverlayPage({
   });
 
   useEffect(() => {
-    presenter.reset();
     return (): void => {
       presenter.dispose();
     };
   }, [presenter]);
+
+  useEffect(() => {
+    presenter.reset();
+  }, [presenter, trackerId]);
 
   useEffect(() => {
     if (model.renderModel == null) {
@@ -171,4 +178,14 @@ export function IndividualTrackerOverlayPage({
       }
     />
   );
+}
+
+export function createIndividualTrackerOverlayPage(
+  config: CreateIndividualTrackerOverlayPageConfig,
+): (props: IndividualTrackerOverlayPageProps) => React.ReactElement {
+  const Component = (props: IndividualTrackerOverlayPageProps): React.ReactElement => (
+    <IndividualTrackerOverlayPageInternal {...props} config={config} />
+  );
+
+  return Component;
 }
