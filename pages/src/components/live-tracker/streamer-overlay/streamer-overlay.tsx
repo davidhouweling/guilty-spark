@@ -21,7 +21,7 @@ import {
 import type { LiveTrackerNeatQueueStateRenderModel } from "../types";
 import { TopSection } from "../../streamer-overlay/top-section";
 import { TeamDetailsContent } from "../../streamer-overlay/team-details-content";
-import { StreamerOverlay as SharedStreamerOverlay } from "../../streamer-overlay/streamer-overlay";
+import { createStreamerOverlaySection } from "../../streamer-overlay/create";
 import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
 import { StatsPanelContent } from "./stats-panel";
 import styles from "./streamer-overlay.module.css";
@@ -70,6 +70,8 @@ function NeatQueueStreamerOverlay({
   settings,
   settingsUi,
 }: NeatQueueStreamerOverlayProps): React.ReactElement {
+  const SharedStreamerOverlay = useMemo(() => createStreamerOverlaySection(), []);
+
   const allMatchStats = useAllMatchStats();
   const seriesStats = useSeriesStats();
   const allMatchKillMatrix = useAllMatchKillMatrix();
