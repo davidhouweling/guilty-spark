@@ -1,6 +1,10 @@
-import React, { memo } from "react";
+import React, { memo, useLayoutEffect, useMemo, useRef, useState } from "react";
 import classNames from "classnames";
 import styles from "./streamer-overlay.module.css";
+
+const MIN_MATCH_TAB_WIDTH = 80;
+const MIN_SERIES_TAB_WIDTH = 100;
+const TAB_GAP_WIDTH = 4;
 
 interface SeriesTab {
   readonly type: "series";
@@ -43,6 +47,77 @@ interface TabButtonProps {
   readonly isActive: boolean;
   readonly isSelected: boolean;
   readonly onTabClick: (tabIndex: number) => void;
+}
+
+export function getOverlayTabDisplayLimit(containerWidth: number, tabs: readonly OverlayTab[]): number {
+  if (tabs.length === 0) {
+    return 0;
+  }
+
+  if (containerWidth <= 0) {
+    return 1;
+  }
+
+  // Sort widths descending so the wider series tab (if present) is counted first,
+  // keeping the limit conservative regardless of where the series tab sits in the list.
+  const tabWidths = tabs
+    .map((tab) => (tab.type === "series" ? MIN_SERIES_TAB_WIDTH : MIN_MATCH_TAB_WIDTH))
+    .sort((a, b) => b - a);
+
+  let usedWidth = 0;
+  let visibleCount = 0;
+
+  for (const tabWidth of tabWidths) {
+    const nextWidth = usedWidth + tabWidth + (visibleCount > 0 ? TAB_GAP_WIDTH : 0);
+
+    if (nextWidth > containerWidth) {
+      break;
+    }
+
+    usedWidth = nextWidth;
+    visibleCount += 1;
+  }
+
+  return Math.max(1, visibleCount);
+}
+
+interface GetVisibleTabsOptions {
+  readonly tabs: readonly OverlayTab[];
+  readonly displayLimit: number;
+  readonly activeTabIndex: number | undefined;
+  readonly selectedTab: number;
+}
+
+export function getVisibleTabsForWidth(options: GetVisibleTabsOptions): readonly OverlayTab[] {
+  const { tabs, displayLimit, activeTabIndex, selectedTab } = options;
+
+  if (tabs.length <= displayLimit) {
+    return tabs;
+  }
+
+  const summaryPosition = tabs.findIndex((tab) => tab.type === "series");
+  const activePosition = activeTabIndex == null ? undefined : tabs.findIndex((tab) => tab.index === activeTabIndex);
+  const selectedPosition = tabs.findIndex((tab) => tab.index === selectedTab);
+
+  const rawPriorityPositions = [activePosition, selectedPosition, summaryPosition].filter(
+    (position): position is number => position != null && position >= 0,
+  );
+  const uniquePriorityPositions = Array.from(new Set(rawPriorityPositions));
+
+  if (uniquePriorityPositions.length >= displayLimit) {
+    const clampedPriorityPositions = uniquePriorityPositions.slice(0, displayLimit);
+    const clampedPositionSet = new Set(clampedPriorityPositions);
+
+    return tabs.filter((_tab, position) => clampedPositionSet.has(position));
+  }
+
+  const includedPositions = new Set(uniquePriorityPositions);
+
+  for (let position = tabs.length - 1; position >= 0 && includedPositions.size < displayLimit; position -= 1) {
+    includedPositions.add(position);
+  }
+
+  return tabs.filter((_tab, position) => includedPositions.has(position));
 }
 
 const TabButton = memo(({ tab, isActive, isSelected, onTabClick }: TabButtonProps): React.ReactElement => {
@@ -105,9 +180,50 @@ function OverlayTabsBarComponent({
   isPanelOpen,
   onTabClick,
 }: OverlayTabsBarProps): React.ReactElement {
+  const tabBarRef = useRef<HTMLDivElement | null>(null);
+  const [tabDisplayLimit, setTabDisplayLimit] = useState<number>(tabs.length);
+
+  useLayoutEffect(() => {
+    const tabBarNode = tabBarRef.current;
+    if (tabBarNode == null) {
+      return;
+    }
+
+    const recalculateTabDisplayLimit = (): void => {
+      const nextLimit = getOverlayTabDisplayLimit(tabBarNode.clientWidth, tabs);
+      setTabDisplayLimit((previousLimit) => (previousLimit === nextLimit ? previousLimit : nextLimit));
+    };
+
+    recalculateTabDisplayLimit();
+
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      recalculateTabDisplayLimit();
+    });
+    resizeObserver.observe(tabBarNode);
+
+    return (): void => {
+      resizeObserver.disconnect();
+    };
+  }, [tabs]);
+
+  const visibleTabs = useMemo(
+    () =>
+      getVisibleTabsForWidth({
+        tabs,
+        displayLimit: tabDisplayLimit,
+        activeTabIndex,
+        selectedTab,
+      }),
+    [activeTabIndex, selectedTab, tabDisplayLimit, tabs],
+  );
+
   return (
-    <div className={styles.tabBar}>
-      {tabs.map((tab) => {
+    <div ref={tabBarRef} className={styles.tabBar}>
+      {visibleTabs.map((tab) => {
         const tabIndex = tab.index;
         const tabKey = tab.type === "series" ? `series-${tab.seriesId}` : tab.matchId;
         const isActive = activeTabIndex === tabIndex;
