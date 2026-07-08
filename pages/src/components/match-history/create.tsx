@@ -85,8 +85,8 @@ function MatchHistorySectionInternal({
   );
 }
 
-export function createMatchHistorySection(): (props: MatchHistorySectionProps) => React.JSX.Element {
-  const Component = (props: MatchHistorySectionProps): React.JSX.Element => <MatchHistorySectionInternal {...props} />;
+export function createMatchHistorySection(): (props: MatchHistorySectionProps) => React.ReactElement {
+  const Component = (props: MatchHistorySectionProps): React.ReactElement => <MatchHistorySectionInternal {...props} />;
 
   return Component;
 }
