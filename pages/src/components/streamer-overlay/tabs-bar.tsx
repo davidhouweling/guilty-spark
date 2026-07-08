@@ -94,7 +94,7 @@ export function getVisibleTabsForWidth(options: GetVisibleTabsOptions): readonly
   const activePosition = activeTabIndex == null ? undefined : tabs.findIndex((tab) => tab.index === activeTabIndex);
   const selectedPosition = tabs.findIndex((tab) => tab.index === selectedTab);
 
-  const priorityPositions = [selectedPosition, activePosition, summaryPosition].filter(
+  const priorityPositions = [activePosition, selectedPosition, summaryPosition].filter(
     (position): position is number => position != null && position >= 0,
   );
 
