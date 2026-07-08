@@ -23,8 +23,7 @@ interface TabbedSectionNavigationProps<TId extends string> extends TabbedSection
 }
 
 type TabbedSectionComponentProps<TId extends string> =
-  | TabbedSectionSectionProps<TId>
-  | TabbedSectionNavigationProps<TId>;
+  TabbedSectionSectionProps<TId> | TabbedSectionNavigationProps<TId>;
 
 export function TabbedSection<TId extends string>({
   tabs,

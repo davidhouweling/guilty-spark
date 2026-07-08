@@ -16,10 +16,7 @@ export type ButtonInteractionData = Pick<APIMessageComponentButtonInteraction, "
 export type ModalSubmitInteractionData = Pick<APIModalSubmitInteraction, "type" | "data">;
 export type StringSelectInteractionData = Pick<APIMessageComponentSelectMenuInteraction, "type" | "data">;
 export type CommandData =
-  | ApplicationCommandData
-  | ButtonInteractionData
-  | ModalSubmitInteractionData
-  | StringSelectInteractionData;
+  ApplicationCommandData | ButtonInteractionData | ModalSubmitInteractionData | StringSelectInteractionData;
 export type BaseInteraction =
   | APIApplicationCommandInteraction
   | APIMessageComponentButtonInteraction
@@ -303,9 +300,7 @@ export abstract class BaseCommand {
   protected executeComponentHandler(
     handler: ComponentHandlerDefinition<ComponentType | InteractionType>,
     interaction:
-      | APIMessageComponentButtonInteraction
-      | APIModalSubmitInteraction
-      | APIMessageComponentSelectMenuInteraction,
+      APIMessageComponentButtonInteraction | APIModalSubmitInteraction | APIMessageComponentSelectMenuInteraction,
   ): ExecuteResponse {
     // Handler map guarantees type compatibility at runtime
     const result = handler.handler(interaction);

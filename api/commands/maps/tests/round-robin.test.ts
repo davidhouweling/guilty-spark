@@ -249,8 +249,7 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
     const pool = createHcsPool();
 
     const formatSequence = ["objective", "objective", "objective", "objective", "objective"] as (
-      | "slayer"
-      | "objective"
+      "slayer" | "objective"
     )[];
 
     const ourResults = Array.from({ length: 20 }, (_, i) => {

@@ -104,12 +104,7 @@ export interface StartSeriesResponse {
 export type { TrackerState, TrackerStatus };
 
 export type IndividualTrackerConnectionStatus =
-  | "connecting"
-  | "connected"
-  | "stopped"
-  | "error"
-  | "disconnected"
-  | "not_found";
+  "connecting" | "connected" | "stopped" | "error" | "disconnected" | "not_found";
 
 export interface IndividualTrackerSubscription {
   unsubscribe(): void;

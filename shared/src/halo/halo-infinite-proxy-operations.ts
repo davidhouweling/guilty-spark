@@ -43,8 +43,7 @@ export function appendHaloProxyArgsToUrl(url: URL, args: readonly unknown[]): vo
 }
 
 export type ParseHaloProxyArgsResult =
-  | { readonly ok: true; readonly args: unknown[] }
-  | { readonly ok: false; readonly error: string };
+  { readonly ok: true; readonly args: unknown[] } | { readonly ok: false; readonly error: string };
 
 export function parseHaloProxyArgsFromUrl(url: URL): ParseHaloProxyArgsResult {
   const rawArgs = url.searchParams.getAll("arg");

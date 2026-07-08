@@ -66,9 +66,8 @@ describe("IndividualTrackerOverlayPage", () => {
       }),
     });
 
-    const getMatchStats = vi.fn(
-      async (): Promise<ReturnType<typeof aFakeMatchStatsWith>> =>
-        Promise.resolve(aFakeMatchStatsWith({ MatchId: "match-1" })),
+    const getMatchStats = vi.fn(async (): Promise<ReturnType<typeof aFakeMatchStatsWith>> =>
+      Promise.resolve(aFakeMatchStatsWith({ MatchId: "match-1" })),
     );
     const getUsers = vi.fn(async (xuids: string[]) =>
       Promise.resolve(
@@ -161,9 +160,8 @@ describe("IndividualTrackerOverlayPage", () => {
       }),
     });
 
-    const getMatchStats = vi.fn(
-      async (): Promise<ReturnType<typeof aFakeMatchStatsWith>> =>
-        Promise.resolve(aFakeMatchStatsWith({ MatchId: "match-1" })),
+    const getMatchStats = vi.fn(async (): Promise<ReturnType<typeof aFakeMatchStatsWith>> =>
+      Promise.resolve(aFakeMatchStatsWith({ MatchId: "match-1" })),
     );
     const haloClient = aFakeHaloClientWith({ getMatchStats });
     const IndividualTrackerOverlayPage = createIndividualTrackerOverlayPage({
@@ -210,9 +208,8 @@ describe("IndividualTrackerOverlayPage", () => {
         matches: [aFakeTrackerMatchSummaryWith({ matchId: "match-1" })],
       }),
     });
-    const getMatchStats = vi.fn(
-      async (): Promise<ReturnType<typeof aFakeMatchStatsWith>> =>
-        Promise.resolve(aFakeMatchStatsWith({ MatchId: "match-1" })),
+    const getMatchStats = vi.fn(async (): Promise<ReturnType<typeof aFakeMatchStatsWith>> =>
+      Promise.resolve(aFakeMatchStatsWith({ MatchId: "match-1" })),
     );
     const haloClient = aFakeHaloClientWith({ getMatchStats });
     const IndividualTrackerOverlayPage = createIndividualTrackerOverlayPage({

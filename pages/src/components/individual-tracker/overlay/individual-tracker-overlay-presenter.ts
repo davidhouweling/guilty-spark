@@ -194,17 +194,15 @@ export class IndividualTrackerOverlayPresenter {
   ): readonly OverlayTab[] {
     const activeSeries = activeSeriesOverride ?? this.getActiveSeries(timeline);
     if (activeSeries != null) {
-      const matchTabs = activeSeries.matches.map(
-        (match, index): OverlayTab => ({
-          type: "match",
-          index,
-          matchId: match.matchId,
-          label: match.mapName,
-          score: match.score,
-          icon: gameModeIconSrc(match.gameVariantCategory),
-          teamColor: match.colorHex,
-        }),
-      );
+      const matchTabs = activeSeries.matches.map((match, index): OverlayTab => ({
+        type: "match",
+        index,
+        matchId: match.matchId,
+        label: match.mapName,
+        score: match.score,
+        icon: gameModeIconSrc(match.gameVariantCategory),
+        teamColor: match.colorHex,
+      }));
 
       if (!options.includeInSeriesSummaryTab) {
         return matchTabs;

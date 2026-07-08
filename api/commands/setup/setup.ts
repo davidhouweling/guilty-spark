@@ -584,8 +584,7 @@ export class SetupCommand extends BaseCommand {
           const step = this.getWizardStep(formData);
           const stepData = Preconditions.checkExists(wizardSteps[step]);
           const data = interaction.data as
-            | APIMessageStringSelectInteractionData
-            | APIMessageChannelSelectInteractionData;
+            APIMessageStringSelectInteractionData | APIMessageChannelSelectInteractionData;
           formData.set(stepData.key, Preconditions.checkExists(data.values[0]));
 
           return undefined;

@@ -7,12 +7,7 @@ export interface LiveTrackerSubscription {
 }
 
 export type LiveTrackerConnectionStatus =
-  | "connecting"
-  | "connected"
-  | "stopped"
-  | "error"
-  | "disconnected"
-  | "not_found";
+  "connecting" | "connected" | "stopped" | "error" | "disconnected" | "not_found";
 
 export type LiveTrackerStatusListener = (status: LiveTrackerConnectionStatus, detail?: string) => void;
 
