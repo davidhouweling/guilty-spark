@@ -160,18 +160,23 @@ function IndividualTrackerManagerPageInternal({
 export function createIndividualTrackerManagerPage(
   config: CreateIndividualTrackerManagerPageConfig,
 ): () => React.ReactElement {
-  const { controller: liveTrackersController, Component: LiveTrackersComponent } = createLiveTrackersSection({
-    individualTrackerService: config.individualTrackerService,
-    individualTrackerViewService: config.individualTrackerViewService,
-    navigateTo: (url): void => {
-      window.location.assign(url);
-    },
-    confirmDelete: (message): boolean => window.confirm(message),
-  });
-
   const Component = (): React.ReactElement => {
     const store = useMemo(() => new IndividualTrackerStore(), []);
     const settingsStore = useMemo(() => new StreamerSettingsStore(), []);
+
+    const { controller: liveTrackersController, Component: LiveTrackersComponent } = useMemo(
+      () =>
+        createLiveTrackersSection({
+          individualTrackerService: config.individualTrackerService,
+          individualTrackerViewService: config.individualTrackerViewService,
+          navigateTo: (url): void => {
+            window.location.assign(url);
+          },
+          confirmDelete: (message): boolean => window.confirm(message),
+        }),
+      [],
+    );
+
     const settingsPresenter = useMemo(
       () => new StreamerSettingsPresenter({ settingsService: config.settingsService, store: settingsStore }),
       [settingsStore],
@@ -184,7 +189,7 @@ export function createIndividualTrackerManagerPage(
           store,
           liveTrackersController,
         }),
-      [store],
+      [store, liveTrackersController],
     );
 
     return (
