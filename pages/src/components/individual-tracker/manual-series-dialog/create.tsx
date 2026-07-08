@@ -8,7 +8,7 @@ import { ManualSeriesDialog } from "./manual-series-dialog";
 
 export interface CreateManualSeriesDialogSectionConfig {
   readonly individualTrackerService: IndividualTrackerService;
-  readonly viewService: IndividualTrackerViewService;
+  readonly individualTrackerViewService: IndividualTrackerViewService;
 }
 
 export interface ManualSeriesDialogSectionProps {
@@ -40,7 +40,7 @@ function ManualSeriesDialogSectionInternal({
   const onSeriesEditedRef = useRef(onSeriesEdited);
   onSeriesEditedRef.current = onSeriesEdited;
 
-  const { individualTrackerService, viewService } = config;
+  const { individualTrackerService, individualTrackerViewService } = config;
 
   const store = useMemo(() => new ManualSeriesDialogStore(initialData), []);
   const presenter = useMemo(
@@ -49,7 +49,7 @@ function ManualSeriesDialogSectionInternal({
         trackerId,
         store,
         individualTrackerService,
-        individualTrackerViewService: viewService,
+        individualTrackerViewService,
         onSeriesStarted: (): void => {
           onSeriesStartedRef.current();
         },
@@ -57,7 +57,7 @@ function ManualSeriesDialogSectionInternal({
           onSeriesEditedRef.current?.();
         },
       }),
-    [trackerId, store, individualTrackerService, viewService],
+    [trackerId, store, individualTrackerService, individualTrackerViewService],
   );
 
   useEffect(() => {

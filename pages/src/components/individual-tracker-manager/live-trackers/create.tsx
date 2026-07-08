@@ -38,7 +38,7 @@ function LiveTrackersSectionInternal({
     () =>
       createManualSeriesDialogSection({
         individualTrackerService,
-        viewService: individualTrackerViewService,
+        individualTrackerViewService,
       }),
     [individualTrackerService, individualTrackerViewService],
   );
