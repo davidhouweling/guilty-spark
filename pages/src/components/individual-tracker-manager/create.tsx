@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useSyncExternalStore } from "react";
+import React, { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { AuthService } from "../../services/auth/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
@@ -169,27 +169,33 @@ export function createIndividualTrackerManagerPage(
     confirmDelete: (message): boolean => window.confirm(message),
   });
 
-  const store = new IndividualTrackerStore();
-  const settingsStore = new StreamerSettingsStore();
-  const settingsPresenter = new StreamerSettingsPresenter({
-    settingsService: config.settingsService,
-    store: settingsStore,
-  });
-  const presenter = new IndividualTrackerPresenter({
-    authService: config.authService,
-    settingsService: config.settingsService,
-    store,
-    liveTrackersController,
-  });
+  const Component = (): React.ReactElement => {
+    const store = useMemo(() => new IndividualTrackerStore(), []);
+    const settingsStore = useMemo(() => new StreamerSettingsStore(), []);
+    const settingsPresenter = useMemo(
+      () => new StreamerSettingsPresenter({ settingsService: config.settingsService, store: settingsStore }),
+      [settingsStore],
+    );
+    const presenter = useMemo(
+      () =>
+        new IndividualTrackerPresenter({
+          authService: config.authService,
+          settingsService: config.settingsService,
+          store,
+          liveTrackersController,
+        }),
+      [store],
+    );
 
-  const Component = (): React.ReactElement => (
-    <IndividualTrackerManagerPageInternal
-      presenter={presenter}
-      settingsPresenter={settingsPresenter}
-      settingsStore={settingsStore}
-      LiveTrackersComponent={LiveTrackersComponent}
-    />
-  );
+    return (
+      <IndividualTrackerManagerPageInternal
+        presenter={presenter}
+        settingsPresenter={settingsPresenter}
+        settingsStore={settingsStore}
+        LiveTrackersComponent={LiveTrackersComponent}
+      />
+    );
+  };
 
   return Component;
 }
