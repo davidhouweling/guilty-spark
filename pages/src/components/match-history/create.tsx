@@ -5,7 +5,7 @@ import { MatchHistoryPresenter } from "./match-history-presenter";
 import { MatchHistoryStore } from "./match-history-store";
 import { MatchHistory } from "./match-history";
 
-interface MatchHistorySectionProps {
+export interface MatchHistorySectionProps {
   readonly entries: readonly TrackerMatchHistoryEntry[] | null;
   readonly loadingCount?: number;
   readonly showGroupings?: boolean;
@@ -26,7 +26,7 @@ interface MatchHistorySectionProps {
   readonly onSeriesGroupSubtitleChange?: (groupIndex: number, value: string | null) => void;
 }
 
-export function MatchHistorySection({
+function MatchHistorySectionInternal({
   entries,
   loadingCount,
   showGroupings = false,
@@ -83,4 +83,10 @@ export function MatchHistorySection({
       model={model}
     />
   );
+}
+
+export function createMatchHistorySection(): (props: MatchHistorySectionProps) => React.ReactElement {
+  const Component = (props: MatchHistorySectionProps): React.ReactElement => <MatchHistorySectionInternal {...props} />;
+
+  return Component;
 }

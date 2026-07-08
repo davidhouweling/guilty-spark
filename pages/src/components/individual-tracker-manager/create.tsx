@@ -7,7 +7,7 @@ import { IndividualTrackerPresenter } from "./individual-tracker-presenter";
 import { IndividualTrackerStore } from "./individual-tracker-store";
 import { IndividualTrackerShell } from "./individual-tracker";
 import { createLiveTrackersSection } from "./live-trackers/create";
-import { StatsHighlightsSection } from "./stats-highlights/create";
+import { createStatsHighlightsSection } from "./stats-highlights/create";
 import { StreamerSettingsPresenter } from "./streamer-settings/streamer-settings-presenter";
 import { StreamerSettingsSectionView } from "./streamer-settings/streamer-settings";
 import { StreamerSettingsStore } from "./streamer-settings/streamer-settings-store";
@@ -24,6 +24,7 @@ interface IndividualTrackerManagerPageInternalProps {
   readonly settingsPresenter: StreamerSettingsPresenter;
   readonly settingsStore: StreamerSettingsStore;
   readonly LiveTrackersComponent: () => React.ReactElement;
+  readonly StatsHighlightsSection: ReturnType<typeof createStatsHighlightsSection>;
 }
 
 function IndividualTrackerManagerPageInternal({
@@ -31,6 +32,7 @@ function IndividualTrackerManagerPageInternal({
   settingsPresenter,
   settingsStore,
   LiveTrackersComponent,
+  StatsHighlightsSection,
 }: IndividualTrackerManagerPageInternalProps): React.ReactElement {
   useEffect(() => {
     presenter.start();
@@ -163,6 +165,7 @@ export function createIndividualTrackerManagerPage(
   const Component = (): React.ReactElement => {
     const store = useMemo(() => new IndividualTrackerStore(), []);
     const settingsStore = useMemo(() => new StreamerSettingsStore(), []);
+    const StatsHighlightsSection = useMemo(() => createStatsHighlightsSection(), []);
 
     const { controller: liveTrackersController, Component: LiveTrackersComponent } = useMemo(
       () =>
@@ -198,6 +201,7 @@ export function createIndividualTrackerManagerPage(
         settingsPresenter={settingsPresenter}
         settingsStore={settingsStore}
         LiveTrackersComponent={LiveTrackersComponent}
+        StatsHighlightsSection={StatsHighlightsSection}
       />
     );
   };

@@ -6,7 +6,7 @@ import { Button } from "../../button/button";
 import { Checkbox } from "../../checkbox/checkbox";
 import { Dialog } from "../../dialog/dialog";
 import { LoadingState } from "../../loading-state/loading-state";
-import { MatchHistorySection } from "../../match-history/create";
+import { createMatchHistorySection } from "../../match-history/create";
 import styles from "./game-selection-dialog.module.css";
 
 export interface GameSelectionDialogProps {
@@ -58,6 +58,8 @@ export function GameSelectionDialog({
   onHideShortGamesChange,
   onLoadMore,
 }: GameSelectionDialogProps): React.ReactElement | null {
+  const MatchHistorySection = React.useMemo(() => createMatchHistorySection(), []);
+
   if (!isOpen) {
     return null;
   }

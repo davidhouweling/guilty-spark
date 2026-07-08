@@ -4,7 +4,7 @@ import { StatsHighlightsSectionStore } from "./stats-highlights-store";
 import { StatsHighlightsSectionView } from "./stats-highlights";
 import type { StatsHighlightsSectionProps } from "./types";
 
-export function StatsHighlightsSection({
+function StatsHighlightsSectionInternal({
   statsHighlightSlots,
   saveStatus,
   saveErrorMessage,
@@ -56,4 +56,12 @@ export function StatsHighlightsSection({
       }}
     />
   );
+}
+
+export function createStatsHighlightsSection(): (props: StatsHighlightsSectionProps) => React.ReactElement {
+  const Component = (props: StatsHighlightsSectionProps): React.ReactElement => (
+    <StatsHighlightsSectionInternal {...props} />
+  );
+
+  return Component;
 }
