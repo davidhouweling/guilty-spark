@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { ComponentLoader, ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import { ErrorState } from "../../components/error-state/error-state";
 import { LoadingState } from "../../components/loading-state/loading-state";
-import { IndividualTrackerOverlayPage } from "../../components/individual-tracker/overlay/create";
+import { createIndividualTrackerOverlayPage } from "../../components/individual-tracker/overlay/create";
 import type { Services } from "../individual-tracker-viewer/services";
 import { installServices } from "../individual-tracker-viewer/services";
 
@@ -15,6 +15,18 @@ interface IndividualTrackerOverlayAppProps {
 export function IndividualTrackerOverlayApp({ apiHost, trackerId }: IndividualTrackerOverlayAppProps): ReactElement {
   const [state, setState] = useState(ComponentLoaderStatus.PENDING);
   const [services, setServices] = useState<Services | null>(null);
+  const IndividualTrackerOverlayPage = useMemo(
+    () =>
+      services == null
+        ? null
+        : createIndividualTrackerOverlayPage({
+            individualTrackerViewService: services.individualTrackerViewService,
+            matchAnalyticsService: services.matchAnalyticsService,
+            seriesMatchesService: services.seriesMatchesService,
+            haloClient: services.haloClient,
+          }),
+    [services],
+  );
 
   useEffect(() => {
     if (trackerId === "") {
@@ -59,14 +71,8 @@ export function IndividualTrackerOverlayApp({ apiHost, trackerId }: IndividualTr
       loading={<LoadingState text="Loading tracker..." />}
       error={<ErrorState message="Failed to load tracker" />}
       loaded={
-        services ? (
-          <IndividualTrackerOverlayPage
-            individualTrackerViewService={services.individualTrackerViewService}
-            matchAnalyticsService={services.matchAnalyticsService}
-            seriesMatchesService={services.seriesMatchesService}
-            haloClient={services.haloClient}
-            trackerId={trackerId}
-          />
+        IndividualTrackerOverlayPage != null ? (
+          <IndividualTrackerOverlayPage trackerId={trackerId} />
         ) : (
           <ErrorState message="Services failed to load" />
         )

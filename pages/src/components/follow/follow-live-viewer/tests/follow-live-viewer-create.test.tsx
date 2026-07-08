@@ -16,35 +16,37 @@ import { createFollowLiveViewer } from "../create";
 let mockViewerInstanceCount = 0;
 
 vi.mock("../../../individual-tracker/viewer/create", () => ({
-  IndividualTrackerViewerPage: ({
-    trackerId,
-    streamerSettings,
-    externalView,
-    connectionStatusOverride,
-  }: {
-    trackerId: string;
-    streamerSettings?: TrackerDirectory["streamerSettings"];
-    externalView?: TrackerViewState;
-    connectionStatusOverride?: string;
-  }): React.ReactElement => {
-    const [instanceId] = React.useState(() => {
-      mockViewerInstanceCount += 1;
-      return mockViewerInstanceCount;
-    });
+  createIndividualTrackerViewerPage: () => {
+    return function MockIndividualTrackerViewerPage({
+      trackerId,
+      streamerSettings,
+      externalView,
+      connectionStatusOverride,
+    }: {
+      trackerId: string;
+      streamerSettings?: TrackerDirectory["streamerSettings"];
+      externalView?: TrackerViewState;
+      connectionStatusOverride?: string;
+    }): React.ReactElement {
+      const [instanceId] = React.useState(() => {
+        mockViewerInstanceCount += 1;
+        return mockViewerInstanceCount;
+      });
 
-    return (
-      <div data-testid="mock-viewer" data-instance-id={instanceId.toString()}>
-        {trackerId}
-        <span data-testid="mock-streamer-settings">
-          {streamerSettings?.styleFlags?.matchmakingMyStatsOnly === true ? "true" : "false"}
-        </span>
-        <span data-testid="mock-external-view-tracker-id">{externalView?.trackerId ?? "none"}</span>
-        <span data-testid="mock-external-view-streamer-settings">
-          {externalView?.streamerSettings?.styleFlags?.matchmakingMyStatsOnly === true ? "true" : "false"}
-        </span>
-        <span data-testid="mock-connection-status-override">{connectionStatusOverride ?? "none"}</span>
-      </div>
-    );
+      return (
+        <div data-testid="mock-viewer" data-instance-id={instanceId.toString()}>
+          {trackerId}
+          <span data-testid="mock-streamer-settings">
+            {streamerSettings?.styleFlags?.matchmakingMyStatsOnly === true ? "true" : "false"}
+          </span>
+          <span data-testid="mock-external-view-tracker-id">{externalView?.trackerId ?? "none"}</span>
+          <span data-testid="mock-external-view-streamer-settings">
+            {externalView?.streamerSettings?.styleFlags?.matchmakingMyStatsOnly === true ? "true" : "false"}
+          </span>
+          <span data-testid="mock-connection-status-override">{connectionStatusOverride ?? "none"}</span>
+        </div>
+      );
+    };
   },
 }));
 

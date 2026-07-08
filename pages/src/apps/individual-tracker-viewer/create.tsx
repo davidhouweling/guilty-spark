@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import TimeAgo from "javascript-time-ago";
 import en from "javascript-time-ago/locale/en";
 import { ComponentLoader, ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import { ErrorState } from "../../components/error-state/error-state";
 import { LoadingState } from "../../components/loading-state/loading-state";
-import { IndividualTrackerViewerPage } from "../../components/individual-tracker/viewer/create";
+import { createIndividualTrackerViewerPage } from "../../components/individual-tracker/viewer/create";
 import type { Services } from "./services";
 import { installServices } from "./services";
 
@@ -25,6 +25,19 @@ function redirectToLogin(): void {
 export function IndividualTrackerViewerApp({ apiHost, trackerId }: IndividualTrackerViewerAppProps): ReactElement {
   const [state, setState] = useState(ComponentLoaderStatus.PENDING);
   const [services, setServices] = useState<Services | null>(null);
+  const IndividualTrackerViewerPage = useMemo(
+    () =>
+      services == null
+        ? null
+        : createIndividualTrackerViewerPage({
+            individualTrackerService: services.individualTrackerService,
+            individualTrackerViewService: services.individualTrackerViewService,
+            matchAnalyticsService: services.matchAnalyticsService,
+            seriesMatchesService: services.seriesMatchesService,
+            haloClient: services.haloClient,
+          }),
+    [services],
+  );
 
   useEffect(() => {
     if (trackerId === "") {
@@ -76,16 +89,8 @@ export function IndividualTrackerViewerApp({ apiHost, trackerId }: IndividualTra
       loading={<LoadingState text="Checking current session..." />}
       error={<ErrorState message="Failed to load tracker" />}
       loaded={
-        services ? (
-          <IndividualTrackerViewerPage
-            individualTrackerService={services.individualTrackerService}
-            individualTrackerViewService={services.individualTrackerViewService}
-            matchAnalyticsService={services.matchAnalyticsService}
-            seriesMatchesService={services.seriesMatchesService}
-            haloClient={services.haloClient}
-            trackerId={trackerId}
-            pageTitleVariant="tracker"
-          />
+        IndividualTrackerViewerPage != null ? (
+          <IndividualTrackerViewerPage trackerId={trackerId} pageTitleVariant="tracker" />
         ) : (
           <ErrorState message="Services failed to load" />
         )

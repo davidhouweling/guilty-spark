@@ -13,38 +13,36 @@ import { IndividualTrackerOverlayPresenter } from "./individual-tracker-overlay-
 import { OverlayPagePresenter } from "./overlay-page-presenter";
 import { OverlayPageStore } from "./overlay-page-store";
 
-interface IndividualTrackerOverlayPageProps {
+export interface CreateIndividualTrackerOverlayPageConfig {
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
+}
+
+export interface IndividualTrackerOverlayPageProps {
   readonly trackerId: string;
   readonly externalView?: TrackerViewState;
   readonly showPreview?: boolean;
   readonly previewMode?: "player" | "observer";
 }
 
-export function IndividualTrackerOverlayPage({
-  individualTrackerViewService,
-  matchAnalyticsService,
-  seriesMatchesService,
-  haloClient,
+interface IndividualTrackerOverlayPageInternalProps extends IndividualTrackerOverlayPageProps {
+  readonly config: CreateIndividualTrackerOverlayPageConfig;
+  readonly presenter: OverlayPagePresenter;
+  readonly store: OverlayPageStore;
+}
+
+function IndividualTrackerOverlayPageInternal({
+  config,
+  presenter,
+  store,
   trackerId,
   externalView,
   showPreview = false,
   previewMode = "observer",
-}: IndividualTrackerOverlayPageProps): React.ReactElement {
-  const store = useMemo(() => new OverlayPageStore(), [trackerId]);
-
-  const presenter = useMemo(
-    () =>
-      new OverlayPagePresenter({
-        store,
-        haloClient,
-        matchAnalyticsService,
-      }),
-    [haloClient, matchAnalyticsService, store],
-  );
+}: IndividualTrackerOverlayPageInternalProps): React.ReactElement {
+  const { individualTrackerViewService, matchAnalyticsService, seriesMatchesService, haloClient } = config;
 
   const { snapshot, model, onRetry, onToggleEntry } = useIndividualTrackerViewer({
     individualTrackerViewService,
@@ -56,11 +54,14 @@ export function IndividualTrackerOverlayPage({
   });
 
   useEffect(() => {
-    presenter.reset();
     return (): void => {
       presenter.dispose();
     };
   }, [presenter]);
+
+  useEffect(() => {
+    presenter.reset();
+  }, [presenter, trackerId]);
 
   useEffect(() => {
     if (model.renderModel == null) {
@@ -171,4 +172,21 @@ export function IndividualTrackerOverlayPage({
       }
     />
   );
+}
+
+export function createIndividualTrackerOverlayPage(
+  config: CreateIndividualTrackerOverlayPageConfig,
+): (props: IndividualTrackerOverlayPageProps) => React.ReactElement {
+  const store = new OverlayPageStore();
+  const presenter = new OverlayPagePresenter({
+    store,
+    haloClient: config.haloClient,
+    matchAnalyticsService: config.matchAnalyticsService,
+  });
+
+  const Component = (props: IndividualTrackerOverlayPageProps): React.ReactElement => (
+    <IndividualTrackerOverlayPageInternal {...props} config={config} presenter={presenter} store={store} />
+  );
+
+  return Component;
 }

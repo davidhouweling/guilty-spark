@@ -6,7 +6,7 @@ import type { ComponentLoaderStatus } from "../../component-loader/component-loa
 import { ComponentLoader } from "../../component-loader/component-loader";
 import { ErrorState } from "../../error-state/error-state";
 import { LoadingState } from "../../loading-state/loading-state";
-import { IndividualTrackerViewerPage } from "../../individual-tracker/viewer/create";
+import { createIndividualTrackerViewerPage } from "../../individual-tracker/viewer/create";
 import type {
   IndividualTrackerViewService,
   TrackerViewConnectionStatus,
@@ -50,14 +50,21 @@ export function FollowLiveViewer({
   onSelectTracker,
   onRetry,
 }: FollowLiveViewerProps): React.ReactElement {
+  const IndividualTrackerViewerPage = React.useMemo(
+    () =>
+      createIndividualTrackerViewerPage({
+        individualTrackerViewService,
+        matchAnalyticsService,
+        seriesMatchesService,
+        haloClient,
+      }),
+    [haloClient, individualTrackerViewService, matchAnalyticsService, seriesMatchesService],
+  );
+
   const loadedState =
     resolvedSelectedTrackerId != null ? (
       <IndividualTrackerViewerPage
         key={resolvedSelectedTrackerId}
-        individualTrackerViewService={individualTrackerViewService}
-        matchAnalyticsService={matchAnalyticsService}
-        seriesMatchesService={seriesMatchesService}
-        haloClient={haloClient}
         trackerId={resolvedSelectedTrackerId}
         streamerSettings={selectedTrackerStreamerSettings}
         externalView={selectedTrackerView}

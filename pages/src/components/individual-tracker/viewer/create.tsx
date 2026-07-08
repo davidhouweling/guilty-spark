@@ -15,12 +15,15 @@ import type { SeriesMatchesService } from "../../../services/stats/series-matche
 import { IndividualTrackerViewer } from "./individual-tracker-viewer";
 import { useIndividualTrackerViewer } from "./use-individual-tracker-viewer";
 
-interface IndividualTrackerViewerPageProps {
-  readonly individualTrackerService?: IndividualTrackerService;
+export interface CreateIndividualTrackerViewerPageConfig {
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
+  readonly individualTrackerService?: IndividualTrackerService;
+}
+
+export interface IndividualTrackerViewerPageProps {
   readonly trackerId: string;
   readonly streamerSettings?: StreamerViewSettings;
   readonly externalView?: TrackerViewState;
@@ -28,18 +31,25 @@ interface IndividualTrackerViewerPageProps {
   readonly pageTitleVariant?: "tracker";
 }
 
-export function IndividualTrackerViewerPage({
-  individualTrackerService,
-  individualTrackerViewService,
-  matchAnalyticsService,
-  seriesMatchesService,
-  haloClient,
+interface IndividualTrackerViewerPageInternalProps extends IndividualTrackerViewerPageProps {
+  readonly config: CreateIndividualTrackerViewerPageConfig;
+}
+
+function IndividualTrackerViewerPageInternal({
+  config,
   trackerId,
   streamerSettings,
   externalView,
   connectionStatusOverride,
   pageTitleVariant,
-}: IndividualTrackerViewerPageProps): React.ReactElement {
+}: IndividualTrackerViewerPageInternalProps): React.ReactElement {
+  const {
+    individualTrackerService,
+    individualTrackerViewService,
+    matchAnalyticsService,
+    seriesMatchesService,
+    haloClient,
+  } = config;
   const canManage = individualTrackerService != null;
 
   const { snapshot, model, onToggleEntry, onRefresh, onRetry } = useIndividualTrackerViewer({
@@ -96,4 +106,14 @@ export function IndividualTrackerViewerPage({
       }
     />
   );
+}
+
+export function createIndividualTrackerViewerPage(
+  config: CreateIndividualTrackerViewerPageConfig,
+): (props: IndividualTrackerViewerPageProps) => React.ReactElement {
+  const Component = (props: IndividualTrackerViewerPageProps): React.ReactElement => (
+    <IndividualTrackerViewerPageInternal {...props} config={config} />
+  );
+
+  return Component;
 }

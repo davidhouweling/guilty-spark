@@ -13,7 +13,7 @@ import {
 } from "../../../../services/individual-tracker/fakes/view.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../../services/stats/fakes/series-matches.fake";
-import { IndividualTrackerOverlayPage } from "../create";
+import { createIndividualTrackerOverlayPage } from "../create";
 
 vi.mock("../individual-tracker-overlay", () => ({
   IndividualTrackerOverlay: (props: {
@@ -83,16 +83,14 @@ describe("IndividualTrackerOverlayPage", () => {
 
     const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
     const getBatchMatchAnalytics = vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics");
+    const IndividualTrackerOverlayPage = createIndividualTrackerOverlayPage({
+      individualTrackerViewService,
+      matchAnalyticsService,
+      seriesMatchesService: aFakeSeriesMatchesServiceWith(),
+      haloClient,
+    });
 
-    render(
-      <IndividualTrackerOverlayPage
-        individualTrackerViewService={individualTrackerViewService}
-        matchAnalyticsService={matchAnalyticsService}
-        seriesMatchesService={aFakeSeriesMatchesServiceWith()}
-        haloClient={haloClient}
-        trackerId="tracker-1"
-      />,
-    );
+    render(<IndividualTrackerOverlayPage trackerId="tracker-1" />);
 
     await waitFor(() => {
       expect(screen.getByText("select")).toBeInTheDocument();
@@ -132,16 +130,14 @@ describe("IndividualTrackerOverlayPage", () => {
     const haloClient = aFakeHaloClientWith({
       getMatchStats: vi.fn(async () => Promise.reject(new Error("boom"))),
     });
+    const IndividualTrackerOverlayPage = createIndividualTrackerOverlayPage({
+      individualTrackerViewService,
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      seriesMatchesService: aFakeSeriesMatchesServiceWith(),
+      haloClient,
+    });
 
-    render(
-      <IndividualTrackerOverlayPage
-        individualTrackerViewService={individualTrackerViewService}
-        matchAnalyticsService={aFakeMatchAnalyticsServiceWith()}
-        seriesMatchesService={aFakeSeriesMatchesServiceWith()}
-        haloClient={haloClient}
-        trackerId="tracker-1"
-      />,
-    );
+    render(<IndividualTrackerOverlayPage trackerId="tracker-1" />);
 
     await waitFor(() => {
       expect(screen.getByText("select")).toBeInTheDocument();
@@ -170,16 +166,14 @@ describe("IndividualTrackerOverlayPage", () => {
         Promise.resolve(aFakeMatchStatsWith({ MatchId: "match-1" })),
     );
     const haloClient = aFakeHaloClientWith({ getMatchStats });
+    const IndividualTrackerOverlayPage = createIndividualTrackerOverlayPage({
+      individualTrackerViewService,
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      seriesMatchesService: aFakeSeriesMatchesServiceWith(),
+      haloClient,
+    });
 
-    const { rerender } = render(
-      <IndividualTrackerOverlayPage
-        individualTrackerViewService={individualTrackerViewService}
-        matchAnalyticsService={aFakeMatchAnalyticsServiceWith()}
-        seriesMatchesService={aFakeSeriesMatchesServiceWith()}
-        haloClient={haloClient}
-        trackerId="tracker-1"
-      />,
-    );
+    const { rerender } = render(<IndividualTrackerOverlayPage trackerId="tracker-1" />);
 
     await waitFor(() => {
       expect(screen.getByText("select")).toBeInTheDocument();
@@ -192,15 +186,7 @@ describe("IndividualTrackerOverlayPage", () => {
       expect(screen.getByTestId("panel-state")).toHaveTextContent("loaded");
     });
 
-    rerender(
-      <IndividualTrackerOverlayPage
-        individualTrackerViewService={individualTrackerViewService}
-        matchAnalyticsService={aFakeMatchAnalyticsServiceWith()}
-        seriesMatchesService={aFakeSeriesMatchesServiceWith()}
-        haloClient={haloClient}
-        trackerId="tracker-2"
-      />,
-    );
+    rerender(<IndividualTrackerOverlayPage trackerId="tracker-2" />);
 
     await waitFor(() => {
       expect(screen.getByText("select")).toBeInTheDocument();
