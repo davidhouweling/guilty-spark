@@ -201,4 +201,51 @@ describe("IndividualTrackerOverlayPage", () => {
 
     expect(getMatchStats).toHaveBeenCalledTimes(2);
   });
+
+  it("loads match stats after remounting the created component", async () => {
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
+      view: aFakeTrackerViewStateWith({
+        trackerId: "tracker-1",
+        status: "active",
+        matches: [aFakeTrackerMatchSummaryWith({ matchId: "match-1" })],
+      }),
+    });
+    const getMatchStats = vi.fn(
+      async (): Promise<ReturnType<typeof aFakeMatchStatsWith>> =>
+        Promise.resolve(aFakeMatchStatsWith({ MatchId: "match-1" })),
+    );
+    const haloClient = aFakeHaloClientWith({ getMatchStats });
+    const IndividualTrackerOverlayPage = createIndividualTrackerOverlayPage({
+      individualTrackerViewService,
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      seriesMatchesService: aFakeSeriesMatchesServiceWith(),
+      haloClient,
+    });
+
+    const { rerender } = render(<IndividualTrackerOverlayPage key="first" trackerId="tracker-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("select")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByText("select"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("panel-state")).toHaveTextContent("loaded");
+    });
+
+    rerender(<IndividualTrackerOverlayPage key="second" trackerId="tracker-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("select")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByText("select"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("panel-state")).toHaveTextContent("loaded");
+    });
+
+    expect(getMatchStats).toHaveBeenCalledTimes(2);
+  });
 });
