@@ -89,7 +89,7 @@ describe("/api/individual-tracker view route", () => {
               gameVariantCategory: 6,
               outcome: "Win",
               score: "50:42",
-              killsDeathsAssistsKda: "10:7:4 (1.57)",
+              killsDeathsAssistsKda: "10:7:4 (1.62)",
               damageDealtTakenRatio: "4,200:3,900 (1.08)",
               isMatchmaking: false,
             },

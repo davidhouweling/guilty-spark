@@ -46,7 +46,7 @@ export function aFakeTrackerMatchSummaryWith(overrides: FakeMatchOverrides = {})
     gameVariantCategory: overrides.gameVariantCategory ?? 6,
     outcome: overrides.outcome ?? "Win",
     score: overrides.score ?? "50:42",
-    killsDeathsAssistsKda: overrides.killsDeathsAssistsKda ?? "10:7:4 (1.57)",
+    killsDeathsAssistsKda: overrides.killsDeathsAssistsKda ?? "10:7:4 (1.62)",
     damageDealtTakenRatio: overrides.damageDealtTakenRatio ?? "4,200:3,900 (1.08)",
     isMatchmaking: overrides.isMatchmaking ?? false,
   };

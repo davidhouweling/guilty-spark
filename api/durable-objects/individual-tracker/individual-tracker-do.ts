@@ -514,7 +514,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         continue;
       }
 
-      if (summary.teamOutcomes === null) {
+      if (
+        summary.teamOutcomes === null ||
+        summary.killsDeathsAssistsKda == null ||
+        summary.damageDealtTakenRatio == null
+      ) {
         const enriched = await this.enrichScore(summary, trackerState.xuid);
         if (enriched) {
           viewChanged = true;
@@ -2063,8 +2067,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         gameVariantCategory: summary.gameVariantCategory,
         outcome: summary.outcome,
         score: summary.score,
-        killsDeathsAssistsKda: summary.killsDeathsAssistsKda,
-        damageDealtTakenRatio: summary.damageDealtTakenRatio,
+        killsDeathsAssistsKda: summary.killsDeathsAssistsKda ?? UNKNOWN_KDA_DISPLAY,
+        damageDealtTakenRatio: summary.damageDealtTakenRatio ?? UNKNOWN_DAMAGE_RATIO_DISPLAY,
         isMatchmaking: summary.isMatchmaking,
       })),
       series,
