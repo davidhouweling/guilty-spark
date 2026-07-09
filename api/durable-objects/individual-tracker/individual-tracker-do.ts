@@ -151,7 +151,10 @@ const DEFAULT_WEBSOCKET_STATS_HIGHLIGHT_SLOTS = DEFAULT_INDIVIDUAL_STATS_HIGHLIG
 const UNKNOWN_KDA_DISPLAY = "-:-:- (-)";
 const UNKNOWN_DAMAGE_RATIO_DISPLAY = "-:- (-)";
 
-function computeTrackedPlayerSummaryStats(matchStats: MatchStats, trackedXuid: string): {
+function computeTrackedPlayerSummaryStats(
+  matchStats: MatchStats,
+  trackedXuid: string,
+): {
   killsDeathsAssistsKda: string;
   damageDealtTakenRatio: string;
 } {
