@@ -754,14 +754,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           ["matchId", summary.matchId],
         ]),
       );
-      summary.score = "";
-      summary.killsDeathsAssistsKda = UNKNOWN_KDA_DISPLAY;
-      summary.damageDealtTakenRatio = UNKNOWN_DAMAGE_RATIO_DISPLAY;
-      delete summary.kills;
-      delete summary.deaths;
-      delete summary.assists;
-      delete summary.damageDealt;
-      delete summary.damageTaken;
       return false;
     }
 

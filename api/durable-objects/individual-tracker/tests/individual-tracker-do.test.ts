@@ -1917,6 +1917,41 @@ describe("IndividualTrackerDO", () => {
       expect(afterSecond.discoveredMatches["match-new"]?.score).toBe("50:42");
     });
 
+    it("retries enrichment for migrated match with null KDA fields when getMatchStats fails transiently", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValue([]);
+      ownerClient.getMatchStats
+        .mockRejectedValueOnce(new Error("stats not ready"))
+        .mockResolvedValue(aFakeMatchStatsWith());
+      const state = aFakeIndividualTrackerInternalStateWith({
+        startTime: now.toISOString(),
+        searchStartTime: "2024-11-26T11:00:00.000Z",
+        matchIds: ["match-migrated"],
+        selectedMatchIds: ["match-migrated"],
+        accumulatedMatchIds: ["match-migrated"],
+        discoveredMatches: {
+          "match-migrated": aFakeIndividualTrackerMatchSummaryWith({
+            matchId: "match-migrated",
+            teamOutcomes: [1, 2],
+            killsDeathsAssistsKda: null as unknown as string,
+            damageDealtTakenRatio: null as unknown as string,
+          }),
+        },
+      });
+      storageGetSpy.mockResolvedValue(state);
+
+      await individualTrackerDO.alarm();
+
+      const afterFirst = lastPersistedState(storagePutSpy);
+      expect(afterFirst.discoveredMatches["match-migrated"]?.killsDeathsAssistsKda).toBeNull();
+      expect(afterFirst.discoveredMatches["match-migrated"]?.damageDealtTakenRatio).toBeNull();
+
+      await individualTrackerDO.alarm();
+
+      const afterSecond = lastPersistedState(storagePutSpy);
+      expect(afterSecond.discoveredMatches["match-migrated"]?.killsDeathsAssistsKda).not.toBeNull();
+      expect(afterSecond.discoveredMatches["match-migrated"]?.damageDealtTakenRatio).not.toBeNull();
+    });
+
     it("does not re-fetch stats every poll for an enriched match whose stats have no teams", async () => {
       ownerClient.getPlayerMatches
         .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
