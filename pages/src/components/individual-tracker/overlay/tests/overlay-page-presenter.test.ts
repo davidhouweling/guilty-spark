@@ -147,7 +147,7 @@ describe("OverlayPagePresenter", () => {
           matchBackgroundUrls: [],
           score: "1:0",
           duration: "10m",
-          killsDeathsAssistsKda: "10:7:4 (1.57)",
+          killsDeathsAssistsKda: "10:7:4 (1.62)",
           damageDealtTakenRatio: "4,200:3,900 (1.08)",
           startTime: "2026-01-01T00:00:00.000Z",
           endTime: "2026-01-01T00:10:00.000Z",
