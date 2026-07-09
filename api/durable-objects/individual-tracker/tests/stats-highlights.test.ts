@@ -76,6 +76,20 @@ describe("statsHighlights", () => {
       ],
     });
 
+  const aResolvedSummaryWith = (matchId: string): IndividualTrackerMatchSummary =>
+    aFakeIndividualTrackerMatchSummaryWith({
+      matchId,
+      score: "50:40",
+      killsDeathsAssistsKda: "10:5:3 (2.2)",
+      damageDealtTakenRatio: "5,000:3,000 (1.67)",
+      kills: 10,
+      deaths: 5,
+      assists: 3,
+      damageDealt: 5000,
+      damageTaken: 3000,
+      teamOutcomes: [2, 3],
+    });
+
   beforeEach(() => {
     vi.useFakeTimers({
       now: new Date("2024-11-26T12:00:00.000Z"),
@@ -139,7 +153,7 @@ describe("statsHighlights", () => {
         matchIds: ["m1"],
         selectedMatchIds: ["m1"],
         discoveredMatches: {
-          m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", teamOutcomes: [2, 3] }),
+          m1: aResolvedSummaryWith("m1"),
         },
         accumulatedMatchIds: ["m1"],
         accumulatedPlayerTotals: {
@@ -177,8 +191,8 @@ describe("statsHighlights", () => {
         matchIds: ["m1", "m2"],
         selectedMatchIds: ["m1", "m2"],
         discoveredMatches: {
-          m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", teamOutcomes: [2, 3] }),
-          m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2", teamOutcomes: [2, 3] }),
+          m1: aResolvedSummaryWith("m1"),
+          m2: aResolvedSummaryWith("m2"),
         },
         accumulatedMatchIds: [],
       }),
@@ -203,8 +217,8 @@ describe("statsHighlights", () => {
         matchIds: ["m1", "m2"],
         selectedMatchIds: ["m1", "m2"],
         discoveredMatches: {
-          m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", teamOutcomes: [2, 3] }),
-          m2: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m2", teamOutcomes: [2, 3] }),
+          m1: aResolvedSummaryWith("m1"),
+          m2: aResolvedSummaryWith("m2"),
         },
         accumulatedMatchIds: [],
       }),
