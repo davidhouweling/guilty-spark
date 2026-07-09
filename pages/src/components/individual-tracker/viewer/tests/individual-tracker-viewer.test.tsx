@@ -113,7 +113,15 @@ describe("IndividualTrackerViewer", () => {
           damageDealtTakenRatio: "3,800:3,600 (1.06)",
         }),
       ],
-      series: [aFakeTrackerSeriesGroupWith({ matchIds: ["m-1", "m-2"], title: "Ranked Series", score: "1:1" })],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          matchIds: ["m-1", "m-2"],
+          title: "Ranked Series",
+          score: "1:1",
+          killsDeathsAssistsKda: "20:15:9 (1.53)",
+          damageDealtTakenRatio: "8,200:7,500 (1.09)",
+        }),
+      ],
     });
 
     renderViewer(view);

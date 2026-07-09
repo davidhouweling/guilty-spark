@@ -2492,7 +2492,16 @@ describe("IndividualTrackerDO", () => {
           matchIds: ["m1"],
           searchStartTime: "2024-11-26T11:00:00.000Z",
           discoveredMatches: {
-            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", teamOutcomes: [2, 3], mapName: "Aquarius" }),
+            m1: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m1",
+              teamOutcomes: [2, 3],
+              mapName: "Aquarius",
+              kills: 10,
+              deaths: 7,
+              assists: 4,
+              damageDealt: 4200,
+              damageTaken: 3900,
+            }),
           },
         }),
       );

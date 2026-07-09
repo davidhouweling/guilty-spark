@@ -57,6 +57,8 @@ interface FakeSeriesOverrides {
   readonly matchIds?: readonly string[];
   readonly matchBackgroundUrls?: readonly string[];
   readonly score?: string;
+  readonly killsDeathsAssistsKda?: string;
+  readonly damageDealtTakenRatio?: string;
   readonly title?: string;
   readonly subtitle?: string;
   readonly guildIconUrl?: string | null;
@@ -68,6 +70,8 @@ export function aFakeTrackerSeriesGroupWith(overrides: FakeSeriesOverrides = {})
     matchIds: [...(overrides.matchIds ?? ["match-1", "match-2"])],
     matchBackgroundUrls: [...(overrides.matchBackgroundUrls ?? ["data:,", "data:,"])],
     score: overrides.score ?? "2:1",
+    killsDeathsAssistsKda: overrides.killsDeathsAssistsKda ?? "20:14:8 (1.52)",
+    damageDealtTakenRatio: overrides.damageDealtTakenRatio ?? "8,400:7,800 (1.08)",
     title: overrides.title ?? "Series",
     subtitle: overrides.subtitle ?? "Best of 3",
     guildIconUrl: overrides.guildIconUrl ?? null,

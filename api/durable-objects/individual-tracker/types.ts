@@ -29,6 +29,11 @@ export interface IndividualTrackerMatchSummary {
   score: string;
   killsDeathsAssistsKda?: string;
   damageDealtTakenRatio?: string;
+  kills?: number;
+  deaths?: number;
+  assists?: number;
+  damageDealt?: number;
+  damageTaken?: number;
   isMatchmaking: boolean;
   teamRosterSignature: string | null;
   teamOutcomes: number[] | null;
@@ -79,6 +84,8 @@ export interface IndividualTrackerSeriesGroup {
   matchIds: string[];
   matchBackgroundUrls: string[];
   score: string;
+  killsDeathsAssistsKda: string;
+  damageDealtTakenRatio: string;
   title: string;
   subtitle: string;
   guildIconUrl?: string | null;

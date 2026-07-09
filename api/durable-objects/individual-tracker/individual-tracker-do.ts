@@ -157,6 +157,11 @@ function computeTrackedPlayerSummaryStats(
 ): {
   killsDeathsAssistsKda: string;
   damageDealtTakenRatio: string;
+  kills?: number;
+  deaths?: number;
+  assists?: number;
+  damageDealt?: number;
+  damageTaken?: number;
 } {
   const player = matchStats.Players.find((candidate) => getPlayerXuid(candidate) === trackedXuid);
   const playerStats = player?.PlayerTeamStats[0]?.Stats.CoreStats;
@@ -175,6 +180,50 @@ function computeTrackedPlayerSummaryStats(
   return {
     killsDeathsAssistsKda: `${formatStatValue(playerStats.Kills)}:${formatStatValue(playerStats.Deaths)}:${formatStatValue(playerStats.Assists)} (${formatStatValue(kdaValue)})`,
     damageDealtTakenRatio: `${formatStatValue(playerStats.DamageDealt)}:${formatStatValue(playerStats.DamageTaken)} (${formatDamageRatio(playerStats.DamageDealt, playerStats.DamageTaken)})`,
+    kills: playerStats.Kills,
+    deaths: playerStats.Deaths,
+    assists: playerStats.Assists,
+    damageDealt: playerStats.DamageDealt,
+    damageTaken: playerStats.DamageTaken,
+  };
+}
+
+function computeSeriesSummaryStats(summaries: readonly IndividualTrackerMatchSummary[]): {
+  killsDeathsAssistsKda: string;
+  damageDealtTakenRatio: string;
+} {
+  let kills = 0;
+  let deaths = 0;
+  let assists = 0;
+  let damageDealt = 0;
+  let damageTaken = 0;
+
+  for (const summary of summaries) {
+    if (
+      summary.kills == null ||
+      summary.deaths == null ||
+      summary.assists == null ||
+      summary.damageDealt == null ||
+      summary.damageTaken == null
+    ) {
+      return {
+        killsDeathsAssistsKda: UNKNOWN_KDA_DISPLAY,
+        damageDealtTakenRatio: UNKNOWN_DAMAGE_RATIO_DISPLAY,
+      };
+    }
+
+    kills += summary.kills;
+    deaths += summary.deaths;
+    assists += summary.assists;
+    damageDealt += summary.damageDealt;
+    damageTaken += summary.damageTaken;
+  }
+
+  const kdaValue = deaths === 0 ? kills + assists / 3 : (kills + assists / 3) / deaths;
+
+  return {
+    killsDeathsAssistsKda: `${formatStatValue(kills)}:${formatStatValue(deaths)}:${formatStatValue(assists)} (${formatStatValue(kdaValue)})`,
+    damageDealtTakenRatio: `${formatStatValue(damageDealt)}:${formatStatValue(damageTaken)} (${formatDamageRatio(damageDealt, damageTaken)})`,
   };
 }
 
@@ -517,7 +566,15 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       if (
         summary.teamOutcomes === null ||
         summary.killsDeathsAssistsKda == null ||
-        summary.damageDealtTakenRatio == null
+        summary.damageDealtTakenRatio == null ||
+        ((summary.kills == null ||
+          summary.deaths == null ||
+          summary.assists == null ||
+          summary.damageDealt == null ||
+          summary.damageTaken == null) &&
+          summary.teamOutcomes.length > 0 &&
+          summary.killsDeathsAssistsKda !== UNKNOWN_KDA_DISPLAY &&
+          summary.damageDealtTakenRatio !== UNKNOWN_DAMAGE_RATIO_DISPLAY)
       ) {
         const enriched = await this.enrichScore(summary, trackerState.xuid);
         if (enriched) {
@@ -693,6 +750,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       summary.score = "";
       summary.killsDeathsAssistsKda = UNKNOWN_KDA_DISPLAY;
       summary.damageDealtTakenRatio = UNKNOWN_DAMAGE_RATIO_DISPLAY;
+      delete summary.kills;
+      delete summary.deaths;
+      delete summary.assists;
+      delete summary.damageDealt;
+      delete summary.damageTaken;
       return false;
     }
 
@@ -700,6 +762,25 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const trackedPlayerSummaryStats = computeTrackedPlayerSummaryStats(matchStats, trackedXuid);
     summary.killsDeathsAssistsKda = trackedPlayerSummaryStats.killsDeathsAssistsKda;
     summary.damageDealtTakenRatio = trackedPlayerSummaryStats.damageDealtTakenRatio;
+    if (
+      trackedPlayerSummaryStats.kills != null &&
+      trackedPlayerSummaryStats.deaths != null &&
+      trackedPlayerSummaryStats.assists != null &&
+      trackedPlayerSummaryStats.damageDealt != null &&
+      trackedPlayerSummaryStats.damageTaken != null
+    ) {
+      summary.kills = trackedPlayerSummaryStats.kills;
+      summary.deaths = trackedPlayerSummaryStats.deaths;
+      summary.assists = trackedPlayerSummaryStats.assists;
+      summary.damageDealt = trackedPlayerSummaryStats.damageDealt;
+      summary.damageTaken = trackedPlayerSummaryStats.damageTaken;
+    } else {
+      delete summary.kills;
+      delete summary.deaths;
+      delete summary.assists;
+      delete summary.damageDealt;
+      delete summary.damageTaken;
+    }
     const newRosterSignature = buildTeamRosterSignature(matchStats);
     if (summary.teamRosterSignature == null && newRosterSignature != null) {
       this.cachedResolvedRosterCount = (this.cachedResolvedRosterCount ?? 0) + 1;
@@ -2011,6 +2092,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           teamOutcomes: summary.teamOutcomes ?? [],
         })),
       );
+      const seriesSummaryStats = computeSeriesSummaryStats(groupSummaries);
 
       const defaultTitle = getDefaultSeriesGroupTitle();
       const defaultSubtitle = getDefaultSeriesGroupSubtitle(
@@ -2037,6 +2119,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         matchIds,
         matchBackgroundUrls: groupSummaries.map((summary) => summary.mapBackgroundUrl || "data:,"),
         score: teamWins.length === 0 ? "0:0" : teamWins.join(":"),
+        killsDeathsAssistsKda: seriesSummaryStats.killsDeathsAssistsKda,
+        damageDealtTakenRatio: seriesSummaryStats.damageDealtTakenRatio,
         title,
         subtitle,
         guildIconUrl,

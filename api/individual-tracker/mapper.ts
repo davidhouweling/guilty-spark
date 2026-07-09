@@ -124,6 +124,8 @@ export function toTrackerView(
             matchIds: group.matchIds,
             matchBackgroundUrls: group.matchBackgroundUrls,
             score: group.score,
+            killsDeathsAssistsKda: group.killsDeathsAssistsKda,
+            damageDealtTakenRatio: group.damageDealtTakenRatio,
             title: group.title,
             subtitle: group.subtitle,
             guildIconUrl: group.guildIconUrl,

@@ -100,6 +100,8 @@ describe("/api/individual-tracker view route", () => {
               matchIds: ["match-1", "match-2"],
               matchBackgroundUrls: ["https://example.com/maps/aquarius.jpg", "https://example.com/maps/aquarius.jpg"],
               score: "2:1",
+              killsDeathsAssistsKda: "20:15:9 (1.53)",
+              damageDealtTakenRatio: "8,200:7,500 (1.09)",
               title: "Eagle vs Cobra",
               subtitle: "Best of 3",
             },

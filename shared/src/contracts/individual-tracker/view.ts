@@ -44,6 +44,8 @@ export const trackerSeriesGroupSchema = z.object({
   matchIds: z.array(z.string()),
   matchBackgroundUrls: z.array(z.string()).optional(),
   score: z.string(),
+  killsDeathsAssistsKda: z.string().optional(),
+  damageDealtTakenRatio: z.string().optional(),
   title: z.string(),
   subtitle: z.string(),
   guildIconUrl: z.string().nullable().optional(),
