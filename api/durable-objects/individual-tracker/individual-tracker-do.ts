@@ -165,7 +165,9 @@ function computeTrackedPlayerSummaryStats(
   damageTaken?: number;
 } {
   const player = matchStats.Players.find((candidate) => getPlayerXuid(candidate) === trackedXuid);
-  const playerStats = player?.PlayerTeamStats[0]?.Stats.CoreStats;
+  const playerTeamStats =
+    player?.PlayerTeamStats.find((teamStats) => teamStats.TeamId === player.LastTeamId) ?? player?.PlayerTeamStats[0];
+  const playerStats = playerTeamStats?.Stats.CoreStats;
   if (playerStats == null) {
     return {
       killsDeathsAssistsKda: UNKNOWN_KDA_DISPLAY,
