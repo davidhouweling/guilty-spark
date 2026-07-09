@@ -167,27 +167,32 @@
 }
 
 .entryChevron {
+  align-items: center;
   color: var(--halo-white);
-  display: inline-block;
-  font-size: 1.15rem;
-  font-weight: 700;
-  height: 1em;
-  line-height: 1;
+  display: inline-flex;
+  height: 0.875rem;
+  justify-content: center;
   margin-left: var(--space-1);
-  transition: color var(--transition-fast);
-  width: 1em;
-}
-
-.entryChevron::before {
-  content: "\02C5";
+  transition:
+    color var(--transition-fast),
+    transform var(--transition-fast);
+  width: 0.875rem;
 }
 
 .entryChevronExpanded {
   color: var(--halo-white);
+  transform: rotate(180deg);
 }
 
-.entryChevronExpanded::before {
-  content: "\02C4";
+.entryChevronIcon {
+  display: block;
+  fill: none;
+  height: 0.875rem;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  width: 0.875rem;
 }
 
 .entryBody {
