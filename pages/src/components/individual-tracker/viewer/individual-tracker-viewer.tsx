@@ -449,7 +449,11 @@ export function IndividualTrackerViewer({
                                 [styles.entryChevronExpanded]: isExpanded,
                               })}
                               aria-hidden="true"
-                            />
+                            >
+                              <svg viewBox="0 0 12 12" focusable="false" className={styles.entryChevronIcon}>
+                                <path d="M2.5 4.5 6 8l3.5-3.5" />
+                              </svg>
+                            </span>
                           </div>
                         }
                       />
@@ -557,7 +561,11 @@ export function IndividualTrackerViewer({
                               [styles.entryChevronExpanded]: isExpanded,
                             })}
                             aria-hidden="true"
-                          />
+                          >
+                            <svg viewBox="0 0 12 12" focusable="false" className={styles.entryChevronIcon}>
+                              <path d="M2.5 4.5 6 8l3.5-3.5" />
+                            </svg>
+                          </span>
                         </div>
                       }
                     />
