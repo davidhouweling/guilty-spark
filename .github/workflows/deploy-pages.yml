@@ -39,7 +39,7 @@ jobs:
           ref: ${{ (github.actor == 'dependabot[bot]' || github.actor == 'davidhouweling') && github.event.pull_request.head.sha || github.base_ref }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: "npm"
