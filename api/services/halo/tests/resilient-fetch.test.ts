@@ -1023,5 +1023,30 @@ describe("createResilientFetch", () => {
         expect.anything(),
       );
     });
+
+    it("skips KV caching when input is a Request with non-GET method and init supplies only headers", async () => {
+      kvGetSpy.mockResolvedValue(null);
+      fetchSpy.mockResolvedValue(
+        aFakeResponseWith({
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      const request = new Request("https://halostats.svc.halowaypoint.com/test", { method: "POST" });
+      await resilientFetch(request, { headers: { "x-custom": "value" } });
+
+      expect(kvPutSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining("halo:responses:"),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
   });
 });

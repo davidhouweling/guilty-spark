@@ -396,7 +396,8 @@ export function createResilientFetch({
 
   return async function resilientFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    const cacheInit: RequestInit = init ?? (input instanceof Request ? { method: input.method } : {});
+    const cacheInit: RequestInit =
+      input instanceof Request ? { ...init, method: init?.method ?? input.method } : { ...init };
     const kvCachedResponse = await getKvCachedResponse(url, cacheInit);
     if (kvCachedResponse != null) {
       return kvCachedResponse;
