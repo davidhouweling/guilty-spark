@@ -228,6 +228,22 @@ function computeSeriesSummaryStats(summaries: readonly IndividualTrackerMatchSum
   };
 }
 
+function shouldEnrichSummary(summary: IndividualTrackerMatchSummary): boolean {
+  return (
+    summary.teamOutcomes === null ||
+    summary.killsDeathsAssistsKda == null ||
+    summary.damageDealtTakenRatio == null ||
+    ((summary.kills == null ||
+      summary.deaths == null ||
+      summary.assists == null ||
+      summary.damageDealt == null ||
+      summary.damageTaken == null) &&
+      summary.teamOutcomes.length > 0 &&
+      summary.killsDeathsAssistsKda !== UNKNOWN_KDA_DISPLAY &&
+      summary.damageDealtTakenRatio !== UNKNOWN_DAMAGE_RATIO_DISPLAY)
+  );
+}
+
 function normalizeRankTier(rankTier: string | null | undefined): string | null {
   if (rankTier == null || rankTier === "") {
     return null;
@@ -564,19 +580,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         continue;
       }
 
-      if (
-        summary.teamOutcomes === null ||
-        summary.killsDeathsAssistsKda == null ||
-        summary.damageDealtTakenRatio == null ||
-        ((summary.kills == null ||
-          summary.deaths == null ||
-          summary.assists == null ||
-          summary.damageDealt == null ||
-          summary.damageTaken == null) &&
-          summary.teamOutcomes.length > 0 &&
-          summary.killsDeathsAssistsKda !== UNKNOWN_KDA_DISPLAY &&
-          summary.damageDealtTakenRatio !== UNKNOWN_DAMAGE_RATIO_DISPLAY)
-      ) {
+      if (shouldEnrichSummary(summary)) {
         const enriched = await this.enrichScore(summary, trackerState.xuid);
         if (enriched) {
           viewChanged = true;

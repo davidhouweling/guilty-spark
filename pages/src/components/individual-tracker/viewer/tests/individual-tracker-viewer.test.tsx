@@ -104,12 +104,12 @@ describe("IndividualTrackerViewer", () => {
       matches: [
         aFakeTrackerMatchSummaryWith({
           matchId: "m-1",
-          killsDeathsAssistsKda: "11:8:4 (1.58)",
+          killsDeathsAssistsKda: "11:8:4 (1.54)",
           damageDealtTakenRatio: "4,400:3,900 (1.13)",
         }),
         aFakeTrackerMatchSummaryWith({
           matchId: "m-2",
-          killsDeathsAssistsKda: "9:7:5 (1.62)",
+          killsDeathsAssistsKda: "9:7:5 (1.52)",
           damageDealtTakenRatio: "3,800:3,600 (1.06)",
         }),
       ],

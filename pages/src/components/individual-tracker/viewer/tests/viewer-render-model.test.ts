@@ -251,13 +251,13 @@ describe("buildViewerRenderModel", () => {
       matches: [
         aFakeTrackerMatchSummaryWith({
           matchId: "m1",
-          killsDeathsAssistsKda: "11:8:4 (1,58)",
-          damageDealtTakenRatio: "4.400:3.900 (1,13)",
+          killsDeathsAssistsKda: "11:8:4 (1.54)",
+          damageDealtTakenRatio: "4,400:3,900 (1.13)",
         }),
         aFakeTrackerMatchSummaryWith({
           matchId: "m2",
-          killsDeathsAssistsKda: "9:7:5 (1,62)",
-          damageDealtTakenRatio: "3.800:3.600 (1,06)",
+          killsDeathsAssistsKda: "9:7:5 (1.52)",
+          damageDealtTakenRatio: "3,800:3,600 (1.06)",
         }),
       ],
       series: [
