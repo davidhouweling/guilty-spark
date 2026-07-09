@@ -116,6 +116,8 @@ function toMatchTab(summary: TrackerMatchSummary, teamHex: string, enemyHex: str
     duration,
     outcome,
     score: summary.score,
+    killsDeathsAssistsKda: summary.killsDeathsAssistsKda,
+    damageDealtTakenRatio: summary.damageDealtTakenRatio,
     colorHex: getOutcomeColor(outcome, teamHex, enemyHex),
     startTime: summary.startTime,
     endTime: summary.endTime,

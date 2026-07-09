@@ -430,8 +430,9 @@ export function IndividualTrackerViewer({
                         metadata={[
                           { label: "Score", value: match.score },
                           { label: "Duration", value: match.duration },
-                          { label: "Start time", value: formatDate(match.startTime) },
                           { label: "End time", value: formatDate(match.endTime) },
+                          { label: "Kills:Deaths:Assists (KDA)", value: match.killsDeathsAssistsKda },
+                          { label: "Damage D:T (D/T)", value: match.damageDealtTakenRatio },
                         ]}
                         backgroundStyle={matchHeaderBackgroundStyle(match.mapBackgroundUrl, state)}
                         rightContent={

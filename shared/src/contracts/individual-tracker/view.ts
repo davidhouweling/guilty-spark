@@ -18,6 +18,8 @@ export const trackerMatchSummarySchema = z.object({
   mapBackgroundUrl: z.string().optional(),
   outcome: trackerMatchOutcomeSchema,
   score: z.string(),
+  killsDeathsAssistsKda: z.string(),
+  damageDealtTakenRatio: z.string(),
   isMatchmaking: z.boolean(),
 });
 export type TrackerMatchSummary = z.infer<typeof trackerMatchSummarySchema>;

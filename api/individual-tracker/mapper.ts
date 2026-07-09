@@ -112,6 +112,8 @@ export function toTrackerView(
             gameVariantCategory: match.gameVariantCategory,
             outcome: match.outcome,
             score: match.score,
+            killsDeathsAssistsKda: match.killsDeathsAssistsKda,
+            damageDealtTakenRatio: match.damageDealtTakenRatio,
             isMatchmaking: match.isMatchmaking,
           })),
     series:

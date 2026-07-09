@@ -28,6 +28,8 @@ interface FakeMatchOverrides {
   readonly mapBackgroundUrl?: string;
   readonly outcome?: TrackerMatchSummary["outcome"];
   readonly score?: string;
+  readonly killsDeathsAssistsKda?: string;
+  readonly damageDealtTakenRatio?: string;
   readonly isMatchmaking?: boolean;
 }
 
@@ -44,6 +46,8 @@ export function aFakeTrackerMatchSummaryWith(overrides: FakeMatchOverrides = {})
     gameVariantCategory: overrides.gameVariantCategory ?? 6,
     outcome: overrides.outcome ?? "Win",
     score: overrides.score ?? "50:42",
+    killsDeathsAssistsKda: overrides.killsDeathsAssistsKda ?? "10:7:4 (1.57)",
+    damageDealtTakenRatio: overrides.damageDealtTakenRatio ?? "4,200:3,900 (1.08)",
     isMatchmaking: overrides.isMatchmaking ?? false,
   };
 }

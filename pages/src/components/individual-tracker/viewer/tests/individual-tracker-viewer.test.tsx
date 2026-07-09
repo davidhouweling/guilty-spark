@@ -63,13 +63,23 @@ describe("IndividualTrackerViewer", () => {
 
   it("renders a standalone match entry with its map and score", () => {
     const view = aFakeTrackerViewStateWith({
-      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1", mapName: "Aquarius", score: "50:30" })],
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m-1",
+          mapName: "Aquarius",
+          score: "50:30",
+          killsDeathsAssistsKda: "20:10:7 (2.23)",
+          damageDealtTakenRatio: "6,100:4,900 (1.24)",
+        }),
+      ],
     });
 
     renderViewer(view);
 
     expect(screen.getByText("Slayer: Aquarius")).toBeInTheDocument();
     expect(screen.getByText("50:30")).toBeInTheDocument();
+    expect(screen.getByText("20:10:7 (2.23)")).toBeInTheDocument();
+    expect(screen.getByText("6,100:4,900 (1.24)")).toBeInTheDocument();
     expect(screen.getByAltText("Slayer")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /match/i })).toBeInTheDocument();
   });

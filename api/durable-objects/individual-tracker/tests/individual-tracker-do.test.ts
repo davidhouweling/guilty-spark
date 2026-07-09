@@ -534,6 +534,8 @@ describe("IndividualTrackerDO", () => {
           "gameVariantCategory",
           "outcome",
           "score",
+          "killsDeathsAssistsKda",
+          "damageDealtTakenRatio",
           "isMatchmaking",
         ].sort(),
       );
