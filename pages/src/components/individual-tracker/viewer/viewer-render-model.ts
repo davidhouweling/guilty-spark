@@ -6,6 +6,7 @@ import type {
 import { getGameModeName } from "@guilty-spark/shared/halo/game-variants";
 import { getDurationInIsoString, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { normalizeOutcomeString, getOutcomeColor } from "@guilty-spark/shared/halo/match-enrichment";
+import { formatDamageRatio, formatStatValue } from "@guilty-spark/shared/halo/stat-formatting";
 import { differenceInSeconds, isValid, parseISO } from "date-fns";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
@@ -23,6 +24,80 @@ export interface BuildViewerRenderModelOptions {
   readonly view: TrackerViewState;
   readonly preferredTeamColorId?: string;
   readonly preferredEnemyColorId?: string;
+}
+
+const UNKNOWN_KDA_DISPLAY = "-:-:- (-)";
+const UNKNOWN_DAMAGE_RATIO_DISPLAY = "-:- (-)";
+
+function parseStatValue(displayValue: string): number | null {
+  const numeric = Number.parseFloat(displayValue.replaceAll(",", ""));
+  return Number.isNaN(numeric) ? null : numeric;
+}
+
+function parseKillsDeathsAssists(displayValue: string): { kills: number; deaths: number; assists: number } | null {
+  const parsed = /^([^:]+):([^:]+):([^ ]+) \(.+\)$/.exec(displayValue);
+  if (parsed == null) {
+    return null;
+  }
+
+  const kills = parseStatValue(parsed[1] ?? "");
+  const deaths = parseStatValue(parsed[2] ?? "");
+  const assists = parseStatValue(parsed[3] ?? "");
+  if (kills == null || deaths == null || assists == null) {
+    return null;
+  }
+
+  return { kills, deaths, assists };
+}
+
+function parseDamageDealtTaken(displayValue: string): { damageDealt: number; damageTaken: number } | null {
+  const parsed = /^([^:]+):([^ ]+) \(.+\)$/.exec(displayValue);
+  if (parsed == null) {
+    return null;
+  }
+
+  const damageDealt = parseStatValue(parsed[1] ?? "");
+  const damageTaken = parseStatValue(parsed[2] ?? "");
+  if (damageDealt == null || damageTaken == null) {
+    return null;
+  }
+
+  return { damageDealt, damageTaken };
+}
+
+function toSeriesSummaryStats(seriesSummaries: readonly TrackerMatchSummary[]): {
+  killsDeathsAssistsKda: string;
+  damageDealtTakenRatio: string;
+} {
+  let kills = 0;
+  let deaths = 0;
+  let assists = 0;
+  let damageDealt = 0;
+  let damageTaken = 0;
+
+  for (const summary of seriesSummaries) {
+    const killsDeathsAssists = parseKillsDeathsAssists(summary.killsDeathsAssistsKda);
+    const damage = parseDamageDealtTaken(summary.damageDealtTakenRatio);
+    if (killsDeathsAssists == null || damage == null) {
+      return {
+        killsDeathsAssistsKda: UNKNOWN_KDA_DISPLAY,
+        damageDealtTakenRatio: UNKNOWN_DAMAGE_RATIO_DISPLAY,
+      };
+    }
+
+    kills += killsDeathsAssists.kills;
+    deaths += killsDeathsAssists.deaths;
+    assists += killsDeathsAssists.assists;
+    damageDealt += damage.damageDealt;
+    damageTaken += damage.damageTaken;
+  }
+
+  const kdaValue = deaths === 0 ? kills + assists / 3 : (kills + assists / 3) / deaths;
+
+  return {
+    killsDeathsAssistsKda: `${formatStatValue(kills)}:${formatStatValue(deaths)}:${formatStatValue(assists)} (${formatStatValue(kdaValue)})`,
+    damageDealtTakenRatio: `${formatStatValue(damageDealt)}:${formatStatValue(damageTaken)} (${formatDamageRatio(damageDealt, damageTaken)})`,
+  };
 }
 
 function findActiveSeriesId(view: TrackerViewState): string | null {
@@ -205,6 +280,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
       let seriesDuration = "unknown";
       let seriesStartTime = "";
       let seriesEndTime = "";
+      const seriesSummaryStats = toSeriesSummaryStats(seriesSummaries);
 
       if (seriesSummaries.length > 0) {
         let totalSeconds = 0;
@@ -248,6 +324,8 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
           anchoredSeries.matchBackgroundUrls ?? seriesSummaries.map((summary) => summary.mapBackgroundUrl ?? "data:,"),
         score: anchoredSeries.score,
         duration: seriesDuration,
+        killsDeathsAssistsKda: seriesSummaryStats.killsDeathsAssistsKda,
+        damageDealtTakenRatio: seriesSummaryStats.damageDealtTakenRatio,
         startTime: seriesStartTime,
         endTime: seriesEndTime,
         matches: seriesMatches,

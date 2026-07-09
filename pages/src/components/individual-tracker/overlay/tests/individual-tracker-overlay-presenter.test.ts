@@ -69,6 +69,8 @@ function aSeriesWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesTab 
     matchBackgroundUrls: overrides.matchBackgroundUrls ?? matches.map(() => "data:,"),
     score: overrides.score ?? "2:1",
     duration: overrides.duration ?? "30m",
+    killsDeathsAssistsKda: overrides.killsDeathsAssistsKda ?? "20:14:9 (1.88)",
+    damageDealtTakenRatio: overrides.damageDealtTakenRatio ?? "11,200:9,500 (1.18)",
     startTime: overrides.startTime ?? "2026-01-01T00:00:00.000Z",
     endTime: overrides.endTime ?? "2026-01-01T00:30:00.000Z",
     matches,

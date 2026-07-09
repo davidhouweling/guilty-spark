@@ -101,7 +101,18 @@ describe("IndividualTrackerViewer", () => {
 
   it("renders a series entry with title and score", () => {
     const view = aFakeTrackerViewStateWith({
-      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m-1",
+          killsDeathsAssistsKda: "11:8:4 (1.58)",
+          damageDealtTakenRatio: "4,400:3,900 (1.13)",
+        }),
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m-2",
+          killsDeathsAssistsKda: "9:7:5 (1.62)",
+          damageDealtTakenRatio: "3,800:3,600 (1.06)",
+        }),
+      ],
       series: [aFakeTrackerSeriesGroupWith({ matchIds: ["m-1", "m-2"], title: "Ranked Series", score: "1:1" })],
     });
 
@@ -110,6 +121,9 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByText("Ranked Series")).toBeInTheDocument();
     expect(screen.getByText("1:1")).toBeInTheDocument();
     expect(screen.getByText("2 matches")).toBeInTheDocument();
+    expect(screen.getByText("20:15:9 (1.53)")).toBeInTheDocument();
+    expect(screen.getByText("8,200:7,500 (1.09)")).toBeInTheDocument();
+    expect(screen.getByText(/End time/)).toBeInTheDocument();
   });
 
   it("renders In progress for an active series", () => {
@@ -132,6 +146,8 @@ describe("IndividualTrackerViewer", () => {
     renderViewer(view);
 
     expect(screen.getByText("In progress")).toBeInTheDocument();
+    expect(screen.getByText(/Start time/)).toBeInTheDocument();
+    expect(screen.queryByText(/End time/)).not.toBeInTheDocument();
   });
 
   it("marks only the most recent series as In progress when active context is missing", () => {

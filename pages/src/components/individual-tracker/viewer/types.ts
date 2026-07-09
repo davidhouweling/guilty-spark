@@ -35,6 +35,8 @@ export interface ViewerSeriesTab {
   readonly matchBackgroundUrls: readonly string[];
   readonly score: string;
   readonly duration: string;
+  readonly killsDeathsAssistsKda: string;
+  readonly damageDealtTakenRatio: string;
   readonly startTime: string;
   readonly endTime: string;
   readonly matches: readonly ViewerMatchTab[];

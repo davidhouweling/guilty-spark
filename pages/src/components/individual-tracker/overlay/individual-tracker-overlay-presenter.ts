@@ -531,6 +531,8 @@ export class IndividualTrackerOverlayPresenter {
       matchBackgroundUrls: [],
       score: "0:0",
       duration: "unknown",
+      killsDeathsAssistsKda: "-:-:- (-)",
+      damageDealtTakenRatio: "-:- (-)",
       startTime: "",
       endTime: "",
       matches: [],
