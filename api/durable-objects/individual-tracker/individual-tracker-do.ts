@@ -150,6 +150,7 @@ const DEFAULT_WEBSOCKET_STATS_HIGHLIGHT_SLOTS = DEFAULT_INDIVIDUAL_STATS_HIGHLIG
 
 const UNKNOWN_KDA_DISPLAY = "-:-:- (-)";
 const UNKNOWN_DAMAGE_RATIO_DISPLAY = "-:- (-)";
+const STATS_DISPLAY_LOCALE = "en-US";
 
 function computeTrackedPlayerSummaryStats(
   matchStats: MatchStats,
@@ -178,8 +179,8 @@ function computeTrackedPlayerSummaryStats(
       : (playerStats.Kills + playerStats.Assists / 3) / playerStats.Deaths;
 
   return {
-    killsDeathsAssistsKda: `${formatStatValue(playerStats.Kills)}:${formatStatValue(playerStats.Deaths)}:${formatStatValue(playerStats.Assists)} (${formatStatValue(kdaValue)})`,
-    damageDealtTakenRatio: `${formatStatValue(playerStats.DamageDealt)}:${formatStatValue(playerStats.DamageTaken)} (${formatDamageRatio(playerStats.DamageDealt, playerStats.DamageTaken)})`,
+    killsDeathsAssistsKda: `${formatStatValue(playerStats.Kills, STATS_DISPLAY_LOCALE)}:${formatStatValue(playerStats.Deaths, STATS_DISPLAY_LOCALE)}:${formatStatValue(playerStats.Assists, STATS_DISPLAY_LOCALE)} (${formatStatValue(kdaValue, STATS_DISPLAY_LOCALE)})`,
+    damageDealtTakenRatio: `${formatStatValue(playerStats.DamageDealt, STATS_DISPLAY_LOCALE)}:${formatStatValue(playerStats.DamageTaken, STATS_DISPLAY_LOCALE)} (${formatDamageRatio(playerStats.DamageDealt, playerStats.DamageTaken, STATS_DISPLAY_LOCALE)})`,
     kills: playerStats.Kills,
     deaths: playerStats.Deaths,
     assists: playerStats.Assists,
@@ -222,8 +223,8 @@ function computeSeriesSummaryStats(summaries: readonly IndividualTrackerMatchSum
   const kdaValue = deaths === 0 ? kills + assists / 3 : (kills + assists / 3) / deaths;
 
   return {
-    killsDeathsAssistsKda: `${formatStatValue(kills)}:${formatStatValue(deaths)}:${formatStatValue(assists)} (${formatStatValue(kdaValue)})`,
-    damageDealtTakenRatio: `${formatStatValue(damageDealt)}:${formatStatValue(damageTaken)} (${formatDamageRatio(damageDealt, damageTaken)})`,
+    killsDeathsAssistsKda: `${formatStatValue(kills, STATS_DISPLAY_LOCALE)}:${formatStatValue(deaths, STATS_DISPLAY_LOCALE)}:${formatStatValue(assists, STATS_DISPLAY_LOCALE)} (${formatStatValue(kdaValue, STATS_DISPLAY_LOCALE)})`,
+    damageDealtTakenRatio: `${formatStatValue(damageDealt, STATS_DISPLAY_LOCALE)}:${formatStatValue(damageTaken, STATS_DISPLAY_LOCALE)} (${formatDamageRatio(damageDealt, damageTaken, STATS_DISPLAY_LOCALE)})`,
   };
 }
 
