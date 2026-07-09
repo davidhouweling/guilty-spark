@@ -53,7 +53,7 @@ jobs:
       - name: Deploy to Production
         if: github.event_name == 'push'
         id: deploy-production
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           workingDirectory: "pages"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -83,7 +83,7 @@ jobs:
       - name: Deploy Preview (Dependabot only)
         if: github.event_name == 'pull_request_target' && (github.actor == 'dependabot[bot]' || github.actor == 'davidhouweling')
         id: deploy-preview
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           workingDirectory: "pages"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
