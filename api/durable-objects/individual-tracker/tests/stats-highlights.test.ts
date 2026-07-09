@@ -10,7 +10,11 @@ import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import type { Services } from "../../../services/install";
 import type { UserTokenProvider } from "../../../services/halo/user-token-provider";
 import { aFakeDurableObjectStateWith } from "../../../base/fakes/do.fake";
-import type { IndividualTrackerInternalState, IndividualTrackerViewStateResponse } from "../types";
+import type {
+  IndividualTrackerInternalState,
+  IndividualTrackerMatchSummary,
+  IndividualTrackerViewStateResponse,
+} from "../types";
 import {
   aFakeIndividualTrackerInternalStateWith,
   aFakeIndividualTrackerMatchSummaryWith,
