@@ -534,6 +534,8 @@ describe("IndividualTrackerDO", () => {
           "gameVariantCategory",
           "outcome",
           "score",
+          "killsDeathsAssistsKda",
+          "damageDealtTakenRatio",
           "isMatchmaking",
         ].sort(),
       );
@@ -1792,6 +1794,82 @@ describe("IndividualTrackerDO", () => {
       expect(ownerClient.getMatchStats).toHaveBeenCalledWith("match-new", expect.anything());
     });
 
+    it("uses LastTeamId to select tracked-player stats when multiple team stat entries are present", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
+        .mockResolvedValueOnce([]);
+      ownerClient.getMatchStats.mockResolvedValueOnce(
+        aFakeMatchStatsWith({
+          MatchInfo: { ...aFakeMatchStatsWith().MatchInfo, GameVariantCategory: 6 },
+          Teams: [
+            aFakeTeamWith({
+              TeamId: 0,
+              Stats: {
+                CoreStats: aFakeCoreStatsWith({ Score: 50 }),
+                PvpStats: { Kills: 0, Deaths: 0, Assists: 0, KDA: 0 },
+              },
+            }),
+            aFakeTeamWith({
+              TeamId: 1,
+              Stats: {
+                CoreStats: aFakeCoreStatsWith({ Score: 42 }),
+                PvpStats: { Kills: 0, Deaths: 0, Assists: 0, KDA: 0 },
+              },
+            }),
+          ],
+          Players: [
+            aFakePlayerWith({
+              PlayerId: "xuid(1234567890)",
+              LastTeamId: 1,
+              PlayerTeamStats: [
+                {
+                  TeamId: 0,
+                  Stats: {
+                    CoreStats: aFakeCoreStatsWith({
+                      Kills: 1,
+                      Deaths: 10,
+                      Assists: 0,
+                      DamageDealt: 100,
+                      DamageTaken: 1000,
+                    }),
+                    PvpStats: { Kills: 1, Deaths: 10, Assists: 0, KDA: 0 },
+                  },
+                },
+                {
+                  TeamId: 1,
+                  Stats: {
+                    CoreStats: aFakeCoreStatsWith({
+                      Kills: 11,
+                      Deaths: 8,
+                      Assists: 4,
+                      DamageDealt: 4400,
+                      DamageTaken: 3900,
+                    }),
+                    PvpStats: { Kills: 11, Deaths: 8, Assists: 4, KDA: 0 },
+                  },
+                },
+              ],
+            }),
+          ],
+        }),
+      );
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          xuid: "1234567890",
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: [],
+          discoveredMatches: {},
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.discoveredMatches["match-new"]?.killsDeathsAssistsKda).toBe("11:8:4 (1.54)");
+      expect(persisted.discoveredMatches["match-new"]?.damageDealtTakenRatio).toBe("4,400:3,900 (1.13)");
+    });
+
     it("stores the team roster signature and team outcomes from getMatchStats", async () => {
       ownerClient.getPlayerMatches
         .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
@@ -1837,6 +1915,41 @@ describe("IndividualTrackerDO", () => {
 
       const afterSecond = lastPersistedState(storagePutSpy);
       expect(afterSecond.discoveredMatches["match-new"]?.score).toBe("50:42");
+    });
+
+    it("retries enrichment for migrated match with null KDA fields when getMatchStats fails transiently", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValue([]);
+      ownerClient.getMatchStats
+        .mockRejectedValueOnce(new Error("stats not ready"))
+        .mockResolvedValue(aFakeMatchStatsWith());
+      const state = aFakeIndividualTrackerInternalStateWith({
+        startTime: now.toISOString(),
+        searchStartTime: "2024-11-26T11:00:00.000Z",
+        matchIds: ["match-migrated"],
+        selectedMatchIds: ["match-migrated"],
+        accumulatedMatchIds: ["match-migrated"],
+        discoveredMatches: {
+          "match-migrated": aFakeIndividualTrackerMatchSummaryWith({
+            matchId: "match-migrated",
+            teamOutcomes: [1, 2],
+            killsDeathsAssistsKda: null as unknown as string,
+            damageDealtTakenRatio: null as unknown as string,
+          }),
+        },
+      });
+      storageGetSpy.mockResolvedValue(state);
+
+      await individualTrackerDO.alarm();
+
+      const afterFirst = lastPersistedState(storagePutSpy);
+      expect(afterFirst.discoveredMatches["match-migrated"]?.killsDeathsAssistsKda).toBeNull();
+      expect(afterFirst.discoveredMatches["match-migrated"]?.damageDealtTakenRatio).toBeNull();
+
+      await individualTrackerDO.alarm();
+
+      const afterSecond = lastPersistedState(storagePutSpy);
+      expect(afterSecond.discoveredMatches["match-migrated"]?.killsDeathsAssistsKda).not.toBeNull();
+      expect(afterSecond.discoveredMatches["match-migrated"]?.damageDealtTakenRatio).not.toBeNull();
     });
 
     it("does not re-fetch stats every poll for an enriched match whose stats have no teams", async () => {
@@ -2490,7 +2603,16 @@ describe("IndividualTrackerDO", () => {
           matchIds: ["m1"],
           searchStartTime: "2024-11-26T11:00:00.000Z",
           discoveredMatches: {
-            m1: aFakeIndividualTrackerMatchSummaryWith({ matchId: "m1", teamOutcomes: [2, 3], mapName: "Aquarius" }),
+            m1: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m1",
+              teamOutcomes: [2, 3],
+              mapName: "Aquarius",
+              kills: 10,
+              deaths: 7,
+              assists: 4,
+              damageDealt: 4200,
+              damageTaken: 3900,
+            }),
           },
         }),
       );

@@ -245,6 +245,39 @@ describe("buildViewerRenderModel", () => {
     }
   });
 
+  it("uses series summary stats from the series payload", () => {
+    expect.assertions(2);
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m1",
+          killsDeathsAssistsKda: "11:8:4 (1.54)",
+          damageDealtTakenRatio: "4,400:3,900 (1.13)",
+        }),
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m2",
+          killsDeathsAssistsKda: "9:7:5 (1.52)",
+          damageDealtTakenRatio: "3,800:3,600 (1.06)",
+        }),
+      ],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          id: "s1",
+          matchIds: ["m1", "m2"],
+          killsDeathsAssistsKda: "20:15:9 (1.53)",
+          damageDealtTakenRatio: "8,200:7,500 (1.09)",
+        }),
+      ],
+    });
+
+    const model = buildViewerRenderModel({ view });
+    const [first] = model.timeline;
+    if (first.type === "series") {
+      expect(first.series.killsDeathsAssistsKda).toBe("20:15:9 (1.53)");
+      expect(first.series.damageDealtTakenRatio).toBe("8,200:7,500 (1.09)");
+    }
+  });
+
   it("marks only the most recent timeline series active when active context is missing", () => {
     const view = aFakeTrackerViewStateWith({
       matches: [

@@ -430,8 +430,9 @@ export function IndividualTrackerViewer({
                         metadata={[
                           { label: "Score", value: match.score },
                           { label: "Duration", value: match.duration },
-                          { label: "Start time", value: formatDate(match.startTime) },
                           { label: "End time", value: formatDate(match.endTime) },
+                          { label: "Kills:Deaths:Assists (KDA)", value: match.killsDeathsAssistsKda },
+                          { label: "Damage D:T (D/T)", value: match.damageDealtTakenRatio },
                         ]}
                         backgroundStyle={matchHeaderBackgroundStyle(match.mapBackgroundUrl, state)}
                         rightContent={
@@ -524,8 +525,11 @@ export function IndividualTrackerViewer({
                           value: `${series.matches.length.toString()} match${series.matches.length === 1 ? "" : "es"}`,
                         },
                         { label: "Duration", value: series.duration },
-                        { label: "Start time", value: formatDate(series.startTime) },
-                        { label: "End time", value: formatDate(series.endTime) },
+                        { label: "Kills:Deaths:Assists (KDA)", value: series.killsDeathsAssistsKda },
+                        { label: "Damage D:T (D/T)", value: series.damageDealtTakenRatio },
+                        series.isActive
+                          ? { label: "Start time", value: formatDate(series.startTime) }
+                          : { label: "End time", value: formatDate(series.endTime) },
                       ]}
                       backgroundStyle={seriesHeaderBackgroundStyle(
                         series.matchBackgroundUrls,

@@ -63,13 +63,23 @@ describe("IndividualTrackerViewer", () => {
 
   it("renders a standalone match entry with its map and score", () => {
     const view = aFakeTrackerViewStateWith({
-      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1", mapName: "Aquarius", score: "50:30" })],
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m-1",
+          mapName: "Aquarius",
+          score: "50:30",
+          killsDeathsAssistsKda: "20:10:7 (2.23)",
+          damageDealtTakenRatio: "6,100:4,900 (1.24)",
+        }),
+      ],
     });
 
     renderViewer(view);
 
     expect(screen.getByText("Slayer: Aquarius")).toBeInTheDocument();
     expect(screen.getByText("50:30")).toBeInTheDocument();
+    expect(screen.getByText("20:10:7 (2.23)")).toBeInTheDocument();
+    expect(screen.getByText("6,100:4,900 (1.24)")).toBeInTheDocument();
     expect(screen.getByAltText("Slayer")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /match/i })).toBeInTheDocument();
   });
@@ -91,8 +101,27 @@ describe("IndividualTrackerViewer", () => {
 
   it("renders a series entry with title and score", () => {
     const view = aFakeTrackerViewStateWith({
-      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
-      series: [aFakeTrackerSeriesGroupWith({ matchIds: ["m-1", "m-2"], title: "Ranked Series", score: "1:1" })],
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m-1",
+          killsDeathsAssistsKda: "11:8:4 (1.54)",
+          damageDealtTakenRatio: "4,400:3,900 (1.13)",
+        }),
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m-2",
+          killsDeathsAssistsKda: "9:7:5 (1.52)",
+          damageDealtTakenRatio: "3,800:3,600 (1.06)",
+        }),
+      ],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          matchIds: ["m-1", "m-2"],
+          title: "Ranked Series",
+          score: "1:1",
+          killsDeathsAssistsKda: "20:15:9 (1.53)",
+          damageDealtTakenRatio: "8,200:7,500 (1.09)",
+        }),
+      ],
     });
 
     renderViewer(view);
@@ -100,6 +129,9 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByText("Ranked Series")).toBeInTheDocument();
     expect(screen.getByText("1:1")).toBeInTheDocument();
     expect(screen.getByText("2 matches")).toBeInTheDocument();
+    expect(screen.getByText("20:15:9 (1.53)")).toBeInTheDocument();
+    expect(screen.getByText("8,200:7,500 (1.09)")).toBeInTheDocument();
+    expect(screen.getByText(/End time/)).toBeInTheDocument();
   });
 
   it("renders In progress for an active series", () => {
@@ -122,6 +154,8 @@ describe("IndividualTrackerViewer", () => {
     renderViewer(view);
 
     expect(screen.getByText("In progress")).toBeInTheDocument();
+    expect(screen.getByText(/Start time/)).toBeInTheDocument();
+    expect(screen.queryByText(/End time/)).not.toBeInTheDocument();
   });
 
   it("marks only the most recent series as In progress when active context is missing", () => {

@@ -18,6 +18,8 @@ export interface ViewerMatchTab {
   readonly duration: string;
   readonly outcome: NormalizedMatchOutcome;
   readonly score: string;
+  readonly killsDeathsAssistsKda: string;
+  readonly damageDealtTakenRatio: string;
   readonly colorHex: string | undefined;
   readonly startTime: string;
   readonly endTime: string;
@@ -33,6 +35,8 @@ export interface ViewerSeriesTab {
   readonly matchBackgroundUrls: readonly string[];
   readonly score: string;
   readonly duration: string;
+  readonly killsDeathsAssistsKda: string;
+  readonly damageDealtTakenRatio: string;
   readonly startTime: string;
   readonly endTime: string;
   readonly matches: readonly ViewerMatchTab[];

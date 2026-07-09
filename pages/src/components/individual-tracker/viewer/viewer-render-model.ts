@@ -25,6 +25,9 @@ export interface BuildViewerRenderModelOptions {
   readonly preferredEnemyColorId?: string;
 }
 
+const UNKNOWN_KDA_DISPLAY = "-:-:- (-)";
+const UNKNOWN_DAMAGE_RATIO_DISPLAY = "-:- (-)";
+
 function findActiveSeriesId(view: TrackerViewState): string | null {
   if (!view.hasActiveSeries || view.activeSeriesContext == null) {
     return null;
@@ -116,6 +119,8 @@ function toMatchTab(summary: TrackerMatchSummary, teamHex: string, enemyHex: str
     duration,
     outcome,
     score: summary.score,
+    killsDeathsAssistsKda: summary.killsDeathsAssistsKda,
+    damageDealtTakenRatio: summary.damageDealtTakenRatio,
     colorHex: getOutcomeColor(outcome, teamHex, enemyHex),
     startTime: summary.startTime,
     endTime: summary.endTime,
@@ -246,6 +251,8 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
           anchoredSeries.matchBackgroundUrls ?? seriesSummaries.map((summary) => summary.mapBackgroundUrl ?? "data:,"),
         score: anchoredSeries.score,
         duration: seriesDuration,
+        killsDeathsAssistsKda: anchoredSeries.killsDeathsAssistsKda ?? UNKNOWN_KDA_DISPLAY,
+        damageDealtTakenRatio: anchoredSeries.damageDealtTakenRatio ?? UNKNOWN_DAMAGE_RATIO_DISPLAY,
         startTime: seriesStartTime,
         endTime: seriesEndTime,
         matches: seriesMatches,

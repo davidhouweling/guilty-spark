@@ -112,6 +112,8 @@ export function toTrackerView(
             gameVariantCategory: match.gameVariantCategory,
             outcome: match.outcome,
             score: match.score,
+            killsDeathsAssistsKda: match.killsDeathsAssistsKda,
+            damageDealtTakenRatio: match.damageDealtTakenRatio,
             isMatchmaking: match.isMatchmaking,
           })),
     series:
@@ -122,6 +124,8 @@ export function toTrackerView(
             matchIds: group.matchIds,
             matchBackgroundUrls: group.matchBackgroundUrls,
             score: group.score,
+            killsDeathsAssistsKda: group.killsDeathsAssistsKda,
+            damageDealtTakenRatio: group.damageDealtTakenRatio,
             title: group.title,
             subtitle: group.subtitle,
             guildIconUrl: group.guildIconUrl,
