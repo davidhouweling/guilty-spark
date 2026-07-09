@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: Check out Git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # For Dependabot and trusted collaborators: checkout PR code.
           # For external PRs: checkout base branch (prevents malicious code execution).
