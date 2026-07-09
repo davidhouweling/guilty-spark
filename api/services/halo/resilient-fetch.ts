@@ -95,7 +95,7 @@ function isGetRequest(init?: RequestInit): boolean {
 function isHaloWaypointUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
-    return parsed.hostname.endsWith("halowaypoint.com");
+    return parsed.hostname === "halowaypoint.com" || parsed.hostname.endsWith(".halowaypoint.com");
   } catch {
     return false;
   }
@@ -212,19 +212,36 @@ export function createResilientFetch({
     }
 
     const cacheKey = buildResponseCacheKey(url);
-    const cached = await env.APP_DATA.get<KvCachedResponse>(cacheKey, "json");
-    if (cached == null) {
+    try {
+      const cached = await env.APP_DATA.get<KvCachedResponse>(cacheKey, "json");
+      if (cached == null) {
+        return null;
+      }
+
+      const headers = new Headers(cached.headers);
+      headers.set("x-gs-kv-cache", "HIT");
+      logService.debug(`KV cache HIT for ${url}`);
+      return new Response(cached.body, { status: cached.status, headers });
+    } catch {
       return null;
     }
+  }
 
-    const headers = new Headers(cached.headers);
-    headers.set("x-gs-kv-cache", "HIT");
-    logService.debug(`KV cache HIT for ${url}`);
-    return new Response(cached.body, { status: cached.status, headers });
+  function isCacheControlPrivateOrNoStore(headers: Headers): boolean {
+    const cacheControl = headers.get("cache-control");
+    if (cacheControl == null) {
+      return false;
+    }
+    const lower = cacheControl.toLowerCase();
+    return lower.includes("no-store") || lower.includes("private");
   }
 
   async function maybeCacheResponseInKv(url: string, init: RequestInit | undefined, response: Response): Promise<void> {
     if (!isKvResponseCacheableRequest(url, init) || response.status !== 200) {
+      return;
+    }
+
+    if (isCacheControlPrivateOrNoStore(response.headers)) {
       return;
     }
 
@@ -233,18 +250,22 @@ export function createResilientFetch({
       return;
     }
 
-    const cacheKey = buildResponseCacheKey(url);
-    const cloned = response.clone();
-    const body = await cloned.text();
-    const ttlSeconds = resolveResponseCacheTtlSeconds(url, cloned.headers);
-    const payload: KvCachedResponse = {
-      status: cloned.status,
-      headers: Array.from(cloned.headers.entries()),
-      body,
-    };
+    try {
+      const cacheKey = buildResponseCacheKey(url);
+      const cloned = response.clone();
+      const body = await cloned.text();
+      const ttlSeconds = resolveResponseCacheTtlSeconds(url, cloned.headers);
+      const payload: KvCachedResponse = {
+        status: cloned.status,
+        headers: Array.from(cloned.headers.entries()),
+        body,
+      };
 
-    await env.APP_DATA.put(cacheKey, JSON.stringify(payload), { expirationTtl: ttlSeconds });
-    logService.debug(`KV cache store for ${url}`, new Map([["ttlSeconds", ttlSeconds.toString()]]));
+      await env.APP_DATA.put(cacheKey, JSON.stringify(payload), { expirationTtl: ttlSeconds });
+      logService.debug(`KV cache store for ${url}`, new Map([["ttlSeconds", ttlSeconds.toString()]]));
+    } catch {
+      // KV write failure is best-effort; do not fail the request
+    }
   }
 
   function scheduleKvWrite(key: string, data: string, ttlSeconds: number): void {
@@ -375,7 +396,8 @@ export function createResilientFetch({
 
   return async function resilientFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    const kvCachedResponse = await getKvCachedResponse(url, init);
+    const cacheInit: RequestInit = init ?? (input instanceof Request ? { method: input.method } : {});
+    const kvCachedResponse = await getKvCachedResponse(url, cacheInit);
     if (kvCachedResponse != null) {
       return kvCachedResponse;
     }
@@ -384,7 +406,7 @@ export function createResilientFetch({
 
     if (useProxy) {
       const proxiedResponse = await fetchViaProxy(input, init);
-      await maybeCacheResponseInKv(url, init, proxiedResponse);
+      await maybeCacheResponseInKv(url, cacheInit, proxiedResponse);
       return proxiedResponse;
     }
 
@@ -449,7 +471,7 @@ export function createResilientFetch({
 
     try {
       const response = await fetchWithRetry();
-      await maybeCacheResponseInKv(url, init, response);
+      await maybeCacheResponseInKv(url, cacheInit, response);
       return response;
     } catch (error) {
       logService.error(error, new Map([["url", url]]));

@@ -874,4 +874,154 @@ describe("createResilientFetch", () => {
       expect(logServiceDebugSpy).not.toHaveBeenCalled();
     });
   });
+
+  describe("KV caching safety", () => {
+    it("does not cache responses from non-halowaypoint domains resembling halowaypoint.com", async () => {
+      kvGetSpy.mockResolvedValue(null);
+      fetchSpy.mockResolvedValue(
+        aFakeResponseWith({
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      await resilientFetch("https://evilhalowaypoint.com/test");
+
+      expect(kvPutSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining("evilhalowaypoint.com"),
+        expect.anything(),
+        expect.anything(),
+      );
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns null from getKvCachedResponse when KV throws instead of propagating error", async () => {
+      kvGetSpy.mockImplementation(async (key) => {
+        if (String(key).startsWith("halo:responses:")) {
+          throw new Error("KV unavailable");
+        }
+        return Promise.resolve(null);
+      });
+      fetchSpy.mockResolvedValue(
+        aFakeResponseWith({
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      const response = await resilientFetch("https://halostats.svc.halowaypoint.com/test");
+
+      expect(response.status).toBe(200);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not reject when KV put fails during cache store", async () => {
+      kvGetSpy.mockResolvedValue(null);
+      kvPutSpy.mockImplementation(async (key) => {
+        if (String(key).startsWith("halo:responses:")) {
+          return Promise.reject(new Error("KV write failure"));
+        }
+        return Promise.resolve();
+      });
+      fetchSpy.mockResolvedValue(
+        aFakeResponseWith({
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      await expect(resilientFetch("https://halostats.svc.halowaypoint.com/test")).resolves.toBeDefined();
+    });
+
+    it("skips KV caching when response has cache-control: no-store", async () => {
+      kvGetSpy.mockResolvedValue(null);
+      fetchSpy.mockResolvedValue(
+        aFakeResponseWith({
+          status: 200,
+          headers: { "content-type": "application/json", "cache-control": "no-store" },
+        }),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
+
+      expect(kvPutSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining("halo:responses:"),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it("skips KV caching when response has cache-control: private", async () => {
+      kvGetSpy.mockResolvedValue(null);
+      fetchSpy.mockResolvedValue(
+        aFakeResponseWith({
+          status: 200,
+          headers: { "content-type": "application/json", "cache-control": "private, max-age=3600" },
+        }),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
+
+      expect(kvPutSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining("halo:responses:"),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it("skips KV caching when input is a Request object with a non-GET method", async () => {
+      kvGetSpy.mockResolvedValue(null);
+      fetchSpy.mockResolvedValue(
+        aFakeResponseWith({
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      const request = new Request("https://halostats.svc.halowaypoint.com/test", { method: "POST" });
+      await resilientFetch(request);
+
+      expect(kvPutSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining("halo:responses:"),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+  });
 });
