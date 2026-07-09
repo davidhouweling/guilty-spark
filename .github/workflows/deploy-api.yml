@@ -176,7 +176,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.cleanup_old_deployments == true
     steps:
       - name: Delete stale API deployments
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.DEPLOY_TOKEN }}
           script: |
