@@ -2084,7 +2084,7 @@ export class NeatQueueService {
         new Map([
           ["guildId", guildId],
           ["queueNumber", queueNumber.toString()],
-          ["context", "Failed to cache discord series stats from neatqueue flow"],
+          ["reason", "Failed to cache discord series stats from neatqueue flow"],
         ]),
       );
     }
