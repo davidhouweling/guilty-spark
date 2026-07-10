@@ -114,9 +114,14 @@ function getForbiddenDiscordSeriesStats(guildId: string, queueNumber: number): D
 const DEFAULT_PENDING_RETRY_SECONDS = 2;
 const PENDING_CACHE_TTL_SECONDS = 60 * 5;
 const NOT_FOUND_CACHE_TTL_SECONDS = 60 * 5;
+const ACTIVE_QUEUE_LOOKUP_CACHE_TTL_SECONDS = 60 * 5;
 
 function getDiscordSeriesStatsLookupCacheKey(guildId: string, queueNumber: number): string {
   return `${getDiscordSeriesStatsCacheKey(guildId, queueNumber)}:lookup`;
+}
+
+function getActiveQueueLookupCacheKey(guildId: string, channelId: string): string {
+  return `live-tracker:active-queue:${guildId}:${channelId}`;
 }
 
 function sanitizeRetryAfterSeconds(retryAfterValue: unknown): number {
@@ -727,6 +732,8 @@ export class DiscordService {
       });
     }
 
+    await this.cacheActiveQueueNumber(guildId, channelId, queueNumber);
+
     return this.buildQueueDataFromMessage(
       guildId,
       activeTeamsMessage,
@@ -734,6 +741,64 @@ export class DiscordService {
       queueNumber,
       true, // Clean team names for active queue messages
     );
+  }
+
+  async getActiveQueueNumber(guildId: string, channelId: string): Promise<number | null> {
+    const cachedQueueNumber = await this.getCachedActiveQueueNumber(guildId, channelId);
+    if (cachedQueueNumber != null) {
+      return cachedQueueNumber;
+    }
+
+    const activeQueueData = await this.getTeamsFromQueueChannel(guildId, channelId);
+    if (activeQueueData == null) {
+      return null;
+    }
+
+    return activeQueueData.queue;
+  }
+
+  private async cacheActiveQueueNumber(guildId: string, channelId: string, queueNumber: number): Promise<void> {
+    const cacheKey = getActiveQueueLookupCacheKey(guildId, channelId);
+    const payload = { guildId, channelId, queueNumber };
+
+    await this.env.APP_DATA.put(cacheKey, JSON.stringify(payload), {
+      expirationTtl: ACTIVE_QUEUE_LOOKUP_CACHE_TTL_SECONDS,
+    });
+  }
+
+  private async getCachedActiveQueueNumber(guildId: string, channelId: string): Promise<number | null> {
+    const cacheKey = getActiveQueueLookupCacheKey(guildId, channelId);
+    const cached = await this.env.APP_DATA.get<{ guildId: string; channelId: string; queueNumber: number }>(cacheKey, {
+      type: "json",
+    });
+
+    if (cached == null || typeof cached !== "object") {
+      return null;
+    }
+
+    if (cached.guildId !== guildId || cached.channelId !== channelId) {
+      this.logService.warn(
+        "Invalid cached active queue payload, treating as cache miss",
+        new Map([
+          ["cacheKey", cacheKey],
+          ["reason", "Mismatched guildId or channelId"],
+        ]),
+      );
+      return null;
+    }
+
+    if (typeof cached.queueNumber !== "number" || !Number.isFinite(cached.queueNumber) || cached.queueNumber <= 0) {
+      this.logService.warn(
+        "Invalid cached active queue payload, treating as cache miss",
+        new Map([
+          ["cacheKey", cacheKey],
+          ["reason", "queueNumber must be a positive number"],
+        ]),
+      );
+      return null;
+    }
+
+    return cached.queueNumber;
   }
 
   private findNeatQueueMessage(messages: APIMessage[], predicate: (message: APIMessage) => boolean): APIMessage | null {

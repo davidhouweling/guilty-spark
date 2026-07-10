@@ -27,7 +27,7 @@ import type { LiveTrackerDO } from "../../../durable-objects/live-tracker/live-t
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake";
-import { apiMessage, discordNeatQueueData, fakeButtonClickInteraction } from "../../discord/fakes/data";
+import { apiMessage, fakeButtonClickInteraction } from "../../discord/fakes/data";
 import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
 
 describe("LiveTrackerService", () => {
@@ -583,9 +583,7 @@ describe("LiveTrackerService", () => {
 
   describe("discoverActiveTracker", () => {
     it("discovers an active tracker successfully", async () => {
-      const getTeamsFromQueueChannelSpy = vi
-        .spyOn(discordService, "getTeamsFromQueueChannel")
-        .mockResolvedValue(discordNeatQueueData);
+      const getActiveQueueNumberSpy = vi.spyOn(discordService, "getActiveQueueNumber").mockResolvedValue(42);
 
       fetch.mockResolvedValue(
         aFakeResponseWith({
@@ -599,11 +597,11 @@ describe("LiveTrackerService", () => {
       });
 
       expect(result).toEqual(state);
-      expect(getTeamsFromQueueChannelSpy).toHaveBeenCalledWith("test-guild", "test-channel");
+      expect(getActiveQueueNumberSpy).toHaveBeenCalledWith("test-guild", "test-channel");
     });
 
     it("returns null when no queue data found", async () => {
-      vi.spyOn(discordService, "getTeamsFromQueueChannel").mockResolvedValue(null);
+      vi.spyOn(discordService, "getActiveQueueNumber").mockResolvedValue(null);
 
       const result = await service.discoverActiveTracker({
         guildId: "test-guild",
@@ -614,7 +612,7 @@ describe("LiveTrackerService", () => {
     });
 
     it("returns null when status check fails", async () => {
-      vi.spyOn(discordService, "getTeamsFromQueueChannel").mockResolvedValue(discordNeatQueueData);
+      vi.spyOn(discordService, "getActiveQueueNumber").mockResolvedValue(42);
 
       fetch.mockResolvedValue(
         aFakeResponseWith({
@@ -632,7 +630,7 @@ describe("LiveTrackerService", () => {
     });
 
     it("handles errors gracefully", async () => {
-      vi.spyOn(discordService, "getTeamsFromQueueChannel").mockRejectedValue(new Error("Discord API error"));
+      vi.spyOn(discordService, "getActiveQueueNumber").mockRejectedValue(new Error("Discord API error"));
 
       const result = await service.discoverActiveTracker({
         guildId: "test-guild",

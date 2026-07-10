@@ -846,6 +846,70 @@ describe("DiscordService", () => {
         "Could not extract queue number from active teams message.",
       );
     });
+
+    it("caches discovered active queue number", async () => {
+      const appDataPutSpy: MockInstance<typeof env.APP_DATA.put> = vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
+
+      mockFetch.mockImplementation(async () =>
+        Promise.resolve(
+          new Response(JSON.stringify(activeTeamsMessages), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+        ),
+      );
+
+      await discordService.getTeamsFromQueueChannel("fake-guild-id", "fake-channel");
+
+      expect(appDataPutSpy).toHaveBeenCalledWith(
+        "live-tracker:active-queue:fake-guild-id:fake-channel",
+        JSON.stringify({
+          guildId: "fake-guild-id",
+          channelId: "fake-channel",
+          queueNumber: 4680,
+        }),
+        { expirationTtl: 60 * 5 },
+      );
+    });
+
+    it("getActiveQueueNumber returns cached value without Discord API call", async () => {
+      const cachedLookup = {
+        guildId: "fake-guild-id",
+        channelId: "fake-channel",
+        queueNumber: 4680,
+      } as unknown as Map<string, unknown>;
+      vi.spyOn(env.APP_DATA, "get").mockResolvedValue(cachedLookup);
+
+      const queueNumber = await discordService.getActiveQueueNumber("fake-guild-id", "fake-channel");
+
+      expect(queueNumber).toBe(4680);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("getActiveQueueNumber falls back to Discord lookup when cache payload is invalid", async () => {
+      await env.APP_DATA.put(
+        "live-tracker:active-queue:fake-guild-id:fake-channel",
+        JSON.stringify({
+          guildId: "fake-guild-id",
+          channelId: "fake-channel",
+          queueNumber: 0,
+        }),
+      );
+
+      mockFetch.mockImplementation(async () =>
+        Promise.resolve(
+          new Response(JSON.stringify(activeTeamsMessages), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+        ),
+      );
+
+      const queueNumber = await discordService.getActiveQueueNumber("fake-guild-id", "fake-channel");
+
+      expect(queueNumber).toBe(4680);
+      expect(mockFetch).toHaveBeenCalled();
+    });
   });
 
   describe("updateDeferredReply()", () => {

@@ -220,11 +220,7 @@ describe("TrackCommand", () => {
     let repostTrackerSpy: MockInstance<LiveTrackerService["repostTracker"]>;
 
     beforeEach(() => {
-      const mockQueueData = {
-        ...discordNeatQueueData,
-        queue: 42,
-      };
-      vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue(mockQueueData);
+      vi.spyOn(services.discordService, "getActiveQueueNumber").mockResolvedValue(42);
 
       pauseTrackerSpy = vi.spyOn(services.liveTrackerService, "pauseTracker");
       resumeTrackerSpy = vi.spyOn(services.liveTrackerService, "resumeTracker");
