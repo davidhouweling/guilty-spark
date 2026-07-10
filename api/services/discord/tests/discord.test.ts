@@ -877,8 +877,8 @@ describe("DiscordService", () => {
         guildId: "fake-guild-id",
         channelId: "fake-channel",
         queueNumber: 4680,
-      } as unknown as Map<string, unknown>;
-      vi.spyOn(env.APP_DATA, "get").mockResolvedValue(cachedLookup);
+      };
+      vi.spyOn(env.APP_DATA, "get").mockResolvedValue(cachedLookup as never);
 
       const queueNumber = await discordService.getActiveQueueNumber("fake-guild-id", "fake-channel");
 
