@@ -834,7 +834,7 @@ describe("/api/stats/discord/:guildId/:queueNumber/lookup", () => {
     await env.APP_DATA.put(
       lookupCacheKey,
       JSON.stringify({
-        status: "resolved",
+        status: "lookup-resolved",
         guildId: "123456789012345678",
         queueNumber: 7777,
         matchIds: ["cached-match-lookup-1"],

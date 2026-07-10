@@ -103,10 +103,10 @@ async function getSubtitle(guildId: string, discordService: DiscordService, logS
     subtitle = guildName === "" ? `Guild ${guildId}` : guildName;
   } catch (error) {
     logService.warn(
-      "Failed to fetch guild name for discord series subtitle, falling back to guild id",
+      error,
       new Map([
         ["guildId", guildId],
-        ["error", String(error)],
+        ["reason", "Failed to fetch guild name for discord series subtitle, falling back to guild id"],
       ]),
     );
   }
@@ -130,11 +130,11 @@ async function getBestEffortMedalMetadata({
     return await getMedalMetadataFromMatches(matchesById, async (medalId) => haloService.getMedal(medalId));
   } catch (error) {
     logService.warn(
-      "Failed to resolve medal metadata for discord series stats, using empty metadata",
+      error,
       new Map([
         ["guildId", guildId],
         ["queueNumber", queueNumber.toString()],
-        ["error", String(error)],
+        ["reason", "Failed to resolve medal metadata for discord series stats, using empty metadata"],
       ]),
     );
     return {};

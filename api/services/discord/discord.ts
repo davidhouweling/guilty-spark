@@ -94,7 +94,7 @@ export interface SubcommandData {
 
 export type DiscordSeriesLookupResult =
   | {
-      status: "resolved";
+      status: "lookup-resolved";
       guildId: string;
       queueNumber: number;
       matchIds: string[];
@@ -437,7 +437,7 @@ export class DiscordService {
       return lookupOrCached;
     }
 
-    if ("renderData" in lookupOrCached) {
+    if (lookupOrCached.status === "resolved") {
       return lookupOrCached;
     }
 
@@ -528,7 +528,7 @@ export class DiscordService {
     }
 
     return {
-      status: "resolved",
+      status: "lookup-resolved",
       guildId,
       queueNumber,
       matchIds,
@@ -587,7 +587,7 @@ export class DiscordService {
       return null;
     }
 
-    if (cached.status !== "resolved") {
+    if (cached.status !== "lookup-resolved") {
       return null;
     }
 

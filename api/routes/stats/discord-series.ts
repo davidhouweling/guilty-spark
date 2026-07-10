@@ -49,6 +49,17 @@ function toLookupResponse(
   lookupResult: DiscordSeriesStats | DiscordSeriesLookupResult | DiscordSeriesStatsForbidden,
 ): Response {
   switch (lookupResult.status) {
+    case "lookup-resolved": {
+      return Response.json(
+        {
+          status: "resolved",
+          guildId: lookupResult.guildId,
+          queueNumber: lookupResult.queueNumber,
+          matchIds: lookupResult.matchIds,
+        },
+        { status: 200, headers: { "Cache-Control": DISCORD_SERIES_STATS_RESOLVED_CACHE_CONTROL_HEADER } },
+      );
+    }
     case "resolved": {
       return Response.json(
         {
