@@ -2075,7 +2075,7 @@ export class NeatQueueService {
       await discordService.cacheResolvedDiscordSeriesStats({
         guildId,
         queueNumber,
-        matchIds: series.map((match) => match.MatchId),
+        matchIds: renderData.matches.map((match) => match.matchId),
         renderData,
       });
     } catch (error) {
