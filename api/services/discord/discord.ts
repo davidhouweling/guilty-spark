@@ -591,6 +591,30 @@ export class DiscordService {
       return null;
     }
 
+    if (cached.guildId !== guildId || cached.queueNumber !== queueNumber) {
+      this.logService.warn(
+        "Invalid cached discord series lookup payload, treating as cache miss",
+        new Map([
+          ["cacheKey", lookupCacheKey],
+          ["reason", "Mismatched guildId or queueNumber"],
+        ]),
+      );
+      return null;
+    }
+
+    const hasValidMatchIds =
+      Array.isArray(cached.matchIds) && cached.matchIds.every((matchId) => typeof matchId === "string");
+    if (!hasValidMatchIds) {
+      this.logService.warn(
+        "Invalid cached discord series lookup payload, treating as cache miss",
+        new Map([
+          ["cacheKey", lookupCacheKey],
+          ["reason", "matchIds must be an array of strings"],
+        ]),
+      );
+      return null;
+    }
+
     return cached;
   }
 
