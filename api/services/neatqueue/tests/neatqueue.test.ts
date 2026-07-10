@@ -645,6 +645,7 @@ describe("NeatQueueService", () => {
       let haloServiceUpdateDiscordAssociationsSpy: MockInstance<typeof haloService.updateDiscordAssociations>;
       let discordServiceStartThreadFromMessageSpy: MockInstance<typeof discordService.startThreadFromMessage>;
       let discordServiceCreateMessageSpy: MockInstance<typeof discordService.createMessage>;
+      let cacheResolvedDiscordSeriesStatsSpy: MockInstance<typeof discordService.cacheResolvedDiscordSeriesStats>;
 
       beforeEach(() => {
         appDataGetSpy = vi.spyOn(env.APP_DATA, "get");
@@ -659,6 +660,9 @@ describe("NeatQueueService", () => {
           }),
         );
         appDataDeleteSpy = vi.spyOn(env.APP_DATA, "delete").mockResolvedValue();
+        cacheResolvedDiscordSeriesStatsSpy = vi
+          .spyOn(discordService, "cacheResolvedDiscordSeriesStats")
+          .mockResolvedValue();
 
         // Mock live tracker to be inactive so tests fall back to timeline-based flow
         vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({
@@ -908,6 +912,13 @@ describe("NeatQueueService", () => {
           expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(5);
           expect(discordServiceCreateMessageSpy.mock.calls).toMatchSnapshot();
           expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:state:guild-1:2");
+          expect(cacheResolvedDiscordSeriesStatsSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+              queueNumber: 2,
+              guildId: expect.any(String) as string,
+              matchIds: expect.any(Array) as string[],
+            }),
+          );
         });
 
         it("creates the thread/message and posts overviews and game stats, clears timeline", async () => {
@@ -1141,7 +1152,7 @@ describe("NeatQueueService", () => {
 
             await jobToComplete?.();
 
-            expect(logServiceWarnSpy).toHaveBeenCalledExactlyOnceWith(
+            expect(logServiceWarnSpy).toHaveBeenCalledWith(
               error,
               new Map([["reason", "Failed to post series data to thread"]]),
             );
@@ -1266,6 +1277,9 @@ describe("NeatQueueService", () => {
   describe("handleRetry", () => {
     let fakeMessage: APIMessage;
     let fakeErrorEmbed: EndUserError;
+    let cacheResolvedDiscordSeriesStatsSpy: MockInstance<typeof discordService.cacheResolvedDiscordSeriesStats>;
+    let getSeriesFromDiscordQueueSpy: MockInstance<typeof haloService.getSeriesFromDiscordQueue>;
+    let editMessageSpy: MockInstance<typeof discordService.editMessage>;
 
     beforeEach(() => {
       fakeMessage = {
@@ -1355,13 +1369,16 @@ describe("NeatQueueService", () => {
         return new Date();
       });
 
-      vi.spyOn(haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
-      vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
+      getSeriesFromDiscordQueueSpy = vi.spyOn(haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
+      cacheResolvedDiscordSeriesStatsSpy = vi
+        .spyOn(discordService, "cacheResolvedDiscordSeriesStats")
+        .mockResolvedValue();
     });
 
     it("processes retry for failed series fetch", async () => {
-      const getSeriesFromDiscordQueueSpy = vi.spyOn(haloService, "getSeriesFromDiscordQueue");
-      const editMessageSpy = vi.spyOn(discordService, "editMessage");
+      const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      getSeriesFromDiscordQueueSpy.mockResolvedValue([match]);
 
       await neatQueueService.handleRetry({
         errorEmbed: fakeErrorEmbed,
@@ -1371,13 +1388,20 @@ describe("NeatQueueService", () => {
 
       expect(getSeriesFromDiscordQueueSpy).toHaveBeenCalled();
       expect(editMessageSpy).toHaveBeenCalled();
+      expect(cacheResolvedDiscordSeriesStatsSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          guildId: "guild-123",
+          queueNumber: 1,
+          matchIds: expect.any(Array) as string[],
+        }),
+      );
     });
 
     it("handles missing queue message gracefully", async () => {
       vi.spyOn(discordService, "getTeamsFromQueueResult").mockRejectedValue(
         new EndUserError("Error getting teams from queue result"),
       );
-      const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
+      const editMessageSpyForMissingQueue = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
 
       await neatQueueService.handleRetry({
         errorEmbed: fakeErrorEmbed,
@@ -1385,8 +1409,8 @@ describe("NeatQueueService", () => {
         message: fakeMessage,
       });
 
-      expect(editMessageSpy).toHaveBeenCalledOnce();
-      expect(editMessageSpy.mock.calls[0]).toMatchInlineSnapshot(`
+      expect(editMessageSpyForMissingQueue).toHaveBeenCalledOnce();
+      expect(editMessageSpyForMissingQueue.mock.calls[0]).toMatchInlineSnapshot(`
         [
           "channel-123",
           "1314562775950954626",
@@ -1440,7 +1464,7 @@ describe("NeatQueueService", () => {
         token: "fake-interaction-token",
       } as APIApplicationCommandInteraction;
 
-      const getSeriesFromDiscordQueueSpy = vi.spyOn(haloService, "getSeriesFromDiscordQueue");
+      const getSeriesFromDiscordQueueSpyForInteraction = vi.spyOn(haloService, "getSeriesFromDiscordQueue");
       const updateDeferredReplySpy = vi.spyOn(discordService, "updateDeferredReply").mockResolvedValue(apiMessage);
 
       await neatQueueService.handleRetry({
@@ -1449,7 +1473,7 @@ describe("NeatQueueService", () => {
         interaction: fakeInteraction,
       });
 
-      expect(getSeriesFromDiscordQueueSpy).toHaveBeenCalled();
+      expect(getSeriesFromDiscordQueueSpyForInteraction).toHaveBeenCalled();
       expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-interaction-token", expect.any(Object));
     });
 

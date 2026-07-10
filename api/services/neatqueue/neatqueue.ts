@@ -43,6 +43,7 @@ import { DiscordError } from "../discord/discord-error";
 import { MapsEmbed } from "../../embeds/maps-embed";
 import { isSuccessResponse } from "../../durable-objects/live-tracker/types";
 import { NeatQueuePlayersEmbed } from "../../embeds/neatqueue/neatqueue-players-embed";
+import { buildDiscordSeriesRenderDataFromMatches } from "../discord/discord-series-stats";
 import type { SeriesPlayer, SeriesTeam } from "../../durable-objects/individual-tracker/types";
 import type { IndividualTrackerService } from "../individual-tracker/individual-tracker";
 import type {
@@ -353,6 +354,8 @@ export class NeatQueueService {
       } else {
         await discordService.updateDeferredReply(interaction.token, data);
       }
+
+      await this.cacheDiscordSeriesStats(guildId, queue, series);
 
       if (channel.type !== ChannelType.PublicThread && channel.type !== ChannelType.AnnouncementThread) {
         const thread = await discordService.startThreadFromMessage(
@@ -1782,7 +1785,10 @@ export class NeatQueueService {
         components: seriesOverviewEmbed.components,
       });
 
-      await this.postSeriesDetailsToChannel(thread.id, request.guild, series);
+      await Promise.all([
+        this.cacheDiscordSeriesStats(request.guild, request.match_number, series),
+        this.postSeriesDetailsToChannel(thread.id, request.guild, series),
+      ]);
     } catch (error) {
       this.logService.warn(error, new Map([["reason", "Failed to post series data to thread"]]));
 
@@ -1897,7 +1903,10 @@ export class NeatQueueService {
       );
 
       channelId = thread.id;
-      await this.postSeriesDetailsToChannel(channelId, request.guild, series);
+      await Promise.all([
+        this.cacheDiscordSeriesStats(request.guild, request.match_number, series),
+        this.postSeriesDetailsToChannel(channelId, request.guild, series),
+      ]);
     } catch (error) {
       this.logService.error(error, new Map([["reason", "Failed to post series data direct to channel"]]));
 
@@ -2048,6 +2057,37 @@ export class NeatQueueService {
       substitutions,
       hideTeamsDescription: true,
     });
+  }
+
+  private async cacheDiscordSeriesStats(guildId: string, queueNumber: number, series: MatchStats[]): Promise<void> {
+    const { discordService, haloService, logService } = this;
+
+    try {
+      const renderData = await buildDiscordSeriesRenderDataFromMatches({
+        discordService,
+        logService,
+        haloService,
+        guildId,
+        queueNumber,
+        matches: series,
+      });
+
+      await discordService.cacheResolvedDiscordSeriesStats({
+        guildId,
+        queueNumber,
+        matchIds: renderData.matches.map((match) => match.matchId),
+        renderData,
+      });
+    } catch (error) {
+      logService.warn(
+        error,
+        new Map([
+          ["guildId", guildId],
+          ["queueNumber", queueNumber.toString()],
+          ["reason", "Failed to cache discord series stats from neatqueue flow"],
+        ]),
+      );
+    }
   }
 
   private async clearTimeline(request: NeatQueueTimelineRequest, neatQueueConfig: NeatQueueConfigRow): Promise<void> {

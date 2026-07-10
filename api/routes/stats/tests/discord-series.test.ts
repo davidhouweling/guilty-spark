@@ -806,6 +806,141 @@ describe("/api/stats/discord/:guildId/:queueNumber/lookup", () => {
     expect(appDataGetSpy).toHaveBeenCalledWith(cacheKey, { type: "json" });
   });
 
+  it("returns cached lookup-only response without calling Discord search", async () => {
+    const storedByKey = new Map<string, string>();
+    const appDataGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+    const appDataPutSpy: MockInstance<(key: string, value: string, options?: KVNamespacePutOptions) => Promise<void>> =
+      vi.spyOn(env.APP_DATA, "put");
+
+    appDataGetSpy.mockImplementation(async (key: string, options?: { type?: string }) => {
+      await Promise.resolve();
+      const value = storedByKey.get(key);
+      if (value == null) {
+        return null;
+      }
+
+      if (options?.type === "json") {
+        return JSON.parse(value) as unknown;
+      }
+
+      return value;
+    });
+    appDataPutSpy.mockImplementation(async (key: string, value: string) => {
+      await Promise.resolve();
+      storedByKey.set(key, value);
+    });
+
+    const lookupCacheKey = "stats:discord:series:123456789012345678:7777:lookup";
+    await env.APP_DATA.put(
+      lookupCacheKey,
+      JSON.stringify({
+        status: "lookup-resolved",
+        guildId: "123456789012345678",
+        queueNumber: 7777,
+        matchIds: ["cached-match-lookup-1"],
+      }),
+    );
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      const searchSpy = vi.spyOn(services.discordService, "searchGuildMessages");
+      searchSpy.mockImplementation(() => {
+        throw new Error("searchGuildMessages should not be called when lookup cache hit exists");
+      });
+      return services;
+    });
+
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777/lookup"),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      status: "resolved",
+      guildId: "123456789012345678",
+      queueNumber: 7777,
+      matchIds: ["cached-match-lookup-1"],
+    });
+    expect(appDataGetSpy).toHaveBeenCalledWith("stats:discord:series:123456789012345678:7777", { type: "json" });
+    expect(appDataGetSpy).toHaveBeenCalledWith(lookupCacheKey, { type: "json" });
+  });
+
+  it("treats invalid cached lookup-only payload as cache miss", async () => {
+    const storedByKey = new Map<string, string>();
+    const appDataGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+    const appDataPutSpy: MockInstance<(key: string, value: string, options?: KVNamespacePutOptions) => Promise<void>> =
+      vi.spyOn(env.APP_DATA, "put");
+
+    appDataGetSpy.mockImplementation(async (key: string, options?: { type?: string }) => {
+      await Promise.resolve();
+      const value = storedByKey.get(key);
+      if (value == null) {
+        return null;
+      }
+
+      if (options?.type === "json") {
+        return JSON.parse(value) as unknown;
+      }
+
+      return value;
+    });
+    appDataPutSpy.mockImplementation(async (key: string, value: string) => {
+      await Promise.resolve();
+      storedByKey.set(key, value);
+    });
+
+    const matchId = "d81554d7-ddfe-44da-a6cb-000000000ctf";
+    const lookupCacheKey = "stats:discord:series:123456789012345678:7777:lookup";
+    await env.APP_DATA.put(
+      lookupCacheKey,
+      JSON.stringify({
+        status: "lookup-resolved",
+        guildId: "123456789012345678",
+        queueNumber: 7777,
+        matchIds: [123],
+      }),
+    );
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.discordService, "searchGuildMessages").mockResolvedValue({
+        doing_deep_historical_index: false,
+        total_results: 1,
+        messages: [
+          [
+            aFakeMessageWith({
+              id: "m-lookup-invalid-cache",
+              color: EmbedColors.INFO,
+              title: "Series stats for queue #7777",
+              gameFieldValue: `[Slayer](https://halodatahive.com/Infinite/Match/${matchId})`,
+            }),
+          ],
+        ],
+      });
+      return services;
+    });
+
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777/lookup"),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      status: "resolved",
+      guildId: "123456789012345678",
+      queueNumber: 7777,
+      matchIds: [matchId],
+    });
+    expect(appDataGetSpy).toHaveBeenCalledWith("stats:discord:series:123456789012345678:7777", { type: "json" });
+    expect(appDataGetSpy).toHaveBeenCalledWith(lookupCacheKey, { type: "json" });
+  });
+
   it("returns forbidden when Discord service throws 403", async () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
