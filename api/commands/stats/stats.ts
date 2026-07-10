@@ -28,9 +28,7 @@ import { SeriesPlayersEmbed } from "../../embeds/stats/series-players-embed";
 import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed";
 import type { SeriesOverviewEmbedOutput } from "../../embeds/stats/series-overview-embed";
 import { SeriesTeamsEmbed } from "../../embeds/stats/series-teams-embed";
-import {
-  buildDiscordSeriesRenderDataFromMatches,
-} from "../../services/discord/discord-series-stats";
+import { buildDiscordSeriesRenderDataFromMatches } from "../../services/discord/discord-series-stats";
 import type { GuildConfigRow } from "../../services/database/types/guild_config";
 import { StatsReturnType } from "../../services/database/types/guild_config";
 import { EndUserError } from "../../base/end-user-error";

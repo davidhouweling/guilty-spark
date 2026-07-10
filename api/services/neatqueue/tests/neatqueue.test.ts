@@ -915,8 +915,8 @@ describe("NeatQueueService", () => {
           expect(cacheResolvedDiscordSeriesStatsSpy).toHaveBeenCalledWith(
             expect.objectContaining({
               queueNumber: 2,
-              guildId: expect.any(String),
-              matchIds: expect.any(Array),
+              guildId: expect.any(String) as string,
+              matchIds: expect.any(Array) as string[],
             }),
           );
         });
@@ -1392,7 +1392,7 @@ describe("NeatQueueService", () => {
         expect.objectContaining({
           guildId: "guild-123",
           queueNumber: 1,
-          matchIds: expect.any(Array),
+          matchIds: expect.any(Array) as string[],
         }),
       );
     });

@@ -390,7 +390,11 @@ export class DiscordService {
       return lookupResult;
     } catch (error) {
       if (error instanceof DiscordError && error.httpStatus === 429) {
-        return await this.cacheDiscordSeriesPending(guildId, queueNumber, (error.restError as { retry_after?: unknown }).retry_after);
+        return await this.cacheDiscordSeriesPending(
+          guildId,
+          queueNumber,
+          (error.restError as { retry_after?: unknown }).retry_after,
+        );
       }
 
       if (error instanceof DiscordError && error.httpStatus === 403) {
@@ -459,11 +463,17 @@ export class DiscordService {
       return cachedParseResult.data;
     }
 
-    this.logService.warn("Invalid cached discord series stats payload, treating as cache miss", new Map([["cacheKey", cacheKey]]));
+    this.logService.warn(
+      "Invalid cached discord series stats payload, treating as cache miss",
+      new Map([["cacheKey", cacheKey]]),
+    );
     return null;
   }
 
-  private async findDiscordSeriesLookupResult(guildId: string, queueNumber: number): Promise<DiscordSeriesLookupResult> {
+  private async findDiscordSeriesLookupResult(
+    guildId: string,
+    queueNumber: number,
+  ): Promise<DiscordSeriesLookupResult> {
     const searchResponse = await this.searchGuildMessages(guildId, {
       content: `Series stats for queue #${queueNumber.toString()}`,
       author_id: [this.env.DISCORD_APP_ID],

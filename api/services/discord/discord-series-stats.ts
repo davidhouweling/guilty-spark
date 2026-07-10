@@ -237,4 +237,3 @@ export async function buildDiscordSeriesRenderDataFromMatches({
     matches: renderMatches,
   };
 }
-
