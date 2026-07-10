@@ -761,16 +761,38 @@ export class DiscordService {
     const cacheKey = getActiveQueueLookupCacheKey(guildId, channelId);
     const payload = { guildId, channelId, queueNumber };
 
-    await this.env.APP_DATA.put(cacheKey, JSON.stringify(payload), {
-      expirationTtl: ACTIVE_QUEUE_LOOKUP_CACHE_TTL_SECONDS,
-    });
+    try {
+      await this.env.APP_DATA.put(cacheKey, JSON.stringify(payload), {
+        expirationTtl: ACTIVE_QUEUE_LOOKUP_CACHE_TTL_SECONDS,
+      });
+    } catch (error) {
+      this.logService.warn(
+        error,
+        new Map([
+          ["cacheKey", cacheKey],
+          ["reason", "Failed to cache active queue number"],
+        ]),
+      );
+    }
   }
 
   private async getCachedActiveQueueNumber(guildId: string, channelId: string): Promise<number | null> {
     const cacheKey = getActiveQueueLookupCacheKey(guildId, channelId);
-    const cached = await this.env.APP_DATA.get<{ guildId: string; channelId: string; queueNumber: number }>(cacheKey, {
-      type: "json",
-    });
+    let cached: { guildId: string; channelId: string; queueNumber: number } | null;
+    try {
+      cached = await this.env.APP_DATA.get<{ guildId: string; channelId: string; queueNumber: number }>(cacheKey, {
+        type: "json",
+      });
+    } catch (error) {
+      this.logService.warn(
+        error,
+        new Map([
+          ["cacheKey", cacheKey],
+          ["reason", "Failed to read cached active queue number"],
+        ]),
+      );
+      return null;
+    }
 
     if (cached == null || typeof cached !== "object") {
       return null;
