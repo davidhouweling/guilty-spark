@@ -691,7 +691,7 @@ export class StatsCommand extends BaseCommand {
         new Map([
           ["guildId", guildId],
           ["queueNumber", queueNumber.toString()],
-          ["context", "Failed to cache discord series stats directly"],
+          ["reason", "Failed to cache discord series stats directly"],
         ]),
       );
     }

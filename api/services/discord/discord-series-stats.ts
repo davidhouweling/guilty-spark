@@ -160,13 +160,17 @@ export async function buildDiscordSeriesRenderDataFromMatches({
     throw new Error("No Halo match details were found for discovered match IDs");
   }
 
+  const sortedMatches = [...matches].sort((left, right) =>
+    left.MatchInfo.StartTime.localeCompare(right.MatchInfo.StartTime),
+  );
+
   const matchesById: Record<string, MatchStats> = {};
-  for (const match of matches) {
+  for (const match of sortedMatches) {
     matchesById[match.MatchId] = match;
   }
 
   const [playerXuidToGametagMap, medalMetadata] = await Promise.all([
-    haloService.getPlayerXuidsToGametags(matches),
+    haloService.getPlayerXuidsToGametags(sortedMatches),
     getBestEffortMedalMetadata({
       logService,
       haloService,
@@ -177,7 +181,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
   ]);
 
   const renderMatches = await Promise.all(
-    matches.map(async (match) => {
+    sortedMatches.map(async (match) => {
       const [gameTypeAndMap, mapThumbnailUrl] = await Promise.all([
         haloService.getGameTypeAndMap(match.MatchInfo),
         haloService.getMapThumbnailUrl(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),
@@ -213,7 +217,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
     }),
   );
 
-  const lastMatch = Preconditions.checkExists(matches[matches.length - 1]);
+  const lastMatch = Preconditions.checkExists(sortedMatches[sortedMatches.length - 1]);
   const teams = lastMatch.Teams.map((team) => ({
     name: getTeamName(team.TeamId),
     players: getTeamPlayersFromMatch(lastMatch, team.TeamId).map((player) => {
@@ -231,7 +235,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
   return {
     title: `Queue #${queueNumber.toString()} Series Stats`,
     subtitle,
-    seriesScore: haloService.getSeriesScore(matches, "en-US"),
+    seriesScore: haloService.getSeriesScore(sortedMatches, "en-US"),
     medalMetadata,
     teams,
     matches: renderMatches,

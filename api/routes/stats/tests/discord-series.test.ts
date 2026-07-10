@@ -806,6 +806,68 @@ describe("/api/stats/discord/:guildId/:queueNumber/lookup", () => {
     expect(appDataGetSpy).toHaveBeenCalledWith(cacheKey, { type: "json" });
   });
 
+  it("returns cached lookup-only response without calling Discord search", async () => {
+    const storedByKey = new Map<string, string>();
+    const appDataGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+    const appDataPutSpy: MockInstance<(key: string, value: string, options?: KVNamespacePutOptions) => Promise<void>> =
+      vi.spyOn(env.APP_DATA, "put");
+
+    appDataGetSpy.mockImplementation(async (key: string, options?: { type?: string }) => {
+      await Promise.resolve();
+      const value = storedByKey.get(key);
+      if (value == null) {
+        return null;
+      }
+
+      if (options?.type === "json") {
+        return JSON.parse(value) as unknown;
+      }
+
+      return value;
+    });
+    appDataPutSpy.mockImplementation(async (key: string, value: string) => {
+      await Promise.resolve();
+      storedByKey.set(key, value);
+    });
+
+    const lookupCacheKey = "stats:discord:series:123456789012345678:7777:lookup";
+    await env.APP_DATA.put(
+      lookupCacheKey,
+      JSON.stringify({
+        status: "resolved",
+        guildId: "123456789012345678",
+        queueNumber: 7777,
+        matchIds: ["cached-match-lookup-1"],
+      }),
+    );
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      const searchSpy = vi.spyOn(services.discordService, "searchGuildMessages");
+      searchSpy.mockImplementation(() => {
+        throw new Error("searchGuildMessages should not be called when lookup cache hit exists");
+      });
+      return services;
+    });
+
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777/lookup"),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      status: "resolved",
+      guildId: "123456789012345678",
+      queueNumber: 7777,
+      matchIds: ["cached-match-lookup-1"],
+    });
+    expect(appDataGetSpy).toHaveBeenCalledWith("stats:discord:series:123456789012345678:7777", { type: "json" });
+    expect(appDataGetSpy).toHaveBeenCalledWith(lookupCacheKey, { type: "json" });
+  });
+
   it("returns forbidden when Discord service throws 403", async () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });

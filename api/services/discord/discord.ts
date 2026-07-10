@@ -115,6 +115,10 @@ const DEFAULT_PENDING_RETRY_SECONDS = 2;
 const PENDING_CACHE_TTL_SECONDS = 60 * 5;
 const NOT_FOUND_CACHE_TTL_SECONDS = 60 * 5;
 
+function getDiscordSeriesStatsLookupCacheKey(guildId: string, queueNumber: number): string {
+  return `${getDiscordSeriesStatsCacheKey(guildId, queueNumber)}:lookup`;
+}
+
 function sanitizeRetryAfterSeconds(retryAfterValue: unknown): number {
   if (typeof retryAfterValue !== "number") {
     return DEFAULT_PENDING_RETRY_SECONDS;
@@ -385,6 +389,11 @@ export class DiscordService {
         return cached;
       }
 
+      const cachedLookup = await this.getCachedDiscordSeriesLookupResult(guildId, queueNumber);
+      if (cachedLookup != null) {
+        return cachedLookup;
+      }
+
       const lookupResult = await this.findDiscordSeriesLookupResult(guildId, queueNumber);
       await this.cacheDiscordSeriesLookupResult(lookupResult);
       return lookupResult;
@@ -547,6 +556,7 @@ export class DiscordService {
 
   private async cacheDiscordSeriesLookupResult(lookupResult: DiscordSeriesLookupResult): Promise<void> {
     const cacheKey = getDiscordSeriesStatsCacheKey(lookupResult.guildId, lookupResult.queueNumber);
+    const lookupCacheKey = getDiscordSeriesStatsLookupCacheKey(lookupResult.guildId, lookupResult.queueNumber);
 
     if (lookupResult.status === "pending-index") {
       await this.env.APP_DATA.put(cacheKey, JSON.stringify(lookupResult), {
@@ -559,7 +569,29 @@ export class DiscordService {
       await this.env.APP_DATA.put(cacheKey, JSON.stringify(lookupResult), {
         expirationTtl: NOT_FOUND_CACHE_TTL_SECONDS,
       });
+      return;
     }
+
+    await this.env.APP_DATA.put(lookupCacheKey, JSON.stringify(lookupResult), {
+      expirationTtl: DISCORD_SERIES_STATS_RESOLVED_CACHE_TTL_SECONDS,
+    });
+  }
+
+  private async getCachedDiscordSeriesLookupResult(
+    guildId: string,
+    queueNumber: number,
+  ): Promise<DiscordSeriesLookupResult | null> {
+    const lookupCacheKey = getDiscordSeriesStatsLookupCacheKey(guildId, queueNumber);
+    const cached = await this.env.APP_DATA.get<DiscordSeriesLookupResult>(lookupCacheKey, { type: "json" });
+    if (cached == null || typeof cached !== "object") {
+      return null;
+    }
+
+    if (cached.status !== "resolved") {
+      return null;
+    }
+
+    return cached;
   }
 
   async cacheResolvedDiscordSeriesStats({

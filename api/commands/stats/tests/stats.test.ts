@@ -39,7 +39,10 @@ import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake";
 import { EndUserError } from "../../../base/end-user-error";
 import type { MatchPlayer } from "../../../services/halo/types";
-import { getDiscordSeriesStatsCacheKey } from "../../../services/discord/discord-series-stats";
+import {
+  DISCORD_SERIES_STATS_RESOLVED_CACHE_TTL_SECONDS,
+  getDiscordSeriesStatsCacheKey,
+} from "../../../services/discord/discord-series-stats";
 
 const applicationCommandInteractionStatsNeatQueue: APIApplicationCommandInteraction = {
   ...fakeBaseAPIApplicationCommandInteraction,
@@ -381,7 +384,7 @@ describe("StatsCommand", () => {
         expect(appDataPutSpy).toHaveBeenCalledWith(
           getDiscordSeriesStatsCacheKey("fake-guild-id", 777),
           expect.any(String),
-          expect.objectContaining({ expirationTtl: 60 * 60 * 24 }),
+          expect.objectContaining({ expirationTtl: DISCORD_SERIES_STATS_RESOLVED_CACHE_TTL_SECONDS }),
         );
       });
 
@@ -688,7 +691,7 @@ describe("StatsCommand", () => {
           expect(appDataPutSpy).toHaveBeenCalledWith(
             getDiscordSeriesStatsCacheKey("fake-guild-id", 777),
             expect.any(String),
-            expect.objectContaining({ expirationTtl: 60 * 60 * 24 }),
+            expect.objectContaining({ expirationTtl: DISCORD_SERIES_STATS_RESOLVED_CACHE_TTL_SECONDS }),
           );
         });
 
