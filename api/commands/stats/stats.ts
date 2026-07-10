@@ -28,11 +28,13 @@ import { SeriesPlayersEmbed } from "../../embeds/stats/series-players-embed";
 import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed";
 import type { SeriesOverviewEmbedOutput } from "../../embeds/stats/series-overview-embed";
 import { SeriesTeamsEmbed } from "../../embeds/stats/series-teams-embed";
+import {
+  buildDiscordSeriesRenderDataFromMatches,
+} from "../../services/discord/discord-series-stats";
 import type { GuildConfigRow } from "../../services/database/types/guild_config";
 import { StatsReturnType } from "../../services/database/types/guild_config";
 import { EndUserError } from "../../base/end-user-error";
 import { create } from "../../embeds/stats/create";
-import type { JsonAny } from "../../services/log/types";
 
 export enum InteractionButton {
   Retry = "btn_stats_retry",
@@ -244,6 +246,8 @@ export class StatsCommand extends BaseCommand {
         components: seriesEmbed.components,
       });
 
+      await this.cacheDiscordSeriesStats(guildId, queueData.queue, series);
+
       const message = await discordService.getMessageFromInteractionToken(interaction.token);
       const messageChannel = await discordService.getChannel(message.channel_id);
       const thread = [ChannelType.PublicThread, ChannelType.PrivateThread, ChannelType.AnnouncementThread].includes(
@@ -259,10 +263,7 @@ export class StatsCommand extends BaseCommand {
       await this.postSeriesEmbedsToThread(thread.id, series, guildConfig, locale);
       await this.postGameStatsOrButton(thread.id, series, guildConfig, locale);
 
-      await Promise.all([
-        haloService.updateDiscordAssociations(),
-        this.warmDiscordSeriesStatsRoute(guildId, queueData.queue),
-      ]);
+      await haloService.updateDiscordAssociations();
     } catch (error) {
       if (error instanceof EndUserError && computedQueue != null && endDateTime != null) {
         error.appendData({
@@ -363,13 +364,12 @@ export class StatsCommand extends BaseCommand {
           components: seriesEmbed.components,
         });
 
+        await this.cacheDiscordSeriesStats(guildId, queueData.queue, series);
+
         await this.postSeriesEmbedsToThread(threadChannelId, series, guildConfig, locale);
         await this.postGameStatsOrButton(threadChannelId, series, guildConfig, locale);
 
-        await Promise.all([
-          haloService.updateDiscordAssociations(),
-          this.warmDiscordSeriesStatsRoute(guildId, queueData.queue),
-        ]);
+        await haloService.updateDiscordAssociations();
       }
     } catch (error) {
       if (error instanceof EndUserError) {
@@ -668,30 +668,32 @@ export class StatsCommand extends BaseCommand {
     });
   }
 
-  private async warmDiscordSeriesStatsRoute(guildId: string, queueNumber: number): Promise<void> {
-    const { logService } = this.services;
-    const url = `${this.env.HOST_URL}/api/stats/discord/${guildId}/${queueNumber.toString()}`;
+  private async cacheDiscordSeriesStats(guildId: string, queueNumber: number, series: MatchStats[]): Promise<void> {
+    const { discordService, haloService, logService } = this.services;
 
     try {
-      const response = await fetch(url, { method: "GET" });
-      if (response.ok) {
-        return;
-      }
+      const renderData = await buildDiscordSeriesRenderDataFromMatches({
+        discordService,
+        logService,
+        haloService,
+        guildId,
+        queueNumber,
+        matches: series,
+      });
 
-      logService.warn(
-        `Discord series stats warm request returned non-OK status: ${response.status.toString()}`,
-        new Map<string, JsonAny>([
-          ["guildId", guildId],
-          ["queueNumber", queueNumber],
-          ["status", response.status],
-        ]),
-      );
+      await discordService.cacheResolvedDiscordSeriesStats({
+        guildId,
+        queueNumber,
+        matchIds: series.map((match) => match.MatchId),
+        renderData,
+      });
     } catch (error) {
       logService.warn(
         error,
-        new Map<string, JsonAny>([
+        new Map([
           ["guildId", guildId],
-          ["queueNumber", queueNumber],
+          ["queueNumber", queueNumber.toString()],
+          ["context", "Failed to cache discord series stats directly"],
         ]),
       );
     }
