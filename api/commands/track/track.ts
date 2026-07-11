@@ -427,13 +427,11 @@ export class TrackCommand extends BaseCommand {
 
   private async getTrackerStatus(guildId: string, channelId: string): Promise<LiveTrackerState | null> {
     try {
-      // First try to get active queue data to determine the queue number
-      const activeQueueData = await this.services.discordService.getTeamsFromQueueChannel(guildId, channelId);
-      if (!activeQueueData) {
+      const queueNumber = await this.services.discordService.getActiveQueueNumber(guildId, channelId);
+      if (queueNumber == null) {
         return null;
       }
 
-      const queueNumber = activeQueueData.queue;
       const statusResponse = await this.services.liveTrackerService.getTrackerStatus({
         userId: "", // Not needed for status check
         guildId,

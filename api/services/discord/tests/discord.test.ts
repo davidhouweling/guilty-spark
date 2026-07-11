@@ -846,6 +846,160 @@ describe("DiscordService", () => {
         "Could not extract queue number from active teams message.",
       );
     });
+
+    it("caches discovered active queue number", async () => {
+      const appDataPutSpy: MockInstance<typeof env.APP_DATA.put> = vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
+
+      mockFetch.mockImplementation(async () =>
+        Promise.resolve(
+          new Response(JSON.stringify(activeTeamsMessages), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+        ),
+      );
+
+      await discordService.getTeamsFromQueueChannel("fake-guild-id", "fake-channel");
+
+      await vi.waitFor(() => {
+        expect(appDataPutSpy).toHaveBeenCalledWith(
+          "live-tracker:active-queue:fake-guild-id:fake-channel",
+          JSON.stringify({
+            guildId: "fake-guild-id",
+            channelId: "fake-channel",
+            queueNumber: 4680,
+          }),
+          { expirationTtl: 60 * 5 },
+        );
+      });
+    });
+
+    it("continues queue discovery when caching active queue number fails", async () => {
+      const cacheWriteError = new Error("KV put failed");
+      vi.spyOn(env.APP_DATA, "put").mockRejectedValue(cacheWriteError);
+      const logWarnSpy = vi.spyOn(logService, "warn");
+
+      mockFetch.mockImplementation(async () =>
+        Promise.resolve(
+          new Response(JSON.stringify(activeTeamsMessages), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+        ),
+      );
+
+      const queueData = Preconditions.checkExists(
+        await discordService.getTeamsFromQueueChannel("fake-guild-id", "fake-channel"),
+      );
+
+      expect(queueData.queue).toBe(4680);
+      await vi.waitFor(() => {
+        expect(logWarnSpy).toHaveBeenCalledWith(
+          cacheWriteError,
+          new Map([
+            ["cacheKey", "live-tracker:active-queue:fake-guild-id:fake-channel"],
+            ["reason", "Failed to cache active queue number"],
+          ]),
+        );
+      });
+    });
+
+    it("getActiveQueueNumber returns cached value without Discord API call", async () => {
+      const cachedLookup = {
+        guildId: "fake-guild-id",
+        channelId: "fake-channel",
+        queueNumber: 4680,
+      };
+      vi.spyOn(env.APP_DATA, "get").mockResolvedValue(cachedLookup as never);
+
+      const queueNumber = await discordService.getActiveQueueNumber("fake-guild-id", "fake-channel");
+
+      expect(queueNumber).toBe(4680);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("getActiveQueueNumber falls back to Discord lookup when cache payload is invalid", async () => {
+      vi.spyOn(env.APP_DATA, "get").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "fake-channel",
+        queueNumber: 0,
+      } as never);
+
+      mockFetch.mockImplementation(async () =>
+        Promise.resolve(
+          new Response(JSON.stringify(activeTeamsMessages), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+        ),
+      );
+
+      const queueNumber = await discordService.getActiveQueueNumber("fake-guild-id", "fake-channel");
+
+      expect(queueNumber).toBe(4680);
+      expect(mockFetch).toHaveBeenCalled();
+    });
+
+    it("getActiveQueueNumber returns null when no active queue is found", async () => {
+      vi.spyOn(env.APP_DATA, "get").mockResolvedValue(null as never);
+
+      const neatQueueMessagesWithoutActiveQueue = [
+        {
+          ...activeTeamsMessages[0],
+          embeds: [
+            {
+              ...activeTeamsMessages[0]?.embeds[0],
+              title: "Queue status",
+            },
+          ],
+        },
+      ];
+
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(neatQueueMessagesWithoutActiveQueue), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const queueNumber = await discordService.getActiveQueueNumber("fake-guild-id", "fake-channel");
+
+      expect(queueNumber).toBeNull();
+    });
+
+    it("getActiveQueueNumber falls back to Discord lookup when cache read fails", async () => {
+      const cacheReadError = new Error("KV get failed");
+      vi.spyOn(env.APP_DATA, "get").mockImplementation(async (...args) => {
+        const [key] = args;
+        if (!Array.isArray(key) && key === "live-tracker:active-queue:fake-guild-id:fake-channel") {
+          return Promise.reject(cacheReadError);
+        }
+
+        return Promise.resolve(null as never);
+      });
+      const logWarnSpy = vi.spyOn(logService, "warn");
+
+      mockFetch.mockImplementation(async () =>
+        Promise.resolve(
+          new Response(JSON.stringify(activeTeamsMessages), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+        ),
+      );
+
+      const queueNumber = await discordService.getActiveQueueNumber("fake-guild-id", "fake-channel");
+
+      expect(queueNumber).toBe(4680);
+      expect(mockFetch).toHaveBeenCalled();
+      expect(logWarnSpy).toHaveBeenCalledWith(
+        cacheReadError,
+        new Map([
+          ["cacheKey", "live-tracker:active-queue:fake-guild-id:fake-channel"],
+          ["reason", "Failed to read cached active queue number"],
+        ]),
+      );
+    });
   });
 
   describe("updateDeferredReply()", () => {

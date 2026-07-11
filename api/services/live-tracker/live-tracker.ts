@@ -385,9 +385,8 @@ export class LiveTrackerService {
    */
   async discoverActiveTracker({ guildId, channelId }: DiscoverActiveTrackerOpts): Promise<LiveTrackerState | null> {
     try {
-      // First try to get active queue data to determine the queue number
-      const activeQueueData = await this.discordService.getTeamsFromQueueChannel(guildId, channelId);
-      if (!activeQueueData) {
+      const queueNumber = await this.discordService.getActiveQueueNumber(guildId, channelId);
+      if (queueNumber == null) {
         return null;
       }
 
@@ -395,7 +394,7 @@ export class LiveTrackerService {
         userId: "", // Not needed for status check
         guildId,
         channelId,
-        queueNumber: activeQueueData.queue,
+        queueNumber,
       };
 
       const statusResponse = await this.getTrackerStatus(context);
