@@ -1,0 +1,23 @@
+---
+import Layout from "../layouts/layout.astro";
+import Container from "../components/container/container.astro";
+import Heading from "../components/heading/heading.astro";
+import styles from "./_styles/legal-page.module.css";
+// eslint-disable-next-line import/no-unresolved
+import termsMarkdown from "../../../TERMS_OF_SERVICE.md?raw";
+---
+
+<Layout title="Terms of Service - Guilty Spark" description="Terms of service for Guilty Spark services and website tools.">
+  <section class={styles.legalPage}>
+    <Container>
+      <header class={styles.heroBlock}>
+        <p class={styles.eyebrow}>Legal Transmission</p>
+        <Heading tagName="h1" class={styles.title}>Terms of Service</Heading>
+      </header>
+
+      <article class={styles.markdownContent}>
+        <pre class={styles.policyText}>{termsMarkdown}</pre>
+      </article>
+    </Container>
+  </section>
+</Layout>

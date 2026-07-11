@@ -1,0 +1,94 @@
+.legalPage {
+  min-height: 100vh;
+  padding: 92px 0 var(--space-20);
+}
+
+.heroBlock {
+  margin-bottom: var(--space-8);
+  text-align: center;
+}
+
+.eyebrow {
+  color: var(--halo-teal-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  margin-bottom: var(--space-3);
+  text-transform: uppercase;
+}
+
+.title {
+  margin-bottom: var(--space-4);
+}
+
+.markdownContent {
+  background: color-mix(in srgb, var(--halo-bg-secondary) 93%, black 7%);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
+  border-radius: var(--radius-lg);
+  color: var(--halo-gray);
+  font-family: var(--font-body);
+  line-height: 1.75;
+  margin: 0 auto;
+  max-width: 980px;
+  padding: var(--space-7);
+}
+
+.policyText {
+  font-family: var(--font-body);
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.markdownContent :global(h1),
+.markdownContent :global(h2),
+.markdownContent :global(h3),
+.markdownContent :global(h4) {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  letter-spacing: 0.04em;
+  margin-top: var(--space-8);
+  text-transform: uppercase;
+}
+
+.markdownContent :global(h1) {
+  font-size: clamp(1.55rem, 4vw, 2rem);
+  margin-top: 0;
+}
+
+.markdownContent :global(h2) {
+  font-size: clamp(1.35rem, 3.2vw, 1.7rem);
+}
+
+.markdownContent :global(h3) {
+  font-size: clamp(1.15rem, 2.7vw, 1.45rem);
+}
+
+.markdownContent :global(p),
+.markdownContent :global(li) {
+  color: var(--halo-gray);
+}
+
+.markdownContent :global(a) {
+  color: var(--halo-cyan);
+}
+
+.markdownContent :global(code) {
+  background: rgb(0 212 255 / 8%);
+}
+
+.markdownContent :global(ul),
+.markdownContent :global(ol) {
+  padding-left: var(--space-6);
+}
+
+@media (--tablet-viewport) {
+  .legalPage {
+    padding-top: 104px;
+  }
+
+  .markdownContent {
+    padding: var(--space-10);
+  }
+}
