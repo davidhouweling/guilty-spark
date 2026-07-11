@@ -732,7 +732,7 @@ export class DiscordService {
       });
     }
 
-    await this.cacheActiveQueueNumber(guildId, channelId, queueNumber);
+    this.cacheActiveQueueNumber(guildId, channelId, queueNumber);
 
     return this.buildQueueDataFromMessage(
       guildId,
@@ -757,7 +757,11 @@ export class DiscordService {
     return activeQueueData.queue;
   }
 
-  private async cacheActiveQueueNumber(guildId: string, channelId: string, queueNumber: number): Promise<void> {
+  private cacheActiveQueueNumber(guildId: string, channelId: string, queueNumber: number): void {
+    void this.cacheActiveQueueNumberAsync(guildId, channelId, queueNumber);
+  }
+
+  private async cacheActiveQueueNumberAsync(guildId: string, channelId: string, queueNumber: number): Promise<void> {
     const cacheKey = getActiveQueueLookupCacheKey(guildId, channelId);
     const payload = { guildId, channelId, queueNumber };
 

@@ -891,13 +891,15 @@ describe("DiscordService", () => {
       );
 
       expect(queueData.queue).toBe(4680);
-      expect(logWarnSpy).toHaveBeenCalledWith(
-        cacheWriteError,
-        new Map([
-          ["cacheKey", "live-tracker:active-queue:fake-guild-id:fake-channel"],
-          ["reason", "Failed to cache active queue number"],
-        ]),
-      );
+      await vi.waitFor(() => {
+        expect(logWarnSpy).toHaveBeenCalledWith(
+          cacheWriteError,
+          new Map([
+            ["cacheKey", "live-tracker:active-queue:fake-guild-id:fake-channel"],
+            ["reason", "Failed to cache active queue number"],
+          ]),
+        );
+      });
     });
 
     it("getActiveQueueNumber returns cached value without Discord API call", async () => {
