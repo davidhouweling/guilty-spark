@@ -48,6 +48,7 @@ Guilty Spark does not sell personal data.
 Data may be processed by infrastructure and service providers required to operate the service, including:
 
 - Discord (platform/API interactions).
+- Halo/Xbox platform services (for stats, linkage, and gameplay metadata retrieval).
 - Cloudflare services used for compute/storage.
 - Error monitoring/logging tooling used for reliability and incident response.
 
