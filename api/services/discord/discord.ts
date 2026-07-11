@@ -749,11 +749,18 @@ export class DiscordService {
       return cachedQueueNumber;
     }
 
-    const activeQueueData = Preconditions.checkExists(
-      await this.getTeamsFromQueueChannel(guildId, channelId),
-      "No active queue data found",
-    );
-    return activeQueueData.queue;
+    try {
+      const activeQueueData = Preconditions.checkExists(
+        await this.getTeamsFromQueueChannel(guildId, channelId),
+        "No active queue data found",
+      );
+      return activeQueueData.queue;
+    } catch (error) {
+      if (error instanceof EndUserError && error.errorType === EndUserErrorType.WARNING) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   private cacheActiveQueueNumber(guildId: string, channelId: string, queueNumber: number): void {

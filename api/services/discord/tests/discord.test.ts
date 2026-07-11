@@ -940,6 +940,33 @@ describe("DiscordService", () => {
       expect(mockFetch).toHaveBeenCalled();
     });
 
+    it("getActiveQueueNumber returns null when no active queue is found", async () => {
+      vi.spyOn(env.APP_DATA, "get").mockResolvedValue(null as never);
+
+      const neatQueueMessagesWithoutActiveQueue = [
+        {
+          ...activeTeamsMessages[0],
+          embeds: [
+            {
+              ...activeTeamsMessages[0]?.embeds[0],
+              title: "Queue status",
+            },
+          ],
+        },
+      ];
+
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify(neatQueueMessagesWithoutActiveQueue), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const queueNumber = await discordService.getActiveQueueNumber("fake-guild-id", "fake-channel");
+
+      expect(queueNumber).toBeNull();
+    });
+
     it("getActiveQueueNumber falls back to Discord lookup when cache read fails", async () => {
       const cacheReadError = new Error("KV get failed");
       vi.spyOn(env.APP_DATA, "get").mockImplementation(async (...args) => {
