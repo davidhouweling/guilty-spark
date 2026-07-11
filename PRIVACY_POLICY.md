@@ -1,37 +1,92 @@
 # Privacy Policy for Guilty Spark
 
-1. **Introduction**: Your privacy is important to us. This Privacy Policy explains how David Houweling collects, uses, and protects your information when you use Guilty Spark.
+Last Updated: 2026-07-11
 
-2. **Information We Collect**: We may collect the following types of information:
-   1. **User Information**: Information you provide when you register or interact with the app, such as your username, email address, and any other information you choose to provide, or is provided by Discord itself to Guilty Spark as a Discord Bot.
+This Privacy Policy explains what data Guilty Spark processes, why it is processed, how long it is kept, and what controls are available to users.
 
-   2. **Usage Data**: Information about how you use the app, including your interactions, commands issued, and activity logs.
+## 1. Who Operates Guilty Spark
 
-   3. **Device Information**: Information about the device you use to access the app, such as IP address, browser type, and operating system.
+David Houweling operates Guilty Spark, which includes a Discord bot and supporting web application for Halo-related features.
 
-3. **How We Use Your Information**: We use the information we collect for the following purposes:
-   1. To provide, maintain, and improve the app.
+## 2. Data We Process
 
-   2. To personalize your experience and respond to your requests.
+Guilty Spark processes only the data needed to operate bot commands, NeatQueue integrations, tracking features, and account linking.
 
-   3. To monitor and analyze usage and trends to improve our services.
+### 2.1 Discord data
 
-   4. To protect the security and integrity of the app and our users.
+- Discord user IDs, usernames, global names, and (when available) guild nicknames.
+- Guild, channel, and message IDs needed to locate and update bot-related messages.
+- Command and interaction metadata, plus limited message content where required for feature reliability (for example, NeatQueue result and active queue message parsing, and bounded lookup/recovery flows).
 
-4. **Information Sharing and Disclosure**: We do not share your personal information with third parties except in the following cases:
-   1. With your consent: We may share your information with third parties when you consent to such sharing.
+### 2.2 Halo/Xbox linkage and gameplay metadata
 
-   2. For legal reasons: We may share your information if required by law or to protect the rights, property, or safety of [Your Company Name], our users, or others.
+- Discord-to-Xbox association data (for example: Discord ID, Xbox XUID, gamertag, and association reason).
+- Match and tracker metadata needed to render stats and tracking views.
 
-   3. With service providers: We may share information with third-party service providers who assist us in operating the app and providing our services.
+### 2.3 Web/session and identity data
 
-5. **Data Security**: We take reasonable measures to protect your information from unauthorized access, alteration, disclosure, or destruction. However, no security system is completely secure, and we cannot guarantee the absolute security of your information.
+- Session records and linked identity records used by the web experience and account linking flows.
+- OAuth access/refresh tokens and session credential material needed to maintain authenticated sessions and linked providers.
 
-6. **Your Choices**: You have the following choices regarding your information:
-   1. Access and Update: You can access and update your information through your account settings.
+### 2.4 Operational and security data
 
-   2. Delete Account: You can delete your account by contacting us by [raising an issue in the guilty spark repo](https://github.com/davidhouweling/guilty-spark/issues/new). Please note that some information may remain in our records after your account is deleted.
+- Service logs and error telemetry used for reliability, debugging, and abuse prevention.
 
-7. **Changes to This Privacy Policy**: We may update this Privacy Policy from time to time. We will notify you of any significant changes by posting the new Privacy Policy on the app and updating the "Last Updated" date at the top.
+## 3. How We Use Data
 
-8. **Contact Us**: If you have any questions or concerns about this Privacy Policy, please contact us at [raising an issue in the guilty spark repo](https://github.com/davidhouweling/guilty-spark/issues/new).
+Guilty Spark uses processed data to:
+
+- Execute bot commands and interaction flows requested by users.
+- Resolve queue and series context for NeatQueue and live-tracker reliability.
+- Maintain account linking and session functionality.
+- Detect, investigate, and fix operational issues.
+
+## 4. Data Sharing
+
+Guilty Spark does not sell personal data.
+
+Data may be processed by infrastructure and service providers required to operate the service, including:
+
+- Discord (platform/API interactions).
+- Halo/Xbox platform services (for stats, linkage, and gameplay metadata retrieval).
+- Cloudflare services used for compute/storage.
+- Error monitoring/logging tooling used for reliability and incident response.
+
+Data may also be disclosed when legally required.
+
+## 5. Storage and Retention
+
+Retention depends on data type and feature need.
+
+- Short-lived cache/state data uses explicit TTLs (for example, minutes to hours, and in some feature caches up to 30 days).
+- Queue and related transient state is generally retained for short operational windows (for example, around 24 hours for queue-state style KV entries).
+- Account/linking/configuration records are retained until changed, removed, or no longer needed for the feature.
+- Logs and telemetry are retained according to operational needs and provider retention settings.
+
+## 6. User Controls and Deletion
+
+Users can remove specific linkage data via product flows (for example, removing a Discord-to-Xbox association through bot interaction paths).
+
+For broader deletion requests, contact via GitHub issue:
+
+- https://github.com/davidhouweling/guilty-spark/issues/new
+
+Deletion requests will be handled in line with technical and legal constraints (for example, active security/abuse investigation or required records).
+
+## 7. AI/Model Training
+
+Guilty Spark data is not used to train general-purpose AI models.
+
+## 8. Security
+
+Reasonable technical and organizational safeguards are used to protect processed data. No system is guaranteed to be perfectly secure.
+
+## 9. Policy Updates
+
+This policy may be updated over time. Updates will be reflected by revising the "Last Updated" date.
+
+## 10. Contact
+
+Questions or concerns can be submitted via:
+
+- https://github.com/davidhouweling/guilty-spark/issues/new
