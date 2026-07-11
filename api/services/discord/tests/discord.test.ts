@@ -861,15 +861,17 @@ describe("DiscordService", () => {
 
       await discordService.getTeamsFromQueueChannel("fake-guild-id", "fake-channel");
 
-      expect(appDataPutSpy).toHaveBeenCalledWith(
-        "live-tracker:active-queue:fake-guild-id:fake-channel",
-        JSON.stringify({
-          guildId: "fake-guild-id",
-          channelId: "fake-channel",
-          queueNumber: 4680,
-        }),
-        { expirationTtl: 60 * 5 },
-      );
+      await vi.waitFor(() => {
+        expect(appDataPutSpy).toHaveBeenCalledWith(
+          "live-tracker:active-queue:fake-guild-id:fake-channel",
+          JSON.stringify({
+            guildId: "fake-guild-id",
+            channelId: "fake-channel",
+            queueNumber: 4680,
+          }),
+          { expirationTtl: 60 * 5 },
+        );
+      });
     });
 
     it("continues queue discovery when caching active queue number fails", async () => {
