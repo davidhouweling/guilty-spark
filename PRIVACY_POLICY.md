@@ -6,7 +6,7 @@ This Privacy Policy explains what data Guilty Spark processes, why it is process
 
 ## 1. Who Operates Guilty Spark
 
-Guilty Spark is operated by David Houweling as a Discord bot and supporting web application for Halo-related features.
+David Houweling operates Guilty Spark, which includes a Discord bot and supporting web application for Halo-related features.
 
 ## 2. Data We Process
 
@@ -16,7 +16,7 @@ Guilty Spark processes only the data needed to operate bot commands, NeatQueue i
 
 - Discord user IDs, usernames, global names, and (when available) guild nicknames.
 - Guild, channel, and message IDs needed to locate and update bot-related messages.
-- Command/interactions metadata and limited message content where required for feature reliability (for example, NeatQueue result and active queue message parsing, and bounded lookup/recovery flows).
+- Command and interaction metadata, plus limited message content where required for feature reliability (for example, NeatQueue result and active queue message parsing, and bounded lookup/recovery flows).
 
 ### 2.2 Halo/Xbox linkage and gameplay metadata
 
@@ -26,7 +26,7 @@ Guilty Spark processes only the data needed to operate bot commands, NeatQueue i
 ### 2.3 Web/session and identity data
 
 - Session records and linked identity records used by the web experience and account linking flows.
-- OAuth-style credential material needed to maintain authenticated sessions and linked providers.
+- OAuth access/refresh tokens and session credential material needed to maintain authenticated sessions and linked providers.
 
 ### 2.4 Operational and security data
 
