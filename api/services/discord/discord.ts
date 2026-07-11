@@ -749,11 +749,10 @@ export class DiscordService {
       return cachedQueueNumber;
     }
 
-    const activeQueueData = await this.getTeamsFromQueueChannel(guildId, channelId);
-    if (activeQueueData == null) {
-      return null;
-    }
-
+    const activeQueueData = Preconditions.checkExists(
+      await this.getTeamsFromQueueChannel(guildId, channelId),
+      "No active queue data found",
+    );
     return activeQueueData.queue;
   }
 
