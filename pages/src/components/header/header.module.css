@@ -24,6 +24,8 @@
   align-items: center;
   display: flex;
   gap: var(--space-2);
+  justify-content: space-between;
+  width: 100%;
   z-index: 11;
 }
 
@@ -169,6 +171,8 @@
   }
 
   .navLeft {
+    justify-content: flex-start;
+    width: auto;
     z-index: auto;
   }
 
