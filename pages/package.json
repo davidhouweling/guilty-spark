@@ -21,6 +21,7 @@
   "dependencies": {
     "@astrojs/cloudflare": "^13.7.0",
     "@astrojs/react": "^5.0.7",
+    "@astrojs/sitemap": "^3.7.3",
     "@guilty-spark/shared": "file:../shared",
     "@tanstack/react-table": "^8.21.3",
     "astro": "^6.4.6",
