@@ -8,3 +8,41 @@
   min-height: 100vh;
   padding-bottom: var(--space-20);
 }
+
+.heroSection {
+  padding: 92px 0 var(--space-8);
+}
+
+.heroBlock {
+  margin-bottom: 0;
+  text-align: center;
+}
+
+.eyebrow {
+  color: var(--halo-teal-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  margin-bottom: var(--space-3);
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: clamp(2.2rem, 7vw, 3.6rem);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin-bottom: var(--space-5);
+  text-transform: uppercase;
+}
+
+.heroSubtitle {
+  color: var(--halo-gray);
+  font-family: var(--font-body);
+  font-size: clamp(1rem, 3vw, 1.2rem);
+  line-height: 1.8;
+  margin: 0 auto;
+  max-width: 900px;
+}
