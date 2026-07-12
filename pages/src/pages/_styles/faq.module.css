@@ -6,17 +6,5 @@
 
 .faqPage {
   min-height: 100vh;
-  padding-top: 60px; /* Account for fixed header on mobile */
-}
-
-/* ============================================ */
-
-/* Media Queries - Tablet and Above            */
-
-/* ============================================ */
-
-@media (--tablet-viewport) {
-  .faqPage {
-    padding-top: 70px;
-  }
+  padding-bottom: var(--space-20);
 }
