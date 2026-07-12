@@ -3,7 +3,6 @@ import Layout from "../layouts/layout.astro";
 import FAQ from "../components/faq/faq.astro";
 import Container from "../components/container/container.astro";
 import Heading from "../components/heading/heading.astro";
-import contentStyles from "./_styles/content-page.module.css";
 import styles from "./_styles/faq.module.css";
 
 const faqItems = [
@@ -61,12 +60,12 @@ const faqItems = [
   description="Frequently asked questions about Guilty Spark, the Halo Infinite Discord bot for match statistics and NeatQueue integration."
 >
   <div class={styles.faqPage}>
-    <section class={contentStyles.contentPage}>
+    <section class={styles.heroSection}>
       <Container>
-        <header class={contentStyles.heroBlock}>
-          <p class={contentStyles.eyebrow}>Knowledge Base</p>
-          <Heading tagName="h1" class={contentStyles.title}>Frequently Asked Questions</Heading>
-          <p class={contentStyles.subtitle}>
+        <header class={styles.heroBlock}>
+          <p class={styles.eyebrow}>Knowledge Base</p>
+          <Heading tagName="h1" class={styles.heroTitle}>Frequently Asked Questions</Heading>
+          <p class={styles.heroSubtitle}>
             Answers to common questions about Discord automation, Individual Tracker workflows, and OBS overlay setup.
           </p>
         </header>
