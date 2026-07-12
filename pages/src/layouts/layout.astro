@@ -36,6 +36,7 @@ const {
 
     <!-- Open Graph / Discord -->
     <meta property="og:type" content="website" />
+    <meta property="og:url" content={new URL(Astro.url.pathname, "https://guilty-spark.app").href} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={`https://guilty-spark.app/${GuiltySparkIcon.src}`} />
