@@ -5,7 +5,6 @@
 /* ============================================ */
 
 .faqSection {
-  background: var(--halo-bg-primary);
   padding: var(--space-12) 0;
   position: relative;
 }
