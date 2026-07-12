@@ -6,4 +6,5 @@
 
 .faqPage {
   min-height: 100vh;
+  padding-bottom: var(--space-20);
 }

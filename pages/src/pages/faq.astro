@@ -1,6 +1,9 @@
 ---
 import Layout from "../layouts/layout.astro";
 import FAQ from "../components/faq/faq.astro";
+import Container from "../components/container/container.astro";
+import Heading from "../components/heading/heading.astro";
+import contentStyles from "./_styles/content-page.module.css";
 import styles from "./_styles/faq.module.css";
 
 const faqItems = [
@@ -48,6 +51,17 @@ const faqItems = [
   description="Frequently asked questions about Guilty Spark, including Discord automation, Individual Tracker workflows, and OBS overlay setup."
 >
   <div class={styles.faqPage}>
-    <FAQ items={faqItems} />
+    <section class={contentStyles.contentPage}>
+      <Container>
+        <header class={contentStyles.heroBlock}>
+          <p class={contentStyles.eyebrow}>Knowledge Base</p>
+          <Heading tagName="h1" class={contentStyles.title}>Frequently Asked Questions</Heading>
+          <p class={contentStyles.subtitle}>
+            Answers to common questions about Discord automation, Individual Tracker workflows, and OBS overlay setup.
+          </p>
+        </header>
+      </Container>
+    </section>
+    <FAQ items={faqItems} showHeader={false} />
   </div>
 </Layout>
