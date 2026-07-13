@@ -250,6 +250,50 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
     presenter.dispose();
   });
 
+  it("skips metadata resolution when a state message has no valid raw matches", async (): Promise<void> => {
+    const mockStore = new MockLiveTrackerStore();
+    const analyticsService = aFakeMatchAnalyticsServiceWith();
+
+    const resolver = new HaloMedalMetadataResolver(aFakeHaloClientWith());
+    const getMedalMetadataForMatchesSpy = vi.spyOn(resolver, "getMedalMetadataForMatches");
+
+    const createdConnections: MockLiveTrackerConnection[] = [];
+    const mockService = new MockLiveTrackerService();
+    vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
+      const conn = new MockLiveTrackerConnection();
+      createdConnections.push(conn);
+      return Promise.resolve(conn);
+    });
+
+    const presenter = new LiveTrackerPresenter({
+      getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
+      liveTrackerService: mockService,
+      store: mockStore,
+      matchAnalyticsService: analyticsService,
+      medalMetadataResolver: resolver,
+    });
+
+    presenter.start();
+    await vi.runAllTimersAsync();
+
+    const connection = Preconditions.checkExists(createdConnections[0]);
+    connection.emitStatus("connected");
+    mockStore.setSnapshot({
+      ...mockStore.getSnapshot(),
+      medalMetadata: { 99: { name: "Existing", sortingWeight: 99 } },
+    });
+    connection.emitMessage({
+      ...sampleLiveTrackerStateMessage,
+      data: { ...sampleLiveTrackerStateMessage.data, rawMatches: {} },
+    });
+    await vi.runAllTimersAsync();
+
+    expect(getMedalMetadataForMatchesSpy).not.toHaveBeenCalled();
+    expect(mockStore.getSnapshot().medalMetadata).toEqual({ 99: { name: "Existing", sortingWeight: 99 } });
+
+    presenter.dispose();
+  });
+
   it("rolls back fetchedMatchIds and re-triggers fetch when lastStateMessage changes before the fetch resolves", async (): Promise<void> => {
     const mockStore = new MockLiveTrackerStore();
     const analyticsService = aFakeMatchAnalyticsServiceWith();

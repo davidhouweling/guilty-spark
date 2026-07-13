@@ -116,6 +116,9 @@ export class DiscordSeriesStatsPresenter {
 
   private async fetchMedalMetadata(): Promise<void> {
     const rawMatches = this.renderData.matches.map((m) => m.rawMatch).filter((m): m is MatchStats => isMatchStats(m));
+    if (rawMatches.length === 0) {
+      return;
+    }
 
     const medalMetadata = await this.medalMetadataResolver.getMedalMetadataForMatches(rawMatches);
     if (this.cancelled) {

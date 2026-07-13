@@ -594,6 +594,10 @@ export class LiveTrackerPresenter {
     const rawMatches = Object.values(message.data.rawMatches).filter((match): match is MatchStats =>
       isMatchStats(match),
     );
+    if (rawMatches.length === 0) {
+      return;
+    }
+
     const medalMetadata = await this.config.medalMetadataResolver.getMedalMetadataForMatches(rawMatches);
 
     if (this.isDisposed || version !== this.stateMessageVersion) {
