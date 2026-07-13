@@ -82,7 +82,7 @@ function isMatchStats(value: unknown): value is MatchStats {
 
 interface BuildSeriesViewModelArgs {
   readonly series: ViewerSeriesTab;
-  readonly seriesData: Omit<SeriesMatchesResponse, "matches"> & { matches: SeriesMatchesResponse["matches"] };
+  readonly seriesData: SeriesMatchesResponse;
   readonly rawMatches: readonly MatchStats[];
   readonly medalMetadata: MedalMetadata;
   readonly playerMap: Map<string, string>;

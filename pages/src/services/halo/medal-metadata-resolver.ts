@@ -27,7 +27,12 @@ export class HaloMedalMetadataResolver {
 
   private async getMedalLookupAsync(): Promise<MedalLookup> {
     this.medalLookupPromise ??= this.loadMedalLookupAsync();
-    return this.medalLookupPromise;
+    try {
+      return await this.medalLookupPromise;
+    } catch (error) {
+      this.medalLookupPromise = null;
+      throw error;
+    }
   }
 
   private async loadMedalLookupAsync(): Promise<MedalLookup> {
