@@ -6,16 +6,19 @@ type MedalLookup = ReadonlyMap<number, { name: string; sortingWeight: number }>;
 export class HaloMedalMetadataResolver {
   private medalLookupPromise: Promise<MedalLookup> | null = null;
 
-  public constructor(
-    private readonly haloClient: Pick<HaloInfiniteClient, "getMedalsMetadataFile">,
-  ) {}
+  public constructor(private readonly haloClient: Pick<HaloInfiniteClient, "getMedalsMetadataFile">) {}
 
   public async getMedalMetadataForMatch(stats: MatchStats): Promise<MedalMetadata> {
+    return this.getMedalMetadataForMatches([stats]);
+  }
+
+  public async getMedalMetadataForMatches(stats: readonly MatchStats[]): Promise<MedalMetadata> {
     try {
       const medalLookup = await this.getMedalLookupAsync();
-      return await getMedalMetadataFromMatches(
-        { [stats.MatchId]: stats },
-        async (medalId) => Promise.resolve(medalLookup.get(medalId)),
+      const matchesById = Object.fromEntries(stats.map((match) => [match.MatchId, match]));
+
+      return await getMedalMetadataFromMatches(matchesById, async (medalId) =>
+        Promise.resolve(medalLookup.get(medalId)),
       );
     } catch {
       return {};

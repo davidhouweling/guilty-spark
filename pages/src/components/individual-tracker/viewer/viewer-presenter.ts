@@ -6,6 +6,7 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
@@ -81,8 +82,9 @@ function isMatchStats(value: unknown): value is MatchStats {
 
 interface BuildSeriesViewModelArgs {
   readonly series: ViewerSeriesTab;
-  readonly seriesData: SeriesMatchesResponse;
+  readonly seriesData: Omit<SeriesMatchesResponse, "matches"> & { matches: SeriesMatchesResponse["matches"] };
   readonly rawMatches: readonly MatchStats[];
+  readonly medalMetadata: MedalMetadata;
   readonly playerMap: Map<string, string>;
   readonly teamColors: readonly TeamColor[];
 }
@@ -109,11 +111,10 @@ function buildSeriesViewModel({
   series,
   seriesData,
   rawMatches,
+  medalMetadata,
   playerMap,
   teamColors,
 }: BuildSeriesViewModelArgs): SeriesStatsViewModel {
-  const medalMetadata: MedalMetadata = seriesData.medalMetadata;
-
   // --- Series totals ---
   const seriesController = new StatsController();
   seriesController.loadSeries([...rawMatches], playerMap, medalMetadata);
@@ -225,9 +226,11 @@ export class IndividualTrackerViewerPresenter {
   private streamerSettingsKey = "null";
   private hasServerStreamerSettings = false;
   private modeVersion = 0;
+  private readonly medalMetadataResolver: HaloMedalMetadataResolver;
 
   public constructor(config: Config) {
     this.config = config;
+    this.medalMetadataResolver = new HaloMedalMetadataResolver(config.haloClient);
   }
 
   private static entryKey(item: ViewerTimelineItem): string {
@@ -362,7 +365,7 @@ export class IndividualTrackerViewerPresenter {
       }
     }
 
-    const medalMetadata: MedalMetadata = seriesMatches.medalMetadata;
+    const medalMetadata = await this.medalMetadataResolver.getMedalMetadataForMatch(stats);
 
     return { stats, playerMap, medalMetadata, analytics, gameMapThumbnailUrl: matchSummary.gameMapThumbnailUrl };
   }
@@ -442,7 +445,6 @@ export class IndividualTrackerViewerPresenter {
 
       const mergedMatchesById = new Map(seriesDataChunks.flatMap((chunk) => chunk.matches).map((m) => [m.matchId, m]));
       const mergedSeriesData: SeriesMatchesResponse = {
-        medalMetadata: Object.assign({}, ...seriesDataChunks.map((chunk) => chunk.medalMetadata)),
         playerXuidToGametag: Object.assign({}, ...seriesDataChunks.map((chunk) => chunk.playerXuidToGametag)),
         matches: requestedMatchIds
           .map((matchId) => mergedMatchesById.get(matchId))
@@ -453,12 +455,14 @@ export class IndividualTrackerViewerPresenter {
       const rawMatches = mergedSeriesData.matches
         .map((m) => m.rawMatch)
         .filter((m): m is MatchStats => isMatchStats(m));
+      const medalMetadata = await this.medalMetadataResolver.getMedalMetadataForMatches(rawMatches);
 
       const teamColors = this.resolveTeamColors();
       const viewModel = buildSeriesViewModel({
         series,
         seriesData: mergedSeriesData,
         rawMatches,
+        medalMetadata,
         playerMap,
         teamColors,
       });

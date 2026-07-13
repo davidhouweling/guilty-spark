@@ -46,6 +46,7 @@ describe("/api/stats/series-matches", () => {
 
     expect(response.status).toBe(200);
     const body = await seriesMatchesContract.fromResponse(response);
+    expect(body).not.toHaveProperty("medalMetadata");
     expect(body.matches[0]).toMatchObject({
       gameTypeAndMap: "Assault:Neutral Bomb: Live Fire",
       gameType: "Assault:Neutral Bomb",

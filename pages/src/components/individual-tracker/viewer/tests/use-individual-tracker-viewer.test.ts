@@ -514,7 +514,6 @@ describe("useIndividualTrackerViewer", () => {
     const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
     const getSeriesMatchesSpy = vi.spyOn(seriesMatchesService, "getSeriesMatches").mockImplementation(async (ids) =>
       Promise.resolve({
-        medalMetadata: {},
         playerXuidToGametag: {},
         matches: ids.map((matchId) => ({
           matchId,
@@ -584,7 +583,6 @@ describe("useIndividualTrackerViewer", () => {
       .spyOn(seriesMatchesService, "getSeriesMatches")
       .mockRejectedValueOnce(new Error("boom"))
       .mockResolvedValueOnce({
-        medalMetadata: {},
         playerXuidToGametag: {},
         matches: ["m-1", "m-2"].map((matchId) => ({
           matchId,
@@ -657,7 +655,6 @@ describe("useIndividualTrackerViewer", () => {
     const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
     const getSeriesMatchesSpy = vi.spyOn(seriesMatchesService, "getSeriesMatches").mockImplementation(async (ids) =>
       Promise.resolve({
-        medalMetadata: {},
         playerXuidToGametag: {},
         matches: ids.map((matchId) => ({
           matchId,
@@ -746,7 +743,6 @@ describe("useIndividualTrackerViewer", () => {
     });
 
     vi.spyOn(seriesMatchesService, "getSeriesMatches").mockResolvedValue({
-      medalMetadata: {},
       playerXuidToGametag: {},
       matches: [
         {
@@ -864,7 +860,6 @@ describe("useIndividualTrackerViewer", () => {
 
     expect(resolveFirstBatch).toBeDefined();
     resolveFirstBatch?.({
-      medalMetadata: {},
       playerXuidToGametag: {},
       matches: matchIds.slice(0, 30).map((matchId) => ({
         matchId,
