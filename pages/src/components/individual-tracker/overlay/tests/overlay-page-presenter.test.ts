@@ -1,3 +1,4 @@
+import type { HaloInfiniteClient } from "halo-infinite-api";
 import { describe, expect, it, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
 import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
@@ -15,6 +16,40 @@ function aUsersFor(
     gamertag: `Spartan ${xuid}`,
     gamerpic: { small: "", medium: "", large: "", xlarge: "" },
   }));
+}
+
+function aMedalsMetadataFile(): Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]>> {
+  return {
+    difficulties: ["normal", "heroic", "legendary", "mythic"],
+    types: ["spree", "mode", "multikill", "proficiency", "skill", "style"],
+    sprites: {
+      small: { path: "small.png", columns: 16, size: 72 },
+      medium: { path: "medium.png", columns: 16, size: 128 },
+      "extra-large": { path: "large.png", columns: 16, size: 256 },
+    },
+    medals: [
+      {
+        name: { value: "Killing Spree", translations: {} },
+        description: { value: "Kill 5 enemies without dying", translations: {} },
+        spriteIndex: 1,
+        sortingWeight: 100,
+        difficultyIndex: 1,
+        typeIndex: 0,
+        personalScore: 10,
+        nameId: 622331684,
+      },
+      {
+        name: { value: "Double Kill", translations: {} },
+        description: { value: "Kill 2 enemies in quick succession", translations: {} },
+        spriteIndex: 2,
+        sortingWeight: 50,
+        difficultyIndex: 1,
+        typeIndex: 2,
+        personalScore: 10,
+        nameId: 1169571763,
+      },
+    ],
+  };
 }
 
 describe("OverlayPagePresenter", () => {
@@ -76,6 +111,7 @@ describe("OverlayPagePresenter", () => {
     const haloClient = aFakeHaloClientWith({
       getMatchStats: vi.fn(async () => Promise.resolve(aFakeMatchStatsWith({ MatchId: "match-1" }))),
       getUsers: vi.fn(async () => Promise.reject(new Error("users down"))),
+      getMedalsMetadataFile: vi.fn(async () => Promise.reject(new Error("medals down"))),
     });
 
     const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
@@ -96,6 +132,41 @@ describe("OverlayPagePresenter", () => {
     const model = presenter.present(store.getSnapshot());
     expect(model.matchStatsState?.status).toBe("loaded");
     expect(model.matchStatsPanelState?.status).toBe("loaded");
+  });
+
+  it("resolves medal metadata from the proxied medals file and caches it across loads", async () => {
+    const store = new OverlayPageStore();
+    const getMedalsMetadataFile = vi.fn(async () => Promise.resolve(aMedalsMetadataFile()));
+    const haloClient = aFakeHaloClientWith({
+      getMatchStats: vi.fn(async (matchId: string) => Promise.resolve(aFakeMatchStatsWith({ MatchId: matchId }))),
+      getUsers: vi.fn(async (xuids: string[]) => Promise.resolve(aUsersFor(xuids))),
+      getMedalsMetadataFile,
+    });
+
+    const presenter = new OverlayPagePresenter({
+      store,
+      haloClient,
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+    });
+
+    presenter.preloadMatchStats(["match-1", "match-2"]);
+
+    await waitFor(() => {
+      expect(store.getSnapshot().matchStatsByMatchId.get("match-1")?.status).toBe("loaded");
+      expect(store.getSnapshot().matchStatsByMatchId.get("match-2")?.status).toBe("loaded");
+    });
+
+    const firstState = store.getSnapshot().matchStatsByMatchId.get("match-1");
+    expect(firstState).toMatchObject({ status: "loaded" });
+    if (firstState?.status !== "loaded") {
+      throw new Error("expected loaded overlay match stats state");
+    }
+
+    expect(firstState.medalMetadata).toEqual({
+      622331684: { name: "Killing Spree", sortingWeight: 100 },
+      1169571763: { name: "Double Kill", sortingWeight: 50 },
+    });
+    expect(getMedalsMetadataFile).toHaveBeenCalledTimes(1);
   });
 
   it("preloads stats for all provided matches", async () => {

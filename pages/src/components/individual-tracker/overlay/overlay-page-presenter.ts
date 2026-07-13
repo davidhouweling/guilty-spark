@@ -1,10 +1,10 @@
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
-import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { StatsController } from "../../../controllers/stats/stats-controller";
 import { KillMatrixFormatter } from "../../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import { EMPTY_KILL_MATRIX_PIVOT_DATA, type KillMatrixPlayer } from "../../../controllers/stats/kill-matrix/types";
+import { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { MatchDetailsState, ViewerTimelineItem } from "../viewer/types";
 import type { MatchStatsState } from "./individual-tracker-overlay-presenter";
@@ -26,6 +26,7 @@ export interface OverlayPageViewModel {
 export class OverlayPagePresenter {
   private readonly config: OverlayPagePresenterConfig;
   private isDisposed = false;
+  private readonly medalMetadataResolver: HaloMedalMetadataResolver;
 
   private shouldAbort(): boolean {
     return this.isDisposed;
@@ -33,6 +34,7 @@ export class OverlayPagePresenter {
 
   public constructor(config: OverlayPagePresenterConfig) {
     this.config = config;
+    this.medalMetadataResolver = new HaloMedalMetadataResolver(config.haloClient);
   }
 
   public dispose(): void {
@@ -108,13 +110,13 @@ export class OverlayPagePresenter {
 
       const xuids = stats.Players.filter((player) => player.PlayerType === 1).map((player) => getPlayerXuid(player));
 
-      const [users, analyticsByMatchId] = await Promise.all([
+      const [users, analyticsByMatchId, medalMetadata] = await Promise.all([
         this.config.haloClient.getUsers(xuids).catch(() => []),
         this.config.matchAnalyticsService
           .getBatchMatchAnalytics([matchId])
           .catch((): Record<string, MatchAnalytics | null> => ({})),
+        this.medalMetadataResolver.getMedalMetadataForMatch(stats),
       ]);
-      const medalMetadata: MedalMetadata = {};
 
       if (this.shouldAbort()) {
         return;
