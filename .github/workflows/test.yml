@@ -79,6 +79,12 @@ jobs:
       - name: Merge test reports
         run: npx vitest run --mergeReports=blob-report --reporter=junit --reporter=default --coverage.enabled true
 
+      - name: Fail if any shard did not succeed
+        if: needs.run-test.result != 'success'
+        run: |
+          echo "One or more test shards did not succeed (result: ${{ needs.run-test.result }})"
+          exit 1
+
       - name: Publish test results
         if: always()
         uses: EnricoMi/publish-unit-test-result-action@v2
