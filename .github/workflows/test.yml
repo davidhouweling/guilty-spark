@@ -36,13 +36,13 @@ jobs:
         run: cp api/.example.dev.vars api/.dev.vars
 
       - name: Run test shard
-        run: npx vitest run --shard=${{ matrix.shardIndex }}/${{ matrix.shardCount }} --reporter=blob --coverage.enabled true
+        run: npx vitest run --shard=${{ matrix.shardIndex }}/${{ matrix.shardCount }} --reporter=blob --outputFile.blob=blob-report/blob-${{ matrix.shardIndex }}-${{ matrix.shardCount }}.json --coverage.enabled true
 
       - name: Upload blob report
         uses: actions/upload-artifact@v4
         with:
           name: blob-report-${{ matrix.shardIndex }}
-          path: .vitest-reports/*
+          path: blob-report/*
           retention-days: 1
 
   merge-reports:
@@ -72,12 +72,12 @@ jobs:
       - name: Download blob reports
         uses: actions/download-artifact@v4
         with:
-          path: .vitest-reports
+          path: blob-report
           pattern: blob-report-*
           merge-multiple: true
 
       - name: Merge test reports
-        run: npx vitest run --merge-reports --reporter=junit --reporter=default --coverage.enabled true
+        run: npx vitest run --mergeReports=blob-report --reporter=junit --reporter=default --coverage.enabled true
 
       - name: Publish test results
         if: always()
