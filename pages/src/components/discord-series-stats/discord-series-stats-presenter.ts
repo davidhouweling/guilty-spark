@@ -4,6 +4,7 @@ import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import type { MatchStatsData } from "../../controllers/stats/types";
+import { isMatchStats } from "../../controllers/stats/is-match-stats";
 import { StatsController } from "../../controllers/stats/stats-controller";
 import { GAMES_SUFFIX_RE, KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import {
@@ -30,29 +31,6 @@ interface SeriesMetadata {
   readonly duration: string;
   readonly startTime: string;
   readonly endTime: string;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value != null;
-}
-
-function isMatchStats(value: unknown): value is MatchStats {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  const matchInfo = value.MatchInfo;
-  if (!isRecord(matchInfo)) {
-    return false;
-  }
-
-  return (
-    typeof value.MatchId === "string" &&
-    Array.isArray(value.Teams) &&
-    Array.isArray(value.Players) &&
-    typeof matchInfo.StartTime === "string" &&
-    typeof matchInfo.EndTime === "string"
-  );
 }
 
 function calculateSeriesMetadata(

@@ -10,6 +10,7 @@ import type {
 } from "../../services/live-tracker/types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { MatchStatsData } from "../../controllers/stats/types";
+import { isMatchStats } from "../../controllers/stats/is-match-stats";
 import { ComponentLoaderStatus } from "../component-loader/component-loader";
 import { StatsController } from "../../controllers/stats/stats-controller";
 import { calculateSeriesMetadata } from "../../controllers/stats/series-metadata";
@@ -32,27 +33,6 @@ interface Config {
   readonly store: LiveTrackerStoreApi;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
-}
-
-function isMatchStats(value: unknown): value is MatchStats {
-  if (typeof value !== "object" || value == null) {
-    return false;
-  }
-
-  const record = value as Record<string, unknown>;
-  const matchInfo = record.MatchInfo;
-  if (typeof matchInfo !== "object" || matchInfo == null) {
-    return false;
-  }
-
-  const matchInfoRecord = matchInfo as Record<string, unknown>;
-  return (
-    typeof record.MatchId === "string" &&
-    Array.isArray(record.Teams) &&
-    Array.isArray(record.Players) &&
-    typeof matchInfoRecord.StartTime === "string" &&
-    typeof matchInfoRecord.EndTime === "string"
-  );
 }
 
 export class LiveTrackerPresenter {
