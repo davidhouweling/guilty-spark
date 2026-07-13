@@ -52,7 +52,12 @@ function resolveTeamName(
   if (override !== null && override !== "") {
     return override;
   }
-  return teams[teamId]?.name ?? getTeamName(teamId);
+
+  if (Object.hasOwn(teams, teamId) && teams[teamId].name !== "") {
+    return teams[teamId].name;
+  }
+
+  return getTeamName(teamId);
 }
 
 interface NeatQueueStreamerOverlayProps {

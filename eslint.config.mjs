@@ -21,7 +21,7 @@ export default defineConfig(
       "node_modules/**/*",
       "api/.wrangler/**/*",
       "api/dist/",
-      "api/worker-configuration.d.ts",
+      "*/worker-configuration.d.ts",
       "pages/.astro/**/*",
       "pages/dist/",
       "patches/",
