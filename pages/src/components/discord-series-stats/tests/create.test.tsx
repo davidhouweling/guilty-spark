@@ -5,6 +5,8 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { createDiscordSeriesStats } from "../create";
 import { DiscordSeriesStatsPresenter } from "../discord-series-stats-presenter";
+import { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
+import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 
 afterEach(() => {
@@ -21,7 +23,6 @@ function aFakeResolvedDataWith(overrides: Partial<DiscordSeriesStatsResolved> = 
       title: "Queue #7777 Series Stats",
       subtitle: "Guild 123456789012345678",
       seriesScore: "1:0",
-      medalMetadata: {},
       teams: [
         { name: "Eagle", players: ["Player One"] },
         { name: "Cobra", players: ["Player Two"] },
@@ -49,8 +50,13 @@ function aFakeResolvedDataWith(overrides: Partial<DiscordSeriesStatsResolved> = 
 }
 
 describe("DiscordSeriesStats", () => {
+  const medalMetadataResolver = new HaloMedalMetadataResolver(aFakeHaloClientWith());
+
   it("renders top-level sections", () => {
-    const DiscordSeriesStats = createDiscordSeriesStats({ matchAnalyticsService: aFakeMatchAnalyticsServiceWith() });
+    const DiscordSeriesStats = createDiscordSeriesStats({
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      medalMetadataResolver,
+    });
 
     render(<DiscordSeriesStats data={aFakeResolvedDataWith()} />);
 
@@ -64,7 +70,10 @@ describe("DiscordSeriesStats", () => {
   });
 
   it("shows warning when a match has invalid raw match data", () => {
-    const DiscordSeriesStats = createDiscordSeriesStats({ matchAnalyticsService: aFakeMatchAnalyticsServiceWith() });
+    const DiscordSeriesStats = createDiscordSeriesStats({
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      medalMetadataResolver,
+    });
 
     render(<DiscordSeriesStats data={aFakeResolvedDataWith()} />);
 
@@ -72,31 +81,33 @@ describe("DiscordSeriesStats", () => {
   });
 
   it("does not render series totals when no valid raw match data exists", () => {
-    const DiscordSeriesStats = createDiscordSeriesStats({ matchAnalyticsService: aFakeMatchAnalyticsServiceWith() });
+    const DiscordSeriesStats = createDiscordSeriesStats({
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      medalMetadataResolver,
+    });
 
     render(<DiscordSeriesStats data={aFakeResolvedDataWith()} />);
 
     expect(screen.queryByText("Series Totals")).not.toBeInTheDocument();
   });
 
-  it("passes medal metadata from renderData into the presenter", () => {
-    const medalMetadata = { 3334154676: { name: "Killing Spree", sortingWeight: 1500 } };
+  it("constructs the presenter when rendering", () => {
     const presentSpy = vi.spyOn(DiscordSeriesStatsPresenter.prototype, "present");
-    const DiscordSeriesStats = createDiscordSeriesStats({ matchAnalyticsService: aFakeMatchAnalyticsServiceWith() });
+    const DiscordSeriesStats = createDiscordSeriesStats({
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      medalMetadataResolver,
+    });
 
-    render(
-      <DiscordSeriesStats
-        data={aFakeResolvedDataWith({ renderData: { ...aFakeResolvedDataWith().renderData, medalMetadata } })}
-      />,
-    );
+    render(<DiscordSeriesStats data={aFakeResolvedDataWith()} />);
 
     expect(presentSpy).toHaveBeenCalled();
-    const presenterInstance = presentSpy.mock.instances[0] as DiscordSeriesStatsPresenter;
-    expect(presenterInstance.renderData.medalMetadata).toEqual(medalMetadata);
   });
 
   it("renders the shared series stats layout", () => {
-    const DiscordSeriesStats = createDiscordSeriesStats({ matchAnalyticsService: aFakeMatchAnalyticsServiceWith() });
+    const DiscordSeriesStats = createDiscordSeriesStats({
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      medalMetadataResolver,
+    });
 
     render(<DiscordSeriesStats data={aFakeResolvedDataWith()} />);
 
@@ -109,7 +120,7 @@ describe("DiscordSeriesStats", () => {
     const getBatchMatchAnalyticsSpy = vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics");
     const base = aFakeResolvedDataWith();
     const secondMatch = { ...base.renderData.matches[0], matchId: "match-2" };
-    const DiscordSeriesStats = createDiscordSeriesStats({ matchAnalyticsService });
+    const DiscordSeriesStats = createDiscordSeriesStats({ matchAnalyticsService, medalMetadataResolver });
 
     render(
       <DiscordSeriesStats

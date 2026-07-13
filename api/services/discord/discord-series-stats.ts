@@ -5,7 +5,6 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
-import { getMedalMetadataFromMatches } from "@guilty-spark/shared/halo/medals";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { EmbedColors } from "../../embeds/colors";
 import type { HaloService } from "../halo/halo";
@@ -113,34 +112,6 @@ async function getSubtitle(guildId: string, discordService: DiscordService, logS
   return subtitle;
 }
 
-async function getBestEffortMedalMetadata({
-  logService,
-  haloService,
-  matchesById,
-  guildId,
-  queueNumber,
-}: {
-  logService: LogService;
-  haloService: HaloService;
-  matchesById: Record<string, MatchStats>;
-  guildId: string;
-  queueNumber: number;
-}): Promise<DiscordSeriesStatsResolved["renderData"]["medalMetadata"]> {
-  try {
-    return await getMedalMetadataFromMatches(matchesById, async (medalId) => haloService.getMedal(medalId));
-  } catch (error) {
-    logService.warn(
-      error,
-      new Map([
-        ["guildId", guildId],
-        ["queueNumber", queueNumber.toString()],
-        ["reason", "Failed to resolve medal metadata for discord series stats, using empty metadata"],
-      ]),
-    );
-    return {};
-  }
-}
-
 export async function buildDiscordSeriesRenderDataFromMatches({
   discordService,
   logService,
@@ -164,21 +135,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
     left.MatchInfo.StartTime.localeCompare(right.MatchInfo.StartTime),
   );
 
-  const matchesById: Record<string, MatchStats> = {};
-  for (const match of sortedMatches) {
-    matchesById[match.MatchId] = match;
-  }
-
-  const [playerXuidToGametagMap, medalMetadata] = await Promise.all([
-    haloService.getPlayerXuidsToGametags(sortedMatches),
-    getBestEffortMedalMetadata({
-      logService,
-      haloService,
-      matchesById,
-      guildId,
-      queueNumber,
-    }),
-  ]);
+  const playerXuidToGametagMap = await haloService.getPlayerXuidsToGametags(sortedMatches);
 
   const renderMatches = await Promise.all(
     sortedMatches.map(async (match) => {
@@ -236,7 +193,6 @@ export async function buildDiscordSeriesRenderDataFromMatches({
     title: `Queue #${queueNumber.toString()} Series Stats`,
     subtitle,
     seriesScore: haloService.getSeriesScore(sortedMatches, "en-US"),
-    medalMetadata,
     teams,
     matches: renderMatches,
   };

@@ -1,5 +1,6 @@
 import type { LiveTrackerStatus, PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import type { MatchStats } from "halo-infinite-api";
+import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { MatchStatsData } from "../../controllers/stats/types";
 import type { SeriesMetadata } from "../../controllers/stats/series-metadata";
 import type { ComponentLoaderStatus } from "../component-loader/component-loader";
@@ -80,7 +81,7 @@ export interface LiveTrackerNeatQueueStateRenderModel {
   readonly matches: readonly LiveTrackerMatchRenderModel[];
   readonly substitutions: readonly LiveTrackerSubstitutionRenderModel[];
   readonly seriesScore: string;
-  readonly medalMetadata: Record<number, { name: string; sortingWeight: number }>;
+  readonly medalMetadata: MedalMetadata;
   readonly playersAssociationData: Record<string, PlayerAssociationData> | null;
   readonly seriesData?: LiveTrackerSeriesDataRenderModel;
 }

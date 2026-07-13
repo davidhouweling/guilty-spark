@@ -4,6 +4,8 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
 import { LiveTrackerPresenter } from "../live-tracker-presenter";
+import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
+import { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type {
   LiveTrackerConnection,
   LiveTrackerListener,
@@ -82,6 +84,7 @@ class MockLiveTrackerStore {
       hasReceivedInitialData: false,
       analyticsByMatchId: new Map(),
       analyticsStatus: ComponentLoaderStatus.LOADED,
+      medalMetadata: {},
       allMatchStats: [],
       seriesStatsData: null,
     };
@@ -134,6 +137,7 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
       liveTrackerService: mockService,
       store: mockStore,
       matchAnalyticsService: analyticsService,
+      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
     });
 
     presenter.start();
@@ -142,9 +146,6 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
     const connection = Preconditions.checkExists(createdConnections[0]);
     connection.emitStatus("connected");
     connection.emitMessage(sampleLiveTrackerStateMessage);
-
-    // Status transitions to LOADING synchronously inside fetchAnalyticsAsync before the first await
-    expect(mockStore.getSnapshot().analyticsStatus).toBe(ComponentLoaderStatus.LOADING);
 
     // Flush microtasks so the fake analytics Promise.resolve() completes
     await vi.runAllTimersAsync();
@@ -177,6 +178,7 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
       liveTrackerService: mockService,
       store: mockStore,
       matchAnalyticsService: analyticsService,
+      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
     });
 
     presenter.start();
@@ -222,6 +224,7 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
       liveTrackerService: mockService,
       store: mockStore,
       matchAnalyticsService: analyticsService,
+      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
     });
 
     presenter.start();
@@ -231,7 +234,7 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
     connection.emitStatus("connected");
     connection.emitMessage(sampleLiveTrackerStateMessage);
 
-    expect(mockStore.getSnapshot().analyticsStatus).toBe(ComponentLoaderStatus.LOADING);
+    await vi.runAllTimersAsync();
 
     // Simulate a new lastStateMessage arriving (different object reference) before the stale fetch resolves
     const snapshotBeforeResolve = mockStore.getSnapshot();
@@ -279,6 +282,7 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
       liveTrackerService: mockService,
       store: mockStore,
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
     });
 
     // Start the connection
@@ -351,6 +355,7 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
       liveTrackerService: mockService,
       store: mockStore,
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
     });
 
     // Start the connection
@@ -399,6 +404,7 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
       liveTrackerService: mockService,
       store: mockStore,
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
     });
 
     // Start the connection

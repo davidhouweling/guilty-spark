@@ -1,5 +1,7 @@
 import type { LiveTrackerIdentity, LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
+import type { MatchStats } from "halo-infinite-api";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import type {
   LiveTrackerConnection,
   LiveTrackerConnectionStatus,
@@ -29,6 +31,28 @@ interface Config {
   readonly getUrl: () => URL;
   readonly store: LiveTrackerStoreApi;
   readonly matchAnalyticsService: MatchAnalyticsService;
+  readonly medalMetadataResolver: HaloMedalMetadataResolver;
+}
+
+function isMatchStats(value: unknown): value is MatchStats {
+  if (typeof value !== "object" || value == null) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  const matchInfo = record.MatchInfo;
+  if (typeof matchInfo !== "object" || matchInfo == null) {
+    return false;
+  }
+
+  const matchInfoRecord = matchInfo as Record<string, unknown>;
+  return (
+    typeof record.MatchId === "string" &&
+    Array.isArray(record.Teams) &&
+    Array.isArray(record.Players) &&
+    typeof matchInfoRecord.StartTime === "string" &&
+    typeof matchInfoRecord.EndTime === "string"
+  );
 }
 
 export class LiveTrackerPresenter {
@@ -49,6 +73,7 @@ export class LiveTrackerPresenter {
   private readonly baseReconnectionDelayMs = 2000;
 
   private readonly fetchedMatchIds = new Set<string>();
+  private stateMessageVersion = 0;
   private static readonly killMatrixFormatter = new KillMatrixFormatter();
   private static readonly ANALYTICS_BATCH_SIZE = 30;
 
@@ -88,7 +113,10 @@ export class LiveTrackerPresenter {
       statusText = initialStatusText;
     }
 
-    const state = lastStateMessage?.type === "state" ? toLiveTrackerStateRenderModel(lastStateMessage) : null;
+    const state =
+      lastStateMessage?.type === "state"
+        ? toLiveTrackerStateRenderModel(lastStateMessage, snapshot.medalMetadata)
+        : null;
     const substitutions = state?.type === "neatqueue" ? state.substitutions : [];
     const sortedSubstitutions = [...substitutions].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
     const availablePlayers =
@@ -273,13 +301,6 @@ export class LiveTrackerPresenter {
       return false;
     }
 
-    // Compare medalMetadata keys (structural check)
-    const prevMedalIds = Object.keys(prevData.medalMetadata).sort();
-    const currMedalIds = Object.keys(currData.medalMetadata).sort();
-    if (prevMedalIds.length !== currMedalIds.length || !prevMedalIds.every((id, idx) => id === currMedalIds[idx])) {
-      return false;
-    }
-
     // Compare playersAssociationData if present
     if ((prevData.playersAssociationData == null) !== (currData.playersAssociationData == null)) {
       return false;
@@ -421,6 +442,7 @@ export class LiveTrackerPresenter {
         hasReceivedInitialData: false,
         analyticsByMatchId: new Map(),
         analyticsStatus: ComponentLoaderStatus.LOADED,
+        medalMetadata: {},
         allMatchStats: [],
         seriesStatsData: null,
       });
@@ -460,6 +482,7 @@ export class LiveTrackerPresenter {
       hasReceivedInitialData: false,
       analyticsByMatchId: new Map(),
       analyticsStatus: ComponentLoaderStatus.LOADED,
+      medalMetadata: {},
       allMatchStats: [],
       seriesStatsData: null,
     });
@@ -564,21 +587,38 @@ export class LiveTrackerPresenter {
         return;
       }
 
-      const state = toLiveTrackerStateRenderModel(message);
-      const allMatchStats = LiveTrackerPresenter.computeAllMatchStats(state);
-      const seriesStatsData = LiveTrackerPresenter.computeLiveTrackerSeriesStatsData(state);
-
-      const newSnapshot: LiveTrackerSnapshot = {
-        ...snapshot,
-        lastStateMessage: message,
-        hasReceivedInitialData: true,
-        allMatchStats,
-        seriesStatsData,
-      };
-
-      this.config.store.setSnapshot(newSnapshot);
-      this.triggerAnalyticsFetch(newSnapshot);
+      this.stateMessageVersion += 1;
+      const version = this.stateMessageVersion;
+      void this.handleStateMessageAsync(message, version);
     });
+  }
+
+  private async handleStateMessageAsync(message: LiveTrackerMessage, version: number): Promise<void> {
+    const rawMatches = Object.values(message.data.rawMatches).filter((match): match is MatchStats =>
+      isMatchStats(match),
+    );
+    const medalMetadata = await this.config.medalMetadataResolver.getMedalMetadataForMatches(rawMatches);
+
+    if (this.isDisposed || version !== this.stateMessageVersion) {
+      return;
+    }
+
+    const snapshot = this.config.store.getSnapshot();
+    const state = toLiveTrackerStateRenderModel(message, medalMetadata);
+    const allMatchStats = LiveTrackerPresenter.computeAllMatchStats(state);
+    const seriesStatsData = LiveTrackerPresenter.computeLiveTrackerSeriesStatsData(state);
+
+    const newSnapshot: LiveTrackerSnapshot = {
+      ...snapshot,
+      lastStateMessage: message,
+      hasReceivedInitialData: true,
+      medalMetadata,
+      allMatchStats,
+      seriesStatsData,
+    };
+
+    this.config.store.setSnapshot(newSnapshot);
+    this.triggerAnalyticsFetch(newSnapshot);
   }
 
   private triggerAnalyticsFetch(snapshot: LiveTrackerSnapshot): void {

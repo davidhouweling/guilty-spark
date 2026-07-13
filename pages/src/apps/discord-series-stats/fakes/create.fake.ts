@@ -5,7 +5,9 @@ import type {
   DiscordSeriesStatsPending,
   DiscordSeriesStatsResolved,
 } from "@guilty-spark/shared/contracts/stats/discord-series";
+import { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { DiscordSeriesStatsResult } from "../../../services/stats/discord-series-types";
+import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
 import { aFakeDiscordSeriesStatsServiceWith } from "../../../services/stats/fakes/discord-series.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 import type { Services } from "../services";
@@ -22,7 +24,6 @@ export function aFakeResolvedDiscordSeriesStatsWith(
       title: "Queue #7777 Series Stats",
       subtitle: "Guild 123456789012345678",
       seriesScore: "1:0",
-      medalMetadata: {},
       teams: [
         { name: "Eagle", players: ["Player One"] },
         { name: "Cobra", players: ["Player Two"] },
@@ -101,8 +102,10 @@ function toFakeResult(response: DiscordSeriesStats): DiscordSeriesStatsResult {
 }
 
 export function aFakeDiscordSeriesStatsAppServicesWith(response: DiscordSeriesStats): Services {
+  const haloClient = aFakeHaloClientWith();
   return {
     discordSeriesStatsService: aFakeDiscordSeriesStatsServiceWith({ result: toFakeResult(response) }),
     matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+    medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
   };
 }

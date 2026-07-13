@@ -20,6 +20,7 @@ interface DiscordSeriesStatsAppProps {
 interface DiscordSeriesStatsDataProps {
   readonly discordSeriesStatsService: DiscordSeriesStatsService;
   readonly matchAnalyticsService: MatchAnalyticsService;
+  readonly medalMetadataResolver: Services["medalMetadataResolver"];
   readonly guildId: string;
   readonly queueNumber: string;
 }
@@ -27,12 +28,13 @@ interface DiscordSeriesStatsDataProps {
 function DiscordSeriesStatsData({
   discordSeriesStatsService,
   matchAnalyticsService,
+  medalMetadataResolver,
   guildId,
   queueNumber,
 }: DiscordSeriesStatsDataProps): ReactElement {
   const DiscordSeriesStats = useMemo(
-    () => createDiscordSeriesStats({ matchAnalyticsService }),
-    [matchAnalyticsService],
+    () => createDiscordSeriesStats({ matchAnalyticsService, medalMetadataResolver }),
+    [matchAnalyticsService, medalMetadataResolver],
   );
   const store = useMemo(() => new DiscordSeriesStatsStore(), []);
 
@@ -137,6 +139,7 @@ export function DiscordSeriesStatsApp({ apiHost, guildId, queueNumber }: Discord
           <DiscordSeriesStatsData
             discordSeriesStatsService={services.discordSeriesStatsService}
             matchAnalyticsService={services.matchAnalyticsService}
+            medalMetadataResolver={services.medalMetadataResolver}
             guildId={guildId}
             queueNumber={queueNumber}
           />

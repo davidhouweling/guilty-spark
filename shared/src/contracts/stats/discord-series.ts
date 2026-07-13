@@ -22,13 +22,6 @@ export const discordSeriesStatsResolvedSchema = z.object({
     title: z.string(),
     subtitle: z.string(),
     seriesScore: z.string(),
-    medalMetadata: z.record(
-      z.string().regex(/^\d+$/, "Invalid medal id"),
-      z.object({
-        name: z.string(),
-        sortingWeight: z.number(),
-      }),
-    ),
     teams: z.array(
       z.object({
         name: z.string(),

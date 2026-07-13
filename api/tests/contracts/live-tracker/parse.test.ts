@@ -345,15 +345,14 @@ describe("parseLiveTrackerStateData", () => {
     expect(result).toBeNull();
   });
 
-  it("returns null when medalMetadata is not a record", () => {
+  it("parses state when medalMetadata is missing", () => {
     const data = {
       ...sampleLiveTrackerStateMessage.data,
-      medalMetadata: "not-a-record",
     };
 
     const result = parseLiveTrackerStateData(data as unknown as JsonValue);
 
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
   });
 
   it("returns null when player in array is not an object", () => {
@@ -422,7 +421,6 @@ describe("tryParseLiveTrackerMessage", () => {
         matchSummaries: [],
         rawMatches: {},
         seriesScore: "0:0",
-        medalMetadata: {},
         playersAssociationData: {},
       },
     } satisfies LiveTrackerStateMessage);
@@ -457,7 +455,6 @@ describe("tryParseLiveTrackerMessage", () => {
         matchSummaries: [],
         rawMatches: {},
         seriesScore: "0:0",
-        medalMetadata: {},
         playersAssociationData: {},
       },
     } satisfies LiveTrackerStateMessage);
@@ -539,7 +536,6 @@ describe("tryParseLiveTrackerMessage", () => {
         matchSummaries: [],
         rawMatches: {},
         seriesScore: "0:0",
-        medalMetadata: {},
         playersAssociationData: {},
       },
       // missing timestamp
@@ -573,7 +569,6 @@ describe("tryParseLiveTrackerMessage", () => {
           matchSummaries: [],
           rawMatches: {},
           seriesScore: "0:0",
-          medalMetadata: {},
           playersAssociationData: {},
         },
       } satisfies LiveTrackerStateMessage);

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useSyncExternalStore, type ReactElement } from "react";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
+import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import { StatsController } from "../../controllers/stats/stats-controller";
 import { DiscordSeriesStatsStore } from "./discord-series-stats-store";
 import { DiscordSeriesStatsPresenter } from "./discord-series-stats-presenter";
@@ -8,6 +9,7 @@ import { DiscordSeriesStatsView } from "./discord-series-stats";
 
 export interface CreateDiscordSeriesStatsConfig {
   readonly matchAnalyticsService: MatchAnalyticsService;
+  readonly medalMetadataResolver: HaloMedalMetadataResolver;
 }
 
 export interface DiscordSeriesStatsProps {
@@ -19,12 +21,13 @@ interface DiscordSeriesStatsInternalProps extends DiscordSeriesStatsProps {
 }
 
 function DiscordSeriesStatsInternal({ data, config }: DiscordSeriesStatsInternalProps): ReactElement {
-  const { matchAnalyticsService } = config;
+  const { matchAnalyticsService, medalMetadataResolver } = config;
   const store = useMemo(() => new DiscordSeriesStatsStore(), [data.renderData]);
   const controller = useMemo(() => new StatsController(), [data.renderData]);
   const presenter = useMemo(
-    () => new DiscordSeriesStatsPresenter(data.renderData, controller, store, matchAnalyticsService),
-    [data.renderData, controller, store, matchAnalyticsService],
+    () =>
+      new DiscordSeriesStatsPresenter(data.renderData, controller, store, matchAnalyticsService, medalMetadataResolver),
+    [data.renderData, controller, store, matchAnalyticsService, medalMetadataResolver],
   );
 
   const snapshot = useSyncExternalStore(

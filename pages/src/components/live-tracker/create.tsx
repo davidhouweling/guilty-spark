@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useSyncExternalStore } from "react";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
 import { ErrorState } from "../error-state/error-state";
 import { LoadingState } from "../loading-state/loading-state";
+import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { LiveTrackerService } from "../../services/live-tracker/types";
 import { LiveTrackerPresenter } from "./live-tracker-presenter";
@@ -12,6 +13,7 @@ import { LiveTrackerProvider } from "./live-tracker-context";
 export interface CreateLiveTrackerConfig {
   readonly liveTrackerService: LiveTrackerService;
   readonly matchAnalyticsService: MatchAnalyticsService;
+  readonly medalMetadataResolver: HaloMedalMetadataResolver;
 }
 
 interface LiveTrackerInternalProps {
@@ -19,7 +21,7 @@ interface LiveTrackerInternalProps {
 }
 
 function LiveTrackerInternal({ config }: LiveTrackerInternalProps): React.ReactElement {
-  const { liveTrackerService, matchAnalyticsService } = config;
+  const { liveTrackerService, matchAnalyticsService, medalMetadataResolver } = config;
   const store = useMemo(() => new LiveTrackerStore(), []);
 
   const presenter = useMemo(
@@ -29,8 +31,9 @@ function LiveTrackerInternal({ config }: LiveTrackerInternalProps): React.ReactE
         getUrl: (): URL => new URL(window.location.href),
         store,
         matchAnalyticsService,
+        medalMetadataResolver,
       }),
-    [liveTrackerService, matchAnalyticsService, store],
+    [liveTrackerService, matchAnalyticsService, medalMetadataResolver, store],
   );
 
   useEffect(() => {
