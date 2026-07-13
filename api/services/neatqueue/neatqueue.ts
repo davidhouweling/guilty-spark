@@ -1934,11 +1934,6 @@ export class NeatQueueService {
       .filter((event) => event.event.action === "SUBSTITUTION")
       .map((event) => {
         const { player_subbed_out, player_subbed_in } = event.event as NeatQueueSubstitutionRequest;
-        // Resolve the team label for the Discord embed. Use the first non-empty
-        // value: the NeatQueue event's own team_name, then the resolved finalTeam
-        // name, then fall back to the well-known default ("Eagle"/"Cobra").
-        // Note: finalTeams[].name is "" when no custom name was assigned, so we
-        // check for empty string explicitly rather than relying on ?? (nullish only).
         const rawTeamName = player_subbed_out.team_name;
         const finalTeamName = finalTeams[player_subbed_out.team_num - 1]?.name ?? "";
         const resolvedTeamName =
