@@ -2,27 +2,8 @@ import type { MatchStats } from "halo-infinite-api";
 import { parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
-import { getMedalMetadataFromMatches } from "@guilty-spark/shared/halo/medals";
 import { seriesMatchesContract, seriesMatchesQuerySchema } from "@guilty-spark/shared/contracts/stats/series-matches";
 import type { RoutesRegisterHandler } from "../base/types";
-import type { HaloService } from "../../services/halo/halo";
-import type { LogService } from "../../services/log/types";
-
-async function getBestEffortMedalMetadata(
-  haloService: HaloService,
-  logService: LogService,
-  matchesById: Record<string, MatchStats>,
-): Promise<Record<string, { name: string; sortingWeight: number }>> {
-  try {
-    return await getMedalMetadataFromMatches(matchesById, async (medalId) => haloService.getMedal(medalId));
-  } catch (error) {
-    logService.warn(
-      "Failed to resolve medal metadata for series matches, using empty metadata",
-      new Map([["error", String(error)]]),
-    );
-    return {};
-  }
-}
 
 export const seriesMatchesRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/stats/series-matches", async (request, env: Env) => {
@@ -48,10 +29,7 @@ export const seriesMatchesRoute: RoutesRegisterHandler = (router, installService
         .map((matchId) => matchesById[matchId])
         .filter((match): match is MatchStats => match != null);
 
-      const [playerXuidToGametagMap, medalMetadata] = await Promise.all([
-        haloService.getPlayerXuidsToGametags(orderedMatches),
-        getBestEffortMedalMetadata(haloService, logService, matchesById),
-      ]);
+      const playerXuidToGametagMap = await haloService.getPlayerXuidsToGametags(orderedMatches);
 
       const responseMatches = await Promise.all(
         orderedMatches.map(async (match) => {
@@ -83,10 +61,7 @@ export const seriesMatchesRoute: RoutesRegisterHandler = (router, installService
         playerXuidToGametag[xuid] = gamertag;
       }
 
-      return seriesMatchesContract.toResponse(
-        { medalMetadata, playerXuidToGametag, matches: responseMatches },
-        { noStore: true },
-      );
+      return seriesMatchesContract.toResponse({ playerXuidToGametag, matches: responseMatches }, { noStore: true });
     } catch (error) {
       logService.error(error, new Map([["context", "Failed to resolve series matches route"]]));
       return errorContract.toResponse({ error: "Failed to resolve series matches" }, { status: 500, noStore: true });

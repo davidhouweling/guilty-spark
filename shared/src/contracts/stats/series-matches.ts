@@ -18,7 +18,6 @@ export type SeriesMatchesQuery = z.infer<typeof seriesMatchesQuerySchema>;
 
 export const seriesMatchesContract = defineContract(
   z.object({
-    medalMetadata: z.record(z.string().regex(/^\d+$/), z.object({ name: z.string(), sortingWeight: z.number() })),
     playerXuidToGametag: z.record(z.string(), z.string()),
     matches: z.array(
       z.object({

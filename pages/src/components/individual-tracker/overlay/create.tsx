@@ -4,6 +4,7 @@ import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual
 import { ComponentLoader } from "../../component-loader/component-loader";
 import { ErrorState } from "../../error-state/error-state";
 import { LoadingState } from "../../loading-state/loading-state";
+import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
@@ -18,6 +19,7 @@ export interface CreateIndividualTrackerOverlayPageConfig {
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
+  readonly medalMetadataResolver: HaloMedalMetadataResolver;
 }
 
 export interface IndividualTrackerOverlayPageProps {
@@ -38,23 +40,30 @@ function IndividualTrackerOverlayPageInternal({
   showPreview = false,
   previewMode = "observer",
 }: IndividualTrackerOverlayPageInternalProps): React.ReactElement {
-  const { individualTrackerViewService, matchAnalyticsService, seriesMatchesService, haloClient } = config;
+  const {
+    individualTrackerViewService,
+    matchAnalyticsService,
+    seriesMatchesService,
+    haloClient,
+    medalMetadataResolver,
+  } = config;
   const store = useMemo(() => new OverlayPageStore(), []);
   const presenter = useMemo(
     () =>
       new OverlayPagePresenter({
         store,
         haloClient,
+        medalMetadataResolver,
         matchAnalyticsService,
       }),
-    [haloClient, matchAnalyticsService, store],
+    [haloClient, medalMetadataResolver, matchAnalyticsService, store],
   );
 
   const { snapshot, model, onRetry, onToggleEntry } = useIndividualTrackerViewer({
     individualTrackerViewService,
     matchAnalyticsService,
     seriesMatchesService,
-    haloClient,
+    medalMetadataResolver,
     trackerId,
     externalView,
   });

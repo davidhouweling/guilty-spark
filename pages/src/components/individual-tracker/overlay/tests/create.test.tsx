@@ -6,6 +6,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
+import { HaloMedalMetadataResolver } from "../../../../services/halo/medal-metadata-resolver";
 import {
   aFakeTrackerMatchSummaryWith,
   aFakeTrackerViewStateWith,
@@ -87,6 +88,7 @@ describe("IndividualTrackerOverlayPage", () => {
       matchAnalyticsService,
       seriesMatchesService: aFakeSeriesMatchesServiceWith(),
       haloClient,
+      medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
     });
 
     render(<IndividualTrackerOverlayPage trackerId="tracker-1" />);
@@ -134,6 +136,7 @@ describe("IndividualTrackerOverlayPage", () => {
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
       seriesMatchesService: aFakeSeriesMatchesServiceWith(),
       haloClient,
+      medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
     });
 
     render(<IndividualTrackerOverlayPage trackerId="tracker-1" />);
@@ -169,6 +172,7 @@ describe("IndividualTrackerOverlayPage", () => {
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
       seriesMatchesService: aFakeSeriesMatchesServiceWith(),
       haloClient,
+      medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
     });
 
     const { rerender } = render(<IndividualTrackerOverlayPage trackerId="tracker-1" />);
@@ -217,6 +221,7 @@ describe("IndividualTrackerOverlayPage", () => {
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
       seriesMatchesService: aFakeSeriesMatchesServiceWith(),
       haloClient,
+      medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
     });
 
     const { rerender } = render(<IndividualTrackerOverlayPage key="first" trackerId="tracker-1" />);

@@ -24,6 +24,7 @@ export function IndividualTrackerOverlayApp({ apiHost, trackerId }: IndividualTr
             matchAnalyticsService: services.matchAnalyticsService,
             seriesMatchesService: services.seriesMatchesService,
             haloClient: services.haloClient,
+            medalMetadataResolver: services.medalMetadataResolver,
           }),
     [services],
   );

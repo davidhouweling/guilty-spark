@@ -5,7 +5,6 @@ export function aFakeSeriesMatchesServiceWith(response: Partial<SeriesMatchesRes
   return {
     getSeriesMatches: async () =>
       Promise.resolve({
-        medalMetadata: {},
         playerXuidToGametag: {},
         matches: [],
         ...response,

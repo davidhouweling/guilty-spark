@@ -1,10 +1,10 @@
 import React from "react";
-import type { HaloInfiniteClient } from "halo-infinite-api";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { ComponentLoader } from "../../component-loader/component-loader";
 import { ErrorState } from "../../error-state/error-state";
 import { LoadingState } from "../../loading-state/loading-state";
+import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type {
   IndividualTrackerViewService,
@@ -19,7 +19,7 @@ export interface CreateIndividualTrackerViewerPageConfig {
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
-  readonly haloClient: HaloInfiniteClient;
+  readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly individualTrackerService?: IndividualTrackerService;
 }
 
@@ -48,7 +48,7 @@ function IndividualTrackerViewerPageInternal({
     individualTrackerViewService,
     matchAnalyticsService,
     seriesMatchesService,
-    haloClient,
+    medalMetadataResolver,
   } = config;
   const canManage = individualTrackerService != null;
 
@@ -57,7 +57,7 @@ function IndividualTrackerViewerPageInternal({
     individualTrackerViewService,
     matchAnalyticsService,
     seriesMatchesService,
-    haloClient,
+    medalMetadataResolver,
     trackerId,
     streamerSettings,
     externalView,

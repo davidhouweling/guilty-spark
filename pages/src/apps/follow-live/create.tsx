@@ -77,7 +77,7 @@ export function FollowLiveApp({ apiHost, gamertag, variant = "viewer" }: FollowL
             individualTrackerViewService: services.individualTrackerViewService,
             matchAnalyticsService: services.matchAnalyticsService,
             seriesMatchesService: services.seriesMatchesService,
-            haloClient: services.haloClient,
+            medalMetadataResolver: services.medalMetadataResolver,
           }),
     [services],
   );
@@ -92,6 +92,7 @@ export function FollowLiveApp({ apiHost, gamertag, variant = "viewer" }: FollowL
             matchAnalyticsService: services.matchAnalyticsService,
             seriesMatchesService: services.seriesMatchesService,
             haloClient: services.haloClient,
+            medalMetadataResolver: services.medalMetadataResolver,
           }),
     [services],
   );
