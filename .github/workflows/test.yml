@@ -9,8 +9,46 @@ on:
       - main
 
 jobs:
-  run-build:
-    name: Run Test
+  run-test:
+    name: Run Test (Shard ${{ matrix.shardIndex }}/${{ matrix.shardCount }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2, 3, 4, 5, 6, 7, 8]
+        shardCount: [8]
+
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "npm"
+
+      - name: Install Node.js dependencies
+        run: npm ci
+
+      - name: Copy API environment file
+        run: cp api/.example.dev.vars api/.dev.vars
+
+      - name: Run test shard
+        run: npx vitest run --shard=${{ matrix.shardIndex }}/${{ matrix.shardCount }} --reporter=blob --outputFile.blob=blob-report/blob-${{ matrix.shardIndex }}-${{ matrix.shardCount }}.json --coverage.enabled true
+
+      - name: Upload blob report
+        uses: actions/upload-artifact@v4
+        with:
+          name: blob-report-${{ matrix.shardIndex }}
+          path: blob-report/*
+          retention-days: 1
+
+  merge-reports:
+    name: Merge Test Reports
+    needs: run-test
+    if: always()
     runs-on: ubuntu-latest
 
     permissions:
@@ -31,11 +69,21 @@ jobs:
       - name: Install Node.js dependencies
         run: npm ci
 
-      - name: Copy API environment file
-        run: cp api/.example.dev.vars api/.dev.vars
+      - name: Download blob reports
+        uses: actions/download-artifact@v4
+        with:
+          path: blob-report
+          pattern: blob-report-*
+          merge-multiple: true
 
-      - name: Run test
-        run: npx vitest --coverage.enabled true
+      - name: Merge test reports
+        run: npx vitest run --mergeReports=blob-report --reporter=junit --reporter=default --coverage.enabled true
+
+      - name: Fail if any shard did not succeed
+        if: needs.run-test.result != 'success'
+        run: |
+          echo "One or more test shards did not succeed (result: ${{ needs.run-test.result }})"
+          exit 1
 
       - name: Publish test results
         if: always()
