@@ -274,7 +274,7 @@ export class LiveTrackerPresenter {
       return false;
     }
 
-    // Compare rawMatches keys (actual content changes would be caught by match arrays)
+    // Compare only rawMatches keys; this intentionally ignores raw match payload changes.
     const prevMatchIds = Object.keys(prevData.rawMatches).sort();
     const currMatchIds = Object.keys(currData.rawMatches).sort();
     if (prevMatchIds.length !== currMatchIds.length || !prevMatchIds.every((id, idx) => id === currMatchIds[idx])) {
