@@ -594,6 +594,23 @@ export class LiveTrackerPresenter {
   }
 
   private async handleStateMessageAsync(message: LiveTrackerMessage, version: number): Promise<void> {
+    const currentSnapshot = this.config.store.getSnapshot();
+    const stateWithCurrentMetadata = toLiveTrackerStateRenderModel(message, currentSnapshot.medalMetadata);
+    const allMatchStatsWithCurrentMetadata = LiveTrackerPresenter.computeAllMatchStats(stateWithCurrentMetadata);
+    const seriesStatsDataWithCurrentMetadata =
+      LiveTrackerPresenter.computeLiveTrackerSeriesStatsData(stateWithCurrentMetadata);
+
+    const snapshotWithCurrentMetadata: LiveTrackerSnapshot = {
+      ...currentSnapshot,
+      lastStateMessage: message,
+      hasReceivedInitialData: true,
+      allMatchStats: allMatchStatsWithCurrentMetadata,
+      seriesStatsData: seriesStatsDataWithCurrentMetadata,
+    };
+
+    this.config.store.setSnapshot(snapshotWithCurrentMetadata);
+    this.triggerAnalyticsFetch(snapshotWithCurrentMetadata);
+
     const rawMatches = Object.values(message.data.rawMatches).filter((match): match is MatchStats =>
       isMatchStats(match),
     );
@@ -604,21 +621,21 @@ export class LiveTrackerPresenter {
     }
 
     const snapshot = this.config.store.getSnapshot();
-    const state = toLiveTrackerStateRenderModel(message, medalMetadata);
-    const allMatchStats = LiveTrackerPresenter.computeAllMatchStats(state);
-    const seriesStatsData = LiveTrackerPresenter.computeLiveTrackerSeriesStatsData(state);
+    const stateWithResolvedMetadata = toLiveTrackerStateRenderModel(message, medalMetadata);
+    const allMatchStatsWithResolvedMetadata = LiveTrackerPresenter.computeAllMatchStats(stateWithResolvedMetadata);
+    const seriesStatsDataWithResolvedMetadata =
+      LiveTrackerPresenter.computeLiveTrackerSeriesStatsData(stateWithResolvedMetadata);
 
     const newSnapshot: LiveTrackerSnapshot = {
       ...snapshot,
       lastStateMessage: message,
       hasReceivedInitialData: true,
       medalMetadata,
-      allMatchStats,
-      seriesStatsData,
+      allMatchStats: allMatchStatsWithResolvedMetadata,
+      seriesStatsData: seriesStatsDataWithResolvedMetadata,
     };
 
     this.config.store.setSnapshot(newSnapshot);
-    this.triggerAnalyticsFetch(newSnapshot);
   }
 
   private triggerAnalyticsFetch(snapshot: LiveTrackerSnapshot): void {

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import type { HaloInfiniteClient } from "halo-infinite-api";
 import type { LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
@@ -196,6 +197,55 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
     await vi.runAllTimersAsync();
 
     expect(getBatchSpy).toHaveBeenCalledTimes(1);
+
+    presenter.dispose();
+  });
+
+  it("updates snapshot immediately before medal metadata resolution completes", async (): Promise<void> => {
+    const mockStore = new MockLiveTrackerStore();
+    const analyticsService = aFakeMatchAnalyticsServiceWith();
+    const getBatchSpy = vi.spyOn(analyticsService, "getBatchMatchAnalytics");
+
+    let resolveMetadataFile!: (value: Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]>>) => void;
+    const delayedMetadataFile = new Promise<Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]>>>(
+      (resolve) => {
+        resolveMetadataFile = resolve;
+      },
+    );
+    const haloClient = aFakeHaloClientWith({
+      getMedalsMetadataFile: vi.fn(async () => delayedMetadataFile),
+    });
+
+    const createdConnections: MockLiveTrackerConnection[] = [];
+    const mockService = new MockLiveTrackerService();
+    vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
+      const conn = new MockLiveTrackerConnection();
+      createdConnections.push(conn);
+      return Promise.resolve(conn);
+    });
+
+    const presenter = new LiveTrackerPresenter({
+      getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
+      liveTrackerService: mockService,
+      store: mockStore,
+      matchAnalyticsService: analyticsService,
+      medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
+    });
+
+    presenter.start();
+    await vi.runAllTimersAsync();
+
+    const connection = Preconditions.checkExists(createdConnections[0]);
+    connection.emitStatus("connected");
+    connection.emitMessage(sampleLiveTrackerStateMessage);
+
+    const snapshotBeforeMetadataResolves = mockStore.getSnapshot();
+    expect(snapshotBeforeMetadataResolves.lastStateMessage).toEqual(sampleLiveTrackerStateMessage);
+    expect(snapshotBeforeMetadataResolves.hasReceivedInitialData).toBe(true);
+    expect(getBatchSpy).toHaveBeenCalledTimes(1);
+
+    resolveMetadataFile({ difficulties: [], types: [], sprites: {}, medals: [] });
+    await vi.runAllTimersAsync();
 
     presenter.dispose();
   });
