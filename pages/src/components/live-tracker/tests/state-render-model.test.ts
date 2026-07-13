@@ -6,7 +6,7 @@ import { toLiveTrackerStateRenderModel } from "../state-render-model";
 describe("toLiveTrackerStateRenderModel", () => {
   it("maps teams and matches with stable ordering", () => {
     expect.assertions(12);
-    const model = toLiveTrackerStateRenderModel(sampleLiveTrackerStateMessage);
+    const model = toLiveTrackerStateRenderModel(sampleLiveTrackerStateMessage, {});
 
     expect(model.type).toBe("neatqueue");
     expect(model.queueNumber).toBe(sampleLiveTrackerStateMessage.data.queueNumber);

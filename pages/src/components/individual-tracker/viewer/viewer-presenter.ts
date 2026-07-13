@@ -15,6 +15,7 @@ import type {
   TrackerViewConnection,
   TrackerViewSubscription,
 } from "../../../services/individual-tracker/view-types";
+import { isMatchStats } from "../../../controllers/stats/is-match-stats";
 import { calculateSeriesMetadata } from "../../../controllers/stats/series-metadata";
 import { StatsController } from "../../../controllers/stats/stats-controller";
 import { KillMatrixFormatter } from "../../../controllers/stats/kill-matrix/kill-matrix-formatter";
@@ -58,27 +59,6 @@ interface Config {
 
 const WIN_OUTCOME = 2;
 const SERIES_MATCHES_BATCH_SIZE = 30;
-
-function isMatchStats(value: unknown): value is MatchStats {
-  if (typeof value !== "object" || value == null) {
-    return false;
-  }
-
-  const v = value as Record<string, unknown>;
-  const matchInfo = v.MatchInfo;
-  if (typeof matchInfo !== "object" || matchInfo == null) {
-    return false;
-  }
-
-  const mi = matchInfo as Record<string, unknown>;
-  return (
-    typeof v.MatchId === "string" &&
-    Array.isArray(v.Teams) &&
-    Array.isArray(v.Players) &&
-    typeof mi.StartTime === "string" &&
-    typeof mi.EndTime === "string"
-  );
-}
 
 interface BuildSeriesViewModelArgs {
   readonly series: ViewerSeriesTab;

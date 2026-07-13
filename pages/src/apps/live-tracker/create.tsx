@@ -27,6 +27,7 @@ export function LiveTrackerApp({ apiHost }: LiveTrackerAppProps): ReactElement {
         : createLiveTracker({
             liveTrackerService: services.liveTrackerService,
             matchAnalyticsService: services.matchAnalyticsService,
+            medalMetadataResolver: services.medalMetadataResolver,
           }),
     [services],
   );

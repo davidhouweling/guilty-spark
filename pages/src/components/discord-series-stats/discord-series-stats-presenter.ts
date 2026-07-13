@@ -2,7 +2,9 @@ import type { MatchStats } from "halo-infinite-api";
 import { differenceInSeconds, isValid, parseISO } from "date-fns";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import type { MatchStatsData } from "../../controllers/stats/types";
+import { isMatchStats } from "../../controllers/stats/is-match-stats";
 import { StatsController } from "../../controllers/stats/stats-controller";
 import { GAMES_SUFFIX_RE, KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import {
@@ -29,29 +31,6 @@ interface SeriesMetadata {
   readonly duration: string;
   readonly startTime: string;
   readonly endTime: string;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value != null;
-}
-
-function isMatchStats(value: unknown): value is MatchStats {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  const matchInfo = value.MatchInfo;
-  if (!isRecord(matchInfo)) {
-    return false;
-  }
-
-  return (
-    typeof value.MatchId === "string" &&
-    Array.isArray(value.Teams) &&
-    Array.isArray(value.Players) &&
-    typeof matchInfo.StartTime === "string" &&
-    typeof matchInfo.EndTime === "string"
-  );
 }
 
 function calculateSeriesMetadata(
@@ -95,11 +74,13 @@ export class DiscordSeriesStatsPresenter {
     private readonly controller: StatsController,
     private readonly store: DiscordSeriesStatsStore,
     private readonly matchAnalyticsService: MatchAnalyticsService,
+    private readonly medalMetadataResolver: HaloMedalMetadataResolver,
   ) {}
 
   start(): void {
     this.cancelled = false;
     this.store.update({ analyticsStatus: ComponentLoaderStatus.LOADING });
+    void this.fetchMedalMetadata();
     void this.fetchAnalytics();
   }
 
@@ -133,6 +114,20 @@ export class DiscordSeriesStatsPresenter {
     }
   }
 
+  private async fetchMedalMetadata(): Promise<void> {
+    const rawMatches = this.renderData.matches.map((m) => m.rawMatch).filter((m): m is MatchStats => isMatchStats(m));
+    if (rawMatches.length === 0) {
+      return;
+    }
+
+    const medalMetadata = await this.medalMetadataResolver.getMedalMetadataForMatches(rawMatches);
+    if (this.cancelled) {
+      return;
+    }
+
+    this.store.update({ medalMetadata });
+  }
+
   present(snapshot: DiscordSeriesStatsSnapshot): DiscordSeriesStatsViewModel {
     const teamColors = [
       getTeamColorOrDefault(DEFAULT_TEAM_COLORS[0], 0),
@@ -160,7 +155,7 @@ export class DiscordSeriesStatsPresenter {
             playersMap.set(xuid, gamertag);
           }
         }
-        this.controller.loadSeries(rawMatches, playersMap, this.renderData.medalMetadata);
+        this.controller.loadSeries(rawMatches, playersMap, snapshot.medalMetadata);
         seriesData = this.controller.getSeriesStats();
         const players = this.controller.getPlayers();
         const playersByGamertag = new Map(players.map((p) => [p.gamertag, p]));
@@ -229,7 +224,7 @@ export class DiscordSeriesStatsPresenter {
       try {
         const matchController = new StatsController();
         const playerMap = new Map<string, string>(Object.entries(match.playerXuidToGametag));
-        matchController.loadMatch(match.rawMatch, playerMap, this.renderData.medalMetadata);
+        matchController.loadMatch(match.rawMatch, playerMap, snapshot.medalMetadata);
         return { ...base, data: matchController.getMatchStats() };
       } catch {
         return { ...base, data: null };

@@ -3,6 +3,7 @@ import type {
   LiveTrackerNeatQueueSeriesData,
   LiveTrackerStateMessage,
 } from "@guilty-spark/shared/live-tracker/types";
+import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type {
@@ -94,7 +95,10 @@ function transformNeatQueueData(
   return { matches, teams, substitutions };
 }
 
-export function toLiveTrackerStateRenderModel(message: LiveTrackerStateMessage): LiveTrackerStateRenderModel {
+export function toLiveTrackerStateRenderModel(
+  message: LiveTrackerStateMessage,
+  medalMetadata: MedalMetadata,
+): LiveTrackerStateRenderModel {
   const { matches, teams, substitutions } = transformNeatQueueData(message.data, message.data.rawMatches);
 
   return {
@@ -109,7 +113,7 @@ export function toLiveTrackerStateRenderModel(message: LiveTrackerStateMessage):
     matches,
     substitutions,
     seriesScore: message.data.seriesScore,
-    medalMetadata: message.data.medalMetadata,
+    medalMetadata,
     playersAssociationData: message.data.playersAssociationData,
     seriesData:
       message.data.seriesData != null

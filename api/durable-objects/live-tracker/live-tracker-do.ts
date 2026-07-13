@@ -10,7 +10,6 @@ import type {
 } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
-import { getMedalMetadataFromMatches } from "@guilty-spark/shared/halo/medals";
 import {
   liveTrackerStartContract,
   liveTrackerStartRequestSchema,
@@ -1491,9 +1490,6 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private async stateToContractData(state: LiveTrackerState): Promise<LiveTrackerStateData> {
     const guild = await this.discordService.getGuild(state.guildId);
     const rawMatches = await this.loadMatchesFromKV(state.matchIds);
-    const medalMetadata = await getMedalMetadataFromMatches(rawMatches, async (medalId) =>
-      this.haloService.getMedal(medalId),
-    );
 
     return {
       type: "neatqueue",
@@ -1518,7 +1514,6 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       matchSummaries: Object.values(state.discoveredMatches),
       seriesScore: state.seriesScore,
       lastUpdateTime: state.lastUpdateTime,
-      medalMetadata,
       playersAssociationData: state.playersAssociationData,
       rawMatches: rawMatches,
     };

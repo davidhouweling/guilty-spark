@@ -15,6 +15,8 @@ import type {
 } from "../../../services/live-tracker/types";
 import { aFakeLiveTrackerScenarioWith } from "../../../services/live-tracker/fakes/scenario";
 import { aFakeLiveTrackerServiceWith } from "../../../services/live-tracker/fakes/live-tracker.fake";
+import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
+import { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 import { createLiveTracker } from "../create";
 
@@ -61,7 +63,6 @@ function aStateMessage(matchIds: readonly string[], rawMatchIds: readonly string
         rawMatchIds.map((id) => [id, { MatchId: id, Teams: [], Players: [], MatchInfo: {} }]),
       ),
       seriesScore: "0:0",
-      medalMetadata: {},
       playersAssociationData: {},
     },
   };
@@ -80,7 +81,11 @@ async function renderLiveTrackerWith(
   const liveTrackerService = aFakeLiveTrackerServiceWith({ scenario, mode: "manual" });
   const connection = await liveTrackerService.connect({ type: "team" as const, guildId: "1", queueNumber: "3" });
   vi.spyOn(liveTrackerService, "connect").mockResolvedValue(connection);
-  const LiveTracker = createLiveTracker({ liveTrackerService, matchAnalyticsService: analyticsService });
+  const LiveTracker = createLiveTracker({
+    liveTrackerService,
+    matchAnalyticsService: analyticsService,
+    medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
+  });
 
   render(<LiveTracker />);
   await waitFor(() => expect(screen.getByText("Connecting...")).toBeInTheDocument());
@@ -131,7 +136,6 @@ describe("LiveTracker", () => {
         ],
         rawMatches: {},
         seriesScore: "0:0",
-        medalMetadata: {},
         playersAssociationData: {},
       },
     };
@@ -157,6 +161,7 @@ describe("LiveTracker", () => {
     const LiveTracker = createLiveTracker({
       liveTrackerService,
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
     });
 
     render(<LiveTracker />);
@@ -260,6 +265,7 @@ describe("LiveTracker", () => {
     const LiveTracker = createLiveTracker({
       liveTrackerService,
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
     });
 
     render(<LiveTracker />);

@@ -1,9 +1,11 @@
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import { ComponentLoaderStatus } from "../component-loader/component-loader";
 
 export interface DiscordSeriesStatsSnapshot {
   readonly analyticsByMatchId: ReadonlyMap<string, MatchAnalytics>;
   readonly analyticsStatus: ComponentLoaderStatus;
+  readonly medalMetadata: MedalMetadata;
 }
 
 export class DiscordSeriesStatsStore {
@@ -11,7 +13,11 @@ export class DiscordSeriesStatsStore {
   private readonly subscribers = new Set<() => void>();
 
   constructor() {
-    this.snapshot = { analyticsByMatchId: new Map(), analyticsStatus: ComponentLoaderStatus.PENDING };
+    this.snapshot = {
+      analyticsByMatchId: new Map(),
+      analyticsStatus: ComponentLoaderStatus.PENDING,
+      medalMetadata: {},
+    };
   }
 
   subscribe(listener: () => void): () => void {
