@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
 import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
+import { HaloMedalMetadataResolver } from "../../../../services/halo/medal-metadata-resolver";
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
 import type { ViewerTimelineItem } from "../../viewer/types";
 import { OverlayPagePresenter } from "../overlay-page-presenter";
@@ -64,6 +65,7 @@ describe("OverlayPagePresenter", () => {
     const presenter = new OverlayPagePresenter({
       store,
       haloClient,
+      medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     });
 
@@ -91,6 +93,7 @@ describe("OverlayPagePresenter", () => {
     const presenter = new OverlayPagePresenter({
       store,
       haloClient,
+      medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     });
 
@@ -120,6 +123,7 @@ describe("OverlayPagePresenter", () => {
     const presenter = new OverlayPagePresenter({
       store,
       haloClient,
+      medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
       matchAnalyticsService,
     });
 
@@ -146,6 +150,7 @@ describe("OverlayPagePresenter", () => {
     const presenter = new OverlayPagePresenter({
       store,
       haloClient,
+      medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     });
 
@@ -182,6 +187,7 @@ describe("OverlayPagePresenter", () => {
     const presenter = new OverlayPagePresenter({
       store,
       haloClient,
+      medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     });
 
@@ -199,11 +205,13 @@ describe("OverlayPagePresenter", () => {
 
   it("selects a series and toggles the matching timeline item when present", () => {
     const store = new OverlayPageStore();
+    const haloClient = aFakeHaloClientWith({
+      getMatchStats: vi.fn(async () => Promise.resolve(aFakeMatchStatsWith())),
+    });
     const presenter = new OverlayPagePresenter({
       store,
-      haloClient: aFakeHaloClientWith({
-        getMatchStats: vi.fn(async () => Promise.resolve(aFakeMatchStatsWith())),
-      }),
+      haloClient,
+      medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     });
     const timeline: readonly ViewerTimelineItem[] = [
@@ -237,11 +245,13 @@ describe("OverlayPagePresenter", () => {
 
   it("clears selection with a single store notification", () => {
     const store = new OverlayPageStore();
+    const haloClient = aFakeHaloClientWith({
+      getMatchStats: vi.fn(async () => Promise.resolve(aFakeMatchStatsWith())),
+    });
     const presenter = new OverlayPagePresenter({
       store,
-      haloClient: aFakeHaloClientWith({
-        getMatchStats: vi.fn(async () => Promise.resolve(aFakeMatchStatsWith())),
-      }),
+      haloClient,
+      medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     });
     const listener = vi.fn<() => void>();

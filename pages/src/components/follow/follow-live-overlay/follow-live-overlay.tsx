@@ -6,6 +6,7 @@ import { ComponentLoader } from "../../component-loader/component-loader";
 import { ErrorState } from "../../error-state/error-state";
 import { LoadingState } from "../../loading-state/loading-state";
 import { createIndividualTrackerOverlayPage } from "../../individual-tracker/overlay/create";
+import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
@@ -18,6 +19,7 @@ export interface FollowLiveOverlayProps {
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
+  readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly showPreview?: boolean;
   readonly previewMode?: "player" | "observer";
   readonly onRetry: () => void;
@@ -31,6 +33,7 @@ export function FollowLiveOverlay({
   matchAnalyticsService,
   seriesMatchesService,
   haloClient,
+  medalMetadataResolver,
   showPreview = false,
   previewMode = "observer",
   onRetry,
@@ -42,8 +45,9 @@ export function FollowLiveOverlay({
         matchAnalyticsService,
         seriesMatchesService,
         haloClient,
+        medalMetadataResolver,
       }),
-    [haloClient, individualTrackerViewService, matchAnalyticsService, seriesMatchesService],
+    [haloClient, individualTrackerViewService, matchAnalyticsService, medalMetadataResolver, seriesMatchesService],
   );
 
   const loadedState =

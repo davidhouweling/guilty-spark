@@ -8,6 +8,7 @@ import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual
 import { aDirectoryWith, aTrackerWith } from "@guilty-spark/shared/contracts/individual-tracker/fakes/follow.fake";
 import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
 import { aFakeFollowLiveServiceWith } from "../../../../services/follow/fakes/follow.fake";
+import { HaloMedalMetadataResolver } from "../../../../services/halo/medal-metadata-resolver";
 import { aFakeIndividualTrackerViewServiceWith } from "../../../../services/individual-tracker/fakes/view.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../../services/stats/fakes/series-matches.fake";
@@ -53,12 +54,14 @@ function createFollowLiveOverlayWith(
   readonly followLiveService: ReturnType<typeof aFakeFollowLiveServiceWith>;
   readonly individualTrackerViewService: ReturnType<typeof aFakeIndividualTrackerViewServiceWith>;
 } {
+  const haloClient = aFakeHaloClientWith();
   const FollowLiveOverlay = createFollowLiveOverlay({
     followLiveService,
     individualTrackerViewService,
     matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     seriesMatchesService: aFakeSeriesMatchesServiceWith(),
-    haloClient: aFakeHaloClientWith(),
+    haloClient,
+    medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
   });
 
   return {

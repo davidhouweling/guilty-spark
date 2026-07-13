@@ -1,6 +1,7 @@
 import React from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import type { FollowLiveService } from "../../../services/follow/follow-types";
+import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
@@ -14,6 +15,7 @@ export interface FollowLiveOverlayDependencies {
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
+  readonly medalMetadataResolver: HaloMedalMetadataResolver;
 }
 
 export interface FollowLiveOverlayProps {
@@ -28,6 +30,7 @@ export function createFollowLiveOverlay({
   matchAnalyticsService,
   seriesMatchesService,
   haloClient,
+  medalMetadataResolver,
 }: FollowLiveOverlayDependencies) {
   return function FollowLiveOverlayCreate({
     gamertag,
@@ -56,6 +59,7 @@ export function createFollowLiveOverlay({
         matchAnalyticsService={matchAnalyticsService}
         seriesMatchesService={seriesMatchesService}
         haloClient={haloClient}
+        medalMetadataResolver={medalMetadataResolver}
         showPreview={showPreview}
         previewMode={previewMode}
       />

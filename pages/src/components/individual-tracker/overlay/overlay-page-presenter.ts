@@ -4,7 +4,7 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import { StatsController } from "../../../controllers/stats/stats-controller";
 import { KillMatrixFormatter } from "../../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import { EMPTY_KILL_MATRIX_PIVOT_DATA, type KillMatrixPlayer } from "../../../controllers/stats/kill-matrix/types";
-import { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
+import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { MatchDetailsState, ViewerTimelineItem } from "../viewer/types";
 import type { MatchStatsState } from "./individual-tracker-overlay-presenter";
@@ -13,6 +13,7 @@ import type { OverlayPageSnapshot, OverlayPageStore } from "./overlay-page-store
 interface OverlayPagePresenterConfig {
   readonly store: OverlayPageStore;
   readonly haloClient: HaloInfiniteClient;
+  readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly matchAnalyticsService: MatchAnalyticsService;
 }
 
@@ -26,7 +27,6 @@ export interface OverlayPageViewModel {
 export class OverlayPagePresenter {
   private readonly config: OverlayPagePresenterConfig;
   private isDisposed = false;
-  private readonly medalMetadataResolver: HaloMedalMetadataResolver;
 
   private shouldAbort(): boolean {
     return this.isDisposed;
@@ -34,7 +34,6 @@ export class OverlayPagePresenter {
 
   public constructor(config: OverlayPagePresenterConfig) {
     this.config = config;
-    this.medalMetadataResolver = new HaloMedalMetadataResolver(config.haloClient);
   }
 
   public dispose(): void {
@@ -115,7 +114,7 @@ export class OverlayPagePresenter {
         this.config.matchAnalyticsService
           .getBatchMatchAnalytics([matchId])
           .catch((): Record<string, MatchAnalytics | null> => ({})),
-        this.medalMetadataResolver.getMedalMetadataForMatch(stats),
+        this.config.medalMetadataResolver.getMedalMetadataForMatch(stats),
       ]);
 
       if (this.shouldAbort()) {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
-import type { HaloInfiniteClient } from "halo-infinite-api";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
@@ -16,7 +16,7 @@ interface UseIndividualTrackerViewerOpts {
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
-  readonly haloClient: HaloInfiniteClient;
+  readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly trackerId: string;
   readonly streamerSettings?: StreamerViewSettings;
   readonly externalView?: TrackerViewState;
@@ -35,7 +35,7 @@ export function useIndividualTrackerViewer({
   individualTrackerViewService,
   matchAnalyticsService,
   seriesMatchesService,
-  haloClient,
+  medalMetadataResolver,
   trackerId,
   streamerSettings,
   externalView,
@@ -49,7 +49,7 @@ export function useIndividualTrackerViewer({
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
-        haloClient,
+        medalMetadataResolver,
         store,
         trackerId,
       }),
@@ -58,7 +58,7 @@ export function useIndividualTrackerViewer({
       individualTrackerViewService,
       matchAnalyticsService,
       seriesMatchesService,
-      haloClient,
+      medalMetadataResolver,
       store,
       trackerId,
     ],
