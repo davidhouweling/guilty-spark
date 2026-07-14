@@ -104,6 +104,7 @@ export function IndividualTrackerOverlay({
 
       if (selectedTab.type === "series") {
         if (selectedTab.seriesId === MATCHMAKING_SUMMARY_TAB_SERIES_ID) {
+          onDeselect();
           return;
         }
 
