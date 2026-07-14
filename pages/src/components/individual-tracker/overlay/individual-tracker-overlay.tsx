@@ -143,7 +143,7 @@ export function IndividualTrackerOverlay({
 
       if (selectedTab?.type === "series") {
         if (selectedTab.seriesId === MATCHMAKING_SUMMARY_TAB_SERIES_ID) {
-          return selectedMatchId != null ? <StatsPanel state={matchStatsPanelState} /> : null;
+          return <StatsPanel state={matchStatsPanelState} />;
         }
 
         if (seriesStatsPanelState == null) {

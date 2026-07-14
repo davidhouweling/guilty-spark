@@ -527,8 +527,8 @@ export function StreamerSettingsSectionView({
           onChange={(checked): void => {
             onMatchmakingShowSummaryTabChange(checked);
           }}
-          label="Show matches score tab"
-          description="Show a first Won:Loss tab in matchmaking using the same value as Stats Highlights."
+          label="Show matchmaking score tabs"
+          description="Show score tabs in matchmaking, including the first Won:Loss tab from Stats Highlights and series score tabs."
         />
         <Checkbox
           checked={matchmakingShowTicker}
