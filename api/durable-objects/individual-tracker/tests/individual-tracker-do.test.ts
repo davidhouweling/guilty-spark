@@ -585,6 +585,115 @@ describe("IndividualTrackerDO", () => {
       expect(series?.subtitle).toBe("Best of 3");
     });
 
+    it("dedupes sequential same map+mode entries in series matchIds and score", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          selectedMatchIds: ["m1", "m2"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m1",
+              startTime: "2024-11-26T11:00:00.000Z",
+              mapAssetId: "map-a",
+              mapVersionId: "ver-a",
+              gameVariantCategory: 6,
+              outcome: "Win",
+              isMatchmaking: false,
+              teamRosterSignature: "0:1|1:2",
+              teamOutcomes: [2, 3],
+            }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m2",
+              startTime: "2024-11-26T11:05:00.000Z",
+              mapAssetId: "map-a",
+              mapVersionId: "ver-a",
+              gameVariantCategory: 6,
+              outcome: "Loss",
+              isMatchmaking: false,
+              teamRosterSignature: "0:1|1:2",
+              teamOutcomes: [3, 2],
+            }),
+          },
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.series).toHaveLength(1);
+      const series = body.state?.series[0];
+      expect(series?.matchIds).toEqual(["m2"]);
+      expect(series?.matchBackgroundUrls).toHaveLength(1);
+      expect(series?.score).toBe("0:1");
+    });
+
+    it("filters series matches by expected team sizes when series teams are known", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          selectedMatchIds: ["m1", "m2"],
+          activeSeries: {
+            title: "NeatQueue League",
+            subtitle: "Bo3",
+            guildIconUrl: null,
+            teams: [
+              {
+                id: 0,
+                name: "Alpha",
+                players: [
+                  { discordId: null, discordName: "A1", gamertag: "A1", xboxId: null },
+                  { discordId: null, discordName: "A2", gamertag: "A2", xboxId: null },
+                ],
+              },
+              {
+                id: 1,
+                name: "Beta",
+                players: [
+                  { discordId: null, discordName: "B1", gamertag: "B1", xboxId: null },
+                  { discordId: null, discordName: "B2", gamertag: "B2", xboxId: null },
+                ],
+              },
+            ],
+            matchIds: ["m1", "m2"],
+            startedAt: "2024-11-26T11:00:00.000Z",
+            isActive: true,
+          },
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m1",
+              startTime: "2024-11-26T11:00:00.000Z",
+              mapAssetId: "map-a",
+              mapVersionId: "ver-a",
+              gameVariantCategory: 6,
+              outcome: "Win",
+              isMatchmaking: false,
+              teamRosterSignature: "0:a,b|1:c,d",
+              teamOutcomes: [2, 3],
+            }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m2",
+              startTime: "2024-11-26T11:20:00.000Z",
+              mapAssetId: "map-b",
+              mapVersionId: "ver-b",
+              gameVariantCategory: 7,
+              outcome: "Loss",
+              isMatchmaking: false,
+              teamRosterSignature: "0:a,b,e|1:c,d,f",
+              teamOutcomes: [3, 2],
+            }),
+          },
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.series).toHaveLength(1);
+      const series = body.state?.series[0];
+      expect(series?.matchIds).toEqual(["m1"]);
+      expect(series?.score).toBe("1:0");
+    });
+
     it("orders matches chronologically and groups time-adjacent matches regardless of discovery order", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
@@ -594,6 +703,8 @@ describe("IndividualTrackerDO", () => {
             m1: aFakeIndividualTrackerMatchSummaryWith({
               matchId: "m1",
               startTime: "2024-11-26T11:00:00.000Z",
+              mapAssetId: "map-a",
+              mapVersionId: "ver-a",
               outcome: "Win",
               isMatchmaking: false,
               teamRosterSignature: "0:1|1:2",
@@ -602,6 +713,8 @@ describe("IndividualTrackerDO", () => {
             m2: aFakeIndividualTrackerMatchSummaryWith({
               matchId: "m2",
               startTime: "2024-11-26T11:30:00.000Z",
+              mapAssetId: "map-b",
+              mapVersionId: "ver-b",
               outcome: "Loss",
               isMatchmaking: false,
               teamRosterSignature: "0:1|1:2",
@@ -610,6 +723,8 @@ describe("IndividualTrackerDO", () => {
             m3: aFakeIndividualTrackerMatchSummaryWith({
               matchId: "m3",
               startTime: "2024-11-26T12:00:00.000Z",
+              mapAssetId: "map-c",
+              mapVersionId: "ver-c",
               outcome: "Win",
               isMatchmaking: false,
               teamRosterSignature: "0:1|1:2",
