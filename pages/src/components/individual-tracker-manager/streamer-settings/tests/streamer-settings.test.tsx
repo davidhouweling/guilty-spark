@@ -258,6 +258,12 @@ describe("StreamerSettingsSectionView", () => {
       expect(screen.getByRole("checkbox", { name: /show matchmaking score tabs/i })).toBeInTheDocument();
     });
 
+    it("describes the matchmaking bottom section as tabs and ticker settings", () => {
+      render(<StreamerSettingsSectionView {...aFakeProps()} />);
+
+      expect(screen.getByText("Configure matchmaking-only tabs and ticker behavior.")).toBeInTheDocument();
+    });
+
     it("renders the disable team player names toggle in the in-series top section", () => {
       render(<StreamerSettingsSectionView {...aFakeProps()} />);
 

@@ -520,7 +520,7 @@ export function StreamerSettingsSectionView({
 
         <div className={styles.subsection}>
           <h4 className={styles.subsectionTitle}>Bottom Section</h4>
-          <p className={styles.cardDescription}>Configure matchmaking-only ticker behavior.</p>
+          <p className={styles.cardDescription}>Configure matchmaking-only tabs and ticker behavior.</p>
         </div>
         <Checkbox
           checked={matchmakingShowSummaryTab}

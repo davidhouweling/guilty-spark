@@ -8,10 +8,8 @@ import type {
   ViewerSeriesTab,
   ViewerTimelineItem,
 } from "../../viewer/types";
-import {
-  IndividualTrackerOverlayPresenter,
-  MATCHMAKING_SUMMARY_TAB_SERIES_ID,
-} from "../individual-tracker-overlay-presenter";
+import { IndividualTrackerOverlayPresenter } from "../individual-tracker-overlay-presenter";
+import { MATCHMAKING_SUMMARY_TAB_SERIES_ID } from "../types";
 import haloTrophyIconPng from "../../../../assets/halo-trophy-icon.png";
 
 function aRenderModelWith(

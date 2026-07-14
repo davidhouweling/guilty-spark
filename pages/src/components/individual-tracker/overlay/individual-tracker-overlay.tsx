@@ -9,8 +9,7 @@ import { Alert } from "../../alert/alert";
 import { LoadingState } from "../../loading-state/loading-state";
 import type { MatchDetailsState, SeriesDetailsState } from "../viewer/types";
 import { OverlayStatsHighlights } from "./overlay-stats-highlights";
-import { MATCHMAKING_SUMMARY_TAB_SERIES_ID } from "./individual-tracker-overlay-presenter";
-import type { IndividualTrackerOverlayViewModel } from "./types";
+import { MATCHMAKING_SUMMARY_TAB_SERIES_ID, type IndividualTrackerOverlayViewModel } from "./types";
 import styles from "./individual-tracker-overlay.module.css";
 
 interface IndividualTrackerOverlayProps {

@@ -31,7 +31,7 @@ import type {
   OverlayTeamDetailsModel,
   OverlayTopSectionModel,
 } from "./types";
-import { getOverlayDisplaySettings } from "./types";
+import { getOverlayDisplaySettings, MATCHMAKING_SUMMARY_TAB_SERIES_ID } from "./types";
 import "javascript-time-ago/locale/en";
 
 const timeAgo = new TimeAgo("en");
@@ -163,8 +163,6 @@ interface BuildTabsOptions {
   readonly includeMatchmakingSummaryTab: boolean;
   readonly matchmakingSummaryScore: string;
 }
-
-export const MATCHMAKING_SUMMARY_TAB_SERIES_ID = "matchmaking-summary";
 
 interface IndividualTrackerOverlayPresenterConfig {
   readonly defaultTeamColors?: readonly [TeamColor, TeamColor];
