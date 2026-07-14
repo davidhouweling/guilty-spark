@@ -4,6 +4,7 @@ import type { MatchStatsData } from "../../../controllers/stats/types";
 import type { KillMatrixPivotData } from "../../../controllers/stats/kill-matrix/types";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import type { SeriesStatsViewModel } from "../../series-stats/types";
+import type { ScoreProgressionViewData } from "../../stats/score-progression/types";
 import type { ViewerEntryState } from "./types";
 
 export interface MatchEntryLoadedState {
@@ -16,6 +17,7 @@ export interface MatchEntryLoadedState {
   readonly data: MatchStatsData[];
   readonly killMatrixPivotData: KillMatrixPivotData;
   readonly transposedKillMatrixPivotData: KillMatrixPivotData;
+  readonly scoreProgressionViewData: ScoreProgressionViewData | null;
 }
 
 export interface SeriesEntryLoadedState {

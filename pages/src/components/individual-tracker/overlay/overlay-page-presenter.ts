@@ -196,6 +196,7 @@ export class OverlayPagePresenter {
         killMatrixRows != null
           ? KillMatrixFormatter.transpose(killMatrixRows, orderedPlayers)
           : EMPTY_KILL_MATRIX_PIVOT_DATA,
+      scoreProgressionViewData: null,
     };
   }
 

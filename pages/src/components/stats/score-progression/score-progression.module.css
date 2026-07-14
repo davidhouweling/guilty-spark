@@ -1,0 +1,65 @@
+.chart {
+  display: block;
+  height: auto;
+  max-width: 600px;
+  overflow: visible;
+  width: 100%;
+}
+
+.gridLine {
+  stroke: #ccc;
+  stroke-dasharray: 3 3;
+  stroke-width: 0.5;
+}
+
+.axis {
+  stroke: #999;
+  stroke-width: 1;
+}
+
+.axisLabel {
+  fill: #666;
+  font-size: 10px;
+}
+
+.teamLine {
+  stroke-width: 2;
+}
+
+@media (prefers-color-scheme: dark) {
+  .gridLine {
+    stroke: #444;
+  }
+
+  .axis {
+    stroke: #666;
+  }
+
+  .axisLabel {
+    fill: #aaa;
+  }
+}
+
+:root[data-theme="light"] .gridLine {
+  stroke: #ccc;
+}
+
+:root[data-theme="light"] .axis {
+  stroke: #999;
+}
+
+:root[data-theme="light"] .axisLabel {
+  fill: #666;
+}
+
+:root[data-theme="dark"] .gridLine {
+  stroke: #444;
+}
+
+:root[data-theme="dark"] .axis {
+  stroke: #666;
+}
+
+:root[data-theme="dark"] .axisLabel {
+  fill: #aaa;
+}
