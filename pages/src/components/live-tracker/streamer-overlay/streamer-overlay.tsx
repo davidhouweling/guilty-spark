@@ -53,7 +53,7 @@ function resolveTeamName(
     return override;
   }
 
-  if (Object.hasOwn(teams, teamId) && teams[teamId].name !== "") {
+  if (Object.hasOwn(teams, teamId) && teams[teamId].name.trim() !== "") {
     return teams[teamId].name;
   }
 
