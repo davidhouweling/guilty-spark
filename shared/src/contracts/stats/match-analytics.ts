@@ -1,5 +1,15 @@
 import { z } from "zod";
-import { killRaceTimelineSchema } from "./match-score-progression";
+
+const killRaceEventSchema = z.object({
+  timestampMs: z.number().int().nonnegative(),
+  teamId: z.number().int().nonnegative(),
+  runningScores: z.record(z.string(), z.number().int().nonnegative()),
+});
+
+const killRaceTimelineSchema = z.object({
+  type: z.literal("kill-race"),
+  events: z.array(killRaceEventSchema),
+});
 
 export const killMatrixEntrySchema = z.object({
   count: z.number().int().nonnegative().describe("Total kills for this killer/victim pair"),

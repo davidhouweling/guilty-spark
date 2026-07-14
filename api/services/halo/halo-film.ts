@@ -100,8 +100,9 @@ export class HaloFilmService {
   async buildSlayerProgression(matchStats: MatchStats): Promise<SlayerProgression> {
     const events = await this.loadEnrichedEventsForMatch(matchStats);
     const kills = events.filter((event) => event.eventType === "kill");
-    const teamIds = [...new Set(matchStats.Teams.map((team) => team.TeamId))];
-    const runningScores = new Map<number, number>(teamIds.map((id) => [id, 0]));
+    const runningScores = new Map<number, number>(
+      [...new Set(matchStats.Teams.map((team) => team.TeamId))].map((id) => [id, 0]),
+    );
     const progressionEvents: SlayerProgressionEvent[] = [];
 
     for (const kill of kills) {

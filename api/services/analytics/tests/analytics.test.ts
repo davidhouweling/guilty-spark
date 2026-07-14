@@ -1,4 +1,5 @@
 import { GameVariantCategory } from "halo-infinite-api";
+import type { MockInstance } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
@@ -109,7 +110,10 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
       perfectCounts: { total: 0, byXuid: {} },
     });
-    const buildSlayerProgressionSpy = vi.spyOn(haloFilmService, "buildSlayerProgression");
+    const buildSlayerProgressionSpy: MockInstance<typeof haloFilmService.buildSlayerProgression> = vi.spyOn(
+      haloFilmService,
+      "buildSlayerProgression",
+    );
 
     const service = new AnalyticsService({ haloService, haloFilmService, logService });
     const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix"]);
@@ -135,7 +139,10 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
       perfectCounts: { total: 0, byXuid: {} },
     });
-    const buildSlayerProgressionSpy = vi.spyOn(haloFilmService, "buildSlayerProgression");
+    const buildSlayerProgressionSpy: MockInstance<typeof haloFilmService.buildSlayerProgression> = vi.spyOn(
+      haloFilmService,
+      "buildSlayerProgression",
+    );
 
     const service = new AnalyticsService({ haloService, haloFilmService, logService });
     const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
