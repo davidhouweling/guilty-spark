@@ -21,6 +21,8 @@ import type {
   ParsedHighlightEvent,
   KillMatrixEntry,
   KillMatrixAnalytics,
+  KillRaceProgression,
+  KillRaceProgressionEvent,
   HaloFilmServiceOpts,
 } from "./types";
 import type { CustomSpartanTokenProvider } from "./custom-spartan-token-provider";
@@ -88,12 +90,40 @@ export class HaloFilmService {
     return this.parseHighlightEvents(highlightChunkBytes, filmMetadata.CustomData.FilmMajorVersion);
   }
 
-  async buildKillMatrixAnalytics(matchStats: MatchStats): Promise<KillMatrixAnalytics> {
+  private async loadEnrichedEventsForMatch(matchStats: MatchStats): Promise<ParsedHighlightEvent[]> {
     const events = await this.getHighlightEventsForMatch(matchStats.MatchId);
     const xuidToTeamId = this.buildXuidToTeamMap(matchStats);
     this.assignTeamIdsToEvents(events, xuidToTeamId);
+    return events;
+  }
 
-    const kills = events.filter((event) => event.eventType === "kill");
+  async buildKillRaceProgression(matchStats: MatchStats): Promise<KillRaceProgression> {
+    const events = await this.loadEnrichedEventsForMatch(matchStats);
+    const kills = this.filterKillEvents(events);
+    const runningScores = new Map<number, number>(
+      [...new Set(matchStats.Teams.map((team) => team.TeamId))].map((id) => [id, 0]),
+    );
+    const progressionEvents: KillRaceProgressionEvent[] = [];
+
+    for (const kill of kills) {
+      if (kill.teamId == null || !runningScores.has(kill.teamId)) {
+        continue;
+      }
+      runningScores.set(kill.teamId, Preconditions.checkExists(runningScores.get(kill.teamId)) + 1);
+      progressionEvents.push({
+        timestampMs: kill.timeMs,
+        teamId: kill.teamId,
+        runningScores: Object.fromEntries(runningScores),
+      });
+    }
+
+    return { events: progressionEvents, teamCount: runningScores.size };
+  }
+
+  async buildKillMatrixAnalytics(matchStats: MatchStats): Promise<KillMatrixAnalytics> {
+    const events = await this.loadEnrichedEventsForMatch(matchStats);
+
+    const kills = this.filterKillEvents(events);
     const deaths = events.filter((event) => event.eventType === "death");
     const perfectByXuid = this.buildPerfectMedalsByXuid(events);
 
@@ -109,6 +139,10 @@ export class HaloFilmService {
       },
       perfectCounts,
     };
+  }
+
+  private filterKillEvents(events: ParsedHighlightEvent[]): ParsedHighlightEvent[] {
+    return events.filter((event) => event.eventType === "kill");
   }
 
   private async getOrFetchFilmMetadata(

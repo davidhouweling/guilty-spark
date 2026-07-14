@@ -24,6 +24,7 @@ function aFakeAnalyticsResponseWith(overrides: Partial<MatchAnalytics> = {}): Ma
         byXuid: {},
       },
     },
+    scoreProgression: null,
     ...overrides,
   };
 }
