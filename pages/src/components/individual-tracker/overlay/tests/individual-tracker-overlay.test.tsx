@@ -509,6 +509,7 @@ describe("IndividualTrackerOverlay", () => {
   });
 
   it("shows only team names when both discord and xbox names are hidden", () => {
+    const setIntervalSpy = vi.spyOn(globalThis, "setInterval");
     const renderModel = aRenderModel({
       matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
       series: [
@@ -554,6 +555,7 @@ describe("IndividualTrackerOverlay", () => {
     expect(screen.queryByText("XboxAlpha")).not.toBeInTheDocument();
     expect(screen.queryByText("DiscordBeta")).not.toBeInTheDocument();
     expect(screen.queryByText("XboxBeta")).not.toBeInTheDocument();
+    expect(setIntervalSpy).not.toHaveBeenCalled();
   });
 
   it("shows only team names when disableTeamPlayerNames is enabled", () => {
@@ -605,6 +607,53 @@ describe("IndividualTrackerOverlay", () => {
     expect(screen.queryByText("XboxAlpha")).not.toBeInTheDocument();
     expect(screen.queryByText("DiscordBeta")).not.toBeInTheDocument();
     expect(screen.queryByText("XboxBeta")).not.toBeInTheDocument();
+  });
+
+  it("shows player names when team names are missing even with disableTeamPlayerNames enabled", () => {
+    const renderModel = aRenderModel({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          id: "series-1",
+          title: "Alpha vs Beta",
+          subtitle: "Bo3",
+          matchIds: ["m-1", "m-2"],
+          score: "1:0",
+        }),
+      ],
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Alpha vs Beta",
+        subtitle: "Bo3",
+        teams: [
+          {
+            id: 0,
+            name: "",
+            players: [{ discordId: null, discordName: "DiscordAlpha", gamertag: "XboxAlpha", xboxId: null }],
+          },
+          {
+            id: 1,
+            name: "",
+            players: [{ discordId: null, discordName: "DiscordBeta", gamertag: "XboxBeta", xboxId: null }],
+          },
+        ],
+      },
+    });
+
+    const streamerSettings: StreamerViewSettings = {
+      visibleSections: {
+        showDiscordNames: true,
+        showXboxNames: true,
+      },
+      styleFlags: {
+        disableTeamPlayerNames: true,
+      },
+    };
+
+    render(<IndividualTrackerOverlay {...aPropsWith({ renderModel, streamerSettings })} />);
+
+    expect(screen.getByText("DiscordAlpha")).toBeInTheDocument();
+    expect(screen.getByText("DiscordBeta")).toBeInTheDocument();
   });
 
   it("renders the server icon when showServerIcon is enabled", () => {

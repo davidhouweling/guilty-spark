@@ -30,7 +30,9 @@ function TeamDetailsContentComponent({
   renderPlayerNameContent,
 }: TeamDetailsContentProps): React.ReactElement {
   const hasTeamName = teamName !== null && teamName !== "";
-  const shouldAnimateBetween = hasTeamName && !disableTeamPlayerNames;
+  const hasPlayerNames = team.players.length > 0;
+  const showPlayerNames = hasPlayerNames && (!disableTeamPlayerNames || !hasTeamName);
+  const shouldAnimateBetween = hasTeamName && hasPlayerNames && !disableTeamPlayerNames;
 
   // Track which content to show when animating between team name and players
   const [showTeamName, setShowTeamName] = useState(true);
@@ -52,28 +54,12 @@ function TeamDetailsContentComponent({
     };
   }, [shouldAnimateBetween]);
 
-  if (!hasTeamName && !disableTeamPlayerNames) {
-    // No team name and player names are enabled: show only players (no animation needed)
-    return (
-      <div className={styles.teamWithPlayers}>
-        <ScrollingContent maxWidth={600} className={styles.teamPlayersScroll}>
-          {team.players.map((player, idx) => (
-            <React.Fragment key={player.id}>
-              {idx > 0 && ", "}
-              {renderPlayerNameContent(player.id, player.displayName)}
-            </React.Fragment>
-          ))}
-        </ScrollingContent>
-      </div>
-    );
-  }
-
-  if (!hasTeamName || disableTeamPlayerNames) {
-    // Either no team name or player names are disabled: show only what's available (no animation)
+  if (!shouldAnimateBetween) {
+    // Show static content when only one variant is available.
     return (
       <div className={styles.teamWithPlayers}>
         {hasTeamName && <div className={styles.teamName}>{teamName}</div>}
-        {!disableTeamPlayerNames && (
+        {showPlayerNames && (
           <ScrollingContent maxWidth={600} className={styles.teamPlayersScroll}>
             {team.players.map((player, idx) => (
               <React.Fragment key={player.id}>
