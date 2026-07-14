@@ -185,6 +185,14 @@
   justify-self: center;
 }
 
+.teamWithPlayers .teamName {
+  z-index: 2;
+}
+
+.teamWithPlayers .teamPlayersScroll {
+  z-index: 1;
+}
+
 /* Transition states for content fading between team name and player names.
    Used by react-transition-group to ensure the content actually swaps in the DOM
    even if CSS animations don't render properly (e.g., in OBS capture). */
