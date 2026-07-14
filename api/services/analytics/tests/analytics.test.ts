@@ -85,7 +85,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
       perfectCounts: { total: 0, byXuid: {} },
     });
-    vi.spyOn(haloFilmService, "buildSlayerProgression").mockResolvedValue({
+    vi.spyOn(haloFilmService, "buildKillRaceProgression").mockResolvedValue({
       events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
       teamCount: 2,
     });
@@ -116,16 +116,16 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
       perfectCounts: { total: 0, byXuid: {} },
     });
-    const buildSlayerProgressionSpy: MockInstance<typeof haloFilmService.buildSlayerProgression> = vi.spyOn(
+    const buildKillRaceProgressionSpy: MockInstance<typeof haloFilmService.buildKillRaceProgression> = vi.spyOn(
       haloFilmService,
-      "buildSlayerProgression",
+      "buildKillRaceProgression",
     );
 
     const service = new AnalyticsService({ haloService, haloFilmService, logService });
     const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
 
     expect(results["match-1"]?.scoreProgression).toBeNull();
-    expect(buildSlayerProgressionSpy).not.toHaveBeenCalled();
+    expect(buildKillRaceProgressionSpy).not.toHaveBeenCalled();
   });
 
   it("normalizes requestedModules to always include killMatrix when only scoreProgression is requested", async () => {
@@ -141,7 +141,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
       perfectCounts: { total: 0, byXuid: {} },
     });
-    vi.spyOn(haloFilmService, "buildSlayerProgression").mockResolvedValue({
+    vi.spyOn(haloFilmService, "buildKillRaceProgression").mockResolvedValue({
       events: [],
       teamCount: 2,
     });
@@ -166,16 +166,16 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
       perfectCounts: { total: 0, byXuid: {} },
     });
-    const buildSlayerProgressionSpy: MockInstance<typeof haloFilmService.buildSlayerProgression> = vi.spyOn(
+    const buildKillRaceProgressionSpy: MockInstance<typeof haloFilmService.buildKillRaceProgression> = vi.spyOn(
       haloFilmService,
-      "buildSlayerProgression",
+      "buildKillRaceProgression",
     );
 
     const service = new AnalyticsService({ haloService, haloFilmService, logService });
     const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix"]);
 
     expect(results["match-1"]?.scoreProgression).toBeNull();
-    expect(buildSlayerProgressionSpy).not.toHaveBeenCalled();
+    expect(buildKillRaceProgressionSpy).not.toHaveBeenCalled();
   });
 
   it("returns scoreProgression null for unsupported game modes when scoreProgression is requested", async () => {
@@ -195,15 +195,15 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
       perfectCounts: { total: 0, byXuid: {} },
     });
-    const buildSlayerProgressionSpy: MockInstance<typeof haloFilmService.buildSlayerProgression> = vi.spyOn(
+    const buildKillRaceProgressionSpy: MockInstance<typeof haloFilmService.buildKillRaceProgression> = vi.spyOn(
       haloFilmService,
-      "buildSlayerProgression",
+      "buildKillRaceProgression",
     );
 
     const service = new AnalyticsService({ haloService, haloFilmService, logService });
     const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
 
     expect(results["match-1"]?.scoreProgression).toBeNull();
-    expect(buildSlayerProgressionSpy).not.toHaveBeenCalled();
+    expect(buildKillRaceProgressionSpy).not.toHaveBeenCalled();
   });
 });

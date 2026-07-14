@@ -198,14 +198,14 @@ export interface KillMatrixAnalytics {
   perfectCounts: PerfectCounts;
 }
 
-export interface SlayerProgressionEvent {
+export interface KillRaceProgressionEvent {
   timestampMs: number;
   teamId: number;
   runningScores: Record<string, number>;
 }
 
-export interface SlayerProgression {
-  events: SlayerProgressionEvent[];
+export interface KillRaceProgression {
+  events: KillRaceProgressionEvent[];
   teamCount: number;
 }
 

@@ -868,7 +868,7 @@ describe("HaloFilmService", () => {
     });
   });
 
-  describe("buildSlayerProgression", () => {
+  describe("buildKillRaceProgression", () => {
     it("accumulates running scores per team in kill timestamp order", async () => {
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
@@ -911,7 +911,7 @@ describe("HaloFilmService", () => {
         },
       ]);
 
-      const result = await service.buildSlayerProgression(match);
+      const result = await service.buildKillRaceProgression(match);
 
       expect(result.teamCount).toBe(2);
       expect(result.events).toHaveLength(3);
@@ -951,7 +951,7 @@ describe("HaloFilmService", () => {
         },
       ]);
 
-      const result = await service.buildSlayerProgression(match);
+      const result = await service.buildKillRaceProgression(match);
 
       expect(result.teamCount).toBe(2);
       expect(result.events).toHaveLength(1);
@@ -978,7 +978,7 @@ describe("HaloFilmService", () => {
         },
       ]);
 
-      const result = await service.buildSlayerProgression(match);
+      const result = await service.buildKillRaceProgression(match);
 
       expect(result.teamCount).toBe(2);
       expect(result.events).toHaveLength(0);

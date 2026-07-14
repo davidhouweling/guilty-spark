@@ -21,8 +21,8 @@ import type {
   ParsedHighlightEvent,
   KillMatrixEntry,
   KillMatrixAnalytics,
-  SlayerProgression,
-  SlayerProgressionEvent,
+  KillRaceProgression,
+  KillRaceProgressionEvent,
   HaloFilmServiceOpts,
 } from "./types";
 import type { CustomSpartanTokenProvider } from "./custom-spartan-token-provider";
@@ -97,13 +97,13 @@ export class HaloFilmService {
     return events;
   }
 
-  async buildSlayerProgression(matchStats: MatchStats): Promise<SlayerProgression> {
+  async buildKillRaceProgression(matchStats: MatchStats): Promise<KillRaceProgression> {
     const events = await this.loadEnrichedEventsForMatch(matchStats);
     const kills = this.filterKillEvents(events);
     const runningScores = new Map<number, number>(
       [...new Set(matchStats.Teams.map((team) => team.TeamId))].map((id) => [id, 0]),
     );
-    const progressionEvents: SlayerProgressionEvent[] = [];
+    const progressionEvents: KillRaceProgressionEvent[] = [];
 
     for (const kill of kills) {
       if (kill.teamId == null || !runningScores.has(kill.teamId)) {

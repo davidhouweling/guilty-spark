@@ -59,7 +59,7 @@ export class AnalyticsService {
     if (modules.includes("scoreProgression")) {
       const mode = matchStats.MatchInfo.GameVariantCategory;
       if (KILL_RACE_GAME_MODES.has(mode) && matchStats.Teams.length > 0) {
-        const progression = await this.haloFilmService.buildSlayerProgression(matchStats);
+        const progression = await this.haloFilmService.buildKillRaceProgression(matchStats);
         scoreProgression = {
           mode,
           durationMs: Math.round(getDurationInSeconds(matchStats.MatchInfo.Duration) * 1000),
