@@ -47,13 +47,18 @@ export class MatchProgressionService {
       throw new EndUserError(`Game mode ${mode.toString()} does not support kill-race score progression`);
     }
 
+    const teamCount = new Set(matchStats.Teams.map((team) => team.TeamId)).size;
+    if (teamCount === 0) {
+      throw new EndUserError(`Match ${matchId} has no team data`);
+    }
+
     const progression = await this.haloFilmService.buildSlayerProgression(matchStats);
 
     return {
       matchId,
       mode,
       durationMs: Math.round(getDurationInSeconds(matchStats.MatchInfo.Duration) * 1000),
-      teamCount: new Set(matchStats.Teams.map((team) => team.TeamId)).size,
+      teamCount,
       targetScore: null,
       timeline: { type: "kill-race", events: progression.events },
     };

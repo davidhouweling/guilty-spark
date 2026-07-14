@@ -1,3 +1,4 @@
+import type { MockInstance } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 import { GameVariantCategory } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
@@ -44,7 +45,9 @@ describe("MatchProgressionService.getMatchScoreProgression", () => {
     const logService = aFakeLogServiceWith();
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([matchStats]);
-    const warmAuthCacheSpy = vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+    const warmAuthCacheSpy: MockInstance<typeof haloFilmService.warmAuthCache> = vi
+      .spyOn(haloFilmService, "warmAuthCache")
+      .mockResolvedValue(undefined);
     vi.spyOn(haloFilmService, "buildSlayerProgression").mockResolvedValue({ events: [] });
 
     const service = new MatchProgressionService({ haloService, haloFilmService, logService });
@@ -62,7 +65,7 @@ describe("MatchProgressionService.getMatchScoreProgression", () => {
     vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([matchStats]);
     vi.spyOn(haloFilmService, "warmAuthCache").mockRejectedValue(new Error("auth down"));
     vi.spyOn(haloFilmService, "buildSlayerProgression").mockResolvedValue({ events: [] });
-    const logWarnSpy = vi.spyOn(logService, "warn");
+    const logWarnSpy: MockInstance<typeof logService.warn> = vi.spyOn(logService, "warn");
 
     const service = new MatchProgressionService({ haloService, haloFilmService, logService });
     const result = await service.getMatchScoreProgression("9535b946-f30c-4a43-b852-000000slayer");
@@ -100,6 +103,23 @@ describe("MatchProgressionService.getMatchScoreProgression", () => {
     const service = new MatchProgressionService({ haloService, haloFilmService, logService });
 
     await expect(service.getMatchScoreProgression("unknown-match-id")).rejects.toThrow(EndUserError);
+  });
+
+  it("throws EndUserError when matchStats has no team data", async () => {
+    const env = aFakeEnvWith();
+    const haloService = aFakeHaloServiceWith({ env });
+    const haloFilmService = aFakeHaloFilmServiceWith({ env });
+    const logService = aFakeLogServiceWith();
+    const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+    const noTeamMatchStats = { ...matchStats, Teams: [] };
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([noTeamMatchStats]);
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+
+    const service = new MatchProgressionService({ haloService, haloFilmService, logService });
+
+    await expect(service.getMatchScoreProgression("9535b946-f30c-4a43-b852-000000slayer")).rejects.toThrow(
+      EndUserError,
+    );
   });
 
   it("returns empty events array when no kills are recorded in film data", async () => {
