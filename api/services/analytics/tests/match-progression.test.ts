@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { GameVariantCategory } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { EndUserError } from "../../../base/end-user-error";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { getMatchStats } from "../../halo/fakes/data";
 import { aFakeHaloFilmServiceWith } from "../../halo/fakes/halo-film.fake";
@@ -85,9 +86,7 @@ describe("MatchProgressionService.getMatchScoreProgression", () => {
 
     const service = new MatchProgressionService({ haloService, haloFilmService, logService });
 
-    await expect(service.getMatchScoreProgression("ctf-match-id")).rejects.toThrow(
-      "does not support kill-race score progression",
-    );
+    await expect(service.getMatchScoreProgression("ctf-match-id")).rejects.toThrow(EndUserError);
   });
 
   it("returns empty events array when no kills are recorded in film data", async () => {

@@ -2,6 +2,7 @@ import { GameVariantCategory } from "halo-infinite-api";
 import type { MatchScoreProgression } from "@guilty-spark/shared/contracts/stats/match-score-progression";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { EndUserError } from "../../base/end-user-error";
 import type { HaloService } from "../halo/halo";
 import type { HaloFilmService } from "../halo/halo-film";
 import type { LogService } from "../log/types";
@@ -38,7 +39,7 @@ export class MatchProgressionService {
 
     const mode = matchStats.MatchInfo.GameVariantCategory;
     if (!KILL_RACE_GAME_MODES.has(mode)) {
-      throw new Error(`Game mode ${mode.toString()} does not support kill-race score progression`);
+      throw new EndUserError(`Game mode ${mode.toString()} does not support kill-race score progression`);
     }
 
     const progression = await this.haloFilmService.buildSlayerProgression(matchStats);
