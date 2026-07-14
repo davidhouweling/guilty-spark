@@ -122,6 +122,7 @@ describe("DiscordSeriesStatsPresenter.present", () => {
         pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 1 },
         perfectCounts: { total: 0, byXuid: {} },
       },
+      scoreProgression: null,
     };
 
     const store = new DiscordSeriesStatsStore();

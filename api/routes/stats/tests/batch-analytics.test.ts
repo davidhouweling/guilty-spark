@@ -97,13 +97,34 @@ describe("/api/stats/match-analytics (batch)", () => {
     statsRoutesRegisterHandler(router, localInstallServices);
 
     const response = (await router.fetch(
-      new Request("http://localhost/api/stats/match-analytics?matchIds=match-1&modules=scoreProgression"),
+      new Request("http://localhost/api/stats/match-analytics?matchIds=match-1&modules=fooBar"),
       env,
     )) as Response;
 
     expect(response.status).toBe(400);
     const body = await response.json();
     expect(body).toEqual({ error: "Invalid query parameters" });
+  });
+
+  it("passes scoreProgression module to analytics service when requested", async () => {
+    const analytics = aFakeMatchAnalyticsWith();
+
+    const services = installFakeServicesWith({ env });
+    const getBatchMatchAnalyticsSpy: MockInstance<AnalyticsService["getBatchMatchAnalytics"]> = vi.spyOn(
+      services.analyticsService,
+      "getBatchMatchAnalytics",
+    );
+    getBatchMatchAnalyticsSpy.mockResolvedValue({ "match-1": analytics });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      new Request("http://localhost/api/stats/match-analytics?matchIds=match-1&modules=killMatrix,scoreProgression"),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(200);
+    expect(getBatchMatchAnalyticsSpy).toHaveBeenCalledWith(["match-1"], ["killMatrix", "scoreProgression"]);
   });
 
   it("returns 400 when more than 30 matchIds are provided", async () => {

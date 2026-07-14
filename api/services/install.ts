@@ -19,7 +19,6 @@ import { createResilientFetch } from "./halo/resilient-fetch";
 import { PlayerMatchesRateLimiter } from "./halo/player-matches-rate-limiter";
 import { UserTokenProvider } from "./halo/user-token-provider";
 import { AnalyticsService } from "./analytics/analytics";
-import { MatchProgressionService } from "./analytics/match-progression";
 import { HaloFilmService } from "./halo/halo-film";
 
 export interface Services {
@@ -33,7 +32,6 @@ export interface Services {
   haloInfiniteClient: HaloInfiniteClient;
   userTokenProvider: UserTokenProvider;
   analyticsService: AnalyticsService;
-  matchProgressionService: MatchProgressionService;
   liveTrackerService: LiveTrackerService;
   neatQueueService: NeatQueueService;
   individualTrackerService: IndividualTrackerService;
@@ -104,7 +102,6 @@ export function installServices({ env }: InstallServicesOpts): Services {
     }),
   });
   const analyticsService = new AnalyticsService({ haloService, haloFilmService, logService });
-  const matchProgressionService = new MatchProgressionService({ haloService, haloFilmService, logService });
   const liveTrackerService = new LiveTrackerService({ env, logService, discordService });
   const individualTrackerService = new IndividualTrackerService({ env, logService, databaseService });
   const neatQueueService = new NeatQueueService({
@@ -128,7 +125,6 @@ export function installServices({ env }: InstallServicesOpts): Services {
     haloInfiniteClient,
     userTokenProvider,
     analyticsService,
-    matchProgressionService,
     liveTrackerService,
     neatQueueService,
     individualTrackerService,

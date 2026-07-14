@@ -1,9 +1,11 @@
+import { GameVariantCategory } from "halo-infinite-api";
 import {
   SUPPORTED_ANALYTICS_MODULES,
   type AnalyticsModule,
   type MatchAnalytics,
   type KillMatrixEntry as ContractKillMatrixEntry,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { HaloService } from "../halo/halo";
 import type { HaloFilmService } from "../halo/halo-film";
@@ -14,6 +16,13 @@ export interface AnalyticsServiceOpts {
   haloFilmService: HaloFilmService;
   logService: LogService;
 }
+
+// Escalation excluded: only active-weapon kills score, but film events carry no weapon field
+const KILL_RACE_GAME_MODES = new Set([
+  GameVariantCategory.MultiplayerSlayer,
+  GameVariantCategory.MultiplayerFiesta,
+  GameVariantCategory.MultiplayerAttrition,
+]);
 
 const supportedAnalyticsModuleSet = new Set<string>(SUPPORTED_ANALYTICS_MODULES);
 
@@ -58,6 +67,22 @@ export class AnalyticsService {
     const matchStats = Preconditions.checkExists((await this.haloService.getMatchDetails([matchId]))[0]);
     const killMatrixAnalytics = await this.haloFilmService.buildKillMatrixAnalytics(matchStats);
 
+    let scoreProgression: MatchAnalytics["scoreProgression"] = null;
+    if (requestedModules.includes("scoreProgression")) {
+      const mode = matchStats.MatchInfo.GameVariantCategory;
+      const teamCount = new Set(matchStats.Teams.map((team) => team.TeamId)).size;
+      if (KILL_RACE_GAME_MODES.has(mode) && teamCount > 0) {
+        const progression = await this.haloFilmService.buildSlayerProgression(matchStats);
+        scoreProgression = {
+          mode,
+          durationMs: Math.round(getDurationInSeconds(matchStats.MatchInfo.Duration) * 1000),
+          teamCount,
+          targetScore: null,
+          timeline: { type: "kill-race", events: progression.events },
+        };
+      }
+    }
+
     return {
       requestedModules,
       killMatrix: toContractKillMatrix(killMatrixAnalytics.entries),
@@ -65,6 +90,7 @@ export class AnalyticsService {
         pairingQuality: killMatrixAnalytics.pairingQuality,
         perfectCounts: killMatrixAnalytics.perfectCounts,
       },
+      scoreProgression,
     };
   }
 
