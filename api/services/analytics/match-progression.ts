@@ -6,11 +6,11 @@ import type { HaloService } from "../halo/halo";
 import type { HaloFilmService } from "../halo/halo-film";
 import type { LogService } from "../log/types";
 
+// Escalation excluded: only active-weapon kills score, but film events carry no weapon field
 const KILL_RACE_GAME_MODES = new Set([
   GameVariantCategory.MultiplayerSlayer,
   GameVariantCategory.MultiplayerFiesta,
   GameVariantCategory.MultiplayerAttrition,
-  GameVariantCategory.MultiplayerEscalation,
 ]);
 
 export interface MatchProgressionServiceOpts {

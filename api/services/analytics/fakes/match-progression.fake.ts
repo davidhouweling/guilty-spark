@@ -24,7 +24,9 @@ export function aFakeMatchScoreProgressionWith(overrides: Partial<MatchScoreProg
   };
 }
 
-export function aFakeMatchProgressionServiceWith(opts: Partial<MatchProgressionServiceOpts> = {}): MatchProgressionService {
+export function aFakeMatchProgressionServiceWith(
+  opts: Partial<MatchProgressionServiceOpts> = {},
+): MatchProgressionService {
   const haloService = opts.haloService ?? aFakeHaloServiceWith();
   const haloFilmService = opts.haloFilmService ?? aFakeHaloFilmServiceWith();
   const logService = opts.logService ?? aFakeLogServiceWith();
