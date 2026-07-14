@@ -17,6 +17,7 @@ function aValidAnalytics(): MatchAnalytics {
       pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 1 },
       perfectCounts: { total: 0, byXuid: {} },
     },
+    scoreProgression: null,
   };
 }
 
@@ -37,8 +38,16 @@ describe("requestedModulesQuerySchema", () => {
     }
   });
 
+  it("accepts scoreProgression as a valid module", () => {
+    const result = requestedModulesQuerySchema.safeParse("scoreProgression");
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toEqual(["scoreProgression"]);
+    }
+  });
+
   it("rejects unsupported modules", () => {
-    expect(requestedModulesQuerySchema.safeParse("scoreProgression").success).toBe(false);
+    expect(requestedModulesQuerySchema.safeParse("fooBar").success).toBe(false);
   });
 
   it("rejects empty modules after parsing", () => {
@@ -55,10 +64,14 @@ describe("matchAnalyticsSchema", () => {
     expect(matchAnalyticsSchema.safeParse({ ...aValidAnalytics(), requestedModules: [] }).success).toBe(false);
   });
 
-  it("rejects unsupported requested modules", () => {
+  it("accepts scoreProgression as a valid requested module", () => {
     expect(
       matchAnalyticsSchema.safeParse({ ...aValidAnalytics(), requestedModules: ["scoreProgression"] }).success,
-    ).toBe(false);
+    ).toBe(true);
+  });
+
+  it("rejects unsupported requested modules", () => {
+    expect(matchAnalyticsSchema.safeParse({ ...aValidAnalytics(), requestedModules: ["fooBar"] }).success).toBe(false);
   });
 
   it("rejects malformed killMatrix keys", () => {

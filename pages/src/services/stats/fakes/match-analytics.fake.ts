@@ -22,6 +22,7 @@ function aFakeMatchAnalyticsWith(overrides: Partial<MatchAnalytics> = {}): Match
         byXuid: {},
       },
     },
+    scoreProgression: null,
     ...overrides,
   };
 }
