@@ -90,7 +90,6 @@ function installTeamDetailsSwapSpy(): {
       // Return a valid timer object for Node typing in tests.
       return setTimeout((): void => undefined, 60_000);
     });
-  const clearIntervalSpy = vi.spyOn(globalThis, "clearInterval").mockImplementation((): void => undefined);
 
   return {
     triggerAllSwaps: (): void => {
@@ -103,13 +102,13 @@ function installTeamDetailsSwapSpy(): {
     },
     restore: (): void => {
       setIntervalSpy.mockRestore();
-      clearIntervalSpy.mockRestore();
     },
   };
 }
 
 describe("IndividualTrackerOverlay", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     cleanup();
   });
 

@@ -19,7 +19,7 @@ interface TeamDetailsContentProps {
   readonly renderPlayerNameContent: (playerId: string, displayName: string) => React.ReactElement;
 }
 
-// Show each content for 19 seconds, fade for 1 second = 20 second cycle (matches old 40s animation / 2)
+// Show each content for 19 seconds, fade for 0.5 seconds = 19.5 second cycle.
 const CONTENT_DISPLAY_DURATION_MS = 19000;
 const TRANSITION_DURATION_MS = 500;
 
@@ -120,8 +120,8 @@ function TeamDetailsContentComponent({
         nodeRef={playersRef}
         unmountOnExit
       >
-        <div ref={playersRef}>
-          <ScrollingContent maxWidth={600} className={styles.teamPlayersScroll}>
+        <div ref={playersRef} className={styles.teamPlayersScroll}>
+          <ScrollingContent maxWidth={600}>
             {team.players.map((player, idx) => (
               <React.Fragment key={player.id}>
                 {idx > 0 && ", "}
