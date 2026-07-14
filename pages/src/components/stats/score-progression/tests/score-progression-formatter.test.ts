@@ -30,9 +30,10 @@ describe("formatScoreProgression", () => {
     expect(result?.teamLines[1]?.color).toBe("#ff0000");
   });
 
-  it("uses fallback color when teamColors has no entry for slot", () => {
+  it("uses fallback colors when teamColors has no entries", () => {
     const result = formatScoreProgression(aFakeScoreProgressionWith(), []);
-    expect(result?.teamLines[0]?.color).toBeDefined();
+    expect(result?.teamLines[0]?.color).toBe("#888888");
+    expect(result?.teamLines[1]?.color).toBe("#aaaaaa");
   });
 
   it("starts each team line at (0, 0)", () => {

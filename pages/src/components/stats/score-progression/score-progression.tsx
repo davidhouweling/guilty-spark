@@ -57,7 +57,7 @@ export function ScoreProgression({ durationMs, teamLines, ariaLabel }: ScoreProg
           {teamLines.map((line) => (
             <Line
               key={line.teamId}
-              data={[...line.points]}
+              data={line.points}
               dataKey="score"
               stroke={line.color}
               strokeWidth={2}
