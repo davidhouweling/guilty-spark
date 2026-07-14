@@ -8,7 +8,10 @@ import type {
   ViewerSeriesTab,
   ViewerTimelineItem,
 } from "../../viewer/types";
-import { IndividualTrackerOverlayPresenter } from "../individual-tracker-overlay-presenter";
+import {
+  IndividualTrackerOverlayPresenter,
+  MATCHMAKING_SUMMARY_TAB_SERIES_ID,
+} from "../individual-tracker-overlay-presenter";
 import haloTrophyIconPng from "../../../../assets/halo-trophy-icon.png";
 
 function aRenderModelWith(
@@ -170,8 +173,17 @@ describe("individual-tracker-overlay-presenter", () => {
 
     const tabs = presenter.buildTabs(timeline);
 
-    expect(tabs).toHaveLength(2);
-    const [seriesTab, matchTab] = tabs;
+    expect(tabs).toHaveLength(3);
+    const [summaryTab, seriesTab, matchTab] = tabs;
+    expect(summaryTab.type).toBe("series");
+    if (summaryTab.type === "series") {
+      expect(summaryTab.seriesId).toBe(MATCHMAKING_SUMMARY_TAB_SERIES_ID);
+      expect(summaryTab.label).toBe("Won:Loss");
+      expect(summaryTab.score).toBe("0:0");
+      expect(summaryTab.teamColor).toBeUndefined();
+      expect(summaryTab.icons).toEqual([]);
+    }
+
     expect(seriesTab.type).toBe("series");
     if (seriesTab.type === "series") {
       expect(seriesTab.seriesId).toBe("series-complete");
@@ -227,7 +239,13 @@ describe("individual-tracker-overlay-presenter", () => {
       },
     ];
 
-    const [seriesTab] = presenter.buildTabs(timeline);
+    const seriesTab = presenter
+      .buildTabs(timeline)
+      .find((tab) => tab.type === "series" && tab.seriesId === "series-loss");
+
+    if (seriesTab == null) {
+      throw new Error("Expected series-loss tab to exist");
+    }
 
     expect(seriesTab.type).toBe("series");
     if (seriesTab.type === "series") {
@@ -292,10 +310,33 @@ describe("individual-tracker-overlay-presenter", () => {
     const tabs = presenter.buildTabs(timeline);
     const seriesTabs = tabs.filter((tab) => tab.type === "series");
 
-    expect(seriesTabs).toHaveLength(2);
-    if (seriesTabs.length === 2) {
+    expect(seriesTabs).toHaveLength(3);
+    if (seriesTabs.length === 3) {
       expect(seriesTabs[0].index).toBe(-1);
       expect(seriesTabs[1].index).toBe(-2);
+      expect(seriesTabs[2].index).toBe(-3);
+    }
+  });
+
+  it("uses Won:Loss stats highlight value for the first matchmaking summary tab", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        timeline: [{ type: "match", match: aMatchWith({ matchId: "solo" }) }],
+        statsHighlights: [{ label: "Won:Loss", value: "5:3" }],
+      }),
+      streamerSettings: undefined,
+      matchStatsByMatchId: new Map(),
+      selectedMatchId: null,
+    });
+
+    const [firstTab] = model.tabs;
+    expect(firstTab.type).toBe("series");
+    if (firstTab.type === "series") {
+      expect(firstTab.seriesId).toBe(MATCHMAKING_SUMMARY_TAB_SERIES_ID);
+      expect(firstTab.label).toBe("Won:Loss");
+      expect(firstTab.score).toBe("5:3");
+      expect(firstTab.teamColor).toBeUndefined();
+      expect(firstTab.icons).toEqual([]);
     }
   });
 
