@@ -1761,6 +1761,9 @@ describe("IndividualTrackerDO", () => {
       ownerClient.getPlayerMatches
         .mockResolvedValueOnce([aFakePlayerMatch("match-matchmaking", "2024-11-26T11:30:00.000Z", 2, "PT5M", true)])
         .mockResolvedValueOnce([]);
+      const persistedSeriesGroupOverrides = [
+        { matchIds: ["series-custom-match"], titleOverride: "My Series", subtitleOverride: null },
+      ];
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           startTime: now.toISOString(),
@@ -1781,6 +1784,7 @@ describe("IndividualTrackerDO", () => {
             startedAt: "2024-11-26T11:00:00.000Z",
             isActive: true,
           },
+          seriesGroupOverrides: persistedSeriesGroupOverrides,
         }),
       );
 
@@ -1789,6 +1793,7 @@ describe("IndividualTrackerDO", () => {
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries).toBeUndefined();
       expect(persisted.completedSeries).toBeUndefined();
+      expect(persisted.seriesGroupOverrides).toEqual(persistedSeriesGroupOverrides);
       expect(persisted.matchIds).toEqual(["series-custom-match", "match-matchmaking"]);
       expect(persisted.discoveredMatches["match-matchmaking"]?.isMatchmaking).toBe(true);
     });
@@ -2994,9 +2999,13 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("flushes existing series metadata when nudging with ended event", async () => {
+      const persistedSeriesGroupOverrides = [
+        { matchIds: ["match-1"], titleOverride: "Custom Label", subtitleOverride: null },
+      ];
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           activeSeries: anActiveSeries({ matchIds: ["match-1"] }),
+          seriesGroupOverrides: persistedSeriesGroupOverrides,
         }),
       );
 
@@ -3009,10 +3018,14 @@ describe("IndividualTrackerDO", () => {
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries).toBeUndefined();
       expect(persisted.completedSeries).toBeUndefined();
+      expect(persisted.seriesGroupOverrides).toEqual(persistedSeriesGroupOverrides);
       expect(storageSetAlarmSpy).toHaveBeenCalledWith(Date.now());
     });
 
     it("flushes active/completed series metadata when tracked player is subbed out", async () => {
+      const persistedSeriesGroupOverrides = [
+        { matchIds: ["match-1"], titleOverride: "Custom Label", subtitleOverride: null },
+      ];
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           gamertag: "GT1",
@@ -3025,6 +3038,7 @@ describe("IndividualTrackerDO", () => {
               },
             ],
           }),
+          seriesGroupOverrides: persistedSeriesGroupOverrides,
         }),
       );
 
@@ -3036,6 +3050,7 @@ describe("IndividualTrackerDO", () => {
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries).toBeUndefined();
       expect(persisted.completedSeries).toBeUndefined();
+      expect(persisted.seriesGroupOverrides).toEqual(persistedSeriesGroupOverrides);
     });
 
     it("resumes completed series and applies substitution when tracked player is subbed in", async () => {

@@ -2105,7 +2105,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private clearSeriesState(state: IndividualTrackerInternalState): void {
     delete state.activeSeries;
     delete state.completedSeries;
-    delete state.seriesGroupOverrides;
   }
 
   private sanitizeState(state: IndividualTrackerInternalState): IndividualTrackerDoState {
