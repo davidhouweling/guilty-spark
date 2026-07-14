@@ -252,10 +252,16 @@ describe("StreamerSettingsSectionView", () => {
       expect(screen.getByRole("checkbox", { name: /show series score tab/i })).toBeInTheDocument();
     });
 
-    it("renders the summary tab toggle in the matchmaking section", () => {
+    it("renders the matchmaking score tabs toggle in the matchmaking section", () => {
       render(<StreamerSettingsSectionView {...aFakeProps()} />);
 
-      expect(screen.getByRole("checkbox", { name: /show summary tab/i })).toBeInTheDocument();
+      expect(screen.getByRole("checkbox", { name: /show matchmaking score tabs/i })).toBeInTheDocument();
+    });
+
+    it("describes the matchmaking bottom section as tabs and ticker settings", () => {
+      render(<StreamerSettingsSectionView {...aFakeProps()} />);
+
+      expect(screen.getByText("Configure matchmaking-only tabs and ticker behavior.")).toBeInTheDocument();
     });
 
     it("renders the disable team player names toggle in the in-series top section", () => {
@@ -357,13 +363,13 @@ describe("StreamerSettingsSectionView", () => {
       expect(onChange).toHaveBeenCalledWith(false);
     });
 
-    it("calls onMatchmakingShowSummaryTabChange when the summary tab toggle is clicked", async () => {
+    it("calls onMatchmakingShowSummaryTabChange when the matchmaking score tabs toggle is clicked", async () => {
       const user = userEvent.setup();
       const onChange = vi.fn<(enabled: boolean) => void>();
 
       render(<StreamerSettingsSectionView {...aFakeProps({ onMatchmakingShowSummaryTabChange: onChange })} />);
 
-      await user.click(screen.getByRole("checkbox", { name: /show summary tab/i }));
+      await user.click(screen.getByRole("checkbox", { name: /show matchmaking score tabs/i }));
 
       expect(onChange).toHaveBeenCalledWith(false);
     });

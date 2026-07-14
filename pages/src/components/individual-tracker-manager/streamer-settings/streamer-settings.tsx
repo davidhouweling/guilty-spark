@@ -508,14 +508,6 @@ export function StreamerSettingsSectionView({
           </p>
         </div>
         <Checkbox
-          checked={matchmakingShowSummaryTab}
-          onChange={(checked): void => {
-            onMatchmakingShowSummaryTabChange(checked);
-          }}
-          label="Show summary tab"
-          description="Show matchmaking summary/series tabs when no active series is in progress."
-        />
-        <Checkbox
           checked={matchmakingShowStatsHighlights}
           onChange={(checked): void => {
             onMatchmakingShowStatsHighlightsChange(checked);
@@ -528,8 +520,16 @@ export function StreamerSettingsSectionView({
 
         <div className={styles.subsection}>
           <h4 className={styles.subsectionTitle}>Bottom Section</h4>
-          <p className={styles.cardDescription}>Configure matchmaking-only ticker behavior.</p>
+          <p className={styles.cardDescription}>Configure matchmaking-only tabs and ticker behavior.</p>
         </div>
+        <Checkbox
+          checked={matchmakingShowSummaryTab}
+          onChange={(checked): void => {
+            onMatchmakingShowSummaryTabChange(checked);
+          }}
+          label="Show matchmaking score tabs"
+          description="Show score tabs in matchmaking, including the first Won:Loss tab from Stats Highlights and series score tabs."
+        />
         <Checkbox
           checked={matchmakingShowTicker}
           onChange={(checked): void => {

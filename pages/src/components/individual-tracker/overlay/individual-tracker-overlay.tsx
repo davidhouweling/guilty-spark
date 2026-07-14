@@ -9,7 +9,7 @@ import { Alert } from "../../alert/alert";
 import { LoadingState } from "../../loading-state/loading-state";
 import type { MatchDetailsState, SeriesDetailsState } from "../viewer/types";
 import { OverlayStatsHighlights } from "./overlay-stats-highlights";
-import type { IndividualTrackerOverlayViewModel } from "./types";
+import { MATCHMAKING_SUMMARY_TAB_SERIES_ID, type IndividualTrackerOverlayViewModel } from "./types";
 import styles from "./individual-tracker-overlay.module.css";
 
 interface IndividualTrackerOverlayProps {
@@ -103,6 +103,11 @@ export function IndividualTrackerOverlay({
       }
 
       if (selectedTab.type === "series") {
+        if (selectedTab.seriesId === MATCHMAKING_SUMMARY_TAB_SERIES_ID) {
+          onDeselect();
+          return;
+        }
+
         if (selectedTab.seriesId === selectedSeriesId) {
           onDeselect();
         } else {
@@ -121,7 +126,14 @@ export function IndividualTrackerOverlay({
   );
 
   const hasPanelContent = useCallback(
-    (tabIndex: number): boolean => viewModel.tabs.some((tab) => tab.index === tabIndex),
+    (tabIndex: number): boolean => {
+      const selectedTab = viewModel.tabs.find((tab) => tab.index === tabIndex);
+      if (selectedTab?.type === "series" && selectedTab.seriesId === MATCHMAKING_SUMMARY_TAB_SERIES_ID) {
+        return false;
+      }
+
+      return selectedTab != null;
+    },
     [viewModel.tabs],
   );
 
@@ -130,6 +142,10 @@ export function IndividualTrackerOverlay({
       const selectedTab = viewModel.tabs.find((currentTab) => currentTab.index === tabIndex);
 
       if (selectedTab?.type === "series") {
+        if (selectedTab.seriesId === MATCHMAKING_SUMMARY_TAB_SERIES_ID && seriesStatsPanelState == null) {
+          return <StatsPanel state={matchStatsPanelState} />;
+        }
+
         if (seriesStatsPanelState == null) {
           return null;
         }
