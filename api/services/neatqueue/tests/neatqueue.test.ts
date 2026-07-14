@@ -19,6 +19,7 @@ import {
   aFakeDatabaseServiceWith,
   aFakeDiscordAssociationsRow,
   aFakeGuildConfigRow,
+  aFakeLinkedIdentitiesRow,
   aFakeNeatQueueConfigRow,
 } from "../../database/fakes/database.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
@@ -2163,6 +2164,70 @@ describe("NeatQueueService", () => {
         expect(xuids).toContain("xuid_discord_user_02");
       });
 
+      it("falls back to active linked Xbox identities when player association xboxId is missing", async () => {
+        const teamsCreatedRequest = getFakeNeatQueueData("teamsCreated");
+        const playersAssociationData = {
+          discord_user_01: {
+            ...createSamplePlayerAssociationData("discord_user_01", "soundmanD", "SoundmanD"),
+            xboxId: null,
+          },
+          discord_user_02: {
+            ...createSamplePlayerAssociationData("discord_user_02", "discord_user_02", "User02"),
+            xboxId: null,
+          },
+        };
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(
+          aFakeNeatQueueStateWith({ playersAssociationData }),
+        );
+        vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
+        vi.spyOn(databaseService, "getDiscordAssociations").mockResolvedValue([]);
+        vi.spyOn(databaseService, "findLinkedIdentitiesByUserId").mockImplementation(async (userId) => {
+          if (userId === "discord_user_01") {
+            return Promise.resolve([
+              aFakeLinkedIdentitiesRow({
+                UserId: "discord_user_01",
+                Provider: "xbox",
+                ProviderUserId: "xuid_linked_01",
+                IsActive: 1,
+              }),
+            ]);
+          }
+
+          if (userId === "discord_user_02") {
+            return Promise.resolve([
+              aFakeLinkedIdentitiesRow({
+                UserId: "discord_user_02",
+                Provider: "xbox",
+                ProviderUserId: "xuid_linked_02",
+                IsActive: 1,
+              }),
+            ]);
+          }
+
+          return Promise.resolve([]);
+        });
+        vi.spyOn(haloService, "getUsersByXuids").mockResolvedValue([]);
+        vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(new Map());
+        vi.spyOn(haloService, "getPlayersEsras").mockResolvedValue(new Map());
+        vi.spyOn(discordService, "getGuild").mockResolvedValue({
+          ...guild,
+          id: "guild-1",
+          name: "Test Server",
+          icon: null,
+        });
+        vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
+          aFakeGuildConfigRow({ NeatQueueInformerLiveTracking: "N" }),
+        );
+
+        const { jobToComplete } = neatQueueService.handleRequest(teamsCreatedRequest, neatQueueConfig);
+        await jobToComplete?.();
+
+        expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
+        const [xuids] = nudgeTrackersSpy.mock.calls[0] as [string[], unknown];
+        expect(xuids).toContain("xuid_linked_01");
+        expect(xuids).toContain("xuid_linked_02");
+      });
+
       it("uses guild display name for title even when explicit team names are set", async () => {
         const teamsCreatedRequest = getFakeNeatQueueData("teamsCreated");
         const team0Player = teamsCreatedRequest.teams[0]?.[0];
@@ -2456,6 +2521,68 @@ describe("NeatQueueService", () => {
 
         expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
         expect(nudgeTrackersSpy).toHaveBeenCalledWith([], { type: "ended" });
+      });
+
+      it("falls back to active linked Xbox identities when completion association xboxId is missing", async () => {
+        const matchCompletedRequest = getFakeNeatQueueData("matchCompleted");
+        const playersAssociationData = {
+          discord_user_01: {
+            ...createSamplePlayerAssociationData("discord_user_01", "soundmanD", "SoundmanD"),
+            xboxId: null,
+          },
+          discord_user_02: {
+            ...createSamplePlayerAssociationData("discord_user_02", "discord_user_02", "User02"),
+            xboxId: null,
+          },
+        };
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(
+          aFakeNeatQueueStateWith({
+            playersAssociationData,
+            timeline: [{ timestamp: new Date().toISOString(), event: getFakeNeatQueueData("teamsCreated") }],
+          }),
+        );
+        vi.spyOn(env.APP_DATA, "delete").mockResolvedValue();
+        vi.spyOn(databaseService, "findLinkedIdentitiesByUserId").mockImplementation(async (userId) => {
+          if (userId === "discord_user_01") {
+            return Promise.resolve([
+              aFakeLinkedIdentitiesRow({
+                UserId: "discord_user_01",
+                Provider: "xbox",
+                ProviderUserId: "xuid_linked_01",
+                IsActive: 1,
+              }),
+            ]);
+          }
+
+          if (userId === "discord_user_02") {
+            return Promise.resolve([
+              aFakeLinkedIdentitiesRow({
+                UserId: "discord_user_02",
+                Provider: "xbox",
+                ProviderUserId: "xuid_linked_02",
+                IsActive: 1,
+              }),
+            ]);
+          }
+
+          return Promise.resolve([]);
+        });
+        vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({
+          state: aFakeLiveTrackerStateWith({ status: "stopped" }),
+        });
+        vi.spyOn(haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+        vi.spyOn(haloService, "updateDiscordAssociations").mockResolvedValue();
+        vi.spyOn(discordService, "getTeamsFromQueueResult").mockResolvedValue(discordNeatQueueData);
+        vi.spyOn(discordService, "getUsers").mockResolvedValue([guildMember]);
+
+        const { jobToComplete } = neatQueueService.handleRequest(matchCompletedRequest, neatQueueConfig);
+        await jobToComplete?.();
+
+        expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
+        const [xuids, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], { type: "ended" }];
+        expect(xuids).toContain("xuid_linked_01");
+        expect(xuids).toContain("xuid_linked_02");
+        expect(payload).toEqual({ type: "ended" });
       });
     });
   });
