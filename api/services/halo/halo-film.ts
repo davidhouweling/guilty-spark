@@ -110,11 +110,11 @@ export class HaloFilmService {
         continue;
       }
       runningScores.set(kill.teamId, Preconditions.checkExists(runningScores.get(kill.teamId)) + 1);
-      const snapshot: Record<string, number> = {};
-      for (const [teamId, score] of runningScores.entries()) {
-        snapshot[teamId.toString()] = score;
-      }
-      progressionEvents.push({ timestampMs: kill.timeMs, teamId: kill.teamId, runningScores: snapshot });
+      progressionEvents.push({
+        timestampMs: kill.timeMs,
+        teamId: kill.teamId,
+        runningScores: Object.fromEntries(runningScores),
+      });
     }
 
     return { events: progressionEvents };

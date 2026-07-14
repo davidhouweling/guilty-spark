@@ -1,6 +1,5 @@
 import { GameVariantCategory } from "halo-infinite-api";
 import {
-  SUPPORTED_ANALYTICS_MODULES,
   type AnalyticsModule,
   type MatchAnalytics,
   type KillMatrixEntry as ContractKillMatrixEntry,
@@ -23,12 +22,6 @@ const KILL_RACE_GAME_MODES = new Set([
   GameVariantCategory.MultiplayerFiesta,
   GameVariantCategory.MultiplayerAttrition,
 ]);
-
-const supportedAnalyticsModuleSet = new Set<string>(SUPPORTED_ANALYTICS_MODULES);
-
-function isSupportedAnalyticsModule(module: string): module is AnalyticsModule {
-  return supportedAnalyticsModuleSet.has(module);
-}
 
 function toContractKillMatrix(
   entries: Awaited<ReturnType<HaloFilmService["buildKillMatrixAnalytics"]>>["entries"],
@@ -58,17 +51,12 @@ export class AnalyticsService {
     this.logService = logService;
   }
 
-  private async getMatchAnalytics(matchId: string, modules: string[]): Promise<MatchAnalytics> {
-    const requestedModules = modules.filter(isSupportedAnalyticsModule);
-    if (requestedModules.length === 0) {
-      return Promise.reject(new Error("No supported analytics modules requested"));
-    }
-
+  private async getMatchAnalytics(matchId: string, modules: AnalyticsModule[]): Promise<MatchAnalytics> {
     const matchStats = Preconditions.checkExists((await this.haloService.getMatchDetails([matchId]))[0]);
     const killMatrixAnalytics = await this.haloFilmService.buildKillMatrixAnalytics(matchStats);
 
     let scoreProgression: MatchAnalytics["scoreProgression"] = null;
-    if (requestedModules.includes("scoreProgression")) {
+    if (modules.includes("scoreProgression")) {
       const mode = matchStats.MatchInfo.GameVariantCategory;
       const teamCount = new Set(matchStats.Teams.map((team) => team.TeamId)).size;
       if (KILL_RACE_GAME_MODES.has(mode) && teamCount > 0) {
@@ -83,7 +71,7 @@ export class AnalyticsService {
     }
 
     return {
-      requestedModules,
+      requestedModules: modules,
       killMatrix: toContractKillMatrix(killMatrixAnalytics.entries),
       metadata: {
         pairingQuality: killMatrixAnalytics.pairingQuality,
@@ -93,7 +81,10 @@ export class AnalyticsService {
     };
   }
 
-  async getBatchMatchAnalytics(matchIds: string[], modules: string[]): Promise<Record<string, MatchAnalytics | null>> {
+  async getBatchMatchAnalytics(
+    matchIds: string[],
+    modules: AnalyticsModule[],
+  ): Promise<Record<string, MatchAnalytics | null>> {
     try {
       await this.haloFilmService.warmAuthCache();
     } catch (error) {
