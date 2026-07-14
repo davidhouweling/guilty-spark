@@ -94,9 +94,37 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
 
     expect(results["match-1"]?.scoreProgression).not.toBeNull();
+    expect(results["match-1"]?.scoreProgression?.mode).toBe(GameVariantCategory.MultiplayerSlayer);
+    expect(results["match-1"]?.scoreProgression?.durationMs).toBe(525500);
     expect(results["match-1"]?.scoreProgression?.teamCount).toBe(2);
     expect(results["match-1"]?.scoreProgression?.timeline.type).toBe("kill-race");
     expect(results["match-1"]?.scoreProgression?.timeline.events).toHaveLength(1);
+  });
+
+  it("returns scoreProgression null when scoreProgression module is requested but match has no teams", async () => {
+    const env = aFakeEnvWith();
+    const haloService = aFakeHaloServiceWith({ env });
+    const haloFilmService = aFakeHaloFilmServiceWith({ env });
+    const logService = aFakeLogServiceWith();
+    const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+    const noTeamsMatchStats = { ...matchStats, Teams: [] };
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([noTeamsMatchStats]);
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+    vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
+      entries: [],
+      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+      perfectCounts: { total: 0, byXuid: {} },
+    });
+    const buildSlayerProgressionSpy: MockInstance<typeof haloFilmService.buildSlayerProgression> = vi.spyOn(
+      haloFilmService,
+      "buildSlayerProgression",
+    );
+
+    const service = new AnalyticsService({ haloService, haloFilmService, logService });
+    const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
+
+    expect(results["match-1"]?.scoreProgression).toBeNull();
+    expect(buildSlayerProgressionSpy).not.toHaveBeenCalled();
   });
 
   it("returns scoreProgression null when scoreProgression module is not requested", async () => {

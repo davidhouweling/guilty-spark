@@ -65,7 +65,7 @@ export const matchAnalyticsSchema = z.object({
   }),
   scoreProgression: z
     .object({
-      mode: z.number().int(),
+      mode: z.number().int().nonnegative(),
       durationMs: z.number().int().nonnegative(),
       teamCount: z.number().int().positive(),
       timeline: killRaceTimelineSchema,
