@@ -21,7 +21,7 @@ export const matchScoreProgressionSchema = z.object({
   mode: z.number().int(),
   durationMs: z.number().int().nonnegative(),
   teamCount: z.number().int().positive(),
-  targetScore: z.number().int().positive().nullable(),
+  targetScore: z.number().int().nonnegative().nullable(),
   timeline: killRaceTimelineSchema,
 });
 

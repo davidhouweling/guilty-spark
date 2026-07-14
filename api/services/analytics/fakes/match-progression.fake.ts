@@ -2,6 +2,7 @@ import type { MatchScoreProgression } from "@guilty-spark/shared/contracts/stats
 import { GameVariantCategory } from "halo-infinite-api";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
 import { aFakeHaloFilmServiceWith } from "../../halo/fakes/halo-film.fake";
+import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import type { MatchProgressionServiceOpts } from "../match-progression";
 import { MatchProgressionService } from "../match-progression";
 
@@ -26,6 +27,7 @@ export function aFakeMatchScoreProgressionWith(overrides: Partial<MatchScoreProg
 export function aFakeMatchProgressionServiceWith(opts: Partial<MatchProgressionServiceOpts> = {}): MatchProgressionService {
   const haloService = opts.haloService ?? aFakeHaloServiceWith();
   const haloFilmService = opts.haloFilmService ?? aFakeHaloFilmServiceWith();
+  const logService = opts.logService ?? aFakeLogServiceWith();
 
-  return new MatchProgressionService({ haloService, haloFilmService });
+  return new MatchProgressionService({ haloService, haloFilmService, logService });
 }

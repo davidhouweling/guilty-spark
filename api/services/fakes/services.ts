@@ -32,7 +32,7 @@ export function installFakeServicesWith(opts: Partial<Services & { env: Env }> =
   const analyticsService =
     opts.analyticsService ?? aFakeAnalyticsServiceWith({ haloService, haloFilmService, logService });
   const matchProgressionService =
-    opts.matchProgressionService ?? aFakeMatchProgressionServiceWith({ haloService, haloFilmService });
+    opts.matchProgressionService ?? aFakeMatchProgressionServiceWith({ haloService, haloFilmService, logService });
   const liveTrackerService =
     opts.liveTrackerService ?? aFakeLiveTrackerServiceWith({ logService, discordService, env });
   const neatQueueService =

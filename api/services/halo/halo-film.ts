@@ -90,18 +90,22 @@ export class HaloFilmService {
     return this.parseHighlightEvents(highlightChunkBytes, filmMetadata.CustomData.FilmMajorVersion);
   }
 
-  async buildSlayerProgression(matchStats: MatchStats): Promise<SlayerProgression> {
+  private async loadEnrichedEventsForMatch(matchStats: MatchStats): Promise<ParsedHighlightEvent[]> {
     const events = await this.getHighlightEventsForMatch(matchStats.MatchId);
     const xuidToTeamId = this.buildXuidToTeamMap(matchStats);
     this.assignTeamIdsToEvents(events, xuidToTeamId);
+    return events;
+  }
 
+  async buildSlayerProgression(matchStats: MatchStats): Promise<SlayerProgression> {
+    const events = await this.loadEnrichedEventsForMatch(matchStats);
     const kills = events.filter((event) => event.eventType === "kill");
     const teamIds = [...new Set(matchStats.Teams.map((team) => team.TeamId))];
     const runningScores = new Map<number, number>(teamIds.map((id) => [id, 0]));
     const progressionEvents: SlayerProgressionEvent[] = [];
 
     for (const kill of kills) {
-      if (kill.teamId == null) {
+      if (kill.teamId == null || !runningScores.has(kill.teamId)) {
         continue;
       }
       runningScores.set(kill.teamId, (runningScores.get(kill.teamId) ?? 0) + 1);
@@ -116,9 +120,7 @@ export class HaloFilmService {
   }
 
   async buildKillMatrixAnalytics(matchStats: MatchStats): Promise<KillMatrixAnalytics> {
-    const events = await this.getHighlightEventsForMatch(matchStats.MatchId);
-    const xuidToTeamId = this.buildXuidToTeamMap(matchStats);
-    this.assignTeamIdsToEvents(events, xuidToTeamId);
+    const events = await this.loadEnrichedEventsForMatch(matchStats);
 
     const kills = events.filter((event) => event.eventType === "kill");
     const deaths = events.filter((event) => event.eventType === "death");
