@@ -1132,6 +1132,107 @@ describe("NeatQueueService", () => {
           expect(discordServiceCreateMessageSpy.mock.calls).toMatchSnapshot();
         });
 
+        describe("substitution team name in Discord embed", () => {
+          function buildTimelineWithSubstitution(
+            substitutionEvent: ReturnType<typeof getFakeNeatQueueData<"substitution">>,
+          ): ReturnType<typeof neatQueueStateFromTimeline> {
+            const matchCompletedTimes = new Date();
+            return neatQueueStateFromTimeline([
+              {
+                timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 15 }).toISOString(),
+                event: getFakeNeatQueueData("teamsCreated"),
+              },
+              {
+                timestamp: sub(matchCompletedTimes, { minutes: 45 }).toISOString(),
+                event: substitutionEvent,
+              },
+            ]);
+          }
+
+          function findGameFieldValue(calls: Parameters<typeof discordService.createMessage>[]): string | null {
+            for (const [, msg] of calls) {
+              const gameField = msg.embeds?.[0]?.fields?.find((f) => f.name === "Game");
+              if (gameField != null) {
+                return gameField.value;
+              }
+            }
+            return null;
+          }
+
+          beforeEach(() => {
+            haloServiceGetSeriesFromDiscordQueueSpy.mockReset();
+            haloServiceGetSeriesFromDiscordQueueSpy.mockImplementation(async (queueData) => {
+              if (queueData.startDateTime.getTime() === new Date("2024-11-26T10:03:00.000Z").getTime()) {
+                return Promise.resolve([
+                  Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+                ]);
+              }
+              return Promise.resolve([
+                Preconditions.checkExists(getMatchStats("cf0fb794-2df1-4ba1-9415-00000oddball")),
+              ]);
+            });
+          });
+
+          it("falls back to default team name when team_name is empty string on finalTeams", async () => {
+            const substitutionBase = getFakeNeatQueueData("substitution");
+            const matchCompleted: NeatQueueMatchCompletedRequest = {
+              ...getFakeNeatQueueData("matchCompleted"),
+              teams: getFakeNeatQueueData("matchCompleted").teams.map((team) =>
+                team.map((player) => ({ ...player, team_name: "" })),
+              ),
+            };
+            appDataGetSpy.mockReset().mockResolvedValue(buildTimelineWithSubstitution(substitutionBase));
+
+            const { jobToComplete } = neatQueueService.handleRequest(matchCompleted, neatQueueConfig);
+            await jobToComplete?.();
+
+            const gameFieldValue = findGameFieldValue(discordServiceCreateMessageSpy.mock.calls);
+            expect(gameFieldValue).toContain("(Eagle)");
+          });
+
+          it("uses custom team name from matchCompleted teams when set", async () => {
+            const substitutionBase = getFakeNeatQueueData("substitution");
+            const matchCompleted: NeatQueueMatchCompletedRequest = {
+              ...getFakeNeatQueueData("matchCompleted"),
+              teams: getFakeNeatQueueData("matchCompleted").teams.map((team, teamIndex) =>
+                team.map((player) => ({
+                  ...player,
+                  team_name: teamIndex === 0 ? "Team Alpha" : "Team Beta",
+                })),
+              ),
+            };
+            appDataGetSpy.mockReset().mockResolvedValue(buildTimelineWithSubstitution(substitutionBase));
+
+            const { jobToComplete } = neatQueueService.handleRequest(matchCompleted, neatQueueConfig);
+            await jobToComplete?.();
+
+            const gameFieldValue = findGameFieldValue(discordServiceCreateMessageSpy.mock.calls);
+            expect(gameFieldValue).toContain("(Team Alpha)");
+          });
+
+          it("prioritises team_name from the substitution event itself over matchCompleted team names", async () => {
+            const substitutionBase = getFakeNeatQueueData("substitution");
+            const substitution = {
+              ...substitutionBase,
+              player_subbed_out: { ...substitutionBase.player_subbed_out, team_name: "Event Team" },
+            };
+            const matchCompleted: NeatQueueMatchCompletedRequest = {
+              ...getFakeNeatQueueData("matchCompleted"),
+              teams: getFakeNeatQueueData("matchCompleted").teams.map((team) =>
+                team.map((player) => ({ ...player, team_name: "Match Team" })),
+              ),
+            };
+            appDataGetSpy.mockReset().mockResolvedValue(buildTimelineWithSubstitution(substitution));
+
+            const { jobToComplete } = neatQueueService.handleRequest(matchCompleted, neatQueueConfig);
+            await jobToComplete?.();
+
+            const gameFieldValue = findGameFieldValue(discordServiceCreateMessageSpy.mock.calls);
+            expect(gameFieldValue).toContain("(Event Team)");
+            expect(gameFieldValue).not.toContain("(Match Team)");
+          });
+        });
+
         if (mode === NeatQueuePostSeriesDisplayMode.THREAD) {
           it("falls back to creating a message in post series channel if it fails to create thread", async () => {
             const error = new Error("Failed to create thread");

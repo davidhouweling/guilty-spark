@@ -598,8 +598,8 @@ export class NeatQueueService {
 
       const playerIds = request.teams.flatMap((players) => players.map((p) => p.id));
       const players = await discordService.getUsers(request.guild, playerIds);
-      const teams = request.teams.map((team, teamIndex) => ({
-        name: team[0]?.team_name ?? getTeamName(teamIndex),
+      const teams = request.teams.map((team) => ({
+        name: team[0]?.team_name ?? "",
         playerIds: team.map((player) => player.id),
       }));
       const playersRecord = players.reduce<Record<string, APIGuildMember>>((acc, player) => {
@@ -673,7 +673,7 @@ export class NeatQueueService {
 
       const seriesTeams: SeriesTeam[] = request.teams.map((team, teamIndex) => ({
         id: teamIndex,
-        name: team[0]?.team_name ?? getTeamName(teamIndex),
+        name: team[0]?.team_name ?? "",
         players: team.map((player) =>
           this.buildSeriesPlayer(queueState.playersAssociationData[player.id], player.id, player.name),
         ),
@@ -1920,8 +1920,8 @@ export class NeatQueueService {
   }
 
   private getTeams(request: NeatQueueMatchCompletedRequest): TeamMapping[] {
-    return request.teams.map((team, teamIndex) => ({
-      name: team[0]?.team_name ?? getTeamName(teamIndex),
+    return request.teams.map((team) => ({
+      name: team[0]?.team_name ?? "",
       playerIds: team.map((player) => player.id),
     }));
   }
@@ -1934,14 +1934,19 @@ export class NeatQueueService {
       .filter((event) => event.event.action === "SUBSTITUTION")
       .map((event) => {
         const { player_subbed_out, player_subbed_in } = event.event as NeatQueueSubstitutionRequest;
+        const rawTeamName = player_subbed_out.team_name;
+        const finalTeamName = finalTeams[player_subbed_out.team_num - 1]?.name ?? "";
+        const resolvedTeamName =
+          rawTeamName != null && rawTeamName !== ""
+            ? rawTeamName
+            : finalTeamName !== ""
+              ? finalTeamName
+              : getTeamName(player_subbed_out.team_num - 1);
         return {
           date: new Date(event.timestamp),
           playerOut: player_subbed_out.id,
           playerIn: player_subbed_in.id,
-          team:
-            player_subbed_out.team_name ??
-            finalTeams[player_subbed_out.team_num - 1]?.name ??
-            getTeamName(player_subbed_out.team_num - 1),
+          team: resolvedTeamName,
         };
       });
   }
