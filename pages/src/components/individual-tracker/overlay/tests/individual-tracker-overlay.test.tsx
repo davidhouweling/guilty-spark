@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("../../../icons/team-icon", () => ({
@@ -70,6 +70,41 @@ function aPropsWith(options?: {
     onSelectMatch: options?.onSelectMatch ?? ((): void => undefined),
     onSelectSeries: options?.onSelectSeries ?? ((): void => undefined),
     onDeselect: options?.onDeselect ?? ((): void => undefined),
+  };
+}
+
+function installTeamDetailsSwapSpy(): {
+  triggerAllSwaps: () => void;
+  restore: () => void;
+} {
+  const teamDetailsSwapHandlers: (() => void)[] = [];
+  const setIntervalSpy = vi
+    .spyOn(globalThis, "setInterval")
+    .mockImplementation((handler: TimerHandler): ReturnType<typeof setInterval> => {
+      if (typeof handler === "function") {
+        teamDetailsSwapHandlers.push((): void => {
+          Reflect.apply(handler, globalThis, []);
+        });
+      }
+
+      // Return a valid timer object for Node typing in tests.
+      return setTimeout((): void => undefined, 60_000);
+    });
+  const clearIntervalSpy = vi.spyOn(globalThis, "clearInterval").mockImplementation((): void => undefined);
+
+  return {
+    triggerAllSwaps: (): void => {
+      expect(teamDetailsSwapHandlers.length).toBeGreaterThan(0);
+      act(() => {
+        for (const swapHandler of teamDetailsSwapHandlers) {
+          swapHandler();
+        }
+      });
+    },
+    restore: (): void => {
+      setIntervalSpy.mockRestore();
+      clearIntervalSpy.mockRestore();
+    },
   };
 }
 
@@ -181,6 +216,8 @@ describe("IndividualTrackerOverlay", () => {
   });
 
   it("renders active series team details using display-name fallbacks", () => {
+    const teamDetailsSwap = installTeamDetailsSwapSpy();
+
     render(
       <IndividualTrackerOverlay
         {...aPropsWith({
@@ -224,13 +261,22 @@ describe("IndividualTrackerOverlay", () => {
     );
 
     expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(screen.queryByText(/Gamertag Name/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Xbox Only/)).not.toBeInTheDocument();
+
+    teamDetailsSwap.triggerAllSwaps();
+
     expect(screen.getByText(/Gamertag Name/)).toBeInTheDocument();
     expect(screen.getByText(/Xbox Only/)).toBeInTheDocument();
     expect(screen.getByText("Beta")).toBeInTheDocument();
     expect(screen.getByText("Unknown")).toBeInTheDocument();
+
+    teamDetailsSwap.restore();
   });
 
   it("maps team details by team id regardless of active-series team order", () => {
+    const teamDetailsSwap = installTeamDetailsSwapSpy();
+
     render(
       <IndividualTrackerOverlay
         {...aPropsWith({
@@ -279,10 +325,15 @@ describe("IndividualTrackerOverlay", () => {
     const rightTeamContainer = screen.getByTestId("team-icon-1").parentElement;
 
     expect(leftTeamContainer?.textContent).toContain("Alpha");
-    expect(leftTeamContainer?.textContent).toContain("Alpha Player");
     expect(rightTeamContainer?.textContent).toContain("Beta");
+
+    teamDetailsSwap.triggerAllSwaps();
+
+    expect(leftTeamContainer?.textContent).toContain("Alpha Player");
     expect(rightTeamContainer?.textContent).toContain("Beta Player");
     expect(screen.queryByText("Ignored Player")).not.toBeInTheDocument();
+
+    teamDetailsSwap.restore();
   });
 
   it("shows a 0:0 series tab and no waiting banner when in-series has no matches yet and ticker is disabled", () => {
@@ -404,6 +455,8 @@ describe("IndividualTrackerOverlay", () => {
   });
 
   it("uses xbox names in team details when discord names are hidden", () => {
+    const teamDetailsSwap = installTeamDetailsSwapSpy();
+
     const renderModel = aRenderModel({
       matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
       series: [
@@ -443,10 +496,17 @@ describe("IndividualTrackerOverlay", () => {
 
     render(<IndividualTrackerOverlay {...aPropsWith({ renderModel, streamerSettings })} />);
 
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(screen.getByText("Beta")).toBeInTheDocument();
+
+    teamDetailsSwap.triggerAllSwaps();
+
     expect(screen.getByText("XboxAlpha")).toBeInTheDocument();
     expect(screen.getByText("XboxBeta")).toBeInTheDocument();
     expect(screen.queryByText("DiscordAlpha")).not.toBeInTheDocument();
     expect(screen.queryByText("DiscordBeta")).not.toBeInTheDocument();
+
+    teamDetailsSwap.restore();
   });
 
   it("shows only team names when both discord and xbox names are hidden", () => {

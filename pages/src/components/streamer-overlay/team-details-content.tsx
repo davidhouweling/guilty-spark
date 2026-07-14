@@ -1,5 +1,5 @@
-import React, { memo } from "react";
-import classNames from "classnames";
+import React, { memo, useState, useEffect, useRef } from "react";
+import { CSSTransition } from "react-transition-group";
 import { ScrollingContent } from "../scrolling-content/scrolling-content";
 import styles from "./streamer-overlay.module.css";
 
@@ -19,6 +19,10 @@ interface TeamDetailsContentProps {
   readonly renderPlayerNameContent: (playerId: string, displayName: string) => React.ReactElement;
 }
 
+// Show each content for 19 seconds, fade for 1 second = 20 second cycle (matches old 40s animation / 2)
+const CONTENT_DISPLAY_DURATION_MS = 19000;
+const TRANSITION_DURATION_MS = 500;
+
 function TeamDetailsContentComponent({
   team,
   teamName,
@@ -26,12 +30,32 @@ function TeamDetailsContentComponent({
   renderPlayerNameContent,
 }: TeamDetailsContentProps): React.ReactElement {
   const hasTeamName = teamName !== null && teamName !== "";
-  const showPlayerNames = !hasTeamName || !disableTeamPlayerNames;
+  const shouldAnimateBetween = hasTeamName && !disableTeamPlayerNames;
 
-  return (
-    <div className={classNames(styles.teamWithPlayers, { [styles.animateTeamNames]: hasTeamName && showPlayerNames })}>
-      {hasTeamName && <div className={styles.teamName}>{teamName}</div>}
-      {showPlayerNames ? (
+  // Track which content to show when animating between team name and players
+  const [showTeamName, setShowTeamName] = useState(true);
+  const teamNameRef = useRef<HTMLDivElement | null>(null);
+  const playersRef = useRef<HTMLDivElement | null>(null);
+
+  // Toggle between team name and players every CONTENT_DISPLAY_DURATION_MS
+  useEffect(() => {
+    if (!shouldAnimateBetween) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setShowTeamName((prev) => !prev);
+    }, CONTENT_DISPLAY_DURATION_MS + TRANSITION_DURATION_MS);
+
+    return (): void => {
+      clearInterval(interval);
+    };
+  }, [shouldAnimateBetween]);
+
+  if (!hasTeamName && !disableTeamPlayerNames) {
+    // No team name and player names are enabled: show only players (no animation needed)
+    return (
+      <div className={styles.teamWithPlayers}>
         <ScrollingContent maxWidth={600} className={styles.teamPlayersScroll}>
           {team.players.map((player, idx) => (
             <React.Fragment key={player.id}>
@@ -40,7 +64,73 @@ function TeamDetailsContentComponent({
             </React.Fragment>
           ))}
         </ScrollingContent>
-      ) : null}
+      </div>
+    );
+  }
+
+  if (!hasTeamName || disableTeamPlayerNames) {
+    // Either no team name or player names are disabled: show only what's available (no animation)
+    return (
+      <div className={styles.teamWithPlayers}>
+        {hasTeamName && <div className={styles.teamName}>{teamName}</div>}
+        {!disableTeamPlayerNames && (
+          <ScrollingContent maxWidth={600} className={styles.teamPlayersScroll}>
+            {team.players.map((player, idx) => (
+              <React.Fragment key={player.id}>
+                {idx > 0 && ", "}
+                {renderPlayerNameContent(player.id, player.displayName)}
+              </React.Fragment>
+            ))}
+          </ScrollingContent>
+        )}
+      </div>
+    );
+  }
+
+  // Both team name and player names should be shown: animate between them
+  // using react-transition-group to ensure proper DOM mount/unmount
+  return (
+    <div className={styles.teamWithPlayers}>
+      <CSSTransition
+        in={showTeamName}
+        timeout={TRANSITION_DURATION_MS}
+        classNames={{
+          enter: styles.contentEnter,
+          enterActive: styles.contentEnterActive,
+          exit: styles.contentExit,
+          exitActive: styles.contentExitActive,
+        }}
+        nodeRef={teamNameRef}
+        unmountOnExit
+      >
+        <div ref={teamNameRef} className={styles.teamName}>
+          {teamName}
+        </div>
+      </CSSTransition>
+
+      <CSSTransition
+        in={!showTeamName}
+        timeout={TRANSITION_DURATION_MS}
+        classNames={{
+          enter: styles.contentEnter,
+          enterActive: styles.contentEnterActive,
+          exit: styles.contentExit,
+          exitActive: styles.contentExitActive,
+        }}
+        nodeRef={playersRef}
+        unmountOnExit
+      >
+        <div ref={playersRef}>
+          <ScrollingContent maxWidth={600} className={styles.teamPlayersScroll}>
+            {team.players.map((player, idx) => (
+              <React.Fragment key={player.id}>
+                {idx > 0 && ", "}
+                {renderPlayerNameContent(player.id, player.displayName)}
+              </React.Fragment>
+            ))}
+          </ScrollingContent>
+        </div>
+      </CSSTransition>
     </div>
   );
 }
