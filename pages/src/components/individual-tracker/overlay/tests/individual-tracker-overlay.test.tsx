@@ -184,6 +184,20 @@ describe("IndividualTrackerOverlay", () => {
     expect(screen.getByText("Network failure")).toBeInTheDocument();
   });
 
+  it("renders series panel content when series state exists and the summary tab is active", () => {
+    render(
+      <IndividualTrackerOverlay
+        {...aPropsWith({
+          renderModel: aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1", isMatchmaking: true })] }),
+          selectedSeriesId: "series-1",
+          seriesStatsPanelState: { status: "loading" },
+        })}
+      />,
+    );
+
+    expect(screen.getByText("Loading series stats...")).toBeInTheDocument();
+  });
+
   it("calls onDeselect when the close button is clicked", async () => {
     const onDeselect = vi.fn();
 

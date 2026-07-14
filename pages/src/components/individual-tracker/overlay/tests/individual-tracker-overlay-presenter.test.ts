@@ -340,6 +340,26 @@ describe("individual-tracker-overlay-presenter", () => {
     }
   });
 
+  it("falls back to accumulated win/loss when Won:Loss stats highlight is missing", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        timeline: [{ type: "match", match: aMatchWith({ matchId: "solo" }) }],
+        accumulated: { total: 8, wins: 5, losses: 3, ties: 0 },
+        statsHighlights: undefined,
+      }),
+      streamerSettings: undefined,
+      matchStatsByMatchId: new Map(),
+      selectedMatchId: null,
+    });
+
+    const [firstTab] = model.tabs;
+    expect(firstTab.type).toBe("series");
+    if (firstTab.type === "series") {
+      expect(firstTab.seriesId).toBe(MATCHMAKING_SUMMARY_TAB_SERIES_ID);
+      expect(firstTab.score).toBe("5:3");
+    }
+  });
+
   it("returns a series score tab when active series exists but has no matches", () => {
     const activeSeries = aSeriesWith({
       id: "series-active",

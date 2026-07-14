@@ -142,7 +142,7 @@ export function IndividualTrackerOverlay({
       const selectedTab = viewModel.tabs.find((currentTab) => currentTab.index === tabIndex);
 
       if (selectedTab?.type === "series") {
-        if (selectedTab.seriesId === MATCHMAKING_SUMMARY_TAB_SERIES_ID) {
+        if (selectedTab.seriesId === MATCHMAKING_SUMMARY_TAB_SERIES_ID && seriesStatsPanelState == null) {
           return <StatsPanel state={matchStatsPanelState} />;
         }
 
