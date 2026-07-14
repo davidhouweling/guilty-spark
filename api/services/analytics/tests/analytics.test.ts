@@ -94,6 +94,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
 
     expect(results["match-1"]?.scoreProgression).not.toBeNull();
+    expect(results["match-1"]?.scoreProgression?.teamCount).toBe(2);
     expect(results["match-1"]?.scoreProgression?.timeline.type).toBe("kill-race");
     expect(results["match-1"]?.scoreProgression?.timeline.events).toHaveLength(1);
   });

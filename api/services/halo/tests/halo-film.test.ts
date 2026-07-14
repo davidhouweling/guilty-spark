@@ -913,6 +913,7 @@ describe("HaloFilmService", () => {
 
       const result = await service.buildSlayerProgression(match);
 
+      expect(result.teamCount).toBe(2);
       expect(result.events).toHaveLength(3);
       expect(result.events[0]).toEqual({ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } });
       expect(result.events[1]).toEqual({ timestampMs: 12000, teamId: 1, runningScores: { "0": 1, "1": 1 } });
@@ -952,6 +953,7 @@ describe("HaloFilmService", () => {
 
       const result = await service.buildSlayerProgression(match);
 
+      expect(result.teamCount).toBe(2);
       expect(result.events).toHaveLength(1);
       expect(result.events[0]?.timestampMs).toBe(2000);
     });
@@ -978,6 +980,7 @@ describe("HaloFilmService", () => {
 
       const result = await service.buildSlayerProgression(match);
 
+      expect(result.teamCount).toBe(2);
       expect(result.events).toHaveLength(0);
     });
   });
