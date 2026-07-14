@@ -87,6 +87,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     });
     vi.spyOn(haloFilmService, "buildSlayerProgression").mockResolvedValue({
       events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+      teamCount: 2,
     });
 
     const service = new AnalyticsService({ haloService, haloFilmService, logService });

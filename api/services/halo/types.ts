@@ -206,6 +206,7 @@ export interface SlayerProgressionEvent {
 
 export interface SlayerProgression {
   events: SlayerProgressionEvent[];
+  teamCount: number;
 }
 
 export interface HaloFilmServiceOpts {

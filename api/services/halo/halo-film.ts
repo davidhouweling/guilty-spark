@@ -99,7 +99,7 @@ export class HaloFilmService {
 
   async buildSlayerProgression(matchStats: MatchStats): Promise<SlayerProgression> {
     const events = await this.loadEnrichedEventsForMatch(matchStats);
-    const kills = events.filter((event) => event.eventType === "kill");
+    const kills = this.filterKillEvents(events);
     const runningScores = new Map<number, number>(
       [...new Set(matchStats.Teams.map((team) => team.TeamId))].map((id) => [id, 0]),
     );
@@ -117,13 +117,13 @@ export class HaloFilmService {
       });
     }
 
-    return { events: progressionEvents };
+    return { events: progressionEvents, teamCount: runningScores.size };
   }
 
   async buildKillMatrixAnalytics(matchStats: MatchStats): Promise<KillMatrixAnalytics> {
     const events = await this.loadEnrichedEventsForMatch(matchStats);
 
-    const kills = events.filter((event) => event.eventType === "kill");
+    const kills = this.filterKillEvents(events);
     const deaths = events.filter((event) => event.eventType === "death");
     const perfectByXuid = this.buildPerfectMedalsByXuid(events);
 
@@ -139,6 +139,10 @@ export class HaloFilmService {
       },
       perfectCounts,
     };
+  }
+
+  private filterKillEvents(events: ParsedHighlightEvent[]): ParsedHighlightEvent[] {
+    return events.filter((event) => event.eventType === "kill");
   }
 
   private async getOrFetchFilmMetadata(
