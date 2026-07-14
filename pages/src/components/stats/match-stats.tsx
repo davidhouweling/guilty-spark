@@ -270,7 +270,8 @@ export function MatchStats({
                   label: "Timeline",
                   content: (
                     <ScoreProgression
-                      viewData={scoreProgressionViewData}
+                      durationMs={scoreProgressionViewData.durationMs}
+                      teamLines={scoreProgressionViewData.teamLines}
                       ariaLabel="Match score progression timeline"
                     />
                   ),

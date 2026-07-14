@@ -20,8 +20,8 @@ export function formatScoreProgression(
     .map(Number)
     .sort((a, b) => a - b);
 
-  const teamLines: ScoreProgressionTeamLine[] = teamIds.map((teamId) => {
-    const color = teamColors[teamId]?.hex ?? FALLBACK_COLORS[teamId % FALLBACK_COLORS.length];
+  const teamLines: ScoreProgressionTeamLine[] = teamIds.map((teamId, slotIndex) => {
+    const color = teamColors[slotIndex]?.hex ?? FALLBACK_COLORS[slotIndex % FALLBACK_COLORS.length];
     const points: ScoreProgressionPoint[] = [{ timestampMs: 0, score: 0 }];
     let prevScore = 0;
 

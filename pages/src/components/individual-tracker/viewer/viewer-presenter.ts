@@ -390,14 +390,6 @@ export class IndividualTrackerViewerPresenter {
     };
   }
 
-  private teamColorsFromSnapshot(): readonly TeamColor[] {
-    const styleFlags = this.config.store.getSnapshot().view?.streamerSettings?.styleFlags;
-    return [
-      getTeamColorOrDefault(styleFlags?.playerTeamColor ?? styleFlags?.teamColor, 0),
-      getTeamColorOrDefault(styleFlags?.playerEnemyColor ?? styleFlags?.enemyColor, 1),
-    ];
-  }
-
   private async fetchMatchEntry(key: string, matchId: string): Promise<void> {
     this.config.store.setEntryLoading(key, "match");
     try {
@@ -406,7 +398,7 @@ export class IndividualTrackerViewerPresenter {
         return;
       }
 
-      const state = this.toMatchEntryLoadedState(loadedState, this.teamColorsFromSnapshot());
+      const state = this.toMatchEntryLoadedState(loadedState, this.resolveTeamColors());
       this.config.store.setMatchEntryLoaded(key, state);
     } catch (error) {
       if (this.isDisposed) {

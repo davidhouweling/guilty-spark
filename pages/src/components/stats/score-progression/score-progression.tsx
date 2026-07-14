@@ -1,10 +1,11 @@
 import React from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { ScoreProgressionViewData } from "./types";
+import type { ScoreProgressionTeamLine } from "./types";
 import styles from "./score-progression.module.css";
 
 interface ScoreProgressionProps {
-  readonly viewData: ScoreProgressionViewData;
+  readonly durationMs: number;
+  readonly teamLines: readonly ScoreProgressionTeamLine[];
   readonly ariaLabel: string;
 }
 
@@ -20,9 +21,7 @@ function formatTime(ms: number): string {
   return `${String(minutes)}:${String(seconds).padStart(2, "0")}`;
 }
 
-export function ScoreProgression({ viewData, ariaLabel }: ScoreProgressionProps): React.ReactElement {
-  const { durationMs, teamLines } = viewData;
-
+export function ScoreProgression({ durationMs, teamLines, ariaLabel }: ScoreProgressionProps): React.ReactElement {
   return (
     <div className={styles.container} role="img" aria-label={ariaLabel}>
       <ResponsiveContainer width="100%" height={260}>
