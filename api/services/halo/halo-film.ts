@@ -21,6 +21,8 @@ import type {
   ParsedHighlightEvent,
   KillMatrixEntry,
   KillMatrixAnalytics,
+  SlayerProgression,
+  SlayerProgressionEvent,
   HaloFilmServiceOpts,
 } from "./types";
 import type { CustomSpartanTokenProvider } from "./custom-spartan-token-provider";
@@ -86,6 +88,31 @@ export class HaloFilmService {
         : await this.getOrFetchFilmMetadata(matchId, authContext);
     const highlightChunkBytes = await this.getOrFetchHighlightChunkBytes(matchId, filmMetadata, authContext);
     return this.parseHighlightEvents(highlightChunkBytes, filmMetadata.CustomData.FilmMajorVersion);
+  }
+
+  async buildSlayerProgression(matchStats: MatchStats): Promise<SlayerProgression> {
+    const events = await this.getHighlightEventsForMatch(matchStats.MatchId);
+    const xuidToTeamId = this.buildXuidToTeamMap(matchStats);
+    this.assignTeamIdsToEvents(events, xuidToTeamId);
+
+    const kills = events.filter((event) => event.eventType === "kill");
+    const teamIds = [...new Set(matchStats.Teams.map((team) => team.TeamId))];
+    const runningScores = new Map<number, number>(teamIds.map((id) => [id, 0]));
+    const progressionEvents: SlayerProgressionEvent[] = [];
+
+    for (const kill of kills) {
+      if (kill.teamId == null) {
+        continue;
+      }
+      runningScores.set(kill.teamId, (runningScores.get(kill.teamId) ?? 0) + 1);
+      const snapshot: Record<string, number> = {};
+      for (const [teamId, score] of runningScores.entries()) {
+        snapshot[teamId.toString()] = score;
+      }
+      progressionEvents.push({ timestampMs: kill.timeMs, teamId: kill.teamId, runningScores: snapshot });
+    }
+
+    return { events: progressionEvents };
   }
 
   async buildKillMatrixAnalytics(matchStats: MatchStats): Promise<KillMatrixAnalytics> {
