@@ -44,7 +44,7 @@ export class MatchProgressionService {
 
     const mode = matchStats.MatchInfo.GameVariantCategory;
     if (!KILL_RACE_GAME_MODES.has(mode)) {
-      throw new EndUserError(`Game mode ${mode.toString()} does not support kill-race score progression`);
+      throw new EndUserError(`Game mode ${GameVariantCategory[mode]} does not support kill-race score progression`);
     }
 
     const teamCount = new Set(matchStats.Teams.map((team) => team.TeamId)).size;
