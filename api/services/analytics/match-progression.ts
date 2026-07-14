@@ -1,7 +1,6 @@
 import { GameVariantCategory } from "halo-infinite-api";
 import type { MatchScoreProgression } from "@guilty-spark/shared/contracts/stats/match-score-progression";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
-import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { EndUserError } from "../../base/end-user-error";
 import type { HaloService } from "../halo/halo";
 import type { HaloFilmService } from "../halo/halo-film";
@@ -33,7 +32,13 @@ export class MatchProgressionService {
 
   async getMatchScoreProgression(matchId: string): Promise<MatchScoreProgression> {
     const [matchStats] = await Promise.all([
-      this.haloService.getMatchDetails([matchId]).then((results) => Preconditions.checkExists(results[0])),
+      this.haloService.getMatchDetails([matchId]).then((results) => {
+        const [match] = results;
+        if (match == null) {
+          throw new EndUserError(`Match not found: ${matchId}`);
+        }
+        return match;
+      }),
       this.safeWarmAuthCache(),
     ]);
 

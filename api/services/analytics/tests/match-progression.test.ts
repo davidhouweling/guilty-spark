@@ -30,7 +30,7 @@ describe("MatchProgressionService.getMatchScoreProgression", () => {
 
     expect(result.matchId).toBe("9535b946-f30c-4a43-b852-000000slayer");
     expect(result.mode).toBe(GameVariantCategory.MultiplayerSlayer);
-    expect(result.teamCount).toBe(matchStats.Teams.length);
+    expect(result.teamCount).toBe(new Set(matchStats.Teams.map((t) => t.TeamId)).size);
     expect(result.targetScore).toBeNull();
     expect(result.timeline.type).toBe("kill-race");
     expect(result.timeline.events).toHaveLength(2);
@@ -87,6 +87,19 @@ describe("MatchProgressionService.getMatchScoreProgression", () => {
     const service = new MatchProgressionService({ haloService, haloFilmService, logService });
 
     await expect(service.getMatchScoreProgression("ctf-match-id")).rejects.toThrow(EndUserError);
+  });
+
+  it("throws EndUserError when getMatchDetails returns no results for the match", async () => {
+    const env = aFakeEnvWith();
+    const haloService = aFakeHaloServiceWith({ env });
+    const haloFilmService = aFakeHaloFilmServiceWith({ env });
+    const logService = aFakeLogServiceWith();
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([]);
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+
+    const service = new MatchProgressionService({ haloService, haloFilmService, logService });
+
+    await expect(service.getMatchScoreProgression("unknown-match-id")).rejects.toThrow(EndUserError);
   });
 
   it("returns empty events array when no kills are recorded in film data", async () => {
