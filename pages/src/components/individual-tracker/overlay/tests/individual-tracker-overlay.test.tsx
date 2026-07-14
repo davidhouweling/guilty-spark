@@ -188,7 +188,9 @@ describe("IndividualTrackerOverlay", () => {
     render(
       <IndividualTrackerOverlay
         {...aPropsWith({
-          renderModel: aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1", isMatchmaking: true })] }),
+          renderModel: aRenderModel({
+            matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1", isMatchmaking: true })],
+          }),
           selectedSeriesId: "series-1",
           seriesStatsPanelState: { status: "loading" },
         })}
@@ -204,7 +206,9 @@ describe("IndividualTrackerOverlay", () => {
     render(
       <IndividualTrackerOverlay
         {...aPropsWith({
-          renderModel: aRenderModel({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1", isMatchmaking: true })] }),
+          renderModel: aRenderModel({
+            matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1", isMatchmaking: true })],
+          }),
           selectedSeriesId: "series-1",
           seriesStatsPanelState: { status: "loading" },
           onDeselect,
