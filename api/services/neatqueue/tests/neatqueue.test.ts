@@ -2584,6 +2584,65 @@ describe("NeatQueueService", () => {
         expect(xuids).toContain("xuid_linked_02");
         expect(payload).toEqual({ type: "ended" });
       });
+
+      it("continues match completion cleanup when one fallback linked identity lookup fails", async () => {
+        const matchCompletedRequest = getFakeNeatQueueData("matchCompleted");
+        const playersAssociationData = {
+          discord_user_01: {
+            ...createSamplePlayerAssociationData("discord_user_01", "soundmanD", "SoundmanD"),
+            xboxId: null,
+          },
+          discord_user_02: {
+            ...createSamplePlayerAssociationData("discord_user_02", "discord_user_02", "User02"),
+            xboxId: null,
+          },
+        };
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(
+          aFakeNeatQueueStateWith({
+            playersAssociationData,
+            timeline: [{ timestamp: new Date().toISOString(), event: getFakeNeatQueueData("teamsCreated") }],
+          }),
+        );
+        const appDataDeleteSpy = vi.spyOn(env.APP_DATA, "delete").mockResolvedValue();
+        const haloUpdateDiscordAssociationsSpy = vi.spyOn(haloService, "updateDiscordAssociations").mockResolvedValue();
+        const logWarnSpy = vi.spyOn(logService, "warn");
+        vi.spyOn(databaseService, "findLinkedIdentitiesByUserId").mockImplementation(async (userId) => {
+          if (userId === "discord_user_01") {
+            throw new Error("temporary d1 error");
+          }
+
+          if (userId === "discord_user_02") {
+            return Promise.resolve([
+              aFakeLinkedIdentitiesRow({
+                UserId: "discord_user_02",
+                Provider: "xbox",
+                ProviderUserId: "xuid_linked_02",
+                IsActive: 1,
+              }),
+            ]);
+          }
+
+          return Promise.resolve([]);
+        });
+        vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({
+          state: aFakeLiveTrackerStateWith({ status: "stopped" }),
+        });
+        vi.spyOn(haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+        vi.spyOn(discordService, "getTeamsFromQueueResult").mockResolvedValue(discordNeatQueueData);
+        vi.spyOn(discordService, "getUsers").mockResolvedValue([guildMember]);
+
+        const { jobToComplete } = neatQueueService.handleRequest(matchCompletedRequest, neatQueueConfig);
+        await jobToComplete?.();
+
+        expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
+        expect(nudgeTrackersSpy).toHaveBeenCalledWith(["xuid_linked_02"], { type: "ended" });
+        expect(haloUpdateDiscordAssociationsSpy).toHaveBeenCalledOnce();
+        expect(appDataDeleteSpy).toHaveBeenCalledOnce();
+        expect(logWarnSpy).toHaveBeenCalledWith(
+          "Failed to resolve fallback Xbox identity for player, continuing without fallback XUID",
+          expect.any(Map),
+        );
+      });
     });
   });
 });
