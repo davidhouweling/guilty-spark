@@ -93,6 +93,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     const service = new AnalyticsService({ haloService, haloFilmService, logService });
     const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
 
+    expect(results["match-1"]?.requestedModules).toContain("killMatrix");
     expect(results["match-1"]?.scoreProgression).not.toBeNull();
     expect(results["match-1"]?.scoreProgression?.mode).toBe(GameVariantCategory.MultiplayerSlayer);
     expect(results["match-1"]?.scoreProgression?.durationMs).toBe(525500);
@@ -125,6 +126,31 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
 
     expect(results["match-1"]?.scoreProgression).toBeNull();
     expect(buildSlayerProgressionSpy).not.toHaveBeenCalled();
+  });
+
+  it("normalizes requestedModules to always include killMatrix when only scoreProgression is requested", async () => {
+    const env = aFakeEnvWith();
+    const haloService = aFakeHaloServiceWith({ env });
+    const haloFilmService = aFakeHaloFilmServiceWith({ env });
+    const logService = aFakeLogServiceWith();
+    const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([matchStats]);
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+    vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
+      entries: [],
+      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+      perfectCounts: { total: 0, byXuid: {} },
+    });
+    vi.spyOn(haloFilmService, "buildSlayerProgression").mockResolvedValue({
+      events: [],
+      teamCount: 2,
+    });
+
+    const service = new AnalyticsService({ haloService, haloFilmService, logService });
+    const results = await service.getBatchMatchAnalytics(["match-1"], ["scoreProgression"]);
+
+    expect(results["match-1"]?.requestedModules).toContain("killMatrix");
+    expect(results["match-1"]?.requestedModules).toContain("scoreProgression");
   });
 
   it("returns scoreProgression null when scoreProgression module is not requested", async () => {

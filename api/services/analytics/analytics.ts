@@ -69,8 +69,10 @@ export class AnalyticsService {
       }
     }
 
+    const requestedModules: AnalyticsModule[] = modules.includes("killMatrix") ? modules : ["killMatrix", ...modules];
+
     return {
-      requestedModules: modules,
+      requestedModules,
       killMatrix: toContractKillMatrix(killMatrixAnalytics.entries),
       metadata: {
         pairingQuality: killMatrixAnalytics.pairingQuality,
