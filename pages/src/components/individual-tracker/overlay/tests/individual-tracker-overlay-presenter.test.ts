@@ -115,6 +115,11 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(tabs[0]?.type).toBe("series");
     expect(tabs[1]?.type).toBe("match");
     expect(tabs[2]?.type).toBe("match");
+    if (tabs[0]?.type === "series") {
+      expect(tabs[0].label).toBe("Series score");
+      expect(tabs[0].teamColor).toBeUndefined();
+      expect(tabs[0].icons).toEqual([]);
+    }
     expect(tabs.map((tab) => (tab.type === "series" ? tab.seriesId : tab.matchId))).toEqual([
       "series-active",
       "a",
@@ -375,6 +380,8 @@ describe("individual-tracker-overlay-presenter", () => {
       expect(seriesTab.label).toBe("Series score");
       expect(seriesTab.score).toBe("0:0");
       expect(seriesTab.index).toBe(-1);
+      expect(seriesTab.teamColor).toBeUndefined();
+      expect(seriesTab.icons).toEqual([]);
     }
   });
 

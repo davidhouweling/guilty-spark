@@ -214,16 +214,10 @@ export class IndividualTrackerOverlayPresenter {
         type: "series",
         seriesId: activeSeries.id,
         index: -1,
-        label: activeSeries.matches.length === 0 ? "Series score" : activeSeries.title,
+        label: "Series score",
         score: activeSeries.score,
-        teamColor: getSeriesOutcomeColorHex(activeSeries),
-        icons:
-          activeSeries.matches.length > 0
-            ? activeSeries.matches.map((match) => ({
-                src: gameModeIconSrc(match.gameVariantCategory),
-                dimmed: false,
-              }))
-            : undefined,
+        teamColor: undefined,
+        icons: [],
       };
 
       if (activeSeries.matches.length === 0) {
