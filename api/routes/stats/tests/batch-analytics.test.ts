@@ -125,6 +125,8 @@ describe("/api/stats/match-analytics (batch)", () => {
 
     expect(response.status).toBe(200);
     expect(getBatchMatchAnalyticsSpy).toHaveBeenCalledWith(["match-1"], ["killMatrix", "scoreProgression"]);
+    const body = await response.json();
+    expect(body).toEqual({ results: { "match-1": analytics } });
   });
 
   it("returns 400 when more than 30 matchIds are provided", async () => {

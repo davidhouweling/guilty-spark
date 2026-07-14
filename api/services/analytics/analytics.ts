@@ -77,7 +77,6 @@ export class AnalyticsService {
           mode,
           durationMs: Math.round(getDurationInSeconds(matchStats.MatchInfo.Duration) * 1000),
           teamCount,
-          targetScore: null,
           timeline: { type: "kill-race", events: progression.events },
         };
       }

@@ -108,7 +108,7 @@ export class HaloFilmService {
       if (kill.teamId == null || !runningScores.has(kill.teamId)) {
         continue;
       }
-      runningScores.set(kill.teamId, (runningScores.get(kill.teamId) ?? 0) + 1);
+      runningScores.set(kill.teamId, Preconditions.checkExists(runningScores.get(kill.teamId)) + 1);
       const snapshot: Record<string, number> = {};
       for (const [teamId, score] of runningScores.entries()) {
         snapshot[teamId.toString()] = score;
