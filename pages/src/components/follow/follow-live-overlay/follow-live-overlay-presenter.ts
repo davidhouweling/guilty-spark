@@ -13,6 +13,7 @@ interface FollowLiveOverlayPresentOpts {
 interface FollowLiveOverlayPresentation {
   readonly title: string;
   readonly loadStatus: ComponentLoaderStatus;
+  readonly connectionHealth: "healthy" | "degraded";
   readonly liveTrackerId: string | null;
   readonly liveTrackerView: TrackerViewState | undefined;
 }
@@ -24,22 +25,19 @@ export class FollowLiveOverlayPresenter extends FollowLiveBasePresenter {
     return {
       title: this.getOverlayTitle(args.gamertag, args.directory),
       loadStatus: this.toLoadStatus(args.directoryStatus, args.directory, liveTracker),
+      connectionHealth: args.directoryStatus === "connected" ? "healthy" : "degraded",
       liveTrackerId: liveTracker?.trackerId ?? null,
       liveTrackerView: this.toTrackerView(liveTracker, args.directory),
     };
   }
 
   private toLoadStatus(
-    directoryStatus: FollowLiveOverlayPresentOpts["directoryStatus"],
+    _directoryStatus: FollowLiveOverlayPresentOpts["directoryStatus"],
     directory: FollowLiveOverlayPresentOpts["directory"],
     liveTracker: TrackerDirectory["trackers"][number] | null,
   ): ComponentLoaderStatus {
     if (liveTracker != null) {
       return ComponentLoaderStatus.LOADED;
-    }
-
-    if (directoryStatus === "error" && directory == null) {
-      return ComponentLoaderStatus.ERROR;
     }
 
     if (directory == null) {

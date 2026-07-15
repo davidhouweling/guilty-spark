@@ -24,6 +24,7 @@ describe("FollowLiveOverlayPresenter", () => {
     expect(overlay.liveTrackerId).toBe("tracker-2");
     expect(overlay.liveTrackerView?.trackerId).toBe("tracker-2");
     expect(overlay.loadStatus).toBe(ComponentLoaderStatus.LOADED);
+    expect(overlay.connectionHealth).toBe("healthy");
     expect(overlay.title).toBe("Streamer overlay - Spartan Two live - Guilty Spark");
   });
 
@@ -41,6 +42,20 @@ describe("FollowLiveOverlayPresenter", () => {
     });
 
     expect(overlay.loadStatus).toBe(ComponentLoaderStatus.LOADED);
+    expect(overlay.connectionHealth).toBe("healthy");
     expect(overlay.title).toBe("Streamer overlay - Guilty Spark");
+  });
+
+  it("keeps overlay in loading state instead of error when no directory data exists", () => {
+    const presenter = new FollowLiveOverlayPresenter();
+
+    const overlay = presenter.present({
+      gamertag: "Streamer",
+      directory: null,
+      directoryStatus: "error",
+    });
+
+    expect(overlay.loadStatus).toBe(ComponentLoaderStatus.LOADING);
+    expect(overlay.connectionHealth).toBe("degraded");
   });
 });

@@ -38,7 +38,7 @@ export function createFollowLiveOverlay({
     previewMode = "observer",
   }: FollowLiveOverlayProps): React.ReactElement {
     const presenter = React.useMemo(() => new FollowLiveOverlayPresenter(), []);
-    const { directory, directoryStatus, onRetry } = useFollowLiveDirectory({
+    const { directory, directoryStatus } = useFollowLiveDirectory({
       followLiveService,
       gamertag,
     });
@@ -54,7 +54,6 @@ export function createFollowLiveOverlay({
     return (
       <FollowLiveOverlay
         {...model}
-        onRetry={onRetry}
         individualTrackerViewService={individualTrackerViewService}
         matchAnalyticsService={matchAnalyticsService}
         seriesMatchesService={seriesMatchesService}

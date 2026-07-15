@@ -36,7 +36,7 @@ export class FollowLiveViewerPresenter extends FollowLiveBasePresenter {
 
     return {
       title: this.getViewerTitle(args.gamertag, args.directory),
-      loadStatus: this.toLoadStatus(args.directoryStatus, selectedTracker),
+      loadStatus: this.toLoadStatus(args.directoryStatus, selectedTracker, args.directory != null),
       showTabs: args.directory != null && args.directory.trackers.length > 1,
       trackerTabs:
         args.directory?.trackers.map((tracker) => ({
@@ -55,16 +55,17 @@ export class FollowLiveViewerPresenter extends FollowLiveBasePresenter {
   private toLoadStatus(
     directoryStatus: FollowLiveViewerPresentOpts["directoryStatus"],
     selectedTracker: TrackerDirectoryEntry | null,
+    hasDirectoryData: boolean,
   ): ComponentLoaderStatus {
     if (selectedTracker != null) {
       return ComponentLoaderStatus.LOADED;
     }
 
-    if (directoryStatus === "error") {
+    if (directoryStatus === "error" && !hasDirectoryData) {
       return ComponentLoaderStatus.ERROR;
     }
 
-    if (directoryStatus === "connecting") {
+    if (directoryStatus === "connecting" && !hasDirectoryData) {
       return ComponentLoaderStatus.LOADING;
     }
 

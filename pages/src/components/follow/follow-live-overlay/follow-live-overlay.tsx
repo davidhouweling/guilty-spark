@@ -3,16 +3,19 @@ import type { HaloInfiniteClient } from "halo-infinite-api";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { ComponentLoader } from "../../component-loader/component-loader";
-import { ErrorState } from "../../error-state/error-state";
 import { LoadingState } from "../../loading-state/loading-state";
 import { createIndividualTrackerOverlayPage } from "../../individual-tracker/overlay/create";
+import guiltySparkIcon from "../../../assets/guilty-spark-icon.png";
+import guiltySparkRampantIcon from "../../../assets/guilty-spark-rampant-icon.png";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
+import styles from "./follow-live-overlay.module.css";
 
 export interface FollowLiveOverlayProps {
   readonly loadStatus: ComponentLoaderStatus;
+  readonly connectionHealth: "healthy" | "degraded";
   readonly liveTrackerId: string | null;
   readonly liveTrackerView: TrackerViewState | undefined;
   readonly individualTrackerViewService: IndividualTrackerViewService;
@@ -22,11 +25,11 @@ export interface FollowLiveOverlayProps {
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly showPreview?: boolean;
   readonly previewMode?: "player" | "observer";
-  readonly onRetry: () => void;
 }
 
 export function FollowLiveOverlay({
   loadStatus,
+  connectionHealth,
   liveTrackerId,
   liveTrackerView,
   individualTrackerViewService,
@@ -36,7 +39,6 @@ export function FollowLiveOverlay({
   medalMetadataResolver,
   showPreview = false,
   previewMode = "observer",
-  onRetry,
 }: FollowLiveOverlayProps): React.ReactElement {
   const IndividualTrackerOverlayPage = React.useMemo(
     () =>
@@ -64,11 +66,18 @@ export function FollowLiveOverlay({
     );
 
   return (
-    <ComponentLoader
-      status={loadStatus}
-      loading={<LoadingState text="Loading tracker directory..." />}
-      error={<ErrorState message="Failed to load tracker directory" onRetry={onRetry} />}
-      loaded={loadedState}
-    />
+    <div className={styles.overlay}>
+      <img
+        src={connectionHealth === "healthy" ? guiltySparkIcon.src : guiltySparkRampantIcon.src}
+        alt={connectionHealth === "healthy" ? "Connection healthy" : "Connection issue"}
+        className={styles.connectionIcon}
+      />
+      <ComponentLoader
+        status={loadStatus}
+        loading={<LoadingState text="Loading tracker directory..." />}
+        error={<LoadingState text="Loading tracker directory..." />}
+        loaded={loadedState}
+      />
+    </div>
   );
 }
