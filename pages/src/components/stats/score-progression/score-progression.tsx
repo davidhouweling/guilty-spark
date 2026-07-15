@@ -1,5 +1,5 @@
 import React from "react";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { ScoreProgressionTeamLine } from "./types";
 import styles from "./score-progression.module.css";
 
@@ -25,7 +25,7 @@ export function ScoreProgression({ durationMs, teamLines, ariaLabel }: ScoreProg
   return (
     <div className={styles.container} role="img" aria-label={ariaLabel}>
       <ResponsiveContainer width="100%" height={260}>
-        <LineChart margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
+        <AreaChart margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
           <CartesianGrid strokeDasharray="4 4" stroke={GRID_STROKE} />
           <XAxis
             type="number"
@@ -55,18 +55,20 @@ export function ScoreProgression({ durationMs, teamLines, ariaLabel }: ScoreProg
             formatter={(value, name) => [value ?? "", name]}
           />
           {teamLines.map((line) => (
-            <Line
+            <Area
               key={line.teamId}
               data={line.points}
               dataKey="score"
               name={line.name}
               stroke={line.color}
               strokeWidth={2}
+              fill={line.color}
+              fillOpacity={0.2}
               dot={false}
               type="linear"
             />
           ))}
-        </LineChart>
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   );
