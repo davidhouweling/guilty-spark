@@ -124,6 +124,20 @@ function formatDate(value: string | null): string {
   return date == null ? "unknown" : date.toLocaleString();
 }
 
+function toSeriesPlayerLabel(discordName: string | null, gamertag: string | null): string {
+  const normalizedDiscordName = discordName?.trim();
+  if (normalizedDiscordName != null && normalizedDiscordName !== "") {
+    return normalizedDiscordName;
+  }
+
+  const normalizedGamertag = gamertag?.trim();
+  if (normalizedGamertag != null && normalizedGamertag !== "") {
+    return normalizedGamertag;
+  }
+
+  return "Unknown player";
+}
+
 function handleEntryHeaderKeyDown(
   event: React.KeyboardEvent<HTMLDivElement>,
   item: ViewerTimelineItem,
@@ -578,7 +592,30 @@ export function IndividualTrackerViewer({
 
                   {isExpanded && (
                     <div className={classNames(styles.entryBody, styles.seriesEntryBody)}>
-                      {state == null || (state.kind === "series" && state.state.status === "loading") ? (
+                      {series.matches.length === 0 ? (
+                        <div className={styles.preSeriesPanel}>
+                          <Alert variant="info">Series is active and waiting for the first tracked match.</Alert>
+                          {series.teams.length > 0 && (
+                            <div className={styles.preSeriesTeams} aria-label="Active series teams">
+                              {series.teams.map((team) => (
+                                <section key={team.id} className={styles.preSeriesTeam}>
+                                  <h3 className={styles.preSeriesTeamName}>{team.name}</h3>
+                                  <ul className={styles.preSeriesPlayerList}>
+                                    {team.players.map((player, playerIndex) => (
+                                      <li
+                                        key={`${team.id.toString()}:${playerIndex.toString()}`}
+                                        className={styles.preSeriesPlayer}
+                                      >
+                                        {toSeriesPlayerLabel(player.discordName, player.gamertag)}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </section>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : state == null || (state.kind === "series" && state.state.status === "loading") ? (
                         <LoadingState text="Loading series stats..." />
                       ) : state.kind === "series" && state.state.status === "error" ? (
                         <Alert variant="error">{state.state.message}</Alert>

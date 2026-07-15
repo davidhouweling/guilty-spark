@@ -114,6 +114,86 @@ describe("UserTrackerDO", () => {
     expect(parsed.state?.directory.trackers).toHaveLength(1);
   });
 
+  it("preserves enriched active series and pre-series player fields in follow directory entries", async () => {
+    const trackerDo = aFakeIndividualTrackerDOWith({
+      viewStateResponse: {
+        state: aFakeIndividualTrackerViewStateWith({
+          trackerId: "t1",
+          gamertag: "KnownTag",
+          hasActiveSeries: true,
+          activeSeriesContext: {
+            title: "Alpha vs Beta",
+            subtitle: "Bo5",
+            guildIconUrl: "https://cdn.example.com/icon.png",
+            teams: [
+              {
+                id: 0,
+                name: "Alpha",
+                players: [
+                  {
+                    discordId: "123",
+                    discordName: "AlphaOne",
+                    gamertag: "AlphaTag",
+                    xboxId: "xuid-1",
+                    currentRank: 1550,
+                    currentRankTier: "Diamond",
+                    currentRankSubTier: 5,
+                    currentRankMeasurementMatchesRemaining: 0,
+                    currentRankInitialMeasurementMatches: 5,
+                    allTimePeakRank: 1675,
+                    esra: 1610,
+                    lastRankedGamePlayed: "2026-07-15T11:00:00.000Z",
+                  },
+                ],
+              },
+            ],
+          },
+          preSeriesPlayerInfo: {
+            currentRank: 1550,
+            currentRankTier: "Diamond",
+            currentRankSubTier: 5,
+            currentRankMeasurementMatchesRemaining: 0,
+            currentRankInitialMeasurementMatches: 5,
+            allTimePeakRank: 1675,
+            esra: 1610,
+            lastRankedGamePlayed: "2026-07-15T11:00:00.000Z",
+          },
+        }),
+      },
+    });
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const services = installFakeServicesWith({ env: localEnv });
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([
+      aFakeIndividualTrackersRow({
+        TrackerId: "t1",
+        UserId: "user-1",
+        Gamertag: "KnownTag",
+        Status: "active",
+        IsLive: 1,
+      }),
+    ]);
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    const response = await localUserTrackerDO.fetch(
+      new Request("http://do/view-state?userId=user-1", { method: "GET" }),
+    );
+
+    expect(response.status).toBe(200);
+    const parsed = await userTrackerViewStateContract.fromResponse(response);
+    const tracker = parsed.state?.directory.trackers[0];
+    const firstTeamPlayer = tracker?.activeSeriesContext?.teams[0]?.players[0];
+
+    expect(tracker?.activeSeriesContext?.guildIconUrl).toBe("https://cdn.example.com/icon.png");
+    expect(firstTeamPlayer?.currentRank).toBe(1550);
+    expect(firstTeamPlayer?.currentRankTier).toBe("Diamond");
+    expect(firstTeamPlayer?.allTimePeakRank).toBe(1675);
+    expect(firstTeamPlayer?.esra).toBe(1610);
+    expect(firstTeamPlayer?.lastRankedGamePlayed).toBe("2026-07-15T11:00:00.000Z");
+    expect(tracker?.preSeriesPlayerInfo?.currentRank).toBe(1550);
+    expect(tracker?.preSeriesPlayerInfo?.esra).toBe(1610);
+    expect(tracker?.preSeriesPlayerInfo?.lastRankedGamePlayed).toBe("2026-07-15T11:00:00.000Z");
+  });
+
   it("filters stopped trackers, keeps paused trackers, and selects liveTrackerId from included trackers", async () => {
     const trackerDo = aFakeIndividualTrackerDOWith({ viewStateResponse: { state: null } });
     const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });

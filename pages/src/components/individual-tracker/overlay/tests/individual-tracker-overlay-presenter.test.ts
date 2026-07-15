@@ -587,6 +587,36 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(model.topSection?.teamRight?.players).toEqual([{ key: "DiscordBeta:XboxBeta", label: "XboxBeta" }]);
   });
 
+  it("does not fall back to xbox names when discord-only mode is enabled", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        timeline: [
+          {
+            type: "series",
+            series: aSeriesWith({
+              isActive: true,
+              teams: [
+                { id: 0, name: "Alpha", players: [{ discordName: null, gamertag: "XboxAlpha" }] },
+                { id: 1, name: "Beta", players: [{ discordName: "DiscordBeta", gamertag: "XboxBeta" }] },
+              ],
+            }),
+          },
+        ],
+      }),
+      streamerSettings: {
+        visibleSections: {
+          showDiscordNames: true,
+          showXboxNames: false,
+        },
+      } satisfies StreamerViewSettings,
+      matchStatsByMatchId: new Map(),
+      selectedMatchId: null,
+    });
+
+    expect(model.topSection?.teamLeft?.players).toEqual([{ key: "none:XboxAlpha", label: "Unknown" }]);
+    expect(model.topSection?.teamRight?.players).toEqual([{ key: "DiscordBeta:XboxBeta", label: "DiscordBeta" }]);
+  });
+
   it("omits player rows entirely when both discord and xbox names are hidden", () => {
     const model = presenter.present({
       renderModel: aRenderModelWith({
@@ -730,6 +760,29 @@ describe("individual-tracker-overlay-presenter", () => {
     });
 
     expect(model.topSection?.iconUrl).toBe("https://cdn.example.com/server-icon.png");
+  });
+
+  it("uses activeSeriesContext guild icon url for top section when no active series tab exists", () => {
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        hasActiveSeries: true,
+        activeSeriesContext: {
+          title: "Alpha vs Beta",
+          subtitle: "Bo3",
+          guildIconUrl: "https://cdn.example.com/context-icon.png",
+          teams: [
+            { id: 0, name: "Alpha", players: [{ discordName: "AlphaDiscord", gamertag: "AlphaTag" }] },
+            { id: 1, name: "Beta", players: [{ discordName: "BetaDiscord", gamertag: "BetaTag" }] },
+          ],
+        },
+        timeline: [],
+      }),
+      streamerSettings: undefined,
+      matchStatsByMatchId: new Map(),
+      selectedMatchId: null,
+    });
+
+    expect(model.topSection?.iconUrl).toBe("https://cdn.example.com/context-icon.png");
   });
 
   it("uses local trophy icon fallback when series guild icon url is missing", () => {

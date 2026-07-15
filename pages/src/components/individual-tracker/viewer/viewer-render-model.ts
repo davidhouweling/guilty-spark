@@ -27,6 +27,7 @@ export interface BuildViewerRenderModelOptions {
 
 const UNKNOWN_KDA_DISPLAY = "-:-:- (-)";
 const UNKNOWN_DAMAGE_RATIO_DISPLAY = "-:- (-)";
+const PENDING_ACTIVE_SERIES_ID_PREFIX = "pending-active-series";
 
 function findActiveSeriesId(view: TrackerViewState): string | null {
   if (!view.hasActiveSeries || view.activeSeriesContext == null) {
@@ -86,6 +87,40 @@ function toViewerActiveSeriesContext(view: TrackerViewState): ViewerActiveSeries
         gamertag: player.gamertag,
       })),
     })),
+  };
+}
+
+function toPendingActiveSeriesTab(view: TrackerViewState): ViewerSeriesTab {
+  const { activeSeriesContext } = view;
+  if (activeSeriesContext == null) {
+    throw new Error("Expected active series context when building pending active series tab");
+  }
+
+  const activeSubtitle = activeSeriesContext.subtitle ?? "";
+
+  return {
+    id: `${PENDING_ACTIVE_SERIES_ID_PREFIX}:${activeSeriesContext.title}:${activeSubtitle}`,
+    title: activeSeriesContext.title,
+    subtitle: activeSubtitle,
+    guildIconUrl: activeSeriesContext.guildIconUrl ?? null,
+    isActive: true,
+    teams: activeSeriesContext.teams.map((team) => ({
+      id: team.id,
+      name: team.name,
+      players: team.players.map((player) => ({
+        discordName: player.discordName,
+        gamertag: player.gamertag,
+      })),
+    })),
+    matchBackgroundUrls: [],
+    score: "-",
+    duration: "unknown",
+    killsDeathsAssistsKda: UNKNOWN_KDA_DISPLAY,
+    damageDealtTakenRatio: UNKNOWN_DAMAGE_RATIO_DISPLAY,
+    startTime: "",
+    endTime: "",
+    matches: [],
+    colorHex: undefined,
   };
 }
 
@@ -289,6 +324,13 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         })
       : timeline;
 
+  const timelineWithPendingActiveSeries =
+    view.hasActiveSeries &&
+    view.activeSeriesContext != null &&
+    !timelineWithFallback.some((item) => item.type === "series" && item.series.isActive)
+      ? ([{ type: "series", series: toPendingActiveSeriesTab(view) }, ...timelineWithFallback] as ViewerTimelineItem[])
+      : timelineWithFallback;
+
   const accumulated = accumulate(view.matches);
 
   return {
@@ -299,7 +341,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
     hasActiveSeries: view.hasActiveSeries,
     activeSeriesContext: toViewerActiveSeriesContext(view),
     lastUpdateTime: view.lastUpdateTime,
-    timeline: [...timelineWithFallback],
+    timeline: [...timelineWithPendingActiveSeries],
     accumulated,
     statsHighlights: view.statsHighlights,
     preSeriesPlayerInfo: view.preSeriesPlayerInfo,

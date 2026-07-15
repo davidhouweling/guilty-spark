@@ -109,7 +109,7 @@ function getSeriesPlayerDisplayNameForSettings(
     return player.gamertag ?? "Unknown";
   }
 
-  return player.discordName ?? player.gamertag ?? "Unknown";
+  return "Unknown";
 }
 
 function getSeriesPlayerStableKey(player: {

@@ -1564,6 +1564,163 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return `${matchIdKey}:${titleKey}:${subtitleKey}`;
   }
 
+  private async buildManualSeriesTeams(
+    state: IndividualTrackerInternalState,
+    teams: readonly { name: string; members: readonly string[] }[],
+  ): Promise<SeriesTeam[]> {
+    const fallbackTeams: SeriesTeam[] = teams.map((team, teamIndex) => ({
+      id: teamIndex,
+      name: team.name,
+      players: team.members.map((memberGamertag) => ({
+        discordId: null,
+        discordName: null,
+        gamertag: memberGamertag,
+        xboxId: null,
+      })),
+    }));
+
+    const normalizedGamertags = new Set<string>();
+    for (const team of teams) {
+      for (const memberGamertag of team.members) {
+        const normalizedGamertag = memberGamertag.trim();
+        if (normalizedGamertag !== "") {
+          normalizedGamertags.add(normalizedGamertag);
+        }
+      }
+    }
+
+    if (normalizedGamertags.size === 0) {
+      return fallbackTeams;
+    }
+
+    try {
+      await this.getUserHaloService(state.userId);
+    } catch (error: unknown) {
+      this.logService.warn(
+        error,
+        new Map([
+          ["context", "IndividualTracker: getUserHaloService failed in buildManualSeriesTeams"],
+          ["userId", state.userId],
+          ["trackerId", state.trackerId],
+        ]),
+      );
+      return fallbackTeams;
+    }
+
+    const usersByGamertag = new Map<string, { xuid: string; gamertag: string }>();
+    for (const normalizedGamertag of normalizedGamertags) {
+      try {
+        const user = await this.haloService.getUserByGamertag(normalizedGamertag);
+        usersByGamertag.set(normalizedGamertag, user);
+      } catch (error: unknown) {
+        this.logService.warn(
+          error,
+          new Map([
+            ["context", "IndividualTracker: getUserByGamertag failed in buildManualSeriesTeams"],
+            ["gamertag", normalizedGamertag],
+            ["trackerId", state.trackerId],
+          ]),
+        );
+      }
+    }
+
+    const uniqueXuids = [...new Set([...usersByGamertag.values()].map((user) => user.xuid))];
+    if (uniqueXuids.length === 0) {
+      return fallbackTeams;
+    }
+
+    const [rankedArenaCsrs, esras, discordAssociations] = await Promise.all([
+      this.haloService.getRankedArenaCsrs(uniqueXuids).catch((error: unknown) => {
+        this.logService.warn(
+          error,
+          new Map([
+            ["context", "IndividualTracker: getRankedArenaCsrs failed in buildManualSeriesTeams"],
+            ["trackerId", state.trackerId],
+          ]),
+        );
+        return new Map<string, PlaylistCsrContainer>();
+      }),
+      this.haloService.getPlayersEsras(uniqueXuids).catch((error: unknown) => {
+        this.logService.warn(
+          error,
+          new Map([
+            ["context", "IndividualTracker: getPlayersEsras failed in buildManualSeriesTeams"],
+            ["trackerId", state.trackerId],
+          ]),
+        );
+        return new Map<string, PlayerEsraData>();
+      }),
+      this.services.databaseService.getDiscordAssociationsByXboxId(uniqueXuids).catch((error: unknown) => {
+        this.logService.warn(
+          error,
+          new Map([
+            ["context", "IndividualTracker: getDiscordAssociationsByXboxId failed in buildManualSeriesTeams"],
+            ["trackerId", state.trackerId],
+          ]),
+        );
+        return [];
+      }),
+    ]);
+
+    const associationByXuid = new Map(discordAssociations.map((association) => [association.XboxId, association]));
+
+    const linkedIdentityByXuid = new Map<string, string | null>();
+    await Promise.all(
+      uniqueXuids.map(async (xuid) => {
+        try {
+          const linkedIdentity = await this.services.databaseService.getLinkedIdentityByProvider("xbox", xuid);
+          linkedIdentityByXuid.set(xuid, linkedIdentity?.UserId ?? null);
+        } catch (error: unknown) {
+          this.logService.warn(
+            error,
+            new Map([
+              ["context", "IndividualTracker: getLinkedIdentityByProvider failed in buildManualSeriesTeams"],
+              ["xuid", xuid],
+              ["trackerId", state.trackerId],
+            ]),
+          );
+          linkedIdentityByXuid.set(xuid, null);
+        }
+      }),
+    );
+
+    return teams.map((team, teamIndex) => ({
+      id: teamIndex,
+      name: team.name,
+      players: team.members.map((memberGamertag) => {
+        const normalizedGamertag = memberGamertag.trim();
+        const user = usersByGamertag.get(normalizedGamertag);
+        if (user == null) {
+          return {
+            discordId: null,
+            discordName: null,
+            gamertag: memberGamertag,
+            xboxId: null,
+          };
+        }
+
+        const association = associationByXuid.get(user.xuid);
+        const csr = rankedArenaCsrs.get(user.xuid);
+        const esra = esras.get(user.xuid);
+
+        return {
+          discordId: association?.DiscordId ?? linkedIdentityByXuid.get(user.xuid) ?? null,
+          discordName: association?.DiscordDisplayNameSearched ?? null,
+          gamertag: user.gamertag,
+          xboxId: user.xuid,
+          currentRank: csr?.Current.Value ?? null,
+          currentRankTier: normalizeRankTier(csr?.Current.Tier),
+          currentRankSubTier: csr?.Current.SubTier ?? null,
+          currentRankMeasurementMatchesRemaining: csr?.Current.MeasurementMatchesRemaining ?? null,
+          currentRankInitialMeasurementMatches: csr?.Current.InitialMeasurementMatches ?? null,
+          allTimePeakRank: csr?.AllTimeMax.Value ?? null,
+          esra: esra?.esra ?? null,
+          lastRankedGamePlayed: esra?.lastRankedGamePlayed ?? null,
+        };
+      }),
+    }));
+  }
+
   private async handleStartSeries(request: Request): Promise<Response> {
     const trackerState = await this.getState();
     if (trackerState == null) {
@@ -1576,11 +1733,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
     const body = parsed.data;
 
-    const teams: SeriesTeam[] = body.teams.map((team, teamIndex) => ({
-      id: teamIndex,
-      name: team.name,
-      players: team.members.map((gamertag) => ({ discordId: null, discordName: null, gamertag, xboxId: null })),
-    }));
+    const teams = await this.buildManualSeriesTeams(trackerState, body.teams);
 
     this.clearSeriesState(trackerState);
     trackerState.activeSeries = {
@@ -1655,11 +1808,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       trackerState.activeSeries.subtitle = body.subtitleOverride;
     }
     if (body.teams !== undefined) {
-      trackerState.activeSeries.teams = body.teams.map((team, teamIndex) => ({
-        id: teamIndex,
-        name: team.name,
-        players: team.members.map((gamertag) => ({ discordId: null, discordName: null, gamertag, xboxId: null })),
-      }));
+      trackerState.activeSeries.teams = await this.buildManualSeriesTeams(trackerState, body.teams);
     }
 
     trackerState.lastUpdateTime = new Date().toISOString();
@@ -2247,6 +2396,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
             activeSeriesContext: {
               title: state.activeSeries.title,
               subtitle: state.activeSeries.subtitle,
+              guildIconUrl: state.activeSeries.guildIconUrl,
               teams: state.activeSeries.teams,
             },
           }

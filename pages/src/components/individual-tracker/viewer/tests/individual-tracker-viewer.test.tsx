@@ -243,6 +243,57 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByText("No matches tracked yet.")).toBeInTheDocument();
   });
 
+  it("renders an active pre-series panel instead of empty state when an active series has no matches", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [],
+      series: [],
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Ranked Series",
+        subtitle: "Best of 5",
+        teams: [
+          {
+            id: 0,
+            name: "Alpha",
+            players: [{ discordId: null, discordName: "AlphaOne", gamertag: "AlphaTag", xboxId: null }],
+          },
+          {
+            id: 1,
+            name: "Beta",
+            players: [{ discordId: null, discordName: null, gamertag: "BetaTag", xboxId: null }],
+          },
+        ],
+      },
+    });
+
+    const model = aModel(view);
+    const [pendingSeries] = model.timeline;
+    const pendingSeriesId = pendingSeries.type === "series" ? pendingSeries.series.id : null;
+    const expandedEntryKeys = pendingSeriesId == null ? new Set<string>() : new Set([`series:${pendingSeriesId}`]);
+
+    render(
+      <IndividualTrackerViewer
+        renderModel={model}
+        connectionStatus="connected"
+        expandedEntryKeys={expandedEntryKeys}
+        entryStates={new Map()}
+        canManage={true}
+        refreshPending={false}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByText("No matches tracked yet.")).not.toBeInTheDocument();
+    expect(screen.getByText("Series is active and waiting for the first tracked match.")).toBeInTheDocument();
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(screen.getByText("Beta")).toBeInTheDocument();
+    expect(screen.getByText("AlphaOne")).toBeInTheDocument();
+    expect(screen.getByText("BetaTag")).toBeInTheDocument();
+    expect(screen.getByText("In progress")).toBeInTheDocument();
+  });
+
   it("renders reconnecting status in the badge for disconnected state", () => {
     const view = aFakeTrackerViewStateWith({ gamertag: "Spartan One" });
 
