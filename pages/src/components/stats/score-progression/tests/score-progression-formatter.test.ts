@@ -101,7 +101,6 @@ describe("formatScoreProgression", () => {
   describe("scoreDelta", () => {
     it("computes step-function delta points from events", () => {
       const result = formatScoreProgression(aFakeScoreProgressionWith(), TEAM_COLORS);
-      // t=0:0 | t=5000 pre:0 post:1 | t=12000 pre:1 post:0 | t=20000 pre:0 post:1 | t=600000:1
       expect(result?.scoreDelta?.points).toEqual([
         { timestampMs: 0, score: 0 },
         { timestampMs: 5000, score: 0 },
@@ -132,7 +131,6 @@ describe("formatScoreProgression", () => {
         },
       });
       const result = formatScoreProgression(data, TEAM_COLORS);
-      // minScore=-1, maxScore=1, range=2, zeroFraction=1/2=0.5
       expect(result?.scoreDelta?.minScore).toBe(-1);
       expect(result?.scoreDelta?.maxScore).toBe(1);
       expect(result?.scoreDelta?.zeroFraction).toBe(0.5);
@@ -146,7 +144,6 @@ describe("formatScoreProgression", () => {
         },
       });
       const result = formatScoreProgression(data, TEAM_COLORS);
-      // minScore=0, maxScore=1, range=1, zeroFraction=1/1=1
       expect(result?.scoreDelta?.zeroFraction).toBe(1);
     });
 
