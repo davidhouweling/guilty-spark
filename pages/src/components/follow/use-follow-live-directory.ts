@@ -110,7 +110,15 @@ export function useFollowLiveDirectory({
         setDirectory(dir);
         const liveId = findPreferredTrackerId(dir);
         prevLiveTrackerIdRef.current = liveId;
-        setSelectedTrackerId(liveId);
+        const selectedId = selectedTrackerIdRef.current;
+        const selectedExists = selectedId != null && dir.trackers.some((tracker) => tracker.trackerId === selectedId);
+        const shouldAdoptPreferredTracker =
+          hasGamertagChanged || selectedId == null || isFollowingLiveRef.current || !selectedExists;
+
+        if (shouldAdoptPreferredTracker) {
+          setSelectedTrackerId(liveId);
+          setIsFollowingLive(true);
+        }
         setDirectoryStatus("connected");
         initialLoadDoneRef.current = true;
         resetReconnectState();

@@ -6,5 +6,5 @@ export function getReconnectDelayMs(attempt: number): number {
   const exponentialDelay = Math.min(RECONNECT_BASE_DELAY_MS * Math.pow(2, attempt), RECONNECT_MAX_DELAY_MS);
   const jitter = exponentialDelay * RECONNECT_JITTER_RATIO * Math.random();
 
-  return Math.round(exponentialDelay + jitter);
+  return Math.min(Math.round(exponentialDelay + jitter), RECONNECT_MAX_DELAY_MS);
 }

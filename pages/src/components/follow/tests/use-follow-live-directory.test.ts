@@ -344,6 +344,42 @@ describe("useFollowLiveDirectory", () => {
     }
   });
 
+  it("preserves a manual tracker selection during reconnect", async () => {
+    const reconnectDelaySpy = vi.spyOn(reconnectPolicy, "getReconnectDelayMs").mockReturnValue(1);
+
+    try {
+      const service = aFakeFollowLiveServiceWith({ directory: aDirectoryWith() });
+      const connectDirectorySpy = vi.spyOn(service, "connectDirectory");
+      const { result } = renderHook(() =>
+        useFollowLiveDirectory({ followLiveService: service, gamertag: "Spartan One" }),
+      );
+
+      await waitFor(() => {
+        expect(result.current.directoryStatus).toBe("connected");
+      });
+
+      act(() => {
+        result.current.onSelectTracker("tracker-2");
+      });
+
+      expect(result.current.selectedTrackerId).toBe("tracker-2");
+      expect(result.current.isFollowingLive).toBe(false);
+
+      act(() => {
+        service.lastConnection?.emitStatus("error", "Connection lost");
+      });
+
+      await waitFor(() => {
+        expect(connectDirectorySpy).toHaveBeenCalledTimes(2);
+      });
+
+      expect(result.current.selectedTrackerId).toBe("tracker-2");
+      expect(result.current.isFollowingLive).toBe(false);
+    } finally {
+      reconnectDelaySpy.mockRestore();
+    }
+  });
+
   it("does not update state after unmount when a reconnect timer fires", async () => {
     const reconnectDelaySpy = vi.spyOn(reconnectPolicy, "getReconnectDelayMs").mockReturnValue(1);
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
