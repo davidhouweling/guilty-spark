@@ -4,6 +4,7 @@ import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { seriesMatchesContract, seriesMatchesQuerySchema } from "@guilty-spark/shared/contracts/stats/series-matches";
 import type { RoutesRegisterHandler } from "../base/types";
+import { normalizeTrackerId } from "./normalize-tracker-id";
 
 export const seriesMatchesRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/stats/series-matches", async (request, env: Env) => {
@@ -19,20 +20,26 @@ export const seriesMatchesRoute: RoutesRegisterHandler = (router, installService
 
       const { matchIds } = queryParams.data;
       const uniqueMatchIds = [...new Set(matchIds)];
-      const trackerId = url.searchParams.get("trackerId") ?? undefined;
+      const trackerId = normalizeTrackerId(url.searchParams.get("trackerId"));
 
       let resolvedHaloService = haloService;
       if (trackerId != null) {
         try {
           const tracker = await databaseService.getIndividualTracker(trackerId);
-          if (tracker != null) {
+          if (tracker?.IsLive === 1) {
             const userClient = await userTokenProvider.getClientForUser(tracker.UserId);
             if (userClient != null) {
               resolvedHaloService = haloService.withUserClient(userClient);
             }
           }
-        } catch {
-          logService.debug("Failed to resolve user credentials for tracker", new Map([["trackerId", trackerId]]));
+        } catch (error) {
+          logService.error(
+            error,
+            new Map([
+              ["context", "Failed to resolve user credentials for series matches tracker"],
+              ["trackerId", trackerId],
+            ]),
+          );
         }
       }
 

@@ -5,6 +5,7 @@ import {
 } from "@guilty-spark/shared/contracts/stats/batch-match-analytics";
 import { AnalyticsService } from "../../services/analytics/analytics";
 import type { RoutesRegisterHandler } from "../base/types";
+import { normalizeTrackerId } from "./normalize-tracker-id";
 
 export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/stats/match-analytics", async (request, env: Env) => {
@@ -19,13 +20,13 @@ export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installS
 
     const { matchIds: rawMatchIds, modules } = queryParams.data;
     const matchIds = [...new Set(rawMatchIds)];
-    const trackerId = url.searchParams.get("trackerId") ?? undefined;
+    const trackerId = normalizeTrackerId(url.searchParams.get("trackerId"));
 
     let resolvedAnalyticsService = services.analyticsService;
     if (trackerId != null) {
       try {
         const tracker = await databaseService.getIndividualTracker(trackerId);
-        if (tracker != null) {
+        if (tracker?.IsLive === 1) {
           const userClient = await userTokenProvider.getClientForUser(tracker.UserId);
           if (userClient != null) {
             const userHaloService = haloService.withUserClient(userClient);
@@ -36,8 +37,14 @@ export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installS
             });
           }
         }
-      } catch {
-        logService.debug("Failed to resolve user credentials for tracker", new Map([["trackerId", trackerId]]));
+      } catch (error) {
+        logService.error(
+          error,
+          new Map([
+            ["context", "Failed to resolve user credentials for batch analytics tracker"],
+            ["trackerId", trackerId],
+          ]),
+        );
       }
     }
 

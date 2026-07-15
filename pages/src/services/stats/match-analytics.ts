@@ -1,5 +1,6 @@
 import { type MatchAnalytics, type AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { batchMatchAnalyticsContract } from "@guilty-spark/shared/contracts/stats/batch-match-analytics";
+import { normalizeTrackerId } from "./normalize-tracker-id";
 import type { MatchAnalyticsService } from "./match-analytics-types";
 
 interface RealMatchAnalyticsServiceOptions {
@@ -29,8 +30,9 @@ export class RealMatchAnalyticsService implements MatchAnalyticsService {
       matchIds: matchIds.join(","),
       modules: buildModulesQuery(normalizedModules),
     });
-    if (trackerId != null) {
-      query.set("trackerId", trackerId);
+    const normalizedTrackerId = normalizeTrackerId(trackerId);
+    if (normalizedTrackerId != null) {
+      query.set("trackerId", normalizedTrackerId);
     }
     const response = await fetch(`${this.apiHost}/api/stats/match-analytics?${query.toString()}`, {
       credentials: "include",
