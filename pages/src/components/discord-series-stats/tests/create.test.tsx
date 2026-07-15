@@ -140,7 +140,7 @@ describe("DiscordSeriesStats", () => {
       expect(getBatchMatchAnalyticsSpy).toHaveBeenCalledTimes(1);
     });
 
-    expect(getBatchMatchAnalyticsSpy).toHaveBeenCalledWith(["match-1", "match-2"]);
+    expect(getBatchMatchAnalyticsSpy).toHaveBeenCalledWith(["match-1", "match-2"], ["killMatrix", "scoreProgression"]);
   });
 
   it("does not request medals metadata when all raw matches are invalid", async () => {

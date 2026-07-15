@@ -31,6 +31,7 @@ import type {
   SeriesStatsViewModel,
   SeriesTeamCard,
 } from "../../series-stats/types";
+import { formatScoreProgression } from "../../stats/score-progression/score-progression-formatter";
 import { buildViewerRenderModel } from "./viewer-render-model";
 import type {
   IndividualTrackerViewerSnapshot,
@@ -182,6 +183,7 @@ function buildSeriesViewModel({
       killMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
       transposedKillMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
       killMatrixStatus: ComponentLoaderStatus.LOADED,
+      scoreProgressionViewData: null,
     };
   });
 
@@ -323,7 +325,7 @@ export class IndividualTrackerViewerPresenter {
     const [seriesMatches, analytics] = await Promise.all([
       this.config.seriesMatchesService.getSeriesMatches([matchId]),
       this.config.matchAnalyticsService
-        .getBatchMatchAnalytics([matchId])
+        .getBatchMatchAnalytics([matchId], ["killMatrix", "scoreProgression"])
         .then((results) => results[matchId] ?? null)
         .catch(() => null),
     ]);
@@ -351,7 +353,10 @@ export class IndividualTrackerViewerPresenter {
     return { stats, playerMap, medalMetadata, analytics, gameMapThumbnailUrl: matchSummary.gameMapThumbnailUrl };
   }
 
-  private toMatchEntryLoadedState(loadedState: MatchStatsLoadedState): MatchEntryLoadedState {
+  private toMatchEntryLoadedState(
+    loadedState: MatchStatsLoadedState,
+    teamColors: readonly TeamColor[],
+  ): MatchEntryLoadedState {
     const { stats, playerMap, medalMetadata, analytics, gameMapThumbnailUrl } = loadedState;
     const controller = new StatsController();
     controller.loadMatch(stats, playerMap, medalMetadata);
@@ -384,6 +389,7 @@ export class IndividualTrackerViewerPresenter {
         killMatrixRows != null
           ? KillMatrixFormatter.transpose(killMatrixRows, orderedPlayers)
           : EMPTY_KILL_MATRIX_PIVOT_DATA,
+      scoreProgressionViewData: formatScoreProgression(analytics?.scoreProgression ?? null, teamColors),
     };
   }
 
@@ -395,7 +401,7 @@ export class IndividualTrackerViewerPresenter {
         return;
       }
 
-      const state = this.toMatchEntryLoadedState(loadedState);
+      const state = this.toMatchEntryLoadedState(loadedState, this.resolveTeamColors());
       this.config.store.setMatchEntryLoaded(key, state);
     } catch (error) {
       if (this.isDisposed) {

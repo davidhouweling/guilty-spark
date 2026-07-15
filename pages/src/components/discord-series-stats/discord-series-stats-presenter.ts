@@ -22,6 +22,7 @@ import type {
   SeriesStatsViewModel as DiscordSeriesStatsViewModel,
   SeriesTeamCard as DiscordSeriesTeamCard,
 } from "../series-stats/types";
+import { formatScoreProgression } from "../stats/score-progression/score-progression-formatter";
 import type { DiscordSeriesStatsSnapshot, DiscordSeriesStatsStore } from "./discord-series-stats-store";
 
 const WIN_OUTCOME = 2;
@@ -95,7 +96,10 @@ export class DiscordSeriesStatsPresenter {
       return;
     }
     try {
-      const batchResults = await this.matchAnalyticsService.getBatchMatchAnalytics(matchIds);
+      const batchResults = await this.matchAnalyticsService.getBatchMatchAnalytics(matchIds, [
+        "killMatrix",
+        "scoreProgression",
+      ]);
       if (this.cancelled) {
         return;
       }
@@ -200,6 +204,7 @@ export class DiscordSeriesStatsPresenter {
 
     const matchDetails: DiscordSeriesMatchDetail[] = this.renderData.matches.map((match, index) => {
       const rows = matchKillMatrixRows.get(match.matchId);
+      const analytics = snapshot.analyticsByMatchId.get(match.matchId) ?? null;
       const base = {
         matchId: match.matchId,
         gameMapThumbnailUrl: match.gameMapThumbnailUrl,
@@ -217,6 +222,7 @@ export class DiscordSeriesStatsPresenter {
         transposedKillMatrixPivotData:
           rows != null ? KillMatrixFormatter.transpose(rows, orderedPlayers) : EMPTY_KILL_MATRIX_PIVOT_DATA,
         killMatrixStatus: snapshot.analyticsStatus,
+        scoreProgressionViewData: formatScoreProgression(analytics?.scoreProgression ?? null, teamColors),
       };
       if (!isMatchStats(match.rawMatch)) {
         return { ...base, data: null };
