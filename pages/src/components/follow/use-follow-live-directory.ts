@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import type { DirectoryConnectionStatus, FollowLiveService } from "../../services/follow/follow-types";
+import { getReconnectDelayMs } from "../../services/base/reconnect-policy";
 
 export interface UseFollowLiveDirectoryOpts {
   readonly followLiveService: FollowLiveService;
@@ -55,17 +56,51 @@ export function useFollowLiveDirectory({
 
   const prevLiveTrackerIdRef = useRef<string | null>(null);
   const initialLoadDoneRef = useRef(false);
+  const previousGamertagRef = useRef<string | null>(null);
+  const reconnectAttemptRef = useRef(0);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let isCancelled = false;
+    const hasGamertagChanged = previousGamertagRef.current !== gamertag;
+    previousGamertagRef.current = gamertag;
+
     initialLoadDoneRef.current = false;
     prevLiveTrackerIdRef.current = null;
-    setDirectory(null);
-    setSelectedTrackerId(null);
-    setIsFollowingLive(true);
+    if (hasGamertagChanged) {
+      setDirectory(null);
+      setSelectedTrackerId(null);
+      setIsFollowingLive(true);
+      reconnectAttemptRef.current = 0;
+    }
     setDirectoryStatus("connecting");
 
     const connection = followLiveService.connectDirectory(gamertag);
+
+    function resetReconnectState(): void {
+      reconnectAttemptRef.current = 0;
+      if (reconnectTimerRef.current != null) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+    }
+
+    function scheduleReconnect(): void {
+      if (reconnectTimerRef.current != null) {
+        return;
+      }
+
+      const delay = getReconnectDelayMs(reconnectAttemptRef.current);
+      reconnectAttemptRef.current += 1;
+      reconnectTimerRef.current = setTimeout(() => {
+        if (isCancelled) {
+          reconnectTimerRef.current = null;
+          return;
+        }
+        reconnectTimerRef.current = null;
+        setRetryCount((current) => current + 1);
+      }, delay);
+    }
 
     async function fetchDirectory(): Promise<void> {
       try {
@@ -76,9 +111,18 @@ export function useFollowLiveDirectory({
         setDirectory(dir);
         const liveId = findPreferredTrackerId(dir);
         prevLiveTrackerIdRef.current = liveId;
-        setSelectedTrackerId(liveId);
+        const selectedId = selectedTrackerIdRef.current;
+        const selectedExists = selectedId != null && dir.trackers.some((tracker) => tracker.trackerId === selectedId);
+        const shouldAdoptPreferredTracker =
+          hasGamertagChanged || selectedId == null || isFollowingLiveRef.current || !selectedExists;
+
+        if (shouldAdoptPreferredTracker) {
+          setSelectedTrackerId(liveId);
+          setIsFollowingLive(true);
+        }
         setDirectoryStatus("connected");
         initialLoadDoneRef.current = true;
+        resetReconnectState();
       } catch {
         if (isCancelled) {
           return;
@@ -94,6 +138,11 @@ export function useFollowLiveDirectory({
       if (isCancelled || !initialLoadDoneRef.current) {
         return;
       }
+
+      // A valid directory payload indicates the connection is healthy.
+      setDirectoryStatus("connected");
+      resetReconnectState();
+
       setDirectory(updatedDirectory);
 
       const newLiveId = findPreferredTrackerId(updatedDirectory);
@@ -119,11 +168,25 @@ export function useFollowLiveDirectory({
       if (isCancelled) {
         return;
       }
+
       setDirectoryStatus(status);
+
+      if (status === "connected") {
+        resetReconnectState();
+        return;
+      }
+
+      if (status === "error" || status === "disconnected") {
+        scheduleReconnect();
+      }
     });
 
     return (): void => {
       isCancelled = true;
+      if (reconnectTimerRef.current != null) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
       dirSubscription.unsubscribe();
       statusSubscription.unsubscribe();
       connection.disconnect();

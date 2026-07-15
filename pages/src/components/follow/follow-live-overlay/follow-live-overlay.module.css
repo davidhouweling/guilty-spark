@@ -1,0 +1,22 @@
+.overlay {
+  position: relative;
+}
+
+.connectionIcon {
+  height: 32px;
+  pointer-events: none;
+  position: fixed;
+  right: 12px;
+  top: 12px;
+  width: 32px;
+  z-index: 20;
+}
+
+@media (--tablet-viewport) {
+  .connectionIcon {
+    height: 40px;
+    right: 16px;
+    top: 16px;
+    width: 40px;
+  }
+}

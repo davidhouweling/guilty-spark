@@ -100,6 +100,7 @@ describe("FollowLiveOverlayCreate", () => {
     });
 
     expect(screen.getByTestId("mock-overlay-external-view-tracker-id")).toHaveTextContent("tracker-2");
+    expect(screen.getByAltText("Connection healthy")).toBeInTheDocument();
   });
 
   it("forwards preview flags to the overlay page", async () => {
@@ -207,5 +208,27 @@ describe("FollowLiveOverlayCreate", () => {
 
     expect(getViewSpy).not.toHaveBeenCalled();
     expect(connectSpy).not.toHaveBeenCalled();
+  });
+
+  it("swaps to degraded icon when follow directory connection status errors", async () => {
+    const directory = aDirectoryWith({
+      trackers: [aTrackerWith({ trackerId: "tracker-3", gamertag: "Spartan Three", isLive: true, status: "active" })],
+      liveTrackerId: "tracker-3",
+    });
+    const { element, followLiveService } = createFollowLiveOverlayWith(directory);
+
+    render(element);
+
+    await waitFor(() => {
+      expect(screen.getByAltText("Connection healthy")).toBeInTheDocument();
+    });
+
+    act(() => {
+      followLiveService.lastConnection?.emitStatus("error", "Connection lost");
+    });
+
+    await waitFor(() => {
+      expect(screen.getByAltText("Connection issue")).toBeInTheDocument();
+    });
   });
 });
