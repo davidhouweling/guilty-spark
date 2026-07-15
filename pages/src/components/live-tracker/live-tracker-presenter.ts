@@ -740,21 +740,9 @@ export class LiveTrackerPresenter {
     const now = Date.now();
     this.firstReconnectionTimestamp ??= now;
 
-    const elapsed = now - this.firstReconnectionTimestamp;
-
-    if (elapsed > this.maxReconnectionDurationMs || this.reconnectionAttempt >= this.maxReconnectionAttempts) {
-      const hasDetail = (detail?.length ?? 0) > 0;
-      const errorText = hasDetail ? `Connection error: ${detail ?? ""}` : "Connection lost";
-      const reason =
-        elapsed > this.maxReconnectionDurationMs
-          ? "Gave up after 3m"
-          : `Max retries reached (${String(this.maxReconnectionAttempts)})`;
-      this.config.store.setSnapshot({
-        ...snapshot,
-        connectionState: "error",
-        statusText: `${errorText} (${reason})`,
-      });
-      this.stopReconnection();
+    const limitReason = this.getReconnectionLimitReason(now);
+    if (limitReason != null) {
+      this.setReconnectionError(snapshot, detail, limitReason);
       return;
     }
 
@@ -767,9 +755,41 @@ export class LiveTrackerPresenter {
     });
 
     this.reconnectionTimer = setTimeout(() => {
+      const retryNow = Date.now();
+      const retryLimitReason = this.getReconnectionLimitReason(retryNow);
+      if (retryLimitReason != null) {
+        const currentSnapshot = this.config.store.getSnapshot();
+        this.setReconnectionError(currentSnapshot, detail, retryLimitReason);
+        return;
+      }
+
       this.reconnectionTimer = null;
       void this.connectInternal(identity);
       this.reconnectionAttempt++;
     }, totalDelay);
+  }
+
+  private getReconnectionLimitReason(now: number): string | null {
+    const elapsed = now - (this.firstReconnectionTimestamp ?? now);
+    if (elapsed > this.maxReconnectionDurationMs) {
+      return "Gave up after 3m";
+    }
+
+    if (this.reconnectionAttempt >= this.maxReconnectionAttempts) {
+      return `Max retries reached (${String(this.maxReconnectionAttempts)})`;
+    }
+
+    return null;
+  }
+
+  private setReconnectionError(snapshot: LiveTrackerSnapshot, detail: string | undefined, reason: string): void {
+    const hasDetail = (detail?.length ?? 0) > 0;
+    const errorText = hasDetail ? `Connection error: ${detail ?? ""}` : "Connection lost";
+    this.config.store.setSnapshot({
+      ...snapshot,
+      connectionState: "error",
+      statusText: `${errorText} (${reason})`,
+    });
+    this.stopReconnection();
   }
 }

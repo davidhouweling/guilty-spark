@@ -592,4 +592,60 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
       reconnectDelaySpy.mockRestore();
     }
   });
+
+  it("gives up when the time limit is exceeded before a pending retry fires", async (): Promise<void> => {
+    const reconnectDelaySpy = vi.spyOn(reconnectPolicy, "getReconnectDelayMs").mockReturnValue(60_000);
+
+    try {
+      vi.setSystemTime(0);
+
+      const mockService = new MockLiveTrackerService();
+      const mockStore = new MockLiveTrackerStore();
+
+      const createdConnections: MockLiveTrackerConnection[] = [];
+      vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
+        const conn = new MockLiveTrackerConnection();
+        createdConnections.push(conn);
+        return Promise.resolve(conn);
+      });
+
+      const presenter = new LiveTrackerPresenter({
+        getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
+        liveTrackerService: mockService,
+        store: mockStore,
+        matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+        medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
+      });
+
+      presenter.start();
+      await vi.runAllTimersAsync();
+
+      const firstConnection = Preconditions.checkExists(createdConnections[0]);
+      firstConnection.emitStatus("connected");
+      await vi.runAllTimersAsync();
+      firstConnection.emitMessage(sampleLiveTrackerStateMessage);
+      await vi.runAllTimersAsync();
+
+      firstConnection.emitStatus("error", "Connection lost");
+      await vi.runAllTimersAsync();
+
+      const secondConnection = Preconditions.checkExists(createdConnections[1]);
+      secondConnection.emitStatus("error", "Still failing");
+      await vi.runAllTimersAsync();
+
+      const thirdConnection = Preconditions.checkExists(createdConnections[2]);
+      await vi.advanceTimersByTimeAsync(1);
+      thirdConnection.emitStatus("error", "Still failing");
+
+      await vi.advanceTimersByTimeAsync(60_001);
+      await vi.runAllTimersAsync();
+
+      expect(createdConnections).toHaveLength(3);
+      expect(mockStore.getSnapshot().statusText).toContain("Gave up after 3m");
+
+      presenter.dispose();
+    } finally {
+      reconnectDelaySpy.mockRestore();
+    }
+  });
 });
