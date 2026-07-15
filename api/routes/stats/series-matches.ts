@@ -8,7 +8,7 @@ import type { RoutesRegisterHandler } from "../base/types";
 export const seriesMatchesRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/stats/series-matches", async (request, env: Env) => {
     const services = installServices({ env });
-    const { haloService, logService } = services;
+    const { haloService, logService, databaseService, userTokenProvider } = services;
 
     try {
       const url = new URL(request.url);
@@ -19,8 +19,24 @@ export const seriesMatchesRoute: RoutesRegisterHandler = (router, installService
 
       const { matchIds } = queryParams.data;
       const uniqueMatchIds = [...new Set(matchIds)];
+      const trackerId = url.searchParams.get("trackerId") ?? undefined;
 
-      const matches = await haloService.getMatchDetails(uniqueMatchIds);
+      let resolvedHaloService = haloService;
+      if (trackerId != null) {
+        try {
+          const tracker = await databaseService.getIndividualTracker(trackerId);
+          if (tracker != null) {
+            const userClient = await userTokenProvider.getClientForUser(tracker.UserId);
+            if (userClient != null) {
+              resolvedHaloService = haloService.withUserClient(userClient);
+            }
+          }
+        } catch {
+          logService.debug("Failed to resolve user credentials for tracker", new Map([["trackerId", trackerId]]));
+        }
+      }
+
+      const matches = await resolvedHaloService.getMatchDetails(uniqueMatchIds);
       const matchesById: Record<string, MatchStats> = {};
       for (const match of matches) {
         matchesById[match.MatchId] = match;
@@ -29,15 +45,18 @@ export const seriesMatchesRoute: RoutesRegisterHandler = (router, installService
         .map((matchId) => matchesById[matchId])
         .filter((match): match is MatchStats => match != null);
 
-      const playerXuidToGametagMap = await haloService.getPlayerXuidsToGametags(orderedMatches);
+      const playerXuidToGametagMap = await resolvedHaloService.getPlayerXuidsToGametags(orderedMatches);
 
       const responseMatches = await Promise.all(
         orderedMatches.map(async (match) => {
           const [{ gameType, gameMap }, mapThumbnailUrl] = await Promise.all([
-            haloService.getGameTypeAndMapParts(match.MatchInfo),
-            haloService.getMapThumbnailUrl(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),
+            resolvedHaloService.getGameTypeAndMapParts(match.MatchInfo),
+            resolvedHaloService.getMapThumbnailUrl(
+              match.MatchInfo.MapVariant.AssetId,
+              match.MatchInfo.MapVariant.VersionId,
+            ),
           ]);
-          const { gameScore, gameSubScore } = haloService.getMatchScore(match, "en-US");
+          const { gameScore, gameSubScore } = resolvedHaloService.getMatchScore(match, "en-US");
 
           return {
             matchId: match.MatchId,

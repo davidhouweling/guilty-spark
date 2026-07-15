@@ -12,8 +12,14 @@ export class RealSeriesMatchesService implements SeriesMatchesService {
     this.apiHost = apiHost;
   }
 
-  async getSeriesMatches(matchIds: readonly string[]): ReturnType<SeriesMatchesService["getSeriesMatches"]> {
+  async getSeriesMatches(
+    matchIds: readonly string[],
+    trackerId?: string,
+  ): ReturnType<SeriesMatchesService["getSeriesMatches"]> {
     const query = new URLSearchParams({ matchIds: matchIds.join(",") });
+    if (trackerId != null) {
+      query.set("trackerId", trackerId);
+    }
     const response = await fetch(`${this.apiHost}/api/stats/series-matches?${query.toString()}`, {
       credentials: "include",
     });

@@ -22,12 +22,16 @@ export class RealMatchAnalyticsService implements MatchAnalyticsService {
   async getBatchMatchAnalytics(
     matchIds: readonly string[],
     modules: readonly AnalyticsModule[] = DEFAULT_MODULES,
+    trackerId?: string,
   ): Promise<Record<string, MatchAnalytics | null>> {
     const normalizedModules = modules.length === 0 ? DEFAULT_MODULES : modules;
     const query = new URLSearchParams({
       matchIds: matchIds.join(","),
       modules: buildModulesQuery(normalizedModules),
     });
+    if (trackerId != null) {
+      query.set("trackerId", trackerId);
+    }
     const response = await fetch(`${this.apiHost}/api/stats/match-analytics?${query.toString()}`, {
       credentials: "include",
     });

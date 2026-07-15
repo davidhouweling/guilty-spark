@@ -44,8 +44,10 @@ export class FakeMatchAnalyticsService implements MatchAnalyticsService {
   async getBatchMatchAnalytics(
     matchIds: readonly string[],
     modules?: readonly AnalyticsModule[],
+    trackerId?: string,
   ): Promise<Record<string, MatchAnalytics | null>> {
     void modules;
+    void trackerId;
     const resultsMap = new Map<string, MatchAnalytics | null>(
       matchIds.map((matchId) => [matchId, this.failMatchIds.has(matchId) ? null : this.analytics]),
     );
