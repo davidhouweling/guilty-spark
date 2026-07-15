@@ -97,4 +97,68 @@ describe("formatScoreProgression", () => {
     const result = formatScoreProgression(aFakeScoreProgressionWith({ durationMs: 480000 }), TEAM_COLORS);
     expect(result?.durationMs).toBe(480000);
   });
+
+  describe("scoreDelta", () => {
+    it("computes step-function delta points from events", () => {
+      const result = formatScoreProgression(aFakeScoreProgressionWith(), TEAM_COLORS);
+      // t=0:0 | t=5000 pre:0 post:1 | t=12000 pre:1 post:0 | t=20000 pre:0 post:1 | t=600000:1
+      expect(result?.scoreDelta?.points).toEqual([
+        { timestampMs: 0, score: 0 },
+        { timestampMs: 5000, score: 0 },
+        { timestampMs: 5000, score: 1 },
+        { timestampMs: 12000, score: 1 },
+        { timestampMs: 12000, score: 0 },
+        { timestampMs: 20000, score: 0 },
+        { timestampMs: 20000, score: 1 },
+        { timestampMs: 600000, score: 1 },
+      ]);
+    });
+
+    it("sets minScore and maxScore from the computed delta points", () => {
+      const result = formatScoreProgression(aFakeScoreProgressionWith(), TEAM_COLORS);
+      expect(result?.scoreDelta?.minScore).toBe(0);
+      expect(result?.scoreDelta?.maxScore).toBe(1);
+    });
+
+    it("sets zeroFraction to maxScore / range for mixed positive and negative deltas", () => {
+      const data = aFakeScoreProgressionWith({
+        timeline: {
+          type: "kill-race",
+          events: [
+            { timestampMs: 5000, teamId: 1, runningScores: { "0": 0, "1": 1 } },
+            { timestampMs: 10000, teamId: 0, runningScores: { "0": 1, "1": 1 } },
+            { timestampMs: 15000, teamId: 0, runningScores: { "0": 2, "1": 1 } },
+          ],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      // minScore=-1, maxScore=1, range=2, zeroFraction=1/2=0.5
+      expect(result?.scoreDelta?.minScore).toBe(-1);
+      expect(result?.scoreDelta?.maxScore).toBe(1);
+      expect(result?.scoreDelta?.zeroFraction).toBe(0.5);
+    });
+
+    it("sets zeroFraction to 1 when team0 always leads", () => {
+      const data = aFakeScoreProgressionWith({
+        timeline: {
+          type: "kill-race",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      // minScore=0, maxScore=1, range=1, zeroFraction=1/1=1
+      expect(result?.scoreDelta?.zeroFraction).toBe(1);
+    });
+
+    it("returns null scoreDelta when only one team is present", () => {
+      const data = aFakeScoreProgressionWith({
+        timeline: {
+          type: "kill-race",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1 } }],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.scoreDelta).toBeNull();
+    });
+  });
 });
