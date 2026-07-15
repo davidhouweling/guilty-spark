@@ -62,7 +62,6 @@ export function ScoreProgression({ durationMs, teamLines, ariaLabel }: ScoreProg
               stroke={line.color}
               strokeWidth={2}
               dot={false}
-              isAnimationActive={false}
               type="linear"
             />
           ))}
