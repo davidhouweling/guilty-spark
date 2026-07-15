@@ -1,4 +1,5 @@
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import { getTeamName } from "@guilty-spark/shared/halo/team";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { ScoreProgressionPoint, ScoreProgressionTeamLine, ScoreProgressionViewData } from "./types";
 
@@ -24,7 +25,7 @@ export function formatScoreProgression(
     teamIds.map((teamId, slotIndex) => [
       teamId,
       {
-        name: teamColors[slotIndex]?.name ?? `Team ${String(slotIndex + 1)}`,
+        name: getTeamName(teamId),
         color: teamColors[slotIndex]?.hex ?? FALLBACK_COLORS[slotIndex % FALLBACK_COLORS.length],
         prevScore: 0,
         points: [{ timestampMs: 0, score: 0 }] as ScoreProgressionPoint[],
