@@ -42,9 +42,8 @@ describe("RealSeriesMatchesService.getSeriesMatches", () => {
 
     await service.getSeriesMatches(["match-1"], "   ");
 
-    expect(fetchSpy).toHaveBeenCalledWith(
-      "https://api.example.com/api/stats/series-matches?matchIds=match-1",
-      { credentials: "include" },
-    );
+    expect(fetchSpy).toHaveBeenCalledWith("https://api.example.com/api/stats/series-matches?matchIds=match-1", {
+      credentials: "include",
+    });
   });
 });
