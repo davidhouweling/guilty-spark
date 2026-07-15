@@ -60,6 +60,8 @@ export function MatchStats({
   showHeader = true,
 }: MatchStatsProps): React.ReactElement {
   const [activeTab, setActiveTab] = React.useState<"players" | "timeline" | "kill-matrix">("players");
+  const safeActiveTab: "players" | "timeline" | "kill-matrix" =
+    activeTab === "timeline" && scoreProgressionViewData == null ? "players" : activeTab;
   const hasTeamStats = data.length > 0 && data[0].teamStats.length > 0;
 
   // Define team stats columns
@@ -241,7 +243,7 @@ export function MatchStats({
 
       <TabbedSection
         tabListAriaLabel="Player statistics view"
-        selectedTabId={activeTab}
+        selectedTabId={safeActiveTab}
         tabs={[
           {
             id: "players" as const,

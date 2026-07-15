@@ -20,24 +20,36 @@ export function formatScoreProgression(
     .map(Number)
     .sort((a, b) => a - b);
 
-  const teamLines: ScoreProgressionTeamLine[] = teamIds.map((teamId, slotIndex) => {
-    const color = teamColors[slotIndex]?.hex ?? FALLBACK_COLORS[slotIndex % FALLBACK_COLORS.length];
-    const points: ScoreProgressionPoint[] = [{ timestampMs: 0, score: 0 }];
-    let prevScore = 0;
+  const teamState = new Map(
+    teamIds.map((teamId, slotIndex) => [
+      teamId,
+      {
+        color: teamColors[slotIndex]?.hex ?? FALLBACK_COLORS[slotIndex % FALLBACK_COLORS.length],
+        prevScore: 0,
+        points: [{ timestampMs: 0, score: 0 }] as ScoreProgressionPoint[],
+      },
+    ]),
+  );
 
-    for (const event of events) {
-      if (event.teamId !== teamId) {
-        continue;
+  for (const event of events) {
+    const newScore = event.runningScores[String(event.teamId)] ?? 0;
+
+    for (const [teamId, state] of teamState) {
+      if (teamId === event.teamId) {
+        state.points.push({ timestampMs: event.timestampMs, score: state.prevScore });
+        state.points.push({ timestampMs: event.timestampMs, score: newScore });
+        state.prevScore = newScore;
+      } else {
+        state.points.push({ timestampMs: event.timestampMs, score: state.prevScore });
       }
-      const newScore = event.runningScores[String(teamId)] ?? prevScore;
-      points.push({ timestampMs: event.timestampMs, score: prevScore });
-      points.push({ timestampMs: event.timestampMs, score: newScore });
-      prevScore = newScore;
     }
+  }
 
-    points.push({ timestampMs: durationMs, score: prevScore });
-    return { teamId, color, points };
-  });
+  const teamLines: ScoreProgressionTeamLine[] = [];
+  for (const [teamId, state] of teamState) {
+    state.points.push({ timestampMs: durationMs, score: state.prevScore });
+    teamLines.push({ teamId, color: state.color, points: state.points });
+  }
 
   return { durationMs, teamLines };
 }

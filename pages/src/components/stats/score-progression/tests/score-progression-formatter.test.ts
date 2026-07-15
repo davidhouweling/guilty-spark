@@ -42,13 +42,15 @@ describe("formatScoreProgression", () => {
     expect(result?.teamLines[1]?.points[0]).toEqual({ timestampMs: 0, score: 0 });
   });
 
-  it("produces step-function points for each kill event", () => {
+  it("produces step-function points for each kill event with sync points for other teams", () => {
     const result = formatScoreProgression(aFakeScoreProgressionWith(), TEAM_COLORS);
     const team0Points = result?.teamLines[0]?.points ?? [];
+    // team 0 kills at t=5000 and t=20000; sync point added at t=12000 (team 1 kill)
     expect(team0Points).toEqual([
       { timestampMs: 0, score: 0 },
       { timestampMs: 5000, score: 0 },
       { timestampMs: 5000, score: 1 },
+      { timestampMs: 12000, score: 1 },
       { timestampMs: 20000, score: 1 },
       { timestampMs: 20000, score: 2 },
       { timestampMs: 600000, score: 2 },
@@ -63,7 +65,7 @@ describe("formatScoreProgression", () => {
     expect(lastTeam1?.timestampMs).toBe(600000);
   });
 
-  it("produces a flat line for a team with no kills", () => {
+  it("adds a sync point for a team with no kills at each opponent kill timestamp", () => {
     const data = aFakeScoreProgressionWith({
       timeline: {
         type: "kill-race",
@@ -74,6 +76,7 @@ describe("formatScoreProgression", () => {
     const team1Points = result?.teamLines[1]?.points ?? [];
     expect(team1Points).toEqual([
       { timestampMs: 0, score: 0 },
+      { timestampMs: 5000, score: 0 },
       { timestampMs: 600000, score: 0 },
     ]);
   });
