@@ -323,9 +323,9 @@ export class IndividualTrackerViewerPresenter {
 
   private async fetchMatchSource(matchId: string): Promise<MatchStatsLoadedState> {
     const [seriesMatches, analytics] = await Promise.all([
-      this.config.seriesMatchesService.getSeriesMatches([matchId]),
+      this.config.seriesMatchesService.getSeriesMatches([matchId], this.config.trackerId),
       this.config.matchAnalyticsService
-        .getBatchMatchAnalytics([matchId], ["killMatrix", "scoreProgression"])
+        .getBatchMatchAnalytics([matchId], ["killMatrix", "scoreProgression"], this.config.trackerId)
         .then((results) => results[matchId] ?? null)
         .catch(() => null),
     ]);
@@ -423,7 +423,10 @@ export class IndividualTrackerViewerPresenter {
           return;
         }
         const batchMatchIds = uniqueMatchIds.slice(index, index + SERIES_MATCHES_BATCH_SIZE);
-        const batchSeriesData = await this.config.seriesMatchesService.getSeriesMatches(batchMatchIds);
+        const batchSeriesData = await this.config.seriesMatchesService.getSeriesMatches(
+          batchMatchIds,
+          this.config.trackerId,
+        );
         if (this.shouldAbort()) {
           return;
         }
