@@ -9,14 +9,9 @@ import {
   TICK_FONT_SIZE,
   tooltipContentStyle,
 } from "../chart-constants";
-import type { ScoreProgressionTeamLine } from "../types";
+import type { ScoreProgressionProgressionViewModel } from "../types";
 
-export interface ProgressionChartProps {
-  readonly durationMs: number;
-  readonly teamLines: readonly ScoreProgressionTeamLine[];
-}
-
-export function ProgressionChart({ durationMs, teamLines }: ProgressionChartProps): React.ReactElement {
+export function ProgressionChart({ durationMs, teamLines }: ScoreProgressionProgressionViewModel): React.ReactElement {
   return (
     <ResponsiveContainer width="100%" height={260}>
       <AreaChart margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>

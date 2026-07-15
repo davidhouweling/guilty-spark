@@ -9,15 +9,7 @@ import {
   TICK_FONT_SIZE,
   tooltipContentStyle,
 } from "../chart-constants";
-import type { ScoreDeltaData } from "../types";
-
-export interface DeltaChartProps {
-  readonly durationMs: number;
-  readonly scoreDelta: ScoreDeltaData;
-  readonly team0Color: string;
-  readonly team1Color: string;
-  readonly tooltipFormatter: (value: unknown) => [string, string];
-}
+import type { ScoreProgressionDeltaViewModel } from "../types";
 
 export function DeltaChart({
   durationMs,
@@ -25,7 +17,7 @@ export function DeltaChart({
   team0Color,
   team1Color,
   tooltipFormatter,
-}: DeltaChartProps): React.ReactElement {
+}: ScoreProgressionDeltaViewModel): React.ReactElement {
   const { points, minScore, maxScore, zeroFraction } = scoreDelta;
   const gradientId = React.useId();
   const zeroPercent = `${(zeroFraction * 100).toFixed(2)}%`;

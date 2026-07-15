@@ -20,11 +20,7 @@ function ScoreProgressionInternal({
   const store = useMemo(() => new ScoreProgressionStore(), []);
   const presenter = useMemo(() => new ScoreProgressionPresenter({ store }), [store]);
 
-  const snapshot = useSyncExternalStore(
-    (listener) => store.subscribe(listener),
-    () => store.getSnapshot(),
-    () => store.getSnapshot(),
-  );
+  const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
 
   const model = useMemo(
     () => presenter.present(snapshot, { durationMs, teamLines, scoreDelta, ariaLabel }),
@@ -35,8 +31,5 @@ function ScoreProgressionInternal({
 }
 
 export function createScoreProgression(): (props: ScoreProgressionProps) => React.ReactElement {
-  const Component = (props: ScoreProgressionProps): React.ReactElement => (
-    <ScoreProgressionInternal {...props} />
-  );
-  return Component;
+  return ScoreProgressionInternal;
 }

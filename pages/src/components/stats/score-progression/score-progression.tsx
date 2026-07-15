@@ -14,19 +14,21 @@ export function ScoreProgression({
 }: ScoreProgressionViewModel): React.ReactElement {
   return (
     <div className={styles.container} role="img" aria-label={ariaLabel}>
-      <div className={styles.toolbar}>
-        <select
-          className={styles.chartSelect}
-          value={effectiveChartType}
-          onChange={(e) => {
-            onChartTypeChange(e.target.value);
-          }}
-          aria-label="Chart type"
-        >
-          <option value="progression">Score Progression</option>
-          {hasDelta && <option value="delta">Score Delta</option>}
-        </select>
-      </div>
+      {hasDelta && (
+        <div className={styles.toolbar}>
+          <select
+            className={styles.chartSelect}
+            value={effectiveChartType}
+            onChange={(e) => {
+              onChartTypeChange(e.target.value);
+            }}
+            aria-label="Chart type"
+          >
+            <option value="progression">Score Progression</option>
+            <option value="delta">Score Delta</option>
+          </select>
+        </div>
+      )}
       {effectiveChartType === "delta" && deltaViewModel != null ? (
         <DeltaChart {...deltaViewModel} />
       ) : (

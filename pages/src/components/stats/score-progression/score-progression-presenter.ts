@@ -30,7 +30,13 @@ function formatDeltaTooltip(value: unknown, team0Name: string, team1Name: string
 }
 
 export class ScoreProgressionPresenter {
-  constructor(private readonly config: ScoreProgressionPresenterConfig) {}
+  readonly onChartTypeChange: (value: string) => void;
+
+  constructor(private readonly config: ScoreProgressionPresenterConfig) {
+    this.onChartTypeChange = (value: string): void => {
+      this.setChartType(value);
+    };
+  }
 
   setChartType(value: string): void {
     if (value === "progression" || value === "delta") {
@@ -40,8 +46,7 @@ export class ScoreProgressionPresenter {
 
   present(snapshot: ScoreProgressionSnapshot, input: ScoreProgressionInput): ScoreProgressionViewModel {
     const { chartType } = snapshot;
-    const effectiveChartType: ChartType =
-      chartType === "delta" && input.scoreDelta == null ? "progression" : chartType;
+    const effectiveChartType: ChartType = chartType === "delta" && input.scoreDelta == null ? "progression" : chartType;
 
     const team0Name = input.teamLines[0]?.name ?? "Team 1";
     const team1Name = input.teamLines[1]?.name ?? "Team 2";
@@ -53,8 +58,7 @@ export class ScoreProgressionPresenter {
             scoreDelta: input.scoreDelta,
             team0Color: input.teamLines[0]?.color ?? TICK_FILL,
             team1Color: input.teamLines[1]?.color ?? TICK_FILL,
-            tooltipFormatter: (value: unknown): [string, string] =>
-              formatDeltaTooltip(value, team0Name, team1Name),
+            tooltipFormatter: (value: unknown): [string, string] => formatDeltaTooltip(value, team0Name, team1Name),
           }
         : null;
 
@@ -62,9 +66,7 @@ export class ScoreProgressionPresenter {
       ariaLabel: input.ariaLabel,
       effectiveChartType,
       hasDelta: input.scoreDelta != null,
-      onChartTypeChange: (value: string): void => {
-        this.setChartType(value);
-      },
+      onChartTypeChange: this.onChartTypeChange,
       deltaViewModel,
       progressionViewModel: {
         durationMs: input.durationMs,

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { DeltaChartProps } from "../delta-chart";
+import type { ScoreProgressionDeltaViewModel } from "../../types";
 
-describe("DeltaChartProps", () => {
+describe("ScoreProgressionDeltaViewModel", () => {
   it("accepts a tooltipFormatter callback", () => {
-    const props: DeltaChartProps = {
+    const props: ScoreProgressionDeltaViewModel = {
       durationMs: 600000,
       scoreDelta: {
         points: [{ timestampMs: 0, score: 0 }],
