@@ -75,7 +75,14 @@ export function DeltaChart({
           labelFormatter={(label) => (typeof label === "number" ? formatTime(label) : String(label ?? ""))}
           formatter={(value) => formatDeltaTooltip(value, team0Name, team1Name)}
         />
-        <Area dataKey="score" stroke={TICK_FILL} strokeWidth={2} fill={`url(#${gradientId})`} dot={false} type="step" />
+        <Area
+          dataKey="score"
+          stroke={TICK_FILL}
+          strokeWidth={2}
+          fill={`url(#${gradientId})`}
+          dot={false}
+          type="stepAfter"
+        />
       </AreaChart>
     </ResponsiveContainer>
   );

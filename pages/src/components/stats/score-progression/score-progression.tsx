@@ -1,7 +1,8 @@
 import React from "react";
-import type { ScoreDeltaData, ScoreProgressionTeamLine } from "./types";
+import { TICK_FILL } from "./chart-constants";
 import { DeltaChart } from "./delta-chart/delta-chart";
 import { ProgressionChart } from "./progression-chart/progression-chart";
+import type { ScoreDeltaData, ScoreProgressionTeamLine } from "./types";
 import styles from "./score-progression.module.css";
 
 interface ScoreProgressionProps {
@@ -45,8 +46,8 @@ export function ScoreProgression({
         <DeltaChart
           durationMs={durationMs}
           scoreDelta={scoreDelta}
-          team0Color={teamLines[0]?.color ?? "#8fa3b0"}
-          team1Color={teamLines[1]?.color ?? "#8fa3b0"}
+          team0Color={teamLines[0]?.color ?? TICK_FILL}
+          team1Color={teamLines[1]?.color ?? TICK_FILL}
           team0Name={teamLines[0]?.name ?? "Team 1"}
           team1Name={teamLines[1]?.name ?? "Team 2"}
         />
