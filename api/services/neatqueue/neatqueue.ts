@@ -687,7 +687,7 @@ export class NeatQueueService {
       };
       queueState.seriesContext = seriesContext;
       this.setQueueState(request.guild, request.match_number, queueState);
-      const allPlayerXuids = this.extractXuids(queueState.playersAssociationData);
+      const allPlayerXuids = await this.extractXuidsWithFallback(queueState.playersAssociationData);
       await this.individualTrackerService.nudgeTrackers(allPlayerXuids, seriesContext);
     } catch (error) {
       this.logService.warn(
@@ -1104,7 +1104,7 @@ export class NeatQueueService {
     }
 
     const completedQueueState = await this.getQueueState(neatQueueConfig.GuildId, request.match_number);
-    const allPlayerXuids = this.extractXuids(completedQueueState.playersAssociationData);
+    const allPlayerXuids = await this.extractXuidsWithFallback(completedQueueState.playersAssociationData);
 
     await Promise.all([
       this.nudgeIndividualTrackersForMatchCompletion(request, neatQueueConfig, allPlayerXuids),
@@ -1258,10 +1258,47 @@ export class NeatQueueService {
     };
   }
 
-  private extractXuids(data: Record<string, PlayerAssociationData>): string[] {
-    return Object.values(data)
-      .map((d) => d.xboxId)
-      .filter((xuid): xuid is string => xuid != null);
+  private async extractXuidsWithFallback(data: Record<string, PlayerAssociationData>): Promise<string[]> {
+    const xuidSet = new Set<string>();
+    const discordIdsMissingXuids: string[] = [];
+
+    for (const [discordId, associationData] of Object.entries(data)) {
+      if (associationData.xboxId != null) {
+        xuidSet.add(associationData.xboxId);
+        continue;
+      }
+      discordIdsMissingXuids.push(discordId);
+    }
+
+    const fallbackXuids = await Promise.all(
+      discordIdsMissingXuids.map(async (discordId) => this.findActiveXboxIdentityXuid(discordId)),
+    );
+    for (const fallbackXuid of fallbackXuids) {
+      if (fallbackXuid != null) {
+        xuidSet.add(fallbackXuid);
+      }
+    }
+
+    return [...xuidSet];
+  }
+
+  private async findActiveXboxIdentityXuid(discordId: string): Promise<string | null> {
+    try {
+      const linkedIdentities = await this.databaseService.findLinkedIdentitiesByUserId(discordId);
+      const activeXboxIdentity = linkedIdentities.find(
+        (identity) => identity.Provider === "xbox" && identity.IsActive === 1,
+      );
+      return activeXboxIdentity?.ProviderUserId ?? null;
+    } catch (error: unknown) {
+      this.logService.warn(
+        "Failed to resolve fallback Xbox identity for player, continuing without fallback XUID",
+        new Map([
+          ["discordId", discordId],
+          ["error", String(error)],
+        ]),
+      );
+      return null;
+    }
   }
 
   private getQueueStateKey(guildId: string, queueNumber: number): string {

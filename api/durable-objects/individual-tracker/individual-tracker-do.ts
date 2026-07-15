@@ -564,7 +564,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
       const isMatchmakingMatch = match.MatchInfo.Playlist != null;
       if (trackerState.activeSeries != null && isMatchmakingMatch) {
-        this.retireActiveSeries(trackerState);
+        this.clearSeriesState(trackerState);
         this.logService.info(
           "IndividualTracker: series ended after matchmaking match was discovered",
           new Map([
@@ -1582,7 +1582,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       players: team.members.map((gamertag) => ({ discordId: null, discordName: null, gamertag, xboxId: null })),
     }));
 
-    this.retireActiveSeries(trackerState);
+    this.clearSeriesState(trackerState);
     trackerState.activeSeries = {
       title: body.titleOverride ?? getDefaultSeriesGroupTitle(),
       subtitle: body.subtitleOverride,
@@ -1720,7 +1720,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     switch (payload.type) {
       case "ended": {
-        this.retireActiveSeries(trackerState);
+        this.clearSeriesState(trackerState);
         break;
       }
       case "substituted": {
@@ -1734,7 +1734,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           trackedGamertag === payload.playerIn.gamertag;
 
         if (isTrackedPlayerOut) {
-          this.retireActiveSeries(trackerState);
+          this.clearSeriesState(trackerState);
           this.logService.info(
             "IndividualTracker: series retired (tracked player subbed out via nudge)",
             new Map([
@@ -1791,7 +1791,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         break;
       }
       case "started": {
-        this.retireActiveSeries(trackerState);
+        this.clearSeriesState(trackerState);
         trackerState.activeSeries = {
           title: payload.title,
           subtitle: payload.subtitle,
@@ -2100,6 +2100,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
     state.completedSeries = [...(state.completedSeries ?? []), { ...state.activeSeries, isActive: false }];
     delete state.activeSeries;
+  }
+
+  private clearSeriesState(state: IndividualTrackerInternalState): void {
+    delete state.activeSeries;
+    delete state.completedSeries;
   }
 
   private sanitizeState(state: IndividualTrackerInternalState): IndividualTrackerDoState {
