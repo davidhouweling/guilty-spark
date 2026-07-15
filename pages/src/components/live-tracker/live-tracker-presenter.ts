@@ -9,6 +9,7 @@ import type {
   LiveTrackerSubscription,
 } from "../../services/live-tracker/types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
+import { getReconnectDelayMs } from "../../services/base/reconnect-policy";
 import type { MatchStatsData } from "../../controllers/stats/types";
 import { isMatchStats } from "../../controllers/stats/is-match-stats";
 import { ComponentLoaderStatus } from "../component-loader/component-loader";
@@ -50,7 +51,6 @@ export class LiveTrackerPresenter {
   private reconnectionAttempt = 0;
   private readonly maxReconnectionAttempts = 10;
   private readonly maxReconnectionDurationMs = 3 * 60 * 1000;
-  private readonly baseReconnectionDelayMs = 2000;
 
   private readonly fetchedMatchIds = new Set<string>();
   private stateMessageVersion = 0;
@@ -733,31 +733,20 @@ export class LiveTrackerPresenter {
       return;
     }
 
-    const now = Date.now();
-    this.firstReconnectionTimestamp ??= now;
-
-    const elapsed = now - this.firstReconnectionTimestamp;
-
-    if (elapsed > this.maxReconnectionDurationMs || this.reconnectionAttempt >= this.maxReconnectionAttempts) {
-      const hasDetail = (detail?.length ?? 0) > 0;
-      const errorText = hasDetail ? `Connection error: ${detail ?? ""}` : "Connection lost";
-      const reason =
-        elapsed > this.maxReconnectionDurationMs
-          ? "Gave up after 3m"
-          : `Max retries reached (${String(this.maxReconnectionAttempts)})`;
-      this.config.store.setSnapshot({
-        ...snapshot,
-        connectionState: "error",
-        statusText: `${errorText} (${reason})`,
-      });
-      this.stopReconnection();
+    if (this.reconnectionTimer != null) {
       return;
     }
 
-    const backoffFactor = Math.pow(1.5, this.reconnectionAttempt);
-    const delay = Math.min(this.baseReconnectionDelayMs * backoffFactor, 30000); // Cap at 30s
-    const jitter = Math.random() * 1000;
-    const totalDelay = delay + jitter;
+    const now = Date.now();
+    this.firstReconnectionTimestamp ??= now;
+
+    const limitReason = this.getReconnectionLimitReason(now);
+    if (limitReason != null) {
+      this.setReconnectionError(snapshot, detail, limitReason);
+      return;
+    }
+
+    const totalDelay = getReconnectDelayMs(this.reconnectionAttempt);
 
     this.config.store.setSnapshot({
       ...snapshot,
@@ -766,8 +755,41 @@ export class LiveTrackerPresenter {
     });
 
     this.reconnectionTimer = setTimeout(() => {
+      const retryNow = Date.now();
+      const retryLimitReason = this.getReconnectionLimitReason(retryNow);
+      if (retryLimitReason != null) {
+        const currentSnapshot = this.config.store.getSnapshot();
+        this.setReconnectionError(currentSnapshot, detail, retryLimitReason);
+        return;
+      }
+
+      this.reconnectionTimer = null;
       void this.connectInternal(identity);
       this.reconnectionAttempt++;
     }, totalDelay);
+  }
+
+  private getReconnectionLimitReason(now: number): string | null {
+    const elapsed = now - (this.firstReconnectionTimestamp ?? now);
+    if (elapsed > this.maxReconnectionDurationMs) {
+      return "Gave up after 3m";
+    }
+
+    if (this.reconnectionAttempt >= this.maxReconnectionAttempts) {
+      return `Max retries reached (${String(this.maxReconnectionAttempts)})`;
+    }
+
+    return null;
+  }
+
+  private setReconnectionError(snapshot: LiveTrackerSnapshot, detail: string | undefined, reason: string): void {
+    const hasDetail = (detail?.length ?? 0) > 0;
+    const errorText = hasDetail ? `Connection error: ${detail ?? ""}` : "Connection lost";
+    this.config.store.setSnapshot({
+      ...snapshot,
+      connectionState: "error",
+      statusText: `${errorText} (${reason})`,
+    });
+    this.stopReconnection();
   }
 }
