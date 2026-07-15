@@ -9,6 +9,7 @@ import type {
   LiveTrackerSubscription,
 } from "../../services/live-tracker/types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
+import { getReconnectDelayMs } from "../../services/base/reconnect-policy";
 import type { MatchStatsData } from "../../controllers/stats/types";
 import { isMatchStats } from "../../controllers/stats/is-match-stats";
 import { ComponentLoaderStatus } from "../component-loader/component-loader";
@@ -50,7 +51,6 @@ export class LiveTrackerPresenter {
   private reconnectionAttempt = 0;
   private readonly maxReconnectionAttempts = 10;
   private readonly maxReconnectionDurationMs = 3 * 60 * 1000;
-  private readonly baseReconnectionDelayMs = 2000;
 
   private readonly fetchedMatchIds = new Set<string>();
   private stateMessageVersion = 0;
@@ -733,6 +733,10 @@ export class LiveTrackerPresenter {
       return;
     }
 
+    if (this.reconnectionTimer != null) {
+      return;
+    }
+
     const now = Date.now();
     this.firstReconnectionTimestamp ??= now;
 
@@ -754,10 +758,7 @@ export class LiveTrackerPresenter {
       return;
     }
 
-    const backoffFactor = Math.pow(1.5, this.reconnectionAttempt);
-    const delay = Math.min(this.baseReconnectionDelayMs * backoffFactor, 30000); // Cap at 30s
-    const jitter = Math.random() * 1000;
-    const totalDelay = delay + jitter;
+    const totalDelay = getReconnectDelayMs(this.reconnectionAttempt);
 
     this.config.store.setSnapshot({
       ...snapshot,
@@ -766,6 +767,7 @@ export class LiveTrackerPresenter {
     });
 
     this.reconnectionTimer = setTimeout(() => {
+      this.reconnectionTimer = null;
       void this.connectInternal(identity);
       this.reconnectionAttempt++;
     }, totalDelay);

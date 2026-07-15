@@ -15,6 +15,7 @@ import type {
   LiveTrackerStatusListener,
 } from "../../../services/live-tracker/types";
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
+import * as reconnectPolicy from "../../../services/base/reconnect-policy";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import type { LiveTrackerSnapshot } from "../live-tracker-store";
 
@@ -482,65 +483,113 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
     presenter.dispose();
   });
 
-  it("respects time limit (3 minutes) in addition to attempt limit", async (): Promise<void> => {
-    const mockService = new MockLiveTrackerService();
-    const mockStore = new MockLiveTrackerStore();
+  it("uses shared reconnect delay and ignores duplicate error events while a retry is pending", async (): Promise<void> => {
+    const reconnectDelaySpy = vi.spyOn(reconnectPolicy, "getReconnectDelayMs").mockReturnValue(1_000);
 
-    const createdConnections: MockLiveTrackerConnection[] = [];
-    vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
-      const conn = new MockLiveTrackerConnection();
-      createdConnections.push(conn);
-      return Promise.resolve(conn);
-    });
+    try {
+      const mockService = new MockLiveTrackerService();
+      const mockStore = new MockLiveTrackerStore();
 
-    const presenter = new LiveTrackerPresenter({
-      getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
-      liveTrackerService: mockService,
-      store: mockStore,
-      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
-      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
-    });
+      const createdConnections: MockLiveTrackerConnection[] = [];
+      const connectSpy = vi
+        .spyOn(mockService, "connect")
+        .mockImplementation(async (): Promise<LiveTrackerConnection> => {
+          const conn = new MockLiveTrackerConnection();
+          createdConnections.push(conn);
+          return Promise.resolve(conn);
+        });
 
-    // Start the connection
-    presenter.start();
-    await vi.runAllTimersAsync();
+      const presenter = new LiveTrackerPresenter({
+        getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
+        liveTrackerService: mockService,
+        store: mockStore,
+        matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+        medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
+      });
 
-    // Simulate successful connection first
-    const [initialConnection] = createdConnections;
-    expect(initialConnection).toBeDefined();
-    initialConnection.emitStatus("connected");
-    await vi.runAllTimersAsync();
-    initialConnection.emitMessage(sampleLiveTrackerStateMessage);
-    await vi.runAllTimersAsync();
-    initialConnection.emitStatus("error", "Connection lost");
-    await vi.runAllTimersAsync();
-
-    // Try retrying for longer than 3 minutes
-    for (let i = 0; i < 6; i++) {
-      // Each iteration is 35 seconds, so 6 iterations = 210 seconds > 180 seconds (3 min)
-      await vi.advanceTimersByTimeAsync(35000);
+      presenter.start();
       await vi.runAllTimersAsync();
 
-      const [latestConnection] = createdConnections.slice(-1);
-      expect(latestConnection).toBeDefined();
-      latestConnection.emitStatus("error", "Still failing");
+      const initialConnection = Preconditions.checkExists(createdConnections[0]);
+      initialConnection.emitStatus("connected");
+      await vi.runAllTimersAsync();
+      initialConnection.emitMessage(sampleLiveTrackerStateMessage);
       await vi.runAllTimersAsync();
 
-      const snapshot = mockStore.getSnapshot();
-      if (snapshot.statusText.includes("Gave up")) {
-        break;
-      }
+      initialConnection.emitStatus("error", "Connection lost");
+      initialConnection.emitStatus("error", "Connection lost again");
+
+      expect(reconnectDelaySpy).toHaveBeenCalledTimes(1);
+      expect(connectSpy).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1_000);
+      await vi.runAllTimersAsync();
+
+      expect(connectSpy).toHaveBeenCalledTimes(2);
+
+      presenter.dispose();
+    } finally {
+      reconnectDelaySpy.mockRestore();
     }
+  });
 
-    // Test passes if we eventually gave up due to time limit
-    const finalSnapshot = mockStore.getSnapshot();
+  it("respects time limit (3 minutes) in addition to attempt limit", async (): Promise<void> => {
+    const reconnectDelaySpy = vi.spyOn(reconnectPolicy, "getReconnectDelayMs").mockReturnValue(35_000);
 
-    const reachedTimeLimit =
-      finalSnapshot.statusText.includes("Gave up") || finalSnapshot.statusText.includes("Max retries");
+    try {
+      const mockService = new MockLiveTrackerService();
+      const mockStore = new MockLiveTrackerStore();
 
-    expect(reachedTimeLimit).toBe(true);
-    expect(finalSnapshot.connectionState).toMatch(/^(error|connecting)$/);
+      const createdConnections: MockLiveTrackerConnection[] = [];
+      vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
+        const conn = new MockLiveTrackerConnection();
+        createdConnections.push(conn);
+        return Promise.resolve(conn);
+      });
 
-    presenter.dispose();
+      const presenter = new LiveTrackerPresenter({
+        getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
+        liveTrackerService: mockService,
+        store: mockStore,
+        matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+        medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
+      });
+
+      presenter.start();
+      await vi.runAllTimersAsync();
+
+      const [initialConnection] = createdConnections;
+      expect(initialConnection).toBeDefined();
+      initialConnection.emitStatus("connected");
+      await vi.runAllTimersAsync();
+      initialConnection.emitMessage(sampleLiveTrackerStateMessage);
+      await vi.runAllTimersAsync();
+      initialConnection.emitStatus("error", "Connection lost");
+      await vi.runAllTimersAsync();
+
+      for (let i = 0; i < 6; i++) {
+        await vi.advanceTimersByTimeAsync(35_000);
+        await vi.runAllTimersAsync();
+
+        const [latestConnection] = createdConnections.slice(-1);
+        expect(latestConnection).toBeDefined();
+        latestConnection.emitStatus("error", "Still failing");
+        await vi.runAllTimersAsync();
+
+        const snapshot = mockStore.getSnapshot();
+        if (snapshot.statusText.includes("Gave up")) {
+          break;
+        }
+      }
+
+      const finalSnapshot = mockStore.getSnapshot();
+
+      expect(finalSnapshot.statusText.includes("Gave up")).toBe(true);
+      expect(finalSnapshot.connectionState).toBe("error");
+
+      presenter.dispose();
+    } finally {
+      reconnectDelaySpy.mockRestore();
+    }
   });
 });
