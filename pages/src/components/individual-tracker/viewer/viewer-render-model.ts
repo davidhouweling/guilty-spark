@@ -64,8 +64,10 @@ function getSeriesTeams(
     id: team.id,
     name: team.name,
     players: team.players.map((player) => ({
+      discordId: player.discordId,
       discordName: player.discordName,
       gamertag: player.gamertag,
+      xboxId: player.xboxId,
     })),
   }));
 }
@@ -83,8 +85,10 @@ function toViewerActiveSeriesContext(view: TrackerViewState): ViewerActiveSeries
       id: team.id,
       name: team.name,
       players: team.players.map((player) => ({
+        discordId: player.discordId,
         discordName: player.discordName,
         gamertag: player.gamertag,
+        xboxId: player.xboxId,
       })),
     })),
   };
@@ -108,8 +112,10 @@ function toPendingActiveSeriesTab(view: TrackerViewState): ViewerSeriesTab {
       id: team.id,
       name: team.name,
       players: team.players.map((player) => ({
+        discordId: player.discordId,
         discordName: player.discordName,
         gamertag: player.gamertag,
+        xboxId: player.xboxId,
       })),
     })),
     matchBackgroundUrls: [],

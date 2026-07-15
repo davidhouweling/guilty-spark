@@ -294,6 +294,48 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByText("In progress")).toBeInTheDocument();
   });
 
+  it("renders additional tracked matches message when active pre-series has no grouped series matches", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1", mapName: "Aquarius" })],
+      series: [],
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Ranked Series",
+        subtitle: "Best of 5",
+        teams: [
+          {
+            id: 0,
+            name: "Alpha",
+            players: [{ discordId: "discord-alpha", discordName: "AlphaOne", gamertag: "AlphaTag", xboxId: null }],
+          },
+        ],
+      },
+    });
+
+    const model = aModel(view);
+    const pendingSeries = model.timeline.find(
+      (item): item is Extract<(typeof model.timeline)[number], { type: "series" }> => item.type === "series",
+    );
+    const pendingSeriesId = pendingSeries?.series.id ?? null;
+    const expandedEntryKeys = pendingSeriesId == null ? new Set<string>() : new Set([`series:${pendingSeriesId}`]);
+
+    render(
+      <IndividualTrackerViewer
+        renderModel={model}
+        connectionStatus="connected"
+        expandedEntryKeys={expandedEntryKeys}
+        entryStates={new Map()}
+        canManage={true}
+        refreshPending={false}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("Series is active and waiting for additional tracked matches.")).toBeInTheDocument();
+  });
+
   it("renders reconnecting status in the badge for disconnected state", () => {
     const view = aFakeTrackerViewStateWith({ gamertag: "Spartan One" });
 

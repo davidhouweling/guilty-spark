@@ -138,6 +138,27 @@ function toSeriesPlayerLabel(discordName: string | null, gamertag: string | null
   return "Unknown player";
 }
 
+function toSeriesPlayerKey(
+  teamId: number,
+  player: { discordId?: string | null; xboxId?: string | null },
+  playerIndex: number,
+): string {
+  const stableId = player.discordId ?? player.xboxId;
+  if (stableId != null && stableId !== "") {
+    return `${teamId.toString()}:${stableId}`;
+  }
+
+  return `${teamId.toString()}:${playerIndex.toString()}`;
+}
+
+function preSeriesStatusMessage(totalTrackedMatches: number): string {
+  if (totalTrackedMatches === 0) {
+    return "Series is active and waiting for the first tracked match.";
+  }
+
+  return "Series is active and waiting for additional tracked matches.";
+}
+
 function handleEntryHeaderKeyDown(
   event: React.KeyboardEvent<HTMLDivElement>,
   item: ViewerTimelineItem,
@@ -594,7 +615,7 @@ export function IndividualTrackerViewer({
                     <div className={classNames(styles.entryBody, styles.seriesEntryBody)}>
                       {series.matches.length === 0 ? (
                         <div className={styles.preSeriesPanel}>
-                          <Alert variant="info">Series is active and waiting for the first tracked match.</Alert>
+                          <Alert variant="info">{preSeriesStatusMessage(renderModel.accumulated.total)}</Alert>
                           {series.teams.length > 0 && (
                             <div className={styles.preSeriesTeams} aria-label="Active series teams">
                               {series.teams.map((team) => (
@@ -603,7 +624,7 @@ export function IndividualTrackerViewer({
                                   <ul className={styles.preSeriesPlayerList}>
                                     {team.players.map((player, playerIndex) => (
                                       <li
-                                        key={`${team.id.toString()}:${playerIndex.toString()}`}
+                                        key={toSeriesPlayerKey(team.id, player, playerIndex)}
                                         className={styles.preSeriesPlayer}
                                       >
                                         {toSeriesPlayerLabel(player.discordName, player.gamertag)}

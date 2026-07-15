@@ -45,8 +45,10 @@ export interface ViewerSeriesTab {
 }
 
 export interface ViewerSeriesTeamPlayer {
+  readonly discordId?: string | null;
   readonly discordName: string | null;
   readonly gamertag: string | null;
+  readonly xboxId?: string | null;
 }
 
 export interface ViewerSeriesTeam {
