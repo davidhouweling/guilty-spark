@@ -577,10 +577,7 @@ export class IndividualTrackerViewerPresenter {
 
       if (status === "error" || status === "disconnected") {
         this.scheduleReconnect();
-        return;
       }
-
-      this.resetReconnectState();
     });
   }
 

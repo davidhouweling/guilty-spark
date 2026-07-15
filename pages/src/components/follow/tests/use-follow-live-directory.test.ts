@@ -343,4 +343,37 @@ describe("useFollowLiveDirectory", () => {
       reconnectDelaySpy.mockRestore();
     }
   });
+
+  it("does not update state after unmount when a reconnect timer fires", async () => {
+    const reconnectDelaySpy = vi.spyOn(reconnectPolicy, "getReconnectDelayMs").mockReturnValue(1);
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    try {
+      const service = aFakeFollowLiveServiceWith({ directory: aDirectoryWith() });
+      const { result, unmount } = renderHook(() =>
+        useFollowLiveDirectory({ followLiveService: service, gamertag: "Spartan One" }),
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(result.current.directoryStatus).toBe("connected");
+
+      act(() => {
+        service.lastConnection?.emitStatus("error", "Connection lost");
+      });
+
+      unmount();
+
+      await new Promise((resolve) => {
+        setTimeout(resolve, 10);
+      });
+
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+    } finally {
+      reconnectDelaySpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    }
+  });
 });

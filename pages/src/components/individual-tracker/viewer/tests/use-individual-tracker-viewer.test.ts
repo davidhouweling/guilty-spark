@@ -235,6 +235,46 @@ describe("useIndividualTrackerViewer", () => {
         }),
       );
 
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+
+      expect(connectSpy).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        individualTrackerViewService.lastConnection?.emitStatus("error", "Connection lost");
+      });
+
+      await waitFor(() => {
+        expect(connectSpy).toHaveBeenCalledTimes(2);
+      });
+    } finally {
+      reconnectDelaySpy.mockRestore();
+    }
+  });
+
+  it("preserves reconnect backoff across reconnecting status transitions", async () => {
+    const reconnectDelaySpy = vi.spyOn(reconnectPolicy, "getReconnectDelayMs").mockReturnValue(1);
+
+    try {
+      const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
+        view: aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
+      });
+      const connectSpy = vi.spyOn(individualTrackerViewService, "connect");
+      const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
+
+      const { result } = renderHook(() =>
+        useIndividualTrackerViewer({
+          individualTrackerViewService,
+          matchAnalyticsService,
+          seriesMatchesService,
+          medalMetadataResolver,
+          trackerId: "tracker-1",
+        }),
+      );
+
       await waitFor(() => {
         expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
       });
@@ -248,6 +288,21 @@ describe("useIndividualTrackerViewer", () => {
       await waitFor(() => {
         expect(connectSpy).toHaveBeenCalledTimes(2);
       });
+
+      act(() => {
+        individualTrackerViewService.lastConnection?.emitStatus("connecting");
+      });
+
+      act(() => {
+        individualTrackerViewService.lastConnection?.emitStatus("error", "Connection lost again");
+      });
+
+      await waitFor(() => {
+        expect(connectSpy).toHaveBeenCalledTimes(3);
+      });
+
+      expect(reconnectDelaySpy).toHaveBeenNthCalledWith(1, 0);
+      expect(reconnectDelaySpy).toHaveBeenNthCalledWith(2, 1);
     } finally {
       reconnectDelaySpy.mockRestore();
     }

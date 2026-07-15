@@ -92,6 +92,10 @@ export function useFollowLiveDirectory({
       const delay = getReconnectDelayMs(reconnectAttemptRef.current);
       reconnectAttemptRef.current += 1;
       reconnectTimerRef.current = setTimeout(() => {
+        if (isCancelled) {
+          reconnectTimerRef.current = null;
+          return;
+        }
         reconnectTimerRef.current = null;
         setRetryCount((current) => current + 1);
       }, delay);
