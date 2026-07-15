@@ -1,5 +1,13 @@
 import React from "react";
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  AXIS_STROKE,
+  formatTime,
+  GRID_STROKE,
+  TICK_FILL,
+  TICK_FONT_SIZE,
+  tooltipContentStyle,
+} from "../chart-constants";
 import type { ScoreDeltaData } from "../types";
 
 export interface DeltaChartProps {
@@ -11,25 +19,14 @@ export interface DeltaChartProps {
   readonly team1Name: string;
 }
 
-const GRID_STROKE = "rgba(93, 212, 216, 0.12)";
-const AXIS_STROKE = "rgba(93, 212, 216, 0.3)";
-const TICK_FILL = "#8fa3b0";
-const TICK_FONT_SIZE = 11;
 const DELTA_LABEL = "Score Delta";
 
-const tooltipContentStyle = {
-  background: "var(--halo-bg-card)",
-  border: "1px solid rgba(93, 212, 216, 0.3)",
-  borderRadius: "var(--radius-base)",
-  color: "var(--halo-white)",
-  fontSize: "12px",
-};
-
-function formatTime(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes)}:${String(seconds).padStart(2, "0")}`;
+export function formatDeltaTooltip(value: unknown, team0Name: string, team1Name: string): [string, string] {
+  if (typeof value !== "number" || value === 0) {
+    return ["Tied", DELTA_LABEL];
+  }
+  const leader = value > 0 ? team0Name : team1Name;
+  return [`${leader} +${String(Math.abs(value))}`, DELTA_LABEL];
 }
 
 export function DeltaChart({
@@ -76,22 +73,9 @@ export function DeltaChart({
           contentStyle={tooltipContentStyle}
           labelStyle={{ color: TICK_FILL }}
           labelFormatter={(label) => (typeof label === "number" ? formatTime(label) : String(label ?? ""))}
-          formatter={(value) => {
-            if (typeof value !== "number" || value === 0) {
-              return ["Tied", DELTA_LABEL];
-            }
-            const leader = value > 0 ? team0Name : team1Name;
-            return [`${leader} +${String(Math.abs(value))}`, DELTA_LABEL];
-          }}
+          formatter={(value) => formatDeltaTooltip(value, team0Name, team1Name)}
         />
-        <Area
-          dataKey="score"
-          stroke={TICK_FILL}
-          strokeWidth={2}
-          fill={`url(#${gradientId})`}
-          dot={false}
-          type="linear"
-        />
+        <Area dataKey="score" stroke={TICK_FILL} strokeWidth={2} fill={`url(#${gradientId})`} dot={false} type="step" />
       </AreaChart>
     </ResponsiveContainer>
   );

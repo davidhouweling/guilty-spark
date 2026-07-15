@@ -99,15 +99,12 @@ describe("formatScoreProgression", () => {
   });
 
   describe("scoreDelta", () => {
-    it("computes step-function delta points from events", () => {
+    it("computes delta points from events with one point per event plus start and terminal", () => {
       const result = formatScoreProgression(aFakeScoreProgressionWith(), TEAM_COLORS);
       expect(result?.scoreDelta?.points).toEqual([
         { timestampMs: 0, score: 0 },
-        { timestampMs: 5000, score: 0 },
         { timestampMs: 5000, score: 1 },
-        { timestampMs: 12000, score: 1 },
         { timestampMs: 12000, score: 0 },
-        { timestampMs: 20000, score: 0 },
         { timestampMs: 20000, score: 1 },
         { timestampMs: 600000, score: 1 },
       ]);
@@ -134,6 +131,17 @@ describe("formatScoreProgression", () => {
       expect(result?.scoreDelta?.minScore).toBe(-1);
       expect(result?.scoreDelta?.maxScore).toBe(1);
       expect(result?.scoreDelta?.zeroFraction).toBe(0.5);
+    });
+
+    it("sets zeroFraction to 0 when team1 always leads", () => {
+      const data = aFakeScoreProgressionWith({
+        timeline: {
+          type: "kill-race",
+          events: [{ timestampMs: 5000, teamId: 1, runningScores: { "0": 0, "1": 1 } }],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.scoreDelta?.zeroFraction).toBe(0);
     });
 
     it("sets zeroFraction to 1 when team0 always leads", () => {

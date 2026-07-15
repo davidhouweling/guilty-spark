@@ -26,22 +26,23 @@ function buildScoreDelta(
   const key1 = String(teamId1);
 
   const points: ScoreProgressionPoint[] = [{ timestampMs: 0, score: 0 }];
-  let prevScore = 0;
+  let minScore = 0;
+  let maxScore = 0;
 
   for (const event of events) {
     const score0 = event.runningScores[key0] ?? 0;
     const score1 = event.runningScores[key1] ?? 0;
-    const newScore = score0 - score1;
-    points.push({ timestampMs: event.timestampMs, score: prevScore });
-    points.push({ timestampMs: event.timestampMs, score: newScore });
-    prevScore = newScore;
+    const score = score0 - score1;
+    points.push({ timestampMs: event.timestampMs, score });
+    if (score < minScore) {
+      minScore = score;
+    }
+    if (score > maxScore) {
+      maxScore = score;
+    }
   }
 
-  points.push({ timestampMs: durationMs, score: prevScore });
-
-  const scores = points.map((p) => p.score);
-  const minScore = Math.min(...scores);
-  const maxScore = Math.max(...scores);
+  points.push({ timestampMs: durationMs, score: points.at(-1)?.score ?? 0 });
   const range = maxScore - minScore;
   const zeroFraction = range === 0 ? 0.5 : maxScore / range;
 

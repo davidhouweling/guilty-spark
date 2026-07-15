@@ -1,30 +1,18 @@
 import React from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  AXIS_STROKE,
+  formatTime,
+  GRID_STROKE,
+  TICK_FILL,
+  TICK_FONT_SIZE,
+  tooltipContentStyle,
+} from "../chart-constants";
 import type { ScoreProgressionTeamLine } from "../types";
 
 export interface ProgressionChartProps {
   readonly durationMs: number;
   readonly teamLines: readonly ScoreProgressionTeamLine[];
-}
-
-const GRID_STROKE = "rgba(93, 212, 216, 0.12)";
-const AXIS_STROKE = "rgba(93, 212, 216, 0.3)";
-const TICK_FILL = "#8fa3b0";
-const TICK_FONT_SIZE = 11;
-
-const tooltipContentStyle = {
-  background: "var(--halo-bg-card)",
-  border: "1px solid rgba(93, 212, 216, 0.3)",
-  borderRadius: "var(--radius-base)",
-  color: "var(--halo-white)",
-  fontSize: "12px",
-};
-
-function formatTime(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes)}:${String(seconds).padStart(2, "0")}`;
 }
 
 export function ProgressionChart({ durationMs, teamLines }: ProgressionChartProps): React.ReactElement {
