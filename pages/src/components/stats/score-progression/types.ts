@@ -42,7 +42,7 @@ export interface ScoreProgressionViewModel {
   readonly ariaLabel: string;
   readonly effectiveChartType: ChartType;
   readonly hasDelta: boolean;
-  readonly onChartTypeChange: (value: string) => void;
   readonly deltaViewModel: ScoreProgressionDeltaViewModel | null;
   readonly progressionViewModel: ScoreProgressionProgressionViewModel;
+  readonly onChartTypeChange: (value: string) => void;
 }

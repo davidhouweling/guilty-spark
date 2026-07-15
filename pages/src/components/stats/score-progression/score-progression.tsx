@@ -8,9 +8,9 @@ export function ScoreProgression({
   ariaLabel,
   effectiveChartType,
   hasDelta,
-  onChartTypeChange,
   deltaViewModel,
   progressionViewModel,
+  onChartTypeChange,
 }: ScoreProgressionViewModel): React.ReactElement {
   return (
     <div className={styles.container} role="img" aria-label={ariaLabel}>

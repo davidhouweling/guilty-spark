@@ -21,14 +21,6 @@ export interface ScoreProgressionInput {
 
 const DELTA_LABEL = "Score Delta";
 
-function formatDeltaTooltip(value: unknown, team0Name: string, team1Name: string): [string, string] {
-  if (typeof value !== "number" || value === 0) {
-    return ["Tied", DELTA_LABEL];
-  }
-  const leader = value > 0 ? team0Name : team1Name;
-  return [`${leader} +${String(Math.abs(value))}`, DELTA_LABEL];
-}
-
 export class ScoreProgressionPresenter {
   readonly onChartTypeChange: (value: string) => void;
 
@@ -36,12 +28,6 @@ export class ScoreProgressionPresenter {
     this.onChartTypeChange = (value: string): void => {
       this.setChartType(value);
     };
-  }
-
-  setChartType(value: string): void {
-    if (value === "progression" || value === "delta") {
-      this.config.store.update({ chartType: value });
-    }
   }
 
   present(snapshot: ScoreProgressionSnapshot, input: ScoreProgressionInput): ScoreProgressionViewModel {
@@ -58,7 +44,8 @@ export class ScoreProgressionPresenter {
             scoreDelta: input.scoreDelta,
             team0Color: input.teamLines[0]?.color ?? TICK_FILL,
             team1Color: input.teamLines[1]?.color ?? TICK_FILL,
-            tooltipFormatter: (value: unknown): [string, string] => formatDeltaTooltip(value, team0Name, team1Name),
+            tooltipFormatter: (value: unknown): [string, string] =>
+              this.formatDeltaTooltip(value, team0Name, team1Name),
           }
         : null;
 
@@ -66,12 +53,26 @@ export class ScoreProgressionPresenter {
       ariaLabel: input.ariaLabel,
       effectiveChartType,
       hasDelta: input.scoreDelta != null,
-      onChartTypeChange: this.onChartTypeChange,
       deltaViewModel,
       progressionViewModel: {
         durationMs: input.durationMs,
         teamLines: input.teamLines,
       },
+      onChartTypeChange: this.onChartTypeChange,
     };
+  }
+
+  private setChartType(value: string): void {
+    if (value === "progression" || value === "delta") {
+      this.config.store.update({ chartType: value });
+    }
+  }
+
+  private formatDeltaTooltip(value: unknown, team0Name: string, team1Name: string): [string, string] {
+    if (typeof value !== "number" || value === 0) {
+      return ["Tied", DELTA_LABEL];
+    }
+    const leader = value > 0 ? team0Name : team1Name;
+    return [`${leader} +${String(Math.abs(value))}`, DELTA_LABEL];
   }
 }

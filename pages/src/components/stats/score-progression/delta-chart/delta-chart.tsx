@@ -58,6 +58,7 @@ export function DeltaChart({
         />
         <Area
           dataKey="score"
+          baseValue={0}
           stroke={TICK_FILL}
           strokeWidth={2}
           fill={`url(#${gradientId})`}

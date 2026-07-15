@@ -109,23 +109,23 @@ describe("ScoreProgressionPresenter", () => {
     });
   });
 
-  describe("setChartType()", () => {
+  describe("onChartTypeChange()", () => {
     it("updates the store to delta", () => {
       const { store, presenter } = makePresenter();
-      presenter.setChartType("delta");
+      presenter.onChartTypeChange("delta");
       expect(store.getSnapshot().chartType).toBe("delta");
     });
 
     it("updates the store to progression", () => {
       const { store, presenter } = makePresenter();
       store.update({ chartType: "delta" });
-      presenter.setChartType("progression");
+      presenter.onChartTypeChange("progression");
       expect(store.getSnapshot().chartType).toBe("progression");
     });
 
     it("ignores invalid values", () => {
       const { store, presenter } = makePresenter();
-      presenter.setChartType("invalid");
+      presenter.onChartTypeChange("invalid");
       expect(store.getSnapshot().chartType).toBe("progression");
     });
   });
