@@ -25,7 +25,8 @@ export class FollowLiveOverlayPresenter extends FollowLiveBasePresenter {
     return {
       title: this.getOverlayTitle(args.gamertag, args.directory),
       loadStatus: this.toLoadStatus(args.directoryStatus, args.directory, liveTracker),
-      connectionHealth: args.directoryStatus === "connected" ? "healthy" : "degraded",
+      connectionHealth:
+        args.directoryStatus === "error" || args.directoryStatus === "disconnected" ? "degraded" : "healthy",
       liveTrackerId: liveTracker?.trackerId ?? null,
       liveTrackerView: this.toTrackerView(liveTracker, args.directory),
     };

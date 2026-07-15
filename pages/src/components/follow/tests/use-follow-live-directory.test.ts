@@ -380,6 +380,44 @@ describe("useFollowLiveDirectory", () => {
     }
   });
 
+  it("resets reconnect backoff when the gamertag changes", async () => {
+    const reconnectDelaySpy = vi.spyOn(reconnectPolicy, "getReconnectDelayMs").mockReturnValue(1);
+
+    try {
+      const service = aFakeFollowLiveServiceWith({ directory: aDirectoryWith() });
+      const { rerender, result } = renderHook(
+        ({ gamertag }: { gamertag: string }) => useFollowLiveDirectory({ followLiveService: service, gamertag }),
+        {
+          initialProps: { gamertag: "Spartan One" },
+        },
+      );
+
+      await waitFor(() => {
+        expect(result.current.directoryStatus).toBe("connected");
+      });
+
+      act(() => {
+        service.lastConnection?.emitStatus("error", "Connection lost");
+      });
+
+      rerender({ gamertag: "Spartan Two" });
+
+      await waitFor(() => {
+        expect(result.current.directoryStatus).toBe("connected");
+      });
+
+      act(() => {
+        service.lastConnection?.emitStatus("error", "Connection lost again");
+      });
+
+      await waitFor(() => {
+        expect(reconnectDelaySpy.mock.calls.filter(([attempt]) => attempt === 0)).toHaveLength(2);
+      });
+    } finally {
+      reconnectDelaySpy.mockRestore();
+    }
+  });
+
   it("does not update state after unmount when a reconnect timer fires", async () => {
     const reconnectDelaySpy = vi.spyOn(reconnectPolicy, "getReconnectDelayMs").mockReturnValue(1);
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);

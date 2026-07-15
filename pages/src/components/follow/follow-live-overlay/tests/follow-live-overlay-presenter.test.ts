@@ -58,4 +58,16 @@ describe("FollowLiveOverlayPresenter", () => {
     expect(overlay.loadStatus).toBe(ComponentLoaderStatus.LOADING);
     expect(overlay.connectionHealth).toBe("degraded");
   });
+
+  it("keeps connection health healthy while connecting", () => {
+    const presenter = new FollowLiveOverlayPresenter();
+
+    const overlay = presenter.present({
+      gamertag: "Streamer",
+      directory: null,
+      directoryStatus: "connecting",
+    });
+
+    expect(overlay.connectionHealth).toBe("healthy");
+  });
 });

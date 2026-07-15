@@ -71,6 +71,7 @@ export function useFollowLiveDirectory({
       setDirectory(null);
       setSelectedTrackerId(null);
       setIsFollowingLive(true);
+      reconnectAttemptRef.current = 0;
     }
     setDirectoryStatus("connecting");
 
