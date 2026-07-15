@@ -52,13 +52,14 @@ export function ScoreProgression({ durationMs, teamLines, ariaLabel }: ScoreProg
             }}
             labelStyle={{ color: TICK_FILL }}
             labelFormatter={(label) => (typeof label === "number" ? formatTime(label) : String(label ?? ""))}
-            formatter={(value) => [value ?? "", "Score"]}
+            formatter={(value, name) => [value ?? "", name]}
           />
           {teamLines.map((line) => (
             <Line
               key={line.teamId}
               data={line.points}
               dataKey="score"
+              name={line.name}
               stroke={line.color}
               strokeWidth={2}
               dot={false}

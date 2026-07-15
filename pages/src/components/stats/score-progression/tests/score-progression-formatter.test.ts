@@ -30,6 +30,18 @@ describe("formatScoreProgression", () => {
     expect(result?.teamLines[1]?.color).toBe("#ff0000");
   });
 
+  it("assigns team names from teamColors by slot index order", () => {
+    const result = formatScoreProgression(aFakeScoreProgressionWith(), TEAM_COLORS);
+    expect(result?.teamLines[0]?.name).toBe("Eagle");
+    expect(result?.teamLines[1]?.name).toBe("Cobra");
+  });
+
+  it("uses fallback name when teamColors has no entry for that slot", () => {
+    const result = formatScoreProgression(aFakeScoreProgressionWith(), []);
+    expect(result?.teamLines[0]?.name).toBe("Team 1");
+    expect(result?.teamLines[1]?.name).toBe("Team 2");
+  });
+
   it("uses fallback colors when teamColors has no entries", () => {
     const result = formatScoreProgression(aFakeScoreProgressionWith(), []);
     expect(result?.teamLines[0]?.color).toBe("#888888");

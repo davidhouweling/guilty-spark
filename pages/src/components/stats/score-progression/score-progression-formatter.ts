@@ -24,6 +24,7 @@ export function formatScoreProgression(
     teamIds.map((teamId, slotIndex) => [
       teamId,
       {
+        name: teamColors[slotIndex]?.name ?? `Team ${String(slotIndex + 1)}`,
         color: teamColors[slotIndex]?.hex ?? FALLBACK_COLORS[slotIndex % FALLBACK_COLORS.length],
         prevScore: 0,
         points: [{ timestampMs: 0, score: 0 }] as ScoreProgressionPoint[],
@@ -48,7 +49,7 @@ export function formatScoreProgression(
   const teamLines: ScoreProgressionTeamLine[] = [];
   for (const [teamId, state] of teamState) {
     state.points.push({ timestampMs: durationMs, score: state.prevScore });
-    teamLines.push({ teamId, color: state.color, points: state.points });
+    teamLines.push({ teamId, name: state.name, color: state.color, points: state.points });
   }
 
   return { durationMs, teamLines };

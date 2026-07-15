@@ -242,7 +242,7 @@ export function MatchStats({
       )}
 
       <TabbedSection
-        tabListAriaLabel="Player statistics view"
+        tabListAriaLabel="Match statistics view"
         selectedTabId={safeActiveTab}
         tabs={[
           {

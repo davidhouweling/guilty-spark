@@ -5,6 +5,7 @@ export interface ScoreProgressionPoint {
 
 export interface ScoreProgressionTeamLine {
   readonly teamId: number;
+  readonly name: string;
   readonly color: string;
   readonly points: readonly ScoreProgressionPoint[];
 }
