@@ -42,10 +42,10 @@ describe("formatScoreProgression", () => {
     expect(result?.teamLines[1]?.name).toBe("Cobra");
   });
 
-  it("uses fallback colors when teamColors has no entries", () => {
+  it("uses getTeamColorOrDefault fallback colors when teamColors has no entries", () => {
     const result = formatScoreProgression(aFakeScoreProgressionWith(), []);
-    expect(result?.teamLines[0]?.color).toBe("#888888");
-    expect(result?.teamLines[1]?.color).toBe("#aaaaaa");
+    expect(result?.teamLines[0]?.color).toBe("#FE3939");
+    expect(result?.teamLines[1]?.color).toBe("#3B9DFF");
   });
 
   it("starts each team line at (0, 0)", () => {
@@ -160,6 +160,20 @@ describe("formatScoreProgression", () => {
         timeline: {
           type: "kill-race",
           events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1 } }],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.scoreDelta).toBeNull();
+    });
+
+    it("returns null scoreDelta when all deltas are 0 (perfectly tied match)", () => {
+      const data = aFakeScoreProgressionWith({
+        timeline: {
+          type: "kill-race",
+          events: [
+            { timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 1 } },
+            { timestampMs: 10000, teamId: 1, runningScores: { "0": 2, "1": 2 } },
+          ],
         },
       });
       const result = formatScoreProgression(data, TEAM_COLORS);

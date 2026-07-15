@@ -17,3 +17,13 @@ export function formatTime(ms: number): string {
   const seconds = totalSeconds % 60;
   return `${String(minutes)}:${String(seconds).padStart(2, "0")}`;
 }
+
+export function formatTooltipLabel(label: unknown): string {
+  if (typeof label === "number") {
+    return formatTime(label);
+  }
+  if (typeof label === "string") {
+    return label;
+  }
+  return "";
+}

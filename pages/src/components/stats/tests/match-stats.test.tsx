@@ -15,8 +15,8 @@ afterEach(() => {
   cleanup();
 });
 
-vi.mock("../score-progression/score-progression", () => ({
-  ScoreProgression: (): React.ReactNode => <div>Score Progression Chart</div>,
+vi.mock("../score-progression/create", () => ({
+  createScoreProgression: (): (() => React.ReactNode) => (): React.ReactNode => <div>Score Progression Chart</div>,
 }));
 
 vi.mock("../../icons/team-icon", () => ({

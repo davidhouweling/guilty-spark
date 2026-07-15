@@ -1,5 +1,6 @@
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
+import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type {
   ScoreDeltaData,
@@ -7,8 +8,6 @@ import type {
   ScoreProgressionTeamLine,
   ScoreProgressionViewData,
 } from "./types";
-
-const FALLBACK_COLORS = ["#888888", "#aaaaaa"];
 
 type KillRaceEvent = NonNullable<MatchAnalytics["scoreProgression"]>["timeline"]["events"][number];
 
@@ -44,7 +43,10 @@ function buildScoreDelta(
 
   points.push({ timestampMs: durationMs, score: points.at(-1)?.score ?? 0 });
   const range = maxScore - minScore;
-  const zeroFraction = range === 0 ? 0.5 : maxScore / range;
+  if (range === 0) {
+    return null;
+  }
+  const zeroFraction = maxScore / range;
 
   return { points, minScore, maxScore, zeroFraction };
 }
@@ -70,7 +72,7 @@ export function formatScoreProgression(
       teamId,
       {
         name: getTeamName(teamId),
-        color: teamColors[slotIndex]?.hex ?? FALLBACK_COLORS[slotIndex % FALLBACK_COLORS.length],
+        color: teamColors[slotIndex]?.hex ?? getTeamColorOrDefault(undefined, slotIndex).hex,
         prevScore: 0,
         points: [{ timestampMs: 0, score: 0 }] as ScoreProgressionPoint[],
       },

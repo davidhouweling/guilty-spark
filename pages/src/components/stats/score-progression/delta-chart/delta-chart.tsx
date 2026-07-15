@@ -3,6 +3,7 @@ import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Too
 import {
   AXIS_STROKE,
   formatTime,
+  formatTooltipLabel,
   GRID_STROKE,
   TICK_FILL,
   TICK_FONT_SIZE,
@@ -15,18 +16,7 @@ export interface DeltaChartProps {
   readonly scoreDelta: ScoreDeltaData;
   readonly team0Color: string;
   readonly team1Color: string;
-  readonly team0Name: string;
-  readonly team1Name: string;
-}
-
-const DELTA_LABEL = "Score Delta";
-
-export function formatDeltaTooltip(value: unknown, team0Name: string, team1Name: string): [string, string] {
-  if (typeof value !== "number" || value === 0) {
-    return ["Tied", DELTA_LABEL];
-  }
-  const leader = value > 0 ? team0Name : team1Name;
-  return [`${leader} +${String(Math.abs(value))}`, DELTA_LABEL];
+  readonly tooltipFormatter: (value: unknown) => [string, string];
 }
 
 export function DeltaChart({
@@ -34,12 +24,11 @@ export function DeltaChart({
   scoreDelta,
   team0Color,
   team1Color,
-  team0Name,
-  team1Name,
+  tooltipFormatter,
 }: DeltaChartProps): React.ReactElement {
   const { points, minScore, maxScore, zeroFraction } = scoreDelta;
   const gradientId = React.useId();
-  const zeroPercent = `${String(Math.round(zeroFraction * 100))}%`;
+  const zeroPercent = `${(zeroFraction * 100).toFixed(2)}%`;
 
   return (
     <ResponsiveContainer width="100%" height={260}>
@@ -72,8 +61,8 @@ export function DeltaChart({
         <Tooltip
           contentStyle={tooltipContentStyle}
           labelStyle={{ color: TICK_FILL }}
-          labelFormatter={(label) => (typeof label === "number" ? formatTime(label) : String(label ?? ""))}
-          formatter={(value) => formatDeltaTooltip(value, team0Name, team1Name)}
+          labelFormatter={formatTooltipLabel}
+          formatter={tooltipFormatter}
         />
         <Area
           dataKey="score"

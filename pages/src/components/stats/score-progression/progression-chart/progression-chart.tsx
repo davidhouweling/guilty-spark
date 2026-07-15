@@ -3,6 +3,7 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import {
   AXIS_STROKE,
   formatTime,
+  formatTooltipLabel,
   GRID_STROKE,
   TICK_FILL,
   TICK_FONT_SIZE,
@@ -38,7 +39,7 @@ export function ProgressionChart({ durationMs, teamLines }: ProgressionChartProp
         <Tooltip
           contentStyle={tooltipContentStyle}
           labelStyle={{ color: TICK_FILL }}
-          labelFormatter={(label) => (typeof label === "number" ? formatTime(label) : String(label ?? ""))}
+          labelFormatter={formatTooltipLabel}
           formatter={(value, name) => [value ?? "", name]}
         />
         {teamLines.map((line) => (
