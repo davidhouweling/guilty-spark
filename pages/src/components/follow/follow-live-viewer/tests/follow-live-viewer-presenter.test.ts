@@ -67,6 +67,23 @@ describe("FollowLiveViewerPresenter", () => {
     expect(error.loadStatus).toBe(ComponentLoaderStatus.ERROR);
   });
 
+  it("keeps viewer loaded on error when directory data is already available", () => {
+    const presenter = new FollowLiveViewerPresenter();
+    const directory: TrackerDirectory = aDirectoryWith({
+      trackers: [aTrackerWith({ trackerId: "tracker-1", gamertag: "Spartan One", status: "paused", isLive: false })],
+      liveTrackerId: null,
+    });
+
+    const result = presenter.present({
+      gamertag: "Streamer",
+      directory,
+      directoryStatus: "error",
+      selectedTrackerId: null,
+    });
+
+    expect(result.loadStatus).toBe(ComponentLoaderStatus.LOADED);
+  });
+
   it("returns non-live viewer title when there is no live tracker", () => {
     const directory: TrackerDirectory = aDirectoryWith({
       trackers: [aTrackerWith({ trackerId: "tracker-1", gamertag: "Spartan One", isLive: false })],

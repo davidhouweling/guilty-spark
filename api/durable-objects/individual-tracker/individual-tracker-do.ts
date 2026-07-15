@@ -42,6 +42,7 @@ import {
   analyzeMatchGroupings,
   buildMatchScore,
   buildTeamRosterSignature,
+  collapseSequentialSeriesEntries,
   getMatchOutcomeLabel,
 } from "@guilty-spark/shared/halo/match-enrichment";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
@@ -244,6 +245,80 @@ function shouldEnrichSummary(summary: IndividualTrackerMatchSummary): boolean {
       summary.killsDeathsAssistsKda !== UNKNOWN_KDA_DISPLAY &&
       summary.damageDealtTakenRatio !== UNKNOWN_DAMAGE_RATIO_DISPLAY)
   );
+}
+
+function parseTeamRosterSignatureToCounts(signature: string): Map<number, number> | null {
+  const counts = new Map<number, number>();
+
+  for (const teamEntry of signature.split("|")) {
+    const [teamIdRaw, playersRaw] = teamEntry.split(":");
+    if (teamIdRaw == null || playersRaw == null) {
+      return null;
+    }
+
+    const teamId = Number(teamIdRaw);
+    if (!Number.isInteger(teamId) || teamId < 0) {
+      return null;
+    }
+
+    const playerCount = playersRaw === "" ? 0 : playersRaw.split(",").length;
+    counts.set(teamId, playerCount);
+  }
+
+  return counts;
+}
+
+function getExpectedSeriesTeamCounts(teams: readonly SeriesTeam[] | undefined): Map<number, number> | null {
+  if (teams == null || teams.length === 0) {
+    return null;
+  }
+
+  const expectedCounts = new Map<number, number>();
+  for (const team of teams) {
+    const playerCount = team.players.length;
+    if (playerCount === 0) {
+      return null;
+    }
+
+    expectedCounts.set(team.id, playerCount);
+  }
+
+  return expectedCounts;
+}
+
+function hasExpectedSeriesTeamCounts(
+  summary: IndividualTrackerMatchSummary,
+  expectedCounts: ReadonlyMap<number, number>,
+): boolean {
+  if (summary.teamRosterSignature == null) {
+    return false;
+  }
+
+  const actualCounts = parseTeamRosterSignatureToCounts(summary.teamRosterSignature);
+  if (actualCounts?.size !== expectedCounts.size) {
+    return false;
+  }
+
+  for (const [teamId, expectedPlayerCount] of expectedCounts.entries()) {
+    if (actualCounts.get(teamId) !== expectedPlayerCount) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function getSeriesSummariesForView(
+  groupSummaries: readonly IndividualTrackerMatchSummary[],
+  teams: readonly SeriesTeam[] | undefined,
+): IndividualTrackerMatchSummary[] {
+  const expectedTeamCounts = getExpectedSeriesTeamCounts(teams);
+  const summariesWithExpectedTeams =
+    expectedTeamCounts == null
+      ? groupSummaries
+      : groupSummaries.filter((summary) => hasExpectedSeriesTeamCounts(summary, expectedTeamCounts));
+
+  return collapseSequentialSeriesEntries(summariesWithExpectedTeams);
 }
 
 function normalizeRankTier(rankTier: string | null | undefined): string | null {
@@ -489,7 +564,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
       const isMatchmakingMatch = match.MatchInfo.Playlist != null;
       if (trackerState.activeSeries != null && isMatchmakingMatch) {
-        this.retireActiveSeries(trackerState);
+        this.clearSeriesState(trackerState);
         this.logService.info(
           "IndividualTracker: series ended after matchmaking match was discovered",
           new Map([
@@ -1507,7 +1582,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       players: team.members.map((gamertag) => ({ discordId: null, discordName: null, gamertag, xboxId: null })),
     }));
 
-    this.retireActiveSeries(trackerState);
+    this.clearSeriesState(trackerState);
     trackerState.activeSeries = {
       title: body.titleOverride ?? getDefaultSeriesGroupTitle(),
       subtitle: body.subtitleOverride,
@@ -1645,7 +1720,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     switch (payload.type) {
       case "ended": {
-        this.retireActiveSeries(trackerState);
+        this.clearSeriesState(trackerState);
         break;
       }
       case "substituted": {
@@ -1659,7 +1734,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           trackedGamertag === payload.playerIn.gamertag;
 
         if (isTrackedPlayerOut) {
-          this.retireActiveSeries(trackerState);
+          this.clearSeriesState(trackerState);
           this.logService.info(
             "IndividualTracker: series retired (tracked player subbed out via nudge)",
             new Map([
@@ -1716,7 +1791,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         break;
       }
       case "started": {
-        this.retireActiveSeries(trackerState);
+        this.clearSeriesState(trackerState);
         trackerState.activeSeries = {
           title: payload.title,
           subtitle: payload.subtitle,
@@ -2027,6 +2102,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     delete state.activeSeries;
   }
 
+  private clearSeriesState(state: IndividualTrackerInternalState): void {
+    delete state.activeSeries;
+    delete state.completedSeries;
+  }
+
   private sanitizeState(state: IndividualTrackerInternalState): IndividualTrackerDoState {
     return {
       userId: state.userId,
@@ -2082,8 +2162,15 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         .map((matchId) => summariesById.get(matchId))
         .filter((summary): summary is IndividualTrackerMatchSummary => summary != null);
 
+      const matchIdSet = new Set(matchIds);
+      const seriesContext = allSeriesContexts.find((ctx) => ctx.matchIds.some((id) => matchIdSet.has(id)));
+      const seriesGroupOverride = seriesGroupOverridesByKey.get(buildSeriesGroupKey(matchIds));
+      const teams = seriesContext?.teams;
+
+      const seriesSummariesForView = getSeriesSummariesForView(groupSummaries, teams);
+
       const teamWins = computeSeriesTeamWins(
-        groupSummaries.map((summary) => ({
+        seriesSummariesForView.map((summary) => ({
           startTime: summary.startTime,
           mapAssetId: summary.mapAssetId,
           mapVersionId: summary.mapVersionId,
@@ -2091,11 +2178,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           teamOutcomes: summary.teamOutcomes ?? [],
         })),
       );
-      const seriesSummaryStats = computeSeriesSummaryStats(groupSummaries);
+      const seriesSummaryStats = computeSeriesSummaryStats(seriesSummariesForView);
 
       const defaultTitle = getDefaultSeriesGroupTitle();
       const defaultSubtitle = getDefaultSeriesGroupSubtitle(
-        groupSummaries.map((summary) => ({
+        seriesSummariesForView.map((summary) => ({
           startTime: summary.startTime,
           mapAssetId: summary.mapAssetId,
           mapVersionId: summary.mapVersionId,
@@ -2104,19 +2191,14 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         })),
       );
 
-      const matchIdSet = new Set(matchIds);
-      const seriesContext = allSeriesContexts.find((ctx) => ctx.matchIds.some((id) => matchIdSet.has(id)));
-      const seriesGroupOverride = seriesGroupOverridesByKey.get(buildSeriesGroupKey(matchIds));
-
       const title = seriesContext?.title ?? seriesGroupOverride?.titleOverride ?? defaultTitle;
       const subtitle = seriesContext?.subtitle ?? seriesGroupOverride?.subtitleOverride ?? defaultSubtitle;
       const guildIconUrl = seriesContext?.guildIconUrl ?? null;
-      const teams = seriesContext?.teams;
 
       return {
         id: `series:${buildSeriesGroupKey(matchIds)}`,
-        matchIds,
-        matchBackgroundUrls: groupSummaries.map((summary) => summary.mapBackgroundUrl || "data:,"),
+        matchIds: seriesSummariesForView.map((summary) => summary.matchId),
+        matchBackgroundUrls: seriesSummariesForView.map((summary) => summary.mapBackgroundUrl || "data:,"),
         score: teamWins.length === 0 ? "0:0" : teamWins.join(":"),
         killsDeathsAssistsKda: seriesSummaryStats.killsDeathsAssistsKda,
         damageDealtTakenRatio: seriesSummaryStats.damageDealtTakenRatio,

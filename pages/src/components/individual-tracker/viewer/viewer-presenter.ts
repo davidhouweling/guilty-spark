@@ -23,6 +23,7 @@ import { EMPTY_KILL_MATRIX_PIVOT_DATA, type KillMatrixPlayer } from "../../../co
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault, type TeamColor } from "../../team-colors/team-colors";
 import { gameModeIconSrc } from "../game-mode-icon";
+import { getReconnectDelayMs } from "../../../services/base/reconnect-policy";
 import type {
   SeriesMatchDetail,
   SeriesMatchSummary,
@@ -203,6 +204,8 @@ export class IndividualTrackerViewerPresenter {
   private connection: TrackerViewConnection | null = null;
   private viewSubscription: TrackerViewSubscription | null = null;
   private statusSubscription: TrackerViewSubscription | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectAttempt = 0;
   private awaitingRefresh = false;
   private streamerSettings: StreamerViewSettings | undefined;
   private streamerSettingsKey = "null";
@@ -471,6 +474,7 @@ export class IndividualTrackerViewerPresenter {
   }
 
   public start(): void {
+    this.resetReconnectState();
     this.modeVersion += 1;
     const { modeVersion } = this;
     void this.load(modeVersion);
@@ -478,8 +482,35 @@ export class IndividualTrackerViewerPresenter {
 
   public dispose(): void {
     this.isDisposed = true;
+    this.resetReconnectState();
     this.awaitingRefresh = false;
     this.closeConnection();
+  }
+
+  private resetReconnectState(): void {
+    this.reconnectAttempt = 0;
+    if (this.reconnectTimer != null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+
+  private scheduleReconnect(): void {
+    if (this.reconnectTimer != null || this.isDisposed) {
+      return;
+    }
+
+    const delay = getReconnectDelayMs(this.reconnectAttempt);
+    this.reconnectAttempt += 1;
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+
+      if (this.isDisposed) {
+        return;
+      }
+
+      this.openConnection();
+    }, delay);
   }
 
   private async refreshAsync(): Promise<void> {
@@ -542,7 +573,17 @@ export class IndividualTrackerViewerPresenter {
       if (this.isDisposed) {
         return;
       }
+
       this.config.store.setConnectionStatus(status);
+
+      if (status === "connected") {
+        this.resetReconnectState();
+        return;
+      }
+
+      if (status === "error" || status === "disconnected") {
+        this.scheduleReconnect();
+      }
     });
   }
 
