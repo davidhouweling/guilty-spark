@@ -28,10 +28,13 @@ class MockWebSocket {
 }
 
 function aFakeDirectory(overrides: Partial<TrackerDirectory> = {}): TrackerDirectory {
+  const { streamerSettings, ...otherOverrides } = overrides;
+
   return {
     trackers: [],
     liveTrackerId: null,
-    ...overrides,
+    streamerSettings: streamerSettings ?? {},
+    ...otherOverrides,
   };
 }
 

@@ -158,6 +158,71 @@ export const streamerViewSettingsSchema = z.object({
 });
 export type StreamerViewSettings = z.infer<typeof streamerViewSettingsSchema>;
 
+export const DEFAULT_STREAMER_VIEW_SETTINGS: StreamerViewSettings = {
+  styleFlags: {
+    colorMode: "player",
+    playerTeamColor: "cerulean",
+    playerEnemyColor: "salmon",
+    observerTeamColor: "salmon",
+    observerEnemyColor: "cerulean",
+    showPreSeriesInfo: true,
+    selectedSlayerStats: ["Score", "Kills", "Deaths", "Assists", "KDA", "Damage dealt", "Damage taken", "Damage ratio"],
+    showObjectiveStats: false,
+    medalRarityFilter: [2, 3],
+    inSeriesShowSeriesTab: true,
+    matchmakingShowSummaryTab: true,
+    disableTeamPlayerNames: false,
+    inSeriesShowTicker: true,
+    matchmakingShowTicker: true,
+    matchmakingShowStatsHighlights: true,
+    inSeriesMyStatsOnly: false,
+    matchmakingMyStatsOnly: false,
+  },
+  visibleSections: {
+    showTeamDetails: true,
+    showDiscordNames: false,
+    showXboxNames: true,
+    showServerIcon: true,
+    showTitle: true,
+    showSubtitle: true,
+    showScore: true,
+    showTicker: true,
+    showTabs: true,
+    statsHighlightSlots: [...DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS],
+  },
+  layoutOptions: {
+    defaultColorMode: "player",
+    fontSizes: {
+      queueInfo: 100,
+      score: 100,
+      teams: 100,
+      tabs: 100,
+      ticker: 100,
+    },
+  },
+};
+
+export function withStreamerViewSettingsDefaults(settings: StreamerViewSettings | undefined): StreamerViewSettings {
+  return {
+    styleFlags: {
+      ...DEFAULT_STREAMER_VIEW_SETTINGS.styleFlags,
+      ...settings?.styleFlags,
+    },
+    visibleSections: {
+      ...DEFAULT_STREAMER_VIEW_SETTINGS.visibleSections,
+      ...settings?.visibleSections,
+    },
+    layoutOptions: {
+      ...DEFAULT_STREAMER_VIEW_SETTINGS.layoutOptions,
+      ...settings?.layoutOptions,
+      fontSizes: {
+        ...DEFAULT_STREAMER_VIEW_SETTINGS.layoutOptions?.fontSizes,
+        ...settings?.layoutOptions?.fontSizes,
+      },
+    },
+  };
+}
+
 export type StreamerViewColorMode = z.infer<typeof streamerViewColorModeSchema>;
 export type StreamerViewObserverColorOverride = z.infer<typeof streamerViewObserverColorOverrideSchema>;
 export type StreamerViewObserverColorOverrides = z.infer<typeof streamerViewObserverColorOverridesSchema>;

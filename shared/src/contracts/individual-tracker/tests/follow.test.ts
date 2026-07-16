@@ -33,6 +33,7 @@ const validEntry = {
 const validDirectory: TrackerDirectoryResponse = {
   trackers: [validEntry],
   liveTrackerId: "t1",
+  streamerSettings: {},
 };
 
 describe("trackerDirectoryContract", () => {
@@ -43,7 +44,7 @@ describe("trackerDirectoryContract", () => {
   });
 
   it("parses a directory with no trackers", () => {
-    const result = trackerDirectoryContract.parse({ trackers: [], liveTrackerId: null });
+    const result = trackerDirectoryContract.parse({ trackers: [], liveTrackerId: null, streamerSettings: {} });
     expect(result.trackers).toEqual([]);
   });
 
@@ -53,7 +54,7 @@ describe("trackerDirectoryContract", () => {
       liveTrackerId: null,
       streamerSettings: { styleFlags: { colorMode: "observer" } },
     });
-    expect(result.streamerSettings?.styleFlags?.colorMode).toBe("observer");
+    expect(result.streamerSettings.styleFlags?.colorMode).toBe("observer");
   });
 
   it("serialises to and from a Response", async () => {
@@ -70,6 +71,7 @@ describe("trackerDirectoryContract", () => {
     expect(() =>
       trackerDirectoryContract.parse({
         liveTrackerId: null,
+        streamerSettings: {},
         trackers: [{ ...validEntry, status: "invalid" }],
       }),
     ).toThrow();
@@ -80,7 +82,7 @@ describe("trackerDirectoryMessageContract", () => {
   it("serialises and parses a directory message", () => {
     const msg = trackerDirectoryMessageContract.serialize({
       type: "directory",
-      directory: { trackers: [validEntry], liveTrackerId: "t1" },
+      directory: { trackers: [validEntry], liveTrackerId: "t1", streamerSettings: {} },
     });
     expect(typeof msg).toBe("string");
 
@@ -92,7 +94,7 @@ describe("trackerDirectoryMessageContract", () => {
   it("rejects a message with the wrong type", () => {
     expect(() =>
       trackerDirectoryMessageContract.parse(
-        JSON.stringify({ type: "wrong", directory: { trackers: [], liveTrackerId: null } }),
+        JSON.stringify({ type: "wrong", directory: { trackers: [], liveTrackerId: null, streamerSettings: {} } }),
       ),
     ).toThrow();
   });
