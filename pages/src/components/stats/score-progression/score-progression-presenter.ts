@@ -44,7 +44,7 @@ export class ScoreProgressionPresenter {
             scoreDelta: input.scoreDelta,
             team0Color: input.teamLines[0]?.color ?? TICK_FILL,
             team1Color: input.teamLines[1]?.color ?? TICK_FILL,
-            tooltipFormatter: (value: unknown): [string, string] =>
+            tooltipFormatter: (value: number | string | readonly (number | string)[] | undefined): [string, string] =>
               this.formatDeltaTooltip(value, team0Name, team1Name),
           }
         : null;
@@ -68,8 +68,12 @@ export class ScoreProgressionPresenter {
     }
   }
 
-  private formatDeltaTooltip(value: unknown, team0Name: string, team1Name: string): [string, string] {
-    if (typeof value !== "number" || value === 0) {
+  private formatDeltaTooltip(
+    value: number | string | readonly (number | string)[] | undefined,
+    team0Name: string,
+    team1Name: string,
+  ): [string, string] {
+    if (typeof value !== "number" || value === 0 || Number.isNaN(value)) {
       return ["Tied", DELTA_LABEL];
     }
     const leader = value > 0 ? team0Name : team1Name;

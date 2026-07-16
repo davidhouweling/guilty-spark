@@ -18,7 +18,9 @@ export function formatTime(ms: number): string {
   return `${String(minutes)}:${String(seconds).padStart(2, "0")}`;
 }
 
-export function formatTooltipLabel(label: unknown): string {
+import type { ReactNode } from "react";
+
+export function formatTooltipLabel(label: ReactNode): string {
   if (typeof label === "number") {
     return formatTime(label);
   }
@@ -26,4 +28,30 @@ export function formatTooltipLabel(label: unknown): string {
     return label;
   }
   return "";
+}
+
+export const tooltipLabelStyle = { color: TICK_FILL };
+
+export const TICK_STYLE = { fill: TICK_FILL, fontSize: TICK_FONT_SIZE };
+
+export const CHART_MARGIN = { top: 8, right: 16, bottom: 8, left: 8 };
+
+export function timeAxisProps(durationMs: number): {
+  type: "number";
+  dataKey: string;
+  domain: [number, number];
+  tickCount: number;
+  tickFormatter: (ms: number) => string;
+  stroke: string;
+  tick: { fill: string; fontSize: number };
+} {
+  return {
+    type: "number",
+    dataKey: "timestampMs",
+    domain: [0, durationMs],
+    tickCount: 6,
+    tickFormatter: formatTime,
+    stroke: AXIS_STROKE,
+    tick: TICK_STYLE,
+  };
 }

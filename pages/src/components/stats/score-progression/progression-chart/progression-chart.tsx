@@ -2,40 +2,35 @@ import React from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   AXIS_STROKE,
-  formatTime,
-  formatTooltipLabel,
+  CHART_MARGIN,
   GRID_STROKE,
-  TICK_FILL,
-  TICK_FONT_SIZE,
+  TICK_STYLE,
+  timeAxisProps,
   tooltipContentStyle,
+  tooltipLabelStyle,
+  formatTooltipLabel,
 } from "../chart-constants";
 import type { ScoreProgressionProgressionViewModel } from "../types";
+
+function formatProgressionValue(
+  value: number | string | readonly (number | string)[] | undefined,
+  name: string | number | undefined,
+): [number | string | readonly (number | string)[] | undefined, string | number | undefined] {
+  return [value, name];
+}
 
 export function ProgressionChart({ durationMs, teamLines }: ScoreProgressionProgressionViewModel): React.ReactElement {
   return (
     <ResponsiveContainer width="100%" height={260}>
-      <AreaChart margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
+      <AreaChart margin={CHART_MARGIN}>
         <CartesianGrid strokeDasharray="4 4" stroke={GRID_STROKE} />
-        <XAxis
-          type="number"
-          dataKey="timestampMs"
-          domain={[0, durationMs]}
-          tickCount={6}
-          tickFormatter={formatTime}
-          stroke={AXIS_STROKE}
-          tick={{ fill: TICK_FILL, fontSize: TICK_FONT_SIZE }}
-        />
-        <YAxis
-          allowDecimals={false}
-          width={36}
-          stroke={AXIS_STROKE}
-          tick={{ fill: TICK_FILL, fontSize: TICK_FONT_SIZE }}
-        />
+        <XAxis {...timeAxisProps(durationMs)} />
+        <YAxis allowDecimals={false} width={36} stroke={AXIS_STROKE} tick={TICK_STYLE} />
         <Tooltip
           contentStyle={tooltipContentStyle}
-          labelStyle={{ color: TICK_FILL }}
+          labelStyle={tooltipLabelStyle}
           labelFormatter={formatTooltipLabel}
-          formatter={(value, name) => [value ?? "", name]}
+          formatter={formatProgressionValue}
         />
         {teamLines.map((line) => (
           <Area

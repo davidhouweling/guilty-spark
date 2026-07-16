@@ -101,11 +101,18 @@ describe("ScoreProgressionPresenter", () => {
       expect(model.deltaViewModel?.tooltipFormatter(0)).toEqual(["Tied", "Score Delta"]);
     });
 
-    it("deltaViewModel.tooltipFormatter returns Tied when value is not a number", () => {
+    it("deltaViewModel.tooltipFormatter returns Tied when value is a string", () => {
       const { store, presenter } = makePresenter();
       store.update({ chartType: "delta" });
       const model = presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: aFakeScoreDeltaData() });
       expect(model.deltaViewModel?.tooltipFormatter("unknown")).toEqual(["Tied", "Score Delta"]);
+    });
+
+    it("deltaViewModel.tooltipFormatter returns Tied when value is NaN", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ chartType: "delta" });
+      const model = presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: aFakeScoreDeltaData() });
+      expect(model.deltaViewModel?.tooltipFormatter(NaN)).toEqual(["Tied", "Score Delta"]);
     });
   });
 
