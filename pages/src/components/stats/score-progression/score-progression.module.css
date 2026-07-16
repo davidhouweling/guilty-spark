@@ -5,20 +5,11 @@
 .toolbar {
   align-items: center;
   display: flex;
+  gap: 8px;
   padding: 0 8px 8px;
 }
 
-.chartSelect {
-  background: var(--halo-bg-card, #1a1a2e);
-  border: 1px solid rgb(93 212 216 / 30%);
-  border-radius: var(--radius-base, 4px);
-  color: var(--halo-white, #fff);
-  cursor: pointer;
+.toolbarLabel {
+  color: var(--halo-white);
   font-size: 12px;
-  padding: 4px 8px;
-}
-
-.chartSelect:focus {
-  outline: 1px solid rgb(93 212 216 / 60%);
-  outline-offset: 1px;
 }
