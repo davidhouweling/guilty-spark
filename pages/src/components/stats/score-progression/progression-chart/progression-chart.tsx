@@ -38,7 +38,7 @@ function AdvantageGradient({ id, team0Color, team1Color }: AdvantageGradientProp
   if (advantageScale == null || plotArea == null) {
     return null;
   }
-  const {height} = plotArea;
+  const { height } = plotArea;
   const zeroY = advantageScale(0);
   if (zeroY == null) {
     return null;

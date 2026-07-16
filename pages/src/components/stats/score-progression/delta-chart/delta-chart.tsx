@@ -48,7 +48,7 @@ function DeltaChartGradients({
   if (deltaScale == null || plotArea == null) {
     return null;
   }
-  const {height} = plotArea;
+  const { height } = plotArea;
   const deltaZeroY = deltaScale(0);
   if (deltaZeroY == null) {
     return null;
