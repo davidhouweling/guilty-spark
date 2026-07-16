@@ -316,5 +316,21 @@ describe("formatScoreProgression", () => {
       expect(result?.playerAdvantage?.maxScore).toBe(1);
       expect(result?.playerAdvantage?.zeroFraction).toBe(0.5);
     });
+
+    it("bounds minScore and maxScore to ±teamSize when teamSize is provided", () => {
+      const data = aFakeScoreProgressionWith({
+        respawnDurationMs: 8000,
+        durationMs: 30000,
+        timeline: {
+          type: "kill-race",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+          deathTimeline: [{ timestampMs: 5001, teamId: 1 }],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS, 4);
+      expect(result?.playerAdvantage?.minScore).toBe(-4);
+      expect(result?.playerAdvantage?.maxScore).toBe(4);
+      expect(result?.playerAdvantage?.zeroFraction).toBe(0.5);
+    });
   });
 });

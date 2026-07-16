@@ -393,7 +393,11 @@ export class IndividualTrackerViewerPresenter {
         killMatrixRows != null
           ? KillMatrixFormatter.transpose(killMatrixRows, orderedPlayers)
           : EMPTY_KILL_MATRIX_PIVOT_DATA,
-      scoreProgressionViewData: formatScoreProgression(analytics?.scoreProgression ?? null, teamColors),
+      scoreProgressionViewData: formatScoreProgression(
+        analytics?.scoreProgression ?? null,
+        teamColors,
+        matchStats[0]?.players.length ?? null,
+      ),
     };
   }
 

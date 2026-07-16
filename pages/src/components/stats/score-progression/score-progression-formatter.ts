@@ -58,6 +58,7 @@ function buildPlayerAdvantage(
   deathTimeline: readonly KillRaceDeathEvent[],
   respawnDurationMs: number,
   durationMs: number,
+  teamSize: number | null,
 ): PlayerAdvantageData | null {
   if (teamIds.length < 2 || deathTimeline.length === 0) {
     return null;
@@ -113,12 +114,16 @@ function buildPlayerAdvantage(
     return null;
   }
 
+  if (teamSize != null) {
+    return { points, minScore: -teamSize, maxScore: teamSize, zeroFraction: 0.5 };
+  }
   return { points, minScore, maxScore, zeroFraction: maxScore / range };
 }
 
 export function formatScoreProgression(
   scoreProgression: MatchAnalytics["scoreProgression"],
   teamColors: readonly TeamColor[],
+  teamSize: number | null = null,
 ): ScoreProgressionViewData | null {
   if (scoreProgression === null || scoreProgression.timeline.events.length === 0) {
     return null;
@@ -166,7 +171,7 @@ export function formatScoreProgression(
 
   const playerAdvantage =
     respawnDurationMs != null
-      ? buildPlayerAdvantage(teamIds, timeline.deathTimeline, respawnDurationMs, durationMs)
+      ? buildPlayerAdvantage(teamIds, timeline.deathTimeline, respawnDurationMs, durationMs, teamSize)
       : null;
 
   return {

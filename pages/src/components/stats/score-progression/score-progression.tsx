@@ -1,4 +1,5 @@
 import React from "react";
+import { Checkbox } from "../../checkbox/checkbox";
 import { Select } from "../../select/select";
 import { DeltaChart } from "./delta-chart/delta-chart";
 import { ProgressionChart } from "./progression-chart/progression-chart";
@@ -15,7 +16,7 @@ export function ScoreProgression({
   deltaViewModel,
   progressionViewModel,
   onChartTypeChange,
-  onPlayerAdvantageToggle,
+  onPlayerAdvantageChange,
 }: ScoreProgressionViewModel): React.ReactElement {
   return (
     <div className={styles.container}>
@@ -40,15 +41,12 @@ export function ScoreProgression({
             </>
           )}
           {hasPlayerAdvantage && (
-            <label className={styles.toolbarCheckboxLabel}>
-              <input
-                type="checkbox"
-                checked={showPlayerAdvantage}
-                onChange={onPlayerAdvantageToggle}
-                className={styles.toolbarCheckbox}
-              />
-              Player Advantage
-            </label>
+            <Checkbox
+              checked={showPlayerAdvantage}
+              onChange={onPlayerAdvantageChange}
+              label="Player Advantage"
+              className={styles.toolbarCheckbox}
+            />
           )}
         </div>
       )}

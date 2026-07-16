@@ -25,14 +25,14 @@ const DELTA_LABEL = "Score Delta";
 
 export class ScoreProgressionPresenter {
   readonly onChartTypeChange: (value: string) => void;
-  readonly onPlayerAdvantageToggle: () => void;
+  readonly onPlayerAdvantageChange: (checked: boolean) => void;
 
   constructor(private readonly config: ScoreProgressionPresenterConfig) {
     this.onChartTypeChange = (value: string): void => {
       this.setChartType(value);
     };
-    this.onPlayerAdvantageToggle = (): void => {
-      this.togglePlayerAdvantage();
+    this.onPlayerAdvantageChange = (checked: boolean): void => {
+      this.setPlayerAdvantage(checked);
     };
   }
 
@@ -74,7 +74,7 @@ export class ScoreProgressionPresenter {
         playerAdvantage: effectivePlayerAdvantage,
       },
       onChartTypeChange: this.onChartTypeChange,
-      onPlayerAdvantageToggle: this.onPlayerAdvantageToggle,
+      onPlayerAdvantageChange: this.onPlayerAdvantageChange,
     };
   }
 
@@ -84,8 +84,8 @@ export class ScoreProgressionPresenter {
     }
   }
 
-  private togglePlayerAdvantage(): void {
-    this.config.store.update({ showPlayerAdvantage: !this.config.store.getSnapshot().showPlayerAdvantage });
+  private setPlayerAdvantage(checked: boolean): void {
+    this.config.store.update({ showPlayerAdvantage: checked });
   }
 
   private formatDeltaTooltip(
