@@ -49,6 +49,10 @@ export interface ScoreProgressionProgressionViewModel {
   readonly durationMs: number;
   readonly teamLines: readonly ScoreProgressionTeamLine[];
   readonly playerAdvantage: PlayerAdvantageData | null;
+  readonly tooltipFormatter: (
+    value: number | string | readonly (number | string)[] | undefined,
+    name: string | number | undefined,
+  ) => [string, string];
 }
 
 export interface ScoreProgressionViewModel {

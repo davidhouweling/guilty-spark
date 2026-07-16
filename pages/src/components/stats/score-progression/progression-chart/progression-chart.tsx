@@ -4,6 +4,7 @@ import {
   AXIS_STROKE,
   CHART_HEIGHT,
   CHART_MARGIN,
+  CHART_PLOT_HEIGHT,
   GRID_STROKE,
   TICK_FILL,
   TICK_STYLE,
@@ -19,13 +20,12 @@ export function ProgressionChart({
   durationMs,
   teamLines,
   playerAdvantage,
+  tooltipFormatter,
 }: ScoreProgressionProgressionViewModel): React.ReactElement {
   const advantageGradientId = React.useId();
   const team0Color = teamLines[0]?.color ?? TICK_FILL;
   const team1Color = teamLines[1]?.color ?? TICK_FILL;
   const margin = playerAdvantage != null ? { ...CHART_MARGIN, right: 36 } : CHART_MARGIN;
-  const plotTop = CHART_MARGIN.top;
-  const plotBottom = CHART_HEIGHT - CHART_MARGIN.bottom;
 
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
@@ -35,9 +35,9 @@ export function ProgressionChart({
             <linearGradient
               id={advantageGradientId}
               x1="0"
-              y1={plotTop}
+              y1={0}
               x2="0"
-              y2={plotBottom}
+              y2={CHART_PLOT_HEIGHT}
               gradientUnits="userSpaceOnUse"
             >
               <stop offset={`${(playerAdvantage.zeroFraction * 100).toFixed(2)}%`} stopColor={team0Color} />
@@ -64,6 +64,7 @@ export function ProgressionChart({
           contentStyle={tooltipContentStyle}
           labelStyle={tooltipLabelStyle}
           labelFormatter={formatTooltipLabel}
+          formatter={tooltipFormatter}
         />
         {teamLines.map((line) => (
           <Area

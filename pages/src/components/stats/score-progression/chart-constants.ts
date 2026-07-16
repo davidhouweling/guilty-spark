@@ -36,6 +36,7 @@ export const TICK_STYLE = { fill: TICK_FILL, fontSize: TICK_FONT_SIZE };
 
 export const CHART_MARGIN = { top: 8, right: 16, bottom: 8, left: 8 };
 export const CHART_HEIGHT = 260;
+export const CHART_PLOT_HEIGHT = CHART_HEIGHT - CHART_MARGIN.top - CHART_MARGIN.bottom;
 
 export function formatAdvantage(value: number): string {
   return value > 0 ? `+${String(value)}` : String(value);

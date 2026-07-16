@@ -239,6 +239,34 @@ describe("ScoreProgressionPresenter", () => {
     });
   });
 
+  describe("progressionViewModel.tooltipFormatter", () => {
+    it("formats Player Advantage series with leading team name", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ showPlayerAdvantage: true });
+      const model = presenter.present(store.getSnapshot(), {
+        ...BASE_INPUT,
+        scoreDelta: null,
+        playerAdvantage: aFakePlayerAdvantageData(),
+      });
+      expect(model.progressionViewModel.tooltipFormatter(2, "Player Advantage")).toEqual([
+        "Eagle +2",
+        "Player Advantage",
+      ]);
+      expect(model.progressionViewModel.tooltipFormatter(-1, "Player Advantage")).toEqual([
+        "Cobra +1",
+        "Player Advantage",
+      ]);
+      expect(model.progressionViewModel.tooltipFormatter(0, "Player Advantage")).toEqual(["Even", "Player Advantage"]);
+    });
+
+    it("passes through team line series unchanged", () => {
+      const { store, presenter } = makePresenter();
+      const model = presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: null });
+      expect(model.progressionViewModel.tooltipFormatter(5, "Eagle")).toEqual(["5", "Eagle"]);
+      expect(model.progressionViewModel.tooltipFormatter(3, "Cobra")).toEqual(["3", "Cobra"]);
+    });
+  });
+
   describe("onChartTypeChange()", () => {
     it("updates the store to delta", () => {
       const { store, presenter } = makePresenter();

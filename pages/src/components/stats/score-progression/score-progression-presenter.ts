@@ -78,6 +78,10 @@ export class ScoreProgressionPresenter {
         durationMs: input.durationMs,
         teamLines: input.teamLines,
         playerAdvantage: effectivePlayerAdvantage,
+        tooltipFormatter: (
+          value: number | string | readonly (number | string)[] | undefined,
+          name: string | number | undefined,
+        ): [string, string] => this.formatProgressionTooltip(value, name, team0Name, team1Name),
       },
       onChartTypeChange: this.onChartTypeChange,
       onPlayerAdvantageChange: this.onPlayerAdvantageChange,
@@ -100,6 +104,18 @@ export class ScoreProgressionPresenter {
 
   private setPlayerAdvantage(checked: boolean): void {
     this.config.store.update({ showPlayerAdvantage: checked });
+  }
+
+  private formatProgressionTooltip(
+    value: number | string | readonly (number | string)[] | undefined,
+    name: string | number | undefined,
+    team0Name: string,
+    team1Name: string,
+  ): [string, string] {
+    if (name === "Player Advantage") {
+      return this.formatAdvantageTooltip(value, team0Name, team1Name);
+    }
+    return [String(value ?? ""), typeof name === "string" ? name : String(name ?? "")];
   }
 
   private formatAdvantageTooltip(
