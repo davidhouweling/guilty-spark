@@ -7,13 +7,14 @@
     "node": ">=24.11.0"
   },
   "scripts": {
-    "start": "astro dev",
-    "dev": "astro dev",
-    "build": "astro build",
+    "sync:legal-markdown": "node ./scripts/sync-legal-markdown.mjs",
+    "start": "npm run sync:legal-markdown && astro dev",
+    "dev": "npm run sync:legal-markdown && astro dev",
+    "build": "npm run sync:legal-markdown && astro build",
     "preview": "npm run build && wrangler dev",
-    "astro": "astro",
+    "astro": "npm run sync:legal-markdown && astro",
     "deploy": "npm run build && wrangler deploy",
-    "typecheck": "astro check",
+    "typecheck": "npm run sync:legal-markdown && astro check",
     "cf-typegen": "wrangler types",
     "stylelint": "stylelint 'src/**/*.css' 'src/**/*.astro'",
     "stylelint:fix": "stylelint 'src/**/*.css' 'src/**/*.astro' --fix"

@@ -50,6 +50,10 @@
   margin-top: 0;
 }
 
+.markdownContent :global(h1:first-child) {
+  display: none;
+}
+
 .markdownContent :global(h2) {
   font-size: clamp(1.35rem, 3.2vw, 1.7rem);
 }
