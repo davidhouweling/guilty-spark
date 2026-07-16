@@ -13,7 +13,7 @@ export function ScoreProgression({
   onChartTypeChange,
 }: ScoreProgressionViewModel): React.ReactElement {
   return (
-    <div className={styles.container} role="img" aria-label={ariaLabel}>
+    <div className={styles.container}>
       {hasDelta && (
         <div className={styles.toolbar}>
           <select
@@ -29,11 +29,13 @@ export function ScoreProgression({
           </select>
         </div>
       )}
-      {effectiveChartType === "delta" && deltaViewModel != null ? (
-        <DeltaChart {...deltaViewModel} />
-      ) : (
-        <ProgressionChart {...progressionViewModel} />
-      )}
+      <div role="img" aria-label={ariaLabel}>
+        {effectiveChartType === "delta" && deltaViewModel != null ? (
+          <DeltaChart {...deltaViewModel} />
+        ) : (
+          <ProgressionChart {...progressionViewModel} />
+        )}
+      </div>
     </div>
   );
 }
