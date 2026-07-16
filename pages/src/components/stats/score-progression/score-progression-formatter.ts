@@ -1,9 +1,55 @@
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
+import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
-import type { ScoreProgressionPoint, ScoreProgressionTeamLine, ScoreProgressionViewData } from "./types";
+import type {
+  ScoreDeltaData,
+  ScoreProgressionPoint,
+  ScoreProgressionTeamLine,
+  ScoreProgressionViewData,
+} from "./types";
 
-const FALLBACK_COLORS = ["#888888", "#aaaaaa"];
+type KillRaceEvent = NonNullable<MatchAnalytics["scoreProgression"]>["timeline"]["events"][number];
+
+function buildScoreDelta(
+  teamIds: readonly number[],
+  events: readonly KillRaceEvent[],
+  durationMs: number,
+): ScoreDeltaData | null {
+  if (teamIds.length < 2) {
+    return null;
+  }
+
+  const [teamId0, teamId1] = teamIds;
+  const key0 = String(teamId0);
+  const key1 = String(teamId1);
+
+  const points: ScoreProgressionPoint[] = [{ timestampMs: 0, score: 0 }];
+  let minScore = 0;
+  let maxScore = 0;
+
+  for (const event of events) {
+    const score0 = event.runningScores[key0] ?? 0;
+    const score1 = event.runningScores[key1] ?? 0;
+    const score = score0 - score1;
+    points.push({ timestampMs: event.timestampMs, score });
+    if (score < minScore) {
+      minScore = score;
+    }
+    if (score > maxScore) {
+      maxScore = score;
+    }
+  }
+
+  points.push({ timestampMs: durationMs, score: points.at(-1)?.score ?? 0 });
+  const range = maxScore - minScore;
+  if (range === 0) {
+    return null;
+  }
+  const zeroFraction = maxScore / range;
+
+  return { points, minScore, maxScore, zeroFraction };
+}
 
 export function formatScoreProgression(
   scoreProgression: MatchAnalytics["scoreProgression"],
@@ -26,7 +72,7 @@ export function formatScoreProgression(
       teamId,
       {
         name: getTeamName(teamId),
-        color: teamColors[slotIndex]?.hex ?? FALLBACK_COLORS[slotIndex % FALLBACK_COLORS.length],
+        color: teamColors[slotIndex]?.hex ?? getTeamColorOrDefault(undefined, slotIndex).hex,
         prevScore: 0,
         points: [{ timestampMs: 0, score: 0 }] as ScoreProgressionPoint[],
       },
@@ -53,5 +99,5 @@ export function formatScoreProgression(
     teamLines.push({ teamId, name: state.name, color: state.color, points: state.points });
   }
 
-  return { durationMs, teamLines };
+  return { durationMs, teamLines, scoreDelta: buildScoreDelta(teamIds, events, durationMs) };
 }

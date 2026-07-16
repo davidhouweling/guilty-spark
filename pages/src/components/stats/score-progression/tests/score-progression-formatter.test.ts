@@ -42,10 +42,10 @@ describe("formatScoreProgression", () => {
     expect(result?.teamLines[1]?.name).toBe("Cobra");
   });
 
-  it("uses fallback colors when teamColors has no entries", () => {
+  it("uses getTeamColorOrDefault fallback colors when teamColors has no entries", () => {
     const result = formatScoreProgression(aFakeScoreProgressionWith(), []);
-    expect(result?.teamLines[0]?.color).toBe("#888888");
-    expect(result?.teamLines[1]?.color).toBe("#aaaaaa");
+    expect(result?.teamLines[0]?.color).toBe("#FE3939");
+    expect(result?.teamLines[1]?.color).toBe("#3B9DFF");
   });
 
   it("starts each team line at (0, 0)", () => {
@@ -96,5 +96,88 @@ describe("formatScoreProgression", () => {
   it("passes through durationMs from the source data", () => {
     const result = formatScoreProgression(aFakeScoreProgressionWith({ durationMs: 480000 }), TEAM_COLORS);
     expect(result?.durationMs).toBe(480000);
+  });
+
+  describe("scoreDelta", () => {
+    it("computes delta points from events with one point per event plus start and terminal", () => {
+      const result = formatScoreProgression(aFakeScoreProgressionWith(), TEAM_COLORS);
+      expect(result?.scoreDelta?.points).toEqual([
+        { timestampMs: 0, score: 0 },
+        { timestampMs: 5000, score: 1 },
+        { timestampMs: 12000, score: 0 },
+        { timestampMs: 20000, score: 1 },
+        { timestampMs: 600000, score: 1 },
+      ]);
+    });
+
+    it("sets minScore and maxScore from the computed delta points", () => {
+      const result = formatScoreProgression(aFakeScoreProgressionWith(), TEAM_COLORS);
+      expect(result?.scoreDelta?.minScore).toBe(0);
+      expect(result?.scoreDelta?.maxScore).toBe(1);
+    });
+
+    it("sets zeroFraction to maxScore / range for mixed positive and negative deltas", () => {
+      const data = aFakeScoreProgressionWith({
+        timeline: {
+          type: "kill-race",
+          events: [
+            { timestampMs: 5000, teamId: 1, runningScores: { "0": 0, "1": 1 } },
+            { timestampMs: 10000, teamId: 0, runningScores: { "0": 1, "1": 1 } },
+            { timestampMs: 15000, teamId: 0, runningScores: { "0": 2, "1": 1 } },
+          ],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.scoreDelta?.minScore).toBe(-1);
+      expect(result?.scoreDelta?.maxScore).toBe(1);
+      expect(result?.scoreDelta?.zeroFraction).toBe(0.5);
+    });
+
+    it("sets zeroFraction to 0 when team1 always leads", () => {
+      const data = aFakeScoreProgressionWith({
+        timeline: {
+          type: "kill-race",
+          events: [{ timestampMs: 5000, teamId: 1, runningScores: { "0": 0, "1": 1 } }],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.scoreDelta?.zeroFraction).toBe(0);
+    });
+
+    it("sets zeroFraction to 1 when team0 always leads", () => {
+      const data = aFakeScoreProgressionWith({
+        timeline: {
+          type: "kill-race",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.scoreDelta?.zeroFraction).toBe(1);
+    });
+
+    it("returns null scoreDelta when only one team is present", () => {
+      const data = aFakeScoreProgressionWith({
+        timeline: {
+          type: "kill-race",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1 } }],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.scoreDelta).toBeNull();
+    });
+
+    it("returns null scoreDelta when all deltas are 0 (perfectly tied match)", () => {
+      const data = aFakeScoreProgressionWith({
+        timeline: {
+          type: "kill-race",
+          events: [
+            { timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 1 } },
+            { timestampMs: 10000, teamId: 1, runningScores: { "0": 2, "1": 2 } },
+          ],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.scoreDelta).toBeNull();
+    });
   });
 });

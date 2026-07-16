@@ -15,8 +15,8 @@ afterEach(() => {
   cleanup();
 });
 
-vi.mock("../score-progression/score-progression", () => ({
-  ScoreProgression: (): React.ReactNode => <div>Score Progression Chart</div>,
+vi.mock("../score-progression/create", () => ({
+  createScoreProgression: (): (() => React.ReactNode) => (): React.ReactNode => <div>Score Progression Chart</div>,
 }));
 
 vi.mock("../../icons/team-icon", () => ({
@@ -220,7 +220,7 @@ describe("MatchStats", () => {
 
   it("falls back to Players tab when Timeline is active and scoreProgressionViewData becomes null", () => {
     const data = [aFakeMatchStatsDataWith({ teamId: 0 })];
-    const scoreProgressionViewData: ScoreProgressionViewData = { durationMs: 600000, teamLines: [] };
+    const scoreProgressionViewData: ScoreProgressionViewData = { durationMs: 600000, teamLines: [], scoreDelta: null };
     const baseProps = {
       data,
       id: "match-1",

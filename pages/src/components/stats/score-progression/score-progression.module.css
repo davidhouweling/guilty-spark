@@ -1,3 +1,20 @@
 .container {
   width: 100%;
 }
+
+.toolbar {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  padding: 0 8px 8px;
+}
+
+.toolbarLabel {
+  color: var(--halo-white);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.toolbarSelect {
+  width: fit-content;
+}
