@@ -12,6 +12,7 @@ import {
   useYAxisScale,
 } from "recharts";
 import {
+  ADVANTAGE_STROKE,
   AXIS_STROKE,
   CHART_HEIGHT,
   CHART_MARGIN,
@@ -28,22 +29,17 @@ import type { ScoreProgressionDeltaViewModel } from "../types";
 interface DeltaChartGradientsProps {
   readonly fillGradientId: string;
   readonly strokeGradientId: string;
-  readonly advantageGradientId: string;
   readonly team0Color: string;
   readonly team1Color: string;
-  readonly hasPlayerAdvantage: boolean;
 }
 
 function DeltaChartGradients({
   fillGradientId,
   strokeGradientId,
-  advantageGradientId,
   team0Color,
   team1Color,
-  hasPlayerAdvantage,
 }: DeltaChartGradientsProps): React.ReactElement | null {
   const deltaScale = useYAxisScale(0);
-  const advantageScale = useYAxisScale("advantage");
   const plotArea = usePlotArea();
   if (deltaScale == null || plotArea == null) {
     return null;
@@ -54,8 +50,6 @@ function DeltaChartGradients({
     return null;
   }
   const deltaOffset = `${((deltaZeroY / height) * 100).toFixed(2)}%`;
-  const advantageZeroY = advantageScale?.(0);
-  const advantageOffset = advantageZeroY != null ? `${((advantageZeroY / height) * 100).toFixed(2)}%` : "50%";
 
   return (
     <defs>
@@ -68,12 +62,6 @@ function DeltaChartGradients({
         <stop offset={deltaOffset} stopColor={team0Color} />
         <stop offset={deltaOffset} stopColor={team1Color} />
       </linearGradient>
-      {hasPlayerAdvantage && (
-        <linearGradient id={advantageGradientId} x1="0" y1={0} x2="0" y2={height} gradientUnits="userSpaceOnUse">
-          <stop offset={advantageOffset} stopColor={team0Color} />
-          <stop offset={advantageOffset} stopColor={team1Color} />
-        </linearGradient>
-      )}
     </defs>
   );
 }
@@ -90,7 +78,6 @@ export function DeltaChart({
   const { points, minScore, maxScore } = scoreDelta;
   const gradientId = React.useId();
   const strokeGradientId = `${gradientId}-stroke`;
-  const advantageGradientId = `${gradientId}-advantage`;
   const margin = playerAdvantage != null ? { ...CHART_MARGIN, right: 36 } : CHART_MARGIN;
   const wrappedTooltipFormatter = (
     value: number | string | readonly (number | string)[] | undefined,
@@ -108,10 +95,8 @@ export function DeltaChart({
         <DeltaChartGradients
           fillGradientId={gradientId}
           strokeGradientId={strokeGradientId}
-          advantageGradientId={advantageGradientId}
           team0Color={team0Color}
           team1Color={team1Color}
-          hasPlayerAdvantage={playerAdvantage != null}
         />
         <CartesianGrid strokeDasharray="4 4" stroke={GRID_STROKE} />
         <XAxis {...timeAxisProps(durationMs)} />
@@ -153,9 +138,9 @@ export function DeltaChart({
               dataKey="score"
               name="Player Advantage"
               fill="none"
-              stroke={`url(#${advantageGradientId})`}
-              strokeWidth={1.5}
-              strokeDasharray="3 3"
+              stroke={ADVANTAGE_STROKE}
+              strokeWidth={1}
+              strokeDasharray={2}
               dot={false}
               type="stepAfter"
               baseValue={0}
