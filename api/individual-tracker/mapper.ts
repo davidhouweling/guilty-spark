@@ -171,10 +171,7 @@ export function toTrackerView(
             damageDealtTakenRatio: match.damageDealtTakenRatio,
             isMatchmaking: match.isMatchmaking,
           })),
-    series:
-      doState == null
-        ? []
-        : doState.series.map(toTrackerSeriesGroup),
+    series: doState == null ? [] : doState.series.map(toTrackerSeriesGroup),
     lastUpdateTime: doState == null ? "" : doState.lastUpdateTime,
     lastMatchDiscoveredAt: doState == null ? null : doState.lastMatchDiscoveredAt,
     hasActiveSeries: doState?.hasActiveSeries ?? false,
