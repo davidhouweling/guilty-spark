@@ -22,7 +22,7 @@ describe("ProgressionChart", () => {
       { teamId: 1, name: "Cobra", color: "#ff0000", points: [] },
     ] as const;
 
-    render(<ProgressionChart durationMs={600000} teamLines={teamLines} />);
+    render(<ProgressionChart durationMs={600000} teamLines={teamLines} playerAdvantage={null} />);
 
     const areas = screen.getAllByTestId("area");
     expect(areas).toHaveLength(2);

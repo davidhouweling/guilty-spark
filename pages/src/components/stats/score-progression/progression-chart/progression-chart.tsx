@@ -1,9 +1,10 @@
 import React from "react";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   AXIS_STROKE,
   CHART_MARGIN,
   GRID_STROKE,
+  TICK_FILL,
   TICK_STYLE,
   timeAxisProps,
   tooltipContentStyle,
@@ -12,13 +13,46 @@ import {
 } from "../chart-constants";
 import type { ScoreProgressionProgressionViewModel } from "../types";
 
-export function ProgressionChart({ durationMs, teamLines }: ScoreProgressionProgressionViewModel): React.ReactElement {
+function formatAdvantage(value: number): string {
+  return value > 0 ? `+${String(value)}` : String(value);
+}
+
+export function ProgressionChart({
+  durationMs,
+  teamLines,
+  playerAdvantage,
+}: ScoreProgressionProgressionViewModel): React.ReactElement {
+  const advantageGradientId = React.useId();
+  const team0Color = teamLines[0]?.color ?? TICK_FILL;
+  const team1Color = teamLines[1]?.color ?? TICK_FILL;
+  const margin = playerAdvantage != null ? { ...CHART_MARGIN, right: 36 } : CHART_MARGIN;
+
   return (
     <ResponsiveContainer width="100%" height={260}>
-      <AreaChart margin={CHART_MARGIN}>
+      <AreaChart margin={margin}>
+        {playerAdvantage != null && (
+          <defs>
+            <linearGradient id={advantageGradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset={`${(playerAdvantage.zeroFraction * 100).toFixed(2)}%`} stopColor={team0Color} />
+              <stop offset={`${(playerAdvantage.zeroFraction * 100).toFixed(2)}%`} stopColor={team1Color} />
+            </linearGradient>
+          </defs>
+        )}
         <CartesianGrid strokeDasharray="4 4" stroke={GRID_STROKE} />
         <XAxis {...timeAxisProps(durationMs)} />
         <YAxis allowDecimals={false} width={36} stroke={AXIS_STROKE} tick={TICK_STYLE} />
+        {playerAdvantage != null && (
+          <YAxis
+            yAxisId="advantage"
+            orientation="right"
+            allowDecimals={false}
+            width={28}
+            domain={[playerAdvantage.minScore, playerAdvantage.maxScore]}
+            stroke={AXIS_STROKE}
+            tick={TICK_STYLE}
+            tickFormatter={formatAdvantage}
+          />
+        )}
         <Tooltip
           contentStyle={tooltipContentStyle}
           labelStyle={tooltipLabelStyle}
@@ -38,6 +72,24 @@ export function ProgressionChart({ durationMs, teamLines }: ScoreProgressionProg
             type="linear"
           />
         ))}
+        {playerAdvantage != null && (
+          <>
+            <ReferenceLine y={0} yAxisId="advantage" stroke={AXIS_STROKE} strokeDasharray="3 3" />
+            <Area
+              yAxisId="advantage"
+              data={playerAdvantage.points}
+              dataKey="score"
+              name="Player Advantage"
+              fill="none"
+              stroke={`url(#${advantageGradientId})`}
+              strokeWidth={1.5}
+              strokeDasharray="3 3"
+              dot={false}
+              type="stepAfter"
+              baseValue={0}
+            />
+          </>
+        )}
       </AreaChart>
     </ResponsiveContainer>
   );

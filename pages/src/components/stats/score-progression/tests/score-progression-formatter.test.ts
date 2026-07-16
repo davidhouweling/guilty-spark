@@ -186,4 +186,118 @@ describe("formatScoreProgression", () => {
       expect(result?.scoreDelta).toBeNull();
     });
   });
+
+  describe("playerAdvantage", () => {
+    it("returns null playerAdvantage when respawnDurationMs is null", () => {
+      const data = aFakeScoreProgressionWith({ respawnDurationMs: null });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.playerAdvantage).toBeNull();
+    });
+
+    it("returns null playerAdvantage when deathTimeline is empty", () => {
+      const data = aFakeScoreProgressionWith({
+        respawnDurationMs: 8000,
+        timeline: {
+          type: "kill-race",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+          deathTimeline: [],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.playerAdvantage).toBeNull();
+    });
+
+    it("returns null playerAdvantage when advantage never changes from 0", () => {
+      const data = aFakeScoreProgressionWith({
+        respawnDurationMs: 8000,
+        durationMs: 30000,
+        timeline: {
+          type: "kill-race",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+          deathTimeline: [
+            { timestampMs: 5000, teamId: 0 },
+            { timestampMs: 5000, teamId: 1 },
+          ],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.playerAdvantage).toBeNull();
+    });
+
+    it("computes positive advantage when team 1 has a player respawning", () => {
+      const data = aFakeScoreProgressionWith({
+        respawnDurationMs: 8000,
+        durationMs: 30000,
+        timeline: {
+          type: "kill-race",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+          deathTimeline: [{ timestampMs: 5001, teamId: 1 }],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.playerAdvantage?.points).toEqual([
+        { timestampMs: 0, score: 0 },
+        { timestampMs: 5001, score: 1 },
+        { timestampMs: 13001, score: 0 },
+        { timestampMs: 30000, score: 0 },
+      ]);
+    });
+
+    it("computes negative advantage when team 0 has a player respawning", () => {
+      const data = aFakeScoreProgressionWith({
+        respawnDurationMs: 8000,
+        durationMs: 30000,
+        timeline: {
+          type: "kill-race",
+          events: [{ timestampMs: 12000, teamId: 1, runningScores: { "0": 0, "1": 1 } }],
+          deathTimeline: [{ timestampMs: 12001, teamId: 0 }],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.playerAdvantage?.points).toEqual([
+        { timestampMs: 0, score: 0 },
+        { timestampMs: 12001, score: -1 },
+        { timestampMs: 20001, score: 0 },
+        { timestampMs: 30000, score: 0 },
+      ]);
+    });
+
+    it("omits respawn completion points past durationMs", () => {
+      const data = aFakeScoreProgressionWith({
+        respawnDurationMs: 8000,
+        durationMs: 10000,
+        timeline: {
+          type: "kill-race",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+          deathTimeline: [{ timestampMs: 5001, teamId: 1 }],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      // respawn at 5001 + 8000 = 13001 is past durationMs=10000 — no completion event
+      expect(result?.playerAdvantage?.points).toEqual([
+        { timestampMs: 0, score: 0 },
+        { timestampMs: 5001, score: 1 },
+        { timestampMs: 10000, score: 1 },
+      ]);
+    });
+
+    it("sets minScore, maxScore and zeroFraction from computed points", () => {
+      const data = aFakeScoreProgressionWith({
+        respawnDurationMs: 8000,
+        durationMs: 30000,
+        timeline: {
+          type: "kill-race",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+          deathTimeline: [
+            { timestampMs: 5001, teamId: 1 },
+            { timestampMs: 12001, teamId: 0 },
+          ],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.playerAdvantage?.minScore).toBe(-1);
+      expect(result?.playerAdvantage?.maxScore).toBe(1);
+      expect(result?.playerAdvantage?.zeroFraction).toBe(0.5);
+    });
+  });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ScoreProgressionPresenter } from "../score-progression-presenter";
 import { ScoreProgressionStore } from "../score-progression-store";
-import type { ScoreDeltaData, ScoreProgressionTeamLine } from "../types";
+import type { PlayerAdvantageData, ScoreDeltaData, ScoreProgressionTeamLine } from "../types";
 
 const aFakeScoreDeltaData = (): ScoreDeltaData => ({
   points: [
@@ -27,9 +27,21 @@ function makePresenter(): { store: ScoreProgressionStore; presenter: ScoreProgre
   return { store, presenter };
 }
 
+const aFakePlayerAdvantageData = (): PlayerAdvantageData => ({
+  points: [
+    { timestampMs: 0, score: 0 },
+    { timestampMs: 5100, score: 1 },
+    { timestampMs: 600000, score: 1 },
+  ],
+  minScore: 0,
+  maxScore: 1,
+  zeroFraction: 1,
+});
+
 const BASE_INPUT = {
   durationMs: 600000,
   teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
+  playerAdvantage: null,
   ariaLabel: "test chart",
 };
 
@@ -113,6 +125,46 @@ describe("ScoreProgressionPresenter", () => {
       store.update({ chartType: "delta" });
       const model = presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: aFakeScoreDeltaData() });
       expect(model.deltaViewModel?.tooltipFormatter(NaN)).toEqual(["Tied", "Score Delta"]);
+    });
+  });
+
+  describe("player advantage", () => {
+    it("sets hasPlayerAdvantage true when playerAdvantage is non-null", () => {
+      const { store, presenter } = makePresenter();
+      const model = presenter.present(store.getSnapshot(), {
+        ...BASE_INPUT,
+        scoreDelta: null,
+        playerAdvantage: aFakePlayerAdvantageData(),
+      });
+      expect(model.hasPlayerAdvantage).toBe(true);
+    });
+
+    it("sets hasPlayerAdvantage false when playerAdvantage is null", () => {
+      const { store, presenter } = makePresenter();
+      const model = presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: null });
+      expect(model.hasPlayerAdvantage).toBe(false);
+    });
+
+    it("passes null playerAdvantage to progressionViewModel when showPlayerAdvantage is false", () => {
+      const { store, presenter } = makePresenter();
+      const model = presenter.present(store.getSnapshot(), {
+        ...BASE_INPUT,
+        scoreDelta: null,
+        playerAdvantage: aFakePlayerAdvantageData(),
+      });
+      expect(model.progressionViewModel.playerAdvantage).toBeNull();
+    });
+
+    it("passes playerAdvantage to progressionViewModel when showPlayerAdvantage is true", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ showPlayerAdvantage: true });
+      const advantage = aFakePlayerAdvantageData();
+      const model = presenter.present(store.getSnapshot(), {
+        ...BASE_INPUT,
+        scoreDelta: null,
+        playerAdvantage: advantage,
+      });
+      expect(model.progressionViewModel.playerAdvantage).toBe(advantage);
     });
   });
 

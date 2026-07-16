@@ -3,6 +3,7 @@ import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type {
+  PlayerAdvantageData,
   ScoreDeltaData,
   ScoreProgressionPoint,
   ScoreProgressionTeamLine,
@@ -10,6 +11,7 @@ import type {
 } from "./types";
 
 type KillRaceEvent = NonNullable<MatchAnalytics["scoreProgression"]>["timeline"]["events"][number];
+type KillRaceDeathEvent = NonNullable<MatchAnalytics["scoreProgression"]>["timeline"]["deathTimeline"][number];
 
 function buildScoreDelta(
   teamIds: readonly number[],
@@ -51,6 +53,66 @@ function buildScoreDelta(
   return { points, minScore, maxScore, zeroFraction };
 }
 
+function buildPlayerAdvantage(
+  teamIds: readonly number[],
+  deathTimeline: readonly KillRaceDeathEvent[],
+  respawnDurationMs: number,
+  durationMs: number,
+): PlayerAdvantageData | null {
+  if (teamIds.length < 2 || deathTimeline.length === 0) {
+    return null;
+  }
+
+  const [teamId0, teamId1] = teamIds;
+
+  interface AdvantageEvent { timestampMs: number; teamId: number; delta: 1 | -1 }
+  const events: AdvantageEvent[] = [];
+  for (const death of deathTimeline) {
+    events.push({ timestampMs: death.timestampMs, teamId: death.teamId, delta: 1 });
+    const respawnTs = death.timestampMs + respawnDurationMs;
+    if (respawnTs <= durationMs) {
+      events.push({ timestampMs: respawnTs, teamId: death.teamId, delta: -1 });
+    }
+  }
+  events.sort((a, b) => a.timestampMs - b.timestampMs);
+
+  const respawning = new Map<number, number>([
+    [teamId0, 0],
+    [teamId1, 0],
+  ]);
+  const points: ScoreProgressionPoint[] = [{ timestampMs: 0, score: 0 }];
+  let minScore = 0;
+  let maxScore = 0;
+  let i = 0;
+
+  while (i < events.length) {
+    const ts = events[i].timestampMs;
+    while (i < events.length && events[i].timestampMs === ts) {
+      const { teamId, delta } = events[i];
+      respawning.set(teamId, (respawning.get(teamId) ?? 0) + delta);
+      i++;
+    }
+    // positive = team 0 has more active players (consistent with score delta sign)
+    const score = (respawning.get(teamId1) ?? 0) - (respawning.get(teamId0) ?? 0);
+    points.push({ timestampMs: ts, score });
+    if (score < minScore) {
+      minScore = score;
+    }
+    if (score > maxScore) {
+      maxScore = score;
+    }
+  }
+
+  points.push({ timestampMs: durationMs, score: points.at(-1)?.score ?? 0 });
+
+  const range = maxScore - minScore;
+  if (range === 0) {
+    return null;
+  }
+
+  return { points, minScore, maxScore, zeroFraction: maxScore / range };
+}
+
 export function formatScoreProgression(
   scoreProgression: MatchAnalytics["scoreProgression"],
   teamColors: readonly TeamColor[],
@@ -59,7 +121,7 @@ export function formatScoreProgression(
     return null;
   }
 
-  const { durationMs, timeline } = scoreProgression;
+  const { durationMs, timeline, respawnDurationMs } = scoreProgression;
   const { events } = timeline;
 
   const [firstEvent] = events;
@@ -99,5 +161,15 @@ export function formatScoreProgression(
     teamLines.push({ teamId, name: state.name, color: state.color, points: state.points });
   }
 
-  return { durationMs, teamLines, scoreDelta: buildScoreDelta(teamIds, events, durationMs) };
+  const playerAdvantage =
+    respawnDurationMs != null
+      ? buildPlayerAdvantage(teamIds, timeline.deathTimeline, respawnDurationMs, durationMs)
+      : null;
+
+  return {
+    durationMs,
+    teamLines,
+    scoreDelta: buildScoreDelta(teamIds, events, durationMs),
+    playerAdvantage,
+  };
 }

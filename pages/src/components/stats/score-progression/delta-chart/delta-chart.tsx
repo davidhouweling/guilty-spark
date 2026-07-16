@@ -12,21 +12,28 @@ import {
 } from "../chart-constants";
 import type { ScoreProgressionDeltaViewModel } from "../types";
 
+function formatAdvantage(value: number): string {
+  return value > 0 ? `+${String(value)}` : String(value);
+}
+
 export function DeltaChart({
   durationMs,
   scoreDelta,
   team0Color,
   team1Color,
+  playerAdvantage,
   tooltipFormatter,
 }: ScoreProgressionDeltaViewModel): React.ReactElement {
   const { points, minScore, maxScore, zeroFraction } = scoreDelta;
   const gradientId = React.useId();
   const strokeGradientId = `${gradientId}-stroke`;
+  const advantageGradientId = `${gradientId}-advantage`;
   const zeroPercent = `${(zeroFraction * 100).toFixed(2)}%`;
+  const margin = playerAdvantage != null ? { ...CHART_MARGIN, right: 36 } : CHART_MARGIN;
 
   return (
     <ResponsiveContainer width="100%" height={260}>
-      <AreaChart data={points} margin={CHART_MARGIN}>
+      <AreaChart data={points} margin={margin}>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset={zeroPercent} stopColor={team0Color} stopOpacity={0.4} />
@@ -37,10 +44,28 @@ export function DeltaChart({
             <stop offset={zeroPercent} stopColor={team0Color} />
             <stop offset={zeroPercent} stopColor={team1Color} />
           </linearGradient>
+          {playerAdvantage != null && (
+            <linearGradient id={advantageGradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset={`${(playerAdvantage.zeroFraction * 100).toFixed(2)}%`} stopColor={team0Color} />
+              <stop offset={`${(playerAdvantage.zeroFraction * 100).toFixed(2)}%`} stopColor={team1Color} />
+            </linearGradient>
+          )}
         </defs>
         <CartesianGrid strokeDasharray="4 4" stroke={GRID_STROKE} />
         <XAxis {...timeAxisProps(durationMs)} />
         <YAxis allowDecimals={false} width={36} domain={[minScore, maxScore]} stroke={AXIS_STROKE} tick={TICK_STYLE} />
+        {playerAdvantage != null && (
+          <YAxis
+            yAxisId="advantage"
+            orientation="right"
+            allowDecimals={false}
+            width={28}
+            domain={[playerAdvantage.minScore, playerAdvantage.maxScore]}
+            stroke={AXIS_STROKE}
+            tick={TICK_STYLE}
+            tickFormatter={formatAdvantage}
+          />
+        )}
         <ReferenceLine y={0} stroke={AXIS_STROKE} strokeDasharray="3 3" />
         <Tooltip
           contentStyle={tooltipContentStyle}
@@ -57,6 +82,24 @@ export function DeltaChart({
           dot={false}
           type="stepAfter"
         />
+        {playerAdvantage != null && (
+          <>
+            <ReferenceLine y={0} yAxisId="advantage" stroke={AXIS_STROKE} strokeDasharray="3 3" />
+            <Area
+              yAxisId="advantage"
+              data={playerAdvantage.points}
+              dataKey="score"
+              name="Player Advantage"
+              fill="none"
+              stroke={`url(#${advantageGradientId})`}
+              strokeWidth={1.5}
+              strokeDasharray="3 3"
+              dot={false}
+              type="stepAfter"
+              baseValue={0}
+            />
+          </>
+        )}
       </AreaChart>
     </ResponsiveContainer>
   );

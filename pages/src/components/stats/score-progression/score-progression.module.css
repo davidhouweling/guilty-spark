@@ -18,3 +18,19 @@
 .toolbarSelect {
   width: fit-content;
 }
+
+.toolbarCheckboxLabel {
+  align-items: center;
+  color: var(--halo-white);
+  cursor: pointer;
+  display: flex;
+  font-size: 12px;
+  gap: 6px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.toolbarCheckbox {
+  accent-color: var(--halo-teal, #5dd4d8);
+  cursor: pointer;
+}

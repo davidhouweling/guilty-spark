@@ -9,28 +9,48 @@ export function ScoreProgression({
   ariaLabel,
   effectiveChartType,
   hasDelta,
+  hasPlayerAdvantage,
+  showPlayerAdvantage,
   deltaViewModel,
   progressionViewModel,
   onChartTypeChange,
+  onPlayerAdvantageToggle,
 }: ScoreProgressionViewModel): React.ReactElement {
+  const showToolbar = hasDelta || hasPlayerAdvantage;
+
   return (
     <div className={styles.container}>
-      {hasDelta && (
+      {showToolbar && (
         <div className={styles.toolbar}>
-          <label htmlFor="chart-type-select" className={styles.toolbarLabel}>
-            Chart type
-          </label>
-          <Select
-            id="chart-type-select"
-            containerClassName={styles.toolbarSelect}
-            value={effectiveChartType}
-            onChange={(e) => {
-              onChartTypeChange(e.target.value);
-            }}
-          >
-            <option value="progression">Score Progression</option>
-            <option value="delta">Score Delta</option>
-          </Select>
+          {hasDelta && (
+            <>
+              <label htmlFor="chart-type-select" className={styles.toolbarLabel}>
+                Chart type
+              </label>
+              <Select
+                id="chart-type-select"
+                containerClassName={styles.toolbarSelect}
+                value={effectiveChartType}
+                onChange={(e) => {
+                  onChartTypeChange(e.target.value);
+                }}
+              >
+                <option value="progression">Score Progression</option>
+                <option value="delta">Score Delta</option>
+              </Select>
+            </>
+          )}
+          {hasPlayerAdvantage && (
+            <label className={styles.toolbarCheckboxLabel}>
+              <input
+                type="checkbox"
+                checked={showPlayerAdvantage}
+                onChange={onPlayerAdvantageToggle}
+                className={styles.toolbarCheckbox}
+              />
+              Player Advantage
+            </label>
+          )}
         </div>
       )}
       <div role="img" aria-label={ariaLabel}>

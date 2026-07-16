@@ -2,6 +2,7 @@ import { TICK_FILL } from "./chart-constants";
 import type { ScoreProgressionSnapshot, ScoreProgressionStore } from "./score-progression-store";
 import type {
   ChartType,
+  PlayerAdvantageData,
   ScoreDeltaData,
   ScoreProgressionDeltaViewModel,
   ScoreProgressionTeamLine,
@@ -16,6 +17,7 @@ export interface ScoreProgressionInput {
   readonly durationMs: number;
   readonly teamLines: readonly ScoreProgressionTeamLine[];
   readonly scoreDelta: ScoreDeltaData | null;
+  readonly playerAdvantage: PlayerAdvantageData | null;
   readonly ariaLabel: string;
 }
 
@@ -23,16 +25,21 @@ const DELTA_LABEL = "Score Delta";
 
 export class ScoreProgressionPresenter {
   readonly onChartTypeChange: (value: string) => void;
+  readonly onPlayerAdvantageToggle: () => void;
 
   constructor(private readonly config: ScoreProgressionPresenterConfig) {
     this.onChartTypeChange = (value: string): void => {
       this.setChartType(value);
     };
+    this.onPlayerAdvantageToggle = (): void => {
+      this.togglePlayerAdvantage();
+    };
   }
 
   present(snapshot: ScoreProgressionSnapshot, input: ScoreProgressionInput): ScoreProgressionViewModel {
-    const { chartType } = snapshot;
+    const { chartType, showPlayerAdvantage } = snapshot;
     const effectiveChartType: ChartType = chartType === "delta" && input.scoreDelta == null ? "progression" : chartType;
+    const effectivePlayerAdvantage = showPlayerAdvantage ? input.playerAdvantage : null;
 
     const team0Name = input.teamLines[0]?.name ?? "Team 1";
     const team1Name = input.teamLines[1]?.name ?? "Team 2";
@@ -44,6 +51,7 @@ export class ScoreProgressionPresenter {
             scoreDelta: input.scoreDelta,
             team0Color: input.teamLines[0]?.color ?? TICK_FILL,
             team1Color: input.teamLines[1]?.color ?? TICK_FILL,
+            playerAdvantage: effectivePlayerAdvantage,
             tooltipFormatter: (value: number | string | readonly (number | string)[] | undefined): [string, string] =>
               this.formatDeltaTooltip(value, team0Name, team1Name),
           }
@@ -53,12 +61,16 @@ export class ScoreProgressionPresenter {
       ariaLabel: input.ariaLabel,
       effectiveChartType,
       hasDelta: input.scoreDelta != null,
+      hasPlayerAdvantage: input.playerAdvantage != null,
+      showPlayerAdvantage,
       deltaViewModel,
       progressionViewModel: {
         durationMs: input.durationMs,
         teamLines: input.teamLines,
+        playerAdvantage: effectivePlayerAdvantage,
       },
       onChartTypeChange: this.onChartTypeChange,
+      onPlayerAdvantageToggle: this.onPlayerAdvantageToggle,
     };
   }
 
@@ -66,6 +78,10 @@ export class ScoreProgressionPresenter {
     if (value === "progression" || value === "delta") {
       this.config.store.update({ chartType: value });
     }
+  }
+
+  private togglePlayerAdvantage(): void {
+    this.config.store.update({ showPlayerAdvantage: !this.config.store.getSnapshot().showPlayerAdvantage });
   }
 
   private formatDeltaTooltip(
