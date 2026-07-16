@@ -273,11 +273,28 @@ describe("formatScoreProgression", () => {
         },
       });
       const result = formatScoreProgression(data, TEAM_COLORS);
-      // respawn at 5001 + 8000 = 13001 is past durationMs=10000 — no completion event
       expect(result?.playerAdvantage?.points).toEqual([
         { timestampMs: 0, score: 0 },
         { timestampMs: 5001, score: 1 },
         { timestampMs: 10000, score: 1 },
+      ]);
+    });
+
+    it("omits respawn completion when respawnTs equals durationMs, avoiding duplicate terminal point", () => {
+      const data = aFakeScoreProgressionWith({
+        respawnDurationMs: 8000,
+        durationMs: 13001,
+        timeline: {
+          type: "kill-race",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+          deathTimeline: [{ timestampMs: 5001, teamId: 1 }],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.playerAdvantage?.points).toEqual([
+        { timestampMs: 0, score: 0 },
+        { timestampMs: 5001, score: 1 },
+        { timestampMs: 13001, score: 1 },
       ]);
     });
 

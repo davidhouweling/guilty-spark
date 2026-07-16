@@ -6,16 +6,13 @@ import {
   GRID_STROKE,
   TICK_FILL,
   TICK_STYLE,
+  formatAdvantage,
   timeAxisProps,
   tooltipContentStyle,
   tooltipLabelStyle,
   formatTooltipLabel,
 } from "../chart-constants";
 import type { ScoreProgressionProgressionViewModel } from "../types";
-
-function formatAdvantage(value: number): string {
-  return value > 0 ? `+${String(value)}` : String(value);
-}
 
 export function ProgressionChart({
   durationMs,

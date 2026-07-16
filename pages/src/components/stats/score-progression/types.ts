@@ -54,6 +54,7 @@ export interface ScoreProgressionViewModel {
   readonly hasDelta: boolean;
   readonly hasPlayerAdvantage: boolean;
   readonly showPlayerAdvantage: boolean;
+  readonly showToolbar: boolean;
   readonly deltaViewModel: ScoreProgressionDeltaViewModel | null;
   readonly progressionViewModel: ScoreProgressionProgressionViewModel;
   readonly onChartTypeChange: (value: string) => void;

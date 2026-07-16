@@ -57,12 +57,16 @@ export class ScoreProgressionPresenter {
           }
         : null;
 
+    const hasDelta = input.scoreDelta != null;
+    const hasPlayerAdvantage = input.playerAdvantage != null;
+
     return {
       ariaLabel: input.ariaLabel,
       effectiveChartType,
-      hasDelta: input.scoreDelta != null,
-      hasPlayerAdvantage: input.playerAdvantage != null,
+      hasDelta,
+      hasPlayerAdvantage,
       showPlayerAdvantage,
+      showToolbar: hasDelta || hasPlayerAdvantage,
       deltaViewModel,
       progressionViewModel: {
         durationMs: input.durationMs,

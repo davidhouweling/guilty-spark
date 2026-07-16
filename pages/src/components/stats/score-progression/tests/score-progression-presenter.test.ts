@@ -128,6 +128,30 @@ describe("ScoreProgressionPresenter", () => {
     });
   });
 
+  describe("showToolbar", () => {
+    it("sets showToolbar true when scoreDelta is non-null", () => {
+      const { store, presenter } = makePresenter();
+      const model = presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: aFakeScoreDeltaData() });
+      expect(model.showToolbar).toBe(true);
+    });
+
+    it("sets showToolbar true when playerAdvantage is non-null", () => {
+      const { store, presenter } = makePresenter();
+      const model = presenter.present(store.getSnapshot(), {
+        ...BASE_INPUT,
+        scoreDelta: null,
+        playerAdvantage: aFakePlayerAdvantageData(),
+      });
+      expect(model.showToolbar).toBe(true);
+    });
+
+    it("sets showToolbar false when both scoreDelta and playerAdvantage are null", () => {
+      const { store, presenter } = makePresenter();
+      const model = presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: null });
+      expect(model.showToolbar).toBe(false);
+    });
+  });
+
   describe("player advantage", () => {
     it("sets hasPlayerAdvantage true when playerAdvantage is non-null", () => {
       const { store, presenter } = makePresenter();

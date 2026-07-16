@@ -5,16 +5,13 @@ import {
   CHART_MARGIN,
   GRID_STROKE,
   TICK_STYLE,
+  formatAdvantage,
   timeAxisProps,
   tooltipContentStyle,
   tooltipLabelStyle,
   formatTooltipLabel,
 } from "../chart-constants";
 import type { ScoreProgressionDeltaViewModel } from "../types";
-
-function formatAdvantage(value: number): string {
-  return value > 0 ? `+${String(value)}` : String(value);
-}
 
 export function DeltaChart({
   durationMs,
@@ -30,6 +27,15 @@ export function DeltaChart({
   const advantageGradientId = `${gradientId}-advantage`;
   const zeroPercent = `${(zeroFraction * 100).toFixed(2)}%`;
   const margin = playerAdvantage != null ? { ...CHART_MARGIN, right: 36 } : CHART_MARGIN;
+  const wrappedTooltipFormatter = (
+    value: number | string | readonly (number | string)[] | undefined,
+    name: string | number | undefined,
+  ): [string, string] => {
+    if (name === "Player Advantage") {
+      return [typeof value === "number" ? formatAdvantage(value) : String(value), "Player Advantage"];
+    }
+    return tooltipFormatter(value);
+  };
 
   return (
     <ResponsiveContainer width="100%" height={260}>
@@ -71,7 +77,7 @@ export function DeltaChart({
           contentStyle={tooltipContentStyle}
           labelStyle={tooltipLabelStyle}
           labelFormatter={formatTooltipLabel}
-          formatter={tooltipFormatter}
+          formatter={wrappedTooltipFormatter}
         />
         <Area
           dataKey="score"

@@ -70,7 +70,7 @@ function buildPlayerAdvantage(
   for (const death of deathTimeline) {
     events.push({ timestampMs: death.timestampMs, teamId: death.teamId, delta: 1 });
     const respawnTs = death.timestampMs + respawnDurationMs;
-    if (respawnTs <= durationMs) {
+    if (respawnTs < durationMs) {
       events.push({ timestampMs: respawnTs, teamId: death.teamId, delta: -1 });
     }
   }
@@ -92,7 +92,6 @@ function buildPlayerAdvantage(
       respawning.set(teamId, (respawning.get(teamId) ?? 0) + delta);
       i++;
     }
-    // positive = team 0 has more active players (consistent with score delta sign)
     const score = (respawning.get(teamId1) ?? 0) - (respawning.get(teamId0) ?? 0);
     points.push({ timestampMs: ts, score });
     if (score < minScore) {

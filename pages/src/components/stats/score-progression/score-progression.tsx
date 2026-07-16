@@ -11,13 +11,12 @@ export function ScoreProgression({
   hasDelta,
   hasPlayerAdvantage,
   showPlayerAdvantage,
+  showToolbar,
   deltaViewModel,
   progressionViewModel,
   onChartTypeChange,
   onPlayerAdvantageToggle,
 }: ScoreProgressionViewModel): React.ReactElement {
-  const showToolbar = hasDelta || hasPlayerAdvantage;
-
   return (
     <div className={styles.container}>
       {showToolbar && (
