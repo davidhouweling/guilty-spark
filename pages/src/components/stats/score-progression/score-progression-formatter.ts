@@ -1,4 +1,8 @@
-import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type {
+  KillRaceDeathEvent,
+  KillRaceEvent,
+  MatchAnalytics,
+} from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
@@ -9,9 +13,6 @@ import type {
   ScoreProgressionTeamLine,
   ScoreProgressionViewData,
 } from "./types";
-
-type KillRaceEvent = NonNullable<MatchAnalytics["scoreProgression"]>["timeline"]["events"][number];
-type KillRaceDeathEvent = NonNullable<MatchAnalytics["scoreProgression"]>["timeline"]["deathTimeline"][number];
 
 function buildScoreDelta(
   teamIds: readonly number[],
