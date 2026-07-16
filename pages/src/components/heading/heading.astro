@@ -1,0 +1,17 @@
+---
+import styles from "./heading.module.css";
+
+type HeadingTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+
+interface Props {
+  tagName: HeadingTag;
+  class?: string;
+}
+
+const { tagName, class: className } = Astro.props;
+const Tag = tagName;
+---
+
+<Tag class:list={[styles.heading, styles[tagName], className]}>
+  <slot />
+</Tag>

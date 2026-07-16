@@ -1,0 +1,22 @@
+---
+import Layout from "../layouts/layout.astro";
+import Container from "../components/container/container.astro";
+import Heading from "../components/heading/heading.astro";
+import styles from "./_styles/legal-page.module.css";
+import PrivacyPolicyMarkdown from "./_generated/legal/privacy-policy.md";
+---
+
+<Layout title="Privacy Policy - Guilty Spark" description="Privacy policy for Guilty Spark services and website tools.">
+  <section class={styles.legalPage}>
+    <Container>
+      <header class={styles.heroBlock}>
+        <p class={styles.eyebrow}>Legal Transmission</p>
+        <Heading tagName="h1" class={styles.title}>Privacy Policy</Heading>
+      </header>
+
+      <article class={styles.markdownContent}>
+        <PrivacyPolicyMarkdown />
+      </article>
+    </Container>
+  </section>
+</Layout>

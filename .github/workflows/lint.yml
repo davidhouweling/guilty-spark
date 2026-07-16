@@ -29,6 +29,9 @@ jobs:
       - name: Copy API environment file
         run: cp api/.example.dev.vars api/.dev.vars
 
+      - name: Sync legal markdown
+        run: npm run sync:legal-markdown --workspace=pages
+
       - name: Run format
         run: npm run format
 
