@@ -42,7 +42,7 @@ export function DeltaChart({
 
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-      <AreaChart data={points} margin={margin}>
+      <AreaChart margin={margin}>
         <defs>
           <linearGradient id={gradientId} x1="0" y1={plotTop} x2="0" y2={plotBottom} gradientUnits="userSpaceOnUse">
             <stop offset={zeroPercent} stopColor={team0Color} stopOpacity={0.4} />
@@ -97,6 +97,7 @@ export function DeltaChart({
           formatter={wrappedTooltipFormatter}
         />
         <Area
+          data={points}
           dataKey="score"
           baseValue={0}
           stroke={`url(#${strokeGradientId})`}
