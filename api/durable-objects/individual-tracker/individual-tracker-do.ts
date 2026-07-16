@@ -329,26 +329,24 @@ function normalizeRankTier(rankTier: string | null | undefined): string | null {
   return rankTier;
 }
 
-type ManualSeriesTeamInput = {
+interface ManualSeriesTeamInput {
   name: string;
   members: readonly string[];
-};
+}
 
-type ManualSeriesResolvedUser = {
+interface ManualSeriesResolvedUser {
   xuid: string;
   gamertag: string;
-};
+}
 
-type DiscordAssociation = Awaited<
-  ReturnType<Services["databaseService"]["getDiscordAssociationsByXboxId"]>
->[number];
+type DiscordAssociation = Awaited<ReturnType<Services["databaseService"]["getDiscordAssociationsByXboxId"]>>[number];
 
-type ManualSeriesEnrichmentData = {
+interface ManualSeriesEnrichmentData {
   rankedArenaCsrs: Map<string, PlaylistCsrContainer>;
   esras: Map<string, PlayerEsraData>;
   associationByXuid: Map<string, DiscordAssociation>;
   linkedIdentityByXuid: Map<string, string | null>;
-};
+}
 
 export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
