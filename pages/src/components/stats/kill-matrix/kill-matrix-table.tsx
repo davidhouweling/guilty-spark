@@ -103,12 +103,10 @@ export function KillMatrixTable({
   const cellTeamStyle = (rowTeamId: number | null, colTeamId: number | null): React.CSSProperties =>
     ({ "--row-team-color": teamColorOf(rowTeamId), "--col-team-color": teamColorOf(colTeamId) }) as React.CSSProperties;
 
+  const isCrossTeamTransposedActive = isTransposed && swappedCrossTeamData != null;
+
   const activeCrossTeamData =
-    crossTeamData != null
-      ? isTransposed && swappedCrossTeamData != null
-        ? swappedCrossTeamData
-        : crossTeamData
-      : null;
+    crossTeamData != null ? (isCrossTeamTransposedActive ? swappedCrossTeamData : crossTeamData) : null;
 
   const renderCrossTeamCell = (kills: number, deaths: number): React.ReactNode => (
     <span className={styles.crossTeamCell}>
@@ -211,8 +209,8 @@ export function KillMatrixTable({
   const crossTeamColCount = crossTeamColHeaders.length > 0 ? crossTeamColHeaders.length : 4;
 
   const crossTeamShimmerColumns = React.useMemo<SortableTableColumn<{ index: number }>[]>(() => {
-    const rowHeaders = isTransposed ? crossTeamColHeaders : crossTeamRowHeaders;
-    const colHeaders = isTransposed ? crossTeamRowHeaders : crossTeamColHeaders;
+    const rowHeaders = isCrossTeamTransposedActive ? crossTeamColHeaders : crossTeamRowHeaders;
+    const colHeaders = isCrossTeamTransposedActive ? crossTeamRowHeaders : crossTeamColHeaders;
     const cols: SortableTableColumn<{ index: number }>[] = [
       {
         id: "xyHeader",
@@ -233,7 +231,7 @@ export function KillMatrixTable({
     ];
 
     const shimmerColCount =
-      colHeaders.length > 0 ? colHeaders.length : isTransposed ? crossTeamRowCount : crossTeamColCount;
+      colHeaders.length > 0 ? colHeaders.length : isCrossTeamTransposedActive ? crossTeamRowCount : crossTeamColCount;
     for (let i = 0; i < shimmerColCount; i++) {
       const header = i < colHeaders.length ? colHeaders[i] : null;
       const colTeamId = header?.teamId ?? null;
@@ -266,11 +264,13 @@ export function KillMatrixTable({
     crossTeamColHeaders,
     crossTeamRowCount,
     crossTeamColCount,
-    isTransposed,
+    isCrossTeamTransposedActive,
     teamColors,
+    swappedCrossTeamData,
   ]);
 
-  const activeRowCount = crossTeamData != null ? (isTransposed ? crossTeamColCount : crossTeamRowCount) : undefined;
+  const activeRowCount =
+    crossTeamData != null ? (isCrossTeamTransposedActive ? crossTeamColCount : crossTeamRowCount) : undefined;
   const crossTeamShimmerRows = React.useMemo(
     () => Array.from({ length: activeRowCount ?? crossTeamRowCount }, (_, i) => ({ index: i })),
     [activeRowCount, crossTeamRowCount],

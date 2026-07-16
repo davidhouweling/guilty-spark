@@ -238,12 +238,12 @@ export class KillMatrixFormatter {
     if (teamIds.length !== 2) {
       return null;
     }
-    const [team0Id, team1Id] = teamIds;
-    const team0Players = orderedPlayers.filter((p) => p.teamId === team0Id);
-    const team1Players = orderedPlayers.filter((p) => p.teamId === team1Id);
+    const [firstTeamId, secondTeamId] = teamIds;
+    const firstTeamPlayers = orderedPlayers.filter((p) => p.teamId === firstTeamId);
+    const secondTeamPlayers = orderedPlayers.filter((p) => p.teamId === secondTeamId);
     return {
-      crossTeamData: KillMatrixFormatter.pivotCrossTeam(rows, team0Players, team1Players),
-      swappedCrossTeamData: KillMatrixFormatter.pivotCrossTeam(rows, team1Players, team0Players),
+      crossTeamData: KillMatrixFormatter.pivotCrossTeam(rows, firstTeamPlayers, secondTeamPlayers),
+      swappedCrossTeamData: KillMatrixFormatter.pivotCrossTeam(rows, secondTeamPlayers, firstTeamPlayers),
     };
   }
 
