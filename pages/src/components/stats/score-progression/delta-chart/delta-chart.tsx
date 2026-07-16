@@ -4,7 +4,6 @@ import {
   AXIS_STROKE,
   CHART_MARGIN,
   GRID_STROKE,
-  TICK_FILL,
   TICK_STYLE,
   timeAxisProps,
   tooltipContentStyle,
@@ -22,6 +21,7 @@ export function DeltaChart({
 }: ScoreProgressionDeltaViewModel): React.ReactElement {
   const { points, minScore, maxScore, zeroFraction } = scoreDelta;
   const gradientId = React.useId();
+  const strokeGradientId = `${gradientId}-stroke`;
   const zeroPercent = `${(zeroFraction * 100).toFixed(2)}%`;
 
   return (
@@ -32,6 +32,10 @@ export function DeltaChart({
             <stop offset={zeroPercent} stopColor={team0Color} stopOpacity={0.4} />
             <stop offset={zeroPercent} stopColor={team1Color} stopOpacity={0.4} />
             <stop offset="100%" stopColor={team1Color} stopOpacity={0.4} />
+          </linearGradient>
+          <linearGradient id={strokeGradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset={zeroPercent} stopColor={team0Color} />
+            <stop offset={zeroPercent} stopColor={team1Color} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="4 4" stroke={GRID_STROKE} />
@@ -47,7 +51,7 @@ export function DeltaChart({
         <Area
           dataKey="score"
           baseValue={0}
-          stroke={TICK_FILL}
+          stroke={`url(#${strokeGradientId})`}
           strokeWidth={2}
           fill={`url(#${gradientId})`}
           dot={false}
