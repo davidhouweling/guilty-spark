@@ -302,6 +302,120 @@ describe("buildViewerRenderModel", () => {
     expect(seriesItems.find((item) => item.series.id === "series-recent")?.series.isActive).toBe(true);
   });
 
+  it("injects a dedicated active pre-series row when active context exists but no series matches are tracked yet", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [],
+      series: [],
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Alpha vs Beta",
+        subtitle: "Bo5",
+        guildIconUrl: "https://cdn.example.com/icon.png",
+        teams: [
+          {
+            id: 0,
+            name: "Alpha",
+            players: [{ discordId: null, discordName: "AlphaOne", gamertag: "AlphaTag", xboxId: null }],
+          },
+          {
+            id: 1,
+            name: "Beta",
+            players: [{ discordId: null, discordName: null, gamertag: "BetaTag", xboxId: null }],
+          },
+        ],
+      },
+    });
+
+    const model = buildViewerRenderModel({ view });
+    expect(model.timeline).toHaveLength(1);
+
+    const [first] = model.timeline;
+    expect(first.type).toBe("series");
+    if (first.type === "series") {
+      expect(first.series.isActive).toBe(true);
+      expect(first.series.title).toBe("Alpha vs Beta");
+      expect(first.series.subtitle).toBe("Bo5");
+      expect(first.series.guildIconUrl).toBe("https://cdn.example.com/icon.png");
+      expect(first.series.matches).toHaveLength(0);
+      expect(first.series.teams[0]?.players[0]?.discordName).toBe("AlphaOne");
+      expect(first.series.teams[1]?.players[0]?.gamertag).toBe("BetaTag");
+      expect(first.series.preSeriesTableData?.teams[0]?.name).toBe("Alpha");
+      expect(first.series.preSeriesTableData?.playersAssociationData).toBeDefined();
+      const alphaPlayerAssociationData = first.series.preSeriesTableData?.playersAssociationData["0:AlphaTag"];
+      expect(alphaPlayerAssociationData?.discordName).toBe("AlphaOne");
+      expect(alphaPlayerAssociationData?.gamertag).toBe("AlphaTag");
+    }
+  });
+
+  it("replaces the pending pre-series row once active series match data is available", () => {
+    const pendingView = aFakeTrackerViewStateWith({
+      matches: [],
+      series: [],
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Alpha vs Beta",
+        subtitle: "Bo3",
+        teams: [
+          {
+            id: 0,
+            name: "Alpha",
+            players: [{ discordId: null, discordName: "AlphaOne", gamertag: "AlphaTag", xboxId: null }],
+          },
+          {
+            id: 1,
+            name: "Beta",
+            players: [{ discordId: null, discordName: "BetaOne", gamertag: "BetaTag", xboxId: null }],
+          },
+        ],
+      },
+    });
+
+    const pendingModel = buildViewerRenderModel({ view: pendingView });
+    expect(pendingModel.timeline).toHaveLength(1);
+    expect(pendingModel.timeline[0]?.type).toBe("series");
+    if (pendingModel.timeline[0]?.type === "series") {
+      expect(pendingModel.timeline[0].series.matches).toHaveLength(0);
+    }
+
+    const activeSeriesView = aFakeTrackerViewStateWith({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1" }), aFakeTrackerMatchSummaryWith({ matchId: "m2" })],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          id: "series-live",
+          title: "Alpha vs Beta",
+          subtitle: "Bo3",
+          matchIds: ["m1", "m2"],
+        }),
+      ],
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Alpha vs Beta",
+        subtitle: "Bo3",
+        teams: [
+          {
+            id: 0,
+            name: "Alpha",
+            players: [{ discordId: null, discordName: "AlphaOne", gamertag: "AlphaTag", xboxId: null }],
+          },
+          {
+            id: 1,
+            name: "Beta",
+            players: [{ discordId: null, discordName: "BetaOne", gamertag: "BetaTag", xboxId: null }],
+          },
+        ],
+      },
+    });
+
+    const activeModel = buildViewerRenderModel({ view: activeSeriesView });
+    expect(activeModel.timeline).toHaveLength(1);
+    expect(activeModel.timeline[0]?.type).toBe("series");
+    if (activeModel.timeline[0]?.type === "series") {
+      expect(activeModel.timeline[0].series.id).toBe("series-live");
+      expect(activeModel.timeline[0].series.matches).toHaveLength(2);
+      expect(activeModel.timeline[0].series.isActive).toBe(true);
+    }
+  });
+
   it("maps active series context teams onto the active series tab", () => {
     const view = aFakeTrackerViewStateWith({
       matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1" }), aFakeTrackerMatchSummaryWith({ matchId: "m2" })],

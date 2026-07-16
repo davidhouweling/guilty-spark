@@ -1,5 +1,6 @@
 import type { PreSeriesPlayerInfo, StatsHighlightItem } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
+import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import type { NormalizedMatchOutcome } from "@guilty-spark/shared/halo/match-enrichment";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
@@ -33,6 +34,7 @@ export interface ViewerSeriesTab {
   readonly guildIconUrl?: string | null;
   readonly isActive: boolean;
   readonly teams: readonly ViewerSeriesTeam[];
+  readonly preSeriesTableData?: ViewerPreSeriesTableData;
   readonly matchBackgroundUrls: readonly string[];
   readonly score: string;
   readonly duration: string;
@@ -45,14 +47,34 @@ export interface ViewerSeriesTab {
 }
 
 export interface ViewerSeriesTeamPlayer {
+  readonly discordId?: string | null;
   readonly discordName: string | null;
   readonly gamertag: string | null;
+  readonly xboxId?: string | null;
+  readonly currentRank?: number | null;
+  readonly currentRankTier?: string | null;
+  readonly currentRankSubTier?: number | null;
+  readonly currentRankMeasurementMatchesRemaining?: number | null;
+  readonly currentRankInitialMeasurementMatches?: number | null;
+  readonly allTimePeakRank?: number | null;
+  readonly esra?: number | null;
+  readonly lastRankedGamePlayed?: string | null;
 }
 
 export interface ViewerSeriesTeam {
   readonly id: number;
   readonly name: string;
   readonly players: readonly ViewerSeriesTeamPlayer[];
+}
+
+export interface ViewerPreSeriesTableTeam {
+  readonly name: string;
+  readonly players: readonly { id: string; displayName: string }[];
+}
+
+export interface ViewerPreSeriesTableData {
+  readonly teams: readonly ViewerPreSeriesTableTeam[];
+  readonly playersAssociationData: Record<string, PlayerAssociationData>;
 }
 
 export interface ViewerActiveSeriesContext {

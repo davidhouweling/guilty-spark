@@ -29,6 +29,14 @@ export const trackerSeriesPlayerSchema = z.object({
   discordName: z.string().nullable(),
   gamertag: z.string().nullable(),
   xboxId: z.string().nullable(),
+  currentRank: z.number().nullable().optional(),
+  currentRankTier: z.string().nullable().optional(),
+  currentRankSubTier: z.number().nullable().optional(),
+  currentRankMeasurementMatchesRemaining: z.number().nullable().optional(),
+  currentRankInitialMeasurementMatches: z.number().nullable().optional(),
+  allTimePeakRank: z.number().nullable().optional(),
+  esra: z.number().nullable().optional(),
+  lastRankedGamePlayed: z.string().nullable().optional(),
 });
 export type TrackerSeriesPlayer = z.infer<typeof trackerSeriesPlayerSchema>;
 
@@ -53,6 +61,14 @@ export const trackerSeriesGroupSchema = z.object({
 });
 export type TrackerSeriesGroup = z.infer<typeof trackerSeriesGroupSchema>;
 
+export const trackerActiveSeriesContextSchema = z.object({
+  title: z.string(),
+  subtitle: z.string().nullable(),
+  guildIconUrl: z.string().nullable().optional(),
+  teams: z.array(trackerSeriesTeamSchema),
+});
+export type TrackerActiveSeriesContext = z.infer<typeof trackerActiveSeriesContextSchema>;
+
 export const trackerLiveViewSchema = z.object({
   trackerId: z.string(),
   gamertag: z.string(),
@@ -65,14 +81,7 @@ export const trackerLiveViewSchema = z.object({
   hasActiveSeries: z.boolean(),
   hasRecentCompletedSeries: z.boolean(),
   searchStartTime: z.string().optional(),
-  activeSeriesContext: z
-    .object({
-      title: z.string(),
-      subtitle: z.string().nullable(),
-      guildIconUrl: z.string().nullable().optional(),
-      teams: z.array(trackerSeriesTeamSchema),
-    })
-    .optional(),
+  activeSeriesContext: trackerActiveSeriesContextSchema.optional(),
 });
 export type TrackerLiveView = z.infer<typeof trackerLiveViewSchema>;
 

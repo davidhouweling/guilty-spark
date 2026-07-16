@@ -100,4 +100,21 @@ describe("RealMatchAnalyticsService.getBatchMatchAnalytics", () => {
 
     expect(result).toEqual({ "match-ok": analytics, "match-fail": null });
   });
+
+  it("omits trackerId query param when trackerId is blank after trimming", async () => {
+    const analytics = aFakeAnalyticsResponseWith();
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ results: { "match-1": analytics } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await service.getBatchMatchAnalytics(["match-1"], ["killMatrix"], "   ");
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "https://api.example.com/api/stats/match-analytics?matchIds=match-1&modules=killMatrix",
+      { credentials: "include" },
+    );
+  });
 });

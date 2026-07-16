@@ -14,6 +14,7 @@ import { OutcomeBadge } from "../../outcome-badge/outcome-badge";
 import { MatchStats } from "../../stats/match-stats";
 import { StatsHeader } from "../../stats/stats-header";
 import { SeriesStatsView } from "../../series-stats/series-stats";
+import { PlayerPreSeriesInfo } from "../../player-pre-series-info/player-pre-series-info";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import { gameModeIconSrc } from "../game-mode-icon";
 import { StatsHighlights } from "./stats-highlights";
@@ -122,6 +123,14 @@ function parseDate(value: string | null): Date | null {
 function formatDate(value: string | null): string {
   const date = parseDate(value);
   return date == null ? "unknown" : date.toLocaleString();
+}
+
+function preSeriesStatusMessage(totalTrackedMatches: number): string {
+  if (totalTrackedMatches === 0) {
+    return "Series is active and waiting for the first tracked match.";
+  }
+
+  return "Series is active and waiting for additional tracked matches.";
 }
 
 function handleEntryHeaderKeyDown(
@@ -578,7 +587,19 @@ export function IndividualTrackerViewer({
 
                   {isExpanded && (
                     <div className={classNames(styles.entryBody, styles.seriesEntryBody)}>
-                      {state == null || (state.kind === "series" && state.state.status === "loading") ? (
+                      {series.matches.length === 0 ? (
+                        <div className={styles.preSeriesPanel}>
+                          <Alert variant="info">{preSeriesStatusMessage(renderModel.accumulated.total)}</Alert>
+                          {series.preSeriesTableData != null && series.teams.length > 0 && (
+                            <PlayerPreSeriesInfo
+                              className={styles.preSeriesInfo}
+                              teams={series.preSeriesTableData.teams}
+                              playersAssociationData={series.preSeriesTableData.playersAssociationData}
+                              teamColors={renderModel.teamColors}
+                            />
+                          )}
+                        </div>
+                      ) : state == null || (state.kind === "series" && state.state.status === "loading") ? (
                         <LoadingState text="Loading series stats..." />
                       ) : state.kind === "series" && state.state.status === "error" ? (
                         <Alert variant="error">{state.state.message}</Alert>
