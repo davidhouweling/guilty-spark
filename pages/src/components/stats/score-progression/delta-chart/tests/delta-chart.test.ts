@@ -9,7 +9,6 @@ describe("ScoreProgressionDeltaViewModel", () => {
         points: [{ timestampMs: 0, score: 0 }],
         minScore: 0,
         maxScore: 1,
-        zeroFraction: 1,
       },
       team0Color: "#ff0000",
       team1Color: "#0000ff",

@@ -48,9 +48,8 @@ function buildScoreDelta(
   if (range === 0) {
     return null;
   }
-  const zeroFraction = maxScore / range;
 
-  return { points, minScore, maxScore, zeroFraction };
+  return { points, minScore, maxScore };
 }
 
 function buildPlayerAdvantage(
@@ -115,9 +114,9 @@ function buildPlayerAdvantage(
   }
 
   if (teamSize != null) {
-    return { points, minScore: -teamSize, maxScore: teamSize, zeroFraction: 0.5 };
+    return { points, minScore: -teamSize, maxScore: teamSize };
   }
-  return { points, minScore, maxScore, zeroFraction: maxScore / range };
+  return { points, minScore, maxScore };
 }
 
 export function formatScoreProgression(

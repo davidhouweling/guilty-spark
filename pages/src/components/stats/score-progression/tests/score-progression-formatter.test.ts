@@ -117,7 +117,7 @@ describe("formatScoreProgression", () => {
       expect(result?.scoreDelta?.maxScore).toBe(1);
     });
 
-    it("sets zeroFraction to maxScore / range for mixed positive and negative deltas", () => {
+    it("sets minScore and maxScore for mixed positive and negative deltas", () => {
       const data = aFakeScoreProgressionWith({
         timeline: {
           type: "kill-race",
@@ -132,31 +132,6 @@ describe("formatScoreProgression", () => {
       const result = formatScoreProgression(data, TEAM_COLORS);
       expect(result?.scoreDelta?.minScore).toBe(-1);
       expect(result?.scoreDelta?.maxScore).toBe(1);
-      expect(result?.scoreDelta?.zeroFraction).toBe(0.5);
-    });
-
-    it("sets zeroFraction to 0 when team1 always leads", () => {
-      const data = aFakeScoreProgressionWith({
-        timeline: {
-          type: "kill-race",
-          events: [{ timestampMs: 5000, teamId: 1, runningScores: { "0": 0, "1": 1 } }],
-          deathTimeline: [],
-        },
-      });
-      const result = formatScoreProgression(data, TEAM_COLORS);
-      expect(result?.scoreDelta?.zeroFraction).toBe(0);
-    });
-
-    it("sets zeroFraction to 1 when team0 always leads", () => {
-      const data = aFakeScoreProgressionWith({
-        timeline: {
-          type: "kill-race",
-          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
-          deathTimeline: [],
-        },
-      });
-      const result = formatScoreProgression(data, TEAM_COLORS);
-      expect(result?.scoreDelta?.zeroFraction).toBe(1);
     });
 
     it("returns null scoreDelta when only one team is present", () => {
@@ -298,7 +273,7 @@ describe("formatScoreProgression", () => {
       ]);
     });
 
-    it("sets minScore, maxScore and zeroFraction from computed points", () => {
+    it("sets minScore and maxScore from computed points", () => {
       const data = aFakeScoreProgressionWith({
         respawnDurationMs: 8000,
         durationMs: 30000,
@@ -314,7 +289,6 @@ describe("formatScoreProgression", () => {
       const result = formatScoreProgression(data, TEAM_COLORS);
       expect(result?.playerAdvantage?.minScore).toBe(-1);
       expect(result?.playerAdvantage?.maxScore).toBe(1);
-      expect(result?.playerAdvantage?.zeroFraction).toBe(0.5);
     });
 
     it("bounds minScore and maxScore to ±teamSize when teamSize is provided", () => {
@@ -330,7 +304,6 @@ describe("formatScoreProgression", () => {
       const result = formatScoreProgression(data, TEAM_COLORS, 4);
       expect(result?.playerAdvantage?.minScore).toBe(-4);
       expect(result?.playerAdvantage?.maxScore).toBe(4);
-      expect(result?.playerAdvantage?.zeroFraction).toBe(0.5);
     });
   });
 });

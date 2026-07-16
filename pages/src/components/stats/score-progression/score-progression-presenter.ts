@@ -93,7 +93,7 @@ export class ScoreProgressionPresenter {
       return scoreDelta;
     }
     const maxAbsDelta = Math.max(Math.abs(scoreDelta.minScore), Math.abs(scoreDelta.maxScore));
-    return { ...scoreDelta, minScore: -maxAbsDelta, maxScore: maxAbsDelta, zeroFraction: 0.5 };
+    return { ...scoreDelta, minScore: -maxAbsDelta, maxScore: maxAbsDelta };
   }
 
   private setChartType(value: string): void {

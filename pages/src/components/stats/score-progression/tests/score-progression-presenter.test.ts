@@ -11,7 +11,6 @@ const aFakeScoreDeltaData = (): ScoreDeltaData => ({
   ],
   minScore: 0,
   maxScore: 1,
-  zeroFraction: 1,
 });
 
 const aFakeTeamLine = (name: string, color: string, teamId = 0): ScoreProgressionTeamLine => ({
@@ -35,7 +34,6 @@ const aFakePlayerAdvantageData = (): PlayerAdvantageData => ({
   ],
   minScore: 0,
   maxScore: 1,
-  zeroFraction: 1,
 });
 
 const BASE_INPUT = {
@@ -217,12 +215,11 @@ describe("ScoreProgressionPresenter", () => {
       store.update({ showPlayerAdvantage: true, chartType: "delta" });
       const model = presenter.present(store.getSnapshot(), {
         ...BASE_INPUT,
-        scoreDelta: { ...aFakeScoreDeltaData(), minScore: -1, maxScore: 3, zeroFraction: 0.75 },
+        scoreDelta: { ...aFakeScoreDeltaData(), minScore: -1, maxScore: 3 },
         playerAdvantage: aFakePlayerAdvantageData(),
       });
       expect(model.deltaViewModel?.scoreDelta.minScore).toBe(-3);
       expect(model.deltaViewModel?.scoreDelta.maxScore).toBe(3);
-      expect(model.deltaViewModel?.scoreDelta.zeroFraction).toBe(0.5);
     });
 
     it("preserves original scoreDelta domain when playerAdvantage is hidden", () => {
@@ -230,12 +227,11 @@ describe("ScoreProgressionPresenter", () => {
       store.update({ chartType: "delta" });
       const model = presenter.present(store.getSnapshot(), {
         ...BASE_INPUT,
-        scoreDelta: { ...aFakeScoreDeltaData(), minScore: -1, maxScore: 3, zeroFraction: 0.75 },
+        scoreDelta: { ...aFakeScoreDeltaData(), minScore: -1, maxScore: 3 },
         playerAdvantage: aFakePlayerAdvantageData(),
       });
       expect(model.deltaViewModel?.scoreDelta.minScore).toBe(-1);
       expect(model.deltaViewModel?.scoreDelta.maxScore).toBe(3);
-      expect(model.deltaViewModel?.scoreDelta.zeroFraction).toBe(0.75);
     });
   });
 
