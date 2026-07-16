@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 export const GRID_STROKE = "rgba(93, 212, 216, 0.12)";
 export const AXIS_STROKE = "rgba(93, 212, 216, 0.3)";
 export const TICK_FILL = "#8fa3b0";
@@ -17,8 +19,6 @@ export function formatTime(ms: number): string {
   const seconds = totalSeconds % 60;
   return `${String(minutes)}:${String(seconds).padStart(2, "0")}`;
 }
-
-import type { ReactNode } from "react";
 
 export function formatTooltipLabel(label: ReactNode): string {
   if (typeof label === "number") {

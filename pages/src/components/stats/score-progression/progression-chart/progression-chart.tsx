@@ -12,13 +12,6 @@ import {
 } from "../chart-constants";
 import type { ScoreProgressionProgressionViewModel } from "../types";
 
-function formatProgressionValue(
-  value: number | string | readonly (number | string)[] | undefined,
-  name: string | number | undefined,
-): [number | string | readonly (number | string)[] | undefined, string | number | undefined] {
-  return [value, name];
-}
-
 export function ProgressionChart({ durationMs, teamLines }: ScoreProgressionProgressionViewModel): React.ReactElement {
   return (
     <ResponsiveContainer width="100%" height={260}>
@@ -30,7 +23,6 @@ export function ProgressionChart({ durationMs, teamLines }: ScoreProgressionProg
           contentStyle={tooltipContentStyle}
           labelStyle={tooltipLabelStyle}
           labelFormatter={formatTooltipLabel}
-          formatter={formatProgressionValue}
         />
         {teamLines.map((line) => (
           <Area
