@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 export const GRID_STROKE = "rgba(93, 212, 216, 0.12)";
 export const AXIS_STROKE = "rgba(93, 212, 216, 0.3)";
 export const TICK_FILL = "#8fa3b0";
+export const ADVANTAGE_STROKE = "#e8f4f8";
 export const TICK_FONT_SIZE = 11;
 
 export const tooltipContentStyle = {
