@@ -302,4 +302,156 @@ describe("KillMatrixFormatter", () => {
       expect(result.tableRows[0].kills.get("Alpha")).toBe(5);
     });
   });
+
+  describe("pivotCrossTeam", () => {
+    const team0Players = [
+      { xuid: "111", gamertag: "Alpha", teamId: 0 },
+      { xuid: "333", gamertag: "Charlie", teamId: 0 },
+    ];
+    const team1Players = [
+      { xuid: "222", gamertag: "Bravo", teamId: 1 },
+      { xuid: "444", gamertag: "Delta", teamId: 1 },
+    ];
+
+    const rows: KillMatrixViewRow[] = [
+      {
+        key: "111:222",
+        killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+        victim: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+        count: 3,
+        headshotKills: 0,
+        perfects: 0,
+        classification: "enemy-kill",
+      },
+      {
+        key: "222:111",
+        killer: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+        victim: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+        count: 1,
+        headshotKills: 0,
+        perfects: 0,
+        classification: "enemy-kill",
+      },
+      {
+        key: "333:333",
+        killer: { xuid: "333", gamertag: "Charlie", teamId: 0 },
+        victim: { xuid: "333", gamertag: "Charlie", teamId: 0 },
+        count: 1,
+        headshotKills: 0,
+        perfects: 0,
+        classification: "suicide",
+      },
+      {
+        key: "111:333",
+        killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+        victim: { xuid: "333", gamertag: "Charlie", teamId: 0 },
+        count: 2,
+        headshotKills: 0,
+        perfects: 0,
+        classification: "betrayal",
+      },
+    ];
+
+    it("builds a row per team-0 player with kills:deaths per team-1 column", () => {
+      const result = KillMatrixFormatter.pivotCrossTeam(rows, team0Players, team1Players);
+
+      expect(result.tableRows).toHaveLength(2);
+      expect(result.columnHeaders.map((h) => h.gamertag)).toEqual(["Bravo", "Delta"]);
+      expect(result.tableRows[0]).toMatchObject({ playerId: "111", playerGamertag: "Alpha", playerTeamId: 0 });
+      expect(result.tableRows[0].cells.get("Bravo")).toEqual({ kills: 3, deaths: 1 });
+      expect(result.tableRows[0].cells.get("Delta")).toEqual({ kills: 0, deaths: 0 });
+      expect(result.tableRows[1]).toMatchObject({ playerId: "333", playerGamertag: "Charlie", playerTeamId: 0 });
+      expect(result.tableRows[1].cells.get("Bravo")).toEqual({ kills: 0, deaths: 0 });
+    });
+
+    it("excludes betrayals and suicides from cells and reports them in the footnote", () => {
+      const result = KillMatrixFormatter.pivotCrossTeam(rows, team0Players, team1Players);
+
+      expect(result.footnote).toEqual({ betrayals: 1, suicides: 1 });
+    });
+
+    it("returns null footnote when there are no betrayals or suicides", () => {
+      const enemyRows = rows.filter((r) => r.classification === "enemy-kill");
+      const result = KillMatrixFormatter.pivotCrossTeam(enemyRows, team0Players, team1Players);
+
+      expect(result.footnote).toBeNull();
+    });
+
+    it("returns empty tableRows when no team-0 players are provided", () => {
+      const result = KillMatrixFormatter.pivotCrossTeam(rows, [], team1Players);
+
+      expect(result.tableRows).toHaveLength(0);
+      expect(result.columnHeaders.map((h) => h.gamertag)).toEqual(["Bravo", "Delta"]);
+    });
+  });
+
+  describe("buildCrossTeam", () => {
+    const team0 = [
+      { xuid: "111", gamertag: "Alpha", teamId: 0 },
+      { xuid: "333", gamertag: "Charlie", teamId: 0 },
+    ];
+    const team1 = [
+      { xuid: "222", gamertag: "Bravo", teamId: 1 },
+      { xuid: "444", gamertag: "Delta", teamId: 1 },
+    ];
+    const orderedPlayers = [...team0, ...team1];
+
+    const rows: KillMatrixViewRow[] = [
+      {
+        key: "111:222",
+        killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+        victim: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+        count: 4,
+        headshotKills: 0,
+        perfects: 0,
+        classification: "enemy-kill",
+      },
+      {
+        key: "222:111",
+        killer: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+        victim: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+        count: 2,
+        headshotKills: 0,
+        perfects: 0,
+        classification: "enemy-kill",
+      },
+    ];
+
+    it("returns crossTeamData with team-0 rows and swappedCrossTeamData with team-1 rows when exactly 2 teams", () => {
+      const result = KillMatrixFormatter.buildCrossTeam(rows, orderedPlayers);
+
+      expect(result).not.toBeNull();
+      expect(result?.crossTeamData.tableRows.map((r) => r.playerGamertag)).toEqual(["Alpha", "Charlie"]);
+      expect(result?.swappedCrossTeamData.tableRows.map((r) => r.playerGamertag)).toEqual(["Bravo", "Delta"]);
+    });
+
+    it("swappedCrossTeamData has kills and deaths mirrored from crossTeamData", () => {
+      const result = KillMatrixFormatter.buildCrossTeam(rows, orderedPlayers);
+
+      const alphaVsBravo = result?.crossTeamData.tableRows[0]?.cells.get("Bravo");
+      const bravoVsAlpha = result?.swappedCrossTeamData.tableRows[0]?.cells.get("Alpha");
+
+      expect(alphaVsBravo).toEqual({ kills: 4, deaths: 2 });
+      expect(bravoVsAlpha).toEqual({ kills: 2, deaths: 4 });
+    });
+
+    it("returns null when all players have no teamId", () => {
+      const noTeamPlayers = orderedPlayers.map((p) => ({ ...p, teamId: null }));
+      expect(KillMatrixFormatter.buildCrossTeam(rows, noTeamPlayers)).toBeNull();
+    });
+
+    it("returns null when there is only 1 distinct teamId", () => {
+      const singleTeamPlayers = orderedPlayers.map((p) => ({ ...p, teamId: 0 }));
+      expect(KillMatrixFormatter.buildCrossTeam(rows, singleTeamPlayers)).toBeNull();
+    });
+
+    it("returns null when there are 3 or more distinct teamIds", () => {
+      const threeTeamPlayers = [
+        { xuid: "111", gamertag: "Alpha", teamId: 0 },
+        { xuid: "222", gamertag: "Bravo", teamId: 1 },
+        { xuid: "333", gamertag: "Charlie", teamId: 2 },
+      ];
+      expect(KillMatrixFormatter.buildCrossTeam(rows, threeTeamPlayers)).toBeNull();
+    });
+  });
 });
