@@ -61,10 +61,10 @@ export function KillMatrixTable({
   const teamColorOf = (teamId: number | null): string =>
     (teamId != null ? teamColors?.[teamId]?.hex : undefined) ?? "transparent";
 
-  const xyHeader = (
+  const renderXyHeader = (labels = true): React.ReactNode => (
     <>
-      <span className={styles.xAxisLabel}>{xAxisLabel}</span>
-      <span className={styles.yAxisLabel}>{yAxisLabel}</span>
+      {labels && <span className={styles.xAxisLabel}>{xAxisLabel}</span>}
+      {labels && <span className={styles.yAxisLabel}>{yAxisLabel}</span>}
       <Button
         variant="secondary"
         className={styles.swap}
@@ -124,7 +124,7 @@ export function KillMatrixTable({
     const cols: SortableTableColumn<KillMatrixCrossTeamRow>[] = [
       {
         id: "xyHeader",
-        header: xyHeader,
+        header: renderXyHeader(false),
         accessorFn: (row: KillMatrixCrossTeamRow): string => row.playerGamertag,
         sortingFn: "alphanumeric",
         cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
@@ -169,7 +169,7 @@ export function KillMatrixTable({
     const cols: SortableTableColumn<KillMatrixPivotRow>[] = [
       {
         id: "xyHeader",
-        header: xyHeader,
+        header: renderXyHeader(),
         accessorFn: (row: KillMatrixPivotRow): string => row.killerGamertag,
         sortingFn: "alphanumeric",
         cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
@@ -214,7 +214,7 @@ export function KillMatrixTable({
     const cols: SortableTableColumn<{ index: number }>[] = [
       {
         id: "xyHeader",
-        header: xyHeader,
+        header: renderXyHeader(false),
         accessorFn: (row): number => row.index,
         sortingFn: "alphanumeric",
         cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
@@ -293,7 +293,7 @@ export function KillMatrixTable({
     const cols: SortableTableColumn<{ index: number }>[] = [
       {
         id: "xyHeader",
-        header: xyHeader,
+        header: renderXyHeader(),
         accessorFn: (row): number => row.index,
         sortingFn: "alphanumeric",
         cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
