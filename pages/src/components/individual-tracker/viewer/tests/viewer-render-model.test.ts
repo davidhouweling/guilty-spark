@@ -341,9 +341,7 @@ describe("buildViewerRenderModel", () => {
       expect(first.series.teams[1]?.players[0]?.gamertag).toBe("BetaTag");
       expect(first.series.preSeriesTableData?.teams[0]?.name).toBe("Alpha");
       expect(first.series.preSeriesTableData?.playersAssociationData).toBeDefined();
-      const alphaPlayerAssociationData = first.series.preSeriesTableData?.playersAssociationData[
-        "0:AlphaTag"
-      ];
+      const alphaPlayerAssociationData = first.series.preSeriesTableData?.playersAssociationData["0:AlphaTag"];
       expect(alphaPlayerAssociationData?.discordName).toBe("AlphaOne");
       expect(alphaPlayerAssociationData?.gamertag).toBe("AlphaTag");
     }

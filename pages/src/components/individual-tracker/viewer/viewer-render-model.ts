@@ -15,6 +15,7 @@ import type {
   ViewerAccumulatedStats,
   ViewerMatchTab,
   ViewerPreSeriesTableData,
+  ViewerSeriesTeamPlayer,
   ViewerSeriesTeam,
   ViewerSeriesTab,
   ViewerTimelineItem,
@@ -29,6 +30,35 @@ export interface BuildViewerRenderModelOptions {
 const UNKNOWN_KDA_DISPLAY = "-:-:- (-)";
 const UNKNOWN_DAMAGE_RATIO_DISPLAY = "-:- (-)";
 const PENDING_ACTIVE_SERIES_ID_PREFIX = "pending-active-series";
+
+type ActiveSeriesContext = NonNullable<TrackerViewState["activeSeriesContext"]>;
+type ActiveSeriesTeam = ActiveSeriesContext["teams"][number];
+type ActiveSeriesPlayer = ActiveSeriesTeam["players"][number];
+
+function toViewerSeriesTeamPlayer(player: ActiveSeriesPlayer): ViewerSeriesTeamPlayer {
+  return {
+    discordId: player.discordId,
+    discordName: player.discordName,
+    gamertag: player.gamertag,
+    xboxId: player.xboxId,
+    currentRank: player.currentRank,
+    currentRankTier: player.currentRankTier,
+    currentRankSubTier: player.currentRankSubTier,
+    currentRankMeasurementMatchesRemaining: player.currentRankMeasurementMatchesRemaining,
+    currentRankInitialMeasurementMatches: player.currentRankInitialMeasurementMatches,
+    allTimePeakRank: player.allTimePeakRank,
+    esra: player.esra,
+    lastRankedGamePlayed: player.lastRankedGamePlayed,
+  };
+}
+
+function toViewerSeriesTeam(team: ActiveSeriesTeam): ViewerSeriesTeam {
+  return {
+    id: team.id,
+    name: team.name,
+    players: team.players.map(toViewerSeriesTeamPlayer),
+  };
+}
 
 function findActiveSeriesId(view: TrackerViewState): string | null {
   if (!view.hasActiveSeries || view.activeSeriesContext == null) {
@@ -61,24 +91,7 @@ function getSeriesTeams(
     return [];
   }
 
-  return view.activeSeriesContext.teams.map((team) => ({
-    id: team.id,
-    name: team.name,
-    players: team.players.map((player) => ({
-      discordId: player.discordId,
-      discordName: player.discordName,
-      gamertag: player.gamertag,
-      xboxId: player.xboxId,
-      currentRank: player.currentRank,
-      currentRankTier: player.currentRankTier,
-      currentRankSubTier: player.currentRankSubTier,
-      currentRankMeasurementMatchesRemaining: player.currentRankMeasurementMatchesRemaining,
-      currentRankInitialMeasurementMatches: player.currentRankInitialMeasurementMatches,
-      allTimePeakRank: player.allTimePeakRank,
-      esra: player.esra,
-      lastRankedGamePlayed: player.lastRankedGamePlayed,
-    })),
-  }));
+  return view.activeSeriesContext.teams.map(toViewerSeriesTeam);
 }
 
 function toViewerActiveSeriesContext(view: TrackerViewState): ViewerActiveSeriesContext | undefined {
@@ -90,88 +103,7 @@ function toViewerActiveSeriesContext(view: TrackerViewState): ViewerActiveSeries
     title: view.activeSeriesContext.title,
     subtitle: view.activeSeriesContext.subtitle,
     guildIconUrl: view.activeSeriesContext.guildIconUrl ?? null,
-    teams: view.activeSeriesContext.teams.map((team) => ({
-      id: team.id,
-      name: team.name,
-      players: team.players.map((player) => ({
-        discordId: player.discordId,
-        discordName: player.discordName,
-        gamertag: player.gamertag,
-        xboxId: player.xboxId,
-        currentRank: player.currentRank,
-        currentRankTier: player.currentRankTier,
-        currentRankSubTier: player.currentRankSubTier,
-        currentRankMeasurementMatchesRemaining: player.currentRankMeasurementMatchesRemaining,
-        currentRankInitialMeasurementMatches: player.currentRankInitialMeasurementMatches,
-        allTimePeakRank: player.allTimePeakRank,
-        esra: player.esra,
-        lastRankedGamePlayed: player.lastRankedGamePlayed,
-      })),
-    })),
-  };
-}
-
-function toPendingActiveSeriesTab(view: TrackerViewState): ViewerSeriesTab {
-  const { activeSeriesContext } = view;
-  if (activeSeriesContext == null) {
-    throw new Error("Expected active series context when building pending active series tab");
-  }
-
-  const activeSubtitle = activeSeriesContext.subtitle ?? "";
-
-  return {
-    id: `${PENDING_ACTIVE_SERIES_ID_PREFIX}:${activeSeriesContext.title}:${activeSubtitle}`,
-    title: activeSeriesContext.title,
-    subtitle: activeSubtitle,
-    guildIconUrl: activeSeriesContext.guildIconUrl ?? null,
-    isActive: true,
-    teams: activeSeriesContext.teams.map((team) => ({
-      id: team.id,
-      name: team.name,
-      players: team.players.map((player) => ({
-        discordId: player.discordId,
-        discordName: player.discordName,
-        gamertag: player.gamertag,
-        xboxId: player.xboxId,
-        currentRank: player.currentRank,
-        currentRankTier: player.currentRankTier,
-        currentRankSubTier: player.currentRankSubTier,
-        currentRankMeasurementMatchesRemaining: player.currentRankMeasurementMatchesRemaining,
-        currentRankInitialMeasurementMatches: player.currentRankInitialMeasurementMatches,
-        allTimePeakRank: player.allTimePeakRank,
-        esra: player.esra,
-        lastRankedGamePlayed: player.lastRankedGamePlayed,
-      })),
-    })),
-    preSeriesTableData: toPreSeriesTableData(
-      activeSeriesContext.teams.map((team) => ({
-        id: team.id,
-        name: team.name,
-        players: team.players.map((player) => ({
-          discordId: player.discordId,
-          discordName: player.discordName,
-          gamertag: player.gamertag,
-          xboxId: player.xboxId,
-          currentRank: player.currentRank,
-          currentRankTier: player.currentRankTier,
-          currentRankSubTier: player.currentRankSubTier,
-          currentRankMeasurementMatchesRemaining: player.currentRankMeasurementMatchesRemaining,
-          currentRankInitialMeasurementMatches: player.currentRankInitialMeasurementMatches,
-          allTimePeakRank: player.allTimePeakRank,
-          esra: player.esra,
-          lastRankedGamePlayed: player.lastRankedGamePlayed,
-        })),
-      })),
-    ),
-    matchBackgroundUrls: [],
-    score: "-",
-    duration: "unknown",
-    killsDeathsAssistsKda: UNKNOWN_KDA_DISPLAY,
-    damageDealtTakenRatio: UNKNOWN_DAMAGE_RATIO_DISPLAY,
-    startTime: "",
-    endTime: "",
-    matches: [],
-    colorHex: undefined,
+    teams: view.activeSeriesContext.teams.map(toViewerSeriesTeam),
   };
 }
 
@@ -226,6 +158,35 @@ function toPreSeriesTableData(teams: readonly ViewerSeriesTeam[]): ViewerPreSeri
   return {
     teams: tableTeams,
     playersAssociationData,
+  };
+}
+
+function toPendingActiveSeriesTab(view: TrackerViewState): ViewerSeriesTab {
+  const { activeSeriesContext } = view;
+  if (activeSeriesContext == null) {
+    throw new Error("Expected active series context when building pending active series tab");
+  }
+
+  const activeSubtitle = activeSeriesContext.subtitle ?? "";
+  const teams = activeSeriesContext.teams.map(toViewerSeriesTeam);
+
+  return {
+    id: `${PENDING_ACTIVE_SERIES_ID_PREFIX}:${activeSeriesContext.title}:${activeSubtitle}`,
+    title: activeSeriesContext.title,
+    subtitle: activeSubtitle,
+    guildIconUrl: activeSeriesContext.guildIconUrl ?? null,
+    isActive: true,
+    teams,
+    preSeriesTableData: toPreSeriesTableData(teams),
+    matchBackgroundUrls: [],
+    score: "-",
+    duration: "unknown",
+    killsDeathsAssistsKda: UNKNOWN_KDA_DISPLAY,
+    damageDealtTakenRatio: UNKNOWN_DAMAGE_RATIO_DISPLAY,
+    startTime: "",
+    endTime: "",
+    matches: [],
+    colorHex: undefined,
   };
 }
 
