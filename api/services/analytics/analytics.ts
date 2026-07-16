@@ -5,6 +5,7 @@ import {
   type KillMatrixEntry as ContractKillMatrixEntry,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
+import { KILL_RACE_RESPAWN_DURATION_MS } from "@guilty-spark/shared/halo/respawn-durations";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { HaloService } from "../halo/halo";
 import type { HaloFilmService } from "../halo/halo-film";
@@ -64,6 +65,7 @@ export class AnalyticsService {
           mode,
           durationMs: Math.round(getDurationInSeconds(matchStats.MatchInfo.Duration) * 1000),
           teamCount: progression.teamCount,
+          respawnDurationMs: KILL_RACE_RESPAWN_DURATION_MS[mode] ?? null,
           timeline: { type: "kill-race", events: progression.events, deathTimeline: progression.deathTimeline },
         };
       }

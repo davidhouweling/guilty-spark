@@ -74,6 +74,7 @@ export const matchAnalyticsSchema = z.object({
       mode: z.number().int().nonnegative(),
       durationMs: z.number().int().nonnegative(),
       teamCount: z.number().int().positive(),
+      respawnDurationMs: z.number().int().positive().nullable(),
       timeline: killRaceTimelineSchema,
     })
     .nullable(),

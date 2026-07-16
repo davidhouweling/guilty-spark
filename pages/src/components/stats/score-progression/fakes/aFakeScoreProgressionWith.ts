@@ -7,6 +7,7 @@ export function aFakeScoreProgressionWith(
     mode: 9,
     durationMs: 600000,
     teamCount: 2,
+    respawnDurationMs: 8000,
     timeline: {
       type: "kill-race",
       events: [
