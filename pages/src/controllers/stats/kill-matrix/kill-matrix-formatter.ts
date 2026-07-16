@@ -186,11 +186,11 @@ export class KillMatrixFormatter {
 
     for (const row of rows) {
       if (row.classification === "betrayal") {
-        betrayals++;
+        betrayals += row.count;
         continue;
       }
       if (row.classification === "suicide") {
-        suicides++;
+        suicides += row.count;
         continue;
       }
       if (!killCounts.has(row.killer.xuid)) {

@@ -221,10 +221,13 @@ export function KillMatrixTable({
         sortingFn: "alphanumeric",
         cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
         cellStyle:
-          teamColors != null ? (row): React.CSSProperties => rowTeamStyle(rowHeaders[row.index].teamId) : undefined,
+          teamColors != null
+            ? (row): React.CSSProperties =>
+                rowTeamStyle(row.index < rowHeaders.length ? rowHeaders[row.index].teamId : null)
+            : undefined,
         cell: (_value, row): React.ReactNode => {
-          const ph = rowHeaders[row.index];
-          return renderPlayerHeader(ph.gamertag, ph.teamId);
+          const ph = row.index < rowHeaders.length ? rowHeaders[row.index] : null;
+          return renderPlayerHeader(ph?.gamertag ?? "", ph?.teamId ?? null);
         },
       },
     ];
@@ -242,7 +245,8 @@ export function KillMatrixTable({
         cellClassName: styles.killCell,
         cellStyle:
           teamColors != null
-            ? (row): React.CSSProperties => cellTeamStyle(rowHeaders[row.index].teamId, colTeamId)
+            ? (row): React.CSSProperties =>
+                cellTeamStyle(row.index < rowHeaders.length ? rowHeaders[row.index].teamId : null, colTeamId)
             : undefined,
         cell: (): React.ReactNode => (
           <span className={styles.shimmerContainer}>
@@ -253,7 +257,7 @@ export function KillMatrixTable({
     }
 
     return cols;
-  }, [yAxisLabel, crossTeamRowHeaders, crossTeamColHeaders, isTransposed, teamColors]);
+  }, [xAxisLabel, yAxisLabel, crossTeamRowHeaders, crossTeamColHeaders, isTransposed, teamColors]);
 
   const activeRowCount = crossTeamData != null ? (isTransposed ? crossTeamColCount : crossTeamRowCount) : undefined;
   const crossTeamShimmerRows = React.useMemo(

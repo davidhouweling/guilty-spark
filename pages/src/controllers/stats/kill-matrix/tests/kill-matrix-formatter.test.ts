@@ -367,7 +367,7 @@ describe("KillMatrixFormatter", () => {
     it("excludes betrayals and suicides from cells and reports them in the footnote", () => {
       const result = KillMatrixFormatter.pivotCrossTeam(rows, team0Players, team1Players);
 
-      expect(result.footnote).toEqual({ betrayals: 1, suicides: 1 });
+      expect(result.footnote).toEqual({ betrayals: 2, suicides: 1 });
     });
 
     it("returns null footnote when there are no betrayals or suicides", () => {
