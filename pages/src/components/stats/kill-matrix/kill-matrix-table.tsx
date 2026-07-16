@@ -161,7 +161,7 @@ export function KillMatrixTable({
     }
 
     return cols;
-  }, [effectiveStatus, xyHeader, activeCrossTeamData, teamColors]);
+  }, [effectiveStatus, xAxisLabel, yAxisLabel, activeCrossTeamData, teamColors]);
 
   const columns = React.useMemo<SortableTableColumn<KillMatrixPivotRow>[]>(() => {
     if (effectiveStatus !== ComponentLoaderStatus.LOADED) {

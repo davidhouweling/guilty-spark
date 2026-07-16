@@ -231,6 +231,9 @@ export class KillMatrixFormatter {
     rows: readonly KillMatrixViewRow[],
     orderedPlayers: readonly KillMatrixPlayer[],
   ): CrossTeamPair | null {
+    if (orderedPlayers.some((p) => p.teamId == null)) {
+      return null;
+    }
     const teamIds = [...new Set(orderedPlayers.map((p) => p.teamId).filter((id): id is number => id != null))];
     if (teamIds.length !== 2) {
       return null;

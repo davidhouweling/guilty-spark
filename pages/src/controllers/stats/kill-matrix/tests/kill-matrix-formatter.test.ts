@@ -453,5 +453,10 @@ describe("KillMatrixFormatter", () => {
       ];
       expect(KillMatrixFormatter.buildCrossTeam(rows, threeTeamPlayers)).toBeNull();
     });
+
+    it("returns null when any orderedPlayer has a null teamId alongside non-null teamIds", () => {
+      const mixedPlayers = [...orderedPlayers, { xuid: "555", gamertag: "Echo", teamId: null }];
+      expect(KillMatrixFormatter.buildCrossTeam(rows, mixedPlayers)).toBeNull();
+    });
   });
 });
