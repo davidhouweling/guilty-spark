@@ -87,6 +87,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     });
     vi.spyOn(haloFilmService, "buildKillRaceProgression").mockResolvedValue({
       events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+      deathTimeline: [{ timestampMs: 5100, teamId: 1 }],
       teamCount: 2,
     });
 
@@ -98,8 +99,10 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     expect(results["match-1"]?.scoreProgression?.mode).toBe(GameVariantCategory.MultiplayerSlayer);
     expect(results["match-1"]?.scoreProgression?.durationMs).toBe(525500);
     expect(results["match-1"]?.scoreProgression?.teamCount).toBe(2);
+    expect(results["match-1"]?.scoreProgression?.respawnDurationMs).toBe(8000);
     expect(results["match-1"]?.scoreProgression?.timeline.type).toBe("kill-race");
     expect(results["match-1"]?.scoreProgression?.timeline.events).toHaveLength(1);
+    expect(results["match-1"]?.scoreProgression?.timeline.deathTimeline).toEqual([{ timestampMs: 5100, teamId: 1 }]);
   });
 
   it("returns scoreProgression null when scoreProgression module is requested but match has no teams", async () => {
@@ -143,6 +146,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     });
     vi.spyOn(haloFilmService, "buildKillRaceProgression").mockResolvedValue({
       events: [],
+      deathTimeline: [],
       teamCount: 2,
     });
 

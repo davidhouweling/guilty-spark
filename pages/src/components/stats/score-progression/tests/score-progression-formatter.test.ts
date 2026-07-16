@@ -13,7 +13,7 @@ describe("formatScoreProgression", () => {
   });
 
   it("returns null when timeline has no events", () => {
-    const data = aFakeScoreProgressionWith({ timeline: { type: "kill-race", events: [] } });
+    const data = aFakeScoreProgressionWith({ timeline: { type: "kill-race", events: [], deathTimeline: [] } });
     expect(formatScoreProgression(data, TEAM_COLORS)).toBeNull();
   });
 
@@ -82,6 +82,7 @@ describe("formatScoreProgression", () => {
       timeline: {
         type: "kill-race",
         events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+        deathTimeline: [],
       },
     });
     const result = formatScoreProgression(data, TEAM_COLORS);
@@ -125,6 +126,7 @@ describe("formatScoreProgression", () => {
             { timestampMs: 10000, teamId: 0, runningScores: { "0": 1, "1": 1 } },
             { timestampMs: 15000, teamId: 0, runningScores: { "0": 2, "1": 1 } },
           ],
+          deathTimeline: [],
         },
       });
       const result = formatScoreProgression(data, TEAM_COLORS);
@@ -138,6 +140,7 @@ describe("formatScoreProgression", () => {
         timeline: {
           type: "kill-race",
           events: [{ timestampMs: 5000, teamId: 1, runningScores: { "0": 0, "1": 1 } }],
+          deathTimeline: [],
         },
       });
       const result = formatScoreProgression(data, TEAM_COLORS);
@@ -149,6 +152,7 @@ describe("formatScoreProgression", () => {
         timeline: {
           type: "kill-race",
           events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+          deathTimeline: [],
         },
       });
       const result = formatScoreProgression(data, TEAM_COLORS);
@@ -160,6 +164,7 @@ describe("formatScoreProgression", () => {
         timeline: {
           type: "kill-race",
           events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1 } }],
+          deathTimeline: [],
         },
       });
       const result = formatScoreProgression(data, TEAM_COLORS);
@@ -174,6 +179,7 @@ describe("formatScoreProgression", () => {
             { timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 1 } },
             { timestampMs: 10000, teamId: 1, runningScores: { "0": 2, "1": 2 } },
           ],
+          deathTimeline: [],
         },
       });
       const result = formatScoreProgression(data, TEAM_COLORS);
