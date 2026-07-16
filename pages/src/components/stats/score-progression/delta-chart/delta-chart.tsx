@@ -7,6 +7,7 @@ import {
   CHART_PLOT_HEIGHT,
   GRID_STROKE,
   TICK_STYLE,
+  X_AXIS_HEIGHT,
   formatAdvantage,
   timeAxisProps,
   tooltipContentStyle,
@@ -75,7 +76,7 @@ export function DeltaChart({
           )}
         </defs>
         <CartesianGrid strokeDasharray="4 4" stroke={GRID_STROKE} />
-        <XAxis {...timeAxisProps(durationMs)} />
+        <XAxis height={X_AXIS_HEIGHT} {...timeAxisProps(durationMs)} />
         <YAxis allowDecimals={false} width={36} domain={[minScore, maxScore]} stroke={AXIS_STROKE} tick={TICK_STYLE} />
         {playerAdvantage != null && (
           <YAxis
