@@ -11,6 +11,9 @@ const killRaceDeathEventSchema = z.object({
   teamId: z.number().int().nonnegative(),
 });
 
+export type KillRaceEvent = z.infer<typeof killRaceEventSchema>;
+export type KillRaceDeathEvent = z.infer<typeof killRaceDeathEventSchema>;
+
 const killRaceTimelineSchema = z.object({
   type: z.literal("kill-race"),
   events: z.array(killRaceEventSchema),

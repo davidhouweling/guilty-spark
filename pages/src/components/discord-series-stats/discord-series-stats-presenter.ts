@@ -222,7 +222,11 @@ export class DiscordSeriesStatsPresenter {
         transposedKillMatrixPivotData:
           rows != null ? KillMatrixFormatter.transpose(rows, orderedPlayers) : EMPTY_KILL_MATRIX_PIVOT_DATA,
         killMatrixStatus: snapshot.analyticsStatus,
-        scoreProgressionViewData: formatScoreProgression(analytics?.scoreProgression ?? null, teamColors),
+        scoreProgressionViewData: formatScoreProgression(
+          analytics?.scoreProgression ?? null,
+          teamColors,
+          seriesData?.teamData[0]?.players.length ?? null,
+        ),
       };
       if (!isMatchStats(match.rawMatch)) {
         return { ...base, data: null };

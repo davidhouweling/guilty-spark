@@ -18,3 +18,7 @@
 .toolbarSelect {
   width: fit-content;
 }
+
+.toolbarCheckbox {
+  margin-left: auto;
+}
