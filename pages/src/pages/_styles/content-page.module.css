@@ -1,0 +1,115 @@
+.contentPage {
+  min-height: 100vh;
+  padding: 92px 0 var(--space-20);
+}
+
+.heroBlock {
+  margin-bottom: var(--space-12);
+  text-align: center;
+}
+
+.eyebrow {
+  color: var(--halo-teal-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  margin-bottom: var(--space-3);
+  text-transform: uppercase;
+}
+
+.title {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: clamp(2.2rem, 7vw, 3.6rem);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin-bottom: var(--space-5);
+  text-transform: uppercase;
+}
+
+.subtitle {
+  color: var(--halo-gray);
+  font-family: var(--font-body);
+  font-size: clamp(1rem, 3vw, 1.2rem);
+  line-height: 1.8;
+  margin: 0 auto;
+  max-width: 900px;
+}
+
+.section {
+  margin-top: var(--space-12);
+}
+
+.grid {
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: 1fr;
+}
+
+.card {
+  background: color-mix(in srgb, var(--halo-bg-secondary) 92%, black 8%);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
+  border-radius: 14px;
+  padding: var(--space-6);
+}
+
+.card h3 {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-3);
+  text-transform: uppercase;
+}
+
+.card p,
+.card li {
+  color: var(--halo-gray);
+  font-family: var(--font-body);
+  line-height: 1.7;
+}
+
+.card ul,
+.steps {
+  margin: var(--space-3) 0 0;
+  padding-left: var(--space-6);
+}
+
+.mediaItem {
+  margin-top: var(--space-5);
+}
+
+.mediaItem img {
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
+  border-radius: 12px;
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.mediaItem figcaption {
+  color: var(--halo-gray);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  margin-top: var(--space-3);
+}
+
+.actions {
+  display: flex;
+  flex-flow: row wrap;
+  gap: var(--space-4);
+  justify-content: center;
+  margin-top: var(--space-8);
+}
+
+@media (--tablet-viewport) {
+  .contentPage {
+    padding-top: 104px;
+  }
+
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

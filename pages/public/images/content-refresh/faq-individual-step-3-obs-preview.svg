@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Requested asset: OBS preview with Individual Tracker overlay</title>
+  <desc id="desc">Screenshot from OBS preview showing the Individual Tracker browser source layered in a scene.</desc>
+  <rect width="1280" height="720" fill="#0f172a" />
+  <rect x="50" y="50" width="1180" height="620" rx="16" fill="#111827" stroke="#38bdf8" stroke-width="3" />
+  <text x="90" y="120" fill="#38bdf8" font-family="Arial, sans-serif" font-size="38" font-weight="700">FAQ Asset Needed: Individual Tracker Step 3</text>
+  <text x="90" y="180" fill="#e2e8f0" font-family="Arial, sans-serif" font-size="26">Capture OBS preview/program with final overlay composition.</text>
+  <text x="90" y="225" fill="#e2e8f0" font-family="Arial, sans-serif" font-size="22">Show source list and preview canvas for setup clarity.</text>
+  <text x="90" y="270" fill="#94a3b8" font-family="Arial, sans-serif" font-size="20">File target: /images/content-refresh/faq-individual-step-3-obs-preview.svg</text>
+</svg>

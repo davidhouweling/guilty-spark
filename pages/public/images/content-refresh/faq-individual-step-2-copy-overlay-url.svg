@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Requested asset: Copy Individual Tracker overlay URL</title>
+  <desc id="desc">Screenshot showing overlay settings with streamer mode selected and copy URL action visible.</desc>
+  <rect width="1280" height="720" fill="#111111" />
+  <rect x="50" y="50" width="1180" height="620" rx="16" fill="#1f2937" stroke="#f59e0b" stroke-width="3" />
+  <text x="90" y="120" fill="#f59e0b" font-family="Arial, sans-serif" font-size="38" font-weight="700">FAQ Asset Needed: Individual Tracker Step 2</text>
+  <text x="90" y="180" fill="#f3f4f6" font-family="Arial, sans-serif" font-size="26">Capture overlay settings with "Copy URL for OBS" visible.</text>
+  <text x="90" y="225" fill="#f3f4f6" font-family="Arial, sans-serif" font-size="22">Include key toggles to show what streamers can customize.</text>
+  <text x="90" y="270" fill="#9ca3af" font-family="Arial, sans-serif" font-size="20">File target: /images/content-refresh/faq-individual-step-2-copy-overlay-url.svg</text>
+</svg>
