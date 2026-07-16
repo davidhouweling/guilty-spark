@@ -1,6 +1,12 @@
 import type { TrackerProfile } from "@guilty-spark/shared/contracts/individual-tracker/profile";
 import type { Tracker, TrackerState } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
-import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import type {
+  TrackerActiveSeriesContext,
+  TrackerSeriesGroup,
+  TrackerSeriesPlayer,
+  TrackerSeriesTeam,
+  TrackerViewState,
+} from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerDoState } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
 import {
@@ -75,6 +81,55 @@ function toTrackerState(state: IndividualTrackerDoState): TrackerState {
   };
 }
 
+function toTrackerSeriesPlayer(player: TrackerSeriesPlayer): TrackerSeriesPlayer {
+  return {
+    discordId: player.discordId,
+    discordName: player.discordName,
+    gamertag: player.gamertag,
+    xboxId: player.xboxId,
+    currentRank: player.currentRank,
+    currentRankTier: player.currentRankTier,
+    currentRankSubTier: player.currentRankSubTier,
+    currentRankMeasurementMatchesRemaining: player.currentRankMeasurementMatchesRemaining,
+    currentRankInitialMeasurementMatches: player.currentRankInitialMeasurementMatches,
+    allTimePeakRank: player.allTimePeakRank,
+    esra: player.esra,
+    lastRankedGamePlayed: player.lastRankedGamePlayed,
+  };
+}
+
+function toTrackerSeriesTeam(team: TrackerSeriesTeam): TrackerSeriesTeam {
+  return {
+    id: team.id,
+    name: team.name,
+    players: team.players.map(toTrackerSeriesPlayer),
+  };
+}
+
+function toTrackerSeriesGroup(group: TrackerSeriesGroup): TrackerSeriesGroup {
+  return {
+    id: group.id,
+    matchIds: group.matchIds,
+    matchBackgroundUrls: group.matchBackgroundUrls,
+    score: group.score,
+    killsDeathsAssistsKda: group.killsDeathsAssistsKda,
+    damageDealtTakenRatio: group.damageDealtTakenRatio,
+    title: group.title,
+    subtitle: group.subtitle,
+    guildIconUrl: group.guildIconUrl,
+    ...(group.teams != null ? { teams: group.teams.map(toTrackerSeriesTeam) } : {}),
+  };
+}
+
+function toTrackerActiveSeriesContext(context: TrackerActiveSeriesContext): TrackerActiveSeriesContext {
+  return {
+    title: context.title,
+    subtitle: context.subtitle,
+    guildIconUrl: context.guildIconUrl,
+    teams: context.teams.map(toTrackerSeriesTeam),
+  };
+}
+
 export function toTracker(row: IndividualTrackersRow, state: IndividualTrackerDoState | null): Tracker {
   return {
     trackerId: row.TrackerId,
@@ -116,26 +171,14 @@ export function toTrackerView(
             damageDealtTakenRatio: match.damageDealtTakenRatio,
             isMatchmaking: match.isMatchmaking,
           })),
-    series:
-      doState == null
-        ? []
-        : doState.series.map((group) => ({
-            id: group.id,
-            matchIds: group.matchIds,
-            matchBackgroundUrls: group.matchBackgroundUrls,
-            score: group.score,
-            killsDeathsAssistsKda: group.killsDeathsAssistsKda,
-            damageDealtTakenRatio: group.damageDealtTakenRatio,
-            title: group.title,
-            subtitle: group.subtitle,
-            guildIconUrl: group.guildIconUrl,
-            teams: group.teams,
-          })),
+    series: doState == null ? [] : doState.series.map(toTrackerSeriesGroup),
     lastUpdateTime: doState == null ? "" : doState.lastUpdateTime,
     lastMatchDiscoveredAt: doState == null ? null : doState.lastMatchDiscoveredAt,
     hasActiveSeries: doState?.hasActiveSeries ?? false,
     hasRecentCompletedSeries: doState?.hasRecentCompletedSeries ?? false,
-    ...(doState?.activeSeriesContext !== undefined ? { activeSeriesContext: doState.activeSeriesContext } : {}),
+    ...(doState?.activeSeriesContext !== undefined
+      ? { activeSeriesContext: toTrackerActiveSeriesContext(doState.activeSeriesContext) }
+      : {}),
     ...(doState?.statsHighlights != null ? { statsHighlights: [...doState.statsHighlights] } : {}),
     ...(doState?.preSeriesPlayerInfo != null ? { preSeriesPlayerInfo: doState.preSeriesPlayerInfo } : {}),
   };

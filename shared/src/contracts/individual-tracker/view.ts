@@ -61,6 +61,14 @@ export const trackerSeriesGroupSchema = z.object({
 });
 export type TrackerSeriesGroup = z.infer<typeof trackerSeriesGroupSchema>;
 
+export const trackerActiveSeriesContextSchema = z.object({
+  title: z.string(),
+  subtitle: z.string().nullable(),
+  guildIconUrl: z.string().nullable().optional(),
+  teams: z.array(trackerSeriesTeamSchema),
+});
+export type TrackerActiveSeriesContext = z.infer<typeof trackerActiveSeriesContextSchema>;
+
 export const trackerLiveViewSchema = z.object({
   trackerId: z.string(),
   gamertag: z.string(),
@@ -73,14 +81,7 @@ export const trackerLiveViewSchema = z.object({
   hasActiveSeries: z.boolean(),
   hasRecentCompletedSeries: z.boolean(),
   searchStartTime: z.string().optional(),
-  activeSeriesContext: z
-    .object({
-      title: z.string(),
-      subtitle: z.string().nullable(),
-      guildIconUrl: z.string().nullable().optional(),
-      teams: z.array(trackerSeriesTeamSchema),
-    })
-    .optional(),
+  activeSeriesContext: trackerActiveSeriesContextSchema.optional(),
 });
 export type TrackerLiveView = z.infer<typeof trackerLiveViewSchema>;
 
