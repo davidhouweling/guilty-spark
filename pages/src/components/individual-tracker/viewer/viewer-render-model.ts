@@ -14,6 +14,8 @@ import type {
   IndividualTrackerViewerRenderModel,
   ViewerAccumulatedStats,
   ViewerMatchTab,
+  ViewerPreSeriesTableData,
+  ViewerSeriesTeamPlayer,
   ViewerSeriesTeam,
   ViewerSeriesTab,
   ViewerTimelineItem,
@@ -27,6 +29,36 @@ export interface BuildViewerRenderModelOptions {
 
 const UNKNOWN_KDA_DISPLAY = "-:-:- (-)";
 const UNKNOWN_DAMAGE_RATIO_DISPLAY = "-:- (-)";
+const PENDING_ACTIVE_SERIES_ID_PREFIX = "pending-active-series";
+
+type ActiveSeriesContext = NonNullable<TrackerViewState["activeSeriesContext"]>;
+type ActiveSeriesTeam = ActiveSeriesContext["teams"][number];
+type ActiveSeriesPlayer = ActiveSeriesTeam["players"][number];
+
+function toViewerSeriesTeamPlayer(player: ActiveSeriesPlayer): ViewerSeriesTeamPlayer {
+  return {
+    discordId: player.discordId,
+    discordName: player.discordName,
+    gamertag: player.gamertag,
+    xboxId: player.xboxId,
+    currentRank: player.currentRank,
+    currentRankTier: player.currentRankTier,
+    currentRankSubTier: player.currentRankSubTier,
+    currentRankMeasurementMatchesRemaining: player.currentRankMeasurementMatchesRemaining,
+    currentRankInitialMeasurementMatches: player.currentRankInitialMeasurementMatches,
+    allTimePeakRank: player.allTimePeakRank,
+    esra: player.esra,
+    lastRankedGamePlayed: player.lastRankedGamePlayed,
+  };
+}
+
+function toViewerSeriesTeam(team: ActiveSeriesTeam): ViewerSeriesTeam {
+  return {
+    id: team.id,
+    name: team.name,
+    players: team.players.map(toViewerSeriesTeamPlayer),
+  };
+}
 
 function findActiveSeriesId(view: TrackerViewState): string | null {
   if (!view.hasActiveSeries || view.activeSeriesContext == null) {
@@ -59,14 +91,7 @@ function getSeriesTeams(
     return [];
   }
 
-  return view.activeSeriesContext.teams.map((team) => ({
-    id: team.id,
-    name: team.name,
-    players: team.players.map((player) => ({
-      discordName: player.discordName,
-      gamertag: player.gamertag,
-    })),
-  }));
+  return view.activeSeriesContext.teams.map(toViewerSeriesTeam);
 }
 
 function toViewerActiveSeriesContext(view: TrackerViewState): ViewerActiveSeriesContext | undefined {
@@ -78,14 +103,90 @@ function toViewerActiveSeriesContext(view: TrackerViewState): ViewerActiveSeries
     title: view.activeSeriesContext.title,
     subtitle: view.activeSeriesContext.subtitle,
     guildIconUrl: view.activeSeriesContext.guildIconUrl ?? null,
-    teams: view.activeSeriesContext.teams.map((team) => ({
-      id: team.id,
-      name: team.name,
-      players: team.players.map((player) => ({
-        discordName: player.discordName,
+    teams: view.activeSeriesContext.teams.map(toViewerSeriesTeam),
+  };
+}
+
+function toSeriesPlayerKey(
+  teamId: number,
+  player: {
+    readonly discordId?: string | null;
+    readonly xboxId?: string | null;
+    readonly gamertag: string | null;
+    readonly discordName: string | null;
+  },
+  playerIndex: number,
+): string {
+  const stableId = player.discordId ?? player.xboxId ?? player.gamertag ?? player.discordName;
+  if (stableId != null && stableId !== "") {
+    return `${teamId.toString()}:${stableId}`;
+  }
+
+  return `${teamId.toString()}:${playerIndex.toString()}`;
+}
+
+function toPreSeriesTableData(teams: readonly ViewerSeriesTeam[]): ViewerPreSeriesTableData {
+  const playersAssociationData: ViewerPreSeriesTableData["playersAssociationData"] = {};
+  const tableTeams = teams.map((team) => ({
+    name: team.name,
+    players: team.players.map((player, playerIndex) => {
+      const playerId = toSeriesPlayerKey(team.id, player, playerIndex);
+      const resolvedDiscordName = player.discordName ?? player.gamertag ?? "Unknown";
+
+      playersAssociationData[playerId] = {
+        discordId: player.discordId ?? playerId,
+        discordName: resolvedDiscordName,
+        xboxId: player.xboxId ?? null,
         gamertag: player.gamertag,
-      })),
-    })),
+        currentRank: player.currentRank ?? null,
+        currentRankTier: player.currentRankTier ?? null,
+        currentRankSubTier: player.currentRankSubTier ?? null,
+        currentRankMeasurementMatchesRemaining: player.currentRankMeasurementMatchesRemaining ?? null,
+        currentRankInitialMeasurementMatches: player.currentRankInitialMeasurementMatches ?? null,
+        allTimePeakRank: player.allTimePeakRank ?? null,
+        esra: player.esra ?? null,
+        lastRankedGamePlayed: player.lastRankedGamePlayed ?? null,
+      };
+
+      return {
+        id: playerId,
+        displayName: resolvedDiscordName,
+      };
+    }),
+  }));
+
+  return {
+    teams: tableTeams,
+    playersAssociationData,
+  };
+}
+
+function toPendingActiveSeriesTab(view: TrackerViewState): ViewerSeriesTab {
+  const { activeSeriesContext } = view;
+  if (activeSeriesContext == null) {
+    throw new Error("Expected active series context when building pending active series tab");
+  }
+
+  const activeSubtitle = activeSeriesContext.subtitle ?? "";
+  const teams = activeSeriesContext.teams.map(toViewerSeriesTeam);
+
+  return {
+    id: `${PENDING_ACTIVE_SERIES_ID_PREFIX}:${activeSeriesContext.title}:${activeSubtitle}`,
+    title: activeSeriesContext.title,
+    subtitle: activeSubtitle,
+    guildIconUrl: activeSeriesContext.guildIconUrl ?? null,
+    isActive: true,
+    teams,
+    preSeriesTableData: toPreSeriesTableData(teams),
+    matchBackgroundUrls: [],
+    score: "-",
+    duration: "unknown",
+    killsDeathsAssistsKda: UNKNOWN_KDA_DISPLAY,
+    damageDealtTakenRatio: UNKNOWN_DAMAGE_RATIO_DISPLAY,
+    startTime: "",
+    endTime: "",
+    matches: [],
+    colorHex: undefined,
   };
 }
 
@@ -247,6 +348,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         guildIconUrl: anchoredSeries.guildIconUrl ?? null,
         isActive: activeSeriesId != null ? anchoredSeries.id === activeSeriesId : false,
         teams: getSeriesTeams(view, anchoredSeries, activeSeriesId),
+        preSeriesTableData: undefined,
         matchBackgroundUrls:
           anchoredSeries.matchBackgroundUrls ?? seriesSummaries.map((summary) => summary.mapBackgroundUrl ?? "data:,"),
         score: anchoredSeries.score,
@@ -258,10 +360,12 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         matches: seriesMatches,
         colorHex: undefined,
       };
+      const seriesWithPreSeriesData: ViewerSeriesTab =
+        series.teams.length > 0 ? { ...series, preSeriesTableData: toPreSeriesTableData(series.teams) } : series;
       if (activeSeriesId == null && view.hasActiveSeries) {
         fallbackActiveSeriesId = anchoredSeries.id;
       }
-      timeline.push({ type: "series", series });
+      timeline.push({ type: "series", series: seriesWithPreSeriesData });
       continue;
     }
 
@@ -289,6 +393,13 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         })
       : timeline;
 
+  const timelineWithPendingActiveSeries =
+    view.hasActiveSeries &&
+    view.activeSeriesContext != null &&
+    !timelineWithFallback.some((item) => item.type === "series" && item.series.isActive)
+      ? ([{ type: "series", series: toPendingActiveSeriesTab(view) }, ...timelineWithFallback] as ViewerTimelineItem[])
+      : timelineWithFallback;
+
   const accumulated = accumulate(view.matches);
 
   return {
@@ -299,7 +410,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
     hasActiveSeries: view.hasActiveSeries,
     activeSeriesContext: toViewerActiveSeriesContext(view),
     lastUpdateTime: view.lastUpdateTime,
-    timeline: [...timelineWithFallback],
+    timeline: [...timelineWithPendingActiveSeries],
     accumulated,
     statsHighlights: view.statsHighlights,
     preSeriesPlayerInfo: view.preSeriesPlayerInfo,

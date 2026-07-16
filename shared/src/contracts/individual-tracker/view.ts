@@ -29,6 +29,14 @@ export const trackerSeriesPlayerSchema = z.object({
   discordName: z.string().nullable(),
   gamertag: z.string().nullable(),
   xboxId: z.string().nullable(),
+  currentRank: z.number().nullable().optional(),
+  currentRankTier: z.string().nullable().optional(),
+  currentRankSubTier: z.number().nullable().optional(),
+  currentRankMeasurementMatchesRemaining: z.number().nullable().optional(),
+  currentRankInitialMeasurementMatches: z.number().nullable().optional(),
+  allTimePeakRank: z.number().nullable().optional(),
+  esra: z.number().nullable().optional(),
+  lastRankedGamePlayed: z.string().nullable().optional(),
 });
 export type TrackerSeriesPlayer = z.infer<typeof trackerSeriesPlayerSchema>;
 

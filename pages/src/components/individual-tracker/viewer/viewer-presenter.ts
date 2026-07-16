@@ -318,6 +318,10 @@ export class IndividualTrackerViewerPresenter {
       return;
     }
 
+    if (item.series.matches.length === 0) {
+      return;
+    }
+
     void this.fetchSeriesEntry(key, item.series);
   }
 

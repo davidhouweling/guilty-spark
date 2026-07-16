@@ -1255,6 +1255,14 @@ export class NeatQueueService {
       discordName: assoc?.discordName ?? fallbackName,
       gamertag: assoc?.gamertag ?? null,
       xboxId: assoc?.xboxId ?? null,
+      currentRank: assoc?.currentRank ?? null,
+      currentRankTier: assoc?.currentRankTier ?? null,
+      currentRankSubTier: assoc?.currentRankSubTier ?? null,
+      currentRankMeasurementMatchesRemaining: assoc?.currentRankMeasurementMatchesRemaining ?? null,
+      currentRankInitialMeasurementMatches: assoc?.currentRankInitialMeasurementMatches ?? null,
+      allTimePeakRank: assoc?.allTimePeakRank ?? null,
+      esra: assoc?.esra ?? null,
+      lastRankedGamePlayed: assoc?.lastRankedGamePlayed ?? null,
     };
   }
 
