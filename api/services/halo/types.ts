@@ -204,8 +204,14 @@ export interface KillRaceProgressionEvent {
   runningScores: Record<string, number>;
 }
 
+export interface KillRaceDeathEvent {
+  timestampMs: number;
+  teamId: number;
+}
+
 export interface KillRaceProgression {
   events: KillRaceProgressionEvent[];
+  deathTimeline: KillRaceDeathEvent[];
   teamCount: number;
 }
 

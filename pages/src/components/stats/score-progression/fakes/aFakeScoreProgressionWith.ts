@@ -14,6 +14,11 @@ export function aFakeScoreProgressionWith(
         { timestampMs: 12000, teamId: 1, runningScores: { "0": 1, "1": 1 } },
         { timestampMs: 20000, teamId: 0, runningScores: { "0": 2, "1": 1 } },
       ],
+      deathTimeline: [
+        { timestampMs: 5001, teamId: 1 },
+        { timestampMs: 12001, teamId: 0 },
+        { timestampMs: 20001, teamId: 1 },
+      ],
     },
     ...overrides,
   };

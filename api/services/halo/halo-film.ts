@@ -21,6 +21,7 @@ import type {
   ParsedHighlightEvent,
   KillMatrixEntry,
   KillMatrixAnalytics,
+  KillRaceDeathEvent,
   KillRaceProgression,
   KillRaceProgressionEvent,
   HaloFilmServiceOpts,
@@ -100,9 +101,8 @@ export class HaloFilmService {
   async buildKillRaceProgression(matchStats: MatchStats): Promise<KillRaceProgression> {
     const events = await this.loadEnrichedEventsForMatch(matchStats);
     const kills = this.filterKillEvents(events);
-    const runningScores = new Map<number, number>(
-      [...new Set(matchStats.Teams.map((team) => team.TeamId))].map((id) => [id, 0]),
-    );
+    const knownTeamIds = new Set<number>(matchStats.Teams.map((team) => team.TeamId));
+    const runningScores = new Map<number, number>([...knownTeamIds].map((id) => [id, 0]));
     const progressionEvents: KillRaceProgressionEvent[] = [];
 
     for (const kill of kills) {
@@ -117,7 +117,21 @@ export class HaloFilmService {
       });
     }
 
-    return { events: progressionEvents, teamCount: runningScores.size };
+    return {
+      events: progressionEvents,
+      deathTimeline: this.buildDeathTimeline(events, knownTeamIds),
+      teamCount: runningScores.size,
+    };
+  }
+
+  private buildDeathTimeline(events: ParsedHighlightEvent[], knownTeamIds: ReadonlySet<number>): KillRaceDeathEvent[] {
+    const timeline: KillRaceDeathEvent[] = [];
+    for (const event of events) {
+      if (event.eventType === "death" && event.teamId != null && knownTeamIds.has(event.teamId)) {
+        timeline.push({ timestampMs: event.timeMs, teamId: event.teamId });
+      }
+    }
+    return timeline;
   }
 
   async buildKillMatrixAnalytics(matchStats: MatchStats): Promise<KillMatrixAnalytics> {

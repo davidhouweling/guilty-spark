@@ -64,7 +64,7 @@ export class AnalyticsService {
           mode,
           durationMs: Math.round(getDurationInSeconds(matchStats.MatchInfo.Duration) * 1000),
           teamCount: progression.teamCount,
-          timeline: { type: "kill-race", events: progression.events },
+          timeline: { type: "kill-race", events: progression.events, deathTimeline: progression.deathTimeline },
         };
       }
     }

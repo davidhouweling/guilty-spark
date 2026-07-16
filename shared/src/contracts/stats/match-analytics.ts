@@ -6,9 +6,15 @@ const killRaceEventSchema = z.object({
   runningScores: z.record(z.string().regex(/^\d+$/), z.number().int().nonnegative()),
 });
 
+const killRaceDeathEventSchema = z.object({
+  timestampMs: z.number().int().nonnegative(),
+  teamId: z.number().int().nonnegative(),
+});
+
 const killRaceTimelineSchema = z.object({
   type: z.literal("kill-race"),
   events: z.array(killRaceEventSchema),
+  deathTimeline: z.array(killRaceDeathEventSchema),
 });
 
 export const killMatrixEntrySchema = z.object({
