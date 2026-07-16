@@ -391,6 +391,23 @@ describe("KillMatrixTable", () => {
 
       expect(screen.queryByText(/Excluded from table/)).not.toBeInTheDocument();
     });
+
+    it("shows 4 placeholder data columns in cross-team shimmer when playerHeaders is not provided", () => {
+      render(
+        <KillMatrixTable
+          pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
+          ariaLabel="Kill matrix"
+          emptyMessage="No kill matrix data."
+          status={ComponentLoaderStatus.LOADING}
+          crossTeamData={crossTeamData}
+        />,
+      );
+
+      const shimmer = screen.getByRole("region", { name: "Kill matrix" });
+      expect(shimmer).toHaveAttribute("aria-busy", "true");
+      // 1 xyHeader col + 4 fallback data cols = 5 cols; 4 fallback rows → 5 + 4×5 = 25 cells
+      expect(shimmer.querySelectorAll("th, td")).toHaveLength(25);
+    });
   });
 
   it("toggles between kills and deaths view when toggle button is clicked", async () => {

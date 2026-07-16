@@ -232,12 +232,14 @@ export function KillMatrixTable({
       },
     ];
 
-    for (let i = 0; i < colHeaders.length; i++) {
-      const header = colHeaders[i];
-      const colTeamId = header.teamId;
+    const shimmerColCount =
+      colHeaders.length > 0 ? colHeaders.length : isTransposed ? crossTeamRowCount : crossTeamColCount;
+    for (let i = 0; i < shimmerColCount; i++) {
+      const header = i < colHeaders.length ? colHeaders[i] : null;
+      const colTeamId = header?.teamId ?? null;
       cols.push({
         id: `col-${i.toString()}`,
-        header: renderPlayerHeader(header.gamertag, colTeamId),
+        header: header != null ? renderPlayerHeader(header.gamertag, colTeamId) : null,
         headerClassName: styles.colHeader,
         headerStyle: teamColors != null ? colTeamStyle(colTeamId) : undefined,
         accessorFn: (): number => 0,
@@ -257,7 +259,16 @@ export function KillMatrixTable({
     }
 
     return cols;
-  }, [xAxisLabel, yAxisLabel, crossTeamRowHeaders, crossTeamColHeaders, isTransposed, teamColors]);
+  }, [
+    xAxisLabel,
+    yAxisLabel,
+    crossTeamRowHeaders,
+    crossTeamColHeaders,
+    crossTeamRowCount,
+    crossTeamColCount,
+    isTransposed,
+    teamColors,
+  ]);
 
   const activeRowCount = crossTeamData != null ? (isTransposed ? crossTeamColCount : crossTeamRowCount) : undefined;
   const crossTeamShimmerRows = React.useMemo(
