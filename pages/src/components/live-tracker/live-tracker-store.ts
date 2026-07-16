@@ -1,5 +1,6 @@
 import type { LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { LiveTrackerConnectionStatus } from "../../services/live-tracker/types";
 import type { MatchStatsData } from "../../controllers/stats/types";
 import { ComponentLoaderStatus } from "../component-loader/component-loader";
@@ -22,6 +23,7 @@ export interface LiveTrackerSnapshot {
   readonly hasReceivedInitialData: boolean;
   readonly analyticsByMatchId: ReadonlyMap<string, MatchAnalytics>;
   readonly analyticsStatus: ComponentLoaderStatus;
+  readonly medalMetadata: MedalMetadata;
   readonly allMatchStats: readonly { matchId: string; data: MatchStatsData[] | null }[];
   readonly seriesStatsData: LiveTrackerSeriesStatsData | null;
 }
@@ -49,6 +51,7 @@ export class LiveTrackerStore implements LiveTrackerStoreApi {
       hasReceivedInitialData: false,
       analyticsByMatchId: new Map(),
       analyticsStatus: ComponentLoaderStatus.LOADED,
+      medalMetadata: {},
       allMatchStats: [],
       seriesStatsData: null,
     };

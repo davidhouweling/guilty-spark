@@ -1,5 +1,7 @@
 import type { LiveTrackerIdentity, LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
+import type { MatchStats } from "halo-infinite-api";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import type {
   LiveTrackerConnection,
   LiveTrackerConnectionStatus,
@@ -7,7 +9,9 @@ import type {
   LiveTrackerSubscription,
 } from "../../services/live-tracker/types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
+import { getReconnectDelayMs } from "../../services/base/reconnect-policy";
 import type { MatchStatsData } from "../../controllers/stats/types";
+import { isMatchStats } from "../../controllers/stats/is-match-stats";
 import { ComponentLoaderStatus } from "../component-loader/component-loader";
 import { StatsController } from "../../controllers/stats/stats-controller";
 import { calculateSeriesMetadata } from "../../controllers/stats/series-metadata";
@@ -29,6 +33,7 @@ interface Config {
   readonly getUrl: () => URL;
   readonly store: LiveTrackerStoreApi;
   readonly matchAnalyticsService: MatchAnalyticsService;
+  readonly medalMetadataResolver: HaloMedalMetadataResolver;
 }
 
 export class LiveTrackerPresenter {
@@ -46,9 +51,9 @@ export class LiveTrackerPresenter {
   private reconnectionAttempt = 0;
   private readonly maxReconnectionAttempts = 10;
   private readonly maxReconnectionDurationMs = 3 * 60 * 1000;
-  private readonly baseReconnectionDelayMs = 2000;
 
   private readonly fetchedMatchIds = new Set<string>();
+  private stateMessageVersion = 0;
   private static readonly killMatrixFormatter = new KillMatrixFormatter();
   private static readonly ANALYTICS_BATCH_SIZE = 30;
 
@@ -88,7 +93,10 @@ export class LiveTrackerPresenter {
       statusText = initialStatusText;
     }
 
-    const state = lastStateMessage?.type === "state" ? toLiveTrackerStateRenderModel(lastStateMessage) : null;
+    const state =
+      lastStateMessage?.type === "state"
+        ? toLiveTrackerStateRenderModel(lastStateMessage, snapshot.medalMetadata)
+        : null;
     const substitutions = state?.type === "neatqueue" ? state.substitutions : [];
     const sortedSubstitutions = [...substitutions].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
     const availablePlayers =
@@ -266,17 +274,10 @@ export class LiveTrackerPresenter {
       return false;
     }
 
-    // Compare rawMatches keys (actual content changes would be caught by match arrays)
+    // Compare only rawMatches keys; this intentionally ignores raw match payload changes.
     const prevMatchIds = Object.keys(prevData.rawMatches).sort();
     const currMatchIds = Object.keys(currData.rawMatches).sort();
     if (prevMatchIds.length !== currMatchIds.length || !prevMatchIds.every((id, idx) => id === currMatchIds[idx])) {
-      return false;
-    }
-
-    // Compare medalMetadata keys (structural check)
-    const prevMedalIds = Object.keys(prevData.medalMetadata).sort();
-    const currMedalIds = Object.keys(currData.medalMetadata).sort();
-    if (prevMedalIds.length !== currMedalIds.length || !prevMedalIds.every((id, idx) => id === currMedalIds[idx])) {
       return false;
     }
 
@@ -421,6 +422,7 @@ export class LiveTrackerPresenter {
         hasReceivedInitialData: false,
         analyticsByMatchId: new Map(),
         analyticsStatus: ComponentLoaderStatus.LOADED,
+        medalMetadata: {},
         allMatchStats: [],
         seriesStatsData: null,
       });
@@ -460,6 +462,7 @@ export class LiveTrackerPresenter {
       hasReceivedInitialData: false,
       analyticsByMatchId: new Map(),
       analyticsStatus: ComponentLoaderStatus.LOADED,
+      medalMetadata: {},
       allMatchStats: [],
       seriesStatsData: null,
     });
@@ -564,21 +567,59 @@ export class LiveTrackerPresenter {
         return;
       }
 
-      const state = toLiveTrackerStateRenderModel(message);
-      const allMatchStats = LiveTrackerPresenter.computeAllMatchStats(state);
-      const seriesStatsData = LiveTrackerPresenter.computeLiveTrackerSeriesStatsData(state);
-
-      const newSnapshot: LiveTrackerSnapshot = {
-        ...snapshot,
-        lastStateMessage: message,
-        hasReceivedInitialData: true,
-        allMatchStats,
-        seriesStatsData,
-      };
-
-      this.config.store.setSnapshot(newSnapshot);
-      this.triggerAnalyticsFetch(newSnapshot);
+      this.stateMessageVersion += 1;
+      const version = this.stateMessageVersion;
+      void this.handleStateMessageAsync(message, version);
     });
+  }
+
+  private async handleStateMessageAsync(message: LiveTrackerMessage, version: number): Promise<void> {
+    const currentSnapshot = this.config.store.getSnapshot();
+    const stateWithCurrentMetadata = toLiveTrackerStateRenderModel(message, currentSnapshot.medalMetadata);
+    const allMatchStatsWithCurrentMetadata = LiveTrackerPresenter.computeAllMatchStats(stateWithCurrentMetadata);
+    const seriesStatsDataWithCurrentMetadata =
+      LiveTrackerPresenter.computeLiveTrackerSeriesStatsData(stateWithCurrentMetadata);
+
+    const snapshotWithCurrentMetadata: LiveTrackerSnapshot = {
+      ...currentSnapshot,
+      lastStateMessage: message,
+      hasReceivedInitialData: true,
+      allMatchStats: allMatchStatsWithCurrentMetadata,
+      seriesStatsData: seriesStatsDataWithCurrentMetadata,
+    };
+
+    this.config.store.setSnapshot(snapshotWithCurrentMetadata);
+    this.triggerAnalyticsFetch(snapshotWithCurrentMetadata);
+
+    const rawMatches = Object.values(message.data.rawMatches).filter((match): match is MatchStats =>
+      isMatchStats(match),
+    );
+    if (rawMatches.length === 0) {
+      return;
+    }
+
+    const medalMetadata = await this.config.medalMetadataResolver.getMedalMetadataForMatches(rawMatches);
+
+    if (this.isDisposed || version !== this.stateMessageVersion) {
+      return;
+    }
+
+    const snapshot = this.config.store.getSnapshot();
+    const stateWithResolvedMetadata = toLiveTrackerStateRenderModel(message, medalMetadata);
+    const allMatchStatsWithResolvedMetadata = LiveTrackerPresenter.computeAllMatchStats(stateWithResolvedMetadata);
+    const seriesStatsDataWithResolvedMetadata =
+      LiveTrackerPresenter.computeLiveTrackerSeriesStatsData(stateWithResolvedMetadata);
+
+    const newSnapshot: LiveTrackerSnapshot = {
+      ...snapshot,
+      lastStateMessage: message,
+      hasReceivedInitialData: true,
+      medalMetadata,
+      allMatchStats: allMatchStatsWithResolvedMetadata,
+      seriesStatsData: seriesStatsDataWithResolvedMetadata,
+    };
+
+    this.config.store.setSnapshot(newSnapshot);
   }
 
   private triggerAnalyticsFetch(snapshot: LiveTrackerSnapshot): void {
@@ -692,31 +733,20 @@ export class LiveTrackerPresenter {
       return;
     }
 
-    const now = Date.now();
-    this.firstReconnectionTimestamp ??= now;
-
-    const elapsed = now - this.firstReconnectionTimestamp;
-
-    if (elapsed > this.maxReconnectionDurationMs || this.reconnectionAttempt >= this.maxReconnectionAttempts) {
-      const hasDetail = (detail?.length ?? 0) > 0;
-      const errorText = hasDetail ? `Connection error: ${detail ?? ""}` : "Connection lost";
-      const reason =
-        elapsed > this.maxReconnectionDurationMs
-          ? "Gave up after 3m"
-          : `Max retries reached (${String(this.maxReconnectionAttempts)})`;
-      this.config.store.setSnapshot({
-        ...snapshot,
-        connectionState: "error",
-        statusText: `${errorText} (${reason})`,
-      });
-      this.stopReconnection();
+    if (this.reconnectionTimer != null) {
       return;
     }
 
-    const backoffFactor = Math.pow(1.5, this.reconnectionAttempt);
-    const delay = Math.min(this.baseReconnectionDelayMs * backoffFactor, 30000); // Cap at 30s
-    const jitter = Math.random() * 1000;
-    const totalDelay = delay + jitter;
+    const now = Date.now();
+    this.firstReconnectionTimestamp ??= now;
+
+    const limitReason = this.getReconnectionLimitReason(now);
+    if (limitReason != null) {
+      this.setReconnectionError(snapshot, detail, limitReason);
+      return;
+    }
+
+    const totalDelay = getReconnectDelayMs(this.reconnectionAttempt);
 
     this.config.store.setSnapshot({
       ...snapshot,
@@ -725,8 +755,41 @@ export class LiveTrackerPresenter {
     });
 
     this.reconnectionTimer = setTimeout(() => {
+      const retryNow = Date.now();
+      const retryLimitReason = this.getReconnectionLimitReason(retryNow);
+      if (retryLimitReason != null) {
+        const currentSnapshot = this.config.store.getSnapshot();
+        this.setReconnectionError(currentSnapshot, detail, retryLimitReason);
+        return;
+      }
+
+      this.reconnectionTimer = null;
       void this.connectInternal(identity);
       this.reconnectionAttempt++;
     }, totalDelay);
+  }
+
+  private getReconnectionLimitReason(now: number): string | null {
+    const elapsed = now - (this.firstReconnectionTimestamp ?? now);
+    if (elapsed > this.maxReconnectionDurationMs) {
+      return "Gave up after 3m";
+    }
+
+    if (this.reconnectionAttempt >= this.maxReconnectionAttempts) {
+      return `Max retries reached (${String(this.maxReconnectionAttempts)})`;
+    }
+
+    return null;
+  }
+
+  private setReconnectionError(snapshot: LiveTrackerSnapshot, detail: string | undefined, reason: string): void {
+    const hasDetail = (detail?.length ?? 0) > 0;
+    const errorText = hasDetail ? `Connection error: ${detail ?? ""}` : "Connection lost";
+    this.config.store.setSnapshot({
+      ...snapshot,
+      connectionState: "error",
+      statusText: `${errorText} (${reason})`,
+    });
+    this.stopReconnection();
   }
 }

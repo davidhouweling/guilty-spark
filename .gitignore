@@ -67,3 +67,4 @@ test-results
 .claude/*
 !.claude/commands/
 .playwright-mcp
+pages/src/pages/_generated/legal/

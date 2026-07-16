@@ -185,58 +185,33 @@
   justify-self: center;
 }
 
-.animateTeamNames .teamName {
-  animation: fadeTeamName 40s infinite;
+.teamWithPlayers .teamName {
   z-index: 2;
 }
 
-.animateTeamNames .teamPlayersScroll {
-  animation: fadePlayerNames 40s infinite;
+.teamWithPlayers .teamPlayersScroll {
   z-index: 1;
 }
 
-@keyframes fadeTeamName {
-  0% {
-    opacity: 1;
-  }
-
-  47% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0;
-  }
-
-  97% {
-    opacity: 0;
-  }
-
-  100% {
-    opacity: 1;
-  }
+/* Transition states for content fading between team name and player names.
+   Used by react-transition-group to ensure the content actually swaps in the DOM
+   even if CSS animations don't render properly (e.g., in OBS capture). */
+.contentEnter {
+  opacity: 0;
 }
 
-@keyframes fadePlayerNames {
-  0% {
-    opacity: 0;
-  }
+.contentEnterActive {
+  opacity: 1;
+  transition: opacity 500ms ease-in-out;
+}
 
-  47% {
-    opacity: 0;
-  }
+.contentExit {
+  opacity: 1;
+}
 
-  50% {
-    opacity: 1;
-  }
-
-  97% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0;
-  }
+.contentExitActive {
+  opacity: 0;
+  transition: opacity 500ms ease-in-out;
 }
 
 .teamName,

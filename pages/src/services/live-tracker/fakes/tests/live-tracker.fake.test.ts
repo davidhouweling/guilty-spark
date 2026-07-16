@@ -30,7 +30,6 @@ describe("FakeLiveTrackerService (fake mode)", () => {
         matchSummaries: [],
         rawMatches: {},
         seriesScore: "0:0",
-        medalMetadata: {},
         playersAssociationData: {},
       },
     };
@@ -41,7 +40,6 @@ describe("FakeLiveTrackerService (fake mode)", () => {
       data: {
         ...stateMessage.data,
         status: "stopped",
-        medalMetadata: {},
       },
     };
 

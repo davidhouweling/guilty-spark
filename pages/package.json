@@ -7,13 +7,14 @@
     "node": ">=24.11.0"
   },
   "scripts": {
-    "start": "astro dev",
-    "dev": "astro dev",
-    "build": "astro build",
+    "sync:legal-markdown": "node ./scripts/sync-legal-markdown.mjs",
+    "start": "npm run sync:legal-markdown && astro dev",
+    "dev": "npm run sync:legal-markdown && astro dev",
+    "build": "npm run sync:legal-markdown && astro build",
     "preview": "npm run build && wrangler dev",
-    "astro": "astro",
+    "astro": "npm run sync:legal-markdown && astro",
     "deploy": "npm run build && wrangler deploy",
-    "typecheck": "astro check",
+    "typecheck": "npm run sync:legal-markdown && astro check",
     "cf-typegen": "wrangler types",
     "stylelint": "stylelint 'src/**/*.css' 'src/**/*.astro'",
     "stylelint:fix": "stylelint 'src/**/*.css' 'src/**/*.astro' --fix"
@@ -33,6 +34,7 @@
     "react-dom": "^19.2.7",
     "react-time-ago": "^7.4.4",
     "react-transition-group": "^4.4.5",
+    "recharts": "^3.9.2",
     "tinyduration": "^3.4.1",
     "zod": "^4.4.3"
   },
@@ -58,7 +60,6 @@
     "stylelint-config-standard": "^40.0.0",
     "stylelint-order": "^8.1.1",
     "typescript": "^6.0.3",
-    "vite": "^8.1.4",
     "wrangler": "^4.110.0"
   }
 }

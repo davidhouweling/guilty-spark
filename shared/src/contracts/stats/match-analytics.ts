@@ -1,5 +1,25 @@
 import { z } from "zod";
 
+const killRaceEventSchema = z.object({
+  timestampMs: z.number().int().nonnegative(),
+  teamId: z.number().int().nonnegative(),
+  runningScores: z.record(z.string().regex(/^\d+$/), z.number().int().nonnegative()),
+});
+
+const killRaceDeathEventSchema = z.object({
+  timestampMs: z.number().int().nonnegative(),
+  teamId: z.number().int().nonnegative(),
+});
+
+export type KillRaceEvent = z.infer<typeof killRaceEventSchema>;
+export type KillRaceDeathEvent = z.infer<typeof killRaceDeathEventSchema>;
+
+const killRaceTimelineSchema = z.object({
+  type: z.literal("kill-race"),
+  events: z.array(killRaceEventSchema),
+  deathTimeline: z.array(killRaceDeathEventSchema),
+});
+
 export const killMatrixEntrySchema = z.object({
   count: z.number().int().nonnegative().describe("Total kills for this killer/victim pair"),
   headshotKills: z.number().int().nonnegative().describe("Headshot kill count for this killer/victim pair"),
@@ -14,7 +34,7 @@ export const killMatrixEntrySchema = z.object({
 
 export type KillMatrixEntry = z.infer<typeof killMatrixEntrySchema>;
 
-export const SUPPORTED_ANALYTICS_MODULES = ["killMatrix"] as const;
+export const SUPPORTED_ANALYTICS_MODULES = ["killMatrix", "scoreProgression"] as const;
 export const analyticsModuleSchema = z.enum(SUPPORTED_ANALYTICS_MODULES);
 export type AnalyticsModule = z.infer<typeof analyticsModuleSchema>;
 
@@ -52,6 +72,15 @@ export const matchAnalyticsSchema = z.object({
       byXuid: z.record(z.string(), z.number().int().nonnegative()),
     }),
   }),
+  scoreProgression: z
+    .object({
+      mode: z.number().int().nonnegative(),
+      durationMs: z.number().int().nonnegative(),
+      teamCount: z.number().int().positive(),
+      respawnDurationMs: z.number().int().positive().nullable(),
+      timeline: killRaceTimelineSchema,
+    })
+    .nullable(),
 });
 
 export type MatchAnalytics = z.infer<typeof matchAnalyticsSchema>;

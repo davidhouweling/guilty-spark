@@ -1,5 +1,4 @@
 import React from "react";
-import type { HaloInfiniteClient } from "halo-infinite-api";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { ComponentLoaderStatus } from "../../component-loader/component-loader";
@@ -7,6 +6,7 @@ import { ComponentLoader } from "../../component-loader/component-loader";
 import { ErrorState } from "../../error-state/error-state";
 import { LoadingState } from "../../loading-state/loading-state";
 import { createIndividualTrackerViewerPage } from "../../individual-tracker/viewer/create";
+import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type {
   IndividualTrackerViewService,
   TrackerViewConnectionStatus,
@@ -29,7 +29,7 @@ export interface FollowLiveViewerProps {
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
-  readonly haloClient: HaloInfiniteClient;
+  readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly onSelectTracker: (trackerId: string) => void;
   readonly onRetry: () => void;
 }
@@ -46,7 +46,7 @@ export function FollowLiveViewer({
   individualTrackerViewService,
   matchAnalyticsService,
   seriesMatchesService,
-  haloClient,
+  medalMetadataResolver,
   onSelectTracker,
   onRetry,
 }: FollowLiveViewerProps): React.ReactElement {
@@ -56,9 +56,9 @@ export function FollowLiveViewer({
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
-        haloClient,
+        medalMetadataResolver,
       }),
-    [haloClient, individualTrackerViewService, matchAnalyticsService, seriesMatchesService],
+    [individualTrackerViewService, matchAnalyticsService, medalMetadataResolver, seriesMatchesService],
   );
 
   const loadedState =

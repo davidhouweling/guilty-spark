@@ -6,6 +6,7 @@ import type { StreamerViewSettings } from "@guilty-spark/shared/individual-track
 import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { aFakeIndividualTrackerServiceWith } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
+import { HaloMedalMetadataResolver } from "../../../../services/halo/medal-metadata-resolver";
 import {
   aFakeIndividualTrackerViewServiceWith,
   aFakeTrackerLiveViewWith,
@@ -18,19 +19,24 @@ import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes
 import { aFakeSeriesMatchesServiceWith } from "../../../../services/stats/fakes/series-matches.fake";
 import type { MatchAnalyticsService } from "../../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../../services/stats/series-matches-types";
+import * as reconnectPolicy from "../../../../services/base/reconnect-policy";
 import { useIndividualTrackerViewer } from "../use-individual-tracker-viewer";
 
 interface ViewerTestDependencies {
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
+  readonly medalMetadataResolver: HaloMedalMetadataResolver;
 }
 
 function aViewerTestDependenciesWith(): ViewerTestDependencies {
+  const haloClient = aFakeHaloClientWith();
+
   return {
     matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     seriesMatchesService: aFakeSeriesMatchesServiceWith(),
-    haloClient: aFakeHaloClientWith(),
+    haloClient,
+    medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
   };
 }
 
@@ -41,7 +47,7 @@ describe("useIndividualTrackerViewer", () => {
       view: aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
     });
     const connectSpy = vi.spyOn(individualTrackerViewService, "connect");
-    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
 
     const initialSettings: StreamerViewSettings = {
       styleFlags: {
@@ -56,7 +62,7 @@ describe("useIndividualTrackerViewer", () => {
           individualTrackerViewService,
           matchAnalyticsService,
           seriesMatchesService,
-          haloClient,
+          medalMetadataResolver,
           trackerId: "tracker-1",
           streamerSettings: settings,
         }),
@@ -89,7 +95,7 @@ describe("useIndividualTrackerViewer", () => {
     const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
       view: aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
     });
-    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
 
     const { result } = renderHook(() =>
       useIndividualTrackerViewer({
@@ -97,7 +103,7 @@ describe("useIndividualTrackerViewer", () => {
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
-        haloClient,
+        medalMetadataResolver,
         trackerId: "tracker-1",
       }),
     );
@@ -131,7 +137,8 @@ describe("useIndividualTrackerViewer", () => {
     const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
       view: aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
     });
-    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const { matchAnalyticsService, seriesMatchesService, haloClient, medalMetadataResolver } =
+      aViewerTestDependenciesWith();
     const getSeriesMatchesSpy = vi.spyOn(seriesMatchesService, "getSeriesMatches");
     const getMatchStatsSpy = vi.spyOn(haloClient, "getMatchStats");
 
@@ -140,7 +147,7 @@ describe("useIndividualTrackerViewer", () => {
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
-        haloClient,
+        medalMetadataResolver,
         trackerId: "tracker-1",
       }),
     );
@@ -158,14 +165,14 @@ describe("useIndividualTrackerViewer", () => {
       view: aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
     });
     const connectSpy = vi.spyOn(individualTrackerViewService, "connect");
-    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
 
     const { result } = renderHook(() =>
       useIndividualTrackerViewer({
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
-        haloClient,
+        medalMetadataResolver,
         trackerId: "tracker-1",
       }),
     );
@@ -175,6 +182,130 @@ describe("useIndividualTrackerViewer", () => {
     });
 
     expect(connectSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps loaded view visible when connection status degrades", async () => {
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
+      view: aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
+    });
+    const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
+
+    const { result } = renderHook(() =>
+      useIndividualTrackerViewer({
+        individualTrackerViewService,
+        matchAnalyticsService,
+        seriesMatchesService,
+        medalMetadataResolver,
+        trackerId: "tracker-1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+      expect(result.current.model.renderModel).not.toBeNull();
+      expect(individualTrackerViewService.lastConnection).not.toBeNull();
+    });
+
+    act(() => {
+      individualTrackerViewService.lastConnection?.emitStatus("error", "Connection lost");
+    });
+
+    expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+    expect(result.current.model.renderModel).not.toBeNull();
+    expect(result.current.model.connectionStatus).toBe("error");
+  });
+
+  it("reconnects automatically after connection error", async () => {
+    const reconnectDelaySpy = vi.spyOn(reconnectPolicy, "getReconnectDelayMs").mockReturnValue(1);
+
+    try {
+      const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
+        view: aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
+      });
+      const connectSpy = vi.spyOn(individualTrackerViewService, "connect");
+      const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
+
+      const { result } = renderHook(() =>
+        useIndividualTrackerViewer({
+          individualTrackerViewService,
+          matchAnalyticsService,
+          seriesMatchesService,
+          medalMetadataResolver,
+          trackerId: "tracker-1",
+        }),
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+
+      expect(connectSpy).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        individualTrackerViewService.lastConnection?.emitStatus("error", "Connection lost");
+      });
+
+      await waitFor(() => {
+        expect(connectSpy).toHaveBeenCalledTimes(2);
+      });
+    } finally {
+      reconnectDelaySpy.mockRestore();
+    }
+  });
+
+  it("preserves reconnect backoff across reconnecting status transitions", async () => {
+    const reconnectDelaySpy = vi.spyOn(reconnectPolicy, "getReconnectDelayMs").mockReturnValue(1);
+
+    try {
+      const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
+        view: aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
+      });
+      const connectSpy = vi.spyOn(individualTrackerViewService, "connect");
+      const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
+
+      const { result } = renderHook(() =>
+        useIndividualTrackerViewer({
+          individualTrackerViewService,
+          matchAnalyticsService,
+          seriesMatchesService,
+          medalMetadataResolver,
+          trackerId: "tracker-1",
+        }),
+      );
+
+      await waitFor(() => {
+        expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+      });
+
+      expect(connectSpy).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        individualTrackerViewService.lastConnection?.emitStatus("error", "Connection lost");
+      });
+
+      await waitFor(() => {
+        expect(connectSpy).toHaveBeenCalledTimes(2);
+      });
+
+      act(() => {
+        individualTrackerViewService.lastConnection?.emitStatus("connecting");
+      });
+
+      act(() => {
+        individualTrackerViewService.lastConnection?.emitStatus("error", "Connection lost again");
+      });
+
+      await waitFor(() => {
+        expect(connectSpy).toHaveBeenCalledTimes(3);
+      });
+
+      expect(reconnectDelaySpy).toHaveBeenNthCalledWith(1, 0);
+      expect(reconnectDelaySpy).toHaveBeenNthCalledWith(2, 1);
+    } finally {
+      reconnectDelaySpy.mockRestore();
+    }
   });
 
   it("does not call individual tracker getView/connect when external view is provided", async () => {
@@ -188,14 +319,14 @@ describe("useIndividualTrackerViewer", () => {
     });
     const getViewSpy = vi.spyOn(individualTrackerViewService, "getView");
     const connectSpy = vi.spyOn(individualTrackerViewService, "connect");
-    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
 
     const { result } = renderHook(() =>
       useIndividualTrackerViewer({
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
-        haloClient,
+        medalMetadataResolver,
         trackerId: "tracker-1",
         externalView,
       }),
@@ -227,7 +358,7 @@ describe("useIndividualTrackerViewer", () => {
     const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
       view: aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
     });
-    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
 
     const { result, rerender } = renderHook(
       ({ externalView }: { externalView: ReturnType<typeof aFakeTrackerViewStateWith> }) =>
@@ -235,7 +366,7 @@ describe("useIndividualTrackerViewer", () => {
           individualTrackerViewService,
           matchAnalyticsService,
           seriesMatchesService,
-          haloClient,
+          medalMetadataResolver,
           trackerId: "tracker-1",
           externalView,
         }),
@@ -277,7 +408,7 @@ describe("useIndividualTrackerViewer", () => {
     });
     vi.spyOn(individualTrackerViewService, "getView").mockImplementationOnce(async () => getViewPending);
 
-    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
 
     const { result, rerender } = renderHook<
       ReturnType<typeof useIndividualTrackerViewer>,
@@ -288,7 +419,7 @@ describe("useIndividualTrackerViewer", () => {
           individualTrackerViewService,
           matchAnalyticsService,
           seriesMatchesService,
-          haloClient,
+          medalMetadataResolver,
           trackerId: "tracker-1",
           externalView: nextExternalView,
         }),
@@ -317,7 +448,7 @@ describe("useIndividualTrackerViewer", () => {
       statsHighlights: [{ label: "KDA", value: "9.9" }],
     });
     const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({ view: managedView });
-    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
 
     const { result, rerender } = renderHook<
       ReturnType<typeof useIndividualTrackerViewer>,
@@ -328,7 +459,7 @@ describe("useIndividualTrackerViewer", () => {
           individualTrackerViewService,
           matchAnalyticsService,
           seriesMatchesService,
-          haloClient,
+          medalMetadataResolver,
           trackerId: "tracker-1",
           externalView: nextExternalView,
         }),
@@ -370,14 +501,14 @@ describe("useIndividualTrackerViewer", () => {
     });
     const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({ view: firstView });
     const getViewSpy = vi.spyOn(individualTrackerViewService, "getView");
-    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
 
     const { result } = renderHook(() =>
       useIndividualTrackerViewer({
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
-        haloClient,
+        medalMetadataResolver,
         trackerId: "tracker-1",
       }),
     );
@@ -412,14 +543,14 @@ describe("useIndividualTrackerViewer", () => {
     });
     const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({ view: firstView });
     const getViewSpy = vi.spyOn(individualTrackerViewService, "getView");
-    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
 
     const { result } = renderHook(() =>
       useIndividualTrackerViewer({
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
-        haloClient,
+        medalMetadataResolver,
         trackerId: "tracker-1",
       }),
     );
@@ -471,14 +602,14 @@ describe("useIndividualTrackerViewer", () => {
     });
     const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({ view: firstView });
     const getViewSpy = vi.spyOn(individualTrackerViewService, "getView");
-    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
 
     const { result } = renderHook(() =>
       useIndividualTrackerViewer({
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
-        haloClient,
+        medalMetadataResolver,
         trackerId: "tracker-1",
         streamerSettings: localSettings,
       }),
@@ -511,10 +642,9 @@ describe("useIndividualTrackerViewer", () => {
         series: [aFakeTrackerSeriesGroupWith({ id: "series-1", title: "Long Series", matchIds })],
       }),
     });
-    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
     const getSeriesMatchesSpy = vi.spyOn(seriesMatchesService, "getSeriesMatches").mockImplementation(async (ids) =>
       Promise.resolve({
-        medalMetadata: {},
         playerXuidToGametag: {},
         matches: ids.map((matchId) => ({
           matchId,
@@ -538,7 +668,7 @@ describe("useIndividualTrackerViewer", () => {
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
-        haloClient,
+        medalMetadataResolver,
         trackerId: "tracker-1",
       }),
     );
@@ -560,7 +690,7 @@ describe("useIndividualTrackerViewer", () => {
       expect(getSeriesMatchesSpy).toHaveBeenCalledTimes(1);
     });
 
-    expect(getSeriesMatchesSpy).toHaveBeenCalledWith(matchIds);
+    expect(getSeriesMatchesSpy).toHaveBeenCalledWith(matchIds, "tracker-1");
 
     const state = result.current.snapshot.entryStates.get("series:series-1");
     expect(state?.kind).toBe("series");
@@ -579,12 +709,11 @@ describe("useIndividualTrackerViewer", () => {
         series: [aFakeTrackerSeriesGroupWith({ id: "series-1", title: "Retry Series", matchIds: ["m-1", "m-2"] })],
       }),
     });
-    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
     const getSeriesMatchesSpy = vi
       .spyOn(seriesMatchesService, "getSeriesMatches")
       .mockRejectedValueOnce(new Error("boom"))
       .mockResolvedValueOnce({
-        medalMetadata: {},
         playerXuidToGametag: {},
         matches: ["m-1", "m-2"].map((matchId) => ({
           matchId,
@@ -607,7 +736,7 @@ describe("useIndividualTrackerViewer", () => {
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
-        haloClient,
+        medalMetadataResolver,
         trackerId: "tracker-1",
       }),
     );
@@ -654,10 +783,9 @@ describe("useIndividualTrackerViewer", () => {
         series: [aFakeTrackerSeriesGroupWith({ id: "series-1", title: "Huge Series", matchIds })],
       }),
     });
-    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
     const getSeriesMatchesSpy = vi.spyOn(seriesMatchesService, "getSeriesMatches").mockImplementation(async (ids) =>
       Promise.resolve({
-        medalMetadata: {},
         playerXuidToGametag: {},
         matches: ids.map((matchId) => ({
           matchId,
@@ -681,7 +809,7 @@ describe("useIndividualTrackerViewer", () => {
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
-        haloClient,
+        medalMetadataResolver,
         trackerId: "tracker-1",
       }),
     );
@@ -703,9 +831,9 @@ describe("useIndividualTrackerViewer", () => {
       expect(getSeriesMatchesSpy).toHaveBeenCalledTimes(3);
     });
 
-    expect(getSeriesMatchesSpy).toHaveBeenNthCalledWith(1, matchIds.slice(0, 30));
-    expect(getSeriesMatchesSpy).toHaveBeenNthCalledWith(2, matchIds.slice(30, 60));
-    expect(getSeriesMatchesSpy).toHaveBeenNthCalledWith(3, matchIds.slice(60, 61));
+    expect(getSeriesMatchesSpy).toHaveBeenNthCalledWith(1, matchIds.slice(0, 30), "tracker-1");
+    expect(getSeriesMatchesSpy).toHaveBeenNthCalledWith(2, matchIds.slice(30, 60), "tracker-1");
+    expect(getSeriesMatchesSpy).toHaveBeenNthCalledWith(3, matchIds.slice(60, 61), "tracker-1");
   });
 
   it("uses the latest chronological match for series team cards", async () => {
@@ -719,7 +847,7 @@ describe("useIndividualTrackerViewer", () => {
         series: [aFakeTrackerSeriesGroupWith({ id: "series-1", title: "Roster Source", matchIds })],
       }),
     });
-    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
     const matchA = aFakeMatchStatsWith({
       MatchId: "m-1",
       MatchInfo: {
@@ -746,7 +874,6 @@ describe("useIndividualTrackerViewer", () => {
     });
 
     vi.spyOn(seriesMatchesService, "getSeriesMatches").mockResolvedValue({
-      medalMetadata: {},
       playerXuidToGametag: {},
       matches: [
         {
@@ -785,7 +912,7 @@ describe("useIndividualTrackerViewer", () => {
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
-        haloClient,
+        medalMetadataResolver,
         trackerId: "tracker-1",
       }),
     );
@@ -823,7 +950,7 @@ describe("useIndividualTrackerViewer", () => {
         series: [aFakeTrackerSeriesGroupWith({ id: "series-1", title: "Huge Series", matchIds })],
       }),
     });
-    const { matchAnalyticsService, seriesMatchesService, haloClient } = aViewerTestDependenciesWith();
+    const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
     let resolveFirstBatch: ((value: SeriesMatchesResponse) => void) | undefined;
     const firstBatchPromise = new Promise<SeriesMatchesResponse>((resolve) => {
       resolveFirstBatch = resolve;
@@ -838,7 +965,7 @@ describe("useIndividualTrackerViewer", () => {
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
-        haloClient,
+        medalMetadataResolver,
         trackerId: "tracker-1",
       }),
     );
@@ -864,7 +991,6 @@ describe("useIndividualTrackerViewer", () => {
 
     expect(resolveFirstBatch).toBeDefined();
     resolveFirstBatch?.({
-      medalMetadata: {},
       playerXuidToGametag: {},
       matches: matchIds.slice(0, 30).map((matchId) => ({
         matchId,

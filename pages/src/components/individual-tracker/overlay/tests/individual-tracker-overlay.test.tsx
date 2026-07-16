@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("../../../icons/team-icon", () => ({
@@ -73,8 +73,42 @@ function aPropsWith(options?: {
   };
 }
 
+function installTeamDetailsSwapSpy(): {
+  triggerAllSwaps: () => void;
+  restore: () => void;
+} {
+  const teamDetailsSwapHandlers: (() => void)[] = [];
+  const setIntervalSpy = vi
+    .spyOn(globalThis, "setInterval")
+    .mockImplementation((handler: TimerHandler): ReturnType<typeof setInterval> => {
+      if (typeof handler === "function") {
+        teamDetailsSwapHandlers.push((): void => {
+          Reflect.apply(handler, globalThis, []);
+        });
+      }
+
+      // Return a valid timer object for Node typing in tests.
+      return setTimeout((): void => undefined, 60_000);
+    });
+
+  return {
+    triggerAllSwaps: (): void => {
+      expect(teamDetailsSwapHandlers.length).toBeGreaterThan(0);
+      act(() => {
+        for (const swapHandler of teamDetailsSwapHandlers) {
+          swapHandler();
+        }
+      });
+    },
+    restore: (): void => {
+      setIntervalSpy.mockRestore();
+    },
+  };
+}
+
 describe("IndividualTrackerOverlay", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     cleanup();
   });
 
@@ -150,6 +184,43 @@ describe("IndividualTrackerOverlay", () => {
     expect(screen.getByText("Network failure")).toBeInTheDocument();
   });
 
+  it("renders series panel content when series state exists and the summary tab is active", () => {
+    render(
+      <IndividualTrackerOverlay
+        {...aPropsWith({
+          renderModel: aRenderModel({
+            matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1", isMatchmaking: true })],
+          }),
+          selectedSeriesId: "series-1",
+          seriesStatsPanelState: { status: "loading" },
+        })}
+      />,
+    );
+
+    expect(screen.getByText("Loading series stats...")).toBeInTheDocument();
+  });
+
+  it("deselects when clicking the matchmaking summary tab", async () => {
+    const onDeselect = vi.fn();
+
+    render(
+      <IndividualTrackerOverlay
+        {...aPropsWith({
+          renderModel: aRenderModel({
+            matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1", isMatchmaking: true })],
+          }),
+          selectedSeriesId: "series-1",
+          seriesStatsPanelState: { status: "loading" },
+          onDeselect,
+        })}
+      />,
+    );
+
+    await userEvent.click(screen.getByText("Won:Loss"));
+
+    expect(onDeselect).toHaveBeenCalledOnce();
+  });
+
   it("calls onDeselect when the close button is clicked", async () => {
     const onDeselect = vi.fn();
 
@@ -181,6 +252,8 @@ describe("IndividualTrackerOverlay", () => {
   });
 
   it("renders active series team details using display-name fallbacks", () => {
+    const teamDetailsSwap = installTeamDetailsSwapSpy();
+
     render(
       <IndividualTrackerOverlay
         {...aPropsWith({
@@ -224,13 +297,22 @@ describe("IndividualTrackerOverlay", () => {
     );
 
     expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(screen.queryByText(/Gamertag Name/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Xbox Only/)).not.toBeInTheDocument();
+
+    teamDetailsSwap.triggerAllSwaps();
+
     expect(screen.getByText(/Gamertag Name/)).toBeInTheDocument();
     expect(screen.getByText(/Xbox Only/)).toBeInTheDocument();
     expect(screen.getByText("Beta")).toBeInTheDocument();
     expect(screen.getByText("Unknown")).toBeInTheDocument();
+
+    teamDetailsSwap.restore();
   });
 
   it("maps team details by team id regardless of active-series team order", () => {
+    const teamDetailsSwap = installTeamDetailsSwapSpy();
+
     render(
       <IndividualTrackerOverlay
         {...aPropsWith({
@@ -279,10 +361,15 @@ describe("IndividualTrackerOverlay", () => {
     const rightTeamContainer = screen.getByTestId("team-icon-1").parentElement;
 
     expect(leftTeamContainer?.textContent).toContain("Alpha");
-    expect(leftTeamContainer?.textContent).toContain("Alpha Player");
     expect(rightTeamContainer?.textContent).toContain("Beta");
+
+    teamDetailsSwap.triggerAllSwaps();
+
+    expect(leftTeamContainer?.textContent).toContain("Alpha Player");
     expect(rightTeamContainer?.textContent).toContain("Beta Player");
     expect(screen.queryByText("Ignored Player")).not.toBeInTheDocument();
+
+    teamDetailsSwap.restore();
   });
 
   it("shows a 0:0 series tab and no waiting banner when in-series has no matches yet and ticker is disabled", () => {
@@ -404,6 +491,8 @@ describe("IndividualTrackerOverlay", () => {
   });
 
   it("uses xbox names in team details when discord names are hidden", () => {
+    const teamDetailsSwap = installTeamDetailsSwapSpy();
+
     const renderModel = aRenderModel({
       matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
       series: [
@@ -443,13 +532,21 @@ describe("IndividualTrackerOverlay", () => {
 
     render(<IndividualTrackerOverlay {...aPropsWith({ renderModel, streamerSettings })} />);
 
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(screen.getByText("Beta")).toBeInTheDocument();
+
+    teamDetailsSwap.triggerAllSwaps();
+
     expect(screen.getByText("XboxAlpha")).toBeInTheDocument();
     expect(screen.getByText("XboxBeta")).toBeInTheDocument();
     expect(screen.queryByText("DiscordAlpha")).not.toBeInTheDocument();
     expect(screen.queryByText("DiscordBeta")).not.toBeInTheDocument();
+
+    teamDetailsSwap.restore();
   });
 
   it("shows only team names when both discord and xbox names are hidden", () => {
+    const setIntervalSpy = vi.spyOn(globalThis, "setInterval");
     const renderModel = aRenderModel({
       matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
       series: [
@@ -495,6 +592,7 @@ describe("IndividualTrackerOverlay", () => {
     expect(screen.queryByText("XboxAlpha")).not.toBeInTheDocument();
     expect(screen.queryByText("DiscordBeta")).not.toBeInTheDocument();
     expect(screen.queryByText("XboxBeta")).not.toBeInTheDocument();
+    expect(setIntervalSpy).not.toHaveBeenCalled();
   });
 
   it("shows only team names when disableTeamPlayerNames is enabled", () => {
@@ -546,6 +644,53 @@ describe("IndividualTrackerOverlay", () => {
     expect(screen.queryByText("XboxAlpha")).not.toBeInTheDocument();
     expect(screen.queryByText("DiscordBeta")).not.toBeInTheDocument();
     expect(screen.queryByText("XboxBeta")).not.toBeInTheDocument();
+  });
+
+  it("shows player names when team names are missing even with disableTeamPlayerNames enabled", () => {
+    const renderModel = aRenderModel({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          id: "series-1",
+          title: "Alpha vs Beta",
+          subtitle: "Bo3",
+          matchIds: ["m-1", "m-2"],
+          score: "1:0",
+        }),
+      ],
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Alpha vs Beta",
+        subtitle: "Bo3",
+        teams: [
+          {
+            id: 0,
+            name: "",
+            players: [{ discordId: null, discordName: "DiscordAlpha", gamertag: "XboxAlpha", xboxId: null }],
+          },
+          {
+            id: 1,
+            name: "",
+            players: [{ discordId: null, discordName: "DiscordBeta", gamertag: "XboxBeta", xboxId: null }],
+          },
+        ],
+      },
+    });
+
+    const streamerSettings: StreamerViewSettings = {
+      visibleSections: {
+        showDiscordNames: true,
+        showXboxNames: true,
+      },
+      styleFlags: {
+        disableTeamPlayerNames: true,
+      },
+    };
+
+    render(<IndividualTrackerOverlay {...aPropsWith({ renderModel, streamerSettings })} />);
+
+    expect(screen.getByText("DiscordAlpha")).toBeInTheDocument();
+    expect(screen.getByText("DiscordBeta")).toBeInTheDocument();
   });
 
   it("renders the server icon when showServerIcon is enabled", () => {

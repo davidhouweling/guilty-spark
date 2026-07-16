@@ -1,5 +1,6 @@
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import { createHaloInfiniteClientProxy } from "@guilty-spark/shared/halo/halo-infinite-client-proxy";
+import { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import { installAuthService } from "../../services/auth/install";
 import type { AuthService } from "../../services/auth/types";
 import {
@@ -17,12 +18,14 @@ export interface Services {
   readonly individualTrackerService: IndividualTrackerService;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly haloClient: HaloInfiniteClient;
+  readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
 }
 
 export async function installServices(apiHost: string): Promise<Services> {
   const haloClient = createHaloInfiniteClientProxy({ proxyBaseUrl: apiHost, credentials: "include" });
+  const medalMetadataResolver = new HaloMedalMetadataResolver(haloClient);
   const [
     authService,
     individualTrackerService,
@@ -41,6 +44,7 @@ export async function installServices(apiHost: string): Promise<Services> {
     individualTrackerService,
     individualTrackerViewService,
     haloClient,
+    medalMetadataResolver,
     matchAnalyticsService,
     seriesMatchesService,
   };

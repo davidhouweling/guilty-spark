@@ -1,9 +1,11 @@
+import { GameVariantCategory } from "halo-infinite-api";
 import {
-  SUPPORTED_ANALYTICS_MODULES,
   type AnalyticsModule,
   type MatchAnalytics,
   type KillMatrixEntry as ContractKillMatrixEntry,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
+import { KILL_RACE_RESPAWN_DURATION_MS } from "@guilty-spark/shared/halo/respawn-durations";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { HaloService } from "../halo/halo";
 import type { HaloFilmService } from "../halo/halo-film";
@@ -15,11 +17,12 @@ export interface AnalyticsServiceOpts {
   logService: LogService;
 }
 
-const supportedAnalyticsModuleSet = new Set<string>(SUPPORTED_ANALYTICS_MODULES);
-
-function isSupportedAnalyticsModule(module: string): module is AnalyticsModule {
-  return supportedAnalyticsModuleSet.has(module);
-}
+// Escalation excluded: only active-weapon kills score, but film events carry no weapon field
+const KILL_RACE_GAME_MODES = new Set([
+  GameVariantCategory.MultiplayerSlayer,
+  GameVariantCategory.MultiplayerFiesta,
+  GameVariantCategory.MultiplayerAttrition,
+]);
 
 function toContractKillMatrix(
   entries: Awaited<ReturnType<HaloFilmService["buildKillMatrixAnalytics"]>>["entries"],
@@ -49,14 +52,26 @@ export class AnalyticsService {
     this.logService = logService;
   }
 
-  private async getMatchAnalytics(matchId: string, modules: string[]): Promise<MatchAnalytics> {
-    const requestedModules = modules.filter(isSupportedAnalyticsModule);
-    if (requestedModules.length === 0) {
-      return Promise.reject(new Error("No supported analytics modules requested"));
-    }
-
+  private async getMatchAnalytics(matchId: string, modules: AnalyticsModule[]): Promise<MatchAnalytics> {
     const matchStats = Preconditions.checkExists((await this.haloService.getMatchDetails([matchId]))[0]);
     const killMatrixAnalytics = await this.haloFilmService.buildKillMatrixAnalytics(matchStats);
+
+    let scoreProgression: MatchAnalytics["scoreProgression"] = null;
+    if (modules.includes("scoreProgression")) {
+      const mode = matchStats.MatchInfo.GameVariantCategory;
+      if (KILL_RACE_GAME_MODES.has(mode) && matchStats.Teams.length > 0) {
+        const progression = await this.haloFilmService.buildKillRaceProgression(matchStats);
+        scoreProgression = {
+          mode,
+          durationMs: Math.round(getDurationInSeconds(matchStats.MatchInfo.Duration) * 1000),
+          teamCount: progression.teamCount,
+          respawnDurationMs: KILL_RACE_RESPAWN_DURATION_MS[mode] ?? null,
+          timeline: { type: "kill-race", events: progression.events, deathTimeline: progression.deathTimeline },
+        };
+      }
+    }
+
+    const requestedModules: AnalyticsModule[] = modules.includes("killMatrix") ? modules : ["killMatrix", ...modules];
 
     return {
       requestedModules,
@@ -65,10 +80,14 @@ export class AnalyticsService {
         pairingQuality: killMatrixAnalytics.pairingQuality,
         perfectCounts: killMatrixAnalytics.perfectCounts,
       },
+      scoreProgression,
     };
   }
 
-  async getBatchMatchAnalytics(matchIds: string[], modules: string[]): Promise<Record<string, MatchAnalytics | null>> {
+  async getBatchMatchAnalytics(
+    matchIds: string[],
+    modules: AnalyticsModule[],
+  ): Promise<Record<string, MatchAnalytics | null>> {
     try {
       await this.haloFilmService.warmAuthCache();
     } catch (error) {

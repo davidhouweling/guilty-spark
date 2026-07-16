@@ -9,10 +9,15 @@ import {
   aFakeMatchStatsPlayerDataWith,
 } from "../../../controllers/stats/fakes/component-data";
 import type { TeamColor } from "../../team-colors/team-colors";
+import type { ScoreProgressionViewData } from "../score-progression/types";
 
 afterEach(() => {
   cleanup();
 });
+
+vi.mock("../score-progression/create", () => ({
+  createScoreProgression: (): (() => React.ReactNode) => (): React.ReactNode => <div>Score Progression Chart</div>,
+}));
 
 vi.mock("../../icons/team-icon", () => ({
   TeamIcon: ({ teamId }: { teamId: number }): React.ReactNode => (
@@ -211,6 +216,39 @@ describe("MatchStats", () => {
     const icon = screen.getByAltText("Slayer Mode");
     expect(icon).toBeInTheDocument();
     expect(icon).toHaveAttribute("src", "https://example.com/icon.png");
+  });
+
+  it("falls back to Players tab when Timeline is active and scoreProgressionViewData becomes null", () => {
+    const data = [aFakeMatchStatsDataWith({ teamId: 0 })];
+    const scoreProgressionViewData: ScoreProgressionViewData = {
+      durationMs: 600000,
+      teamLines: [],
+      scoreDelta: null,
+      playerAdvantage: null,
+    };
+    const baseProps = {
+      data,
+      id: "match-1",
+      backgroundImageUrl: "https://example.com/bg.jpg",
+      gameModeIconUrl: "https://example.com/icon.png",
+      gameModeAlt: "Slayer",
+      matchNumber: 1,
+      gameTypeAndMap: "Slayer: Aquarius",
+      duration: "10m 30s",
+      score: "50:49",
+      startTime: "2024-01-01T00:00:00.000Z",
+      endTime: "2024-01-01T00:10:30.000Z",
+    };
+
+    const { rerender } = render(<MatchStats {...baseProps} scoreProgressionViewData={scoreProgressionViewData} />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Timeline" }));
+    expect(screen.getByText("Score Progression Chart")).toBeInTheDocument();
+
+    rerender(<MatchStats {...baseProps} scoreProgressionViewData={null} />);
+
+    expect(screen.getByLabelText("Player statistics")).toBeInTheDocument();
+    expect(screen.queryByText("Score Progression Chart")).not.toBeInTheDocument();
   });
 
   it("shows kill matrix empty state when kill matrix tab is selected", () => {

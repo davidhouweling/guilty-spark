@@ -61,6 +61,14 @@ export interface SeriesPlayer {
   discordName: string | null;
   gamertag: string | null;
   xboxId: string | null;
+  currentRank?: number | null | undefined;
+  currentRankTier?: string | null | undefined;
+  currentRankSubTier?: number | null | undefined;
+  currentRankMeasurementMatchesRemaining?: number | null | undefined;
+  currentRankInitialMeasurementMatches?: number | null | undefined;
+  allTimePeakRank?: number | null | undefined;
+  esra?: number | null | undefined;
+  lastRankedGamePlayed?: string | null | undefined;
 }
 
 export interface SeriesTeam {
@@ -231,6 +239,7 @@ export interface IndividualTrackerStatusResponse {
 export interface ActiveSeriesContext {
   title: string;
   subtitle: string | null;
+  guildIconUrl: string | null;
   teams: SeriesTeam[];
 }
 

@@ -20,7 +20,6 @@ function aFakeResolvedDataWith(): DiscordSeriesStatsResolved {
       title: "Queue #7777 Series Stats",
       subtitle: "Guild 123456789012345678",
       seriesScore: "1:0",
-      medalMetadata: {},
       teams: [
         { name: "Eagle", players: ["Player One"] },
         { name: "Cobra", players: ["Player Two"] },

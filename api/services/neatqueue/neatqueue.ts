@@ -598,8 +598,8 @@ export class NeatQueueService {
 
       const playerIds = request.teams.flatMap((players) => players.map((p) => p.id));
       const players = await discordService.getUsers(request.guild, playerIds);
-      const teams = request.teams.map((team, teamIndex) => ({
-        name: team[0]?.team_name ?? getTeamName(teamIndex),
+      const teams = request.teams.map((team) => ({
+        name: team[0]?.team_name ?? "",
         playerIds: team.map((player) => player.id),
       }));
       const playersRecord = players.reduce<Record<string, APIGuildMember>>((acc, player) => {
@@ -673,7 +673,7 @@ export class NeatQueueService {
 
       const seriesTeams: SeriesTeam[] = request.teams.map((team, teamIndex) => ({
         id: teamIndex,
-        name: team[0]?.team_name ?? getTeamName(teamIndex),
+        name: team[0]?.team_name ?? "",
         players: team.map((player) =>
           this.buildSeriesPlayer(queueState.playersAssociationData[player.id], player.id, player.name),
         ),
@@ -687,7 +687,7 @@ export class NeatQueueService {
       };
       queueState.seriesContext = seriesContext;
       this.setQueueState(request.guild, request.match_number, queueState);
-      const allPlayerXuids = this.extractXuids(queueState.playersAssociationData);
+      const allPlayerXuids = await this.extractXuidsWithFallback(queueState.playersAssociationData);
       await this.individualTrackerService.nudgeTrackers(allPlayerXuids, seriesContext);
     } catch (error) {
       this.logService.warn(
@@ -1104,7 +1104,7 @@ export class NeatQueueService {
     }
 
     const completedQueueState = await this.getQueueState(neatQueueConfig.GuildId, request.match_number);
-    const allPlayerXuids = this.extractXuids(completedQueueState.playersAssociationData);
+    const allPlayerXuids = await this.extractXuidsWithFallback(completedQueueState.playersAssociationData);
 
     await Promise.all([
       this.nudgeIndividualTrackersForMatchCompletion(request, neatQueueConfig, allPlayerXuids),
@@ -1255,13 +1255,58 @@ export class NeatQueueService {
       discordName: assoc?.discordName ?? fallbackName,
       gamertag: assoc?.gamertag ?? null,
       xboxId: assoc?.xboxId ?? null,
+      currentRank: assoc?.currentRank ?? null,
+      currentRankTier: assoc?.currentRankTier ?? null,
+      currentRankSubTier: assoc?.currentRankSubTier ?? null,
+      currentRankMeasurementMatchesRemaining: assoc?.currentRankMeasurementMatchesRemaining ?? null,
+      currentRankInitialMeasurementMatches: assoc?.currentRankInitialMeasurementMatches ?? null,
+      allTimePeakRank: assoc?.allTimePeakRank ?? null,
+      esra: assoc?.esra ?? null,
+      lastRankedGamePlayed: assoc?.lastRankedGamePlayed ?? null,
     };
   }
 
-  private extractXuids(data: Record<string, PlayerAssociationData>): string[] {
-    return Object.values(data)
-      .map((d) => d.xboxId)
-      .filter((xuid): xuid is string => xuid != null);
+  private async extractXuidsWithFallback(data: Record<string, PlayerAssociationData>): Promise<string[]> {
+    const xuidSet = new Set<string>();
+    const discordIdsMissingXuids: string[] = [];
+
+    for (const [discordId, associationData] of Object.entries(data)) {
+      if (associationData.xboxId != null) {
+        xuidSet.add(associationData.xboxId);
+        continue;
+      }
+      discordIdsMissingXuids.push(discordId);
+    }
+
+    const fallbackXuids = await Promise.all(
+      discordIdsMissingXuids.map(async (discordId) => this.findActiveXboxIdentityXuid(discordId)),
+    );
+    for (const fallbackXuid of fallbackXuids) {
+      if (fallbackXuid != null) {
+        xuidSet.add(fallbackXuid);
+      }
+    }
+
+    return [...xuidSet];
+  }
+
+  private async findActiveXboxIdentityXuid(discordId: string): Promise<string | null> {
+    try {
+      const linkedIdentities = await this.databaseService.findLinkedIdentitiesByUserId(discordId);
+      const activeXboxIdentity = linkedIdentities.find(
+        (identity) => identity.Provider === "xbox" && identity.IsActive === 1,
+      );
+      return activeXboxIdentity?.ProviderUserId ?? null;
+    } catch (error: unknown) {
+      this.logService.warn(
+        "Failed to resolve fallback Xbox identity for player, continuing without fallback XUID",
+        new Map([
+          ["discordId", discordId],
+          ["error", String(error)],
+        ]),
+      );
+      return null;
+    }
   }
 
   private getQueueStateKey(guildId: string, queueNumber: number): string {
@@ -1920,8 +1965,8 @@ export class NeatQueueService {
   }
 
   private getTeams(request: NeatQueueMatchCompletedRequest): TeamMapping[] {
-    return request.teams.map((team, teamIndex) => ({
-      name: team[0]?.team_name ?? getTeamName(teamIndex),
+    return request.teams.map((team) => ({
+      name: team[0]?.team_name ?? "",
       playerIds: team.map((player) => player.id),
     }));
   }
@@ -1934,14 +1979,19 @@ export class NeatQueueService {
       .filter((event) => event.event.action === "SUBSTITUTION")
       .map((event) => {
         const { player_subbed_out, player_subbed_in } = event.event as NeatQueueSubstitutionRequest;
+        const rawTeamName = player_subbed_out.team_name;
+        const finalTeamName = finalTeams[player_subbed_out.team_num - 1]?.name ?? "";
+        const resolvedTeamName =
+          rawTeamName != null && rawTeamName !== ""
+            ? rawTeamName
+            : finalTeamName !== ""
+              ? finalTeamName
+              : getTeamName(player_subbed_out.team_num - 1);
         return {
           date: new Date(event.timestamp),
           playerOut: player_subbed_out.id,
           playerIn: player_subbed_in.id,
-          team:
-            player_subbed_out.team_name ??
-            finalTeams[player_subbed_out.team_num - 1]?.name ??
-            getTeamName(player_subbed_out.team_num - 1),
+          team: resolvedTeamName,
         };
       });
   }

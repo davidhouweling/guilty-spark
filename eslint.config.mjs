@@ -24,6 +24,7 @@ export default defineConfig(
       "api/worker-configuration.d.ts",
       "pages/.astro/**/*",
       "pages/dist/",
+      "pages/worker-configuration.d.ts",
       "patches/",
       "test-results/",
       "**/*.json",

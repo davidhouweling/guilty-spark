@@ -1,5 +1,6 @@
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import { createHaloInfiniteClientProxy } from "@guilty-spark/shared/halo/halo-infinite-client-proxy";
+import { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import { installFollowLiveService } from "../../services/follow/install";
 import type { FollowLiveService } from "../../services/follow/follow-types";
 import { installIndividualTrackerViewService } from "../../services/individual-tracker/install";
@@ -15,6 +16,7 @@ export interface Services {
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
+  readonly medalMetadataResolver: HaloMedalMetadataResolver;
 }
 
 export async function installServices(apiHost: string): Promise<Services> {
@@ -32,12 +34,15 @@ export async function installServices(apiHost: string): Promise<Services> {
       import("../../services/stats/fakes/series-matches.fake"),
       import("../../services/fakes/halo-client.fake"),
     ]);
+    const haloClient = aFakeHaloClientWith();
+
     return {
       followLiveService: aFakeFollowLiveServiceWith(),
       individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
       seriesMatchesService: aFakeSeriesMatchesServiceWith(),
-      haloClient: aFakeHaloClientWith(),
+      haloClient,
+      medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
     };
   }
 
@@ -49,5 +54,12 @@ export async function installServices(apiHost: string): Promise<Services> {
       installSeriesMatchesService(apiHost),
     ]);
   const haloClient = createHaloInfiniteClientProxy({ proxyBaseUrl: apiHost });
-  return { followLiveService, individualTrackerViewService, matchAnalyticsService, seriesMatchesService, haloClient };
+  return {
+    followLiveService,
+    individualTrackerViewService,
+    matchAnalyticsService,
+    seriesMatchesService,
+    haloClient,
+    medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
+  };
 }

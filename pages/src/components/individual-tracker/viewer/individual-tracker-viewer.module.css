@@ -203,6 +203,17 @@
   padding-top: var(--space-4);
 }
 
+.preSeriesPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.preSeriesInfo {
+  margin: 0;
+}
+
 .jumpToLatestButton {
   background: color-mix(in srgb, var(--halo-teal-primary) 20%, var(--halo-bg-elevated));
   border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 60%, transparent);
@@ -243,14 +254,11 @@
     justify-content: flex-end;
     max-width: 92px;
   }
-
-  .entryHeaderRight {
-    align-items: flex-end;
-  }
 }
 
 @media (--desktop-viewport) {
   .entryHeaderRight {
+    align-items: center;
     flex-direction: row;
   }
 

@@ -87,7 +87,7 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
       matches: [],
       substitutions: [],
       seriesScore: "0:0",
-      medalMetadata: {},
+      medalMetadata: { 1: { name: "Killing Spree", sortingWeight: 1500 } },
       playersAssociationData: {},
     },
     ...overrides,
@@ -174,7 +174,7 @@ describe("StreamerOverlay", () => {
         ],
         substitutions: [],
         seriesScore: "1:0",
-        medalMetadata: {},
+        medalMetadata: { 1: { name: "Killing Spree", sortingWeight: 1500 } },
         playersAssociationData: null,
       },
     });
@@ -240,7 +240,7 @@ describe("StreamerOverlay", () => {
         ],
         substitutions: [],
         seriesScore: "1:0",
-        medalMetadata: {},
+        medalMetadata: { 1: { name: "Killing Spree", sortingWeight: 1500 } },
         playersAssociationData: null,
       },
     });

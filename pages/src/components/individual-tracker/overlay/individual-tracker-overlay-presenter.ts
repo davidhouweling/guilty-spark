@@ -31,7 +31,7 @@ import type {
   OverlayTeamDetailsModel,
   OverlayTopSectionModel,
 } from "./types";
-import { getOverlayDisplaySettings } from "./types";
+import { getOverlayDisplaySettings, MATCHMAKING_SUMMARY_TAB_SERIES_ID } from "./types";
 import "javascript-time-ago/locale/en";
 
 const timeAgo = new TimeAgo("en");
@@ -109,7 +109,7 @@ function getSeriesPlayerDisplayNameForSettings(
     return player.gamertag ?? "Unknown";
   }
 
-  return player.discordName ?? player.gamertag ?? "Unknown";
+  return "Unknown";
 }
 
 function getSeriesPlayerStableKey(player: {
@@ -161,6 +161,7 @@ interface BuildOverlayViewModelOptions {
 interface BuildTabsOptions {
   readonly includeInSeriesSummaryTab: boolean;
   readonly includeMatchmakingSummaryTab: boolean;
+  readonly matchmakingSummaryScore: string;
 }
 
 interface IndividualTrackerOverlayPresenterConfig {
@@ -190,6 +191,7 @@ export class IndividualTrackerOverlayPresenter {
     options: BuildTabsOptions = {
       includeInSeriesSummaryTab: true,
       includeMatchmakingSummaryTab: true,
+      matchmakingSummaryScore: "0:0",
     },
   ): readonly OverlayTab[] {
     const activeSeries = activeSeriesOverride ?? this.getActiveSeries(timeline);
@@ -212,16 +214,10 @@ export class IndividualTrackerOverlayPresenter {
         type: "series",
         seriesId: activeSeries.id,
         index: -1,
-        label: activeSeries.matches.length === 0 ? "Series score" : activeSeries.title,
+        label: "Series score",
         score: activeSeries.score,
-        teamColor: getSeriesOutcomeColorHex(activeSeries),
-        icons:
-          activeSeries.matches.length > 0
-            ? activeSeries.matches.map((match) => ({
-                src: gameModeIconSrc(match.gameVariantCategory),
-                dimmed: false,
-              }))
-            : undefined,
+        teamColor: undefined,
+        icons: [],
       };
 
       if (activeSeries.matches.length === 0) {
@@ -231,9 +227,21 @@ export class IndividualTrackerOverlayPresenter {
       return [seriesTab, ...matchTabs];
     }
 
+    const matchmakingSummaryTab: OverlayTab | null = options.includeMatchmakingSummaryTab
+      ? {
+          type: "series",
+          seriesId: MATCHMAKING_SUMMARY_TAB_SERIES_ID,
+          index: -1,
+          label: "Won:Loss",
+          score: options.matchmakingSummaryScore,
+          teamColor: undefined,
+          icons: [],
+        }
+      : null;
+
     let matchIdx = 0;
-    let seriesIdx = -1;
-    return timeline.flatMap((item): readonly OverlayTab[] => {
+    let seriesIdx = matchmakingSummaryTab != null ? -2 : -1;
+    const timelineTabs = timeline.flatMap((item): readonly OverlayTab[] => {
       if (item.type === "series") {
         if (!options.includeMatchmakingSummaryTab) {
           return [];
@@ -269,6 +277,8 @@ export class IndividualTrackerOverlayPresenter {
         },
       ];
     });
+
+    return matchmakingSummaryTab != null ? [matchmakingSummaryTab, ...timelineTabs] : timelineTabs;
   }
 
   public isPanelOpen(
@@ -455,9 +465,14 @@ export class IndividualTrackerOverlayPresenter {
     const activeSeries = this.getOverlayActiveSeries(renderModel);
     const teamColors = this.getTeamColors(renderModel, activeSeries);
     const showTicker = this.getShowTicker(streamerSettings, activeSeries, displaySettings.showTicker);
+    const matchmakingSummaryScore = this.getMatchmakingSummaryScore(
+      renderModel.statsHighlights,
+      renderModel.accumulated,
+    );
     const tabs = this.buildTabs(renderModel.timeline, activeSeries, {
       includeInSeriesSummaryTab: streamerSettings?.styleFlags?.inSeriesShowSeriesTab ?? true,
       includeMatchmakingSummaryTab: streamerSettings?.styleFlags?.matchmakingShowSummaryTab ?? true,
+      matchmakingSummaryScore,
     });
     const loadedTickerGroups = this.buildTickerGroups(options.matchStatsByMatchId, tabs, {
       trackedGamertag: renderModel.gamertag,
@@ -509,6 +524,18 @@ export class IndividualTrackerOverlayPresenter {
     }
 
     return statsHighlights ?? [];
+  }
+
+  private getMatchmakingSummaryScore(
+    statsHighlights: IndividualTrackerViewerRenderModel["statsHighlights"],
+    accumulated: IndividualTrackerViewerRenderModel["accumulated"],
+  ): string {
+    const wonLossHighlight = statsHighlights?.find((item) => item.label === "Won:Loss");
+    if (wonLossHighlight?.value != null && wonLossHighlight.value !== "") {
+      return wonLossHighlight.value;
+    }
+
+    return `${accumulated.wins.toString()}:${accumulated.losses.toString()}`;
   }
 
   private getOverlayActiveSeries(renderModel: IndividualTrackerViewerRenderModel): ViewerSeriesTab | null {

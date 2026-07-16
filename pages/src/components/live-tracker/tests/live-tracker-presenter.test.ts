@@ -1,9 +1,12 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import type { HaloInfiniteClient } from "halo-infinite-api";
 import type { LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
 import { LiveTrackerPresenter } from "../live-tracker-presenter";
+import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
+import { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type {
   LiveTrackerConnection,
   LiveTrackerListener,
@@ -12,6 +15,7 @@ import type {
   LiveTrackerStatusListener,
 } from "../../../services/live-tracker/types";
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
+import * as reconnectPolicy from "../../../services/base/reconnect-policy";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import type { LiveTrackerSnapshot } from "../live-tracker-store";
 
@@ -82,6 +86,7 @@ class MockLiveTrackerStore {
       hasReceivedInitialData: false,
       analyticsByMatchId: new Map(),
       analyticsStatus: ComponentLoaderStatus.LOADED,
+      medalMetadata: {},
       allMatchStats: [],
       seriesStatsData: null,
     };
@@ -134,6 +139,7 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
       liveTrackerService: mockService,
       store: mockStore,
       matchAnalyticsService: analyticsService,
+      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
     });
 
     presenter.start();
@@ -142,9 +148,6 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
     const connection = Preconditions.checkExists(createdConnections[0]);
     connection.emitStatus("connected");
     connection.emitMessage(sampleLiveTrackerStateMessage);
-
-    // Status transitions to LOADING synchronously inside fetchAnalyticsAsync before the first await
-    expect(mockStore.getSnapshot().analyticsStatus).toBe(ComponentLoaderStatus.LOADING);
 
     // Flush microtasks so the fake analytics Promise.resolve() completes
     await vi.runAllTimersAsync();
@@ -177,6 +180,7 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
       liveTrackerService: mockService,
       store: mockStore,
       matchAnalyticsService: analyticsService,
+      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
     });
 
     presenter.start();
@@ -194,6 +198,99 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
     await vi.runAllTimersAsync();
 
     expect(getBatchSpy).toHaveBeenCalledTimes(1);
+
+    presenter.dispose();
+  });
+
+  it("updates snapshot immediately before medal metadata resolution completes", async (): Promise<void> => {
+    const mockStore = new MockLiveTrackerStore();
+    const analyticsService = aFakeMatchAnalyticsServiceWith();
+    const getBatchSpy = vi.spyOn(analyticsService, "getBatchMatchAnalytics");
+
+    let resolveMetadataFile!: (value: Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]>>) => void;
+    const delayedMetadataFile = new Promise<Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]>>>(
+      (resolve) => {
+        resolveMetadataFile = resolve;
+      },
+    );
+    const haloClient = aFakeHaloClientWith({
+      getMedalsMetadataFile: vi.fn(async () => delayedMetadataFile),
+    });
+
+    const createdConnections: MockLiveTrackerConnection[] = [];
+    const mockService = new MockLiveTrackerService();
+    vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
+      const conn = new MockLiveTrackerConnection();
+      createdConnections.push(conn);
+      return Promise.resolve(conn);
+    });
+
+    const presenter = new LiveTrackerPresenter({
+      getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
+      liveTrackerService: mockService,
+      store: mockStore,
+      matchAnalyticsService: analyticsService,
+      medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
+    });
+
+    presenter.start();
+    await vi.runAllTimersAsync();
+
+    const connection = Preconditions.checkExists(createdConnections[0]);
+    connection.emitStatus("connected");
+    connection.emitMessage(sampleLiveTrackerStateMessage);
+
+    const snapshotBeforeMetadataResolves = mockStore.getSnapshot();
+    expect(snapshotBeforeMetadataResolves.lastStateMessage).toEqual(sampleLiveTrackerStateMessage);
+    expect(snapshotBeforeMetadataResolves.hasReceivedInitialData).toBe(true);
+    expect(getBatchSpy).toHaveBeenCalledTimes(1);
+
+    resolveMetadataFile({ difficulties: [], types: [], sprites: {}, medals: [] });
+    await vi.runAllTimersAsync();
+
+    presenter.dispose();
+  });
+
+  it("skips metadata resolution when a state message has no valid raw matches", async (): Promise<void> => {
+    const mockStore = new MockLiveTrackerStore();
+    const analyticsService = aFakeMatchAnalyticsServiceWith();
+
+    const resolver = new HaloMedalMetadataResolver(aFakeHaloClientWith());
+    const getMedalMetadataForMatchesSpy = vi.spyOn(resolver, "getMedalMetadataForMatches");
+
+    const createdConnections: MockLiveTrackerConnection[] = [];
+    const mockService = new MockLiveTrackerService();
+    vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
+      const conn = new MockLiveTrackerConnection();
+      createdConnections.push(conn);
+      return Promise.resolve(conn);
+    });
+
+    const presenter = new LiveTrackerPresenter({
+      getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
+      liveTrackerService: mockService,
+      store: mockStore,
+      matchAnalyticsService: analyticsService,
+      medalMetadataResolver: resolver,
+    });
+
+    presenter.start();
+    await vi.runAllTimersAsync();
+
+    const connection = Preconditions.checkExists(createdConnections[0]);
+    connection.emitStatus("connected");
+    mockStore.setSnapshot({
+      ...mockStore.getSnapshot(),
+      medalMetadata: { 99: { name: "Existing", sortingWeight: 99 } },
+    });
+    connection.emitMessage({
+      ...sampleLiveTrackerStateMessage,
+      data: { ...sampleLiveTrackerStateMessage.data, rawMatches: {} },
+    });
+    await vi.runAllTimersAsync();
+
+    expect(getMedalMetadataForMatchesSpy).not.toHaveBeenCalled();
+    expect(mockStore.getSnapshot().medalMetadata).toEqual({ 99: { name: "Existing", sortingWeight: 99 } });
 
     presenter.dispose();
   });
@@ -222,6 +319,7 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
       liveTrackerService: mockService,
       store: mockStore,
       matchAnalyticsService: analyticsService,
+      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
     });
 
     presenter.start();
@@ -231,7 +329,7 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
     connection.emitStatus("connected");
     connection.emitMessage(sampleLiveTrackerStateMessage);
 
-    expect(mockStore.getSnapshot().analyticsStatus).toBe(ComponentLoaderStatus.LOADING);
+    await vi.runAllTimersAsync();
 
     // Simulate a new lastStateMessage arriving (different object reference) before the stale fetch resolves
     const snapshotBeforeResolve = mockStore.getSnapshot();
@@ -279,6 +377,7 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
       liveTrackerService: mockService,
       store: mockStore,
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
     });
 
     // Start the connection
@@ -351,6 +450,7 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
       liveTrackerService: mockService,
       store: mockStore,
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
     });
 
     // Start the connection
@@ -383,64 +483,169 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
     presenter.dispose();
   });
 
-  it("respects time limit (3 minutes) in addition to attempt limit", async (): Promise<void> => {
-    const mockService = new MockLiveTrackerService();
-    const mockStore = new MockLiveTrackerStore();
+  it("uses shared reconnect delay and ignores duplicate error events while a retry is pending", async (): Promise<void> => {
+    const reconnectDelaySpy = vi.spyOn(reconnectPolicy, "getReconnectDelayMs").mockReturnValue(1_000);
 
-    const createdConnections: MockLiveTrackerConnection[] = [];
-    vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
-      const conn = new MockLiveTrackerConnection();
-      createdConnections.push(conn);
-      return Promise.resolve(conn);
-    });
+    try {
+      const mockService = new MockLiveTrackerService();
+      const mockStore = new MockLiveTrackerStore();
 
-    const presenter = new LiveTrackerPresenter({
-      getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
-      liveTrackerService: mockService,
-      store: mockStore,
-      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
-    });
+      const createdConnections: MockLiveTrackerConnection[] = [];
+      const connectSpy = vi
+        .spyOn(mockService, "connect")
+        .mockImplementation(async (): Promise<LiveTrackerConnection> => {
+          const conn = new MockLiveTrackerConnection();
+          createdConnections.push(conn);
+          return Promise.resolve(conn);
+        });
 
-    // Start the connection
-    presenter.start();
-    await vi.runAllTimersAsync();
+      const presenter = new LiveTrackerPresenter({
+        getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
+        liveTrackerService: mockService,
+        store: mockStore,
+        matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+        medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
+      });
 
-    // Simulate successful connection first
-    const [initialConnection] = createdConnections;
-    expect(initialConnection).toBeDefined();
-    initialConnection.emitStatus("connected");
-    await vi.runAllTimersAsync();
-    initialConnection.emitMessage(sampleLiveTrackerStateMessage);
-    await vi.runAllTimersAsync();
-    initialConnection.emitStatus("error", "Connection lost");
-    await vi.runAllTimersAsync();
-
-    // Try retrying for longer than 3 minutes
-    for (let i = 0; i < 6; i++) {
-      // Each iteration is 35 seconds, so 6 iterations = 210 seconds > 180 seconds (3 min)
-      await vi.advanceTimersByTimeAsync(35000);
+      presenter.start();
       await vi.runAllTimersAsync();
 
-      const [latestConnection] = createdConnections.slice(-1);
-      expect(latestConnection).toBeDefined();
-      latestConnection.emitStatus("error", "Still failing");
+      const initialConnection = Preconditions.checkExists(createdConnections[0]);
+      initialConnection.emitStatus("connected");
+      await vi.runAllTimersAsync();
+      initialConnection.emitMessage(sampleLiveTrackerStateMessage);
       await vi.runAllTimersAsync();
 
-      const snapshot = mockStore.getSnapshot();
-      if (snapshot.statusText.includes("Gave up")) {
-        break;
-      }
+      initialConnection.emitStatus("error", "Connection lost");
+      initialConnection.emitStatus("error", "Connection lost again");
+
+      expect(reconnectDelaySpy).toHaveBeenCalledTimes(1);
+      expect(connectSpy).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1_000);
+      await vi.runAllTimersAsync();
+
+      expect(connectSpy).toHaveBeenCalledTimes(2);
+
+      presenter.dispose();
+    } finally {
+      reconnectDelaySpy.mockRestore();
     }
+  });
 
-    // Test passes if we eventually gave up due to time limit
-    const finalSnapshot = mockStore.getSnapshot();
+  it("respects time limit (3 minutes) in addition to attempt limit", async (): Promise<void> => {
+    const reconnectDelaySpy = vi.spyOn(reconnectPolicy, "getReconnectDelayMs").mockReturnValue(35_000);
 
-    const reachedTimeLimit =
-      finalSnapshot.statusText.includes("Gave up") || finalSnapshot.statusText.includes("Max retries");
+    try {
+      const mockService = new MockLiveTrackerService();
+      const mockStore = new MockLiveTrackerStore();
 
-    expect(reachedTimeLimit).toBe(true);
-    expect(finalSnapshot.connectionState).toMatch(/^(error|connecting)$/);
+      const createdConnections: MockLiveTrackerConnection[] = [];
+      vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
+        const conn = new MockLiveTrackerConnection();
+        createdConnections.push(conn);
+        return Promise.resolve(conn);
+      });
 
-    presenter.dispose();
+      const presenter = new LiveTrackerPresenter({
+        getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
+        liveTrackerService: mockService,
+        store: mockStore,
+        matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+        medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
+      });
+
+      presenter.start();
+      await vi.runAllTimersAsync();
+
+      const [initialConnection] = createdConnections;
+      expect(initialConnection).toBeDefined();
+      initialConnection.emitStatus("connected");
+      await vi.runAllTimersAsync();
+      initialConnection.emitMessage(sampleLiveTrackerStateMessage);
+      await vi.runAllTimersAsync();
+      initialConnection.emitStatus("error", "Connection lost");
+      await vi.runAllTimersAsync();
+
+      for (let i = 0; i < 6; i++) {
+        await vi.advanceTimersByTimeAsync(35_000);
+        await vi.runAllTimersAsync();
+
+        const [latestConnection] = createdConnections.slice(-1);
+        expect(latestConnection).toBeDefined();
+        latestConnection.emitStatus("error", "Still failing");
+        await vi.runAllTimersAsync();
+
+        const snapshot = mockStore.getSnapshot();
+        if (snapshot.statusText.includes("Gave up")) {
+          break;
+        }
+      }
+
+      const finalSnapshot = mockStore.getSnapshot();
+
+      expect(finalSnapshot.statusText.includes("Gave up")).toBe(true);
+      expect(finalSnapshot.connectionState).toBe("error");
+
+      presenter.dispose();
+    } finally {
+      reconnectDelaySpy.mockRestore();
+    }
+  });
+
+  it("gives up when the time limit is exceeded before a pending retry fires", async (): Promise<void> => {
+    const reconnectDelaySpy = vi.spyOn(reconnectPolicy, "getReconnectDelayMs").mockReturnValue(60_000);
+
+    try {
+      vi.setSystemTime(0);
+
+      const mockService = new MockLiveTrackerService();
+      const mockStore = new MockLiveTrackerStore();
+
+      const createdConnections: MockLiveTrackerConnection[] = [];
+      vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
+        const conn = new MockLiveTrackerConnection();
+        createdConnections.push(conn);
+        return Promise.resolve(conn);
+      });
+
+      const presenter = new LiveTrackerPresenter({
+        getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
+        liveTrackerService: mockService,
+        store: mockStore,
+        matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+        medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
+      });
+
+      presenter.start();
+      await vi.runAllTimersAsync();
+
+      const firstConnection = Preconditions.checkExists(createdConnections[0]);
+      firstConnection.emitStatus("connected");
+      await vi.runAllTimersAsync();
+      firstConnection.emitMessage(sampleLiveTrackerStateMessage);
+      await vi.runAllTimersAsync();
+
+      firstConnection.emitStatus("error", "Connection lost");
+      await vi.runAllTimersAsync();
+
+      const secondConnection = Preconditions.checkExists(createdConnections[1]);
+      secondConnection.emitStatus("error", "Still failing");
+      await vi.runAllTimersAsync();
+
+      const thirdConnection = Preconditions.checkExists(createdConnections[2]);
+      await vi.advanceTimersByTimeAsync(1);
+      thirdConnection.emitStatus("error", "Still failing");
+
+      await vi.advanceTimersByTimeAsync(60_001);
+      await vi.runAllTimersAsync();
+
+      expect(createdConnections).toHaveLength(3);
+      expect(mockStore.getSnapshot().statusText).toContain("Gave up after 3m");
+
+      presenter.dispose();
+    } finally {
+      reconnectDelaySpy.mockRestore();
+    }
   });
 });

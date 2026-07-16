@@ -198,6 +198,23 @@ export interface KillMatrixAnalytics {
   perfectCounts: PerfectCounts;
 }
 
+export interface KillRaceProgressionEvent {
+  timestampMs: number;
+  teamId: number;
+  runningScores: Record<string, number>;
+}
+
+export interface KillRaceDeathEvent {
+  timestampMs: number;
+  teamId: number;
+}
+
+export interface KillRaceProgression {
+  events: KillRaceProgressionEvent[];
+  deathTimeline: KillRaceDeathEvent[];
+  teamCount: number;
+}
+
 export interface HaloFilmServiceOpts {
   env: Env;
   spartanTokenProvider: CustomSpartanTokenProvider;

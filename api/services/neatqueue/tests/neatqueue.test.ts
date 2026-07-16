@@ -19,6 +19,7 @@ import {
   aFakeDatabaseServiceWith,
   aFakeDiscordAssociationsRow,
   aFakeGuildConfigRow,
+  aFakeLinkedIdentitiesRow,
   aFakeNeatQueueConfigRow,
 } from "../../database/fakes/database.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
@@ -1132,6 +1133,107 @@ describe("NeatQueueService", () => {
           expect(discordServiceCreateMessageSpy.mock.calls).toMatchSnapshot();
         });
 
+        describe("substitution team name in Discord embed", () => {
+          function buildTimelineWithSubstitution(
+            substitutionEvent: ReturnType<typeof getFakeNeatQueueData<"substitution">>,
+          ): ReturnType<typeof neatQueueStateFromTimeline> {
+            const matchCompletedTimes = new Date();
+            return neatQueueStateFromTimeline([
+              {
+                timestamp: sub(matchCompletedTimes, { hours: 1, minutes: 15 }).toISOString(),
+                event: getFakeNeatQueueData("teamsCreated"),
+              },
+              {
+                timestamp: sub(matchCompletedTimes, { minutes: 45 }).toISOString(),
+                event: substitutionEvent,
+              },
+            ]);
+          }
+
+          function findGameFieldValue(calls: Parameters<typeof discordService.createMessage>[]): string | null {
+            for (const [, msg] of calls) {
+              const gameField = msg.embeds?.[0]?.fields?.find((f) => f.name === "Game");
+              if (gameField != null) {
+                return gameField.value;
+              }
+            }
+            return null;
+          }
+
+          beforeEach(() => {
+            haloServiceGetSeriesFromDiscordQueueSpy.mockReset();
+            haloServiceGetSeriesFromDiscordQueueSpy.mockImplementation(async (queueData) => {
+              if (queueData.startDateTime.getTime() === new Date("2024-11-26T10:03:00.000Z").getTime()) {
+                return Promise.resolve([
+                  Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+                ]);
+              }
+              return Promise.resolve([
+                Preconditions.checkExists(getMatchStats("cf0fb794-2df1-4ba1-9415-00000oddball")),
+              ]);
+            });
+          });
+
+          it("falls back to default team name when team_name is empty string on finalTeams", async () => {
+            const substitutionBase = getFakeNeatQueueData("substitution");
+            const matchCompleted: NeatQueueMatchCompletedRequest = {
+              ...getFakeNeatQueueData("matchCompleted"),
+              teams: getFakeNeatQueueData("matchCompleted").teams.map((team) =>
+                team.map((player) => ({ ...player, team_name: "" })),
+              ),
+            };
+            appDataGetSpy.mockReset().mockResolvedValue(buildTimelineWithSubstitution(substitutionBase));
+
+            const { jobToComplete } = neatQueueService.handleRequest(matchCompleted, neatQueueConfig);
+            await jobToComplete?.();
+
+            const gameFieldValue = findGameFieldValue(discordServiceCreateMessageSpy.mock.calls);
+            expect(gameFieldValue).toContain("(Eagle)");
+          });
+
+          it("uses custom team name from matchCompleted teams when set", async () => {
+            const substitutionBase = getFakeNeatQueueData("substitution");
+            const matchCompleted: NeatQueueMatchCompletedRequest = {
+              ...getFakeNeatQueueData("matchCompleted"),
+              teams: getFakeNeatQueueData("matchCompleted").teams.map((team, teamIndex) =>
+                team.map((player) => ({
+                  ...player,
+                  team_name: teamIndex === 0 ? "Team Alpha" : "Team Beta",
+                })),
+              ),
+            };
+            appDataGetSpy.mockReset().mockResolvedValue(buildTimelineWithSubstitution(substitutionBase));
+
+            const { jobToComplete } = neatQueueService.handleRequest(matchCompleted, neatQueueConfig);
+            await jobToComplete?.();
+
+            const gameFieldValue = findGameFieldValue(discordServiceCreateMessageSpy.mock.calls);
+            expect(gameFieldValue).toContain("(Team Alpha)");
+          });
+
+          it("prioritises team_name from the substitution event itself over matchCompleted team names", async () => {
+            const substitutionBase = getFakeNeatQueueData("substitution");
+            const substitution = {
+              ...substitutionBase,
+              player_subbed_out: { ...substitutionBase.player_subbed_out, team_name: "Event Team" },
+            };
+            const matchCompleted: NeatQueueMatchCompletedRequest = {
+              ...getFakeNeatQueueData("matchCompleted"),
+              teams: getFakeNeatQueueData("matchCompleted").teams.map((team) =>
+                team.map((player) => ({ ...player, team_name: "Match Team" })),
+              ),
+            };
+            appDataGetSpy.mockReset().mockResolvedValue(buildTimelineWithSubstitution(substitution));
+
+            const { jobToComplete } = neatQueueService.handleRequest(matchCompleted, neatQueueConfig);
+            await jobToComplete?.();
+
+            const gameFieldValue = findGameFieldValue(discordServiceCreateMessageSpy.mock.calls);
+            expect(gameFieldValue).toContain("(Event Team)");
+            expect(gameFieldValue).not.toContain("(Match Team)");
+          });
+        });
+
         if (mode === NeatQueuePostSeriesDisplayMode.THREAD) {
           it("falls back to creating a message in post series channel if it fails to create thread", async () => {
             const error = new Error("Failed to create thread");
@@ -2062,6 +2164,70 @@ describe("NeatQueueService", () => {
         expect(xuids).toContain("xuid_discord_user_02");
       });
 
+      it("falls back to active linked Xbox identities when player association xboxId is missing", async () => {
+        const teamsCreatedRequest = getFakeNeatQueueData("teamsCreated");
+        const playersAssociationData = {
+          discord_user_01: {
+            ...createSamplePlayerAssociationData("discord_user_01", "soundmanD", "SoundmanD"),
+            xboxId: null,
+          },
+          discord_user_02: {
+            ...createSamplePlayerAssociationData("discord_user_02", "discord_user_02", "User02"),
+            xboxId: null,
+          },
+        };
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(
+          aFakeNeatQueueStateWith({ playersAssociationData }),
+        );
+        vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
+        vi.spyOn(databaseService, "getDiscordAssociations").mockResolvedValue([]);
+        vi.spyOn(databaseService, "findLinkedIdentitiesByUserId").mockImplementation(async (userId) => {
+          if (userId === "discord_user_01") {
+            return Promise.resolve([
+              aFakeLinkedIdentitiesRow({
+                UserId: "discord_user_01",
+                Provider: "xbox",
+                ProviderUserId: "xuid_linked_01",
+                IsActive: 1,
+              }),
+            ]);
+          }
+
+          if (userId === "discord_user_02") {
+            return Promise.resolve([
+              aFakeLinkedIdentitiesRow({
+                UserId: "discord_user_02",
+                Provider: "xbox",
+                ProviderUserId: "xuid_linked_02",
+                IsActive: 1,
+              }),
+            ]);
+          }
+
+          return Promise.resolve([]);
+        });
+        vi.spyOn(haloService, "getUsersByXuids").mockResolvedValue([]);
+        vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(new Map());
+        vi.spyOn(haloService, "getPlayersEsras").mockResolvedValue(new Map());
+        vi.spyOn(discordService, "getGuild").mockResolvedValue({
+          ...guild,
+          id: "guild-1",
+          name: "Test Server",
+          icon: null,
+        });
+        vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
+          aFakeGuildConfigRow({ NeatQueueInformerLiveTracking: "N" }),
+        );
+
+        const { jobToComplete } = neatQueueService.handleRequest(teamsCreatedRequest, neatQueueConfig);
+        await jobToComplete?.();
+
+        expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
+        const [xuids] = nudgeTrackersSpy.mock.calls[0] as [string[], unknown];
+        expect(xuids).toContain("xuid_linked_01");
+        expect(xuids).toContain("xuid_linked_02");
+      });
+
       it("uses guild display name for title even when explicit team names are set", async () => {
         const teamsCreatedRequest = getFakeNeatQueueData("teamsCreated");
         const team0Player = teamsCreatedRequest.teams[0]?.[0];
@@ -2355,6 +2521,127 @@ describe("NeatQueueService", () => {
 
         expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
         expect(nudgeTrackersSpy).toHaveBeenCalledWith([], { type: "ended" });
+      });
+
+      it("falls back to active linked Xbox identities when completion association xboxId is missing", async () => {
+        const matchCompletedRequest = getFakeNeatQueueData("matchCompleted");
+        const playersAssociationData = {
+          discord_user_01: {
+            ...createSamplePlayerAssociationData("discord_user_01", "soundmanD", "SoundmanD"),
+            xboxId: null,
+          },
+          discord_user_02: {
+            ...createSamplePlayerAssociationData("discord_user_02", "discord_user_02", "User02"),
+            xboxId: null,
+          },
+        };
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(
+          aFakeNeatQueueStateWith({
+            playersAssociationData,
+            timeline: [{ timestamp: new Date().toISOString(), event: getFakeNeatQueueData("teamsCreated") }],
+          }),
+        );
+        vi.spyOn(env.APP_DATA, "delete").mockResolvedValue();
+        vi.spyOn(databaseService, "findLinkedIdentitiesByUserId").mockImplementation(async (userId) => {
+          if (userId === "discord_user_01") {
+            return Promise.resolve([
+              aFakeLinkedIdentitiesRow({
+                UserId: "discord_user_01",
+                Provider: "xbox",
+                ProviderUserId: "xuid_linked_01",
+                IsActive: 1,
+              }),
+            ]);
+          }
+
+          if (userId === "discord_user_02") {
+            return Promise.resolve([
+              aFakeLinkedIdentitiesRow({
+                UserId: "discord_user_02",
+                Provider: "xbox",
+                ProviderUserId: "xuid_linked_02",
+                IsActive: 1,
+              }),
+            ]);
+          }
+
+          return Promise.resolve([]);
+        });
+        vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({
+          state: aFakeLiveTrackerStateWith({ status: "stopped" }),
+        });
+        vi.spyOn(haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+        vi.spyOn(haloService, "updateDiscordAssociations").mockResolvedValue();
+        vi.spyOn(discordService, "getTeamsFromQueueResult").mockResolvedValue(discordNeatQueueData);
+        vi.spyOn(discordService, "getUsers").mockResolvedValue([guildMember]);
+
+        const { jobToComplete } = neatQueueService.handleRequest(matchCompletedRequest, neatQueueConfig);
+        await jobToComplete?.();
+
+        expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
+        const [xuids, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], { type: "ended" }];
+        expect(xuids).toContain("xuid_linked_01");
+        expect(xuids).toContain("xuid_linked_02");
+        expect(payload).toEqual({ type: "ended" });
+      });
+
+      it("continues match completion cleanup when one fallback linked identity lookup fails", async () => {
+        const matchCompletedRequest = getFakeNeatQueueData("matchCompleted");
+        const playersAssociationData = {
+          discord_user_01: {
+            ...createSamplePlayerAssociationData("discord_user_01", "soundmanD", "SoundmanD"),
+            xboxId: null,
+          },
+          discord_user_02: {
+            ...createSamplePlayerAssociationData("discord_user_02", "discord_user_02", "User02"),
+            xboxId: null,
+          },
+        };
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(
+          aFakeNeatQueueStateWith({
+            playersAssociationData,
+            timeline: [{ timestamp: new Date().toISOString(), event: getFakeNeatQueueData("teamsCreated") }],
+          }),
+        );
+        const appDataDeleteSpy = vi.spyOn(env.APP_DATA, "delete").mockResolvedValue();
+        const haloUpdateDiscordAssociationsSpy = vi.spyOn(haloService, "updateDiscordAssociations").mockResolvedValue();
+        const logWarnSpy = vi.spyOn(logService, "warn");
+        vi.spyOn(databaseService, "findLinkedIdentitiesByUserId").mockImplementation(async (userId) => {
+          if (userId === "discord_user_01") {
+            throw new Error("temporary d1 error");
+          }
+
+          if (userId === "discord_user_02") {
+            return Promise.resolve([
+              aFakeLinkedIdentitiesRow({
+                UserId: "discord_user_02",
+                Provider: "xbox",
+                ProviderUserId: "xuid_linked_02",
+                IsActive: 1,
+              }),
+            ]);
+          }
+
+          return Promise.resolve([]);
+        });
+        vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({
+          state: aFakeLiveTrackerStateWith({ status: "stopped" }),
+        });
+        vi.spyOn(haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+        vi.spyOn(discordService, "getTeamsFromQueueResult").mockResolvedValue(discordNeatQueueData);
+        vi.spyOn(discordService, "getUsers").mockResolvedValue([guildMember]);
+
+        const { jobToComplete } = neatQueueService.handleRequest(matchCompletedRequest, neatQueueConfig);
+        await jobToComplete?.();
+
+        expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
+        expect(nudgeTrackersSpy).toHaveBeenCalledWith(["xuid_linked_02"], { type: "ended" });
+        expect(haloUpdateDiscordAssociationsSpy).toHaveBeenCalledOnce();
+        expect(appDataDeleteSpy).toHaveBeenCalledOnce();
+        expect(logWarnSpy).toHaveBeenCalledWith(
+          "Failed to resolve fallback Xbox identity for player, continuing without fallback XUID",
+          expect.any(Map),
+        );
       });
     });
   });

@@ -164,7 +164,6 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerNeatQueu
   const matchesArray = readJsonArray(data["matchSummaries"] ?? null);
   const rawMatches = readRecord<string, MatchStats>(data["rawMatches"] ?? null);
   const seriesScore = readString(data["seriesScore"] ?? null);
-  const medalMetadata = readRecord<string, { name: string; sortingWeight: number }>(data["medalMetadata"] ?? null);
   const playersAssociationDataValue = data["playersAssociationData"] ?? null;
 
   if (
@@ -179,8 +178,7 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerNeatQueu
     substitutionsArray === null ||
     matchesArray === null ||
     rawMatches === null ||
-    seriesScore === null ||
-    medalMetadata === null
+    seriesScore === null
   ) {
     return null;
   }
@@ -251,7 +249,6 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerNeatQueu
     rawMatches,
     seriesScore,
     lastUpdateTime,
-    medalMetadata,
     playersAssociationData,
   };
 }

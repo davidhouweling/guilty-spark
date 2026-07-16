@@ -3,6 +3,8 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { StatsController } from "../../../controllers/stats/stats-controller";
 import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakePlayerWith } from "../../../controllers/stats/fakes/data";
+import { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
+import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 import { DiscordSeriesStatsPresenter } from "../discord-series-stats-presenter";
 import { DiscordSeriesStatsStore } from "../discord-series-stats-store";
@@ -72,7 +74,6 @@ describe("DiscordSeriesStatsPresenter.present", () => {
       title: "Series",
       subtitle: "Test",
       seriesScore: "1:1",
-      medalMetadata: {},
       teams: [
         { name: "Eagle", players: ["1111111111", "2222222222"] },
         { name: "Cobra", players: ["3333333333", "4444444444"] },
@@ -121,6 +122,7 @@ describe("DiscordSeriesStatsPresenter.present", () => {
         pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 1 },
         perfectCounts: { total: 0, byXuid: {} },
       },
+      scoreProgression: null,
     };
 
     const store = new DiscordSeriesStatsStore();
@@ -137,6 +139,7 @@ describe("DiscordSeriesStatsPresenter.present", () => {
       new StatsController(),
       store,
       aFakeMatchAnalyticsServiceWith(),
+      new HaloMedalMetadataResolver(aFakeHaloClientWith()),
     );
 
     const vm = presenter.present(store.getSnapshot());

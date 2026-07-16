@@ -21,6 +21,9 @@ import type {
   ParsedHighlightEvent,
   KillMatrixEntry,
   KillMatrixAnalytics,
+  KillRaceDeathEvent,
+  KillRaceProgression,
+  KillRaceProgressionEvent,
   HaloFilmServiceOpts,
 } from "./types";
 import type { CustomSpartanTokenProvider } from "./custom-spartan-token-provider";
@@ -88,12 +91,53 @@ export class HaloFilmService {
     return this.parseHighlightEvents(highlightChunkBytes, filmMetadata.CustomData.FilmMajorVersion);
   }
 
-  async buildKillMatrixAnalytics(matchStats: MatchStats): Promise<KillMatrixAnalytics> {
+  private async loadEnrichedEventsForMatch(matchStats: MatchStats): Promise<ParsedHighlightEvent[]> {
     const events = await this.getHighlightEventsForMatch(matchStats.MatchId);
     const xuidToTeamId = this.buildXuidToTeamMap(matchStats);
     this.assignTeamIdsToEvents(events, xuidToTeamId);
+    return events;
+  }
 
-    const kills = events.filter((event) => event.eventType === "kill");
+  async buildKillRaceProgression(matchStats: MatchStats): Promise<KillRaceProgression> {
+    const events = await this.loadEnrichedEventsForMatch(matchStats);
+    const kills = this.filterKillEvents(events);
+    const knownTeamIds = new Set<number>(matchStats.Teams.map((team) => team.TeamId));
+    const runningScores = new Map<number, number>([...knownTeamIds].map((id) => [id, 0]));
+    const progressionEvents: KillRaceProgressionEvent[] = [];
+
+    for (const kill of kills) {
+      if (kill.teamId == null || !runningScores.has(kill.teamId)) {
+        continue;
+      }
+      runningScores.set(kill.teamId, Preconditions.checkExists(runningScores.get(kill.teamId)) + 1);
+      progressionEvents.push({
+        timestampMs: kill.timeMs,
+        teamId: kill.teamId,
+        runningScores: Object.fromEntries(runningScores),
+      });
+    }
+
+    return {
+      events: progressionEvents,
+      deathTimeline: this.buildDeathTimeline(events, knownTeamIds),
+      teamCount: runningScores.size,
+    };
+  }
+
+  private buildDeathTimeline(events: ParsedHighlightEvent[], knownTeamIds: ReadonlySet<number>): KillRaceDeathEvent[] {
+    const timeline: KillRaceDeathEvent[] = [];
+    for (const event of events) {
+      if (event.eventType === "death" && event.teamId != null && knownTeamIds.has(event.teamId)) {
+        timeline.push({ timestampMs: event.timeMs, teamId: event.teamId });
+      }
+    }
+    return timeline;
+  }
+
+  async buildKillMatrixAnalytics(matchStats: MatchStats): Promise<KillMatrixAnalytics> {
+    const events = await this.loadEnrichedEventsForMatch(matchStats);
+
+    const kills = this.filterKillEvents(events);
     const deaths = events.filter((event) => event.eventType === "death");
     const perfectByXuid = this.buildPerfectMedalsByXuid(events);
 
@@ -109,6 +153,10 @@ export class HaloFilmService {
       },
       perfectCounts,
     };
+  }
+
+  private filterKillEvents(events: ParsedHighlightEvent[]): ParsedHighlightEvent[] {
+    return events.filter((event) => event.eventType === "kill");
   }
 
   private async getOrFetchFilmMetadata(

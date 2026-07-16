@@ -868,6 +868,172 @@ describe("HaloFilmService", () => {
     });
   });
 
+  describe("buildKillRaceProgression", () => {
+    it("accumulates running scores per team in kill timestamp order", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+      const team0PlayerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
+      const team1PlayerXuid = unwrapXuid(Preconditions.checkExists(match.Players[3]).PlayerId);
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        {
+          xuid: team0PlayerXuid,
+          gamertag: "p0",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 5000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: team1PlayerXuid,
+          gamertag: "p2",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 12000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: team0PlayerXuid,
+          gamertag: "p0",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 18000,
+          medalValue: 0,
+          teamId: null,
+        },
+      ]);
+
+      const result = await service.buildKillRaceProgression(match);
+
+      expect(result.teamCount).toBe(2);
+      expect(result.events).toHaveLength(3);
+      expect(result.events[0]).toEqual({ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } });
+      expect(result.events[1]).toEqual({ timestampMs: 12000, teamId: 1, runningScores: { "0": 1, "1": 1 } });
+      expect(result.events[2]).toEqual({ timestampMs: 18000, teamId: 0, runningScores: { "0": 2, "1": 1 } });
+      expect(result.deathTimeline).toEqual([]);
+    });
+
+    it("collects deathTimeline from death events belonging to known teams", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+      const team0PlayerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
+      const team1PlayerXuid = unwrapXuid(Preconditions.checkExists(match.Players[3]).PlayerId);
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        {
+          xuid: team0PlayerXuid,
+          gamertag: "p0",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 5000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: team1PlayerXuid,
+          gamertag: "p2",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 5001,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: "9999999999",
+          gamertag: "unknown",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 6000,
+          medalValue: 0,
+          teamId: null,
+        },
+      ]);
+
+      const result = await service.buildKillRaceProgression(match);
+
+      expect(result.deathTimeline).toEqual([{ timestampMs: 5001, teamId: 1 }]);
+    });
+
+    it("skips kill events whose xuid is not mapped to any team in matchStats", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+      const team0PlayerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        {
+          xuid: "9999999999",
+          gamertag: "unknown",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 1000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: team0PlayerXuid,
+          gamertag: "p0",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 2000,
+          medalValue: 0,
+          teamId: null,
+        },
+      ]);
+
+      const result = await service.buildKillRaceProgression(match);
+
+      expect(result.teamCount).toBe(2);
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0]?.timestampMs).toBe(2000);
+    });
+
+    it("returns empty events when no kill events are present", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        {
+          xuid: "1111111111",
+          gamertag: "p0",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 5000,
+          medalValue: 0,
+          teamId: null,
+        },
+      ]);
+
+      const result = await service.buildKillRaceProgression(match);
+
+      expect(result.teamCount).toBe(2);
+      expect(result.events).toHaveLength(0);
+      expect(result.deathTimeline).toEqual([]);
+    });
+  });
+
   describe("highlight events KV cache", () => {
     it("returns KV-cached events without hitting the network", async () => {
       const env = aFakeCacheBackedEnvWith();

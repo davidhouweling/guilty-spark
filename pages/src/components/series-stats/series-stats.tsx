@@ -79,6 +79,7 @@ function MatchDetailSection({ detail, noGutter }: MatchDetailSectionProps): Reac
           killMatrixPivotData={detail.killMatrixPivotData}
           transposedKillMatrixPivotData={detail.transposedKillMatrixPivotData}
           killMatrixStatus={detail.killMatrixStatus}
+          scoreProgressionViewData={detail.scoreProgressionViewData}
         />
       ) : (
         <Alert variant="warning">Failed to load detailed stats for match {detail.matchId}.</Alert>

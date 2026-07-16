@@ -2,32 +2,14 @@ import type { MatchStats } from "halo-infinite-api";
 import { parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
-import { getMedalMetadataFromMatches } from "@guilty-spark/shared/halo/medals";
 import { seriesMatchesContract, seriesMatchesQuerySchema } from "@guilty-spark/shared/contracts/stats/series-matches";
 import type { RoutesRegisterHandler } from "../base/types";
-import type { HaloService } from "../../services/halo/halo";
-import type { LogService } from "../../services/log/types";
-
-async function getBestEffortMedalMetadata(
-  haloService: HaloService,
-  logService: LogService,
-  matchesById: Record<string, MatchStats>,
-): Promise<Record<string, { name: string; sortingWeight: number }>> {
-  try {
-    return await getMedalMetadataFromMatches(matchesById, async (medalId) => haloService.getMedal(medalId));
-  } catch (error) {
-    logService.warn(
-      "Failed to resolve medal metadata for series matches, using empty metadata",
-      new Map([["error", String(error)]]),
-    );
-    return {};
-  }
-}
+import { normalizeTrackerId } from "./normalize-tracker-id";
 
 export const seriesMatchesRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/stats/series-matches", async (request, env: Env) => {
     const services = installServices({ env });
-    const { haloService, logService } = services;
+    const { haloService, logService, databaseService, userTokenProvider } = services;
 
     try {
       const url = new URL(request.url);
@@ -38,8 +20,30 @@ export const seriesMatchesRoute: RoutesRegisterHandler = (router, installService
 
       const { matchIds } = queryParams.data;
       const uniqueMatchIds = [...new Set(matchIds)];
+      const trackerId = normalizeTrackerId(url.searchParams.get("trackerId"));
 
-      const matches = await haloService.getMatchDetails(uniqueMatchIds);
+      let resolvedHaloService = haloService;
+      if (trackerId != null) {
+        try {
+          const tracker = await databaseService.getIndividualTracker(trackerId);
+          if (tracker?.IsLive === 1) {
+            const userClient = await userTokenProvider.getClientForUser(tracker.UserId);
+            if (userClient != null) {
+              resolvedHaloService = haloService.withUserClient(userClient);
+            }
+          }
+        } catch (error) {
+          logService.error(
+            error,
+            new Map([
+              ["context", "Failed to resolve user credentials for series matches tracker"],
+              ["trackerId", trackerId],
+            ]),
+          );
+        }
+      }
+
+      const matches = await resolvedHaloService.getMatchDetails(uniqueMatchIds);
       const matchesById: Record<string, MatchStats> = {};
       for (const match of matches) {
         matchesById[match.MatchId] = match;
@@ -48,18 +52,18 @@ export const seriesMatchesRoute: RoutesRegisterHandler = (router, installService
         .map((matchId) => matchesById[matchId])
         .filter((match): match is MatchStats => match != null);
 
-      const [playerXuidToGametagMap, medalMetadata] = await Promise.all([
-        haloService.getPlayerXuidsToGametags(orderedMatches),
-        getBestEffortMedalMetadata(haloService, logService, matchesById),
-      ]);
+      const playerXuidToGametagMap = await resolvedHaloService.getPlayerXuidsToGametags(orderedMatches);
 
       const responseMatches = await Promise.all(
         orderedMatches.map(async (match) => {
           const [{ gameType, gameMap }, mapThumbnailUrl] = await Promise.all([
-            haloService.getGameTypeAndMapParts(match.MatchInfo),
-            haloService.getMapThumbnailUrl(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),
+            resolvedHaloService.getGameTypeAndMapParts(match.MatchInfo),
+            resolvedHaloService.getMapThumbnailUrl(
+              match.MatchInfo.MapVariant.AssetId,
+              match.MatchInfo.MapVariant.VersionId,
+            ),
           ]);
-          const { gameScore, gameSubScore } = haloService.getMatchScore(match, "en-US");
+          const { gameScore, gameSubScore } = resolvedHaloService.getMatchScore(match, "en-US");
 
           return {
             matchId: match.MatchId,
@@ -83,10 +87,7 @@ export const seriesMatchesRoute: RoutesRegisterHandler = (router, installService
         playerXuidToGametag[xuid] = gamertag;
       }
 
-      return seriesMatchesContract.toResponse(
-        { medalMetadata, playerXuidToGametag, matches: responseMatches },
-        { noStore: true },
-      );
+      return seriesMatchesContract.toResponse({ playerXuidToGametag, matches: responseMatches }, { noStore: true });
     } catch (error) {
       logService.error(error, new Map([["context", "Failed to resolve series matches route"]]));
       return errorContract.toResponse({ error: "Failed to resolve series matches" }, { status: 500, noStore: true });

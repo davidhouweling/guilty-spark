@@ -13,6 +13,8 @@ import { EMPTY_KILL_MATRIX_PIVOT_DATA, type KillMatrixPivotData } from "../../co
 import type { MatchStatsData, MatchStatsPlayerData } from "../../controllers/stats/types";
 import { sortByMedals, getTeamMedalsMap, getPlayerMedalsMap } from "../../controllers/stats/medals-sorting";
 import { KillMatrixTable } from "./kill-matrix/kill-matrix-table";
+import { createScoreProgression } from "./score-progression/create";
+import type { ScoreProgressionViewData } from "./score-progression/types";
 import { StatsHeader } from "./stats-header";
 import styles from "./match-stats.module.css";
 
@@ -32,6 +34,7 @@ interface MatchStatsProps {
   readonly killMatrixPivotData?: KillMatrixPivotData;
   readonly transposedKillMatrixPivotData?: KillMatrixPivotData;
   readonly killMatrixStatus?: ComponentLoaderStatus;
+  readonly scoreProgressionViewData?: ScoreProgressionViewData | null;
   readonly showHeader?: boolean;
 }
 
@@ -53,9 +56,13 @@ export function MatchStats({
   killMatrixPivotData,
   transposedKillMatrixPivotData,
   killMatrixStatus,
+  scoreProgressionViewData,
   showHeader = true,
 }: MatchStatsProps): React.ReactElement {
-  const [activeTab, setActiveTab] = React.useState<"players" | "kill-matrix">("players");
+  const [activeTab, setActiveTab] = React.useState<"players" | "timeline" | "kill-matrix">("players");
+  const safeActiveTab: "players" | "timeline" | "kill-matrix" =
+    activeTab === "timeline" && scoreProgressionViewData == null ? "players" : activeTab;
+  const ScoreProgressionComponent = React.useMemo(() => createScoreProgression(), []);
   const hasTeamStats = data.length > 0 && data[0].teamStats.length > 0;
 
   // Define team stats columns
@@ -236,11 +243,11 @@ export function MatchStats({
       )}
 
       <TabbedSection
-        tabListAriaLabel="Player statistics view"
-        selectedTabId={activeTab}
+        tabListAriaLabel="Match statistics view"
+        selectedTabId={safeActiveTab}
         tabs={[
           {
-            id: "players",
+            id: "players" as const,
             label: "Players",
             content: (
               <SortableTable
@@ -259,8 +266,25 @@ export function MatchStats({
               />
             ),
           },
+          ...(scoreProgressionViewData != null
+            ? [
+                {
+                  id: "timeline" as const,
+                  label: "Timeline",
+                  content: (
+                    <ScoreProgressionComponent
+                      durationMs={scoreProgressionViewData.durationMs}
+                      teamLines={scoreProgressionViewData.teamLines}
+                      scoreDelta={scoreProgressionViewData.scoreDelta}
+                      playerAdvantage={scoreProgressionViewData.playerAdvantage}
+                      ariaLabel="Match score progression timeline"
+                    />
+                  ),
+                },
+              ]
+            : []),
           {
-            id: "kill-matrix",
+            id: "kill-matrix" as const,
             label: "Kill Matrix",
             content: (
               <KillMatrixTable

@@ -3,8 +3,7 @@ import Layout from "../layouts/layout.astro";
 import Container from "../components/container/container.astro";
 import Heading from "../components/heading/heading.astro";
 import styles from "./_styles/legal-page.module.css";
-// eslint-disable-next-line import/no-unresolved
-import policyMarkdown from "../../../PRIVACY_POLICY.md?raw";
+import PrivacyPolicyMarkdown from "./_generated/legal/privacy-policy.md";
 ---
 
 <Layout title="Privacy Policy - Guilty Spark" description="Privacy policy for Guilty Spark services and website tools.">
@@ -16,7 +15,7 @@ import policyMarkdown from "../../../PRIVACY_POLICY.md?raw";
       </header>
 
       <article class={styles.markdownContent}>
-        <pre class={styles.policyText}>{policyMarkdown}</pre>
+        <PrivacyPolicyMarkdown />
       </article>
     </Container>
   </section>

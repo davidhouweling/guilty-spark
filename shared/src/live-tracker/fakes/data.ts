@@ -30,7 +30,6 @@ const players: LiveTrackerPlayer[] = stateData.players;
 const teams: LiveTrackerTeam[] = stateData.teams;
 const matchSummaries: LiveTrackerMatchSummary[] = stateData.matchSummaries;
 const playersAssociationData: Record<string, PlayerAssociationData> = stateData.playersAssociationData;
-const { medalMetadata } = stateData;
 
 // Sample raw match data - imported from real match JSON files
 const sampleRawMatches: Record<string, MatchStats> = {
@@ -59,7 +58,6 @@ export const sampleLiveTrackerStateMessage: LiveTrackerStateMessage = {
     seriesScore: stateData.seriesScore,
     lastUpdateTime: stateData.lastUpdateTime,
     playersAssociationData,
-    medalMetadata,
   },
   timestamp: stateJson.timestamp,
 };

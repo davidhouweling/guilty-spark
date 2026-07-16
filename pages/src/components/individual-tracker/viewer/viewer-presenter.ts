@@ -1,4 +1,4 @@
-import type { HaloInfiniteClient, MatchStats } from "halo-infinite-api";
+import type { MatchStats } from "halo-infinite-api";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
@@ -6,6 +6,7 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
@@ -14,6 +15,7 @@ import type {
   TrackerViewConnection,
   TrackerViewSubscription,
 } from "../../../services/individual-tracker/view-types";
+import { isMatchStats } from "../../../controllers/stats/is-match-stats";
 import { calculateSeriesMetadata } from "../../../controllers/stats/series-metadata";
 import { StatsController } from "../../../controllers/stats/stats-controller";
 import { KillMatrixFormatter } from "../../../controllers/stats/kill-matrix/kill-matrix-formatter";
@@ -21,6 +23,7 @@ import { EMPTY_KILL_MATRIX_PIVOT_DATA, type KillMatrixPlayer } from "../../../co
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault, type TeamColor } from "../../team-colors/team-colors";
 import { gameModeIconSrc } from "../game-mode-icon";
+import { getReconnectDelayMs } from "../../../services/base/reconnect-policy";
 import type {
   SeriesMatchDetail,
   SeriesMatchSummary,
@@ -28,6 +31,7 @@ import type {
   SeriesStatsViewModel,
   SeriesTeamCard,
 } from "../../series-stats/types";
+import { formatScoreProgression } from "../../stats/score-progression/score-progression-formatter";
 import { buildViewerRenderModel } from "./viewer-render-model";
 import type {
   IndividualTrackerViewerSnapshot,
@@ -50,7 +54,7 @@ interface Config {
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
-  readonly haloClient: HaloInfiniteClient;
+  readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly store: IndividualTrackerViewerStore;
   readonly trackerId: string;
 }
@@ -58,31 +62,11 @@ interface Config {
 const WIN_OUTCOME = 2;
 const SERIES_MATCHES_BATCH_SIZE = 30;
 
-function isMatchStats(value: unknown): value is MatchStats {
-  if (typeof value !== "object" || value == null) {
-    return false;
-  }
-
-  const v = value as Record<string, unknown>;
-  const matchInfo = v.MatchInfo;
-  if (typeof matchInfo !== "object" || matchInfo == null) {
-    return false;
-  }
-
-  const mi = matchInfo as Record<string, unknown>;
-  return (
-    typeof v.MatchId === "string" &&
-    Array.isArray(v.Teams) &&
-    Array.isArray(v.Players) &&
-    typeof mi.StartTime === "string" &&
-    typeof mi.EndTime === "string"
-  );
-}
-
 interface BuildSeriesViewModelArgs {
   readonly series: ViewerSeriesTab;
   readonly seriesData: SeriesMatchesResponse;
   readonly rawMatches: readonly MatchStats[];
+  readonly medalMetadata: MedalMetadata;
   readonly playerMap: Map<string, string>;
   readonly teamColors: readonly TeamColor[];
 }
@@ -109,11 +93,10 @@ function buildSeriesViewModel({
   series,
   seriesData,
   rawMatches,
+  medalMetadata,
   playerMap,
   teamColors,
 }: BuildSeriesViewModelArgs): SeriesStatsViewModel {
-  const medalMetadata: MedalMetadata = seriesData.medalMetadata;
-
   // --- Series totals ---
   const seriesController = new StatsController();
   seriesController.loadSeries([...rawMatches], playerMap, medalMetadata);
@@ -200,6 +183,7 @@ function buildSeriesViewModel({
       killMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
       transposedKillMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
       killMatrixStatus: ComponentLoaderStatus.LOADED,
+      scoreProgressionViewData: null,
     };
   });
 
@@ -220,6 +204,8 @@ export class IndividualTrackerViewerPresenter {
   private connection: TrackerViewConnection | null = null;
   private viewSubscription: TrackerViewSubscription | null = null;
   private statusSubscription: TrackerViewSubscription | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectAttempt = 0;
   private awaitingRefresh = false;
   private streamerSettings: StreamerViewSettings | undefined;
   private streamerSettingsKey = "null";
@@ -332,14 +318,18 @@ export class IndividualTrackerViewerPresenter {
       return;
     }
 
+    if (item.series.matches.length === 0) {
+      return;
+    }
+
     void this.fetchSeriesEntry(key, item.series);
   }
 
   private async fetchMatchSource(matchId: string): Promise<MatchStatsLoadedState> {
     const [seriesMatches, analytics] = await Promise.all([
-      this.config.seriesMatchesService.getSeriesMatches([matchId]),
+      this.config.seriesMatchesService.getSeriesMatches([matchId], this.config.trackerId),
       this.config.matchAnalyticsService
-        .getBatchMatchAnalytics([matchId])
+        .getBatchMatchAnalytics([matchId], ["killMatrix", "scoreProgression"], this.config.trackerId)
         .then((results) => results[matchId] ?? null)
         .catch(() => null),
     ]);
@@ -362,12 +352,15 @@ export class IndividualTrackerViewerPresenter {
       }
     }
 
-    const medalMetadata: MedalMetadata = seriesMatches.medalMetadata;
+    const medalMetadata = await this.config.medalMetadataResolver.getMedalMetadataForMatch(stats);
 
     return { stats, playerMap, medalMetadata, analytics, gameMapThumbnailUrl: matchSummary.gameMapThumbnailUrl };
   }
 
-  private toMatchEntryLoadedState(loadedState: MatchStatsLoadedState): MatchEntryLoadedState {
+  private toMatchEntryLoadedState(
+    loadedState: MatchStatsLoadedState,
+    teamColors: readonly TeamColor[],
+  ): MatchEntryLoadedState {
     const { stats, playerMap, medalMetadata, analytics, gameMapThumbnailUrl } = loadedState;
     const controller = new StatsController();
     controller.loadMatch(stats, playerMap, medalMetadata);
@@ -400,6 +393,11 @@ export class IndividualTrackerViewerPresenter {
         killMatrixRows != null
           ? KillMatrixFormatter.transpose(killMatrixRows, orderedPlayers)
           : EMPTY_KILL_MATRIX_PIVOT_DATA,
+      scoreProgressionViewData: formatScoreProgression(
+        analytics?.scoreProgression ?? null,
+        teamColors,
+        matchStats[0]?.players.length ?? null,
+      ),
     };
   }
 
@@ -411,7 +409,7 @@ export class IndividualTrackerViewerPresenter {
         return;
       }
 
-      const state = this.toMatchEntryLoadedState(loadedState);
+      const state = this.toMatchEntryLoadedState(loadedState, this.resolveTeamColors());
       this.config.store.setMatchEntryLoaded(key, state);
     } catch (error) {
       if (this.isDisposed) {
@@ -433,7 +431,10 @@ export class IndividualTrackerViewerPresenter {
           return;
         }
         const batchMatchIds = uniqueMatchIds.slice(index, index + SERIES_MATCHES_BATCH_SIZE);
-        const batchSeriesData = await this.config.seriesMatchesService.getSeriesMatches(batchMatchIds);
+        const batchSeriesData = await this.config.seriesMatchesService.getSeriesMatches(
+          batchMatchIds,
+          this.config.trackerId,
+        );
         if (this.shouldAbort()) {
           return;
         }
@@ -442,7 +443,6 @@ export class IndividualTrackerViewerPresenter {
 
       const mergedMatchesById = new Map(seriesDataChunks.flatMap((chunk) => chunk.matches).map((m) => [m.matchId, m]));
       const mergedSeriesData: SeriesMatchesResponse = {
-        medalMetadata: Object.assign({}, ...seriesDataChunks.map((chunk) => chunk.medalMetadata)),
         playerXuidToGametag: Object.assign({}, ...seriesDataChunks.map((chunk) => chunk.playerXuidToGametag)),
         matches: requestedMatchIds
           .map((matchId) => mergedMatchesById.get(matchId))
@@ -453,12 +453,14 @@ export class IndividualTrackerViewerPresenter {
       const rawMatches = mergedSeriesData.matches
         .map((m) => m.rawMatch)
         .filter((m): m is MatchStats => isMatchStats(m));
+      const medalMetadata = await this.config.medalMetadataResolver.getMedalMetadataForMatches(rawMatches);
 
       const teamColors = this.resolveTeamColors();
       const viewModel = buildSeriesViewModel({
         series,
         seriesData: mergedSeriesData,
         rawMatches,
+        medalMetadata,
         playerMap,
         teamColors,
       });
@@ -483,6 +485,7 @@ export class IndividualTrackerViewerPresenter {
   }
 
   public start(): void {
+    this.resetReconnectState();
     this.modeVersion += 1;
     const { modeVersion } = this;
     void this.load(modeVersion);
@@ -490,8 +493,35 @@ export class IndividualTrackerViewerPresenter {
 
   public dispose(): void {
     this.isDisposed = true;
+    this.resetReconnectState();
     this.awaitingRefresh = false;
     this.closeConnection();
+  }
+
+  private resetReconnectState(): void {
+    this.reconnectAttempt = 0;
+    if (this.reconnectTimer != null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+
+  private scheduleReconnect(): void {
+    if (this.reconnectTimer != null || this.isDisposed) {
+      return;
+    }
+
+    const delay = getReconnectDelayMs(this.reconnectAttempt);
+    this.reconnectAttempt += 1;
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+
+      if (this.isDisposed) {
+        return;
+      }
+
+      this.openConnection();
+    }, delay);
   }
 
   private async refreshAsync(): Promise<void> {
@@ -554,7 +584,17 @@ export class IndividualTrackerViewerPresenter {
       if (this.isDisposed) {
         return;
       }
+
       this.config.store.setConnectionStatus(status);
+
+      if (status === "connected") {
+        this.resetReconnectState();
+        return;
+      }
+
+      if (status === "error" || status === "disconnected") {
+        this.scheduleReconnect();
+      }
     });
   }
 

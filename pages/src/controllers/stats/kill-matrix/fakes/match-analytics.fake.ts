@@ -30,6 +30,7 @@ export function aFakeMatchAnalyticsWith(overrides: Partial<MatchAnalytics> = {})
       pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 1 },
       perfectCounts: { total: 1, byXuid: { "333": 1 } },
     },
+    scoreProgression: null,
     ...overrides,
   };
 }
