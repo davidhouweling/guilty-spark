@@ -65,7 +65,11 @@ function buildPlayerAdvantage(
 
   const [teamId0, teamId1] = teamIds;
 
-  interface AdvantageEvent { timestampMs: number; teamId: number; delta: 1 | -1 }
+  interface AdvantageEvent {
+    timestampMs: number;
+    teamId: number;
+    delta: 1 | -1;
+  }
   const events: AdvantageEvent[] = [];
   for (const death of deathTimeline) {
     events.push({ timestampMs: death.timestampMs, teamId: death.teamId, delta: 1 });
