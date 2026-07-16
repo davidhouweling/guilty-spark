@@ -10,9 +10,7 @@ in real time.
 ## Pages
 
 - [Home](https://guilty-spark.app/): Product overview, feature highlights, and Discord install CTA.
-- [Capabilities](https://guilty-spark.app/capabilities): Full capability reference across Discord automation, live series tracking, Individual Tracker workflows, and OBS-ready overlays.
 - [Discord Commands](https://guilty-spark.app/discord-commands): Reference guide for all Guilty Spark slash commands — setup, stats, live tracking, and utility workflows.
-- [OBS Overlay Guide](https://guilty-spark.app/guides/obs-overlays): Step-by-step instructions for setting up a Guilty Spark stream overlay in OBS.
 - [FAQ](https://guilty-spark.app/faq): Frequently asked questions about Discord automation, Individual Tracker workflows, and overlay setup.
 - [Privacy Policy](https://guilty-spark.app/privacy-policy): Privacy policy for Guilty Spark services and website tools.
 - [Terms of Service](https://guilty-spark.app/terms-of-service): Terms of service for Guilty Spark services and website tools.
