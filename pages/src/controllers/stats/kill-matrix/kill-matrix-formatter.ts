@@ -10,7 +10,7 @@ import type {
   KillMatrixViewRow,
 } from "./types";
 
-export interface CrossTeamPair {
+interface CrossTeamPair {
   readonly crossTeamData: KillMatrixCrossTeamData;
   readonly swappedCrossTeamData: KillMatrixCrossTeamData;
 }
@@ -177,8 +177,8 @@ export class KillMatrixFormatter {
 
   public static pivotCrossTeam(
     rows: readonly KillMatrixViewRow[],
-    team0Players: readonly KillMatrixPlayer[],
-    team1Players: readonly KillMatrixPlayer[],
+    rowTeamPlayers: readonly KillMatrixPlayer[],
+    colTeamPlayers: readonly KillMatrixPlayer[],
   ): KillMatrixCrossTeamData {
     const killCounts = new Map<string, Map<string, number>>();
     let betrayals = 0;
@@ -199,9 +199,9 @@ export class KillMatrixFormatter {
       Preconditions.checkExists(killCounts.get(row.killer.xuid)).set(row.victim.xuid, row.count);
     }
 
-    const tableRows = team0Players.map((rowPlayer) => {
+    const tableRows = rowTeamPlayers.map((rowPlayer) => {
       const cells = new Map(
-        team1Players.map((colPlayer) => [
+        colTeamPlayers.map((colPlayer) => [
           colPlayer.gamertag,
           {
             kills: killCounts.get(rowPlayer.xuid)?.get(colPlayer.xuid) ?? 0,
@@ -217,7 +217,7 @@ export class KillMatrixFormatter {
       };
     });
 
-    const columnHeaders: KillMatrixColumnHeader[] = team1Players.map((p) => ({
+    const columnHeaders: KillMatrixColumnHeader[] = colTeamPlayers.map((p) => ({
       gamertag: p.gamertag,
       teamId: p.teamId,
     }));
