@@ -9,15 +9,17 @@ const footerSections = [
   {
     heading: "Resources",
     links: [
-      { href: GITHUB_URL, label: "GitHub Repository" },
-      { href: `${GITHUB_URL}/issues`, label: "Report Issues" },
+      { href: GITHUB_URL, label: "GitHub Repository", external: true },
+      { href: `${GITHUB_URL}/issues`, label: "Report Issues", external: true },
+      { href: "/privacy-policy", label: "Privacy Policy", external: false },
+      { href: "/terms-of-service", label: "Terms of Service", external: false },
     ],
   },
   {
     heading: "Community",
     links: [
-      { href: SUPPORT_SERVER_URL, label: "Discord Server" },
-      { href: `https://github.com/${GITHUB_REPO_OWNER}`, label: "Developer" },
+      { href: SUPPORT_SERVER_URL, label: "Discord Server", external: true },
+      { href: `https://github.com/${GITHUB_REPO_OWNER}`, label: "Developer", external: true },
     ],
   },
 ];
@@ -36,7 +38,12 @@ const footerSections = [
           <div class={styles.footerSection}>
             <h4 class={styles.footerHeading}>{section.heading}</h4>
             {section.links.map((link) => (
-              <a class={styles.footerLink} href={link.href} target="_blank" rel="noopener noreferrer">
+              <a
+                class={styles.footerLink}
+                href={link.href}
+                target={link.external ? "_blank" : undefined}
+                rel={link.external ? "noopener noreferrer" : undefined}
+              >
                 {link.label}
               </a>
             ))}
