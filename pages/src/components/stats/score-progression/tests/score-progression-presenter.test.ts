@@ -126,6 +126,27 @@ describe("ScoreProgressionPresenter", () => {
       const model = presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: aFakeScoreDeltaData() });
       expect(model.deltaViewModel?.tooltipFormatter(NaN)).toEqual(["Tied", "Score Delta"]);
     });
+
+    it("deltaViewModel.advantageTooltipFormatter returns team0Name leading on positive advantage", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ chartType: "delta" });
+      const model = presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: aFakeScoreDeltaData() });
+      expect(model.deltaViewModel?.advantageTooltipFormatter(2)).toEqual(["Eagle +2", "Player Advantage"]);
+    });
+
+    it("deltaViewModel.advantageTooltipFormatter returns team1Name leading on negative advantage", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ chartType: "delta" });
+      const model = presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: aFakeScoreDeltaData() });
+      expect(model.deltaViewModel?.advantageTooltipFormatter(-1)).toEqual(["Cobra +1", "Player Advantage"]);
+    });
+
+    it("deltaViewModel.advantageTooltipFormatter returns Even when value is 0", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ chartType: "delta" });
+      const model = presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: aFakeScoreDeltaData() });
+      expect(model.deltaViewModel?.advantageTooltipFormatter(0)).toEqual(["Even", "Player Advantage"]);
+    });
   });
 
   describe("showToolbar", () => {

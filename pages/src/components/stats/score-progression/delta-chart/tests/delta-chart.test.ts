@@ -15,6 +15,7 @@ describe("ScoreProgressionDeltaViewModel", () => {
       team1Color: "#0000ff",
       playerAdvantage: null,
       tooltipFormatter: (value: unknown): [string, string] => [String(value), "Delta"],
+      advantageTooltipFormatter: (value: unknown): [string, string] => [String(value), "Player Advantage"],
     };
     expect(props.tooltipFormatter(3)).toEqual(["3", "Delta"]);
   });

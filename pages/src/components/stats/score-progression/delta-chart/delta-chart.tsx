@@ -21,6 +21,7 @@ export function DeltaChart({
   team1Color,
   playerAdvantage,
   tooltipFormatter,
+  advantageTooltipFormatter,
 }: ScoreProgressionDeltaViewModel): React.ReactElement {
   const { points, minScore, maxScore, zeroFraction } = scoreDelta;
   const gradientId = React.useId();
@@ -35,7 +36,7 @@ export function DeltaChart({
     name: string | number | undefined,
   ): [string, string] => {
     if (name === "Player Advantage") {
-      return [typeof value === "number" ? formatAdvantage(value) : String(value), "Player Advantage"];
+      return advantageTooltipFormatter(value);
     }
     return tooltipFormatter(value);
   };

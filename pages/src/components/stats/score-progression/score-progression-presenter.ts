@@ -57,6 +57,9 @@ export class ScoreProgressionPresenter {
             playerAdvantage: effectivePlayerAdvantage,
             tooltipFormatter: (value: number | string | readonly (number | string)[] | undefined): [string, string] =>
               this.formatDeltaTooltip(value, team0Name, team1Name),
+            advantageTooltipFormatter: (
+              value: number | string | readonly (number | string)[] | undefined,
+            ): [string, string] => this.formatAdvantageTooltip(value, team0Name, team1Name),
           }
         : null;
 
@@ -97,6 +100,18 @@ export class ScoreProgressionPresenter {
 
   private setPlayerAdvantage(checked: boolean): void {
     this.config.store.update({ showPlayerAdvantage: checked });
+  }
+
+  private formatAdvantageTooltip(
+    value: number | string | readonly (number | string)[] | undefined,
+    team0Name: string,
+    team1Name: string,
+  ): [string, string] {
+    if (typeof value !== "number" || value === 0 || Number.isNaN(value)) {
+      return ["Even", "Player Advantage"];
+    }
+    const leader = value > 0 ? team0Name : team1Name;
+    return [`${leader} +${String(Math.abs(value))}`, "Player Advantage"];
   }
 
   private formatDeltaTooltip(

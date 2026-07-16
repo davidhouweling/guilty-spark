@@ -40,6 +40,9 @@ export interface ScoreProgressionDeltaViewModel {
   readonly team1Color: string;
   readonly playerAdvantage: PlayerAdvantageData | null;
   readonly tooltipFormatter: (value: number | string | readonly (number | string)[] | undefined) => [string, string];
+  readonly advantageTooltipFormatter: (
+    value: number | string | readonly (number | string)[] | undefined,
+  ) => [string, string];
 }
 
 export interface ScoreProgressionProgressionViewModel {
