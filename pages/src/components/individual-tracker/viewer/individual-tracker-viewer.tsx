@@ -5,7 +5,6 @@ import { addMinutes, isValid, parseISO } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
-import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import { summarizeSeriesOutcome } from "@guilty-spark/shared/halo/match-enrichment";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
@@ -126,66 +125,12 @@ function formatDate(value: string | null): string {
   return date == null ? "unknown" : date.toLocaleString();
 }
 
-function toSeriesPlayerKey(
-  teamId: number,
-  player: { discordId?: string | null; xboxId?: string | null; gamertag: string | null; discordName: string | null },
-  playerIndex: number,
-): string {
-  const stableId = player.discordId ?? player.xboxId ?? player.gamertag ?? player.discordName;
-  if (stableId != null && stableId !== "") {
-    return `${teamId.toString()}:${stableId}`;
-  }
-
-  return `${teamId.toString()}:${playerIndex.toString()}`;
-}
-
 function preSeriesStatusMessage(totalTrackedMatches: number): string {
   if (totalTrackedMatches === 0) {
     return "Series is active and waiting for the first tracked match.";
   }
 
   return "Series is active and waiting for additional tracked matches.";
-}
-
-function toPlayerAssociationData(
-  series: Extract<ViewerTimelineItem, { type: "series" }>["series"],
-): {
-  readonly teams: readonly { name: string; players: readonly { id: string; displayName: string }[] }[];
-  readonly playersAssociationData: Record<string, PlayerAssociationData>;
-} {
-  const playersAssociationData: Record<string, PlayerAssociationData> = {};
-  const teams = series.teams.map((team) => ({
-    name: team.name,
-    players: team.players.map((player, playerIndex) => {
-      const playerId = toSeriesPlayerKey(team.id, player, playerIndex);
-      const resolvedDiscordName = player.discordName ?? player.gamertag ?? "Unknown";
-
-      playersAssociationData[playerId] = {
-        discordId: player.discordId ?? playerId,
-        discordName: resolvedDiscordName,
-        xboxId: player.xboxId ?? null,
-        gamertag: player.gamertag,
-        currentRank: player.currentRank ?? null,
-        currentRankTier: player.currentRankTier ?? null,
-        currentRankSubTier: player.currentRankSubTier ?? null,
-        currentRankMeasurementMatchesRemaining: player.currentRankMeasurementMatchesRemaining ?? null,
-        currentRankInitialMeasurementMatches: player.currentRankInitialMeasurementMatches ?? null,
-        allTimePeakRank: player.allTimePeakRank ?? null,
-        esra: player.esra ?? null,
-        lastRankedGamePlayed: player.lastRankedGamePlayed ?? null,
-      };
-
-      return {
-        id: playerId,
-        displayName: resolvedDiscordName,
-      };
-    }),
-  }));
-
-  return {
-    teams,
-    playersAssociationData,
-  };
 }
 
 function handleEntryHeaderKeyDown(
@@ -645,10 +590,11 @@ export function IndividualTrackerViewer({
                       {series.matches.length === 0 ? (
                         <div className={styles.preSeriesPanel}>
                           <Alert variant="info">{preSeriesStatusMessage(renderModel.accumulated.total)}</Alert>
-                          {series.teams.length > 0 && (
+                          {series.preSeriesTableData != null && series.teams.length > 0 && (
                             <PlayerPreSeriesInfo
                               className={styles.preSeriesInfo}
-                              {...toPlayerAssociationData(series)}
+                              teams={series.preSeriesTableData.teams}
+                              playersAssociationData={series.preSeriesTableData.playersAssociationData}
                               teamColors={renderModel.teamColors}
                             />
                           )}

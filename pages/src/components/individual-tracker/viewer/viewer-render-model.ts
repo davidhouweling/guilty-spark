@@ -14,6 +14,7 @@ import type {
   IndividualTrackerViewerRenderModel,
   ViewerAccumulatedStats,
   ViewerMatchTab,
+  ViewerPreSeriesTableData,
   ViewerSeriesTeam,
   ViewerSeriesTab,
   ViewerTimelineItem,
@@ -142,6 +143,26 @@ function toPendingActiveSeriesTab(view: TrackerViewState): ViewerSeriesTab {
         lastRankedGamePlayed: player.lastRankedGamePlayed,
       })),
     })),
+    preSeriesTableData: toPreSeriesTableData(
+      activeSeriesContext.teams.map((team) => ({
+        id: team.id,
+        name: team.name,
+        players: team.players.map((player) => ({
+          discordId: player.discordId,
+          discordName: player.discordName,
+          gamertag: player.gamertag,
+          xboxId: player.xboxId,
+          currentRank: player.currentRank,
+          currentRankTier: player.currentRankTier,
+          currentRankSubTier: player.currentRankSubTier,
+          currentRankMeasurementMatchesRemaining: player.currentRankMeasurementMatchesRemaining,
+          currentRankInitialMeasurementMatches: player.currentRankInitialMeasurementMatches,
+          allTimePeakRank: player.allTimePeakRank,
+          esra: player.esra,
+          lastRankedGamePlayed: player.lastRankedGamePlayed,
+        })),
+      })),
+    ),
     matchBackgroundUrls: [],
     score: "-",
     duration: "unknown",
@@ -151,6 +172,60 @@ function toPendingActiveSeriesTab(view: TrackerViewState): ViewerSeriesTab {
     endTime: "",
     matches: [],
     colorHex: undefined,
+  };
+}
+
+function toSeriesPlayerKey(
+  teamId: number,
+  player: {
+    readonly discordId?: string | null;
+    readonly xboxId?: string | null;
+    readonly gamertag: string | null;
+    readonly discordName: string | null;
+  },
+  playerIndex: number,
+): string {
+  const stableId = player.discordId ?? player.xboxId ?? player.gamertag ?? player.discordName;
+  if (stableId != null && stableId !== "") {
+    return `${teamId.toString()}:${stableId}`;
+  }
+
+  return `${teamId.toString()}:${playerIndex.toString()}`;
+}
+
+function toPreSeriesTableData(teams: readonly ViewerSeriesTeam[]): ViewerPreSeriesTableData {
+  const playersAssociationData: ViewerPreSeriesTableData["playersAssociationData"] = {};
+  const tableTeams = teams.map((team) => ({
+    name: team.name,
+    players: team.players.map((player, playerIndex) => {
+      const playerId = toSeriesPlayerKey(team.id, player, playerIndex);
+      const resolvedDiscordName = player.discordName ?? player.gamertag ?? "Unknown";
+
+      playersAssociationData[playerId] = {
+        discordId: player.discordId ?? playerId,
+        discordName: resolvedDiscordName,
+        xboxId: player.xboxId ?? null,
+        gamertag: player.gamertag,
+        currentRank: player.currentRank ?? null,
+        currentRankTier: player.currentRankTier ?? null,
+        currentRankSubTier: player.currentRankSubTier ?? null,
+        currentRankMeasurementMatchesRemaining: player.currentRankMeasurementMatchesRemaining ?? null,
+        currentRankInitialMeasurementMatches: player.currentRankInitialMeasurementMatches ?? null,
+        allTimePeakRank: player.allTimePeakRank ?? null,
+        esra: player.esra ?? null,
+        lastRankedGamePlayed: player.lastRankedGamePlayed ?? null,
+      };
+
+      return {
+        id: playerId,
+        displayName: resolvedDiscordName,
+      };
+    }),
+  }));
+
+  return {
+    teams: tableTeams,
+    playersAssociationData,
   };
 }
 
@@ -312,6 +387,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         guildIconUrl: anchoredSeries.guildIconUrl ?? null,
         isActive: activeSeriesId != null ? anchoredSeries.id === activeSeriesId : false,
         teams: getSeriesTeams(view, anchoredSeries, activeSeriesId),
+        preSeriesTableData: undefined,
         matchBackgroundUrls:
           anchoredSeries.matchBackgroundUrls ?? seriesSummaries.map((summary) => summary.mapBackgroundUrl ?? "data:,"),
         score: anchoredSeries.score,
@@ -323,10 +399,12 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         matches: seriesMatches,
         colorHex: undefined,
       };
+      const seriesWithPreSeriesData: ViewerSeriesTab =
+        series.teams.length > 0 ? { ...series, preSeriesTableData: toPreSeriesTableData(series.teams) } : series;
       if (activeSeriesId == null && view.hasActiveSeries) {
         fallbackActiveSeriesId = anchoredSeries.id;
       }
-      timeline.push({ type: "series", series });
+      timeline.push({ type: "series", series: seriesWithPreSeriesData });
       continue;
     }
 
