@@ -18,7 +18,7 @@ function buildScoreDelta(
   events: readonly KillRaceEvent[],
   durationMs: number,
 ): ScoreDeltaData | null {
-  if (teamIds.length < 2) {
+  if (teamIds.length !== 2) {
     return null;
   }
 
@@ -59,7 +59,7 @@ function buildPlayerAdvantage(
   durationMs: number,
   teamSize: number | null,
 ): PlayerAdvantageData | null {
-  if (teamIds.length < 2 || deathTimeline.length === 0) {
+  if (teamIds.length !== 2 || deathTimeline.length === 0) {
     return null;
   }
 

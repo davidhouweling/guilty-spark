@@ -146,6 +146,18 @@ describe("formatScoreProgression", () => {
       expect(result?.scoreDelta).toBeNull();
     });
 
+    it("returns null scoreDelta when more than 2 teams are present", () => {
+      const data = aFakeScoreProgressionWith({
+        timeline: {
+          type: "kill-race",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0, "2": 0 } }],
+          deathTimeline: [],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.scoreDelta).toBeNull();
+    });
+
     it("returns null scoreDelta when all deltas are 0 (perfectly tied match)", () => {
       const data = aFakeScoreProgressionWith({
         timeline: {
@@ -163,6 +175,19 @@ describe("formatScoreProgression", () => {
   });
 
   describe("playerAdvantage", () => {
+    it("returns null playerAdvantage when more than 2 teams are present", () => {
+      const data = aFakeScoreProgressionWith({
+        respawnDurationMs: 8000,
+        timeline: {
+          type: "kill-race",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0, "2": 0 } }],
+          deathTimeline: [{ timestampMs: 5001, teamId: 1 }],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.playerAdvantage).toBeNull();
+    });
+
     it("returns null playerAdvantage when respawnDurationMs is null", () => {
       const data = aFakeScoreProgressionWith({ respawnDurationMs: null });
       const result = formatScoreProgression(data, TEAM_COLORS);
