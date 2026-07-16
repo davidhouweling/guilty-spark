@@ -12,4 +12,9 @@
 .toolbarLabel {
   color: var(--halo-white);
   font-size: 12px;
+  white-space: nowrap;
+}
+
+.toolbarSelect {
+  width: fit-content;
 }

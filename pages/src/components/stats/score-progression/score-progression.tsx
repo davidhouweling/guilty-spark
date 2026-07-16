@@ -22,6 +22,7 @@ export function ScoreProgression({
           </label>
           <Select
             id="chart-type-select"
+            containerClassName={styles.toolbarSelect}
             value={effectiveChartType}
             onChange={(e) => {
               onChartTypeChange(e.target.value);
