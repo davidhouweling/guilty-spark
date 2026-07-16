@@ -5,6 +5,7 @@ import { addMinutes, isValid, parseISO } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
+import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import { summarizeSeriesOutcome } from "@guilty-spark/shared/halo/match-enrichment";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
@@ -14,6 +15,7 @@ import { OutcomeBadge } from "../../outcome-badge/outcome-badge";
 import { MatchStats } from "../../stats/match-stats";
 import { StatsHeader } from "../../stats/stats-header";
 import { SeriesStatsView } from "../../series-stats/series-stats";
+import { PlayerPreSeriesInfo } from "../../player-pre-series-info/player-pre-series-info";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import { gameModeIconSrc } from "../game-mode-icon";
 import { StatsHighlights } from "./stats-highlights";
@@ -124,26 +126,12 @@ function formatDate(value: string | null): string {
   return date == null ? "unknown" : date.toLocaleString();
 }
 
-function toSeriesPlayerLabel(discordName: string | null, gamertag: string | null): string {
-  const normalizedDiscordName = discordName?.trim();
-  if (normalizedDiscordName != null && normalizedDiscordName !== "") {
-    return normalizedDiscordName;
-  }
-
-  const normalizedGamertag = gamertag?.trim();
-  if (normalizedGamertag != null && normalizedGamertag !== "") {
-    return normalizedGamertag;
-  }
-
-  return "Unknown player";
-}
-
 function toSeriesPlayerKey(
   teamId: number,
-  player: { discordId?: string | null; xboxId?: string | null },
+  player: { discordId?: string | null; xboxId?: string | null; gamertag: string | null; discordName: string | null },
   playerIndex: number,
 ): string {
-  const stableId = player.discordId ?? player.xboxId;
+  const stableId = player.discordId ?? player.xboxId ?? player.gamertag ?? player.discordName;
   if (stableId != null && stableId !== "") {
     return `${teamId.toString()}:${stableId}`;
   }
@@ -157,6 +145,47 @@ function preSeriesStatusMessage(totalTrackedMatches: number): string {
   }
 
   return "Series is active and waiting for additional tracked matches.";
+}
+
+function toPlayerAssociationData(
+  series: Extract<ViewerTimelineItem, { type: "series" }>["series"],
+): {
+  readonly teams: readonly { name: string; players: readonly { id: string; displayName: string }[] }[];
+  readonly playersAssociationData: Record<string, PlayerAssociationData>;
+} {
+  const playersAssociationData: Record<string, PlayerAssociationData> = {};
+  const teams = series.teams.map((team) => ({
+    name: team.name,
+    players: team.players.map((player, playerIndex) => {
+      const playerId = toSeriesPlayerKey(team.id, player, playerIndex);
+      const resolvedDiscordName = player.discordName ?? player.gamertag ?? "Unknown";
+
+      playersAssociationData[playerId] = {
+        discordId: player.discordId ?? playerId,
+        discordName: resolvedDiscordName,
+        xboxId: player.xboxId ?? null,
+        gamertag: player.gamertag,
+        currentRank: player.currentRank ?? null,
+        currentRankTier: player.currentRankTier ?? null,
+        currentRankSubTier: player.currentRankSubTier ?? null,
+        currentRankMeasurementMatchesRemaining: player.currentRankMeasurementMatchesRemaining ?? null,
+        currentRankInitialMeasurementMatches: player.currentRankInitialMeasurementMatches ?? null,
+        allTimePeakRank: player.allTimePeakRank ?? null,
+        esra: player.esra ?? null,
+        lastRankedGamePlayed: player.lastRankedGamePlayed ?? null,
+      };
+
+      return {
+        id: playerId,
+        displayName: resolvedDiscordName,
+      };
+    }),
+  }));
+
+  return {
+    teams,
+    playersAssociationData,
+  };
 }
 
 function handleEntryHeaderKeyDown(
@@ -617,23 +646,11 @@ export function IndividualTrackerViewer({
                         <div className={styles.preSeriesPanel}>
                           <Alert variant="info">{preSeriesStatusMessage(renderModel.accumulated.total)}</Alert>
                           {series.teams.length > 0 && (
-                            <div className={styles.preSeriesTeams} aria-label="Active series teams">
-                              {series.teams.map((team) => (
-                                <section key={team.id} className={styles.preSeriesTeam}>
-                                  <h3 className={styles.preSeriesTeamName}>{team.name}</h3>
-                                  <ul className={styles.preSeriesPlayerList}>
-                                    {team.players.map((player, playerIndex) => (
-                                      <li
-                                        key={toSeriesPlayerKey(team.id, player, playerIndex)}
-                                        className={styles.preSeriesPlayer}
-                                      >
-                                        {toSeriesPlayerLabel(player.discordName, player.gamertag)}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </section>
-                              ))}
-                            </div>
+                            <PlayerPreSeriesInfo
+                              className={styles.preSeriesInfo}
+                              {...toPlayerAssociationData(series)}
+                              teamColors={renderModel.teamColors}
+                            />
                           )}
                         </div>
                       ) : state == null || (state.kind === "series" && state.state.status === "loading") ? (

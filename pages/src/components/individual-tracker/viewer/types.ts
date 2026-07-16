@@ -49,6 +49,14 @@ export interface ViewerSeriesTeamPlayer {
   readonly discordName: string | null;
   readonly gamertag: string | null;
   readonly xboxId?: string | null;
+  readonly currentRank?: number | null;
+  readonly currentRankTier?: string | null;
+  readonly currentRankSubTier?: number | null;
+  readonly currentRankMeasurementMatchesRemaining?: number | null;
+  readonly currentRankInitialMeasurementMatches?: number | null;
+  readonly allTimePeakRank?: number | null;
+  readonly esra?: number | null;
+  readonly lastRankedGamePlayed?: string | null;
 }
 
 export interface ViewerSeriesTeam {

@@ -16,6 +16,16 @@ vi.mock("react-time-ago", () => ({
   default: ({ date }: { date: Date }): React.ReactNode => <span>{date.toISOString()}</span>,
 }));
 
+vi.mock("../../../icons/team-icon", () => ({
+  TeamIcon: ({ teamId }: { teamId: number }): React.ReactNode => (
+    <div data-testid={`team-icon-${teamId.toString()}`}>Team {teamId.toString()}</div>
+  ),
+}));
+
+vi.mock("../../../icons/rank-icon", () => ({
+  RankIcon: (): React.ReactNode => <div data-testid="rank-icon">Rank</div>,
+}));
+
 function aModel(view: ReturnType<typeof aFakeTrackerViewStateWith>): IndividualTrackerViewerRenderModel {
   return buildViewerRenderModel({ view });
 }
@@ -287,10 +297,10 @@ describe("IndividualTrackerViewer", () => {
 
     expect(screen.queryByText("No matches tracked yet.")).not.toBeInTheDocument();
     expect(screen.getByText("Series is active and waiting for the first tracked match.")).toBeInTheDocument();
-    expect(screen.getByText("Alpha")).toBeInTheDocument();
-    expect(screen.getByText("Beta")).toBeInTheDocument();
+    expect(screen.getByText("Player Info")).toBeInTheDocument();
+    expect(screen.getByLabelText("Player information")).toBeInTheDocument();
     expect(screen.getByText("AlphaOne")).toBeInTheDocument();
-    expect(screen.getByText("BetaTag")).toBeInTheDocument();
+    expect(screen.getAllByText("BetaTag").length).toBeGreaterThan(0);
     expect(screen.getByText("In progress")).toBeInTheDocument();
   });
 

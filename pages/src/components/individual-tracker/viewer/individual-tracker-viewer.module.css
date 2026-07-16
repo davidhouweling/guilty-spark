@@ -210,38 +210,8 @@
   padding: 0 var(--space-4) var(--space-4);
 }
 
-.preSeriesTeams {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.preSeriesTeam {
-  background: color-mix(in srgb, var(--halo-teal-primary) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 28%, transparent);
-  border-radius: var(--radius-sm);
-  padding: var(--space-3);
-}
-
-.preSeriesTeamName {
-  color: var(--halo-white);
-  font-family: var(--font-heading);
-  font-size: var(--text-sm);
-  margin: 0 0 var(--space-2);
-  text-transform: uppercase;
-}
-
-.preSeriesPlayerList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  list-style: none;
+.preSeriesInfo {
   margin: 0;
-  padding: 0;
-}
-
-.preSeriesPlayer {
-  color: var(--halo-gray-light);
-  font-size: var(--text-sm);
 }
 
 .jumpToLatestButton {
@@ -291,10 +261,6 @@
 }
 
 @media (--desktop-viewport) {
-  .preSeriesTeams {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .entryHeaderRight {
     flex-direction: row;
   }
