@@ -3,8 +3,7 @@ import Layout from "../layouts/layout.astro";
 import Container from "../components/container/container.astro";
 import Heading from "../components/heading/heading.astro";
 import styles from "./_styles/legal-page.module.css";
-// eslint-disable-next-line import/no-unresolved
-import termsMarkdown from "../../../TERMS_OF_SERVICE.md?raw";
+import TermsOfServiceMarkdown from "../../../TERMS_OF_SERVICE.md";
 ---
 
 <Layout
@@ -19,7 +18,7 @@ import termsMarkdown from "../../../TERMS_OF_SERVICE.md?raw";
       </header>
 
       <article class={styles.markdownContent}>
-        <pre class={styles.policyText}>{termsMarkdown}</pre>
+        <TermsOfServiceMarkdown />
       </article>
     </Container>
   </section>

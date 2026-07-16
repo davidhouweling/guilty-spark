@@ -34,13 +34,6 @@
   padding: var(--space-7);
 }
 
-.policyText {
-  font-family: var(--font-body);
-  margin: 0;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-}
-
 .markdownContent :global(h1),
 .markdownContent :global(h2),
 .markdownContent :global(h3),
