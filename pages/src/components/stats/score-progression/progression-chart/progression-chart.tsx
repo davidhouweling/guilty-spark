@@ -2,6 +2,7 @@ import React from "react";
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   AXIS_STROKE,
+  CHART_HEIGHT,
   CHART_MARGIN,
   GRID_STROKE,
   TICK_FILL,
@@ -23,13 +24,22 @@ export function ProgressionChart({
   const team0Color = teamLines[0]?.color ?? TICK_FILL;
   const team1Color = teamLines[1]?.color ?? TICK_FILL;
   const margin = playerAdvantage != null ? { ...CHART_MARGIN, right: 36 } : CHART_MARGIN;
+  const plotTop = CHART_MARGIN.top;
+  const plotBottom = CHART_HEIGHT - CHART_MARGIN.bottom;
 
   return (
-    <ResponsiveContainer width="100%" height={260}>
+    <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
       <AreaChart margin={margin}>
         {playerAdvantage != null && (
           <defs>
-            <linearGradient id={advantageGradientId} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient
+              id={advantageGradientId}
+              x1="0"
+              y1={plotTop}
+              x2="0"
+              y2={plotBottom}
+              gradientUnits="userSpaceOnUse"
+            >
               <stop offset={`${(playerAdvantage.zeroFraction * 100).toFixed(2)}%`} stopColor={team0Color} />
               <stop offset={`${(playerAdvantage.zeroFraction * 100).toFixed(2)}%`} stopColor={team1Color} />
             </linearGradient>

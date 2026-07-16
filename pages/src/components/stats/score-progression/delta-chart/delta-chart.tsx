@@ -2,6 +2,7 @@ import React from "react";
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   AXIS_STROKE,
+  CHART_HEIGHT,
   CHART_MARGIN,
   GRID_STROKE,
   TICK_STYLE,
@@ -27,6 +28,8 @@ export function DeltaChart({
   const advantageGradientId = `${gradientId}-advantage`;
   const zeroPercent = `${(zeroFraction * 100).toFixed(2)}%`;
   const margin = playerAdvantage != null ? { ...CHART_MARGIN, right: 36 } : CHART_MARGIN;
+  const plotTop = CHART_MARGIN.top;
+  const plotBottom = CHART_HEIGHT - CHART_MARGIN.bottom;
   const wrappedTooltipFormatter = (
     value: number | string | readonly (number | string)[] | undefined,
     name: string | number | undefined,
@@ -38,20 +41,34 @@ export function DeltaChart({
   };
 
   return (
-    <ResponsiveContainer width="100%" height={260}>
+    <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
       <AreaChart data={points} margin={margin}>
         <defs>
-          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={gradientId} x1="0" y1={plotTop} x2="0" y2={plotBottom} gradientUnits="userSpaceOnUse">
             <stop offset={zeroPercent} stopColor={team0Color} stopOpacity={0.4} />
             <stop offset={zeroPercent} stopColor={team1Color} stopOpacity={0.4} />
             <stop offset="100%" stopColor={team1Color} stopOpacity={0.4} />
           </linearGradient>
-          <linearGradient id={strokeGradientId} x1="0" y1="0" x2="0" y2="1">
+          <linearGradient
+            id={strokeGradientId}
+            x1="0"
+            y1={plotTop}
+            x2="0"
+            y2={plotBottom}
+            gradientUnits="userSpaceOnUse"
+          >
             <stop offset={zeroPercent} stopColor={team0Color} />
             <stop offset={zeroPercent} stopColor={team1Color} />
           </linearGradient>
           {playerAdvantage != null && (
-            <linearGradient id={advantageGradientId} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient
+              id={advantageGradientId}
+              x1="0"
+              y1={plotTop}
+              x2="0"
+              y2={plotBottom}
+              gradientUnits="userSpaceOnUse"
+            >
               <stop offset={`${(playerAdvantage.zeroFraction * 100).toFixed(2)}%`} stopColor={team0Color} />
               <stop offset={`${(playerAdvantage.zeroFraction * 100).toFixed(2)}%`} stopColor={team1Color} />
             </linearGradient>

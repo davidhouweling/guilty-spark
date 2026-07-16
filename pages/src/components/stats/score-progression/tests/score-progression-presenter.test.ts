@@ -190,6 +190,32 @@ describe("ScoreProgressionPresenter", () => {
       });
       expect(model.progressionViewModel.playerAdvantage).toBe(advantage);
     });
+
+    it("symmetrizes scoreDelta domain when playerAdvantage is shown", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ showPlayerAdvantage: true, chartType: "delta" });
+      const model = presenter.present(store.getSnapshot(), {
+        ...BASE_INPUT,
+        scoreDelta: { ...aFakeScoreDeltaData(), minScore: -1, maxScore: 3, zeroFraction: 0.75 },
+        playerAdvantage: aFakePlayerAdvantageData(),
+      });
+      expect(model.deltaViewModel?.scoreDelta.minScore).toBe(-3);
+      expect(model.deltaViewModel?.scoreDelta.maxScore).toBe(3);
+      expect(model.deltaViewModel?.scoreDelta.zeroFraction).toBe(0.5);
+    });
+
+    it("preserves original scoreDelta domain when playerAdvantage is hidden", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ chartType: "delta" });
+      const model = presenter.present(store.getSnapshot(), {
+        ...BASE_INPUT,
+        scoreDelta: { ...aFakeScoreDeltaData(), minScore: -1, maxScore: 3, zeroFraction: 0.75 },
+        playerAdvantage: aFakePlayerAdvantageData(),
+      });
+      expect(model.deltaViewModel?.scoreDelta.minScore).toBe(-1);
+      expect(model.deltaViewModel?.scoreDelta.maxScore).toBe(3);
+      expect(model.deltaViewModel?.scoreDelta.zeroFraction).toBe(0.75);
+    });
   });
 
   describe("onChartTypeChange()", () => {

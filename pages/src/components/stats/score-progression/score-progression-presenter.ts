@@ -44,11 +44,14 @@ export class ScoreProgressionPresenter {
     const team0Name = input.teamLines[0]?.name ?? "Team 1";
     const team1Name = input.teamLines[1]?.name ?? "Team 2";
 
+    const syncedScoreDelta =
+      input.scoreDelta != null ? this.synchronizeDeltaDomain(input.scoreDelta, effectivePlayerAdvantage) : null;
+
     const deltaViewModel: ScoreProgressionDeltaViewModel | null =
-      effectiveChartType === "delta" && input.scoreDelta != null
+      effectiveChartType === "delta" && syncedScoreDelta != null
         ? {
             durationMs: input.durationMs,
-            scoreDelta: input.scoreDelta,
+            scoreDelta: syncedScoreDelta,
             team0Color: input.teamLines[0]?.color ?? TICK_FILL,
             team1Color: input.teamLines[1]?.color ?? TICK_FILL,
             playerAdvantage: effectivePlayerAdvantage,
@@ -76,6 +79,14 @@ export class ScoreProgressionPresenter {
       onChartTypeChange: this.onChartTypeChange,
       onPlayerAdvantageChange: this.onPlayerAdvantageChange,
     };
+  }
+
+  private synchronizeDeltaDomain(scoreDelta: ScoreDeltaData, advantage: PlayerAdvantageData | null): ScoreDeltaData {
+    if (advantage == null) {
+      return scoreDelta;
+    }
+    const maxAbsDelta = Math.max(Math.abs(scoreDelta.minScore), Math.abs(scoreDelta.maxScore));
+    return { ...scoreDelta, minScore: -maxAbsDelta, maxScore: maxAbsDelta, zeroFraction: 0.5 };
   }
 
   private setChartType(value: string): void {
