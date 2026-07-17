@@ -6,6 +6,6 @@ import { FollowLiveApp } from "../../apps/follow-live/create";
 const { gamertag } = Astro.params;
 ---
 
-<Layout title={`${gamertag ?? ""} live view - Guilty Spark`} description="Follow this player live">
+<Layout title={`${gamertag ?? "Not found"} - Guilty Spark`} description="Follow this player live">
   <FollowLiveApp client:only="react" apiHost={API_HOST} gamertag={gamertag ?? ""} />
 </Layout>
