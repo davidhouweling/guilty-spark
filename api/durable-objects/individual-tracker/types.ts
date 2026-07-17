@@ -240,6 +240,7 @@ export interface ActiveSeriesContext {
   title: string;
   subtitle: string | null;
   guildIconUrl: string | null;
+  startedAt?: string;
   teams: SeriesTeam[];
 }
 

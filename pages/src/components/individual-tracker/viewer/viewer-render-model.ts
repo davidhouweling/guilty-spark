@@ -30,6 +30,7 @@ export interface BuildViewerRenderModelOptions {
 const UNKNOWN_KDA_DISPLAY = "-:-:- (-)";
 const UNKNOWN_DAMAGE_RATIO_DISPLAY = "-:- (-)";
 const PENDING_ACTIVE_SERIES_ID_PREFIX = "pending-active-series";
+const PENDING_SERIES_SUMMARY_DISPLAY = "N/A";
 
 type ActiveSeriesContext = NonNullable<TrackerViewState["activeSeriesContext"]>;
 type ActiveSeriesTeam = ActiveSeriesContext["teams"][number];
@@ -103,6 +104,7 @@ function toViewerActiveSeriesContext(view: TrackerViewState): ViewerActiveSeries
     title: view.activeSeriesContext.title,
     subtitle: view.activeSeriesContext.subtitle,
     guildIconUrl: view.activeSeriesContext.guildIconUrl ?? null,
+    startedAt: view.activeSeriesContext.startedAt,
     teams: view.activeSeriesContext.teams.map(toViewerSeriesTeam),
   };
 }
@@ -179,11 +181,11 @@ function toPendingActiveSeriesTab(view: TrackerViewState): ViewerSeriesTab {
     teams,
     preSeriesTableData: toPreSeriesTableData(teams),
     matchBackgroundUrls: [],
-    score: "-",
-    duration: "unknown",
-    killsDeathsAssistsKda: UNKNOWN_KDA_DISPLAY,
-    damageDealtTakenRatio: UNKNOWN_DAMAGE_RATIO_DISPLAY,
-    startTime: "",
+    score: "0:0",
+    duration: "-",
+    killsDeathsAssistsKda: PENDING_SERIES_SUMMARY_DISPLAY,
+    damageDealtTakenRatio: PENDING_SERIES_SUMMARY_DISPLAY,
+    startTime: activeSeriesContext.startedAt ?? view.lastUpdateTime,
     endTime: "",
     matches: [],
     colorHex: undefined,
@@ -282,7 +284,8 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
   let fallbackActiveSeriesId: string | null = null;
   for (const series of view.series) {
     const knownIds = series.matchIds.filter((id) => matchesById.has(id));
-    if (knownIds.length < 2) {
+    const isCurrentActiveSeries = activeSeriesId != null && series.id === activeSeriesId;
+    if (knownIds.length < 2 && !(isCurrentActiveSeries && knownIds.length > 0)) {
       continue;
     }
     const [anchorId] = series.matchIds;
@@ -306,11 +309,13 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         }
       }
 
-      let seriesDuration = "unknown";
+      let seriesDuration = "-";
       let seriesStartTime = "";
       let seriesEndTime = "";
+      const isCurrentActiveSeries = activeSeriesId != null && anchoredSeries.id === activeSeriesId;
 
       if (seriesSummaries.length > 0) {
+        seriesDuration = "unknown";
         let totalSeconds = 0;
         let hasInvalidDurationBounds = false;
         for (const summary of seriesSummaries) {
@@ -339,6 +344,8 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         const endTimes = seriesSummaries.map((summary) => summary.endTime);
         seriesStartTime = startTimes.reduce((earliest, current) => (current < earliest ? current : earliest));
         seriesEndTime = endTimes.reduce((latest, current) => (current > latest ? current : latest));
+      } else if (isCurrentActiveSeries && view.activeSeriesContext?.startedAt != null) {
+        seriesStartTime = view.activeSeriesContext.startedAt;
       }
 
       const series: ViewerSeriesTab = {

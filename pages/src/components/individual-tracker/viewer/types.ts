@@ -81,6 +81,7 @@ export interface ViewerActiveSeriesContext {
   readonly title: string;
   readonly subtitle: string | null;
   readonly guildIconUrl?: string | null;
+  readonly startedAt?: string;
   readonly teams: readonly ViewerSeriesTeam[];
 }
 

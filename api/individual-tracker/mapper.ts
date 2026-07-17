@@ -126,6 +126,7 @@ function toTrackerActiveSeriesContext(context: TrackerActiveSeriesContext): Trac
     title: context.title,
     subtitle: context.subtitle,
     guildIconUrl: context.guildIconUrl,
+    startedAt: context.startedAt,
     teams: context.teams.map(toTrackerSeriesTeam),
   };
 }

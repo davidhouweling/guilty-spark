@@ -76,6 +76,8 @@ function NeatQueueStreamerOverlay({
   settingsUi,
 }: NeatQueueStreamerOverlayProps): React.ReactElement {
   const SharedStreamerOverlay = useMemo(() => createStreamerOverlaySection(), []);
+  const seriesMatchCount = neatQueueState.seriesData?.matchIds.length ?? neatQueueState.matches.length;
+  const isPreSeriesMode = seriesMatchCount === 0;
 
   const allMatchStats = useAllMatchStats();
   const seriesStats = useSeriesStats();
@@ -131,11 +133,7 @@ function NeatQueueStreamerOverlay({
       });
     };
 
-    if (
-      settings.global.ticker.showPreSeriesInfo &&
-      neatQueueState.matches.length === 0 &&
-      neatQueueState.playersAssociationData
-    ) {
+    if (settings.global.ticker.showPreSeriesInfo && isPreSeriesMode && neatQueueState.playersAssociationData) {
       const playersAssociationData = new Map(Object.entries(neatQueueState.playersAssociationData));
       const rows: TickerStatRow[] = [];
 
@@ -353,6 +351,7 @@ function NeatQueueStreamerOverlay({
     neatQueueState,
     seriesStats,
     allMatchStats,
+    isPreSeriesMode,
     settings.global.ticker.selectedSlayerStats,
     settings.global.ticker.showObjectiveStats,
     settings.global.ticker.medalRarityFilter,
@@ -362,14 +361,14 @@ function NeatQueueStreamerOverlay({
   const hasPanelContent = useCallback(
     (tabIndex: number): boolean => {
       if (tabIndex === -1) {
-        if (neatQueueState.matches.length === 0 && neatQueueState.playersAssociationData != null) {
+        if (isPreSeriesMode && neatQueueState.playersAssociationData != null) {
           return true;
         }
-        return seriesStats != null && neatQueueState.matches.length > 0;
+        return seriesStats != null && seriesMatchCount > 0;
       }
       return allMatchStats[tabIndex]?.data != null && Boolean(neatQueueState.matches[tabIndex]);
     },
-    [allMatchStats, neatQueueState, seriesStats],
+    [allMatchStats, isPreSeriesMode, neatQueueState, seriesMatchCount, seriesStats],
   );
 
   const renderPanelContent = useCallback(
@@ -382,7 +381,7 @@ function NeatQueueStreamerOverlay({
           selectedTab={tabIndex}
           teams={neatQueueState.teams}
           playersAssociationData={neatQueueState.playersAssociationData}
-          matchesLength={neatQueueState.matches.length}
+          seriesMatchCount={seriesMatchCount}
           seriesStats={seriesStats}
           selectedMatchStats={selectedMatchStats}
           selectedMatch={selectedMatch}
@@ -400,6 +399,7 @@ function NeatQueueStreamerOverlay({
       analyticsStatus,
       gameModeIconUrl,
       neatQueueState,
+      seriesMatchCount,
       seriesKillMatrix,
       seriesStats,
       teamColors,
@@ -583,7 +583,7 @@ function NeatQueueStreamerOverlay({
       tickerMatchGroups={tickerMatchGroups}
       showTabs={showTabs}
       showTicker={showTicker}
-      matchesLength={neatQueueState.matches.length}
+      matchesLength={seriesMatchCount}
       showPreview={settings.global.viewPreview}
       previewMode={settings.global.colors.mode}
       fontSizeStyles={fontSizeStyles}

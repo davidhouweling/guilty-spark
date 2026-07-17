@@ -683,6 +683,7 @@ export class NeatQueueService {
         title,
         subtitle: `Queue #${request.match_number.toString()}`,
         guildIconUrl,
+        startedAt: this.resolveSeriesStartedAt(request),
         teams: seriesTeams,
       };
       queueState.seriesContext = seriesContext;
@@ -699,6 +700,21 @@ export class NeatQueueService {
         ]),
       );
     }
+  }
+
+  private resolveSeriesStartedAt(request: NeatQueueTeamsCreatedRequest): string {
+    const validTimestamps = request.teams
+      .flatMap((team) => team.map((player) => player.timestamp))
+      .map((value) => value.trim())
+      .filter((value) => value !== "")
+      .map((value) => Date.parse(value))
+      .filter((value) => !Number.isNaN(value));
+
+    if (validTimestamps.length > 0) {
+      return new Date(Math.min(...validTimestamps)).toISOString();
+    }
+
+    return new Date().toISOString();
   }
 
   private async fetchGuildDisplayInfo(guildId: string): Promise<{ title: string; guildIconUrl: string | null }> {
