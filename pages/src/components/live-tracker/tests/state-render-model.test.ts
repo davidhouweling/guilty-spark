@@ -26,4 +26,35 @@ describe("toLiveTrackerStateRenderModel", () => {
     expect(model.matches[0]?.matchId).toBe("3d203681-2950-46a9-b6ae-d9da82d3d0d5");
     expect(model.matches[model.matches.length - 1]?.endTime).toBe("2026-03-28T11:07:51.805Z");
   });
+
+  it("normalizes invalid series score values to 0:0", () => {
+    const fallbackSeriesData = {
+      seriesId: {
+        guildId: sampleLiveTrackerStateMessage.data.guildId,
+        queueNumber: sampleLiveTrackerStateMessage.data.queueNumber,
+      },
+      teams: [],
+      seriesScore: "-",
+      matchIds: [],
+      startTime: sampleLiveTrackerStateMessage.data.lastUpdateTime,
+      lastUpdateTime: sampleLiveTrackerStateMessage.data.lastUpdateTime,
+    };
+
+    const message = {
+      ...sampleLiveTrackerStateMessage,
+      data: {
+        ...sampleLiveTrackerStateMessage.data,
+        seriesScore: "-",
+        seriesData: {
+          ...(sampleLiveTrackerStateMessage.data.seriesData ?? fallbackSeriesData),
+          seriesScore: "-",
+        },
+      },
+    };
+
+    const model = toLiveTrackerStateRenderModel(message, {});
+
+    expect(model.seriesScore).toBe("0:0");
+    expect(model.seriesData?.seriesScore).toBe("0:0");
+  });
 });

@@ -65,6 +65,7 @@ export const trackerActiveSeriesContextSchema = z.object({
   title: z.string(),
   subtitle: z.string().nullable(),
   guildIconUrl: z.string().nullable().optional(),
+  startedAt: z.string().optional(),
   teams: z.array(trackerSeriesTeamSchema),
 });
 export type TrackerActiveSeriesContext = z.infer<typeof trackerActiveSeriesContextSchema>;

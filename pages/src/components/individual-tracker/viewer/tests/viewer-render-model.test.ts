@@ -311,6 +311,7 @@ describe("buildViewerRenderModel", () => {
         title: "Alpha vs Beta",
         subtitle: "Bo5",
         guildIconUrl: "https://cdn.example.com/icon.png",
+        startedAt: "2026-07-17T09:23:30.659Z",
         teams: [
           {
             id: 0,
@@ -336,6 +337,11 @@ describe("buildViewerRenderModel", () => {
       expect(first.series.title).toBe("Alpha vs Beta");
       expect(first.series.subtitle).toBe("Bo5");
       expect(first.series.guildIconUrl).toBe("https://cdn.example.com/icon.png");
+      expect(first.series.score).toBe("0:0");
+      expect(first.series.duration).toBe("-");
+      expect(first.series.killsDeathsAssistsKda).toBe("N/A");
+      expect(first.series.damageDealtTakenRatio).toBe("N/A");
+      expect(first.series.startTime).toBe("2026-07-17T09:23:30.659Z");
       expect(first.series.matches).toHaveLength(0);
       expect(first.series.teams[0]?.players[0]?.discordName).toBe("AlphaOne");
       expect(first.series.teams[1]?.players[0]?.gamertag).toBe("BetaTag");

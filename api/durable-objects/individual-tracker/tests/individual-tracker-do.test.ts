@@ -3299,6 +3299,47 @@ describe("IndividualTrackerDO", () => {
       expect(group?.teams).toEqual(teams);
     });
 
+    it("surfaces an active series group when only one active-series match is currently linked", async () => {
+      const ids = ["match-active-1"];
+      const activeSeries: ActiveSeries = {
+        title: "Queue Live",
+        subtitle: "Queue #8",
+        guildIconUrl: null,
+        matchIds: ids,
+        teams: [],
+        startedAt: "2026-07-17T09:23:30.659Z",
+        isActive: true,
+      };
+
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          ...makeSeriesMatches(ids),
+          activeSeries,
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+
+      expect(response.status).toBe(200);
+      const body = await response.json<{
+        state: {
+          hasActiveSeries: boolean;
+          activeSeriesContext?: { startedAt?: string };
+          series: { title: string; subtitle: string; matchIds: string[]; score: string }[];
+        };
+      }>();
+
+      expect(body.state.hasActiveSeries).toBe(true);
+      expect(body.state.activeSeriesContext?.startedAt).toBe("2026-07-17T09:23:30.659Z");
+      expect(body.state.series).toHaveLength(1);
+      expect(body.state.series[0]).toMatchObject({
+        title: "Queue Live",
+        subtitle: "Queue #8",
+        matchIds: ["match-active-1"],
+        score: "0:0",
+      });
+    });
+
     it("applies completedSeries metadata to a matching group after the series ends", async () => {
       const ids = ["match-c-1", "match-c-2"];
       const completedSeries: ActiveSeries = {

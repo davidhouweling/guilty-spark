@@ -12,6 +12,14 @@ import type {
   LiveTrackerSubstitutionRenderModel,
 } from "./types";
 
+function normalizeSeriesScore(score: string): string {
+  if (/^\d+:\d+$/.test(score)) {
+    return score;
+  }
+
+  return "0:0";
+}
+
 function toMatchRenderModel(
   summary: LiveTrackerMatchSummary,
   rawMatches: Record<string, unknown>,
@@ -112,7 +120,7 @@ export function toLiveTrackerStateRenderModel(
     teams,
     matches,
     substitutions,
-    seriesScore: message.data.seriesScore,
+    seriesScore: normalizeSeriesScore(message.data.seriesScore),
     medalMetadata,
     playersAssociationData: message.data.playersAssociationData,
     seriesData:
@@ -120,7 +128,7 @@ export function toLiveTrackerStateRenderModel(
         ? {
             seriesId: message.data.seriesData.seriesId,
             teams: message.data.seriesData.teams,
-            seriesScore: message.data.seriesData.seriesScore,
+            seriesScore: normalizeSeriesScore(message.data.seriesData.seriesScore),
             matchIds: message.data.seriesData.matchIds,
             startTime: message.data.seriesData.startTime,
             lastUpdateTime: message.data.seriesData.lastUpdateTime,

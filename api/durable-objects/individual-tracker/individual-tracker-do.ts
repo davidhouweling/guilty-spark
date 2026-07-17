@@ -151,6 +151,7 @@ const DEFAULT_WEBSOCKET_STATS_HIGHLIGHT_SLOTS = DEFAULT_INDIVIDUAL_STATS_HIGHLIG
 
 const UNKNOWN_KDA_DISPLAY = "-:-:- (-)";
 const UNKNOWN_DAMAGE_RATIO_DISPLAY = "-:- (-)";
+const UNKNOWN_SERIES_SUMMARY_DISPLAY = "N/A";
 const STATS_DISPLAY_LOCALE = "en-US";
 
 function computeTrackedPlayerSummaryStats(
@@ -196,6 +197,13 @@ function computeSeriesSummaryStats(summaries: readonly IndividualTrackerMatchSum
   killsDeathsAssistsKda: string;
   damageDealtTakenRatio: string;
 } {
+  if (summaries.length === 0) {
+    return {
+      killsDeathsAssistsKda: UNKNOWN_SERIES_SUMMARY_DISPLAY,
+      damageDealtTakenRatio: UNKNOWN_SERIES_SUMMARY_DISPLAY,
+    };
+  }
+
   let kills = 0;
   let deaths = 0;
   let assists = 0;
@@ -211,8 +219,8 @@ function computeSeriesSummaryStats(summaries: readonly IndividualTrackerMatchSum
       summary.damageTaken == null
     ) {
       return {
-        killsDeathsAssistsKda: UNKNOWN_KDA_DISPLAY,
-        damageDealtTakenRatio: UNKNOWN_DAMAGE_RATIO_DISPLAY,
+        killsDeathsAssistsKda: UNKNOWN_SERIES_SUMMARY_DISPLAY,
+        damageDealtTakenRatio: UNKNOWN_SERIES_SUMMARY_DISPLAY,
       };
     }
 
@@ -319,6 +327,27 @@ function getSeriesSummariesForView(
       : groupSummaries.filter((summary) => hasExpectedSeriesTeamCounts(summary, expectedTeamCounts));
 
   return collapseSequentialSeriesEntries(summariesWithExpectedTeams);
+}
+
+function isEligibleForActiveSeries(
+  summary: IndividualTrackerMatchSummary,
+  matchDurationSeconds: number,
+  activeSeries: ActiveSeries,
+): boolean {
+  if (matchDurationSeconds < 120) {
+    return false;
+  }
+
+  const expectedTeamCounts = getExpectedSeriesTeamCounts(activeSeries.teams);
+  if (expectedTeamCounts == null) {
+    if (summary.isMatchmaking) {
+      return false;
+    }
+
+    return true;
+  }
+
+  return hasExpectedSeriesTeamCounts(summary, expectedTeamCounts);
 }
 
 function normalizeRankTier(rankTier: string | null | undefined): string | null {
@@ -582,17 +611,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
 
       const isMatchmakingMatch = match.MatchInfo.Playlist != null;
-      if (trackerState.activeSeries != null && isMatchmakingMatch) {
-        this.clearSeriesState(trackerState);
-        this.logService.info(
-          "IndividualTracker: series ended after matchmaking match was discovered",
-          new Map([
-            ["trackerId", trackerState.trackerId],
-            ["gamertag", trackerState.gamertag],
-            ["matchId", matchId],
-          ]),
-        );
-      }
 
       const outcome = getMatchOutcomeLabel(match.Outcome);
       const mapName = await this.resolveMapName(
@@ -629,9 +647,22 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       if (durationSeconds >= 120) {
         trackerState.selectedMatchIds.push(matchId);
       }
-      if (trackerState.activeSeries != null && !isMatchmakingMatch && !existingActiveSeriesMatchIds.has(matchId)) {
-        trackerState.activeSeries.matchIds.push(matchId);
-        existingActiveSeriesMatchIds.add(matchId);
+      if (trackerState.activeSeries != null && !existingActiveSeriesMatchIds.has(matchId)) {
+        const isSeriesEligible = isEligibleForActiveSeries(summary, durationSeconds, trackerState.activeSeries);
+        if (isSeriesEligible) {
+          trackerState.activeSeries.matchIds.push(matchId);
+          existingActiveSeriesMatchIds.add(matchId);
+        } else if (isMatchmakingMatch) {
+          this.clearSeriesState(trackerState);
+          this.logService.info(
+            "IndividualTracker: series ended after matchmaking match was discovered",
+            new Map([
+              ["trackerId", trackerState.trackerId],
+              ["gamertag", trackerState.gamertag],
+              ["matchId", matchId],
+            ]),
+          );
+        }
       }
       newlyDiscovered.add(matchId);
       discoveredNewMatch = true;
@@ -2016,13 +2047,14 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
       case "started": {
         this.clearSeriesState(trackerState);
+        const startedAt = payload.startedAt ?? new Date().toISOString();
         trackerState.activeSeries = {
           title: payload.title,
           subtitle: payload.subtitle,
           guildIconUrl: payload.guildIconUrl,
           teams: payload.teams,
           matchIds: [],
-          startedAt: new Date().toISOString(),
+          startedAt,
           isActive: true,
         };
 
@@ -2368,7 +2400,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const activeSeriesMatchIds = state.activeSeries?.matchIds ?? [];
     const activeSeriesMatchIdSet = new Set(activeSeriesMatchIds);
     const groupings =
-      activeSeriesMatchIds.length >= 2
+      activeSeriesMatchIds.length > 0
         ? [activeSeriesMatchIds, ...autoGroupings.filter((g) => !g.some((id) => activeSeriesMatchIdSet.has(id)))]
         : autoGroupings;
 
@@ -2472,6 +2504,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
               title: state.activeSeries.title,
               subtitle: state.activeSeries.subtitle,
               guildIconUrl: state.activeSeries.guildIconUrl,
+              startedAt: state.activeSeries.startedAt,
               teams: state.activeSeries.teams,
             },
           }

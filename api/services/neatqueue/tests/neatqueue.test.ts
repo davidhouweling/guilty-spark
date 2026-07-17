@@ -2230,6 +2230,9 @@ describe("NeatQueueService", () => {
 
       it("uses guild display name for title even when explicit team names are set", async () => {
         const teamsCreatedRequest = getFakeNeatQueueData("teamsCreated");
+        const expectedStartedAt = new Date(
+          teamsCreatedRequest.teams[0]?.[0]?.timestamp ?? "2026-01-01T00:00:00.000Z",
+        ).toISOString();
         const team0Player = teamsCreatedRequest.teams[0]?.[0];
         const team1Player = teamsCreatedRequest.teams[1]?.[0];
         if (team0Player != null) {
@@ -2256,6 +2259,7 @@ describe("NeatQueueService", () => {
         expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
         const [, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], SeriesStartedPayload];
         expect(payload.title).toBe("Test Server");
+        expect(payload.startedAt).toBe(expectedStartedAt);
       });
 
       it("uses guild ID as title fallback when getGuild fails and team names are unavailable", async () => {
