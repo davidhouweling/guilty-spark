@@ -74,11 +74,11 @@ export class FollowLiveViewerPresenter extends FollowLiveBasePresenter {
 
   private getViewerTitle(gamertag: string, directory: FollowLiveViewerPresentOpts["directory"]): string {
     const liveTracker = this.getLiveTracker(directory);
-    if (liveTracker == null) {
-      return `${gamertag} live view - Guilty Spark`;
+    if (liveTracker == null || liveTracker.gamertag === gamertag) {
+      return `${gamertag} - Guilty Spark`;
     }
 
-    return `${gamertag} live view - ${liveTracker.gamertag} live - Guilty Spark`;
+    return `${gamertag}: ${liveTracker.gamertag} - Guilty Spark`;
   }
 
   private toTrackerConnectionStatus(
