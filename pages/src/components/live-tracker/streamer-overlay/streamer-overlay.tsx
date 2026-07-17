@@ -583,7 +583,7 @@ function NeatQueueStreamerOverlay({
       tickerMatchGroups={tickerMatchGroups}
       showTabs={showTabs}
       showTicker={showTicker}
-      matchesLength={neatQueueState.matches.length}
+      matchesLength={seriesMatchCount}
       showPreview={settings.global.viewPreview}
       previewMode={settings.global.colors.mode}
       fontSizeStyles={fontSizeStyles}

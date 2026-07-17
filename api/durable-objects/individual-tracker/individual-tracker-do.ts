@@ -338,12 +338,12 @@ function isEligibleForActiveSeries(
     return false;
   }
 
+  if (summary.isMatchmaking) {
+    return false;
+  }
+
   const expectedTeamCounts = getExpectedSeriesTeamCounts(activeSeries.teams);
   if (expectedTeamCounts == null) {
-    if (summary.isMatchmaking) {
-      return false;
-    }
-
     return true;
   }
 

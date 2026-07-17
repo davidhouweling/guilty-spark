@@ -1779,7 +1779,24 @@ describe("IndividualTrackerDO", () => {
             title: "Active Series",
             subtitle: "Customs",
             guildIconUrl: null,
-            teams: [],
+            teams: [
+              {
+                id: 0,
+                name: "Eagle",
+                players: [
+                  { discordId: null, discordName: null, gamertag: "Alpha", xboxId: "1111111111" },
+                  { discordId: null, discordName: null, gamertag: "Bravo", xboxId: "2222222222" },
+                ],
+              },
+              {
+                id: 1,
+                name: "Cobra",
+                players: [
+                  { discordId: null, discordName: null, gamertag: "Charlie", xboxId: "3333333333" },
+                  { discordId: null, discordName: null, gamertag: "Delta", xboxId: "4444444444" },
+                ],
+              },
+            ],
             matchIds: ["series-custom-match"],
             startedAt: "2024-11-26T11:00:00.000Z",
             isActive: true,
