@@ -473,7 +473,7 @@ describe("HaloFilmService", () => {
   });
 
   describe("kill-death pairing edge cases", () => {
-    it("pairs kills and deaths at exactly the boundary (1ms delta)", async () => {
+    it("pairs kills and deaths at exactly the boundary (2ms delta)", async () => {
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
@@ -499,7 +499,7 @@ describe("HaloFilmService", () => {
           typeHint: 20,
           isMedal: false,
           eventType: "death",
-          timeMs: 1001,
+          timeMs: 1002,
           medalValue: 0,
           teamId: null,
         },
@@ -511,7 +511,7 @@ describe("HaloFilmService", () => {
       expect(analytics.pairingQuality.unpairedDeathCount).toBe(0);
     });
 
-    it("does not pair kills and deaths exceeding 1ms delta", async () => {
+    it("does not pair kills and deaths exceeding 2ms delta", async () => {
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
