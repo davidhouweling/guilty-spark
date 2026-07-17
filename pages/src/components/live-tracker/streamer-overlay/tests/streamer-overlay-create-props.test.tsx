@@ -247,4 +247,67 @@ describe("StreamerOverlay create props", () => {
     const dimmedIconNodes = screen.getAllByTestId("shared-overlay-dimmed-icons");
     expect(dimmedIconNodes.at(-1)).toHaveTextContent("1");
   });
+
+  it("uses TeamId rather than team array order for tab dimming", () => {
+    const reorderedTeamsStats = aFakeMatchStatsWith({
+      Teams: [
+        { ...aFakeMatchStatsWith().Teams[1], TeamId: 1, Outcome: 3 },
+        { ...aFakeMatchStatsWith().Teams[0], TeamId: 0, Outcome: 2 },
+      ],
+    });
+    const model = aFakeLiveTrackerViewModelWith({
+      state: {
+        type: "neatqueue",
+        guildName: "Test Guild",
+        guildId: "test-guild-id",
+        guildIcon: "data:,",
+        queueNumber: 5,
+        status: "active",
+        lastUpdateTime: "2025-01-01T00:00:00.000Z",
+        teams: [
+          { name: "Team 1", players: [{ id: "player1", displayName: "player_one" }] },
+          { name: "Team 2", players: [{ id: "player2", displayName: "player_two" }] },
+        ],
+        matches: [
+          {
+            matchId: "match-reordered-win",
+            gameTypeAndMap: "Slayer: Aquarius",
+            gameType: "Slayer",
+            gameMap: "Aquarius",
+            gameMapThumbnailUrl: "data:,",
+            duration: "10m 0s",
+            gameScore: "50:45",
+            gameSubScore: null,
+            startTime: "2024-12-31T23:50:00.000Z",
+            endTime: "2025-01-01T00:00:00.000Z",
+            rawMatchStats: reorderedTeamsStats,
+            playerXuidToGametag: {},
+          },
+        ],
+        substitutions: [],
+        seriesScore: "1:0",
+        medalMetadata: { 1: { name: "Killing Spree", sortingWeight: 1500 } },
+        playersAssociationData: {},
+      },
+    });
+    const settingsWithTabs = {
+      ...DEFAULT_ALL_SETTINGS,
+      global: {
+        ...DEFAULT_ALL_SETTINGS.global,
+        ticker: {
+          ...DEFAULT_ALL_SETTINGS.global.ticker,
+          showTabs: true,
+        },
+      },
+    };
+
+    render(
+      <LiveTrackerProvider {...defaultProviderProps} model={model}>
+        <StreamerOverlay {...defaultProps} settings={settingsWithTabs} />
+      </LiveTrackerProvider>,
+    );
+
+    const dimmedIconNodes = screen.getAllByTestId("shared-overlay-dimmed-icons");
+    expect(dimmedIconNodes.at(-1)).toHaveTextContent("0");
+  });
 });

@@ -513,16 +513,9 @@ function NeatQueueStreamerOverlay({
         teamColor: undefined,
       },
       ...neatQueueState.matches.map((match, idx) => {
-        let winningTeamIndex: number | null = null;
-        if (match.rawMatchStats) {
-          const winningTeam = match.rawMatchStats.Teams.find((team) => team.Outcome === 2);
-          if (winningTeam) {
-            winningTeamIndex = match.rawMatchStats.Teams.indexOf(winningTeam);
-          }
-        }
-
-        const teamColor = winningTeamIndex !== null ? teamColors[winningTeamIndex]?.hex : undefined;
-        const didEagleLose = winningTeamIndex !== null && winningTeamIndex !== 0;
+        const winningTeamId = match.rawMatchStats?.Teams.find((team) => team.Outcome === 2)?.TeamId ?? null;
+        const teamColor = winningTeamId !== null ? teamColors[winningTeamId]?.hex : undefined;
+        const didEagleLose = winningTeamId !== null && winningTeamId !== 0;
 
         return {
           type: "match" as const,

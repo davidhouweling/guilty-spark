@@ -256,5 +256,4 @@ describe("StreamerOverlay", () => {
     expect(screen.getAllByText("Test Guild").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Series score").length).toBeGreaterThan(0);
   });
-
 });
