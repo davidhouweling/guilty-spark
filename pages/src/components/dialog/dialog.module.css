@@ -46,7 +46,7 @@
 }
 
 .closeButton:hover {
-  background-color: var(--halo-bg-secondary);
+  background-color: var(--halo-bg-card);
   color: var(--halo-white);
 }
 
