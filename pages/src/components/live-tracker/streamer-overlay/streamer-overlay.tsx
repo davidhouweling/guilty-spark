@@ -507,12 +507,14 @@ function NeatQueueStreamerOverlay({
       return 0;
     }
 
-    const selectedPlayerId = settings.global.colors.playerView.selectedPlayerId;
+    const { selectedPlayerId } = settings.global.colors.playerView;
     if (selectedPlayerId == null || selectedPlayerId === "") {
       return 0;
     }
 
-    const playerTeamId = neatQueueState.teams.findIndex((team) => team.players.some((player) => player.id === selectedPlayerId));
+    const playerTeamId = neatQueueState.teams.findIndex((team) =>
+      team.players.some((player) => player.id === selectedPlayerId),
+    );
     return playerTeamId >= 0 ? playerTeamId : 0;
   }, [neatQueueState.teams, settings.global.colors.mode, settings.global.colors.playerView.selectedPlayerId]);
 
@@ -547,7 +549,14 @@ function NeatQueueStreamerOverlay({
         };
       }),
     ],
-    [gameModeIconUrl, neatQueueState.matches, neatQueueState.seriesScore, observedTeamId, settings.global.ticker.showTabs, teamColors],
+    [
+      gameModeIconUrl,
+      neatQueueState.matches,
+      neatQueueState.seriesScore,
+      observedTeamId,
+      settings.global.ticker.showTabs,
+      teamColors,
+    ],
   );
 
   const { showScore, showTeamDetails } = settings.global.display;
