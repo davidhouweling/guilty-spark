@@ -318,14 +318,14 @@ function hasExpectedSeriesTeamCounts(
 function getSeriesSummariesForSeriesList(
   groupSummaries: readonly IndividualTrackerMatchSummary[],
   teams: readonly SeriesTeam[] | undefined,
-): IndividualTrackerMatchSummary[] {
+): readonly IndividualTrackerMatchSummary[] {
   const expectedTeamCounts = getExpectedSeriesTeamCounts(teams);
   const summariesWithExpectedTeams =
     expectedTeamCounts == null
       ? groupSummaries
       : groupSummaries.filter((summary) => hasExpectedSeriesTeamCounts(summary, expectedTeamCounts));
 
-  return [...summariesWithExpectedTeams];
+  return summariesWithExpectedTeams;
 }
 
 function isEligibleForActiveSeries(
