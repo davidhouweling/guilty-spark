@@ -703,14 +703,15 @@ export class NeatQueueService {
   }
 
   private resolveSeriesStartedAt(request: NeatQueueTeamsCreatedRequest): string {
-    const candidateTimestamp = request.teams
+    const validTimestamps = request.teams
       .flatMap((team) => team.map((player) => player.timestamp))
-      .find((value) => {
-        return value.trim() !== "";
-      });
+      .map((value) => value.trim())
+      .filter((value) => value !== "")
+      .map((value) => Date.parse(value))
+      .filter((value) => !Number.isNaN(value));
 
-    if (candidateTimestamp != null && !Number.isNaN(Date.parse(candidateTimestamp))) {
-      return new Date(candidateTimestamp).toISOString();
+    if (validTimestamps.length > 0) {
+      return new Date(Math.min(...validTimestamps)).toISOString();
     }
 
     return new Date().toISOString();

@@ -422,6 +422,46 @@ describe("buildViewerRenderModel", () => {
     }
   });
 
+  it("renders active series row once the first linked match is available", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1" })],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          id: "series-live",
+          title: "Alpha vs Beta",
+          subtitle: "Bo3",
+          matchIds: ["m1"],
+        }),
+      ],
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Alpha vs Beta",
+        subtitle: "Bo3",
+        teams: [
+          {
+            id: 0,
+            name: "Alpha",
+            players: [{ discordId: null, discordName: "AlphaOne", gamertag: "AlphaTag", xboxId: null }],
+          },
+          {
+            id: 1,
+            name: "Beta",
+            players: [{ discordId: null, discordName: "BetaOne", gamertag: "BetaTag", xboxId: null }],
+          },
+        ],
+      },
+    });
+
+    const model = buildViewerRenderModel({ view });
+    expect(model.timeline).toHaveLength(1);
+    expect(model.timeline[0]?.type).toBe("series");
+    if (model.timeline[0]?.type === "series") {
+      expect(model.timeline[0].series.id).toBe("series-live");
+      expect(model.timeline[0].series.matches.map((match) => match.matchId)).toEqual(["m1"]);
+      expect(model.timeline[0].series.isActive).toBe(true);
+    }
+  });
+
   it("maps active series context teams onto the active series tab", () => {
     const view = aFakeTrackerViewStateWith({
       matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1" }), aFakeTrackerMatchSummaryWith({ matchId: "m2" })],

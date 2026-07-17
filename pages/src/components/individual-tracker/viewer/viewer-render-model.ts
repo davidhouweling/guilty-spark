@@ -284,7 +284,8 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
   let fallbackActiveSeriesId: string | null = null;
   for (const series of view.series) {
     const knownIds = series.matchIds.filter((id) => matchesById.has(id));
-    if (knownIds.length < 2) {
+    const isCurrentActiveSeries = activeSeriesId != null && series.id === activeSeriesId;
+    if (knownIds.length < 2 && !(isCurrentActiveSeries && knownIds.length > 0)) {
       continue;
     }
     const [anchorId] = series.matchIds;
