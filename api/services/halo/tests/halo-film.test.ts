@@ -998,6 +998,90 @@ describe("HaloFilmService", () => {
       expect(analytics.entries[0]?.perfects).toBe(1);
     });
 
+    it("consumes the closest perfect medal when multiple medals are within the window for the same kill", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+      const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
+      const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 1000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 1000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 2000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 2000,
+          medalValue: 0,
+          teamId: null,
+        },
+        // Two medals within the window of kill at 1000ms: one at 999ms (delta 1) and one at 1004ms (delta 4)
+        // The kill at 2000ms has no medal nearby, so the 1004ms medal must not be consumed by the second kill
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 210,
+          isMedal: true,
+          eventType: "medal",
+          timeMs: 1004,
+          medalValue: 1512363953,
+          teamId: null,
+        },
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 210,
+          isMedal: true,
+          eventType: "medal",
+          timeMs: 999,
+          medalValue: 1512363953,
+          teamId: null,
+        },
+      ]);
+
+      const analytics = await service.buildKillMatrixAnalytics(match);
+
+      // kill at 1000ms: closest medal is 999ms (delta 1) — consumed
+      // kill at 2000ms: no medal within 5ms — not attributed
+      // Remaining medal at 1004ms is left unconsumed
+      expect(analytics.entries[0]?.count).toBe(2);
+      expect(analytics.entries[0]?.perfects).toBe(1);
+      expect(analytics.perfectCounts.total).toBe(2);
+    });
+
     it("does not attribute a perfect medal from a different player to the kill pair", async () => {
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });

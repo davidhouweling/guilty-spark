@@ -306,11 +306,23 @@ export class HaloFilmService {
     if (timestamps == null) {
       return false;
     }
-    const index = timestamps.findIndex((ts) => Math.abs(ts - killTimeMs) <= PERFECT_MEDAL_PAIRING_MAX_DELTA_MS);
-    if (index < 0) {
+    let bestIndex = -1;
+    let bestDelta = Infinity;
+    for (let i = 0; i < timestamps.length; i += 1) {
+      const ts = timestamps[i];
+      if (ts == null) {
+        continue;
+      }
+      const delta = Math.abs(ts - killTimeMs);
+      if (delta <= PERFECT_MEDAL_PAIRING_MAX_DELTA_MS && delta < bestDelta) {
+        bestIndex = i;
+        bestDelta = delta;
+      }
+    }
+    if (bestIndex < 0) {
       return false;
     }
-    timestamps.splice(index, 1);
+    timestamps.splice(bestIndex, 1);
     return true;
   }
 
