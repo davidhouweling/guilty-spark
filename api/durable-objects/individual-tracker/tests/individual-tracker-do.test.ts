@@ -3015,13 +3015,17 @@ describe("IndividualTrackerDO", () => {
       expect(response.status).toBe(400);
     });
 
-    it("flushes existing series metadata when nudging with ended event", async () => {
+    it("retires active series metadata when nudging with ended event", async () => {
       const persistedSeriesGroupOverrides = [
         { matchIds: ["match-1"], titleOverride: "Custom Label", subtitleOverride: null },
       ];
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
-          activeSeries: anActiveSeries({ matchIds: ["match-1"] }),
+          activeSeries: anActiveSeries({
+            title: "Dog Crew",
+            subtitle: "Queue #8018",
+            matchIds: ["match-1"],
+          }),
           seriesGroupOverrides: persistedSeriesGroupOverrides,
         }),
       );
@@ -3034,7 +3038,14 @@ describe("IndividualTrackerDO", () => {
 
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries).toBeUndefined();
-      expect(persisted.completedSeries).toBeUndefined();
+      expect(persisted.completedSeries).toEqual([
+        expect.objectContaining({
+          title: "Dog Crew",
+          subtitle: "Queue #8018",
+          isActive: false,
+          matchIds: ["match-1"],
+        }),
+      ]);
       expect(persisted.seriesGroupOverrides).toEqual(persistedSeriesGroupOverrides);
       expect(storageSetAlarmSpy).toHaveBeenCalledWith(Date.now());
     });

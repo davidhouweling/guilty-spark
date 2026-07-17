@@ -502,6 +502,22 @@ function NeatQueueStreamerOverlay({
     ],
   );
 
+  const observedTeamId = useMemo((): number => {
+    if (settings.global.colors.mode !== "player") {
+      return 0;
+    }
+
+    const { selectedPlayerId } = settings.global.colors.playerView;
+    if (selectedPlayerId == null || selectedPlayerId === "") {
+      return 0;
+    }
+
+    const playerTeamId = neatQueueState.teams.findIndex((team) =>
+      team.players.some((player) => player.id === selectedPlayerId),
+    );
+    return playerTeamId >= 0 ? playerTeamId : 0;
+  }, [neatQueueState.teams, settings.global.colors.mode, settings.global.colors.playerView.selectedPlayerId]);
+
   const tabs = useMemo<readonly OverlayTab[]>(
     () => [
       {
@@ -513,15 +529,9 @@ function NeatQueueStreamerOverlay({
         teamColor: undefined,
       },
       ...neatQueueState.matches.map((match, idx) => {
-        let winningTeamIndex: number | null = null;
-        if (match.rawMatchStats) {
-          const winningTeam = match.rawMatchStats.Teams.find((team) => team.Outcome === 2);
-          if (winningTeam) {
-            winningTeamIndex = match.rawMatchStats.Teams.indexOf(winningTeam);
-          }
-        }
-
-        const teamColor = winningTeamIndex !== null ? teamColors[winningTeamIndex]?.hex : undefined;
+        const winningTeamId = match.rawMatchStats?.Teams.find((team) => team.Outcome === 2)?.TeamId ?? null;
+        const teamColor = winningTeamId !== null ? teamColors[winningTeamId]?.hex : undefined;
+        const isLoss = winningTeamId !== null && winningTeamId !== observedTeamId;
 
         return {
           type: "match" as const,
@@ -529,12 +539,24 @@ function NeatQueueStreamerOverlay({
           matchId: match.matchId,
           label: settings.global.ticker.showTabs ? match.gameMap : "",
           score: match.gameScore,
-          icon: gameModeIconUrl(match.gameType, match.rawMatchStats?.MatchInfo.GameVariantCategory),
+          icons: [
+            {
+              src: gameModeIconUrl(match.gameType, match.rawMatchStats?.MatchInfo.GameVariantCategory),
+              dimmed: isLoss,
+            },
+          ],
           teamColor,
         };
       }),
     ],
-    [gameModeIconUrl, neatQueueState.matches, neatQueueState.seriesScore, settings.global.ticker.showTabs, teamColors],
+    [
+      gameModeIconUrl,
+      neatQueueState.matches,
+      neatQueueState.seriesScore,
+      observedTeamId,
+      settings.global.ticker.showTabs,
+      teamColors,
+    ],
   );
 
   const { showScore, showTeamDetails } = settings.global.display;
