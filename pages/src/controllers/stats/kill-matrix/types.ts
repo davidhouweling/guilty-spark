@@ -21,6 +21,35 @@ export interface KillMatrixPivotData {
 
 export const EMPTY_KILL_MATRIX_PIVOT_DATA: KillMatrixPivotData = { tableRows: [], columnHeaders: [] };
 
+export interface KillMatrixCrossTeamCell {
+  readonly kills: number;
+  readonly deaths: number;
+}
+
+export interface KillMatrixCrossTeamRow {
+  readonly playerId: string;
+  readonly playerGamertag: string;
+  readonly playerTeamId: number | null;
+  readonly cells: ReadonlyMap<string, KillMatrixCrossTeamCell>;
+}
+
+export interface KillMatrixCrossTeamFootnote {
+  readonly betrayals: number;
+  readonly suicides: number;
+}
+
+export interface KillMatrixCrossTeamData {
+  readonly tableRows: readonly KillMatrixCrossTeamRow[];
+  readonly columnHeaders: readonly KillMatrixColumnHeader[];
+  readonly footnote: KillMatrixCrossTeamFootnote | null;
+}
+
+export const EMPTY_KILL_MATRIX_CROSS_TEAM_DATA: KillMatrixCrossTeamData = {
+  tableRows: [],
+  columnHeaders: [],
+  footnote: null,
+};
+
 export interface KillMatrixPlayer {
   readonly xuid: string;
   readonly gamertag: string;

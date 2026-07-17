@@ -178,6 +178,8 @@ export class OverlayPagePresenter {
       .flatMap((teamData) => teamData.players.map((player) => playersByGamertag.get(player.name)))
       .filter((player): player is KillMatrixPlayer => player != null);
     const orderedPlayers = resolvedPlayers.length === players.length ? resolvedPlayers : players;
+    const crossTeam =
+      killMatrixRows != null ? KillMatrixFormatter.buildCrossTeam(killMatrixRows, orderedPlayers) : null;
 
     return {
       status: "loaded",
@@ -196,6 +198,8 @@ export class OverlayPagePresenter {
         killMatrixRows != null
           ? KillMatrixFormatter.transpose(killMatrixRows, orderedPlayers)
           : EMPTY_KILL_MATRIX_PIVOT_DATA,
+      crossTeamKillMatrixData: crossTeam?.crossTeamData ?? null,
+      swappedCrossTeamKillMatrixData: crossTeam?.swappedCrossTeamData ?? null,
       scoreProgressionViewData: null,
     };
   }

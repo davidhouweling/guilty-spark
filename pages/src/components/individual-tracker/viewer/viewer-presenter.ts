@@ -115,6 +115,8 @@ function buildSeriesViewModel({
     teamColors,
     killMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
     transposedKillMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
+    crossTeamKillMatrixData: null,
+    swappedCrossTeamKillMatrixData: null,
     killMatrixStatus: ComponentLoaderStatus.LOADED,
   };
 
@@ -183,6 +185,8 @@ function buildSeriesViewModel({
       teamColors,
       killMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
       transposedKillMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
+      crossTeamKillMatrixData: null,
+      swappedCrossTeamKillMatrixData: null,
       killMatrixStatus: ComponentLoaderStatus.LOADED,
       scoreProgressionViewData: null,
     };
@@ -377,6 +381,8 @@ export class IndividualTrackerViewerPresenter {
       .flatMap((teamData) => teamData.players.map((p) => playersByGamertag.get(p.name)))
       .filter((p): p is KillMatrixPlayer => p != null);
     const orderedPlayers = resolvedPlayers.length === players.length ? resolvedPlayers : players;
+    const crossTeam =
+      killMatrixRows != null ? KillMatrixFormatter.buildCrossTeam(killMatrixRows, orderedPlayers) : null;
 
     return {
       matchId: stats.MatchId,
@@ -394,6 +400,8 @@ export class IndividualTrackerViewerPresenter {
         killMatrixRows != null
           ? KillMatrixFormatter.transpose(killMatrixRows, orderedPlayers)
           : EMPTY_KILL_MATRIX_PIVOT_DATA,
+      crossTeamKillMatrixData: crossTeam?.crossTeamData ?? null,
+      swappedCrossTeamKillMatrixData: crossTeam?.swappedCrossTeamData ?? null,
       scoreProgressionViewData: formatScoreProgression(
         analytics?.scoreProgression ?? null,
         teamColors,

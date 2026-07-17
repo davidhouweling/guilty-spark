@@ -224,14 +224,19 @@ export class LiveTrackerPresenter {
           matchId: match.matchId,
           pivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
           transposedPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
+          crossTeamData: null,
+          swappedCrossTeamData: null,
         };
       }
       const rows = LiveTrackerPresenter.killMatrixFormatter.present({ analytics, playersByXuid });
       matchKillMatrixRows.set(match.matchId, rows);
+      const crossTeam = KillMatrixFormatter.buildCrossTeam(rows, seriesPlayers ?? []);
       return {
         matchId: match.matchId,
         pivotData: KillMatrixFormatter.pivot(rows, seriesPlayers),
         transposedPivotData: KillMatrixFormatter.transpose(rows, seriesPlayers),
+        crossTeamData: crossTeam?.crossTeamData ?? null,
+        swappedCrossTeamData: crossTeam?.swappedCrossTeamData ?? null,
       };
     });
 
@@ -240,12 +245,15 @@ export class LiveTrackerPresenter {
     }
 
     const aggregatedRows = KillMatrixFormatter.aggregate([...matchKillMatrixRows.values()].flatMap((rows) => rows));
+    const aggregatedCrossTeam = KillMatrixFormatter.buildCrossTeam(aggregatedRows, seriesPlayers ?? []);
 
     return {
       allMatchKillMatrix,
       seriesKillMatrix: {
         pivotData: KillMatrixFormatter.pivot(aggregatedRows, seriesPlayers),
         transposedPivotData: KillMatrixFormatter.transpose(aggregatedRows, seriesPlayers),
+        crossTeamData: aggregatedCrossTeam?.crossTeamData ?? null,
+        swappedCrossTeamData: aggregatedCrossTeam?.swappedCrossTeamData ?? null,
       },
     };
   }

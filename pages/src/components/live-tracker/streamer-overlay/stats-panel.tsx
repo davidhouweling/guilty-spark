@@ -6,13 +6,15 @@ import { MatchStats as MatchStatsView } from "../../stats/match-stats";
 import { SeriesStats } from "../../stats/series-stats";
 import type { MatchStatsData } from "../../../controllers/stats/types";
 import type { SeriesMetadata } from "../../../controllers/stats/series-metadata";
-import type { KillMatrixPivotData } from "../../../controllers/stats/kill-matrix/types";
+import type { KillMatrixCrossTeamData, KillMatrixPivotData } from "../../../controllers/stats/kill-matrix/types";
 import { PlayerPreSeriesInfo } from "../../player-pre-series-info/player-pre-series-info";
 import type { LiveTrackerMatchRenderModel, LiveTrackerTeamRenderModel } from "../types";
 
 interface KillMatrixData {
   readonly pivotData: KillMatrixPivotData;
   readonly transposedPivotData: KillMatrixPivotData;
+  readonly crossTeamData: KillMatrixCrossTeamData | null;
+  readonly swappedCrossTeamData: KillMatrixCrossTeamData | null;
 }
 
 interface StatsPanelContentProps {
@@ -64,6 +66,8 @@ function StatsPanelContentComponent({
         teamColors={teamColors}
         killMatrixPivotData={seriesKillMatrix?.pivotData}
         transposedKillMatrixPivotData={seriesKillMatrix?.transposedPivotData}
+        crossTeamData={seriesKillMatrix?.crossTeamData}
+        swappedCrossTeamData={seriesKillMatrix?.swappedCrossTeamData}
         killMatrixStatus={analyticsStatus}
       />
     );
@@ -89,6 +93,8 @@ function StatsPanelContentComponent({
         teamColors={teamColors}
         killMatrixPivotData={matchKillMatrix?.pivotData}
         transposedKillMatrixPivotData={matchKillMatrix?.transposedPivotData}
+        crossTeamData={matchKillMatrix?.crossTeamData}
+        swappedCrossTeamData={matchKillMatrix?.swappedCrossTeamData}
         killMatrixStatus={analyticsStatus}
       />
     );
