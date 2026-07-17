@@ -5,13 +5,15 @@ export type KillMatrixClassification = "enemy-kill" | "betrayal" | "suicide";
 export interface KillMatrixColumnHeader {
   readonly gamertag: string;
   readonly teamId: number | null;
+  readonly xuid: string;
 }
 
 export interface KillMatrixPivotRow {
   readonly killerId: string;
   readonly killerGamertag: string;
   readonly killerTeamId: number | null;
-  readonly kills: ReadonlyMap<string, number>;
+  readonly kills: ReadonlyMap<string, number>; // keyed by victim gamertag
+  readonly perfects: ReadonlyMap<string, number>; // keyed by victim gamertag
 }
 
 export interface KillMatrixPivotData {
@@ -24,6 +26,17 @@ export const EMPTY_KILL_MATRIX_PIVOT_DATA: KillMatrixPivotData = { tableRows: []
 export interface KillMatrixCrossTeamCell {
   readonly kills: number;
   readonly deaths: number;
+  readonly killPerfects: number;
+  readonly deathPerfects: number;
+}
+
+export interface H2HDialogData {
+  readonly playerA: { readonly gamertag: string; readonly teamId: number | null };
+  readonly playerB: { readonly gamertag: string; readonly teamId: number | null };
+  readonly aKillsOnB: number;
+  readonly bKillsOnA: number;
+  readonly aPerfsOnB: number;
+  readonly bPerfsOnA: number;
 }
 
 export interface KillMatrixCrossTeamRow {

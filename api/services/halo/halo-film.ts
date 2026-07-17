@@ -15,6 +15,7 @@ import {
   MEDAL_SORTING_WEIGHTS,
   KILL_DEATH_PAIRING_MAX_DELTA_MS,
   PERFECT_MEDAL_NAME_ID,
+  PERFECT_MEDAL_PAIRING_MAX_DELTA_MS,
 } from "./constants";
 import type {
   FilmMetadataResponse,
@@ -139,11 +140,14 @@ export class HaloFilmService {
 
     const kills = this.filterKillEvents(events);
     const deaths = events.filter((event) => event.eventType === "death");
-    const perfectByXuid = this.buildPerfectMedalsByXuid(events);
+    const perfectMedalTimestamps = this.buildPerfectMedalTimestampsByXuid(events);
+    const perfectCounts = this.buildPerfectCountsReport(events);
 
-    const { entries, maxTimeDeltaMs, usedDeathCount } = this.buildKillMatrixEntriesByPairing(kills, deaths);
-
-    const perfectCounts = this.buildPerfectCountsReport(perfectByXuid);
+    const { entries, maxTimeDeltaMs, usedDeathCount } = this.buildKillMatrixEntriesByPairing(
+      kills,
+      deaths,
+      perfectMedalTimestamps,
+    );
 
     return {
       entries,
@@ -237,24 +241,26 @@ export class HaloFilmService {
     }
   }
 
-  private buildPerfectMedalsByXuid(events: ParsedHighlightEvent[]): Map<string, number> {
-    const perfectByXuid = new Map<string, number>();
+  private buildPerfectMedalTimestampsByXuid(events: ParsedHighlightEvent[]): Map<string, number[]> {
+    const timestampsByXuid = new Map<string, number[]>();
     for (const event of events) {
-      if (event.eventType !== "medal") {
+      if (event.eventType !== "medal" || event.medalValue !== PERFECT_MEDAL_NAME_ID) {
         continue;
       }
-      if (event.medalValue !== PERFECT_MEDAL_NAME_ID) {
-        continue;
+      let timestamps = timestampsByXuid.get(event.xuid);
+      if (timestamps == null) {
+        timestamps = [];
+        timestampsByXuid.set(event.xuid, timestamps);
       }
-      const currentPerfectCount = perfectByXuid.get(event.xuid) ?? 0;
-      perfectByXuid.set(event.xuid, currentPerfectCount + 1);
+      timestamps.push(event.timeMs);
     }
-    return perfectByXuid;
+    return timestampsByXuid;
   }
 
   private buildKillMatrixEntriesByPairing(
     kills: ParsedHighlightEvent[],
     deaths: ParsedHighlightEvent[],
+    perfectMedalTimestamps: Map<string, number[]>,
   ): { entries: KillMatrixEntry[]; maxTimeDeltaMs: number; usedDeathCount: number } {
     const entriesByPair = new Map<string, KillMatrixEntry>();
     const usedDeathIndexes = new Set<number>();
@@ -285,10 +291,38 @@ export class HaloFilmService {
         weapons: [],
       };
       existing.count += 1;
+      if (this.consumePerfectMedalForKill(perfectMedalTimestamps, killEvent.xuid, killEvent.timeMs)) {
+        existing.perfects += 1;
+      }
       entriesByPair.set(pairKey, existing);
     }
 
     return { entries: Array.from(entriesByPair.values()), maxTimeDeltaMs, usedDeathCount: usedDeathIndexes.size };
+  }
+
+  private consumePerfectMedalForKill(
+    timestampsByXuid: Map<string, number[]>,
+    killerXuid: string,
+    killTimeMs: number,
+  ): boolean {
+    const timestamps = timestampsByXuid.get(killerXuid);
+    if (timestamps == null) {
+      return false;
+    }
+    let bestIndex = -1;
+    let bestDelta = Infinity;
+    for (const [i, ts] of timestamps.entries()) {
+      const delta = Math.abs(ts - killTimeMs);
+      if (delta <= PERFECT_MEDAL_PAIRING_MAX_DELTA_MS && delta < bestDelta) {
+        bestIndex = i;
+        bestDelta = delta;
+      }
+    }
+    if (bestIndex < 0) {
+      return false;
+    }
+    timestamps.splice(bestIndex, 1);
+    return true;
   }
 
   private findBestDeathMatch(
@@ -319,15 +353,18 @@ export class HaloFilmService {
     return bestDeathIndex;
   }
 
-  private buildPerfectCountsReport(perfectByXuid: Map<string, number>): {
+  private buildPerfectCountsReport(events: ParsedHighlightEvent[]): {
     total: number;
     byXuid: Record<string, number>;
   } {
     const byXuid: Record<string, number> = {};
     let total = 0;
-    for (const [xuid, count] of perfectByXuid.entries()) {
-      byXuid[xuid] = count;
-      total += count;
+    for (const event of events) {
+      if (event.eventType !== "medal" || event.medalValue !== PERFECT_MEDAL_NAME_ID) {
+        continue;
+      }
+      byXuid[event.xuid] = (byXuid[event.xuid] ?? 0) + 1;
+      total += 1;
     }
     return { total, byXuid };
   }

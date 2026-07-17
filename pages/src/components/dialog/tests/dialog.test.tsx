@@ -70,6 +70,21 @@ describe("Dialog", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("calls onClose when the close button is clicked", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+
+    render(
+      <Dialog open title="Add tracker" onClose={onClose}>
+        <p>Body content</p>
+      </Dialog>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Close Add tracker" }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it("does not call onClose when content inside the panel is clicked", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();

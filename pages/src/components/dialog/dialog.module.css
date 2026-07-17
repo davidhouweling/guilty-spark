@@ -20,12 +20,39 @@
   max-height: calc(100vh - (var(--space-4) * 2));
   max-width: calc(var(--content-width) + (var(--gutter-desktop) * 2));
   padding: var(--space-6);
+  position: relative;
   width: 90%;
 }
 
 .panel:focus-visible {
   outline: 2px solid var(--halo-accent);
   outline-offset: 2px;
+}
+
+.closeButton {
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--halo-gray);
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2);
+  position: absolute;
+  right: var(--space-4);
+  top: var(--space-4);
+  transition: background-color 0.2s ease;
+}
+
+.closeButton:hover {
+  background-color: var(--halo-bg-card);
+  color: var(--halo-white);
+}
+
+.closeIcon {
+  height: 24px;
+  width: 24px;
 }
 
 .title {
