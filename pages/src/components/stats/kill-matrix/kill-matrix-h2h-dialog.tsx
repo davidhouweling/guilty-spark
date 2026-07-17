@@ -18,7 +18,7 @@ function PlayerHeader({
 }): React.ReactElement {
   return (
     <span className={styles.playerHeader}>
-      {teamId != null && <TeamIcon teamId={teamId} size="x-small" />}
+      {teamId != null && <TeamIcon teamId={teamId} size="small" />}
       {gamertag}
     </span>
   );
@@ -26,7 +26,7 @@ function PlayerHeader({
 
 export function KillMatrixH2HDialog({ data, onClose }: KillMatrixH2HDialogProps): React.ReactElement {
   return (
-    <Dialog open={data != null} title="Head to head" onClose={onClose}>
+    <Dialog open={data != null} title="Head to head" onClose={onClose} panelClassName={styles.dialogPanel}>
       {data != null && (
         <table className={styles.table}>
           <thead>

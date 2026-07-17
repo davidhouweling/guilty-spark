@@ -1,3 +1,7 @@
+.dialogPanel {
+  max-width: 600px;
+}
+
 .table {
   border-collapse: collapse;
   min-width: 280px;
