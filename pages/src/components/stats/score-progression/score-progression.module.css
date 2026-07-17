@@ -15,7 +15,7 @@
   white-space: nowrap;
 }
 
-.toolbarSelect {
+.toolbar .toolbarSelect {
   width: fit-content;
 }
 
