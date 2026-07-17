@@ -502,6 +502,55 @@ describe("KillMatrixTable", () => {
       await user.keyboard("{Escape}");
       expect(screen.queryByRole("dialog", { name: "Head to head" })).not.toBeInTheDocument();
     });
+
+    it("shows canonical kill counts in transposed mode — row player's kills are not swapped with column player's", async () => {
+      const user = userEvent.setup();
+      const rows = [
+        { ...baseRow, count: 4, perfects: 0 },
+        {
+          key: "222:111",
+          killer: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+          victim: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+          count: 2,
+          headshotKills: 0,
+          perfects: 0,
+          classification: "enemy-kill" as const,
+        },
+      ];
+      const pivotData = KillMatrixFormatter.pivot(rows);
+      const transposedPivotData = KillMatrixFormatter.transpose(rows);
+
+      render(
+        <KillMatrixTable
+          pivotData={pivotData}
+          ariaLabel="Kill matrix"
+          emptyMessage="No kill matrix data."
+          transposedPivotData={transposedPivotData}
+        />,
+      );
+
+      const getToggleButton = (): HTMLElement => {
+        const table = screen.getByRole("table", { name: "Kill matrix" });
+        const btn = table.querySelector("thead th button");
+        expect(btn).toBeInTheDocument();
+        return btn as HTMLElement;
+      };
+
+      await user.click(getToggleButton());
+
+      const bravoVsAlphaButton = screen.getByRole("button", { name: "Bravo vs Alpha head to head" });
+      await user.click(bravoVsAlphaButton);
+
+      const dialog = screen.getByRole("dialog", { name: "Head to head" });
+      const valueCells = dialog.querySelectorAll(
+        "tbody tr:first-child td:first-child, tbody tr:first-child td:last-child",
+      );
+      const aKills = valueCells[0].textContent;
+      const bKills = valueCells[1].textContent;
+      // Bravo (playerA) killed Alpha 2 times; Alpha (playerB) killed Bravo 4 times
+      expect(aKills).toBe("2");
+      expect(bKills).toBe("4");
+    });
   });
 
   it("toggles between kills and deaths view when toggle button is clicked", async () => {

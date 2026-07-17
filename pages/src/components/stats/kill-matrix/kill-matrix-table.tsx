@@ -186,7 +186,7 @@ export function KillMatrixTable({
       return [];
     }
 
-    const pivotRowByXuid = new Map(activePivotData.tableRows.map((r) => [r.killerId, r]));
+    const pivotRowByXuid = new Map(pivotData.tableRows.map((r) => [r.killerId, r]));
 
     const cols: SortableTableColumn<KillMatrixPivotRow>[] = [
       {
@@ -219,6 +219,7 @@ export function KillMatrixTable({
             ? (row: KillMatrixPivotRow): React.CSSProperties => cellTeamStyle(row.killerTeamId, colTeamId)
             : undefined,
         cell: (_value: unknown, row: KillMatrixPivotRow): React.ReactNode => {
+          const aRow = pivotRowByXuid.get(row.killerId);
           const bRow = pivotRowByXuid.get(colXuid);
           return (
             <button
@@ -227,9 +228,9 @@ export function KillMatrixTable({
                 setH2hData({
                   playerA: { gamertag: row.killerGamertag, teamId: row.killerTeamId },
                   playerB: { gamertag, teamId: colTeamId },
-                  aKillsOnB: row.kills.get(gamertag) ?? 0,
+                  aKillsOnB: aRow?.kills.get(gamertag) ?? 0,
                   bKillsOnA: bRow?.kills.get(row.killerGamertag) ?? 0,
-                  aPerfsOnB: row.perfects.get(gamertag) ?? 0,
+                  aPerfsOnB: aRow?.perfects.get(gamertag) ?? 0,
                   bPerfsOnA: bRow?.perfects.get(row.killerGamertag) ?? 0,
                 });
               }}
@@ -243,7 +244,7 @@ export function KillMatrixTable({
     }
 
     return cols;
-  }, [effectiveStatus, yAxisLabel, activePivotData.columnHeaders, activePivotData.tableRows, teamColors]);
+  }, [effectiveStatus, yAxisLabel, activePivotData.columnHeaders, pivotData.tableRows, teamColors]);
 
   const firstTeamId = playerHeaders?.[0]?.teamId ?? null;
   const crossTeamRowHeaders = playerHeaders?.filter((h) => h.teamId === firstTeamId) ?? [];
@@ -309,7 +310,6 @@ export function KillMatrixTable({
     crossTeamColCount,
     isCrossTeamTransposedActive,
     teamColors,
-    swappedCrossTeamData,
   ]);
 
   const activeRowCount =

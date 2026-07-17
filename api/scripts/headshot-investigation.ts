@@ -39,16 +39,16 @@ const EXEPTION_XUID = 2533274795624229n;
 // Ground truth from theatre (headshot = true means theatre showed headshot icon)
 // timeMs values from the film event cache — matched by proximity to theatre times
 const GROUND_TRUTH: Record<number, boolean | "perfect"> = {
-  40344: false,       // 0:42  NOT headshot
-  43781: "perfect",   // 0:44  perfect (not headshot in the simple sense)
-  85105: true,        // 1:25  HEADSHOT
-  91211: true,        // 1:30  HEADSHOT
-  99386: true,        // 1:40  HEADSHOT
-  110981: true,       // 1:51  HEADSHOT
-  115819: true,       // 1:55  HEADSHOT
-  146834: false,      // 2:27  NOT headshot
-  150955: true,       // 2:31  HEADSHOT
-  155760: true,       // 2:34  HEADSHOT
+  40344: false, // 0:42  NOT headshot
+  43781: "perfect", // 0:44  perfect (not headshot in the simple sense)
+  85105: true, // 1:25  HEADSHOT
+  91211: true, // 1:30  HEADSHOT
+  99386: true, // 1:40  HEADSHOT
+  110981: true, // 1:51  HEADSHOT
+  115819: true, // 1:55  HEADSHOT
+  146834: false, // 2:27  NOT headshot
+  150955: true, // 2:31  HEADSHOT
+  155760: true, // 2:34  HEADSHOT
 };
 
 // ── Bit-level helpers (mirrors halo-film.ts private methods) ─────────────────
@@ -101,7 +101,9 @@ function findTerminatorBit(data: Uint8Array, startBit: number, endBit: number): 
         break;
       }
     }
-    if (match) {return candidate;}
+    if (match) {
+      return candidate;
+    }
   }
   return null;
 }
@@ -121,26 +123,40 @@ function scanEvents(decompressed: Uint8Array, filmMajorVersion: number): RawEven
   const seen = new Set<string>();
 
   for (let markerBit = 0; markerBit <= totalBits - 8; markerBit += 1) {
-    if (readByteAtBitOffset(decompressed, markerBit) !== 0xc0) {continue;}
+    if (readByteAtBitOffset(decompressed, markerBit) !== 0xc0) {
+      continue;
+    }
 
     const markerPrefixBit = markerBit - 8;
-    if (markerPrefixBit < 0) {continue;}
+    if (markerPrefixBit < 0) {
+      continue;
+    }
 
     const markerPrefix = readByteAtBitOffset(decompressed, markerPrefixBit);
-    if (markerPrefix !== 0x2d && markerPrefix !== 0x25) {continue;}
+    if (markerPrefix !== 0x2d && markerPrefix !== 0x25) {
+      continue;
+    }
 
     const xuidStartBit = markerPrefixBit - 64;
-    if (xuidStartBit < 0) {continue;}
+    if (xuidStartBit < 0) {
+      continue;
+    }
 
     const xuid = readLittleEndianUnsigned(decompressed, xuidStartBit, 8);
-    if (xuid <= MIN_XUID || xuid >= MAX_XUID) {continue;}
+    if (xuid <= MIN_XUID || xuid >= MAX_XUID) {
+      continue;
+    }
 
     const windowEnd = Math.min(totalBits, xuidStartBit + EVENT_WINDOW_BITS);
     const terminatorBit = findTerminatorBit(decompressed, xuidStartBit, windowEnd);
-    if (terminatorBit == null) {continue;}
+    if (terminatorBit == null) {
+      continue;
+    }
 
     const envelopeStartBit = terminatorBit - EVENT_ENVELOPE_BYTES * 8;
-    if (envelopeStartBit < xuidStartBit) {continue;}
+    if (envelopeStartBit < xuidStartBit) {
+      continue;
+    }
 
     const envelope = extractBitsToBytes(decompressed, envelopeStartBit, EVENT_ENVELOPE_BYTES * 8);
 
@@ -150,10 +166,15 @@ function scanEvents(decompressed: Uint8Array, filmMajorVersion: number): RawEven
     const timestampBytes = envelope.subarray(48, 52);
     const timeMs = new DataView(timestampBytes.buffer, timestampBytes.byteOffset, 4).getUint32(0, false);
     const gamertagStart = usesExtendedLayout ? 0 : 12;
-    const gamertag = new TextDecoder("utf-16le").decode(envelope.subarray(gamertagStart, gamertagStart + 32)).replace(/\0+$/u, "").trim();
+    const gamertag = new TextDecoder("utf-16le")
+      .decode(envelope.subarray(gamertagStart, gamertagStart + 32))
+      .replace(/\0+$/u, "")
+      .trim();
 
     const dedupeKey = [xuid.toString(), gamertag, typeHint.toString(), timeMs.toString(), isMedal.toString()].join(":");
-    if (seen.has(dedupeKey)) {continue;}
+    if (seen.has(dedupeKey)) {
+      continue;
+    }
     seen.add(dedupeKey);
 
     results.push({ xuid, timeMs, typeHint, isMedal, envelope });
@@ -163,7 +184,9 @@ function scanEvents(decompressed: Uint8Array, filmMajorVersion: number): RawEven
 }
 
 function hex(bytes: Uint8Array): string {
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join(" ");
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join(" ");
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -237,9 +260,7 @@ console.log(`Decompressed chunk size: ${decompressed.length.toString()} bytes`);
 // Scan all events
 console.log("Scanning events (this takes ~30s for a large chunk)...");
 const allEvents = scanEvents(decompressed, filmMajorVersion);
-const exeptionKills = allEvents.filter(
-  (e) => e.xuid === EXEPTION_XUID && e.typeHint === 50 && !e.isMedal,
-);
+const exeptionKills = allEvents.filter((e) => e.xuid === EXEPTION_XUID && e.typeHint === 50 && !e.isMedal);
 
 console.log(`\nFound ${exeptionKills.length.toString()} kill events for EXEPTION 1\n`);
 
@@ -259,12 +280,7 @@ for (const e of exeptionKills.sort((a, b) => a.timeMs - b.timeMs)) {
   const bytes32to46 = hex(e.envelope.subarray(32, 47));
   const bytes52to54 = hex(e.envelope.subarray(52, 55));
   const marker = gt === true ? " <<<" : "";
-  console.log(
-    e.timeMs.toString().padStart(colW),
-    label.padEnd(10),
-    bytes32to46.padEnd(48),
-    bytes52to54 + marker,
-  );
+  console.log(e.timeMs.toString().padStart(colW), label.padEnd(10), bytes32to46.padEnd(48), bytes52to54 + marker);
 }
 
 console.log("\nFull byte 52 values for known events:");

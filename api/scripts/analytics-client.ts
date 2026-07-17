@@ -131,7 +131,10 @@ if (initChunk != null) {
     const start = Math.max(0, offset - 16);
     const end = Math.min(buf.length, offset + 20);
     const hex = buf.subarray(start, end).toString("hex").match(/.{2}/gu)?.join(" ") ?? "";
-    const ascii = buf.subarray(start, end).toString("latin1").replace(/[^\x20-\x7eu]/gu, ".");
+    const ascii = buf
+      .subarray(start, end)
+      .toString("latin1")
+      .replace(/[^\x20-\x7eu]/gu, ".");
     console.log(`  [${label}] offset ${offset.toString()}: ${hex}`);
     console.log(`    ascii: ${ascii}`);
   }
@@ -139,8 +142,12 @@ if (initChunk != null) {
   // Search for the score limit (50) under several encodings
   const target = 50;
   for (let i = 0; i <= decompressed.length - 4; i += 1) {
-    if (decompressed.readUInt32LE(i) === target) { hexDump(decompressed, i, "u32LE"); }
-    if (decompressed.readUInt32BE(i) === target) { hexDump(decompressed, i, "u32BE"); }
+    if (decompressed.readUInt32LE(i) === target) {
+      hexDump(decompressed, i, "u32LE");
+    }
+    if (decompressed.readUInt32BE(i) === target) {
+      hexDump(decompressed, i, "u32BE");
+    }
   }
   for (let i = 0; i <= decompressed.length - 2; i += 1) {
     if (decompressed.readUInt16LE(i) === target && decompressed[i + 2] === 0 && decompressed[i + 3] === 0) {
@@ -158,7 +165,18 @@ if (initChunk != null) {
   }
 
   // Also search for score-related label strings
-  const labelPatterns = ["ScoreLimit", "KillLimit", "MaxScore", "ScoreToWin", "TargetScore", "KillsToWin", "ScoreKills", "score_limit", "kill_limit", "TeamScoreToWin"];
+  const labelPatterns = [
+    "ScoreLimit",
+    "KillLimit",
+    "MaxScore",
+    "ScoreToWin",
+    "TargetScore",
+    "KillsToWin",
+    "ScoreKills",
+    "score_limit",
+    "kill_limit",
+    "TeamScoreToWin",
+  ];
   for (const label of labelPatterns) {
     const idx = decompressed.indexOf(label);
     if (idx >= 0) {
@@ -173,16 +191,16 @@ if (initChunk != null) {
 
   console.log("FilmStatusBond:", JSON.stringify(filmMetadata.FilmStatusBond));
 
-// Fetch UgcGameVariant to look for score limit in game mode definition
-const { UgcGameVariant } = matchStats.MatchInfo;
-const gameVariantUrl = [
-  "https://discovery-infiniteugc.svc.halowaypoint.com:443/hi/ugcGameVariants",
-  UgcGameVariant.AssetId,
-  "versions",
-  UgcGameVariant.VersionId,
-].join("/");
-const gameVariantRes = await fetch(gameVariantUrl, { headers: haloHeaders });
-const gameVariant = await gameVariantRes.json();
-await writeFile(path.join(__dirname, "game-variant.json"), JSON.stringify(gameVariant, null, 2));
-console.log("Written game-variant.json");
+  // Fetch UgcGameVariant to look for score limit in game mode definition
+  const { UgcGameVariant } = matchStats.MatchInfo;
+  const gameVariantUrl = [
+    "https://discovery-infiniteugc.svc.halowaypoint.com:443/hi/ugcGameVariants",
+    UgcGameVariant.AssetId,
+    "versions",
+    UgcGameVariant.VersionId,
+  ].join("/");
+  const gameVariantRes = await fetch(gameVariantUrl, { headers: haloHeaders });
+  const gameVariant = await gameVariantRes.json();
+  await writeFile(path.join(__dirname, "game-variant.json"), JSON.stringify(gameVariant, null, 2));
+  console.log("Written game-variant.json");
 }

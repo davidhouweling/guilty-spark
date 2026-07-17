@@ -14,7 +14,7 @@
 .playerHeader {
   align-items: center;
   display: inline-flex;
-  gap: 0.375rem;
+  gap: var(--space-1);
 }
 
 .statCol {
