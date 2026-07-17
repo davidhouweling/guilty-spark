@@ -12,6 +12,7 @@ export const DEATH_HINT = 20;
 export const MODE_HINT = 10;
 
 export const KILL_DEATH_PAIRING_MAX_DELTA_MS = 1;
+export const PERFECT_MEDAL_PAIRING_MAX_DELTA_MS = 5;
 
 export const PERFECT_MEDAL_NAME_ID = 1512363953;
 export const PERFECTION_MEDAL_NAME_ID = 865763896;

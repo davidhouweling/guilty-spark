@@ -15,6 +15,7 @@ import {
   MEDAL_SORTING_WEIGHTS,
   KILL_DEATH_PAIRING_MAX_DELTA_MS,
   PERFECT_MEDAL_NAME_ID,
+  PERFECT_MEDAL_PAIRING_MAX_DELTA_MS,
 } from "./constants";
 import type {
   FilmMetadataResponse,
@@ -139,11 +140,14 @@ export class HaloFilmService {
 
     const kills = this.filterKillEvents(events);
     const deaths = events.filter((event) => event.eventType === "death");
-    const perfectByXuid = this.buildPerfectMedalsByXuid(events);
+    const perfectMedalTimestamps = this.buildPerfectMedalTimestampsByXuid(events);
+    const perfectCounts = this.buildPerfectCountsReport(perfectMedalTimestamps);
 
-    const { entries, maxTimeDeltaMs, usedDeathCount } = this.buildKillMatrixEntriesByPairing(kills, deaths);
-
-    const perfectCounts = this.buildPerfectCountsReport(perfectByXuid);
+    const { entries, maxTimeDeltaMs, usedDeathCount } = this.buildKillMatrixEntriesByPairing(
+      kills,
+      deaths,
+      perfectMedalTimestamps,
+    );
 
     return {
       entries,
@@ -237,24 +241,23 @@ export class HaloFilmService {
     }
   }
 
-  private buildPerfectMedalsByXuid(events: ParsedHighlightEvent[]): Map<string, number> {
-    const perfectByXuid = new Map<string, number>();
+  private buildPerfectMedalTimestampsByXuid(events: ParsedHighlightEvent[]): Map<string, number[]> {
+    const timestampsByXuid = new Map<string, number[]>();
     for (const event of events) {
-      if (event.eventType !== "medal") {
+      if (event.eventType !== "medal" || event.medalValue !== PERFECT_MEDAL_NAME_ID) {
         continue;
       }
-      if (event.medalValue !== PERFECT_MEDAL_NAME_ID) {
-        continue;
-      }
-      const currentPerfectCount = perfectByXuid.get(event.xuid) ?? 0;
-      perfectByXuid.set(event.xuid, currentPerfectCount + 1);
+      const timestamps = timestampsByXuid.get(event.xuid) ?? [];
+      timestamps.push(event.timeMs);
+      timestampsByXuid.set(event.xuid, timestamps);
     }
-    return perfectByXuid;
+    return timestampsByXuid;
   }
 
   private buildKillMatrixEntriesByPairing(
     kills: ParsedHighlightEvent[],
     deaths: ParsedHighlightEvent[],
+    perfectMedalTimestamps: Map<string, number[]>,
   ): { entries: KillMatrixEntry[]; maxTimeDeltaMs: number; usedDeathCount: number } {
     const entriesByPair = new Map<string, KillMatrixEntry>();
     const usedDeathIndexes = new Set<number>();
@@ -285,10 +288,30 @@ export class HaloFilmService {
         weapons: [],
       };
       existing.count += 1;
+      if (this.consumePerfectMedalForKill(perfectMedalTimestamps, killEvent.xuid, killEvent.timeMs)) {
+        existing.perfects += 1;
+      }
       entriesByPair.set(pairKey, existing);
     }
 
     return { entries: Array.from(entriesByPair.values()), maxTimeDeltaMs, usedDeathCount: usedDeathIndexes.size };
+  }
+
+  private consumePerfectMedalForKill(
+    timestampsByXuid: Map<string, number[]>,
+    killerXuid: string,
+    killTimeMs: number,
+  ): boolean {
+    const timestamps = timestampsByXuid.get(killerXuid);
+    if (timestamps == null) {
+      return false;
+    }
+    const index = timestamps.findIndex((ts) => Math.abs(ts - killTimeMs) <= PERFECT_MEDAL_PAIRING_MAX_DELTA_MS);
+    if (index < 0) {
+      return false;
+    }
+    timestamps.splice(index, 1);
+    return true;
   }
 
   private findBestDeathMatch(
@@ -319,13 +342,14 @@ export class HaloFilmService {
     return bestDeathIndex;
   }
 
-  private buildPerfectCountsReport(perfectByXuid: Map<string, number>): {
+  private buildPerfectCountsReport(perfectMedalTimestamps: Map<string, number[]>): {
     total: number;
     byXuid: Record<string, number>;
   } {
     const byXuid: Record<string, number> = {};
     let total = 0;
-    for (const [xuid, count] of perfectByXuid.entries()) {
+    for (const [xuid, timestamps] of perfectMedalTimestamps.entries()) {
+      const count = timestamps.length;
       byXuid[xuid] = count;
       total += count;
     }
