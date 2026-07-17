@@ -435,7 +435,7 @@ describe("HaloFilmService", () => {
         isMedal: true,
         eventType: "medal",
         timeMs: 205,
-        medalValue: 1512363953,
+        medalValue: 1828716544,
         teamId: null,
       },
       {
@@ -674,7 +674,7 @@ describe("HaloFilmService", () => {
           isMedal: true,
           eventType: "medal",
           timeMs: 1000,
-          medalValue: 1512363953,
+          medalValue: 1828716544,
           teamId: null,
         },
       ]);
@@ -721,7 +721,7 @@ describe("HaloFilmService", () => {
           isMedal: true,
           eventType: "medal",
           timeMs: 1000,
-          medalValue: 1512363953,
+          medalValue: 1828716544,
           teamId: null,
         },
         {
@@ -731,7 +731,7 @@ describe("HaloFilmService", () => {
           isMedal: true,
           eventType: "medal",
           timeMs: 1001,
-          medalValue: 1512363953,
+          medalValue: 1828716544,
           teamId: null,
         },
       ]);
@@ -826,7 +826,7 @@ describe("HaloFilmService", () => {
           isMedal: true,
           eventType: "medal",
           timeMs: 1000,
-          medalValue: 1512363953,
+          medalValue: 1828716544,
           teamId: null,
         },
       ]);
@@ -873,7 +873,7 @@ describe("HaloFilmService", () => {
           isMedal: true,
           eventType: "medal",
           timeMs: 1005,
-          medalValue: 1512363953,
+          medalValue: 1828716544,
           teamId: null,
         },
       ]);
@@ -920,7 +920,7 @@ describe("HaloFilmService", () => {
           isMedal: true,
           eventType: "medal",
           timeMs: 1006,
-          medalValue: 1512363953,
+          medalValue: 1828716544,
           teamId: null,
         },
       ]);
@@ -987,7 +987,7 @@ describe("HaloFilmService", () => {
           isMedal: true,
           eventType: "medal",
           timeMs: 1000,
-          medalValue: 1512363953,
+          medalValue: 1828716544,
           teamId: null,
         },
       ]);
@@ -1057,7 +1057,7 @@ describe("HaloFilmService", () => {
           isMedal: true,
           eventType: "medal",
           timeMs: 1004,
-          medalValue: 1512363953,
+          medalValue: 1828716544,
           teamId: null,
         },
         {
@@ -1067,7 +1067,7 @@ describe("HaloFilmService", () => {
           isMedal: true,
           eventType: "medal",
           timeMs: 999,
-          medalValue: 1512363953,
+          medalValue: 1828716544,
           teamId: null,
         },
       ]);
@@ -1119,7 +1119,7 @@ describe("HaloFilmService", () => {
           isMedal: true,
           eventType: "medal",
           timeMs: 1000,
-          medalValue: 1512363953,
+          medalValue: 1828716544,
           teamId: null,
         },
       ]);

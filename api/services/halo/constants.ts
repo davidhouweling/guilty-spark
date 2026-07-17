@@ -14,7 +14,7 @@ export const MODE_HINT = 10;
 export const KILL_DEATH_PAIRING_MAX_DELTA_MS = 1;
 export const PERFECT_MEDAL_PAIRING_MAX_DELTA_MS = 5;
 
-export const PERFECT_MEDAL_NAME_ID = 1512363953;
+export const PERFECT_MEDAL_NAME_ID = 1828716544; // 0x6D in film binary format (verified against match stats API)
 export const PERFECTION_MEDAL_NAME_ID = 865763896;
 
 export const MEDAL_SORTING_WEIGHTS = new Set<number>([
