@@ -8,11 +8,13 @@ import { SortableTable, type SortableTableColumn } from "../../table/sortable-ta
 import tableStyles from "../../table/table.module.css";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type {
+  H2HDialogData,
   KillMatrixCrossTeamData,
   KillMatrixCrossTeamRow,
   KillMatrixPivotData,
   KillMatrixPivotRow,
 } from "../../../controllers/stats/kill-matrix/types";
+import { KillMatrixH2HDialog } from "./kill-matrix-h2h-dialog";
 import styles from "./kill-matrix-table.module.css";
 
 interface PlayerHeader {
@@ -52,6 +54,7 @@ export function KillMatrixTable({
   const effectiveStatus = status ?? ComponentLoaderStatus.LOADED;
 
   const [isTransposed, setIsTransposed] = React.useState(false);
+  const [h2hData, setH2hData] = React.useState<H2HDialogData | null>(null);
 
   const isTransposedActive = isTransposed && transposedPivotData != null;
   const activePivotData = isTransposedActive ? transposedPivotData : pivotData;
@@ -153,7 +156,24 @@ export function KillMatrixTable({
             : undefined,
         cell: (_value: unknown, row: KillMatrixCrossTeamRow): React.ReactNode => {
           const cell = row.cells.get(gamertag);
-          return renderCrossTeamCell(cell?.kills ?? 0, cell?.deaths ?? 0);
+          return (
+            <button
+              className={styles.cellButton}
+              onClick={() => {
+                setH2hData({
+                  playerA: { gamertag: row.playerGamertag, teamId: row.playerTeamId },
+                  playerB: { gamertag, teamId: colTeamId },
+                  aKillsOnB: cell?.kills ?? 0,
+                  bKillsOnA: cell?.deaths ?? 0,
+                  aPerfsOnB: cell?.killPerfects ?? 0,
+                  bPerfsOnA: cell?.deathPerfects ?? 0,
+                });
+              }}
+              aria-label={`${row.playerGamertag} vs ${gamertag} head to head`}
+            >
+              {renderCrossTeamCell(cell?.kills ?? 0, cell?.deaths ?? 0)}
+            </button>
+          );
         },
       });
     }
@@ -165,6 +185,8 @@ export function KillMatrixTable({
     if (effectiveStatus !== ComponentLoaderStatus.LOADED) {
       return [];
     }
+
+    const pivotRowByXuid = new Map(pivotData.tableRows.map((r) => [r.killerId, r]));
 
     const cols: SortableTableColumn<KillMatrixPivotRow>[] = [
       {
@@ -182,7 +204,7 @@ export function KillMatrixTable({
       },
     ];
 
-    for (const { gamertag, teamId } of activePivotData.columnHeaders) {
+    for (const { gamertag, teamId, xuid: colXuid } of activePivotData.columnHeaders) {
       const colTeamId: number | null = teamId;
       cols.push({
         id: gamertag,
@@ -196,11 +218,33 @@ export function KillMatrixTable({
           teamColors != null
             ? (row: KillMatrixPivotRow): React.CSSProperties => cellTeamStyle(row.killerTeamId, colTeamId)
             : undefined,
+        cell: (_value: unknown, row: KillMatrixPivotRow): React.ReactNode => {
+          const aRow = pivotRowByXuid.get(row.killerId);
+          const bRow = pivotRowByXuid.get(colXuid);
+          return (
+            <button
+              className={styles.cellButton}
+              onClick={() => {
+                setH2hData({
+                  playerA: { gamertag: row.killerGamertag, teamId: row.killerTeamId },
+                  playerB: { gamertag, teamId: colTeamId },
+                  aKillsOnB: aRow?.kills.get(gamertag) ?? 0,
+                  bKillsOnA: bRow?.kills.get(row.killerGamertag) ?? 0,
+                  aPerfsOnB: aRow?.perfects.get(gamertag) ?? 0,
+                  bPerfsOnA: bRow?.perfects.get(row.killerGamertag) ?? 0,
+                });
+              }}
+              aria-label={`${row.killerGamertag} vs ${gamertag} head to head`}
+            >
+              {row.kills.get(gamertag) ?? 0}
+            </button>
+          );
+        },
       });
     }
 
     return cols;
-  }, [effectiveStatus, yAxisLabel, activePivotData.columnHeaders, teamColors]);
+  }, [effectiveStatus, yAxisLabel, activePivotData.columnHeaders, pivotData.tableRows, teamColors]);
 
   const firstTeamId = playerHeaders?.[0]?.teamId ?? null;
   const crossTeamRowHeaders = playerHeaders?.filter((h) => h.teamId === firstTeamId) ?? [];
@@ -266,7 +310,6 @@ export function KillMatrixTable({
     crossTeamColCount,
     isCrossTeamTransposedActive,
     teamColors,
-    swappedCrossTeamData,
   ]);
 
   const activeRowCount =
@@ -390,11 +433,19 @@ export function KillMatrixTable({
   const isCrossTeam = crossTeamData != null;
 
   return (
-    <ComponentLoader
-      status={effectiveStatus}
-      loading={isCrossTeam ? crossTeamShimmer : shimmer}
-      error={<Alert variant="warning">{errorMessage ?? emptyMessage}</Alert>}
-      loaded={isCrossTeam ? crossTeamLoaded : loaded}
-    />
+    <>
+      <ComponentLoader
+        status={effectiveStatus}
+        loading={isCrossTeam ? crossTeamShimmer : shimmer}
+        error={<Alert variant="warning">{errorMessage ?? emptyMessage}</Alert>}
+        loaded={isCrossTeam ? crossTeamLoaded : loaded}
+      />
+      <KillMatrixH2HDialog
+        data={h2hData}
+        onClose={() => {
+          setH2hData(null);
+        }}
+      />
+    </>
   );
 }

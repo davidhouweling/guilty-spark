@@ -1,0 +1,43 @@
+.dialogPanel {
+  max-width: 600px;
+}
+
+.table {
+  border-collapse: collapse;
+  min-width: 280px;
+  width: 100%;
+}
+
+.playerCol {
+  border-bottom: 1px solid color-mix(in srgb, currentcolor 20%, transparent);
+  font-weight: bold;
+  padding: 0.5rem 0.75rem;
+  text-align: center;
+}
+
+.playerHeader {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+.statCol {
+  border-bottom: 1px solid color-mix(in srgb, currentcolor 20%, transparent);
+  padding: 0.5rem 0.75rem;
+}
+
+.statCell {
+  color: color-mix(in srgb, currentcolor 60%, transparent);
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.valueCell {
+  font-size: 1.25rem;
+  font-weight: bold;
+  min-width: 3rem;
+  padding: 0.5rem 0.75rem;
+  text-align: center;
+}
