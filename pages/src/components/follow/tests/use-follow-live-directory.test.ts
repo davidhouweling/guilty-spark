@@ -30,6 +30,7 @@ describe("useFollowLiveDirectory", () => {
     const dir: TrackerDirectory = {
       trackers: [aTrackerWith({ trackerId: "tracker-1", isLive: false, status: "active" })],
       liveTrackerId: null,
+      streamerSettings: {},
     };
     const service = aFakeFollowLiveServiceWith({ directory: dir });
     const { result } = renderHook(() =>
@@ -62,6 +63,7 @@ describe("useFollowLiveDirectory", () => {
         aTrackerWith({ trackerId: "tracker-2", gamertag: "Spartan Two" }),
       ],
       liveTrackerId: "tracker-1",
+      streamerSettings: {},
     };
 
     act(() => {
@@ -87,6 +89,7 @@ describe("useFollowLiveDirectory", () => {
         aTrackerWith({ trackerId: "tracker-2", gamertag: "Spartan Two", isLive: true }),
       ],
       liveTrackerId: "tracker-2",
+      streamerSettings: {},
     };
 
     act(() => {
@@ -119,6 +122,7 @@ describe("useFollowLiveDirectory", () => {
         aTrackerWith({ trackerId: "tracker-3", gamertag: "Spartan Three", isLive: true }),
       ],
       liveTrackerId: "tracker-3",
+      streamerSettings: {},
     };
 
     act(() => {
@@ -150,6 +154,7 @@ describe("useFollowLiveDirectory", () => {
         aTrackerWith({ trackerId: "tracker-3", gamertag: "Spartan Three", isLive: true, status: "active" }),
       ],
       liveTrackerId: "tracker-3",
+      streamerSettings: {},
     };
 
     act(() => {
@@ -180,6 +185,7 @@ describe("useFollowLiveDirectory", () => {
         aTrackerWith({ trackerId: "tracker-3", gamertag: "Spartan Three", isLive: false, status: "paused" }),
       ],
       liveTrackerId: null,
+      streamerSettings: {},
     };
 
     act(() => {

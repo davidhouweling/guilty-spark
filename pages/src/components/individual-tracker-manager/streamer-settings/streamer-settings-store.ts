@@ -1,4 +1,5 @@
 import {
+  DEFAULT_STREAMER_VIEW_SETTINGS,
   DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS,
   INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
@@ -33,34 +34,38 @@ export interface StreamerSettingsSnapshot {
   readonly saveErrorMessage: string | null;
 }
 
+const DEFAULT_STYLE_FLAGS = DEFAULT_STREAMER_VIEW_SETTINGS.styleFlags;
+const DEFAULT_VISIBLE_SECTIONS = DEFAULT_STREAMER_VIEW_SETTINGS.visibleSections;
+const DEFAULT_FONT_SIZES = DEFAULT_STREAMER_VIEW_SETTINGS.layoutOptions?.fontSizes;
+
 const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
-  showTeamDetails: true,
-  showDiscordNames: false,
-  showXboxNames: true,
-  showServerIcon: true,
-  showTitle: true,
-  showSubtitle: true,
-  showScore: true,
+  showTeamDetails: DEFAULT_VISIBLE_SECTIONS?.showTeamDetails ?? true,
+  showDiscordNames: DEFAULT_VISIBLE_SECTIONS?.showDiscordNames ?? false,
+  showXboxNames: DEFAULT_VISIBLE_SECTIONS?.showXboxNames ?? true,
+  showServerIcon: DEFAULT_VISIBLE_SECTIONS?.showServerIcon ?? true,
+  showTitle: DEFAULT_VISIBLE_SECTIONS?.showTitle ?? true,
+  showSubtitle: DEFAULT_VISIBLE_SECTIONS?.showSubtitle ?? true,
+  showScore: DEFAULT_VISIBLE_SECTIONS?.showScore ?? true,
 };
 
 const DEFAULT_STATS_HIGHLIGHT_SLOTS: readonly IndividualStatsHighlightOption[] =
   DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS.slice(0, INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT);
 
 const DEFAULT_TICKER_SETTINGS: TickerSettings = {
-  showTicker: true,
-  showTabs: true,
-  showPreSeriesInfo: true,
-  selectedSlayerStats: ["Score", "Kills", "Deaths", "Assists", "KDA", "Damage dealt", "Damage taken", "Damage ratio"],
-  showObjectiveStats: false,
-  medalRarityFilter: [2, 3],
+  showTicker: DEFAULT_VISIBLE_SECTIONS?.showTicker ?? true,
+  showTabs: DEFAULT_VISIBLE_SECTIONS?.showTabs ?? true,
+  showPreSeriesInfo: DEFAULT_STYLE_FLAGS?.showPreSeriesInfo ?? true,
+  selectedSlayerStats: DEFAULT_STYLE_FLAGS?.selectedSlayerStats ?? [],
+  showObjectiveStats: DEFAULT_STYLE_FLAGS?.showObjectiveStats ?? false,
+  medalRarityFilter: DEFAULT_STYLE_FLAGS?.medalRarityFilter ?? [],
 };
 
 const DEFAULT_FONT_SIZE_SETTINGS: FontSizeSettings = {
-  queueInfo: 100,
-  score: 100,
-  teams: 100,
-  tabs: 100,
-  ticker: 100,
+  queueInfo: DEFAULT_FONT_SIZES?.queueInfo ?? 100,
+  score: DEFAULT_FONT_SIZES?.score ?? 100,
+  teams: DEFAULT_FONT_SIZES?.teams ?? 100,
+  tabs: DEFAULT_FONT_SIZES?.tabs ?? 100,
+  ticker: DEFAULT_FONT_SIZES?.ticker ?? 100,
 };
 
 export class StreamerSettingsStore {
@@ -70,21 +75,21 @@ export class StreamerSettingsStore {
   public constructor() {
     this.snapshot = {
       gamertag: null,
-      defaultColorMode: "player",
-      playerTeamColor: "cerulean",
-      playerEnemyColor: "salmon",
-      observerTeamColor: "salmon",
-      observerEnemyColor: "cerulean",
+      defaultColorMode: DEFAULT_STYLE_FLAGS?.colorMode ?? "player",
+      playerTeamColor: DEFAULT_STYLE_FLAGS?.playerTeamColor ?? "cerulean",
+      playerEnemyColor: DEFAULT_STYLE_FLAGS?.playerEnemyColor ?? "salmon",
+      observerTeamColor: DEFAULT_STYLE_FLAGS?.observerTeamColor ?? "salmon",
+      observerEnemyColor: DEFAULT_STYLE_FLAGS?.observerEnemyColor ?? "cerulean",
       displaySettings: DEFAULT_DISPLAY_SETTINGS,
       tickerSettings: DEFAULT_TICKER_SETTINGS,
-      inSeriesShowSeriesTab: true,
-      matchmakingShowSummaryTab: true,
-      disableTeamPlayerNames: false,
-      inSeriesShowTicker: true,
-      matchmakingShowTicker: true,
-      matchmakingShowStatsHighlights: true,
-      inSeriesMyStatsOnly: false,
-      matchmakingMyStatsOnly: false,
+      inSeriesShowSeriesTab: DEFAULT_STYLE_FLAGS?.inSeriesShowSeriesTab ?? true,
+      matchmakingShowSummaryTab: DEFAULT_STYLE_FLAGS?.matchmakingShowSummaryTab ?? true,
+      disableTeamPlayerNames: DEFAULT_STYLE_FLAGS?.disableTeamPlayerNames ?? false,
+      inSeriesShowTicker: DEFAULT_STYLE_FLAGS?.inSeriesShowTicker ?? true,
+      matchmakingShowTicker: DEFAULT_STYLE_FLAGS?.matchmakingShowTicker ?? true,
+      matchmakingShowStatsHighlights: DEFAULT_STYLE_FLAGS?.matchmakingShowStatsHighlights ?? true,
+      inSeriesMyStatsOnly: DEFAULT_STYLE_FLAGS?.inSeriesMyStatsOnly ?? false,
+      matchmakingMyStatsOnly: DEFAULT_STYLE_FLAGS?.matchmakingMyStatsOnly ?? false,
       fontSizeSettings: DEFAULT_FONT_SIZE_SETTINGS,
       statsHighlightSlots: DEFAULT_STATS_HIGHLIGHT_SLOTS,
       saveStatus: "idle",

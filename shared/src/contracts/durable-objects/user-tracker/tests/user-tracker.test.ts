@@ -23,6 +23,7 @@ describe("userTracker contracts", () => {
   const directory = trackerDirectorySchema.parse({
     trackers: [],
     liveTrackerId: null,
+    streamerSettings: {},
   });
 
   it("round-trips status response", async () => {

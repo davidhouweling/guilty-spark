@@ -6,6 +6,7 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import { withStreamerViewSettingsDefaults } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
@@ -232,8 +233,8 @@ export class IndividualTrackerViewerPresenter {
   }
 
   public static present(snapshot: IndividualTrackerViewerSnapshot): IndividualTrackerViewerViewModel {
-    const streamerSettings = snapshot.view?.streamerSettings;
-    const styleFlags = streamerSettings?.styleFlags;
+    const streamerSettings = withStreamerViewSettingsDefaults(snapshot.view?.streamerSettings);
+    const { styleFlags } = streamerSettings;
     return {
       renderModel:
         snapshot.view == null

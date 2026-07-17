@@ -63,6 +63,9 @@ export function aFakeUserTrackerDOWith(opts: FakeUserTrackerDOOpts = {}): FakeUs
           }),
         );
       }
+      case "/settings-changed": {
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
       case "/websocket": {
         return Promise.resolve(new Response(null, { status: 200, headers: { "x-fake-upgrade": "websocket" } }));
       }

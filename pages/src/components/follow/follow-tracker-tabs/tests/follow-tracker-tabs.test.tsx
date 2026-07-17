@@ -85,6 +85,7 @@ describe("FollowTrackerTabs", () => {
         }),
       ],
       liveTrackerId: null,
+      streamerSettings: {},
     };
 
     render(
@@ -120,6 +121,7 @@ describe("FollowTrackerTabs", () => {
     const emptyDirectory: TrackerDirectory = {
       trackers: [],
       liveTrackerId: null,
+      streamerSettings: {},
     };
 
     render(

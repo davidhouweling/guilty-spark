@@ -16,6 +16,7 @@ import {
 import {
   DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS,
   INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
+  withStreamerViewSettingsDefaults,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import {
   CloudflareWebSocketHibernationAdapter,
@@ -76,6 +77,15 @@ function statsHighlightSlotsAreEqual(left: readonly string[], right: readonly st
   }
 
   return true;
+}
+
+function normalizeTrackerDirectory(
+  directory: Omit<TrackerDirectory, "streamerSettings"> & { streamerSettings?: TrackerDirectory["streamerSettings"] },
+): TrackerDirectory {
+  return {
+    ...directory,
+    streamerSettings: withStreamerViewSettingsDefaults(directory.streamerSettings),
+  };
 }
 
 export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
@@ -146,6 +156,12 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
               return new Response("Method Not Allowed", { status: 405 });
             }
             return await this.handleNudge(request);
+          }
+          case "settings-changed": {
+            if (request.method !== "POST") {
+              return new Response("Method Not Allowed", { status: 405 });
+            }
+            return this.handleSettingsChanged();
           }
           case "websocket": {
             if (request.method !== "GET") {
@@ -246,6 +262,16 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private async loadState(): Promise<UserTrackerInternalState> {
     const stored = await this.state.storage.get<UserTrackerInternalState>(USER_TRACKER_STATE_KEY);
     if (stored != null) {
+      if (stored.viewState != null) {
+        return {
+          ...stored,
+          viewState: {
+            ...stored.viewState,
+            directory: normalizeTrackerDirectory({ ...stored.viewState.directory }),
+          },
+        };
+      }
+
       return stored;
     }
 
@@ -296,6 +322,11 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     return userTrackerNudgeContract.toResponse({ success: true }, { noStore: true });
   }
 
+  private handleSettingsChanged(): Response {
+    void this.queueDirectoryPush();
+    return new Response(null, { status: 204 });
+  }
+
   private async handleWebSocket(request: Request): Promise<Response> {
     if (request.headers.get("Upgrade") !== "websocket") {
       return new Response("Expected WebSocket upgrade", { status: 426 });
@@ -344,10 +375,11 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async buildDirectory(userId: string): Promise<TrackerDirectory> {
-    const [allTrackers, streamerSettings] = await Promise.all([
+    const [allTrackers, rawStreamerSettings] = await Promise.all([
       this.databaseService.findIndividualTrackersByUserId(userId),
       this.individualTrackerService.getSettingsForView(userId),
     ]);
+    const streamerSettings = withStreamerViewSettingsDefaults(rawStreamerSettings);
 
     const nonStopped = allTrackers.filter(isNonStopped);
     const statsHighlightSlots =
@@ -368,7 +400,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     return {
       trackers: entries,
       liveTrackerId,
-      streamerSettings: Object.keys(streamerSettings).length > 0 ? streamerSettings : undefined,
+      streamerSettings,
     };
   }
 
@@ -673,10 +705,11 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     previousDirectory: TrackerDirectory,
     dirtyTrackerIds: Set<string>,
   ): Promise<TrackerDirectory> {
-    const [allTrackers, streamerSettings] = await Promise.all([
+    const [allTrackers, rawStreamerSettings] = await Promise.all([
       this.databaseService.findIndividualTrackersByUserId(userId),
       this.individualTrackerService.getSettingsForView(userId),
     ]);
+    const streamerSettings = withStreamerViewSettingsDefaults(rawStreamerSettings);
 
     const nonStoppedRows = allTrackers.filter(isNonStopped);
     const rowsByTrackerId = new Map(nonStoppedRows.map((row) => [row.TrackerId, row]));
@@ -696,7 +729,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     }
 
     const previousStatsHighlightSlots = normalizeStatsHighlightSlots(
-      previousDirectory.streamerSettings?.visibleSections?.statsHighlightSlots,
+      previousDirectory.streamerSettings.visibleSections?.statsHighlightSlots,
     );
     const nextStatsHighlightSlots = normalizeStatsHighlightSlots(streamerSettings.visibleSections?.statsHighlightSlots);
     if (!statsHighlightSlotsAreEqual(previousStatsHighlightSlots, nextStatsHighlightSlots)) {
@@ -734,7 +767,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     return {
       trackers: entries,
       liveTrackerId,
-      streamerSettings: Object.keys(streamerSettings).length > 0 ? streamerSettings : undefined,
+      streamerSettings,
     };
   }
 

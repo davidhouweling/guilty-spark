@@ -1,6 +1,7 @@
 import type { AutoRouterType } from "itty-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrackerDirectoryResponse } from "@guilty-spark/shared/contracts/individual-tracker/follow";
+import { withStreamerViewSettingsDefaults } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { createApiRouter } from "../../../base/router";
 import { aFakeDurableObjectNamespaceWith } from "../../../base/fakes/do.fake";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
@@ -87,6 +88,7 @@ describe("/u/:gamertag follow routes", () => {
                 },
               ],
               liveTrackerId: "t1",
+              streamerSettings: withStreamerViewSettingsDefaults({}),
             },
           },
         },
@@ -120,6 +122,7 @@ describe("/u/:gamertag follow routes", () => {
           },
         ],
         liveTrackerId: "t1",
+        streamerSettings: withStreamerViewSettingsDefaults({}),
       });
 
       const rawUrl = getRawUrl(userTrackerFetchSpy.mock.calls[0]?.[0] ?? "http://do/view-state");
@@ -143,7 +146,11 @@ describe("/u/:gamertag follow routes", () => {
       const res = (await router.fetch(getRequest("/u/EmptyTag"), localEnv)) as Response;
 
       expect(res.status).toBe(200);
-      await expect(res.json<TrackerDirectoryResponse>()).resolves.toEqual({ trackers: [], liveTrackerId: null });
+      await expect(res.json<TrackerDirectoryResponse>()).resolves.toEqual({
+        trackers: [],
+        liveTrackerId: null,
+        streamerSettings: withStreamerViewSettingsDefaults({}),
+      });
     });
   });
 

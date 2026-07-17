@@ -9,7 +9,7 @@ export type TrackerDirectoryEntry = z.infer<typeof trackerDirectoryEntrySchema>;
 export const trackerDirectorySchema = z.object({
   trackers: z.array(trackerDirectoryEntrySchema),
   liveTrackerId: z.string().nullable(),
-  streamerSettings: streamerViewSettingsSchema.optional(),
+  streamerSettings: streamerViewSettingsSchema,
 });
 export type TrackerDirectory = z.infer<typeof trackerDirectorySchema>;
 
