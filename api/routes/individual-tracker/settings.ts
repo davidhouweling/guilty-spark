@@ -3,15 +3,26 @@ import { settingsBodySchema, settingsContract } from "@guilty-spark/shared/contr
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import type { RoutesRegisterHandler } from "../base/types";
 import { requireSession } from "../base/require-session";
+import type { LogService } from "../../services/log/types";
 
 function getUserTrackerSettingsChangedUrl(): string {
   return "http://do/settings-changed";
 }
 
-async function notifyUserTrackerSettingsChanged(env: Env, userId: string): Promise<void> {
-  const doId = env.USER_TRACKER_DO.idFromName(userId);
-  const stub = env.USER_TRACKER_DO.get(doId);
-  await stub.fetch(new Request(getUserTrackerSettingsChangedUrl(), { method: "POST" }));
+async function notifyUserTrackerSettingsChanged(env: Env, userId: string, logService: LogService): Promise<void> {
+  try {
+    const doId = env.USER_TRACKER_DO.idFromName(userId);
+    const stub = env.USER_TRACKER_DO.get(doId);
+    await stub.fetch(new Request(getUserTrackerSettingsChangedUrl(), { method: "POST" }));
+  } catch (error) {
+    logService.warn(
+      error,
+      new Map([
+        ["context", "User tracker settings changed notification error"],
+        ["userId", userId],
+      ]),
+    );
+  }
 }
 
 export const trackerSettingsRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
@@ -51,7 +62,7 @@ export const trackerSettingsRoutesRegisterHandler: RoutesRegisterHandler = (rout
 
       const settings = await individualTrackerService.updateSettings(auth.session.userId, parsed.data.settings);
 
-      void notifyUserTrackerSettingsChanged(env, auth.session.userId);
+      void notifyUserTrackerSettingsChanged(env, auth.session.userId, logService);
 
       return settingsContract.toResponse({ settings }, { noStore: true });
     } catch (error) {
