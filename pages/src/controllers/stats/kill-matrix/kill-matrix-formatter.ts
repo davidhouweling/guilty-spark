@@ -108,6 +108,7 @@ export class KillMatrixFormatter {
     const killersMap = new Map<string, KillMatrixPlayer>();
     const victimsMap = new Map<string, KillMatrixPlayer>();
     const killCounts = new Map<string, Map<string, number>>();
+    const perfectCounts = new Map<string, Map<string, number>>();
 
     for (const row of rows) {
       killersMap.set(row.killer.xuid, row.killer);
@@ -115,9 +116,11 @@ export class KillMatrixFormatter {
 
       if (!killCounts.has(row.killer.xuid)) {
         killCounts.set(row.killer.xuid, new Map());
+        perfectCounts.set(row.killer.xuid, new Map());
       }
       const victimCounts = Preconditions.checkExists(killCounts.get(row.killer.xuid));
       victimCounts.set(row.victim.xuid, row.count);
+      Preconditions.checkExists(perfectCounts.get(row.killer.xuid)).set(row.victim.xuid, row.perfects);
     }
 
     const byGamertag = (a: KillMatrixPlayer, b: KillMatrixPlayer): number => a.gamertag.localeCompare(b.gamertag);
@@ -145,21 +148,26 @@ export class KillMatrixFormatter {
 
     const tableRows = sortedKillers.map((killer) => {
       const victimCounts = Preconditions.checkExists(killCounts.get(killer.xuid));
+      const victimPerfects = Preconditions.checkExists(perfectCounts.get(killer.xuid));
       const kills = new Map<string, number>();
+      const perfects = new Map<string, number>();
       for (const victim of sortedVictims) {
         kills.set(victim.gamertag, victimCounts.get(victim.xuid) ?? 0);
+        perfects.set(victim.gamertag, victimPerfects.get(victim.xuid) ?? 0);
       }
       return {
         killerId: killer.xuid,
         killerGamertag: killer.gamertag,
         killerTeamId: killer.teamId,
         kills,
+        perfects,
       };
     });
 
     const columnHeaders: KillMatrixColumnHeader[] = sortedVictims.map((p) => ({
       gamertag: p.gamertag,
       teamId: p.teamId,
+      xuid: p.xuid,
     }));
 
     return { tableRows, columnHeaders };
@@ -181,6 +189,7 @@ export class KillMatrixFormatter {
     colTeamPlayers: readonly KillMatrixPlayer[],
   ): KillMatrixCrossTeamData {
     const killCounts = new Map<string, Map<string, number>>();
+    const perfectCounts = new Map<string, Map<string, number>>();
     let betrayals = 0;
     let suicides = 0;
 
@@ -195,8 +204,10 @@ export class KillMatrixFormatter {
       }
       if (!killCounts.has(row.killer.xuid)) {
         killCounts.set(row.killer.xuid, new Map());
+        perfectCounts.set(row.killer.xuid, new Map());
       }
       Preconditions.checkExists(killCounts.get(row.killer.xuid)).set(row.victim.xuid, row.count);
+      Preconditions.checkExists(perfectCounts.get(row.killer.xuid)).set(row.victim.xuid, row.perfects);
     }
 
     const tableRows = rowTeamPlayers.map((rowPlayer) => {
@@ -206,6 +217,8 @@ export class KillMatrixFormatter {
           {
             kills: killCounts.get(rowPlayer.xuid)?.get(colPlayer.xuid) ?? 0,
             deaths: killCounts.get(colPlayer.xuid)?.get(rowPlayer.xuid) ?? 0,
+            killPerfects: perfectCounts.get(rowPlayer.xuid)?.get(colPlayer.xuid) ?? 0,
+            deathPerfects: perfectCounts.get(colPlayer.xuid)?.get(rowPlayer.xuid) ?? 0,
           },
         ]),
       );
@@ -220,6 +233,7 @@ export class KillMatrixFormatter {
     const columnHeaders: KillMatrixColumnHeader[] = colTeamPlayers.map((p) => ({
       gamertag: p.gamertag,
       teamId: p.teamId,
+      xuid: p.xuid,
     }));
 
     const footnote: KillMatrixCrossTeamFootnote | null = betrayals > 0 || suicides > 0 ? { betrayals, suicides } : null;

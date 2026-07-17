@@ -8,7 +8,7 @@ vi.mock("../../../icons/team-icon", () => ({
     <div data-testid={`team-icon-${teamId.toString()}`}>Team {teamId.toString()}</div>
   ),
 }));
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { KillMatrixFormatter } from "../../../../controllers/stats/kill-matrix/kill-matrix-formatter";
@@ -301,10 +301,10 @@ describe("KillMatrixTable", () => {
           playerId: "111",
           playerGamertag: "Alpha",
           playerTeamId: 0,
-          cells: new Map([["Bravo", { kills: 3, deaths: 1 }]]),
+          cells: new Map([["Bravo", { kills: 3, deaths: 1, killPerfects: 0, deathPerfects: 0 }]]),
         },
       ],
-      columnHeaders: [{ gamertag: "Bravo", teamId: 1 }],
+      columnHeaders: [{ gamertag: "Bravo", teamId: 1, xuid: "222" }],
       footnote: { betrayals: 2, suicides: 1 },
     };
     const swappedCrossTeamData: KillMatrixCrossTeamData = {
@@ -313,10 +313,10 @@ describe("KillMatrixTable", () => {
           playerId: "222",
           playerGamertag: "Bravo",
           playerTeamId: 1,
-          cells: new Map([["Alpha", { kills: 1, deaths: 3 }]]),
+          cells: new Map([["Alpha", { kills: 1, deaths: 3, killPerfects: 0, deathPerfects: 0 }]]),
         },
       ],
-      columnHeaders: [{ gamertag: "Alpha", teamId: 0 }],
+      columnHeaders: [{ gamertag: "Alpha", teamId: 0, xuid: "111" }],
       footnote: { betrayals: 2, suicides: 1 },
     };
 
@@ -392,6 +392,30 @@ describe("KillMatrixTable", () => {
       expect(screen.queryByText(/Excluded from table/)).not.toBeInTheDocument();
     });
 
+    it("opens the h2h dialog with kills and deaths when a cross-team cell is clicked", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <KillMatrixTable
+          pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
+          ariaLabel="Kill matrix"
+          emptyMessage="No kill matrix data."
+          crossTeamData={crossTeamData}
+          swappedCrossTeamData={swappedCrossTeamData}
+        />,
+      );
+
+      const table = screen.getByRole("table", { name: "Kill matrix" });
+      const cellButton = table.querySelector("tbody tr td:nth-child(2) button");
+      expect(cellButton).toBeInTheDocument();
+      await user.click(cellButton as HTMLElement);
+
+      const dialog = screen.getByRole("dialog", { name: "Head to head" });
+      expect(within(dialog).getByText("Alpha")).toBeInTheDocument();
+      expect(within(dialog).getByText("Bravo")).toBeInTheDocument();
+      expect(within(dialog).getByText("Kills")).toBeInTheDocument();
+    });
+
     it("shows 4 placeholder data columns in cross-team shimmer when playerHeaders is not provided", () => {
       render(
         <KillMatrixTable
@@ -407,6 +431,76 @@ describe("KillMatrixTable", () => {
       expect(shimmer).toHaveAttribute("aria-busy", "true");
       // 1 xyHeader col + 4 fallback data cols = 5 cols; 4 fallback rows → 5 + 4×5 = 25 cells
       expect(shimmer.querySelectorAll("th, td")).toHaveLength(25);
+    });
+  });
+
+  describe("h2h dialog", () => {
+    const baseRow = {
+      key: "111:222",
+      killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+      victim: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+      count: 4,
+      headshotKills: 0,
+      perfects: 1,
+      classification: "enemy-kill" as const,
+    };
+
+    it("opens the h2h dialog with both players and kills when a pivot cell is clicked", async () => {
+      const user = userEvent.setup();
+      const pivotData = KillMatrixFormatter.pivot([baseRow]);
+
+      render(<KillMatrixTable pivotData={pivotData} ariaLabel="Kill matrix" emptyMessage="No kill matrix data." />);
+
+      const table = screen.getByRole("table", { name: "Kill matrix" });
+      const cellButton = table.querySelector("tbody tr td:nth-child(2) button");
+      expect(cellButton).toBeInTheDocument();
+      await user.click(cellButton as HTMLElement);
+
+      const dialog = screen.getByRole("dialog", { name: "Head to head" });
+      expect(within(dialog).getByText("Alpha")).toBeInTheDocument();
+      expect(within(dialog).getByText("Bravo")).toBeInTheDocument();
+      expect(within(dialog).getByText("Kills")).toBeInTheDocument();
+    });
+
+    it("shows perfects row only when at least one player has a perfect", async () => {
+      const user = userEvent.setup();
+      const pivotData = KillMatrixFormatter.pivot([baseRow]);
+
+      render(<KillMatrixTable pivotData={pivotData} ariaLabel="Kill matrix" emptyMessage="No kill matrix data." />);
+
+      const table = screen.getByRole("table", { name: "Kill matrix" });
+      const cellButton = table.querySelector("tbody tr td:nth-child(2) button");
+      await user.click(cellButton as HTMLElement);
+
+      expect(screen.getByText("Perfects")).toBeInTheDocument();
+    });
+
+    it("omits perfects row when both players have zero perfects against each other", async () => {
+      const user = userEvent.setup();
+      const pivotData = KillMatrixFormatter.pivot([{ ...baseRow, perfects: 0 }]);
+
+      render(<KillMatrixTable pivotData={pivotData} ariaLabel="Kill matrix" emptyMessage="No kill matrix data." />);
+
+      const table = screen.getByRole("table", { name: "Kill matrix" });
+      const cellButton = table.querySelector("tbody tr td:nth-child(2) button");
+      await user.click(cellButton as HTMLElement);
+
+      expect(screen.queryByText("Perfects")).not.toBeInTheDocument();
+    });
+
+    it("dialog closes when onClose fires", async () => {
+      const user = userEvent.setup();
+      const pivotData = KillMatrixFormatter.pivot([baseRow]);
+
+      render(<KillMatrixTable pivotData={pivotData} ariaLabel="Kill matrix" emptyMessage="No kill matrix data." />);
+
+      const table = screen.getByRole("table", { name: "Kill matrix" });
+      const cellButton = table.querySelector("tbody tr td:nth-child(2) button");
+      await user.click(cellButton as HTMLElement);
+      expect(screen.getByRole("dialog", { name: "Head to head" })).toBeInTheDocument();
+
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("dialog", { name: "Head to head" })).not.toBeInTheDocument();
     });
   });
 
