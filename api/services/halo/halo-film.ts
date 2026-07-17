@@ -141,7 +141,7 @@ export class HaloFilmService {
     const kills = this.filterKillEvents(events);
     const deaths = events.filter((event) => event.eventType === "death");
     const perfectMedalTimestamps = this.buildPerfectMedalTimestampsByXuid(events);
-    const perfectCounts = this.buildPerfectCountsReport(perfectMedalTimestamps);
+    const perfectCounts = this.buildPerfectCountsReport(events);
 
     const { entries, maxTimeDeltaMs, usedDeathCount } = this.buildKillMatrixEntriesByPairing(
       kills,
@@ -247,9 +247,12 @@ export class HaloFilmService {
       if (event.eventType !== "medal" || event.medalValue !== PERFECT_MEDAL_NAME_ID) {
         continue;
       }
-      const timestamps = timestampsByXuid.get(event.xuid) ?? [];
+      let timestamps = timestampsByXuid.get(event.xuid);
+      if (timestamps == null) {
+        timestamps = [];
+        timestampsByXuid.set(event.xuid, timestamps);
+      }
       timestamps.push(event.timeMs);
-      timestampsByXuid.set(event.xuid, timestamps);
     }
     return timestampsByXuid;
   }
@@ -308,11 +311,7 @@ export class HaloFilmService {
     }
     let bestIndex = -1;
     let bestDelta = Infinity;
-    for (let i = 0; i < timestamps.length; i += 1) {
-      const ts = timestamps[i];
-      if (ts == null) {
-        continue;
-      }
+    for (const [i, ts] of timestamps.entries()) {
       const delta = Math.abs(ts - killTimeMs);
       if (delta <= PERFECT_MEDAL_PAIRING_MAX_DELTA_MS && delta < bestDelta) {
         bestIndex = i;
@@ -354,16 +353,18 @@ export class HaloFilmService {
     return bestDeathIndex;
   }
 
-  private buildPerfectCountsReport(perfectMedalTimestamps: Map<string, number[]>): {
+  private buildPerfectCountsReport(events: ParsedHighlightEvent[]): {
     total: number;
     byXuid: Record<string, number>;
   } {
     const byXuid: Record<string, number> = {};
     let total = 0;
-    for (const [xuid, timestamps] of perfectMedalTimestamps.entries()) {
-      const count = timestamps.length;
-      byXuid[xuid] = count;
-      total += count;
+    for (const event of events) {
+      if (event.eventType !== "medal" || event.medalValue !== PERFECT_MEDAL_NAME_ID) {
+        continue;
+      }
+      byXuid[event.xuid] = (byXuid[event.xuid] ?? 0) + 1;
+      total += 1;
     }
     return { total, byXuid };
   }
