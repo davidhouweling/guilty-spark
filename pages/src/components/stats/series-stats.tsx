@@ -8,7 +8,11 @@ import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
 import type { TeamColor } from "../team-colors/team-colors";
 import { Container } from "../container/container";
-import { EMPTY_KILL_MATRIX_PIVOT_DATA, type KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
+import {
+  EMPTY_KILL_MATRIX_PIVOT_DATA,
+  type KillMatrixCrossTeamData,
+  type KillMatrixPivotData,
+} from "../../controllers/stats/kill-matrix/types";
 import type { MatchStatsData, MatchStatsPlayerData } from "../../controllers/stats/types";
 import type { SeriesMetadata } from "../../controllers/stats/series-metadata";
 import { sortByMedals, getTeamMedalsMap, getPlayerMedalsMap } from "../../controllers/stats/medals-sorting";
@@ -24,6 +28,8 @@ interface SeriesStatsProps {
   readonly teamColors?: readonly TeamColor[];
   readonly killMatrixPivotData?: KillMatrixPivotData;
   readonly transposedKillMatrixPivotData?: KillMatrixPivotData;
+  readonly crossTeamData?: KillMatrixCrossTeamData | null;
+  readonly swappedCrossTeamData?: KillMatrixCrossTeamData | null;
   readonly killMatrixStatus?: ComponentLoaderStatus;
   readonly showHeader?: boolean;
 }
@@ -38,6 +44,8 @@ export function SeriesStats({
   teamColors,
   killMatrixPivotData,
   transposedKillMatrixPivotData,
+  crossTeamData,
+  swappedCrossTeamData,
   killMatrixStatus,
   showHeader = true,
 }: SeriesStatsProps): React.ReactElement {
@@ -260,6 +268,8 @@ export function SeriesStats({
                 <KillMatrixTable
                   pivotData={killMatrixPivotData ?? EMPTY_KILL_MATRIX_PIVOT_DATA}
                   transposedPivotData={transposedKillMatrixPivotData}
+                  crossTeamData={crossTeamData ?? undefined}
+                  swappedCrossTeamData={swappedCrossTeamData ?? undefined}
                   ariaLabel="Series kill matrix"
                   emptyMessage="Kill matrix data is not available for this series yet."
                   errorMessage="Failed to load kill matrix data for this series."

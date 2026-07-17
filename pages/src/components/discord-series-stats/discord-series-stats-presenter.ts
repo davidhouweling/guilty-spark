@@ -205,6 +205,8 @@ export class DiscordSeriesStatsPresenter {
     const matchDetails: DiscordSeriesMatchDetail[] = this.renderData.matches.map((match, index) => {
       const rows = matchKillMatrixRows.get(match.matchId);
       const analytics = snapshot.analyticsByMatchId.get(match.matchId) ?? null;
+      const crossTeam =
+        rows != null && orderedPlayers != null ? KillMatrixFormatter.buildCrossTeam(rows, orderedPlayers) : null;
       const base = {
         matchId: match.matchId,
         gameMapThumbnailUrl: match.gameMapThumbnailUrl,
@@ -221,6 +223,8 @@ export class DiscordSeriesStatsPresenter {
           rows != null ? KillMatrixFormatter.pivot(rows, orderedPlayers) : EMPTY_KILL_MATRIX_PIVOT_DATA,
         transposedKillMatrixPivotData:
           rows != null ? KillMatrixFormatter.transpose(rows, orderedPlayers) : EMPTY_KILL_MATRIX_PIVOT_DATA,
+        crossTeamKillMatrixData: crossTeam?.crossTeamData ?? null,
+        swappedCrossTeamKillMatrixData: crossTeam?.swappedCrossTeamData ?? null,
         killMatrixStatus: snapshot.analyticsStatus,
         scoreProgressionViewData: formatScoreProgression(
           analytics?.scoreProgression ?? null,
@@ -244,6 +248,8 @@ export class DiscordSeriesStatsPresenter {
     const aggregatedKillMatrixRows = KillMatrixFormatter.aggregate(
       [...matchKillMatrixRows.values()].flatMap((rows) => rows),
     );
+    const aggregatedCrossTeam =
+      orderedPlayers != null ? KillMatrixFormatter.buildCrossTeam(aggregatedKillMatrixRows, orderedPlayers) : null;
     const seriesStats: DiscordSeriesStatsViewModel["seriesStats"] =
       seriesData != null
         ? {
@@ -253,6 +259,8 @@ export class DiscordSeriesStatsPresenter {
             teamColors,
             killMatrixPivotData: KillMatrixFormatter.pivot(aggregatedKillMatrixRows, orderedPlayers),
             transposedKillMatrixPivotData: KillMatrixFormatter.transpose(aggregatedKillMatrixRows, orderedPlayers),
+            crossTeamKillMatrixData: aggregatedCrossTeam?.crossTeamData ?? null,
+            swappedCrossTeamKillMatrixData: aggregatedCrossTeam?.swappedCrossTeamData ?? null,
             killMatrixStatus: snapshot.analyticsStatus,
           }
         : null;

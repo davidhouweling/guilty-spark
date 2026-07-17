@@ -4,7 +4,11 @@ import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { MatchStatsData } from "../../controllers/stats/types";
 import type { SeriesMetadata } from "../../controllers/stats/series-metadata";
 import type { ComponentLoaderStatus } from "../component-loader/component-loader";
-import type { KillMatrixPivotData, KillMatrixPlayer } from "../../controllers/stats/kill-matrix/types";
+import type {
+  KillMatrixCrossTeamData,
+  KillMatrixPivotData,
+  KillMatrixPlayer,
+} from "../../controllers/stats/kill-matrix/types";
 import type { LiveTrackerParams } from "./live-tracker-store";
 
 export interface LiveTrackerSeriesStatsData {
@@ -95,11 +99,15 @@ export interface MatchKillMatrix {
   readonly matchId: string;
   readonly pivotData: KillMatrixPivotData;
   readonly transposedPivotData: KillMatrixPivotData;
+  readonly crossTeamData: KillMatrixCrossTeamData | null;
+  readonly swappedCrossTeamData: KillMatrixCrossTeamData | null;
 }
 
 export interface KillMatrixResult {
   readonly pivotData: KillMatrixPivotData;
   readonly transposedPivotData: KillMatrixPivotData;
+  readonly crossTeamData: KillMatrixCrossTeamData | null;
+  readonly swappedCrossTeamData: KillMatrixCrossTeamData | null;
 }
 
 export interface LiveTrackerViewModel {

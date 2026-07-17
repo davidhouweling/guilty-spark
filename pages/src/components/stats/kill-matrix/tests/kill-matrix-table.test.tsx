@@ -12,7 +12,10 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { KillMatrixFormatter } from "../../../../controllers/stats/kill-matrix/kill-matrix-formatter";
-import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../../../controllers/stats/kill-matrix/types";
+import {
+  EMPTY_KILL_MATRIX_PIVOT_DATA,
+  type KillMatrixCrossTeamData,
+} from "../../../../controllers/stats/kill-matrix/types";
 import { KillMatrixTable } from "../kill-matrix-table";
 
 describe("KillMatrixTable", () => {
@@ -289,6 +292,122 @@ describe("KillMatrixTable", () => {
 
     expect(headerLabelAfter).toBe(headerLabelBefore);
     expect(rowLabelAfter).toBe(rowLabelBefore);
+  });
+
+  describe("cross-team mode", () => {
+    const crossTeamData: KillMatrixCrossTeamData = {
+      tableRows: [
+        {
+          playerId: "111",
+          playerGamertag: "Alpha",
+          playerTeamId: 0,
+          cells: new Map([["Bravo", { kills: 3, deaths: 1 }]]),
+        },
+      ],
+      columnHeaders: [{ gamertag: "Bravo", teamId: 1 }],
+      footnote: { betrayals: 2, suicides: 1 },
+    };
+    const swappedCrossTeamData: KillMatrixCrossTeamData = {
+      tableRows: [
+        {
+          playerId: "222",
+          playerGamertag: "Bravo",
+          playerTeamId: 1,
+          cells: new Map([["Alpha", { kills: 1, deaths: 3 }]]),
+        },
+      ],
+      columnHeaders: [{ gamertag: "Alpha", teamId: 0 }],
+      footnote: { betrayals: 2, suicides: 1 },
+    };
+
+    it("renders kills:deaths in each cell", () => {
+      render(
+        <KillMatrixTable
+          pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
+          ariaLabel="Kill matrix"
+          emptyMessage="No kill matrix data."
+          crossTeamData={crossTeamData}
+          swappedCrossTeamData={swappedCrossTeamData}
+        />,
+      );
+
+      const table = screen.getByRole("table", { name: "Kill matrix" });
+      const firstDataCell = table.querySelector("tbody tr td:nth-child(2)");
+      expect(firstDataCell).toBeInTheDocument();
+      expect(firstDataCell?.textContent).toBe("3:1");
+    });
+
+    it("swap button switches which team is on rows vs columns", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <KillMatrixTable
+          pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
+          ariaLabel="Kill matrix"
+          emptyMessage="No kill matrix data."
+          crossTeamData={crossTeamData}
+          swappedCrossTeamData={swappedCrossTeamData}
+        />,
+      );
+
+      const table = screen.getByRole("table", { name: "Kill matrix" });
+      const getFirstRowLabel = (): string => (table.querySelector("tbody tr td:first-child")?.textContent ?? "").trim();
+
+      expect(getFirstRowLabel()).toContain("Alpha");
+
+      const toggleButton = table.querySelector("thead th button");
+      expect(toggleButton).toBeInTheDocument();
+      await user.click(toggleButton as HTMLElement);
+
+      expect(getFirstRowLabel()).toContain("Bravo");
+    });
+
+    it("shows footnote listing excluded betrayals and suicides", () => {
+      render(
+        <KillMatrixTable
+          pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
+          ariaLabel="Kill matrix"
+          emptyMessage="No kill matrix data."
+          crossTeamData={crossTeamData}
+          swappedCrossTeamData={swappedCrossTeamData}
+        />,
+      );
+
+      expect(screen.getByText(/Excluded from table/)).toBeInTheDocument();
+    });
+
+    it("does not show footnote when there are no betrayals or suicides", () => {
+      const cleanCrossTeamData: KillMatrixCrossTeamData = { ...crossTeamData, footnote: null };
+
+      render(
+        <KillMatrixTable
+          pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
+          ariaLabel="Kill matrix"
+          emptyMessage="No kill matrix data."
+          crossTeamData={cleanCrossTeamData}
+          swappedCrossTeamData={swappedCrossTeamData}
+        />,
+      );
+
+      expect(screen.queryByText(/Excluded from table/)).not.toBeInTheDocument();
+    });
+
+    it("shows 4 placeholder data columns in cross-team shimmer when playerHeaders is not provided", () => {
+      render(
+        <KillMatrixTable
+          pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
+          ariaLabel="Kill matrix"
+          emptyMessage="No kill matrix data."
+          status={ComponentLoaderStatus.LOADING}
+          crossTeamData={crossTeamData}
+        />,
+      );
+
+      const shimmer = screen.getByRole("region", { name: "Kill matrix" });
+      expect(shimmer).toHaveAttribute("aria-busy", "true");
+      // 1 xyHeader col + 4 fallback data cols = 5 cols; 4 fallback rows → 5 + 4×5 = 25 cells
+      expect(shimmer.querySelectorAll("th, td")).toHaveLength(25);
+    });
   });
 
   it("toggles between kills and deaths view when toggle button is clicked", async () => {

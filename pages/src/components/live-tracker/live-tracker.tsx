@@ -377,6 +377,8 @@ export function LiveTrackerView(): React.ReactElement {
                   teamColors={teamColorsArray}
                   killMatrixPivotData={seriesKillMatrix?.pivotData}
                   transposedKillMatrixPivotData={seriesKillMatrix?.transposedPivotData}
+                  crossTeamData={seriesKillMatrix?.crossTeamData}
+                  swappedCrossTeamData={seriesKillMatrix?.swappedCrossTeamData}
                   killMatrixStatus={analyticsStatus}
                 />
               </Container>
@@ -442,6 +444,8 @@ export function LiveTrackerView(): React.ReactElement {
                             teamColors={teamColorsArray}
                             killMatrixPivotData={matchKillMatrix?.pivotData}
                             transposedKillMatrixPivotData={matchKillMatrix?.transposedPivotData}
+                            crossTeamData={matchKillMatrix?.crossTeamData}
+                            swappedCrossTeamData={matchKillMatrix?.swappedCrossTeamData}
                             killMatrixStatus={analyticsStatus}
                           />
                         </Container>

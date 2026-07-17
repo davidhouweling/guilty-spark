@@ -5,7 +5,7 @@ import type { NormalizedMatchOutcome } from "@guilty-spark/shared/halo/match-enr
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import type { MatchStatsData } from "../../../controllers/stats/types";
-import type { KillMatrixPivotData } from "../../../controllers/stats/kill-matrix/types";
+import type { KillMatrixCrossTeamData, KillMatrixPivotData } from "../../../controllers/stats/kill-matrix/types";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { ScoreProgressionViewData } from "../../stats/score-progression/types";
 import type { SeriesStatsViewModel } from "../../series-stats/types";
@@ -123,6 +123,8 @@ export type MatchDetailsState =
       readonly data: MatchStatsData[];
       readonly killMatrixPivotData: KillMatrixPivotData;
       readonly transposedKillMatrixPivotData: KillMatrixPivotData;
+      readonly crossTeamKillMatrixData: KillMatrixCrossTeamData | null;
+      readonly swappedCrossTeamKillMatrixData: KillMatrixCrossTeamData | null;
       readonly scoreProgressionViewData: ScoreProgressionViewData | null;
     }
   | { readonly status: "error"; readonly message: string };
