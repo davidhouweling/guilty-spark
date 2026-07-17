@@ -5,6 +5,7 @@ import {
   userTrackerViewStateContract,
 } from "@guilty-spark/shared/contracts/durable-objects/user-tracker/management";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { withStreamerViewSettingsDefaults } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { UserTrackerDO } from "../user-tracker-do";
 import {
   aFakeDurableObjectNamespaceWith,
@@ -1028,6 +1029,130 @@ describe("UserTrackerDO", () => {
 
     expect(response.status).toBe(405);
     await expect(response.text()).resolves.toBe("Method Not Allowed");
+  });
+
+  it("returns 204 for a settings-changed POST and queues a directory push", async () => {
+    const persistedStorage = new Map<string, unknown>();
+    persistedStorage.set("userTrackerState", {
+      state: { userId: "user-1", lastUpdateTime: "2026-07-16T00:00:00.000Z" },
+      viewState: null,
+    });
+
+    const sharedStorage = aFakeDurableObjectStorageWith({
+      get: (async (key: string | string[]) => {
+        if (typeof key !== "string") {
+          const values = new Map<string, unknown>();
+          for (const currentKey of key) {
+            const value = persistedStorage.get(currentKey);
+            if (value !== undefined) {
+              values.set(currentKey, value);
+            }
+          }
+          return await Promise.resolve(values);
+        }
+        return await Promise.resolve(persistedStorage.get(key));
+      }) as DurableObjectStorage["get"],
+      put: (async (key: string, value: unknown) => {
+        persistedStorage.set(key, value);
+        await Promise.resolve();
+      }) as DurableObjectStorage["put"],
+    });
+
+    const trackerDo = aFakeIndividualTrackerDOWith({
+      viewStateResponse: {
+        state: aFakeIndividualTrackerViewStateWith({ trackerId: "t1", gamertag: "G", matches: [] }),
+      },
+    });
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const services = installFakeServicesWith({ env: localEnv });
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([
+      aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Gamertag: "G", Status: "active", IsLive: 1 }),
+    ]);
+    vi.spyOn(services.individualTrackerService, "getSettingsForView").mockResolvedValue({
+      styleFlags: { playerTeamColor: "cerulean", playerEnemyColor: "salmon" },
+    });
+
+    const state = aFakeDurableObjectStateWith({ storage: sharedStorage });
+    const localUserTrackerDO = new UserTrackerDO(state, localEnv, () => services, webSocketAdapter);
+
+    const response = await localUserTrackerDO.fetch(new Request("http://do/settings-changed", { method: "POST" }));
+
+    expect(response.status).toBe(204);
+
+    await vi.waitFor(() => {
+      const stored = persistedStorage.get("userTrackerState") as { viewState: { directory: unknown } } | undefined;
+      expect(stored?.viewState.directory).toBeDefined();
+    });
+  });
+
+  it("returns 405 when settings-changed is called with a non-POST method", async () => {
+    const response = await userTrackerDO.fetch(new Request("http://do/settings-changed", { method: "GET" }));
+
+    expect(response.status).toBe(405);
+    await expect(response.text()).resolves.toBe("Method Not Allowed");
+  });
+
+  it("handles legacy stored directories without streamerSettings during settings-changed refresh", async () => {
+    const persistedStorage = new Map<string, unknown>();
+    persistedStorage.set("userTrackerState", {
+      state: { userId: "user-1", lastUpdateTime: "2026-07-16T00:00:00.000Z" },
+      viewState: {
+        userId: "user-1",
+        lastUpdateTime: "2026-07-16T00:00:00.000Z",
+        directory: {
+          trackers: [],
+          liveTrackerId: null,
+        },
+      },
+    });
+
+    const sharedStorage = aFakeDurableObjectStorageWith({
+      get: (async (key: string | string[]) => {
+        if (typeof key !== "string") {
+          const values = new Map<string, unknown>();
+          for (const currentKey of key) {
+            const value = persistedStorage.get(currentKey);
+            if (value !== undefined) {
+              values.set(currentKey, value);
+            }
+          }
+          return await Promise.resolve(values);
+        }
+
+        return await Promise.resolve(persistedStorage.get(key));
+      }) as DurableObjectStorage["get"],
+      put: (async (key: string, value: unknown) => {
+        persistedStorage.set(key, value);
+        await Promise.resolve();
+      }) as DurableObjectStorage["put"],
+    });
+
+    const localEnv = aFakeEnvWith({
+      INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(aFakeIndividualTrackerDOWith()),
+    });
+    const services = installFakeServicesWith({ env: localEnv });
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([]);
+    vi.spyOn(services.individualTrackerService, "getSettingsForView").mockResolvedValue({});
+
+    const state = aFakeDurableObjectStateWith({ storage: sharedStorage });
+    const localUserTrackerDO = new UserTrackerDO(state, localEnv, () => services, webSocketAdapter);
+
+    const response = await localUserTrackerDO.fetch(new Request("http://do/settings-changed", { method: "POST" }));
+
+    expect(response.status).toBe(204);
+
+    await vi.waitFor(() => {
+      const stored = persistedStorage.get("userTrackerState") as
+        | {
+            viewState: {
+              directory: {
+                streamerSettings: Record<string, unknown>;
+              };
+            };
+          }
+        | undefined;
+      expect(stored?.viewState.directory.streamerSettings).toEqual(withStreamerViewSettingsDefaults({}));
+    });
   });
 
   it("rejects websocket endpoint when request is not an upgrade", async () => {

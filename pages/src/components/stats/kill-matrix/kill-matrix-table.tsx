@@ -7,7 +7,12 @@ import { TeamIcon } from "../../icons/team-icon";
 import { SortableTable, type SortableTableColumn } from "../../table/sortable-table";
 import tableStyles from "../../table/table.module.css";
 import type { TeamColor } from "../../team-colors/team-colors";
-import type { KillMatrixPivotData, KillMatrixPivotRow } from "../../../controllers/stats/kill-matrix/types";
+import type {
+  KillMatrixCrossTeamData,
+  KillMatrixCrossTeamRow,
+  KillMatrixPivotData,
+  KillMatrixPivotRow,
+} from "../../../controllers/stats/kill-matrix/types";
 import styles from "./kill-matrix-table.module.css";
 
 interface PlayerHeader {
@@ -26,6 +31,8 @@ interface KillMatrixTableProps {
   readonly playerHeaders?: readonly PlayerHeader[];
   readonly transposedPivotData?: KillMatrixPivotData;
   readonly teamColors?: readonly TeamColor[];
+  readonly crossTeamData?: KillMatrixCrossTeamData;
+  readonly swappedCrossTeamData?: KillMatrixCrossTeamData;
 }
 
 export function KillMatrixTable({
@@ -39,6 +46,8 @@ export function KillMatrixTable({
   playerHeaders,
   transposedPivotData,
   teamColors,
+  crossTeamData,
+  swappedCrossTeamData,
 }: KillMatrixTableProps): React.ReactElement {
   const effectiveStatus = status ?? ComponentLoaderStatus.LOADED;
 
@@ -52,10 +61,10 @@ export function KillMatrixTable({
   const teamColorOf = (teamId: number | null): string =>
     (teamId != null ? teamColors?.[teamId]?.hex : undefined) ?? "transparent";
 
-  const xyHeader = (
+  const renderXyHeader = (labels = true): React.ReactNode => (
     <>
-      <span className={styles.xAxisLabel}>{xAxisLabel}</span>
-      <span className={styles.yAxisLabel}>{yAxisLabel}</span>
+      {labels && <span className={styles.xAxisLabel}>{xAxisLabel}</span>}
+      {labels && <span className={styles.yAxisLabel}>{yAxisLabel}</span>}
       <Button
         variant="secondary"
         className={styles.swap}
@@ -94,6 +103,64 @@ export function KillMatrixTable({
   const cellTeamStyle = (rowTeamId: number | null, colTeamId: number | null): React.CSSProperties =>
     ({ "--row-team-color": teamColorOf(rowTeamId), "--col-team-color": teamColorOf(colTeamId) }) as React.CSSProperties;
 
+  const isCrossTeamTransposedActive = isTransposed && swappedCrossTeamData != null;
+
+  const activeCrossTeamData =
+    crossTeamData != null ? (isCrossTeamTransposedActive ? swappedCrossTeamData : crossTeamData) : null;
+
+  const renderCrossTeamCell = (kills: number, deaths: number): React.ReactNode => (
+    <span className={styles.crossTeamCell}>
+      {kills}
+      <span className={styles.crossTeamSeparator}>:</span>
+      {deaths}
+    </span>
+  );
+
+  const crossTeamColumns = React.useMemo<SortableTableColumn<KillMatrixCrossTeamRow>[]>(() => {
+    if (effectiveStatus !== ComponentLoaderStatus.LOADED || activeCrossTeamData == null) {
+      return [];
+    }
+
+    const cols: SortableTableColumn<KillMatrixCrossTeamRow>[] = [
+      {
+        id: "xyHeader",
+        header: renderXyHeader(false),
+        accessorFn: (row: KillMatrixCrossTeamRow): string => row.playerGamertag,
+        sortingFn: "alphanumeric",
+        cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
+        cellStyle:
+          teamColors != null
+            ? (row: KillMatrixCrossTeamRow): React.CSSProperties => rowTeamStyle(row.playerTeamId)
+            : undefined,
+        cell: (_value: unknown, row: KillMatrixCrossTeamRow): React.ReactNode =>
+          renderPlayerHeader(row.playerGamertag, row.playerTeamId),
+      },
+    ];
+
+    for (const { gamertag, teamId } of activeCrossTeamData.columnHeaders) {
+      const colTeamId: number | null = teamId;
+      cols.push({
+        id: gamertag,
+        header: renderPlayerHeader(gamertag, colTeamId),
+        headerClassName: styles.colHeader,
+        headerStyle: teamColors != null ? colTeamStyle(colTeamId) : undefined,
+        accessorFn: (row: KillMatrixCrossTeamRow): number => row.cells.get(gamertag)?.kills ?? 0,
+        sortingFn: "basic",
+        cellClassName: styles.killCell,
+        cellStyle:
+          teamColors != null
+            ? (row: KillMatrixCrossTeamRow): React.CSSProperties => cellTeamStyle(row.playerTeamId, colTeamId)
+            : undefined,
+        cell: (_value: unknown, row: KillMatrixCrossTeamRow): React.ReactNode => {
+          const cell = row.cells.get(gamertag);
+          return renderCrossTeamCell(cell?.kills ?? 0, cell?.deaths ?? 0);
+        },
+      });
+    }
+
+    return cols;
+  }, [effectiveStatus, xAxisLabel, yAxisLabel, activeCrossTeamData, teamColors]);
+
   const columns = React.useMemo<SortableTableColumn<KillMatrixPivotRow>[]>(() => {
     if (effectiveStatus !== ComponentLoaderStatus.LOADED) {
       return [];
@@ -102,7 +169,7 @@ export function KillMatrixTable({
     const cols: SortableTableColumn<KillMatrixPivotRow>[] = [
       {
         id: "xyHeader",
-        header: xyHeader,
+        header: renderXyHeader(),
         accessorFn: (row: KillMatrixPivotRow): string => row.killerGamertag,
         sortingFn: "alphanumeric",
         cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
@@ -135,13 +202,98 @@ export function KillMatrixTable({
     return cols;
   }, [effectiveStatus, yAxisLabel, activePivotData.columnHeaders, teamColors]);
 
+  const firstTeamId = playerHeaders?.[0]?.teamId ?? null;
+  const crossTeamRowHeaders = playerHeaders?.filter((h) => h.teamId === firstTeamId) ?? [];
+  const crossTeamColHeaders = playerHeaders?.filter((h) => h.teamId !== firstTeamId) ?? [];
+  const crossTeamRowCount = crossTeamRowHeaders.length > 0 ? crossTeamRowHeaders.length : 4;
+  const crossTeamColCount = crossTeamColHeaders.length > 0 ? crossTeamColHeaders.length : 4;
+
+  const crossTeamShimmerColumns = React.useMemo<SortableTableColumn<{ index: number }>[]>(() => {
+    const rowHeaders = isCrossTeamTransposedActive ? crossTeamColHeaders : crossTeamRowHeaders;
+    const colHeaders = isCrossTeamTransposedActive ? crossTeamRowHeaders : crossTeamColHeaders;
+    const cols: SortableTableColumn<{ index: number }>[] = [
+      {
+        id: "xyHeader",
+        header: renderXyHeader(false),
+        accessorFn: (row): number => row.index,
+        sortingFn: "alphanumeric",
+        cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
+        cellStyle:
+          teamColors != null
+            ? (row): React.CSSProperties =>
+                rowTeamStyle(row.index < rowHeaders.length ? rowHeaders[row.index].teamId : null)
+            : undefined,
+        cell: (_value, row): React.ReactNode => {
+          const ph = row.index < rowHeaders.length ? rowHeaders[row.index] : null;
+          return renderPlayerHeader(ph?.gamertag ?? "", ph?.teamId ?? null);
+        },
+      },
+    ];
+
+    const shimmerColCount =
+      colHeaders.length > 0 ? colHeaders.length : isCrossTeamTransposedActive ? crossTeamRowCount : crossTeamColCount;
+    for (let i = 0; i < shimmerColCount; i++) {
+      const header = i < colHeaders.length ? colHeaders[i] : null;
+      const colTeamId = header?.teamId ?? null;
+      cols.push({
+        id: `col-${i.toString()}`,
+        header: header != null ? renderPlayerHeader(header.gamertag, colTeamId) : null,
+        headerClassName: styles.colHeader,
+        headerStyle: teamColors != null ? colTeamStyle(colTeamId) : undefined,
+        accessorFn: (): number => 0,
+        enableSorting: false,
+        cellClassName: styles.killCell,
+        cellStyle:
+          teamColors != null
+            ? (row): React.CSSProperties =>
+                cellTeamStyle(row.index < rowHeaders.length ? rowHeaders[row.index].teamId : null, colTeamId)
+            : undefined,
+        cell: (): React.ReactNode => (
+          <span className={styles.shimmerContainer}>
+            <span className={styles.shimmerCell} />
+          </span>
+        ),
+      });
+    }
+
+    return cols;
+  }, [
+    xAxisLabel,
+    yAxisLabel,
+    crossTeamRowHeaders,
+    crossTeamColHeaders,
+    crossTeamRowCount,
+    crossTeamColCount,
+    isCrossTeamTransposedActive,
+    teamColors,
+    swappedCrossTeamData,
+  ]);
+
+  const activeRowCount =
+    crossTeamData != null ? (isCrossTeamTransposedActive ? crossTeamColCount : crossTeamRowCount) : undefined;
+  const crossTeamShimmerRows = React.useMemo(
+    () => Array.from({ length: activeRowCount ?? crossTeamRowCount }, (_, i) => ({ index: i })),
+    [activeRowCount, crossTeamRowCount],
+  );
+
+  const buildFootnoteText = (footnote: { betrayals: number; suicides: number }): string => {
+    const parts: string[] = [];
+    if (footnote.betrayals > 0) {
+      parts.push(`${footnote.betrayals.toString()} betrayal${footnote.betrayals !== 1 ? "s" : ""}`);
+    }
+    if (footnote.suicides > 0) {
+      parts.push(`${footnote.suicides.toString()} suicide${footnote.suicides !== 1 ? "s" : ""}`);
+    }
+    return `* Excluded from table: ${parts.join(", ")}`;
+  };
+
   const playerCount = playerHeaders !== undefined && playerHeaders.length > 0 ? playerHeaders.length : 8;
 
   const shimmerColumns = React.useMemo<SortableTableColumn<{ index: number }>[]>(() => {
     const cols: SortableTableColumn<{ index: number }>[] = [
       {
         id: "xyHeader",
-        header: xyHeader,
+        header: renderXyHeader(),
         accessorFn: (row): number => row.index,
         sortingFn: "alphanumeric",
         cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
@@ -195,6 +347,34 @@ export function KillMatrixTable({
     </div>
   );
 
+  const footnoteText = activeCrossTeamData?.footnote != null ? buildFootnoteText(activeCrossTeamData.footnote) : null;
+
+  const crossTeamLoaded =
+    activeCrossTeamData == null || activeCrossTeamData.tableRows.length === 0 ? (
+      <Alert variant="info">{emptyMessage}</Alert>
+    ) : (
+      <>
+        <SortableTable
+          data={activeCrossTeamData.tableRows}
+          columns={crossTeamColumns}
+          getRowKey={(row): string => row.playerId}
+          ariaLabel={ariaLabel}
+        />
+        {footnoteText != null && <p className={styles.footnote}>{footnoteText}</p>}
+      </>
+    );
+
+  const crossTeamShimmer = (
+    <div role="region" aria-busy="true" aria-label={ariaLabel}>
+      <SortableTable
+        data={crossTeamShimmerRows}
+        columns={crossTeamShimmerColumns}
+        getRowKey={(row): string => row.index.toString()}
+        ariaLabel={ariaLabel}
+      />
+    </div>
+  );
+
   const loaded =
     activePivotData.tableRows.length === 0 ? (
       <Alert variant="info">{emptyMessage}</Alert>
@@ -207,12 +387,14 @@ export function KillMatrixTable({
       />
     );
 
+  const isCrossTeam = crossTeamData != null;
+
   return (
     <ComponentLoader
       status={effectiveStatus}
-      loading={shimmer}
+      loading={isCrossTeam ? crossTeamShimmer : shimmer}
       error={<Alert variant="warning">{errorMessage ?? emptyMessage}</Alert>}
-      loaded={loaded}
+      loaded={isCrossTeam ? crossTeamLoaded : loaded}
     />
   );
 }

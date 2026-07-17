@@ -62,6 +62,23 @@
   width: 2ch;
 }
 
+.crossTeamCell {
+  display: inline-flex;
+  font-variant-numeric: tabular-nums;
+  gap: 1px;
+}
+
+.crossTeamSeparator {
+  color: var(--color-text-muted);
+}
+
+.footnote {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  margin-top: var(--space-2);
+  padding: 0 var(--space-2);
+}
+
 @keyframes shimmer {
   0% {
     background-position: 200% center;

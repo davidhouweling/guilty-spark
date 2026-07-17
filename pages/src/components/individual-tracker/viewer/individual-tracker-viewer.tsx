@@ -491,6 +491,8 @@ export function IndividualTrackerViewer({
                             teamColors={renderModel.teamColors}
                             killMatrixPivotData={state.state.killMatrixPivotData}
                             transposedKillMatrixPivotData={state.state.transposedKillMatrixPivotData}
+                            crossTeamData={state.state.crossTeamKillMatrixData}
+                            swappedCrossTeamData={state.state.swappedCrossTeamKillMatrixData}
                             scoreProgressionViewData={state.state.scoreProgressionViewData}
                             showHeader={false}
                           />

@@ -78,6 +78,8 @@ function MatchDetailSection({ detail, noGutter }: MatchDetailSectionProps): Reac
           teamColors={detail.teamColors}
           killMatrixPivotData={detail.killMatrixPivotData}
           transposedKillMatrixPivotData={detail.transposedKillMatrixPivotData}
+          crossTeamData={detail.crossTeamKillMatrixData}
+          swappedCrossTeamData={detail.swappedCrossTeamKillMatrixData}
           killMatrixStatus={detail.killMatrixStatus}
           scoreProgressionViewData={detail.scoreProgressionViewData}
         />
@@ -130,6 +132,8 @@ export function SeriesStatsView({
             teamColors={seriesStats.teamColors}
             killMatrixPivotData={seriesStats.killMatrixPivotData}
             transposedKillMatrixPivotData={seriesStats.transposedKillMatrixPivotData}
+            crossTeamData={seriesStats.crossTeamKillMatrixData}
+            swappedCrossTeamData={seriesStats.swappedCrossTeamKillMatrixData}
             killMatrixStatus={seriesStats.killMatrixStatus}
           />
         </Container>

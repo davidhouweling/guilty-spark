@@ -3,10 +3,17 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type {
   KillMatrixClassification,
   KillMatrixColumnHeader,
+  KillMatrixCrossTeamData,
+  KillMatrixCrossTeamFootnote,
   KillMatrixPivotData,
   KillMatrixPlayer,
   KillMatrixViewRow,
 } from "./types";
+
+interface CrossTeamPair {
+  readonly crossTeamData: KillMatrixCrossTeamData;
+  readonly swappedCrossTeamData: KillMatrixCrossTeamData;
+}
 
 export const GAMES_SUFFIX_RE = /\s+\(\d+\/\d+ games\)$/;
 
@@ -166,6 +173,78 @@ export class KillMatrixFormatter {
       rows.map((row) => ({ ...row, killer: row.victim, victim: row.killer })),
       orderedPlayers,
     );
+  }
+
+  public static pivotCrossTeam(
+    rows: readonly KillMatrixViewRow[],
+    rowTeamPlayers: readonly KillMatrixPlayer[],
+    colTeamPlayers: readonly KillMatrixPlayer[],
+  ): KillMatrixCrossTeamData {
+    const killCounts = new Map<string, Map<string, number>>();
+    let betrayals = 0;
+    let suicides = 0;
+
+    for (const row of rows) {
+      if (row.classification === "betrayal") {
+        betrayals += row.count;
+        continue;
+      }
+      if (row.classification === "suicide") {
+        suicides += row.count;
+        continue;
+      }
+      if (!killCounts.has(row.killer.xuid)) {
+        killCounts.set(row.killer.xuid, new Map());
+      }
+      Preconditions.checkExists(killCounts.get(row.killer.xuid)).set(row.victim.xuid, row.count);
+    }
+
+    const tableRows = rowTeamPlayers.map((rowPlayer) => {
+      const cells = new Map(
+        colTeamPlayers.map((colPlayer) => [
+          colPlayer.gamertag,
+          {
+            kills: killCounts.get(rowPlayer.xuid)?.get(colPlayer.xuid) ?? 0,
+            deaths: killCounts.get(colPlayer.xuid)?.get(rowPlayer.xuid) ?? 0,
+          },
+        ]),
+      );
+      return {
+        playerId: rowPlayer.xuid,
+        playerGamertag: rowPlayer.gamertag,
+        playerTeamId: rowPlayer.teamId,
+        cells,
+      };
+    });
+
+    const columnHeaders: KillMatrixColumnHeader[] = colTeamPlayers.map((p) => ({
+      gamertag: p.gamertag,
+      teamId: p.teamId,
+    }));
+
+    const footnote: KillMatrixCrossTeamFootnote | null = betrayals > 0 || suicides > 0 ? { betrayals, suicides } : null;
+
+    return { tableRows, columnHeaders, footnote };
+  }
+
+  public static buildCrossTeam(
+    rows: readonly KillMatrixViewRow[],
+    orderedPlayers: readonly KillMatrixPlayer[],
+  ): CrossTeamPair | null {
+    if (orderedPlayers.some((p) => p.teamId == null)) {
+      return null;
+    }
+    const teamIds = [...new Set(orderedPlayers.map((p) => p.teamId).filter((id): id is number => id != null))];
+    if (teamIds.length !== 2) {
+      return null;
+    }
+    const [firstTeamId, secondTeamId] = teamIds;
+    const firstTeamPlayers = orderedPlayers.filter((p) => p.teamId === firstTeamId);
+    const secondTeamPlayers = orderedPlayers.filter((p) => p.teamId === secondTeamId);
+    return {
+      crossTeamData: KillMatrixFormatter.pivotCrossTeam(rows, firstTeamPlayers, secondTeamPlayers),
+      swappedCrossTeamData: KillMatrixFormatter.pivotCrossTeam(rows, secondTeamPlayers, firstTeamPlayers),
+    };
   }
 
   public static aggregate(rows: readonly KillMatrixViewRow[]): KillMatrixViewRow[] {

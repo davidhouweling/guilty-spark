@@ -1,5 +1,5 @@
 import type { ComponentLoaderStatus } from "../component-loader/component-loader";
-import type { KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
+import type { KillMatrixCrossTeamData, KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
 import type { MatchStatsData } from "../../controllers/stats/types";
 import type { TeamColor } from "../team-colors/team-colors";
 import type { ScoreProgressionViewData } from "../stats/score-progression/types";
@@ -36,6 +36,8 @@ export interface SeriesMatchDetail {
   readonly teamColors: readonly TeamColor[];
   readonly killMatrixPivotData: KillMatrixPivotData;
   readonly transposedKillMatrixPivotData: KillMatrixPivotData;
+  readonly crossTeamKillMatrixData: KillMatrixCrossTeamData | null;
+  readonly swappedCrossTeamKillMatrixData: KillMatrixCrossTeamData | null;
   readonly killMatrixStatus: ComponentLoaderStatus;
   readonly scoreProgressionViewData: ScoreProgressionViewData | null;
 }
@@ -52,6 +54,8 @@ export interface SeriesStatsSummary {
   readonly teamColors: readonly TeamColor[];
   readonly killMatrixPivotData: KillMatrixPivotData;
   readonly transposedKillMatrixPivotData: KillMatrixPivotData;
+  readonly crossTeamKillMatrixData: KillMatrixCrossTeamData | null;
+  readonly swappedCrossTeamKillMatrixData: KillMatrixCrossTeamData | null;
   readonly killMatrixStatus: ComponentLoaderStatus;
 }
 

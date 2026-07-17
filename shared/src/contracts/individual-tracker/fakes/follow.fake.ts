@@ -45,6 +45,7 @@ export function aDirectoryWith(overrides: Partial<TrackerDirectory> = {}): Track
       aTrackerWith({ trackerId: "tracker-2", gamertag: "Spartan Two", isLive: false, status: "active" }),
     ],
     liveTrackerId: "tracker-1",
+    streamerSettings: {},
     ...overrides,
   };
 }
