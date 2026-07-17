@@ -532,16 +532,12 @@ export function IndividualTrackerViewer({
                       subtitle={series.subtitle}
                       metadata={[
                         { label: "Score", value: series.score },
-                        {
-                          label: "Matches",
-                          value: `${series.matches.length.toString()} match${series.matches.length === 1 ? "" : "es"}`,
-                        },
                         { label: "Duration", value: series.duration },
-                        { label: "Kills:Deaths:Assists (KDA)", value: series.killsDeathsAssistsKda },
-                        { label: "Damage D:T (D/T)", value: series.damageDealtTakenRatio },
                         series.isActive
                           ? { label: "Start time", value: formatDate(series.startTime) }
                           : { label: "End time", value: formatDate(series.endTime) },
+                        { label: "Kills:Deaths:Assists (KDA)", value: series.killsDeathsAssistsKda },
+                        { label: "Damage D:T (D/T)", value: series.damageDealtTakenRatio },
                       ]}
                       backgroundStyle={seriesHeaderBackgroundStyle(
                         series.matchBackgroundUrls,
