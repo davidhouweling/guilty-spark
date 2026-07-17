@@ -188,7 +188,10 @@ export const DEFAULT_STREAMER_VIEW_SETTINGS: StreamerViewSettings = {
     showScore: true,
     showTicker: true,
     showTabs: true,
-    statsHighlightSlots: [...DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS],
+    statsHighlightSlots: DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS.slice(
+      0,
+      INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
+    ),
   },
   layoutOptions: {
     defaultColorMode: "player",
