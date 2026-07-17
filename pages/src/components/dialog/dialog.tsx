@@ -67,7 +67,7 @@ export function Dialog({
         tabIndex={-1}
         className={classNames(styles.panel, panelClassName)}
       >
-        <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close settings">
+        <button type="button" className={styles.closeButton} onClick={onClose} aria-label={`Close ${title}`}>
           <svg className={styles.closeIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <path d="M18 6L6 18M6 6l12 12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
