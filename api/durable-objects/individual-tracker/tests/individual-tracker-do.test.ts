@@ -585,7 +585,7 @@ describe("IndividualTrackerDO", () => {
       expect(series?.subtitle).toBe("Best of 3");
     });
 
-    it("dedupes sequential same map+mode entries in series matchIds and score", async () => {
+    it("keeps sequential same map+mode entries in series matchIds while deduping score", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           matchIds: ["m1", "m2"],
@@ -622,8 +622,8 @@ describe("IndividualTrackerDO", () => {
 
       expect(body.state?.series).toHaveLength(1);
       const series = body.state?.series[0];
-      expect(series?.matchIds).toEqual(["m2"]);
-      expect(series?.matchBackgroundUrls).toHaveLength(1);
+      expect(series?.matchIds).toEqual(["m1", "m2"]);
+      expect(series?.matchBackgroundUrls).toHaveLength(2);
       expect(series?.score).toBe("0:1");
     });
 

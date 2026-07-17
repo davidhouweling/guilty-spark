@@ -42,7 +42,6 @@ import {
   analyzeMatchGroupings,
   buildMatchScore,
   buildTeamRosterSignature,
-  collapseSequentialSeriesEntries,
   getMatchOutcomeLabel,
 } from "@guilty-spark/shared/halo/match-enrichment";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
@@ -316,17 +315,17 @@ function hasExpectedSeriesTeamCounts(
   return true;
 }
 
-function getSeriesSummariesForView(
+function getSeriesSummariesForSeriesList(
   groupSummaries: readonly IndividualTrackerMatchSummary[],
   teams: readonly SeriesTeam[] | undefined,
-): IndividualTrackerMatchSummary[] {
+): readonly IndividualTrackerMatchSummary[] {
   const expectedTeamCounts = getExpectedSeriesTeamCounts(teams);
   const summariesWithExpectedTeams =
     expectedTeamCounts == null
       ? groupSummaries
       : groupSummaries.filter((summary) => hasExpectedSeriesTeamCounts(summary, expectedTeamCounts));
 
-  return collapseSequentialSeriesEntries(summariesWithExpectedTeams);
+  return summariesWithExpectedTeams;
 }
 
 function isEligibleForActiveSeries(
@@ -2423,10 +2422,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       const seriesGroupOverride = seriesGroupOverridesByKey.get(buildSeriesGroupKey(matchIds));
       const teams = seriesContext?.teams;
 
-      const seriesSummariesForView = getSeriesSummariesForView(groupSummaries, teams);
+      const seriesSummariesForSeriesList = getSeriesSummariesForSeriesList(groupSummaries, teams);
 
       const teamWins = computeSeriesTeamWins(
-        seriesSummariesForView.map((summary) => ({
+        seriesSummariesForSeriesList.map((summary) => ({
           startTime: summary.startTime,
           mapAssetId: summary.mapAssetId,
           mapVersionId: summary.mapVersionId,
@@ -2434,11 +2433,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           teamOutcomes: summary.teamOutcomes ?? [],
         })),
       );
-      const seriesSummaryStats = computeSeriesSummaryStats(seriesSummariesForView);
+      const seriesSummaryStats = computeSeriesSummaryStats(seriesSummariesForSeriesList);
 
       const defaultTitle = getDefaultSeriesGroupTitle();
       const defaultSubtitle = getDefaultSeriesGroupSubtitle(
-        seriesSummariesForView.map((summary) => ({
+        seriesSummariesForSeriesList.map((summary) => ({
           startTime: summary.startTime,
           mapAssetId: summary.mapAssetId,
           mapVersionId: summary.mapVersionId,
@@ -2453,8 +2452,8 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
       return {
         id: `series:${buildSeriesGroupKey(matchIds)}`,
-        matchIds: seriesSummariesForView.map((summary) => summary.matchId),
-        matchBackgroundUrls: seriesSummariesForView.map((summary) => summary.mapBackgroundUrl || "data:,"),
+        matchIds: seriesSummariesForSeriesList.map((summary) => summary.matchId),
+        matchBackgroundUrls: seriesSummariesForSeriesList.map((summary) => summary.mapBackgroundUrl || "data:,"),
         score: teamWins.length === 0 ? "0:0" : teamWins.join(":"),
         killsDeathsAssistsKda: seriesSummaryStats.killsDeathsAssistsKda,
         damageDealtTakenRatio: seriesSummaryStats.damageDealtTakenRatio,
