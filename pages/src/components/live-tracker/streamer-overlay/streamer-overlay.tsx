@@ -522,6 +522,7 @@ function NeatQueueStreamerOverlay({
         }
 
         const teamColor = winningTeamIndex !== null ? teamColors[winningTeamIndex]?.hex : undefined;
+        const didEagleLose = winningTeamIndex !== null && winningTeamIndex !== 0;
 
         return {
           type: "match" as const,
@@ -529,7 +530,12 @@ function NeatQueueStreamerOverlay({
           matchId: match.matchId,
           label: settings.global.ticker.showTabs ? match.gameMap : "",
           score: match.gameScore,
-          icon: gameModeIconUrl(match.gameType, match.rawMatchStats?.MatchInfo.GameVariantCategory),
+          icons: [
+            {
+              src: gameModeIconUrl(match.gameType, match.rawMatchStats?.MatchInfo.GameVariantCategory),
+              dimmed: didEagleLose,
+            },
+          ],
           teamColor,
         };
       }),

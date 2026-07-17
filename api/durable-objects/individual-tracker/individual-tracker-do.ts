@@ -1974,7 +1974,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     switch (payload.type) {
       case "ended": {
-        this.clearSeriesState(trackerState);
+        this.retireActiveSeries(trackerState);
         break;
       }
       case "substituted": {
