@@ -72,6 +72,15 @@ describe("WeaponAttributor", () => {
     expect(result?.name).toBe("MA40 AR");
   });
 
+  it("uses bytePos as tie-breaker when two events share the same estimated timestamp", () => {
+    const attributor = new WeaponAttributor([
+      { timestampMs: 4000, playerIndex: 0, weaponId: 0x2b1824d542c9679fn, weaponName: "BR75", bytePos: 10 },
+      { timestampMs: 4000, playerIndex: 0, weaponId: 0x48c19d2d42c9679fn, weaponName: "MA40 AR", bytePos: 20 },
+    ]);
+    const result = attributor.claim(0, 5000);
+    expect(result?.name).toBe("MA40 AR"); // higher bytePos = later shot in the frame
+  });
+
   it("filters by player index when provided", () => {
     const attributor = new WeaponAttributor([
       { timestampMs: 4500, playerIndex: 2, weaponId: 0x2b1824d542c9679fn, weaponName: "BR75", bytePos: 10 },

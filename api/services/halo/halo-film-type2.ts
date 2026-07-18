@@ -155,6 +155,7 @@ export class WeaponAttributor {
 
     let bestIdx = -1;
     let bestTs = -Infinity;
+    let bestBytePos = -1;
 
     for (let i = 0; i < this.available.length; i++) {
       const ev = this.available[i];
@@ -167,9 +168,10 @@ export class WeaponAttributor {
       if (playerIndex !== null && ev.playerIndex !== playerIndex) {
         continue;
       }
-      if (ev.timestampMs > bestTs) {
+      if (ev.timestampMs > bestTs || (ev.timestampMs === bestTs && ev.bytePos > bestBytePos)) {
         bestIdx = i;
         bestTs = ev.timestampMs;
+        bestBytePos = ev.bytePos;
       }
     }
 
