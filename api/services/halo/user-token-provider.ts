@@ -39,9 +39,13 @@ export class UserTokenProvider {
     this.logService = logService;
   }
 
-  public clearCachedClient(userId: string): void {
+  public clearCachedContext(userId: string): void {
     this.cachedContextsByUserId.delete(userId);
     this.inFlightContextByUserId.delete(userId);
+  }
+
+  public clearCachedClient(userId: string): void {
+    this.clearCachedContext(userId);
   }
 
   async getClientForUser(userId: string): Promise<HaloInfiniteClient | null> {

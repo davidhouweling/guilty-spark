@@ -12,7 +12,7 @@ import { normalizeTrackerId } from "./normalize-tracker-id";
 export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/stats/match-analytics", async (request, env: Env) => {
     const services = installServices({ env });
-    const { haloService, logService, databaseService, userTokenProvider } = services;
+    const { haloService, logService, databaseService, userTokenProvider, authService } = services;
 
     const url = new URL(request.url);
     const queryParams = parseQueryParams(url, batchMatchAnalyticsQuerySchema, "Invalid query parameters");
@@ -30,28 +30,31 @@ export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installS
       try {
         const tracker = await databaseService.getIndividualTracker(trackerId);
         if (tracker?.IsLive === 1) {
-          const userTokenContext = await userTokenProvider.getContextForUser(tracker.UserId);
-          if (userTokenContext != null) {
-            const { client: userClient, spartanTokenProvider: userSpartanTokenProvider } = userTokenContext;
-            const userHaloService = haloService.withUserClient(userClient);
-            const userFilmCacheNamespace = `halo:film:${tracker.UserId}`;
-            const userFilmService = new HaloFilmService({
-              env,
-              spartanTokenProvider: userSpartanTokenProvider,
-              kvKeyNamespace: userFilmCacheNamespace,
-              fetch: createResilientFetch({
+          const session = await authService.validateSession(request);
+          if (session?.userId === tracker.UserId) {
+            const userTokenContext = await userTokenProvider.getContextForUser(tracker.UserId);
+            if (userTokenContext != null) {
+              const { client: userClient, spartanTokenProvider: userSpartanTokenProvider } = userTokenContext;
+              const userHaloService = haloService.withUserClient(userClient);
+              const userFilmCacheNamespace = `halo:film:${tracker.UserId}`;
+              const userFilmService = new HaloFilmService({
                 env,
-                logService,
-                proxyUrl: env.PROXY_WORKER_URL,
+                spartanTokenProvider: userSpartanTokenProvider,
                 kvKeyNamespace: userFilmCacheNamespace,
-              }),
-            });
-            resolvedAnalyticsService = new AnalyticsService({
-              haloService: userHaloService,
-              haloFilmService: userFilmService,
-              logService,
-            });
-            credentialSource = `user:${tracker.UserId}`;
+                fetch: createResilientFetch({
+                  env,
+                  logService,
+                  proxyUrl: env.PROXY_WORKER_URL,
+                  kvKeyNamespace: userFilmCacheNamespace,
+                }),
+              });
+              resolvedAnalyticsService = new AnalyticsService({
+                haloService: userHaloService,
+                haloFilmService: userFilmService,
+                logService,
+              });
+              credentialSource = `user:${tracker.UserId}`;
+            }
           }
         }
       } catch (error) {

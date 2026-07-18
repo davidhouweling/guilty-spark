@@ -1025,7 +1025,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
   private clearUserHaloService(): void {
     if (this.userHaloServiceUserId != null) {
-      this.services.userTokenProvider.clearCachedClient(this.userHaloServiceUserId);
+      this.services.userTokenProvider.clearCachedContext(this.userHaloServiceUserId);
     }
     this.userHaloService = null;
     this.userHaloServiceUserId = null;

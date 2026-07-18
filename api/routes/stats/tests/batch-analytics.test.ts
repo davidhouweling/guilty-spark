@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LogService } from "../../../services/log/types";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
+import { aFakeAuthSessionWith } from "../../../services/auth/fakes/data";
 import {
   AnalyticsService,
   type AnalyticsService as AnalyticsServiceInstance,
@@ -252,11 +253,10 @@ describe("/api/stats/match-analytics (batch)", () => {
     vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(
       aFakeIndividualTrackersRow({ TrackerId: "tracker-1", UserId: "owner-user-1", IsLive: 1 }),
     );
-    vi.spyOn(services.userTokenProvider, "getClientForUser").mockResolvedValue(services.haloInfiniteClient);
-    const getMicrosoftAccessTokenSpy = vi
-      .spyOn(services.authService, "getMicrosoftAccessTokenForUser")
-      .mockResolvedValue(null);
-    const exchangeSpy = vi.spyOn(services.xboxService, "exchangeMicrosoftAccessTokenForXstsToken");
+    vi.spyOn(services.authService, "validateSession").mockResolvedValue(
+      aFakeAuthSessionWith({ userId: "other-user-1" }),
+    );
+    const getContextForUserSpy = vi.spyOn(services.userTokenProvider, "getContextForUser");
     vi.spyOn(services.analyticsService, "getBatchMatchAnalytics").mockResolvedValue({ "match-1": analytics });
 
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
@@ -268,11 +268,9 @@ describe("/api/stats/match-analytics (batch)", () => {
     )) as Response;
 
     expect(response.status).toBe(200);
-    // Should use the bot analytics service (no custom analytics service created)
     const body = await response.json();
     expect(body).toEqual({ results: { "match-1": analytics } });
-    expect(getMicrosoftAccessTokenSpy).toHaveBeenCalledWith("owner-user-1");
-    expect(exchangeSpy).not.toHaveBeenCalled();
+    expect(getContextForUserSpy).not.toHaveBeenCalled();
   });
 
   it("attempts user credential resolution when tracker is live", async () => {
@@ -287,8 +285,7 @@ describe("/api/stats/match-analytics (batch)", () => {
       client: services.haloInfiniteClient,
       spartanTokenProvider: new StaticXstsTicketTokenSpartanTokenProvider("owner-xsts-token"),
     });
-    const getMicrosoftAccessTokenSpy = vi.spyOn(services.authService, "getMicrosoftAccessTokenForUser");
-    const exchangeSpy = vi.spyOn(services.xboxService, "exchangeMicrosoftAccessTokenForXstsToken");
+    vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith({ userId: ownerUserId }));
     const botAnalyticsSpy = vi.spyOn(services.analyticsService, "getBatchMatchAnalytics");
     const logWarnSpy: MockInstance<LogService["warn"]> = vi.spyOn(services.logService, "warn");
     const analyticsServiceGetBatchMatchAnalyticsSpy: MockInstance<AnalyticsServiceInstance["getBatchMatchAnalytics"]> =
@@ -309,8 +306,6 @@ describe("/api/stats/match-analytics (batch)", () => {
     )) as Response;
 
     expect(response.status).toBe(200);
-    expect(getMicrosoftAccessTokenSpy).not.toHaveBeenCalled();
-    expect(exchangeSpy).not.toHaveBeenCalled();
     expect(getContextForUserSpy).toHaveBeenCalledWith(ownerUserId);
     expect(botAnalyticsSpy).not.toHaveBeenCalled();
     expect(analyticsServiceGetBatchMatchAnalyticsSpy).toHaveBeenCalledWith(["match-1", "match-2"], ["killMatrix"]);
