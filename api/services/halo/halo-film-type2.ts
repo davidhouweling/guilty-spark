@@ -134,6 +134,68 @@ export function scanFireEvents(data: Uint8Array, startMs: number, durationMs: nu
   return deduped;
 }
 
+// Formula A scanner — weapon-equipped state snapshots from type-2 film chunks.
+// Ported from LevelUp weapon_scanner.go ScanFormulaA.
+// Marker [0x20, 0x00, 0x02] precedes a player byte (top 3 bits = playerIndex) followed
+// by the 8-byte weapon ID (4-byte prefix + 4-byte COMMON_WEAPON_SUFFIX) within 68 bytes.
+
+const FORMULA_A_MARKER = Uint8Array.of(0x20, 0x00, 0x02);
+const FORMULA_A_SEARCH_WINDOW = 68;
+const FORMULA_A_PLAYER_BYTE_OFFSET = 3;
+const COMMON_SUFFIX_BYTES = Uint8Array.of(0x42, 0xc9, 0x67, 0x9f);
+const WEAPON_SUFFIX_LENGTH = 4;
+
+export interface FormulaAEvent {
+  playerIndex: number;
+  weaponId: bigint;
+  weaponName: string;
+}
+
+function findBytePattern(data: Uint8Array, pattern: Uint8Array, start: number, end: number): number {
+  const limit = Math.min(end, data.length) - pattern.length;
+  outer: for (let i = start; i <= limit; i++) {
+    for (let j = 0; j < pattern.length; j++) {
+      if (data[i + j] !== pattern[j]) {continue outer;}
+    }
+    return i;
+  }
+  return -1;
+}
+
+function readBigEndian64(data: Uint8Array, pos: number): bigint {
+  let result = 0n;
+  for (let i = 0; i < 8; i++) {
+    result = (result << 8n) | BigInt(data[pos + i] ?? 0);
+  }
+  return result;
+}
+
+export function scanFormulaAEvents(data: Uint8Array): FormulaAEvent[] {
+  const events: FormulaAEvent[] = [];
+  let pos = 0;
+  while (pos < data.length) {
+    const markerPos = findBytePattern(data, FORMULA_A_MARKER, pos, data.length);
+    if (markerPos < 0 || markerPos + FORMULA_A_PLAYER_BYTE_OFFSET >= data.length) {
+      break;
+    }
+    const pb = data[markerPos + FORMULA_A_PLAYER_BYTE_OFFSET] ?? 0;
+    const playerIndex = pb >> 5;
+    const weaponDataStart = markerPos + FORMULA_A_PLAYER_BYTE_OFFSET + 1;
+    const suffixPos = findBytePattern(data, COMMON_SUFFIX_BYTES, weaponDataStart, markerPos + FORMULA_A_SEARCH_WINDOW);
+    if (suffixPos >= 0) {
+      const weaponStart = suffixPos - WEAPON_SUFFIX_LENGTH;
+      if (weaponStart >= weaponDataStart && weaponStart + 8 <= data.length) {
+        const weaponId = readBigEndian64(data, weaponStart);
+        if (KNOWN_WEAPON_IDS.has(weaponId) || (weaponId & 0xffff_ffffn) === COMMON_WEAPON_SUFFIX) {
+          events.push({ playerIndex, weaponId, weaponName: lookupWeaponName(weaponId) ?? "Unknown" });
+        }
+      }
+    }
+    pos = markerPos + FORMULA_A_PLAYER_BYTE_OFFSET + 1;
+  }
+  return events;
+}
+
 export class WeaponAttributor {
   private readonly available: FireEvent[];
 

@@ -3,7 +3,8 @@ import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { wrapXuid, unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { FireEvent } from "./halo-film-type2";
-import { scanFireEvents, WeaponAttributor } from "./halo-film-type2";
+import { scanFireEvents, scanFormulaAEvents, WeaponAttributor } from "./halo-film-type2";
+import { weaponIdToHex } from "./weapon-ids";
 import {
   HALO_PC_USER_AGENT,
   MIN_XUID,
@@ -30,6 +31,10 @@ import type {
   HaloFilmServiceOpts,
 } from "./types";
 import type { CustomSpartanTokenProvider } from "./custom-spartan-token-provider";
+
+type WeaponTimeline = Map<number, Map<number, { weaponId: string; name: string }>>;
+interface ChunkTiming { chunkIndex: number; startMs: number; endMs: number }
+interface FilmAttributionData { attributor: WeaponAttributor; timeline: WeaponTimeline; chunkTimings: ChunkTiming[] }
 
 export class HaloFilmService {
   private static readonly FILM_CACHE_TTL_SECONDS = 604_800;
@@ -146,13 +151,13 @@ export class HaloFilmService {
     const perfectCounts = this.buildPerfectCountsReport(events);
 
     const xuidToPlayerIndex = this.buildXuidToPlayerIndex(matchStats);
-    const weaponAttributor = await this.tryBuildWeaponAttributor(matchStats);
+    const filmData = await this.tryBuildFilmAttributionData(matchStats);
 
     const { entries, maxTimeDeltaMs, usedDeathCount } = this.buildKillMatrixEntriesByPairing(
       kills,
       deaths,
       perfectMedalTimestamps,
-      weaponAttributor,
+      filmData,
       xuidToPlayerIndex,
     );
 
@@ -171,15 +176,14 @@ export class HaloFilmService {
   }
 
   private buildXuidToPlayerIndex(matchStats: MatchStats): Map<string, number> {
-    const sorted = [...matchStats.Players].sort((a, b) => a.LastTeamId - b.LastTeamId || a.Rank - b.Rank);
     const map = new Map<string, number>();
-    for (const [index, player] of sorted.entries()) {
+    for (const [index, player] of matchStats.Players.entries()) {
       map.set(unwrapXuid(player.PlayerId), index);
     }
     return map;
   }
 
-  private async tryBuildWeaponAttributor(matchStats: MatchStats): Promise<WeaponAttributor | null> {
+  private async tryBuildFilmAttributionData(matchStats: MatchStats): Promise<FilmAttributionData | null> {
     try {
       let resolvedAuth: { spartanToken: string; clearanceToken: string } | null = null;
       const authResolver = async (): Promise<{ spartanToken: string; clearanceToken: string }> => {
@@ -187,11 +191,15 @@ export class HaloFilmService {
         return resolvedAuth;
       };
       const filmMetadata = await this.getOrFetchFilmMetadata(matchStats.MatchId, authResolver);
-      const fireEvents = await this.scanAllReplicationChunks(matchStats.MatchId, filmMetadata, authResolver);
-      if (fireEvents == null) {
+      const scanResult = await this.scanAllReplicationChunks(matchStats.MatchId, filmMetadata, authResolver);
+      if (scanResult == null) {
         return null;
       }
-      return new WeaponAttributor(fireEvents);
+      return {
+        attributor: new WeaponAttributor(scanResult.fireEvents),
+        timeline: scanResult.timeline,
+        chunkTimings: scanResult.chunkTimings,
+      };
     } catch {
       return null;
     }
@@ -218,12 +226,14 @@ export class HaloFilmService {
     matchId: string,
     filmMetadata: FilmMetadataResponse,
     authResolver: () => Promise<{ spartanToken: string; clearanceToken: string }>,
-  ): Promise<FireEvent[] | null> {
+  ): Promise<{ fireEvents: FireEvent[]; timeline: WeaponTimeline; chunkTimings: ChunkTiming[] } | null> {
     const chunks = this.findReplicationChunksWithStartMs(filmMetadata);
     if (chunks.length === 0) {
       return null;
     }
     const allFireEvents: FireEvent[] = [];
+    const timeline: WeaponTimeline = new Map();
+    const chunkTimings: ChunkTiming[] = [];
     for (const { chunk, startMs } of chunks) {
       const chunkCacheRequest = this.toChunkCacheRequest(matchId, chunk.Index);
       let chunkBytes = await this.getCachedChunk(chunkCacheRequest);
@@ -238,8 +248,16 @@ export class HaloFilmService {
       for (const ev of scanFireEvents(chunkData, startMs, chunk.DurationMilliseconds)) {
         allFireEvents.push(ev);
       }
+      const chunkState = new Map<number, { weaponId: string; name: string }>();
+      for (const ev of scanFormulaAEvents(chunkData)) {
+        chunkState.set(ev.playerIndex, { weaponId: weaponIdToHex(ev.weaponId), name: ev.weaponName });
+      }
+      if (chunkState.size > 0) {
+        timeline.set(chunk.Index, chunkState);
+      }
+      chunkTimings.push({ chunkIndex: chunk.Index, startMs, endMs: startMs + chunk.DurationMilliseconds });
     }
-    return allFireEvents;
+    return { fireEvents: allFireEvents, timeline, chunkTimings };
   }
 
   private async getOrFetchFilmMetadata(
@@ -341,7 +359,7 @@ export class HaloFilmService {
     kills: ParsedHighlightEvent[],
     deaths: ParsedHighlightEvent[],
     perfectMedalTimestamps: Map<string, number[]>,
-    weaponAttributor: WeaponAttributor | null,
+    filmData: FilmAttributionData | null,
     xuidToPlayerIndex: Map<string, number>,
   ): { entries: KillMatrixEntry[]; maxTimeDeltaMs: number; usedDeathCount: number } {
     const entriesByPair = new Map<string, KillMatrixEntry>();
@@ -379,9 +397,11 @@ export class HaloFilmService {
       }
       entriesByPair.set(pairKey, existing);
 
-      if (weaponAttributor != null) {
+      if (filmData != null) {
         const playerIndex = xuidToPlayerIndex.get(killEvent.xuid) ?? null;
-        const weapon = weaponAttributor.claim(playerIndex, killEvent.timeMs);
+        const weapon =
+          filmData.attributor.claim(playerIndex, killEvent.timeMs) ??
+          this.lookupFormulaAFallback(playerIndex, killEvent.timeMs, filmData);
         if (weapon != null) {
           let pairWeapons = weaponCountsByPair.get(pairKey);
           if (pairWeapons == null) {
@@ -408,6 +428,22 @@ export class HaloFilmService {
     }
 
     return { entries: Array.from(entriesByPair.values()), maxTimeDeltaMs, usedDeathCount: usedDeathIndexes.size };
+  }
+
+  private lookupFormulaAFallback(
+    playerIndex: number | null,
+    killTimeMs: number,
+    filmData: FilmAttributionData,
+  ): { weaponId: string; name: string } | null {
+    if (playerIndex === null) {
+      return null;
+    }
+    for (const { chunkIndex, startMs, endMs } of filmData.chunkTimings) {
+      if (killTimeMs >= startMs && killTimeMs < endMs) {
+        return filmData.timeline.get(chunkIndex)?.get(playerIndex) ?? null;
+      }
+    }
+    return null;
   }
 
   private consumePerfectMedalForKill(
