@@ -29,19 +29,21 @@ describe("scanFireEvents", () => {
     expect(ev?.weaponId).toBe(brId);
   });
 
-  it("deduplicates events within 2 bytes of each other", () => {
-    // Two marker matches at bit 0 and bit 8 (1 byte apart) → deduplicated to one
+  it("returns events with unique byte positions", () => {
     const brId = 0x2b1824d542c9679fn;
-    const data1 = buildFireEventBytes(0, 0, brId);
-    // Combine two copies with only a 1-byte offset (overlap)
-    const combined = new Uint8Array(data1.length + 1);
-    combined.set(data1, 0);
-    // Also set the marker starting 1 byte later (will produce a nearby duplicate)
-    // The dedup logic removes events within 2 bytes of each other
-    // We just verify the main case: single event → single result
-    const events = scanFireEvents(data1, 0, 1000);
+    const data = buildFireEventBytes(0, 0, brId);
+    const events = scanFireEvents(data, 0, 1000);
     const uniqueBytePos = new Set(events.map((e) => e.bytePos));
     expect(uniqueBytePos.size).toBe(events.length);
+  });
+
+  it("spreads timestamps linearly when no frame markers are present", () => {
+    const brId = 0x2b1824d542c9679fn;
+    const data = buildFireEventBytes(0, 0, brId); // 15-byte chunk, no 0xa0 0x7b 0x42 frame marker
+    const events = scanFireEvents(data, 1000, 5000); // startMs=1000, durationMs=5000
+    expect(events.length).toBeGreaterThanOrEqual(1);
+    // Fire event at bytePos 0: timestamp = 1000 + (0/15)*5000 = 1000
+    expect(events[0]?.timestampMs).toBe(1000);
   });
 
   it("accepts a weapon with the common suffix even if not in the known list", () => {
@@ -100,5 +102,18 @@ describe("WeaponAttributor", () => {
       { timestampMs: 0, playerIndex: 0, weaponId: 0x2b1824d542c9679fn, weaponName: "BR75", bytePos: 10 },
     ]);
     expect(attributor.claim(0, 6000)).toBeNull(); // 6000ms kill, event at 0ms = 6s gap > 5s window
+  });
+
+  it("prunes stale events so subsequent claims do not re-scan them", () => {
+    const attributor = new WeaponAttributor([
+      { timestampMs: 0, playerIndex: 0, weaponId: 0x2b1824d542c9679fn, weaponName: "BR75", bytePos: 10 },
+      { timestampMs: 8000, playerIndex: 0, weaponId: 0x48c19d2d42c9679fn, weaponName: "MA40 AR", bytePos: 20 },
+      { timestampMs: 12000, playerIndex: 0, weaponId: 0x2b1824d542c9679fn, weaponName: "BR75", bytePos: 30 },
+    ]);
+    // Kill at 7000ms: event at 0ms is outside the 5s window, event at 8000ms is after kill — no match
+    expect(attributor.claim(0, 7000)).toBeNull();
+    // Kill at 13000ms: event at 8000ms is within window, event at 0ms has been pruned
+    const result = attributor.claim(0, 13000);
+    expect(result?.name).toBe("BR75"); // 12000ms event wins (closest before 13000ms)
   });
 });

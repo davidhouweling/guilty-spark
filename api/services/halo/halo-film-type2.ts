@@ -34,8 +34,13 @@ function findFramePositions(data: Uint8Array): number[] {
 
 function buildTimestampEstimator(data: Uint8Array, startMs: number, durationMs: number): (bytePos: number) => number {
   const frames = findFramePositions(data);
-  const frameDurMs = frames.length > 0 ? durationMs / frames.length : 16.67;
 
+  if (frames.length === 0) {
+    // No frame markers — spread timestamps linearly across the chunk by byte position.
+    return (bytePos: number): number => startMs + (data.length > 0 ? bytePos / data.length : 0) * durationMs;
+  }
+
+  const frameDurMs = durationMs / frames.length;
   return (bytePos: number): number => {
     let lo = 0;
     let hi = frames.length - 1;
@@ -137,15 +142,23 @@ export class WeaponAttributor {
   }
 
   claim(playerIndex: number | null, killTimeMs: number): { weaponId: string; name: string } | null {
+    // Prune events permanently before this kill's window. Kills arrive in ascending
+    // time order, so pruned events cannot match any future kill either.
+    const windowStart = killTimeMs - KILL_WINDOW_MS;
+    let pruneCount = 0;
+    while (pruneCount < this.available.length && (this.available[pruneCount]?.timestampMs ?? 0) < windowStart) {
+      pruneCount++;
+    }
+    if (pruneCount > 0) {
+      this.available.splice(0, pruneCount);
+    }
+
     let bestIdx = -1;
     let bestTs = -Infinity;
 
     for (let i = 0; i < this.available.length; i++) {
       const ev = this.available[i];
       if (ev == null) {
-        continue;
-      }
-      if (ev.timestampMs < killTimeMs - KILL_WINDOW_MS) {
         continue;
       }
       if (ev.timestampMs > killTimeMs) {

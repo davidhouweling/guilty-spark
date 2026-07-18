@@ -26,7 +26,7 @@ export const killMatrixEntrySchema = z.object({
   perfects: z.number().int().nonnegative().describe("Perfect medal kill count for this killer/victim pair"),
   weapons: z.array(
     z.object({
-      weaponId: z.string(),
+      weaponId: z.string().regex(/^[0-9A-F]{16}$/u),
       name: z.string(),
       count: z.number().int().nonnegative(),
     }),
