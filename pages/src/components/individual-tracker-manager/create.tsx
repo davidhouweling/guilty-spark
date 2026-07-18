@@ -102,6 +102,8 @@ function IndividualTrackerManagerPageInternal({
           tickerSettings={settingsSnapshot.tickerSettings}
           inSeriesShowSeriesTab={settingsSnapshot.inSeriesShowSeriesTab}
           matchmakingShowSummaryTab={settingsSnapshot.matchmakingShowSummaryTab}
+          inSeriesShowTabs={settingsSnapshot.inSeriesShowTabs}
+          matchmakingShowTabs={settingsSnapshot.matchmakingShowTabs}
           disableTeamPlayerNames={settingsSnapshot.disableTeamPlayerNames}
           inSeriesShowTicker={settingsSnapshot.inSeriesShowTicker}
           matchmakingShowTicker={settingsSnapshot.matchmakingShowTicker}
@@ -131,6 +133,12 @@ function IndividualTrackerManagerPageInternal({
           }}
           onMatchmakingShowSummaryTabChange={(enabled): void => {
             settingsPresenter.setMatchmakingShowSummaryTab(enabled);
+          }}
+          onInSeriesShowTabsChange={(enabled): void => {
+            settingsPresenter.setInSeriesShowTabs(enabled);
+          }}
+          onMatchmakingShowTabsChange={(enabled): void => {
+            settingsPresenter.setMatchmakingShowTabs(enabled);
           }}
           onDisableTeamPlayerNamesChange={(enabled): void => {
             settingsPresenter.setDisableTeamPlayerNames(enabled);
