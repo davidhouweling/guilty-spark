@@ -108,10 +108,15 @@ function buildSeriesViewModel({
   const seriesPlayers = seriesController.getPlayers();
   const playersByGamertag = new Map(seriesPlayers.map((player) => [player.gamertag, player]));
   const resolvedSeriesPlayers = seriesTotals.playerData
-    .flatMap((teamData) => teamData.players.map((player) => playersByGamertag.get(player.name.replace(GAMES_SUFFIX_RE, ""))))
+    .flatMap((teamData) =>
+      teamData.players.map((player) => playersByGamertag.get(player.name.replace(GAMES_SUFFIX_RE, ""))),
+    )
     .filter((player): player is KillMatrixPlayer => player != null);
-  const orderedSeriesPlayers = resolvedSeriesPlayers.length === seriesPlayers.length ? resolvedSeriesPlayers : seriesPlayers;
-  const playersByXuid = new Map(seriesPlayers.map((player) => [player.xuid, { gamertag: player.gamertag, teamId: player.teamId }]));
+  const orderedSeriesPlayers =
+    resolvedSeriesPlayers.length === seriesPlayers.length ? resolvedSeriesPlayers : seriesPlayers;
+  const playersByXuid = new Map(
+    seriesPlayers.map((player) => [player.xuid, { gamertag: player.gamertag, teamId: player.teamId }]),
+  );
   const killMatrixFormatter = new KillMatrixFormatter();
 
   const metadata = calculateSeriesMetadata(
@@ -185,7 +190,9 @@ function buildSeriesViewModel({
         const matchPlayers = matchController.getPlayers();
         const matchPlayersByGamertag = new Map(matchPlayers.map((player) => [player.gamertag, player]));
         const resolvedPlayers = data
-          .flatMap((teamData) => teamData.players.map((player) => matchPlayersByGamertag.get(player.name.replace(GAMES_SUFFIX_RE, ""))))
+          .flatMap((teamData) =>
+            teamData.players.map((player) => matchPlayersByGamertag.get(player.name.replace(GAMES_SUFFIX_RE, ""))),
+          )
           .filter((player): player is KillMatrixPlayer => player != null);
         orderedPlayers = resolvedPlayers.length === matchPlayers.length ? resolvedPlayers : matchPlayers;
       } catch {
@@ -193,8 +200,7 @@ function buildSeriesViewModel({
       }
     }
 
-    const killMatrixRows =
-      analytics != null ? killMatrixFormatter.present({ analytics, playersByXuid }) : null;
+    const killMatrixRows = analytics != null ? killMatrixFormatter.present({ analytics, playersByXuid }) : null;
     if (killMatrixRows != null) {
       matchKillMatrixRows.set(m.matchId, killMatrixRows);
     }
@@ -238,8 +244,10 @@ function buildSeriesViewModel({
   const aggregatedKillMatrixRows = KillMatrixFormatter.aggregate(
     [...matchKillMatrixRows.values()].flatMap((rows) => rows),
   );
-  const aggregatedCrossTeam = KillMatrixFormatter.buildCrossTeam(aggregatedKillMatrixRows, orderedSeriesPlayers);
   const hasAggregatedKillMatrix = matchKillMatrixRows.size > 0;
+  const aggregatedCrossTeam = hasAggregatedKillMatrix
+    ? KillMatrixFormatter.buildCrossTeam(aggregatedKillMatrixRows, orderedSeriesPlayers)
+    : null;
 
   const seriesStatsWithAnalytics: SeriesStatsSummary = {
     ...seriesStats,

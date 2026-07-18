@@ -194,11 +194,9 @@ describe("useIndividualTrackerViewer", () => {
     });
 
     let resolveAnalytics: ((value: Record<string, MatchAnalytics | null>) => void) | undefined;
-    const analyticsPromise = new Promise<Record<string, MatchAnalytics | null>>(
-      (resolve) => {
-        resolveAnalytics = resolve;
-      },
-    );
+    const analyticsPromise = new Promise<Record<string, MatchAnalytics | null>>((resolve) => {
+      resolveAnalytics = resolve;
+    });
     vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics").mockImplementation(async () => analyticsPromise);
 
     const { result } = renderHook(() =>
@@ -781,6 +779,72 @@ describe("useIndividualTrackerViewer", () => {
       expect(state.state.viewModel.seriesStats?.killMatrixStatus).toBe(ComponentLoaderStatus.LOADED);
       expect(state.state.viewModel.matchDetails[0]?.killMatrixStatus).toBe(ComponentLoaderStatus.LOADED);
     }
+  });
+
+  it("keeps series cross-team kill matrix empty when analytics contain no kill-matrix rows", async () => {
+    const matchIds = ["m-1", "m-2"];
+    const matches = matchIds.map((matchId) => aFakeTrackerMatchSummaryWith({ matchId }));
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
+      view: aFakeTrackerViewStateWith({
+        trackerId: "tracker-1",
+        status: "active",
+        matches,
+        series: [aFakeTrackerSeriesGroupWith({ id: "series-1", title: "Series With Empty Analytics", matchIds })],
+      }),
+    });
+    const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
+    vi.spyOn(seriesMatchesService, "getSeriesMatches").mockResolvedValue({
+      playerXuidToGametag: {},
+      matches: matchIds.map((matchId) => ({
+        matchId,
+        gameTypeAndMap: "Slayer: Live Fire",
+        gameVariantCategory: 0,
+        gameType: "Slayer",
+        gameMap: "Live Fire",
+        gameMapThumbnailUrl: "data:",
+        duration: "10m 00s",
+        gameScore: "50:45",
+        gameSubScore: null,
+        startTime: "2026-01-01T00:00:00.000Z",
+        endTime: "2026-01-01T00:10:00.000Z",
+        rawMatch: {},
+      })),
+    });
+    vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics").mockImplementation(async (ids) =>
+      Object.fromEntries(ids.map((id) => [id, null])),
+    );
+
+    const { result } = renderHook(() =>
+      useIndividualTrackerViewer({
+        individualTrackerViewService,
+        matchAnalyticsService,
+        seriesMatchesService,
+        medalMetadataResolver,
+        trackerId: "tracker-1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+    });
+
+    const seriesItem = result.current.model.renderModel?.timeline.find((item) => item.type === "series");
+    expect(seriesItem?.type).toBe("series");
+
+    act(() => {
+      if (seriesItem?.type === "series") {
+        result.current.onToggleEntry(seriesItem);
+      }
+    });
+
+    await waitFor(() => {
+      const state = result.current.snapshot.entryStates.get("series:series-1");
+      expect(state?.kind).toBe("series");
+      if (state?.kind === "series" && state.state.status === "loaded") {
+        expect(state.state.viewModel.seriesStats?.crossTeamKillMatrixData).toBeNull();
+        expect(state.state.viewModel.seriesStats?.swappedCrossTeamKillMatrixData).toBeNull();
+      }
+    });
   });
 
   it("retries a series load after an error when the entry is collapsed and re-expanded", async () => {
