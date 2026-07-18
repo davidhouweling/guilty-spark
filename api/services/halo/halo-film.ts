@@ -35,7 +35,6 @@ type WeaponTimeline = Map<number, Map<number, { weaponId: string; name: string }
 interface ChunkTiming {
   chunkIndex: number;
   startMs: number;
-  endMs: number;
 }
 interface FilmAttributionData {
   attributor: WeaponAttributor;
@@ -282,7 +281,7 @@ export class HaloFilmService {
       if (chunkState.size > 0) {
         timeline.set(chunk.Index, chunkState);
       }
-      chunkTimings.push({ chunkIndex: chunk.Index, startMs, endMs: startMs + chunk.DurationMilliseconds });
+      chunkTimings.push({ chunkIndex: chunk.Index, startMs });
     }
     return { fireEvents: allFireEvents, timeline, chunkTimings };
   }
