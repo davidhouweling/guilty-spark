@@ -493,6 +493,7 @@ export function IndividualTrackerViewer({
                             transposedKillMatrixPivotData={state.state.transposedKillMatrixPivotData}
                             crossTeamData={state.state.crossTeamKillMatrixData}
                             swappedCrossTeamData={state.state.swappedCrossTeamKillMatrixData}
+                            killMatrixStatus={state.state.killMatrixStatus}
                             scoreProgressionViewData={state.state.scoreProgressionViewData}
                             showHeader={false}
                           />

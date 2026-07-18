@@ -8,6 +8,7 @@ import {
   aFakeMatchStatsDataWith,
   aFakeMatchStatsPlayerDataWith,
 } from "../../../controllers/stats/fakes/component-data";
+import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { ScoreProgressionViewData } from "../score-progression/types";
 
@@ -273,5 +274,31 @@ describe("MatchStats", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Kill Matrix" }));
 
     expect(screen.getByText("Kill matrix data is not available for this match yet.")).toBeInTheDocument();
+  });
+
+  it("shows timeline tab with loading state while analytics is loading", () => {
+    const data = [aFakeMatchStatsDataWith({ teamId: 0 })];
+
+    render(
+      <MatchStats
+        data={data}
+        id="match-1"
+        backgroundImageUrl="https://example.com/bg.jpg"
+        gameModeIconUrl="https://example.com/icon.png"
+        gameModeAlt="Slayer"
+        matchNumber={1}
+        gameTypeAndMap="Slayer: Aquarius"
+        duration="10m 30s"
+        score="50:49"
+        startTime="2024-01-01T00:00:00.000Z"
+        endTime="2024-01-01T00:10:30.000Z"
+        scoreProgressionViewData={null}
+        killMatrixStatus={ComponentLoaderStatus.LOADING}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Timeline" }));
+
+    expect(screen.getByText("Loading timeline...")).toBeInTheDocument();
   });
 });

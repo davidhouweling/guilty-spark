@@ -1,6 +1,7 @@
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import { describe, expect, it, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
+import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
 import { HaloMedalMetadataResolver } from "../../../../services/halo/medal-metadata-resolver";
@@ -136,6 +137,48 @@ describe("OverlayPagePresenter", () => {
     const model = presenter.present(store.getSnapshot());
     expect(model.matchStatsState?.status).toBe("loaded");
     expect(model.matchStatsPanelState?.status).toBe("loaded");
+  });
+
+  it("loads overlay stats before analytics resolves", async () => {
+    const store = new OverlayPageStore();
+    const haloClient = aFakeHaloClientWith({
+      getMatchStats: vi.fn(async () => Promise.resolve(aFakeMatchStatsWith({ MatchId: "match-1" }))),
+      getUsers: vi.fn(async (xuids: string[]) => Promise.resolve(aUsersFor(xuids))),
+    });
+
+    const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
+    let resolveAnalytics: ((value: Record<string, null>) => void) | undefined;
+    const analyticsPromise = new Promise<Record<string, null>>((resolve) => {
+      resolveAnalytics = resolve;
+    });
+    vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics").mockImplementation(async () => analyticsPromise);
+
+    const presenter = new OverlayPagePresenter({
+      store,
+      haloClient,
+      medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
+      matchAnalyticsService,
+    });
+
+    presenter.selectMatch("match-1");
+
+    await waitFor(() => {
+      const state = store.getSnapshot().matchStatsByMatchId.get("match-1");
+      expect(state?.status).toBe("loaded");
+      if (state?.status === "loaded") {
+        expect(state.analyticsStatus).toBe(ComponentLoaderStatus.LOADING);
+      }
+    });
+
+    resolveAnalytics?.({ "match-1": null });
+
+    await waitFor(() => {
+      const state = store.getSnapshot().matchStatsByMatchId.get("match-1");
+      expect(state?.status).toBe("loaded");
+      if (state?.status === "loaded") {
+        expect(state.analyticsStatus).toBe(ComponentLoaderStatus.LOADED);
+      }
+    });
   });
 
   it("resolves medal metadata from the proxied medals file and caches it across loads", async () => {

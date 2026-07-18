@@ -1,7 +1,7 @@
 import type { MatchStats } from "halo-infinite-api";
 import React from "react";
 import classNames from "classnames";
-import type { ComponentLoaderStatus } from "../component-loader/component-loader";
+import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
 import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";
 import { TabbedSection } from "../tabbed-section/tabbed-section";
@@ -9,6 +9,8 @@ import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
 import type { TeamColor } from "../team-colors/team-colors";
 import { Container } from "../container/container";
+import { Alert } from "../alert/alert";
+import { LoadingState } from "../loading-state/loading-state";
 import {
   EMPTY_KILL_MATRIX_PIVOT_DATA,
   type KillMatrixCrossTeamData,
@@ -68,8 +70,13 @@ export function MatchStats({
   showHeader = true,
 }: MatchStatsProps): React.ReactElement {
   const [activeTab, setActiveTab] = React.useState<"players" | "timeline" | "kill-matrix">("players");
+  const hasTimelineTab =
+    scoreProgressionViewData != null ||
+    killMatrixStatus === ComponentLoaderStatus.LOADING ||
+    killMatrixStatus === ComponentLoaderStatus.PENDING ||
+    killMatrixStatus === ComponentLoaderStatus.ERROR;
   const safeActiveTab: "players" | "timeline" | "kill-matrix" =
-    activeTab === "timeline" && scoreProgressionViewData == null ? "players" : activeTab;
+    activeTab === "timeline" && !hasTimelineTab ? "players" : activeTab;
   const ScoreProgressionComponent = React.useMemo(() => createScoreProgression(), []);
   const hasTeamStats = data.length > 0 && data[0].teamStats.length > 0;
 
@@ -274,20 +281,28 @@ export function MatchStats({
               />
             ),
           },
-          ...(scoreProgressionViewData != null
+          ...(hasTimelineTab
             ? [
                 {
                   id: "timeline" as const,
                   label: "Timeline",
-                  content: (
-                    <ScoreProgressionComponent
-                      durationMs={scoreProgressionViewData.durationMs}
-                      teamLines={scoreProgressionViewData.teamLines}
-                      scoreDelta={scoreProgressionViewData.scoreDelta}
-                      playerAdvantage={scoreProgressionViewData.playerAdvantage}
-                      ariaLabel="Match score progression timeline"
-                    />
-                  ),
+                  content:
+                    scoreProgressionViewData != null ? (
+                      <ScoreProgressionComponent
+                        durationMs={scoreProgressionViewData.durationMs}
+                        teamLines={scoreProgressionViewData.teamLines}
+                        scoreDelta={scoreProgressionViewData.scoreDelta}
+                        playerAdvantage={scoreProgressionViewData.playerAdvantage}
+                        ariaLabel="Match score progression timeline"
+                      />
+                    ) : (
+                      <ComponentLoader
+                        status={killMatrixStatus ?? ComponentLoaderStatus.LOADING}
+                        loading={<LoadingState text="Loading timeline..." />}
+                        error={<Alert variant="warning">Failed to load timeline data for this match.</Alert>}
+                        loaded={<Alert variant="info">Timeline data is not available for this match.</Alert>}
+                      />
+                    ),
                 },
               ]
             : []),
