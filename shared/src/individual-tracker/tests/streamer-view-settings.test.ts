@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_STREAMER_VIEW_SETTINGS,
   INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
+  parseStreamerViewSettings,
   withStreamerViewSettingsDefaults,
 } from "../streamer-view-settings";
 
@@ -40,5 +41,33 @@ describe("withStreamerViewSettingsDefaults()", () => {
     expect(settings.visibleSections?.showTabs).toBe(false);
     expect(settings.styleFlags?.inSeriesShowTabs).toBeUndefined();
     expect(settings.styleFlags?.matchmakingShowTabs).toBeUndefined();
+  });
+});
+
+describe("parseStreamerViewSettings()", () => {
+  it("drops invalid maxPreviousGamesToShow while preserving other visibleSections settings", () => {
+    const settings = parseStreamerViewSettings({
+      StyleFlagsJson: "{}",
+      VisibleSectionsJson: JSON.stringify({
+        showTabs: false,
+        maxPreviousGamesToShow: 99,
+      }),
+      LayoutOptionsJson: "{}",
+    });
+
+    expect(settings.visibleSections?.showTabs).toBe(false);
+    expect(settings.visibleSections?.maxPreviousGamesToShow).toBeUndefined();
+  });
+
+  it("keeps valid maxPreviousGamesToShow values", () => {
+    const settings = parseStreamerViewSettings({
+      StyleFlagsJson: "{}",
+      VisibleSectionsJson: JSON.stringify({
+        maxPreviousGamesToShow: 12,
+      }),
+      LayoutOptionsJson: "{}",
+    });
+
+    expect(settings.visibleSections?.maxPreviousGamesToShow).toBe(12);
   });
 });

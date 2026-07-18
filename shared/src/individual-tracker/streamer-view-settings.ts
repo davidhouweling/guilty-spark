@@ -31,6 +31,8 @@ export type IndividualStatsHighlightOption =
 
 export const INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT = 6;
 export const INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT = 8;
+const MIN_PREVIOUS_GAMES_TO_SHOW = 1;
+const MAX_PREVIOUS_GAMES_TO_SHOW = 15;
 
 export type IndividualStatsHighlightOptionGroup = "individual" | "compact" | "profile";
 
@@ -112,7 +114,13 @@ export type StreamerViewLayoutOptions = z.infer<typeof streamerViewLayoutOptions
 export const streamerViewVisibleSectionsSchema = z.object({
   showTicker: z.boolean().optional(),
   showTabs: z.boolean().optional(),
-  maxPreviousGamesToShow: z.number().optional(),
+  maxPreviousGamesToShow: z
+    .number()
+    .int()
+    .min(MIN_PREVIOUS_GAMES_TO_SHOW)
+    .max(MAX_PREVIOUS_GAMES_TO_SHOW)
+    .optional()
+    .catch(undefined),
   showTeamDetails: z.boolean().optional(),
   showDiscordNames: z.boolean().optional(),
   showXboxNames: z.boolean().optional(),

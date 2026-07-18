@@ -27,8 +27,22 @@ export function TickerSettingsSection({
   showPreSeriesInfoToggle = true,
   onChange,
 }: TickerSettingsSectionProps): React.ReactElement {
+  const [maxPreviousGamesToShowInputValue, setMaxPreviousGamesToShowInputValue] = React.useState<string>(
+    settings.maxPreviousGamesToShow.toString(),
+  );
+
+  React.useEffect(() => {
+    setMaxPreviousGamesToShowInputValue(settings.maxPreviousGamesToShow.toString());
+  }, [settings.maxPreviousGamesToShow]);
+
   const handleMaxPreviousGamesToShowChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
-    const value = Number.parseInt(event.target.value, 10);
+    const nextInputValue = event.target.value;
+    setMaxPreviousGamesToShowInputValue(nextInputValue);
+    if (nextInputValue.length === 0) {
+      return;
+    }
+
+    const value = Number.parseInt(nextInputValue, 10);
     if (Number.isNaN(value)) {
       return;
     }
@@ -71,7 +85,7 @@ export function TickerSettingsSection({
           type="number"
           min={MIN_PREVIOUS_GAMES_TO_SHOW}
           max={MAX_PREVIOUS_GAMES_TO_SHOW}
-          value={settings.maxPreviousGamesToShow.toString()}
+          value={maxPreviousGamesToShowInputValue}
           onChange={handleMaxPreviousGamesToShowChange}
           hint={`Minimum ${MIN_PREVIOUS_GAMES_TO_SHOW.toString()}, maximum ${MAX_PREVIOUS_GAMES_TO_SHOW.toString()}.`}
           containerClassName={styles.numberInput}
