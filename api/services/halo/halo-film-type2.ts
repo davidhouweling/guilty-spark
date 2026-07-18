@@ -6,8 +6,10 @@ import { KNOWN_WEAPON_IDS, COMMON_WEAPON_SUFFIX, lookupWeaponName, weaponIdToHex
 const FRAME_MARKER = Uint8Array.of(0xa0, 0x7b, 0x42);
 const UNIVERSAL_MARKER_BITS = 0b10100100110; // 11-bit marker preceding each fire event
 const UNIVERSAL_MARKER_LEN = 11;
+const MARKER_PREFIX_BITS = 3; // bits shared with the outer 11-bit marker before event-specific data starts
 const B5_BIT_OFFSET = 32; // bits from event_start → b5 byte (playerIndex<<4|slot)
 const WEAPON_BIT_OFFSET = 40; // bits from event_start → weapon_id (64-bit big-endian)
+const WEAPON_ID_BITS = 64;
 const DEDUP_PROXIMITY_BYTES = 2; // events within 2 bytes of each other are the same event
 const KILL_WINDOW_MS = 5_000; // max ms before kill to search for a fire event
 
@@ -30,11 +32,7 @@ function findFramePositions(data: Uint8Array): number[] {
   return positions;
 }
 
-function buildTimestampEstimator(
-  data: Uint8Array,
-  startMs: number,
-  durationMs: number,
-): (bytePos: number) => number {
+function buildTimestampEstimator(data: Uint8Array, startMs: number, durationMs: number): (bytePos: number) => number {
   const frames = findFramePositions(data);
   const frameDurMs = frames.length > 0 ? durationMs / frames.length : 16.67;
 
@@ -92,15 +90,14 @@ export function scanFireEvents(data: Uint8Array, startMs: number, durationMs: nu
   const estimateTimestamp = buildTimestampEstimator(data, startMs, durationMs);
   const events: FireEvent[] = [];
   const totalBits = data.length * 8;
-  // Need UNIVERSAL_MARKER_LEN bits for the marker + WEAPON_BIT_OFFSET + 64 bits for the weapon
-  const scanLimit = totalBits - UNIVERSAL_MARKER_LEN - WEAPON_BIT_OFFSET - 64;
+  const scanLimit = totalBits - UNIVERSAL_MARKER_LEN - WEAPON_BIT_OFFSET - WEAPON_ID_BITS;
 
   for (let bitPos = 0; bitPos <= scanLimit; bitPos++) {
     if (!matchMarkerAt(data, bitPos)) {
       continue;
     }
 
-    const eventStart = bitPos + 3; // skip the "101" prefix bits to reach event data
+    const eventStart = bitPos + MARKER_PREFIX_BITS;
     const weaponId = readUint64(data, eventStart + WEAPON_BIT_OFFSET);
 
     if (!KNOWN_WEAPON_IDS.has(weaponId) && (weaponId & 0xffff_ffffn) !== COMMON_WEAPON_SUFFIX) {

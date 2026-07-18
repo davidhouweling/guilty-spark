@@ -203,6 +203,8 @@ export class HaloFilmService {
       if (chunk.ChunkType === 2) {
         results.push({ chunk, startMs: cumulativeMs });
       }
+      // All chunk types advance the clock, not just type-2: startMs is an absolute match time
+      // offset calculated from the beginning of the full film, regardless of chunk type.
       cumulativeMs += chunk.DurationMilliseconds;
     }
     return results;
@@ -227,7 +229,9 @@ export class HaloFilmService {
         chunkBytes = await this.fetchBinary(url, authContext.spartanToken, authContext.clearanceToken);
         await this.putCachedChunk(chunkCacheRequest, chunkBytes);
       }
-      allFireEvents.push(...scanFireEvents(chunkBytes, startMs, chunk.DurationMilliseconds));
+      for (const ev of scanFireEvents(chunkBytes, startMs, chunk.DurationMilliseconds)) {
+        allFireEvents.push(ev);
+      }
     }
     return allFireEvents;
   }
