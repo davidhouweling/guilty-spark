@@ -425,22 +425,9 @@ export class HaloFilmService {
       entriesByPair.set(pairKey, existing);
 
       if (filmData != null) {
-        const playerIndex = xuidToPlayerIndex.get(killEvent.xuid) ?? null;
-        const weapon =
-          filmData.attributor.claim(playerIndex, killEvent.timeMs) ??
-          this.lookupFormulaAFallback(playerIndex, killEvent.timeMs, filmData);
+        const weapon = this.resolveKillWeapon(killEvent, filmData, xuidToPlayerIndex);
         if (weapon != null) {
-          let pairWeapons = weaponCountsByPair.get(pairKey);
-          if (pairWeapons == null) {
-            pairWeapons = new Map();
-            weaponCountsByPair.set(pairKey, pairWeapons);
-          }
-          const existingWeapon = pairWeapons.get(weapon.weaponId);
-          if (existingWeapon != null) {
-            existingWeapon.count += 1;
-          } else {
-            pairWeapons.set(weapon.weaponId, { name: weapon.name, count: 1 });
-          }
+          this.recordWeaponCount(pairKey, weapon, weaponCountsByPair);
         }
       }
     }
@@ -455,6 +442,36 @@ export class HaloFilmService {
     }
 
     return { entries: Array.from(entriesByPair.values()), maxTimeDeltaMs, usedDeathCount: usedDeathIndexes.size };
+  }
+
+  private resolveKillWeapon(
+    killEvent: ParsedHighlightEvent,
+    filmData: FilmAttributionData,
+    xuidToPlayerIndex: Map<string, number>,
+  ): { weaponId: string; name: string } | null {
+    const playerIndex = xuidToPlayerIndex.get(killEvent.xuid) ?? null;
+    return (
+      filmData.attributor.claim(playerIndex, killEvent.timeMs) ??
+      this.lookupFormulaAFallback(playerIndex, killEvent.timeMs, filmData)
+    );
+  }
+
+  private recordWeaponCount(
+    pairKey: string,
+    weapon: { weaponId: string; name: string },
+    weaponCountsByPair: Map<string, Map<string, { name: string; count: number }>>,
+  ): void {
+    let pairWeapons = weaponCountsByPair.get(pairKey);
+    if (pairWeapons == null) {
+      pairWeapons = new Map();
+      weaponCountsByPair.set(pairKey, pairWeapons);
+    }
+    const existing = pairWeapons.get(weapon.weaponId);
+    if (existing != null) {
+      existing.count += 1;
+    } else {
+      pairWeapons.set(weapon.weaponId, { name: weapon.name, count: 1 });
+    }
   }
 
   private lookupFormulaAFallback(

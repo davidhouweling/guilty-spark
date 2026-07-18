@@ -1,4 +1,4 @@
-import { KNOWN_WEAPON_IDS, COMMON_WEAPON_SUFFIX, lookupWeaponName, weaponIdToHex } from "./weapon-ids";
+import { KNOWN_WEAPON_IDS, hasCommonWeaponSuffix, lookupWeaponName, weaponIdToHex } from "./weapon-ids";
 
 // Fire event scanner for the type-2 (replication) film chunk.
 // Ported from LevelUp weapon_scanner.go (~/hobby/LevelUp).
@@ -105,7 +105,7 @@ export function scanFireEvents(data: Uint8Array, startMs: number, durationMs: nu
     const eventStart = bitPos + MARKER_PREFIX_BITS;
     const weaponId = readUint64(data, eventStart + WEAPON_BIT_OFFSET);
 
-    if (!KNOWN_WEAPON_IDS.has(weaponId) && (weaponId & 0xffff_ffffn) !== COMMON_WEAPON_SUFFIX) {
+    if (!KNOWN_WEAPON_IDS.has(weaponId) && !hasCommonWeaponSuffix(weaponId)) {
       continue;
     }
 
@@ -184,16 +184,18 @@ export function scanFormulaAEvents(data: Uint8Array): FormulaAEvent[] {
     const playerIndex = pb >> 5;
     const weaponDataStart = markerPos + FORMULA_A_PLAYER_BYTE_OFFSET + 1;
     const suffixPos = findBytePattern(data, COMMON_SUFFIX_BYTES, weaponDataStart, markerPos + FORMULA_A_SEARCH_WINDOW);
+    let nextPos = markerPos + FORMULA_A_PLAYER_BYTE_OFFSET + 1;
     if (suffixPos >= 0) {
       const weaponStart = suffixPos - WEAPON_SUFFIX_LENGTH;
       if (weaponStart >= weaponDataStart && weaponStart + 8 <= data.length) {
         const weaponId = readBigEndian64(data, weaponStart);
-        if (KNOWN_WEAPON_IDS.has(weaponId) || (weaponId & 0xffff_ffffn) === COMMON_WEAPON_SUFFIX) {
+        if (KNOWN_WEAPON_IDS.has(weaponId) || hasCommonWeaponSuffix(weaponId)) {
           events.push({ playerIndex, weaponId, weaponName: lookupWeaponName(weaponId) ?? "Unknown" });
+          nextPos = suffixPos + COMMON_SUFFIX_BYTES.length;
         }
       }
     }
-    pos = markerPos + FORMULA_A_PLAYER_BYTE_OFFSET + 1;
+    pos = nextPos;
   }
   return events;
 }
