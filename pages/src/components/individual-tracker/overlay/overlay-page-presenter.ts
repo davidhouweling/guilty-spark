@@ -9,9 +9,9 @@ import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { MatchDetailsState, ViewerTimelineItem } from "../viewer/types";
+import { formatScoreProgression } from "../../stats/score-progression/score-progression-formatter";
 import type { MatchStatsState } from "./individual-tracker-overlay-presenter";
 import type { OverlayPageSnapshot, OverlayPageStore } from "./overlay-page-store";
-import { formatScoreProgression } from "../../stats/score-progression/score-progression-formatter";
 
 interface OverlayPagePresenterConfig {
   readonly store: OverlayPageStore;
@@ -117,16 +117,7 @@ export class OverlayPagePresenter {
 
       const xuids = stats.Players.filter((player) => player.PlayerType === 1).map((player) => getPlayerXuid(player));
 
-      const analyticsPromise = this.config.matchAnalyticsService
-        .getBatchMatchAnalytics([matchId], ["killMatrix", "scoreProgression"])
-        .then((analyticsByMatchId): OverlayAnalyticsLoadResult => ({
-          status: ComponentLoaderStatus.LOADED,
-          analyticsByMatchId,
-        }))
-        .catch((): OverlayAnalyticsLoadResult => ({
-          status: ComponentLoaderStatus.ERROR,
-          analyticsByMatchId: {},
-        }));
+      const analyticsPromise = this.loadMatchAnalyticsAsync(matchId);
 
       const [users, medalMetadata] = await Promise.all([
         this.config.haloClient.getUsers(xuids).catch(() => []),
@@ -175,6 +166,25 @@ export class OverlayPagePresenter {
         status: "error",
         message: "Failed to load match stats",
       });
+    }
+  }
+
+  private async loadMatchAnalyticsAsync(matchId: string): Promise<OverlayAnalyticsLoadResult> {
+    try {
+      const analyticsByMatchId = await this.config.matchAnalyticsService.getBatchMatchAnalytics(
+        [matchId],
+        ["killMatrix", "scoreProgression"],
+      );
+
+      return {
+        status: ComponentLoaderStatus.LOADED,
+        analyticsByMatchId,
+      };
+    } catch {
+      return {
+        status: ComponentLoaderStatus.ERROR,
+        analyticsByMatchId: {},
+      };
     }
   }
 
