@@ -1,10 +1,10 @@
 import type { AutoRouterType } from "itty-router";
 import type { MockInstance } from "vitest";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LogService } from "../../../services/log/types";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
-import type { AnalyticsService } from "../../../services/analytics/analytics";
+import { AnalyticsService, type AnalyticsService as AnalyticsServiceInstance } from "../../../services/analytics/analytics";
 import { aFakeMatchAnalyticsWith } from "../../../services/analytics/fakes/analytics.fake";
 import { aFakeIndividualTrackersRow } from "../../../services/database/fakes/database.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
@@ -19,11 +19,15 @@ describe("/api/stats/match-analytics (batch)", () => {
     router = createApiRouter();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("returns results keyed by matchId with no-store cache header", async () => {
     const analytics = aFakeMatchAnalyticsWith();
 
     const services = installFakeServicesWith({ env });
-    const getBatchMatchAnalyticsSpy: MockInstance<AnalyticsService["getBatchMatchAnalytics"]> = vi.spyOn(
+    const getBatchMatchAnalyticsSpy: MockInstance<AnalyticsServiceInstance["getBatchMatchAnalytics"]> = vi.spyOn(
       services.analyticsService,
       "getBatchMatchAnalytics",
     );
@@ -114,7 +118,7 @@ describe("/api/stats/match-analytics (batch)", () => {
     const analytics = aFakeMatchAnalyticsWith();
 
     const services = installFakeServicesWith({ env });
-    const getBatchMatchAnalyticsSpy: MockInstance<AnalyticsService["getBatchMatchAnalytics"]> = vi.spyOn(
+    const getBatchMatchAnalyticsSpy: MockInstance<AnalyticsServiceInstance["getBatchMatchAnalytics"]> = vi.spyOn(
       services.analyticsService,
       "getBatchMatchAnalytics",
     );
@@ -245,7 +249,10 @@ describe("/api/stats/match-analytics (batch)", () => {
       aFakeIndividualTrackersRow({ TrackerId: "tracker-1", UserId: "owner-user-1", IsLive: 1 }),
     );
     vi.spyOn(services.userTokenProvider, "getClientForUser").mockResolvedValue(services.haloInfiniteClient);
-    vi.spyOn(services.authService, "getMicrosoftAccessTokenForUser").mockResolvedValue(null); // No access token
+    const getMicrosoftAccessTokenSpy = vi
+      .spyOn(services.authService, "getMicrosoftAccessTokenForUser")
+      .mockResolvedValue(null);
+    const exchangeSpy = vi.spyOn(services.xboxService, "exchangeMicrosoftAccessTokenForXstsToken");
     vi.spyOn(services.analyticsService, "getBatchMatchAnalytics").mockResolvedValue({ "match-1": analytics });
 
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
@@ -260,6 +267,8 @@ describe("/api/stats/match-analytics (batch)", () => {
     // Should use the bot analytics service (no custom analytics service created)
     const body = await response.json();
     expect(body).toEqual({ results: { "match-1": analytics } });
+    expect(getMicrosoftAccessTokenSpy).toHaveBeenCalledWith("owner-user-1");
+    expect(exchangeSpy).not.toHaveBeenCalled();
   });
 
   it("attempts user credential resolution when tracker is live", async () => {
@@ -270,22 +279,47 @@ describe("/api/stats/match-analytics (batch)", () => {
     vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(
       aFakeIndividualTrackersRow({ TrackerId: "tracker-1", UserId: ownerUserId, IsLive: 1 }),
     );
-    vi.spyOn(services.userTokenProvider, "getClientForUser").mockResolvedValue(null); // User client unavailable
-    const analyticsspy = vi.spyOn(services.analyticsService, "getBatchMatchAnalytics");
-    analyticsspy.mockResolvedValue({ "match-1": analytics });
+    vi.spyOn(services.userTokenProvider, "getClientForUser").mockResolvedValue(services.haloInfiniteClient);
+    const getMicrosoftAccessTokenSpy = vi
+      .spyOn(services.authService, "getMicrosoftAccessTokenForUser")
+      .mockResolvedValue("owner-access-token");
+    const exchangeSpy = vi.spyOn(services.xboxService, "exchangeMicrosoftAccessTokenForXstsToken").mockResolvedValue({
+      XSTSToken: "owner-xsts-token",
+      userHash: "owner-user-hash",
+      expiresOn: new Date("2030-01-01T00:00:00.000Z"),
+    });
+    const botAnalyticsSpy = vi.spyOn(services.analyticsService, "getBatchMatchAnalytics");
+    const logWarnSpy: MockInstance<LogService["warn"]> = vi.spyOn(services.logService, "warn");
+    const analyticsServiceGetBatchMatchAnalyticsSpy: MockInstance<
+      AnalyticsServiceInstance["getBatchMatchAnalytics"]
+    > = vi.spyOn(AnalyticsService.prototype, "getBatchMatchAnalytics");
+    analyticsServiceGetBatchMatchAnalyticsSpy.mockResolvedValue({
+      "match-1": analytics,
+      "match-2": null,
+    });
 
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
     statsRoutesRegisterHandler(router, localInstallServices);
 
     const response = (await router.fetch(
-      new Request("http://localhost/api/stats/match-analytics?matchIds=match-1&trackerId=tracker-1"),
+      new Request("http://localhost/api/stats/match-analytics?matchIds=match-1,match-2&modules=killMatrix&trackerId=tracker-1"),
       env,
     )) as Response;
 
     expect(response.status).toBe(200);
-    // Verifies that we tried to get user client and fell back to bot service
+    expect(getMicrosoftAccessTokenSpy).toHaveBeenCalledWith(ownerUserId);
+    expect(exchangeSpy).toHaveBeenCalledWith("owner-access-token");
     expect(services.userTokenProvider.getClientForUser).toHaveBeenCalledWith(ownerUserId);
+    expect(botAnalyticsSpy).not.toHaveBeenCalled();
+    expect(analyticsServiceGetBatchMatchAnalyticsSpy).toHaveBeenCalledWith(["match-1", "match-2"], ["killMatrix"]);
     const body = await response.json();
-    expect(body).toEqual({ results: { "match-1": analytics } });
+    expect(body).toEqual({ results: { "match-1": analytics, "match-2": null } });
+    expect(logWarnSpy).toHaveBeenCalledWith(
+      "1/2 match analytics fetches failed",
+      new Map([
+        ["route", "stats:match-analytics-batch"],
+        ["credentialSource", `user:${ownerUserId}`],
+      ]),
+    );
   });
 });

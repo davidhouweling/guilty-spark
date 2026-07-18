@@ -38,11 +38,14 @@ export class HaloFilmService {
   private readonly env: Env;
   private readonly spartanTokenProvider: CustomSpartanTokenProvider;
   private readonly fetchFn: typeof globalThis.fetch | undefined;
+  private readonly clearanceCacheKey: string;
 
-  constructor({ env, spartanTokenProvider, fetch: fetchFn }: HaloFilmServiceOpts) {
+  constructor({ env, spartanTokenProvider, fetch: fetchFn, kvKeyNamespace }: HaloFilmServiceOpts) {
     this.env = env;
     this.spartanTokenProvider = spartanTokenProvider;
     this.fetchFn = fetchFn;
+    this.clearanceCacheKey =
+      kvKeyNamespace != null ? `${kvKeyNamespace}:clearance` : HaloFilmService.CLEARANCE_CACHE_KEY;
   }
 
   private async callFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -416,7 +419,7 @@ export class HaloFilmService {
   private async resolveAuthContext(): Promise<{ spartanToken: string; clearanceToken: string }> {
     const spartanToken = await this.spartanTokenProvider.getSpartanToken();
 
-    const cachedClearance = await this.env.APP_DATA.get(HaloFilmService.CLEARANCE_CACHE_KEY);
+    const cachedClearance = await this.env.APP_DATA.get(this.clearanceCacheKey);
     if (cachedClearance != null) {
       return { spartanToken, clearanceToken: cachedClearance };
     }
@@ -447,7 +450,7 @@ export class HaloFilmService {
       clearanceToken = fallbackClearance.FlightConfigurationId;
     }
 
-    await this.env.APP_DATA.put(HaloFilmService.CLEARANCE_CACHE_KEY, clearanceToken, {
+    await this.env.APP_DATA.put(this.clearanceCacheKey, clearanceToken, {
       expirationTtl: HaloFilmService.CLEARANCE_CACHE_TTL_SECONDS,
     });
 

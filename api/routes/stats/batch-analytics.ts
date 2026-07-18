@@ -34,22 +34,22 @@ export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installS
           const userClient = await userTokenProvider.getClientForUser(tracker.UserId);
           if (userClient != null) {
             const userHaloService = haloService.withUserClient(userClient);
-
-            // Get user's XSTS token for the film service
             const accessToken = await authService.getMicrosoftAccessTokenForUser(tracker.UserId);
             if (accessToken != null) {
               const xstsTokenInfo = await xboxService.exchangeMicrosoftAccessTokenForXstsToken(accessToken);
               const userSpartanTokenProvider = new StaticXstsTicketTokenSpartanTokenProvider(
                 xstsTokenInfo.XSTSToken,
               );
+              const userFilmCacheNamespace = `halo:film:${tracker.UserId}`;
               const userFilmService = new HaloFilmService({
                 env,
                 spartanTokenProvider: userSpartanTokenProvider,
+                kvKeyNamespace: userFilmCacheNamespace,
                 fetch: createResilientFetch({
                   env,
                   logService,
                   proxyUrl: env.PROXY_WORKER_URL,
-                  kvKeyNamespace: "halo:film",
+                  kvKeyNamespace: userFilmCacheNamespace,
                 }),
               });
               resolvedAnalyticsService = new AnalyticsService({
