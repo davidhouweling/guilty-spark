@@ -78,7 +78,10 @@ describe("/api/stats/match-analytics (batch)", () => {
     expect(logWarnSpy).toHaveBeenCalledOnce();
     expect(logWarnSpy).toHaveBeenCalledWith(
       "1/2 match analytics fetches failed",
-      new Map([["route", "stats:match-analytics-batch"]]),
+      new Map([
+        ["route", "stats:match-analytics-batch"],
+        ["credentialSource", "bot"],
+      ]),
     );
   });
 
@@ -207,5 +210,82 @@ describe("/api/stats/match-analytics (batch)", () => {
         ["trackerId", "tracker-1"],
       ]),
     );
+  });
+
+  it("includes credentialSource as 'bot' in failure warning when using bot credentials", async () => {
+    const services = installFakeServicesWith({ env });
+    vi.spyOn(services.analyticsService, "getBatchMatchAnalytics").mockResolvedValue({
+      "match-ok": aFakeMatchAnalyticsWith(),
+      "match-fail": null,
+    });
+    const logWarnSpy: MockInstance<LogService["warn"]> = vi.spyOn(services.logService, "warn");
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      new Request("http://localhost/api/stats/match-analytics?matchIds=match-ok,match-fail"),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(200);
+    expect(logWarnSpy).toHaveBeenCalledWith(
+      "1/2 match analytics fetches failed",
+      new Map([
+        ["route", "stats:match-analytics-batch"],
+        ["credentialSource", "bot"],
+      ]),
+    );
+  });
+
+  it("falls back to bot credentials when user access token is not available", async () => {
+    const analytics = aFakeMatchAnalyticsWith();
+    const services = installFakeServicesWith({ env });
+
+    vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(
+      aFakeIndividualTrackersRow({ TrackerId: "tracker-1", UserId: "owner-user-1", IsLive: 1 }),
+    );
+    vi.spyOn(services.userTokenProvider, "getClientForUser").mockResolvedValue(services.haloInfiniteClient);
+    vi.spyOn(services.authService, "getMicrosoftAccessTokenForUser").mockResolvedValue(null); // No access token
+    vi.spyOn(services.analyticsService, "getBatchMatchAnalytics").mockResolvedValue({ "match-1": analytics });
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      new Request("http://localhost/api/stats/match-analytics?matchIds=match-1&trackerId=tracker-1"),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(200);
+    // Should use the bot analytics service (no custom analytics service created)
+    const body = await response.json();
+    expect(body).toEqual({ results: { "match-1": analytics } });
+  });
+
+  it("attempts user credential resolution when tracker is live", async () => {
+    const analytics = aFakeMatchAnalyticsWith();
+    const services = installFakeServicesWith({ env });
+    const ownerUserId = "owner-user-1";
+
+    vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(
+      aFakeIndividualTrackersRow({ TrackerId: "tracker-1", UserId: ownerUserId, IsLive: 1 }),
+    );
+    vi.spyOn(services.userTokenProvider, "getClientForUser").mockResolvedValue(null); // User client unavailable
+    const analyticsspy = vi.spyOn(services.analyticsService, "getBatchMatchAnalytics");
+    analyticsspy.mockResolvedValue({ "match-1": analytics });
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      new Request("http://localhost/api/stats/match-analytics?matchIds=match-1&trackerId=tracker-1"),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(200);
+    // Verifies that we tried to get user client and fell back to bot service
+    expect(services.userTokenProvider.getClientForUser).toHaveBeenCalledWith(ownerUserId);
+    const body = await response.json();
+    expect(body).toEqual({ results: { "match-1": analytics } });
   });
 });

@@ -1,16 +1,19 @@
+import { StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
 import { parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
 import {
   batchMatchAnalyticsContract,
   batchMatchAnalyticsQuerySchema,
 } from "@guilty-spark/shared/contracts/stats/batch-match-analytics";
 import { AnalyticsService } from "../../services/analytics/analytics";
+import { HaloFilmService } from "../../services/halo/halo-film";
+import { createResilientFetch } from "../../services/halo/resilient-fetch";
 import type { RoutesRegisterHandler } from "../base/types";
 import { normalizeTrackerId } from "./normalize-tracker-id";
 
 export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/stats/match-analytics", async (request, env: Env) => {
     const services = installServices({ env });
-    const { haloService, haloFilmService, logService, databaseService, userTokenProvider } = services;
+    const { haloService, logService, databaseService, userTokenProvider, authService, xboxService } = services;
 
     const url = new URL(request.url);
     const queryParams = parseQueryParams(url, batchMatchAnalyticsQuerySchema, "Invalid query parameters");
@@ -23,6 +26,7 @@ export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installS
     const trackerId = normalizeTrackerId(url.searchParams.get("trackerId"));
 
     let resolvedAnalyticsService = services.analyticsService;
+    let credentialSource = "bot";
     if (trackerId != null) {
       try {
         const tracker = await databaseService.getIndividualTracker(trackerId);
@@ -30,11 +34,31 @@ export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installS
           const userClient = await userTokenProvider.getClientForUser(tracker.UserId);
           if (userClient != null) {
             const userHaloService = haloService.withUserClient(userClient);
-            resolvedAnalyticsService = new AnalyticsService({
-              haloService: userHaloService,
-              haloFilmService,
-              logService,
-            });
+
+            // Get user's XSTS token for the film service
+            const accessToken = await authService.getMicrosoftAccessTokenForUser(tracker.UserId);
+            if (accessToken != null) {
+              const xstsTokenInfo = await xboxService.exchangeMicrosoftAccessTokenForXstsToken(accessToken);
+              const userSpartanTokenProvider = new StaticXstsTicketTokenSpartanTokenProvider(
+                xstsTokenInfo.XSTSToken,
+              );
+              const userFilmService = new HaloFilmService({
+                env,
+                spartanTokenProvider: userSpartanTokenProvider,
+                fetch: createResilientFetch({
+                  env,
+                  logService,
+                  proxyUrl: env.PROXY_WORKER_URL,
+                  kvKeyNamespace: "halo:film",
+                }),
+              });
+              resolvedAnalyticsService = new AnalyticsService({
+                haloService: userHaloService,
+                haloFilmService: userFilmService,
+                logService,
+              });
+              credentialSource = `user:${tracker.UserId}`;
+            }
           }
         }
       } catch (error) {
@@ -54,7 +78,10 @@ export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installS
     if (failureCount > 0) {
       services.logService.warn(
         `${failureCount.toString()}/${matchIds.length.toString()} match analytics fetches failed`,
-        new Map([["route", "stats:match-analytics-batch"]]),
+        new Map([
+          ["route", "stats:match-analytics-batch"],
+          ["credentialSource", credentialSource],
+        ]),
       );
     }
 
