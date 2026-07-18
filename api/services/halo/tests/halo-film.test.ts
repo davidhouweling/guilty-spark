@@ -1288,6 +1288,76 @@ describe("HaloFilmService", () => {
       expect(analytics.entries).toHaveLength(1);
       expect(analytics.entries[0]?.weapons).toEqual([{ weaponId: "2B1824D542C9679F", name: "BR75", count: 1 }]);
     });
+
+    it("decompresses zlib-compressed type-2 chunks before scanning fire events", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("fake-spartan-token");
+      await env.APP_DATA.put("film:clearance", "fake-clearance-token");
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+
+      const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[2]).PlayerId);
+      const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
+
+      const matchId = match.MatchId;
+      const filmMetadata = {
+        AssetId: "asset-id",
+        BlobStoragePathPrefix: "https://blob.example/",
+        CustomData: {
+          MatchId: matchId,
+          FilmMajorVersion: 42,
+          FilmLength: 10000,
+          Chunks: [
+            { Index: 0, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 15, FileRelativePath: "/chunk-0.bin" },
+          ],
+        },
+      };
+      await defaultCache().put(
+        metadataCacheRequestFor(matchId),
+        new Response(JSON.stringify(filmMetadata), {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/json" },
+        }),
+      );
+
+      const MA40_WEAPON_ID = 0x48c19d2d42c9679fn;
+      const rawFireEventBytes = buildFireEventBytes(0, 0, MA40_WEAPON_ID);
+      const compressedBytes = deflateSync(rawFireEventBytes);
+      await defaultCache().put(
+        chunkCacheRequestFor(matchId, 0),
+        new Response(compressedBytes, {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/octet-stream" },
+        }),
+      );
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 4000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 4000,
+          medalValue: 0,
+          teamId: null,
+        },
+      ]);
+
+      const analytics = await service.buildKillMatrixAnalytics(match);
+      expect(analytics.entries).toHaveLength(1);
+      expect(analytics.entries[0]?.weapons).toEqual([{ weaponId: "48C19D2D42C9679F", name: "MA40 AR", count: 1 }]);
+    });
   });
 
   describe("buildKillRaceProgression", () => {
