@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { aFakeMatchStatsWith, aFakeMedalMetadata } from "../../../../controllers/stats/fakes/data";
 import { gameModeIconSrc } from "../../game-mode-icon";
 import type {
@@ -975,6 +976,7 @@ describe("individual-tracker-overlay-presenter", () => {
             ]),
             medalMetadata: aFakeMedalMetadata(),
             analytics: null,
+            analyticsStatus: ComponentLoaderStatus.LOADED,
           },
         ],
       ]),
@@ -1018,6 +1020,7 @@ describe("individual-tracker-overlay-presenter", () => {
             ]),
             medalMetadata: aFakeMedalMetadata(),
             analytics: null,
+            analyticsStatus: ComponentLoaderStatus.LOADED,
           },
         ],
       ]),
@@ -1062,6 +1065,7 @@ describe("individual-tracker-overlay-presenter", () => {
             ]),
             medalMetadata: aFakeMedalMetadata(),
             analytics: null,
+            analyticsStatus: ComponentLoaderStatus.LOADED,
           },
         ],
       ]),
@@ -1101,6 +1105,7 @@ describe("individual-tracker-overlay-presenter", () => {
             ]),
             medalMetadata: aFakeMedalMetadata(),
             analytics: null,
+            analyticsStatus: ComponentLoaderStatus.LOADED,
           },
         ],
         [
@@ -1116,6 +1121,7 @@ describe("individual-tracker-overlay-presenter", () => {
             ]),
             medalMetadata: aFakeMedalMetadata(),
             analytics: null,
+            analyticsStatus: ComponentLoaderStatus.LOADED,
           },
         ],
       ]),
@@ -1160,6 +1166,7 @@ describe("individual-tracker-overlay-presenter", () => {
             ]),
             medalMetadata: aFakeMedalMetadata(),
             analytics: null,
+            analyticsStatus: ComponentLoaderStatus.LOADED,
           },
         ],
       ]),

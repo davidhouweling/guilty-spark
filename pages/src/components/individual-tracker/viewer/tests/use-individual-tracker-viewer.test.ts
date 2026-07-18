@@ -811,7 +811,7 @@ describe("useIndividualTrackerViewer", () => {
       })),
     });
     vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics").mockImplementation(async (ids) =>
-      Object.fromEntries(ids.map((id) => [id, null])),
+      Promise.resolve(Object.fromEntries(ids.map((id) => [id, null]))),
     );
 
     const { result } = renderHook(() =>
