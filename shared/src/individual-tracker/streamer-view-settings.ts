@@ -172,8 +172,6 @@ export const DEFAULT_STREAMER_VIEW_SETTINGS: StreamerViewSettings = {
     selectedSlayerStats: ["Score", "Kills", "Deaths", "Assists", "KDA", "Damage dealt", "Damage taken", "Damage ratio"],
     showObjectiveStats: false,
     medalRarityFilter: [2, 3],
-    inSeriesShowTabs: true,
-    matchmakingShowTabs: true,
     inSeriesShowSeriesTab: true,
     matchmakingShowSummaryTab: true,
     disableTeamPlayerNames: false,

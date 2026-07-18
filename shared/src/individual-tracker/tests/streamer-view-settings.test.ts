@@ -12,9 +12,7 @@ describe("DEFAULT_STREAMER_VIEW_SETTINGS", () => {
     );
   });
 
-  it("includes defaults for recently added tab and history settings", () => {
-    expect(DEFAULT_STREAMER_VIEW_SETTINGS.styleFlags?.inSeriesShowTabs).toBe(true);
-    expect(DEFAULT_STREAMER_VIEW_SETTINGS.styleFlags?.matchmakingShowTabs).toBe(true);
+  it("includes defaults for recently added history settings", () => {
     expect(DEFAULT_STREAMER_VIEW_SETTINGS.visibleSections?.maxPreviousGamesToShow).toBe(9);
   });
 });
@@ -26,11 +24,21 @@ describe("withStreamerViewSettingsDefaults()", () => {
     expect(settings.visibleSections?.statsHighlightSlots).toHaveLength(INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT);
   });
 
-  it("fills missing recently added tab and history settings", () => {
+  it("fills missing recently added history settings", () => {
     const settings = withStreamerViewSettingsDefaults({});
 
-    expect(settings.styleFlags?.inSeriesShowTabs).toBe(true);
-    expect(settings.styleFlags?.matchmakingShowTabs).toBe(true);
     expect(settings.visibleSections?.maxPreviousGamesToShow).toBe(9);
+  });
+
+  it("preserves legacy showTabs when per-state tab toggles are missing", () => {
+    const settings = withStreamerViewSettingsDefaults({
+      visibleSections: {
+        showTabs: false,
+      },
+    });
+
+    expect(settings.visibleSections?.showTabs).toBe(false);
+    expect(settings.styleFlags?.inSeriesShowTabs).toBeUndefined();
+    expect(settings.styleFlags?.matchmakingShowTabs).toBeUndefined();
   });
 });

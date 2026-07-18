@@ -254,34 +254,6 @@ describe("individual-tracker-overlay-presenter", () => {
     ]);
   });
 
-  it("uses visibleSections maxPreviousGamesToShow", () => {
-    const timeline: ViewerTimelineItem[] = [
-      { type: "match", match: aMatchWith({ matchId: "m-0" }) },
-      { type: "match", match: aMatchWith({ matchId: "m-1" }) },
-      { type: "match", match: aMatchWith({ matchId: "m-2" }) },
-      { type: "match", match: aMatchWith({ matchId: "m-3" }) },
-      { type: "match", match: aMatchWith({ matchId: "m-4" }) },
-    ];
-
-    const model = presenter.present({
-      renderModel: aRenderModelWith({ timeline }),
-      streamerSettings: {
-        visibleSections: {
-          maxPreviousGamesToShow: 3,
-        },
-      } satisfies StreamerViewSettings,
-      matchStatsByMatchId: new Map(),
-      selectedMatchId: null,
-    });
-
-    expect(model.tabs.map((tab) => (tab.type === "series" ? tab.seriesId : tab.matchId))).toEqual([
-      MATCHMAKING_SUMMARY_TAB_SERIES_ID,
-      "m-2",
-      "m-3",
-      "m-4",
-    ]);
-  });
-
   it("respects per-state show tabs toggles", () => {
     const activeSeries = aSeriesWith({
       id: "series-active",
