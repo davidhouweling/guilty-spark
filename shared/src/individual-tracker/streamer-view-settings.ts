@@ -112,6 +112,7 @@ export type StreamerViewLayoutOptions = z.infer<typeof streamerViewLayoutOptions
 export const streamerViewVisibleSectionsSchema = z.object({
   showTicker: z.boolean().optional(),
   showTabs: z.boolean().optional(),
+  maxPreviousGamesToShow: z.number().optional(),
   showTeamDetails: z.boolean().optional(),
   showDiscordNames: z.boolean().optional(),
   showXboxNames: z.boolean().optional(),
@@ -143,6 +144,8 @@ export const streamerViewStyleFlagsSchema = z.object({
   selectedSlayerStats: z.array(z.string()).optional(),
   showObjectiveStats: z.boolean().optional(),
   medalRarityFilter: z.array(z.number()).optional(),
+  inSeriesShowTabs: z.boolean().optional(),
+  matchmakingShowTabs: z.boolean().optional(),
   inSeriesShowTicker: z.boolean().optional(),
   matchmakingShowTicker: z.boolean().optional(),
   matchmakingShowStatsHighlights: z.boolean().optional(),
@@ -169,6 +172,8 @@ export const DEFAULT_STREAMER_VIEW_SETTINGS: StreamerViewSettings = {
     selectedSlayerStats: ["Score", "Kills", "Deaths", "Assists", "KDA", "Damage dealt", "Damage taken", "Damage ratio"],
     showObjectiveStats: false,
     medalRarityFilter: [2, 3],
+    inSeriesShowTabs: true,
+    matchmakingShowTabs: true,
     inSeriesShowSeriesTab: true,
     matchmakingShowSummaryTab: true,
     disableTeamPlayerNames: false,
@@ -188,6 +193,7 @@ export const DEFAULT_STREAMER_VIEW_SETTINGS: StreamerViewSettings = {
     showScore: true,
     showTicker: true,
     showTabs: true,
+    maxPreviousGamesToShow: 9,
     statsHighlightSlots: DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS.slice(
       0,
       INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,

@@ -22,6 +22,8 @@ export interface StreamerSettingsSnapshot {
   readonly tickerSettings: TickerSettings;
   readonly inSeriesShowSeriesTab: boolean;
   readonly matchmakingShowSummaryTab: boolean;
+  readonly inSeriesShowTabs: boolean;
+  readonly matchmakingShowTabs: boolean;
   readonly disableTeamPlayerNames: boolean;
   readonly inSeriesShowTicker: boolean;
   readonly matchmakingShowTicker: boolean;
@@ -58,6 +60,7 @@ const DEFAULT_TICKER_SETTINGS: TickerSettings = {
   selectedSlayerStats: DEFAULT_STYLE_FLAGS?.selectedSlayerStats ?? [],
   showObjectiveStats: DEFAULT_STYLE_FLAGS?.showObjectiveStats ?? false,
   medalRarityFilter: DEFAULT_STYLE_FLAGS?.medalRarityFilter ?? [],
+  maxPreviousGamesToShow: DEFAULT_VISIBLE_SECTIONS?.maxPreviousGamesToShow ?? 9,
 };
 
 const DEFAULT_FONT_SIZE_SETTINGS: FontSizeSettings = {
@@ -84,6 +87,8 @@ export class StreamerSettingsStore {
       tickerSettings: DEFAULT_TICKER_SETTINGS,
       inSeriesShowSeriesTab: DEFAULT_STYLE_FLAGS?.inSeriesShowSeriesTab ?? true,
       matchmakingShowSummaryTab: DEFAULT_STYLE_FLAGS?.matchmakingShowSummaryTab ?? true,
+      inSeriesShowTabs: DEFAULT_STYLE_FLAGS?.inSeriesShowTabs ?? DEFAULT_VISIBLE_SECTIONS?.showTabs ?? true,
+      matchmakingShowTabs: DEFAULT_STYLE_FLAGS?.matchmakingShowTabs ?? DEFAULT_VISIBLE_SECTIONS?.showTabs ?? true,
       disableTeamPlayerNames: DEFAULT_STYLE_FLAGS?.disableTeamPlayerNames ?? false,
       inSeriesShowTicker: DEFAULT_STYLE_FLAGS?.inSeriesShowTicker ?? true,
       matchmakingShowTicker: DEFAULT_STYLE_FLAGS?.matchmakingShowTicker ?? true,

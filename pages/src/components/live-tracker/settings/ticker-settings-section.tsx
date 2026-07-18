@@ -1,8 +1,9 @@
 import React from "react";
 import { Button } from "../../button/button";
 import { Checkbox } from "../../checkbox/checkbox";
+import { Input } from "../../input/input";
 import type { TickerSettings } from "./types";
-import { ALL_SLAYER_STATS, MEDAL_RARITY_LEVELS } from "./types";
+import { ALL_SLAYER_STATS, MAX_PREVIOUS_GAMES_TO_SHOW, MEDAL_RARITY_LEVELS, MIN_PREVIOUS_GAMES_TO_SHOW } from "./types";
 import styles from "./ticker-settings-section.module.css";
 
 function formatStatName(stat: string): string {
@@ -26,6 +27,16 @@ export function TickerSettingsSection({
   showPreSeriesInfoToggle = true,
   onChange,
 }: TickerSettingsSectionProps): React.ReactElement {
+  const handleMaxPreviousGamesToShowChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
+    const value = Number.parseInt(event.target.value, 10);
+    if (Number.isNaN(value)) {
+      return;
+    }
+
+    const clampedValue = Math.max(MIN_PREVIOUS_GAMES_TO_SHOW, Math.min(MAX_PREVIOUS_GAMES_TO_SHOW, value));
+    onChange({ maxPreviousGamesToShow: clampedValue });
+  };
+
   const handleStatToggle = (stat: string): void => {
     const isEnabled = settings.selectedSlayerStats.includes(stat);
     const newStats = isEnabled
@@ -52,15 +63,37 @@ export function TickerSettingsSection({
 
   return (
     <div className={styles.container}>
-      {showTickerVisibilityToggle ? (
-        <Checkbox
-          checked={settings.showTicker}
-          onChange={(checked): void => {
-            onChange({ showTicker: checked });
-          }}
-          label="Show Information Ticker"
+      <div className={styles.section}>
+        <h4 className={styles.subsectionHeader}>Tabs</h4>
+        <p className={styles.sectionDescription}>Configure how many recent match tabs are shown.</p>
+        <Input
+          label="Max number of previous games to show"
+          type="number"
+          min={MIN_PREVIOUS_GAMES_TO_SHOW}
+          max={MAX_PREVIOUS_GAMES_TO_SHOW}
+          value={settings.maxPreviousGamesToShow.toString()}
+          onChange={handleMaxPreviousGamesToShowChange}
+          hint={`Minimum ${MIN_PREVIOUS_GAMES_TO_SHOW.toString()}, maximum ${MAX_PREVIOUS_GAMES_TO_SHOW.toString()}.`}
+          containerClassName={styles.numberInput}
         />
-      ) : null}
+      </div>
+
+      <hr className={styles.sectionDivider} />
+
+      <div className={styles.section}>
+        <h4 className={styles.subsectionHeader}>Information ticker</h4>
+        <p className={styles.sectionDescription}>Customize stats and medals shown in the ticker.</p>
+
+        {showTickerVisibilityToggle ? (
+          <Checkbox
+            checked={settings.showTicker}
+            onChange={(checked): void => {
+              onChange({ showTicker: checked });
+            }}
+            label="Show Information Ticker"
+          />
+        ) : null}
+      </div>
 
       {/* Stats Selection */}
       <div className={styles.section}>

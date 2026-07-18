@@ -35,6 +35,16 @@
   gap: var(--space-2);
 }
 
+.numberInput {
+  max-width: 260px;
+}
+
+.sectionDivider {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--halo-teal-primary) 22%, transparent);
+  margin: 0;
+}
+
 .checkboxGrid {
   background: var(--halo-bg-secondary);
   border-radius: var(--radius-sm);
