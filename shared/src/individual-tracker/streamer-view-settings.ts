@@ -31,6 +31,8 @@ export type IndividualStatsHighlightOption =
 
 export const INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT = 6;
 export const INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT = 8;
+const MIN_PREVIOUS_GAMES_TO_SHOW = 1;
+const MAX_PREVIOUS_GAMES_TO_SHOW = 15;
 
 export type IndividualStatsHighlightOptionGroup = "individual" | "compact" | "profile";
 
@@ -112,6 +114,13 @@ export type StreamerViewLayoutOptions = z.infer<typeof streamerViewLayoutOptions
 export const streamerViewVisibleSectionsSchema = z.object({
   showTicker: z.boolean().optional(),
   showTabs: z.boolean().optional(),
+  maxPreviousGamesToShow: z
+    .number()
+    .int()
+    .min(MIN_PREVIOUS_GAMES_TO_SHOW)
+    .max(MAX_PREVIOUS_GAMES_TO_SHOW)
+    .optional()
+    .catch(undefined),
   showTeamDetails: z.boolean().optional(),
   showDiscordNames: z.boolean().optional(),
   showXboxNames: z.boolean().optional(),
@@ -143,6 +152,8 @@ export const streamerViewStyleFlagsSchema = z.object({
   selectedSlayerStats: z.array(z.string()).optional(),
   showObjectiveStats: z.boolean().optional(),
   medalRarityFilter: z.array(z.number()).optional(),
+  inSeriesShowTabs: z.boolean().optional(),
+  matchmakingShowTabs: z.boolean().optional(),
   inSeriesShowTicker: z.boolean().optional(),
   matchmakingShowTicker: z.boolean().optional(),
   matchmakingShowStatsHighlights: z.boolean().optional(),
@@ -188,6 +199,7 @@ export const DEFAULT_STREAMER_VIEW_SETTINGS: StreamerViewSettings = {
     showScore: true,
     showTicker: true,
     showTabs: true,
+    maxPreviousGamesToShow: 9,
     statsHighlightSlots: DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS.slice(
       0,
       INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
@@ -239,10 +251,23 @@ export function parseStreamerViewSettings(row: {
   const styleFlags = streamerViewStyleFlagsSchema.safeParse(JSON.parse(row.StyleFlagsJson));
   const visibleSections = streamerViewVisibleSectionsSchema.safeParse(JSON.parse(row.VisibleSectionsJson));
   const layoutOptions = streamerViewLayoutOptionsSchema.safeParse(JSON.parse(row.LayoutOptionsJson));
+
+  const normalizedVisibleSections = ((): StreamerViewVisibleSections | undefined => {
+    if (!visibleSections.success) {
+      return undefined;
+    }
+
+    const { maxPreviousGamesToShow, ...restVisibleSections } = visibleSections.data;
+    return {
+      ...restVisibleSections,
+      ...(maxPreviousGamesToShow === undefined ? {} : { maxPreviousGamesToShow }),
+    };
+  })();
+
   return {
     ...(styleFlags.success && Object.keys(styleFlags.data).length > 0 ? { styleFlags: styleFlags.data } : {}),
-    ...(visibleSections.success && Object.keys(visibleSections.data).length > 0
-      ? { visibleSections: visibleSections.data }
+    ...(normalizedVisibleSections != null && Object.keys(normalizedVisibleSections).length > 0
+      ? { visibleSections: normalizedVisibleSections }
       : {}),
     ...(layoutOptions.success && Object.keys(layoutOptions.data).length > 0
       ? { layoutOptions: layoutOptions.data }

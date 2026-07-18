@@ -163,6 +163,13 @@
   margin: 0;
 }
 
+.nestedSubsectionTitle {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
 .sectionDivider {
   border: 0;
   border-top: 1px solid color-mix(in srgb, var(--halo-teal-primary) 22%, transparent);

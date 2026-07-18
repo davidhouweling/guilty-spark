@@ -1,8 +1,8 @@
 import "@testing-library/jest-dom/vitest";
 
 import React from "react";
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import type { TeamColor } from "../../../team-colors/team-colors";
 import type { StreamerOverlayProps } from "../streamer-overlay";
 import type { StreamerOverlayProps as SharedStreamerOverlayProps } from "../../../streamer-overlay/create";
@@ -30,6 +30,8 @@ vi.mock("../../../streamer-overlay/create", () => ({
       return (
         <>
           <div data-testid="shared-overlay-matches-length">{props.matchesLength.toString()}</div>
+          <div data-testid="shared-overlay-tabs-length">{props.tabs.length.toString()}</div>
+          <div data-testid="shared-overlay-ticker-groups-length">{props.tickerMatchGroups.length.toString()}</div>
           <div data-testid="shared-overlay-dimmed-icons">{dimmedIconCount.toString()}</div>
         </>
       );
@@ -92,6 +94,10 @@ const defaultProviderProps: Omit<LiveTrackerProviderProps, "children"> = {
   allMatchKillMatrix: [],
   seriesKillMatrix: null,
 };
+
+afterEach(() => {
+  cleanup();
+});
 
 describe("StreamerOverlay create props", () => {
   const teamColors: TeamColor[] = [
@@ -162,6 +168,155 @@ describe("StreamerOverlay create props", () => {
     );
 
     expect(screen.getByTestId("shared-overlay-matches-length")).toHaveTextContent("0");
+  });
+
+  it("limits tabs to the series tab plus max previous games", () => {
+    const model = aFakeLiveTrackerViewModelWith({
+      state: {
+        type: "neatqueue",
+        guildName: "Test Guild",
+        guildId: "test-guild-id",
+        guildIcon: "data:,",
+        queueNumber: 5,
+        status: "active",
+        lastUpdateTime: "2025-01-01T00:00:00.000Z",
+        teams: [
+          { name: "Team 1", players: [{ id: "player1", displayName: "player_one" }] },
+          { name: "Team 2", players: [{ id: "player2", displayName: "player_two" }] },
+        ],
+        matches: [
+          {
+            matchId: "match-0",
+            gameTypeAndMap: "Slayer: Aquarius",
+            gameType: "Slayer",
+            gameMap: "Aquarius",
+            gameMapThumbnailUrl: "data:,",
+            duration: "10m 0s",
+            gameScore: "50:49",
+            gameSubScore: null,
+            startTime: "2024-12-31T23:10:00.000Z",
+            endTime: "2024-12-31T23:20:00.000Z",
+            rawMatchStats: null,
+            playerXuidToGametag: {},
+          },
+          {
+            matchId: "match-1",
+            gameTypeAndMap: "Slayer: Recharge",
+            gameType: "Slayer",
+            gameMap: "Recharge",
+            gameMapThumbnailUrl: "data:,",
+            duration: "10m 0s",
+            gameScore: "50:48",
+            gameSubScore: null,
+            startTime: "2024-12-31T23:25:00.000Z",
+            endTime: "2024-12-31T23:35:00.000Z",
+            rawMatchStats: null,
+            playerXuidToGametag: {},
+          },
+          {
+            matchId: "match-2",
+            gameTypeAndMap: "Slayer: Streets",
+            gameType: "Slayer",
+            gameMap: "Streets",
+            gameMapThumbnailUrl: "data:,",
+            duration: "10m 0s",
+            gameScore: "50:47",
+            gameSubScore: null,
+            startTime: "2024-12-31T23:40:00.000Z",
+            endTime: "2024-12-31T23:50:00.000Z",
+            rawMatchStats: null,
+            playerXuidToGametag: {},
+          },
+          {
+            matchId: "match-3",
+            gameTypeAndMap: "Slayer: Live Fire",
+            gameType: "Slayer",
+            gameMap: "Live Fire",
+            gameMapThumbnailUrl: "data:,",
+            duration: "10m 0s",
+            gameScore: "50:46",
+            gameSubScore: null,
+            startTime: "2024-12-31T23:55:00.000Z",
+            endTime: "2025-01-01T00:05:00.000Z",
+            rawMatchStats: null,
+            playerXuidToGametag: {},
+          },
+        ],
+        substitutions: [],
+        seriesScore: "2:2",
+        medalMetadata: { 1: { name: "Killing Spree", sortingWeight: 1500 } },
+        playersAssociationData: {},
+      },
+    });
+
+    const settingsWithLimitedHistory = {
+      ...DEFAULT_ALL_SETTINGS,
+      global: {
+        ...DEFAULT_ALL_SETTINGS.global,
+        ticker: {
+          ...DEFAULT_ALL_SETTINGS.global.ticker,
+          maxPreviousGamesToShow: 2,
+        },
+      },
+    };
+
+    render(
+      <LiveTrackerProvider
+        {...defaultProviderProps}
+        model={model}
+        allMatchStats={[
+          {
+            matchId: "match-0",
+            data: [
+              {
+                teamId: 0,
+                teamStats: [],
+                teamMedals: [],
+                players: [],
+              },
+            ],
+          },
+          {
+            matchId: "match-1",
+            data: [
+              {
+                teamId: 0,
+                teamStats: [],
+                teamMedals: [],
+                players: [],
+              },
+            ],
+          },
+          {
+            matchId: "match-2",
+            data: [
+              {
+                teamId: 0,
+                teamStats: [],
+                teamMedals: [],
+                players: [],
+              },
+            ],
+          },
+          {
+            matchId: "match-3",
+            data: [
+              {
+                teamId: 0,
+                teamStats: [],
+                teamMedals: [],
+                players: [],
+              },
+            ],
+          },
+        ]}
+      >
+        <StreamerOverlay {...defaultProps} settings={settingsWithLimitedHistory} />
+      </LiveTrackerProvider>,
+    );
+
+    expect(screen.getByTestId("shared-overlay-tabs-length")).toHaveTextContent("3");
+    expect(screen.getByTestId("shared-overlay-ticker-groups-length")).toHaveTextContent("2");
   });
 
   it("passes dimmed tab icons for losses from the observed team perspective", () => {

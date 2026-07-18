@@ -48,6 +48,7 @@ export interface TickerSettings {
   readonly showObjectiveStats: boolean;
   readonly medalRarityFilter: readonly number[]; // difficultyIndex values [0,1,2,3]
   readonly showTabs: boolean;
+  readonly maxPreviousGamesToShow: number;
 }
 
 export interface GlobalStreamerSettings {
@@ -106,6 +107,10 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   showScore: true,
 };
 
+export const MIN_PREVIOUS_GAMES_TO_SHOW = 1;
+export const MAX_PREVIOUS_GAMES_TO_SHOW = 15;
+export const DEFAULT_PREVIOUS_GAMES_TO_SHOW = 9;
+
 // All stats from getPlayerSlayerStats
 export const ALL_SLAYER_STATS = [
   "Rank",
@@ -132,6 +137,7 @@ export const DEFAULT_TICKER_SETTINGS: TickerSettings = {
   showObjectiveStats: false,
   medalRarityFilter: [2, 3], // Show Legendary, Mythic (exclude Normal, Heroic)
   showTabs: true,
+  maxPreviousGamesToShow: DEFAULT_PREVIOUS_GAMES_TO_SHOW,
 };
 
 export const DEFAULT_SERIES_SETTINGS: SeriesStreamerSettings = {

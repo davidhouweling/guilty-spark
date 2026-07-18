@@ -1,6 +1,11 @@
 import type { ViewMode } from "../../view-mode/view-mode-selector";
 import type { AllStreamerSettings } from "./types";
-import { DEFAULT_ALL_SETTINGS } from "./types";
+import {
+  DEFAULT_ALL_SETTINGS,
+  MAX_PREVIOUS_GAMES_TO_SHOW,
+  MIN_PREVIOUS_GAMES_TO_SHOW,
+  DEFAULT_PREVIOUS_GAMES_TO_SHOW,
+} from "./types";
 
 /**
  * Parse streamer settings from URL parameters
@@ -20,6 +25,7 @@ export function parseSettingsFromUrl(
     ticker?: {
       showTicker?: boolean;
       showTabs?: boolean;
+      maxPreviousGamesToShow?: number;
       showPreSeriesInfo?: boolean;
       selectedSlayerStats?: string[];
       showObjectiveStats?: boolean;
@@ -95,6 +101,7 @@ export function parseSettingsFromUrl(
   // Ticker settings
   const showTicker = searchParams.get("showTicker");
   const showTabs = searchParams.get("showTabs");
+  const maxPreviousGamesToShow = searchParams.get("maxPreviousGamesToShow");
   const showPreSeriesInfo = searchParams.get("showPreSeriesInfo");
   const enabledStats = searchParams.get("enabledStats");
   const showObjectiveStats = searchParams.get("showObjectiveStats");
@@ -103,14 +110,23 @@ export function parseSettingsFromUrl(
   if (
     showTicker !== null ||
     showTabs !== null ||
+    maxPreviousGamesToShow !== null ||
     showPreSeriesInfo !== null ||
     enabledStats !== null ||
     showObjectiveStats !== null ||
     medalRarityFilter !== null
   ) {
+    const parsedMaxPreviousGamesToShow =
+      maxPreviousGamesToShow != null ? Number.parseInt(maxPreviousGamesToShow, 10) : Number.NaN;
+
     parsed.ticker = {
       ...(showTicker === "true" || showTicker === "false" ? { showTicker: showTicker === "true" } : {}),
       ...(showTabs === "true" || showTabs === "false" ? { showTabs: showTabs === "true" } : {}),
+      ...(!Number.isNaN(parsedMaxPreviousGamesToShow) &&
+      parsedMaxPreviousGamesToShow >= MIN_PREVIOUS_GAMES_TO_SHOW &&
+      parsedMaxPreviousGamesToShow <= MAX_PREVIOUS_GAMES_TO_SHOW
+        ? { maxPreviousGamesToShow: parsedMaxPreviousGamesToShow }
+        : {}),
       ...(showPreSeriesInfo === "true" || showPreSeriesInfo === "false"
         ? { showPreSeriesInfo: showPreSeriesInfo === "true" }
         : {}),
@@ -251,6 +267,9 @@ export function encodeSettingsToUrlParams(settings: AllStreamerSettings): Record
   }
   if (!ticker.showTabs) {
     params.showTabs = "false";
+  }
+  if (ticker.maxPreviousGamesToShow !== DEFAULT_PREVIOUS_GAMES_TO_SHOW) {
+    params.maxPreviousGamesToShow = ticker.maxPreviousGamesToShow.toString();
   }
   if (!ticker.showPreSeriesInfo) {
     params.showPreSeriesInfo = "false";

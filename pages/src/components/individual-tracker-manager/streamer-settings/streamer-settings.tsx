@@ -59,6 +59,8 @@ export interface StreamerSettingsSectionViewProps {
   readonly tickerSettings: TickerSettings;
   readonly inSeriesShowSeriesTab: boolean;
   readonly matchmakingShowSummaryTab: boolean;
+  readonly inSeriesShowTabs: boolean;
+  readonly matchmakingShowTabs: boolean;
   readonly disableTeamPlayerNames: boolean;
   readonly inSeriesShowTicker: boolean;
   readonly matchmakingShowTicker: boolean;
@@ -75,6 +77,8 @@ export interface StreamerSettingsSectionViewProps {
   readonly onTickerSettingsChange: (updates: Partial<TickerSettings>) => void;
   readonly onInSeriesShowSeriesTabChange: (enabled: boolean) => void;
   readonly onMatchmakingShowSummaryTabChange: (enabled: boolean) => void;
+  readonly onInSeriesShowTabsChange: (enabled: boolean) => void;
+  readonly onMatchmakingShowTabsChange: (enabled: boolean) => void;
   readonly onDisableTeamPlayerNamesChange: (enabled: boolean) => void;
   readonly onInSeriesShowTickerChange: (enabled: boolean) => void;
   readonly onMatchmakingShowTickerChange: (enabled: boolean) => void;
@@ -95,6 +99,8 @@ export function StreamerSettingsSectionView({
   tickerSettings,
   inSeriesShowSeriesTab,
   matchmakingShowSummaryTab,
+  inSeriesShowTabs,
+  matchmakingShowTabs,
   disableTeamPlayerNames,
   inSeriesShowTicker,
   matchmakingShowTicker,
@@ -111,6 +117,8 @@ export function StreamerSettingsSectionView({
   onTickerSettingsChange,
   onInSeriesShowSeriesTabChange,
   onMatchmakingShowSummaryTabChange,
+  onInSeriesShowTabsChange,
+  onMatchmakingShowTabsChange,
   onDisableTeamPlayerNamesChange,
   onInSeriesShowTickerChange,
   onMatchmakingShowTickerChange,
@@ -452,14 +460,39 @@ export function StreamerSettingsSectionView({
             Configure in-series ticker behavior before and during active series match flow.
           </p>
         </div>
+
+        <div className={styles.subsection}>
+          <h5 className={styles.nestedSubsectionTitle}>Tabs</h5>
+          <p className={styles.cardDescription}>Configure which tabs are visible while in a series.</p>
+        </div>
+        <Checkbox
+          checked={inSeriesShowTabs}
+          onChange={(checked): void => {
+            onInSeriesShowTabsChange(checked);
+          }}
+          label={
+            <>
+              <span className={styles.srOnly}>In Series </span>
+              Show tabs
+            </>
+          }
+          description="Toggle tabs visibility for in-series overlay state. Tabs can be clicked to open the stats panel for the match."
+        />
         <Checkbox
           checked={inSeriesShowSeriesTab}
           onChange={(checked): void => {
             onInSeriesShowSeriesTabChange(checked);
           }}
           label="Show series score tab"
-          description="Show a first tab that opens the overall series stats panel when a series is active."
+          description="Show a first tab with the series score. When clicked, opens the overall series stats panel for the active series."
         />
+
+        <hr className={styles.sectionDivider} />
+
+        <div className={styles.subsection}>
+          <h5 className={styles.nestedSubsectionTitle}>Information ticker</h5>
+          <p className={styles.cardDescription}>Configure ticker visibility and row rotation while in a series.</p>
+        </div>
         <Checkbox
           checked={tickerSettings.showPreSeriesInfo}
           onChange={(checked): void => {
@@ -522,14 +555,39 @@ export function StreamerSettingsSectionView({
           <h4 className={styles.subsectionTitle}>Bottom Section</h4>
           <p className={styles.cardDescription}>Configure matchmaking-only tabs and ticker behavior.</p>
         </div>
+
+        <div className={styles.subsection}>
+          <h5 className={styles.nestedSubsectionTitle}>Tabs</h5>
+          <p className={styles.cardDescription}>Configure which tabs are visible during matchmaking.</p>
+        </div>
+        <Checkbox
+          checked={matchmakingShowTabs}
+          onChange={(checked): void => {
+            onMatchmakingShowTabsChange(checked);
+          }}
+          label={
+            <>
+              <span className={styles.srOnly}>Matchmaking </span>
+              Show tabs
+            </>
+          }
+          description="Toggle tabs visibility for matchmaking overlay state. Tabs can be clicked to open the stats panel for the match."
+        />
         <Checkbox
           checked={matchmakingShowSummaryTab}
           onChange={(checked): void => {
             onMatchmakingShowSummaryTabChange(checked);
           }}
           label="Show matchmaking score tabs"
-          description="Show score tabs in matchmaking, including the first Won:Loss tab from Stats Highlights and series score tabs."
+          description="Show a first tab with the Win:Loss count. When clicked, opens the overall stats panel."
         />
+
+        <hr className={styles.sectionDivider} />
+
+        <div className={styles.subsection}>
+          <h5 className={styles.nestedSubsectionTitle}>Information ticker</h5>
+          <p className={styles.cardDescription}>Configure ticker visibility and row rotation during matchmaking.</p>
+        </div>
         <Checkbox
           checked={matchmakingShowTicker}
           onChange={(checked): void => {
