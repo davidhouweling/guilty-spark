@@ -70,11 +70,7 @@ export function MatchStats({
   showHeader = true,
 }: MatchStatsProps): React.ReactElement {
   const [activeTab, setActiveTab] = React.useState<"players" | "timeline" | "kill-matrix">("players");
-  const hasTimelineTab =
-    scoreProgressionViewData != null ||
-    killMatrixStatus === ComponentLoaderStatus.LOADING ||
-    killMatrixStatus === ComponentLoaderStatus.PENDING ||
-    killMatrixStatus === ComponentLoaderStatus.ERROR;
+  const hasTimelineTab = scoreProgressionViewData != null || killMatrixStatus !== undefined;
   const safeActiveTab: "players" | "timeline" | "kill-matrix" =
     activeTab === "timeline" && !hasTimelineTab ? "players" : activeTab;
   const ScoreProgressionComponent = React.useMemo(() => createScoreProgression(), []);

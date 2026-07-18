@@ -301,4 +301,30 @@ describe("MatchStats", () => {
 
     expect(screen.getByText("Loading timeline...")).toBeInTheDocument();
   });
+
+  it("keeps timeline tab visible when analytics load completes without timeline data", () => {
+    const data = [aFakeMatchStatsDataWith({ teamId: 0 })];
+
+    render(
+      <MatchStats
+        data={data}
+        id="match-1"
+        backgroundImageUrl="https://example.com/bg.jpg"
+        gameModeIconUrl="https://example.com/icon.png"
+        gameModeAlt="Slayer"
+        matchNumber={1}
+        gameTypeAndMap="Slayer: Aquarius"
+        duration="10m 30s"
+        score="50:49"
+        startTime="2024-01-01T00:00:00.000Z"
+        endTime="2024-01-01T00:10:30.000Z"
+        scoreProgressionViewData={null}
+        killMatrixStatus={ComponentLoaderStatus.LOADED}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Timeline" }));
+
+    expect(screen.getByText("Timeline data is not available for this match.")).toBeInTheDocument();
+  });
 });
