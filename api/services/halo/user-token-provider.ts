@@ -1,4 +1,8 @@
-import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
+import {
+  HaloInfiniteClient,
+  StaticXstsTicketTokenSpartanTokenProvider,
+  type SpartanTokenProvider,
+} from "halo-infinite-api";
 import type { AuthService } from "../auth/auth";
 import type { LogService } from "../log/types";
 import type { XboxService } from "../xbox/xbox";
@@ -14,6 +18,17 @@ interface CachedUserClient {
   readonly expiresAtMs: number;
 }
 
+interface CachedUserTokenContext {
+  readonly client: HaloInfiniteClient;
+  readonly spartanTokenProvider: SpartanTokenProvider;
+  readonly expiresAtMs: number;
+}
+
+export interface UserTokenContext {
+  client: HaloInfiniteClient;
+  spartanTokenProvider: SpartanTokenProvider;
+}
+
 export class UserTokenProvider {
   private static readonly CACHE_EXPIRY_SKEW_MS = 60_000;
 
@@ -21,7 +36,9 @@ export class UserTokenProvider {
   private readonly xboxService: XboxService;
   private readonly logService: LogService;
   private readonly cachedClientsByUserId = new Map<string, CachedUserClient>();
+  private readonly cachedContextsByUserId = new Map<string, CachedUserTokenContext>();
   private readonly inFlightClientByUserId = new Map<string, Promise<HaloInfiniteClient | null>>();
+  private readonly inFlightContextByUserId = new Map<string, Promise<UserTokenContext | null>>();
 
   constructor({ authService, xboxService, logService }: UserTokenProviderOpts) {
     this.authService = authService;
@@ -31,33 +48,43 @@ export class UserTokenProvider {
 
   public clearCachedClient(userId: string): void {
     this.cachedClientsByUserId.delete(userId);
+    this.cachedContextsByUserId.delete(userId);
     this.inFlightClientByUserId.delete(userId);
+    this.inFlightContextByUserId.delete(userId);
   }
 
   async getClientForUser(userId: string): Promise<HaloInfiniteClient | null> {
-    const cached = this.cachedClientsByUserId.get(userId);
-    if (cached != null) {
-      if (Date.now() < cached.expiresAtMs - UserTokenProvider.CACHE_EXPIRY_SKEW_MS) {
-        return cached.client;
-      }
-
-      this.cachedClientsByUserId.delete(userId);
-    }
-
-    const inFlightClient = this.inFlightClientByUserId.get(userId);
-    if (inFlightClient != null) {
-      return inFlightClient;
-    }
-
-    const mintClientPromise = this.getClientForUserUncached(userId).finally(() => {
-      this.inFlightClientByUserId.delete(userId);
-    });
-    this.inFlightClientByUserId.set(userId, mintClientPromise);
-
-    return mintClientPromise;
+    const context = await this.getContextForUser(userId);
+    return context?.client ?? null;
   }
 
-  private async getClientForUserUncached(userId: string): Promise<HaloInfiniteClient | null> {
+  async getContextForUser(userId: string): Promise<UserTokenContext | null> {
+    const cached = this.cachedContextsByUserId.get(userId);
+    if (cached != null) {
+      if (Date.now() < cached.expiresAtMs - UserTokenProvider.CACHE_EXPIRY_SKEW_MS) {
+        return {
+          client: cached.client,
+          spartanTokenProvider: cached.spartanTokenProvider,
+        };
+      }
+
+      this.cachedContextsByUserId.delete(userId);
+    }
+
+    const inFlightContext = this.inFlightContextByUserId.get(userId);
+    if (inFlightContext != null) {
+      return inFlightContext;
+    }
+
+    const mintContextPromise = this.getContextForUserUncached(userId).finally(() => {
+      this.inFlightContextByUserId.delete(userId);
+    });
+    this.inFlightContextByUserId.set(userId, mintContextPromise);
+
+    return mintContextPromise;
+  }
+
+  private async getContextForUserUncached(userId: string): Promise<UserTokenContext | null> {
     try {
       const accessToken = await this.authService.getMicrosoftAccessTokenForUser(userId);
       if (accessToken == null) {
@@ -65,12 +92,19 @@ export class UserTokenProvider {
       }
 
       const xstsTokenInfo = await this.xboxService.exchangeMicrosoftAccessTokenForXstsToken(accessToken);
-      const client = new HaloInfiniteClient(new StaticXstsTicketTokenSpartanTokenProvider(xstsTokenInfo.XSTSToken));
+      const spartanTokenProvider = new StaticXstsTicketTokenSpartanTokenProvider(xstsTokenInfo.XSTSToken);
+      const client = new HaloInfiniteClient(spartanTokenProvider);
+      const expiresAtMs = xstsTokenInfo.expiresOn.getTime();
       this.cachedClientsByUserId.set(userId, {
         client,
-        expiresAtMs: xstsTokenInfo.expiresOn.getTime(),
+        expiresAtMs,
       });
-      return client;
+      this.cachedContextsByUserId.set(userId, {
+        client,
+        spartanTokenProvider,
+        expiresAtMs,
+      });
+      return { client, spartanTokenProvider };
     } catch (error) {
       this.logService.warn(
         "UserTokenProvider: failed to mint Halo client for user",

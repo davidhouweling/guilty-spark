@@ -1,4 +1,3 @@
-import { StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
 import { parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
 import {
   batchMatchAnalyticsContract,
@@ -13,7 +12,7 @@ import { normalizeTrackerId } from "./normalize-tracker-id";
 export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/stats/match-analytics", async (request, env: Env) => {
     const services = installServices({ env });
-    const { haloService, logService, databaseService, userTokenProvider, authService, xboxService } = services;
+    const { haloService, logService, databaseService, userTokenProvider } = services;
 
     const url = new URL(request.url);
     const queryParams = parseQueryParams(url, batchMatchAnalyticsQuerySchema, "Invalid query parameters");
@@ -31,32 +30,28 @@ export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installS
       try {
         const tracker = await databaseService.getIndividualTracker(trackerId);
         if (tracker?.IsLive === 1) {
-          const userClient = await userTokenProvider.getClientForUser(tracker.UserId);
-          if (userClient != null) {
+          const userTokenContext = await userTokenProvider.getContextForUser(tracker.UserId);
+          if (userTokenContext != null) {
+            const { client: userClient, spartanTokenProvider: userSpartanTokenProvider } = userTokenContext;
             const userHaloService = haloService.withUserClient(userClient);
-            const accessToken = await authService.getMicrosoftAccessTokenForUser(tracker.UserId);
-            if (accessToken != null) {
-              const xstsTokenInfo = await xboxService.exchangeMicrosoftAccessTokenForXstsToken(accessToken);
-              const userSpartanTokenProvider = new StaticXstsTicketTokenSpartanTokenProvider(xstsTokenInfo.XSTSToken);
-              const userFilmCacheNamespace = `halo:film:${tracker.UserId}`;
-              const userFilmService = new HaloFilmService({
+            const userFilmCacheNamespace = `halo:film:${tracker.UserId}`;
+            const userFilmService = new HaloFilmService({
+              env,
+              spartanTokenProvider: userSpartanTokenProvider,
+              kvKeyNamespace: userFilmCacheNamespace,
+              fetch: createResilientFetch({
                 env,
-                spartanTokenProvider: userSpartanTokenProvider,
-                kvKeyNamespace: userFilmCacheNamespace,
-                fetch: createResilientFetch({
-                  env,
-                  logService,
-                  proxyUrl: env.PROXY_WORKER_URL,
-                  kvKeyNamespace: userFilmCacheNamespace,
-                }),
-              });
-              resolvedAnalyticsService = new AnalyticsService({
-                haloService: userHaloService,
-                haloFilmService: userFilmService,
                 logService,
-              });
-              credentialSource = `user:${tracker.UserId}`;
-            }
+                proxyUrl: env.PROXY_WORKER_URL,
+                kvKeyNamespace: userFilmCacheNamespace,
+              }),
+            });
+            resolvedAnalyticsService = new AnalyticsService({
+              haloService: userHaloService,
+              haloFilmService: userFilmService,
+              logService,
+            });
+            credentialSource = `user:${tracker.UserId}`;
           }
         }
       } catch (error) {

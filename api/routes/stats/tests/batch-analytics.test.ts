@@ -1,4 +1,5 @@
 import type { AutoRouterType } from "itty-router";
+import { StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
 import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LogService } from "../../../services/log/types";
@@ -282,17 +283,12 @@ describe("/api/stats/match-analytics (batch)", () => {
     vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(
       aFakeIndividualTrackersRow({ TrackerId: "tracker-1", UserId: ownerUserId, IsLive: 1 }),
     );
-    const getClientForUserSpy = vi
-      .spyOn(services.userTokenProvider, "getClientForUser")
-      .mockResolvedValue(services.haloInfiniteClient);
-    const getMicrosoftAccessTokenSpy = vi
-      .spyOn(services.authService, "getMicrosoftAccessTokenForUser")
-      .mockResolvedValue("owner-access-token");
-    const exchangeSpy = vi.spyOn(services.xboxService, "exchangeMicrosoftAccessTokenForXstsToken").mockResolvedValue({
-      XSTSToken: "owner-xsts-token",
-      userHash: "owner-user-hash",
-      expiresOn: new Date("2030-01-01T00:00:00.000Z"),
+    const getContextForUserSpy = vi.spyOn(services.userTokenProvider, "getContextForUser").mockResolvedValue({
+      client: services.haloInfiniteClient,
+      spartanTokenProvider: new StaticXstsTicketTokenSpartanTokenProvider("owner-xsts-token"),
     });
+    const getMicrosoftAccessTokenSpy = vi.spyOn(services.authService, "getMicrosoftAccessTokenForUser");
+    const exchangeSpy = vi.spyOn(services.xboxService, "exchangeMicrosoftAccessTokenForXstsToken");
     const botAnalyticsSpy = vi.spyOn(services.analyticsService, "getBatchMatchAnalytics");
     const logWarnSpy: MockInstance<LogService["warn"]> = vi.spyOn(services.logService, "warn");
     const analyticsServiceGetBatchMatchAnalyticsSpy: MockInstance<AnalyticsServiceInstance["getBatchMatchAnalytics"]> =
@@ -313,9 +309,9 @@ describe("/api/stats/match-analytics (batch)", () => {
     )) as Response;
 
     expect(response.status).toBe(200);
-    expect(getMicrosoftAccessTokenSpy).toHaveBeenCalledWith(ownerUserId);
-    expect(exchangeSpy).toHaveBeenCalledWith("owner-access-token");
-    expect(getClientForUserSpy).toHaveBeenCalledWith(ownerUserId);
+    expect(getMicrosoftAccessTokenSpy).not.toHaveBeenCalled();
+    expect(exchangeSpy).not.toHaveBeenCalled();
+    expect(getContextForUserSpy).toHaveBeenCalledWith(ownerUserId);
     expect(botAnalyticsSpy).not.toHaveBeenCalled();
     expect(analyticsServiceGetBatchMatchAnalyticsSpy).toHaveBeenCalledWith(["match-1", "match-2"], ["killMatrix"]);
     const body = await response.json();
