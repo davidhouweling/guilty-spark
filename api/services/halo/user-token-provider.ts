@@ -13,11 +13,6 @@ export interface UserTokenProviderOpts {
   logService: LogService;
 }
 
-interface CachedUserClient {
-  readonly client: HaloInfiniteClient;
-  readonly expiresAtMs: number;
-}
-
 interface CachedUserTokenContext {
   readonly client: HaloInfiniteClient;
   readonly spartanTokenProvider: SpartanTokenProvider;
@@ -35,9 +30,7 @@ export class UserTokenProvider {
   private readonly authService: AuthService;
   private readonly xboxService: XboxService;
   private readonly logService: LogService;
-  private readonly cachedClientsByUserId = new Map<string, CachedUserClient>();
   private readonly cachedContextsByUserId = new Map<string, CachedUserTokenContext>();
-  private readonly inFlightClientByUserId = new Map<string, Promise<HaloInfiniteClient | null>>();
   private readonly inFlightContextByUserId = new Map<string, Promise<UserTokenContext | null>>();
 
   constructor({ authService, xboxService, logService }: UserTokenProviderOpts) {
@@ -47,9 +40,7 @@ export class UserTokenProvider {
   }
 
   public clearCachedClient(userId: string): void {
-    this.cachedClientsByUserId.delete(userId);
     this.cachedContextsByUserId.delete(userId);
-    this.inFlightClientByUserId.delete(userId);
     this.inFlightContextByUserId.delete(userId);
   }
 
@@ -95,10 +86,6 @@ export class UserTokenProvider {
       const spartanTokenProvider = new StaticXstsTicketTokenSpartanTokenProvider(xstsTokenInfo.XSTSToken);
       const client = new HaloInfiniteClient(spartanTokenProvider);
       const expiresAtMs = xstsTokenInfo.expiresOn.getTime();
-      this.cachedClientsByUserId.set(userId, {
-        client,
-        expiresAtMs,
-      });
       this.cachedContextsByUserId.set(userId, {
         client,
         spartanTokenProvider,
