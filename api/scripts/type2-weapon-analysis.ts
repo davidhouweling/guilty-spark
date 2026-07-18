@@ -47,8 +47,6 @@ interface KillPair {
 
 interface MatchStatsPlayer {
   PlayerId: string;
-  LastTeamId: number;
-  Rank: number;
 }
 
 if (!existsSync(CACHE_DIR)) {
@@ -76,9 +74,8 @@ function unwrapXuid(raw: string): string {
   return raw.replace(/^xuid\(|\)$/gu, "");
 }
 
-const sortedPlayers = [...matchStats.Players].sort((a, b) => a.LastTeamId - b.LastTeamId || a.Rank - b.Rank);
 const xuidToPlayerIndex = new Map<string, number>();
-for (const [index, player] of sortedPlayers.entries()) {
+for (const [index, player] of matchStats.Players.entries()) {
   xuidToPlayerIndex.set(unwrapXuid(player.PlayerId), index);
 }
 

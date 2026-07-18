@@ -247,7 +247,7 @@ export class HaloFilmService {
     const path = chunk.FileRelativePath.replace(/^\//u, "");
     const url = `${blobStoragePathPrefix}${path}`;
     const bytes = await this.fetchBinary(url, authContext.spartanToken, authContext.clearanceToken);
-    void this.putCachedChunk(cacheRequest, bytes);
+    await this.putCachedChunk(cacheRequest, bytes);
     return bytes;
   }
 
@@ -260,20 +260,18 @@ export class HaloFilmService {
     if (chunks.length === 0) {
       return null;
     }
-    const chunkBytesArray = await Promise.all(
-      chunks.map(async ({ chunk }) =>
-        this.fetchReplicationChunkBytes(matchId, chunk, filmMetadata.BlobStoragePathPrefix, authResolver),
+    const chunksWithBytes = await Promise.all(
+      chunks.map(async ({ chunk, startMs }) =>
+        this.fetchReplicationChunkBytes(matchId, chunk, filmMetadata.BlobStoragePathPrefix, authResolver).then(
+          (bytes) => ({ chunk, startMs, bytes }),
+        ),
       ),
     );
     const allFireEvents: FireEvent[] = [];
     const timeline: WeaponTimeline = new Map();
     const chunkTimings: ChunkTiming[] = [];
-    for (const [i, { chunk, startMs }] of chunks.entries()) {
-      const chunkBytes = chunkBytesArray[i];
-      if (chunkBytes == null) {
-        continue;
-      }
-      const chunkData = new Uint8Array(inflateSync(chunkBytes));
+    for (const { chunk, startMs, bytes } of chunksWithBytes) {
+      const chunkData = new Uint8Array(inflateSync(bytes));
       for (const ev of scanFireEvents(chunkData, startMs, chunk.DurationMilliseconds)) {
         allFireEvents.push(ev);
       }
