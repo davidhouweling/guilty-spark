@@ -119,18 +119,14 @@ export class OverlayPagePresenter {
 
       const analyticsPromise = this.config.matchAnalyticsService
         .getBatchMatchAnalytics([matchId], ["killMatrix", "scoreProgression"])
-        .then(
-          (analyticsByMatchId): OverlayAnalyticsLoadResult => ({
-            status: ComponentLoaderStatus.LOADED,
-            analyticsByMatchId,
-          }),
-        )
-        .catch(
-          (): OverlayAnalyticsLoadResult => ({
-            status: ComponentLoaderStatus.ERROR,
-            analyticsByMatchId: {},
-          }),
-        );
+        .then((analyticsByMatchId): OverlayAnalyticsLoadResult => ({
+          status: ComponentLoaderStatus.LOADED,
+          analyticsByMatchId,
+        }))
+        .catch((): OverlayAnalyticsLoadResult => ({
+          status: ComponentLoaderStatus.ERROR,
+          analyticsByMatchId: {},
+        }));
 
       const [users, medalMetadata] = await Promise.all([
         this.config.haloClient.getUsers(xuids).catch(() => []),
