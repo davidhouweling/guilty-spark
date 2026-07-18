@@ -61,7 +61,9 @@ const filmMeta = JSON.parse(await readFile(path.join(__dirname, "film-metadata.j
 
 const appData = JSON.parse(await readFile(path.join(__dirname, "app-data.json"), "utf-8")) as Record<string, string>;
 const filmEventsRaw = appData["halo:film:match:53e2e332-6219-4360-8148-5595b76bdeeb"];
-if (filmEventsRaw == null) {throw new Error("film events not found in app-data.json");}
+if (filmEventsRaw == null) {
+  throw new Error("film events not found in app-data.json");
+}
 const filmEvents = JSON.parse(filmEventsRaw) as CachedEvent[];
 
 const matchStats = JSON.parse(await readFile(path.join(__dirname, "match-stats.json"), "utf-8")) as {
@@ -74,9 +76,7 @@ function unwrapXuid(raw: string): string {
   return raw.replace(/^xuid\(|\)$/gu, "");
 }
 
-const sortedPlayers = [...matchStats.Players].sort(
-  (a, b) => a.LastTeamId - b.LastTeamId || a.Rank - b.Rank,
-);
+const sortedPlayers = [...matchStats.Players].sort((a, b) => a.LastTeamId - b.LastTeamId || a.Rank - b.Rank);
 const xuidToPlayerIndex = new Map<string, number>();
 for (const [index, player] of sortedPlayers.entries()) {
   xuidToPlayerIndex.set(unwrapXuid(player.PlayerId), index);
@@ -102,9 +102,13 @@ for (const kill of kills) {
   let bestTimeDelta = Infinity;
 
   for (let di = 0; di < deaths.length; di++) {
-    if (usedDeathIndices.has(di)) {continue;}
+    if (usedDeathIndices.has(di)) {
+      continue;
+    }
     const death = deaths[di];
-    if (death == null) {continue;}
+    if (death == null) {
+      continue;
+    }
     const delta = Math.abs(kill.timeMs - death.timeMs);
     if (delta <= KILL_DEATH_PAIRING_MAX_DELTA_MS && delta < bestTimeDelta) {
       bestTimeDelta = delta;
@@ -129,9 +133,7 @@ for (const kill of kills) {
 
 // --- Download and scan all type-2 chunks ---
 
-const type2Chunks = [...filmMeta.CustomData.Chunks]
-  .filter((c) => c.ChunkType === 2)
-  .sort((a, b) => a.Index - b.Index);
+const type2Chunks = [...filmMeta.CustomData.Chunks].filter((c) => c.ChunkType === 2).sort((a, b) => a.Index - b.Index);
 
 let cumulativeMs = 0;
 const chunkOffsets = new Map<number, number>();
@@ -284,4 +286,6 @@ for (const p of pairs) {
   console.log(`${p.killer.padEnd(22)} ${p.victim.padEnd(22)} ${p.count.toString().padStart(3)}  ${weaponStr}`);
 }
 
-console.log(`\nAttribution rate: ${weaponFound.toString()}/${killPairs.length.toString()} kills (${(((weaponFound / killPairs.length) * 100).toFixed(1))}%)`);
+console.log(
+  `\nAttribution rate: ${weaponFound.toString()}/${killPairs.length.toString()} kills (${((weaponFound / killPairs.length) * 100).toFixed(1)}%)`,
+);

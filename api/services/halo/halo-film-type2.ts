@@ -155,7 +155,9 @@ function findBytePattern(data: Uint8Array, pattern: Uint8Array, start: number, e
   const limit = Math.min(end, data.length) - pattern.length;
   outer: for (let i = start; i <= limit; i++) {
     for (let j = 0; j < pattern.length; j++) {
-      if (data[i + j] !== pattern[j]) {continue outer;}
+      if (data[i + j] !== pattern[j]) {
+        continue outer;
+      }
     }
     return i;
   }

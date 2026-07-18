@@ -32,8 +32,16 @@ import type {
 } from "./types";
 
 type WeaponTimeline = Map<number, Map<number, { weaponId: string; name: string }>>;
-interface ChunkTiming { chunkIndex: number; startMs: number; endMs: number }
-interface FilmAttributionData { attributor: WeaponAttributor; timeline: WeaponTimeline; chunkTimings: ChunkTiming[] }
+interface ChunkTiming {
+  chunkIndex: number;
+  startMs: number;
+  endMs: number;
+}
+interface FilmAttributionData {
+  attributor: WeaponAttributor;
+  timeline: WeaponTimeline;
+  chunkTimings: ChunkTiming[];
+}
 
 export class HaloFilmService {
   private static readonly FILM_CACHE_TTL_SECONDS = 604_800;
@@ -187,10 +195,10 @@ export class HaloFilmService {
 
   private async tryBuildFilmAttributionData(matchStats: MatchStats): Promise<FilmAttributionData | null> {
     try {
-      let resolvedAuth: { spartanToken: string; clearanceToken: string } | null = null;
+      let authPromise: Promise<{ spartanToken: string; clearanceToken: string }> | null = null;
       const authResolver = async (): Promise<{ spartanToken: string; clearanceToken: string }> => {
-        resolvedAuth ??= await this.resolveAuthContext();
-        return resolvedAuth;
+        authPromise ??= this.resolveAuthContext();
+        return authPromise;
       };
       const filmMetadata = await this.getOrFetchFilmMetadata(matchStats.MatchId, authResolver);
       const scanResult = await this.scanAllReplicationChunks(matchStats.MatchId, filmMetadata, authResolver);
@@ -224,6 +232,25 @@ export class HaloFilmService {
     return results;
   }
 
+  private async fetchReplicationChunkBytes(
+    matchId: string,
+    chunk: FilmMetadataResponse["CustomData"]["Chunks"][number],
+    blobStoragePathPrefix: string,
+    authResolver: () => Promise<{ spartanToken: string; clearanceToken: string }>,
+  ): Promise<Uint8Array> {
+    const cacheRequest = this.toChunkCacheRequest(matchId, chunk.Index);
+    const cached = await this.getCachedChunk(cacheRequest);
+    if (cached != null) {
+      return cached;
+    }
+    const authContext = await authResolver();
+    const path = chunk.FileRelativePath.replace(/^\//u, "");
+    const url = `${blobStoragePathPrefix}${path}`;
+    const bytes = await this.fetchBinary(url, authContext.spartanToken, authContext.clearanceToken);
+    void this.putCachedChunk(cacheRequest, bytes);
+    return bytes;
+  }
+
   private async scanAllReplicationChunks(
     matchId: string,
     filmMetadata: FilmMetadataResponse,
@@ -233,18 +260,18 @@ export class HaloFilmService {
     if (chunks.length === 0) {
       return null;
     }
+    const chunkBytesArray = await Promise.all(
+      chunks.map(async ({ chunk }) =>
+        this.fetchReplicationChunkBytes(matchId, chunk, filmMetadata.BlobStoragePathPrefix, authResolver),
+      ),
+    );
     const allFireEvents: FireEvent[] = [];
     const timeline: WeaponTimeline = new Map();
     const chunkTimings: ChunkTiming[] = [];
-    for (const { chunk, startMs } of chunks) {
-      const chunkCacheRequest = this.toChunkCacheRequest(matchId, chunk.Index);
-      let chunkBytes = await this.getCachedChunk(chunkCacheRequest);
+    for (const [i, { chunk, startMs }] of chunks.entries()) {
+      const chunkBytes = chunkBytesArray[i];
       if (chunkBytes == null) {
-        const authContext = await authResolver();
-        const path = chunk.FileRelativePath.replace(/^\//u, "");
-        const url = `${filmMetadata.BlobStoragePathPrefix}${path}`;
-        chunkBytes = await this.fetchBinary(url, authContext.spartanToken, authContext.clearanceToken);
-        await this.putCachedChunk(chunkCacheRequest, chunkBytes);
+        continue;
       }
       const chunkData = new Uint8Array(inflateSync(chunkBytes));
       for (const ev of scanFireEvents(chunkData, startMs, chunk.DurationMilliseconds)) {

@@ -1632,6 +1632,74 @@ describe("HaloFilmService", () => {
       expect(analytics.entries).toHaveLength(1);
       expect(analytics.entries[0]?.weapons).toEqual([{ weaponId: "6ACDC44D42C9679F", name: "Bandit Evo", count: 1 }]);
     });
+
+    it("resolves auth context only once when multiple type-2 chunks are fetched in parallel", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const getSpartanTokenSpy = vi
+        .spyOn(spartanTokenProvider, "getSpartanToken")
+        .mockResolvedValue("fake-spartan-token");
+      await env.APP_DATA.put("film:clearance", "fake-clearance-token");
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+      const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
+      const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
+
+      const matchId = match.MatchId;
+      const compressedEmpty = deflateSync(new Uint8Array(0));
+      const filmMetadata = {
+        AssetId: "asset-id",
+        BlobStoragePathPrefix: "https://blob.example/",
+        CustomData: {
+          MatchId: matchId,
+          FilmMajorVersion: 42,
+          FilmLength: 20000,
+          Chunks: [
+            { Index: 0, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 0, FileRelativePath: "/chunk-0.bin" },
+            { Index: 1, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 0, FileRelativePath: "/chunk-1.bin" },
+          ],
+        },
+      };
+      await defaultCache().put(
+        metadataCacheRequestFor(matchId),
+        new Response(JSON.stringify(filmMetadata), {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/json" },
+        }),
+      );
+
+      vi.spyOn(globalThis, "fetch").mockImplementation(async (): Promise<Response> => {
+        await Promise.resolve();
+        return new Response(compressedEmpty, { status: 200 });
+      });
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 4000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 4000,
+          medalValue: 0,
+          teamId: null,
+        },
+      ]);
+
+      await service.buildKillMatrixAnalytics(match);
+
+      expect(getSpartanTokenSpy).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("buildKillRaceProgression", () => {
