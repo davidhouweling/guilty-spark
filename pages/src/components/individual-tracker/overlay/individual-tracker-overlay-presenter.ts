@@ -22,7 +22,12 @@ import type {
 } from "../viewer/types";
 import { gameModeIconSrc } from "../game-mode-icon";
 import { RankIcon } from "../../icons/rank-icon";
-import { ALL_SLAYER_STATS, DEFAULT_TICKER_SETTINGS } from "../../live-tracker/settings/types";
+import {
+  ALL_SLAYER_STATS,
+  DEFAULT_TICKER_SETTINGS,
+  MAX_PREVIOUS_GAMES_TO_SHOW,
+  MIN_PREVIOUS_GAMES_TO_SHOW,
+} from "../../live-tracker/settings/types";
 import haloTrophyIconPng from "../../../assets/halo-trophy-icon.png";
 import type {
   IndividualTrackerOverlayViewModel,
@@ -474,7 +479,8 @@ export class IndividualTrackerOverlayPresenter {
       includeMatchmakingSummaryTab: streamerSettings?.styleFlags?.matchmakingShowSummaryTab ?? true,
       matchmakingSummaryScore,
     });
-    const loadedTickerGroups = this.buildTickerGroups(options.matchStatsByMatchId, tabs, {
+    const trimmedTabs = this.trimTabsToMaxPreviousGames(tabs, this.getMaxPreviousGamesToShow(streamerSettings));
+    const loadedTickerGroups = this.buildTickerGroups(options.matchStatsByMatchId, trimmedTabs, {
       trackedGamertag: renderModel.gamertag,
       includeOnlyTrackedPlayer: this.getIncludeOnlyTrackedPlayer(streamerSettings, activeSeries),
       applyPlayerPerspectiveTickerColors: activeSeries == null,
@@ -501,13 +507,23 @@ export class IndividualTrackerOverlayPresenter {
         activeSeries != null ? this.getTopSectionModel(activeSeries, displaySettings, streamerSettings) : null,
       statsHighlights: this.getMatchmakingStatsHighlights(streamerSettings, activeSeries, renderModel.statsHighlights),
       teamColors,
-      tabs,
+      tabs: trimmedTabs,
       tickerMatchGroups,
-      showTabs: displaySettings.showTabs && tabs.length > 0,
+      showTabs: this.getShowTabs(streamerSettings, activeSeries, displaySettings.showTabs) && trimmedTabs.length > 0,
       showTicker,
       showPreSeriesInfo: tickerMatchGroups.length > 0 && activeSeries?.matches.length === 0,
       fontSizeStyles,
     };
+  }
+
+  private trimTabsToMaxPreviousGames(
+    tabs: readonly OverlayTab[],
+    maxPreviousGamesToShow: number,
+  ): readonly OverlayTab[] {
+    const pinnedSummaryTabs = tabs.filter((tab) => tab.type === "series" && tab.index === -1);
+    const historyTabs = tabs.filter((tab) => !(tab.type === "series" && tab.index === -1));
+    const trimmedHistoryTabs = historyTabs.slice(-maxPreviousGamesToShow);
+    return [...pinnedSummaryTabs, ...trimmedHistoryTabs];
   }
 
   private getMatchmakingStatsHighlights(
@@ -697,6 +713,25 @@ export class IndividualTrackerOverlayPresenter {
     }
 
     return streamerSettings?.styleFlags?.matchmakingShowTicker ?? fallbackShowTicker;
+  }
+
+  private getShowTabs(
+    streamerSettings: StreamerViewSettings | undefined,
+    activeSeries: ViewerSeriesTab | null,
+    fallbackShowTabs: boolean,
+  ): boolean {
+    if (activeSeries != null) {
+      return streamerSettings?.styleFlags?.inSeriesShowTabs ?? fallbackShowTabs;
+    }
+
+    return streamerSettings?.styleFlags?.matchmakingShowTabs ?? fallbackShowTabs;
+  }
+
+  private getMaxPreviousGamesToShow(streamerSettings: StreamerViewSettings | undefined): number {
+    const configuredValue =
+      streamerSettings?.visibleSections?.maxPreviousGamesToShow ?? DEFAULT_TICKER_SETTINGS.maxPreviousGamesToShow;
+
+    return Math.max(MIN_PREVIOUS_GAMES_TO_SHOW, Math.min(MAX_PREVIOUS_GAMES_TO_SHOW, configuredValue));
   }
 
   private getSelectedSlayerStats(streamerSettings: StreamerViewSettings | undefined): readonly string[] {

@@ -198,6 +198,24 @@ describe("parseSettingsFromUrl", () => {
     expect(result.global.ticker.showTicker).toBe(false);
   });
 
+  it("parses maxPreviousGamesToShow when it is in range", () => {
+    const params = new URLSearchParams();
+    params.set("maxPreviousGamesToShow", "12");
+
+    const result = parseSettingsFromUrl(params);
+
+    expect(result.global.ticker.maxPreviousGamesToShow).toBe(12);
+  });
+
+  it("ignores maxPreviousGamesToShow when it is out of range", () => {
+    const params = new URLSearchParams();
+    params.set("maxPreviousGamesToShow", "99");
+
+    const result = parseSettingsFromUrl(params);
+
+    expect(result.global.ticker.maxPreviousGamesToShow).toBe(DEFAULT_GLOBAL_SETTINGS.ticker.maxPreviousGamesToShow);
+  });
+
   it("parses font sizes from URL and merges with stored values", () => {
     const customDefaults: AllStreamerSettings = {
       ...DEFAULT_ALL_SETTINGS,
@@ -285,6 +303,7 @@ describe("encodeSettingsToUrlParams", () => {
           ...DEFAULT_GLOBAL_SETTINGS.ticker,
           showTicker: false,
           showTabs: false,
+          maxPreviousGamesToShow: 12,
         },
       },
       series: {
@@ -304,6 +323,7 @@ describe("encodeSettingsToUrlParams", () => {
     expect(roundTripped.global.colors.observerView.cobraColor).toBe(original.global.colors.observerView.cobraColor);
     expect(roundTripped.global.ticker.showTicker).toBe(original.global.ticker.showTicker);
     expect(roundTripped.global.ticker.showTabs).toBe(original.global.ticker.showTabs);
+    expect(roundTripped.global.ticker.maxPreviousGamesToShow).toBe(original.global.ticker.maxPreviousGamesToShow);
     expect(roundTripped.series.titleOverride).toBe(original.series.titleOverride);
   });
 });

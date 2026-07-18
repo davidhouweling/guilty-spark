@@ -9,6 +9,7 @@ import { RankIcon } from "../../icons/rank-icon";
 import discordLogo from "../../../assets/discord-logo.png";
 import xboxLogo from "../../../assets/xbox-logo.png";
 import { ALL_SLAYER_STATS, type AllStreamerSettings } from "../settings/types";
+import { MAX_PREVIOUS_GAMES_TO_SHOW, MIN_PREVIOUS_GAMES_TO_SHOW } from "../settings/types";
 import {
   useTrackerState,
   useAllMatchStats,
@@ -78,6 +79,14 @@ function NeatQueueStreamerOverlay({
   const SharedStreamerOverlay = useMemo(() => createStreamerOverlaySection(), []);
   const seriesMatchCount = neatQueueState.seriesData?.matchIds.length ?? neatQueueState.matches.length;
   const isPreSeriesMode = seriesMatchCount === 0;
+  const clampedMaxPreviousGamesToShow = useMemo(
+    () =>
+      Math.max(
+        MIN_PREVIOUS_GAMES_TO_SHOW,
+        Math.min(MAX_PREVIOUS_GAMES_TO_SHOW, settings.global.ticker.maxPreviousGamesToShow),
+      ),
+    [settings.global.ticker.maxPreviousGamesToShow],
+  );
 
   const allMatchStats = useAllMatchStats();
   const seriesStats = useSeriesStats();
@@ -310,7 +319,13 @@ function NeatQueueStreamerOverlay({
       groups.push({ matchIndex: -1, label: "Series Stats", rows });
     }
 
+    const earliestMatchIndexToInclude = Math.max(0, neatQueueState.matches.length - clampedMaxPreviousGamesToShow);
+
     for (const [matchIndex, matchStat] of allMatchStats.entries()) {
+      if (matchIndex < earliestMatchIndexToInclude) {
+        continue;
+      }
+
       if (matchStat.data) {
         const rows: TickerStatRow[] = [];
 
@@ -351,6 +366,7 @@ function NeatQueueStreamerOverlay({
     neatQueueState,
     seriesStats,
     allMatchStats,
+    clampedMaxPreviousGamesToShow,
     isPreSeriesMode,
     settings.global.ticker.selectedSlayerStats,
     settings.global.ticker.showObjectiveStats,
@@ -518,8 +534,29 @@ function NeatQueueStreamerOverlay({
     return playerTeamId >= 0 ? playerTeamId : 0;
   }, [neatQueueState.teams, settings.global.colors.mode, settings.global.colors.playerView.selectedPlayerId]);
 
-  const tabs = useMemo<readonly OverlayTab[]>(
-    () => [
+  const tabs = useMemo<readonly OverlayTab[]>(() => {
+    const allMatchTabs = neatQueueState.matches.map((match, idx): OverlayTab => {
+      const winningTeamId = match.rawMatchStats?.Teams.find((team) => team.Outcome === 2)?.TeamId ?? null;
+      const teamColor = winningTeamId !== null ? teamColors[winningTeamId]?.hex : undefined;
+      const isLoss = winningTeamId !== null && winningTeamId !== observedTeamId;
+
+      return {
+        type: "match" as const,
+        index: idx,
+        matchId: match.matchId,
+        label: settings.global.ticker.showTabs ? match.gameMap : "",
+        score: match.gameScore,
+        icons: [
+          {
+            src: gameModeIconUrl(match.gameType, match.rawMatchStats?.MatchInfo.GameVariantCategory),
+            dimmed: isLoss,
+          },
+        ],
+        teamColor,
+      };
+    });
+
+    return [
       {
         type: "series" as const,
         seriesId: "live-tracker-series",
@@ -528,36 +565,17 @@ function NeatQueueStreamerOverlay({
         score: neatQueueState.seriesScore,
         teamColor: undefined,
       },
-      ...neatQueueState.matches.map((match, idx) => {
-        const winningTeamId = match.rawMatchStats?.Teams.find((team) => team.Outcome === 2)?.TeamId ?? null;
-        const teamColor = winningTeamId !== null ? teamColors[winningTeamId]?.hex : undefined;
-        const isLoss = winningTeamId !== null && winningTeamId !== observedTeamId;
-
-        return {
-          type: "match" as const,
-          index: idx,
-          matchId: match.matchId,
-          label: settings.global.ticker.showTabs ? match.gameMap : "",
-          score: match.gameScore,
-          icons: [
-            {
-              src: gameModeIconUrl(match.gameType, match.rawMatchStats?.MatchInfo.GameVariantCategory),
-              dimmed: isLoss,
-            },
-          ],
-          teamColor,
-        };
-      }),
-    ],
-    [
-      gameModeIconUrl,
-      neatQueueState.matches,
-      neatQueueState.seriesScore,
-      observedTeamId,
-      settings.global.ticker.showTabs,
-      teamColors,
-    ],
-  );
+      ...allMatchTabs.slice(-clampedMaxPreviousGamesToShow),
+    ];
+  }, [
+    clampedMaxPreviousGamesToShow,
+    gameModeIconUrl,
+    neatQueueState.matches,
+    neatQueueState.seriesScore,
+    observedTeamId,
+    settings.global.ticker.showTabs,
+    teamColors,
+  ]);
 
   const { showScore, showTeamDetails } = settings.global.display;
   const { showTabs, showTicker } = settings.global.ticker;
