@@ -147,6 +147,7 @@ describe("scanFormulaAEvents", () => {
   });
 
   it("supports all player indices 0–7 via top 3 bits of player byte", () => {
+    expect.assertions(8);
     const BR75 = 0x2b1824d542c9679fn;
     for (let pi = 0; pi <= 7; pi++) {
       const events = scanFormulaAEvents(buildFormulaAEventBytes(pi, BR75));
@@ -154,7 +155,7 @@ describe("scanFormulaAEvents", () => {
     }
   });
 
-  it("returns empty array when weapon ID lacks common suffix and is not in known list", () => {
+  it("returns empty array when weapon ID lacks common suffix bytes", () => {
     const unknownId = 0xdeadbeefdeadbeefn;
     const data = buildFormulaAEventBytes(0, unknownId);
     expect(scanFormulaAEvents(data)).toEqual([]);
