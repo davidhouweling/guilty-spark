@@ -27,7 +27,7 @@ import type {
   KillRaceProgressionEvent,
   HaloFilmServiceOpts,
 } from "./types";
-import type { CustomSpartanTokenProvider } from "./custom-spartan-token-provider";
+import type { SpartanTokenProvider } from "halo-infinite-api";
 
 export class HaloFilmService {
   private static readonly FILM_CACHE_TTL_SECONDS = 604_800;
@@ -36,7 +36,7 @@ export class HaloFilmService {
   private static readonly FILM_CACHE_BASE_URL = "https://halo-film-cache.local";
 
   private readonly env: Env;
-  private readonly spartanTokenProvider: CustomSpartanTokenProvider;
+  private readonly spartanTokenProvider: SpartanTokenProvider;
   private readonly fetchFn: typeof globalThis.fetch | undefined;
   private readonly clearanceCacheKey: string;
 
