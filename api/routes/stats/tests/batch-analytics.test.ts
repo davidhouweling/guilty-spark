@@ -1,10 +1,15 @@
 import type { AutoRouterType } from "itty-router";
+import { StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
 import type { MockInstance } from "vitest";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LogService } from "../../../services/log/types";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
-import type { AnalyticsService } from "../../../services/analytics/analytics";
+import { aFakeAuthSessionWith } from "../../../services/auth/fakes/data";
+import {
+  AnalyticsService,
+  type AnalyticsService as AnalyticsServiceInstance,
+} from "../../../services/analytics/analytics";
 import { aFakeMatchAnalyticsWith } from "../../../services/analytics/fakes/analytics.fake";
 import { aFakeIndividualTrackersRow } from "../../../services/database/fakes/database.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
@@ -19,11 +24,15 @@ describe("/api/stats/match-analytics (batch)", () => {
     router = createApiRouter();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("returns results keyed by matchId with no-store cache header", async () => {
     const analytics = aFakeMatchAnalyticsWith();
 
     const services = installFakeServicesWith({ env });
-    const getBatchMatchAnalyticsSpy: MockInstance<AnalyticsService["getBatchMatchAnalytics"]> = vi.spyOn(
+    const getBatchMatchAnalyticsSpy: MockInstance<AnalyticsServiceInstance["getBatchMatchAnalytics"]> = vi.spyOn(
       services.analyticsService,
       "getBatchMatchAnalytics",
     );
@@ -78,7 +87,10 @@ describe("/api/stats/match-analytics (batch)", () => {
     expect(logWarnSpy).toHaveBeenCalledOnce();
     expect(logWarnSpy).toHaveBeenCalledWith(
       "1/2 match analytics fetches failed",
-      new Map([["route", "stats:match-analytics-batch"]]),
+      new Map([
+        ["route", "stats:match-analytics-batch"],
+        ["credentialSource", "bot"],
+      ]),
     );
   });
 
@@ -111,7 +123,7 @@ describe("/api/stats/match-analytics (batch)", () => {
     const analytics = aFakeMatchAnalyticsWith();
 
     const services = installFakeServicesWith({ env });
-    const getBatchMatchAnalyticsSpy: MockInstance<AnalyticsService["getBatchMatchAnalytics"]> = vi.spyOn(
+    const getBatchMatchAnalyticsSpy: MockInstance<AnalyticsServiceInstance["getBatchMatchAnalytics"]> = vi.spyOn(
       services.analyticsService,
       "getBatchMatchAnalytics",
     );
@@ -205,6 +217,105 @@ describe("/api/stats/match-analytics (batch)", () => {
       new Map([
         ["context", "Failed to resolve user credentials for batch analytics tracker"],
         ["trackerId", "tracker-1"],
+      ]),
+    );
+  });
+
+  it("includes credentialSource as 'bot' in failure warning when using bot credentials", async () => {
+    const services = installFakeServicesWith({ env });
+    vi.spyOn(services.analyticsService, "getBatchMatchAnalytics").mockResolvedValue({
+      "match-ok": aFakeMatchAnalyticsWith(),
+      "match-fail": null,
+    });
+    const logWarnSpy: MockInstance<LogService["warn"]> = vi.spyOn(services.logService, "warn");
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      new Request("http://localhost/api/stats/match-analytics?matchIds=match-ok,match-fail"),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(200);
+    expect(logWarnSpy).toHaveBeenCalledWith(
+      "1/2 match analytics fetches failed",
+      new Map([
+        ["route", "stats:match-analytics-batch"],
+        ["credentialSource", "bot"],
+      ]),
+    );
+  });
+
+  it("falls back to bot credentials when user access token is not available", async () => {
+    const analytics = aFakeMatchAnalyticsWith();
+    const services = installFakeServicesWith({ env });
+
+    vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(
+      aFakeIndividualTrackersRow({ TrackerId: "tracker-1", UserId: "owner-user-1", IsLive: 1 }),
+    );
+    vi.spyOn(services.authService, "validateSession").mockResolvedValue(
+      aFakeAuthSessionWith({ userId: "other-user-1" }),
+    );
+    const getContextForUserSpy = vi.spyOn(services.userTokenProvider, "getContextForUser");
+    vi.spyOn(services.analyticsService, "getBatchMatchAnalytics").mockResolvedValue({ "match-1": analytics });
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      new Request("http://localhost/api/stats/match-analytics?matchIds=match-1&trackerId=tracker-1"),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toEqual({ results: { "match-1": analytics } });
+    expect(getContextForUserSpy).not.toHaveBeenCalled();
+  });
+
+  it("attempts user credential resolution when tracker is live", async () => {
+    const analytics = aFakeMatchAnalyticsWith();
+    const services = installFakeServicesWith({ env });
+    const ownerUserId = "owner-user-1";
+
+    vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(
+      aFakeIndividualTrackersRow({ TrackerId: "tracker-1", UserId: ownerUserId, IsLive: 1 }),
+    );
+    const getContextForUserSpy = vi.spyOn(services.userTokenProvider, "getContextForUser").mockResolvedValue({
+      client: services.haloInfiniteClient,
+      spartanTokenProvider: new StaticXstsTicketTokenSpartanTokenProvider("owner-xsts-token"),
+    });
+    vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith({ userId: ownerUserId }));
+    const botAnalyticsSpy = vi.spyOn(services.analyticsService, "getBatchMatchAnalytics");
+    const logWarnSpy: MockInstance<LogService["warn"]> = vi.spyOn(services.logService, "warn");
+    const analyticsServiceGetBatchMatchAnalyticsSpy: MockInstance<AnalyticsServiceInstance["getBatchMatchAnalytics"]> =
+      vi.spyOn(AnalyticsService.prototype, "getBatchMatchAnalytics");
+    analyticsServiceGetBatchMatchAnalyticsSpy.mockResolvedValue({
+      "match-1": analytics,
+      "match-2": null,
+    });
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      new Request(
+        "http://localhost/api/stats/match-analytics?matchIds=match-1,match-2&modules=killMatrix&trackerId=tracker-1",
+      ),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(200);
+    expect(getContextForUserSpy).toHaveBeenCalledWith(ownerUserId);
+    expect(botAnalyticsSpy).not.toHaveBeenCalled();
+    expect(analyticsServiceGetBatchMatchAnalyticsSpy).toHaveBeenCalledWith(["match-1", "match-2"], ["killMatrix"]);
+    const body = await response.json();
+    expect(body).toEqual({ results: { "match-1": analytics, "match-2": null } });
+    expect(logWarnSpy).toHaveBeenCalledWith(
+      "1/2 match analytics fetches failed",
+      new Map([
+        ["route", "stats:match-analytics-batch"],
+        ["credentialSource", `user:${ownerUserId}`],
       ]),
     );
   });
