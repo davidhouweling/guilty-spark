@@ -2,6 +2,7 @@ import { inflateSync } from "node:zlib";
 import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { wrapXuid, unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
+import { scanFireEvents, WeaponAttributor } from "./halo-film-type2";
 import {
   HALO_PC_USER_AGENT,
   MIN_XUID,
@@ -143,10 +144,15 @@ export class HaloFilmService {
     const perfectMedalTimestamps = this.buildPerfectMedalTimestampsByXuid(events);
     const perfectCounts = this.buildPerfectCountsReport(events);
 
+    const xuidToPlayerIndex = this.buildXuidToPlayerIndex(matchStats);
+    const weaponAttributor = await this.tryBuildWeaponAttributor(matchStats);
+
     const { entries, maxTimeDeltaMs, usedDeathCount } = this.buildKillMatrixEntriesByPairing(
       kills,
       deaths,
       perfectMedalTimestamps,
+      weaponAttributor,
+      xuidToPlayerIndex,
     );
 
     return {
@@ -161,6 +167,74 @@ export class HaloFilmService {
 
   private filterKillEvents(events: ParsedHighlightEvent[]): ParsedHighlightEvent[] {
     return events.filter((event) => event.eventType === "kill");
+  }
+
+  private buildXuidToPlayerIndex(matchStats: MatchStats): Map<string, number> {
+    const sorted = [...matchStats.Players].sort((a, b) => a.LastTeamId - b.LastTeamId || a.Rank - b.Rank);
+    const map = new Map<string, number>();
+    sorted.forEach((player, index) => {
+      map.set(unwrapXuid(player.PlayerId), index);
+    });
+    return map;
+  }
+
+  private async tryBuildWeaponAttributor(matchStats: MatchStats): Promise<WeaponAttributor | null> {
+    try {
+      // Film metadata is cached by loadEnrichedEventsForMatch (called earlier in buildKillMatrixAnalytics).
+      // If the cache is cold (e.g. test environment mocking getHighlightEventsForMatch), skip silently.
+      const filmMetadata = await this.getCachedJson<FilmMetadataResponse>(
+        this.toMetadataCacheRequest(matchStats.MatchId),
+      );
+      if (filmMetadata == null) {
+        return null;
+      }
+      const authContext = await this.resolveAuthContext();
+      const replicationChunkBytes = await this.tryGetReplicationChunkBytes(
+        matchStats.MatchId,
+        filmMetadata,
+        authContext,
+      );
+      if (replicationChunkBytes == null) {
+        return null;
+      }
+      const replicationChunk = this.tryFindReplicationChunk(filmMetadata);
+      const durationMs = replicationChunk?.DurationMilliseconds ?? 0;
+      const fireEvents = scanFireEvents(replicationChunkBytes, 0, durationMs);
+      return new WeaponAttributor(fireEvents);
+    } catch {
+      return null;
+    }
+  }
+
+  private tryFindReplicationChunk(
+    filmMetadata: FilmMetadataResponse,
+  ): FilmMetadataResponse["CustomData"]["Chunks"][number] | null {
+    return (
+      [...filmMetadata.CustomData.Chunks]
+        .sort((a, b) => a.Index - b.Index)
+        .findLast((chunk) => chunk.ChunkType === 2) ?? null
+    );
+  }
+
+  private async tryGetReplicationChunkBytes(
+    matchId: string,
+    filmMetadata: FilmMetadataResponse,
+    authContext: { spartanToken: string; clearanceToken: string },
+  ): Promise<Uint8Array | null> {
+    const replicationChunk = this.tryFindReplicationChunk(filmMetadata);
+    if (replicationChunk == null) {
+      return null;
+    }
+    const chunkCacheRequest = this.toChunkCacheRequest(matchId, replicationChunk.Index);
+    const cachedChunk = await this.getCachedChunk(chunkCacheRequest);
+    if (cachedChunk != null) {
+      return cachedChunk;
+    }
+    const path = replicationChunk.FileRelativePath.replace(/^\//u, "");
+    const url = `${filmMetadata.BlobStoragePathPrefix}${path}`;
+    const downloaded = await this.fetchBinary(url, authContext.spartanToken, authContext.clearanceToken);
+    await this.putCachedChunk(chunkCacheRequest, downloaded);
+    return downloaded;
   }
 
   private async getOrFetchFilmMetadata(
@@ -261,8 +335,11 @@ export class HaloFilmService {
     kills: ParsedHighlightEvent[],
     deaths: ParsedHighlightEvent[],
     perfectMedalTimestamps: Map<string, number[]>,
+    weaponAttributor: WeaponAttributor | null,
+    xuidToPlayerIndex: Map<string, number>,
   ): { entries: KillMatrixEntry[]; maxTimeDeltaMs: number; usedDeathCount: number } {
     const entriesByPair = new Map<string, KillMatrixEntry>();
+    const weaponCountsByPair = new Map<string, Map<string, { name: string; count: number }>>();
     const usedDeathIndexes = new Set<number>();
     let maxTimeDeltaMs = 0;
 
@@ -295,6 +372,33 @@ export class HaloFilmService {
         existing.perfects += 1;
       }
       entriesByPair.set(pairKey, existing);
+
+      if (weaponAttributor != null) {
+        const playerIndex = xuidToPlayerIndex.get(killEvent.xuid) ?? null;
+        const weapon = weaponAttributor.claim(playerIndex, killEvent.timeMs);
+        if (weapon != null) {
+          let pairWeapons = weaponCountsByPair.get(pairKey);
+          if (pairWeapons == null) {
+            pairWeapons = new Map();
+            weaponCountsByPair.set(pairKey, pairWeapons);
+          }
+          const existingWeapon = pairWeapons.get(weapon.weaponId);
+          if (existingWeapon != null) {
+            existingWeapon.count += 1;
+          } else {
+            pairWeapons.set(weapon.weaponId, { name: weapon.name, count: 1 });
+          }
+        }
+      }
+    }
+
+    for (const [pairKey, entry] of entriesByPair) {
+      const pairWeapons = weaponCountsByPair.get(pairKey);
+      if (pairWeapons != null) {
+        entry.weapons = Array.from(pairWeapons.entries())
+          .map(([weaponId, { name, count }]) => ({ weaponId, name, count }))
+          .sort((a, b) => b.count - a.count);
+      }
     }
 
     return { entries: Array.from(entriesByPair.values()), maxTimeDeltaMs, usedDeathCount: usedDeathIndexes.size };
