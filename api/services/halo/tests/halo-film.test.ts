@@ -1219,7 +1219,9 @@ describe("HaloFilmService", () => {
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("fake-spartan-token");
+      const getSpartanTokenSpy = vi
+        .spyOn(spartanTokenProvider, "getSpartanToken")
+        .mockResolvedValue("fake-spartan-token");
       await env.APP_DATA.put("film:clearance", "fake-clearance-token");
       const service = new HaloFilmService({ env, spartanTokenProvider });
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
@@ -1284,13 +1286,16 @@ describe("HaloFilmService", () => {
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.entries).toHaveLength(1);
       expect(analytics.entries[0]?.weapons).toEqual([{ weaponId: "2B1824D542C9679F", name: "BR75", count: 1 }]);
+      expect(getSpartanTokenSpy).not.toHaveBeenCalled();
     });
 
     it("decompresses zlib-compressed type-2 chunks before scanning fire events", async () => {
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("fake-spartan-token");
+      const getSpartanTokenSpy = vi
+        .spyOn(spartanTokenProvider, "getSpartanToken")
+        .mockResolvedValue("fake-spartan-token");
       await env.APP_DATA.put("film:clearance", "fake-clearance-token");
       const service = new HaloFilmService({ env, spartanTokenProvider });
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
@@ -1354,6 +1359,7 @@ describe("HaloFilmService", () => {
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.entries).toHaveLength(1);
       expect(analytics.entries[0]?.weapons).toEqual([{ weaponId: "48C19D2D42C9679F", name: "MA40 AR", count: 1 }]);
+      expect(getSpartanTokenSpy).not.toHaveBeenCalled();
     });
   });
 
