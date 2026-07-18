@@ -397,9 +397,7 @@ describe("HaloFilmService", () => {
             MatchId: "namespaced-clearance-test-1",
             FilmMajorVersion: 42,
             FilmLength: 100,
-            Chunks: [
-              { Index: 1, ChunkType: 3, DurationMilliseconds: 100, ChunkSize: 1, FileRelativePath: "/c.bin" },
-            ],
+            Chunks: [{ Index: 1, ChunkType: 3, DurationMilliseconds: 100, ChunkSize: 1, FileRelativePath: "/c.bin" }],
           },
         };
         const fetchSpy = mockFetch("unused-clearance", metadata, compressedChunk);
@@ -434,9 +432,7 @@ describe("HaloFilmService", () => {
             MatchId: "namespaced-clearance-test-2",
             FilmMajorVersion: 42,
             FilmLength: 100,
-            Chunks: [
-              { Index: 1, ChunkType: 3, DurationMilliseconds: 100, ChunkSize: 1, FileRelativePath: "/c.bin" },
-            ],
+            Chunks: [{ Index: 1, ChunkType: 3, DurationMilliseconds: 100, ChunkSize: 1, FileRelativePath: "/c.bin" }],
           },
         };
         mockFetch("clearance-namespaced", metadata, compressedChunk);

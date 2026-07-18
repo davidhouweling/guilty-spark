@@ -4,7 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LogService } from "../../../services/log/types";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
-import { AnalyticsService, type AnalyticsService as AnalyticsServiceInstance } from "../../../services/analytics/analytics";
+import {
+  AnalyticsService,
+  type AnalyticsService as AnalyticsServiceInstance,
+} from "../../../services/analytics/analytics";
 import { aFakeMatchAnalyticsWith } from "../../../services/analytics/fakes/analytics.fake";
 import { aFakeIndividualTrackersRow } from "../../../services/database/fakes/database.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
@@ -290,9 +293,8 @@ describe("/api/stats/match-analytics (batch)", () => {
     });
     const botAnalyticsSpy = vi.spyOn(services.analyticsService, "getBatchMatchAnalytics");
     const logWarnSpy: MockInstance<LogService["warn"]> = vi.spyOn(services.logService, "warn");
-    const analyticsServiceGetBatchMatchAnalyticsSpy: MockInstance<
-      AnalyticsServiceInstance["getBatchMatchAnalytics"]
-    > = vi.spyOn(AnalyticsService.prototype, "getBatchMatchAnalytics");
+    const analyticsServiceGetBatchMatchAnalyticsSpy: MockInstance<AnalyticsServiceInstance["getBatchMatchAnalytics"]> =
+      vi.spyOn(AnalyticsService.prototype, "getBatchMatchAnalytics");
     analyticsServiceGetBatchMatchAnalyticsSpy.mockResolvedValue({
       "match-1": analytics,
       "match-2": null,
@@ -302,7 +304,9 @@ describe("/api/stats/match-analytics (batch)", () => {
     statsRoutesRegisterHandler(router, localInstallServices);
 
     const response = (await router.fetch(
-      new Request("http://localhost/api/stats/match-analytics?matchIds=match-1,match-2&modules=killMatrix&trackerId=tracker-1"),
+      new Request(
+        "http://localhost/api/stats/match-analytics?matchIds=match-1,match-2&modules=killMatrix&trackerId=tracker-1",
+      ),
       env,
     )) as Response;
 
