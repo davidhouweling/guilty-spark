@@ -9,7 +9,7 @@ import { CustomSpartanTokenProvider } from "../custom-spartan-token-provider";
 import { HaloFilmService } from "../halo-film";
 import type { ParsedHighlightEvent } from "../types";
 import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake";
-import { buildFireEventBytes } from "./film-fire-event-builder";
+import { buildFireEventBytes, buildFormulaAEventBytes } from "./film-fire-event-builder";
 
 interface CacheContainer {
   default: Cache;
@@ -1561,7 +1561,6 @@ describe("HaloFilmService", () => {
       const service = new HaloFilmService({ env, spartanTokenProvider });
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
 
-      // Players[0] → playerIndex 0 (API response order)
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
 
@@ -1585,19 +1584,12 @@ describe("HaloFilmService", () => {
         }),
       );
 
-      // Fire event is for playerIndex 1 (victim), not playerIndex 0 (killer) — claim() returns null for killer
       const BANDIT_EVO_ID = 0x6acdc44d42c9679fn;
       const BR75_ID = 0x2b1824d542c9679fn;
-      // Formula A bytes for playerIndex 0 with Bandit Evo: [marker, pb=0x00, weapon(8 bytes)]
-      const formulaABytes = new Uint8Array(12);
-      formulaABytes[0] = 0x20;
-      formulaABytes[1] = 0x00;
-      formulaABytes[2] = 0x02;
-      formulaABytes[3] = 0x00; // playerIndex 0 << 5
-      for (let i = 0; i < 8; i++) {
-        formulaABytes[4 + i] = Number((BANDIT_EVO_ID >> BigInt((7 - i) * 8)) & 0xffn);
-      }
-      const rawChunk = new Uint8Array([...buildFireEventBytes(1, 0, BR75_ID), ...formulaABytes]);
+      const rawChunk = new Uint8Array([
+        ...buildFireEventBytes(1, 0, BR75_ID),
+        ...buildFormulaAEventBytes(0, BANDIT_EVO_ID),
+      ]);
       await defaultCache().put(
         chunkCacheRequestFor(matchId, 0),
         new Response(deflateSync(rawChunk), {
@@ -1649,16 +1641,10 @@ describe("HaloFilmService", () => {
       const BANDIT_EVO_ID = 0x6acdc44d42c9679fn;
       const BR75_ID = 0x2b1824d542c9679fn;
 
-      // Chunk 0 (0–5000ms): Formula A event for playerIndex 0 (killer) with Bandit Evo, plus a fire event for playerIndex 1
-      const formulaABytes = new Uint8Array(12);
-      formulaABytes[0] = 0x20;
-      formulaABytes[1] = 0x00;
-      formulaABytes[2] = 0x02;
-      formulaABytes[3] = 0x00; // playerIndex 0 << 5
-      for (let i = 0; i < 8; i++) {
-        formulaABytes[4 + i] = Number((BANDIT_EVO_ID >> BigInt((7 - i) * 8)) & 0xffn);
-      }
-      const chunk0Raw = new Uint8Array([...buildFireEventBytes(1, 0, BR75_ID), ...formulaABytes]);
+      const chunk0Raw = new Uint8Array([
+        ...buildFireEventBytes(1, 0, BR75_ID),
+        ...buildFormulaAEventBytes(0, BANDIT_EVO_ID),
+      ]);
       await defaultCache().put(
         chunkCacheRequestFor(matchId, 0),
         new Response(deflateSync(chunk0Raw), {
@@ -1666,11 +1652,9 @@ describe("HaloFilmService", () => {
         }),
       );
 
-      // Chunk 1 (5000–15000ms): no Formula A events — killer still holds Bandit Evo from chunk 0
-      const chunk1Raw = new Uint8Array(0);
       await defaultCache().put(
         chunkCacheRequestFor(matchId, 1),
-        new Response(deflateSync(chunk1Raw), {
+        new Response(deflateSync(new Uint8Array(0)), {
           headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/octet-stream" },
         }),
       );
@@ -1695,7 +1679,6 @@ describe("HaloFilmService", () => {
         }),
       );
 
-      // Kill at 8000ms falls in chunk 1 — no Formula A events in chunk 1 for playerIndex 0
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
         {
           xuid: killerXuid,

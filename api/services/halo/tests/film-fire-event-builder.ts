@@ -35,3 +35,19 @@ export function buildFireEventBytes(playerIndex: number, slot: number, weaponId:
 
   return data;
 }
+
+// Builds a minimal Uint8Array containing a Formula A weapon-equip event.
+// Layout: [marker(3), pb(1), weaponId(8)] — total 12 bytes.
+//   pb = playerIndex << 5 (top 3 bits encode playerIndex 0-7)
+//   weaponId is the 64-bit weapon ID, big-endian
+export function buildFormulaAEventBytes(playerIndex: number, weaponId: bigint): Uint8Array {
+  const data = new Uint8Array(12);
+  data[0] = 0x20;
+  data[1] = 0x00;
+  data[2] = 0x02;
+  data[3] = playerIndex << 5;
+  for (let i = 0; i < 8; i++) {
+    data[4 + i] = Number((weaponId >> BigInt((7 - i) * 8)) & 0xffn);
+  }
+  return data;
+}
