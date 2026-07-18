@@ -1,4 +1,6 @@
-import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { KillMatrixWeaponUsage, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+
+export type { KillMatrixWeaponUsage };
 
 export type KillMatrixClassification = "enemy-kill" | "betrayal" | "suicide";
 
@@ -14,6 +16,7 @@ export interface KillMatrixPivotRow {
   readonly killerTeamId: number | null;
   readonly kills: ReadonlyMap<string, number>; // keyed by victim gamertag
   readonly perfects: ReadonlyMap<string, number>; // keyed by victim gamertag
+  readonly weapons: ReadonlyMap<string, readonly KillMatrixWeaponUsage[]>; // keyed by victim gamertag
 }
 
 export interface KillMatrixPivotData {
@@ -28,6 +31,8 @@ export interface KillMatrixCrossTeamCell {
   readonly deaths: number;
   readonly killPerfects: number;
   readonly deathPerfects: number;
+  readonly killWeapons: readonly KillMatrixWeaponUsage[];
+  readonly deathWeapons: readonly KillMatrixWeaponUsage[];
 }
 
 export interface H2HDialogData {
@@ -37,6 +42,8 @@ export interface H2HDialogData {
   readonly bKillsOnA: number;
   readonly aPerfsOnB: number;
   readonly bPerfsOnA: number;
+  readonly aWeaponsOnB: readonly KillMatrixWeaponUsage[];
+  readonly bWeaponsOnA: readonly KillMatrixWeaponUsage[];
 }
 
 export interface KillMatrixCrossTeamRow {
@@ -76,6 +83,7 @@ export interface KillMatrixViewRow {
   readonly count: number;
   readonly headshotKills: number;
   readonly perfects: number;
+  readonly weapons: readonly KillMatrixWeaponUsage[];
   readonly classification: KillMatrixClassification;
 }
 

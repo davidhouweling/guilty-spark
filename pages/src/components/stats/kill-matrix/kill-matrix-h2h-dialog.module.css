@@ -41,3 +41,10 @@
   padding: 0.5rem 0.75rem;
   text-align: center;
 }
+
+.weaponName {
+  color: color-mix(in srgb, currentcolor 60%, transparent);
+  display: block;
+  font-size: 0.75rem;
+  font-weight: normal;
+}

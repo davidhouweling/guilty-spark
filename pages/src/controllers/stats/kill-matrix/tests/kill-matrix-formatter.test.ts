@@ -27,6 +27,35 @@ describe("KillMatrixFormatter", () => {
     expect(rows[2]).toMatchObject({ classification: "suicide" });
   });
 
+  it("includes weapons sorted by count descending from the analytics entry", () => {
+    const presenter = new KillMatrixFormatter();
+    const analytics = aFakeMatchAnalyticsWith({
+      killMatrix: {
+        "111:222": {
+          count: 3,
+          headshotKills: 0,
+          perfects: 0,
+          weapons: [
+            { weaponId: "6001000042C9679F", name: "BR75", count: 1 },
+            { weaponId: "5001000042C9679F", name: "MA40 AR", count: 2 },
+          ],
+        },
+      },
+    });
+    const [row] = presenter.present({
+      analytics,
+      playersByXuid: new Map([
+        ["111", { gamertag: "Alpha", teamId: 0 }],
+        ["222", { gamertag: "Bravo", teamId: 1 }],
+      ]),
+    });
+
+    expect(row.weapons).toEqual([
+      { weaponId: "5001000042C9679F", name: "MA40 AR", count: 2 },
+      { weaponId: "6001000042C9679F", name: "BR75", count: 1 },
+    ]);
+  });
+
   it("falls back to xuid when player details are missing", () => {
     const presenter = new KillMatrixFormatter();
     const analytics = aFakeMatchAnalyticsWith({
@@ -61,6 +90,7 @@ describe("KillMatrixFormatter", () => {
           count: 5,
           headshotKills: 2,
           perfects: 0,
+          weapons: [],
           classification: "enemy-kill",
         },
       ];
@@ -82,6 +112,7 @@ describe("KillMatrixFormatter", () => {
           count: 2,
           headshotKills: 0,
           perfects: 0,
+          weapons: [],
           classification: "enemy-kill",
         },
         {
@@ -91,6 +122,7 @@ describe("KillMatrixFormatter", () => {
           count: 1,
           headshotKills: 0,
           perfects: 0,
+          weapons: [],
           classification: "enemy-kill",
         },
       ];
@@ -109,6 +141,7 @@ describe("KillMatrixFormatter", () => {
           count: 5,
           headshotKills: 0,
           perfects: 2,
+          weapons: [],
           classification: "enemy-kill",
         },
       ];
@@ -116,6 +149,27 @@ describe("KillMatrixFormatter", () => {
       const result = KillMatrixFormatter.pivot(rows);
 
       expect(result.tableRows[0].perfects.get("Bravo")).toBe(2);
+    });
+
+    it("propagates weapons into pivot rows keyed by victim gamertag", () => {
+      const rows: KillMatrixViewRow[] = [
+        {
+          key: "111:222",
+          killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+          victim: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+          count: 3,
+          headshotKills: 0,
+          perfects: 0,
+          weapons: [{ weaponId: "2B1824D542C9679F", name: "BR75", count: 3 }],
+          classification: "enemy-kill",
+        },
+      ];
+
+      const result = KillMatrixFormatter.pivot(rows);
+
+      expect(result.tableRows[0].weapons.get("Bravo")).toEqual([
+        { weaponId: "2B1824D542C9679F", name: "BR75", count: 3 },
+      ]);
     });
 
     it("sorts killers and victims alphabetically and fills zeros for missing kills", () => {
@@ -127,6 +181,7 @@ describe("KillMatrixFormatter", () => {
           count: 2,
           headshotKills: 0,
           perfects: 0,
+          weapons: [],
           classification: "enemy-kill",
         },
         {
@@ -136,6 +191,7 @@ describe("KillMatrixFormatter", () => {
           count: 1,
           headshotKills: 0,
           perfects: 0,
+          weapons: [],
           classification: "enemy-kill",
         },
         {
@@ -145,6 +201,7 @@ describe("KillMatrixFormatter", () => {
           count: 3,
           headshotKills: 0,
           perfects: 0,
+          weapons: [],
           classification: "enemy-kill",
         },
       ];
@@ -170,6 +227,7 @@ describe("KillMatrixFormatter", () => {
           count: 3,
           headshotKills: 0,
           perfects: 0,
+          weapons: [],
           classification: "enemy-kill",
         },
         {
@@ -179,6 +237,7 @@ describe("KillMatrixFormatter", () => {
           count: 1,
           headshotKills: 0,
           perfects: 0,
+          weapons: [],
           classification: "enemy-kill",
         },
       ];
@@ -204,6 +263,7 @@ describe("KillMatrixFormatter", () => {
           count: 3,
           headshotKills: 0,
           perfects: 0,
+          weapons: [],
           classification: "enemy-kill",
         },
         {
@@ -213,6 +273,7 @@ describe("KillMatrixFormatter", () => {
           count: 1,
           headshotKills: 0,
           perfects: 0,
+          weapons: [],
           classification: "enemy-kill",
         },
       ];
@@ -236,6 +297,7 @@ describe("KillMatrixFormatter", () => {
           count: 3,
           headshotKills: 0,
           perfects: 0,
+          weapons: [],
           classification: "enemy-kill",
         },
         {
@@ -245,6 +307,7 @@ describe("KillMatrixFormatter", () => {
           count: 1,
           headshotKills: 0,
           perfects: 0,
+          weapons: [],
           classification: "enemy-kill",
         },
       ];
@@ -270,6 +333,7 @@ describe("KillMatrixFormatter", () => {
           count: 3,
           headshotKills: 1,
           perfects: 0,
+          weapons: [],
           classification: "enemy-kill",
         },
         {
@@ -279,6 +343,7 @@ describe("KillMatrixFormatter", () => {
           count: 2,
           headshotKills: 2,
           perfects: 1,
+          weapons: [],
           classification: "enemy-kill",
         },
       ];
@@ -298,6 +363,7 @@ describe("KillMatrixFormatter", () => {
           count: 1,
           headshotKills: 0,
           perfects: 0,
+          weapons: [],
           classification: "enemy-kill",
         },
         {
@@ -307,6 +373,7 @@ describe("KillMatrixFormatter", () => {
           count: 3,
           headshotKills: 0,
           perfects: 0,
+          weapons: [],
           classification: "enemy-kill",
         },
       ];
@@ -318,6 +385,45 @@ describe("KillMatrixFormatter", () => {
 
     it("returns empty array when given no rows", () => {
       expect(KillMatrixFormatter.aggregate([])).toEqual([]);
+    });
+
+    it("merges weapons by weaponId and sorts by count descending", () => {
+      const rows: KillMatrixViewRow[] = [
+        {
+          key: "111:222",
+          killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+          victim: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+          count: 3,
+          headshotKills: 0,
+          perfects: 0,
+          weapons: [
+            { weaponId: "2B1824D542C9679F", name: "BR75", count: 2 },
+            { weaponId: "48C19D2D42C9679F", name: "MA40 AR", count: 1 },
+          ],
+          classification: "enemy-kill",
+        },
+        {
+          key: "111:222",
+          killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+          victim: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+          count: 2,
+          headshotKills: 0,
+          perfects: 0,
+          weapons: [
+            { weaponId: "2B1824D542C9679F", name: "BR75", count: 1 },
+            { weaponId: "F408190F42C9679F", name: "Mk51 Sidekick", count: 1 },
+          ],
+          classification: "enemy-kill",
+        },
+      ];
+
+      const result = KillMatrixFormatter.aggregate(rows);
+
+      expect(result[0].weapons).toEqual([
+        { weaponId: "2B1824D542C9679F", name: "BR75", count: 3 },
+        { weaponId: "48C19D2D42C9679F", name: "MA40 AR", count: 1 },
+        { weaponId: "F408190F42C9679F", name: "Mk51 Sidekick", count: 1 },
+      ]);
     });
   });
 
@@ -335,6 +441,7 @@ describe("KillMatrixFormatter", () => {
           count: 5,
           headshotKills: 2,
           perfects: 0,
+          weapons: [],
           classification: "enemy-kill",
         },
       ];
@@ -366,6 +473,7 @@ describe("KillMatrixFormatter", () => {
         count: 3,
         headshotKills: 0,
         perfects: 0,
+        weapons: [],
         classification: "enemy-kill",
       },
       {
@@ -375,6 +483,7 @@ describe("KillMatrixFormatter", () => {
         count: 1,
         headshotKills: 0,
         perfects: 0,
+        weapons: [],
         classification: "enemy-kill",
       },
       {
@@ -384,6 +493,7 @@ describe("KillMatrixFormatter", () => {
         count: 1,
         headshotKills: 0,
         perfects: 0,
+        weapons: [],
         classification: "suicide",
       },
       {
@@ -393,6 +503,7 @@ describe("KillMatrixFormatter", () => {
         count: 2,
         headshotKills: 0,
         perfects: 0,
+        weapons: [],
         classification: "betrayal",
       },
     ];
@@ -408,12 +519,16 @@ describe("KillMatrixFormatter", () => {
         deaths: 1,
         killPerfects: 0,
         deathPerfects: 0,
+        killWeapons: [],
+        deathWeapons: [],
       });
       expect(result.tableRows[0].cells.get("Delta")).toEqual({
         kills: 0,
         deaths: 0,
         killPerfects: 0,
         deathPerfects: 0,
+        killWeapons: [],
+        deathWeapons: [],
       });
       expect(result.tableRows[1]).toMatchObject({ playerId: "333", playerGamertag: "Charlie", playerTeamId: 0 });
       expect(result.tableRows[1].cells.get("Bravo")).toEqual({
@@ -421,6 +536,8 @@ describe("KillMatrixFormatter", () => {
         deaths: 0,
         killPerfects: 0,
         deathPerfects: 0,
+        killWeapons: [],
+        deathWeapons: [],
       });
     });
 
@@ -433,6 +550,7 @@ describe("KillMatrixFormatter", () => {
           count: 3,
           headshotKills: 0,
           perfects: 1,
+          weapons: [],
           classification: "enemy-kill",
         },
         {
@@ -442,6 +560,7 @@ describe("KillMatrixFormatter", () => {
           count: 1,
           headshotKills: 0,
           perfects: 0,
+          weapons: [],
           classification: "enemy-kill",
         },
       ];
@@ -455,6 +574,8 @@ describe("KillMatrixFormatter", () => {
         deaths: 1,
         killPerfects: 1,
         deathPerfects: 0,
+        killWeapons: [],
+        deathWeapons: [],
       });
     });
 
@@ -477,6 +598,39 @@ describe("KillMatrixFormatter", () => {
       expect(result.tableRows).toHaveLength(0);
       expect(result.columnHeaders.map((h) => h.gamertag)).toEqual(["Bravo", "Delta"]);
     });
+
+    it("propagates weapons into killWeapons and deathWeapons for each cell", () => {
+      const rowsWithWeapons: KillMatrixViewRow[] = [
+        {
+          key: "111:222",
+          killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+          victim: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+          count: 3,
+          headshotKills: 0,
+          perfects: 0,
+          weapons: [{ weaponId: "2B1824D542C9679F", name: "BR75", count: 3 }],
+          classification: "enemy-kill",
+        },
+        {
+          key: "222:111",
+          killer: { xuid: "222", gamertag: "Bravo", teamId: 1 },
+          victim: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+          count: 1,
+          headshotKills: 0,
+          perfects: 0,
+          weapons: [{ weaponId: "48C19D2D42C9679F", name: "MA40 AR", count: 1 }],
+          classification: "enemy-kill",
+        },
+      ];
+      const team0 = [{ xuid: "111", gamertag: "Alpha", teamId: 0 }];
+      const team1 = [{ xuid: "222", gamertag: "Bravo", teamId: 1 }];
+
+      const result = KillMatrixFormatter.pivotCrossTeam(rowsWithWeapons, team0, team1);
+
+      const cell = result.tableRows[0].cells.get("Bravo");
+      expect(cell?.killWeapons).toEqual([{ weaponId: "2B1824D542C9679F", name: "BR75", count: 3 }]);
+      expect(cell?.deathWeapons).toEqual([{ weaponId: "48C19D2D42C9679F", name: "MA40 AR", count: 1 }]);
+    });
   });
 
   describe("buildCrossTeam", () => {
@@ -498,6 +652,7 @@ describe("KillMatrixFormatter", () => {
         count: 4,
         headshotKills: 0,
         perfects: 0,
+        weapons: [],
         classification: "enemy-kill",
       },
       {
@@ -507,6 +662,7 @@ describe("KillMatrixFormatter", () => {
         count: 2,
         headshotKills: 0,
         perfects: 0,
+        weapons: [],
         classification: "enemy-kill",
       },
     ];
@@ -525,8 +681,22 @@ describe("KillMatrixFormatter", () => {
       const alphaVsBravo = result?.crossTeamData.tableRows[0]?.cells.get("Bravo");
       const bravoVsAlpha = result?.swappedCrossTeamData.tableRows[0]?.cells.get("Alpha");
 
-      expect(alphaVsBravo).toEqual({ kills: 4, deaths: 2, killPerfects: 0, deathPerfects: 0 });
-      expect(bravoVsAlpha).toEqual({ kills: 2, deaths: 4, killPerfects: 0, deathPerfects: 0 });
+      expect(alphaVsBravo).toEqual({
+        kills: 4,
+        deaths: 2,
+        killPerfects: 0,
+        deathPerfects: 0,
+        killWeapons: [],
+        deathWeapons: [],
+      });
+      expect(bravoVsAlpha).toEqual({
+        kills: 2,
+        deaths: 4,
+        killPerfects: 0,
+        deathPerfects: 0,
+        killWeapons: [],
+        deathWeapons: [],
+      });
     });
 
     it("returns null when all players have no teamId", () => {

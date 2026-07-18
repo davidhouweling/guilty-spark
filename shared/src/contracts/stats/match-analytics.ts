@@ -34,6 +34,7 @@ export const killMatrixEntrySchema = z.object({
 });
 
 export type KillMatrixEntry = z.infer<typeof killMatrixEntrySchema>;
+export type KillMatrixWeaponUsage = KillMatrixEntry["weapons"][number];
 
 export const SUPPORTED_ANALYTICS_MODULES = ["killMatrix", "scoreProgression"] as const;
 export const analyticsModuleSchema = z.enum(SUPPORTED_ANALYTICS_MODULES);
