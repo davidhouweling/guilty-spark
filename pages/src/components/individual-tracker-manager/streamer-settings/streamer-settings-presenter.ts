@@ -66,9 +66,12 @@ function settingsToSnapshot(
       selectedSlayerStats: styleFlags.selectedSlayerStats ?? snapshot.tickerSettings.selectedSlayerStats,
       showObjectiveStats: styleFlags.showObjectiveStats ?? snapshot.tickerSettings.showObjectiveStats,
       medalRarityFilter: styleFlags.medalRarityFilter ?? snapshot.tickerSettings.medalRarityFilter,
+      maxPreviousGamesToShow: visibleSections.maxPreviousGamesToShow ?? snapshot.tickerSettings.maxPreviousGamesToShow,
     },
     inSeriesShowSeriesTab: styleFlags.inSeriesShowSeriesTab ?? snapshot.inSeriesShowSeriesTab,
     matchmakingShowSummaryTab: styleFlags.matchmakingShowSummaryTab ?? snapshot.matchmakingShowSummaryTab,
+    inSeriesShowTabs: styleFlags.inSeriesShowTabs ?? visibleSections.showTabs ?? snapshot.inSeriesShowTabs,
+    matchmakingShowTabs: styleFlags.matchmakingShowTabs ?? visibleSections.showTabs ?? snapshot.matchmakingShowTabs,
     disableTeamPlayerNames: styleFlags.disableTeamPlayerNames ?? snapshot.disableTeamPlayerNames,
     inSeriesShowTicker: styleFlags.inSeriesShowTicker ?? visibleSections.showTicker ?? snapshot.inSeriesShowTicker,
     matchmakingShowTicker:
@@ -112,6 +115,8 @@ function snapshotToSettings(snapshot: StreamerSettingsSnapshot): StreamerViewSet
       medalRarityFilter: [...snapshot.tickerSettings.medalRarityFilter],
       inSeriesShowSeriesTab: snapshot.inSeriesShowSeriesTab,
       matchmakingShowSummaryTab: snapshot.matchmakingShowSummaryTab,
+      inSeriesShowTabs: snapshot.inSeriesShowTabs,
+      matchmakingShowTabs: snapshot.matchmakingShowTabs,
       disableTeamPlayerNames: snapshot.disableTeamPlayerNames,
       inSeriesShowTicker: snapshot.inSeriesShowTicker,
       matchmakingShowTicker: snapshot.matchmakingShowTicker,
@@ -129,6 +134,7 @@ function snapshotToSettings(snapshot: StreamerSettingsSnapshot): StreamerViewSet
       showScore: snapshot.displaySettings.showScore,
       showTicker: snapshot.tickerSettings.showTicker,
       showTabs: snapshot.tickerSettings.showTabs,
+      maxPreviousGamesToShow: snapshot.tickerSettings.maxPreviousGamesToShow,
       statsHighlightSlots: [...snapshot.statsHighlightSlots],
     },
     layoutOptions: {
@@ -231,6 +237,24 @@ export class StreamerSettingsPresenter {
     }
 
     this.config.store.batchUpdate({ matchmakingShowSummaryTab: enabled });
+    this.scheduleSave();
+  }
+
+  public setInSeriesShowTabs(enabled: boolean): void {
+    if (this.isDisposed) {
+      return;
+    }
+
+    this.config.store.batchUpdate({ inSeriesShowTabs: enabled });
+    this.scheduleSave();
+  }
+
+  public setMatchmakingShowTabs(enabled: boolean): void {
+    if (this.isDisposed) {
+      return;
+    }
+
+    this.config.store.batchUpdate({ matchmakingShowTabs: enabled });
     this.scheduleSave();
   }
 
