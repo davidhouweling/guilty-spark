@@ -9,6 +9,7 @@ import { CustomSpartanTokenProvider } from "../custom-spartan-token-provider";
 import { HaloFilmService } from "../halo-film";
 import type { ParsedHighlightEvent } from "../types";
 import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake";
+import { buildFireEventBytes } from "./film-fire-event-builder";
 
 interface CacheContainer {
   default: Cache;
@@ -104,35 +105,6 @@ function aMutableKvNamespaceWith(): KVNamespace {
 function aFakeCacheBackedEnvWith(): Env {
   const kvNamespace = aMutableKvNamespaceWith();
   return aFakeEnvWith({ APP_DATA: kvNamespace });
-}
-
-function buildSingleFireEventBytes(playerIndex: number, slot: number, weaponId: bigint): Uint8Array {
-  const MARKER_BITS = 0b10100100110;
-  const data = new Uint8Array(15); // 120 bits — scanner needs 115 minimum
-
-  function setBit(bitPos: number): void {
-    const byteIdx = (bitPos / 8) | 0;
-    const bitIdx = 7 - (bitPos % 8);
-    data[byteIdx] = (data[byteIdx] ?? 0) | (1 << bitIdx);
-  }
-
-  for (let i = 0; i < 11; i++) {
-    if ((MARKER_BITS >> (10 - i)) & 1) {
-      setBit(i);
-    }
-  }
-  const b5 = (playerIndex << 4) | slot;
-  for (let i = 0; i < 8; i++) {
-    if ((b5 >> (7 - i)) & 1) {
-      setBit(35 + i);
-    }
-  }
-  for (let i = 0; i < 64; i++) {
-    if ((weaponId >> BigInt(63 - i)) & 1n) {
-      setBit(43 + i);
-    }
-  }
-  return data;
 }
 
 describe("HaloFilmService", () => {
@@ -1281,7 +1253,7 @@ describe("HaloFilmService", () => {
       // Layout: 11-bit universal marker at [0..10], b5=(playerIndex<<4|slot) at [35..42],
       //         weapon_id (64-bit big-endian) at [43..106].
       const BR75_WEAPON_ID = 0x2b1824d542c9679fn;
-      const fireEventBytes = buildSingleFireEventBytes(0, 0, BR75_WEAPON_ID);
+      const fireEventBytes = buildFireEventBytes(0, 0, BR75_WEAPON_ID);
       await defaultCache().put(
         chunkCacheRequestFor(matchId, 0),
         new Response(fireEventBytes, {

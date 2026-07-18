@@ -1,37 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { scanFireEvents, WeaponAttributor } from "../halo-film-type2";
-
-// Builds a minimal Uint8Array containing a single fire event at bit 0.
-// Layout (bit positions from start of returned array):
-//   [0..10]   11-bit universal marker: 0b10100100110
-//   event_start = 3
-//   [35..42]  b5 byte: (playerIndex << 4) | slot
-//   [43..106] weapon_id: 64-bit big-endian
-function buildFireEventData(playerIndex: number, slot: number, weaponId: bigint): Uint8Array {
-  const data = new Uint8Array(15); // 120 bits — scan needs 115 bits minimum (11+40+64)
-
-  function setBit(bitPos: number): void {
-    const byteIdx = (bitPos / 8) | 0;
-    const bitIdx = 7 - (bitPos % 8);
-    data[byteIdx] = (data[byteIdx] ?? 0) | (1 << bitIdx);
-  }
-
-  const markerBits = 0b10100100110;
-  for (let i = 0; i < 11; i++) {
-    if ((markerBits >> (10 - i)) & 1) {setBit(i);}
-  }
-
-  const b5 = (playerIndex << 4) | slot;
-  for (let i = 0; i < 8; i++) {
-    if ((b5 >> (7 - i)) & 1) {setBit(35 + i);}
-  }
-
-  for (let i = 0; i < 64; i++) {
-    if ((weaponId >> BigInt(63 - i)) & 1n) {setBit(43 + i);}
-  }
-
-  return data;
-}
+import { buildFireEventBytes } from "./film-fire-event-builder";
 
 describe("scanFireEvents", () => {
   it("returns empty array for empty data", () => {
@@ -44,13 +13,13 @@ describe("scanFireEvents", () => {
 
   it("returns empty array when weapon ID is unknown and lacks the common suffix", () => {
     const unknownId = 0xdeadbeefdeadbeefn;
-    const data = buildFireEventData(0, 0, unknownId);
+    const data = buildFireEventBytes(0, 0, unknownId);
     expect(scanFireEvents(data, 0, 1000)).toEqual([]);
   });
 
   it("extracts player index from a valid fire event", () => {
     const brId = 0x2b1824d542c9679fn; // BR75 — known weapon
-    const data = buildFireEventData(3, 0, brId);
+    const data = buildFireEventBytes(3, 0, brId);
     const events = scanFireEvents(data, 0, 1000);
 
     expect(events.length).toBeGreaterThanOrEqual(1);
@@ -63,7 +32,7 @@ describe("scanFireEvents", () => {
   it("deduplicates events within 2 bytes of each other", () => {
     // Two marker matches at bit 0 and bit 8 (1 byte apart) → deduplicated to one
     const brId = 0x2b1824d542c9679fn;
-    const data1 = buildFireEventData(0, 0, brId);
+    const data1 = buildFireEventBytes(0, 0, brId);
     // Combine two copies with only a 1-byte offset (overlap)
     const combined = new Uint8Array(data1.length + 1);
     combined.set(data1, 0);
@@ -78,7 +47,7 @@ describe("scanFireEvents", () => {
   it("accepts a weapon with the common suffix even if not in the known list", () => {
     // Unknown base ID but ends in 0x42C9679F — treated as a valid weapon
     const unknownButCommonSuffix = 0xabcd1234_42c9679fn;
-    const data = buildFireEventData(1, 0, unknownButCommonSuffix);
+    const data = buildFireEventBytes(1, 0, unknownButCommonSuffix);
     const events = scanFireEvents(data, 0, 1000);
     expect(events.length).toBeGreaterThanOrEqual(1);
     expect(events[0]?.weaponName).toBe("Unknown");

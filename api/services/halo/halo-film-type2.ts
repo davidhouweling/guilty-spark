@@ -90,7 +90,7 @@ export function scanFireEvents(data: Uint8Array, startMs: number, durationMs: nu
   const estimateTimestamp = buildTimestampEstimator(data, startMs, durationMs);
   const events: FireEvent[] = [];
   const totalBits = data.length * 8;
-  const scanLimit = totalBits - UNIVERSAL_MARKER_LEN - WEAPON_BIT_OFFSET - WEAPON_ID_BITS;
+  const scanLimit = totalBits - MARKER_PREFIX_BITS - WEAPON_BIT_OFFSET - WEAPON_ID_BITS;
 
   for (let bitPos = 0; bitPos <= scanLimit; bitPos++) {
     if (!matchMarkerAt(data, bitPos)) {
@@ -117,7 +117,7 @@ export function scanFireEvents(data: Uint8Array, startMs: number, durationMs: nu
 
   events.sort((a, b) => a.bytePos - b.bytePos);
   const deduped: FireEvent[] = [];
-  let lastBytePos = -999;
+  let lastBytePos = Number.NEGATIVE_INFINITY;
   for (const ev of events) {
     if (ev.bytePos - lastBytePos > DEDUP_PROXIMITY_BYTES) {
       deduped.push(ev);
