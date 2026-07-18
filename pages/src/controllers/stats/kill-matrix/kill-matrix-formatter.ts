@@ -1,4 +1,4 @@
-import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { KillMatrixWeaponUsage, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type {
   KillMatrixClassification,
@@ -43,6 +43,7 @@ export class KillMatrixFormatter {
         count: value.count,
         headshotKills: value.headshotKills,
         perfects: value.perfects,
+        weapons: [...value.weapons].sort((a, b) => b.count - a.count),
         classification: this.classify(killer, victim),
       });
     }
@@ -109,6 +110,7 @@ export class KillMatrixFormatter {
     const victimsMap = new Map<string, KillMatrixPlayer>();
     const killCounts = new Map<string, Map<string, number>>();
     const perfectCounts = new Map<string, Map<string, number>>();
+    const weaponLists = new Map<string, Map<string, readonly KillMatrixWeaponUsage[]>>();
 
     for (const row of rows) {
       killersMap.set(row.killer.xuid, row.killer);
@@ -117,10 +119,12 @@ export class KillMatrixFormatter {
       if (!killCounts.has(row.killer.xuid)) {
         killCounts.set(row.killer.xuid, new Map());
         perfectCounts.set(row.killer.xuid, new Map());
+        weaponLists.set(row.killer.xuid, new Map());
       }
       const victimCounts = Preconditions.checkExists(killCounts.get(row.killer.xuid));
       victimCounts.set(row.victim.xuid, row.count);
       Preconditions.checkExists(perfectCounts.get(row.killer.xuid)).set(row.victim.xuid, row.perfects);
+      Preconditions.checkExists(weaponLists.get(row.killer.xuid)).set(row.victim.xuid, row.weapons);
     }
 
     const byGamertag = (a: KillMatrixPlayer, b: KillMatrixPlayer): number => a.gamertag.localeCompare(b.gamertag);
@@ -149,11 +153,14 @@ export class KillMatrixFormatter {
     const tableRows = sortedKillers.map((killer) => {
       const victimCounts = Preconditions.checkExists(killCounts.get(killer.xuid));
       const victimPerfects = Preconditions.checkExists(perfectCounts.get(killer.xuid));
+      const victimWeapons = Preconditions.checkExists(weaponLists.get(killer.xuid));
       const kills = new Map<string, number>();
       const perfects = new Map<string, number>();
+      const weapons = new Map<string, readonly KillMatrixWeaponUsage[]>();
       for (const victim of sortedVictims) {
         kills.set(victim.gamertag, victimCounts.get(victim.xuid) ?? 0);
         perfects.set(victim.gamertag, victimPerfects.get(victim.xuid) ?? 0);
+        weapons.set(victim.gamertag, victimWeapons.get(victim.xuid) ?? []);
       }
       return {
         killerId: killer.xuid,
@@ -161,6 +168,7 @@ export class KillMatrixFormatter {
         killerTeamId: killer.teamId,
         kills,
         perfects,
+        weapons,
       };
     });
 
@@ -190,6 +198,7 @@ export class KillMatrixFormatter {
   ): KillMatrixCrossTeamData {
     const killCounts = new Map<string, Map<string, number>>();
     const perfectCounts = new Map<string, Map<string, number>>();
+    const weaponLists = new Map<string, Map<string, readonly KillMatrixWeaponUsage[]>>();
     let betrayals = 0;
     let suicides = 0;
 
@@ -205,9 +214,11 @@ export class KillMatrixFormatter {
       if (!killCounts.has(row.killer.xuid)) {
         killCounts.set(row.killer.xuid, new Map());
         perfectCounts.set(row.killer.xuid, new Map());
+        weaponLists.set(row.killer.xuid, new Map());
       }
       Preconditions.checkExists(killCounts.get(row.killer.xuid)).set(row.victim.xuid, row.count);
       Preconditions.checkExists(perfectCounts.get(row.killer.xuid)).set(row.victim.xuid, row.perfects);
+      Preconditions.checkExists(weaponLists.get(row.killer.xuid)).set(row.victim.xuid, row.weapons);
     }
 
     const tableRows = rowTeamPlayers.map((rowPlayer) => {
@@ -219,6 +230,8 @@ export class KillMatrixFormatter {
             deaths: killCounts.get(colPlayer.xuid)?.get(rowPlayer.xuid) ?? 0,
             killPerfects: perfectCounts.get(rowPlayer.xuid)?.get(colPlayer.xuid) ?? 0,
             deathPerfects: perfectCounts.get(colPlayer.xuid)?.get(rowPlayer.xuid) ?? 0,
+            killWeapons: weaponLists.get(rowPlayer.xuid)?.get(colPlayer.xuid) ?? [],
+            deathWeapons: weaponLists.get(colPlayer.xuid)?.get(rowPlayer.xuid) ?? [],
           },
         ]),
       );
@@ -261,6 +274,18 @@ export class KillMatrixFormatter {
     };
   }
 
+  private static mergeWeapons(
+    a: readonly KillMatrixWeaponUsage[],
+    b: readonly KillMatrixWeaponUsage[],
+  ): KillMatrixWeaponUsage[] {
+    const counts = new Map<string, KillMatrixWeaponUsage>();
+    for (const w of [...a, ...b]) {
+      const existing = counts.get(w.weaponId);
+      counts.set(w.weaponId, existing != null ? { ...existing, count: existing.count + w.count } : { ...w });
+    }
+    return [...counts.values()].sort((x, y) => y.count - x.count);
+  }
+
   public static aggregate(rows: readonly KillMatrixViewRow[]): KillMatrixViewRow[] {
     const merged = new Map<string, KillMatrixViewRow>();
 
@@ -274,6 +299,7 @@ export class KillMatrixFormatter {
           count: existing.count + row.count,
           headshotKills: existing.headshotKills + row.headshotKills,
           perfects: existing.perfects + row.perfects,
+          weapons: KillMatrixFormatter.mergeWeapons(existing.weapons, row.weapons),
         });
       }
     }
