@@ -59,6 +59,19 @@ describe("parseStreamerViewSettings()", () => {
     expect(settings.visibleSections?.maxPreviousGamesToShow).toBeUndefined();
   });
 
+  it("keeps defaults for maxPreviousGamesToShow after parsing an invalid stored value", () => {
+    const parsedSettings = parseStreamerViewSettings({
+      StyleFlagsJson: "{}",
+      VisibleSectionsJson: JSON.stringify({
+        maxPreviousGamesToShow: 99,
+      }),
+      LayoutOptionsJson: "{}",
+    });
+    const settingsWithDefaults = withStreamerViewSettingsDefaults(parsedSettings);
+
+    expect(settingsWithDefaults.visibleSections?.maxPreviousGamesToShow).toBe(9);
+  });
+
   it("keeps valid maxPreviousGamesToShow values", () => {
     const settings = parseStreamerViewSettings({
       StyleFlagsJson: "{}",

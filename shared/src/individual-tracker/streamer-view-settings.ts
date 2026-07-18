@@ -251,10 +251,23 @@ export function parseStreamerViewSettings(row: {
   const styleFlags = streamerViewStyleFlagsSchema.safeParse(JSON.parse(row.StyleFlagsJson));
   const visibleSections = streamerViewVisibleSectionsSchema.safeParse(JSON.parse(row.VisibleSectionsJson));
   const layoutOptions = streamerViewLayoutOptionsSchema.safeParse(JSON.parse(row.LayoutOptionsJson));
+
+  const normalizedVisibleSections = ((): StreamerViewVisibleSections | undefined => {
+    if (!visibleSections.success) {
+      return undefined;
+    }
+
+    const { maxPreviousGamesToShow, ...restVisibleSections } = visibleSections.data;
+    return {
+      ...restVisibleSections,
+      ...(maxPreviousGamesToShow === undefined ? {} : { maxPreviousGamesToShow }),
+    };
+  })();
+
   return {
     ...(styleFlags.success && Object.keys(styleFlags.data).length > 0 ? { styleFlags: styleFlags.data } : {}),
-    ...(visibleSections.success && Object.keys(visibleSections.data).length > 0
-      ? { visibleSections: visibleSections.data }
+    ...(normalizedVisibleSections != null && Object.keys(normalizedVisibleSections).length > 0
+      ? { visibleSections: normalizedVisibleSections }
       : {}),
     ...(layoutOptions.success && Object.keys(layoutOptions.data).length > 0
       ? { layoutOptions: layoutOptions.data }
