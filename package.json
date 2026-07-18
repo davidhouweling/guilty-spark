@@ -13,6 +13,11 @@
   "engines": {
     "node": ">=24.11.0"
   },
+  "devEngines": {
+    "packageManager": {
+      "name": "npm"
+    }
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/davidhouweling/guilty-spark.git"

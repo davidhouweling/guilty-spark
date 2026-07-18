@@ -375,6 +375,74 @@ describe("HaloFilmService", () => {
       expect(secondCallUrls.some((url) => url.includes("/users/me"))).toBe(false);
       expect(secondCallUrls.some((url) => url.includes("flight-configurations"))).toBe(false);
     });
+
+    describe("namespaced clearance token caching", () => {
+      it("reads clearance token from the namespaced key when kvKeyNamespace is provided", async () => {
+        const env = aFakeCacheBackedEnvWith();
+        const xboxService = aFakeXboxServiceWith({ env });
+        const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+        vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
+        await env.APP_DATA.put("halo:film:user-123:clearance", "test-clearance-token");
+        const service = new HaloFilmService({
+          env,
+          spartanTokenProvider,
+          kvKeyNamespace: "halo:film:user-123",
+        });
+
+        const compressedChunk = deflateSync(Uint8Array.of(0x01));
+        const metadata = {
+          AssetId: "asset-id",
+          BlobStoragePathPrefix: "https://blob.example/",
+          CustomData: {
+            MatchId: "namespaced-clearance-test-1",
+            FilmMajorVersion: 42,
+            FilmLength: 100,
+            Chunks: [{ Index: 1, ChunkType: 3, DurationMilliseconds: 100, ChunkSize: 1, FileRelativePath: "/c.bin" }],
+          },
+        };
+        const fetchSpy = mockFetch("unused-clearance", metadata, compressedChunk);
+
+        await service.getHighlightEventsForMatch("namespaced-clearance-test-1");
+
+        const fetchedUrls = fetchSpy.mock.calls.map((args) => {
+          const [input] = args;
+          return typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+        });
+        expect(fetchedUrls.some((url) => url.includes("/users/me"))).toBe(false);
+        expect(fetchedUrls.some((url) => url.includes("flight-configurations"))).toBe(false);
+        expect(await env.APP_DATA.get("halo:film:user-123:clearance")).toBe("test-clearance-token");
+      });
+
+      it("stores clearance token in the namespaced key when kvKeyNamespace is provided", async () => {
+        const env = aFakeCacheBackedEnvWith();
+        const xboxService = aFakeXboxServiceWith({ env });
+        const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+        vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
+        const service = new HaloFilmService({
+          env,
+          spartanTokenProvider,
+          kvKeyNamespace: "halo:film:user-456",
+        });
+
+        const compressedChunk = deflateSync(Uint8Array.of(0x02));
+        const metadata = {
+          AssetId: "asset-id",
+          BlobStoragePathPrefix: "https://blob.example/",
+          CustomData: {
+            MatchId: "namespaced-clearance-test-2",
+            FilmMajorVersion: 42,
+            FilmLength: 100,
+            Chunks: [{ Index: 1, ChunkType: 3, DurationMilliseconds: 100, ChunkSize: 1, FileRelativePath: "/c.bin" }],
+          },
+        };
+        mockFetch("clearance-namespaced", metadata, compressedChunk);
+
+        await service.getHighlightEventsForMatch("namespaced-clearance-test-2");
+
+        expect(await env.APP_DATA.get("halo:film:user-456:clearance")).toBe("clearance-namespaced");
+        expect(await env.APP_DATA.get("film:clearance")).toBeNull();
+      });
+    });
   });
 
   it("builds kill matrix analytics with pairing quality and perfect counts", async () => {
