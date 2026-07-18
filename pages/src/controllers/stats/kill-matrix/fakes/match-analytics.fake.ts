@@ -9,8 +9,8 @@ export function aFakeMatchAnalyticsWith(overrides: Partial<MatchAnalytics> = {})
         headshotKills: 1,
         perfects: 0,
         weapons: [
-          { weaponId: 6001, count: 1 },
-          { weaponId: 5001, count: 2 },
+          { weaponId: "6001000042C9679F", name: "BR75", count: 1 },
+          { weaponId: "5001000042C9679F", name: "MA40 AR", count: 2 },
         ],
       },
       "111:111": {
@@ -23,7 +23,7 @@ export function aFakeMatchAnalyticsWith(overrides: Partial<MatchAnalytics> = {})
         count: 2,
         headshotKills: 0,
         perfects: 1,
-        weapons: [{ weaponId: 7001, count: 2 }],
+        weapons: [{ weaponId: "7001000042C9679F", name: "Energy Sword", count: 2 }],
       },
     },
     metadata: {
