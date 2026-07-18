@@ -482,9 +482,17 @@ export class HaloFilmService {
     if (playerIndex === null) {
       return null;
     }
-    for (const { chunkIndex, startMs, endMs } of filmData.chunkTimings) {
-      if (killTimeMs >= startMs && killTimeMs < endMs) {
-        return filmData.timeline.get(chunkIndex)?.get(playerIndex) ?? null;
+    for (let i = filmData.chunkTimings.length - 1; i >= 0; i--) {
+      const timing = filmData.chunkTimings[i];
+      if (timing == null) {
+        continue;
+      }
+      if (timing.startMs > killTimeMs) {
+        continue;
+      }
+      const weapon = filmData.timeline.get(timing.chunkIndex)?.get(playerIndex);
+      if (weapon != null) {
+        return weapon;
       }
     }
     return null;

@@ -189,10 +189,8 @@ export function scanFormulaAEvents(data: Uint8Array): FormulaAEvent[] {
       const weaponStart = suffixPos - WEAPON_SUFFIX_LENGTH;
       if (weaponStart >= weaponDataStart && weaponStart + 8 <= data.length) {
         const weaponId = readBigEndian64(data, weaponStart);
-        if (KNOWN_WEAPON_IDS.has(weaponId) || hasCommonWeaponSuffix(weaponId)) {
-          events.push({ playerIndex, weaponId, weaponName: lookupWeaponName(weaponId) ?? "Unknown" });
-          nextPos = suffixPos + COMMON_SUFFIX_BYTES.length;
-        }
+        events.push({ playerIndex, weaponId, weaponName: lookupWeaponName(weaponId) ?? "Unknown" });
+        nextPos = suffixPos + COMMON_SUFFIX_BYTES.length;
       }
     }
     pos = nextPos;

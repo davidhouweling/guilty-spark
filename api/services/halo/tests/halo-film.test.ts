@@ -1633,6 +1633,97 @@ describe("HaloFilmService", () => {
       expect(analytics.entries[0]?.weapons).toEqual([{ weaponId: "6ACDC44D42C9679F", name: "Bandit Evo", count: 1 }]);
     });
 
+    it("propagates Formula A weapon state from a prior chunk when the kill chunk has no Formula A events", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("fake-spartan-token");
+      await env.APP_DATA.put("film:clearance", "fake-clearance-token");
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+
+      const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
+      const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
+      const matchId = match.MatchId;
+
+      const BANDIT_EVO_ID = 0x6acdc44d42c9679fn;
+      const BR75_ID = 0x2b1824d542c9679fn;
+
+      // Chunk 0 (0–5000ms): Formula A event for playerIndex 0 (killer) with Bandit Evo, plus a fire event for playerIndex 1
+      const formulaABytes = new Uint8Array(12);
+      formulaABytes[0] = 0x20;
+      formulaABytes[1] = 0x00;
+      formulaABytes[2] = 0x02;
+      formulaABytes[3] = 0x00; // playerIndex 0 << 5
+      for (let i = 0; i < 8; i++) {
+        formulaABytes[4 + i] = Number((BANDIT_EVO_ID >> BigInt((7 - i) * 8)) & 0xffn);
+      }
+      const chunk0Raw = new Uint8Array([...buildFireEventBytes(1, 0, BR75_ID), ...formulaABytes]);
+      await defaultCache().put(
+        chunkCacheRequestFor(matchId, 0),
+        new Response(deflateSync(chunk0Raw), {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/octet-stream" },
+        }),
+      );
+
+      // Chunk 1 (5000–15000ms): no Formula A events — killer still holds Bandit Evo from chunk 0
+      const chunk1Raw = new Uint8Array(0);
+      await defaultCache().put(
+        chunkCacheRequestFor(matchId, 1),
+        new Response(deflateSync(chunk1Raw), {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/octet-stream" },
+        }),
+      );
+
+      const filmMetadata = {
+        AssetId: "asset-id",
+        BlobStoragePathPrefix: "https://blob.example/",
+        CustomData: {
+          MatchId: matchId,
+          FilmMajorVersion: 42,
+          FilmLength: 15000,
+          Chunks: [
+            { Index: 0, ChunkType: 2, DurationMilliseconds: 5000, ChunkSize: 0, FileRelativePath: "/chunk-0.bin" },
+            { Index: 1, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 0, FileRelativePath: "/chunk-1.bin" },
+          ],
+        },
+      };
+      await defaultCache().put(
+        metadataCacheRequestFor(matchId),
+        new Response(JSON.stringify(filmMetadata), {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/json" },
+        }),
+      );
+
+      // Kill at 8000ms falls in chunk 1 — no Formula A events in chunk 1 for playerIndex 0
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 8000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 8000,
+          medalValue: 0,
+          teamId: null,
+        },
+      ]);
+
+      const analytics = await service.buildKillMatrixAnalytics(match);
+      expect(analytics.entries).toHaveLength(1);
+      expect(analytics.entries[0]?.weapons).toEqual([{ weaponId: "6ACDC44D42C9679F", name: "Bandit Evo", count: 1 }]);
+    });
+
     it("resolves auth context only once when multiple type-2 chunks are fetched in parallel", async () => {
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
