@@ -1,6 +1,5 @@
-import type { UserInfo as HaloUserInfo } from "halo-infinite-api";
+import type { UserInfo as HaloUserInfo, SpartanTokenProvider } from "halo-infinite-api";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
-import type { SpartanTokenProvider } from "halo-infinite-api";
 
 export type UserInfo = Pick<HaloUserInfo, "xuid" | "gamertag">;
 export type CachedUserInfo = UserInfo & { fetchedAt: number };

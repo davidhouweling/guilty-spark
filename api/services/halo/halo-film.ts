@@ -1,5 +1,5 @@
 import { inflateSync } from "node:zlib";
-import type { MatchStats } from "halo-infinite-api";
+import type { MatchStats, SpartanTokenProvider } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { wrapXuid, unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import {
@@ -27,7 +27,6 @@ import type {
   KillRaceProgressionEvent,
   HaloFilmServiceOpts,
 } from "./types";
-import type { SpartanTokenProvider } from "halo-infinite-api";
 
 export class HaloFilmService {
   private static readonly FILM_CACHE_TTL_SECONDS = 604_800;

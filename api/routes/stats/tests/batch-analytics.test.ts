@@ -282,7 +282,9 @@ describe("/api/stats/match-analytics (batch)", () => {
     vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(
       aFakeIndividualTrackersRow({ TrackerId: "tracker-1", UserId: ownerUserId, IsLive: 1 }),
     );
-    vi.spyOn(services.userTokenProvider, "getClientForUser").mockResolvedValue(services.haloInfiniteClient);
+    const getClientForUserSpy = vi
+      .spyOn(services.userTokenProvider, "getClientForUser")
+      .mockResolvedValue(services.haloInfiniteClient);
     const getMicrosoftAccessTokenSpy = vi
       .spyOn(services.authService, "getMicrosoftAccessTokenForUser")
       .mockResolvedValue("owner-access-token");
@@ -313,7 +315,7 @@ describe("/api/stats/match-analytics (batch)", () => {
     expect(response.status).toBe(200);
     expect(getMicrosoftAccessTokenSpy).toHaveBeenCalledWith(ownerUserId);
     expect(exchangeSpy).toHaveBeenCalledWith("owner-access-token");
-    expect(services.userTokenProvider.getClientForUser).toHaveBeenCalledWith(ownerUserId);
+    expect(getClientForUserSpy).toHaveBeenCalledWith(ownerUserId);
     expect(botAnalyticsSpy).not.toHaveBeenCalled();
     expect(analyticsServiceGetBatchMatchAnalyticsSpy).toHaveBeenCalledWith(["match-1", "match-2"], ["killMatrix"]);
     const body = await response.json();
