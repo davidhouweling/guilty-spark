@@ -1249,14 +1249,11 @@ describe("HaloFilmService", () => {
         }),
       );
 
-      // Build a 15-byte type-2 chunk with a single BR75 fire event for playerIndex=0.
-      // Layout: 11-bit universal marker at [0..10], b5=(playerIndex<<4|slot) at [35..42],
-      //         weapon_id (64-bit big-endian) at [43..106].
       const BR75_WEAPON_ID = 0x2b1824d542c9679fn;
-      const fireEventBytes = buildFireEventBytes(0, 0, BR75_WEAPON_ID);
+      const compressedChunk = deflateSync(buildFireEventBytes(0, 0, BR75_WEAPON_ID));
       await defaultCache().put(
         chunkCacheRequestFor(matchId, 0),
-        new Response(fireEventBytes, {
+        new Response(compressedChunk, {
           headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/octet-stream" },
         }),
       );

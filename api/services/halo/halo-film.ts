@@ -229,12 +229,7 @@ export class HaloFilmService {
         chunkBytes = await this.fetchBinary(url, authContext.spartanToken, authContext.clearanceToken);
         await this.putCachedChunk(chunkCacheRequest, chunkBytes);
       }
-      let chunkData: Uint8Array;
-      try {
-        chunkData = new Uint8Array(inflateSync(chunkBytes));
-      } catch {
-        chunkData = chunkBytes;
-      }
+      const chunkData = new Uint8Array(inflateSync(chunkBytes));
       for (const ev of scanFireEvents(chunkData, startMs, chunk.DurationMilliseconds)) {
         allFireEvents.push(ev);
       }
