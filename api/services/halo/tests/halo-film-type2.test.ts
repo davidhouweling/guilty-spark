@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { scanFireEvents, scanFormulaAEvents, WeaponAttributor } from "../halo-film-type2";
-import { buildFireEventBytes } from "./film-fire-event-builder";
+import { buildFireEventBytes, buildFormulaAEventBytes } from "./film-fire-event-builder";
 
 describe("scanFireEvents", () => {
   it("returns empty array for empty data", () => {
@@ -128,20 +128,6 @@ describe("WeaponAttributor", () => {
 });
 
 describe("scanFormulaAEvents", () => {
-  // Constructs minimal Formula A bytes: [0x20, 0x00, 0x02, pb, prefix(4), suffix(4)]
-  // pb = playerIndex << 5; weapon = prefix+suffix = 8-byte big-endian weapon ID
-  function buildFormulaABytes(playerIndex: number, weaponId: bigint): Uint8Array {
-    const data = new Uint8Array(12);
-    data[0] = 0x20;
-    data[1] = 0x00;
-    data[2] = 0x02;
-    data[3] = playerIndex << 5;
-    for (let i = 0; i < 8; i++) {
-      data[4 + i] = Number((weaponId >> BigInt((7 - i) * 8)) & 0xffn);
-    }
-    return data;
-  }
-
   it("returns empty array for empty data", () => {
     expect(scanFormulaAEvents(new Uint8Array(0))).toEqual([]);
   });
@@ -152,7 +138,7 @@ describe("scanFormulaAEvents", () => {
 
   it("extracts player index and weapon from a valid Formula A event", () => {
     const BANDIT_EVO = 0x6acdc44d42c9679fn;
-    const data = buildFormulaABytes(2, BANDIT_EVO);
+    const data = buildFormulaAEventBytes(2, BANDIT_EVO);
     const events = scanFormulaAEvents(data);
     expect(events).toHaveLength(1);
     expect(events[0]?.playerIndex).toBe(2);
@@ -163,21 +149,21 @@ describe("scanFormulaAEvents", () => {
   it("supports all player indices 0–7 via top 3 bits of player byte", () => {
     const BR75 = 0x2b1824d542c9679fn;
     for (let pi = 0; pi <= 7; pi++) {
-      const events = scanFormulaAEvents(buildFormulaABytes(pi, BR75));
+      const events = scanFormulaAEvents(buildFormulaAEventBytes(pi, BR75));
       expect(events[0]?.playerIndex).toBe(pi);
     }
   });
 
   it("returns empty array when weapon ID lacks common suffix and is not in known list", () => {
     const unknownId = 0xdeadbeefdeadbeefn;
-    const data = buildFormulaABytes(0, unknownId);
+    const data = buildFormulaAEventBytes(0, unknownId);
     expect(scanFormulaAEvents(data)).toEqual([]);
   });
 
   it("finds multiple events across the buffer", () => {
     const BR75 = 0x2b1824d542c9679fn;
     const MA40 = 0x48c19d2d42c9679fn;
-    const data = new Uint8Array([...buildFormulaABytes(0, BR75), ...buildFormulaABytes(1, MA40)]);
+    const data = new Uint8Array([...buildFormulaAEventBytes(0, BR75), ...buildFormulaAEventBytes(1, MA40)]);
     const events = scanFormulaAEvents(data);
     expect(events).toHaveLength(2);
     expect(events[0]?.playerIndex).toBe(0);
@@ -187,7 +173,7 @@ describe("scanFormulaAEvents", () => {
   it("last write wins when same player has multiple events — last entry survives from caller perspective", () => {
     const BR75 = 0x2b1824d542c9679fn;
     const MA40 = 0x48c19d2d42c9679fn;
-    const data = new Uint8Array([...buildFormulaABytes(3, BR75), ...buildFormulaABytes(3, MA40)]);
+    const data = new Uint8Array([...buildFormulaAEventBytes(3, BR75), ...buildFormulaAEventBytes(3, MA40)]);
     const events = scanFormulaAEvents(data);
     expect(events).toHaveLength(2);
     expect(events.at(-1)?.weaponName).toBe("MA40 AR");
