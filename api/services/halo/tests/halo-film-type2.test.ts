@@ -161,6 +161,12 @@ describe("scanFormulaAEvents", () => {
     expect(scanFormulaAEvents(data)).toEqual([]);
   });
 
+  it("returns empty array when common suffix bytes start immediately after player byte with no room for weapon prefix", () => {
+    // [marker(3), pb(1), suffixBytes(4)] — suffix at weaponDataStart so weaponStart < weaponDataStart
+    const data = new Uint8Array([0x20, 0x00, 0x02, 0x00, 0x42, 0xc9, 0x67, 0x9f]);
+    expect(scanFormulaAEvents(data)).toEqual([]);
+  });
+
   it("finds multiple events across the buffer", () => {
     const BR75 = 0x2b1824d542c9679fn;
     const MA40 = 0x48c19d2d42c9679fn;
