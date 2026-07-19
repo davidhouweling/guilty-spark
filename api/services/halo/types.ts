@@ -168,7 +168,8 @@ export interface ParsedHighlightEvent {
 }
 
 export interface KillMatrixWeaponUsage {
-  weaponId: number;
+  weaponId: string;
+  name: string;
   count: number;
 }
 

@@ -10,7 +10,7 @@ function aValidAnalytics(): MatchAnalytics {
         count: 8,
         headshotKills: 3,
         perfects: 2,
-        weapons: [{ weaponId: 3009, count: 5 }],
+        weapons: [{ weaponId: "3009000042C9679F", name: "BR75", count: 5 }],
       },
     },
     metadata: {

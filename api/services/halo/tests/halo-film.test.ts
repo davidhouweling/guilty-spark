@@ -9,6 +9,7 @@ import { CustomSpartanTokenProvider } from "../custom-spartan-token-provider";
 import { HaloFilmService } from "../halo-film";
 import type { ParsedHighlightEvent } from "../types";
 import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake";
+import { buildFireEventBytes, buildFormulaAEventBytes } from "./film-fire-event-builder";
 
 interface CacheContainer {
   default: Cache;
@@ -110,6 +111,11 @@ describe("HaloFilmService", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     installInMemoryDefaultCache();
+    // Fail fast so cockatiel does not start background retry loops in tests that do not mock auth.
+    // Tests that need real auth override this with a per-instance spy.
+    vi.spyOn(CustomSpartanTokenProvider.prototype, "getSpartanToken").mockRejectedValue(
+      new Error("getSpartanToken not mocked for this test"),
+    );
   });
 
   afterEach(() => {
@@ -1275,6 +1281,575 @@ describe("HaloFilmService", () => {
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.entries).toHaveLength(1);
       expect(analytics.entries[0]?.weapons).toEqual([]);
+    });
+
+    it("populates entry weapons from type-2 chunk fire events when film metadata is available", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const getSpartanTokenSpy = vi
+        .spyOn(spartanTokenProvider, "getSpartanToken")
+        .mockResolvedValue("fake-spartan-token");
+      await env.APP_DATA.put("film:clearance", "fake-clearance-token");
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+
+      // API response order: Players[0] → playerIndex 0, matching playerIndex 0 fire event
+      const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
+      const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
+
+      // Pre-populate CF cache with film metadata containing one type-2 chunk
+      const matchId = match.MatchId;
+      const filmMetadata = {
+        AssetId: "asset-id",
+        BlobStoragePathPrefix: "https://blob.example/",
+        CustomData: {
+          MatchId: matchId,
+          FilmMajorVersion: 42,
+          FilmLength: 10000,
+          Chunks: [
+            { Index: 0, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 15, FileRelativePath: "/chunk-0.bin" },
+          ],
+        },
+      };
+      await defaultCache().put(
+        metadataCacheRequestFor(matchId),
+        new Response(JSON.stringify(filmMetadata), {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/json" },
+        }),
+      );
+
+      const BR75_WEAPON_ID = 0x2b1824d542c9679fn;
+      const compressedChunk = deflateSync(buildFireEventBytes(0, 0, BR75_WEAPON_ID));
+      await defaultCache().put(
+        chunkCacheRequestFor(matchId, 0),
+        new Response(compressedChunk, {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/octet-stream" },
+        }),
+      );
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 4000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 4000,
+          medalValue: 0,
+          teamId: null,
+        },
+      ]);
+
+      const analytics = await service.buildKillMatrixAnalytics(match);
+      expect(analytics.entries).toHaveLength(1);
+      expect(analytics.entries[0]?.weapons).toEqual([{ weaponId: "2B1824D542C9679F", name: "BR75", count: 1 }]);
+      expect(getSpartanTokenSpy).not.toHaveBeenCalled();
+    });
+
+    it("decompresses zlib-compressed type-2 chunks before scanning fire events", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const getSpartanTokenSpy = vi
+        .spyOn(spartanTokenProvider, "getSpartanToken")
+        .mockResolvedValue("fake-spartan-token");
+      await env.APP_DATA.put("film:clearance", "fake-clearance-token");
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+
+      const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
+      const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
+
+      const matchId = match.MatchId;
+      const filmMetadata = {
+        AssetId: "asset-id",
+        BlobStoragePathPrefix: "https://blob.example/",
+        CustomData: {
+          MatchId: matchId,
+          FilmMajorVersion: 42,
+          FilmLength: 10000,
+          Chunks: [
+            { Index: 0, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 15, FileRelativePath: "/chunk-0.bin" },
+          ],
+        },
+      };
+      await defaultCache().put(
+        metadataCacheRequestFor(matchId),
+        new Response(JSON.stringify(filmMetadata), {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/json" },
+        }),
+      );
+
+      const MA40_WEAPON_ID = 0x48c19d2d42c9679fn;
+      const rawFireEventBytes = buildFireEventBytes(0, 0, MA40_WEAPON_ID);
+      const compressedBytes = deflateSync(rawFireEventBytes);
+      await defaultCache().put(
+        chunkCacheRequestFor(matchId, 0),
+        new Response(compressedBytes, {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/octet-stream" },
+        }),
+      );
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 4000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 4000,
+          medalValue: 0,
+          teamId: null,
+        },
+      ]);
+
+      const analytics = await service.buildKillMatrixAnalytics(match);
+      expect(analytics.entries).toHaveLength(1);
+      expect(analytics.entries[0]?.weapons).toEqual([{ weaponId: "48C19D2D42C9679F", name: "MA40 AR", count: 1 }]);
+      expect(getSpartanTokenSpy).not.toHaveBeenCalled();
+    });
+
+    it("aggregates weapon counts across multiple kills and returns weapons sorted by count descending", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("fake-spartan-token");
+      await env.APP_DATA.put("film:clearance", "fake-clearance-token");
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+
+      const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
+      const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
+
+      const matchId = match.MatchId;
+      const filmMetadata = {
+        AssetId: "asset-id",
+        BlobStoragePathPrefix: "https://blob.example/",
+        CustomData: {
+          MatchId: matchId,
+          FilmMajorVersion: 42,
+          FilmLength: 10000,
+          // Single type-2 chunk spanning 10000ms; 3 fire events at bytePos 0, 15, 30 in 45 bytes:
+          //   event 1 (bytePos 0)  → ts 0ms      (BR75)
+          //   event 2 (bytePos 15) → ts 3333ms   (MA40 AR)
+          //   event 3 (bytePos 30) → ts 6667ms   (BR75)
+          Chunks: [
+            { Index: 0, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 45, FileRelativePath: "/chunk-0.bin" },
+          ],
+        },
+      };
+      await defaultCache().put(
+        metadataCacheRequestFor(matchId),
+        new Response(JSON.stringify(filmMetadata), {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/json" },
+        }),
+      );
+
+      const BR75_ID = 0x2b1824d542c9679fn;
+      const MA40_ID = 0x48c19d2d42c9679fn;
+      const rawChunk = new Uint8Array([
+        ...buildFireEventBytes(0, 0, BR75_ID),
+        ...buildFireEventBytes(0, 0, MA40_ID),
+        ...buildFireEventBytes(0, 0, BR75_ID),
+      ]);
+      await defaultCache().put(
+        chunkCacheRequestFor(matchId, 0),
+        new Response(deflateSync(rawChunk), {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/octet-stream" },
+        }),
+      );
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 1000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 1000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 4000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 4000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 8000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 8000,
+          medalValue: 0,
+          teamId: null,
+        },
+      ]);
+
+      const analytics = await service.buildKillMatrixAnalytics(match);
+      expect(analytics.entries).toHaveLength(1);
+      expect(analytics.entries[0]?.count).toBe(3);
+      expect(analytics.entries[0]?.weapons).toEqual([
+        { weaponId: "2B1824D542C9679F", name: "BR75", count: 2 },
+        { weaponId: "48C19D2D42C9679F", name: "MA40 AR", count: 1 },
+      ]);
+    });
+
+    it("falls back to Formula A weapon snapshot when no fire event matches the kill", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("fake-spartan-token");
+      await env.APP_DATA.put("film:clearance", "fake-clearance-token");
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+
+      const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
+      const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
+
+      const matchId = match.MatchId;
+      const filmMetadata = {
+        AssetId: "asset-id",
+        BlobStoragePathPrefix: "https://blob.example/",
+        CustomData: {
+          MatchId: matchId,
+          FilmMajorVersion: 42,
+          FilmLength: 10000,
+          Chunks: [
+            { Index: 0, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 0, FileRelativePath: "/chunk-0.bin" },
+          ],
+        },
+      };
+      await defaultCache().put(
+        metadataCacheRequestFor(matchId),
+        new Response(JSON.stringify(filmMetadata), {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/json" },
+        }),
+      );
+
+      const BANDIT_EVO_ID = 0x6acdc44d42c9679fn;
+      const BR75_ID = 0x2b1824d542c9679fn;
+      const rawChunk = new Uint8Array([
+        ...buildFireEventBytes(1, 0, BR75_ID),
+        ...buildFormulaAEventBytes(0, BANDIT_EVO_ID),
+      ]);
+      await defaultCache().put(
+        chunkCacheRequestFor(matchId, 0),
+        new Response(deflateSync(rawChunk), {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/octet-stream" },
+        }),
+      );
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 4000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 4000,
+          medalValue: 0,
+          teamId: null,
+        },
+      ]);
+
+      const analytics = await service.buildKillMatrixAnalytics(match);
+      expect(analytics.entries).toHaveLength(1);
+      expect(analytics.entries[0]?.weapons).toEqual([{ weaponId: "6ACDC44D42C9679F", name: "Bandit Evo", count: 1 }]);
+    });
+
+    it("propagates Formula A weapon state from a prior chunk when the kill chunk has no Formula A events", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("fake-spartan-token");
+      await env.APP_DATA.put("film:clearance", "fake-clearance-token");
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+
+      const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
+      const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
+      const matchId = match.MatchId;
+
+      const BANDIT_EVO_ID = 0x6acdc44d42c9679fn;
+      const BR75_ID = 0x2b1824d542c9679fn;
+
+      const chunk0Raw = new Uint8Array([
+        ...buildFireEventBytes(1, 0, BR75_ID),
+        ...buildFormulaAEventBytes(0, BANDIT_EVO_ID),
+      ]);
+      await defaultCache().put(
+        chunkCacheRequestFor(matchId, 0),
+        new Response(deflateSync(chunk0Raw), {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/octet-stream" },
+        }),
+      );
+
+      await defaultCache().put(
+        chunkCacheRequestFor(matchId, 1),
+        new Response(deflateSync(new Uint8Array(0)), {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/octet-stream" },
+        }),
+      );
+
+      const filmMetadata = {
+        AssetId: "asset-id",
+        BlobStoragePathPrefix: "https://blob.example/",
+        CustomData: {
+          MatchId: matchId,
+          FilmMajorVersion: 42,
+          FilmLength: 15000,
+          Chunks: [
+            { Index: 0, ChunkType: 2, DurationMilliseconds: 5000, ChunkSize: 0, FileRelativePath: "/chunk-0.bin" },
+            { Index: 1, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 0, FileRelativePath: "/chunk-1.bin" },
+          ],
+        },
+      };
+      await defaultCache().put(
+        metadataCacheRequestFor(matchId),
+        new Response(JSON.stringify(filmMetadata), {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/json" },
+        }),
+      );
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 8000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 8000,
+          medalValue: 0,
+          teamId: null,
+        },
+      ]);
+
+      const analytics = await service.buildKillMatrixAnalytics(match);
+      expect(analytics.entries).toHaveLength(1);
+      expect(analytics.entries[0]?.weapons).toEqual([{ weaponId: "6ACDC44D42C9679F", name: "Bandit Evo", count: 1 }]);
+    });
+
+    it("attributes weapons from valid chunks when a later chunk fails to decompress", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("fake-spartan-token");
+      await env.APP_DATA.put("film:clearance", "fake-clearance-token");
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+
+      const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
+      const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
+      const matchId = match.MatchId;
+
+      const BR75_ID = 0x2b1824d542c9679fn;
+
+      await defaultCache().put(
+        chunkCacheRequestFor(matchId, 0),
+        new Response(deflateSync(buildFireEventBytes(0, 0, BR75_ID)), {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/octet-stream" },
+        }),
+      );
+
+      await defaultCache().put(
+        chunkCacheRequestFor(matchId, 1),
+        new Response(new Uint8Array([0x01, 0x02, 0x03]), {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/octet-stream" },
+        }),
+      );
+
+      const filmMetadata = {
+        AssetId: "asset-id",
+        BlobStoragePathPrefix: "https://blob.example/",
+        CustomData: {
+          MatchId: matchId,
+          FilmMajorVersion: 42,
+          FilmLength: 10000,
+          Chunks: [
+            { Index: 0, ChunkType: 2, DurationMilliseconds: 5000, ChunkSize: 0, FileRelativePath: "/chunk-0.bin" },
+            { Index: 1, ChunkType: 2, DurationMilliseconds: 5000, ChunkSize: 0, FileRelativePath: "/chunk-1.bin" },
+          ],
+        },
+      };
+      await defaultCache().put(
+        metadataCacheRequestFor(matchId),
+        new Response(JSON.stringify(filmMetadata), {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/json" },
+        }),
+      );
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 3000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 3000,
+          medalValue: 0,
+          teamId: null,
+        },
+      ]);
+
+      const analytics = await service.buildKillMatrixAnalytics(match);
+      expect(analytics.entries).toHaveLength(1);
+      expect(analytics.entries[0]?.weapons).toEqual([{ weaponId: "2B1824D542C9679F", name: "BR75", count: 1 }]);
+    });
+
+    it("resolves auth context only once when multiple type-2 chunks are fetched in parallel", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const getSpartanTokenSpy = vi
+        .spyOn(spartanTokenProvider, "getSpartanToken")
+        .mockResolvedValue("fake-spartan-token");
+      await env.APP_DATA.put("film:clearance", "fake-clearance-token");
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+      const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
+      const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
+
+      const matchId = match.MatchId;
+      const compressedEmpty = deflateSync(new Uint8Array(0));
+      const filmMetadata = {
+        AssetId: "asset-id",
+        BlobStoragePathPrefix: "https://blob.example/",
+        CustomData: {
+          MatchId: matchId,
+          FilmMajorVersion: 42,
+          FilmLength: 20000,
+          Chunks: [
+            { Index: 0, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 0, FileRelativePath: "/chunk-0.bin" },
+            { Index: 1, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 0, FileRelativePath: "/chunk-1.bin" },
+          ],
+        },
+      };
+      await defaultCache().put(
+        metadataCacheRequestFor(matchId),
+        new Response(JSON.stringify(filmMetadata), {
+          headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/json" },
+        }),
+      );
+
+      vi.spyOn(globalThis, "fetch").mockImplementation(async (): Promise<Response> => {
+        await Promise.resolve();
+        return new Response(compressedEmpty, { status: 200 });
+      });
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        {
+          xuid: killerXuid,
+          gamertag: "killer",
+          typeHint: 50,
+          isMedal: false,
+          eventType: "kill",
+          timeMs: 4000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: victimXuid,
+          gamertag: "victim",
+          typeHint: 20,
+          isMedal: false,
+          eventType: "death",
+          timeMs: 4000,
+          medalValue: 0,
+          teamId: null,
+        },
+      ]);
+
+      await service.buildKillMatrixAnalytics(match);
+
+      expect(getSpartanTokenSpy).toHaveBeenCalledTimes(1);
     });
   });
 
