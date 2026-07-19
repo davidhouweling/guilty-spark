@@ -113,6 +113,15 @@ export default defineConfig(
         tsconfigRootDir: import.meta.dirname,
       },
     },
+    settings: {
+      "import/core-modules": [
+        "astro:assets",
+        "astro:content",
+        "astro:env/client",
+        "astro:env/server",
+        "astro:transitions/client",
+      ],
+    },
     rules: {
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/no-unsafe-assignment": "off",
