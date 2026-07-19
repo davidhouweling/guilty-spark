@@ -44,11 +44,6 @@ function entryKey(item: ViewerTimelineItem): string {
   return `series:${item.series.id}`;
 }
 
-function isNearLatest(): boolean {
-  const threshold = 200;
-  return window.scrollY <= threshold;
-}
-
 function statusLabel(status: TrackerStatus): string {
   switch (status) {
     case "active": {
@@ -255,9 +250,6 @@ export function IndividualTrackerViewer({
 }: IndividualTrackerViewerProps): React.ReactElement {
   const latestEntryRef = React.useRef<HTMLDivElement | null>(null);
   const lastTimelineLengthRef = React.useRef<number>(renderModel.timeline.length);
-  const nearLatestRef = React.useRef<boolean>(true);
-  const [isNearLatestNow, setIsNearLatestNow] = React.useState(true);
-  const [unseenEntries, setUnseenEntries] = React.useState(0);
   const [seriesBackgroundTick, setSeriesBackgroundTick] = React.useState(0);
   const [isSeriesBackgroundTransitioning, setIsSeriesBackgroundTransitioning] = React.useState(false);
   const [isSeriesBackgroundGlitching, setIsSeriesBackgroundGlitching] = React.useState(false);
@@ -271,34 +263,10 @@ export function IndividualTrackerViewer({
   }, []);
 
   React.useEffect(() => {
-    function onScrollOrResize(): void {
-      const nearLatest = isNearLatest();
-      nearLatestRef.current = nearLatest;
-      setIsNearLatestNow(nearLatest);
-      if (nearLatest) {
-        setUnseenEntries(0);
-      }
-    }
-
-    onScrollOrResize();
-    window.addEventListener("scroll", onScrollOrResize, { passive: true });
-    window.addEventListener("resize", onScrollOrResize);
-    return (): void => {
-      window.removeEventListener("scroll", onScrollOrResize);
-      window.removeEventListener("resize", onScrollOrResize);
-    };
-  }, []);
-
-  React.useEffect(() => {
     const previousLength = lastTimelineLengthRef.current;
     const nextLength = timeline.length;
     if (nextLength > previousLength) {
-      const delta = nextLength - previousLength;
-      if (nearLatestRef.current) {
-        scrollToLatest();
-      } else {
-        setUnseenEntries((current) => current + delta);
-      }
+      scrollToLatest();
     }
     lastTimelineLengthRef.current = nextLength;
   }, [timeline.length, scrollToLatest]);
@@ -615,19 +583,6 @@ export function IndividualTrackerViewer({
           </Container>
         )}
       </section>
-
-      {(!isNearLatestNow || unseenEntries > 0) && (
-        <button
-          type="button"
-          className={styles.jumpToLatestButton}
-          onClick={(): void => {
-            scrollToLatest();
-            setUnseenEntries(0);
-          }}
-        >
-          {unseenEntries > 0 ? `Jump to latest (${unseenEntries.toString()} new)` : "Jump to latest"}
-        </button>
-      )}
     </>
   );
 }

@@ -78,11 +78,11 @@
 
 .navLinks .iconLink {
   align-items: center;
+  border-bottom: none;
   display: inline-flex;
   justify-content: center;
   min-height: 34px;
   min-width: 34px;
-  border-bottom: none;
 
   &::after {
     display: none;
@@ -110,10 +110,10 @@
 }
 
 .navLinksIcons {
+  align-items: center;
   display: flex;
   flex-direction: row;
   gap: var(--space-2);
-  align-items: center;
   justify-content: center;
 }
 
