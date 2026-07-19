@@ -1,7 +1,7 @@
 import React from "react";
 import { Dialog } from "../../dialog/dialog";
 import { TeamIcon } from "../../icons/team-icon";
-import type { H2HDialogData, KillMatrixWeaponUsage } from "../../../controllers/stats/kill-matrix/types";
+import type { H2HDialogData } from "../../../controllers/stats/kill-matrix/types";
 import styles from "./kill-matrix-h2h-dialog.module.css";
 
 interface KillMatrixH2HDialogProps {
@@ -24,22 +24,7 @@ function PlayerHeader({
   );
 }
 
-function topWeaponCell(weapons: readonly KillMatrixWeaponUsage[]): React.ReactNode {
-  const top = weapons.at(0);
-  if (top == null || top.count === 0) {
-    return "0";
-  }
-  return (
-    <>
-      {top.count}
-      <span className={styles.weaponName}>{top.name}</span>
-    </>
-  );
-}
-
 export function KillMatrixH2HDialog({ data, onClose }: KillMatrixH2HDialogProps): React.ReactElement {
-  const hasTopWeapon = (data?.aWeaponsOnB[0]?.count ?? 0) > 0 || (data?.bWeaponsOnA[0]?.count ?? 0) > 0;
-
   return (
     <Dialog open={data != null} title="Head to head" onClose={onClose} panelClassName={styles.dialogPanel}>
       {data != null && (
@@ -66,13 +51,13 @@ export function KillMatrixH2HDialog({ data, onClose }: KillMatrixH2HDialogProps)
               <td className={styles.statCell}>Perfects</td>
               <td className={styles.valueCell}>{data.bPerfsOnA}</td>
             </tr>
-            {hasTopWeapon && (
-              <tr>
-                <td className={styles.valueCell}>{topWeaponCell(data.aWeaponsOnB)}</td>
-                <td className={styles.statCell}>Top weapon kills</td>
-                <td className={styles.valueCell}>{topWeaponCell(data.bWeaponsOnA)}</td>
+            {data.weaponRows.map((row) => (
+              <tr key={row.weaponId}>
+                <td className={styles.valueCell}>{row.aCount}</td>
+                <td className={styles.statCell}>{row.name}</td>
+                <td className={styles.valueCell}>{row.bCount}</td>
               </tr>
-            )}
+            ))}
           </tbody>
         </table>
       )}

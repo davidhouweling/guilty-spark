@@ -723,4 +723,47 @@ describe("KillMatrixFormatter", () => {
       expect(KillMatrixFormatter.buildCrossTeam(rows, mixedPlayers)).toBeNull();
     });
   });
+
+  describe("buildH2HWeaponRows", () => {
+    it("returns empty array when both sides have no weapons", () => {
+      expect(KillMatrixFormatter.buildH2HWeaponRows([], [])).toEqual([]);
+    });
+
+    it("includes weapons from A's side with bCount 0 when B has none", () => {
+      const result = KillMatrixFormatter.buildH2HWeaponRows(
+        [{ weaponId: "2B1824D542C9679F", name: "BR75", count: 3 }],
+        [],
+      );
+      expect(result).toEqual([{ weaponId: "2B1824D542C9679F", name: "BR75", aCount: 3, bCount: 0 }]);
+    });
+
+    it("includes weapons from B's side with aCount 0 when A has none", () => {
+      const result = KillMatrixFormatter.buildH2HWeaponRows(
+        [],
+        [{ weaponId: "48C19D2D42C9679F", name: "MA40 AR", count: 2 }],
+      );
+      expect(result).toEqual([{ weaponId: "48C19D2D42C9679F", name: "MA40 AR", aCount: 0, bCount: 2 }]);
+    });
+
+    it("merges the same weapon from both sides into a single row", () => {
+      const result = KillMatrixFormatter.buildH2HWeaponRows(
+        [{ weaponId: "2B1824D542C9679F", name: "BR75", count: 4 }],
+        [{ weaponId: "2B1824D542C9679F", name: "BR75", count: 2 }],
+      );
+      expect(result).toEqual([{ weaponId: "2B1824D542C9679F", name: "BR75", aCount: 4, bCount: 2 }]);
+    });
+
+    it("sorts rows by total kills descending", () => {
+      const result = KillMatrixFormatter.buildH2HWeaponRows(
+        [
+          { weaponId: "48C19D2D42C9679F", name: "MA40 AR", count: 1 },
+          { weaponId: "2B1824D542C9679F", name: "BR75", count: 3 },
+        ],
+        [{ weaponId: "48C19D2D42C9679F", name: "MA40 AR", count: 3 }],
+      );
+      // MA40 AR total = 4, BR75 total = 3
+      expect(result[0]?.name).toBe("MA40 AR");
+      expect(result[1]?.name).toBe("BR75");
+    });
+  });
 });
