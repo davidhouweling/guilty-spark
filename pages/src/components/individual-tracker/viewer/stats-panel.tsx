@@ -50,6 +50,7 @@ export function StatsPanel({ state }: StatsPanelProps): React.ReactElement | nul
             transposedKillMatrixPivotData={state.transposedKillMatrixPivotData}
             crossTeamData={state.crossTeamKillMatrixData}
             swappedCrossTeamData={state.swappedCrossTeamKillMatrixData}
+            killMatrixStatus={state.killMatrixStatus}
             scoreProgressionViewData={state.scoreProgressionViewData}
           />
         </div>

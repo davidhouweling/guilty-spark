@@ -19,7 +19,7 @@ import type {
 import { isMatchStats } from "../../../controllers/stats/is-match-stats";
 import { calculateSeriesMetadata } from "../../../controllers/stats/series-metadata";
 import { StatsController } from "../../../controllers/stats/stats-controller";
-import { KillMatrixFormatter } from "../../../controllers/stats/kill-matrix/kill-matrix-formatter";
+import { GAMES_SUFFIX_RE, KillMatrixFormatter } from "../../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import { EMPTY_KILL_MATRIX_PIVOT_DATA, type KillMatrixPlayer } from "../../../controllers/stats/kill-matrix/types";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault, type TeamColor } from "../../team-colors/team-colors";
@@ -46,7 +46,6 @@ interface MatchStatsLoadedState {
   readonly stats: MatchStats;
   readonly playerMap: Map<string, string>;
   readonly medalMetadata: MedalMetadata;
-  readonly analytics: MatchAnalytics | null;
   readonly gameMapThumbnailUrl: string;
 }
 
@@ -70,6 +69,8 @@ interface BuildSeriesViewModelArgs {
   readonly medalMetadata: MedalMetadata;
   readonly playerMap: Map<string, string>;
   readonly teamColors: readonly TeamColor[];
+  readonly analyticsByMatchId: ReadonlyMap<string, MatchAnalytics>;
+  readonly analyticsStatus: ComponentLoaderStatus;
 }
 
 function getLatestRawMatch(rawMatches: readonly MatchStats[]): MatchStats | undefined {
@@ -97,11 +98,26 @@ function buildSeriesViewModel({
   medalMetadata,
   playerMap,
   teamColors,
+  analyticsByMatchId,
+  analyticsStatus,
 }: BuildSeriesViewModelArgs): SeriesStatsViewModel {
   // --- Series totals ---
   const seriesController = new StatsController();
   seriesController.loadSeries([...rawMatches], playerMap, medalMetadata);
   const seriesTotals = seriesController.getSeriesStats();
+  const seriesPlayers = seriesController.getPlayers();
+  const playersByGamertag = new Map(seriesPlayers.map((player) => [player.gamertag, player]));
+  const resolvedSeriesPlayers = seriesTotals.playerData
+    .flatMap((teamData) =>
+      teamData.players.map((player) => playersByGamertag.get(player.name.replace(GAMES_SUFFIX_RE, ""))),
+    )
+    .filter((player): player is KillMatrixPlayer => player != null);
+  const orderedSeriesPlayers =
+    resolvedSeriesPlayers.length === seriesPlayers.length ? resolvedSeriesPlayers : seriesPlayers;
+  const playersByXuid = new Map(
+    seriesPlayers.map((player) => [player.xuid, { gamertag: player.gamertag, teamId: player.teamId }]),
+  );
+  const killMatrixFormatter = new KillMatrixFormatter();
 
   const metadata = calculateSeriesMetadata(
     seriesData.matches.map((m) => ({ startTime: m.startTime, endTime: m.endTime })),
@@ -117,7 +133,7 @@ function buildSeriesViewModel({
     transposedKillMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
     crossTeamKillMatrixData: null,
     swappedCrossTeamKillMatrixData: null,
-    killMatrixStatus: ComponentLoaderStatus.LOADED,
+    killMatrixStatus: analyticsStatus,
   };
 
   // --- Match summaries (score cards) ---
@@ -157,19 +173,42 @@ function buildSeriesViewModel({
           teamColorHex: getTeamColorOrDefault(teamColors[teamIndex]?.id, teamIndex).hex,
         }));
 
+  const matchKillMatrixRows = new Map<string, ReturnType<KillMatrixFormatter["present"]>>();
+
   // --- Per-match detail sections ---
   const matchDetails: SeriesMatchDetail[] = seriesData.matches.map((m, index) => {
     const { rawMatch } = m;
     let data = null;
+    let orderedPlayers: readonly KillMatrixPlayer[] | undefined = undefined;
+    const analytics = analyticsByMatchId.get(m.matchId) ?? null;
     if (isMatchStats(rawMatch)) {
       try {
         const matchController = new StatsController();
         matchController.loadMatch(rawMatch, playerMap, medalMetadata);
         data = matchController.getMatchStats();
+
+        const matchPlayers = matchController.getPlayers();
+        const matchPlayersByGamertag = new Map(matchPlayers.map((player) => [player.gamertag, player]));
+        const resolvedPlayers = data
+          .flatMap((teamData) =>
+            teamData.players.map((player) => matchPlayersByGamertag.get(player.name.replace(GAMES_SUFFIX_RE, ""))),
+          )
+          .filter((player): player is KillMatrixPlayer => player != null);
+        orderedPlayers = resolvedPlayers.length === matchPlayers.length ? resolvedPlayers : matchPlayers;
       } catch {
         data = null;
       }
     }
+
+    const killMatrixRows = analytics != null ? killMatrixFormatter.present({ analytics, playersByXuid }) : null;
+    if (killMatrixRows != null) {
+      matchKillMatrixRows.set(m.matchId, killMatrixRows);
+    }
+    const crossTeam =
+      killMatrixRows != null
+        ? KillMatrixFormatter.buildCrossTeam(killMatrixRows, orderedPlayers ?? orderedSeriesPlayers)
+        : null;
+
     return {
       matchId: m.matchId,
       data,
@@ -183,14 +222,44 @@ function buildSeriesViewModel({
       startTime: m.startTime,
       endTime: m.endTime,
       teamColors,
-      killMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
-      transposedKillMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
-      crossTeamKillMatrixData: null,
-      swappedCrossTeamKillMatrixData: null,
-      killMatrixStatus: ComponentLoaderStatus.LOADED,
-      scoreProgressionViewData: null,
+      killMatrixPivotData:
+        killMatrixRows != null
+          ? KillMatrixFormatter.pivot(killMatrixRows, orderedPlayers ?? orderedSeriesPlayers)
+          : EMPTY_KILL_MATRIX_PIVOT_DATA,
+      transposedKillMatrixPivotData:
+        killMatrixRows != null
+          ? KillMatrixFormatter.transpose(killMatrixRows, orderedPlayers ?? orderedSeriesPlayers)
+          : EMPTY_KILL_MATRIX_PIVOT_DATA,
+      crossTeamKillMatrixData: crossTeam?.crossTeamData ?? null,
+      swappedCrossTeamKillMatrixData: crossTeam?.swappedCrossTeamData ?? null,
+      killMatrixStatus: analyticsStatus,
+      scoreProgressionViewData: formatScoreProgression(
+        analytics?.scoreProgression ?? null,
+        teamColors,
+        data?.[0]?.players.length ?? null,
+      ),
     };
   });
+
+  const aggregatedKillMatrixRows = KillMatrixFormatter.aggregate(
+    [...matchKillMatrixRows.values()].flatMap((rows) => rows),
+  );
+  const hasAggregatedKillMatrix = matchKillMatrixRows.size > 0;
+  const aggregatedCrossTeam = hasAggregatedKillMatrix
+    ? KillMatrixFormatter.buildCrossTeam(aggregatedKillMatrixRows, orderedSeriesPlayers)
+    : null;
+
+  const seriesStatsWithAnalytics: SeriesStatsSummary = {
+    ...seriesStats,
+    killMatrixPivotData: hasAggregatedKillMatrix
+      ? KillMatrixFormatter.pivot(aggregatedKillMatrixRows, orderedSeriesPlayers)
+      : EMPTY_KILL_MATRIX_PIVOT_DATA,
+    transposedKillMatrixPivotData: hasAggregatedKillMatrix
+      ? KillMatrixFormatter.transpose(aggregatedKillMatrixRows, orderedSeriesPlayers)
+      : EMPTY_KILL_MATRIX_PIVOT_DATA,
+    crossTeamKillMatrixData: aggregatedCrossTeam?.crossTeamData ?? null,
+    swappedCrossTeamKillMatrixData: aggregatedCrossTeam?.swappedCrossTeamData ?? null,
+  };
 
   return {
     title: series.title,
@@ -198,7 +267,7 @@ function buildSeriesViewModel({
     seriesScore: series.score,
     matchSummaries,
     teams,
-    seriesStats,
+    seriesStats: seriesStatsWithAnalytics,
     matchDetails,
   };
 }
@@ -331,13 +400,7 @@ export class IndividualTrackerViewerPresenter {
   }
 
   private async fetchMatchSource(matchId: string): Promise<MatchStatsLoadedState> {
-    const [seriesMatches, analytics] = await Promise.all([
-      this.config.seriesMatchesService.getSeriesMatches([matchId], this.config.trackerId),
-      this.config.matchAnalyticsService
-        .getBatchMatchAnalytics([matchId], ["killMatrix", "scoreProgression"], this.config.trackerId)
-        .then((results) => results[matchId] ?? null)
-        .catch(() => null),
-    ]);
+    const seriesMatches = await this.config.seriesMatchesService.getSeriesMatches([matchId], this.config.trackerId);
 
     if (seriesMatches.matches.length === 0) {
       throw new Error("Failed to load match source");
@@ -359,14 +422,16 @@ export class IndividualTrackerViewerPresenter {
 
     const medalMetadata = await this.config.medalMetadataResolver.getMedalMetadataForMatch(stats);
 
-    return { stats, playerMap, medalMetadata, analytics, gameMapThumbnailUrl: matchSummary.gameMapThumbnailUrl };
+    return { stats, playerMap, medalMetadata, gameMapThumbnailUrl: matchSummary.gameMapThumbnailUrl };
   }
 
   private toMatchEntryLoadedState(
     loadedState: MatchStatsLoadedState,
+    analytics: MatchAnalytics | null,
+    analyticsStatus: ComponentLoaderStatus,
     teamColors: readonly TeamColor[],
   ): MatchEntryLoadedState {
-    const { stats, playerMap, medalMetadata, analytics, gameMapThumbnailUrl } = loadedState;
+    const { stats, playerMap, medalMetadata, gameMapThumbnailUrl } = loadedState;
     const controller = new StatsController();
     controller.loadMatch(stats, playerMap, medalMetadata);
     if (analytics != null) {
@@ -402,6 +467,7 @@ export class IndividualTrackerViewerPresenter {
           : EMPTY_KILL_MATRIX_PIVOT_DATA,
       crossTeamKillMatrixData: crossTeam?.crossTeamData ?? null,
       swappedCrossTeamKillMatrixData: crossTeam?.swappedCrossTeamData ?? null,
+      killMatrixStatus: analyticsStatus,
       scoreProgressionViewData: formatScoreProgression(
         analytics?.scoreProgression ?? null,
         teamColors,
@@ -413,18 +479,54 @@ export class IndividualTrackerViewerPresenter {
   private async fetchMatchEntry(key: string, matchId: string): Promise<void> {
     this.config.store.setEntryLoading(key, "match");
     try {
-      const loadedState = await this.fetchMatchSource(matchId);
+      const matchSource = await this.fetchMatchSource(matchId);
       if (this.isDisposed) {
         return;
       }
 
-      const state = this.toMatchEntryLoadedState(loadedState, this.resolveTeamColors());
-      this.config.store.setMatchEntryLoaded(key, state);
+      const teamColors = this.resolveTeamColors();
+      const loadingState = this.toMatchEntryLoadedState(matchSource, null, ComponentLoaderStatus.LOADING, teamColors);
+      this.config.store.setMatchEntryLoaded(key, loadingState);
+
+      void this.fetchMatchAnalyticsAsync(key, matchSource, teamColors, matchId);
     } catch (error) {
       if (this.isDisposed) {
         return;
       }
       this.config.store.setEntryError(key, "match", error instanceof Error ? error.message : "Failed to load stats");
+    }
+  }
+
+  private async fetchMatchAnalyticsAsync(
+    key: string,
+    matchSource: MatchStatsLoadedState,
+    teamColors: readonly TeamColor[],
+    matchId: string,
+  ): Promise<void> {
+    try {
+      const results = await this.config.matchAnalyticsService.getBatchMatchAnalytics(
+        [matchId],
+        ["killMatrix", "scoreProgression"],
+        this.config.trackerId,
+      );
+      if (this.shouldAbort()) {
+        return;
+      }
+
+      const loadedState = this.toMatchEntryLoadedState(
+        matchSource,
+        results[matchId] ?? null,
+        ComponentLoaderStatus.LOADED,
+        teamColors,
+      );
+      this.config.store.setMatchEntryLoaded(key, loadedState);
+    } catch {
+      if (this.shouldAbort()) {
+        return;
+      }
+
+      const loadedState = this.toMatchEntryLoadedState(matchSource, null, ComponentLoaderStatus.ERROR, teamColors);
+      this.config.store.setMatchEntryLoaded(key, loadedState);
     }
   }
 
@@ -472,15 +574,94 @@ export class IndividualTrackerViewerPresenter {
         medalMetadata,
         playerMap,
         teamColors,
+        analyticsByMatchId: new Map(),
+        analyticsStatus: ComponentLoaderStatus.LOADING,
       });
 
       const state: SeriesEntryLoadedState = { seriesId: series.id, viewModel };
       this.config.store.setSeriesEntryLoaded(key, state);
+
+      void this.fetchSeriesAnalyticsAsync({
+        key,
+        series,
+        seriesData: mergedSeriesData,
+        rawMatches,
+        medalMetadata,
+        playerMap,
+        teamColors,
+      });
     } catch (error) {
       if (this.isDisposed) {
         return;
       }
       this.config.store.setEntryError(key, "series", error instanceof Error ? error.message : "Failed to load series");
+    }
+  }
+
+  private async fetchSeriesAnalyticsAsync(args: {
+    readonly key: string;
+    readonly series: ViewerSeriesTab;
+    readonly seriesData: SeriesMatchesResponse;
+    readonly rawMatches: readonly MatchStats[];
+    readonly medalMetadata: MedalMetadata;
+    readonly playerMap: Map<string, string>;
+    readonly teamColors: readonly TeamColor[];
+  }): Promise<void> {
+    const requestedMatchIds = args.series.matches.map((match) => match.matchId);
+    const uniqueMatchIds = [...new Set(requestedMatchIds)];
+    if (uniqueMatchIds.length === 0) {
+      const loadedViewModel = buildSeriesViewModel({
+        ...args,
+        analyticsByMatchId: new Map(),
+        analyticsStatus: ComponentLoaderStatus.LOADED,
+      });
+      this.config.store.setSeriesEntryLoaded(args.key, { seriesId: args.series.id, viewModel: loadedViewModel });
+      return;
+    }
+
+    try {
+      const analyticsByMatchId = new Map<string, MatchAnalytics>();
+
+      for (let index = 0; index < uniqueMatchIds.length; index += SERIES_MATCHES_BATCH_SIZE) {
+        if (this.shouldAbort()) {
+          return;
+        }
+
+        const batchMatchIds = uniqueMatchIds.slice(index, index + SERIES_MATCHES_BATCH_SIZE);
+        const batch = await this.config.matchAnalyticsService.getBatchMatchAnalytics(
+          batchMatchIds,
+          ["killMatrix", "scoreProgression"],
+          this.config.trackerId,
+        );
+
+        if (this.shouldAbort()) {
+          return;
+        }
+
+        for (const [matchId, analytics] of Object.entries(batch)) {
+          if (analytics != null) {
+            analyticsByMatchId.set(matchId, analytics);
+          }
+        }
+      }
+
+      const loadedViewModel = buildSeriesViewModel({
+        ...args,
+        analyticsByMatchId,
+        analyticsStatus: ComponentLoaderStatus.LOADED,
+      });
+      this.config.store.setSeriesEntryLoaded(args.key, { seriesId: args.series.id, viewModel: loadedViewModel });
+    } catch {
+      if (this.shouldAbort()) {
+        return;
+      }
+
+      const erroredViewModel = buildSeriesViewModel({
+        ...args,
+        analyticsByMatchId: new Map(),
+        analyticsStatus: ComponentLoaderStatus.ERROR,
+      });
+      this.config.store.setSeriesEntryLoaded(args.key, { seriesId: args.series.id, viewModel: erroredViewModel });
     }
   }
 

@@ -18,6 +18,7 @@ import {
   aFakeTrackerSeriesGroupWith,
   aFakeTrackerViewStateWith,
 } from "../../../../services/individual-tracker/fakes/view.fake";
+import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { buildViewerRenderModel } from "../../viewer/viewer-render-model";
 import { IndividualTrackerOverlayPresenter, type MatchStatsState } from "../individual-tracker-overlay-presenter";
@@ -159,6 +160,7 @@ describe("IndividualTrackerOverlay", () => {
             ]),
             medalMetadata: {},
             analytics: null,
+            analyticsStatus: ComponentLoaderStatus.LOADED,
           },
           selectedMatchId: "m-1",
         })}
@@ -239,6 +241,7 @@ describe("IndividualTrackerOverlay", () => {
             ]),
             medalMetadata: {},
             analytics: null,
+            analyticsStatus: ComponentLoaderStatus.LOADED,
           },
           selectedMatchId: "m-1",
           onDeselect,
