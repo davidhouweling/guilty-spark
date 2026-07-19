@@ -45,9 +45,13 @@
 }
 
 .individualDot {
+  appearance: none;
   background: color-mix(in srgb, var(--halo-cyan) 35%, transparent);
+  border: none;
   border-radius: 9999px;
+  cursor: pointer;
   height: 8px;
+  padding: 0;
   transition:
     background-color 200ms ease-in-out,
     transform 200ms ease-in-out;
@@ -57,6 +61,11 @@
 .individualDot[data-active="true"] {
   background: var(--halo-cyan);
   transform: scale(1.15);
+}
+
+.individualDot:focus-visible {
+  outline: 2px solid var(--halo-cyan);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {

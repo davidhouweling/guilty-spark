@@ -54,10 +54,17 @@ const slides = [
       ))
     }
 
-    <div class={styles.individualDots} aria-hidden="true">
+    <div class={styles.individualDots}>
       {
-        slides.map((_, index) => (
-          <span class={styles.individualDot} data-individual-tracker-dot data-active={index === 0 ? "true" : "false"} />
+        slides.map((slide, index) => (
+          <button
+            type="button"
+            class={styles.individualDot}
+            data-individual-tracker-dot
+            data-active={index === 0 ? "true" : "false"}
+            aria-current={index === 0 ? "true" : "false"}
+            aria-label={`Show slide ${index + 1} of ${slides.length}: ${slide.alt}`}
+          />
         ))
       }
     </div>
@@ -83,8 +90,16 @@ const slides = [
       });
 
       dots.forEach((dot, index) => {
-        dot.setAttribute("data-active", index === activeIndex ? "true" : "false");
+        const isActive = index === activeIndex;
+
+        dot.setAttribute("data-active", isActive ? "true" : "false");
+        dot.setAttribute("aria-current", isActive ? "true" : "false");
       });
+    };
+
+    const goToSlide = (index: number): void => {
+      activeIndex = index;
+      renderActiveState();
     };
 
     renderActiveState();
@@ -92,13 +107,12 @@ const slides = [
     let intervalId: number | null = null;
 
     const startRotation = (): void => {
-      if (intervalId !== null) {
+      if (intervalId !== null || prefersReducedMotion || slides.length <= 1) {
         return;
       }
 
       intervalId = window.setInterval(() => {
-        activeIndex = (activeIndex + 1) % slides.length;
-        renderActiveState();
+        goToSlide((activeIndex + 1) % slides.length);
       }, 4500);
     };
 
@@ -111,16 +125,31 @@ const slides = [
       intervalId = null;
     };
 
-    if (!prefersReducedMotion && slides.length > 1) {
-      startRotation();
+    startRotation();
 
-      document.addEventListener("visibilitychange", () => {
-        if (document.hidden) {
-          stopRotation();
-        } else {
-          startRotation();
-        }
+    dots.forEach((dot, index) => {
+      dot.addEventListener("click", () => {
+        stopRotation();
+        goToSlide(index);
+        startRotation();
       });
-    }
+    });
+
+    root.addEventListener("mouseenter", stopRotation);
+    root.addEventListener("mouseleave", startRotation);
+    root.addEventListener("focusin", stopRotation);
+    root.addEventListener("focusout", () => {
+      if (!root.contains(document.activeElement)) {
+        startRotation();
+      }
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        stopRotation();
+      } else {
+        startRotation();
+      }
+    });
   }
 </script>
