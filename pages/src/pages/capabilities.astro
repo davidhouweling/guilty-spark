@@ -3,9 +3,9 @@ import { Image } from "astro:assets";
 import Layout from "../layouts/layout.astro";
 import Container from "../components/container/container.astro";
 import Heading from "../components/heading/heading.astro";
+import QueueStatsCommandScreenshot from "../assets/screenshot20250604-queue-stats-command.png";
 import LiveTrackerScreenshot from "../assets/screenshot20250918-live-tracker.png";
 import TrackerUserViewerScreenshot from "../assets/screenshot20260719-individual-tracker-user-viewer.png";
-import TrackerViewerScreenshot from "../assets/screenshot20260719-individual-tracker-viewer.png";
 import TrackerOverlayScreenshot from "../assets/screenshot20260719-individual-tracker-overlay.png";
 import styles from "./_styles/content-page.module.css";
 ---
@@ -36,8 +36,11 @@ import styles from "./_styles/content-page.module.css";
               <li>Handle account linking and command-driven retrieval</li>
             </ul>
             <figure class={styles.mediaItem}>
-              <Image src={LiveTrackerScreenshot} alt="Live Tracker showing active series and match details" />
-              <figcaption>Live Tracker showing active series and match details</figcaption>
+              <Image
+                src={QueueStatsCommandScreenshot}
+                alt="NeatQueue series stats resolved in Discord via slash command"
+              />
+              <figcaption>Resolve NeatQueue series stats directly in Discord with a slash command.</figcaption>
             </figure>
           </article>
 
@@ -50,11 +53,8 @@ import styles from "./_styles/content-page.module.css";
               <li>Optional score projection into channel names</li>
             </ul>
             <figure class={styles.mediaItem}>
-              <Image
-                src={TrackerViewerScreenshot}
-                alt="Series tracking viewer showing match cards and accumulated stats"
-              />
-              <figcaption>Series tracking automatically accumulates match data as they happen.</figcaption>
+              <Image src={LiveTrackerScreenshot} alt="Live Tracker showing active series and match details" />
+              <figcaption>Live Tracker showing active series and match details</figcaption>
             </figure>
           </article>
 

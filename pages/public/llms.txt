@@ -22,4 +22,4 @@ in real time.
 - **Individual Tracker**: A per-user durable tracker that monitors live Halo Infinite matches, feeds real-time overlay data, and maintains match history for a configured gamertag.
 - **Series Tracking**: NeatQueue integration that captures in-series context (teams, scores, match IDs) and drives overlay UI switching between in-series and matchmaking modes.
 - **OBS Overlay**: A browser-source overlay with a live ticker, match tabs, series score bar, and stats highlights panel — all driven by Individual Tracker data over WebSocket.
-- **Discord Bot**: Slash commands for stats lookup (`/stats`, `/service-record`), map generation (`/maps`), live tracker management (`/track`), and server setup (`/setup`).
+- **Discord Bot**: Slash commands for stats lookup (`/stats`, `/servicerecord`), map generation (`/maps`), live tracker management (`/track`), and server setup (`/setup`).

@@ -20,6 +20,7 @@ export default defineConfig({
           "https://guilty-spark.app/404",
           "https://guilty-spark.app/500",
         ].includes(page) &&
+        page !== "https://guilty-spark.app/individual-tracker" &&
         !page.startsWith("https://guilty-spark.app/individual-tracker/") &&
         !page.startsWith("https://guilty-spark.app/stats/") &&
         !page.startsWith("https://guilty-spark.app/u/"),
