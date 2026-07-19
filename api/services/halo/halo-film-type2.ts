@@ -1,7 +1,7 @@
 import { KNOWN_WEAPON_IDS, hasCommonWeaponSuffix, lookupWeaponName, weaponIdToHex } from "./weapon-ids";
 
 // Fire event scanner for the type-2 (replication) film chunk.
-// Ported from LevelUp weapon_scanner.go (~/hobby/LevelUp).
+// Ported from https://github.com/JGtm/LevelUp/blob/main/weapon_scanner.go
 
 const FRAME_MARKER = Uint8Array.of(0xa0, 0x7b, 0x42);
 const UNIVERSAL_MARKER_BITS = 0b10100100110; // 11-bit marker preceding each fire event
@@ -135,7 +135,7 @@ export function scanFireEvents(data: Uint8Array, startMs: number, durationMs: nu
 }
 
 // Formula A scanner — weapon-equipped state snapshots from type-2 film chunks.
-// Ported from LevelUp weapon_scanner.go ScanFormulaA.
+// Ported from https://github.com/JGtm/LevelUp/blob/main/weapon_scanner.go ScanFormulaA.
 // Marker [0x20, 0x00, 0x02] precedes a player byte (top 3 bits = playerIndex) followed
 // by the 8-byte weapon ID (4-byte prefix + 4-byte COMMON_WEAPON_SUFFIX) within 68 bytes.
 
