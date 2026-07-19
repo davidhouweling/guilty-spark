@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { OverlayPageStore } from "../overlay-page-store";
 
@@ -13,6 +14,7 @@ describe("OverlayPageStore", () => {
       playerMap: new Map([["xuid-1", "Spartan"]]),
       medalMetadata: {},
       analytics: null,
+      analyticsStatus: ComponentLoaderStatus.LOADED,
     });
 
     const snapshot = store.getSnapshot();

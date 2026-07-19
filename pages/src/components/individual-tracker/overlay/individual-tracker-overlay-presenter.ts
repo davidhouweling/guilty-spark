@@ -8,6 +8,7 @@ import type { MedalEntry, MedalMetadata } from "@guilty-spark/shared/halo/medals
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { summarizeSeriesOutcome } from "@guilty-spark/shared/halo/match-enrichment";
+import type { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { TickerMatchGroup, TickerStatRow } from "../../information-ticker/information-ticker";
@@ -79,6 +80,7 @@ export type MatchStatsState =
       readonly playerMap: Map<string, string>;
       readonly medalMetadata: MedalMetadata;
       readonly analytics: MatchAnalytics | null;
+      readonly analyticsStatus: ComponentLoaderStatus;
     }
   | { readonly status: "error"; readonly message: string };
 
