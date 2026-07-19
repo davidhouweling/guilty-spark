@@ -184,7 +184,7 @@ export function scanFormulaAEvents(data: Uint8Array): FormulaAEvent[] {
     const playerIndex = pb >> 5;
     const weaponDataStart = markerPos + FORMULA_A_PLAYER_BYTE_OFFSET + 1;
     const suffixPos = findBytePattern(data, COMMON_SUFFIX_BYTES, weaponDataStart, markerPos + FORMULA_A_SEARCH_WINDOW);
-    let nextPos = markerPos + FORMULA_A_PLAYER_BYTE_OFFSET + 1;
+    let nextPos = weaponDataStart;
     if (suffixPos >= 0) {
       const weaponStart = suffixPos - WEAPON_SUFFIX_LENGTH;
       if (weaponStart >= weaponDataStart && weaponStart + 8 <= data.length) {

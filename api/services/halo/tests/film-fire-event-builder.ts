@@ -5,6 +5,9 @@
 //   [35..42]  b5 byte: (playerIndex << 4) | slot
 //   [43..106] weapon_id: 64-bit big-endian
 export function buildFireEventBytes(playerIndex: number, slot: number, weaponId: bigint): Uint8Array {
+  if (playerIndex < 0 || playerIndex > 15) {
+    throw new Error(`playerIndex must be 0–15, got ${playerIndex.toString()}`);
+  }
   const data = new Uint8Array(15); // 120 bits — scan needs 107 bits minimum (3+40+64)
 
   function setBit(bitPos: number): void {

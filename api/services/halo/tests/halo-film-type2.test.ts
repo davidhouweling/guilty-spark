@@ -176,7 +176,7 @@ describe("scanFormulaAEvents", () => {
     expect(events[1]?.playerIndex).toBe(1);
   });
 
-  it("last write wins when same player has multiple events — last entry survives from caller perspective", () => {
+  it("emits both events when same player equips weapon twice, preserving buffer order", () => {
     const BR75 = 0x2b1824d542c9679fn;
     const MA40 = 0x48c19d2d42c9679fn;
     const data = new Uint8Array([...buildFormulaAEventBytes(3, BR75), ...buildFormulaAEventBytes(3, MA40)]);
