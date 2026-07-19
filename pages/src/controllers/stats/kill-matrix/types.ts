@@ -35,6 +35,13 @@ export interface KillMatrixCrossTeamCell {
   readonly deathWeapons: readonly KillMatrixWeaponUsage[];
 }
 
+export interface H2HWeaponRow {
+  readonly weaponId: string;
+  readonly name: string;
+  readonly aCount: number;
+  readonly bCount: number;
+}
+
 export interface H2HDialogData {
   readonly playerA: { readonly gamertag: string; readonly teamId: number | null };
   readonly playerB: { readonly gamertag: string; readonly teamId: number | null };
@@ -42,8 +49,7 @@ export interface H2HDialogData {
   readonly bKillsOnA: number;
   readonly aPerfsOnB: number;
   readonly bPerfsOnA: number;
-  readonly aWeaponsOnB: readonly KillMatrixWeaponUsage[];
-  readonly bWeaponsOnA: readonly KillMatrixWeaponUsage[];
+  readonly weaponRows: readonly H2HWeaponRow[];
 }
 
 export interface KillMatrixCrossTeamRow {

@@ -1,6 +1,7 @@
 import type { KillMatrixWeaponUsage, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type {
+  H2HWeaponRow,
   KillMatrixClassification,
   KillMatrixColumnHeader,
   KillMatrixCrossTeamData,
@@ -272,6 +273,26 @@ export class KillMatrixFormatter {
       crossTeamData: KillMatrixFormatter.pivotCrossTeam(rows, firstTeamPlayers, secondTeamPlayers),
       swappedCrossTeamData: KillMatrixFormatter.pivotCrossTeam(rows, secondTeamPlayers, firstTeamPlayers),
     };
+  }
+
+  public static buildH2HWeaponRows(
+    aWeapons: readonly KillMatrixWeaponUsage[],
+    bWeapons: readonly KillMatrixWeaponUsage[],
+  ): H2HWeaponRow[] {
+    const byId = new Map<string, H2HWeaponRow>();
+    for (const w of aWeapons) {
+      byId.set(w.weaponId, { weaponId: w.weaponId, name: w.name, aCount: w.count, bCount: 0 });
+    }
+    for (const w of bWeapons) {
+      const existing = byId.get(w.weaponId);
+      byId.set(
+        w.weaponId,
+        existing != null
+          ? { ...existing, bCount: w.count }
+          : { weaponId: w.weaponId, name: w.name, aCount: 0, bCount: w.count },
+      );
+    }
+    return [...byId.values()].sort((x, y) => y.aCount + y.bCount - (x.aCount + x.bCount));
   }
 
   private static mergeWeapons(

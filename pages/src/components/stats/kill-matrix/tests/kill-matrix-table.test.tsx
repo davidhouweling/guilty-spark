@@ -563,12 +563,16 @@ describe("KillMatrixTable", () => {
       expect(bKills).toBe("4");
     });
 
-    it("shows top weapon row when at least one player has weapon kills", async () => {
+    it("shows a row per weapon used between the two players", async () => {
       const user = userEvent.setup();
+      // Only Alpha→Bravo row — yields a single-column pivot so td:nth-child(2) is the data cell
       const pivotData = KillMatrixFormatter.pivot([
         {
           ...baseRow,
-          weapons: [{ weaponId: "2B1824D542C9679F", name: "BR75", count: 3 }],
+          weapons: [
+            { weaponId: "2B1824D542C9679F", name: "BR75", count: 3 },
+            { weaponId: "48C19D2D42C9679F", name: "MA40 AR", count: 1 },
+          ],
         },
       ]);
 
@@ -578,11 +582,11 @@ describe("KillMatrixTable", () => {
       const cellButton = table.querySelector("tbody tr td:nth-child(2) button");
       await user.click(cellButton as HTMLElement);
 
-      expect(screen.getByText("Top weapon kills")).toBeInTheDocument();
       expect(screen.getByText("BR75")).toBeInTheDocument();
+      expect(screen.getByText("MA40 AR")).toBeInTheDocument();
     });
 
-    it("hides top weapon row when both players have no weapon kills", async () => {
+    it("shows no weapon rows when both players have no weapon kills", async () => {
       const user = userEvent.setup();
       const pivotData = KillMatrixFormatter.pivot([{ ...baseRow, weapons: [] }]);
 
@@ -592,7 +596,9 @@ describe("KillMatrixTable", () => {
       const cellButton = table.querySelector("tbody tr td:nth-child(2) button");
       await user.click(cellButton as HTMLElement);
 
-      expect(screen.queryByText("Top weapon kills")).not.toBeInTheDocument();
+      const dialog = screen.getByRole("dialog", { name: "Head to head" });
+      // Only Kills and Perfects rows — no weapon rows
+      expect(dialog.querySelectorAll("tbody tr")).toHaveLength(2);
     });
   });
 
