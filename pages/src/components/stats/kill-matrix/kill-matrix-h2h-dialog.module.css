@@ -41,3 +41,7 @@
   padding: 0.5rem 0.75rem;
   text-align: center;
 }
+
+.firstWeaponRow {
+  border-top: 1px dashed color-mix(in srgb, currentcolor 20%, transparent);
+}

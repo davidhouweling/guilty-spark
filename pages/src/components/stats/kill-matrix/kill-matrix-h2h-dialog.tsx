@@ -51,8 +51,8 @@ export function KillMatrixH2HDialog({ data, onClose }: KillMatrixH2HDialogProps)
               <td className={styles.statCell}>Perfects</td>
               <td className={styles.valueCell}>{data.bPerfsOnA}</td>
             </tr>
-            {data.weaponRows.map((row) => (
-              <tr key={row.weaponId}>
+            {data.weaponRows.map((row, index) => (
+              <tr key={row.weaponId} className={index === 0 ? styles.firstWeaponRow : undefined}>
                 <td className={styles.valueCell}>{row.aCount}</td>
                 <td className={styles.statCell}>{row.name}</td>
                 <td className={styles.valueCell}>{row.bCount}</td>
