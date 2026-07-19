@@ -45,9 +45,9 @@ const slides = [
             width={image.width}
             height={image.height}
             alt={alt}
-            loading="lazy"
+            loading={index === 0 ? "eager" : "lazy"}
             decoding="async"
-            fetchpriority="low"
+            fetchpriority={index === 0 ? "high" : "low"}
           />
           <figcaption class={styles.gridCaption}>{caption}</figcaption>
         </figure>
