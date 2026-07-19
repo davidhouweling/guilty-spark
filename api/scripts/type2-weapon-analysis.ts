@@ -84,13 +84,6 @@ for (const [index, player] of matchStats.Players.entries()) {
 const kills = filmEvents.filter((e) => e.eventType === "kill");
 const deaths = filmEvents.filter((e) => e.eventType === "death");
 
-const killersByTime = new Map<number, CachedEvent[]>();
-for (const k of kills) {
-  const bucket = killersByTime.get(k.timeMs) ?? [];
-  bucket.push(k);
-  killersByTime.set(k.timeMs, bucket);
-}
-
 const usedDeathIndices = new Set<number>();
 const killPairs: KillPair[] = [];
 

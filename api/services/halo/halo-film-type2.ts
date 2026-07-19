@@ -202,7 +202,7 @@ export class WeaponAttributor {
   private readonly available: FireEvent[];
 
   constructor(fireEvents: FireEvent[]) {
-    this.available = [...fireEvents];
+    this.available = [...fireEvents].sort((a, b) => a.timestampMs - b.timestampMs || a.bytePos - b.bytePos);
   }
 
   claim(playerIndex: number | null, killTimeMs: number): { weaponId: string; name: string } | null {
