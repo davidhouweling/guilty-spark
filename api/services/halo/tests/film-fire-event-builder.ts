@@ -41,6 +41,9 @@ export function buildFireEventBytes(playerIndex: number, slot: number, weaponId:
 //   pb = playerIndex << 5 (top 3 bits encode playerIndex 0-7)
 //   weaponId is the 64-bit weapon ID, big-endian
 export function buildFormulaAEventBytes(playerIndex: number, weaponId: bigint): Uint8Array {
+  if (playerIndex < 0 || playerIndex > 7) {
+    throw new Error(`playerIndex must be 0–7, got ${playerIndex.toString()}`);
+  }
   const data = new Uint8Array(12);
   data[0] = 0x20;
   data[1] = 0x00;
