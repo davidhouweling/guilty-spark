@@ -1,7 +1,12 @@
 ---
+import { Image } from "astro:assets";
 import Layout from "../layouts/layout.astro";
 import Container from "../components/container/container.astro";
 import Heading from "../components/heading/heading.astro";
+import LiveTrackerScreenshot from "../assets/screenshot20250918-live-tracker.png";
+import TrackerUserViewerScreenshot from "../assets/screenshot20260719-individual-tracker-user-viewer.png";
+import TrackerViewerScreenshot from "../assets/screenshot20260719-individual-tracker-viewer.png";
+import TrackerOverlayScreenshot from "../assets/screenshot20260719-individual-tracker-overlay.png";
 import styles from "./_styles/content-page.module.css";
 ---
 
@@ -30,6 +35,10 @@ import styles from "./_styles/content-page.module.css";
               <li>Configure channel posting behavior and integration settings</li>
               <li>Handle account linking and command-driven retrieval</li>
             </ul>
+            <figure class={styles.mediaItem}>
+              <Image src={LiveTrackerScreenshot} alt="Live Tracker showing active series and match details" />
+              <figcaption>Live Tracker showing active series and match details</figcaption>
+            </figure>
           </article>
 
           <article class={styles.card}>
@@ -41,15 +50,11 @@ import styles from "./_styles/content-page.module.css";
               <li>Optional score projection into channel names</li>
             </ul>
             <figure class={styles.mediaItem}>
-              <img
-                src="/images/content-refresh/capabilities-live-series-request.svg"
-                alt="Requested media placeholder for live series tracker showcase"
-                loading="lazy"
+              <Image
+                src={TrackerViewerScreenshot}
+                alt="Series tracking viewer showing match cards and accumulated stats"
               />
-              <figcaption>
-                Requested asset: replace with a screenshot or short GIF of an active live tracker showing score, tabs,
-                and progression status.
-              </figcaption>
+              <figcaption>Series tracking automatically accumulates match data as they happen.</figcaption>
             </figure>
           </article>
 
@@ -61,6 +66,13 @@ import styles from "./_styles/content-page.module.css";
               <li>Tune streamer settings per context</li>
               <li>Share public viewer pages for audience follow-along</li>
             </ul>
+            <figure class={styles.mediaItem}>
+              <Image
+                src={TrackerUserViewerScreenshot}
+                alt="Individual Tracker user-level viewer showing lineup and score details"
+              />
+              <figcaption>Individual Tracker user-level viewer showing lineup and score details</figcaption>
+            </figure>
           </article>
 
           <article class={styles.card}>
@@ -72,14 +84,11 @@ import styles from "./_styles/content-page.module.css";
               <li>Compatible with standard OBS browser source workflows</li>
             </ul>
             <figure class={styles.mediaItem}>
-              <img
-                src="/images/content-refresh/capabilities-obs-overlay-request.svg"
-                alt="Requested media placeholder for OBS overlay composition"
-                loading="lazy"
+              <Image
+                src={TrackerOverlayScreenshot}
+                alt="OBS overlay output showing Guilty Spark overlay as a browser source"
               />
-              <figcaption>
-                Requested asset: replace with OBS scene preview showing Guilty Spark overlay as a browser source.
-              </figcaption>
+              <figcaption>OBS overlay output showing Guilty Spark overlay as a browser source</figcaption>
             </figure>
           </article>
         </div>

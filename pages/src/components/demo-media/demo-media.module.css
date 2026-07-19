@@ -20,6 +20,51 @@
   text-align: center;
 }
 
+.individualCarousel {
+  position: relative;
+}
+
+.individualSlide {
+  display: none;
+  margin: 0;
+  opacity: 0;
+  transition: opacity 280ms ease-in-out;
+}
+
+.individualSlide[data-active="true"] {
+  display: block;
+  opacity: 1;
+}
+
+.individualDots {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: center;
+  margin-top: var(--space-3);
+}
+
+.individualDot {
+  background: color-mix(in srgb, var(--halo-cyan) 35%, transparent);
+  border-radius: 9999px;
+  height: 8px;
+  transition:
+    background-color 200ms ease-in-out,
+    transform 200ms ease-in-out;
+  width: 8px;
+}
+
+.individualDot[data-active="true"] {
+  background: var(--halo-cyan);
+  transform: scale(1.15);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .individualSlide {
+    transition: none;
+  }
+}
+
 @media (--tablet-viewport) {
   .grid {
     gap: var(--space-10);

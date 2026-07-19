@@ -1,4 +1,11 @@
 ---
+import { Image } from "astro:assets";
+import TrackerStep1Screenshot from "../../assets/faq/tracker-step-1-live-tracker.png";
+import TrackerStep2Screenshot from "../../assets/faq/tracker-step-2-settings-dialog.png";
+import TrackerStep3Screenshot from "../../assets/faq/tracker-step-3-streamer-and-copy-url.png";
+import ObsStep1Screenshot from "../../assets/faq/obs-step-1-browser-source-settings.png";
+import IndividualTrackerStep1Screenshot from "../../assets/faq/individual-tracker-step-1-start.png";
+import IndividualTrackerStep2Screenshot from "../../assets/faq/individual-tracker-step-2-streamer-settings.png";
 import Layout from "../../layouts/layout.astro";
 import Container from "../../components/container/container.astro";
 import Heading from "../../components/heading/heading.astro";
@@ -31,30 +38,22 @@ import styles from "../_styles/content-page.module.css";
             <li>Set dimensions to 1920x1080, then resize in-scene as needed.</li>
           </ol>
           <figure class={styles.mediaItem}>
-            <img
-              src="/images/faq/tracker-step-1-live-tracker.png"
-              alt="Live tracker page with active series overview"
-              loading="lazy"
-            />
+            <Image src={TrackerStep1Screenshot} alt="Live tracker page with active series overview" />
+            <figcaption>Live tracker view showing active series context before opening overlay settings.</figcaption>
+          </figure>
+          <figure class={styles.mediaItem}>
+            <Image src={TrackerStep2Screenshot} alt="Configure the overlay for streamer mode" />
             <figcaption>
-              Reference: live tracker view showing active series context before opening overlay settings.
+              Clicking settings in the top right allows you to configure the overlay for streamer mode.
             </figcaption>
           </figure>
           <figure class={styles.mediaItem}>
-            <img
-              src="/images/faq/tracker-step-3-streamer-and-copy-url.png"
-              alt="Overlay settings showing Copy URL for OBS in streamer mode"
-              loading="lazy"
-            />
-            <figcaption>Reference: copy the generated OBS URL from streamer overlay mode.</figcaption>
+            <Image src={TrackerStep3Screenshot} alt="Overlay settings showing Copy URL for OBS in streamer mode" />
+            <figcaption>Copy the generated OBS URL from streamer overlay mode.</figcaption>
           </figure>
           <figure class={styles.mediaItem}>
-            <img
-              src="/images/faq/obs-step-1-browser-source-settings.png"
-              alt="OBS Browser Source settings for Guilty Spark overlay"
-              loading="lazy"
-            />
-            <figcaption>Reference: Browser Source setup in OBS for live tracker overlays.</figcaption>
+            <Image src={ObsStep1Screenshot} alt="OBS Browser Source settings for Guilty Spark overlay" />
+            <figcaption>In OBS Studio add a Browser Source for live tracker overlays.</figcaption>
           </figure>
         </div>
       </section>
@@ -70,55 +69,19 @@ import styles from "../_styles/content-page.module.css";
             <li>Lock the source in OBS once layout is final.</li>
           </ol>
           <figure class={styles.mediaItem}>
-            <img
-              src="/images/content-refresh/faq-individual-step-1-open-tracker.svg"
-              alt="Requested screenshot placeholder for opening the Individual Tracker manager"
-              loading="lazy"
-            />
-            <figcaption>Requested asset: tracker manager view with active tracker cards and controls.</figcaption>
+            <Image src={IndividualTrackerStep1Screenshot} alt="Individual Tracker manager: starting a tracker" />
+            <figcaption>Individual Tracker manager: starting a tracker</figcaption>
           </figure>
           <figure class={styles.mediaItem}>
-            <img
-              src="/images/content-refresh/faq-individual-step-2-copy-overlay-url.svg"
-              alt="Requested screenshot placeholder for copying Individual Tracker overlay URL"
-              loading="lazy"
-            />
+            <Image src={IndividualTrackerStep2Screenshot} alt="Individual Tracker Streamer Settings" />
             <figcaption>
-              Requested asset: tracker overlay settings panel with Copy URL for OBS action visible.
+              Configure the streamer settings for your audience-facing overlay, then copy the OBS URL for use in a
+              Browser Source. Share your viewer URL with your audience for direct access to the tracker viewer page.
             </figcaption>
           </figure>
           <figure class={styles.mediaItem}>
-            <img
-              src="/images/content-refresh/faq-individual-step-3-obs-preview.svg"
-              alt="Requested screenshot placeholder for OBS preview with Individual Tracker overlay"
-              loading="lazy"
-            />
-            <figcaption>
-              Requested asset: final OBS preview or program output with Individual Tracker overlay enabled.
-            </figcaption>
-          </figure>
-        </div>
-      </section>
-
-      <section class={styles.section} aria-label="Troubleshooting">
-        <div class={styles.card}>
-          <h3>Troubleshooting and Performance</h3>
-          <ul>
-            <li>If content appears stale, use Refresh cache of current page in Browser Source properties.</li>
-            <li>Lower Browser Source resolution for low-resource stream profiles.</li>
-            <li>If text appears cropped, check scene scaling and browser source bounds.</li>
-            <li>Keep only one active source per overlay URL to avoid confusion during live edits.</li>
-          </ul>
-          <figure class={styles.mediaItem}>
-            <img
-              src="/images/content-refresh/guides-obs-flow-request.svg"
-              alt="Requested media placeholder for end-to-end OBS setup flow"
-              loading="lazy"
-            />
-            <figcaption>
-              Requested asset: replace with a short GIF or MP4 showing copy URL, Browser Source setup, and final preview
-              in OBS.
-            </figcaption>
+            <Image src={ObsStep1Screenshot} alt="OBS Browser Source settings for Guilty Spark overlay" />
+            <figcaption>In OBS Studio add a Browser Source for live tracker overlays.</figcaption>
           </figure>
         </div>
       </section>

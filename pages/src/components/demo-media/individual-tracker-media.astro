@@ -1,20 +1,99 @@
 ---
+import type { ImageMetadata } from "astro";
+import TrackerManageScreenshot from "../../assets/screenshot20260719-individual-tracker-manage.png";
+import TrackerUserViewerScreenshot from "../../assets/screenshot20260719-individual-tracker-user-viewer.png";
+import TrackerViewerScreenshot from "../../assets/screenshot20260719-individual-tracker-viewer.png";
+import TrackerOverlayScreenshot from "../../assets/screenshot20260719-individual-tracker-overlay.png";
 import styles from "./demo-media.module.css";
+
+const slides = [
+  {
+    image: TrackerManageScreenshot as ImageMetadata,
+    alt: "Individual Tracker streamer settings with viewer and overlay URL controls",
+    caption: "Configure tracker viewer and overlay URLs from the Streamer Settings panel.",
+  },
+  {
+    image: TrackerUserViewerScreenshot as ImageMetadata,
+    alt: "User-level Individual Tracker viewer showing lineup and score details",
+    caption: "User-level viewer tracks focused lineup context and score progression during the series.",
+  },
+  {
+    image: TrackerViewerScreenshot as ImageMetadata,
+    alt: "Individual Tracker viewer showing match cards and accumulated stats",
+    caption: "Public viewer page presents match timeline cards and detailed team statistics.",
+  },
+  {
+    image: TrackerOverlayScreenshot as ImageMetadata,
+    alt: "Individual Tracker overlay displayed over Halo Infinite gameplay",
+    caption: "OBS overlay displays live highlights in-game for audience-facing broadcasts.",
+  },
+];
 ---
 
 <div class={styles.grid}>
-  <div class={styles.gridItem}>
-    <img
-      src="/images/content-refresh/home-individual-tracker-request.svg"
-      width="1280"
-      height="720"
-      alt="Placeholder describing the requested Individual Tracker dashboard screenshot"
-      loading="lazy"
-      decoding="async"
-      fetchpriority="low"
-    />
-    <div class={styles.gridCaption}>
-      Requested media: Individual Tracker manager dashboard with active tracker controls and overlay action.
+  <div class={styles.individualCarousel} data-individual-tracker-carousel>
+    {
+      slides.map(({ image, alt, caption }, index) => (
+        <figure
+          class={styles.individualSlide}
+          data-individual-tracker-slide
+          data-active={index === 0 ? "true" : "false"}
+          aria-hidden={index === 0 ? "false" : "true"}
+        >
+          <img
+            src={image.src}
+            width={image.width}
+            height={image.height}
+            alt={alt}
+            loading="lazy"
+            decoding="async"
+            fetchpriority="low"
+          />
+          <figcaption class={styles.gridCaption}>{caption}</figcaption>
+        </figure>
+      ))
+    }
+
+    <div class={styles.individualDots} aria-hidden="true">
+      {
+        slides.map((_, index) => (
+          <span class={styles.individualDot} data-individual-tracker-dot data-active={index === 0 ? "true" : "false"} />
+        ))
+      }
     </div>
   </div>
 </div>
+
+<script>
+  const root = document.querySelector("[data-individual-tracker-carousel]");
+
+  if (root instanceof HTMLElement) {
+    const slides = Array.from(root.querySelectorAll("[data-individual-tracker-slide]"));
+    const dots = Array.from(root.querySelectorAll("[data-individual-tracker-dot]"));
+    const prefersReducedMotion =
+      typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let activeIndex = 0;
+
+    const renderActiveState = (): void => {
+      slides.forEach((slide, index) => {
+        const isActive = index === activeIndex;
+
+        slide.setAttribute("data-active", isActive ? "true" : "false");
+        slide.setAttribute("aria-hidden", isActive ? "false" : "true");
+      });
+
+      dots.forEach((dot, index) => {
+        dot.setAttribute("data-active", index === activeIndex ? "true" : "false");
+      });
+    };
+
+    renderActiveState();
+
+    if (!prefersReducedMotion && slides.length > 1) {
+      window.setInterval(() => {
+        activeIndex = (activeIndex + 1) % slides.length;
+        renderActiveState();
+      }, 4500);
+    }
+  }
+</script>
