@@ -22,6 +22,7 @@ const WEAPON_ID_MAP: ReadonlyMap<bigint, string> = new Map([
   [0x767db96d42c9679fn, "MLRS-2 Hydra"],
   [0xf408190f42c9679fn, "Mk51 Sidekick"],
   [0x91833a5a42c9679fn, "Mk51 Sidekick"],
+  [0x831d801242c9679fn, "Mk51 Sidekick"],
   [0xd791556542c9679fn, "Mutilator"],
   [0xb533957e42c9679fn, "Needler"],
   [0xc354294642c9679fn, "Plasma Pistol"],
