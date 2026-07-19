@@ -270,7 +270,13 @@ export class HaloFilmService {
     const timeline: WeaponTimeline = new Map();
     const chunkTimings: ChunkTiming[] = [];
     for (const { chunk, startMs, bytes } of chunksWithBytes) {
-      const chunkData = new Uint8Array(inflateSync(bytes));
+      let chunkData: Uint8Array;
+      try {
+        chunkData = new Uint8Array(inflateSync(bytes));
+      } catch {
+        chunkTimings.push({ chunkIndex: chunk.Index, startMs });
+        continue;
+      }
       for (const ev of scanFireEvents(chunkData, startMs, chunk.DurationMilliseconds)) {
         allFireEvents.push(ev);
       }
