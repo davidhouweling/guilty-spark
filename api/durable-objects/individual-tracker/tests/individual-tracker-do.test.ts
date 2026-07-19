@@ -585,7 +585,7 @@ describe("IndividualTrackerDO", () => {
       expect(series?.subtitle).toBe("Best of 3");
     });
 
-    it("dedupes sequential same map+mode entries in series matchIds and score", async () => {
+    it("keeps sequential same map+mode entries in series matchIds while deduping score", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           matchIds: ["m1", "m2"],
@@ -622,8 +622,8 @@ describe("IndividualTrackerDO", () => {
 
       expect(body.state?.series).toHaveLength(1);
       const series = body.state?.series[0];
-      expect(series?.matchIds).toEqual(["m2"]);
-      expect(series?.matchBackgroundUrls).toHaveLength(1);
+      expect(series?.matchIds).toEqual(["m1", "m2"]);
+      expect(series?.matchBackgroundUrls).toHaveLength(2);
       expect(series?.score).toBe("0:1");
     });
 
@@ -1779,7 +1779,24 @@ describe("IndividualTrackerDO", () => {
             title: "Active Series",
             subtitle: "Customs",
             guildIconUrl: null,
-            teams: [],
+            teams: [
+              {
+                id: 0,
+                name: "Eagle",
+                players: [
+                  { discordId: null, discordName: null, gamertag: "Alpha", xboxId: "1111111111" },
+                  { discordId: null, discordName: null, gamertag: "Bravo", xboxId: "2222222222" },
+                ],
+              },
+              {
+                id: 1,
+                name: "Cobra",
+                players: [
+                  { discordId: null, discordName: null, gamertag: "Charlie", xboxId: "3333333333" },
+                  { discordId: null, discordName: null, gamertag: "Delta", xboxId: "4444444444" },
+                ],
+              },
+            ],
             matchIds: ["series-custom-match"],
             startedAt: "2024-11-26T11:00:00.000Z",
             isActive: true,
@@ -2998,13 +3015,17 @@ describe("IndividualTrackerDO", () => {
       expect(response.status).toBe(400);
     });
 
-    it("flushes existing series metadata when nudging with ended event", async () => {
+    it("retires active series metadata when nudging with ended event", async () => {
       const persistedSeriesGroupOverrides = [
         { matchIds: ["match-1"], titleOverride: "Custom Label", subtitleOverride: null },
       ];
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
-          activeSeries: anActiveSeries({ matchIds: ["match-1"] }),
+          activeSeries: anActiveSeries({
+            title: "Dog Crew",
+            subtitle: "Queue #8018",
+            matchIds: ["match-1"],
+          }),
           seriesGroupOverrides: persistedSeriesGroupOverrides,
         }),
       );
@@ -3017,7 +3038,14 @@ describe("IndividualTrackerDO", () => {
 
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries).toBeUndefined();
-      expect(persisted.completedSeries).toBeUndefined();
+      expect(persisted.completedSeries).toEqual([
+        expect.objectContaining({
+          title: "Dog Crew",
+          subtitle: "Queue #8018",
+          isActive: false,
+          matchIds: ["match-1"],
+        }),
+      ]);
       expect(persisted.seriesGroupOverrides).toEqual(persistedSeriesGroupOverrides);
       expect(storageSetAlarmSpy).toHaveBeenCalledWith(Date.now());
     });
@@ -3297,6 +3325,47 @@ describe("IndividualTrackerDO", () => {
       expect(group?.subtitle).toBe("Queue #5");
       expect(group?.guildIconUrl).toBe("https://cdn.discordapp.com/icons/guild-id/icon.webp");
       expect(group?.teams).toEqual(teams);
+    });
+
+    it("surfaces an active series group when only one active-series match is currently linked", async () => {
+      const ids = ["match-active-1"];
+      const activeSeries: ActiveSeries = {
+        title: "Queue Live",
+        subtitle: "Queue #8",
+        guildIconUrl: null,
+        matchIds: ids,
+        teams: [],
+        startedAt: "2026-07-17T09:23:30.659Z",
+        isActive: true,
+      };
+
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          ...makeSeriesMatches(ids),
+          activeSeries,
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+
+      expect(response.status).toBe(200);
+      const body = await response.json<{
+        state: {
+          hasActiveSeries: boolean;
+          activeSeriesContext?: { startedAt?: string };
+          series: { title: string; subtitle: string; matchIds: string[]; score: string }[];
+        };
+      }>();
+
+      expect(body.state.hasActiveSeries).toBe(true);
+      expect(body.state.activeSeriesContext?.startedAt).toBe("2026-07-17T09:23:30.659Z");
+      expect(body.state.series).toHaveLength(1);
+      expect(body.state.series[0]).toMatchObject({
+        title: "Queue Live",
+        subtitle: "Queue #8",
+        matchIds: ["match-active-1"],
+        score: "0:0",
+      });
     });
 
     it("applies completedSeries metadata to a matching group after the series ends", async () => {

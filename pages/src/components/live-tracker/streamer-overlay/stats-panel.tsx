@@ -21,7 +21,7 @@ interface StatsPanelContentProps {
   readonly selectedTab: number;
   readonly teams: readonly LiveTrackerTeamRenderModel[];
   readonly playersAssociationData: Record<string, PlayerAssociationData> | null;
-  readonly matchesLength: number;
+  readonly seriesMatchCount: number;
   readonly seriesStats: {
     teamData: MatchStatsData[];
     playerData: MatchStatsData[];
@@ -40,7 +40,7 @@ function StatsPanelContentComponent({
   selectedTab,
   teams,
   playersAssociationData,
-  matchesLength,
+  seriesMatchCount,
   seriesStats,
   selectedMatchStats,
   selectedMatch,
@@ -50,13 +50,13 @@ function StatsPanelContentComponent({
   seriesKillMatrix,
   analyticsStatus,
 }: StatsPanelContentProps): React.ReactElement | null {
-  if (selectedTab === -1 && matchesLength === 0 && playersAssociationData != null) {
+  if (selectedTab === -1 && seriesMatchCount === 0 && playersAssociationData != null) {
     return (
       <PlayerPreSeriesInfo teams={teams} playersAssociationData={playersAssociationData} teamColors={teamColors} />
     );
   }
 
-  if (selectedTab === -1 && seriesStats != null && matchesLength > 0) {
+  if (selectedTab === -1 && seriesStats != null && seriesMatchCount > 0) {
     return (
       <SeriesStats
         teamData={seriesStats.teamData}

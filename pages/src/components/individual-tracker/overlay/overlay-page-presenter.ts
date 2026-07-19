@@ -4,9 +4,12 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import { StatsController } from "../../../controllers/stats/stats-controller";
 import { KillMatrixFormatter } from "../../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import { EMPTY_KILL_MATRIX_PIVOT_DATA, type KillMatrixPlayer } from "../../../controllers/stats/kill-matrix/types";
+import { ComponentLoaderStatus } from "../../component-loader/component-loader";
+import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { MatchDetailsState, ViewerTimelineItem } from "../viewer/types";
+import { formatScoreProgression } from "../../stats/score-progression/score-progression-formatter";
 import type { MatchStatsState } from "./individual-tracker-overlay-presenter";
 import type { OverlayPageSnapshot, OverlayPageStore } from "./overlay-page-store";
 
@@ -15,6 +18,11 @@ interface OverlayPagePresenterConfig {
   readonly haloClient: HaloInfiniteClient;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly matchAnalyticsService: MatchAnalyticsService;
+}
+
+interface OverlayAnalyticsLoadResult {
+  readonly status: ComponentLoaderStatus;
+  readonly analyticsByMatchId: Readonly<Record<string, MatchAnalytics | null>>;
 }
 
 export interface OverlayPageViewModel {
@@ -109,11 +117,10 @@ export class OverlayPagePresenter {
 
       const xuids = stats.Players.filter((player) => player.PlayerType === 1).map((player) => getPlayerXuid(player));
 
-      const [users, analyticsByMatchId, medalMetadata] = await Promise.all([
+      const analyticsPromise = this.loadMatchAnalyticsAsync(matchId);
+
+      const [users, medalMetadata] = await Promise.all([
         this.config.haloClient.getUsers(xuids).catch(() => []),
-        this.config.matchAnalyticsService
-          .getBatchMatchAnalytics([matchId])
-          .catch((): Record<string, MatchAnalytics | null> => ({})),
         this.config.medalMetadataResolver.getMedalMetadataForMatch(stats),
       ]);
 
@@ -133,7 +140,22 @@ export class OverlayPagePresenter {
         stats,
         playerMap,
         medalMetadata,
-        analytics: analyticsByMatchId[matchId] ?? null,
+        analytics: null,
+        analyticsStatus: ComponentLoaderStatus.LOADING,
+      });
+
+      const analyticsResult = await analyticsPromise;
+      if (this.shouldAbort()) {
+        return;
+      }
+
+      this.config.store.setMatchStatsState(matchId, {
+        status: "loaded",
+        stats,
+        playerMap,
+        medalMetadata,
+        analytics: analyticsResult.analyticsByMatchId[matchId] ?? null,
+        analyticsStatus: analyticsResult.status,
       });
     } catch {
       if (this.shouldAbort()) {
@@ -144,6 +166,25 @@ export class OverlayPagePresenter {
         status: "error",
         message: "Failed to load match stats",
       });
+    }
+  }
+
+  private async loadMatchAnalyticsAsync(matchId: string): Promise<OverlayAnalyticsLoadResult> {
+    try {
+      const analyticsByMatchId = await this.config.matchAnalyticsService.getBatchMatchAnalytics(
+        [matchId],
+        ["killMatrix", "scoreProgression"],
+      );
+
+      return {
+        status: ComponentLoaderStatus.LOADED,
+        analyticsByMatchId,
+      };
+    } catch {
+      return {
+        status: ComponentLoaderStatus.ERROR,
+        analyticsByMatchId: {},
+      };
     }
   }
 
@@ -163,7 +204,7 @@ export class OverlayPagePresenter {
       return { status: "error", message: matchStatsState.message };
     }
 
-    const { stats, playerMap, medalMetadata, analytics } = matchStatsState;
+    const { stats, playerMap, medalMetadata, analytics, analyticsStatus } = matchStatsState;
     const controller = new StatsController();
     controller.loadMatch(stats, playerMap, medalMetadata);
     if (analytics != null) {
@@ -200,7 +241,12 @@ export class OverlayPagePresenter {
           : EMPTY_KILL_MATRIX_PIVOT_DATA,
       crossTeamKillMatrixData: crossTeam?.crossTeamData ?? null,
       swappedCrossTeamKillMatrixData: crossTeam?.swappedCrossTeamData ?? null,
-      scoreProgressionViewData: null,
+      killMatrixStatus: analyticsStatus,
+      scoreProgressionViewData: formatScoreProgression(
+        analytics?.scoreProgression ?? null,
+        [getTeamColorOrDefault(undefined, 0), getTeamColorOrDefault(undefined, 1)],
+        data[0]?.players.length ?? null,
+      ),
     };
   }
 

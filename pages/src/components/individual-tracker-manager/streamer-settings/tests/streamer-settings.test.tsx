@@ -45,6 +45,7 @@ const DEFAULT_TICKER_SETTINGS: TickerSettings = {
   selectedSlayerStats: [],
   showObjectiveStats: false,
   medalRarityFilter: [],
+  maxPreviousGamesToShow: 9,
 };
 
 const DEFAULT_FONT_SIZE_SETTINGS: FontSizeSettings = {
@@ -67,6 +68,8 @@ function aFakeProps(overrides?: Partial<StreamerSettingsSectionViewProps>): Stre
     tickerSettings: DEFAULT_TICKER_SETTINGS,
     inSeriesShowSeriesTab: true,
     matchmakingShowSummaryTab: true,
+    inSeriesShowTabs: true,
+    matchmakingShowTabs: true,
     disableTeamPlayerNames: false,
     inSeriesShowTicker: true,
     matchmakingShowTicker: true,
@@ -83,6 +86,8 @@ function aFakeProps(overrides?: Partial<StreamerSettingsSectionViewProps>): Stre
     onTickerSettingsChange: (): void => undefined,
     onInSeriesShowSeriesTabChange: (): void => undefined,
     onMatchmakingShowSummaryTabChange: (): void => undefined,
+    onInSeriesShowTabsChange: (): void => undefined,
+    onMatchmakingShowTabsChange: (): void => undefined,
     onDisableTeamPlayerNamesChange: (): void => undefined,
     onInSeriesShowTickerChange: (): void => undefined,
     onMatchmakingShowTickerChange: (): void => undefined,
@@ -252,16 +257,35 @@ describe("StreamerSettingsSectionView", () => {
       expect(screen.getByRole("checkbox", { name: /show series score tab/i })).toBeInTheDocument();
     });
 
+    it("renders the in-series show tabs toggle", () => {
+      render(<StreamerSettingsSectionView {...aFakeProps()} />);
+
+      expect(screen.getByRole("checkbox", { name: /in series\s*show tabs/i })).toBeInTheDocument();
+    });
+
     it("renders the matchmaking score tabs toggle in the matchmaking section", () => {
       render(<StreamerSettingsSectionView {...aFakeProps()} />);
 
       expect(screen.getByRole("checkbox", { name: /show matchmaking score tabs/i })).toBeInTheDocument();
     });
 
+    it("renders the matchmaking show tabs toggle", () => {
+      render(<StreamerSettingsSectionView {...aFakeProps()} />);
+
+      expect(screen.getByRole("checkbox", { name: /matchmaking\s*show tabs/i })).toBeInTheDocument();
+    });
+
     it("describes the matchmaking bottom section as tabs and ticker settings", () => {
       render(<StreamerSettingsSectionView {...aFakeProps()} />);
 
       expect(screen.getByText("Configure matchmaking-only tabs and ticker behavior.")).toBeInTheDocument();
+    });
+
+    it("splits in-series and matchmaking bottom sections into tabs and information ticker groups", () => {
+      render(<StreamerSettingsSectionView {...aFakeProps()} />);
+
+      expect(screen.getAllByRole("heading", { name: "Tabs" })).toHaveLength(2);
+      expect(screen.getAllByRole("heading", { name: "Information ticker" })).toHaveLength(2);
     });
 
     it("renders the disable team player names toggle in the in-series top section", () => {
@@ -363,6 +387,17 @@ describe("StreamerSettingsSectionView", () => {
       expect(onChange).toHaveBeenCalledWith(false);
     });
 
+    it("calls onInSeriesShowTabsChange when the in-series show tabs toggle is clicked", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn<(enabled: boolean) => void>();
+
+      render(<StreamerSettingsSectionView {...aFakeProps({ onInSeriesShowTabsChange: onChange })} />);
+
+      await user.click(screen.getByRole("checkbox", { name: /in series\s*show tabs/i }));
+
+      expect(onChange).toHaveBeenCalledWith(false);
+    });
+
     it("calls onMatchmakingShowSummaryTabChange when the matchmaking score tabs toggle is clicked", async () => {
       const user = userEvent.setup();
       const onChange = vi.fn<(enabled: boolean) => void>();
@@ -370,6 +405,17 @@ describe("StreamerSettingsSectionView", () => {
       render(<StreamerSettingsSectionView {...aFakeProps({ onMatchmakingShowSummaryTabChange: onChange })} />);
 
       await user.click(screen.getByRole("checkbox", { name: /show matchmaking score tabs/i }));
+
+      expect(onChange).toHaveBeenCalledWith(false);
+    });
+
+    it("calls onMatchmakingShowTabsChange when the matchmaking show tabs toggle is clicked", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn<(enabled: boolean) => void>();
+
+      render(<StreamerSettingsSectionView {...aFakeProps({ onMatchmakingShowTabsChange: onChange })} />);
+
+      await user.click(screen.getByRole("checkbox", { name: /matchmaking\s*show tabs/i }));
 
       expect(onChange).toHaveBeenCalledWith(false);
     });

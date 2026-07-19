@@ -15,6 +15,7 @@ export const seriesStartedPayloadSchema = z.object({
   title: z.string(),
   subtitle: z.string(),
   guildIconUrl: z.string().nullable(),
+  startedAt: z.string().optional(),
   teams: z.array(seriesTeamSchema),
 });
 export type SeriesStartedPayload = z.infer<typeof seriesStartedPayloadSchema>;

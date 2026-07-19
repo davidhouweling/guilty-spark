@@ -178,7 +178,7 @@ describe("FollowLiveViewerCreate", () => {
     render(createFollowLiveViewerWith(liveDirectory).element);
 
     await waitFor(() => {
-      expect(document.title).toBe("Spartan One live view - Spartan Two live - Guilty Spark");
+      expect(document.title).toBe("Spartan One: Spartan Two - Guilty Spark");
     });
   });
 

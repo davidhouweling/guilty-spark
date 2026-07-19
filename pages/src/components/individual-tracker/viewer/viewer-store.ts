@@ -19,6 +19,7 @@ export interface MatchEntryLoadedState {
   readonly transposedKillMatrixPivotData: KillMatrixPivotData;
   readonly crossTeamKillMatrixData: KillMatrixCrossTeamData | null;
   readonly swappedCrossTeamKillMatrixData: KillMatrixCrossTeamData | null;
+  readonly killMatrixStatus: ComponentLoaderStatus;
   readonly scoreProgressionViewData: ScoreProgressionViewData | null;
 }
 

@@ -1,7 +1,10 @@
 import { inflateSync } from "node:zlib";
-import type { MatchStats } from "halo-infinite-api";
+import type { MatchStats, SpartanTokenProvider } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { wrapXuid, unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
+import type { FireEvent } from "./halo-film-type2";
+import { scanFireEvents, scanFormulaAEvents, WeaponAttributor } from "./halo-film-type2";
+import { weaponIdToHex } from "./weapon-ids";
 import {
   HALO_PC_USER_AGENT,
   MIN_XUID,
@@ -27,7 +30,17 @@ import type {
   KillRaceProgressionEvent,
   HaloFilmServiceOpts,
 } from "./types";
-import type { CustomSpartanTokenProvider } from "./custom-spartan-token-provider";
+
+type WeaponTimeline = Map<number, Map<number, { weaponId: string; name: string }>>;
+interface ChunkTiming {
+  chunkIndex: number;
+  startMs: number;
+}
+interface FilmAttributionData {
+  attributor: WeaponAttributor;
+  timeline: WeaponTimeline;
+  chunkTimings: ChunkTiming[];
+}
 
 export class HaloFilmService {
   private static readonly FILM_CACHE_TTL_SECONDS = 604_800;
@@ -36,13 +49,16 @@ export class HaloFilmService {
   private static readonly FILM_CACHE_BASE_URL = "https://halo-film-cache.local";
 
   private readonly env: Env;
-  private readonly spartanTokenProvider: CustomSpartanTokenProvider;
+  private readonly spartanTokenProvider: SpartanTokenProvider;
   private readonly fetchFn: typeof globalThis.fetch | undefined;
+  private readonly clearanceCacheKey: string;
 
-  constructor({ env, spartanTokenProvider, fetch: fetchFn }: HaloFilmServiceOpts) {
+  constructor({ env, spartanTokenProvider, fetch: fetchFn, kvKeyNamespace }: HaloFilmServiceOpts) {
     this.env = env;
     this.spartanTokenProvider = spartanTokenProvider;
     this.fetchFn = fetchFn;
+    this.clearanceCacheKey =
+      kvKeyNamespace != null ? `${kvKeyNamespace}:clearance` : HaloFilmService.CLEARANCE_CACHE_KEY;
   }
 
   private async callFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -87,7 +103,7 @@ export class HaloFilmService {
     const filmMetadata =
       cachedMetadata != null && cachedHighlightChunk != null
         ? cachedMetadata
-        : await this.getOrFetchFilmMetadata(matchId, authContext);
+        : await this.getOrFetchFilmMetadata(matchId, async () => Promise.resolve(authContext));
     const highlightChunkBytes = await this.getOrFetchHighlightChunkBytes(matchId, filmMetadata, authContext);
     return this.parseHighlightEvents(highlightChunkBytes, filmMetadata.CustomData.FilmMajorVersion);
   }
@@ -143,10 +159,15 @@ export class HaloFilmService {
     const perfectMedalTimestamps = this.buildPerfectMedalTimestampsByXuid(events);
     const perfectCounts = this.buildPerfectCountsReport(events);
 
+    const xuidToPlayerIndex = this.buildXuidToPlayerIndex(matchStats);
+    const filmData = await this.tryBuildFilmAttributionData(matchStats);
+
     const { entries, maxTimeDeltaMs, usedDeathCount } = this.buildKillMatrixEntriesByPairing(
       kills,
       deaths,
       perfectMedalTimestamps,
+      filmData,
+      xuidToPlayerIndex,
     );
 
     return {
@@ -163,13 +184,122 @@ export class HaloFilmService {
     return events.filter((event) => event.eventType === "kill");
   }
 
+  private buildXuidToPlayerIndex(matchStats: MatchStats): Map<string, number> {
+    const map = new Map<string, number>();
+    for (const [index, player] of matchStats.Players.entries()) {
+      map.set(unwrapXuid(player.PlayerId), index);
+    }
+    return map;
+  }
+
+  private async tryBuildFilmAttributionData(matchStats: MatchStats): Promise<FilmAttributionData | null> {
+    try {
+      let authPromise: Promise<{ spartanToken: string; clearanceToken: string }> | null = null;
+      const authResolver = async (): Promise<{ spartanToken: string; clearanceToken: string }> => {
+        authPromise ??= this.resolveAuthContext();
+        return authPromise;
+      };
+      const filmMetadata = await this.getOrFetchFilmMetadata(matchStats.MatchId, authResolver);
+      const scanResult = await this.scanAllReplicationChunks(matchStats.MatchId, filmMetadata, authResolver);
+      if (scanResult == null) {
+        return null;
+      }
+      return {
+        attributor: new WeaponAttributor(scanResult.fireEvents),
+        timeline: scanResult.timeline,
+        chunkTimings: scanResult.chunkTimings,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private findReplicationChunksWithStartMs(
+    filmMetadata: FilmMetadataResponse,
+  ): { chunk: FilmMetadataResponse["CustomData"]["Chunks"][number]; startMs: number }[] {
+    const sorted = [...filmMetadata.CustomData.Chunks].sort((a, b) => a.Index - b.Index);
+    const results: { chunk: FilmMetadataResponse["CustomData"]["Chunks"][number]; startMs: number }[] = [];
+    let cumulativeMs = 0;
+    for (const chunk of sorted) {
+      if (chunk.ChunkType === 2) {
+        results.push({ chunk, startMs: cumulativeMs });
+      }
+      // All chunk types advance the clock, not just type-2: startMs is an absolute match time
+      // offset calculated from the beginning of the full film, regardless of chunk type.
+      cumulativeMs += chunk.DurationMilliseconds;
+    }
+    return results;
+  }
+
+  private async fetchReplicationChunkBytes(
+    matchId: string,
+    chunk: FilmMetadataResponse["CustomData"]["Chunks"][number],
+    blobStoragePathPrefix: string,
+    authResolver: () => Promise<{ spartanToken: string; clearanceToken: string }>,
+  ): Promise<Uint8Array> {
+    const cacheRequest = this.toChunkCacheRequest(matchId, chunk.Index);
+    const cached = await this.getCachedChunk(cacheRequest);
+    if (cached != null) {
+      return cached;
+    }
+    const authContext = await authResolver();
+    const path = chunk.FileRelativePath.replace(/^\//u, "");
+    const url = `${blobStoragePathPrefix}${path}`;
+    const bytes = await this.fetchBinary(url, authContext.spartanToken, authContext.clearanceToken);
+    await this.putCachedChunk(cacheRequest, bytes);
+    return bytes;
+  }
+
+  private async scanAllReplicationChunks(
+    matchId: string,
+    filmMetadata: FilmMetadataResponse,
+    authResolver: () => Promise<{ spartanToken: string; clearanceToken: string }>,
+  ): Promise<{ fireEvents: FireEvent[]; timeline: WeaponTimeline; chunkTimings: ChunkTiming[] } | null> {
+    const chunks = this.findReplicationChunksWithStartMs(filmMetadata);
+    if (chunks.length === 0) {
+      return null;
+    }
+    const chunksWithBytes = await Promise.all(
+      chunks.map(async ({ chunk, startMs }) =>
+        this.fetchReplicationChunkBytes(matchId, chunk, filmMetadata.BlobStoragePathPrefix, authResolver).then(
+          (bytes) => ({ chunk, startMs, bytes }),
+        ),
+      ),
+    );
+    const allFireEvents: FireEvent[] = [];
+    const timeline: WeaponTimeline = new Map();
+    const chunkTimings: ChunkTiming[] = [];
+    for (const { chunk, startMs, bytes } of chunksWithBytes) {
+      let chunkData: Uint8Array;
+      try {
+        chunkData = new Uint8Array(inflateSync(bytes));
+      } catch {
+        chunkTimings.push({ chunkIndex: chunk.Index, startMs });
+        continue;
+      }
+      for (const ev of scanFireEvents(chunkData, startMs, chunk.DurationMilliseconds)) {
+        allFireEvents.push(ev);
+      }
+      const chunkState = new Map<number, { weaponId: string; name: string }>();
+      for (const ev of scanFormulaAEvents(chunkData)) {
+        chunkState.set(ev.playerIndex, { weaponId: weaponIdToHex(ev.weaponId), name: ev.weaponName });
+      }
+      if (chunkState.size > 0) {
+        timeline.set(chunk.Index, chunkState);
+      }
+      chunkTimings.push({ chunkIndex: chunk.Index, startMs });
+    }
+    return { fireEvents: allFireEvents, timeline, chunkTimings };
+  }
+
   private async getOrFetchFilmMetadata(
     matchId: string,
-    authContext: { spartanToken: string; clearanceToken: string },
+    authResolver: () => Promise<{ spartanToken: string; clearanceToken: string }>,
   ): Promise<FilmMetadataResponse> {
     const metadataCacheRequest = this.toMetadataCacheRequest(matchId);
     let filmMetadata = await this.getCachedJson<FilmMetadataResponse>(metadataCacheRequest);
     if (filmMetadata == null) {
+      const authContext = await authResolver();
       filmMetadata = await this.fetchJson<FilmMetadataResponse>(
         `https://discovery-infiniteugc.svc.halowaypoint.com:443/hi/films/matches/${matchId}/spectate`,
         authContext.spartanToken,
@@ -261,8 +391,11 @@ export class HaloFilmService {
     kills: ParsedHighlightEvent[],
     deaths: ParsedHighlightEvent[],
     perfectMedalTimestamps: Map<string, number[]>,
+    filmData: FilmAttributionData | null,
+    xuidToPlayerIndex: Map<string, number>,
   ): { entries: KillMatrixEntry[]; maxTimeDeltaMs: number; usedDeathCount: number } {
     const entriesByPair = new Map<string, KillMatrixEntry>();
+    const weaponCountsByPair = new Map<string, Map<string, { name: string; count: number }>>();
     const usedDeathIndexes = new Set<number>();
     let maxTimeDeltaMs = 0;
 
@@ -295,9 +428,79 @@ export class HaloFilmService {
         existing.perfects += 1;
       }
       entriesByPair.set(pairKey, existing);
+
+      if (filmData != null) {
+        const weapon = this.resolveKillWeapon(killEvent, filmData, xuidToPlayerIndex);
+        if (weapon != null) {
+          this.recordWeaponCount(pairKey, weapon, weaponCountsByPair);
+        }
+      }
+    }
+
+    for (const [pairKey, entry] of entriesByPair) {
+      const pairWeapons = weaponCountsByPair.get(pairKey);
+      if (pairWeapons != null) {
+        entry.weapons = Array.from(pairWeapons.entries())
+          .map(([weaponId, { name, count }]) => ({ weaponId, name, count }))
+          .sort((a, b) => b.count - a.count);
+      }
     }
 
     return { entries: Array.from(entriesByPair.values()), maxTimeDeltaMs, usedDeathCount: usedDeathIndexes.size };
+  }
+
+  private resolveKillWeapon(
+    killEvent: ParsedHighlightEvent,
+    filmData: FilmAttributionData,
+    xuidToPlayerIndex: Map<string, number>,
+  ): { weaponId: string; name: string } | null {
+    const playerIndex = xuidToPlayerIndex.get(killEvent.xuid) ?? null;
+    return (
+      filmData.attributor.claim(playerIndex, killEvent.timeMs) ??
+      this.lookupFormulaAFallback(playerIndex, killEvent.timeMs, filmData)
+    );
+  }
+
+  private recordWeaponCount(
+    pairKey: string,
+    weapon: { weaponId: string; name: string },
+    weaponCountsByPair: Map<string, Map<string, { name: string; count: number }>>,
+  ): void {
+    let pairWeapons = weaponCountsByPair.get(pairKey);
+    if (pairWeapons == null) {
+      pairWeapons = new Map();
+      weaponCountsByPair.set(pairKey, pairWeapons);
+    }
+    const existing = pairWeapons.get(weapon.weaponId);
+    if (existing != null) {
+      existing.count += 1;
+    } else {
+      pairWeapons.set(weapon.weaponId, { name: weapon.name, count: 1 });
+    }
+  }
+
+  private lookupFormulaAFallback(
+    playerIndex: number | null,
+    killTimeMs: number,
+    filmData: FilmAttributionData,
+  ): { weaponId: string; name: string } | null {
+    if (playerIndex === null) {
+      return null;
+    }
+    for (let i = filmData.chunkTimings.length - 1; i >= 0; i--) {
+      const timing = filmData.chunkTimings[i];
+      if (timing == null) {
+        continue;
+      }
+      if (timing.startMs > killTimeMs) {
+        continue;
+      }
+      const weapon = filmData.timeline.get(timing.chunkIndex)?.get(playerIndex);
+      if (weapon != null) {
+        return weapon;
+      }
+    }
+    return null;
   }
 
   private consumePerfectMedalForKill(
@@ -416,7 +619,7 @@ export class HaloFilmService {
   private async resolveAuthContext(): Promise<{ spartanToken: string; clearanceToken: string }> {
     const spartanToken = await this.spartanTokenProvider.getSpartanToken();
 
-    const cachedClearance = await this.env.APP_DATA.get(HaloFilmService.CLEARANCE_CACHE_KEY);
+    const cachedClearance = await this.env.APP_DATA.get(this.clearanceCacheKey);
     if (cachedClearance != null) {
       return { spartanToken, clearanceToken: cachedClearance };
     }
@@ -447,7 +650,7 @@ export class HaloFilmService {
       clearanceToken = fallbackClearance.FlightConfigurationId;
     }
 
-    await this.env.APP_DATA.put(HaloFilmService.CLEARANCE_CACHE_KEY, clearanceToken, {
+    await this.env.APP_DATA.put(this.clearanceCacheKey, clearanceToken, {
       expirationTtl: HaloFilmService.CLEARANCE_CACHE_TTL_SECONDS,
     });
 

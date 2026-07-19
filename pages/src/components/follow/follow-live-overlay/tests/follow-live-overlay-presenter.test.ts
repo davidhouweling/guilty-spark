@@ -25,7 +25,7 @@ describe("FollowLiveOverlayPresenter", () => {
     expect(overlay.liveTrackerView?.trackerId).toBe("tracker-2");
     expect(overlay.loadStatus).toBe(ComponentLoaderStatus.LOADED);
     expect(overlay.connectionHealth).toBe("healthy");
-    expect(overlay.title).toBe("Streamer overlay - Spartan Two live - Guilty Spark");
+    expect(overlay.title).toBe("Streamer: Spartan Two overlay - Guilty Spark");
   });
 
   it("returns non-live overlay title when there is no live tracker", () => {

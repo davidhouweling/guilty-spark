@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { aFakeMatchStatsWith, aFakeMedalMetadata } from "../../../../controllers/stats/fakes/data";
 import { gameModeIconSrc } from "../../game-mode-icon";
 import type {
@@ -224,6 +225,84 @@ describe("individual-tracker-overlay-presenter", () => {
     if (model.tabs[0]?.type === "match") {
       expect(model.tabs[0].matchId).toBe("solo");
     }
+  });
+
+  it("limits visible history tabs by maxPreviousGamesToShow while keeping the summary tab", () => {
+    const timeline: ViewerTimelineItem[] = [
+      { type: "match", match: aMatchWith({ matchId: "m-0" }) },
+      { type: "match", match: aMatchWith({ matchId: "m-1" }) },
+      { type: "match", match: aMatchWith({ matchId: "m-2" }) },
+      { type: "match", match: aMatchWith({ matchId: "m-3" }) },
+      { type: "match", match: aMatchWith({ matchId: "m-4" }) },
+    ];
+
+    const model = presenter.present({
+      renderModel: aRenderModelWith({ timeline }),
+      streamerSettings: {
+        visibleSections: {
+          maxPreviousGamesToShow: 3,
+        },
+      } satisfies StreamerViewSettings,
+      matchStatsByMatchId: new Map(),
+      selectedMatchId: null,
+    });
+
+    expect(model.tabs.map((tab) => (tab.type === "series" ? tab.seriesId : tab.matchId))).toEqual([
+      MATCHMAKING_SUMMARY_TAB_SERIES_ID,
+      "m-2",
+      "m-3",
+      "m-4",
+    ]);
+  });
+
+  it("respects per-state show tabs toggles", () => {
+    const activeSeries = aSeriesWith({
+      id: "series-active",
+      isActive: true,
+      matches: [aMatchWith({ matchId: "in-series-match" })],
+    });
+
+    const inSeriesModel = presenter.present({
+      renderModel: aRenderModelWith({
+        hasActiveSeries: true,
+        activeSeriesContext: {
+          title: "Series",
+          subtitle: "Bo3",
+          teams: [],
+        },
+        timeline: [{ type: "series", series: activeSeries }],
+      }),
+      streamerSettings: {
+        visibleSections: {
+          showTabs: true,
+        },
+        styleFlags: {
+          inSeriesShowTabs: false,
+        },
+      } satisfies StreamerViewSettings,
+      matchStatsByMatchId: new Map(),
+      selectedMatchId: null,
+    });
+
+    expect(inSeriesModel.showTabs).toBe(false);
+
+    const matchmakingModel = presenter.present({
+      renderModel: aRenderModelWith({
+        timeline: [{ type: "match", match: aMatchWith({ matchId: "mm-match" }) }],
+      }),
+      streamerSettings: {
+        visibleSections: {
+          showTabs: true,
+        },
+        styleFlags: {
+          matchmakingShowTabs: false,
+        },
+      } satisfies StreamerViewSettings,
+      matchStatsByMatchId: new Map(),
+      selectedMatchId: null,
+    });
+
+    expect(matchmakingModel.showTabs).toBe(false);
   });
 
   it("applies series tab color from the aggregated tracked-player outcome", () => {
@@ -897,6 +976,7 @@ describe("individual-tracker-overlay-presenter", () => {
             ]),
             medalMetadata: aFakeMedalMetadata(),
             analytics: null,
+            analyticsStatus: ComponentLoaderStatus.LOADED,
           },
         ],
       ]),
@@ -940,6 +1020,7 @@ describe("individual-tracker-overlay-presenter", () => {
             ]),
             medalMetadata: aFakeMedalMetadata(),
             analytics: null,
+            analyticsStatus: ComponentLoaderStatus.LOADED,
           },
         ],
       ]),
@@ -984,6 +1065,7 @@ describe("individual-tracker-overlay-presenter", () => {
             ]),
             medalMetadata: aFakeMedalMetadata(),
             analytics: null,
+            analyticsStatus: ComponentLoaderStatus.LOADED,
           },
         ],
       ]),
@@ -1023,6 +1105,7 @@ describe("individual-tracker-overlay-presenter", () => {
             ]),
             medalMetadata: aFakeMedalMetadata(),
             analytics: null,
+            analyticsStatus: ComponentLoaderStatus.LOADED,
           },
         ],
         [
@@ -1038,6 +1121,7 @@ describe("individual-tracker-overlay-presenter", () => {
             ]),
             medalMetadata: aFakeMedalMetadata(),
             analytics: null,
+            analyticsStatus: ComponentLoaderStatus.LOADED,
           },
         ],
       ]),
@@ -1082,6 +1166,7 @@ describe("individual-tracker-overlay-presenter", () => {
             ]),
             medalMetadata: aFakeMedalMetadata(),
             analytics: null,
+            analyticsStatus: ComponentLoaderStatus.LOADED,
           },
         ],
       ]),

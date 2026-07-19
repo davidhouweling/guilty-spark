@@ -50,10 +50,10 @@ export class FollowLiveOverlayPresenter extends FollowLiveBasePresenter {
 
   private getOverlayTitle(gamertag: string, directory: FollowLiveOverlayPresentOpts["directory"]): string {
     const liveTracker = this.getLiveTracker(directory);
-    if (liveTracker == null) {
+    if (liveTracker == null || liveTracker.gamertag === gamertag) {
       return `${gamertag} overlay - Guilty Spark`;
     }
 
-    return `${gamertag} overlay - ${liveTracker.gamertag} live - Guilty Spark`;
+    return `${gamertag}: ${liveTracker.gamertag} overlay - Guilty Spark`;
   }
 }

@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import {
   aFakeTrackerMatchSummaryWith,
   aFakeTrackerSeriesGroupWith,
@@ -138,7 +138,7 @@ describe("IndividualTrackerViewer", () => {
 
     expect(screen.getByText("Ranked Series")).toBeInTheDocument();
     expect(screen.getByText("1:1")).toBeInTheDocument();
-    expect(screen.getByText("2 matches")).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Series Ranked Series")).getAllByRole("img")).toHaveLength(2);
     expect(screen.getByText("20:15:9 (1.53)")).toBeInTheDocument();
     expect(screen.getByText("8,200:7,500 (1.09)")).toBeInTheDocument();
     expect(screen.getByText(/End time/)).toBeInTheDocument();

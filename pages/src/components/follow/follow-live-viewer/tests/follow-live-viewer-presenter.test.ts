@@ -34,7 +34,7 @@ describe("FollowLiveViewerPresenter", () => {
     expect(result.connectionStatusOverride).toBeUndefined();
     expect(result.loadStatus).toBe(ComponentLoaderStatus.LOADED);
     expect(result.showTabs).toBe(true);
-    expect(result.title).toBe("Streamer live view - Spartan Two live - Guilty Spark");
+    expect(result.title).toBe("Streamer: Spartan Two - Guilty Spark");
   });
 
   it("maps non-connected directory status to viewer connection status override", () => {
@@ -98,6 +98,6 @@ describe("FollowLiveViewerPresenter", () => {
       selectedTrackerId: null,
     });
 
-    expect(viewer.title).toBe("Streamer live view - Guilty Spark");
+    expect(viewer.title).toBe("Streamer - Guilty Spark");
   });
 });

@@ -1,6 +1,5 @@
-import type { UserInfo as HaloUserInfo } from "halo-infinite-api";
+import type { UserInfo as HaloUserInfo, SpartanTokenProvider } from "halo-infinite-api";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
-import type { CustomSpartanTokenProvider } from "./custom-spartan-token-provider";
 
 export type UserInfo = Pick<HaloUserInfo, "xuid" | "gamertag">;
 export type CachedUserInfo = UserInfo & { fetchedAt: number };
@@ -169,7 +168,8 @@ export interface ParsedHighlightEvent {
 }
 
 export interface KillMatrixWeaponUsage {
-  weaponId: number;
+  weaponId: string;
+  name: string;
   count: number;
 }
 
@@ -217,6 +217,7 @@ export interface KillRaceProgression {
 
 export interface HaloFilmServiceOpts {
   env: Env;
-  spartanTokenProvider: CustomSpartanTokenProvider;
+  spartanTokenProvider: SpartanTokenProvider;
   fetch?: typeof globalThis.fetch;
+  kvKeyNamespace?: string;
 }
