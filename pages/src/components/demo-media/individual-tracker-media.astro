@@ -89,11 +89,38 @@ const slides = [
 
     renderActiveState();
 
-    if (!prefersReducedMotion && slides.length > 1) {
-      window.setInterval(() => {
+    let intervalId: number | null = null;
+
+    const startRotation = (): void => {
+      if (intervalId !== null) {
+        return;
+      }
+
+      intervalId = window.setInterval(() => {
         activeIndex = (activeIndex + 1) % slides.length;
         renderActiveState();
       }, 4500);
+    };
+
+    const stopRotation = (): void => {
+      if (intervalId === null) {
+        return;
+      }
+
+      window.clearInterval(intervalId);
+      intervalId = null;
+    };
+
+    if (!prefersReducedMotion && slides.length > 1) {
+      startRotation();
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          stopRotation();
+        } else {
+          startRotation();
+        }
+      });
     }
   }
 </script>
