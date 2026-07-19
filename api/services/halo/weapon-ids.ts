@@ -28,6 +28,7 @@ const WEAPON_ID_MAP: ReadonlyMap<bigint, string> = new Map([
   [0x30484ea642c9679fn, "Pulse Carbine"],
   [0xc30d87c742c9679fn, "Ravager"],
   [0x0a1992bc42c9679fn, "S7 Sniper"],
+  [0x94c3a67a42c9679fn, "S7 Sniper"],
   [0x880fe0bc42c9679fn, "Sandwich"],
   [0xa0955e9e42c9679fn, "Sentinel Beam"],
   [0xe86bd55e42c9679fn, "Sentinel Beam"],
