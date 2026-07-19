@@ -1,5 +1,12 @@
 const WEAPON_ID_MAP: ReadonlyMap<bigint, string> = new Map([
   [0x6acdc44d42c9679fn, "Bandit Evo"],
+  [0x6683257c42c9679fn, "Bandit Evo"],
+  [0xf2b458ec42c9679fn, "Bandit Evo"],
+  [0xd59b889a42c9679fn, "Bandit Evo"],
+  [0x0131ea1042c9679fn, "Bandit Evo"],
+  [0xb017106242c9679fn, "Bandit Evo"],
+  [0x91eb16de42c9679fn, "Bandit Evo"],
+  [0xedff0e9642c9679fn, "Bandit Evo"],
   [0x2b1824d542c9679fn, "BR75"],
   [0x230447b142c9679fn, "Cindershot"],
   [0xb619d84a42c9679fn, "CQS48 Bulldog"],
@@ -38,9 +45,6 @@ const WEAPON_ID_MAP: ReadonlyMap<bigint, string> = new Map([
   // Gravity Hammer family
   [0x841ac5e5a730e49fn, "Diminisher of Hope"],
   [0x841ac5e5d8d07ca1n, "Rushdown Hammer"],
-  [0xb017106242c9679fn, "Gravity Hammer"],
-  [0x91eb16de42c9679fn, "Gravity Hammer"],
-  [0xedff0e9642c9679fn, "Gravity Hammer"],
   // Grenades
   [0xb6dbead842c9679fn, "Frag Grenade"],
   [0xc1e1bab042c9679fn, "Plasma Grenade"],
