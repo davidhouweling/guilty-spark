@@ -14,6 +14,7 @@ const WEAPON_ID_MAP: ReadonlyMap<bigint, string> = new Map([
   [0x80977ba542c9679fn, "Mangler"],
   [0x767db96d42c9679fn, "MLRS-2 Hydra"],
   [0xf408190f42c9679fn, "Mk51 Sidekick"],
+  [0x91833a5a42c9679fn, "Mk51 Sidekick"],
   [0xd791556542c9679fn, "Mutilator"],
   [0xb533957e42c9679fn, "Needler"],
   [0xc354294642c9679fn, "Plasma Pistol"],
@@ -22,6 +23,7 @@ const WEAPON_ID_MAP: ReadonlyMap<bigint, string> = new Map([
   [0x0a1992bc42c9679fn, "S7 Sniper"],
   [0x880fe0bc42c9679fn, "Sandwich"],
   [0xa0955e9e42c9679fn, "Sentinel Beam"],
+  [0xe86bd55e42c9679fn, "Sentinel Beam"],
   [0x9387a8b942c9679fn, "Shock Rifle"],
   [0x1a22fee642c9679fn, "Shock Rifle (Ranked)"],
   [0x0d20c46942c9679fn, "Skewer"],
@@ -36,6 +38,9 @@ const WEAPON_ID_MAP: ReadonlyMap<bigint, string> = new Map([
   // Gravity Hammer family
   [0x841ac5e5a730e49fn, "Diminisher of Hope"],
   [0x841ac5e5d8d07ca1n, "Rushdown Hammer"],
+  [0xb017106242c9679fn, "Gravity Hammer"],
+  [0x91eb16de42c9679fn, "Gravity Hammer"],
+  [0xedff0e9642c9679fn, "Gravity Hammer"],
   // Grenades
   [0xb6dbead842c9679fn, "Frag Grenade"],
   [0xc1e1bab042c9679fn, "Plasma Grenade"],
