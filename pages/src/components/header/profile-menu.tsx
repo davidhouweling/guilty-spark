@@ -46,7 +46,14 @@ export function ProfileMenu({ apiHost }: ProfileMenuProps): React.ReactElement {
 
   const avatarUrl = session.authenticated && !avatarFailed ? (session.avatarUrl ?? null) : null;
 
-  const avatar = <ProfileAvatar avatarUrl={avatarUrl} onError={() => setAvatarFailed(true)} />;
+  const avatar = (
+    <ProfileAvatar
+      avatarUrl={avatarUrl}
+      onError={() => {
+        setAvatarFailed(true);
+      }}
+    />
+  );
 
   const profileTrigger = <span className={styles.profileIconButton}>{avatar}</span>;
 
