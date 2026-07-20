@@ -43,13 +43,7 @@ export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, instal
       }
 
       const { code, state } = parsedQuery.data;
-      logService.info(
-        "OAuth query parameters validated, Exchanging OAuth code for tokens",
-        new Map([
-          ["code", code],
-          ["state", state],
-        ]),
-      );
+      logService.info("OAuth query parameters validated, exchanging OAuth code for tokens");
 
       const { sessionPayload, redirectTo } = await authService.handleCallback(request, code, state);
       logService.info(
