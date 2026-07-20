@@ -52,7 +52,8 @@ export function ProfileMenu({
   }, [apiHost]);
 
   const hasAuthenticatedSession = session?.authenticated === true;
-  const isAuthenticated = session?.authenticated ?? expectAuthenticated;
+  const isLoadingExpectedSession = expectAuthenticated && session == null;
+  const showDropdown = hasAuthenticatedSession || isLoadingExpectedSession;
   const avatarUrl = hasAuthenticatedSession && !avatarFailed ? (session.avatarUrl ?? null) : null;
 
   const avatar = (
@@ -66,7 +67,7 @@ export function ProfileMenu({
 
   const profileButtonClassName = classNames(styles.profileIconButton, iconLinkClassName);
 
-  if (!isAuthenticated && !expectAuthenticated) {
+  if (!showDropdown) {
     return (
       <a href="/login" className={profileButtonClassName} aria-label="Sign in" title="Sign in">
         {avatar}
@@ -95,7 +96,7 @@ export function ProfileMenu({
       triggerClassName={profileButtonClassName}
     >
       <div className={styles.profileMenuList}>
-        {isAuthenticated ? (
+        {hasAuthenticatedSession ? (
           <>
             {gamertag != null && gamertag !== "" ? <span className={styles.profileMenuLabel}>{gamertag}</span> : null}
             <a href="/individual-tracker" className={styles.profileMenuItem}>
