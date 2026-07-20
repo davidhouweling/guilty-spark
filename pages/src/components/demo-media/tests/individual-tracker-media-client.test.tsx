@@ -9,12 +9,12 @@ afterEach(() => {
 });
 
 describe("IndividualTrackerMediaClient", () => {
-  it("makes each preview region keyboard focusable with an accessible label", () => {
+  it("exposes each preview region as a keyboard-focusable button with an accessible label", () => {
     render(<IndividualTrackerMediaClient />);
 
-    const previewRegion = screen.getByLabelText(
-      "Inspect screenshot: Individual Tracker streamer settings with viewer and overlay URL controls",
-    );
+    const previewRegion = screen.getByRole("button", {
+      name: "Inspect screenshot: Individual Tracker streamer settings with viewer and overlay URL controls",
+    });
 
     expect(previewRegion).toHaveAttribute("tabindex", "0");
   });
@@ -22,9 +22,9 @@ describe("IndividualTrackerMediaClient", () => {
   it("shows and hides the active preview on focus and blur", () => {
     const { container } = render(<IndividualTrackerMediaClient />);
 
-    const previewRegion = screen.getByLabelText(
-      "Inspect screenshot: Individual Tracker streamer settings with viewer and overlay URL controls",
-    );
+    const previewRegion = screen.getByRole("button", {
+      name: "Inspect screenshot: Individual Tracker streamer settings with viewer and overlay URL controls",
+    });
     const activePreview = container.querySelector('[data-visible="true"]');
 
     expect(activePreview).not.toBeInTheDocument();
@@ -36,5 +36,22 @@ describe("IndividualTrackerMediaClient", () => {
     fireEvent.blur(previewRegion);
 
     expect(container.querySelector('[data-visible="true"]')).not.toBeInTheDocument();
+  });
+
+  it("supports Enter, Space, and Escape keyboard interactions", () => {
+    const { container } = render(<IndividualTrackerMediaClient />);
+
+    const previewRegion = screen.getByRole("button", {
+      name: "Inspect screenshot: Individual Tracker streamer settings with viewer and overlay URL controls",
+    });
+
+    fireEvent.keyDown(previewRegion, { key: "Enter" });
+    expect(container.querySelector('[data-visible="true"]')).toBeInTheDocument();
+
+    fireEvent.keyDown(previewRegion, { key: "Escape" });
+    expect(container.querySelector('[data-visible="true"]')).not.toBeInTheDocument();
+
+    fireEvent.keyDown(previewRegion, { key: " " });
+    expect(container.querySelector('[data-visible="true"]')).toBeInTheDocument();
   });
 });

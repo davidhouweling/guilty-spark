@@ -174,11 +174,35 @@ export function IndividualTrackerMediaClient(): React.ReactElement {
               <div
                 className={styles.individualViewerButton}
                 tabIndex={0}
+                role="button"
                 aria-label={`Inspect screenshot: ${slide.alt}`}
                 onMouseEnter={showHoverPreview}
                 onMouseLeave={hideHoverPreview}
                 onFocus={showHoverPreview}
                 onBlur={hideHoverPreviewImmediately}
+                onClick={showHoverPreview}
+                onKeyDown={(event): void => {
+                  switch (event.key) {
+                    case "Enter": {
+                      event.preventDefault();
+                      showHoverPreview();
+                      break;
+                    }
+                    case " ": {
+                      event.preventDefault();
+                      showHoverPreview();
+                      break;
+                    }
+                    case "Escape": {
+                      event.preventDefault();
+                      hideHoverPreviewImmediately();
+                      break;
+                    }
+                    default: {
+                      break;
+                    }
+                  }
+                }}
                 onMouseMove={(event): void => {
                   const bounds = event.currentTarget.getBoundingClientRect();
                   const xRatio = clampToPercentage((event.clientX - bounds.left) / bounds.width);
