@@ -1,6 +1,5 @@
 import { parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
 import { authCallbackQuerySchema } from "@guilty-spark/shared/contracts/auth/microsoft/callback";
-import { errorContract } from "@guilty-spark/shared/contracts/error";
 import type { XboxUserInfo } from "../../../services/xbox/types";
 import type { RoutesRegisterHandler } from "../../base/types";
 
@@ -9,14 +8,35 @@ export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, instal
     const services = installServices({ env });
     const { authService, xboxService, databaseService, logService } = services;
 
+    function redirectToLoginWithError(errorCode: string): Response {
+      const rejectUrl = new URL("/login", env.PAGES_URL);
+      rejectUrl.searchParams.set("error", errorCode);
+      const rejectResponse = new Response(null, { status: 302, headers: { Location: rejectUrl.toString() } });
+      authService.clearPkceStateCookie(rejectResponse);
+      return rejectResponse;
+    }
+
     try {
       logService.info("Auth callback initiated");
 
       const url = new URL(request.url);
+
+      const providerError = url.searchParams.get("error");
+      if (providerError != null) {
+        logService.warn(
+          "Microsoft returned an OAuth error before issuing a code",
+          new Map([
+            ["error", providerError],
+            ["errorDescription", url.searchParams.get("error_description") ?? ""],
+          ]),
+        );
+        return redirectToLoginWithError("auth-failed");
+      }
+
       const parsedQuery = parseQueryParams(url, authCallbackQuerySchema, "Authentication failed");
       if (!parsedQuery.success) {
         logService.warn("OAuth query parameter validation failed", new Map([["error", "invalid params"]]));
-        return parsedQuery.response;
+        return redirectToLoginWithError("auth-failed");
       }
 
       const { code, state } = parsedQuery.data;
@@ -50,11 +70,7 @@ export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, instal
           new Map([["sessionId", sessionPayload.sessionId]]),
         );
         await databaseService.deleteUserSession(sessionPayload.sessionId);
-        const rejectUrl = new URL("/login", env.PAGES_URL);
-        rejectUrl.searchParams.set("error", "xbox-required");
-        const rejectResponse = new Response(null, { status: 302, headers: { Location: rejectUrl.toString() } });
-        authService.clearPkceStateCookie(rejectResponse);
-        return rejectResponse;
+        return redirectToLoginWithError("xbox-required");
       }
 
       try {
@@ -114,7 +130,7 @@ export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, instal
           ["errorType", error instanceof Error ? error.constructor.name : "unknown"],
         ]),
       );
-      return errorContract.toResponse({ error: "Authentication failed" }, { status: 400, noStore: true });
+      return redirectToLoginWithError("auth-failed");
     }
   });
 };

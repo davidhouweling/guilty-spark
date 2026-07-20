@@ -94,4 +94,25 @@ describe("LoginPage", () => {
       expect(getSessionSpy).toHaveBeenCalledTimes(1);
     });
   });
+
+  it("shows the auth-failed error when sign-in was rejected, then clears it on retry", async () => {
+    const user = userEvent.setup();
+    window.history.pushState({}, "", "/login?error=auth-failed");
+    const getSessionSpy = vi.spyOn(authService, "getSession").mockResolvedValue({ authenticated: false });
+    const LoginPage = createLoginPage({ authService, apiHost: API_HOST });
+
+    render(<LoginPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/temporary hiccup/i)).toBeInTheDocument();
+    });
+    expect(getSessionSpy).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Retry Connection" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: "Continue With Microsoft" })).toBeInTheDocument();
+      expect(getSessionSpy).toHaveBeenCalledTimes(1);
+    });
+  });
 });
