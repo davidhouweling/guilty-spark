@@ -193,16 +193,44 @@ export class LiveTrackersPresenter {
     const { status, gamertag, xuid, isLive, trackerId, isPinned } = item;
     const actions: TrackerRowAction[] = [];
 
+    // Primary action logic
     if ((status === "not-started" || status === "stopped") && gamertag !== "" && xuid != null) {
       actions.push({
         label: "Start tracker",
+        primary: true,
         disabled: snapshot.busy,
+        loading: snapshot.busy,
         onClick: (): void => {
           void this.startTracker(gamertag, xuid);
         },
       });
     }
 
+    if (status === "active" && trackerId != null) {
+      actions.push({
+        label: "Refresh",
+        primary: true,
+        disabled: snapshot.busy,
+        loading: snapshot.busy,
+        onClick: (): void => {
+          void this.refreshTrackerAsync(trackerId);
+        },
+      });
+    }
+
+    if (status === "paused" && trackerId != null) {
+      actions.push({
+        label: "Resume",
+        primary: true,
+        disabled: snapshot.busy,
+        loading: snapshot.busy,
+        onClick: (): void => {
+          void this.resumeTracker(trackerId);
+        },
+      });
+    }
+
+    // Secondary actions
     if (trackerItems.length > 1 && !isLive) {
       actions.push({
         label: "Set as live",
@@ -231,18 +259,6 @@ export class LiveTrackersPresenter {
         onClick: (): void => {
           if (trackerId != null) {
             void this.pauseTracker(trackerId);
-          }
-        },
-      });
-    }
-
-    if (status === "paused") {
-      actions.push({
-        label: "Resume",
-        disabled: snapshot.busy || trackerId == null,
-        onClick: (): void => {
-          if (trackerId != null) {
-            void this.resumeTracker(trackerId);
           }
         },
       });
@@ -626,6 +642,21 @@ export class LiveTrackersPresenter {
       this.updateSnapshot((s) => ({
         ...s,
         errorMessage: error instanceof Error ? error.message : "Failed to end series.",
+      }));
+    } finally {
+      this.updateSnapshot((s) => ({ ...s, busy: false }));
+    }
+  }
+
+  private async refreshTrackerAsync(trackerId: string): Promise<void> {
+    this.updateSnapshot((s) => ({ ...s, busy: true, errorMessage: null }));
+    try {
+      await this.config.individualTrackerService.refreshTracker(trackerId);
+      await this.refresh();
+    } catch (error) {
+      this.updateSnapshot((s) => ({
+        ...s,
+        errorMessage: error instanceof Error ? error.message : "Failed to refresh tracker.",
       }));
     } finally {
       this.updateSnapshot((s) => ({ ...s, busy: false }));

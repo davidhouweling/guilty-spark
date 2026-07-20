@@ -79,6 +79,7 @@
 .navLinks .iconLink {
   align-items: center;
   border-bottom: none;
+  color: var(--halo-teal-primary);
   display: inline-flex;
   justify-content: center;
   min-height: 34px;
@@ -89,6 +90,7 @@
   }
 
   &:hover {
+    color: var(--halo-white);
     text-shadow: 0 0 10px color-mix(in srgb, var(--halo-teal-primary) 80%, transparent);
   }
 }
