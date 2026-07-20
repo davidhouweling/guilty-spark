@@ -107,7 +107,7 @@ describe("GET /auth/microsoft/callback", () => {
     expect(deleteSessionSpy).toHaveBeenCalledWith("session-123");
   });
 
-  it("returns a generic auth error and cleans up the session when attaching the xbox profile fails", async () => {
+  it("redirects to login with auth-failed and cleans up the session when attaching the xbox profile fails", async () => {
     let deleteSessionSpy!: MockInstance<DatabaseService["deleteUserSession"]>;
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
@@ -141,13 +141,12 @@ describe("GET /auth/microsoft/callback", () => {
     });
     const res = (await router.fetch(req, env)) as Response;
 
-    expect(res.status).toBe(400);
-    const body = await res.json<{ error: string }>();
-    expect(body).toEqual({ error: "Authentication failed" });
+    expect(res.status).toBe(302);
+    expect(res.headers.get("Location")).toBe(`${env.PAGES_URL}/login?error=auth-failed`);
     expect(deleteSessionSpy).toHaveBeenCalledWith("session-123");
   });
 
-  it("returns a generic authentication error when callback handling fails", async () => {
+  it("redirects to login with auth-failed when callback handling fails", async () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
       vi.spyOn(services.authService, "handleCallback").mockRejectedValue(new Error("upstream microsoft response body"));
@@ -164,11 +163,44 @@ describe("GET /auth/microsoft/callback", () => {
     });
     const res = (await router.fetch(req, env)) as Response;
 
-    expect(res.status).toBe(400);
-    const body = await res.json<{ error: string }>();
-    expect(body).toEqual({ error: "Authentication failed" });
-    expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
-    expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
-    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    expect(res.status).toBe(302);
+    expect(res.headers.get("Location")).toBe(`${env.PAGES_URL}/login?error=auth-failed`);
+  });
+
+  it("redirects to login with auth-failed when Microsoft returns an OAuth error instead of a code", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => installFakeServicesWith({ env }));
+
+    authMicrosoftCallbackRoute(router, localInstallServices);
+
+    const req = new Request(
+      "http://localhost/auth/microsoft/callback?error=server_error&error_description=Transient+failure&state=state-123",
+      {
+        method: "GET",
+        headers: {
+          Origin: env.PAGES_URL,
+        },
+      },
+    );
+    const res = (await router.fetch(req, env)) as Response;
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("Location")).toBe(`${env.PAGES_URL}/login?error=auth-failed`);
+  });
+
+  it("redirects to login with auth-failed when required query parameters are missing", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => installFakeServicesWith({ env }));
+
+    authMicrosoftCallbackRoute(router, localInstallServices);
+
+    const req = new Request("http://localhost/auth/microsoft/callback?state=state-123", {
+      method: "GET",
+      headers: {
+        Origin: env.PAGES_URL,
+      },
+    });
+    const res = (await router.fetch(req, env)) as Response;
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("Location")).toBe(`${env.PAGES_URL}/login?error=auth-failed`);
   });
 });

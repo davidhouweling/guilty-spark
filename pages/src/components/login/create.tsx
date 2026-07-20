@@ -36,6 +36,9 @@ function readSignInErrorMessage(): string | null {
   if (error === "xbox-required") {
     return "We couldn't verify your Xbox profile. Make sure your Microsoft account has Xbox set up, then try again.";
   }
+  if (error === "auth-failed") {
+    return "Something went wrong completing Microsoft sign-in. This is usually a temporary hiccup — please try signing in again.";
+  }
   return null;
 }
 
