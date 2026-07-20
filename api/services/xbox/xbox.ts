@@ -72,12 +72,20 @@ export class XboxService {
     };
   }
 
+  /**
+   * Each network call is retried once — these are the sign-in critical path and prone to
+   * occasional transient failures against Xbox Live's user/XSTS token and profile endpoints.
+   */
   async getUserFromMicrosoftAccessToken(accessToken: string): Promise<XboxUserInfo> {
-    const userTokenResponse = await xnet.exchangeRpsTicketForUserToken(accessToken, MICROSOFT_OAUTH_RPS_PREAMBLE);
-    const xstsTokenResponse = await xnet.exchangeTokenForXSTSToken(userTokenResponse.Token, {
-      sandboxId: XBOX_LIVE_SANDBOX_ID,
-      XSTSRelyingParty: XBOX_LIVE_XSTS_RELYING_PARTY,
-    });
+    const userTokenResponse = await this.withSingleRetry(async () =>
+      xnet.exchangeRpsTicketForUserToken(accessToken, MICROSOFT_OAUTH_RPS_PREAMBLE),
+    );
+    const xstsTokenResponse = await this.withSingleRetry(async () =>
+      xnet.exchangeTokenForXSTSToken(userTokenResponse.Token, {
+        sandboxId: XBOX_LIVE_SANDBOX_ID,
+        XSTSRelyingParty: XBOX_LIVE_XSTS_RELYING_PARTY,
+      }),
+    );
 
     const [displayClaim] = xstsTokenResponse.DisplayClaims.xui;
     const userHash = displayClaim?.uhs;
@@ -89,16 +97,18 @@ export class XboxService {
       throw new Error("Xbox XSTS response missing xuid");
     }
 
-    const profileResponse = await XSAPIClient.get<{ profileUsers: ProfileUser[] }>(
-      `https://profile.xboxlive.com/users/xuid(${xuid})/profile/settings?settings=Gamertag,GameDisplayPicRaw`,
-      {
-        options: { contractVersion: 2, userHash, XSTSToken: xstsTokenResponse.Token },
-      },
-    );
-
-    if (profileResponse.statusCode !== 200) {
-      throw new Error(`Xbox profile lookup failed (${profileResponse.statusCode.toString()})`);
-    }
+    const profileResponse = await this.withSingleRetry(async () => {
+      const response = await XSAPIClient.get<{ profileUsers: ProfileUser[] }>(
+        `https://profile.xboxlive.com/users/xuid(${xuid})/profile/settings?settings=Gamertag,GameDisplayPicRaw`,
+        {
+          options: { contractVersion: 2, userHash, XSTSToken: xstsTokenResponse.Token },
+        },
+      );
+      if (response.statusCode !== 200) {
+        throw new Error(`Xbox profile lookup failed (${response.statusCode.toString()})`);
+      }
+      return response;
+    });
 
     const [profileUser] = profileResponse.data.profileUsers;
     if (profileUser == null) {
@@ -106,6 +116,14 @@ export class XboxService {
     }
 
     return profileUserToXboxUserInfo(profileUser);
+  }
+
+  private async withSingleRetry<T>(operation: () => Promise<T>): Promise<T> {
+    try {
+      return await operation();
+    } catch {
+      return await operation();
+    }
   }
 
   async getUserByGamertag(gamertag: string): Promise<XboxUserInfo> {

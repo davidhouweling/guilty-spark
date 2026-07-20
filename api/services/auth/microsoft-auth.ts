@@ -116,8 +116,13 @@ export class MicrosoftAuthService {
   /**
    * Exchange authorization code for tokens.
    * Must include the original codeVerifier used in the authorization request.
+   * Retried once — this call is a common source of transient failures in the sign-in flow.
    */
   public async exchangeCodeForTokens(code: string, codeVerifier: string): Promise<MicrosoftTokenResponse> {
+    return this.withSingleRetry(async () => this.exchangeCodeForTokensOnce(code, codeVerifier));
+  }
+
+  private async exchangeCodeForTokensOnce(code: string, codeVerifier: string): Promise<MicrosoftTokenResponse> {
     const url = new URL(`https://login.microsoftonline.com/${this.tenant}/oauth2/v2.0/token`);
 
     const body = new URLSearchParams();
@@ -144,6 +149,14 @@ export class MicrosoftAuthService {
 
     const tokens: MicrosoftTokenResponse = await response.json();
     return tokens;
+  }
+
+  private async withSingleRetry<T>(operation: () => Promise<T>): Promise<T> {
+    try {
+      return await operation();
+    } catch {
+      return await operation();
+    }
   }
 
   /**

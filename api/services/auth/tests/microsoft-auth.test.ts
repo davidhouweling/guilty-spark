@@ -240,6 +240,25 @@ describe("MicrosoftAuthService", () => {
     await expect(service.exchangeCodeForTokens("invalid-code", "code-verifier")).rejects.toThrow();
   });
 
+  it("retries once and succeeds when the token exchange fails transiently", async () => {
+    const tokens = { access_token: "access-token", refresh_token: "refresh-token", expires_in: 3600 };
+    vi.spyOn(globalThis, "fetch")
+      .mockRejectedValueOnce(new Error("network blip"))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(tokens), { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+
+    const result = await service.exchangeCodeForTokens("code-123", "code-verifier");
+
+    expect(result).toEqual(tokens);
+  });
+
+  it("throws after a second consecutive token exchange failure", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("persistent failure"));
+
+    await expect(service.exchangeCodeForTokens("code-123", "code-verifier")).rejects.toThrow("persistent failure");
+  });
+
   it("throws on token refresh failure", async () => {
     vi.stubGlobal(
       "fetch",

@@ -323,6 +323,69 @@ describe("Xbox Service", () => {
       );
       expect(xsapiClientGetSpy).not.toHaveBeenCalled();
     });
+
+    it("retries once and succeeds when the user token exchange fails transiently", async () => {
+      vi.spyOn(globalThis, "fetch")
+        .mockRejectedValueOnce(new Error("network blip"))
+        .mockResolvedValueOnce(
+          createJsonResponse({
+            IssueInstant: "2025-01-01T00:00:00.000Z",
+            NotAfter: "2025-01-01T06:00:00.000Z",
+            Token: "user-token",
+            DisplayClaims: { xui: [{ uhs: "user_hash" }] },
+          }),
+        )
+        .mockResolvedValueOnce(
+          createJsonResponse({
+            IssueInstant: "2025-01-01T00:00:00.000Z",
+            NotAfter: "2025-01-01T06:00:00.000Z",
+            Token: "xsts_token",
+            DisplayClaims: { xui: [{ uhs: "user_hash", xid: "2533274" }] },
+          }),
+        );
+      xsapiClientGetSpy.mockResolvedValueOnce(
+        createMockXSAPIResponse([
+          {
+            id: "2533274",
+            hostId: "2533274",
+            settings: [{ id: "Gamertag", value: "Spartan117" }],
+            isSponsoredUser: false,
+          },
+        ]),
+      );
+
+      const result = await xboxService.getUserFromMicrosoftAccessToken("microsoft-access-token");
+
+      expect(result).toEqual({ xuid: "2533274", gamertag: "Spartan117" });
+    });
+
+    it("throws after a second consecutive failure of the user token exchange", async () => {
+      vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("persistent failure"));
+
+      await expect(xboxService.getUserFromMicrosoftAccessToken("microsoft-access-token")).rejects.toThrow(
+        "persistent failure",
+      );
+    });
+
+    it("retries once and succeeds when the profile lookup returns a transient error status", async () => {
+      mockXboxTokenExchange([{ uhs: "user_hash", xid: "2533274" }]);
+      xsapiClientGetSpy
+        .mockResolvedValueOnce({ data: { profileUsers: [] }, response: new Response(), headers: {}, statusCode: 503 })
+        .mockResolvedValueOnce(
+          createMockXSAPIResponse([
+            {
+              id: "2533274",
+              hostId: "2533274",
+              settings: [{ id: "Gamertag", value: "Spartan117" }],
+              isSponsoredUser: false,
+            },
+          ]),
+        );
+
+      const result = await xboxService.getUserFromMicrosoftAccessToken("microsoft-access-token");
+
+      expect(result).toEqual({ xuid: "2533274", gamertag: "Spartan117" });
+    });
   });
 
   describe("getUsersByXuids", () => {
