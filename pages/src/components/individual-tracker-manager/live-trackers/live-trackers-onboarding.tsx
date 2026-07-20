@@ -5,8 +5,8 @@ export function LiveTrackersOnboarding(): React.ReactElement {
   return (
     <div className={styles.onboarding}>
       <h3 className={styles.title}>Getting Started with Individual Tracking</h3>
-      <div className={styles.steps}>
-        <div className={styles.step}>
+      <ol className={styles.steps}>
+        <li className={styles.step}>
           <div className={styles.stepNumber}>1</div>
           <div className={styles.stepContent}>
             <h4 className={styles.stepTitle}>Start a Tracker</h4>
@@ -14,9 +14,9 @@ export function LiveTrackersOnboarding(): React.ReactElement {
               Start a tracker for your gamertag or add one for another player to monitor their live matches.
             </p>
           </div>
-        </div>
+        </li>
 
-        <div className={styles.step}>
+        <li className={styles.step}>
           <div className={styles.stepNumber}>2</div>
           <div className={styles.stepContent}>
             <h4 className={styles.stepTitle}>Configure Stats & Settings</h4>
@@ -25,9 +25,9 @@ export function LiveTrackersOnboarding(): React.ReactElement {
               stream.
             </p>
           </div>
-        </div>
+        </li>
 
-        <div className={styles.step}>
+        <li className={styles.step}>
           <div className={styles.stepNumber}>3</div>
           <div className={styles.stepContent}>
             <h4 className={styles.stepTitle}>Share Viewer URL</h4>
@@ -36,9 +36,9 @@ export function LiveTrackersOnboarding(): React.ReactElement {
               time.
             </p>
           </div>
-        </div>
+        </li>
 
-        <div className={styles.step}>
+        <li className={styles.step}>
           <div className={styles.stepNumber}>4</div>
           <div className={styles.stepContent}>
             <h4 className={styles.stepTitle}>Add Overlay to Stream</h4>
@@ -47,8 +47,8 @@ export function LiveTrackersOnboarding(): React.ReactElement {
               broadcast.
             </p>
           </div>
-        </div>
-      </div>
+        </li>
+      </ol>
     </div>
   );
 }

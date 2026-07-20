@@ -189,6 +189,62 @@ describe("TrackerList", () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
+  it("renders primary actions as visible buttons", async () => {
+    const user = userEvent.setup();
+    const item: TrackerListItem = {
+      trackerId: "tracker-7",
+      gamertag: "Chief",
+      xuid: null,
+      status: "active",
+      isLive: false,
+      isPinned: false,
+      hasActiveSeries: false,
+    };
+
+    const onRefresh = vi.fn<() => void>();
+    const onDelete = vi.fn<() => void>();
+
+    render(
+      <TrackerList
+        items={[item]}
+        getActions={() => [
+          { label: "Refresh", primary: true, onClick: onRefresh },
+          { label: "Delete tracker", onClick: onDelete },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+
+    expect(onRefresh).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: "Delete tracker" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: `Options for ${item.gamertag}` }));
+    expect(screen.getAllByRole("button", { name: "Refresh" })).toHaveLength(1);
+  });
+
+  it("disables loading primary actions", () => {
+    const item: TrackerListItem = {
+      trackerId: "tracker-8",
+      gamertag: "Arbiter",
+      xuid: null,
+      status: "active",
+      isLive: false,
+      isPinned: false,
+      hasActiveSeries: false,
+    };
+
+    render(
+      <TrackerList
+        items={[item]}
+        getActions={() => [{ label: "Refresh", primary: true, loading: true, onClick: vi.fn<() => void>() }]}
+      />,
+    );
+
+    const refreshButton = screen.getByRole("button", { name: "Refresh" });
+    expect(refreshButton).toBeDisabled();
+    expect(refreshButton).toHaveAttribute("aria-busy", "true");
+  });
+
   it("calls onAddTracker when the add tracker button is clicked", async () => {
     const user = userEvent.setup();
     const onAddTracker = vi.fn<() => void>();

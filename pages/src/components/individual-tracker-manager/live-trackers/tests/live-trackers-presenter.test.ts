@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Tracker, TrackerState } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { TrackerLiveView } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import { waitFor } from "@testing-library/react";
 import type { FakeIndividualTrackerService } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
 import {
   aFakeTrackerWith,
@@ -28,6 +29,14 @@ function aFakeTrackerState(opts: {
     idleTimeoutHours: 6,
     hasActiveSeries: opts.hasActiveSeries ?? false,
   };
+}
+
+function createDeferredPromise(): { promise: Promise<void>; resolve: () => void } {
+  let resolve = (): void => undefined;
+  const promise = new Promise<void>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+  return { promise, resolve };
 }
 
 interface Harness {
@@ -143,6 +152,45 @@ describe("LiveTrackersPresenter", () => {
     expect(actionLabels).toContain("Start series");
     expect(actionLabels).not.toContain("Resume");
     expect(actionLabels).not.toContain("Start tracker");
+
+    presenter.dispose();
+  });
+
+  it("refreshTracker action calls service and toggles busy state", async () => {
+    const tracker = aFakeTrackerWith({
+      trackerId: "t1",
+      gamertag: "Chief",
+      status: "active",
+      isLive: true,
+      state: aFakeTrackerState({ trackerId: "t1", gamertag: "Chief", status: "active" }),
+    });
+    const { presenter, service } = aHarness({ trackers: [tracker] });
+    const deferred = createDeferredPromise();
+    const refreshTrackerSpy = vi.spyOn(service, "refreshTracker").mockImplementation(async () => deferred.promise);
+
+    presenter.start();
+    presenter.setSessionContext("u1", null, null);
+    await presenter.refresh();
+
+    const [item] = presenter.getTrackerItems();
+    expect(item).toBeDefined();
+    const refreshAction = presenter.getActions(item).find((a) => a.label === "Refresh");
+    expect(refreshAction).toBeDefined();
+    if (refreshAction == null) {
+      return;
+    }
+
+    refreshAction.onClick();
+
+    expect(presenter.getSnapshot().busy).toBe(true);
+    expect(presenter.getSnapshot().errorMessage).toBeNull();
+
+    deferred.resolve();
+    await waitFor(() => {
+      expect(refreshTrackerSpy).toHaveBeenCalledWith("t1");
+      expect(presenter.getSnapshot().busy).toBe(false);
+    });
+    expect(presenter.getSnapshot().errorMessage).toBeNull();
 
     presenter.dispose();
   });
