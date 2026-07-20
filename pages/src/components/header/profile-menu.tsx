@@ -90,7 +90,7 @@ export function ProfileMenu({
       trigger={avatar}
       ariaLabel="Profile menu"
       dropdownWidth={220}
-      dropdownHeight={180}
+      dropdownHeight={200}
       triggerClassName={profileButtonClassName}
     >
       <div className={styles.profileMenuList}>

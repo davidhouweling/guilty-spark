@@ -127,6 +127,5 @@
 .profileMenuList .profileMenuItem:hover {
   background: color-mix(in srgb, var(--halo-teal-primary) 14%, transparent);
   color: var(--halo-white);
-  padding-left: var(--space-4);
   text-shadow: none;
 }
