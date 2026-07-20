@@ -2,6 +2,7 @@ import React from "react";
 import { Alert } from "../../alert/alert";
 import type { TrackerListItem, TrackerRowAction } from "../tracker-list/tracker-list";
 import { TrackerList } from "../tracker-list/tracker-list";
+import { LiveTrackersOnboarding } from "./live-trackers-onboarding";
 
 interface LiveTrackersSectionViewProps {
   readonly errorMessage: string | null;
@@ -22,6 +23,7 @@ export function LiveTrackersSectionView({
     <>
       {errorMessage != null && <Alert variant="error">{errorMessage}</Alert>}
       <TrackerList items={trackerItems} getActions={getActions} onAddTracker={onAddTracker} />
+      <LiveTrackersOnboarding />
       {dialogs}
     </>
   );

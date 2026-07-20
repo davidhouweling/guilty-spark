@@ -22,6 +22,8 @@ export interface TrackerRowAction {
   readonly label: string;
   readonly destructive?: boolean;
   readonly disabled?: boolean;
+  readonly primary?: boolean;
+  readonly loading?: boolean;
   readonly onClick: () => void;
 }
 
@@ -83,6 +85,9 @@ const EllipsisIcon = (): React.ReactElement => (
 );
 
 function TrackerRow({ item, actions }: TrackerRowProps): React.ReactElement {
+  const primaryAction = actions.find((action) => action.primary === true);
+  const secondaryActions = actions.filter((action) => action.primary !== true);
+
   return (
     <div className={styles.row} data-testid="tracker-row">
       <div className={styles.rowMain}>
@@ -98,29 +103,43 @@ function TrackerRow({ item, actions }: TrackerRowProps): React.ReactElement {
       </div>
 
       <div className={styles.rowActions}>
-        <Dropdown
-          trigger={<EllipsisIcon />}
-          ariaLabel={`Options for ${item.gamertag}`}
-          dropdownWidth={200}
-          dropdownHeight={220}
-        >
-          <div className={styles.menuList}>
-            {actions.map((action) => (
-              <button
-                key={action.label}
-                type="button"
-                disabled={action.disabled === true}
-                className={classNames(styles.menuItem, {
-                  [styles.menuItemDestructive]: action.destructive === true,
-                  [styles.menuItemDisabled]: action.disabled === true,
-                })}
-                onClick={action.onClick}
-              >
-                {action.label}
-              </button>
-            ))}
-          </div>
-        </Dropdown>
+        {primaryAction != null && (
+          <Button
+            type="button"
+            size="small"
+            variant="primary"
+            disabled={primaryAction.disabled === true}
+            loading={primaryAction.loading === true}
+            onClick={primaryAction.onClick}
+          >
+            {primaryAction.label}
+          </Button>
+        )}
+        {secondaryActions.length > 0 && (
+          <Dropdown
+            trigger={<EllipsisIcon />}
+            ariaLabel={`Options for ${item.gamertag}`}
+            dropdownWidth={200}
+            dropdownHeight={220}
+          >
+            <div className={styles.menuList}>
+              {secondaryActions.map((action) => (
+                <button
+                  key={action.label}
+                  type="button"
+                  disabled={action.disabled === true}
+                  className={classNames(styles.menuItem, {
+                    [styles.menuItemDestructive]: action.destructive === true,
+                    [styles.menuItemDisabled]: action.disabled === true,
+                  })}
+                  onClick={action.onClick}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          </Dropdown>
+        )}
       </div>
     </div>
   );
