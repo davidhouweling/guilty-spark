@@ -9,6 +9,8 @@ interface DropdownProps {
   readonly dropdownWidth?: number;
   readonly dropdownHeight?: number;
   readonly scrollToSelected?: boolean;
+  readonly containerClassName?: string;
+  readonly triggerClassName?: string;
 }
 
 export function Dropdown({
@@ -18,6 +20,8 @@ export function Dropdown({
   dropdownWidth = 200,
   dropdownHeight = 150,
   scrollToSelected = false,
+  containerClassName,
+  triggerClassName,
 }: DropdownProps): React.ReactElement {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState<{ right?: string; left?: string; top?: string; bottom?: string }>({});
@@ -111,12 +115,15 @@ export function Dropdown({
     }
   }, [isOpen, scrollToSelected]);
 
+  const containerClassNames = [styles.container, containerClassName].filter((value) => value != null).join(" ");
+  const triggerClassNames = [styles.triggerButton, triggerClassName].filter((value) => value != null).join(" ");
+
   return (
-    <div className={styles.container} ref={dropdownRef}>
+    <div className={containerClassNames} ref={dropdownRef}>
       <button
         ref={triggerRef}
         type="button"
-        className={styles.triggerButton}
+        className={triggerClassNames}
         onClick={(): void => {
           setIsOpen(!isOpen);
         }}

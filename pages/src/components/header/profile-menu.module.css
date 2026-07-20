@@ -8,6 +8,7 @@
   justify-content: center;
   min-height: 44px;
   min-width: 44px;
+  opacity: 1;
   padding: 0;
   position: relative;
 }
@@ -40,11 +41,15 @@
   display: block;
   height: 100%;
   object-fit: cover;
+  object-position: 50% 42%;
   width: 100%;
 }
 
 .profileAvatarGeneric {
-  display: contents;
+  display: block;
+  height: 100%;
+  position: relative;
+  width: 100%;
 }
 
 .avatarHead {
@@ -52,9 +57,10 @@
   border-radius: 9999px;
   display: block;
   height: 7px;
-  left: 9px;
+  left: 50%;
   position: absolute;
-  top: 5px;
+  top: 38%;
+  transform: translate(-50%, -50%);
   width: 7px;
 }
 
@@ -63,9 +69,10 @@
   border-radius: 7px 7px 3px 3px;
   display: block;
   height: 8px;
-  left: 7px;
+  left: 50%;
   position: absolute;
-  top: 14px;
+  top: 68%;
+  transform: translate(-50%, -50%);
   width: 11px;
 }
 
@@ -120,6 +127,5 @@
 .profileMenuList .profileMenuItem:hover {
   background: color-mix(in srgb, var(--halo-teal-primary) 14%, transparent);
   color: var(--halo-white);
-  padding-left: var(--space-4);
   text-shadow: none;
 }
