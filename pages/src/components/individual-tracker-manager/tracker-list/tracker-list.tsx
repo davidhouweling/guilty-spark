@@ -85,8 +85,9 @@ const EllipsisIcon = (): React.ReactElement => (
 );
 
 function TrackerRow({ item, actions }: TrackerRowProps): React.ReactElement {
-  const primaryAction = actions.find((action) => action.primary === true);
-  const secondaryActions = actions.filter((action) => action.primary !== true);
+  const primaryActions = actions.filter((action) => action.primary === true);
+  const primaryAction = primaryActions.at(0);
+  const secondaryActions = actions.filter((action) => action.primary !== true || action !== primaryAction);
 
   return (
     <div className={styles.row} data-testid="tracker-row">
@@ -103,7 +104,7 @@ function TrackerRow({ item, actions }: TrackerRowProps): React.ReactElement {
       </div>
 
       <div className={styles.rowActions}>
-        {primaryAction != null && (
+        {primaryAction !== undefined && (
           <Button
             type="button"
             size="small"
