@@ -1,16 +1,10 @@
 .sectionHeader {
-  margin-bottom: var(--space-16);
+  margin-bottom: var(--space-12);
   text-align: center;
 }
 
 .sectionTitle {
-  color: var(--halo-white);
-  font-family: var(--font-heading);
-  font-size: clamp(2.5rem, 6vw, 4rem);
-  font-weight: 800;
-  letter-spacing: 0.1em;
   margin-bottom: var(--space-4);
-  text-transform: uppercase;
 }
 
 .titleBracket {
@@ -21,8 +15,8 @@
 .sectionSubtitle {
   color: var(--halo-gray);
   font-family: var(--font-body);
-  font-size: var(--text-lg);
+  font-size: var(--text-base);
   font-weight: 600;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }

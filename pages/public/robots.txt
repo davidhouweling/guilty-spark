@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: /login
+Disallow: /tracker
+Disallow: /individual-tracker
+Disallow: /individual-tracker/
+Disallow: /stats/
+Disallow: /u/
+
+Sitemap: https://guilty-spark.app/sitemap-index.xml

@@ -1,0 +1,25 @@
+# Guilty Spark
+
+> Halo Infinite match statistics and live series tracking for Discord servers and OBS overlays.
+
+Guilty Spark is a Discord bot and web platform that brings Halo Infinite stats into Discord servers
+and streaming setups. It tracks custom games via NeatQueue league integration, provides live
+in-game overlays for OBS, and lets teams monitor series scores, match history, and player performance
+in real time.
+
+## Pages
+
+- [Home](https://guilty-spark.app/): Product overview, feature highlights, and Discord install CTA.
+- [Capabilities](https://guilty-spark.app/capabilities): Full capability reference across Discord automation, live series tracking, Individual Tracker workflows, and OBS-ready overlays.
+- [Discord Commands](https://guilty-spark.app/discord-commands): Reference guide for all Guilty Spark slash commands — setup, stats, live tracking, and utility workflows.
+- [OBS Overlay Guide](https://guilty-spark.app/guides/obs-overlays): Step-by-step instructions for setting up a Guilty Spark stream overlay in OBS.
+- [FAQ](https://guilty-spark.app/faq): Frequently asked questions about Discord automation, Individual Tracker workflows, and overlay setup.
+- [Privacy Policy](https://guilty-spark.app/privacy-policy): Privacy policy for Guilty Spark services and website tools.
+- [Terms of Service](https://guilty-spark.app/terms-of-service): Terms of service for Guilty Spark services and website tools.
+
+## Key Concepts
+
+- **Individual Tracker**: A per-user durable tracker that monitors live Halo Infinite matches, feeds real-time overlay data, and maintains match history for a configured gamertag.
+- **Series Tracking**: NeatQueue integration that captures in-series context (teams, scores, match IDs) and drives overlay UI switching between in-series and matchmaking modes.
+- **OBS Overlay**: A browser-source overlay with a live ticker, match tabs, series score bar, and stats highlights panel — all driven by Individual Tracker data over WebSocket.
+- **Discord Bot**: Slash commands for stats lookup (`/stats`, `/servicerecord`), map generation (`/maps`), live tracker management (`/track`), and server setup (`/setup`).

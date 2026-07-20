@@ -3,7 +3,7 @@
   flex-direction: column;
   gap: var(--space-8);
   margin: 0 auto;
-  max-width: 700px;
+  max-width: min(96vw, 980px);
 }
 
 .gridItem {
@@ -17,7 +17,164 @@
   font-weight: 500;
   letter-spacing: 0.05em;
   margin-top: var(--space-3);
+  min-height: calc(var(--text-sm) * 1.5 * 3);
   text-align: center;
+}
+
+.individualCarousel {
+  position: relative;
+}
+
+.individualViewerButton {
+  background: none;
+  border: none;
+  cursor: zoom-in;
+  display: block;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  width: 100%;
+}
+
+.individualViewerButton::before {
+  content: "";
+  inset: -8px;
+  position: absolute;
+}
+
+.individualViewerFrame {
+  align-items: center;
+  aspect-ratio: 16 / 9;
+  background: rgb(0 0 0 / 58%);
+  border: 2px solid var(--halo-teal-dark);
+  border-radius: var(--radius-base);
+  box-shadow: 0 4px 20px rgb(0 0 0 / 30%);
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  transition:
+    border-color var(--transition-base) ease,
+    box-shadow var(--transition-base) ease;
+  width: 100%;
+}
+
+.individualViewerButton img {
+  display: block;
+  height: 100%;
+  image-rendering: crisp-edges;
+  object-fit: contain;
+  width: 100%;
+}
+
+.individualViewerButton:hover .individualViewerFrame {
+  border-color: var(--halo-teal-primary);
+  box-shadow: 0 4px 30px color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
+}
+
+.individualViewerButton:focus-visible .individualViewerFrame {
+  border-color: var(--halo-cyan);
+  box-shadow:
+    0 4px 30px color-mix(in srgb, var(--halo-cyan) 35%, transparent),
+    0 0 0 2px color-mix(in srgb, var(--halo-cyan) 65%, transparent);
+}
+
+.expandHint {
+  background: rgb(0 0 0 / 72%);
+  border: 1px solid color-mix(in srgb, var(--halo-cyan) 35%, transparent);
+  border-radius: var(--radius-sm);
+  bottom: var(--space-3);
+  color: var(--halo-cyan);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  left: var(--space-3);
+  letter-spacing: 0.06em;
+  padding: var(--space-1) var(--space-2);
+  position: absolute;
+  text-transform: uppercase;
+}
+
+.hoverPreview {
+  aspect-ratio: 16 / 9;
+  background-color: rgb(0 0 0 / 90%);
+  background-repeat: no-repeat;
+  background-size: auto;
+  border: 2px solid var(--halo-cyan);
+  border-radius: var(--radius-base);
+  box-shadow: 0 16px 45px rgb(0 0 0 / 52%);
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  transform: scale(0.98);
+  transform-origin: center;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+  z-index: 2;
+}
+
+.hoverPreview[data-visible="true"] {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.individualSlide {
+  display: none;
+  margin: 0;
+  opacity: 0;
+  transition: opacity 280ms ease-in-out;
+}
+
+.individualSlide[data-active="true"] {
+  display: block;
+  opacity: 1;
+}
+
+.individualDots {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: center;
+  margin-top: var(--space-3);
+}
+
+.individualDot {
+  appearance: none;
+  background: color-mix(in srgb, var(--halo-cyan) 35%, transparent);
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  height: 8px;
+  padding: 0;
+  transition:
+    background-color 200ms ease-in-out,
+    transform 200ms ease-in-out;
+  width: 8px;
+}
+
+.individualDot[data-active="true"] {
+  background: var(--halo-cyan);
+  transform: scale(1.15);
+}
+
+.individualDot:focus-visible {
+  outline: 2px solid var(--halo-cyan);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .individualSlide {
+    transition: none;
+  }
+
+  .individualViewerFrame {
+    transition: none;
+  }
+
+  .hoverPreview {
+    transition: none;
+  }
 }
 
 @media (--tablet-viewport) {

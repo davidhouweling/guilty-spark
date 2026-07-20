@@ -6,20 +6,20 @@
 [![Node.js Version](https://img.shields.io/badge/node.js-%3E%3D24.11.0-brightgreen)](https://nodejs.org/)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-orange)](https://workers.cloudflare.com/)
 
-A powerful [Discord Bot](https://discord.com/oauth2/authorize?client_id=1290269474536034357&permissions=311385476096&integration_type=0&scope=bot+applications.commands) built on [Cloudflare Workers](https://developers.cloudflare.com/workers/) that seamlessly integrates Halo Infinite match statistics from Halo Waypoint with Discord communities. The bot specializes in working with NeatQueue-managed custom game series, providing automated statistics posting and detailed match analysis.
+A Halo Infinite operations platform spanning Discord automation, NeatQueue workflows, and web-based tracker overlays. Guilty Spark runs on [Cloudflare Workers](https://developers.cloudflare.com/workers/) and delivers queue-aware series stats, live match tracking, and individual tracker experiences for streamers and community operators.
 
 ![Guilty Spark response on Discord](pages/src/assets/screenshot20250604-queue-stats-command.png)
 
 ## Features
 
-- **Halo Infinite Stats Integration**: Pull match statistics directly from Halo Waypoint
-- **NeatQueue Integration**: Automated webhook-based stats posting for custom game series
+- **Discord Series Intelligence**: Resolve NeatQueue series outcomes into rich game-by-game match breakdowns
+- **Live Tracker Automation**: Track active series with periodic refresh, substitutions, and optional score-in-channel updates
+- **Individual Tracker Management**: Build personal trackers and keep player-focused timelines live
+- **OBS Overlay Workflows**: Generate overlay URLs from live tracker or individual tracker experiences
+- **Halo Infinite Stats Integration**: Pull match statistics from Halo Waypoint pipelines
 - **HCS Maps Generator**: Generate random HCS map sets with playlist and count selection, interactive UI, and user attribution
-- **Discord-Halo Account Linking**: Connect Discord users to their Xbox gamertags
-- **Rich Match Embeds**: Beautiful, game-mode-specific stat displays
-- **Comprehensive Setup System**: Interactive configuration for servers and NeatQueue integration
-- **Automated Workflows**: Automatic stats posting when matches complete
-- **Privacy-Aware**: Respects Halo Waypoint privacy settings
+- **Identity Linking**: Connect Discord users to Xbox gamertags for reliable player matching
+- **Privacy-Aware Operations**: Respect Halo Waypoint privacy settings and fail safely when visibility is restricted
 
 ## Quick Start
 
@@ -33,6 +33,18 @@ A powerful [Discord Bot](https://discord.com/oauth2/authorize?client_id=12902694
 2. **Link accounts**: Users can use `/connect` to link their Discord accounts to Xbox gamertags
 3. **Retrieve match statistics**: Use the `/stats` command to get Halo Infinite match and series stats
 4. **Generate map sets**: Use the `/maps` command to generate random HCS map sets for your games
+5. **Create tracker overlays**: Open the web tracker surfaces to configure overlay URLs for OBS scenes
+
+### Web Experiences
+
+Guilty Spark includes browser-based tools that complement Discord commands:
+
+- **Live Tracker View** (`/tracker`): monitor active series state with scoreboard and progression context
+- **Individual Tracker Manager** (`/individual-tracker`): manage personal trackers, tune settings, and generate stream overlays
+- **Individual Tracker Viewer** (`/individual-tracker/:trackerId`): share public tracker views for player-focused monitoring
+- **Player Follow Live** (`/u/:gamertag`): watch a single player's latest tracked context
+
+These pages are designed for operators and streamers who need scene-ready telemetry beyond raw Discord message output.
 
 ## Commands
 
@@ -174,9 +186,22 @@ https://github.com/user-attachments/assets/bcaccc99-0815-4792-a7ea-2c320cd40ef7
 
 - **Automatic Lifecycle**: Starts when teams are created, stops when series complete
 - **Live Updates**: Series overview refreshes every 3 minutes during active matches
-- **Interactive Controls**: Refresh, Pause and Resume
+- **Interactive Controls**: Refresh, pause, and resume
 - **Substitution Support**: Automatic handling of player changes with chronological tracking
 - **Update queue channel name**: In progress series score in the channel name
+
+### Individual Tracker and Stream Overlay
+
+Individual Tracker extends Guilty Spark beyond queue-only operations.
+
+**Capabilities:**
+
+- Manage player-focused trackers independently of a single queue lifecycle
+- Configure overlay composition, ticker behavior, and display sections
+- Generate shareable browser URLs for OBS Browser Source usage
+- Support both in-series and matchmaking display contexts for stream overlays
+
+This workflow is ideal when broadcasts require consistent per-player storytelling rather than queue-wide snapshots.
 
 ![Live Tracker Embed](pages/src/assets/screenshot20250918-live-tracker.png)
 
@@ -310,6 +335,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [Terms of Service](./TERMS_OF_SERVICE.md) - Legal terms for using Guilty Spark
 - [Privacy Policy](./PRIVACY_POLICY.md) - How we handle your data
+- [Content Asset Requests](./CONTENT_ASSET_REQUESTS.md) - Requested screenshots and clips for website content refresh
 - [Cloudflare Workers Docs](https://developers.cloudflare.com/workers/) - Platform documentation
 - [Discord API Docs](https://discord.com/developers/docs) - Discord development resources
 

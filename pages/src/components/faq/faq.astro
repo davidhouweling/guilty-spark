@@ -11,14 +11,15 @@ interface FAQItem {
 
 interface Props {
   items: FAQItem[];
+  showHeader?: boolean;
 }
 
-const { items } = Astro.props;
+const { items, showHeader = true } = Astro.props;
 ---
 
 <section id="faq" class={styles.faqSection}>
   <Container>
-    <SectionHeader title="Frequently Asked Queries" subtitle="Knowledge Base Protocol" />
+    {showHeader && <SectionHeader title="Frequently Asked Queries" subtitle="Knowledge Base Protocol" />}
 
     <div class={styles.faqContainer}>
       {

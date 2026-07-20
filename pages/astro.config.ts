@@ -2,13 +2,30 @@ import { createRequire } from "node:module";
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
+import sitemap from "@astrojs/sitemap";
 import type { EnvironmentOptions } from "vite";
 
 const require = createRequire(import.meta.url);
 
 export default defineConfig({
+  site: "https://guilty-spark.app",
   adapter: cloudflare(),
-  integrations: [react()],
+  integrations: [
+    react(),
+    sitemap({
+      filter: (page) =>
+        ![
+          "https://guilty-spark.app/login",
+          "https://guilty-spark.app/tracker",
+          "https://guilty-spark.app/404",
+          "https://guilty-spark.app/500",
+        ].includes(page) &&
+        page !== "https://guilty-spark.app/individual-tracker" &&
+        !page.startsWith("https://guilty-spark.app/individual-tracker/") &&
+        !page.startsWith("https://guilty-spark.app/stats/") &&
+        !page.startsWith("https://guilty-spark.app/u/"),
+    }),
+  ],
   scopedStyleStrategy: "class",
   trailingSlash: "never",
   vite: {

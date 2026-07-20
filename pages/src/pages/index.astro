@@ -1,7 +1,6 @@
 ---
 import Layout from "../layouts/layout.astro";
 import Button from "../components/button/button.astro";
-import CommandCard from "../components/cards/command-card.astro";
 import DemoCard from "../components/cards/demo-card.astro";
 import FeatureCard from "../components/cards/feature-card.astro";
 import StatCard from "../components/cards/stat-card.astro";
@@ -13,18 +12,20 @@ import MatchStatisticsIcon from "../components/icons/match-statistics-icon.astro
 import LiveTrackingIcon from "../components/icons/live-tracking-icon.astro";
 import MapGeneratorIcon from "../components/icons/map-generator-icon.astro";
 import PlayerLinkingIcon from "../components/icons/player-linking-icon.astro";
-import CustomizableIcon from "../components/icons/customizable-icon.astro";
+import IndividualTrackerIcon from "../components/icons/individual-tracker-icon.astro";
+import OverlayIcon from "../components/icons/overlay-icon.astro";
 import NeatQueueLogoIcon from "../components/icons/neatqueue-logo-icon.astro";
 import CombatRecordMedia from "../components/demo-media/combat-record-media.astro";
 import NeatQueueMedia from "../components/demo-media/neatqueue-media.astro";
 import LiveTrackerMedia from "../components/demo-media/live-tracker-media.astro";
+import IndividualTrackerMedia from "../components/demo-media/individual-tracker-media.astro";
 import TestimonialCarousel from "../components/testimonials/testimonial-carousel.astro";
 import styles from "./_styles/index.module.css";
 
 const heroStats = [
-  { value: "33", label: "Servers" },
-  { value: "2520+", label: "Series Tracked" },
-  { value: "Free", label: "No cost to use" },
+  { value: "Discord", label: "Community automation" },
+  { value: "Tracker", label: "Individual live workflows" },
+  { value: "OBS", label: "Overlay-ready output" },
 ];
 
 interface FeatureItem {
@@ -35,15 +36,15 @@ interface FeatureItem {
 
 const featureItems: FeatureItem[] = [
   {
-    title: "Match Statistics",
+    title: "Discord Series Statistics",
     description:
-      "Comprehensive match analysis with K/D ratios, accuracy metrics, medal counts, and performance tracking across all game modes.",
+      "Resolve complete series breakdowns from NeatQueue results with per-match analysis, medals, and player-level performance detail.",
     Icon: MatchStatisticsIcon,
   },
   {
-    title: "Live Tracking",
+    title: "Live Series Tracking",
     description:
-      "Real-time match monitoring with automatic updates as games progress. Monitor your squad's performance live in Discord.",
+      "Monitor active series with automatic refresh cycles, substitution support, and optional queue channel score updates.",
     Icon: LiveTrackingIcon,
   },
   {
@@ -52,25 +53,23 @@ const featureItems: FeatureItem[] = [
     Icon: MapGeneratorIcon,
   },
   {
-    title: "Player Linking",
-    description: "Connect Discord users to Xbox gamertags for seamless stat tracking and automatic match detection.",
+    title: "Identity Linking",
+    description:
+      "Link Discord and Xbox identities for faster lookups, reliable player matching, and cleaner cross-platform workflows.",
     Icon: PlayerLinkingIcon,
   },
   {
-    title: "Customizable",
+    title: "Individual Tracker",
     description:
-      "Configure channels, roles, and permissions. Customize how stats are displayed to match your server's needs.",
-    Icon: CustomizableIcon,
+      "Build personal trackers, monitor player-focused timelines, and share public viewer links for audience follow-along.",
+    Icon: IndividualTrackerIcon,
   },
-];
-
-const commandItems = [
-  { command: "/stats", description: "Display comprehensive match statistics for any player" },
-  { command: "/servicerecord", description: "Access complete service record archives and competitive rank telemetry" },
-  { command: "/connect", description: "Link your Discord account to your Xbox gamertag" },
-  { command: "/track", description: "Start live tracking for an ongoing match" },
-  { command: "/maps", description: "Generate HCS tournament map pools" },
-  { command: "/setup", description: "Configure server settings and permissions" },
+  {
+    title: "Streamer Overlay",
+    description:
+      "Generate OBS-ready overlay URLs from both live tracker and individual tracker workflows with configurable display settings.",
+    Icon: OverlayIcon,
+  },
 ];
 
 interface DemoItem {
@@ -83,30 +82,40 @@ interface DemoItem {
 
 const demoItems: DemoItem[] = [
   {
-    title: "Combat Record Retrieval",
+    title: "Individual Tracker Workflows",
+    description: "Dedicated tracker management with both Multiplayer UI and Series UI overlay outputs for streamers.",
+    iconVariant: "default",
+    Icon: IndividualTrackerIcon,
+    Media: IndividualTrackerMedia,
+  },
+  {
+    title: "Discord Series Resolution",
     description:
-      "Access comprehensive statistical analysis for any completed series with a simple command invocation. Query efficiency ratios, accuracy matrices, commendation records, and performance metrics across all combat scenarios.",
+      "Resolve complete queue outcomes directly from Discord results, including series-level and game-level telemetry in one flow.",
     iconVariant: "default",
     Icon: MatchStatisticsIcon,
     Media: CombatRecordMedia,
   },
   {
-    title: "Automated Queue Protocol",
+    title: "NeatQueue Automation",
     description:
-      "Seamless integration with NeatQueue match coordination systems. Combat statistics are automatically compiled and transmitted upon engagement conclusion, with continuous tracking throughout active series.",
+      "Process queue lifecycle webhooks so starts, substitutions, and completions are reflected with minimal operator effort.",
     iconVariant: "image",
     Icon: NeatQueueLogoIcon,
     Media: NeatQueueMedia,
   },
   {
-    title: "Real-Time Engagement Monitoring",
+    title: "Live Series Monitoring",
     description:
-      "Observe ongoing combat operations with periodic telemetry refresh cycles occurring every 180 seconds. Monitor engagement scores, combatant performance metrics, and series progression status through active surveillance with manual override controls available.",
+      "Observe active matches with periodic refresh intervals, score progression, and state controls for active tracking sessions.",
     iconVariant: "default",
     Icon: LiveTrackingIcon,
     Media: LiveTrackerMedia,
   },
 ];
+
+const featuredDemoItem = demoItems.at(0);
+const secondaryDemoItems = demoItems.slice(1);
 
 interface CommunityTestimonial {
   text: string;
@@ -145,11 +154,11 @@ const testimonialItems: CommunityTestimonial[] = [
         <span class={styles.titleLine}>Spark</span>
       </h1>
 
-      <div class={styles.heroSubtitle}>Halo Infinite Combat Statistics Interface</div>
+      <div class={styles.heroSubtitle}>Halo Infinite Statistics and Overlay Interface</div>
 
       <p class={styles.heroDescription}>
-        Greetings, Reclaimer. I am 343 Guilty Spark, custodian of Installation 04's combat records. Access comprehensive
-        telemetry analysis for your Halo Infinite custom games directly within Discord.
+        Greetings, Reclaimer. Guilty Spark unifies Discord automation, NeatQueue workflows, and Individual Tracker
+        overlays so Halo Infinite communities and streamers can operate from a single combat intelligence platform.
       </p>
 
       <div class={styles.heroButtons}>
@@ -163,28 +172,44 @@ const testimonialItems: CommunityTestimonial[] = [
     </Container>
   </section>
 
-  <!-- Testimonials Section -->
-  <section class={styles.testimonialsSection} aria-label="Community testimonials">
-    <Container>
-      <SectionHeader title="Community Intel" subtitle="Deployed Units Reporting In" />
-      <TestimonialCarousel items={testimonialItems} autoRotateMs={5000} />
-    </Container>
-  </section>
-
   <!-- Demo Section -->
   <section class={styles.demoSection}>
     <Container>
       <SectionHeader title="Operational Demonstrations" subtitle="Monitor Protocol Systems in Active Deployment" />
       <div class={styles.demoGrid}>
         {
-          demoItems.map(({ title, description, iconVariant, Icon, Media }) => (
-            <DemoCard title={title} description={description} iconVariant={iconVariant}>
-              <Icon slot="icon" />
-              <Media slot="media" />
+          featuredDemoItem && (
+            <DemoCard
+              title={featuredDemoItem.title}
+              description={featuredDemoItem.description}
+              iconVariant={featuredDemoItem.iconVariant}
+              class={styles.demoFeaturedCard}
+            >
+              <featuredDemoItem.Icon slot="icon" />
+              <featuredDemoItem.Media slot="media" />
             </DemoCard>
-          ))
+          )
         }
+
+        <div class={styles.demoSecondaryGrid}>
+          {
+            secondaryDemoItems.map(({ title, description, iconVariant, Icon, Media }) => (
+              <DemoCard title={title} description={description} iconVariant={iconVariant}>
+                <Icon slot="icon" />
+                <Media slot="media" />
+              </DemoCard>
+            ))
+          }
+        </div>
       </div>
+    </Container>
+  </section>
+
+  <!-- Testimonials Section -->
+  <section class={styles.testimonialsSection} aria-label="Community testimonials">
+    <Container>
+      <SectionHeader title="Community Intel" subtitle="Deployed Units Reporting In" />
+      <TestimonialCarousel items={testimonialItems} autoRotateMs={5000} />
     </Container>
   </section>
 
@@ -205,24 +230,34 @@ const testimonialItems: CommunityTestimonial[] = [
     </Container>
   </section>
 
-  <!-- Commands Section -->
-  <section id="commands" class={styles.commandsSection}>
-    <Container>
-      <SectionHeader title="Command Interface" subtitle="Slash Command Protocols" />
-
-      <div class={styles.commandsGrid}>
-        {commandItems.map(({ command, description }) => <CommandCard command={command} description={description} />)}
-      </div>
-    </Container>
-  </section>
-
   <!-- CTA Section -->
   <section class={styles.ctaSection}>
     <Container>
       <div class={styles.ctaContent}>
         <h2 class={styles.ctaTitle}>Ready to Deploy?</h2>
-        <p class={styles.ctaText}>Integrate combat statistics into your Discord server now.</p>
-        <Button href={DISCORD_INVITE_URL} variant="primary" size="large" target="_blank"> Activate Protocol </Button>
+        <p class={styles.ctaText}>Choose your mission entry point.</p>
+
+        <div class={styles.ctaGrid}>
+          <article class={styles.ctaColumn}>
+            <h3 class={styles.ctaColumnTitle}>Discord Operations</h3>
+            <p class={styles.ctaColumnText}>
+              Install Guilty Spark into your Discord server and start command-driven workflows.
+            </p>
+            <Button href={DISCORD_INVITE_URL} variant="primary" size="large" target="_blank" icon={DiscordLogo}>
+              Add to Discord
+            </Button>
+          </article>
+
+          <article class={styles.ctaColumn}>
+            <h3 class={styles.ctaColumnTitle}>Individual Tracker</h3>
+            <p class={styles.ctaColumnText}>
+              Sign in first, then launch tracker management and overlay configuration workflows.
+            </p>
+            <Button href="/login?redirect=%2Findividual-tracker" variant="secondary" size="large"
+              >Sign In for Tracker</Button
+            >
+          </article>
+        </div>
       </div>
     </Container>
   </section>

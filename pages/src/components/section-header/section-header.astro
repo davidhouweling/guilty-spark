@@ -1,18 +1,21 @@
 ---
+import Heading from "../heading/heading.astro";
+
 interface Props {
+  headingTagName?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
   title: string;
   subtitle: string;
 }
 
-const { title, subtitle } = Astro.props;
+const { title, subtitle, headingTagName = "h2" } = Astro.props;
 import styles from "./section-header.module.css";
 ---
 
 <div class={styles.sectionHeader}>
-  <h2 class={styles.sectionTitle}>
+  <Heading tagName={headingTagName} class={styles.sectionTitle}>
     <span class={styles.titleBracket}>&lt;</span>
     {title}
     <span class={styles.titleBracket}>/&gt;</span>
-  </h2>
+  </Heading>
   <div class={styles.sectionSubtitle}>{subtitle}</div>
 </div>
