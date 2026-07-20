@@ -10,11 +10,16 @@ import styles from "./profile-menu.module.css";
 interface ProfileMenuProps {
   readonly apiHost: string;
   readonly iconLinkClassName?: string;
+  readonly expectAuthenticated?: boolean;
 }
 
-export function ProfileMenu({ apiHost, iconLinkClassName }: ProfileMenuProps): React.ReactElement {
+export function ProfileMenu({
+  apiHost,
+  iconLinkClassName,
+  expectAuthenticated = false,
+}: ProfileMenuProps): React.ReactElement {
   const [authService, setAuthService] = useState<AuthService | null>(null);
-  const [session, setSession] = useState<SessionResponse>({ authenticated: false });
+  const [session, setSession] = useState<SessionResponse | null>(null);
   const [avatarFailed, setAvatarFailed] = useState(false);
 
   useEffect(() => {
@@ -46,7 +51,8 @@ export function ProfileMenu({ apiHost, iconLinkClassName }: ProfileMenuProps): R
     };
   }, [apiHost]);
 
-  const avatarUrl = session.authenticated && !avatarFailed ? (session.avatarUrl ?? null) : null;
+  const isAuthenticated = session?.authenticated ?? expectAuthenticated;
+  const avatarUrl = session?.authenticated && !avatarFailed ? (session.avatarUrl ?? null) : null;
 
   const avatar = (
     <ProfileAvatar
@@ -57,9 +63,9 @@ export function ProfileMenu({ apiHost, iconLinkClassName }: ProfileMenuProps): R
     />
   );
 
-  const profileTrigger = <span className={styles.profileIconButton}>{avatar}</span>;
+  const profileTrigger = <span className={classNames(styles.profileIconButton, iconLinkClassName)}>{avatar}</span>;
 
-  if (!session.authenticated) {
+  if (!isAuthenticated && !expectAuthenticated) {
     return (
       <a
         href="/login"
@@ -72,7 +78,7 @@ export function ProfileMenu({ apiHost, iconLinkClassName }: ProfileMenuProps): R
     );
   }
 
-  const gamertag = session.xboxGamertag;
+  const gamertag = session?.authenticated ? session.xboxGamertag : undefined;
 
   const handleLogout = (): void => {
     void (async (): Promise<void> => {
@@ -85,15 +91,30 @@ export function ProfileMenu({ apiHost, iconLinkClassName }: ProfileMenuProps): R
   };
 
   return (
-    <Dropdown trigger={profileTrigger} ariaLabel="Profile menu" dropdownWidth={220} dropdownHeight={180}>
+    <Dropdown
+      trigger={profileTrigger}
+      ariaLabel="Profile menu"
+      dropdownWidth={220}
+      dropdownHeight={180}
+      containerClassName={styles.profileDropdownContainer}
+      triggerClassName={styles.profileDropdownTrigger}
+    >
       <div className={styles.profileMenuList}>
-        {gamertag != null && gamertag !== "" ? <span className={styles.profileMenuLabel}>{gamertag}</span> : null}
-        <a href="/individual-tracker" className={styles.profileMenuItem}>
-          Individual Tracker
-        </a>
-        <button type="button" className={styles.profileMenuItem} onClick={handleLogout}>
-          Sign out
-        </button>
+        {isAuthenticated ? (
+          <>
+            {gamertag != null && gamertag !== "" ? <span className={styles.profileMenuLabel}>{gamertag}</span> : null}
+            <a href="/individual-tracker" className={styles.profileMenuItem}>
+              Individual Tracker
+            </a>
+            <button type="button" className={styles.profileMenuItem} onClick={handleLogout}>
+              Sign out
+            </button>
+          </>
+        ) : (
+          <a href="/login" className={styles.profileMenuItem}>
+            Sign in
+          </a>
+        )}
       </div>
     </Dropdown>
   );

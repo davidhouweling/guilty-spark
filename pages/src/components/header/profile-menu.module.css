@@ -23,6 +23,22 @@
   outline-offset: 2px;
 }
 
+.profileDropdownContainer {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.profileDropdownTrigger {
+  opacity: 1;
+}
+
+.profileDropdownTrigger:hover {
+  opacity: 1;
+}
+
 .profileAvatar {
   align-items: center;
   border: 1px solid var(--halo-teal-primary);
@@ -40,11 +56,15 @@
   display: block;
   height: 100%;
   object-fit: cover;
+  object-position: 50% 42%;
   width: 100%;
 }
 
 .profileAvatarGeneric {
-  display: contents;
+  display: block;
+  height: 100%;
+  position: relative;
+  width: 100%;
 }
 
 .avatarHead {
@@ -52,9 +72,10 @@
   border-radius: 9999px;
   display: block;
   height: 7px;
-  left: 9px;
+  left: 50%;
   position: absolute;
-  top: 5px;
+  top: 38%;
+  transform: translate(-50%, -50%);
   width: 7px;
 }
 
@@ -63,9 +84,10 @@
   border-radius: 7px 7px 3px 3px;
   display: block;
   height: 8px;
-  left: 7px;
+  left: 50%;
   position: absolute;
-  top: 14px;
+  top: 68%;
+  transform: translate(-50%, -50%);
   width: 11px;
 }
 
