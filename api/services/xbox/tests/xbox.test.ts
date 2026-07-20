@@ -386,6 +386,21 @@ describe("Xbox Service", () => {
 
       expect(result).toEqual({ xuid: "2533274", gamertag: "Spartan117" });
     });
+
+    it("does not retry the profile lookup for a non-retryable 4xx status", async () => {
+      mockXboxTokenExchange([{ uhs: "user_hash", xid: "2533274" }]);
+      xsapiClientGetSpy.mockResolvedValueOnce({
+        data: { profileUsers: [] },
+        response: new Response(),
+        headers: {},
+        statusCode: 403,
+      });
+
+      await expect(xboxService.getUserFromMicrosoftAccessToken("microsoft-access-token")).rejects.toThrow(
+        "Xbox profile lookup failed (403)",
+      );
+      expect(xsapiClientGetSpy).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("getUsersByXuids", () => {

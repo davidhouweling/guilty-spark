@@ -28,6 +28,12 @@ interface CachedValue<T> {
   readonly value: T;
 }
 
+function isRetryableStatus(status: number): boolean {
+  return status >= 500 || status === 408 || status === 429;
+}
+
+class NonRetryableAuthError extends Error {}
+
 interface SigningJsonWebKey extends JsonWebKey {
   readonly e: string;
   readonly kid?: string;
@@ -142,9 +148,11 @@ export class MicrosoftAuthService {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(
-        `Microsoft OAuth token exchange failed: ${response.status.toString()} ${response.statusText} - ${errorText}`,
-      );
+      const message = `Microsoft OAuth token exchange failed: ${response.status.toString()} ${response.statusText} - ${errorText}`;
+      if (!isRetryableStatus(response.status)) {
+        throw new NonRetryableAuthError(message);
+      }
+      throw new Error(message);
     }
 
     const tokens: MicrosoftTokenResponse = await response.json();
@@ -154,7 +162,10 @@ export class MicrosoftAuthService {
   private async withSingleRetry<T>(operation: () => Promise<T>): Promise<T> {
     try {
       return await operation();
-    } catch {
+    } catch (error) {
+      if (error instanceof NonRetryableAuthError) {
+        throw error;
+      }
       return await operation();
     }
   }

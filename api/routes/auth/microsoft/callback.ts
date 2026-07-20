@@ -11,7 +11,10 @@ export const authMicrosoftCallbackRoute: RoutesRegisterHandler = (router, instal
     function redirectToLoginWithError(errorCode: string): Response {
       const rejectUrl = new URL("/login", env.PAGES_URL);
       rejectUrl.searchParams.set("error", errorCode);
-      const rejectResponse = new Response(null, { status: 302, headers: { Location: rejectUrl.toString() } });
+      const rejectResponse = new Response(null, {
+        status: 302,
+        headers: { Location: rejectUrl.toString(), "Cache-Control": "no-store" },
+      });
       authService.clearPkceStateCookie(rejectResponse);
       return rejectResponse;
     }

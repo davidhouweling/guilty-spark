@@ -259,6 +259,30 @@ describe("MicrosoftAuthService", () => {
     await expect(service.exchangeCodeForTokens("code-123", "code-verifier")).rejects.toThrow("persistent failure");
   });
 
+  it("does not retry the token exchange for a non-retryable 4xx status", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 }));
+
+    await expect(service.exchangeCodeForTokens("code-123", "code-verifier")).rejects.toThrow();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries the token exchange for a retryable 5xx status", async () => {
+    const tokens = { access_token: "access-token", refresh_token: "refresh-token", expires_in: 3600 };
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "server_error" }), { status: 503 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(tokens), { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+
+    const result = await service.exchangeCodeForTokens("code-123", "code-verifier");
+
+    expect(result).toEqual(tokens);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
   it("throws on token refresh failure", async () => {
     vi.stubGlobal(
       "fetch",

@@ -8,6 +8,12 @@ const XBOX_LIVE_XSTS_RELYING_PARTY = "http://xboxlive.com";
 const XBOX_LIVE_SANDBOX_ID = "RETAIL";
 const MICROSOFT_OAUTH_RPS_PREAMBLE = "d";
 
+function isRetryableStatus(status: number): boolean {
+  return status >= 500 || status === 408 || status === 429;
+}
+
+class NonRetryableXboxError extends Error {}
+
 export interface XboxServiceOpts {
   env: Env;
   authenticate: typeof authenticate;
@@ -105,7 +111,11 @@ export class XboxService {
         },
       );
       if (response.statusCode !== 200) {
-        throw new Error(`Xbox profile lookup failed (${response.statusCode.toString()})`);
+        const message = `Xbox profile lookup failed (${response.statusCode.toString()})`;
+        if (!isRetryableStatus(response.statusCode)) {
+          throw new NonRetryableXboxError(message);
+        }
+        throw new Error(message);
       }
       return response;
     });
@@ -121,7 +131,10 @@ export class XboxService {
   private async withSingleRetry<T>(operation: () => Promise<T>): Promise<T> {
     try {
       return await operation();
-    } catch {
+    } catch (error) {
+      if (error instanceof NonRetryableXboxError) {
+        throw error;
+      }
       return await operation();
     }
   }
