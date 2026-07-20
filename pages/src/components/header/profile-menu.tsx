@@ -63,16 +63,11 @@ export function ProfileMenu({
     />
   );
 
-  const profileTrigger = <span className={classNames(styles.profileIconButton, iconLinkClassName)}>{avatar}</span>;
+  const profileButtonClassName = classNames(styles.profileIconButton, iconLinkClassName);
 
   if (!isAuthenticated && !expectAuthenticated) {
     return (
-      <a
-        href="/login"
-        className={classNames(styles.profileIconButton, iconLinkClassName)}
-        aria-label="Sign in"
-        title="Sign in"
-      >
+      <a href="/login" className={profileButtonClassName} aria-label="Sign in" title="Sign in">
         {avatar}
       </a>
     );
@@ -92,12 +87,11 @@ export function ProfileMenu({
 
   return (
     <Dropdown
-      trigger={profileTrigger}
+      trigger={avatar}
       ariaLabel="Profile menu"
       dropdownWidth={220}
       dropdownHeight={180}
-      containerClassName={styles.profileDropdownContainer}
-      triggerClassName={styles.profileDropdownTrigger}
+      triggerClassName={profileButtonClassName}
     >
       <div className={styles.profileMenuList}>
         {isAuthenticated ? (

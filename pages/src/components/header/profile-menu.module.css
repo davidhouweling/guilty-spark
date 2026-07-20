@@ -1,5 +1,6 @@
 .profileIconButton {
   align-items: center;
+  opacity: 1;
   background: transparent;
   border: 0;
   color: var(--halo-teal-primary);
@@ -21,22 +22,6 @@
   opacity: 1;
   outline: 2px solid var(--halo-teal-primary);
   outline-offset: 2px;
-}
-
-.profileDropdownContainer {
-  align-items: center;
-  display: inline-flex;
-  justify-content: center;
-  min-height: 44px;
-  min-width: 44px;
-}
-
-.profileDropdownTrigger {
-  opacity: 1;
-}
-
-.profileDropdownTrigger:hover {
-  opacity: 1;
 }
 
 .profileAvatar {
