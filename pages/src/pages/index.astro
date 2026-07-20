@@ -114,6 +114,9 @@ const demoItems: DemoItem[] = [
   },
 ];
 
+const featuredDemoItem = demoItems.at(0);
+const secondaryDemoItems = demoItems.slice(1);
+
 interface CommunityTestimonial {
   text: string;
   who: string;
@@ -169,28 +172,44 @@ const testimonialItems: CommunityTestimonial[] = [
     </Container>
   </section>
 
-  <!-- Testimonials Section -->
-  <section class={styles.testimonialsSection} aria-label="Community testimonials">
-    <Container>
-      <SectionHeader title="Community Intel" subtitle="Deployed Units Reporting In" />
-      <TestimonialCarousel items={testimonialItems} autoRotateMs={5000} />
-    </Container>
-  </section>
-
   <!-- Demo Section -->
   <section class={styles.demoSection}>
     <Container>
       <SectionHeader title="Operational Demonstrations" subtitle="Monitor Protocol Systems in Active Deployment" />
       <div class={styles.demoGrid}>
         {
-          demoItems.map(({ title, description, iconVariant, Icon, Media }) => (
-            <DemoCard title={title} description={description} iconVariant={iconVariant}>
-              <Icon slot="icon" />
-              <Media slot="media" />
+          featuredDemoItem && (
+            <DemoCard
+              title={featuredDemoItem.title}
+              description={featuredDemoItem.description}
+              iconVariant={featuredDemoItem.iconVariant}
+              class={styles.demoFeaturedCard}
+            >
+              <featuredDemoItem.Icon slot="icon" />
+              <featuredDemoItem.Media slot="media" />
             </DemoCard>
-          ))
+          )
         }
+
+        <div class={styles.demoSecondaryGrid}>
+          {
+            secondaryDemoItems.map(({ title, description, iconVariant, Icon, Media }) => (
+              <DemoCard title={title} description={description} iconVariant={iconVariant}>
+                <Icon slot="icon" />
+                <Media slot="media" />
+              </DemoCard>
+            ))
+          }
+        </div>
       </div>
+    </Container>
+  </section>
+
+  <!-- Testimonials Section -->
+  <section class={styles.testimonialsSection} aria-label="Community testimonials">
+    <Container>
+      <SectionHeader title="Community Intel" subtitle="Deployed Units Reporting In" />
+      <TestimonialCarousel items={testimonialItems} autoRotateMs={5000} />
     </Container>
   </section>
 

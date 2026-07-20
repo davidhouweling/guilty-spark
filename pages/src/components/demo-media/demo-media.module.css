@@ -17,11 +17,79 @@
   font-weight: 500;
   letter-spacing: 0.05em;
   margin-top: var(--space-3);
+  min-height: calc(var(--text-sm) * 1.5 * 3);
   text-align: center;
 }
 
 .individualCarousel {
   position: relative;
+}
+
+.individualViewerButton {
+  background: none;
+  border: none;
+  cursor: zoom-in;
+  display: block;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  width: 100%;
+}
+
+.individualViewerFrame {
+  align-items: center;
+  aspect-ratio: 16 / 9;
+  background: rgb(0 0 0 / 58%);
+  border: 2px solid var(--halo-teal-dark);
+  border-radius: var(--radius-base);
+  box-shadow: 0 4px 20px rgb(0 0 0 / 30%);
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  transition:
+    border-color var(--transition-base) ease,
+    box-shadow var(--transition-base) ease;
+  width: 100%;
+}
+
+.individualViewerButton img {
+  display: block;
+  height: 100%;
+  image-rendering: crisp-edges;
+  object-fit: contain;
+  width: 100%;
+}
+
+.individualViewerButton:hover img,
+.individualViewerButton:focus-visible img {
+  transform: none;
+}
+
+.individualViewerButton:hover .individualViewerFrame,
+.individualViewerButton:focus-visible .individualViewerFrame {
+  border-color: var(--halo-teal-primary);
+  box-shadow: 0 4px 30px color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
+}
+
+.individualViewerButton:focus-visible {
+  outline: 2px solid var(--halo-cyan);
+  outline-offset: 3px;
+}
+
+.expandHint {
+  background: rgb(0 0 0 / 72%);
+  border: 1px solid color-mix(in srgb, var(--halo-cyan) 35%, transparent);
+  border-radius: var(--radius-sm);
+  bottom: var(--space-3);
+  color: var(--halo-cyan);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  left: var(--space-3);
+  letter-spacing: 0.06em;
+  padding: var(--space-1) var(--space-2);
+  position: absolute;
+  text-transform: uppercase;
 }
 
 .individualSlide {
@@ -68,8 +136,84 @@
   outline-offset: 2px;
 }
 
+.individualDialogPanel {
+  max-width: min(96vw, 1680px);
+  padding: var(--space-5);
+  width: min(96vw, 1680px);
+}
+
+.individualDialogBody {
+  overflow: hidden;
+}
+
+.individualDialogFigure {
+  margin: 0;
+}
+
+.individualDialogFigure img {
+  border: 1px solid color-mix(in srgb, var(--halo-cyan) 40%, transparent);
+  border-radius: var(--radius-base);
+  display: block;
+  height: min(74vh, calc(100vw * 0.52));
+  max-height: 74vh;
+  object-fit: contain;
+  width: 100%;
+}
+
+.individualDialogCaption {
+  color: var(--halo-gray);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  margin-top: var(--space-3);
+  text-align: center;
+}
+
+.individualDialogNav {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+}
+
+.individualDialogCount {
+  color: var(--halo-gray);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  letter-spacing: 0.05em;
+  min-width: 120px;
+  text-align: center;
+}
+
+.individualDialogNavButton {
+  appearance: none;
+  background: color-mix(in srgb, var(--halo-cyan) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--halo-cyan) 45%, transparent);
+  border-radius: var(--radius-sm);
+  color: var(--halo-white);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  min-width: 130px;
+  padding: var(--space-2) var(--space-3);
+  text-transform: uppercase;
+}
+
+.individualDialogNavButton:hover,
+.individualDialogNavButton:focus-visible {
+  border-color: var(--halo-cyan);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--halo-cyan) 22%, transparent);
+  outline: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .individualSlide {
+    transition: none;
+  }
+
+  .individualViewerFrame {
     transition: none;
   }
 }
@@ -81,5 +225,11 @@
 
   .gridCaption {
     font-size: var(--text-sm);
+  }
+}
+
+@media (--desktop-viewport) {
+  .individualDialogPanel {
+    padding: var(--space-6);
   }
 }

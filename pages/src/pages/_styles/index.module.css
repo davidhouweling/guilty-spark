@@ -141,6 +141,17 @@
   max-width: 1400px;
 }
 
+.demoSecondaryGrid {
+  display: grid;
+  gap: var(--space-12);
+  grid-template-columns: 1fr;
+}
+
+.demoFeaturedCard {
+  border-color: color-mix(in srgb, var(--halo-teal-primary) 60%, transparent);
+  box-shadow: 0 8px 36px color-mix(in srgb, var(--halo-teal-primary) 18%, transparent);
+}
+
 /* Features Grid */
 .featuresGrid {
   display: grid;
@@ -303,6 +314,11 @@
   .demoGrid {
     gap: var(--space-10);
   }
+
+  .demoSecondaryGrid {
+    gap: var(--space-10);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* ============================================ */
@@ -313,11 +329,13 @@
 
 @media (--desktop-viewport) {
   .demoGrid {
-    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-8);
+    grid-template-columns: 1fr;
   }
 
-  .demoGrid > :last-child:nth-child(odd) {
-    grid-column: span 2;
+  .demoSecondaryGrid {
+    gap: var(--space-8);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .featuresGrid {
