@@ -4,6 +4,7 @@ import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
 import { Dropdown } from "../../dropdown/dropdown";
+import { Heading } from "../../heading/heading";
 import styles from "./tracker-list.module.css";
 
 export type TrackerDisplayStatus = "active" | "paused" | "stopped" | "not-started";
@@ -149,7 +150,9 @@ function TrackerRow({ item, actions }: TrackerRowProps): React.ReactElement {
 function EmptyInfoPanel(): React.ReactElement {
   return (
     <div className={styles.emptyInfo}>
-      <h3 className={styles.emptyInfoTitle}>How individual tracking works</h3>
+      <Heading tagName="h3" className={styles.emptyInfoTitle}>
+        How individual tracking works
+      </Heading>
       <p className={styles.emptyInfoText}>
         Your live tracker monitors your Halo Infinite match history in real time. Once started, it polls for new matches
         and displays them on your streamer overlay — without requiring your browser to stay open.
@@ -170,7 +173,9 @@ export function TrackerList({ items, onAddTracker, getActions }: TrackerListProp
   return (
     <div className={styles.listContainer}>
       <div className={styles.listHeader}>
-        <h2 className={styles.listTitle}>Live Trackers</h2>
+        <Heading tagName="h2" className={styles.listTitle}>
+          Live Trackers
+        </Heading>
         <Button type="button" size="small" variant="secondary" onClick={onAddTracker}>
           Add tracker
         </Button>
