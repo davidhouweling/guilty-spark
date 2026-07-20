@@ -51,8 +51,9 @@ export function ProfileMenu({
     };
   }, [apiHost]);
 
+  const hasAuthenticatedSession = session?.authenticated === true;
   const isAuthenticated = session?.authenticated ?? expectAuthenticated;
-  const avatarUrl = session?.authenticated && !avatarFailed ? (session.avatarUrl ?? null) : null;
+  const avatarUrl = hasAuthenticatedSession && !avatarFailed ? (session.avatarUrl ?? null) : null;
 
   const avatar = (
     <ProfileAvatar
@@ -73,7 +74,7 @@ export function ProfileMenu({
     );
   }
 
-  const gamertag = session?.authenticated ? session.xboxGamertag : undefined;
+  const gamertag = hasAuthenticatedSession ? session.xboxGamertag : undefined;
 
   const handleLogout = (): void => {
     void (async (): Promise<void> => {

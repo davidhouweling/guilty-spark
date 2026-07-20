@@ -1,6 +1,5 @@
 .profileIconButton {
   align-items: center;
-  opacity: 1;
   background: transparent;
   border: 0;
   color: var(--halo-teal-primary);
@@ -9,6 +8,7 @@
   justify-content: center;
   min-height: 44px;
   min-width: 44px;
+  opacity: 1;
   padding: 0;
   position: relative;
 }
