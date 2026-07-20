@@ -68,6 +68,15 @@ export function IndividualTrackerMediaClient(): React.ReactElement {
     setHovered(true);
   };
 
+  const hideHoverPreviewImmediately = (): void => {
+    if (hoverExitTimeoutRef.current !== undefined) {
+      window.clearTimeout(hoverExitTimeoutRef.current);
+      hoverExitTimeoutRef.current = undefined;
+    }
+
+    setHovered(false);
+  };
+
   const hideHoverPreview = (): void => {
     if (hoverExitTimeoutRef.current !== undefined) {
       window.clearTimeout(hoverExitTimeoutRef.current);
@@ -164,8 +173,12 @@ export function IndividualTrackerMediaClient(): React.ReactElement {
             >
               <div
                 className={styles.individualViewerButton}
+                tabIndex={0}
+                aria-label={`Inspect screenshot: ${slide.alt}`}
                 onMouseEnter={showHoverPreview}
                 onMouseLeave={hideHoverPreview}
+                onFocus={showHoverPreview}
+                onBlur={hideHoverPreviewImmediately}
                 onMouseMove={(event): void => {
                   const bounds = event.currentTarget.getBoundingClientRect();
                   const xRatio = clampToPercentage((event.clientX - bounds.left) / bounds.width);
@@ -186,7 +199,7 @@ export function IndividualTrackerMediaClient(): React.ReactElement {
                     fetchPriority={index === 0 ? "high" : "low"}
                   />
                 </span>
-                <span className={styles.expandHint}>Hover to inspect</span>
+                <span className={styles.expandHint}>Hover or focus to inspect</span>
                 <div
                   className={styles.hoverPreview}
                   data-visible={isActive && isHovered ? "true" : "false"}

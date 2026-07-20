@@ -71,6 +71,13 @@
   box-shadow: 0 4px 30px color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
 }
 
+.individualViewerButton:focus-visible .individualViewerFrame {
+  border-color: var(--halo-cyan);
+  box-shadow:
+    0 4px 30px color-mix(in srgb, var(--halo-cyan) 35%, transparent),
+    0 0 0 2px color-mix(in srgb, var(--halo-cyan) 65%, transparent);
+}
+
 .expandHint {
   background: rgb(0 0 0 / 72%);
   border: 1px solid color-mix(in srgb, var(--halo-cyan) 35%, transparent);
