@@ -3,6 +3,7 @@ import type { SessionResponse } from "@guilty-spark/shared/contracts/auth/sessio
 import { Dropdown } from "../dropdown/dropdown";
 import type { AuthService } from "../../services/auth/types";
 import { installAuthService } from "../../services/auth/install";
+import { ProfileAvatar } from "./profile-avatar";
 import styles from "./profile-menu.module.css";
 
 interface ProfileMenuProps {
@@ -43,27 +44,9 @@ export function ProfileMenu({ apiHost }: ProfileMenuProps): React.ReactElement {
     };
   }, [apiHost]);
 
-  const avatarUrl = session.authenticated ? (session.avatarUrl ?? null) : null;
+  const avatarUrl = session.authenticated && !avatarFailed ? (session.avatarUrl ?? null) : null;
 
-  const avatar = (
-    <span className={styles.profileAvatar} aria-hidden="true">
-      {avatarUrl != null && avatarUrl !== "" && !avatarFailed ? (
-        <img
-          src={avatarUrl}
-          className={styles.profileAvatarImage}
-          alt=""
-          onError={() => {
-            setAvatarFailed(true);
-          }}
-        />
-      ) : (
-        <span className={styles.profileAvatarGeneric}>
-          <span className={styles.avatarHead} />
-          <span className={styles.avatarBody} />
-        </span>
-      )}
-    </span>
-  );
+  const avatar = <ProfileAvatar avatarUrl={avatarUrl} onError={() => setAvatarFailed(true)} />;
 
   const profileTrigger = <span className={styles.profileIconButton}>{avatar}</span>;
 

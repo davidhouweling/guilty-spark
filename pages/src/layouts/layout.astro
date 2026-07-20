@@ -15,6 +15,8 @@ const {
   description = "A powerful Discord bot that brings Halo Infinite match statistics to your server. Track custom games, generate HCS maps, and analyze player performance.",
   fullFooter = false,
 } = Astro.props;
+
+const hasAuthSessionCookie = Astro.cookies.has("auth-session");
 ---
 
 <!doctype html>
@@ -89,7 +91,7 @@ const {
     <title>{title}</title>
   </head>
   <body>
-    <Header />
+    <Header hasAuthSessionCookie={hasAuthSessionCookie} />
     <main>
       <slot />
     </main>
