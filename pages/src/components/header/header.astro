@@ -25,6 +25,7 @@ const navLinks: NavLink[] = [
   { href: "/guides/obs-overlays", label: "OBS Guide" },
   { href: "/faq", label: "FAQ" },
 ];
+const signInLinkClassName = [styles.iconLink, profileMenuStyles.profileIconButton].join(" ");
 ---
 
 <nav id="halo-nav" class={styles.haloNav} aria-label="Primary">
@@ -87,14 +88,9 @@ const navLinks: NavLink[] = [
         </a>
         {
           hasAuthSessionCookie ? (
-            <ProfileMenu client:load apiHost={API_HOST} />
+            <ProfileMenu client:load apiHost={API_HOST} iconLinkClassName={styles.iconLink} />
           ) : (
-            <a
-              href="/login"
-              class={`${styles.iconLink} ${profileMenuStyles.profileIconButton}`}
-              aria-label="Sign in"
-              title="Sign in"
-            >
+            <a href="/login" class={signInLinkClassName} aria-label="Sign in" title="Sign in">
               <ProfileAvatar />
             </a>
           )

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import classNames from "classnames";
 import type { SessionResponse } from "@guilty-spark/shared/contracts/auth/session";
 import { Dropdown } from "../dropdown/dropdown";
 import type { AuthService } from "../../services/auth/types";
@@ -8,9 +9,10 @@ import styles from "./profile-menu.module.css";
 
 interface ProfileMenuProps {
   readonly apiHost: string;
+  readonly iconLinkClassName?: string;
 }
 
-export function ProfileMenu({ apiHost }: ProfileMenuProps): React.ReactElement {
+export function ProfileMenu({ apiHost, iconLinkClassName }: ProfileMenuProps): React.ReactElement {
   const [authService, setAuthService] = useState<AuthService | null>(null);
   const [session, setSession] = useState<SessionResponse>({ authenticated: false });
   const [avatarFailed, setAvatarFailed] = useState(false);
@@ -59,7 +61,12 @@ export function ProfileMenu({ apiHost }: ProfileMenuProps): React.ReactElement {
 
   if (!session.authenticated) {
     return (
-      <a href="/login" className={styles.profileIconButton} aria-label="Sign in" title="Sign in">
+      <a
+        href="/login"
+        className={classNames(styles.profileIconButton, iconLinkClassName)}
+        aria-label="Sign in"
+        title="Sign in"
+      >
         {avatar}
       </a>
     );
