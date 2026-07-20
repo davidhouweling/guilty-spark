@@ -7,7 +7,9 @@ export function LiveTrackersOnboarding(): React.ReactElement {
       <h3 className={styles.title}>Getting Started with Individual Tracking</h3>
       <ol className={styles.steps}>
         <li className={styles.step}>
-          <div className={styles.stepNumber}>1</div>
+          <div className={styles.stepNumber} aria-hidden="true">
+            1
+          </div>
           <div className={styles.stepContent}>
             <h4 className={styles.stepTitle}>Start a Tracker</h4>
             <p className={styles.stepDescription}>
@@ -17,7 +19,9 @@ export function LiveTrackersOnboarding(): React.ReactElement {
         </li>
 
         <li className={styles.step}>
-          <div className={styles.stepNumber}>2</div>
+          <div className={styles.stepNumber} aria-hidden="true">
+            2
+          </div>
           <div className={styles.stepContent}>
             <h4 className={styles.stepTitle}>Configure Stats & Settings</h4>
             <p className={styles.stepDescription}>
@@ -28,7 +32,9 @@ export function LiveTrackersOnboarding(): React.ReactElement {
         </li>
 
         <li className={styles.step}>
-          <div className={styles.stepNumber}>3</div>
+          <div className={styles.stepNumber} aria-hidden="true">
+            3
+          </div>
           <div className={styles.stepContent}>
             <h4 className={styles.stepTitle}>Share Viewer URL</h4>
             <p className={styles.stepDescription}>
@@ -39,7 +45,9 @@ export function LiveTrackersOnboarding(): React.ReactElement {
         </li>
 
         <li className={styles.step}>
-          <div className={styles.stepNumber}>4</div>
+          <div className={styles.stepNumber} aria-hidden="true">
+            4
+          </div>
           <div className={styles.stepContent}>
             <h4 className={styles.stepTitle}>Add Overlay to Stream</h4>
             <p className={styles.stepDescription}>
