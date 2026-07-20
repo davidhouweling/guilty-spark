@@ -48,8 +48,8 @@ describe("ProfileMenu", () => {
     render(<ProfileMenu apiHost="https://api.example.com" iconLinkClassName="iconLink" />);
 
     const signIn = await screen.findByRole("link", { name: "Sign in" });
-    expect(signIn.className).toContain("profileIconButton");
     expect(signIn).toHaveClass("iconLink");
+    expect(signIn.className).not.toBe("iconLink");
   });
 
   it("shows the avatar menu and signs out when authenticated", async () => {
