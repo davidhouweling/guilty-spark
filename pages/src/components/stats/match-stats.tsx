@@ -1,4 +1,5 @@
 import type { MatchStats } from "halo-infinite-api";
+import { Heading } from "../heading/heading";
 import React from "react";
 import classNames from "classnames";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
@@ -234,7 +235,7 @@ export function MatchStats({
       {hasTeamStats && (
         <div className={styles.teamTotals}>
           <Container>
-            <h3 className={styles.subsectionHeader}>Team Totals</h3>
+            <Heading tagName="h3">Team Totals</Heading>
           </Container>
           <SortableTable
             data={data}

@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useRef } from "react";
 import classNames from "classnames";
+import { Heading } from "../heading/heading";
 import styles from "./dialog.module.css";
 
 interface DialogProps {
@@ -72,9 +73,9 @@ export function Dialog({
             <path d="M18 6L6 18M6 6l12 12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <h2 id={titleId} className={styles.title}>
+        <Heading tagName="h2" className={styles.title} id={titleId}>
           {title}
-        </h2>
+        </Heading>
         <div className={classNames(styles.body, bodyClassName)}>{children}</div>
         {footer != null && <div className={styles.footer}>{footer}</div>}
       </div>

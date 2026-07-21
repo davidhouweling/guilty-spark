@@ -1,4 +1,5 @@
 import React from "react";
+import { Heading } from "../heading/heading";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { normalizeOutcomeString } from "@guilty-spark/shared/halo/match-enrichment";
 import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
@@ -98,9 +99,9 @@ export function MatchCard({
           <div className={styles.matchHeader}>
             <div className={styles.matchHeaderContent}>
               <div className={styles.matchTitleRow}>
-                <h3 className={styles.matchTitle}>
+                <Heading tagName="h3" className={styles.matchTitle}>
                   {entry.modeName}: {entry.mapName}
-                </h3>
+                </Heading>
                 <span className={styles.categoryBadge} data-category={entry.category}>
                   {categoryLabel}
                 </span>

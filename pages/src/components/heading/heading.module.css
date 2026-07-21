@@ -1,38 +1,47 @@
 .heading {
   color: var(--halo-white);
   font-family: var(--font-heading);
+  margin: 0;
+}
+
+/* Base styling for semantic levels */
+.h1,
+.h2,
+.h3,
+.h4,
+.h5,
+.h6 {
   letter-spacing: 0.06em;
   line-height: 1.15;
-  margin: 0;
   text-transform: uppercase;
 }
 
 .h1 {
-  font-size: clamp(2rem, 5.5vw, 3rem);
+  font-size: var(--text-4xl);
   font-weight: 800;
 }
 
 .h2 {
-  font-size: clamp(1.55rem, 4vw, 2.1rem);
+  font-size: var(--text-3xl);
   font-weight: 700;
 }
 
 .h3 {
-  font-size: clamp(1.2rem, 3.2vw, 1.55rem);
+  font-size: var(--text-2xl);
   font-weight: 700;
 }
 
 .h4 {
-  font-size: clamp(1.05rem, 2.5vw, 1.3rem);
+  font-size: var(--text-xl);
   font-weight: 700;
 }
 
 .h5 {
-  font-size: var(--text-base);
+  font-size: var(--text-lg);
   font-weight: 700;
 }
 
 .h6 {
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   font-weight: 700;
 }

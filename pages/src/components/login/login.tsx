@@ -1,4 +1,5 @@
 import React from "react";
+import { Heading } from "../heading/heading";
 import { Button } from "../button/button";
 import styles from "./login.module.css";
 
@@ -9,7 +10,7 @@ interface LoginProps {
 export function Login({ signInHref }: LoginProps): React.ReactElement {
   return (
     <div className={styles.card}>
-      <h1 className={styles.heading}>Sign In</h1>
+      <Heading tagName="h1">Sign In</Heading>
       <p className={styles.subtext}>Authenticate with Microsoft to access your saved tracker profile.</p>
       <Button href={signInHref} className={styles.signInButton}>
         Continue With Microsoft

@@ -1,4 +1,5 @@
 import React from "react";
+import { Heading } from "../heading/heading";
 import { Container } from "../container/container";
 import styles from "./match-stats.module.css";
 
@@ -29,7 +30,9 @@ export function StatsHeader({
   return (
     <Container className={styles.matchHeader} style={backgroundStyle}>
       <div className={styles.matchHeaderContent}>
-        <h3 className={styles.matchTitle}>{title}</h3>
+        <Heading tagName="h3" className={styles.matchTitle}>
+          {title}
+        </Heading>
         {subtitle != null && subtitle !== "" ? <p className={styles.matchSubtitle}>{subtitle}</p> : null}
         <ul className={styles.matchMetadata}>
           {metadata.map((item) => (

@@ -3,6 +3,7 @@ import { Button } from "../../button/button";
 import { Checkbox } from "../../checkbox/checkbox";
 import { Input } from "../../input/input";
 import type { TickerSettings } from "./types";
+import { Heading } from "../../heading/heading";
 import { ALL_SLAYER_STATS, MAX_PREVIOUS_GAMES_TO_SHOW, MEDAL_RARITY_LEVELS, MIN_PREVIOUS_GAMES_TO_SHOW } from "./types";
 import styles from "./ticker-settings-section.module.css";
 
@@ -78,7 +79,7 @@ export function TickerSettingsSection({
   return (
     <div className={styles.container}>
       <div className={styles.section}>
-        <h4 className={styles.subsectionHeader}>Tabs</h4>
+        <Heading tagName="h5">Tabs</Heading>
         <p className={styles.sectionDescription}>Configure how many recent match tabs are shown.</p>
         <Input
           label="Max number of previous games to show"
@@ -95,8 +96,11 @@ export function TickerSettingsSection({
       <hr className={styles.sectionDivider} />
 
       <div className={styles.section}>
-        <h4 className={styles.subsectionHeader}>Information ticker</h4>
-        <p className={styles.sectionDescription}>Customize stats and medals shown in the ticker.</p>
+        <Heading tagName="h5">Information ticker</Heading>
+        <p className={styles.sectionDescription}>
+          Customize stats and medals shown in the ticker. Toggle visibility available in the Series UI / Matchmaking UI
+          sections further down.
+        </p>
 
         {showTickerVisibilityToggle ? (
           <Checkbox
@@ -112,7 +116,7 @@ export function TickerSettingsSection({
       {/* Stats Selection */}
       <div className={styles.section}>
         <div className={styles.sectionTitleRow}>
-          <h4 className={styles.subsectionHeader}>Slayer Statistics</h4>
+          <Heading tagName="h6">Slayer Statistics</Heading>
           <div className={styles.bulkActions}>
             <Button onClick={handleSelectAll} variant="secondary" size="small">
               Select All
@@ -152,7 +156,7 @@ export function TickerSettingsSection({
 
       {/* Medal Rarity Filter */}
       <div className={styles.section}>
-        <h4 className={styles.subsectionHeader}>Medal Rarity Filter</h4>
+        <Heading tagName="h6">Medal Rarity Filter</Heading>
         <p className={styles.sectionDescription}>Select which medal rarities to display in the ticker</p>
 
         <div className={styles.checkboxGrid}>

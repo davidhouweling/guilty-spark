@@ -2,6 +2,7 @@ import React from "react";
 import { Checkbox } from "../../checkbox/checkbox";
 import type { DisplaySettings } from "./types";
 import styles from "./display-settings-section.module.css";
+import { Heading } from "../../heading/heading";
 
 interface DisplaySettingsSectionProps {
   readonly settings: DisplaySettings;
@@ -13,7 +14,7 @@ export function DisplaySettingsSection({ settings, onChange }: DisplaySettingsSe
     <div className={styles.container}>
       {/* Team Details Section */}
       <div className={styles.section}>
-        <h4 className={styles.subsectionHeader}>Team Information</h4>
+        <Heading tagName="h5">Team Information</Heading>
 
         <Checkbox
           checked={settings.showTeamDetails}
@@ -66,7 +67,7 @@ export function DisplaySettingsSection({ settings, onChange }: DisplaySettingsSe
 
       {/* Queue Info Section */}
       <div className={styles.section}>
-        <h4 className={styles.subsectionHeader}>Queue Information</h4>
+        <Heading tagName="h5">Queue Information</Heading>
         <p className={styles.sectionDescription}>Control the parts shown in the top section</p>
 
         <Checkbox
