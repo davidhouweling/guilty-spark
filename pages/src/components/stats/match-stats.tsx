@@ -1,7 +1,7 @@
 import type { MatchStats } from "halo-infinite-api";
-import { Heading } from "../heading/heading";
 import React from "react";
 import classNames from "classnames";
+import { Heading } from "../heading/heading";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
 import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";

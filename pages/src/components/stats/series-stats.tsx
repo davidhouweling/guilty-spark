@@ -1,6 +1,6 @@
 import React from "react";
-import { Heading } from "../heading/heading";
 import classNames from "classnames";
+import { Heading } from "../heading/heading";
 import type { ComponentLoaderStatus } from "../component-loader/component-loader";
 import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";

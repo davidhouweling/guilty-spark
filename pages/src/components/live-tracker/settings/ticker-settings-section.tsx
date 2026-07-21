@@ -2,8 +2,8 @@ import React from "react";
 import { Button } from "../../button/button";
 import { Checkbox } from "../../checkbox/checkbox";
 import { Input } from "../../input/input";
-import type { TickerSettings } from "./types";
 import { Heading } from "../../heading/heading";
+import type { TickerSettings } from "./types";
 import { ALL_SLAYER_STATS, MAX_PREVIOUS_GAMES_TO_SHOW, MEDAL_RARITY_LEVELS, MIN_PREVIOUS_GAMES_TO_SHOW } from "./types";
 import styles from "./ticker-settings-section.module.css";
 

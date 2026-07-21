@@ -1,7 +1,7 @@
 import React from "react";
-import { Heading } from "../heading/heading";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getDefaultSeriesGroupTitle } from "@guilty-spark/shared/individual-tracker/series-grouping";
+import { Heading } from "../heading/heading";
 import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
 import type { IndividualTrackerSeriesGroup } from "../individual-tracker/series-group-metadata";
 import { getDefaultSeriesGroupSubtitle } from "../individual-tracker/series-group-metadata";

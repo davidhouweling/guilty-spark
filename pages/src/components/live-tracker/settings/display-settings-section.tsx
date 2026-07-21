@@ -1,8 +1,8 @@
 import React from "react";
 import { Checkbox } from "../../checkbox/checkbox";
+import { Heading } from "../../heading/heading";
 import type { DisplaySettings } from "./types";
 import styles from "./display-settings-section.module.css";
-import { Heading } from "../../heading/heading";
 
 interface DisplaySettingsSectionProps {
   readonly settings: DisplaySettings;

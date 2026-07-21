@@ -1,6 +1,6 @@
 import { type CSSProperties, type ReactElement } from "react";
-import { Heading } from "../heading/heading";
 import classNames from "classnames";
+import { Heading } from "../heading/heading";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";

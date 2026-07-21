@@ -1,7 +1,7 @@
 import React from "react";
-import { Heading } from "../heading/heading";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { normalizeOutcomeString } from "@guilty-spark/shared/halo/match-enrichment";
+import { Heading } from "../heading/heading";
 import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
 import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
 import { Checkbox } from "../checkbox/checkbox";

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Heading } from "../heading/heading";
 import ReactTimeAgo from "react-time-ago";
 import classNames from "classnames";
+import { Heading } from "../heading/heading";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
 import { Container } from "../container/container";
