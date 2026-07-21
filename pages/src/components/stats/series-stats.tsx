@@ -1,5 +1,6 @@
 import React from "react";
 import classNames from "classnames";
+import { Heading } from "../heading/heading";
 import type { ComponentLoaderStatus } from "../component-loader/component-loader";
 import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";
@@ -217,7 +218,9 @@ export function SeriesStats({
       {hasTeamStats && (
         <>
           <Container>
-            <h3 className={styles.subsectionHeader}>Accumulated Team Stats</h3>
+            <Heading tagName="h3" styleAs="h6" className={styles.subsectionHeader}>
+              Accumulated Team Stats
+            </Heading>
           </Container>
           <SortableTable
             data={teamData}

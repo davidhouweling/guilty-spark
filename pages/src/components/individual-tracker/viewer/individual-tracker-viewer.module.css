@@ -32,16 +32,6 @@
   margin-bottom: var(--space-5);
 }
 
-.title {
-  color: var(--halo-white);
-  display: inline-block;
-  font-family: var(--font-heading);
-  font-size: var(--text-2xl);
-  letter-spacing: 0.04em;
-  margin: 0;
-  text-transform: uppercase;
-}
-
 .badges {
   align-items: center;
   display: flex;
@@ -229,12 +219,6 @@
   position: fixed;
   transform: translateX(-50%);
   z-index: 20;
-}
-
-.sectionTitle {
-  font-family: var(--font-heading);
-  font-size: var(--text-lg);
-  margin: 0;
 }
 
 @media (--tablet-viewport) {

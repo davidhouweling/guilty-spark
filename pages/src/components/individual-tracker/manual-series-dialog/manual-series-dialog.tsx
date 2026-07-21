@@ -3,6 +3,7 @@ import { Button } from "../../button/button";
 import { Dialog } from "../../dialog/dialog";
 import { Input } from "../../input/input";
 import { Alert } from "../../alert/alert";
+import { Heading } from "../../heading/heading";
 import { createMatchHistorySection } from "../../match-history/create";
 import type { ManualSeriesDialogSnapshot, ManualSeriesTeamSnapshot } from "./manual-series-dialog-store";
 import styles from "./manual-series-dialog.module.css";
@@ -42,7 +43,7 @@ function TeamColumn({
 }): React.JSX.Element {
   return (
     <div className={styles.teamColumn}>
-      <h4 className={styles.teamTitle}>Team {teamIndex + 1}</h4>
+      <Heading tagName="h4">Team {teamIndex + 1}</Heading>
       <Input
         label="Team name (optional)"
         value={team.name}
@@ -135,7 +136,9 @@ export function ManualSeriesDialog({
         </p>
 
         <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>Series details (optional)</h3>
+          <Heading tagName="h3" styleAs="h6">
+            Series details (optional)
+          </Heading>
           <div className={styles.metaGrid}>
             <Input
               label="Series title"
@@ -157,7 +160,9 @@ export function ManualSeriesDialog({
         </section>
 
         <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>Teams</h3>
+          <Heading tagName="h3" styleAs="h6">
+            Teams
+          </Heading>
 
           <div className={styles.teamsGrid}>
             {snapshot.teams.map((team, teamIndex) => (

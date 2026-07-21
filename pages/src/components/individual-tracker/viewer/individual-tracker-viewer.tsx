@@ -7,6 +7,7 @@ import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import { summarizeSeriesOutcome } from "@guilty-spark/shared/halo/match-enrichment";
 import { Alert } from "../../alert/alert";
+import { Heading } from "../../heading/heading";
 import { Button } from "../../button/button";
 import { Container } from "../../container/container";
 import { LoadingState } from "../../loading-state/loading-state";
@@ -375,7 +376,9 @@ export function IndividualTrackerViewer({
       )}
       <Container>
         <div className={styles.header}>
-          <h1 className={styles.title}>{renderModel.gamertag} Tracker</h1>
+          <Heading tagName="h1" styleAs="h3" variant="display">
+            {renderModel.gamertag} Tracker
+          </Heading>
           <div className={styles.badges}>
             <span
               className={classNames(styles.statusBadge, {
@@ -394,7 +397,9 @@ export function IndividualTrackerViewer({
       </Container>
       <section className={styles.matchesSection}>
         <Container>
-          <h2 className={styles.sectionTitle}>Tracked Gameplay</h2>
+          <Heading tagName="h2" styleAs="h5">
+            Tracked Gameplay
+          </Heading>
         </Container>
         <Container mobileDown="0">
           <StatsHighlights items={renderModel.statsHighlights ?? []} />

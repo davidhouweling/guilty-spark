@@ -2,6 +2,7 @@ import React from "react";
 import { INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { Alert } from "../../alert/alert";
 import { Checkbox } from "../../checkbox/checkbox";
+import { Heading } from "../../heading/heading";
 import { Select } from "../../select/select";
 import type { StatsHighlightsSectionViewModel } from "./types";
 import styles from "./stats-highlights.module.css";
@@ -26,7 +27,9 @@ export function StatsHighlightsSectionView({
 }: StatsHighlightsSectionViewProps): React.ReactElement {
   return (
     <div className={styles.panel}>
-      <h2 className={styles.sectionTitle}>Stats Highlights</h2>
+      <Heading tagName="h2" styleAs="h3">
+        Stats Highlights
+      </Heading>
       <p className={styles.sectionDescription}>
         Control the stats highlights row shown in the tracker view. Choose whether it is visible, how many highlight
         slots are shown, and which metric appears in each slot.
@@ -65,7 +68,9 @@ export function StatsHighlightsSectionView({
 
       {isEnabled ? (
         <div className={styles.card}>
-          <h3 className={styles.cardTitle}>Selected Highlights</h3>
+          <Heading tagName="h3" styleAs="h5">
+            Selected Highlights
+          </Heading>
           <p className={styles.cardDescription}>
             Each slot keeps its own label in the stats highlights row and updates live from the durable object.
           </p>

@@ -1,6 +1,7 @@
 import type { MatchStats } from "halo-infinite-api";
 import React from "react";
 import classNames from "classnames";
+import { Heading } from "../heading/heading";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
 import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";
@@ -234,7 +235,9 @@ export function MatchStats({
       {hasTeamStats && (
         <div className={styles.teamTotals}>
           <Container>
-            <h3 className={styles.subsectionHeader}>Team Totals</h3>
+            <Heading tagName="h3" styleAs="h6" className={styles.subsectionHeader}>
+              Team Totals
+            </Heading>
           </Container>
           <SortableTable
             data={data}

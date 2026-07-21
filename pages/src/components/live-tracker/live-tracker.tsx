@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import ReactTimeAgo from "react-time-ago";
 import classNames from "classnames";
+import { Heading } from "../heading/heading";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
 import { SeriesStats } from "../stats/series-stats";
 import { Container } from "../container/container";
@@ -235,7 +236,9 @@ export function LiveTrackerView(): React.ReactElement {
       <Container>
         <div className={styles.headerBar}>
           <div className={styles.headerLeft}>
-            <h1 className={styles.headerTitle}>{displayTitle}</h1>
+            <Heading tagName="h1" styleAs="h3">
+              {displayTitle}
+            </Heading>
             <div className={styles.headerSubtitle}>
               {hasState(state) ? `Queue #${state.queueNumber.toString()}` : displaySubtitle}
             </div>
@@ -270,14 +273,16 @@ export function LiveTrackerView(): React.ReactElement {
           <>
             {hasState(state) && (
               <Container className={classNames(styles.contentContainer, styles[viewMode])}>
-                <h2 className={styles.sectionTitle}>Series overview</h2>
+                <Heading tagName="h2" styleAs="h3" spacing={3}>
+                  Series overview
+                </Heading>
                 <div className={styles.seriesOverview}>
                   <section className={styles.seriesScores}>
                     {hasMatches ? (
                       <>
-                        <h3 className={styles.seriesScoresHeader} aria-label="Series scores">
+                        <Heading tagName="h3" className={styles.seriesScoresHeader} aria-label="Series scores">
                           {state.seriesScore}
-                        </h3>
+                        </Heading>
                         <ul className={styles.seriesScoresList}>
                           {state.matches.map((match) => {
                             // Determine winning team for overlay color
@@ -346,7 +351,9 @@ export function LiveTrackerView(): React.ReactElement {
                         className={styles.teamCard}
                         style={{ "--team-color": teamColor.hex } as React.CSSProperties}
                       >
-                        <h3 className={styles.teamName}>{team.name}</h3>
+                        <Heading tagName="h3" className={styles.teamName}>
+                          {team.name}
+                        </Heading>
                         <ul className={styles.playerList}>
                           {team.players.map((player) => {
                             const playerData = state.playersAssociationData?.[player.id];
@@ -386,7 +393,9 @@ export function LiveTrackerView(): React.ReactElement {
             {hasState(state) && hasMatches && (
               <>
                 <Container className={classNames(styles.contentContainer, styles[viewMode])}>
-                  <h2 className={styles.sectionTitle}>Matches</h2>
+                  <Heading tagName="h2" styleAs="h3" spacing={3}>
+                    Matches
+                  </Heading>
                 </Container>
                 {((): React.ReactElement[] => {
                   const elements: React.ReactElement[] = [];

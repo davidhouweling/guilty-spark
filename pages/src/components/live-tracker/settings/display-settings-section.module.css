@@ -11,10 +11,8 @@
 }
 
 .subsectionHeader {
-  color: var(--halo-white);
-  font-size: var(--text-base);
+  font-family: var(--font-body);
   font-weight: 600;
-  margin: 0 0 var(--space-1) 0;
 }
 
 .sectionDescription {

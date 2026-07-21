@@ -2,6 +2,7 @@ import React from "react";
 import ReactTimeAgo from "react-time-ago";
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
+import { Heading } from "../heading/heading";
 import { RankIcon } from "../icons/rank-icon";
 import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";
@@ -218,7 +219,9 @@ export function PlayerPreSeriesInfo({
   return (
     <Container className={className}>
       <div className={styles.container}>
-        <h2 className={styles.title}>Player Info</h2>
+        <Heading tagName="h2" styleAs="h3" spacing={4}>
+          Player Info
+        </Heading>
         <SortableTable
           data={playerRows}
           columns={columns}

@@ -4,15 +4,6 @@
   padding: var(--space-6) var(--gutter-mobile);
 }
 
-.heading {
-  color: var(--halo-white);
-  font-family: var(--font-heading);
-  font-size: var(--text-3xl);
-  letter-spacing: 0.04em;
-  margin: 0 0 var(--space-6);
-  text-transform: uppercase;
-}
-
 .authWall {
   align-items: center;
   display: flex;

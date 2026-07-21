@@ -1,6 +1,7 @@
 import React from "react";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getDefaultSeriesGroupTitle } from "@guilty-spark/shared/individual-tracker/series-grouping";
+import { Heading } from "../heading/heading";
 import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
 import type { IndividualTrackerSeriesGroup } from "../individual-tracker/series-group-metadata";
 import { getDefaultSeriesGroupSubtitle } from "../individual-tracker/series-group-metadata";
@@ -156,9 +157,9 @@ export function MatchHistory({
                 <section key={`group-${String(segment.groupIndex)}`} className={styles.seriesBlock} style={groupStyle}>
                   <div className={styles.seriesHeader}>
                     <div className={styles.seriesHeaderTopRow}>
-                      <h3 className={styles.seriesTitle}>
+                      <Heading tagName="h3" className={styles.seriesTitle}>
                         {segment.seriesGroup?.titleOverride ?? getDefaultSeriesGroupTitle()}
-                      </h3>
+                      </Heading>
                       <p className={styles.seriesGameCount}>{groupMatchIds.length} games</p>
                     </div>
                     <div className={styles.seriesLabelOptions}>

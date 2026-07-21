@@ -1,6 +1,7 @@
 import React from "react";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { normalizeOutcomeString } from "@guilty-spark/shared/halo/match-enrichment";
+import { Heading } from "../heading/heading";
 import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
 import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
 import { Checkbox } from "../checkbox/checkbox";
@@ -98,9 +99,9 @@ export function MatchCard({
           <div className={styles.matchHeader}>
             <div className={styles.matchHeaderContent}>
               <div className={styles.matchTitleRow}>
-                <h3 className={styles.matchTitle}>
+                <Heading tagName="h3" className={styles.matchTitle}>
                   {entry.modeName}: {entry.mapName}
-                </h3>
+                </Heading>
                 <span className={styles.categoryBadge} data-category={entry.category}>
                   {categoryLabel}
                 </span>

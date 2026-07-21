@@ -1,38 +1,46 @@
 .heading {
   color: var(--halo-white);
   font-family: var(--font-heading);
-  letter-spacing: 0.06em;
-  line-height: 1.15;
+  font-weight: 700;
   margin: 0;
-  text-transform: uppercase;
 }
 
+/* Base font-size ladder by semantic level, independent of visual variant */
 .h1 {
-  font-size: clamp(2rem, 5.5vw, 3rem);
-  font-weight: 800;
+  font-size: var(--text-4xl);
 }
 
 .h2 {
-  font-size: clamp(1.55rem, 4vw, 2.1rem);
-  font-weight: 700;
+  font-size: var(--text-3xl);
 }
 
 .h3 {
-  font-size: clamp(1.2rem, 3.2vw, 1.55rem);
-  font-weight: 700;
+  font-size: var(--text-2xl);
 }
 
 .h4 {
-  font-size: clamp(1.05rem, 2.5vw, 1.3rem);
-  font-weight: 700;
+  font-size: var(--text-xl);
 }
 
 .h5 {
-  font-size: var(--text-base);
-  font-weight: 700;
+  font-size: var(--text-lg);
 }
 
 .h6 {
-  font-size: var(--text-sm);
-  font-weight: 700;
+  font-size: var(--text-base);
+}
+
+/* display: loud, uppercase treatment for page/hero-level titles. plain (default) has no extra rules. */
+.display {
+  letter-spacing: 0.06em;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.display.h1 {
+  font-weight: 800;
+}
+
+.spaced {
+  margin-bottom: var(--heading-spacing);
 }

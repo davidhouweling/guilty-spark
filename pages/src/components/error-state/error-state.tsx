@@ -1,4 +1,5 @@
 import React from "react";
+import { Heading } from "../heading/heading";
 import styles from "./error-state.module.css";
 
 interface ErrorStateProps {
@@ -18,7 +19,9 @@ export function ErrorState({ message, onRetry }: ErrorStateProps): React.ReactEl
         <div className={styles.iconGlow}></div>
       </div>
       <div className={styles.content}>
-        <h3 className={styles.errorTitle}>Connection Failed</h3>
+        <Heading tagName="h3" variant="display">
+          Connection Failed
+        </Heading>
         <p className={styles.errorMessage}>{message ?? "Unable to establish connection to the server."}</p>
         {onRetry && (
           <button className={styles.retryButton} onClick={onRetry} type="button">

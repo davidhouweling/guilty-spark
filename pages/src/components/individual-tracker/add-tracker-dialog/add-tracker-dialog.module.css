@@ -8,13 +8,6 @@
   padding: var(--space-4);
 }
 
-.sectionTitle {
-  color: var(--halo-white);
-  font-family: var(--font-heading);
-  font-size: var(--text-lg);
-  margin: 0;
-}
-
 .sectionDescription {
   color: var(--halo-gray);
   flex: 1 1 auto;

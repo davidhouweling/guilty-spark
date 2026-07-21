@@ -1,5 +1,6 @@
 import { type CSSProperties, type ReactElement } from "react";
 import classNames from "classnames";
+import { Heading } from "../heading/heading";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
 import { MatchStats as MatchStatsView } from "../stats/match-stats";
@@ -44,7 +45,9 @@ interface TeamCardSectionProps {
 function TeamCardSection({ team }: TeamCardSectionProps): ReactElement {
   return (
     <section className={styles.teamCard} style={{ "--team-color": team.teamColorHex } as CSSProperties}>
-      <h3 className={styles.teamName}>{team.name}</h3>
+      <Heading tagName="h3" className={styles.teamName}>
+        {team.name}
+      </Heading>
       <ul className={styles.playerList}>
         {team.players.map((player, playerIndex) => (
           <li key={`${team.name}:${player}:${playerIndex.toString()}`}>{player}</li>
@@ -102,11 +105,15 @@ export function SeriesStatsView({
   return (
     <div className={styles.seriesStats}>
       <Container className={styles.contentContainer}>
-        <h2 className={styles.sectionTitle}>Series overview</h2>
+        <Heading tagName="h2" styleAs="h3">
+          Series overview
+        </Heading>
         <div className={styles.seriesOverviewWrap}>
           <div className={styles.seriesOverview}>
             <section className={styles.seriesScores}>
-              <h3 className={styles.seriesScoresHeader}>{seriesScore}</h3>
+              <Heading tagName="h3" className={styles.seriesScoresHeader}>
+                {seriesScore}
+              </Heading>
               <ul className={styles.seriesScoresList}>
                 {matchSummaries.map((summary) => (
                   <MatchSummaryItem key={summary.matchId} summary={summary} />
@@ -140,7 +147,9 @@ export function SeriesStatsView({
       )}
 
       <Container className={styles.contentContainer}>
-        <h2 className={styles.sectionTitle}>Matches</h2>
+        <Heading tagName="h2" styleAs="h3">
+          Matches
+        </Heading>
       </Container>
 
       {matchDetails.map((detail) => (

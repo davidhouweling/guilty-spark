@@ -13,15 +13,6 @@
   width: 100%;
 }
 
-.heading {
-  color: var(--halo-white);
-  font-family: var(--font-heading);
-  font-size: var(--text-3xl);
-  letter-spacing: 0.04em;
-  margin: 0;
-  text-transform: uppercase;
-}
-
 .subtext {
   color: var(--halo-gray);
   margin: var(--space-3) 0 var(--space-6);

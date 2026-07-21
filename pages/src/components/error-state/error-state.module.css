@@ -43,16 +43,6 @@
   text-align: center;
 }
 
-.errorTitle {
-  color: var(--halo-white);
-  font-family: var(--font-heading);
-  font-size: var(--text-2xl);
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  margin: 0;
-  text-transform: uppercase;
-}
-
 .errorMessage {
   color: var(--halo-gray);
   font-family: var(--font-body);
