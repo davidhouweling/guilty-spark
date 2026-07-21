@@ -3,6 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { Heading } from "../heading";
+import styles from "../heading.module.css";
 
 describe("Heading", () => {
   afterEach(() => {
@@ -20,7 +21,7 @@ describe("Heading", () => {
     render(<Heading tagName="h2">Plain title</Heading>);
 
     const heading = screen.getByRole("heading", { name: "Plain title" });
-    expect(heading.className).not.toContain("display");
+    expect(heading.className.split(" ")).not.toContain(styles.display);
   });
 
   it("applies the display variant when requested", () => {
@@ -31,7 +32,7 @@ describe("Heading", () => {
     );
 
     const heading = screen.getByRole("heading", { name: "Display title" });
-    expect(heading.className).toContain("display");
+    expect(heading.className.split(" ")).toContain(styles.display);
   });
 
   it("sets a heading-spacing CSS variable from the space scale when spacing is provided", () => {
@@ -60,8 +61,9 @@ describe("Heading", () => {
     );
 
     const heading = screen.getByRole("heading", { level: 3, name: "Styled title" });
-    expect(heading.className).toContain("_h5_");
-    expect(heading.className).not.toContain("_h3_");
+    const classes = heading.className.split(" ");
+    expect(classes).toContain(styles.h5);
+    expect(classes).not.toContain(styles.h3);
   });
 
   it("merges a consumer-provided className alongside the base heading classes", () => {
