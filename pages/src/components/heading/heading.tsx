@@ -8,6 +8,7 @@ type HeadingSpacing = 1 | 2 | 3 | 4 | 5 | 6 | 8 | 10 | 12 | 16 | 20 | 24;
 
 interface HeadingProps extends React.HTMLAttributes<HTMLHeadingElement> {
   readonly tagName: HeadingTag;
+  readonly styleAs?: HeadingTag;
   readonly variant?: HeadingVariant;
   readonly spacing?: HeadingSpacing;
   readonly children: React.ReactNode;
@@ -15,6 +16,7 @@ interface HeadingProps extends React.HTMLAttributes<HTMLHeadingElement> {
 
 export function Heading({
   tagName,
+  styleAs,
   variant = "plain",
   spacing,
   children,
@@ -32,7 +34,7 @@ export function Heading({
     <Tag
       className={classNames(
         styles.heading,
-        styles[tagName],
+        styles[styleAs ?? tagName],
         styles[variant],
         spacing !== undefined && styles.spaced,
         className,

@@ -13,10 +13,6 @@
   padding: 0;
 }
 
-.sectionTitle {
-  font-size: var(--text-2xl);
-}
-
 .seriesOverviewWrap {
   overflow-x: auto;
 }

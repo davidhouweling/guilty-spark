@@ -141,7 +141,6 @@
 .subsectionHeader {
   color: var(--halo-gray, #9ca3af);
   font-family: var(--font-body, "Inter", sans-serif);
-  font-size: var(--text-base);
   font-weight: 500;
   margin: var(--space-3) 0 0;
 }

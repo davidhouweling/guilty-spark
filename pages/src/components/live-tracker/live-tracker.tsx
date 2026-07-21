@@ -236,7 +236,7 @@ export function LiveTrackerView(): React.ReactElement {
       <Container>
         <div className={styles.headerBar}>
           <div className={styles.headerLeft}>
-            <Heading tagName="h1" className={styles.headerTitle}>
+            <Heading tagName="h1" styleAs="h3">
               {displayTitle}
             </Heading>
             <div className={styles.headerSubtitle}>
@@ -273,7 +273,7 @@ export function LiveTrackerView(): React.ReactElement {
           <>
             {hasState(state) && (
               <Container className={classNames(styles.contentContainer, styles[viewMode])}>
-                <Heading tagName="h2" spacing={3} className={styles.sectionTitle}>
+                <Heading tagName="h2" styleAs="h3" spacing={3}>
                   Series overview
                 </Heading>
                 <div className={styles.seriesOverview}>
@@ -393,7 +393,7 @@ export function LiveTrackerView(): React.ReactElement {
             {hasState(state) && hasMatches && (
               <>
                 <Container className={classNames(styles.contentContainer, styles[viewMode])}>
-                  <Heading tagName="h2" spacing={3} className={styles.sectionTitle}>
+                  <Heading tagName="h2" styleAs="h3" spacing={3}>
                     Matches
                   </Heading>
                 </Container>

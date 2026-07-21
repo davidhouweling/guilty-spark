@@ -13,10 +13,6 @@
   width: 100%;
 }
 
-.heading {
-  font-size: var(--text-3xl);
-}
-
 .subtext {
   color: var(--halo-gray);
   margin: var(--space-3) 0 var(--space-6);

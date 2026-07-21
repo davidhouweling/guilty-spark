@@ -235,7 +235,7 @@ export function MatchStats({
       {hasTeamStats && (
         <div className={styles.teamTotals}>
           <Container>
-            <Heading tagName="h3" className={styles.subsectionHeader}>
+            <Heading tagName="h3" styleAs="h6" className={styles.subsectionHeader}>
               Team Totals
             </Heading>
           </Container>

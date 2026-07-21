@@ -4,10 +4,6 @@
   padding: var(--space-6) var(--gutter-mobile);
 }
 
-.heading {
-  font-size: var(--text-3xl);
-}
-
 .authWall {
   align-items: center;
   display: flex;

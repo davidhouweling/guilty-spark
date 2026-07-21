@@ -210,7 +210,7 @@ export function SettingsDialog({
             <div className={styles.leftColumn}>
               {/* Global Settings - Consolidated */}
               <div className={styles.section}>
-                <Heading tagName="h3" spacing={3} className={styles.sectionHeader}>
+                <Heading tagName="h3" styleAs="h6" spacing={3} className={styles.sectionHeader}>
                   Global Settings
                 </Heading>
                 <p className={styles.sectionDescription}>These settings apply across all series</p>
@@ -218,7 +218,7 @@ export function SettingsDialog({
                 <hr className={styles.divider} />
 
                 {/* Color Settings */}
-                <Heading tagName="h4" spacing={2} className={styles.subsectionHeader}>
+                <Heading tagName="h4" styleAs="h6" spacing={2} className={styles.subsectionHeader}>
                   Team Colors
                 </Heading>
                 <p className={styles.subsectionDescription}>Customize team colors for player or observer view</p>
@@ -235,7 +235,7 @@ export function SettingsDialog({
                 <hr className={styles.divider} />
 
                 {/* Display Settings */}
-                <Heading tagName="h4" spacing={2} className={styles.subsectionHeader}>
+                <Heading tagName="h4" styleAs="h6" spacing={2} className={styles.subsectionHeader}>
                   Display Options
                 </Heading>
                 <p className={styles.subsectionDescription}>Control what information is shown</p>
@@ -244,7 +244,7 @@ export function SettingsDialog({
                 <hr className={styles.divider} />
 
                 {/* Ticker Settings */}
-                <Heading tagName="h4" spacing={2} className={styles.subsectionHeader}>
+                <Heading tagName="h4" styleAs="h6" spacing={2} className={styles.subsectionHeader}>
                   Information Ticker
                 </Heading>
                 <p className={styles.subsectionDescription}>Customize stats and medals shown in ticker</p>
@@ -253,7 +253,7 @@ export function SettingsDialog({
                 <hr className={styles.divider} />
 
                 {/* Font Size Settings */}
-                <Heading tagName="h4" spacing={2} className={styles.subsectionHeader}>
+                <Heading tagName="h4" styleAs="h6" spacing={2} className={styles.subsectionHeader}>
                   Font Sizes
                 </Heading>
                 <p className={styles.subsectionDescription}>Adjust text size for each section (100% = default)</p>
@@ -298,10 +298,10 @@ export function SettingsDialog({
 
               {/* Series-Specific Settings */}
               <div className={styles.section}>
-                <Heading tagName="h3" spacing={3} className={styles.sectionHeader}>
+                <Heading tagName="h3" styleAs="h6" spacing={3} className={styles.sectionHeader}>
                   This Series Settings
                 </Heading>
-                <Heading tagName="h4" spacing={2} className={styles.subsectionHeader}>
+                <Heading tagName="h4" styleAs="h6" spacing={2} className={styles.subsectionHeader}>
                   Series title
                 </Heading>
                 <SeriesTitleSection
@@ -313,7 +313,7 @@ export function SettingsDialog({
 
                 <hr className={styles.divider} />
 
-                <Heading tagName="h4" spacing={2} className={styles.subsectionHeader}>
+                <Heading tagName="h4" styleAs="h6" spacing={2} className={styles.subsectionHeader}>
                   Team Names
                 </Heading>
                 <SeriesTeamSection settings={settings.series} onChange={handleSeriesChange} />
@@ -323,7 +323,7 @@ export function SettingsDialog({
             {/* Right Column - View Mode Selection */}
             <div className={styles.rightColumn}>
               <div className={styles.section}>
-                <Heading tagName="h3" spacing={3} className={styles.sectionHeader}>
+                <Heading tagName="h3" styleAs="h6" spacing={3} className={styles.sectionHeader}>
                   View Mode
                 </Heading>
                 <p className={styles.sectionDescription}>Select how to display the tracker</p>
@@ -370,7 +370,7 @@ export function SettingsDialog({
 
               {/* Copy URL for OBS */}
               <div className={styles.section}>
-                <Heading tagName="h3" spacing={3} className={styles.sectionHeader}>
+                <Heading tagName="h3" styleAs="h6" spacing={3} className={styles.sectionHeader}>
                   Share Settings
                 </Heading>
                 <p className={styles.sectionDescription}>Copy URL with all current settings for OBS Browser Source</p>

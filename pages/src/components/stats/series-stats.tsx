@@ -218,7 +218,7 @@ export function SeriesStats({
       {hasTeamStats && (
         <>
           <Container>
-            <Heading tagName="h3" className={styles.subsectionHeader}>
+            <Heading tagName="h3" styleAs="h6" className={styles.subsectionHeader}>
               Accumulated Team Stats
             </Heading>
           </Container>

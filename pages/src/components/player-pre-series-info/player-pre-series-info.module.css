@@ -2,10 +2,6 @@
   margin: var(--space-6) 0;
 }
 
-.title {
-  font-size: var(--text-2xl);
-}
-
 .rankValue {
   line-height: 1;
 }

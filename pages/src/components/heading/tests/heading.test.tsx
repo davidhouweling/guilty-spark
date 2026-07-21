@@ -52,6 +52,18 @@ describe("Heading", () => {
     expect(heading.style.getPropertyValue("--heading-spacing")).toBe("");
   });
 
+  it("renders the given semantic tag but sizes it as a different tag when styleAs is provided", () => {
+    render(
+      <Heading tagName="h3" styleAs="h5">
+        Styled title
+      </Heading>,
+    );
+
+    const heading = screen.getByRole("heading", { level: 3, name: "Styled title" });
+    expect(heading.className).toContain("_h5_");
+    expect(heading.className).not.toContain("_h3_");
+  });
+
   it("merges a consumer-provided className alongside the base heading classes", () => {
     render(
       <Heading tagName="h4" className="custom-class">

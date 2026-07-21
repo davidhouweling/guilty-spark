@@ -87,7 +87,7 @@ export function AddTrackerDialog({
       }
     >
       <section className={styles.section}>
-        <Heading tagName="h3" className={styles.sectionTitle}>
+        <Heading tagName="h3" styleAs="h5">
           1. Gamertag
         </Heading>
         <div className={styles.searchRow}>
@@ -110,7 +110,7 @@ export function AddTrackerDialog({
       </section>
 
       <section className={styles.section}>
-        <Heading tagName="h3" className={styles.sectionTitle}>
+        <Heading tagName="h3" styleAs="h5">
           2. Add past games
         </Heading>
         <div className={styles.controlsRow}>

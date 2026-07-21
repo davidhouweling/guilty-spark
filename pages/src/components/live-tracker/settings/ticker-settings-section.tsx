@@ -79,7 +79,7 @@ export function TickerSettingsSection({
   return (
     <div className={styles.container}>
       <div className={styles.section}>
-        <Heading tagName="h5" className={styles.subsectionHeader}>
+        <Heading tagName="h5" styleAs="h6" className={styles.subsectionHeader}>
           Tabs
         </Heading>
         <p className={styles.sectionDescription}>Configure how many recent match tabs are shown.</p>
@@ -98,7 +98,7 @@ export function TickerSettingsSection({
       <hr className={styles.sectionDivider} />
 
       <div className={styles.section}>
-        <Heading tagName="h5" className={styles.subsectionHeader}>
+        <Heading tagName="h5" styleAs="h6" className={styles.subsectionHeader}>
           Information ticker
         </Heading>
         <p className={styles.sectionDescription}>

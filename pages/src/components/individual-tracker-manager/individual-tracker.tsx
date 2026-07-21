@@ -52,7 +52,7 @@ export function IndividualTrackerShell({
 
   return (
     <div className={styles.container}>
-      <Heading tagName="h1" variant="display" spacing={6} className={styles.heading}>
+      <Heading tagName="h1" styleAs="h2" variant="display" spacing={6}>
         Individual Tracker
       </Heading>
 

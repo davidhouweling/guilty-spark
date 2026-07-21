@@ -14,7 +14,7 @@ export function DisplaySettingsSection({ settings, onChange }: DisplaySettingsSe
     <div className={styles.container}>
       {/* Team Details Section */}
       <div className={styles.section}>
-        <Heading tagName="h5" spacing={1} className={styles.subsectionHeader}>
+        <Heading tagName="h5" styleAs="h6" spacing={1} className={styles.subsectionHeader}>
           Team Information
         </Heading>
 
@@ -69,7 +69,7 @@ export function DisplaySettingsSection({ settings, onChange }: DisplaySettingsSe
 
       {/* Queue Info Section */}
       <div className={styles.section}>
-        <Heading tagName="h5" spacing={1} className={styles.subsectionHeader}>
+        <Heading tagName="h5" styleAs="h6" spacing={1} className={styles.subsectionHeader}>
           Queue Information
         </Heading>
         <p className={styles.sectionDescription}>Control the parts shown in the top section</p>

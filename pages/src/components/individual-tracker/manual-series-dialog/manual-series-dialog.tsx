@@ -136,7 +136,7 @@ export function ManualSeriesDialog({
         </p>
 
         <section className={styles.section}>
-          <Heading tagName="h3" className={styles.sectionTitle}>
+          <Heading tagName="h3" styleAs="h6">
             Series details (optional)
           </Heading>
           <div className={styles.metaGrid}>
@@ -160,7 +160,7 @@ export function ManualSeriesDialog({
         </section>
 
         <section className={styles.section}>
-          <Heading tagName="h3" className={styles.sectionTitle}>
+          <Heading tagName="h3" styleAs="h6">
             Teams
           </Heading>
 

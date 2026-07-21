@@ -9,7 +9,7 @@ export function DiscordSeriesStatsView({ title, subtitle, ...stats }: DiscordSer
   return (
     <>
       <Container>
-        <Heading tagName="h1" className={styles.title}>
+        <Heading tagName="h1" styleAs="h3">
           {title}
         </Heading>
         <p className={styles.subtitle}>{subtitle}</p>

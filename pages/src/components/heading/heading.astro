@@ -7,18 +7,25 @@ type HeadingSpacing = 1 | 2 | 3 | 4 | 5 | 6 | 8 | 10 | 12 | 16 | 20 | 24;
 
 interface Props {
   tagName: HeadingTag;
+  styleAs?: HeadingTag;
   variant?: HeadingVariant;
   spacing?: HeadingSpacing;
   class?: string;
 }
 
-const { tagName, variant = "plain", spacing, class: className } = Astro.props;
+const { tagName, styleAs, variant = "plain", spacing, class: className } = Astro.props;
 const Tag = tagName;
 const spacingStyle = spacing === undefined ? undefined : `--heading-spacing: var(--space-${spacing});`;
 ---
 
 <Tag
-  class:list={[styles.heading, styles[tagName], styles[variant], spacing !== undefined && styles.spaced, className]}
+  class:list={[
+    styles.heading,
+    styles[styleAs ?? tagName],
+    styles[variant],
+    spacing !== undefined && styles.spaced,
+    className,
+  ]}
   style={spacingStyle}
 >
   <slot />

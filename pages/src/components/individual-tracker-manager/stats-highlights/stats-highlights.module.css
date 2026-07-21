@@ -4,10 +4,6 @@
   gap: var(--space-4);
 }
 
-.sectionTitle {
-  font-size: var(--text-2xl);
-}
-
 .sectionDescription {
   color: var(--halo-gray);
   font-family: var(--font-body);
@@ -24,10 +20,6 @@
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-3);
-}
-
-.cardTitle {
-  font-size: var(--text-lg);
 }
 
 .cardDescription {

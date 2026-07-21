@@ -32,11 +32,6 @@
   margin-bottom: var(--space-5);
 }
 
-.title {
-  display: inline-block;
-  font-size: var(--text-2xl);
-}
-
 .badges {
   align-items: center;
   display: flex;
@@ -224,10 +219,6 @@
   position: fixed;
   transform: translateX(-50%);
   z-index: 20;
-}
-
-.sectionTitle {
-  font-size: var(--text-lg);
 }
 
 @media (--tablet-viewport) {

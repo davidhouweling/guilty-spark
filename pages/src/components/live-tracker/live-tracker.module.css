@@ -17,11 +17,6 @@
   gap: var(--space-1);
 }
 
-.headerTitle {
-  font-size: var(--text-2xl);
-  line-height: 1.2;
-}
-
 .headerSubtitle {
   color: var(--halo-gray);
   font-family: var(--font-body);
@@ -78,10 +73,6 @@
 
 .contentContainer.wide {
   max-width: 100%;
-}
-
-.sectionTitle {
-  font-size: var(--text-2xl);
 }
 
 .notice {

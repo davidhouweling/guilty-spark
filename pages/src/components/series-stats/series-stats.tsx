@@ -105,7 +105,7 @@ export function SeriesStatsView({
   return (
     <div className={styles.seriesStats}>
       <Container className={styles.contentContainer}>
-        <Heading tagName="h2" className={styles.sectionTitle}>
+        <Heading tagName="h2" styleAs="h3">
           Series overview
         </Heading>
         <div className={styles.seriesOverviewWrap}>
@@ -147,7 +147,7 @@ export function SeriesStatsView({
       )}
 
       <Container className={styles.contentContainer}>
-        <Heading tagName="h2" className={styles.sectionTitle}>
+        <Heading tagName="h2" styleAs="h3">
           Matches
         </Heading>
       </Container>
