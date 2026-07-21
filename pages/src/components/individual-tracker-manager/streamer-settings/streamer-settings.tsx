@@ -203,9 +203,7 @@ export function StreamerSettingsSectionView({
 
   return (
     <div className={styles.panel}>
-      <Heading tagName="h2" styleAs="h3">
-        Streamer Settings
-      </Heading>
+      <Heading tagName="h2">Streamer Settings</Heading>
       <p className={styles.sectionDescription}>
         Configure the stable public URLs for your active tracker viewer and OBS overlay. These routes follow whichever
         tracker is currently marked live.
@@ -218,9 +216,7 @@ export function StreamerSettingsSectionView({
       ) : (
         <div className={styles.urlList}>
           <div className={styles.card}>
-            <Heading tagName="h3" styleAs="h5">
-              Viewer URL
-            </Heading>
+            <Heading tagName="h3">Viewer URL</Heading>
             <p className={styles.cardDescription}>Share this with viewers to follow the active tracker.</p>
             <p className={styles.urlText}>{urls?.viewUrl}</p>
             <div className={styles.buttonRow}>
@@ -246,9 +242,7 @@ export function StreamerSettingsSectionView({
 
             <hr className={styles.sectionDivider} />
 
-            <Heading tagName="h3" styleAs="h5">
-              Overlay URL
-            </Heading>
+            <Heading tagName="h3">Overlay URL</Heading>
             <p className={styles.cardDescription}>Use this in OBS as a Browser Source.</p>
             <p className={styles.urlText}>{urls?.overlayUrl}</p>
             <div className={styles.buttonRow}>
@@ -285,14 +279,10 @@ export function StreamerSettingsSectionView({
       )}
 
       <div className={styles.card}>
-        <Heading tagName="h3" styleAs="h5">
-          Global Defaults
-        </Heading>
+        <Heading tagName="h3">Global Defaults</Heading>
         <p className={styles.cardDescription}>These controls apply to both In Series and Matchmaking overlay states.</p>
         <div className={styles.subsection}>
-          <Heading tagName="h4" styleAs="h6">
-            Default Color Mode
-          </Heading>
+          <Heading tagName="h4">Default Color Mode</Heading>
           <p className={styles.cardDescription}>Configure the default color mode for the overlay.</p>
         </div>
         <div className={styles.modeToggle} role="group" aria-label="Default color mode">
@@ -327,9 +317,7 @@ export function StreamerSettingsSectionView({
         <hr className={styles.sectionDivider} />
 
         <div className={styles.subsection}>
-          <Heading tagName="h4" styleAs="h6">
-            Player Colors
-          </Heading>
+          <Heading tagName="h4">Player Colors</Heading>
           <p className={styles.cardDescription}>Used whenever color mode is set to player.</p>
         </div>
         <div className={styles.pickerGrid}>
@@ -358,9 +346,7 @@ export function StreamerSettingsSectionView({
         <hr className={styles.sectionDivider} />
 
         <div className={styles.subsection}>
-          <Heading tagName="h4" styleAs="h6">
-            Observer Colors
-          </Heading>
+          <Heading tagName="h4">Observer Colors</Heading>
           <p className={styles.cardDescription}>Global observer colors for fixed-team mode.</p>
         </div>
         <div className={styles.pickerGrid}>
@@ -389,9 +375,7 @@ export function StreamerSettingsSectionView({
         <hr className={styles.sectionDivider} />
 
         <div className={styles.subsection}>
-          <Heading tagName="h4" styleAs="h6">
-            Information Ticker
-          </Heading>
+          <Heading tagName="h4">Bottom section</Heading>
         </div>
         <TickerSettingsSection
           settings={tickerSettings}
@@ -403,9 +387,7 @@ export function StreamerSettingsSectionView({
         <hr className={styles.sectionDivider} />
 
         <div className={styles.subsection}>
-          <Heading tagName="h4" styleAs="h6">
-            Text Sizes
-          </Heading>
+          <Heading tagName="h4">Text Sizes</Heading>
           <p className={styles.cardDescription}>Adjust the size of text for different sections.</p>
         </div>
         <div className={styles.fontSizeContainer}>
@@ -448,16 +430,12 @@ export function StreamerSettingsSectionView({
       </div>
 
       <div className={styles.card}>
-        <Heading tagName="h3" styleAs="h5">
-          In Series UI
-        </Heading>
+        <Heading tagName="h3">In Series UI</Heading>
         <p className={styles.cardDescription}>
           Controls in this section apply when the overlay is currently in a series.
         </p>
         <div className={styles.subsection}>
-          <Heading tagName="h4" styleAs="h6">
-            Top Section
-          </Heading>
+          <Heading tagName="h4">Top Section</Heading>
           <p className={styles.cardDescription}>
             Control title, teams, and score display for in-series top bar rendering.
           </p>
@@ -475,18 +453,14 @@ export function StreamerSettingsSectionView({
         <hr className={styles.sectionDivider} />
 
         <div className={styles.subsection}>
-          <Heading tagName="h4" styleAs="h6">
-            Bottom Section
-          </Heading>
+          <Heading tagName="h4">Bottom Section</Heading>
           <p className={styles.cardDescription}>
             Configure in-series ticker behavior before and during active series match flow.
           </p>
         </div>
 
         <div className={styles.subsection}>
-          <Heading tagName="h5" className={styles.nestedSubsectionTitle}>
-            Tabs
-          </Heading>
+          <Heading tagName="h5">Tabs</Heading>
           <p className={styles.cardDescription}>Configure which tabs are visible while in a series.</p>
         </div>
         <Checkbox
@@ -512,9 +486,7 @@ export function StreamerSettingsSectionView({
         />
 
         <div className={styles.subsection}>
-          <Heading tagName="h5" className={styles.nestedSubsectionTitle}>
-            Information ticker
-          </Heading>
+          <Heading tagName="h5">Information ticker</Heading>
           <p className={styles.cardDescription}>Configure ticker visibility and row rotation while in a series.</p>
         </div>
         <Checkbox
@@ -558,16 +530,12 @@ export function StreamerSettingsSectionView({
       </div>
 
       <div className={styles.card}>
-        <Heading tagName="h3" styleAs="h5">
-          Matchmaking UI
-        </Heading>
+        <Heading tagName="h3">Matchmaking UI</Heading>
         <p className={styles.cardDescription}>
           Controls in this section apply when no active series context is present.
         </p>
         <div className={styles.subsection}>
-          <Heading tagName="h4" styleAs="h6">
-            Top Section
-          </Heading>
+          <Heading tagName="h4">Top Section</Heading>
           <p className={styles.cardDescription}>
             Matchmaking top-section stats depend on Stats Highlights and this overlay visibility toggle.
           </p>
@@ -584,16 +552,12 @@ export function StreamerSettingsSectionView({
         <hr className={styles.sectionDivider} />
 
         <div className={styles.subsection}>
-          <Heading tagName="h4" styleAs="h6">
-            Bottom Section
-          </Heading>
+          <Heading tagName="h4">Bottom Section</Heading>
           <p className={styles.cardDescription}>Configure matchmaking-only tabs and ticker behavior.</p>
         </div>
 
         <div className={styles.subsection}>
-          <Heading tagName="h5" className={styles.nestedSubsectionTitle}>
-            Tabs
-          </Heading>
+          <Heading tagName="h5">Tabs</Heading>
           <p className={styles.cardDescription}>Configure which tabs are visible during matchmaking.</p>
         </div>
         <Checkbox
@@ -619,9 +583,7 @@ export function StreamerSettingsSectionView({
         />
 
         <div className={styles.subsection}>
-          <Heading tagName="h5" className={styles.nestedSubsectionTitle}>
-            Information ticker
-          </Heading>
+          <Heading tagName="h5">Information ticker</Heading>
           <p className={styles.cardDescription}>Configure ticker visibility and row rotation during matchmaking.</p>
         </div>
         <Checkbox

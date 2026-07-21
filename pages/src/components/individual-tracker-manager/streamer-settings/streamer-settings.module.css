@@ -151,10 +151,6 @@
   padding-left: var(--space-3);
 }
 
-.nestedSubsectionTitle {
-  font-size: var(--text-sm);
-}
-
 .sectionDivider {
   border: 0;
   border-top: 1px solid color-mix(in srgb, var(--halo-teal-primary) 22%, transparent);

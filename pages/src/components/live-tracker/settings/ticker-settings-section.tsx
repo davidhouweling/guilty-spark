@@ -79,9 +79,7 @@ export function TickerSettingsSection({
   return (
     <div className={styles.container}>
       <div className={styles.section}>
-        <Heading tagName="h5" styleAs="h6" className={styles.subsectionHeader}>
-          Tabs
-        </Heading>
+        <Heading tagName="h5">Tabs</Heading>
         <p className={styles.sectionDescription}>Configure how many recent match tabs are shown.</p>
         <Input
           label="Max number of previous games to show"
@@ -95,12 +93,8 @@ export function TickerSettingsSection({
         />
       </div>
 
-      <hr className={styles.sectionDivider} />
-
       <div className={styles.section}>
-        <Heading tagName="h5" styleAs="h6" className={styles.subsectionHeader}>
-          Information ticker
-        </Heading>
+        <Heading tagName="h5">Information ticker</Heading>
         <p className={styles.sectionDescription}>
           Customize stats and medals shown in the ticker. Toggle visibility available in the Series UI / Matchmaking UI
           sections further down.
@@ -120,9 +114,7 @@ export function TickerSettingsSection({
       {/* Stats Selection */}
       <div className={styles.section}>
         <div className={styles.sectionTitleRow}>
-          <Heading tagName="h6" className={styles.subsectionHeader}>
-            Slayer Statistics
-          </Heading>
+          <Heading tagName="h6">Slayer Statistics</Heading>
           <div className={styles.bulkActions}>
             <Button onClick={handleSelectAll} variant="secondary" size="small">
               Select All
