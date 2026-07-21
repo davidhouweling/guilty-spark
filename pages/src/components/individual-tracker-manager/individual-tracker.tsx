@@ -52,7 +52,9 @@ export function IndividualTrackerShell({
 
   return (
     <div className={styles.container}>
-      <Heading tagName="h1">Individual Tracker</Heading>
+      <Heading tagName="h1" variant="display" spacing={6} className={styles.heading}>
+        Individual Tracker
+      </Heading>
 
       {authState === "loading" && <LoadingState text="Checking session..." />}
 

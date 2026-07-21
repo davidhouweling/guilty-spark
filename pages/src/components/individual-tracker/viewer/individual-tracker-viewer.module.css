@@ -33,13 +33,8 @@
 }
 
 .title {
-  color: var(--halo-white);
   display: inline-block;
-  font-family: var(--font-heading);
   font-size: var(--text-2xl);
-  letter-spacing: 0.04em;
-  margin: 0;
-  text-transform: uppercase;
 }
 
 .badges {
@@ -232,9 +227,7 @@
 }
 
 .sectionTitle {
-  font-family: var(--font-heading);
   font-size: var(--text-lg);
-  margin: 0;
 }
 
 @media (--tablet-viewport) {

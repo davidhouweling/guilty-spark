@@ -5,10 +5,7 @@
 }
 
 .sectionTitle {
-  color: var(--halo-white);
-  font-family: var(--font-heading);
   font-size: var(--text-2xl);
-  margin: 0;
 }
 
 .sectionDescription {
@@ -35,10 +32,7 @@
 }
 
 .cardTitle {
-  color: var(--halo-white);
-  font-family: var(--font-heading);
   font-size: var(--text-lg);
-  margin: 0;
 }
 
 .cardDescription {
@@ -166,17 +160,11 @@
 }
 
 .subsectionTitle {
-  color: var(--halo-white);
-  font-family: var(--font-heading);
   font-size: var(--text-base);
-  margin: 0;
 }
 
 .nestedSubsectionTitle {
-  color: var(--halo-white);
-  font-family: var(--font-heading);
   font-size: var(--text-sm);
-  margin: 0;
 }
 
 .sectionDivider {

@@ -236,7 +236,9 @@ export function LiveTrackerView(): React.ReactElement {
       <Container>
         <div className={styles.headerBar}>
           <div className={styles.headerLeft}>
-            <Heading tagName="h1">{displayTitle}</Heading>
+            <Heading tagName="h1" className={styles.headerTitle}>
+              {displayTitle}
+            </Heading>
             <div className={styles.headerSubtitle}>
               {hasState(state) ? `Queue #${state.queueNumber.toString()}` : displaySubtitle}
             </div>
@@ -271,7 +273,9 @@ export function LiveTrackerView(): React.ReactElement {
           <>
             {hasState(state) && (
               <Container className={classNames(styles.contentContainer, styles[viewMode])}>
-                <Heading tagName="h2">Series overview</Heading>
+                <Heading tagName="h2" spacing={3} className={styles.sectionTitle}>
+                  Series overview
+                </Heading>
                 <div className={styles.seriesOverview}>
                   <section className={styles.seriesScores}>
                     {hasMatches ? (
@@ -389,7 +393,9 @@ export function LiveTrackerView(): React.ReactElement {
             {hasState(state) && hasMatches && (
               <>
                 <Container className={classNames(styles.contentContainer, styles[viewMode])}>
-                  <Heading tagName="h2">Matches</Heading>
+                  <Heading tagName="h2" spacing={3} className={styles.sectionTitle}>
+                    Matches
+                  </Heading>
                 </Container>
                 {((): React.ReactElement[] => {
                   const elements: React.ReactElement[] = [];

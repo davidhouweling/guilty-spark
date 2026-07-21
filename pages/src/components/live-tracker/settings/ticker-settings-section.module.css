@@ -18,10 +18,9 @@
 }
 
 .subsectionHeader {
-  color: var(--halo-white);
+  font-family: var(--font-body);
   font-size: var(--text-base);
   font-weight: 600;
-  margin: 0;
 }
 
 .sectionDescription {

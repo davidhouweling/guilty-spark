@@ -218,7 +218,9 @@ export function SeriesStats({
       {hasTeamStats && (
         <>
           <Container>
-            <Heading tagName="h3">Accumulated Team Stats</Heading>
+            <Heading tagName="h3" className={styles.subsectionHeader}>
+              Accumulated Team Stats
+            </Heading>
           </Container>
           <SortableTable
             data={teamData}

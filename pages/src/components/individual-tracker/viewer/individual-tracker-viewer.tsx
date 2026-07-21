@@ -376,7 +376,9 @@ export function IndividualTrackerViewer({
       )}
       <Container>
         <div className={styles.header}>
-          <Heading tagName="h1">{renderModel.gamertag} Tracker</Heading>
+          <Heading tagName="h1" variant="display" className={styles.title}>
+            {renderModel.gamertag} Tracker
+          </Heading>
           <div className={styles.badges}>
             <span
               className={classNames(styles.statusBadge, {
@@ -395,7 +397,9 @@ export function IndividualTrackerViewer({
       </Container>
       <section className={styles.matchesSection}>
         <Container>
-          <Heading tagName="h2">Tracked Gameplay</Heading>
+          <Heading tagName="h2" className={styles.sectionTitle}>
+            Tracked Gameplay
+          </Heading>
         </Container>
         <Container mobileDown="0">
           <StatsHighlights items={renderModel.statsHighlights ?? []} />

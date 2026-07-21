@@ -136,7 +136,9 @@ export function ManualSeriesDialog({
         </p>
 
         <section className={styles.section}>
-          <Heading tagName="h3">Series details (optional)</Heading>
+          <Heading tagName="h3" className={styles.sectionTitle}>
+            Series details (optional)
+          </Heading>
           <div className={styles.metaGrid}>
             <Input
               label="Series title"
@@ -158,7 +160,9 @@ export function ManualSeriesDialog({
         </section>
 
         <section className={styles.section}>
-          <Heading tagName="h3">Teams</Heading>
+          <Heading tagName="h3" className={styles.sectionTitle}>
+            Teams
+          </Heading>
 
           <div className={styles.teamsGrid}>
             {snapshot.teams.map((team, teamIndex) => (

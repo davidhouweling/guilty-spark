@@ -14,12 +14,7 @@
 }
 
 .heading {
-  color: var(--halo-white);
-  font-family: var(--font-heading);
   font-size: var(--text-3xl);
-  letter-spacing: 0.04em;
-  margin: 0;
-  text-transform: uppercase;
 }
 
 .subtext {

@@ -10,7 +10,9 @@ interface LoginProps {
 export function Login({ signInHref }: LoginProps): React.ReactElement {
   return (
     <div className={styles.card}>
-      <Heading tagName="h1">Sign In</Heading>
+      <Heading tagName="h1" variant="display" className={styles.heading}>
+        Sign In
+      </Heading>
       <p className={styles.subtext}>Authenticate with Microsoft to access your saved tracker profile.</p>
       <Button href={signInHref} className={styles.signInButton}>
         Continue With Microsoft

@@ -3,17 +3,43 @@ import classNames from "classnames";
 import styles from "./heading.module.css";
 
 type HeadingTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+type HeadingVariant = "plain" | "display";
+type HeadingSpacing = 1 | 2 | 3 | 4 | 5 | 6 | 8 | 10 | 12 | 16 | 20 | 24;
 
 interface HeadingProps extends React.HTMLAttributes<HTMLHeadingElement> {
   readonly tagName: HeadingTag;
+  readonly variant?: HeadingVariant;
+  readonly spacing?: HeadingSpacing;
   readonly children: React.ReactNode;
 }
 
-export function Heading({ tagName, children, className, ...props }: HeadingProps): React.ReactElement {
+export function Heading({
+  tagName,
+  variant = "plain",
+  spacing,
+  children,
+  className,
+  style,
+  ...props
+}: HeadingProps): React.ReactElement {
   const Tag = tagName;
+  const spacingStyle =
+    spacing === undefined
+      ? style
+      : ({ ...style, "--heading-spacing": `var(--space-${spacing.toString()})` } as React.CSSProperties);
 
   return (
-    <Tag className={classNames(styles.heading, styles[tagName], className)} {...props}>
+    <Tag
+      className={classNames(
+        styles.heading,
+        styles[tagName],
+        styles[variant],
+        spacing !== undefined && styles.spaced,
+        className,
+      )}
+      style={spacingStyle}
+      {...props}
+    >
       {children}
     </Tag>
   );

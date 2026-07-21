@@ -27,7 +27,9 @@ export function StatsHighlightsSectionView({
 }: StatsHighlightsSectionViewProps): React.ReactElement {
   return (
     <div className={styles.panel}>
-      <Heading tagName="h2">Stats Highlights</Heading>
+      <Heading tagName="h2" className={styles.sectionTitle}>
+        Stats Highlights
+      </Heading>
       <p className={styles.sectionDescription}>
         Control the stats highlights row shown in the tracker view. Choose whether it is visible, how many highlight
         slots are shown, and which metric appears in each slot.
@@ -66,7 +68,9 @@ export function StatsHighlightsSectionView({
 
       {isEnabled ? (
         <div className={styles.card}>
-          <Heading tagName="h3">Selected Highlights</Heading>
+          <Heading tagName="h3" className={styles.cardTitle}>
+            Selected Highlights
+          </Heading>
           <p className={styles.cardDescription}>
             Each slot keeps its own label in the stats highlights row and updates live from the durable object.
           </p>

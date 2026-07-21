@@ -219,7 +219,9 @@ export function PlayerPreSeriesInfo({
   return (
     <Container className={className}>
       <div className={styles.container}>
-        <Heading tagName="h2">Player Info</Heading>
+        <Heading tagName="h2" spacing={4} className={styles.title}>
+          Player Info
+        </Heading>
         <SortableTable
           data={playerRows}
           columns={columns}

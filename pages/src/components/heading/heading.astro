@@ -2,16 +2,24 @@
 import styles from "./heading.module.css";
 
 type HeadingTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+type HeadingVariant = "plain" | "display";
+type HeadingSpacing = 1 | 2 | 3 | 4 | 5 | 6 | 8 | 10 | 12 | 16 | 20 | 24;
 
 interface Props {
   tagName: HeadingTag;
+  variant?: HeadingVariant;
+  spacing?: HeadingSpacing;
   class?: string;
 }
 
-const { tagName, class: className } = Astro.props;
+const { tagName, variant = "plain", spacing, class: className } = Astro.props;
 const Tag = tagName;
+const spacingStyle = spacing === undefined ? undefined : `--heading-spacing: var(--space-${spacing});`;
 ---
 
-<Tag class:list={[styles.heading, styles[tagName], className]}>
+<Tag
+  class:list={[styles.heading, styles[tagName], styles[variant], spacing !== undefined && styles.spaced, className]}
+  style={spacingStyle}
+>
   <slot />
 </Tag>
