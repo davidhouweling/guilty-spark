@@ -46,13 +46,18 @@ export function KillMatrixH2HDialog({ data, onClose }: KillMatrixH2HDialogProps)
               <td className={styles.statCell}>Kills</td>
               <td className={styles.valueCell}>{data.bKillsOnA}</td>
             </tr>
-            {(data.aPerfsOnB > 0 || data.bPerfsOnA > 0) && (
-              <tr>
-                <td className={styles.valueCell}>{data.aPerfsOnB}</td>
-                <td className={styles.statCell}>Perfects</td>
-                <td className={styles.valueCell}>{data.bPerfsOnA}</td>
+            <tr>
+              <td className={styles.valueCell}>{data.aPerfsOnB}</td>
+              <td className={styles.statCell}>Perfects</td>
+              <td className={styles.valueCell}>{data.bPerfsOnA}</td>
+            </tr>
+            {data.weaponRows.map((row, index) => (
+              <tr key={row.weaponId} className={index === 0 ? styles.firstWeaponRow : undefined}>
+                <td className={styles.valueCell}>{row.aCount}</td>
+                <td className={styles.statCell}>{row.name}</td>
+                <td className={styles.valueCell}>{row.bCount}</td>
               </tr>
-            )}
+            ))}
           </tbody>
         </table>
       )}

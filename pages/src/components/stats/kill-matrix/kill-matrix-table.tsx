@@ -14,6 +14,7 @@ import type {
   KillMatrixPivotData,
   KillMatrixPivotRow,
 } from "../../../controllers/stats/kill-matrix/types";
+import { KillMatrixFormatter } from "../../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import { KillMatrixH2HDialog } from "./kill-matrix-h2h-dialog";
 import styles from "./kill-matrix-table.module.css";
 
@@ -167,6 +168,7 @@ export function KillMatrixTable({
                   bKillsOnA: cell?.deaths ?? 0,
                   aPerfsOnB: cell?.killPerfects ?? 0,
                   bPerfsOnA: cell?.deathPerfects ?? 0,
+                  weaponRows: KillMatrixFormatter.buildH2HWeaponRows(cell?.killWeapons ?? [], cell?.deathWeapons ?? []),
                 });
               }}
               aria-label={`${row.playerGamertag} vs ${gamertag} head to head`}
@@ -232,6 +234,10 @@ export function KillMatrixTable({
                   bKillsOnA: bRow?.kills.get(row.killerGamertag) ?? 0,
                   aPerfsOnB: aRow?.perfects.get(gamertag) ?? 0,
                   bPerfsOnA: bRow?.perfects.get(row.killerGamertag) ?? 0,
+                  weaponRows: KillMatrixFormatter.buildH2HWeaponRows(
+                    aRow?.weapons.get(gamertag) ?? [],
+                    bRow?.weapons.get(row.killerGamertag) ?? [],
+                  ),
                 });
               }}
               aria-label={`${row.killerGamertag} vs ${gamertag} head to head`}

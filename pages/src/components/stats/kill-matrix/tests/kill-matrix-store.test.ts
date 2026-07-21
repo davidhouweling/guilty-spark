@@ -20,6 +20,7 @@ describe("KillMatrixStore", () => {
         count: 3,
         headshotKills: 1,
         perfects: 0,
+        weapons: [],
       },
     ] satisfies readonly KillMatrixViewRow[]);
 
