@@ -3447,6 +3447,97 @@ describe("IndividualTrackerDO", () => {
       expect(webSocketAdapter.broadcasts).toHaveLength(1);
     });
 
+    it("retires a still-live activeSeries instead of discarding it when a new started nudge arrives", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          activeSeries: anActiveSeries({
+            title: "Unrelated Series",
+            teams: [
+              {
+                id: 0,
+                name: "Eagle",
+                players: [{ discordId: null, discordName: null, gamertag: "Someone", xboxId: "xuid-unrelated" }],
+              },
+            ],
+            matchIds: ["match-unrelated"],
+          }),
+          completedSeries: [anActiveSeries({ title: "Older Series", isActive: false })],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aSeriesPayload()) }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toMatchObject({ title: "Guilty Spark", matchIds: [] });
+      expect(persisted.completedSeries).toEqual([
+        expect.objectContaining({ title: "Older Series" }),
+        expect.objectContaining({ title: "Unrelated Series", matchIds: ["match-unrelated"] }),
+      ]);
+    });
+
+    it("folds a started nudge into the previously completed series when the roster matches", async () => {
+      const previousSeries = anActiveSeries({
+        title: "Guilty Spark",
+        subtitle: "Queue #1",
+        matchIds: ["match-1", "match-2"],
+        isActive: false,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [{ discordId: "discord-1", discordName: "PlayerOne", gamertag: "GT1", xboxId: "xuid-1" }],
+          },
+          {
+            id: 1,
+            name: "Cobra",
+            players: [{ discordId: "discord-2", discordName: "PlayerTwo", gamertag: "GT2", xboxId: "xuid-2" }],
+          },
+        ],
+      });
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ completedSeries: [previousSeries] }));
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aSeriesPayload()) }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toMatchObject({
+        title: "Guilty Spark",
+        matchIds: ["match-1", "match-2"],
+        isActive: true,
+      });
+      expect(persisted.completedSeries).toEqual([]);
+    });
+
+    it("does not fold a started nudge into a previously completed series with a different roster", async () => {
+      const previousSeries = anActiveSeries({
+        title: "Different Series",
+        matchIds: ["match-old"],
+        isActive: false,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [{ discordId: null, discordName: null, gamertag: "Someone Else", xboxId: "xuid-different" }],
+          },
+        ],
+      });
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ completedSeries: [previousSeries] }));
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aSeriesPayload()) }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toMatchObject({ title: "Guilty Spark", matchIds: [] });
+      expect(persisted.completedSeries).toEqual([expect.objectContaining({ title: "Different Series" })]);
+    });
+
     it("does not force an alarm when nudging a paused tracker", async () => {
       storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ status: "paused", isPaused: true }));
 
@@ -3703,7 +3794,7 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.activeSeries?.teams[0]?.players[0]?.xboxId).toBe("xuid-3");
     });
 
-    it("flushes existing series metadata when starting a new one via nudge", async () => {
+    it("retires existing series metadata instead of discarding it when starting a new one via nudge", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           activeSeries: anActiveSeries({ title: "Old Queue", matchIds: ["stale-match-id"] }),
@@ -3717,7 +3808,9 @@ describe("IndividualTrackerDO", () => {
       expect(response.status).toBe(200);
 
       const persisted = lastPersistedState(storagePutSpy);
-      expect(persisted.completedSeries).toBeUndefined();
+      expect(persisted.completedSeries).toEqual([
+        expect.objectContaining({ title: "Old Queue", matchIds: ["stale-match-id"], isActive: false }),
+      ]);
       expect(persisted.activeSeries).toMatchObject({ title: "Guilty Spark", matchIds: [], isActive: true });
     });
   });
