@@ -1697,7 +1697,7 @@ export class NeatQueueService {
           ["reason", "fetchPlayersAssociationData: failed to fetch halo players, continuing without gamertags"],
         ]),
       );
-      return new Map();
+      return new Map<string, UserInfo>();
     }
   }
 
@@ -1716,7 +1716,7 @@ export class NeatQueueService {
           ["reason", "fetchPlayersAssociationData: failed to fetch ranked arena CSRs, continuing without rank data"],
         ]),
       );
-      return new Map();
+      return new Map<string, PlaylistCsrContainer>();
     }
   }
 
@@ -1730,7 +1730,7 @@ export class NeatQueueService {
           ["reason", "fetchPlayersAssociationData: failed to fetch player ESRAs, continuing without ESRA data"],
         ]),
       );
-      return new Map();
+      return new Map<string, PlayerEsraData>();
     }
   }
 
