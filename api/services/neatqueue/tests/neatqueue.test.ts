@@ -2179,8 +2179,8 @@ describe("NeatQueueService", () => {
           aFakeDiscordAssociationsRow({ DiscordId: "discord_user_02", XboxId: "xuid_discord_user_02" }),
         ]);
         vi.spyOn(haloService, "getUsersByXuids").mockRejectedValue(new Error("Halo API rate limited"));
-        vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(new Map());
-        vi.spyOn(haloService, "getPlayersEsras").mockResolvedValue(new Map());
+        vi.spyOn(haloService, "getRankedArenaCsrs").mockRejectedValue(new Error("Halo API rate limited"));
+        vi.spyOn(haloService, "getPlayersEsras").mockRejectedValue(new Error("Halo API rate limited"));
         vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
           aFakeGuildConfigRow({ NeatQueueInformerLiveTracking: "N" }),
         );
