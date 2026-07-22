@@ -1647,7 +1647,7 @@ export class NeatQueueService {
     // The three lookups below are display enrichment only (gamertag/rank/ESRA) - isolate their
     // failures so a flaky Halo API call can't block xuid resolution for the whole roster.
     const [haloPlayersMap, rankedArenaCsrs, esras] = await Promise.all([
-      this.fetchHaloPlayersMap(xboxIds),
+      this.fetchHaloPlayersMapSafely(xboxIds),
       this.fetchRankedArenaCsrsSafely(xboxIds),
       this.fetchPlayersEsrasSafely(xboxIds),
     ]);
@@ -1685,7 +1685,7 @@ export class NeatQueueService {
     };
   }
 
-  private async fetchHaloPlayersMap(xboxIds: string[]): Promise<Map<string, UserInfo>> {
+  private async fetchHaloPlayersMapSafely(xboxIds: string[]): Promise<Map<string, UserInfo>> {
     try {
       const haloPlayers = await this.haloService.getUsersByXuids(xboxIds);
       this.logService.debug("Halo players", new Map([["haloPlayers", JSON.stringify(haloPlayers)]]));

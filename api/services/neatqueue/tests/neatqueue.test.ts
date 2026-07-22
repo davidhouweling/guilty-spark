@@ -364,7 +364,7 @@ describe("NeatQueueService", () => {
 
         await jobToComplete();
         expect(warnSpy).toHaveBeenCalledWith(error, expect.any(Map));
-        expect(createMessageSpy).toHaveBeenCalled();
+        expect(createMessageSpy).toHaveBeenCalledOnce();
       });
 
       it("logs a warning but still creates the players message if haloService.getRankedArenaCsrs throws", async () => {
@@ -373,7 +373,7 @@ describe("NeatQueueService", () => {
 
         await jobToComplete();
         expect(warnSpy).toHaveBeenCalledWith(error, expect.any(Map));
-        expect(createMessageSpy).toHaveBeenCalled();
+        expect(createMessageSpy).toHaveBeenCalledOnce();
       });
 
       it("logs a warning but still creates the players message if haloService.getPlayersEsras throws", async () => {
@@ -382,7 +382,7 @@ describe("NeatQueueService", () => {
 
         await jobToComplete();
         expect(warnSpy).toHaveBeenCalledWith(error, expect.any(Map));
-        expect(createMessageSpy).toHaveBeenCalled();
+        expect(createMessageSpy).toHaveBeenCalledOnce();
       });
 
       it("skips message creation when NeatQueueInformerPlayerConnections is disabled", async () => {
