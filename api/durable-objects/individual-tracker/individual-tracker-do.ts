@@ -1972,9 +1972,28 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
     const payload = parsed.data;
 
+    this.logService.debug(
+      "IndividualTracker: nudge received",
+      new Map([
+        ["trackerId", trackerState.trackerId],
+        ["gamertag", trackerState.gamertag],
+        ["payloadType", payload.type],
+        ["hasActiveSeries", String(trackerState.activeSeries != null)],
+      ]),
+    );
+
     switch (payload.type) {
       case "ended": {
+        const hadActiveSeries = trackerState.activeSeries != null;
         this.retireActiveSeries(trackerState);
+        this.logService.info(
+          "IndividualTracker: series ended via nudge",
+          new Map([
+            ["trackerId", trackerState.trackerId],
+            ["gamertag", trackerState.gamertag],
+            ["hadActiveSeries", String(hadActiveSeries)],
+          ]),
+        );
         break;
       }
       case "substituted": {
@@ -2038,6 +2057,14 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
             new Map([
               ["trackerId", trackerState.trackerId],
               ["teamId", String(payload.teamId)],
+            ]),
+          );
+        } else {
+          this.logService.debug(
+            "IndividualTracker: substitution nudge ignored (tracked player not involved and no active series)",
+            new Map([
+              ["trackerId", trackerState.trackerId],
+              ["gamertag", trackerState.gamertag],
             ]),
           );
         }

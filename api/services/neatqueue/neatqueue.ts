@@ -664,6 +664,7 @@ export class NeatQueueService {
           "Failed to fetch player association data for series context, proceeding with existing data",
           new Map([
             ["guildId", request.guild],
+            ["queueNumber", request.match_number.toString()],
             ["error", String(fetchError)],
           ]),
         );
@@ -689,6 +690,25 @@ export class NeatQueueService {
       queueState.seriesContext = seriesContext;
       this.setQueueState(request.guild, request.match_number, queueState);
       const allPlayerXuids = await this.extractXuidsWithFallback(queueState.playersAssociationData);
+      const expectedPlayerCount = request.teams.flat().length;
+      this.logService.debug(
+        "buildAndNudgeSeriesContext: resolved player xuids for series start nudge",
+        new Map([
+          ["guildId", request.guild],
+          ["queueNumber", request.match_number.toString()],
+          ["expectedPlayerCount", expectedPlayerCount.toString()],
+          ["resolvedXuidCount", allPlayerXuids.length.toString()],
+        ]),
+      );
+      if (allPlayerXuids.length === 0 && expectedPlayerCount > 0) {
+        this.logService.warn(
+          "buildAndNudgeSeriesContext: resolved zero player xuids, no individual trackers will be nudged for series start",
+          new Map([
+            ["guildId", request.guild],
+            ["queueNumber", request.match_number.toString()],
+          ]),
+        );
+      }
       await this.individualTrackerService.nudgeTrackers(allPlayerXuids, seriesContext);
     } catch (error) {
       this.logService.warn(
@@ -926,6 +946,15 @@ export class NeatQueueService {
         }
       }
 
+      this.logService.debug(
+        "nudgeIndividualTrackersForSubstitution: resolved player xuids for substitution nudge",
+        new Map([
+          ["guildId", request.guild],
+          ["queueNumber", matchNumber.toString()],
+          ["resolvedXuidCount", playerXuidSet.size.toString()],
+        ]),
+      );
+
       if (playerXuidSet.size > 0) {
         try {
           await this.individualTrackerService.nudgeTrackers(Array.from(playerXuidSet), substitutionPayload);
@@ -939,6 +968,14 @@ export class NeatQueueService {
             ]),
           );
         }
+      } else {
+        this.logService.warn(
+          "nudgeIndividualTrackersForSubstitution: resolved zero player xuids, no individual trackers will be nudged for substitution",
+          new Map([
+            ["guildId", request.guild],
+            ["queueNumber", matchNumber.toString()],
+          ]),
+        );
       }
     } catch (nudgeError) {
       this.logService.warn(
@@ -1136,6 +1173,14 @@ export class NeatQueueService {
     neatQueueConfig: NeatQueueConfigRow,
     allPlayerXuids: string[],
   ): Promise<void> {
+    this.logService.debug(
+      "nudgeIndividualTrackersForMatchCompletion: resolved player xuids for series end nudge",
+      new Map([
+        ["guildId", neatQueueConfig.GuildId],
+        ["queueNumber", request.match_number.toString()],
+        ["resolvedXuidCount", allPlayerXuids.length.toString()],
+      ]),
+    );
     try {
       await this.individualTrackerService.nudgeTrackers(allPlayerXuids, { type: "ended" });
     } catch (error: unknown) {
