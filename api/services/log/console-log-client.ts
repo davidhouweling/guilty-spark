@@ -1,9 +1,8 @@
 import type { LogService, JsonAny } from "./types";
 
 export class ConsoleLogClient implements LogService {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  debug(_message: unknown, _extra?: ReadonlyMap<string, JsonAny>): void {
-    // no-op
+  debug(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void {
+    console.debug(this.format(message, extra));
   }
 
   info(message: unknown, extra?: ReadonlyMap<string, JsonAny>): void {
