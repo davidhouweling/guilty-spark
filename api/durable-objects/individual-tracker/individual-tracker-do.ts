@@ -310,8 +310,6 @@ function getExpectedSeriesTeamRosters(
   return expectedRosters;
 }
 
-// Never tolerate mismatching every known identity on a team - at least one must still match when
-// any identity signal exists, otherwise this degrades to a count-only check.
 function xuidsMatchWithTolerance(expectedXuids: ReadonlySet<string>, actualXuids: ReadonlySet<string>): boolean {
   if (expectedXuids.size === 0) {
     return true;
@@ -359,9 +357,6 @@ function matchesExpectedSeriesRoster(
   return true;
 }
 
-// Compares an incoming series' roster against a previously completed series to decide whether a
-// "started" nudge is actually a continuation of that series (e.g. the "ended" nudge for it hasn't
-// finished processing yet) rather than a genuinely new one, so history/matchIds aren't lost.
 function seriesRosterMatchesPreviousSeries(
   incomingTeams: readonly SeriesTeam[],
   previousSeries: ActiveSeries | undefined,
