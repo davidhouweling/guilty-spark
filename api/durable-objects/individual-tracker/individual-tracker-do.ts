@@ -2239,14 +2239,32 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return preSeriesPlayerInfo;
     }
 
-    if (preSeriesPlayerInfo !== undefined) {
-      state.preSeriesPlayerInfo = preSeriesPlayerInfo;
-    } else {
-      delete state.preSeriesPlayerInfo;
-    }
-    state.preSeriesPlayerInfoLatestMatchId = cacheKey;
-    await this.setState(state);
+    await this.persistPreSeriesPlayerInfo(cacheKey, preSeriesPlayerInfo);
     return preSeriesPlayerInfo;
+  }
+
+  // Called from the "read-only" view-state path, so this can't just write the caller's
+  // in-memory state snapshot - that would race an in-flight alarm/nudge write and silently
+  // discard its changes (the exact bug this write lock exists to prevent). Re-reads the latest
+  // persisted state inside the lock and merges only these two cache fields into it.
+  private async persistPreSeriesPlayerInfo(
+    cacheKey: string | null,
+    preSeriesPlayerInfo: PreSeriesPlayerInfo | undefined,
+  ): Promise<void> {
+    await this.withStateLock(async () => {
+      const latestState = await this.getState();
+      if (latestState == null) {
+        return;
+      }
+
+      if (preSeriesPlayerInfo !== undefined) {
+        latestState.preSeriesPlayerInfo = preSeriesPlayerInfo;
+      } else {
+        delete latestState.preSeriesPlayerInfo;
+      }
+      latestState.preSeriesPlayerInfoLatestMatchId = cacheKey;
+      await this.setState(latestState);
+    });
   }
 
   private async buildPreSeriesPlayerInfo(
