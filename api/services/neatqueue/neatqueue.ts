@@ -1695,6 +1695,7 @@ export class NeatQueueService {
         error,
         new Map([
           ["reason", "fetchPlayersAssociationData: failed to fetch halo players, continuing without gamertags"],
+          ["xboxIdCount", xboxIds.length.toString()],
         ]),
       );
       return new Map<string, UserInfo>();
@@ -1714,6 +1715,7 @@ export class NeatQueueService {
         error,
         new Map([
           ["reason", "fetchPlayersAssociationData: failed to fetch ranked arena CSRs, continuing without rank data"],
+          ["xboxIdCount", xboxIds.length.toString()],
         ]),
       );
       return new Map<string, PlaylistCsrContainer>();
@@ -1728,6 +1730,7 @@ export class NeatQueueService {
         error,
         new Map([
           ["reason", "fetchPlayersAssociationData: failed to fetch player ESRAs, continuing without ESRA data"],
+          ["xboxIdCount", xboxIds.length.toString()],
         ]),
       );
       return new Map<string, PlayerEsraData>();
