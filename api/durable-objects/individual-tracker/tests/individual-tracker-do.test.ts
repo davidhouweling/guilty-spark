@@ -1897,6 +1897,65 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.discoveredMatches["match-custom-newer"]?.isMatchmaking).toBe(false);
     });
 
+    it("keeps a freshly-started series active when a matchmaking match is discovered before any series match is recorded", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-matchmaking", "2024-11-26T11:55:00.000Z", 2, "PT5M", true)])
+        .mockResolvedValueOnce([]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: [],
+          discoveredMatches: {},
+          activeSeries: {
+            title: "Active Series",
+            subtitle: "Customs",
+            guildIconUrl: null,
+            teams: [],
+            matchIds: [],
+            startedAt: "2024-11-26T11:50:00.000Z",
+            isActive: true,
+          },
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.matchIds).toEqual([]);
+      expect(persisted.matchIds).toEqual(["match-matchmaking"]);
+      expect(persisted.discoveredMatches["match-matchmaking"]?.isMatchmaking).toBe(true);
+    });
+
+    it("ends a still-empty series once it has sat stale for too long despite matchmaking matches being discovered", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-matchmaking", "2024-11-26T11:59:00.000Z", 2, "PT5M", true)])
+        .mockResolvedValueOnce([]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: [],
+          discoveredMatches: {},
+          activeSeries: {
+            title: "Active Series",
+            subtitle: "Customs",
+            guildIconUrl: null,
+            teams: [],
+            matchIds: [],
+            startedAt: "2024-11-26T11:44:00.000Z",
+            isActive: true,
+          },
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toBeUndefined();
+      expect(persisted.completedSeries).toBeUndefined();
+    });
+
     it("stores outcome, score, and the resolved map name for a newly discovered match", async () => {
       ownerClient.getPlayerMatches
         .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 3)])
