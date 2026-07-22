@@ -173,7 +173,18 @@ export class IndividualTrackerService {
   async nudgeTrackers(xuids: string[], payload: NudgePayload): Promise<void> {
     const trackers = await this.databaseService.findIndividualTrackersByXuids(xuids);
     const nonStoppedTrackers = trackers.filter((t) => t.Status !== "stopped");
-    await Promise.all(
+
+    this.logService.debug(
+      "nudgeTrackers: resolved trackers for nudge",
+      new Map([
+        ["payloadType", payload.type],
+        ["xuidCount", xuids.length.toString()],
+        ["trackerCount", trackers.length.toString()],
+        ["nonStoppedTrackerCount", nonStoppedTrackers.length.toString()],
+      ]),
+    );
+
+    const results = await Promise.all(
       nonStoppedTrackers.map(async (tracker) => {
         try {
           const doId = this.env.INDIVIDUAL_TRACKER_DO.idFromName(`${tracker.UserId}:${tracker.TrackerId}`);
@@ -186,16 +197,38 @@ export class IndividualTrackerService {
           if (!response.ok) {
             throw new Error(`nudge returned ${response.status.toString()}`);
           }
+          this.logService.debug(
+            "nudgeTrackers: nudged tracker",
+            new Map([
+              ["trackerId", tracker.TrackerId],
+              ["xuid", tracker.Xuid],
+              ["payloadType", payload.type],
+            ]),
+          );
+          return true;
         } catch (error) {
           this.logService.warn(
             error,
             new Map([
               ["reason", "nudgeTrackers: failed to nudge tracker"],
               ["trackerId", tracker.TrackerId],
+              ["xuid", tracker.Xuid],
+              ["payloadType", payload.type],
             ]),
           );
+          return false;
         }
       }),
+    );
+
+    const succeededCount = results.filter(Boolean).length;
+    this.logService.debug(
+      "nudgeTrackers: completed nudging trackers",
+      new Map([
+        ["payloadType", payload.type],
+        ["succeededCount", succeededCount.toString()],
+        ["failedCount", (results.length - succeededCount).toString()],
+      ]),
     );
   }
 
