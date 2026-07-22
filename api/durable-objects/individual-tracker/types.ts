@@ -1,4 +1,5 @@
 import type { NormalizedMatchOutcome } from "@guilty-spark/shared/halo/match-enrichment";
+import type { IndividualStatsHighlightOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerStatus } from "../../services/database/types/individual_trackers";
 
 export interface IndividualTrackerState {
@@ -152,6 +153,7 @@ export interface IndividualTrackerInternalState extends IndividualTrackerState {
   activeSeries?: ActiveSeries;
   completedSeries?: ActiveSeries[];
   seriesGroupOverrides?: IndividualTrackerSeriesGroupOverride[];
+  websocketStatsHighlightSlots?: readonly IndividualStatsHighlightOption[];
   errorState: {
     consecutiveErrors: number;
     backoffMinutes: number;

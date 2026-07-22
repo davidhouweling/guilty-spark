@@ -426,8 +426,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private statsHighlightsCacheKey: string | undefined;
   private cachedStatsHighlights: readonly StatsHighlightItem[] | undefined;
   private cachedResolvedRosterCount: number | undefined;
-  private websocketStatsHighlightSlots: readonly IndividualStatsHighlightOption[] =
-    DEFAULT_WEBSOCKET_STATS_HIGHLIGHT_SLOTS;
   // Serializes state-mutating handlers (alarm + write fetch actions) against each other without
   // blocking read-only actions (status/view-state/websocket) behind a potentially multi-second
   // alarm poll - state.blockConcurrencyWhile blocks ALL events to the instance, not just writers,
@@ -2190,7 +2188,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     await this.setState(trackerState);
     this.notifyUserTracker(trackerState);
     await this.broadcastViewState(trackerState);
-    await this.state.storage.setAlarm(Date.now());
+    // A paused/stopped tracker has no alarm scheduled (handlePause/handleStop delete it) and
+    // won't reschedule one after this fires - forcing it here would just be a wasted wake-up.
+    if (!trackerState.isPaused && trackerState.status === "active") {
+      await this.state.storage.setAlarm(Date.now());
+    }
 
     return individualTrackerNudgeContract.toResponse({ success: true });
   }
@@ -2642,10 +2644,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private async buildRealtimeViewState(state: IndividualTrackerInternalState): Promise<IndividualTrackerViewState> {
+    const statsHighlightSlots = state.websocketStatsHighlightSlots ?? DEFAULT_WEBSOCKET_STATS_HIGHLIGHT_SLOTS;
     const statsHighlights =
-      this.websocketStatsHighlightSlots.length > 0
-        ? await this.buildStatsHighlights(state, this.websocketStatsHighlightSlots)
-        : [];
+      statsHighlightSlots.length > 0 ? await this.buildStatsHighlights(state, statsHighlightSlots) : [];
     const preSeriesPlayerInfo = await this.getPreSeriesPlayerInfo(state, false);
 
     return {
@@ -2668,8 +2669,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     const trackerState = await this.getState();
     const url = new URL(request.url);
-    if (url.searchParams.has("statsHighlightSlots")) {
-      this.websocketStatsHighlightSlots = parseStatsHighlightSlots(url);
+    if (url.searchParams.has("statsHighlightSlots") && trackerState != null) {
+      // Persisted (not an instance field) so the configured slots survive DO hibernation -
+      // otherwise a hibernate/wake cycle would silently reset the streamer's view to defaults.
+      trackerState.websocketStatsHighlightSlots = parseStatsHighlightSlots(url);
+      await this.setState(trackerState);
     }
 
     this.logService.info(

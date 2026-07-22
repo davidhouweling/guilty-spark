@@ -2894,6 +2894,47 @@ describe("IndividualTrackerDO", () => {
       expect(parsed.view.statsHighlights).toEqual([]);
     });
 
+    it("keeps configured stats highlight slots after the DO instance is recreated (hibernation)", async () => {
+      const trackerState = aFakeIndividualTrackerInternalStateWith({
+        trackerId: "t1",
+        gamertag: "Tag1",
+        status: "active",
+        matchIds: ["m1"],
+        selectedMatchIds: ["m1"],
+        discoveredMatches: {
+          m1: aFakeIndividualTrackerMatchSummaryWith({
+            matchId: "m1",
+            startTime: "s",
+            endTime: "e",
+            mapAssetId: "map",
+            mapVersionId: "map-v",
+            mapName: "Streets",
+            modeAssetId: "mode",
+            gameVariantCategory: 6,
+            outcome: "Win",
+            score: "50:42",
+          }),
+        },
+      });
+      storageGetSpy.mockResolvedValue(trackerState);
+
+      await individualTrackerDO.fetch(
+        wsRequest(`?statsHighlightSlots=${encodeURIComponent('["kills-deaths-assists-kda"]')}`),
+      );
+
+      // Simulates the DO instance being evicted and recreated on wake from hibernation - the
+      // in-memory instance field is gone, but the underlying storage (mockState) is unchanged.
+      const rehydratedWebSocketAdapter = aFakeWebSocketHibernationAdapter();
+      const rehydratedDO = new IndividualTrackerDO(mockState, env, () => services, rehydratedWebSocketAdapter);
+
+      await rehydratedDO.fetch(wsRequest());
+
+      const parsed = trackerViewMessageContract.parse(
+        Preconditions.checkExists(rehydratedWebSocketAdapter.initialMessages[0]),
+      );
+      expect(parsed.view.statsHighlights).toHaveLength(1);
+    });
+
     it("does not overwrite configured stats highlight slots when websocket query is absent", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
@@ -3307,6 +3348,17 @@ describe("IndividualTrackerDO", () => {
 
       expect(storageSetAlarmSpy).toHaveBeenCalledWith(Date.now());
       expect(webSocketAdapter.broadcasts).toHaveLength(1);
+    });
+
+    it("does not force an alarm when nudging a paused tracker", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ status: "paused", isPaused: true }));
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aSeriesPayload()) }),
+      );
+
+      expect(response.status).toBe(200);
+      expect(storageSetAlarmSpy).not.toHaveBeenCalled();
     });
 
     it("returns 400 for malformed JSON body", async () => {
