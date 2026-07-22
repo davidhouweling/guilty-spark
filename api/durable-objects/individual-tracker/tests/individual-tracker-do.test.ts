@@ -2294,6 +2294,63 @@ describe("IndividualTrackerDO", () => {
       expect(afterSecond.activeSeries?.matchIds).toEqual(["match-new"]);
     });
 
+    it("does not retroactively attach a backfilled match with an invalid (NaN) duration to the active series", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValue([]);
+      const activeSeries: ActiveSeries = {
+        title: "Active Series",
+        subtitle: "Customs",
+        guildIconUrl: null,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [
+              { discordId: null, discordName: null, gamertag: "Alpha", xboxId: "1111111111" },
+              { discordId: null, discordName: null, gamertag: "Bravo", xboxId: "2222222222" },
+            ],
+          },
+          {
+            id: 1,
+            name: "Cobra",
+            players: [
+              { discordId: null, discordName: null, gamertag: "Charlie", xboxId: "3333333333" },
+              { discordId: null, discordName: null, gamertag: "Delta", xboxId: "4444444444" },
+            ],
+          },
+        ],
+        matchIds: [],
+        startedAt: "2024-11-26T11:00:00.000Z",
+        isActive: true,
+      };
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: ["match-bad-times"],
+          discoveredMatches: {
+            "match-bad-times": aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "match-bad-times",
+              // Empty timestamps make differenceInSeconds return NaN, and NaN < 120 is false -
+              // without an explicit finite/non-negative guard this would bypass the duration check.
+              startTime: "",
+              endTime: "",
+              isMatchmaking: false,
+              teamRosterSignature: "0:1111111111,2222222222|1:3333333333,4444444444",
+              teamOutcomes: [2, 3],
+              killsDeathsAssistsKda: "10:5:2 (3.3)",
+              damageDealtTakenRatio: "500:300 (1.7)",
+            }),
+          },
+          activeSeries,
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.matchIds).toEqual([]);
+    });
+
     it("retries enrichment for migrated match with null KDA fields when getMatchStats fails transiently", async () => {
       ownerClient.getPlayerMatches.mockResolvedValue([]);
       ownerClient.getMatchStats

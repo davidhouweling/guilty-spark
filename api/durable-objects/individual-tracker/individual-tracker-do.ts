@@ -777,7 +777,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
       if (trackerState.activeSeries != null && !existingActiveSeriesMatchIds.has(matchId)) {
         const durationSeconds = differenceInSeconds(new Date(summary.endTime), new Date(summary.startTime));
-        if (isEligibleForActiveSeries(summary, durationSeconds, trackerState.activeSeries)) {
+        // NaN/negative durations (e.g. missing or malformed timestamps) must not silently bypass
+        // isEligibleForActiveSeries's `< 120` guard - `NaN < 120` is false, not true.
+        if (
+          Number.isFinite(durationSeconds) &&
+          durationSeconds >= 0 &&
+          isEligibleForActiveSeries(summary, durationSeconds, trackerState.activeSeries)
+        ) {
           trackerState.activeSeries.matchIds.push(matchId);
           existingActiveSeriesMatchIds.add(matchId);
           viewChanged = true;
