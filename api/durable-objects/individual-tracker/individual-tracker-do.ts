@@ -256,8 +256,8 @@ function shouldEnrichSummary(summary: IndividualTrackerMatchSummary): boolean {
 
 // A NeatQueue SUBSTITUTION event nudges the tracker's activeSeries roster immediately, so under
 // normal timing a discovered match's roster already reflects any swap. This tolerance only covers
-// the race where the match is discovered before that nudge lands (see PR4 for the underlying
-// nudge/poll concurrency fix) - it deliberately does not tolerate a wholesale different roster.
+// the rare race where the match is discovered before that nudge has been applied to state - it
+// deliberately does not tolerate a wholesale different roster.
 const MAX_TOLERATED_ROSTER_MISMATCHES_PER_TEAM = 1;
 
 function parseTeamRosterSignature(signature: string): Map<number, ReadonlySet<string>> | null {
@@ -335,8 +335,11 @@ function matchesExpectedSeriesRoster(
       continue;
     }
 
+    // Never tolerate mismatching every known identity on a team - at least one must still match
+    // when any identity signal exists, otherwise this degrades to the count-only check it replaced.
+    const maxToleratedMismatches = Math.min(MAX_TOLERATED_ROSTER_MISMATCHES_PER_TEAM, expected.knownXuids.size - 1);
     const mismatchedCount = [...expected.knownXuids].filter((xuid) => !actualXuids.has(xuid)).length;
-    if (mismatchedCount > MAX_TOLERATED_ROSTER_MISMATCHES_PER_TEAM) {
+    if (mismatchedCount > maxToleratedMismatches) {
       return false;
     }
   }
