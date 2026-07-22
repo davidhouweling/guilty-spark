@@ -1545,6 +1545,17 @@ describe("IndividualTrackerDO", () => {
     const NORMAL_INTERVAL_MS = 3 * 60 * 1000 - 8 * 1000;
     const now = new Date("2024-11-26T12:00:00.000Z");
 
+    it("runs the poll inside blockConcurrencyWhile to serialize against concurrent state writes", async () => {
+      const blockConcurrencyWhileSpy = vi.spyOn(mockState, "blockConcurrencyWhile");
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ checkCount: 2, startTime: now.toISOString() }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      expect(blockConcurrencyWhileSpy).toHaveBeenCalledOnce();
+    });
+
     it("bumps check count and reschedules at the normal interval on success", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({ checkCount: 2, startTime: now.toISOString() }),
@@ -3163,6 +3174,18 @@ describe("IndividualTrackerDO", () => {
       );
 
       expect(response.status).toBe(404);
+    });
+
+    it("processes the nudge inside blockConcurrencyWhile to serialize against a concurrent alarm poll", async () => {
+      const blockConcurrencyWhileSpy = vi.spyOn(mockState, "blockConcurrencyWhile");
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aSeriesPayload()) }),
+      );
+
+      expect(response.status).toBe(200);
+      expect(blockConcurrencyWhileSpy).toHaveBeenCalledOnce();
     });
 
     it("sets activeSeries, triggers immediate alarm, broadcasts view, and returns success", async () => {

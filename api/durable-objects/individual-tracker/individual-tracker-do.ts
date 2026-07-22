@@ -460,16 +460,16 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       try {
         switch (action) {
           case "start": {
-            return await this.handleStart(request);
+            return await this.withStateLock(async () => this.handleStart(request));
           }
           case "pause": {
-            return await this.handlePause();
+            return await this.withStateLock(async () => this.handlePause());
           }
           case "resume": {
-            return await this.handleResume();
+            return await this.withStateLock(async () => this.handleResume());
           }
           case "stop": {
-            return await this.handleStop();
+            return await this.withStateLock(async () => this.handleStop());
           }
           case "status": {
             return await this.handleStatus();
@@ -478,25 +478,25 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
             return await this.handleViewState(request);
           }
           case "select-matches": {
-            return await this.handleSelectMatches(request);
+            return await this.withStateLock(async () => this.handleSelectMatches(request));
           }
           case "start-series": {
-            return await this.handleStartSeries(request);
+            return await this.withStateLock(async () => this.handleStartSeries(request));
           }
           case "end-series": {
-            return await this.handleEndSeries();
+            return await this.withStateLock(async () => this.handleEndSeries());
           }
           case "edit-series": {
-            return await this.handleEditSeries(request);
+            return await this.withStateLock(async () => this.handleEditSeries(request));
           }
           case "resume-series": {
-            return await this.handleResumeSeries();
+            return await this.withStateLock(async () => this.handleResumeSeries());
           }
           case "refresh": {
-            return await this.handleRefresh();
+            return await this.withStateLock(async () => this.handleRefresh());
           }
           case "nudge": {
-            return await this.handleNudge(request);
+            return await this.withStateLock(async () => this.handleNudge(request));
           }
           case "websocket": {
             return await this.handleWebSocket(request);
@@ -522,7 +522,19 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     });
   }
 
+  // Guards against the alarm-driven poll (which awaits many external Halo API calls while
+  // holding an in-memory copy of tracker state) racing a nudge/write request that reads state
+  // and writes it back concurrently - without this, whichever setState() lands last would
+  // silently overwrite the other's changes since state is a single JSON blob with no CAS.
+  private async withStateLock<T>(fn: () => Promise<T>): Promise<T> {
+    return await this.state.blockConcurrencyWhile(fn);
+  }
+
   async alarm(): Promise<void> {
+    await this.withStateLock(async () => this.runAlarm());
+  }
+
+  private async runAlarm(): Promise<void> {
     await Sentry.withScope(async () => {
       Sentry.setTag("durableObject", "IndividualTrackerDO");
       Sentry.setTag("method", "alarm");
