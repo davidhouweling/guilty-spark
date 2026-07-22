@@ -2022,6 +2022,195 @@ describe("IndividualTrackerDO", () => {
       expect(summary?.isMatchmaking).toBe(false);
     });
 
+    it("attaches a discovered match to the active series when team rosters match by identity", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
+        .mockResolvedValueOnce([]);
+      const activeSeries: ActiveSeries = {
+        title: "Active Series",
+        subtitle: "Customs",
+        guildIconUrl: null,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [
+              { discordId: null, discordName: null, gamertag: "Alpha", xboxId: "1111111111" },
+              { discordId: null, discordName: null, gamertag: "Bravo", xboxId: "2222222222" },
+            ],
+          },
+          {
+            id: 1,
+            name: "Cobra",
+            players: [
+              { discordId: null, discordName: null, gamertag: "Charlie", xboxId: "3333333333" },
+              { discordId: null, discordName: null, gamertag: "Delta", xboxId: "4444444444" },
+            ],
+          },
+        ],
+        matchIds: [],
+        startedAt: "2024-11-26T11:00:00.000Z",
+        isActive: true,
+      };
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: [],
+          discoveredMatches: {},
+          activeSeries,
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.matchIds).toEqual(["match-new"]);
+    });
+
+    it("does not attach a discovered match to the active series when the rosters are a different set of players despite matching team sizes", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
+        .mockResolvedValueOnce([]);
+      const activeSeries: ActiveSeries = {
+        title: "Active Series",
+        subtitle: "Customs",
+        guildIconUrl: null,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [
+              { discordId: null, discordName: null, gamertag: "Zulu", xboxId: "9999999901" },
+              { discordId: null, discordName: null, gamertag: "Yankee", xboxId: "9999999902" },
+            ],
+          },
+          {
+            id: 1,
+            name: "Cobra",
+            players: [
+              { discordId: null, discordName: null, gamertag: "Xray", xboxId: "9999999903" },
+              { discordId: null, discordName: null, gamertag: "Whiskey", xboxId: "9999999904" },
+            ],
+          },
+        ],
+        matchIds: [],
+        startedAt: "2024-11-26T11:00:00.000Z",
+        isActive: true,
+      };
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: [],
+          discoveredMatches: {},
+          activeSeries,
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.matchIds).toEqual([]);
+      expect(persisted.matchIds).toContain("match-new");
+    });
+
+    it("tolerates a single per-team roster swap (in-flight substitution) when attaching a match to the active series", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
+        .mockResolvedValueOnce([]);
+      const activeSeries: ActiveSeries = {
+        title: "Active Series",
+        subtitle: "Customs",
+        guildIconUrl: null,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [
+              { discordId: null, discordName: null, gamertag: "Alpha", xboxId: "1111111111" },
+              // "Old Bravo" has not yet been reflected as subbed out for "2222222222" (xuid_discord_user_02 stand-in)
+              { discordId: null, discordName: null, gamertag: "Old Bravo", xboxId: "9999999999" },
+            ],
+          },
+          {
+            id: 1,
+            name: "Cobra",
+            players: [
+              { discordId: null, discordName: null, gamertag: "Charlie", xboxId: "3333333333" },
+              { discordId: null, discordName: null, gamertag: "Delta", xboxId: "4444444444" },
+            ],
+          },
+        ],
+        matchIds: [],
+        startedAt: "2024-11-26T11:00:00.000Z",
+        isActive: true,
+      };
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: [],
+          discoveredMatches: {},
+          activeSeries,
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.matchIds).toEqual(["match-new"]);
+    });
+
+    it("does not tolerate a team's only known identity mismatching, even within team-size and single-mismatch bounds", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
+        .mockResolvedValueOnce([]);
+      const activeSeries: ActiveSeries = {
+        title: "Active Series",
+        subtitle: "Customs",
+        guildIconUrl: null,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            // Only one player has a resolved xuid, and it doesn't match either actual player -
+            // this must still reject (a single mismatch that consumes 100% of the known identities
+            // is not the same as tolerating one swap out of a larger, still-partially-confirmed roster).
+            players: [
+              { discordId: null, discordName: null, gamertag: "Alpha", xboxId: "9999999999" },
+              { discordId: null, discordName: null, gamertag: "Bravo", xboxId: null },
+            ],
+          },
+          {
+            id: 1,
+            name: "Cobra",
+            players: [
+              { discordId: null, discordName: null, gamertag: "Charlie", xboxId: "3333333333" },
+              { discordId: null, discordName: null, gamertag: "Delta", xboxId: "4444444444" },
+            ],
+          },
+        ],
+        matchIds: [],
+        startedAt: "2024-11-26T11:00:00.000Z",
+        isActive: true,
+      };
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: [],
+          discoveredMatches: {},
+          activeSeries,
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.matchIds).toEqual([]);
+    });
+
     it("falls back to an empty score and re-enriches on the next poll when getMatchStats fails", async () => {
       ownerClient.getPlayerMatches
         .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
