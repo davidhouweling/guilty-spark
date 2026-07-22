@@ -428,6 +428,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private cachedResolvedRosterCount: number | undefined;
   private websocketStatsHighlightSlots: readonly IndividualStatsHighlightOption[] =
     DEFAULT_WEBSOCKET_STATS_HIGHLIGHT_SLOTS;
+  // Serializes state-mutating handlers (alarm + write fetch actions) against each other without
+  // blocking read-only actions (status/view-state/websocket) behind a potentially multi-second
+  // alarm poll - state.blockConcurrencyWhile blocks ALL events to the instance, not just writers,
+  // and holding it across the poll's external Halo API calls is a documented anti-pattern.
+  private writeQueue: Promise<void> = Promise.resolve();
 
   constructor(
     state: DurableObjectState,
@@ -526,8 +531,15 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   // holding an in-memory copy of tracker state) racing a nudge/write request that reads state
   // and writes it back concurrently - without this, whichever setState() lands last would
   // silently overwrite the other's changes since state is a single JSON blob with no CAS.
+  // A plain promise-chain mutex (not blockConcurrencyWhile) so only callers that opt in via this
+  // method wait on each other; read-only fetch actions never touch writeQueue and run immediately.
   private async withStateLock<T>(fn: () => Promise<T>): Promise<T> {
-    return await this.state.blockConcurrencyWhile(fn);
+    const runAfterPrevious = this.writeQueue.then(fn, fn);
+    this.writeQueue = runAfterPrevious.then(
+      () => undefined,
+      () => undefined,
+    );
+    return await runAfterPrevious;
   }
 
   async alarm(): Promise<void> {
