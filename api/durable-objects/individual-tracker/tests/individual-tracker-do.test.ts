@@ -1956,6 +1956,35 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.completedSeries).toBeUndefined();
     });
 
+    it("ends a still-empty series with an unparseable startedAt rather than leaving it stuck active forever", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-matchmaking", "2024-11-26T11:59:00.000Z", 2, "PT5M", true)])
+        .mockResolvedValueOnce([]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: [],
+          discoveredMatches: {},
+          activeSeries: {
+            title: "Active Series",
+            subtitle: "Customs",
+            guildIconUrl: null,
+            teams: [],
+            matchIds: [],
+            startedAt: "not-a-valid-date",
+            isActive: true,
+          },
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toBeUndefined();
+      expect(persisted.completedSeries).toBeUndefined();
+    });
+
     it("stores outcome, score, and the resolved map name for a newly discovered match", async () => {
       ownerClient.getPlayerMatches
         .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 3)])
