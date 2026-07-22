@@ -338,9 +338,15 @@ function matchesExpectedSeriesRoster(
     // Never tolerate mismatching every known identity on a team - at least one must still match
     // when any identity signal exists, otherwise this degrades to the count-only check it replaced.
     const maxToleratedMismatches = Math.min(MAX_TOLERATED_ROSTER_MISMATCHES_PER_TEAM, expected.knownXuids.size - 1);
-    const mismatchedCount = [...expected.knownXuids].filter((xuid) => !actualXuids.has(xuid)).length;
-    if (mismatchedCount > maxToleratedMismatches) {
-      return false;
+    let mismatchedCount = 0;
+    for (const xuid of expected.knownXuids) {
+      if (actualXuids.has(xuid)) {
+        continue;
+      }
+      mismatchedCount += 1;
+      if (mismatchedCount > maxToleratedMismatches) {
+        return false;
+      }
     }
   }
 
