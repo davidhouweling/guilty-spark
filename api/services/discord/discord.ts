@@ -1456,7 +1456,8 @@ export class DiscordService {
     }
 
     const data = await response.json();
-    this.logService.debug("Discord API response", new Map([["data", JSON.stringify(data)]]));
+    // Log only the first 500 characters of the response data to avoid excessive logging, especially for large responses
+    this.logService.debug("Discord API response", new Map([["data", JSON.stringify(data).substring(0, 500)]]));
     return data as T;
   }
 

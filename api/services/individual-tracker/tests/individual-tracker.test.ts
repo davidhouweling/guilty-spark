@@ -424,6 +424,20 @@ describe("IndividualTrackerService", () => {
       expect(JSON.parse(init.body as string)).toEqual(payload);
     });
 
+    it("logs a per-tracker debug entry when a nudge succeeds", async () => {
+      const debugSpy = vi.spyOn(logService, "debug");
+      vi.spyOn(databaseService, "findIndividualTrackersByXuids").mockResolvedValue([
+        aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Xuid: "xuid-1", Status: "active" }),
+      ]);
+
+      await nudgeService.nudgeTrackers(["xuid-1"], { type: "ended" });
+
+      expect(debugSpy).toHaveBeenCalledWith(
+        "nudgeTrackers: nudged tracker",
+        expect.any(Map) as ReadonlyMap<string, unknown>,
+      );
+    });
+
     it("POSTs /nudge with a null body when payload is null", async () => {
       const tracker = aFakeIndividualTrackerDOWith({ nudgeResponse: { success: true } });
       const localFetchSpy = vi.spyOn(tracker, "fetch");

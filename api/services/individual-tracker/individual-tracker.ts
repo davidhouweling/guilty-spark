@@ -197,6 +197,14 @@ export class IndividualTrackerService {
           if (!response.ok) {
             throw new Error(`nudge returned ${response.status.toString()}`);
           }
+          this.logService.debug(
+            "nudgeTrackers: nudged tracker",
+            new Map([
+              ["trackerId", tracker.TrackerId],
+              ["xuid", tracker.Xuid],
+              ["payloadType", payload.type],
+            ]),
+          );
           return true;
         } catch (error) {
           this.logService.warn(
