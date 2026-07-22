@@ -2292,6 +2292,21 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     });
   }
 
+  // Called from the websocket upgrade path, which is otherwise read-only - same reasoning as
+  // persistPreSeriesPlayerInfo above: re-reads fresh state inside the lock so this doesn't race
+  // and clobber a concurrent alarm/nudge write.
+  private async persistWebsocketStatsHighlightSlots(slots: readonly IndividualStatsHighlightOption[]): Promise<void> {
+    await this.withStateLock(async () => {
+      const latestState = await this.getState();
+      if (latestState == null) {
+        return;
+      }
+
+      latestState.websocketStatsHighlightSlots = slots;
+      await this.setState(latestState);
+    });
+  }
+
   private async buildPreSeriesPlayerInfo(
     state: IndividualTrackerInternalState,
   ): Promise<PreSeriesPlayerInfo | undefined> {
@@ -2672,8 +2687,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     if (url.searchParams.has("statsHighlightSlots") && trackerState != null) {
       // Persisted (not an instance field) so the configured slots survive DO hibernation -
       // otherwise a hibernate/wake cycle would silently reset the streamer's view to defaults.
-      trackerState.websocketStatsHighlightSlots = parseStatsHighlightSlots(url);
-      await this.setState(trackerState);
+      const slots = parseStatsHighlightSlots(url);
+      // Mutate the local copy so this request's own initial view message reflects the new slots
+      // immediately, without waiting on the write lock below.
+      trackerState.websocketStatsHighlightSlots = slots;
+      await this.persistWebsocketStatsHighlightSlots(slots);
     }
 
     this.logService.info(

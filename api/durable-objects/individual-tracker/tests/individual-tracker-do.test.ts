@@ -2895,7 +2895,10 @@ describe("IndividualTrackerDO", () => {
     });
 
     it("keeps configured stats highlight slots after the DO instance is recreated (hibernation)", async () => {
-      const trackerState = aFakeIndividualTrackerInternalStateWith({
+      // Backs storageGetSpy/storagePutSpy with a real key-value store (get returns a deep clone
+      // of whatever was last put) instead of a single shared object reference - otherwise this
+      // test would "pass" from in-memory object identity alone without proving persistence.
+      let persistedState: IndividualTrackerInternalState = aFakeIndividualTrackerInternalStateWith({
         trackerId: "t1",
         gamertag: "Tag1",
         status: "active",
@@ -2916,11 +2919,17 @@ describe("IndividualTrackerDO", () => {
           }),
         },
       });
-      storageGetSpy.mockResolvedValue(trackerState);
+      storageGetSpy.mockImplementation(async () => Promise.resolve(structuredClone(persistedState)));
+      storagePutSpy.mockImplementation(async (_key, value) => {
+        persistedState = value;
+        return Promise.resolve();
+      });
 
       await individualTrackerDO.fetch(
         wsRequest(`?statsHighlightSlots=${encodeURIComponent('["kills-deaths-assists-kda"]')}`),
       );
+
+      expect(persistedState.websocketStatsHighlightSlots).toEqual(["kills-deaths-assists-kda"]);
 
       // Simulates the DO instance being evicted and recreated on wake from hibernation - the
       // in-memory instance field is gone, but the underlying storage (mockState) is unchanged.
