@@ -396,13 +396,9 @@ function shouldEndSeriesForUnrelatedMatchmakingMatch(activeSeries: ActiveSeries)
 
   const minutesSinceStart = differenceInMinutes(new Date(), new Date(activeSeries.startedAt));
   if (!Number.isFinite(minutesSinceStart)) {
-    // startedAt didn't parse as a valid date - don't trust a series we can't age-check to stay
-    // active indefinitely, end it rather than risk it getting stuck forever.
     return true;
   }
 
-  // A series that never recorded a real match may just be waiting on the player's in-flight
-  // matchmaking game to finish - only treat it as abandoned once it's sat empty a while.
   return minutesSinceStart >= STALE_EMPTY_SERIES_MINUTES;
 }
 
