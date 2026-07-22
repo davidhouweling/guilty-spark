@@ -1648,8 +1648,8 @@ export class NeatQueueService {
     // failures so a flaky Halo API call can't block xuid resolution for the whole roster.
     const [haloPlayersMap, rankedArenaCsrs, esras] = await Promise.all([
       this.fetchHaloPlayersMap(xboxIds),
-      this.fetchRankedArenaCsrsSafely(xboxIds),
-      this.fetchPlayersEsrasSafely(xboxIds),
+      this.fetchRankedArenaCsrs(xboxIds),
+      this.fetchPlayersEsras(xboxIds),
     ]);
 
     // Build the player association data record
@@ -1695,18 +1695,19 @@ export class NeatQueueService {
         error,
         new Map([
           ["reason", "fetchPlayersAssociationData: failed to fetch halo players, continuing without gamertags"],
+          ["xboxIdCount", xboxIds.length.toString()],
         ]),
       );
-      return new Map();
+      return new Map<string, UserInfo>();
     }
   }
 
-  private async fetchRankedArenaCsrsSafely(xboxIds: string[]): Promise<Map<string, PlaylistCsrContainer>> {
+  private async fetchRankedArenaCsrs(xboxIds: string[]): Promise<Map<string, PlaylistCsrContainer>> {
     try {
       const rankedArenaCsrs = await this.haloService.getRankedArenaCsrs(xboxIds);
       this.logService.debug(
         "Ranked Arena CSRs",
-        new Map([["rankedArenaCsrs", JSON.stringify(rankedArenaCsrs.entries())]]),
+        new Map([["rankedArenaCsrs", JSON.stringify([...rankedArenaCsrs.entries()])]]),
       );
       return rankedArenaCsrs;
     } catch (error) {
@@ -1714,13 +1715,14 @@ export class NeatQueueService {
         error,
         new Map([
           ["reason", "fetchPlayersAssociationData: failed to fetch ranked arena CSRs, continuing without rank data"],
+          ["xboxIdCount", xboxIds.length.toString()],
         ]),
       );
-      return new Map();
+      return new Map<string, PlaylistCsrContainer>();
     }
   }
 
-  private async fetchPlayersEsrasSafely(xboxIds: string[]): Promise<Map<string, PlayerEsraData>> {
+  private async fetchPlayersEsras(xboxIds: string[]): Promise<Map<string, PlayerEsraData>> {
     try {
       return await this.haloService.getPlayersEsras(xboxIds);
     } catch (error) {
@@ -1728,9 +1730,10 @@ export class NeatQueueService {
         error,
         new Map([
           ["reason", "fetchPlayersAssociationData: failed to fetch player ESRAs, continuing without ESRA data"],
+          ["xboxIdCount", xboxIds.length.toString()],
         ]),
       );
-      return new Map();
+      return new Map<string, PlayerEsraData>();
     }
   }
 

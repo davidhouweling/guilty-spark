@@ -364,7 +364,7 @@ describe("NeatQueueService", () => {
 
         await jobToComplete();
         expect(warnSpy).toHaveBeenCalledWith(error, expect.any(Map));
-        expect(createMessageSpy).toHaveBeenCalled();
+        expect(createMessageSpy).toHaveBeenCalledOnce();
       });
 
       it("logs a warning but still creates the players message if haloService.getRankedArenaCsrs throws", async () => {
@@ -373,7 +373,7 @@ describe("NeatQueueService", () => {
 
         await jobToComplete();
         expect(warnSpy).toHaveBeenCalledWith(error, expect.any(Map));
-        expect(createMessageSpy).toHaveBeenCalled();
+        expect(createMessageSpy).toHaveBeenCalledOnce();
       });
 
       it("logs a warning but still creates the players message if haloService.getPlayersEsras throws", async () => {
@@ -382,7 +382,7 @@ describe("NeatQueueService", () => {
 
         await jobToComplete();
         expect(warnSpy).toHaveBeenCalledWith(error, expect.any(Map));
-        expect(createMessageSpy).toHaveBeenCalled();
+        expect(createMessageSpy).toHaveBeenCalledOnce();
       });
 
       it("skips message creation when NeatQueueInformerPlayerConnections is disabled", async () => {
@@ -2179,8 +2179,8 @@ describe("NeatQueueService", () => {
           aFakeDiscordAssociationsRow({ DiscordId: "discord_user_02", XboxId: "xuid_discord_user_02" }),
         ]);
         vi.spyOn(haloService, "getUsersByXuids").mockRejectedValue(new Error("Halo API rate limited"));
-        vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(new Map());
-        vi.spyOn(haloService, "getPlayersEsras").mockResolvedValue(new Map());
+        vi.spyOn(haloService, "getRankedArenaCsrs").mockRejectedValue(new Error("Halo API rate limited"));
+        vi.spyOn(haloService, "getPlayersEsras").mockRejectedValue(new Error("Halo API rate limited"));
         vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
           aFakeGuildConfigRow({ NeatQueueInformerLiveTracking: "N" }),
         );
