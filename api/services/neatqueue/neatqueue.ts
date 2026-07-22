@@ -1706,7 +1706,7 @@ export class NeatQueueService {
       const rankedArenaCsrs = await this.haloService.getRankedArenaCsrs(xboxIds);
       this.logService.debug(
         "Ranked Arena CSRs",
-        new Map([["rankedArenaCsrs", JSON.stringify(rankedArenaCsrs.entries())]]),
+        new Map([["rankedArenaCsrs", JSON.stringify([...rankedArenaCsrs.entries()])]]),
       );
       return rankedArenaCsrs;
     } catch (error) {
