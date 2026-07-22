@@ -358,31 +358,31 @@ describe("NeatQueueService", () => {
         expect(createMessageSpy).not.toHaveBeenCalled();
       });
 
-      it("logs a warning if haloService.getUsersByXuids throws", async () => {
+      it("logs a warning but still creates the players message if haloService.getUsersByXuids throws", async () => {
         const error = new Error("Failed to fetch users");
         vi.spyOn(haloService, "getUsersByXuids").mockRejectedValue(error);
 
         await jobToComplete();
         expect(warnSpy).toHaveBeenCalledWith(error, expect.any(Map));
-        expect(createMessageSpy).not.toHaveBeenCalled();
+        expect(createMessageSpy).toHaveBeenCalledOnce();
       });
 
-      it("logs a warning if haloService.getRankedArenaCsrs throws", async () => {
+      it("logs a warning but still creates the players message if haloService.getRankedArenaCsrs throws", async () => {
         const error = new Error("Failed to fetch ranked arena CSRs");
         getRankedArenaCsrsSpy.mockRejectedValue(error);
 
         await jobToComplete();
         expect(warnSpy).toHaveBeenCalledWith(error, expect.any(Map));
-        expect(createMessageSpy).not.toHaveBeenCalled();
+        expect(createMessageSpy).toHaveBeenCalledOnce();
       });
 
-      it("logs a warning if haloService.getPlayersEsras throws", async () => {
+      it("logs a warning but still creates the players message if haloService.getPlayersEsras throws", async () => {
         const error = new Error("Failed to fetch player ESRAs");
         getPlayersEsrasSpy.mockRejectedValue(error);
 
         await jobToComplete();
         expect(warnSpy).toHaveBeenCalledWith(error, expect.any(Map));
-        expect(createMessageSpy).not.toHaveBeenCalled();
+        expect(createMessageSpy).toHaveBeenCalledOnce();
       });
 
       it("skips message creation when NeatQueueInformerPlayerConnections is disabled", async () => {
@@ -2151,6 +2151,36 @@ describe("NeatQueueService", () => {
         vi.spyOn(haloService, "getUsersByXuids").mockResolvedValue([]);
         vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(new Map());
         vi.spyOn(haloService, "getPlayersEsras").mockResolvedValue(new Map());
+        vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
+          aFakeGuildConfigRow({ NeatQueueInformerLiveTracking: "N" }),
+        );
+
+        const { jobToComplete } = neatQueueService.handleRequest(teamsCreatedRequest, neatQueueConfig);
+        await jobToComplete?.();
+
+        expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
+        const [xuids] = nudgeTrackersSpy.mock.calls[0] as [string[], unknown];
+        expect(xuids).toContain("xuid_discord_user_01");
+        expect(xuids).toContain("xuid_discord_user_02");
+      });
+
+      it("still nudges resolved player XUIDs when a Halo enrichment call (rank/ESRA/gamertag) throws", async () => {
+        const teamsCreatedRequest = getFakeNeatQueueData("teamsCreated");
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());
+        vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
+        vi.spyOn(discordService, "getGuild").mockResolvedValue({
+          ...guild,
+          id: "guild-1",
+          name: "Test Server",
+          icon: null,
+        });
+        vi.spyOn(databaseService, "getDiscordAssociations").mockResolvedValue([
+          aFakeDiscordAssociationsRow({ DiscordId: "discord_user_01", XboxId: "xuid_discord_user_01" }),
+          aFakeDiscordAssociationsRow({ DiscordId: "discord_user_02", XboxId: "xuid_discord_user_02" }),
+        ]);
+        vi.spyOn(haloService, "getUsersByXuids").mockRejectedValue(new Error("Halo API rate limited"));
+        vi.spyOn(haloService, "getRankedArenaCsrs").mockRejectedValue(new Error("Halo API rate limited"));
+        vi.spyOn(haloService, "getPlayersEsras").mockRejectedValue(new Error("Halo API rate limited"));
         vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
           aFakeGuildConfigRow({ NeatQueueInformerLiveTracking: "N" }),
         );

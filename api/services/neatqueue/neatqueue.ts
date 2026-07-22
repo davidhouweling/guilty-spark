@@ -1,6 +1,6 @@
 import { createHmac } from "crypto";
 import { inspect } from "util";
-import type { MatchStats, GameVariantCategory } from "halo-infinite-api";
+import type { MatchStats, GameVariantCategory, PlaylistCsrContainer } from "halo-infinite-api";
 import type {
   RESTPostAPIChannelThreadsResult,
   APIMessage,
@@ -22,7 +22,7 @@ import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config";
 import { NEAT_QUEUE_BOT_USER_ID, type DiscordService } from "../discord/discord";
 import type { HaloService } from "../halo/halo";
-import type { MatchPlayer } from "../halo/types";
+import type { MatchPlayer, UserInfo, PlayerEsraData } from "../halo/types";
 import type { LiveTrackerService } from "../live-tracker/live-tracker";
 import type {
   SeriesOverviewEmbedSubstitution,
@@ -1621,7 +1621,7 @@ export class NeatQueueService {
   }
 
   private async fetchPlayersAssociationData(players: NeatQueuePlayer[]): Promise<FetchedPlayersData> {
-    const { databaseService, haloService } = this;
+    const { databaseService } = this;
 
     const sortedPlayers = players.sort((a, b) => a.name.localeCompare(b.name));
     const playerIds = sortedPlayers.map((player) => player.id);
@@ -1642,15 +1642,15 @@ export class NeatQueueService {
       )
       .map((assoc) => assoc.XboxId);
     this.logService.debug("Xbox IDs", new Map([["xboxIds", xboxIds]]));
-    const haloPlayers = await haloService.getUsersByXuids(xboxIds);
-    this.logService.debug("Halo players", new Map([["haloPlayers", JSON.stringify(haloPlayers)]]));
-    const haloPlayersMap = new Map(haloPlayers.map((player) => [player.xuid, player]));
-    const rankedArenaCsrs = await haloService.getRankedArenaCsrs(xboxIds);
-    this.logService.debug(
-      "Ranked Arena CSRs",
-      new Map([["rankedArenaCsrs", JSON.stringify(rankedArenaCsrs.entries())]]),
-    );
-    const esras = await haloService.getPlayersEsras(xboxIds);
+
+    // xboxId resolution above (needed for nudging) only depends on discordAssociations.
+    // The three lookups below are display enrichment only (gamertag/rank/ESRA) - isolate their
+    // failures so a flaky Halo API call can't block xuid resolution for the whole roster.
+    const [haloPlayersMap, rankedArenaCsrs, esras] = await Promise.all([
+      this.fetchHaloPlayersMapSafely(xboxIds),
+      this.fetchRankedArenaCsrsSafely(xboxIds),
+      this.fetchPlayersEsrasSafely(xboxIds),
+    ]);
 
     // Build the player association data record
     const associationData: Record<string, PlayerAssociationData> = {};
@@ -1683,6 +1683,58 @@ export class NeatQueueService {
       associationData,
       embedData: { discordAssociations, haloPlayersMap, rankedArenaCsrs, esras },
     };
+  }
+
+  private async fetchHaloPlayersMapSafely(xboxIds: string[]): Promise<Map<string, UserInfo>> {
+    try {
+      const haloPlayers = await this.haloService.getUsersByXuids(xboxIds);
+      this.logService.debug("Halo players", new Map([["haloPlayers", JSON.stringify(haloPlayers)]]));
+      return new Map(haloPlayers.map((player) => [player.xuid, player]));
+    } catch (error) {
+      this.logService.warn(
+        error,
+        new Map([
+          ["reason", "fetchPlayersAssociationData: failed to fetch halo players, continuing without gamertags"],
+          ["xboxIdCount", xboxIds.length.toString()],
+        ]),
+      );
+      return new Map<string, UserInfo>();
+    }
+  }
+
+  private async fetchRankedArenaCsrsSafely(xboxIds: string[]): Promise<Map<string, PlaylistCsrContainer>> {
+    try {
+      const rankedArenaCsrs = await this.haloService.getRankedArenaCsrs(xboxIds);
+      this.logService.debug(
+        "Ranked Arena CSRs",
+        new Map([["rankedArenaCsrs", JSON.stringify([...rankedArenaCsrs.entries()])]]),
+      );
+      return rankedArenaCsrs;
+    } catch (error) {
+      this.logService.warn(
+        error,
+        new Map([
+          ["reason", "fetchPlayersAssociationData: failed to fetch ranked arena CSRs, continuing without rank data"],
+          ["xboxIdCount", xboxIds.length.toString()],
+        ]),
+      );
+      return new Map<string, PlaylistCsrContainer>();
+    }
+  }
+
+  private async fetchPlayersEsrasSafely(xboxIds: string[]): Promise<Map<string, PlayerEsraData>> {
+    try {
+      return await this.haloService.getPlayersEsras(xboxIds);
+    } catch (error) {
+      this.logService.warn(
+        error,
+        new Map([
+          ["reason", "fetchPlayersAssociationData: failed to fetch player ESRAs, continuing without ESRA data"],
+          ["xboxIdCount", xboxIds.length.toString()],
+        ]),
+      );
+      return new Map<string, PlayerEsraData>();
+    }
   }
 
   private async getSeriesDataFromTimeline(
