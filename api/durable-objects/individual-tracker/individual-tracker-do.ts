@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/cloudflare";
-import { addMilliseconds, compareAsc, differenceInHours } from "date-fns";
+import { addMilliseconds, compareAsc, differenceInHours, differenceInSeconds } from "date-fns";
 import { z } from "zod";
 import {
   type PlayerMatchHistory,
@@ -772,6 +772,23 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         const enriched = await this.enrichScore(summary, trackerState.xuid);
         if (enriched) {
           viewChanged = true;
+        }
+      }
+
+      if (trackerState.activeSeries != null && !existingActiveSeriesMatchIds.has(matchId)) {
+        const durationSeconds = differenceInSeconds(new Date(summary.endTime), new Date(summary.startTime));
+        if (isEligibleForActiveSeries(summary, durationSeconds, trackerState.activeSeries)) {
+          trackerState.activeSeries.matchIds.push(matchId);
+          existingActiveSeriesMatchIds.add(matchId);
+          viewChanged = true;
+          this.logService.info(
+            "IndividualTracker: retroactively attached backfilled match to active series",
+            new Map([
+              ["trackerId", trackerState.trackerId],
+              ["gamertag", trackerState.gamertag],
+              ["matchId", matchId],
+            ]),
+          );
         }
       }
 

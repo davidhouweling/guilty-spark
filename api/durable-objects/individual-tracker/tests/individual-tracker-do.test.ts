@@ -1,6 +1,8 @@
 import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
+import { addSeconds } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import {
   aFakeCoreStatsWith,
@@ -96,7 +98,7 @@ const aFakePlayerMatch = (
     Outcome: outcome,
     MatchInfo: {
       StartTime: startTime,
-      EndTime: startTime,
+      EndTime: addSeconds(new Date(startTime), getDurationInSeconds(duration)).toISOString(),
       Duration: duration,
       GameVariantCategory: 6,
       MapVariant: { AssetId: "map-asset", VersionId: "v1" },
@@ -2234,6 +2236,62 @@ describe("IndividualTrackerDO", () => {
 
       const afterSecond = lastPersistedState(storagePutSpy);
       expect(afterSecond.discoveredMatches["match-new"]?.score).toBe("50:42");
+    });
+
+    it("retroactively attaches a match to the active series once backfill enrichment resolves its roster signature", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+      ownerClient.getMatchStats.mockRejectedValueOnce(new Error("stats not ready"));
+      const activeSeries: ActiveSeries = {
+        title: "Active Series",
+        subtitle: "Customs",
+        guildIconUrl: null,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [
+              { discordId: null, discordName: null, gamertag: "Alpha", xboxId: "1111111111" },
+              { discordId: null, discordName: null, gamertag: "Bravo", xboxId: "2222222222" },
+            ],
+          },
+          {
+            id: 1,
+            name: "Cobra",
+            players: [
+              { discordId: null, discordName: null, gamertag: "Charlie", xboxId: "3333333333" },
+              { discordId: null, discordName: null, gamertag: "Delta", xboxId: "4444444444" },
+            ],
+          },
+        ],
+        matchIds: [],
+        startedAt: "2024-11-26T11:00:00.000Z",
+        isActive: true,
+      };
+      const state = aFakeIndividualTrackerInternalStateWith({
+        startTime: now.toISOString(),
+        searchStartTime: "2024-11-26T11:00:00.000Z",
+        matchIds: [],
+        discoveredMatches: {},
+        activeSeries,
+      });
+      storageGetSpy.mockResolvedValue(state);
+
+      await individualTrackerDO.alarm();
+
+      const afterFirst = lastPersistedState(storagePutSpy);
+      expect(afterFirst.discoveredMatches["match-new"]?.teamRosterSignature).toBeNull();
+      expect(afterFirst.activeSeries?.matchIds).toEqual([]);
+
+      await individualTrackerDO.alarm();
+
+      const afterSecond = lastPersistedState(storagePutSpy);
+      expect(afterSecond.discoveredMatches["match-new"]?.teamRosterSignature).toBe(
+        "0:1111111111,2222222222|1:3333333333,4444444444",
+      );
+      expect(afterSecond.activeSeries?.matchIds).toEqual(["match-new"]);
     });
 
     it("retries enrichment for migrated match with null KDA fields when getMatchStats fails transiently", async () => {
