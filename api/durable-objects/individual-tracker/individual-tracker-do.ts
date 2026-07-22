@@ -428,6 +428,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private cachedResolvedRosterCount: number | undefined;
   private websocketStatsHighlightSlots: readonly IndividualStatsHighlightOption[] =
     DEFAULT_WEBSOCKET_STATS_HIGHLIGHT_SLOTS;
+  // Serializes state-mutating handlers (alarm + write fetch actions) against each other without
+  // blocking read-only actions (status/view-state/websocket) behind a potentially multi-second
+  // alarm poll - state.blockConcurrencyWhile blocks ALL events to the instance, not just writers,
+  // and holding it across the poll's external Halo API calls is a documented anti-pattern.
+  private writeQueue: Promise<void> = Promise.resolve();
 
   constructor(
     state: DurableObjectState,
@@ -460,16 +465,16 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       try {
         switch (action) {
           case "start": {
-            return await this.handleStart(request);
+            return await this.withStateLock(async () => this.handleStart(request));
           }
           case "pause": {
-            return await this.handlePause();
+            return await this.withStateLock(async () => this.handlePause());
           }
           case "resume": {
-            return await this.handleResume();
+            return await this.withStateLock(async () => this.handleResume());
           }
           case "stop": {
-            return await this.handleStop();
+            return await this.withStateLock(async () => this.handleStop());
           }
           case "status": {
             return await this.handleStatus();
@@ -478,25 +483,25 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
             return await this.handleViewState(request);
           }
           case "select-matches": {
-            return await this.handleSelectMatches(request);
+            return await this.withStateLock(async () => this.handleSelectMatches(request));
           }
           case "start-series": {
-            return await this.handleStartSeries(request);
+            return await this.withStateLock(async () => this.handleStartSeries(request));
           }
           case "end-series": {
-            return await this.handleEndSeries();
+            return await this.withStateLock(async () => this.handleEndSeries());
           }
           case "edit-series": {
-            return await this.handleEditSeries(request);
+            return await this.withStateLock(async () => this.handleEditSeries(request));
           }
           case "resume-series": {
-            return await this.handleResumeSeries();
+            return await this.withStateLock(async () => this.handleResumeSeries());
           }
           case "refresh": {
-            return await this.handleRefresh();
+            return await this.withStateLock(async () => this.handleRefresh());
           }
           case "nudge": {
-            return await this.handleNudge(request);
+            return await this.withStateLock(async () => this.handleNudge(request));
           }
           case "websocket": {
             return await this.handleWebSocket(request);
@@ -522,7 +527,26 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     });
   }
 
+  // Guards against the alarm-driven poll (which awaits many external Halo API calls while
+  // holding an in-memory copy of tracker state) racing a nudge/write request that reads state
+  // and writes it back concurrently - without this, whichever setState() lands last would
+  // silently overwrite the other's changes since state is a single JSON blob with no CAS.
+  // A plain promise-chain mutex (not blockConcurrencyWhile) so only callers that opt in via this
+  // method wait on each other; read-only fetch actions never touch writeQueue and run immediately.
+  private async withStateLock<T>(fn: () => Promise<T>): Promise<T> {
+    const runAfterPrevious = this.writeQueue.then(fn, fn);
+    this.writeQueue = runAfterPrevious.then(
+      () => undefined,
+      () => undefined,
+    );
+    return await runAfterPrevious;
+  }
+
   async alarm(): Promise<void> {
+    await this.withStateLock(async () => this.runAlarm());
+  }
+
+  private async runAlarm(): Promise<void> {
     await Sentry.withScope(async () => {
       Sentry.setTag("durableObject", "IndividualTrackerDO");
       Sentry.setTag("method", "alarm");
@@ -2215,14 +2239,32 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       return preSeriesPlayerInfo;
     }
 
-    if (preSeriesPlayerInfo !== undefined) {
-      state.preSeriesPlayerInfo = preSeriesPlayerInfo;
-    } else {
-      delete state.preSeriesPlayerInfo;
-    }
-    state.preSeriesPlayerInfoLatestMatchId = cacheKey;
-    await this.setState(state);
+    await this.persistPreSeriesPlayerInfo(cacheKey, preSeriesPlayerInfo);
     return preSeriesPlayerInfo;
+  }
+
+  // Called from the "read-only" view-state path, so this can't just write the caller's
+  // in-memory state snapshot - that would race an in-flight alarm/nudge write and silently
+  // discard its changes (the exact bug this write lock exists to prevent). Re-reads the latest
+  // persisted state inside the lock and merges only these two cache fields into it.
+  private async persistPreSeriesPlayerInfo(
+    cacheKey: string | null,
+    preSeriesPlayerInfo: PreSeriesPlayerInfo | undefined,
+  ): Promise<void> {
+    await this.withStateLock(async () => {
+      const latestState = await this.getState();
+      if (latestState == null) {
+        return;
+      }
+
+      if (preSeriesPlayerInfo !== undefined) {
+        latestState.preSeriesPlayerInfo = preSeriesPlayerInfo;
+      } else {
+        delete latestState.preSeriesPlayerInfo;
+      }
+      latestState.preSeriesPlayerInfoLatestMatchId = cacheKey;
+      await this.setState(latestState);
+    });
   }
 
   private async buildPreSeriesPlayerInfo(

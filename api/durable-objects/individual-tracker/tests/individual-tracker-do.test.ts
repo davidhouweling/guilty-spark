@@ -4081,4 +4081,122 @@ describe("IndividualTrackerDO", () => {
       expect(body.state.hasRecentCompletedSeries).toBe(false);
     });
   });
+
+  describe("write serialization", () => {
+    it("serializes a nudge behind an in-flight alarm poll instead of racing its state write", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ status: "active", matchIds: [], discoveredMatches: {} }),
+      );
+
+      let releasePoll!: () => void;
+      const pollGate = new Promise<void>((resolve) => {
+        releasePoll = resolve;
+      });
+      ownerClient.getPlayerMatches.mockImplementation(async () => {
+        await pollGate;
+        return [];
+      });
+
+      const alarmPromise = individualTrackerDO.alarm();
+      const nudgePayload: SeriesStartedPayload = {
+        type: "started",
+        title: "Guilty Spark",
+        subtitle: "Queue #1",
+        guildIconUrl: null,
+        teams: [],
+      };
+      const nudgePromise = individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(nudgePayload) }),
+      );
+
+      // Flush pending microtasks so both calls reach their first await point (the alarm's gated
+      // getPlayerMatches call; the nudge queued behind the alarm's still-unresolved write lock).
+      await vi.advanceTimersByTimeAsync(0);
+      expect(storagePutSpy).not.toHaveBeenCalled();
+
+      releasePoll();
+      await alarmPromise;
+      const nudgeResponse = await nudgePromise;
+
+      expect(nudgeResponse.status).toBe(200);
+      expect(storagePutSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+      // The nudge was queued behind the poll, so its write (carrying activeSeries) is the final
+      // persisted state - if the two had raced instead, the poll's stale-state write could have
+      // landed last and silently discarded the nudge's activeSeries.
+      const finalState = lastPersistedState(storagePutSpy);
+      expect(finalState.activeSeries).toBeDefined();
+    });
+
+    it("does not block a read-only view-state fetch behind an in-flight alarm poll", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          status: "active",
+          matchIds: [],
+          discoveredMatches: {},
+          // Matches getPreSeriesPlayerInfoCacheKey's result for an empty matchIds/lastSeenMatchId
+          // state, so the pre-series-player-info cache is a hit and view-state genuinely does not
+          // need to persist anything (a cache miss legitimately queues behind the write lock, since
+          // it re-reads fresh state before writing to avoid clobbering a concurrent alarm/nudge).
+          preSeriesPlayerInfoLatestMatchId: null,
+        }),
+      );
+
+      let releasePoll!: () => void;
+      const pollGate = new Promise<void>((resolve) => {
+        releasePoll = resolve;
+      });
+      ownerClient.getPlayerMatches.mockImplementation(async () => {
+        await pollGate;
+        return [];
+      });
+
+      const alarmPromise = individualTrackerDO.alarm();
+      await vi.advanceTimersByTimeAsync(0);
+
+      const viewStateResponse = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+
+      expect(viewStateResponse.status).toBe(200);
+
+      releasePoll();
+      await alarmPromise;
+    });
+
+    it("merges a view-state cache-miss persist into fresh state instead of clobbering a concurrent alarm write", async () => {
+      const trackerState = aFakeIndividualTrackerInternalStateWith({
+        status: "active",
+        checkCount: 0,
+        matchIds: [],
+        discoveredMatches: {},
+        // Deliberately a cache miss (undefined !== the computed null cache key) so view-state's
+        // persist path is exercised.
+      });
+      storageGetSpy.mockResolvedValue(trackerState);
+
+      let releasePoll!: () => void;
+      const pollGate = new Promise<void>((resolve) => {
+        releasePoll = resolve;
+      });
+      ownerClient.getPlayerMatches.mockImplementation(async () => {
+        await pollGate;
+        return [];
+      });
+
+      const alarmPromise = individualTrackerDO.alarm();
+      await vi.advanceTimersByTimeAsync(0);
+
+      const viewStatePromise = individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      await vi.advanceTimersByTimeAsync(0);
+
+      releasePoll();
+      await alarmPromise;
+      const viewStateResponse = await viewStatePromise;
+
+      expect(viewStateResponse.status).toBe(200);
+      // Both writes must be present in the final state - the view-state persist re-reads fresh
+      // state before writing, so it must not have discarded the alarm's checkCount increment.
+      const finalState = lastPersistedState(storagePutSpy);
+      expect(finalState.checkCount).toBe(1);
+      expect(finalState.preSeriesPlayerInfoLatestMatchId).toBeNull();
+    });
+  });
 });
