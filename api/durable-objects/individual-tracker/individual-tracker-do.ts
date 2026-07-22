@@ -254,8 +254,14 @@ function shouldEnrichSummary(summary: IndividualTrackerMatchSummary): boolean {
   );
 }
 
-function parseTeamRosterSignatureToCounts(signature: string): Map<number, number> | null {
-  const counts = new Map<number, number>();
+// A NeatQueue SUBSTITUTION event nudges the tracker's activeSeries roster immediately, so under
+// normal timing a discovered match's roster already reflects any swap. This tolerance only covers
+// the race where the match is discovered before that nudge lands (see PR4 for the underlying
+// nudge/poll concurrency fix) - it deliberately does not tolerate a wholesale different roster.
+const MAX_TOLERATED_ROSTER_MISMATCHES_PER_TEAM = 1;
+
+function parseTeamRosterSignature(signature: string): Map<number, ReadonlySet<string>> | null {
+  const rosters = new Map<number, ReadonlySet<string>>();
 
   for (const teamEntry of signature.split("|")) {
     const [teamIdRaw, playersRaw] = teamEntry.split(":");
@@ -268,46 +274,69 @@ function parseTeamRosterSignatureToCounts(signature: string): Map<number, number
       return null;
     }
 
-    const playerCount = playersRaw === "" ? 0 : playersRaw.split(",").length;
-    counts.set(teamId, playerCount);
+    rosters.set(teamId, new Set(playersRaw === "" ? [] : playersRaw.split(",")));
   }
 
-  return counts;
+  return rosters;
 }
 
-function getExpectedSeriesTeamCounts(teams: readonly SeriesTeam[] | undefined): Map<number, number> | null {
+interface ExpectedSeriesTeamRoster {
+  playerCount: number;
+  knownXuids: ReadonlySet<string>;
+}
+
+function getExpectedSeriesTeamRosters(
+  teams: readonly SeriesTeam[] | undefined,
+): Map<number, ExpectedSeriesTeamRoster> | null {
   if (teams == null || teams.length === 0) {
     return null;
   }
 
-  const expectedCounts = new Map<number, number>();
+  const expectedRosters = new Map<number, ExpectedSeriesTeamRoster>();
   for (const team of teams) {
     const playerCount = team.players.length;
     if (playerCount === 0) {
       return null;
     }
 
-    expectedCounts.set(team.id, playerCount);
+    const knownXuids = new Set(
+      team.players.map((player) => player.xboxId).filter((xboxId): xboxId is string => xboxId != null),
+    );
+    expectedRosters.set(team.id, { playerCount, knownXuids });
   }
 
-  return expectedCounts;
+  return expectedRosters;
 }
 
-function hasExpectedSeriesTeamCounts(
+// Matches a discovered match against the series roster by team identity (not just team size),
+// tolerating a limited number of per-team swaps for in-flight NeatQueue substitutions. Falls back
+// to a count-only comparison for any team with no resolved player identities (e.g. no linked Xbox
+// accounts), since there is nothing to compare identities against.
+function matchesExpectedSeriesRoster(
   summary: IndividualTrackerMatchSummary,
-  expectedCounts: ReadonlyMap<number, number>,
+  expectedRosters: ReadonlyMap<number, ExpectedSeriesTeamRoster>,
 ): boolean {
   if (summary.teamRosterSignature == null) {
     return false;
   }
 
-  const actualCounts = parseTeamRosterSignatureToCounts(summary.teamRosterSignature);
-  if (actualCounts?.size !== expectedCounts.size) {
+  const actualRosters = parseTeamRosterSignature(summary.teamRosterSignature);
+  if (actualRosters?.size !== expectedRosters.size) {
     return false;
   }
 
-  for (const [teamId, expectedPlayerCount] of expectedCounts.entries()) {
-    if (actualCounts.get(teamId) !== expectedPlayerCount) {
+  for (const [teamId, expected] of expectedRosters.entries()) {
+    const actualXuids = actualRosters.get(teamId);
+    if (actualXuids?.size !== expected.playerCount) {
+      return false;
+    }
+
+    if (expected.knownXuids.size === 0) {
+      continue;
+    }
+
+    const mismatchedCount = [...expected.knownXuids].filter((xuid) => !actualXuids.has(xuid)).length;
+    if (mismatchedCount > MAX_TOLERATED_ROSTER_MISMATCHES_PER_TEAM) {
       return false;
     }
   }
@@ -319,11 +348,11 @@ function getSeriesSummariesForSeriesList(
   groupSummaries: readonly IndividualTrackerMatchSummary[],
   teams: readonly SeriesTeam[] | undefined,
 ): readonly IndividualTrackerMatchSummary[] {
-  const expectedTeamCounts = getExpectedSeriesTeamCounts(teams);
+  const expectedRosters = getExpectedSeriesTeamRosters(teams);
   const summariesWithExpectedTeams =
-    expectedTeamCounts == null
+    expectedRosters == null
       ? groupSummaries
-      : groupSummaries.filter((summary) => hasExpectedSeriesTeamCounts(summary, expectedTeamCounts));
+      : groupSummaries.filter((summary) => matchesExpectedSeriesRoster(summary, expectedRosters));
 
   return summariesWithExpectedTeams;
 }
@@ -341,12 +370,12 @@ function isEligibleForActiveSeries(
     return false;
   }
 
-  const expectedTeamCounts = getExpectedSeriesTeamCounts(activeSeries.teams);
-  if (expectedTeamCounts == null) {
+  const expectedRosters = getExpectedSeriesTeamRosters(activeSeries.teams);
+  if (expectedRosters == null) {
     return true;
   }
 
-  return hasExpectedSeriesTeamCounts(summary, expectedTeamCounts);
+  return matchesExpectedSeriesRoster(summary, expectedRosters);
 }
 
 function normalizeRankTier(rankTier: string | null | undefined): string | null {
