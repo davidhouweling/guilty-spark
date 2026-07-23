@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/cloudflare";
-import { addMilliseconds, compareAsc, differenceInHours, differenceInSeconds } from "date-fns";
+import { addMilliseconds, compareAsc, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
 import { z } from "zod";
 import {
   type PlayerMatchHistory,
@@ -92,6 +92,8 @@ const ALARM_INTERVAL_MS = DISPLAY_INTERVAL_MS - EXECUTION_BUFFER_MS;
 const NORMAL_INTERVAL_MINUTES = 3;
 const CONSECUTIVE_ERROR_INTERVAL_MINUTES = 5;
 const MAX_BACKOFF_INTERVAL_MINUTES = 10;
+
+const STALE_EMPTY_SERIES_MINUTES = 15;
 
 const PLAYER_MATCHES_PAGE_SIZE = 25;
 const MAX_MATCHES_TO_FETCH = 100;
@@ -385,6 +387,19 @@ function isEligibleForActiveSeries(
   }
 
   return matchesExpectedSeriesRoster(summary, expectedRosters);
+}
+
+function shouldEndSeriesForUnrelatedMatchmakingMatch(activeSeries: ActiveSeries): boolean {
+  if (activeSeries.matchIds.length > 0) {
+    return true;
+  }
+
+  const minutesSinceStart = differenceInMinutes(new Date(), new Date(activeSeries.startedAt));
+  if (!Number.isFinite(minutesSinceStart)) {
+    return true;
+  }
+
+  return minutesSinceStart >= STALE_EMPTY_SERIES_MINUTES;
 }
 
 function normalizeRankTier(rankTier: string | null | undefined): string | null {
@@ -712,15 +727,26 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           trackerState.activeSeries.matchIds.push(matchId);
           existingActiveSeriesMatchIds.add(matchId);
         } else if (isMatchmakingMatch) {
-          this.clearSeriesState(trackerState);
-          this.logService.info(
-            "IndividualTracker: series ended after matchmaking match was discovered",
-            new Map([
-              ["trackerId", trackerState.trackerId],
-              ["gamertag", trackerState.gamertag],
-              ["matchId", matchId],
-            ]),
-          );
+          if (shouldEndSeriesForUnrelatedMatchmakingMatch(trackerState.activeSeries)) {
+            this.clearSeriesState(trackerState);
+            this.logService.info(
+              "IndividualTracker: series ended after matchmaking match was discovered",
+              new Map([
+                ["trackerId", trackerState.trackerId],
+                ["gamertag", trackerState.gamertag],
+                ["matchId", matchId],
+              ]),
+            );
+          } else {
+            this.logService.debug(
+              "IndividualTracker: matchmaking match discovered before series recorded any matches, series left active",
+              new Map([
+                ["trackerId", trackerState.trackerId],
+                ["gamertag", trackerState.gamertag],
+                ["matchId", matchId],
+              ]),
+            );
+          }
         }
       }
       newlyDiscovered.add(matchId);
