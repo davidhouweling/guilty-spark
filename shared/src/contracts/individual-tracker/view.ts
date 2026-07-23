@@ -21,6 +21,7 @@ export const trackerMatchSummarySchema = z.object({
   killsDeathsAssistsKda: z.string(),
   damageDealtTakenRatio: z.string(),
   isMatchmaking: z.boolean(),
+  matchmakingPlaylist: z.string().optional(),
 });
 export type TrackerMatchSummary = z.infer<typeof trackerMatchSummarySchema>;
 

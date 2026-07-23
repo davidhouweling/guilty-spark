@@ -62,6 +62,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
   private readonly haloInfiniteClient: HaloInfiniteClient;
   private readonly mapCache = new Map<string, Promise<MapAsset>>();
   private readonly modeNameCache = new Map<string, Promise<UgcGameVariantAsset>>();
+  private readonly playlistNameCache = new Map<string, Promise<string | null>>();
 
   public constructor({ apiHost, haloInfiniteClient }: IndividualTrackerServiceOpts) {
     this.apiHost = apiHost;
@@ -351,6 +352,12 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
         );
         const outcome = getMatchOutcomeLabel(match.Outcome);
         const isMatchmaking = match.MatchInfo.Playlist != null;
+        const matchmakingPlaylist = isMatchmaking
+          ? await this.getMatchmakingPlaylistName(
+              match.MatchInfo.Playlist?.AssetId,
+              match.MatchInfo.Playlist?.VersionId,
+            )
+          : null;
         const lifecycleMode = match.MatchInfo.LifecycleMode;
         const matchCategory: TrackerMatchHistoryEntry["category"] = isMatchmaking
           ? "matchmaking"
@@ -377,6 +384,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
           outcome,
           resultString: buildMatchResultString(outcome, matchStats),
           isMatchmaking,
+          ...(matchmakingPlaylist != null ? { matchmakingPlaylist } : {}),
           category: matchCategory,
           teams: buildTeams(matchStats, xuidToGamertag),
           mapThumbnailUrl: mapDetails.thumbnailUrl,
@@ -520,6 +528,35 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     this.modeNameCache.set(key, promise);
     const variant = await promise;
     return variant.PublicName;
+  }
+
+  private async getMatchmakingPlaylistName(
+    assetId: string | undefined,
+    versionId: string | undefined,
+  ): Promise<string | null> {
+    if (assetId == null || versionId == null) {
+      return null;
+    }
+
+    const key = `${assetId}:${versionId}`;
+    const existing = this.playlistNameCache.get(key);
+    if (existing != null) {
+      return existing;
+    }
+
+    const promise = this.haloInfiniteClient
+      .getSpecificAssetVersion(AssetKind.Playlist, assetId, versionId)
+      .then((asset) => {
+        const playlistName = asset.PublicName.trim();
+        return playlistName === "" ? null : playlistName;
+      })
+      .catch(() => {
+        this.playlistNameCache.delete(key);
+        return null;
+      });
+
+    this.playlistNameCache.set(key, promise);
+    return promise;
   }
 
   public async getTrackers(): Promise<TrackerListResponse> {

@@ -441,6 +441,7 @@ export function IndividualTrackerViewer({
                     >
                       <StatsHeader
                         title={`${match.gameModeName}: ${match.mapName}`}
+                        subtitle={match.subtitle}
                         metadata={[
                           { label: "Score", value: match.score },
                           { label: "Duration", value: match.duration },

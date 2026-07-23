@@ -51,6 +51,18 @@ describe("MatchCard", () => {
     expect(screen.getByText("Matchmaking")).toBeInTheDocument();
   });
 
+  it("renders the playlist subtitle for matchmaking entries", () => {
+    render(<MatchCard entry={aMatchEntry({ category: "matchmaking", matchmakingPlaylist: "Ranked Arena" })} />);
+
+    expect(screen.getByText("Ranked Arena")).toBeInTheDocument();
+  });
+
+  it("does not render playlist subtitle for non-matchmaking entries", () => {
+    render(<MatchCard entry={aMatchEntry({ category: "custom", matchmakingPlaylist: "Ranked Arena" })} />);
+
+    expect(screen.queryByText("Ranked Arena")).not.toBeInTheDocument();
+  });
+
   it("shows the checkbox when allowSelection is true", () => {
     render(<MatchCard entry={aMatchEntry()} allowSelection={true} />);
 

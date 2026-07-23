@@ -94,6 +94,23 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByRole("button", { name: /match/i })).toBeInTheDocument();
   });
 
+  it("renders matchmaking playlist subtitle when available", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m-1",
+          mapName: "Recharge",
+          isMatchmaking: true,
+          matchmakingPlaylist: "Ranked Arena",
+        }),
+      ],
+    });
+
+    renderViewer(view);
+
+    expect(screen.getByText("Ranked Arena")).toBeInTheDocument();
+  });
+
   it("renders matches newest to oldest when the API returns newest first", () => {
     const view = aFakeTrackerViewStateWith({
       matches: [

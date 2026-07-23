@@ -31,6 +31,7 @@ interface FakeMatchOverrides {
   readonly killsDeathsAssistsKda?: string;
   readonly damageDealtTakenRatio?: string;
   readonly isMatchmaking?: boolean;
+  readonly matchmakingPlaylist?: string;
 }
 
 export function aFakeTrackerMatchSummaryWith(overrides: FakeMatchOverrides = {}): TrackerMatchSummary {
@@ -49,6 +50,7 @@ export function aFakeTrackerMatchSummaryWith(overrides: FakeMatchOverrides = {})
     killsDeathsAssistsKda: overrides.killsDeathsAssistsKda ?? "10:7:4 (1.62)",
     damageDealtTakenRatio: overrides.damageDealtTakenRatio ?? "4,200:3,900 (1.08)",
     isMatchmaking: overrides.isMatchmaking ?? false,
+    ...(overrides.matchmakingPlaylist != null ? { matchmakingPlaylist: overrides.matchmakingPlaylist } : {}),
   };
 }
 

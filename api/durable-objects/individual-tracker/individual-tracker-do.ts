@@ -714,6 +714,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
 
       const isMatchmakingMatch = match.MatchInfo.Playlist != null;
+      const matchmakingPlaylist = await this.resolveMatchmakingPlaylistName(
+        match.MatchInfo.Playlist?.AssetId,
+        match.MatchInfo.Playlist?.VersionId,
+      );
 
       const outcome = getMatchOutcomeLabel(match.Outcome);
       const mapName = await this.resolveMapName(
@@ -739,6 +743,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         killsDeathsAssistsKda: UNKNOWN_KDA_DISPLAY,
         damageDealtTakenRatio: UNKNOWN_DAMAGE_RATIO_DISPLAY,
         isMatchmaking: isMatchmakingMatch,
+        ...(matchmakingPlaylist != null ? { matchmakingPlaylist } : {}),
         teamRosterSignature: null,
         teamOutcomes: null,
       };
@@ -1128,6 +1133,34 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
   }
 
+  private async resolveMatchmakingPlaylistName(
+    assetId: string | undefined,
+    versionId: string | undefined,
+  ): Promise<string | null> {
+    if (assetId == null || versionId == null) {
+      return null;
+    }
+
+    try {
+      const playlistName = await this.haloService.getPlaylistName(assetId, versionId);
+      return playlistName === "" ? null : playlistName;
+    } catch (error) {
+      if (this.isAuthError(error)) {
+        this.clearUserHaloService();
+        throw error;
+      }
+      this.logService.warn(
+        error,
+        new Map([
+          ["context", "IndividualTracker: getPlaylistName failed"],
+          ["assetId", assetId],
+          ["versionId", versionId],
+        ]),
+      );
+      return null;
+    }
+  }
+
   private async markRegistryStopped(trackerState: IndividualTrackerInternalState): Promise<void> {
     try {
       const row = await this.services.databaseService.getIndividualTracker(trackerState.trackerId);
@@ -1497,7 +1530,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     );
     const mapNameResults = await this.resolveMapNamesForMatches(validation.validatedMatches);
     const mapBackgroundUrls = await this.resolveMapBackgroundsForMatches(validation.validatedMatches);
-    const result = this.buildMatchSummaries(
+    const result = await this.buildMatchSummaries(
       validation.validatedMatches,
       validation.failingIds,
       mapNameResults,
@@ -1647,7 +1680,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return Promise.all(mapBackgroundPromises);
   }
 
-  private buildMatchSummaries(
+  private async buildMatchSummaries(
     validatedMatches: {
       matchId: string;
       matchStats: MatchStats;
@@ -1656,9 +1689,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     initialFailingIds: string[],
     mapNameResults: PromiseSettledResult<string>[],
     mapBackgroundUrls: string[],
-  ):
-    | { success: true; summaries: Map<string, IndividualTrackerMatchSummary> }
-    | { success: false; failingIds: string[] } {
+  ): Promise<
+    { success: true; summaries: Map<string, IndividualTrackerMatchSummary> } | { success: false; failingIds: string[] }
+  > {
     const summaries = new Map<string, IndividualTrackerMatchSummary>();
     const failingIds: string[] = [...initialFailingIds];
 
@@ -1693,6 +1726,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
       const outcome = getMatchOutcomeLabel(playerEntry.Outcome);
       const mapName = mapNameResult.value;
+      const matchmakingPlaylist =
+        matchStats.MatchInfo.Playlist != null
+          ? await this.resolveMatchmakingPlaylistName(
+              matchStats.MatchInfo.Playlist.AssetId,
+              matchStats.MatchInfo.Playlist.VersionId,
+            )
+          : null;
 
       summaries.set(matchId, {
         matchId,
@@ -1708,6 +1748,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         score: buildMatchScore(matchStats),
         ...computeTrackedPlayerSummaryStats(matchStats, getPlayerXuid(playerEntry)),
         isMatchmaking: matchStats.MatchInfo.Playlist != null,
+        ...(matchmakingPlaylist != null ? { matchmakingPlaylist } : {}),
         teamRosterSignature: buildTeamRosterSignature(matchStats),
         teamOutcomes: matchStats.Teams.map((team) => team.Outcome),
       });
@@ -2717,6 +2758,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         killsDeathsAssistsKda: summary.killsDeathsAssistsKda ?? UNKNOWN_KDA_DISPLAY,
         damageDealtTakenRatio: summary.damageDealtTakenRatio ?? UNKNOWN_DAMAGE_RATIO_DISPLAY,
         isMatchmaking: summary.isMatchmaking,
+        ...(summary.matchmakingPlaylist != null ? { matchmakingPlaylist: summary.matchmakingPlaylist } : {}),
       })),
       series,
       lastUpdateTime: state.lastUpdateTime,

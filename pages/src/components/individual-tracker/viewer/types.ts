@@ -14,6 +14,7 @@ import type { SeriesStatsViewModel } from "../../series-stats/types";
 export interface ViewerMatchTab {
   readonly matchId: string;
   readonly mapName: string;
+  readonly subtitle?: string;
   readonly mapBackgroundUrl: string;
   readonly gameVariantCategory: number;
   readonly isMatchmaking: boolean;

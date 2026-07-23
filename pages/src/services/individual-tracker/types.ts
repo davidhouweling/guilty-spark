@@ -52,6 +52,7 @@ export interface TrackerMatchHistoryEntry {
   readonly outcome: "Win" | "Loss" | "Tie" | "DNF" | "Unknown";
   readonly resultString: string;
   readonly isMatchmaking: boolean;
+  readonly matchmakingPlaylist?: string | undefined;
   readonly category: "matchmaking" | "custom" | "local" | "unknown";
   readonly teams: readonly (readonly string[])[];
   readonly rawMatchStats?: MatchStats | null | undefined;
