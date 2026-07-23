@@ -359,12 +359,8 @@ function matchesExpectedSeriesRoster(
 
 function seriesRosterMatchesPreviousSeries(
   incomingTeams: readonly SeriesTeam[],
-  previousSeries: ActiveSeries | undefined,
+  previousSeries: ActiveSeries,
 ): boolean {
-  if (previousSeries == null) {
-    return false;
-  }
-
   const previousRosters = getExpectedSeriesTeamRosters(previousSeries.teams);
   const incomingRosters = getExpectedSeriesTeamRosters(incomingTeams);
   if (previousRosters == null || incomingRosters == null) {
@@ -2217,7 +2213,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         this.retireActiveSeries(trackerState);
 
         const previousSeries = trackerState.completedSeries?.at(-1);
-        if (seriesRosterMatchesPreviousSeries(payload.teams, previousSeries) && previousSeries != null) {
+        if (previousSeries != null && seriesRosterMatchesPreviousSeries(payload.teams, previousSeries)) {
           trackerState.activeSeries = {
             ...previousSeries,
             title: payload.title,
