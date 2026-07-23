@@ -1,7 +1,7 @@
 import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
 import type { TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 
-export interface GameSelectionDialogSnapshot {
+export interface MatchSelectionDialogSnapshot {
   readonly matches: readonly TrackerMatchHistoryEntry[] | null;
   readonly selectedMatchIds: ReadonlySet<string>;
   readonly groupings: readonly (readonly string[])[];
@@ -13,8 +13,8 @@ export interface GameSelectionDialogSnapshot {
   readonly errorMessage: string | null;
 }
 
-export class GameSelectionDialogStore {
-  private snapshot: GameSelectionDialogSnapshot;
+export class MatchSelectionDialogStore {
+  private snapshot: MatchSelectionDialogSnapshot;
   private readonly subscribers = new Set<() => void>();
 
   public constructor() {
@@ -38,7 +38,7 @@ export class GameSelectionDialogStore {
     };
   }
 
-  public getSnapshot(): GameSelectionDialogSnapshot {
+  public getSnapshot(): MatchSelectionDialogSnapshot {
     return this.snapshot;
   }
 
@@ -74,11 +74,11 @@ export class GameSelectionDialogStore {
     this.update({ errorMessage });
   }
 
-  public batchUpdate(partial: Partial<GameSelectionDialogSnapshot>): void {
+  public batchUpdate(partial: Partial<MatchSelectionDialogSnapshot>): void {
     this.update(partial);
   }
 
-  private update(partial: Partial<GameSelectionDialogSnapshot>): void {
+  private update(partial: Partial<MatchSelectionDialogSnapshot>): void {
     this.snapshot = { ...this.snapshot, ...partial };
     for (const subscriber of this.subscribers) {
       subscriber();

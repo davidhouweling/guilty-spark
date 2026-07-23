@@ -148,7 +148,7 @@ describe("LiveTrackersPresenter", () => {
     expect(actionLabels).toContain("Pause");
     expect(actionLabels).toContain("Stop tracker");
     expect(actionLabels).not.toContain("End series");
-    expect(actionLabels).toContain("Game selection");
+    expect(actionLabels).toContain("Match selection");
     expect(actionLabels).toContain("Start series");
     expect(actionLabels).not.toContain("Resume");
     expect(actionLabels).not.toContain("Start tracker");
@@ -232,7 +232,7 @@ describe("LiveTrackersPresenter", () => {
     presenter.dispose();
   });
 
-  it("Game selection action opens gameSelectionDialogState for active tracker with known xuid", async () => {
+  it("Match selection action opens matchSelectionDialogState for active tracker with known xuid", async () => {
     const tracker = aFakeTrackerWith({
       trackerId: "t1",
       gamertag: "Chief",
@@ -249,7 +249,7 @@ describe("LiveTrackersPresenter", () => {
     const [item] = presenter.getTrackerItems();
     expect(item).toBeDefined();
 
-    const gameSelectionAction = presenter.getActions(item).find((a) => a.label === "Game selection");
+    const gameSelectionAction = presenter.getActions(item).find((a) => a.label === "Match selection");
     expect(gameSelectionAction).toBeDefined();
     if (gameSelectionAction == null) {
       return;
@@ -257,19 +257,19 @@ describe("LiveTrackersPresenter", () => {
 
     gameSelectionAction.onClick();
 
-    const { gameSelectionDialogState } = presenter.getSnapshot();
-    expect(gameSelectionDialogState).not.toBeNull();
-    expect(gameSelectionDialogState?.trackerId).toBe("t1");
-    expect(gameSelectionDialogState?.trackerLabel).toBe("Chief");
-    expect(gameSelectionDialogState?.xuid).toBe("xuid-1");
+    const { matchSelectionDialogState } = presenter.getSnapshot();
+    expect(matchSelectionDialogState).not.toBeNull();
+    expect(matchSelectionDialogState?.trackerId).toBe("t1");
+    expect(matchSelectionDialogState?.trackerLabel).toBe("Chief");
+    expect(matchSelectionDialogState?.xuid).toBe("xuid-1");
 
-    presenter.closeGameSelectionDialog();
-    expect(presenter.getSnapshot().gameSelectionDialogState).toBeNull();
+    presenter.closeMatchSelectionDialog();
+    expect(presenter.getSnapshot().matchSelectionDialogState).toBeNull();
 
     presenter.dispose();
   });
 
-  it("Game selection action preserves live series title/subtitle metadata", async () => {
+  it("Match selection action preserves live series title/subtitle metadata", async () => {
     const tracker = aFakeTrackerWith({
       trackerId: "t1",
       gamertag: "Chief",
@@ -322,7 +322,7 @@ describe("LiveTrackersPresenter", () => {
     (presenter as unknown as { activeLiveView: TrackerLiveView | null }).activeLiveView = liveView;
 
     const [item] = presenter.getTrackerItems();
-    const gameSelectionAction = presenter.getActions(item).find((a) => a.label === "Game selection");
+    const gameSelectionAction = presenter.getActions(item).find((a) => a.label === "Match selection");
     expect(gameSelectionAction).toBeDefined();
     if (gameSelectionAction == null) {
       return;
@@ -330,7 +330,7 @@ describe("LiveTrackersPresenter", () => {
 
     gameSelectionAction.onClick();
 
-    expect(presenter.getSnapshot().gameSelectionDialogState?.initialSeriesGroups).toEqual([
+    expect(presenter.getSnapshot().matchSelectionDialogState?.initialSeriesGroups).toEqual([
       {
         matchIds: ["m1"],
         titleOverride: "Semifinals",
@@ -341,7 +341,7 @@ describe("LiveTrackersPresenter", () => {
     presenter.dispose();
   });
 
-  it("Game selection action does not create overrides for default series labels", async () => {
+  it("Match selection action does not create overrides for default series labels", async () => {
     const tracker = aFakeTrackerWith({
       trackerId: "t1",
       gamertag: "Chief",
@@ -394,7 +394,7 @@ describe("LiveTrackersPresenter", () => {
     (presenter as unknown as { activeLiveView: TrackerLiveView | null }).activeLiveView = liveView;
 
     const [item] = presenter.getTrackerItems();
-    const gameSelectionAction = presenter.getActions(item).find((a) => a.label === "Game selection");
+    const gameSelectionAction = presenter.getActions(item).find((a) => a.label === "Match selection");
     expect(gameSelectionAction).toBeDefined();
     if (gameSelectionAction == null) {
       return;
@@ -402,7 +402,7 @@ describe("LiveTrackersPresenter", () => {
 
     gameSelectionAction.onClick();
 
-    expect(presenter.getSnapshot().gameSelectionDialogState?.initialSeriesGroups).toEqual([
+    expect(presenter.getSnapshot().matchSelectionDialogState?.initialSeriesGroups).toEqual([
       {
         matchIds: ["m1"],
         titleOverride: null,

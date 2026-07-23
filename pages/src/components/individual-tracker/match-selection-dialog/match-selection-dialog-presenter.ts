@@ -4,10 +4,10 @@ import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
 import { alignSeriesGroupsToGroupings } from "../series-group-metadata";
 import { applyAddToAdjacentGroup, applyBreakFromGroup } from "../grouping-utils";
 import { shouldHideShortDurationMatch } from "../match-duration-filter";
-import type { GameSelectionDialogSnapshot, GameSelectionDialogStore } from "./game-selection-dialog-store";
+import type { MatchSelectionDialogSnapshot, MatchSelectionDialogStore } from "./match-selection-dialog-store";
 
 interface Config {
-  readonly store: GameSelectionDialogStore;
+  readonly store: MatchSelectionDialogStore;
   readonly service: IndividualTrackerService;
   readonly trackerId: string;
   readonly xuid: string;
@@ -19,7 +19,7 @@ interface Config {
   readonly onSynced: () => void;
 }
 
-export class GameSelectionDialogPresenter {
+export class MatchSelectionDialogPresenter {
   private static readonly PAGE_SIZE = 25;
   private readonly config: Config;
   private isDisposed = false;
@@ -66,8 +66,8 @@ export class GameSelectionDialogPresenter {
 
       // Load pages until we've found all initial matches AND covered the searchStartTime boundary, or we reach max pages/end of history
       for (let pageIndex = 0; pageIndex < maxPages; pageIndex++) {
-        const offset = pageIndex * GameSelectionDialogPresenter.PAGE_SIZE;
-        const response = await service.getMatchHistory(xuid, offset, GameSelectionDialogPresenter.PAGE_SIZE);
+        const offset = pageIndex * MatchSelectionDialogPresenter.PAGE_SIZE;
+        const response = await service.getMatchHistory(xuid, offset, MatchSelectionDialogPresenter.PAGE_SIZE);
 
         if (this.isDisposed) {
           return;
@@ -83,7 +83,7 @@ export class GameSelectionDialogPresenter {
         const reachedSearchBoundary =
           searchStartTimeMs === 0 ||
           response.matches.length === 0 ||
-          response.matches.length < GameSelectionDialogPresenter.PAGE_SIZE ||
+          response.matches.length < MatchSelectionDialogPresenter.PAGE_SIZE ||
           response.matches.some((match) => {
             const isoTime = match.startTimeIso != null ? new Date(match.startTimeIso).getTime() : NaN;
             const matchTimeMs = Number.isFinite(isoTime) ? isoTime : new Date(match.startTime).getTime();
@@ -91,14 +91,14 @@ export class GameSelectionDialogPresenter {
           });
 
         // Stop early if all matches found AND we've reached the search boundary, or if we got fewer than PAGE_SIZE (end of history)
-        if ((allFound && reachedSearchBoundary) || response.matches.length < GameSelectionDialogPresenter.PAGE_SIZE) {
+        if ((allFound && reachedSearchBoundary) || response.matches.length < MatchSelectionDialogPresenter.PAGE_SIZE) {
           const snapshot = store.getSnapshot();
           const groupings = this.mergeSuggestedGroupings(snapshot.groupings, allLoadedMatches, 0);
           store.batchUpdate({
             matches: allLoadedMatches,
             groupings,
             seriesGroups: alignSeriesGroupsToGroupings(groupings, Array.from(snapshot.seriesGroups)),
-            hasMore: response.matches.length >= GameSelectionDialogPresenter.PAGE_SIZE,
+            hasMore: response.matches.length >= MatchSelectionDialogPresenter.PAGE_SIZE,
           });
           return;
         }
@@ -140,7 +140,7 @@ export class GameSelectionDialogPresenter {
   private async loadMoreAsync(start: number): Promise<void> {
     const { store, service, xuid } = this.config;
     try {
-      const response = await service.getMatchHistory(xuid, start, GameSelectionDialogPresenter.PAGE_SIZE);
+      const response = await service.getMatchHistory(xuid, start, MatchSelectionDialogPresenter.PAGE_SIZE);
       if (this.isDisposed) {
         return;
       }
@@ -152,7 +152,7 @@ export class GameSelectionDialogPresenter {
         matches: allMatches,
         groupings: nextGroupings,
         seriesGroups: nextSeriesGroups,
-        hasMore: response.matches.length >= GameSelectionDialogPresenter.PAGE_SIZE,
+        hasMore: response.matches.length >= MatchSelectionDialogPresenter.PAGE_SIZE,
       });
     } catch {
       /* keep existing data visible */
@@ -242,7 +242,7 @@ export class GameSelectionDialogPresenter {
     void this.syncAndCloseAsync(snapshot);
   }
 
-  private async syncAndCloseAsync(snapshot: GameSelectionDialogSnapshot): Promise<void> {
+  private async syncAndCloseAsync(snapshot: MatchSelectionDialogSnapshot): Promise<void> {
     const { store, service, trackerId, onSynced } = this.config;
     try {
       await service.syncMatchesToTracker({
@@ -266,13 +266,13 @@ export class GameSelectionDialogPresenter {
       }
       store.batchUpdate({
         isSyncing: false,
-        errorMessage: err instanceof Error ? err.message : "Failed to sync game selection.",
+        errorMessage: err instanceof Error ? err.message : "Failed to sync match selection.",
       });
     }
   }
 
-  public static present(snapshot: ReturnType<GameSelectionDialogStore["getSnapshot"]>): {
-    readonly visibleMatches: ReturnType<GameSelectionDialogStore["getSnapshot"]>["matches"];
+  public static present(snapshot: ReturnType<MatchSelectionDialogStore["getSnapshot"]>): {
+    readonly visibleMatches: ReturnType<MatchSelectionDialogStore["getSnapshot"]>["matches"];
     readonly selectedCount: number;
   } {
     const visibleMatches =
@@ -299,7 +299,7 @@ export class GameSelectionDialogPresenter {
     allMatches: readonly TrackerMatchHistoryEntry[],
     previousMatchCount: number,
   ): readonly (readonly string[])[] {
-    const lookbackStart = Math.max(0, previousMatchCount - GameSelectionDialogPresenter.PAGE_SIZE);
+    const lookbackStart = Math.max(0, previousMatchCount - MatchSelectionDialogPresenter.PAGE_SIZE);
     const boundaryMatches = allMatches.slice(lookbackStart);
     const newMatchIds = new Set(allMatches.slice(previousMatchCount).map((match) => match.matchId));
     const suggestedGroupings = this.computeSuggestedGroupings(boundaryMatches).filter((group) =>

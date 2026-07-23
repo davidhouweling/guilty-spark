@@ -1,7 +1,7 @@
 import type { IndividualTrackerSeriesGroup } from "../individual-tracker/series-group-metadata";
 import type { SeriesInitialData } from "../individual-tracker/manual-series-dialog/manual-series-dialog-store";
 
-export interface GameSelectionDialogState {
+export interface MatchSelectionDialogState {
   readonly trackerId: string;
   readonly trackerLabel: string;
   readonly xuid: string;

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { TrackerMatchHistoryResponse } from "../../../../services/individual-tracker/types";
 import { FakeIndividualTrackerService } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
-import { createGameSelectionDialogSection } from "../create";
+import { createMatchSelectionDialogSection } from "../create";
 
 afterEach(() => {
   cleanup();
@@ -43,7 +43,7 @@ function aMatch(
   };
 }
 
-describe("GameSelectionDialogSection", () => {
+describe("MatchSelectionDialogSection", () => {
   it("shows a single loading state while initial matches are being fetched", () => {
     const service = new FakeIndividualTrackerService();
     vi.spyOn(service, "getMatchHistory").mockImplementation(
@@ -52,12 +52,12 @@ describe("GameSelectionDialogSection", () => {
           /* keep pending */
         }),
     );
-    const GameSelectionDialogSection = createGameSelectionDialogSection({
+    const MatchSelectionDialogSection = createMatchSelectionDialogSection({
       individualTrackerService: service,
     });
 
     render(
-      <GameSelectionDialogSection
+      <MatchSelectionDialogSection
         isOpen={true}
         trackerId="tracker-1"
         trackerLabel="Test Player"
@@ -78,12 +78,12 @@ describe("GameSelectionDialogSection", () => {
   it("shows error alert and hides match list when getMatchHistory fails", async () => {
     const service = new FakeIndividualTrackerService();
     vi.spyOn(service, "getMatchHistory").mockRejectedValue(new Error("Network error"));
-    const GameSelectionDialogSection = createGameSelectionDialogSection({
+    const MatchSelectionDialogSection = createMatchSelectionDialogSection({
       individualTrackerService: service,
     });
 
     render(
-      <GameSelectionDialogSection
+      <MatchSelectionDialogSection
         isOpen={true}
         trackerId="tracker-1"
         trackerLabel="Test Player"
@@ -106,12 +106,12 @@ describe("GameSelectionDialogSection", () => {
   it("loads and displays matches when opened", async () => {
     const service = new FakeIndividualTrackerService();
     vi.spyOn(service, "getMatchHistory").mockResolvedValue(aResponse({ matches: [aMatch("m1"), aMatch("m2")] }));
-    const GameSelectionDialogSection = createGameSelectionDialogSection({
+    const MatchSelectionDialogSection = createMatchSelectionDialogSection({
       individualTrackerService: service,
     });
 
     render(
-      <GameSelectionDialogSection
+      <MatchSelectionDialogSection
         isOpen={true}
         trackerId="tracker-1"
         trackerLabel="Test Player"
@@ -179,12 +179,12 @@ describe("GameSelectionDialogSection", () => {
         ],
       }),
     );
-    const GameSelectionDialogSection = createGameSelectionDialogSection({
+    const MatchSelectionDialogSection = createMatchSelectionDialogSection({
       individualTrackerService: service,
     });
 
     render(
-      <GameSelectionDialogSection
+      <MatchSelectionDialogSection
         isOpen={true}
         trackerId="tracker-1"
         trackerLabel="Test Player"
@@ -212,12 +212,12 @@ describe("GameSelectionDialogSection", () => {
     vi.spyOn(service, "getMatchHistory").mockResolvedValue(aResponse({ matches: [aMatch("m1")] }));
     const syncSpy = vi.spyOn(service, "syncMatchesToTracker").mockResolvedValue(undefined);
     const onSynced = vi.fn();
-    const GameSelectionDialogSection = createGameSelectionDialogSection({
+    const MatchSelectionDialogSection = createMatchSelectionDialogSection({
       individualTrackerService: service,
     });
 
     render(
-      <GameSelectionDialogSection
+      <MatchSelectionDialogSection
         isOpen={true}
         trackerId="tracker-1"
         trackerLabel="Test Player"
@@ -253,12 +253,12 @@ describe("GameSelectionDialogSection", () => {
     const syncSpy = vi.spyOn(service, "syncMatchesToTracker").mockResolvedValue(undefined);
     const onSynced = vi.fn();
     const onClose = vi.fn();
-    const GameSelectionDialogSection = createGameSelectionDialogSection({
+    const MatchSelectionDialogSection = createMatchSelectionDialogSection({
       individualTrackerService: service,
     });
 
     render(
-      <GameSelectionDialogSection
+      <MatchSelectionDialogSection
         isOpen={true}
         trackerId="tracker-1"
         trackerLabel="Test Player"

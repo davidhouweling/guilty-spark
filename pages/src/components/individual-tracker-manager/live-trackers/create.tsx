@@ -2,7 +2,7 @@ import React, { useEffect, useSyncExternalStore } from "react";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import { createAddTrackerDialogSection } from "../../individual-tracker/add-tracker-dialog/create";
-import { createGameSelectionDialogSection } from "../../individual-tracker/game-selection-dialog/create";
+import { createMatchSelectionDialogSection } from "../../individual-tracker/match-selection-dialog/create";
 import { createManualSeriesDialogSection } from "../../individual-tracker/manual-series-dialog/create";
 import { LiveTrackersPresenter } from "./live-trackers-presenter";
 import { LiveTrackersStore } from "./live-trackers-store";
@@ -27,9 +27,9 @@ function LiveTrackersSectionInternal({
       }),
     [individualTrackerService],
   );
-  const GameSelectionDialogSection = React.useMemo(
+  const MatchSelectionDialogSection = React.useMemo(
     () =>
-      createGameSelectionDialogSection({
+      createMatchSelectionDialogSection({
         individualTrackerService,
       }),
     [individualTrackerService],
@@ -76,22 +76,22 @@ function LiveTrackersSectionInternal({
               void controller.refresh();
             }}
           />
-          {snapshot.gameSelectionDialogState != null && (
-            <GameSelectionDialogSection
+          {snapshot.matchSelectionDialogState != null && (
+            <MatchSelectionDialogSection
               isOpen={true}
-              trackerId={snapshot.gameSelectionDialogState.trackerId}
-              trackerLabel={snapshot.gameSelectionDialogState.trackerLabel}
-              xuid={snapshot.gameSelectionDialogState.xuid}
-              initialSelectedMatchIds={snapshot.gameSelectionDialogState.initialSelectedMatchIds}
-              initialGroupings={snapshot.gameSelectionDialogState.initialGroupings}
-              initialSeriesGroups={snapshot.gameSelectionDialogState.initialSeriesGroups}
-              searchStartTime={snapshot.gameSelectionDialogState.searchStartTime}
-              hasActiveSeriesWarning={snapshot.gameSelectionDialogState.hasActiveSeriesWarning}
+              trackerId={snapshot.matchSelectionDialogState.trackerId}
+              trackerLabel={snapshot.matchSelectionDialogState.trackerLabel}
+              xuid={snapshot.matchSelectionDialogState.xuid}
+              initialSelectedMatchIds={snapshot.matchSelectionDialogState.initialSelectedMatchIds}
+              initialGroupings={snapshot.matchSelectionDialogState.initialGroupings}
+              initialSeriesGroups={snapshot.matchSelectionDialogState.initialSeriesGroups}
+              searchStartTime={snapshot.matchSelectionDialogState.searchStartTime}
+              hasActiveSeriesWarning={snapshot.matchSelectionDialogState.hasActiveSeriesWarning}
               onClose={(): void => {
-                controller.closeGameSelectionDialog();
+                controller.closeMatchSelectionDialog();
               }}
               onSynced={(): void => {
-                controller.closeGameSelectionDialog();
+                controller.closeMatchSelectionDialog();
                 void controller.refresh();
               }}
             />

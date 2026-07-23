@@ -7,7 +7,7 @@ import type {
   IndividualTrackerSubscription,
 } from "../../../services/individual-tracker/types";
 import { buildIndividualTrackerTrackerViewPath } from "../../individual-tracker/routes";
-import type { GameSelectionDialogState, ManualSeriesDialogState } from "../types";
+import type { MatchSelectionDialogState, ManualSeriesDialogState } from "../types";
 import type { SeriesInitialData } from "../../individual-tracker/manual-series-dialog/manual-series-dialog-store";
 import { getDefaultSeriesGroupSubtitle } from "../../individual-tracker/series-group-metadata";
 import type { TrackerDisplayStatus, TrackerListItem, TrackerRowAction } from "../tracker-list/tracker-list";
@@ -120,7 +120,7 @@ export class LiveTrackersPresenter {
       busy: false,
       errorMessage: null,
       isAddDialogOpen: false,
-      gameSelectionDialogState: null,
+      matchSelectionDialogState: null,
       manualSeriesDialogState: null,
     }));
   }
@@ -133,8 +133,8 @@ export class LiveTrackersPresenter {
     this.updateSnapshot((s) => (s.busy ? s : { ...s, isAddDialogOpen: false }));
   }
 
-  public closeGameSelectionDialog(): void {
-    this.updateSnapshot((s) => (s.busy ? s : { ...s, gameSelectionDialogState: null }));
+  public closeMatchSelectionDialog(): void {
+    this.updateSnapshot((s) => (s.busy ? s : { ...s, matchSelectionDialogState: null }));
   }
 
   public closeManualSeriesDialog(): void {
@@ -266,7 +266,7 @@ export class LiveTrackersPresenter {
 
     if (status === "active" && trackerId != null) {
       actions.push({
-        label: "Game selection",
+        label: "Match selection",
         disabled: snapshot.busy,
         onClick: (): void => {
           this.openGameSelection(item);
@@ -724,13 +724,13 @@ export class LiveTrackersPresenter {
     const snapshot = this.getSnapshot();
     const trackerState = snapshot.trackerStatuses[item.trackerId] ?? null;
     if (trackerState == null) {
-      this.updateSnapshot((s) => ({ ...s, errorMessage: "Unable to load tracker state for game selection." }));
+      this.updateSnapshot((s) => ({ ...s, errorMessage: "Unable to load tracker state for match selection." }));
       return;
     }
 
     const liveView = this.activeLiveView?.trackerId === item.trackerId ? this.activeLiveView : null;
     const matchById = new Map((liveView?.matches ?? []).map((match) => [match.matchId, match]));
-    const dialogState: GameSelectionDialogState = {
+    const dialogState: MatchSelectionDialogState = {
       trackerId: item.trackerId,
       trackerLabel: item.gamertag,
       xuid: trackerState.xuid,
@@ -764,7 +764,7 @@ export class LiveTrackersPresenter {
           : {}),
       hasActiveSeriesWarning: item.hasActiveSeries,
     };
-    this.updateSnapshot((s) => ({ ...s, gameSelectionDialogState: dialogState }));
+    this.updateSnapshot((s) => ({ ...s, matchSelectionDialogState: dialogState }));
   }
 
   private openManualSeriesDialog(item: TrackerListItem): void {
