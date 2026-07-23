@@ -713,21 +713,17 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         continue;
       }
 
-      const isMatchmakingMatch = match.MatchInfo.Playlist != null;
-      const matchmakingPlaylist = await this.resolveMatchmakingPlaylistName(
-        match.MatchInfo.Playlist?.AssetId,
-        match.MatchInfo.Playlist?.VersionId,
-      );
+      const playlist = match.MatchInfo.Playlist;
+      const isMatchmakingMatch = playlist != null;
+      const [matchmakingPlaylist, mapName, mapBackgroundUrl] = await Promise.all([
+        playlist != null
+          ? this.resolveMatchmakingPlaylistName(playlist.AssetId, playlist.VersionId)
+          : Promise.resolve(null),
+        this.resolveMapName(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),
+        this.resolveMapBackgroundUrl(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),
+      ]);
 
       const outcome = getMatchOutcomeLabel(match.Outcome);
-      const mapName = await this.resolveMapName(
-        match.MatchInfo.MapVariant.AssetId,
-        match.MatchInfo.MapVariant.VersionId,
-      );
-      const mapBackgroundUrl = await this.resolveMapBackgroundUrl(
-        match.MatchInfo.MapVariant.AssetId,
-        match.MatchInfo.MapVariant.VersionId,
-      );
       const summary: IndividualTrackerMatchSummary = {
         matchId,
         startTime: match.MatchInfo.StartTime,
@@ -1528,13 +1524,17 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       matchStatsById.failingIds,
       matchStatsById.summaries,
     );
-    const mapNameResults = await this.resolveMapNamesForMatches(validation.validatedMatches);
-    const mapBackgroundUrls = await this.resolveMapBackgroundsForMatches(validation.validatedMatches);
-    const result = await this.buildMatchSummaries(
+    const [mapNameResults, mapBackgroundUrls, matchmakingPlaylists] = await Promise.all([
+      this.resolveMapNamesForMatches(validation.validatedMatches),
+      this.resolveMapBackgroundsForMatches(validation.validatedMatches),
+      this.resolveMatchmakingPlaylistsForMatches(validation.validatedMatches),
+    ]);
+    const result = this.buildMatchSummaries(
       validation.validatedMatches,
       validation.failingIds,
       mapNameResults,
       mapBackgroundUrls,
+      matchmakingPlaylists,
     );
 
     return result;
@@ -1680,7 +1680,25 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return Promise.all(mapBackgroundPromises);
   }
 
-  private async buildMatchSummaries(
+  private async resolveMatchmakingPlaylistsForMatches(
+    validatedMatches: {
+      matchId: string;
+      matchStats: MatchStats;
+      playerEntry: MatchStats["Players"][0];
+    }[],
+  ): Promise<(string | null)[]> {
+    const matchmakingPlaylistsPromises = validatedMatches.map(async ({ matchStats }) =>
+      matchStats.MatchInfo.Playlist != null
+        ? this.resolveMatchmakingPlaylistName(
+            matchStats.MatchInfo.Playlist.AssetId,
+            matchStats.MatchInfo.Playlist.VersionId,
+          )
+        : null,
+    );
+    return Promise.all(matchmakingPlaylistsPromises);
+  }
+
+  private buildMatchSummaries(
     validatedMatches: {
       matchId: string;
       matchStats: MatchStats;
@@ -1689,9 +1707,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     initialFailingIds: string[],
     mapNameResults: PromiseSettledResult<string>[],
     mapBackgroundUrls: string[],
-  ): Promise<
-    { success: true; summaries: Map<string, IndividualTrackerMatchSummary> } | { success: false; failingIds: string[] }
-  > {
+    matchmakingPlaylists: (string | null)[],
+  ):
+    | { success: true; summaries: Map<string, IndividualTrackerMatchSummary> }
+    | { success: false; failingIds: string[] } {
     const summaries = new Map<string, IndividualTrackerMatchSummary>();
     const failingIds: string[] = [...initialFailingIds];
 
@@ -1726,13 +1745,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
       const outcome = getMatchOutcomeLabel(playerEntry.Outcome);
       const mapName = mapNameResult.value;
-      const matchmakingPlaylist =
-        matchStats.MatchInfo.Playlist != null
-          ? await this.resolveMatchmakingPlaylistName(
-              matchStats.MatchInfo.Playlist.AssetId,
-              matchStats.MatchInfo.Playlist.VersionId,
-            )
-          : null;
+      const matchmakingPlaylist = matchmakingPlaylists[i] ?? null;
 
       summaries.set(matchId, {
         matchId,
