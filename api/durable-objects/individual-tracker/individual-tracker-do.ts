@@ -310,6 +310,26 @@ function getExpectedSeriesTeamRosters(
   return expectedRosters;
 }
 
+function xuidsMatchWithTolerance(expectedXuids: ReadonlySet<string>, actualXuids: ReadonlySet<string>): boolean {
+  if (expectedXuids.size === 0) {
+    return true;
+  }
+
+  const maxToleratedMismatches = Math.min(MAX_TOLERATED_ROSTER_MISMATCHES_PER_TEAM, expectedXuids.size - 1);
+  let mismatchedCount = 0;
+  for (const xuid of expectedXuids) {
+    if (actualXuids.has(xuid)) {
+      continue;
+    }
+    mismatchedCount += 1;
+    if (mismatchedCount > maxToleratedMismatches) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // Matches a discovered match against the series roster by team identity (not just team size),
 // tolerating a limited number of per-team swaps for in-flight NeatQueue substitutions. Falls back
 // to a count-only comparison for any team with no resolved player identities (e.g. no linked Xbox
@@ -329,26 +349,35 @@ function matchesExpectedSeriesRoster(
 
   for (const [teamId, expected] of expectedRosters.entries()) {
     const actualXuids = actualRosters.get(teamId);
-    if (actualXuids?.size !== expected.playerCount) {
+    if (actualXuids?.size !== expected.playerCount || !xuidsMatchWithTolerance(expected.knownXuids, actualXuids)) {
       return false;
     }
+  }
 
-    if (expected.knownXuids.size === 0) {
-      continue;
-    }
+  return true;
+}
 
-    // Never tolerate mismatching every known identity on a team - at least one must still match
-    // when any identity signal exists, otherwise this degrades to the count-only check it replaced.
-    const maxToleratedMismatches = Math.min(MAX_TOLERATED_ROSTER_MISMATCHES_PER_TEAM, expected.knownXuids.size - 1);
-    let mismatchedCount = 0;
-    for (const xuid of expected.knownXuids) {
-      if (actualXuids.has(xuid)) {
-        continue;
-      }
-      mismatchedCount += 1;
-      if (mismatchedCount > maxToleratedMismatches) {
-        return false;
-      }
+function seriesRosterMatchesPreviousSeries(
+  incomingTeams: readonly SeriesTeam[],
+  previousSeries: ActiveSeries,
+): boolean {
+  const previousRosters = getExpectedSeriesTeamRosters(previousSeries.teams);
+  const incomingRosters = getExpectedSeriesTeamRosters(incomingTeams);
+  if (previousRosters == null || incomingRosters == null) {
+    return false;
+  }
+
+  if (previousRosters.size !== incomingRosters.size) {
+    return false;
+  }
+
+  for (const [teamId, previous] of previousRosters.entries()) {
+    const incoming = incomingRosters.get(teamId);
+    if (
+      incoming?.playerCount !== previous.playerCount ||
+      !xuidsMatchWithTolerance(previous.knownXuids, incoming.knownXuids)
+    ) {
+      return false;
     }
   }
 
@@ -2181,26 +2210,51 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         break;
       }
       case "started": {
-        this.clearSeriesState(trackerState);
-        const startedAt = payload.startedAt ?? new Date().toISOString();
-        trackerState.activeSeries = {
-          title: payload.title,
-          subtitle: payload.subtitle,
-          guildIconUrl: payload.guildIconUrl,
-          teams: payload.teams,
-          matchIds: [],
-          startedAt,
-          isActive: true,
-        };
+        this.retireActiveSeries(trackerState);
 
-        this.logService.info(
-          "IndividualTracker: series started via nudge",
-          new Map([
-            ["trackerId", trackerState.trackerId],
-            ["gamertag", trackerState.gamertag],
-            ["title", payload.title],
-          ]),
-        );
+        const previousSeries = trackerState.completedSeries?.at(-1);
+        if (previousSeries != null && seriesRosterMatchesPreviousSeries(payload.teams, previousSeries)) {
+          trackerState.activeSeries = {
+            ...previousSeries,
+            title: payload.title,
+            subtitle: payload.subtitle,
+            guildIconUrl: payload.guildIconUrl,
+            teams: payload.teams,
+            isActive: true,
+          };
+          trackerState.completedSeries = (trackerState.completedSeries ?? []).filter(
+            (series) => series !== previousSeries,
+          );
+
+          this.logService.info(
+            "IndividualTracker: series continued from previously completed series via started nudge",
+            new Map([
+              ["trackerId", trackerState.trackerId],
+              ["gamertag", trackerState.gamertag],
+              ["title", payload.title],
+            ]),
+          );
+        } else {
+          const startedAt = payload.startedAt ?? new Date().toISOString();
+          trackerState.activeSeries = {
+            title: payload.title,
+            subtitle: payload.subtitle,
+            guildIconUrl: payload.guildIconUrl,
+            teams: payload.teams,
+            matchIds: [],
+            startedAt,
+            isActive: true,
+          };
+
+          this.logService.info(
+            "IndividualTracker: series started via nudge",
+            new Map([
+              ["trackerId", trackerState.trackerId],
+              ["gamertag", trackerState.gamertag],
+              ["title", payload.title],
+            ]),
+          );
+        }
 
         break;
       }
