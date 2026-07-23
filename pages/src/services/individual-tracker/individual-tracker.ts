@@ -342,22 +342,16 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     const matches = await Promise.all(
       recentMatches.map(async (match) => {
         const matchStats = matchDetailsById.get(match.MatchId) ?? null;
-        const mapDetails = await this.getMapDetails(
-          match.MatchInfo.MapVariant.AssetId,
-          match.MatchInfo.MapVariant.VersionId,
-        );
-        const modeName = await this.getModeName(
-          match.MatchInfo.UgcGameVariant.AssetId,
-          match.MatchInfo.UgcGameVariant.VersionId,
-        );
+        const playlist = match.MatchInfo.Playlist;
+        const isMatchmaking = playlist != null;
+        const [mapDetails, modeName, matchmakingPlaylist] = await Promise.all([
+          this.getMapDetails(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),
+          this.getModeName(match.MatchInfo.UgcGameVariant.AssetId, match.MatchInfo.UgcGameVariant.VersionId),
+          playlist != null
+            ? this.getMatchmakingPlaylistName(playlist.AssetId, playlist.VersionId)
+            : Promise.resolve(null),
+        ]);
         const outcome = getMatchOutcomeLabel(match.Outcome);
-        const isMatchmaking = match.MatchInfo.Playlist != null;
-        const matchmakingPlaylist = isMatchmaking
-          ? await this.getMatchmakingPlaylistName(
-              match.MatchInfo.Playlist?.AssetId,
-              match.MatchInfo.Playlist?.VersionId,
-            )
-          : null;
         const lifecycleMode = match.MatchInfo.LifecycleMode;
         const matchCategory: TrackerMatchHistoryEntry["category"] = isMatchmaking
           ? "matchmaking"
