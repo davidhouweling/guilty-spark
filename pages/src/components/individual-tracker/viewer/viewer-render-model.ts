@@ -215,6 +215,9 @@ function toMatchTab(summary: TrackerMatchSummary, teamHex: string, enemyHex: str
   return {
     matchId: summary.matchId,
     mapName: summary.mapName,
+    ...(summary.isMatchmaking && summary.matchmakingPlaylist != null && summary.matchmakingPlaylist !== ""
+      ? { subtitle: summary.matchmakingPlaylist }
+      : {}),
     mapBackgroundUrl: summary.mapBackgroundUrl ?? "data:,",
     gameVariantCategory: summary.gameVariantCategory,
     isMatchmaking: summary.isMatchmaking,

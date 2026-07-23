@@ -62,6 +62,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
   private readonly haloInfiniteClient: HaloInfiniteClient;
   private readonly mapCache = new Map<string, Promise<MapAsset>>();
   private readonly modeNameCache = new Map<string, Promise<UgcGameVariantAsset>>();
+  private readonly playlistNameCache = new Map<string, Promise<string | null>>();
 
   public constructor({ apiHost, haloInfiniteClient }: IndividualTrackerServiceOpts) {
     this.apiHost = apiHost;
@@ -341,16 +342,16 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     const matches = await Promise.all(
       recentMatches.map(async (match) => {
         const matchStats = matchDetailsById.get(match.MatchId) ?? null;
-        const mapDetails = await this.getMapDetails(
-          match.MatchInfo.MapVariant.AssetId,
-          match.MatchInfo.MapVariant.VersionId,
-        );
-        const modeName = await this.getModeName(
-          match.MatchInfo.UgcGameVariant.AssetId,
-          match.MatchInfo.UgcGameVariant.VersionId,
-        );
+        const playlist = match.MatchInfo.Playlist;
+        const isMatchmaking = playlist != null;
+        const [mapDetails, modeName, matchmakingPlaylist] = await Promise.all([
+          this.getMapDetails(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),
+          this.getModeName(match.MatchInfo.UgcGameVariant.AssetId, match.MatchInfo.UgcGameVariant.VersionId),
+          playlist != null
+            ? this.getMatchmakingPlaylistName(playlist.AssetId, playlist.VersionId)
+            : Promise.resolve(null),
+        ]);
         const outcome = getMatchOutcomeLabel(match.Outcome);
-        const isMatchmaking = match.MatchInfo.Playlist != null;
         const lifecycleMode = match.MatchInfo.LifecycleMode;
         const matchCategory: TrackerMatchHistoryEntry["category"] = isMatchmaking
           ? "matchmaking"
@@ -377,6 +378,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
           outcome,
           resultString: buildMatchResultString(outcome, matchStats),
           isMatchmaking,
+          ...(matchmakingPlaylist != null ? { matchmakingPlaylist } : {}),
           category: matchCategory,
           teams: buildTeams(matchStats, xuidToGamertag),
           mapThumbnailUrl: mapDetails.thumbnailUrl,
@@ -520,6 +522,35 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     this.modeNameCache.set(key, promise);
     const variant = await promise;
     return variant.PublicName;
+  }
+
+  private async getMatchmakingPlaylistName(
+    assetId: string | undefined,
+    versionId: string | undefined,
+  ): Promise<string | null> {
+    if (assetId == null || versionId == null) {
+      return null;
+    }
+
+    const key = `${assetId}:${versionId}`;
+    const existing = this.playlistNameCache.get(key);
+    if (existing != null) {
+      return existing;
+    }
+
+    const promise = this.haloInfiniteClient
+      .getSpecificAssetVersion(AssetKind.Playlist, assetId, versionId)
+      .then((asset) => {
+        const playlistName = asset.PublicName.trim();
+        return playlistName === "" ? null : playlistName;
+      })
+      .catch(() => {
+        this.playlistNameCache.delete(key);
+        return null;
+      });
+
+    this.playlistNameCache.set(key, promise);
+    return promise;
   }
 
   public async getTrackers(): Promise<TrackerListResponse> {

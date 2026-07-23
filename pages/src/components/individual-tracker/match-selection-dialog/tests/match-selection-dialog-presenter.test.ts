@@ -3,8 +3,8 @@ import type {
   IndividualTrackerService,
   TrackerMatchHistoryResponse,
 } from "../../../../services/individual-tracker/types";
-import { GameSelectionDialogStore } from "../game-selection-dialog-store";
-import { GameSelectionDialogPresenter } from "../game-selection-dialog-presenter";
+import { MatchSelectionDialogStore } from "../match-selection-dialog-store";
+import { MatchSelectionDialogPresenter } from "../match-selection-dialog-presenter";
 
 async function flushPromises(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -50,14 +50,14 @@ function aMatch(matchId: string): TrackerMatchHistoryResponse["matches"][number]
 
 function buildPresenter(
   service: ReturnType<typeof aFakeService>,
-  store: GameSelectionDialogStore,
+  store: MatchSelectionDialogStore,
   overrides: {
     readonly initialSelectedMatchIds?: readonly string[];
     readonly initialGroupings?: readonly (readonly string[])[];
     readonly onSynced?: () => void;
   } = {},
-): GameSelectionDialogPresenter {
-  return new GameSelectionDialogPresenter({
+): MatchSelectionDialogPresenter {
+  return new MatchSelectionDialogPresenter({
     store,
     service: service as unknown as IndividualTrackerService,
     trackerId: "tracker-1",
@@ -69,11 +69,11 @@ function buildPresenter(
   });
 }
 
-describe("GameSelectionDialogPresenter", () => {
-  let store: GameSelectionDialogStore;
+describe("MatchSelectionDialogPresenter", () => {
+  let store: MatchSelectionDialogStore;
 
   beforeEach(() => {
-    store = new GameSelectionDialogStore();
+    store = new MatchSelectionDialogStore();
   });
 
   describe("loadMatches()", () => {
@@ -406,7 +406,7 @@ describe("GameSelectionDialogPresenter", () => {
         ],
       });
 
-      const model = GameSelectionDialogPresenter.present(store.getSnapshot());
+      const model = MatchSelectionDialogPresenter.present(store.getSnapshot());
 
       expect(model.visibleMatches?.map((m) => m.matchId)).toEqual(["long"]);
     });
@@ -439,7 +439,7 @@ describe("GameSelectionDialogPresenter", () => {
         ],
       });
 
-      const model = GameSelectionDialogPresenter.present(store.getSnapshot());
+      const model = MatchSelectionDialogPresenter.present(store.getSnapshot());
 
       expect(model.visibleMatches?.map((m) => m.matchId)).toEqual(["short"]);
     });

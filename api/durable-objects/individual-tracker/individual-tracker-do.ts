@@ -713,17 +713,17 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         continue;
       }
 
-      const isMatchmakingMatch = match.MatchInfo.Playlist != null;
+      const playlist = match.MatchInfo.Playlist;
+      const isMatchmakingMatch = playlist != null;
+      const [matchmakingPlaylist, mapName, mapBackgroundUrl] = await Promise.all([
+        playlist != null
+          ? this.resolveMatchmakingPlaylistName(playlist.AssetId, playlist.VersionId)
+          : Promise.resolve(null),
+        this.resolveMapName(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),
+        this.resolveMapBackgroundUrl(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),
+      ]);
 
       const outcome = getMatchOutcomeLabel(match.Outcome);
-      const mapName = await this.resolveMapName(
-        match.MatchInfo.MapVariant.AssetId,
-        match.MatchInfo.MapVariant.VersionId,
-      );
-      const mapBackgroundUrl = await this.resolveMapBackgroundUrl(
-        match.MatchInfo.MapVariant.AssetId,
-        match.MatchInfo.MapVariant.VersionId,
-      );
       const summary: IndividualTrackerMatchSummary = {
         matchId,
         startTime: match.MatchInfo.StartTime,
@@ -739,6 +739,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         killsDeathsAssistsKda: UNKNOWN_KDA_DISPLAY,
         damageDealtTakenRatio: UNKNOWN_DAMAGE_RATIO_DISPLAY,
         isMatchmaking: isMatchmakingMatch,
+        ...(matchmakingPlaylist != null ? { matchmakingPlaylist } : {}),
         teamRosterSignature: null,
         teamOutcomes: null,
       };
@@ -1128,6 +1129,34 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
   }
 
+  private async resolveMatchmakingPlaylistName(
+    assetId: string | undefined,
+    versionId: string | undefined,
+  ): Promise<string | null> {
+    if (assetId == null || versionId == null) {
+      return null;
+    }
+
+    try {
+      const playlistName = await this.haloService.getPlaylistName(assetId, versionId);
+      return playlistName === "" ? null : playlistName;
+    } catch (error) {
+      if (this.isAuthError(error)) {
+        this.clearUserHaloService();
+        throw error;
+      }
+      this.logService.warn(
+        error,
+        new Map([
+          ["context", "IndividualTracker: getPlaylistName failed"],
+          ["assetId", assetId],
+          ["versionId", versionId],
+        ]),
+      );
+      return null;
+    }
+  }
+
   private async markRegistryStopped(trackerState: IndividualTrackerInternalState): Promise<void> {
     try {
       const row = await this.services.databaseService.getIndividualTracker(trackerState.trackerId);
@@ -1495,13 +1524,17 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       matchStatsById.failingIds,
       matchStatsById.summaries,
     );
-    const mapNameResults = await this.resolveMapNamesForMatches(validation.validatedMatches);
-    const mapBackgroundUrls = await this.resolveMapBackgroundsForMatches(validation.validatedMatches);
+    const [mapNameResults, mapBackgroundUrls, matchmakingPlaylists] = await Promise.all([
+      this.resolveMapNamesForMatches(validation.validatedMatches),
+      this.resolveMapBackgroundsForMatches(validation.validatedMatches),
+      this.resolveMatchmakingPlaylistsForMatches(validation.validatedMatches),
+    ]);
     const result = this.buildMatchSummaries(
       validation.validatedMatches,
       validation.failingIds,
       mapNameResults,
       mapBackgroundUrls,
+      matchmakingPlaylists,
     );
 
     return result;
@@ -1647,6 +1680,24 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     return Promise.all(mapBackgroundPromises);
   }
 
+  private async resolveMatchmakingPlaylistsForMatches(
+    validatedMatches: {
+      matchId: string;
+      matchStats: MatchStats;
+      playerEntry: MatchStats["Players"][0];
+    }[],
+  ): Promise<(string | null)[]> {
+    const matchmakingPlaylistsPromises = validatedMatches.map(async ({ matchStats }) =>
+      matchStats.MatchInfo.Playlist != null
+        ? this.resolveMatchmakingPlaylistName(
+            matchStats.MatchInfo.Playlist.AssetId,
+            matchStats.MatchInfo.Playlist.VersionId,
+          )
+        : null,
+    );
+    return Promise.all(matchmakingPlaylistsPromises);
+  }
+
   private buildMatchSummaries(
     validatedMatches: {
       matchId: string;
@@ -1656,6 +1707,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     initialFailingIds: string[],
     mapNameResults: PromiseSettledResult<string>[],
     mapBackgroundUrls: string[],
+    matchmakingPlaylists: (string | null)[],
   ):
     | { success: true; summaries: Map<string, IndividualTrackerMatchSummary> }
     | { success: false; failingIds: string[] } {
@@ -1693,6 +1745,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
       const outcome = getMatchOutcomeLabel(playerEntry.Outcome);
       const mapName = mapNameResult.value;
+      const matchmakingPlaylist = matchmakingPlaylists[i] ?? null;
 
       summaries.set(matchId, {
         matchId,
@@ -1708,6 +1761,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         score: buildMatchScore(matchStats),
         ...computeTrackedPlayerSummaryStats(matchStats, getPlayerXuid(playerEntry)),
         isMatchmaking: matchStats.MatchInfo.Playlist != null,
+        ...(matchmakingPlaylist != null ? { matchmakingPlaylist } : {}),
         teamRosterSignature: buildTeamRosterSignature(matchStats),
         teamOutcomes: matchStats.Teams.map((team) => team.Outcome),
       });
@@ -2717,6 +2771,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         killsDeathsAssistsKda: summary.killsDeathsAssistsKda ?? UNKNOWN_KDA_DISPLAY,
         damageDealtTakenRatio: summary.damageDealtTakenRatio ?? UNKNOWN_DAMAGE_RATIO_DISPLAY,
         isMatchmaking: summary.isMatchmaking,
+        ...(summary.matchmakingPlaylist != null ? { matchmakingPlaylist: summary.matchmakingPlaylist } : {}),
       })),
       series,
       lastUpdateTime: state.lastUpdateTime,

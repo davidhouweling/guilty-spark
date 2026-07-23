@@ -171,6 +171,7 @@ export function toTrackerView(
             killsDeathsAssistsKda: match.killsDeathsAssistsKda,
             damageDealtTakenRatio: match.damageDealtTakenRatio,
             isMatchmaking: match.isMatchmaking,
+            ...(match.matchmakingPlaylist != null ? { matchmakingPlaylist: match.matchmakingPlaylist } : {}),
           })),
     series: doState == null ? [] : doState.series.map(toTrackerSeriesGroup),
     lastUpdateTime: doState == null ? "" : doState.lastUpdateTime,

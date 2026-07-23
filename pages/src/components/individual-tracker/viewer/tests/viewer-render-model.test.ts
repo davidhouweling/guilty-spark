@@ -211,6 +211,43 @@ describe("buildViewerRenderModel", () => {
     }
   });
 
+  it("maps matchmaking playlist to match subtitle", () => {
+    expect.assertions(1);
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m1",
+          isMatchmaking: true,
+          matchmakingPlaylist: "Ranked Arena",
+        }),
+      ],
+    });
+
+    const model = buildViewerRenderModel({ view });
+    const [first] = model.timeline;
+    if (first.type === "match") {
+      expect(first.match.subtitle).toBe("Ranked Arena");
+    }
+  });
+
+  it("omits subtitle when playlist is unavailable", () => {
+    expect.assertions(1);
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m1",
+          isMatchmaking: true,
+        }),
+      ],
+    });
+
+    const model = buildViewerRenderModel({ view });
+    const [first] = model.timeline;
+    if (first.type === "match") {
+      expect(first.match.subtitle).toBeUndefined();
+    }
+  });
+
   it("renders unknown match duration when timestamps are invalid", () => {
     expect.assertions(1);
     const view = aFakeTrackerViewStateWith({

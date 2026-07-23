@@ -66,6 +66,7 @@ export function MatchCard({
   const outcome = normalizeOutcomeString(entry.outcome);
   const teamListFormatter = new Intl.ListFormat(undefined, { style: "narrow", type: "conjunction" });
   const categoryLabel = getCategoryLabel(entry.category);
+  const subtitle = entry.category === "matchmaking" ? entry.matchmakingPlaylist : undefined;
 
   const cardStyle = {
     "--map-bg": `url(${entry.mapThumbnailUrl})`,
@@ -106,6 +107,7 @@ export function MatchCard({
                   {categoryLabel}
                 </span>
               </div>
+              {subtitle != null && subtitle !== "" ? <p className={styles.matchSubtitle}>{subtitle}</p> : null}
               <ul className={styles.matchMetadata}>
                 <li>
                   <span className={styles.matchMetaLabel}>Score:</span>{" "}

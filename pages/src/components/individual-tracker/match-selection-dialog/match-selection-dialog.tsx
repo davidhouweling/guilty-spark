@@ -7,9 +7,9 @@ import { Checkbox } from "../../checkbox/checkbox";
 import { Dialog } from "../../dialog/dialog";
 import { LoadingState } from "../../loading-state/loading-state";
 import { createMatchHistorySection } from "../../match-history/create";
-import styles from "./game-selection-dialog.module.css";
+import styles from "./match-selection-dialog.module.css";
 
-export interface GameSelectionDialogProps {
+export interface MatchSelectionDialogProps {
   readonly isOpen: boolean;
   readonly trackerLabel: string;
   readonly selectedCount: number;
@@ -34,7 +34,7 @@ export interface GameSelectionDialogProps {
   readonly onLoadMore: () => Promise<void>;
 }
 
-export function GameSelectionDialog({
+export function MatchSelectionDialog({
   isOpen,
   trackerLabel,
   selectedCount,
@@ -57,7 +57,7 @@ export function GameSelectionDialog({
   onSeriesGroupSubtitleChange,
   onHideShortGamesChange,
   onLoadMore,
-}: GameSelectionDialogProps): React.ReactElement | null {
+}: MatchSelectionDialogProps): React.ReactElement | null {
   const MatchHistorySection = React.useMemo(() => createMatchHistorySection(), []);
 
   if (!isOpen) {
@@ -71,7 +71,7 @@ export function GameSelectionDialog({
   return (
     <Dialog
       open={isOpen}
-      title="Game Selection"
+      title="Match selection"
       onClose={onClose}
       panelClassName={styles.dialogPanel}
       bodyClassName={styles.dialogBody}

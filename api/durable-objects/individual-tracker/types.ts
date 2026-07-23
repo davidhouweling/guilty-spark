@@ -36,6 +36,7 @@ export interface IndividualTrackerMatchSummary {
   damageDealt?: number;
   damageTaken?: number;
   isMatchmaking: boolean;
+  matchmakingPlaylist?: string;
   teamRosterSignature: string | null;
   teamOutcomes: number[] | null;
 }
@@ -55,6 +56,7 @@ export interface IndividualTrackerViewMatch {
   killsDeathsAssistsKda: string;
   damageDealtTakenRatio: string;
   isMatchmaking: boolean;
+  matchmakingPlaylist?: string;
 }
 
 export interface SeriesPlayer {

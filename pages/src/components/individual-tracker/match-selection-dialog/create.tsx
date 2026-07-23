@@ -1,15 +1,15 @@
 import React, { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
-import { GameSelectionDialogPresenter } from "./game-selection-dialog-presenter";
-import { GameSelectionDialogStore } from "./game-selection-dialog-store";
-import { GameSelectionDialog } from "./game-selection-dialog";
+import { MatchSelectionDialogPresenter } from "./match-selection-dialog-presenter";
+import { MatchSelectionDialogStore } from "./match-selection-dialog-store";
+import { MatchSelectionDialog } from "./match-selection-dialog";
 
-export interface CreateGameSelectionDialogSectionConfig {
+export interface CreateMatchSelectionDialogSectionConfig {
   readonly individualTrackerService: IndividualTrackerService;
 }
 
-export interface GameSelectionDialogSectionProps {
+export interface MatchSelectionDialogSectionProps {
   readonly isOpen: boolean;
   readonly trackerId: string;
   readonly trackerLabel: string;
@@ -23,11 +23,11 @@ export interface GameSelectionDialogSectionProps {
   readonly onSynced: () => void;
 }
 
-interface GameSelectionDialogSectionInternalProps extends GameSelectionDialogSectionProps {
-  readonly config: CreateGameSelectionDialogSectionConfig;
+interface MatchSelectionDialogSectionInternalProps extends MatchSelectionDialogSectionProps {
+  readonly config: CreateMatchSelectionDialogSectionConfig;
 }
 
-function GameSelectionDialogSectionInternal({
+function MatchSelectionDialogSectionInternal({
   config,
   isOpen,
   trackerId,
@@ -40,17 +40,17 @@ function GameSelectionDialogSectionInternal({
   hasActiveSeriesWarning,
   onClose,
   onSynced,
-}: GameSelectionDialogSectionInternalProps): React.ReactElement | null {
+}: MatchSelectionDialogSectionInternalProps): React.ReactElement | null {
   const onSyncedRef = useRef(onSynced);
   onSyncedRef.current = onSynced;
 
   const { individualTrackerService } = config;
 
-  const store = useMemo(() => new GameSelectionDialogStore(), []);
+  const store = useMemo(() => new MatchSelectionDialogStore(), []);
 
   const presenter = useMemo(
     () =>
-      new GameSelectionDialogPresenter({
+      new MatchSelectionDialogPresenter({
         store,
         service: individualTrackerService,
         trackerId,
@@ -95,14 +95,14 @@ function GameSelectionDialogSectionInternal({
     () => store.getSnapshot(),
   );
 
-  const model = useMemo(() => GameSelectionDialogPresenter.present(snapshot), [snapshot]);
+  const model = useMemo(() => MatchSelectionDialogPresenter.present(snapshot), [snapshot]);
 
   const handleSyncAndClose = (): void => {
     presenter.syncAndClose();
   };
 
   return (
-    <GameSelectionDialog
+    <MatchSelectionDialog
       isOpen={isOpen}
       trackerLabel={trackerLabel}
       selectedCount={model.selectedCount}
@@ -145,11 +145,11 @@ function GameSelectionDialogSectionInternal({
   );
 }
 
-export function createGameSelectionDialogSection(
-  config: CreateGameSelectionDialogSectionConfig,
-): (props: GameSelectionDialogSectionProps) => React.ReactElement | null {
-  const Component = (props: GameSelectionDialogSectionProps): React.ReactElement | null => (
-    <GameSelectionDialogSectionInternal {...props} config={config} />
+export function createMatchSelectionDialogSection(
+  config: CreateMatchSelectionDialogSectionConfig,
+): (props: MatchSelectionDialogSectionProps) => React.ReactElement | null {
+  const Component = (props: MatchSelectionDialogSectionProps): React.ReactElement | null => (
+    <MatchSelectionDialogSectionInternal {...props} config={config} />
   );
 
   return Component;

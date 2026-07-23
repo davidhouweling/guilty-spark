@@ -66,6 +66,7 @@ export class HaloService {
   private readonly roundRobinFn: generateRoundRobinMapsFn;
   private readonly playerMatchesRateLimiter: IPlayerMatchesRateLimiter;
   private readonly mapNameCache = new Map<string, string>();
+  private readonly playlistNameCache = new Map<string, string>();
   private readonly gameTypeCache = new Map<string, string>();
   private readonly userCache = new Map<DiscordAssociationsRow["DiscordId"], DiscordAssociationsRow>();
   private readonly xuidToGamerTagCache = new Map<string, string>();
@@ -1351,6 +1352,33 @@ export class HaloService {
     return Preconditions.checkExists(this.mapNameCache.get(cacheKey));
   }
 
+  async getPlaylistName(assetId: string, versionId: string): Promise<string> {
+    const cacheKey = `${assetId}:${versionId}`;
+    const cachedName = this.playlistNameCache.get(cacheKey);
+    if (cachedName != null) {
+      return cachedName;
+    }
+
+    const kvCacheKey = this.getPlaylistNameKVCacheKey(assetId, versionId);
+    const cachedFromKv = await this.env.APP_DATA.get(kvCacheKey);
+    if (cachedFromKv != null) {
+      this.playlistNameCache.set(cacheKey, cachedFromKv);
+      return cachedFromKv;
+    }
+
+    const playlistData = await this.infiniteClient.getSpecificAssetVersion(AssetKind.Playlist, assetId, versionId, {
+      cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_DAY"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
+    });
+
+    const playlistName = playlistData.PublicName.trim();
+    this.playlistNameCache.set(cacheKey, playlistName);
+    await this.env.APP_DATA.put(kvCacheKey, playlistName, {
+      expirationTtl: TimeInSeconds["1_DAY"],
+    });
+
+    return playlistName;
+  }
+
   private async getGameType(ugcGameVariantAssetId: string, ucgGameVariantVersionId: string): Promise<string> {
     const cacheKey = `${ugcGameVariantAssetId}:${ucgGameVariantVersionId}`;
     if (!this.gameTypeCache.has(cacheKey)) {
@@ -1919,6 +1947,10 @@ export class HaloService {
 
   private sanitizeMapName(mapName: string): string {
     return mapName.replace("- Ranked", "").trim();
+  }
+
+  private getPlaylistNameKVCacheKey(assetId: string, versionId: string): string {
+    return `halo-playlist-name:${assetId}:${versionId}`;
   }
 
   private async getPlaylistGameVariantKeys(playlistId: FetchablePlaylist): Promise<string[]> {

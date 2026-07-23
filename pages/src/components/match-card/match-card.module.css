@@ -103,6 +103,12 @@
   margin: 0;
 }
 
+.matchSubtitle {
+  color: var(--halo-gray, #9ca3af);
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-2);
+}
+
 .categoryBadge {
   border-radius: var(--radius-base);
   font-size: var(--text-xs);
