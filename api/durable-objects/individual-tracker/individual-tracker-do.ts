@@ -2243,7 +2243,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       case "started": {
         this.retireActiveSeries(trackerState);
 
-        const startedAt = payload.startedAt ?? new Date().toISOString();
+        const startedAt =
+          payload.startedAt != null && isParseableTimestamp(payload.startedAt)
+            ? payload.startedAt
+            : new Date().toISOString();
         trackerState.activeSeries = {
           title: payload.title,
           subtitle: payload.subtitle,

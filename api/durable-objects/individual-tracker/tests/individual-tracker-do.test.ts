@@ -3634,6 +3634,22 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.searchStartTime).toBe(previousSearchStartTime);
     });
 
+    it("falls back activeSeries.startedAt when a started nudge has an unparseable startedAt", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", {
+          method: "POST",
+          body: JSON.stringify(aSeriesPayload({ startedAt: "not-a-valid-date" })),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.startedAt).not.toBe("not-a-valid-date");
+      expect(Number.isNaN(Date.parse(persisted.activeSeries?.startedAt ?? ""))).toBe(false);
+    });
+
     it("clears preSeriesPlayerInfo cache when a started nudge arrives", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
