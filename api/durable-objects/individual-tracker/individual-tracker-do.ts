@@ -2251,6 +2251,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         };
         // Update searchStartTime so pre-series matches aren't included in the active series
         trackerState.searchStartTime = startedAt;
+        // Invalidate preSeriesPlayerInfo cache since the series context has changed
+        delete trackerState.preSeriesPlayerInfoLatestMatchId;
+        delete trackerState.preSeriesPlayerInfo;
 
         this.logService.info(
           "IndividualTracker: series started via nudge",
