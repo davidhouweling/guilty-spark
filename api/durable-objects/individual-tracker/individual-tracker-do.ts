@@ -357,33 +357,6 @@ function matchesExpectedSeriesRoster(
   return true;
 }
 
-function seriesRosterMatchesPreviousSeries(
-  incomingTeams: readonly SeriesTeam[],
-  previousSeries: ActiveSeries,
-): boolean {
-  const previousRosters = getExpectedSeriesTeamRosters(previousSeries.teams);
-  const incomingRosters = getExpectedSeriesTeamRosters(incomingTeams);
-  if (previousRosters == null || incomingRosters == null) {
-    return false;
-  }
-
-  if (previousRosters.size !== incomingRosters.size) {
-    return false;
-  }
-
-  for (const [teamId, previous] of previousRosters.entries()) {
-    const incoming = incomingRosters.get(teamId);
-    if (
-      incoming?.playerCount !== previous.playerCount ||
-      !xuidsMatchWithTolerance(previous.knownXuids, incoming.knownXuids)
-    ) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 function getSeriesSummariesForSeriesList(
   groupSummaries: readonly IndividualTrackerMatchSummary[],
   teams: readonly SeriesTeam[] | undefined,
@@ -2266,49 +2239,25 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       case "started": {
         this.retireActiveSeries(trackerState);
 
-        const previousSeries = trackerState.completedSeries?.at(-1);
-        if (previousSeries != null && seriesRosterMatchesPreviousSeries(payload.teams, previousSeries)) {
-          trackerState.activeSeries = {
-            ...previousSeries,
-            title: payload.title,
-            subtitle: payload.subtitle,
-            guildIconUrl: payload.guildIconUrl,
-            teams: payload.teams,
-            isActive: true,
-          };
-          trackerState.completedSeries = (trackerState.completedSeries ?? []).filter(
-            (series) => series !== previousSeries,
-          );
+        const startedAt = payload.startedAt ?? new Date().toISOString();
+        trackerState.activeSeries = {
+          title: payload.title,
+          subtitle: payload.subtitle,
+          guildIconUrl: payload.guildIconUrl,
+          teams: payload.teams,
+          matchIds: [],
+          startedAt,
+          isActive: true,
+        };
 
-          this.logService.info(
-            "IndividualTracker: series continued from previously completed series via started nudge",
-            new Map([
-              ["trackerId", trackerState.trackerId],
-              ["gamertag", trackerState.gamertag],
-              ["title", payload.title],
-            ]),
-          );
-        } else {
-          const startedAt = payload.startedAt ?? new Date().toISOString();
-          trackerState.activeSeries = {
-            title: payload.title,
-            subtitle: payload.subtitle,
-            guildIconUrl: payload.guildIconUrl,
-            teams: payload.teams,
-            matchIds: [],
-            startedAt,
-            isActive: true,
-          };
-
-          this.logService.info(
-            "IndividualTracker: series started via nudge",
-            new Map([
-              ["trackerId", trackerState.trackerId],
-              ["gamertag", trackerState.gamertag],
-              ["title", payload.title],
-            ]),
-          );
-        }
+        this.logService.info(
+          "IndividualTracker: series started via nudge",
+          new Map([
+            ["trackerId", trackerState.trackerId],
+            ["gamertag", trackerState.gamertag],
+            ["title", payload.title],
+          ]),
+        );
 
         break;
       }
@@ -2680,7 +2629,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const activeSeriesMatchIds = state.activeSeries?.matchIds ?? [];
     const activeSeriesMatchIdSet = new Set(activeSeriesMatchIds);
     const groupings =
-      activeSeriesMatchIds.length > 0
+      state.activeSeries != null
         ? [activeSeriesMatchIds, ...autoGroupings.filter((g) => !g.some((id) => activeSeriesMatchIdSet.has(id)))]
         : autoGroupings;
 

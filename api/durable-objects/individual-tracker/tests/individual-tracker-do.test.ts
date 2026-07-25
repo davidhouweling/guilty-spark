@@ -3478,7 +3478,7 @@ describe("IndividualTrackerDO", () => {
       ]);
     });
 
-    it("folds a started nudge into the previously completed series when the roster matches", async () => {
+    it("starts a fresh series via nudge even when the roster matches a previously completed series", async () => {
       const previousSeries = anActiveSeries({
         title: "Guilty Spark",
         subtitle: "Queue #1",
@@ -3507,10 +3507,10 @@ describe("IndividualTrackerDO", () => {
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries).toMatchObject({
         title: "Guilty Spark",
-        matchIds: ["match-1", "match-2"],
+        matchIds: [],
         isActive: true,
       });
-      expect(persisted.completedSeries).toEqual([]);
+      expect(persisted.completedSeries).toEqual([expect.objectContaining({ title: "Guilty Spark", matchIds: ["match-1", "match-2"], isActive: false })]);
     });
 
     it("does not fold a started nudge into a previously completed series with a different roster", async () => {
