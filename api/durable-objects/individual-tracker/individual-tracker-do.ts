@@ -2642,13 +2642,16 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       seriesGroupOverridesByKey.set(buildSeriesGroupKey(override.matchIds), override);
     }
 
-    const series = groupings.map((matchIds): IndividualTrackerSeriesGroup => {
+    const series = groupings.map((matchIds, index): IndividualTrackerSeriesGroup => {
       const groupSummaries = matchIds
         .map((matchId) => summariesById.get(matchId))
         .filter((summary): summary is IndividualTrackerMatchSummary => summary != null);
 
       const matchIdSet = new Set(matchIds);
-      const seriesContext = allSeriesContexts.find((ctx) => ctx.matchIds.some((id) => matchIdSet.has(id)));
+      const isActiveSeriesSlot = state.activeSeries != null && index === 0;
+      const seriesContext = isActiveSeriesSlot
+        ? state.activeSeries
+        : allSeriesContexts.find((ctx) => ctx.matchIds.some((id) => matchIdSet.has(id)));
       const seriesGroupOverride = seriesGroupOverridesByKey.get(buildSeriesGroupKey(matchIds));
       const teams = seriesContext?.teams;
 
