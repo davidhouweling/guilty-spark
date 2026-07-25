@@ -3582,7 +3582,9 @@ describe("IndividualTrackerDO", () => {
 
     it("updates searchStartTime to series startedAt when a started nudge arrives", async () => {
       const startedAt = "2026-07-25T12:00:00Z";
-      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ searchStartTime: "2026-01-01T00:00:00Z" }));
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ searchStartTime: "2026-01-01T00:00:00Z" }),
+      );
 
       const response = await individualTrackerDO.fetch(
         new Request("http://do/nudge", {
@@ -3596,10 +3598,55 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.searchStartTime).toBe(startedAt);
     });
 
+    it("keeps existing searchStartTime when a started nudge omits startedAt", async () => {
+      const previousSearchStartTime = "2026-01-01T00:00:00Z";
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ searchStartTime: previousSearchStartTime }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", {
+          method: "POST",
+          body: JSON.stringify(aSeriesPayload({ startedAt: undefined })),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.searchStartTime).toBe(previousSearchStartTime);
+    });
+
+    it("keeps existing searchStartTime when a started nudge has an unparseable startedAt", async () => {
+      const previousSearchStartTime = "2026-01-01T00:00:00Z";
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ searchStartTime: previousSearchStartTime }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", {
+          method: "POST",
+          body: JSON.stringify(aSeriesPayload({ startedAt: "not-a-valid-date" })),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.searchStartTime).toBe(previousSearchStartTime);
+    });
+
     it("clears preSeriesPlayerInfo cache when a started nudge arrives", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
-          preSeriesPlayerInfo: { currentRank: 1500, allTimePeakRank: 2000, esra: 42.5 } as any,
+          preSeriesPlayerInfo: {
+            currentRank: 1500,
+            currentRankTier: "Onyx",
+            currentRankSubTier: 1,
+            currentRankMeasurementMatchesRemaining: null,
+            currentRankInitialMeasurementMatches: null,
+            allTimePeakRank: 2000,
+            esra: 42.5,
+            lastRankedGamePlayed: "2026-01-01T00:00:00.000Z",
+          },
           preSeriesPlayerInfoLatestMatchId: "match-old",
         }),
       );

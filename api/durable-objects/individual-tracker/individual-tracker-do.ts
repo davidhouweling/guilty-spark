@@ -404,6 +404,10 @@ function shouldEndSeriesForUnrelatedMatchmakingMatch(activeSeries: ActiveSeries)
   return minutesSinceStart >= STALE_EMPTY_SERIES_MINUTES;
 }
 
+function isParseableTimestamp(value: string): boolean {
+  return !Number.isNaN(Date.parse(value));
+}
+
 function normalizeRankTier(rankTier: string | null | undefined): string | null {
   if (rankTier == null || rankTier === "") {
     return null;
@@ -2249,7 +2253,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           startedAt,
           isActive: true,
         };
-        trackerState.searchStartTime = startedAt;
+        if (payload.startedAt != null && isParseableTimestamp(payload.startedAt)) {
+          trackerState.searchStartTime = payload.startedAt;
+        }
         delete trackerState.preSeriesPlayerInfoLatestMatchId;
         delete trackerState.preSeriesPlayerInfo;
 
