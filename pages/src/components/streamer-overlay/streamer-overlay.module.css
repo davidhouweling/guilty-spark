@@ -45,9 +45,11 @@
   background-repeat: no-repeat;
   background-size: cover;
 }
+
 /* ============================================ */
 
 /* Top Section: Teams and Score                 */
+
 /* ============================================ */
 
 .topSection {
@@ -121,9 +123,8 @@
 }
 
 .serverIconSlotCompact {
-  align-self: stretch;
+  place-self: stretch center;
   height: 100%;
-  justify-self: center;
 }
 
 .serverIconSlotCentered {

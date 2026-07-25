@@ -1,6 +1,5 @@
 import "@testing-library/jest-dom/vitest";
 
-import React from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import type { TeamColor } from "../../team-colors/team-colors";
