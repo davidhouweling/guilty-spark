@@ -404,6 +404,10 @@ function shouldEndSeriesForUnrelatedMatchmakingMatch(activeSeries: ActiveSeries)
   return minutesSinceStart >= STALE_EMPTY_SERIES_MINUTES;
 }
 
+function isParseableTimestamp(value: string): boolean {
+  return !Number.isNaN(Date.parse(value));
+}
+
 function normalizeRankTier(rankTier: string | null | undefined): string | null {
   if (rankTier == null || rankTier === "") {
     return null;
@@ -2239,7 +2243,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       case "started": {
         this.retireActiveSeries(trackerState);
 
-        const startedAt = payload.startedAt ?? new Date().toISOString();
+        const startedAt =
+          payload.startedAt != null && isParseableTimestamp(payload.startedAt)
+            ? payload.startedAt
+            : new Date().toISOString();
         trackerState.activeSeries = {
           title: payload.title,
           subtitle: payload.subtitle,
@@ -2249,6 +2256,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           startedAt,
           isActive: true,
         };
+        if (payload.startedAt != null && isParseableTimestamp(payload.startedAt)) {
+          trackerState.searchStartTime = payload.startedAt;
+        }
+        delete trackerState.preSeriesPlayerInfoLatestMatchId;
+        delete trackerState.preSeriesPlayerInfo;
 
         this.logService.info(
           "IndividualTracker: series started via nudge",
