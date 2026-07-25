@@ -1541,6 +1541,45 @@ describe("IndividualTrackerDO", () => {
       expect(body.state?.series[0]?.title).toBe("Active Series Title");
       expect(body.state?.series[0]?.subtitle).toBe("Active Sub");
     });
+
+    it("uses active series title and subtitle for the leading group even when activeSeries has no matchIds yet", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2"],
+          selectedMatchIds: ["m1", "m2"],
+          discoveredMatches: {
+            m1: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m1",
+              teamRosterSignature: "0:1|1:2",
+              teamOutcomes: [2, 3],
+            }),
+            m2: aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "m2",
+              teamRosterSignature: "0:1|1:2",
+              teamOutcomes: [2, 3],
+            }),
+          },
+          activeSeries: {
+            title: "Active Series Title",
+            subtitle: "Active Sub",
+            guildIconUrl: null,
+            teams: [],
+            matchIds: [],
+            startedAt: new Date().toISOString(),
+            isActive: true,
+          },
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.series).toHaveLength(2);
+      expect(body.state?.series[0]?.title).toBe("Active Series Title");
+      expect(body.state?.series[0]?.subtitle).toBe("Active Sub");
+      expect(body.state?.series[0]?.matchIds).toEqual([]);
+      expect(body.state?.series[1]?.matchIds).toEqual(["m1", "m2"]);
+    });
   });
 
   describe("alarm()", () => {
@@ -3478,7 +3517,7 @@ describe("IndividualTrackerDO", () => {
       ]);
     });
 
-    it("folds a started nudge into the previously completed series when the roster matches", async () => {
+    it("starts a fresh series via nudge even when the roster matches a previously completed series", async () => {
       const previousSeries = anActiveSeries({
         title: "Guilty Spark",
         subtitle: "Queue #1",
@@ -3507,10 +3546,12 @@ describe("IndividualTrackerDO", () => {
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries).toMatchObject({
         title: "Guilty Spark",
-        matchIds: ["match-1", "match-2"],
+        matchIds: [],
         isActive: true,
       });
-      expect(persisted.completedSeries).toEqual([]);
+      expect(persisted.completedSeries).toEqual([
+        expect.objectContaining({ title: "Guilty Spark", matchIds: ["match-1", "match-2"], isActive: false }),
+      ]);
     });
 
     it("does not fold a started nudge into a previously completed series with a different roster", async () => {
