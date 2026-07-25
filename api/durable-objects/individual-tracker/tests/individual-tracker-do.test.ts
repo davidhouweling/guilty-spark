@@ -3400,7 +3400,7 @@ describe("IndividualTrackerDO", () => {
   });
 
   describe("handleNudge()", () => {
-    const aSeriesPayload = (): SeriesStartedPayload => ({
+    const aSeriesPayload = (overrides: Partial<SeriesStartedPayload> = {}): SeriesStartedPayload => ({
       type: "started",
       title: "Guilty Spark",
       subtitle: "Queue #1",
@@ -3417,6 +3417,7 @@ describe("IndividualTrackerDO", () => {
           players: [{ discordId: "discord-2", discordName: "PlayerTwo", gamertag: "GT2", xboxId: "xuid-2" }],
         },
       ],
+      ...overrides,
     });
 
     const anActiveSeries = (overrides: Partial<ActiveSeries> = {}): ActiveSeries => ({
@@ -3577,6 +3578,40 @@ describe("IndividualTrackerDO", () => {
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries).toMatchObject({ title: "Guilty Spark", matchIds: [] });
       expect(persisted.completedSeries).toEqual([expect.objectContaining({ title: "Different Series" })]);
+    });
+
+    it("updates searchStartTime to series startedAt when a started nudge arrives", async () => {
+      const startedAt = "2026-07-25T12:00:00Z";
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ searchStartTime: "2026-01-01T00:00:00Z" }));
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", {
+          method: "POST",
+          body: JSON.stringify(aSeriesPayload({ startedAt })),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.searchStartTime).toBe(startedAt);
+    });
+
+    it("clears preSeriesPlayerInfo cache when a started nudge arrives", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          preSeriesPlayerInfo: { currentRank: 1500, allTimePeakRank: 2000, esra: 42.5 } as any,
+          preSeriesPlayerInfoLatestMatchId: "match-old",
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify(aSeriesPayload()) }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.preSeriesPlayerInfo).toBeUndefined();
+      expect(persisted.preSeriesPlayerInfoLatestMatchId).toBeUndefined();
     });
 
     it("does not force an alarm when nudging a paused tracker", async () => {

@@ -2249,13 +2249,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           startedAt,
           isActive: true,
         };
-        // Update searchStartTime so pre-series matches aren't included in the active series
         trackerState.searchStartTime = startedAt;
-        // Invalidate preSeriesPlayerInfo cache when series starts. The cache key is based on
-        // the latest match ID, which doesn't change when activeSeries becomes empty. This can
-        // cause stale cached rank/ESRA data to be returned for the new series context. By
-        // invalidating here, we force fresh pre-series player stats to be fetched and
-        // displayed in the overlay and viewer for the new series.
         delete trackerState.preSeriesPlayerInfoLatestMatchId;
         delete trackerState.preSeriesPlayerInfo;
 
