@@ -1,6 +1,73 @@
 import { describe, expect, it } from "vitest";
-import { scanFireEvents, scanFormulaAEvents, WeaponAttributor } from "../halo-film-type2";
+import { scanFireEvents, scanFormulaAEvents, scanStateByte2Transitions, WeaponAttributor } from "../halo-film-type2";
 import { buildFireEventBytes, buildFormulaAEventBytes } from "./film-fire-event-builder";
+
+function buildStateByte2Chunk(byte2Sequence: number[]): Uint8Array {
+  const FRAME_SIZE = 16;
+  const data = new Uint8Array(byte2Sequence.length * FRAME_SIZE);
+  for (const [i, b2] of byte2Sequence.entries()) {
+    const pos = i * FRAME_SIZE;
+    // Frame marker [0xa0, 0x7b, 0x42] then payload; byte 2 of payload is at pos + 5
+    data[pos] = 0xa0;
+    data[pos + 1] = 0x7b;
+    data[pos + 2] = 0x42;
+    data[pos + 5] = b2;
+  }
+  return data;
+}
+
+describe("scanStateByte2Transitions", () => {
+  it("returns empty array for empty data", () => {
+    expect(scanStateByte2Transitions(new Uint8Array(0), 0, 1000)).toEqual([]);
+  });
+
+  it("returns empty array when no frame markers are present", () => {
+    expect(scanStateByte2Transitions(new Uint8Array(32), 0, 1000)).toEqual([]);
+  });
+
+  it("returns empty array when all frames carry the same byte 2 value", () => {
+    const data = buildStateByte2Chunk([0x40, 0x40, 0x40]);
+    expect(scanStateByte2Transitions(data, 0, 3000)).toEqual([]);
+  });
+
+  it("detects a single transition between two frames", () => {
+    const data = buildStateByte2Chunk([0xa0, 0x40]);
+    const result = scanStateByte2Transitions(data, 0, 2000);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.fromValue).toBe(0xa0);
+    expect(result[0]?.toValue).toBe(0x40);
+  });
+
+  it("timestamps the transition at the frame where the new value first appears", () => {
+    // 4 frames over 4000ms → 1000ms per frame; transition at frame 2 → timeMs = 2000
+    const data = buildStateByte2Chunk([0xa0, 0xa0, 0x40, 0x40]);
+    const result = scanStateByte2Transitions(data, 0, 4000);
+    expect(result[0]?.timeMs).toBe(2000);
+  });
+
+  it("applies startMs offset to all transition timestamps", () => {
+    const data = buildStateByte2Chunk([0xa0, 0x40]);
+    const result = scanStateByte2Transitions(data, 5000, 2000);
+    expect(result[0]?.timeMs).toBe(6000); // startMs=5000 + frame 1 of 2 frames = 5000 + 1*1000
+  });
+
+  it("detects multiple consecutive transitions", () => {
+    const data = buildStateByte2Chunk([0xa0, 0x40, 0x41, 0x42]);
+    const result = scanStateByte2Transitions(data, 0, 4000);
+    expect(result).toHaveLength(3);
+    expect(result[0]).toMatchObject({ fromValue: 0xa0, toValue: 0x40 });
+    expect(result[1]).toMatchObject({ fromValue: 0x40, toValue: 0x41 });
+    expect(result[2]).toMatchObject({ fromValue: 0x41, toValue: 0x42 });
+  });
+
+  it("detects a back-and-forth transition (value reverts)", () => {
+    const data = buildStateByte2Chunk([0x40, 0x41, 0x40]);
+    const result = scanStateByte2Transitions(data, 0, 3000);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ fromValue: 0x40, toValue: 0x41 });
+    expect(result[1]).toMatchObject({ fromValue: 0x41, toValue: 0x40 });
+  });
+});
 
 describe("scanFireEvents", () => {
   it("returns empty array for empty data", () => {

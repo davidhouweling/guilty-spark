@@ -1,4 +1,12 @@
 import { KNOWN_WEAPON_IDS, hasCommonWeaponSuffix, lookupWeaponName, weaponIdToHex } from "./weapon-ids";
+import type { StateByte2Transition } from "./types";
+
+// The frame marker [0xa0, 0x7b, 0x42] precedes each frame's payload. Payload byte 2
+// (the 3rd byte after the marker) is a game-period counter that increments with each
+// objective transition: hill changes in KOTH, ball possession in Oddball, zone captures
+// in Strongholds, and flag interactions in CTF. It reads 0xa0/0x00 outside gameplay
+// and 0x40-onwards during active play, making it the universal objective state signal.
+const STATE_BYTE_PAYLOAD_OFFSET = 2; // index within payload (after the 3-byte frame marker)
 
 // Fire event scanner for the type-2 (replication) film chunk.
 // Ported from https://github.com/JGtm/LevelUp/blob/main/weapon_scanner.go
@@ -196,6 +204,38 @@ export function scanFormulaAEvents(data: Uint8Array): FormulaAEvent[] {
     pos = nextPos;
   }
   return events;
+}
+
+export function scanStateByte2Transitions(
+  data: Uint8Array,
+  startMs: number,
+  durationMs: number,
+): StateByte2Transition[] {
+  const frames = findFramePositions(data);
+  if (frames.length === 0) {
+    return [];
+  }
+  const msPerFrame = durationMs / frames.length;
+  const transitions: StateByte2Transition[] = [];
+  let prevValue: number | null = null;
+
+  for (let i = 0; i < frames.length; i++) {
+    const framePos = frames[i];
+    if (framePos == null) {
+      continue;
+    }
+    const stateValue = data[framePos + FRAME_MARKER.length + STATE_BYTE_PAYLOAD_OFFSET] ?? 0;
+    if (prevValue !== null && stateValue !== prevValue) {
+      transitions.push({
+        timeMs: Math.round(startMs + i * msPerFrame),
+        fromValue: prevValue,
+        toValue: stateValue,
+      });
+    }
+    prevValue = stateValue;
+  }
+
+  return transitions;
 }
 
 export class WeaponAttributor {

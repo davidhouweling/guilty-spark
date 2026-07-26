@@ -100,9 +100,13 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     expect(results["match-1"]?.scoreProgression?.durationMs).toBe(525500);
     expect(results["match-1"]?.scoreProgression?.teamCount).toBe(2);
     expect(results["match-1"]?.scoreProgression?.respawnDurationMs).toBe(8000);
-    expect(results["match-1"]?.scoreProgression?.timeline.type).toBe("kill-race");
-    expect(results["match-1"]?.scoreProgression?.timeline.events).toHaveLength(1);
-    expect(results["match-1"]?.scoreProgression?.timeline.deathTimeline).toEqual([{ timestampMs: 5100, teamId: 1 }]);
+    const timeline = results["match-1"]?.scoreProgression?.timeline;
+    expect(timeline?.type).toBe("kill-race");
+    if (timeline?.type !== "kill-race") {
+      throw new Error("expected kill-race timeline");
+    }
+    expect(timeline.events).toHaveLength(1);
+    expect(timeline.deathTimeline).toEqual([{ timestampMs: 5100, teamId: 1 }]);
   });
 
   it("returns scoreProgression null when scoreProgression module is requested but match has no teams", async () => {
