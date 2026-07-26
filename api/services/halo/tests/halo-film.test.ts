@@ -2019,6 +2019,150 @@ describe("HaloFilmService", () => {
     });
   });
 
+  describe("buildObjectiveControlProgression", () => {
+    it("accumulates running scores from mode events in timestamp order", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+      const team0PlayerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
+      const team1PlayerXuid = unwrapXuid(Preconditions.checkExists(match.Players[3]).PlayerId);
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        {
+          xuid: team0PlayerXuid,
+          gamertag: "p0",
+          typeHint: 40,
+          isMedal: false,
+          eventType: "mode",
+          timeMs: 5000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: team0PlayerXuid,
+          gamertag: "p0",
+          typeHint: 40,
+          isMedal: false,
+          eventType: "mode",
+          timeMs: 10000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: team1PlayerXuid,
+          gamertag: "p3",
+          typeHint: 40,
+          isMedal: false,
+          eventType: "mode",
+          timeMs: 15000,
+          medalValue: 0,
+          teamId: null,
+        },
+      ]);
+
+      const result = await service.buildObjectiveControlProgression(match, 30000);
+
+      expect(result.teamCount).toBe(2);
+      expect(result.events).toHaveLength(3);
+      expect(result.events[0]).toEqual({ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } });
+      expect(result.events[1]).toEqual({ timestampMs: 10000, teamId: 0, runningScores: { "0": 2, "1": 0 } });
+      expect(result.events[2]).toEqual({ timestampMs: 15000, teamId: 1, runningScores: { "0": 2, "1": 1 } });
+    });
+
+    it("deduplicates multiple player mode events within the same 5-second tick window", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+      const team0Player0Xuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
+      const team0Player1Xuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        {
+          xuid: team0Player0Xuid,
+          gamertag: "p0",
+          typeHint: 40,
+          isMedal: false,
+          eventType: "mode",
+          timeMs: 5000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: team0Player1Xuid,
+          gamertag: "p1",
+          typeHint: 40,
+          isMedal: false,
+          eventType: "mode",
+          timeMs: 5001,
+          medalValue: 0,
+          teamId: null,
+        },
+      ]);
+
+      const result = await service.buildObjectiveControlProgression(match, 30000);
+
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0]).toEqual({ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } });
+    });
+
+    it("skips mode events whose xuid is not mapped to any known team", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+      const team0PlayerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        {
+          xuid: "9999999999",
+          gamertag: "ghost",
+          typeHint: 40,
+          isMedal: false,
+          eventType: "mode",
+          timeMs: 1000,
+          medalValue: 0,
+          teamId: null,
+        },
+        {
+          xuid: team0PlayerXuid,
+          gamertag: "p0",
+          typeHint: 40,
+          isMedal: false,
+          eventType: "mode",
+          timeMs: 5000,
+          medalValue: 0,
+          teamId: null,
+        },
+      ]);
+
+      const result = await service.buildObjectiveControlProgression(match, 30000);
+
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0]?.teamId).toBe(0);
+    });
+
+    it("returns empty events and no control periods when no mode events are present", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([]);
+
+      const result = await service.buildObjectiveControlProgression(match, 30000);
+
+      expect(result.teamCount).toBe(2);
+      expect(result.events).toHaveLength(0);
+      expect(result.controlPeriods).toHaveLength(0);
+    });
+  });
+
   describe("highlight events KV cache", () => {
     it("returns KV-cached events without hitting the network", async () => {
       const env = aFakeCacheBackedEnvWith();

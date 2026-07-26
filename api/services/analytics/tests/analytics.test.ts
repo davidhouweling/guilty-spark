@@ -109,6 +109,75 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     expect(timeline.deathTimeline).toEqual([{ timestampMs: 5100, teamId: 1 }]);
   });
 
+  it("returns objective-control scoreProgression for KOTH when scoreProgression module is requested", async () => {
+    const env = aFakeEnvWith();
+    const haloService = aFakeHaloServiceWith({ env });
+    const haloFilmService = aFakeHaloFilmServiceWith({ env });
+    const logService = aFakeLogServiceWith();
+    const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+    const kothMatchStats = {
+      ...matchStats,
+      MatchInfo: { ...matchStats.MatchInfo, GameVariantCategory: GameVariantCategory.MultiplayerKingOfTheHill },
+    };
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([kothMatchStats]);
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+    vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
+      entries: [],
+      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+      perfectCounts: { total: 0, byXuid: {} },
+    });
+    vi.spyOn(haloFilmService, "buildObjectiveControlProgression").mockResolvedValue({
+      events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+      controlPeriods: [],
+      teamCount: 2,
+    });
+
+    const service = new AnalyticsService({ haloService, haloFilmService, logService });
+    const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
+
+    expect(results["match-1"]?.scoreProgression).not.toBeNull();
+    expect(results["match-1"]?.scoreProgression?.mode).toBe(GameVariantCategory.MultiplayerKingOfTheHill);
+    expect(results["match-1"]?.scoreProgression?.respawnDurationMs).toBeNull();
+    const timeline = results["match-1"]?.scoreProgression?.timeline;
+    expect(timeline?.type).toBe("objective-control");
+    if (timeline?.type !== "objective-control") {
+      throw new Error("expected objective-control timeline");
+    }
+    expect(timeline.events).toHaveLength(1);
+    expect(timeline.controlPeriods).toHaveLength(0);
+  });
+
+  it("returns objective-control scoreProgression for Oddball when scoreProgression module is requested", async () => {
+    const env = aFakeEnvWith();
+    const haloService = aFakeHaloServiceWith({ env });
+    const haloFilmService = aFakeHaloFilmServiceWith({ env });
+    const logService = aFakeLogServiceWith();
+    const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+    const oddballMatchStats = {
+      ...matchStats,
+      MatchInfo: { ...matchStats.MatchInfo, GameVariantCategory: GameVariantCategory.MultiplayerOddball },
+    };
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([oddballMatchStats]);
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+    vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
+      entries: [],
+      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+      perfectCounts: { total: 0, byXuid: {} },
+    });
+    vi.spyOn(haloFilmService, "buildObjectiveControlProgression").mockResolvedValue({
+      events: [],
+      controlPeriods: [],
+      teamCount: 2,
+    });
+
+    const service = new AnalyticsService({ haloService, haloFilmService, logService });
+    const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
+
+    expect(results["match-1"]?.scoreProgression?.mode).toBe(GameVariantCategory.MultiplayerOddball);
+    const timeline = results["match-1"]?.scoreProgression?.timeline;
+    expect(timeline?.type).toBe("objective-control");
+  });
+
   it("returns scoreProgression null when scoreProgression module is requested but match has no teams", async () => {
     const env = aFakeEnvWith();
     const haloService = aFakeHaloServiceWith({ env });
