@@ -1,4 +1,5 @@
 import React, { memo } from "react";
+import classNames from "classnames";
 import type { TeamColor } from "../team-colors/team-colors";
 import { TeamIcon } from "../icons/team-icon";
 import styles from "./streamer-overlay.module.css";
@@ -27,15 +28,39 @@ function TopSectionComponent({
   teamRight,
 }: TopSectionProps): React.ReactElement {
   const [leftScore = "0", rightScore = "0"] = seriesScore.split(":");
+  const hasTitle = title != null;
+  const hasSubtitle = subtitle != null;
+  const hasSingleMetadataLine = hasTitle !== hasSubtitle;
+  const hasAnyMetadataLine = hasTitle || hasSubtitle;
+
+  const topSectionClassName = classNames(styles.topSection, {
+    [styles.topSectionNoScore]: !showScore,
+    [styles.topSectionSingleMetadataLine]: hasSingleMetadataLine,
+    [styles.topSectionNoMetadataLine]: !hasAnyMetadataLine,
+  });
+
+  const serverIconSlotClassName = classNames(styles.serverIconSlot, {
+    [styles.serverIconSlotCompact]: hasSingleMetadataLine || !hasAnyMetadataLine,
+    [styles.serverIconSlotCentered]: !showScore && hasSingleMetadataLine,
+  });
+
+  const titleClassName = classNames(styles.title, {
+    [styles.metadataSingleLine]: hasSingleMetadataLine,
+  });
+
+  const subtitleClassName = classNames(styles.subtitle, {
+    [styles.metadataSingleLine]: hasSingleMetadataLine,
+  });
+
   return (
-    <div className={styles.topSection}>
-      {title != null && <div className={styles.title}>{title}</div>}
+    <div className={topSectionClassName}>
+      {title != null && <div className={titleClassName}>{title}</div>}
       {iconUrl != null && (
-        <div className={styles.serverIconSlot}>
+        <div className={serverIconSlotClassName}>
           <img src={iconUrl} alt="Server" className={styles.serverIcon} />
         </div>
       )}
-      {subtitle != null && <div className={styles.subtitle}>{subtitle}</div>}
+      {subtitle != null && <div className={subtitleClassName}>{subtitle}</div>}
       {showScore && (
         <>
           <div className={styles.teamLeftScore} style={{ "--team-color": teamColors[0]?.hex } as React.CSSProperties}>

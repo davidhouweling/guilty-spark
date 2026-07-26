@@ -65,6 +65,26 @@
   z-index: 10;
 }
 
+.topSectionSingleMetadataLine {
+  grid-template: "teamLeft scoreLeft serverIcon scoreRight teamRight" min-content ". metadata metadata metadata ." min-content / 1fr min-content min-content min-content 1fr;
+}
+
+.topSectionNoMetadataLine {
+  grid-template: "teamLeft scoreLeft serverIcon scoreRight teamRight" min-content / 1fr min-content min-content min-content 1fr;
+}
+
+.topSectionNoScore {
+  grid-template: "teamLeft . serverIcon . teamRight" min-content "title title serverIcon subtitle subtitle" min-content / 1fr min-content min-content min-content 1fr;
+}
+
+.topSectionNoScore.topSectionSingleMetadataLine {
+  grid-template: "teamLeft teamLeft serverIcon teamRight teamRight" min-content ". metadata metadata metadata ." min-content / 1fr min-content min-content min-content 1fr;
+}
+
+.topSectionNoScore.topSectionNoMetadataLine {
+  grid-template: "teamLeft teamLeft serverIcon teamRight teamRight" min-content / 1fr min-content min-content min-content 1fr;
+}
+
 .title,
 .subtitle {
   border: 2px solid var(--halo-bg-primary);
@@ -89,10 +109,26 @@
   justify-self: start;
 }
 
+.metadataSingleLine {
+  border-left: 2px solid var(--halo-bg-primary);
+  border-right: 2px solid var(--halo-bg-primary);
+  grid-area: metadata;
+  justify-self: center;
+}
+
 .serverIconSlot {
   aspect-ratio: 1;
   grid-area: serverIcon;
   place-self: stretch center;
+}
+
+.serverIconSlotCompact {
+  height: 100%;
+  place-self: stretch center;
+}
+
+.serverIconSlotCentered {
+  justify-self: center;
 }
 
 .serverIcon {
