@@ -123,8 +123,8 @@
 }
 
 .serverIconSlotCompact {
-  place-self: stretch center;
   height: 100%;
+  place-self: stretch center;
 }
 
 .serverIconSlotCentered {
