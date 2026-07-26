@@ -24,6 +24,11 @@ const KILL_RACE_GAME_MODES = new Set([
   GameVariantCategory.MultiplayerAttrition,
 ]);
 
+const OBJECTIVE_CONTROL_GAME_MODES = new Set([
+  GameVariantCategory.MultiplayerKingOfTheHill,
+  GameVariantCategory.MultiplayerOddball,
+]);
+
 function toContractKillMatrix(
   entries: Awaited<ReturnType<HaloFilmService["buildKillMatrixAnalytics"]>>["entries"],
 ): Record<string, ContractKillMatrixEntry> {
@@ -59,14 +64,28 @@ export class AnalyticsService {
     let scoreProgression: MatchAnalytics["scoreProgression"] = null;
     if (modules.includes("scoreProgression")) {
       const mode = matchStats.MatchInfo.GameVariantCategory;
+      const durationMs = Math.round(getDurationInSeconds(matchStats.MatchInfo.Duration) * 1000);
       if (KILL_RACE_GAME_MODES.has(mode) && matchStats.Teams.length > 0) {
         const progression = await this.haloFilmService.buildKillRaceProgression(matchStats);
         scoreProgression = {
           mode,
-          durationMs: Math.round(getDurationInSeconds(matchStats.MatchInfo.Duration) * 1000),
+          durationMs,
           teamCount: progression.teamCount,
           respawnDurationMs: KILL_RACE_RESPAWN_DURATION_MS[mode] ?? null,
           timeline: { type: "kill-race", events: progression.events, deathTimeline: progression.deathTimeline },
+        };
+      } else if (OBJECTIVE_CONTROL_GAME_MODES.has(mode) && matchStats.Teams.length > 0) {
+        const progression = await this.haloFilmService.buildObjectiveControlProgression(matchStats, durationMs);
+        scoreProgression = {
+          mode,
+          durationMs,
+          teamCount: progression.teamCount,
+          respawnDurationMs: null,
+          timeline: {
+            type: "objective-control",
+            events: progression.events,
+            controlPeriods: progression.controlPeriods,
+          },
         };
       }
     }

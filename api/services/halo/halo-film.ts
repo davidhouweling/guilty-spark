@@ -3,7 +3,7 @@ import type { MatchStats, SpartanTokenProvider } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { wrapXuid, unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { FireEvent } from "./halo-film-type2";
-import { scanFireEvents, scanFormulaAEvents, WeaponAttributor } from "./halo-film-type2";
+import { scanFireEvents, scanFormulaAEvents, scanStateByte2Transitions, WeaponAttributor } from "./halo-film-type2";
 import { weaponIdToHex } from "./weapon-ids";
 import {
   HALO_PC_USER_AGENT,
@@ -28,8 +28,16 @@ import type {
   KillRaceDeathEvent,
   KillRaceProgression,
   KillRaceProgressionEvent,
+  ObjectiveControlProgression,
+  ObjectiveControlProgressionEvent,
+  ObjectiveControlPeriod,
+  StateByte2Transition,
   HaloFilmServiceOpts,
 } from "./types";
+
+const OBJECTIVE_TICK_DEDUP_MS = 2_500;
+const GAMEPLAY_BYTE2_MIN = 0x40;
+const GAMEPLAY_BYTE2_MAX = 0xa0;
 
 type WeaponTimeline = Map<number, Map<number, { weaponId: string; name: string }>>;
 interface ChunkTiming {
@@ -139,6 +147,119 @@ export class HaloFilmService {
       deathTimeline: this.buildDeathTimeline(events, knownTeamIds),
       teamCount: runningScores.size,
     };
+  }
+
+  async buildObjectiveControlProgression(
+    matchStats: MatchStats,
+    durationMs: number,
+  ): Promise<ObjectiveControlProgression> {
+    const [events, byte2Transitions] = await Promise.all([
+      this.loadEnrichedEventsForMatch(matchStats),
+      this.loadByte2Transitions(matchStats.MatchId),
+    ]);
+    const modeEvents = events.filter((e) => e.eventType === "mode");
+    const knownTeamIds = new Set<number>(matchStats.Teams.map((team) => team.TeamId));
+    return this.buildObjectiveControlProgressionFromData(modeEvents, byte2Transitions, knownTeamIds, durationMs);
+  }
+
+  private async loadByte2Transitions(matchId: string): Promise<StateByte2Transition[]> {
+    try {
+      let authPromise: Promise<{ spartanToken: string; clearanceToken: string }> | null = null;
+      const authResolver = async (): Promise<{ spartanToken: string; clearanceToken: string }> => {
+        authPromise ??= this.resolveAuthContext();
+        return authPromise;
+      };
+      const filmMetadata = await this.getOrFetchFilmMetadata(matchId, authResolver);
+      const scanResult = await this.scanAllReplicationChunks(matchId, filmMetadata, authResolver);
+      return scanResult?.byte2Transitions ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  private buildObjectiveControlProgressionFromData(
+    modeEvents: ParsedHighlightEvent[],
+    byte2Transitions: StateByte2Transition[],
+    knownTeamIds: ReadonlySet<number>,
+    durationMs: number,
+  ): ObjectiveControlProgression {
+    return {
+      events: this.buildObjectiveScoreEvents(modeEvents, knownTeamIds),
+      controlPeriods: this.buildObjectiveControlPeriods(byte2Transitions, modeEvents, durationMs),
+      teamCount: knownTeamIds.size,
+    };
+  }
+
+  private buildObjectiveScoreEvents(
+    modeEvents: ParsedHighlightEvent[],
+    knownTeamIds: ReadonlySet<number>,
+  ): ObjectiveControlProgressionEvent[] {
+    const runningScores = new Map<number, number>([...knownTeamIds].map((id) => [id, 0]));
+    const events: ObjectiveControlProgressionEvent[] = [];
+    const lastEventTimeByTeam = new Map<number, number>();
+
+    for (const event of modeEvents) {
+      if (event.teamId == null || !knownTeamIds.has(event.teamId)) {
+        continue;
+      }
+      const lastTime = lastEventTimeByTeam.get(event.teamId) ?? -Infinity;
+      if (event.timeMs - lastTime < OBJECTIVE_TICK_DEDUP_MS) {
+        continue;
+      }
+      lastEventTimeByTeam.set(event.teamId, event.timeMs);
+      runningScores.set(event.teamId, Preconditions.checkExists(runningScores.get(event.teamId)) + 1);
+      events.push({
+        timestampMs: event.timeMs,
+        teamId: event.teamId,
+        runningScores: Object.fromEntries(runningScores),
+      });
+    }
+
+    return events;
+  }
+
+  private buildObjectiveControlPeriods(
+    byte2Transitions: StateByte2Transition[],
+    modeEvents: ParsedHighlightEvent[],
+    durationMs: number,
+  ): ObjectiveControlPeriod[] {
+    const gameplayTransitions = byte2Transitions.filter(
+      (t) => t.toValue >= GAMEPLAY_BYTE2_MIN && t.toValue < GAMEPLAY_BYTE2_MAX,
+    );
+    if (gameplayTransitions.length === 0) {
+      return [];
+    }
+    const boundaries = [0, ...gameplayTransitions.map((t) => t.timeMs), durationMs];
+    const periods: ObjectiveControlPeriod[] = [];
+    for (let i = 0; i < boundaries.length - 1; i++) {
+      const startMs = boundaries[i] ?? 0;
+      const endMs = boundaries[i + 1] ?? durationMs;
+      periods.push({ startMs, endMs, controllingTeamId: this.findControllingTeamInWindow(modeEvents, startMs, endMs) });
+    }
+    return periods;
+  }
+
+  private findControllingTeamInWindow(
+    modeEvents: ParsedHighlightEvent[],
+    startMs: number,
+    endMs: number,
+  ): number | null {
+    const teamCounts = new Map<number, number>();
+    for (const event of modeEvents) {
+      if (event.teamId == null || event.timeMs < startMs || event.timeMs >= endMs) {
+        continue;
+      }
+      teamCounts.set(event.teamId, (teamCounts.get(event.teamId) ?? 0) + 1);
+    }
+    let controllingTeamId: number | null = null;
+    let maxCount = 0;
+    for (const [teamId, count] of teamCounts) {
+      if (count > maxCount) {
+        maxCount = count;
+        controllingTeamId = teamId;
+      }
+    }
+    return controllingTeamId;
   }
 
   private buildDeathTimeline(events: ParsedHighlightEvent[], knownTeamIds: ReadonlySet<number>): KillRaceDeathEvent[] {
@@ -254,7 +375,12 @@ export class HaloFilmService {
     matchId: string,
     filmMetadata: FilmMetadataResponse,
     authResolver: () => Promise<{ spartanToken: string; clearanceToken: string }>,
-  ): Promise<{ fireEvents: FireEvent[]; timeline: WeaponTimeline; chunkTimings: ChunkTiming[] } | null> {
+  ): Promise<{
+    fireEvents: FireEvent[];
+    timeline: WeaponTimeline;
+    chunkTimings: ChunkTiming[];
+    byte2Transitions: StateByte2Transition[];
+  } | null> {
     const chunks = this.findReplicationChunksWithStartMs(filmMetadata);
     if (chunks.length === 0) {
       return null;
@@ -267,6 +393,7 @@ export class HaloFilmService {
       ),
     );
     const allFireEvents: FireEvent[] = [];
+    const allByte2Transitions: StateByte2Transition[] = [];
     const timeline: WeaponTimeline = new Map();
     const chunkTimings: ChunkTiming[] = [];
     for (const { chunk, startMs, bytes } of chunksWithBytes) {
@@ -280,6 +407,9 @@ export class HaloFilmService {
       for (const ev of scanFireEvents(chunkData, startMs, chunk.DurationMilliseconds)) {
         allFireEvents.push(ev);
       }
+      for (const t of scanStateByte2Transitions(chunkData, startMs, chunk.DurationMilliseconds)) {
+        allByte2Transitions.push(t);
+      }
       const chunkState = new Map<number, { weaponId: string; name: string }>();
       for (const ev of scanFormulaAEvents(chunkData)) {
         chunkState.set(ev.playerIndex, { weaponId: weaponIdToHex(ev.weaponId), name: ev.weaponName });
@@ -289,7 +419,7 @@ export class HaloFilmService {
       }
       chunkTimings.push({ chunkIndex: chunk.Index, startMs });
     }
-    return { fireEvents: allFireEvents, timeline, chunkTimings };
+    return { fireEvents: allFireEvents, timeline, chunkTimings, byte2Transitions: allByte2Transitions };
   }
 
   private async getOrFetchFilmMetadata(

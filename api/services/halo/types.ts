@@ -221,6 +221,24 @@ export interface KillRaceProgression {
   teamCount: number;
 }
 
+export interface ObjectiveControlProgressionEvent {
+  timestampMs: number;
+  teamId: number;
+  runningScores: Record<string, number>;
+}
+
+export interface ObjectiveControlPeriod {
+  startMs: number;
+  endMs: number;
+  controllingTeamId: number | null;
+}
+
+export interface ObjectiveControlProgression {
+  events: ObjectiveControlProgressionEvent[];
+  controlPeriods: ObjectiveControlPeriod[];
+  teamCount: number;
+}
+
 export interface HaloFilmServiceOpts {
   env: Env;
   spartanTokenProvider: SpartanTokenProvider;
