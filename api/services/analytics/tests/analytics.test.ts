@@ -255,7 +255,38 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     expect(buildKillRaceProgressionSpy).not.toHaveBeenCalled();
   });
 
-  it("returns scoreProgression null for unsupported game modes when scoreProgression is requested", async () => {
+  it("returns objective-control scoreProgression for Strongholds when scoreProgression module is requested", async () => {
+    const env = aFakeEnvWith();
+    const haloService = aFakeHaloServiceWith({ env });
+    const haloFilmService = aFakeHaloFilmServiceWith({ env });
+    const logService = aFakeLogServiceWith();
+    const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+    const strongholdsMatchStats = {
+      ...matchStats,
+      MatchInfo: { ...matchStats.MatchInfo, GameVariantCategory: GameVariantCategory.MultiplayerStrongholds },
+    };
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([strongholdsMatchStats]);
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+    vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
+      entries: [],
+      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+      perfectCounts: { total: 0, byXuid: {} },
+    });
+    vi.spyOn(haloFilmService, "buildObjectiveControlProgression").mockResolvedValue({
+      events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+      controlPeriods: [],
+      teamCount: 2,
+    });
+
+    const service = new AnalyticsService({ haloService, haloFilmService, logService });
+    const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
+
+    expect(results["match-1"]?.scoreProgression?.mode).toBe(GameVariantCategory.MultiplayerStrongholds);
+    const timeline = results["match-1"]?.scoreProgression?.timeline;
+    expect(timeline?.type).toBe("objective-control");
+  });
+
+  it("returns objective-control scoreProgression for CTF when scoreProgression module is requested", async () => {
     const env = aFakeEnvWith();
     const haloService = aFakeHaloServiceWith({ env });
     const haloFilmService = aFakeHaloFilmServiceWith({ env });
@@ -266,6 +297,37 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       MatchInfo: { ...matchStats.MatchInfo, GameVariantCategory: GameVariantCategory.MultiplayerCtf },
     };
     vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([ctfMatchStats]);
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+    vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
+      entries: [],
+      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+      perfectCounts: { total: 0, byXuid: {} },
+    });
+    vi.spyOn(haloFilmService, "buildObjectiveControlProgression").mockResolvedValue({
+      events: [{ timestampMs: 30000, teamId: 1, runningScores: { "0": 0, "1": 1 } }],
+      controlPeriods: [],
+      teamCount: 2,
+    });
+
+    const service = new AnalyticsService({ haloService, haloFilmService, logService });
+    const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
+
+    expect(results["match-1"]?.scoreProgression?.mode).toBe(GameVariantCategory.MultiplayerCtf);
+    const timeline = results["match-1"]?.scoreProgression?.timeline;
+    expect(timeline?.type).toBe("objective-control");
+  });
+
+  it("returns scoreProgression null for unsupported game modes when scoreProgression is requested", async () => {
+    const env = aFakeEnvWith();
+    const haloService = aFakeHaloServiceWith({ env });
+    const haloFilmService = aFakeHaloFilmServiceWith({ env });
+    const logService = aFakeLogServiceWith();
+    const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+    const escalationMatchStats = {
+      ...matchStats,
+      MatchInfo: { ...matchStats.MatchInfo, GameVariantCategory: GameVariantCategory.MultiplayerElimination },
+    };
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([escalationMatchStats]);
     vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
     vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
       entries: [],

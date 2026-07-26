@@ -27,6 +27,8 @@ const KILL_RACE_GAME_MODES = new Set([
 const OBJECTIVE_CONTROL_GAME_MODES = new Set([
   GameVariantCategory.MultiplayerKingOfTheHill,
   GameVariantCategory.MultiplayerOddball,
+  GameVariantCategory.MultiplayerStrongholds,
+  GameVariantCategory.MultiplayerCtf,
 ]);
 
 function toContractKillMatrix(
