@@ -28,9 +28,17 @@ const objectiveControlPeriodSchema = z.object({
 
 export type ObjectiveControlPeriod = z.infer<typeof objectiveControlPeriodSchema>;
 
+const objectiveControlEventSchema = z.object({
+  timestampMs: z.number().int().nonnegative(),
+  teamId: z.number().int().nonnegative(),
+  runningScores: z.record(z.string().regex(/^\d+$/), z.number().int().nonnegative()),
+});
+
+export type ObjectiveControlEvent = z.infer<typeof objectiveControlEventSchema>;
+
 const objectiveControlTimelineSchema = z.object({
   type: z.literal("objective-control"),
-  events: z.array(killRaceEventSchema),
+  events: z.array(objectiveControlEventSchema),
   controlPeriods: z.array(objectiveControlPeriodSchema),
 });
 

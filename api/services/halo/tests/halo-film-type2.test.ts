@@ -60,6 +60,12 @@ describe("scanStateByte2Transitions", () => {
     expect(result[2]).toMatchObject({ fromValue: 0x41, toValue: 0x42 });
   });
 
+  it("does not emit a transition when the state byte is out of bounds", () => {
+    // Frame marker at the very end of the buffer — no room for the 5-byte payload offset
+    const data = new Uint8Array([0xa0, 0x7b, 0x42]);
+    expect(scanStateByte2Transitions(data, 0, 1000)).toEqual([]);
+  });
+
   it("detects a back-and-forth transition (value reverts)", () => {
     const data = buildStateByte2Chunk([0x40, 0x41, 0x40]);
     const result = scanStateByte2Transitions(data, 0, 3000);

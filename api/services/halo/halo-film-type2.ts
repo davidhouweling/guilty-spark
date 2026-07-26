@@ -6,7 +6,7 @@ import type { StateByte2Transition } from "./types";
 // objective transition: hill changes in KOTH, ball possession in Oddball, zone captures
 // in Strongholds, and flag interactions in CTF. It reads 0xa0/0x00 outside gameplay
 // and 0x40-onwards during active play, making it the universal objective state signal.
-const STATE_BYTE_PAYLOAD_OFFSET = 2; // index within payload (after the 3-byte frame marker)
+const STATE_BYTE_PAYLOAD_OFFSET = 2;
 
 // Fire event scanner for the type-2 (replication) film chunk.
 // Ported from https://github.com/JGtm/LevelUp/blob/main/weapon_scanner.go
@@ -219,12 +219,12 @@ export function scanStateByte2Transitions(
   const transitions: StateByte2Transition[] = [];
   let prevValue: number | null = null;
 
-  for (let i = 0; i < frames.length; i++) {
-    const framePos = frames[i];
-    if (framePos == null) {
+  for (const [i, framePos] of frames.entries()) {
+    const byteOffset = framePos + FRAME_MARKER.length + STATE_BYTE_PAYLOAD_OFFSET;
+    if (byteOffset >= data.length) {
       continue;
     }
-    const stateValue = data[framePos + FRAME_MARKER.length + STATE_BYTE_PAYLOAD_OFFSET] ?? 0;
+    const stateValue = data[byteOffset] ?? 0;
     if (prevValue !== null && stateValue !== prevValue) {
       transitions.push({
         timeMs: Math.round(startMs + i * msPerFrame),
