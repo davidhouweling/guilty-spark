@@ -22,11 +22,18 @@ export interface PlayerAdvantageData {
   readonly maxScore: number;
 }
 
+export interface ObjectiveControlPeriodDisplay {
+  readonly startMs: number;
+  readonly endMs: number;
+  readonly color: string | null;
+}
+
 export interface ScoreProgressionViewData {
   readonly durationMs: number;
   readonly teamLines: readonly ScoreProgressionTeamLine[];
   readonly scoreDelta: ScoreDeltaData | null;
   readonly playerAdvantage: PlayerAdvantageData | null;
+  readonly controlPeriods: readonly ObjectiveControlPeriodDisplay[];
 }
 
 export type ChartType = "progression" | "delta";
@@ -47,6 +54,7 @@ export interface ScoreProgressionProgressionViewModel {
   readonly durationMs: number;
   readonly teamLines: readonly ScoreProgressionTeamLine[];
   readonly playerAdvantage: PlayerAdvantageData | null;
+  readonly controlPeriods: readonly ObjectiveControlPeriodDisplay[];
   readonly tooltipFormatter: (
     value: number | string | readonly (number | string)[] | undefined,
     name: string | number | undefined,

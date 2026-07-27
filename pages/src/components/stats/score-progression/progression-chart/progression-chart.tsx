@@ -1,5 +1,15 @@
 import React from "react";
-import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ReferenceArea,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   ADVANTAGE_STROKE,
   AXIS_STROKE,
@@ -19,6 +29,7 @@ export function ProgressionChart({
   durationMs,
   teamLines,
   playerAdvantage,
+  controlPeriods,
   tooltipFormatter,
 }: ScoreProgressionProgressionViewModel): React.ReactElement {
   const margin = playerAdvantage != null ? { ...CHART_MARGIN, right: 36 } : CHART_MARGIN;
@@ -47,6 +58,18 @@ export function ProgressionChart({
           labelFormatter={formatTooltipLabel}
           formatter={tooltipFormatter}
         />
+        {controlPeriods.map((period, i) =>
+          period.color != null ? (
+            <ReferenceArea
+              key={i}
+              x1={period.startMs}
+              x2={period.endMs}
+              fill={period.color}
+              fillOpacity={0.12}
+              stroke="none"
+            />
+          ) : null,
+        )}
         {teamLines.map((line) => (
           <Area
             key={line.teamId}

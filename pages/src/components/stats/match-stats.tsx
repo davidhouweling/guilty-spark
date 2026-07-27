@@ -292,6 +292,7 @@ export function MatchStats({
                         teamLines={scoreProgressionViewData.teamLines}
                         scoreDelta={scoreProgressionViewData.scoreDelta}
                         playerAdvantage={scoreProgressionViewData.playerAdvantage}
+                        controlPeriods={scoreProgressionViewData.controlPeriods}
                         ariaLabel="Match score progression timeline"
                       />
                     ) : (

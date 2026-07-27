@@ -2,6 +2,7 @@ import { TICK_FILL } from "./chart-constants";
 import type { ScoreProgressionSnapshot, ScoreProgressionStore } from "./score-progression-store";
 import type {
   ChartType,
+  ObjectiveControlPeriodDisplay,
   PlayerAdvantageData,
   ScoreDeltaData,
   ScoreProgressionDeltaViewModel,
@@ -18,6 +19,7 @@ export interface ScoreProgressionInput {
   readonly teamLines: readonly ScoreProgressionTeamLine[];
   readonly scoreDelta: ScoreDeltaData | null;
   readonly playerAdvantage: PlayerAdvantageData | null;
+  readonly controlPeriods: readonly ObjectiveControlPeriodDisplay[];
   readonly ariaLabel: string;
 }
 
@@ -78,6 +80,7 @@ export class ScoreProgressionPresenter {
         durationMs: input.durationMs,
         teamLines: input.teamLines,
         playerAdvantage: effectivePlayerAdvantage,
+        controlPeriods: input.controlPeriods,
         tooltipFormatter: (
           value: number | string | readonly (number | string)[] | undefined,
           name: string | number | undefined,

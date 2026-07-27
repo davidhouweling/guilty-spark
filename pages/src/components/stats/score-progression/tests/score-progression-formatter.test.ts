@@ -174,6 +174,55 @@ describe("formatScoreProgression", () => {
     });
   });
 
+  describe("controlPeriods", () => {
+    it("returns empty controlPeriods for kill-race timeline", () => {
+      const result = formatScoreProgression(aFakeScoreProgressionWith(), TEAM_COLORS);
+      expect(result?.controlPeriods).toEqual([]);
+    });
+
+    it("returns empty controlPeriods when objective-control timeline has no control periods", () => {
+      const data = aFakeScoreProgressionWith({
+        timeline: {
+          type: "objective-control",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+          controlPeriods: [],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.controlPeriods).toEqual([]);
+    });
+
+    it("maps controlling team id to team color for each control period", () => {
+      const data = aFakeScoreProgressionWith({
+        timeline: {
+          type: "objective-control",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+          controlPeriods: [
+            { startMs: 0, endMs: 5000, controllingTeamId: 0 },
+            { startMs: 5000, endMs: 10000, controllingTeamId: 1 },
+          ],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.controlPeriods).toEqual([
+        { startMs: 0, endMs: 5000, color: "#0000ff" },
+        { startMs: 5000, endMs: 10000, color: "#ff0000" },
+      ]);
+    });
+
+    it("sets color to null for contested periods with no controlling team", () => {
+      const data = aFakeScoreProgressionWith({
+        timeline: {
+          type: "objective-control",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+          controlPeriods: [{ startMs: 2000, endMs: 4000, controllingTeamId: null }],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.controlPeriods).toEqual([{ startMs: 2000, endMs: 4000, color: null }]);
+    });
+  });
+
   describe("playerAdvantage", () => {
     it("returns null playerAdvantage when more than 2 teams are present", () => {
       const data = aFakeScoreProgressionWith({
