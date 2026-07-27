@@ -161,17 +161,28 @@ function buildKothSawtooth(
       if (!teamIdSet.has(event.teamId)) {
         continue;
       }
-      hillCounts.set(event.teamId, Preconditions.checkExists(hillCounts.get(event.teamId)) + 1);
-      Preconditions.checkExists(lines.get(event.teamId)).push({
-        timestampMs: event.timestampMs,
-        score: Preconditions.checkExists(hillCounts.get(event.teamId)),
-      });
+      const prevScore = Preconditions.checkExists(hillCounts.get(event.teamId));
+      hillCounts.set(event.teamId, prevScore + 1);
+
+      for (const teamId of teamIds) {
+        const points = Preconditions.checkExists(lines.get(teamId));
+        const currentScore = Preconditions.checkExists(hillCounts.get(teamId));
+        if (teamId === event.teamId) {
+          points.push({ timestampMs: event.timestampMs, score: prevScore });
+          points.push({ timestampMs: event.timestampMs, score: currentScore });
+        } else {
+          points.push({ timestampMs: event.timestampMs, score: currentScore });
+        }
+      }
     }
 
     if (period.endMs < durationMs) {
       for (const teamId of teamIds) {
         const points = Preconditions.checkExists(lines.get(teamId));
-        points.push({ timestampMs: period.endMs - 1, score: hillCounts.get(teamId) ?? 0 });
+        const currentScore = Preconditions.checkExists(hillCounts.get(teamId));
+        if ((points.at(-1)?.timestampMs ?? -1) < period.endMs - 1) {
+          points.push({ timestampMs: period.endMs - 1, score: currentScore });
+        }
         points.push({ timestampMs: period.endMs, score: 0 });
       }
     }

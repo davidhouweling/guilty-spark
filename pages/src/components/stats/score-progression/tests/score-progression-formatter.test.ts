@@ -274,6 +274,20 @@ describe("formatScoreProgression", () => {
       expect(result?.teamLines[1]?.points.at(-1)?.timestampMs).toBe(60000);
     });
 
+    it("adds sync points for the non-holding team at every opponent event timestamp", () => {
+      const result = formatScoreProgression(kothData, TEAM_COLORS);
+      const team1Points = result?.teamLines[1]?.points ?? [];
+      expect(team1Points.find((p) => p.timestampMs === 5000)?.score).toBe(0);
+      expect(team1Points.find((p) => p.timestampMs === 10000)?.score).toBe(0);
+    });
+
+    it("keeps non-holding team line flat while other team accumulates on the same hill", () => {
+      const result = formatScoreProgression(kothData, TEAM_COLORS);
+      const team1Points = result?.teamLines[1]?.points ?? [];
+      const pointsBeforeTeam1Fires = team1Points.filter((p) => p.timestampMs < 15000);
+      expect(pointsBeforeTeam1Fires.every((p) => p.score === 0)).toBe(true);
+    });
+
     it("returns null scoreDelta for KOTH", () => {
       const result = formatScoreProgression(kothData, TEAM_COLORS);
       expect(result?.scoreDelta).toBeNull();
@@ -285,6 +299,42 @@ describe("formatScoreProgression", () => {
         { startMs: 0, endMs: 30000, color: "#0000ff" },
         { startMs: 30000, endMs: 60000, color: "#ff0000" },
       ]);
+    });
+
+    it("returns minimal (0,0) to (durationMs,0) lines when controlPeriods is empty", () => {
+      const emptyPeriods = aFakeScoreProgressionWith({
+        mode: 12,
+        durationMs: 60000,
+        respawnDurationMs: null,
+        timeline: {
+          type: "objective-control",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+          controlPeriods: [],
+        },
+      });
+      const result = formatScoreProgression(emptyPeriods, TEAM_COLORS);
+      expect(result?.teamLines[0]?.points).toEqual([
+        { timestampMs: 0, score: 0 },
+        { timestampMs: 60000, score: 0 },
+      ]);
+    });
+
+    it("extends last accumulated score to durationMs without reset when only one hill period spans the match", () => {
+      const singlePeriod = aFakeScoreProgressionWith({
+        mode: 12,
+        durationMs: 60000,
+        respawnDurationMs: null,
+        timeline: {
+          type: "objective-control",
+          events: [
+            { timestampMs: 10000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+            { timestampMs: 20000, teamId: 0, runningScores: { "0": 2, "1": 0 } },
+          ],
+          controlPeriods: [{ startMs: 0, endMs: 60000, controllingTeamId: 0 }],
+        },
+      });
+      const result = formatScoreProgression(singlePeriod, TEAM_COLORS);
+      expect(result?.teamLines[0]?.points.at(-1)).toEqual({ timestampMs: 60000, score: 2 });
     });
   });
 
