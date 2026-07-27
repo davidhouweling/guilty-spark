@@ -332,22 +332,42 @@ describe("formatScoreProgression", () => {
     it("produces an entirely unoccupied segment for a hill with no events", () => {
       const noEvents = aFakeScoreProgressionWith({
         mode: 12,
-        durationMs: 30000,
+        durationMs: 40000,
         respawnDurationMs: null,
         timeline: {
           type: "objective-control",
-          events: [{ timestampMs: 15000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
           controlPeriods: [
-            { startMs: 0, endMs: 10000, controllingTeamId: null },
-            { startMs: 10000, endMs: 30000, controllingTeamId: 0 },
+            { startMs: 0, endMs: 15000, controllingTeamId: 0 },
+            { startMs: 15000, endMs: 40000, controllingTeamId: null },
           ],
         },
       });
       const result = formatScoreProgression(noEvents, TEAM_COLORS);
-      const emptyHill = result?.kothHills?.[0];
+      const emptyHill = result?.kothHills?.[1];
       expect(emptyHill?.segments).toHaveLength(1);
       expect(emptyHill?.segments[0]?.teamId).toBeNull();
       expect(emptyHill?.winnerTeamId).toBeNull();
+    });
+
+    it("skips control periods that end before the first event (pre-game warmup)", () => {
+      const withPreGame = aFakeScoreProgressionWith({
+        mode: 12,
+        durationMs: 40000,
+        respawnDurationMs: null,
+        timeline: {
+          type: "objective-control",
+          events: [{ timestampMs: 10000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+          controlPeriods: [
+            { startMs: 0, endMs: 8000, controllingTeamId: null },
+            { startMs: 8000, endMs: 40000, controllingTeamId: 0 },
+          ],
+        },
+      });
+      const result = formatScoreProgression(withPreGame, TEAM_COLORS);
+      expect(result?.kothHills).toHaveLength(1);
+      expect(result?.kothHills?.[0]?.hillIndex).toBe(1);
+      expect(result?.kothHills?.[0]?.startMs).toBe(8000);
     });
 
     it("inserts an unoccupied gap when the same team leaves and returns with a gap greater than 2 ticks", () => {

@@ -209,7 +209,12 @@ function buildKothHills(
   teamIds: readonly number[],
   teamColorByTeamId: Map<number, string>,
 ): KothHillData[] {
-  return controlPeriods.map((period, periodIndex) => {
+  // Skip periods that end before the first mode event — these are pre-game
+  // transitions before any hill became contestable.
+  const firstEventTime = events.reduce((min, e) => Math.min(min, e.timestampMs), Infinity);
+  const hillPeriods = controlPeriods.filter((p) => p.endMs > firstEventTime);
+
+  return hillPeriods.map((period, periodIndex) => {
     const periodEvents = events
       .filter((e) => e.timestampMs >= period.startMs && e.timestampMs < period.endMs)
       .sort((a, b) => a.timestampMs - b.timestampMs);
