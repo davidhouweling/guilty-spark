@@ -1,8 +1,12 @@
+import { GameVariantCategory } from "halo-infinite-api";
 import type {
   KillRaceDeathEvent,
   KillRaceEvent,
   MatchAnalytics,
+  ObjectiveControlEvent,
+  ObjectiveControlPeriod,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
@@ -137,6 +141,54 @@ function buildControlPeriods(
   }));
 }
 
+function buildKothSawtooth(
+  events: readonly ObjectiveControlEvent[],
+  controlPeriods: readonly ObjectiveControlPeriod[],
+  teamIds: readonly number[],
+  teamColorByTeamId: Map<number, string>,
+  durationMs: number,
+): ScoreProgressionTeamLine[] {
+  const teamIdSet = new Set(teamIds);
+  const lines = new Map<number, ScoreProgressionPoint[]>(teamIds.map((id) => [id, [{ timestampMs: 0, score: 0 }]]));
+
+  for (const period of controlPeriods) {
+    const hillCounts = new Map<number, number>(teamIds.map((id) => [id, 0]));
+
+    for (const event of events) {
+      if (event.timestampMs < period.startMs || event.timestampMs >= period.endMs) {
+        continue;
+      }
+      if (!teamIdSet.has(event.teamId)) {
+        continue;
+      }
+      hillCounts.set(event.teamId, Preconditions.checkExists(hillCounts.get(event.teamId)) + 1);
+      Preconditions.checkExists(lines.get(event.teamId)).push({
+        timestampMs: event.timestampMs,
+        score: Preconditions.checkExists(hillCounts.get(event.teamId)),
+      });
+    }
+
+    if (period.endMs < durationMs) {
+      for (const teamId of teamIds) {
+        const points = Preconditions.checkExists(lines.get(teamId));
+        points.push({ timestampMs: period.endMs - 1, score: hillCounts.get(teamId) ?? 0 });
+        points.push({ timestampMs: period.endMs, score: 0 });
+      }
+    }
+  }
+
+  for (const [, points] of lines) {
+    points.push({ timestampMs: durationMs, score: points.at(-1)?.score ?? 0 });
+  }
+
+  return teamIds.map((teamId) => ({
+    teamId,
+    name: getTeamName(teamId),
+    color: Preconditions.checkExists(teamColorByTeamId.get(teamId)),
+    points: Preconditions.checkExists(lines.get(teamId)),
+  }));
+}
+
 export function formatScoreProgression(
   scoreProgression: MatchAnalytics["scoreProgression"],
   teamColors: readonly TeamColor[],
@@ -146,7 +198,7 @@ export function formatScoreProgression(
     return null;
   }
 
-  const { durationMs, timeline, respawnDurationMs } = scoreProgression;
+  const { mode, durationMs, timeline, respawnDurationMs } = scoreProgression;
   const { events } = timeline;
 
   const [firstEvent] = events;
@@ -167,6 +219,17 @@ export function formatScoreProgression(
   );
 
   const teamColorByTeamId = new Map([...teamState.entries()].map(([teamId, state]) => [teamId, state.color]));
+
+  const kothMode: number = GameVariantCategory.MultiplayerKingOfTheHill;
+  if (mode === kothMode && timeline.type === "objective-control") {
+    return {
+      durationMs,
+      teamLines: buildKothSawtooth(timeline.events, timeline.controlPeriods, teamIds, teamColorByTeamId, durationMs),
+      scoreDelta: null,
+      playerAdvantage: null,
+      controlPeriods: buildControlPeriods(timeline, teamColorByTeamId),
+    };
+  }
 
   for (const event of events) {
     const newScore = event.runningScores[String(event.teamId)] ?? 0;

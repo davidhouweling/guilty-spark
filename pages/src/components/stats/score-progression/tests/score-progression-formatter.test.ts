@@ -223,6 +223,71 @@ describe("formatScoreProgression", () => {
     });
   });
 
+  describe("KOTH sawtooth (mode=12)", () => {
+    const kothData = aFakeScoreProgressionWith({
+      mode: 12,
+      durationMs: 60000,
+      respawnDurationMs: null,
+      timeline: {
+        type: "objective-control",
+        events: [
+          { timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+          { timestampMs: 10000, teamId: 0, runningScores: { "0": 2, "1": 0 } },
+          { timestampMs: 15000, teamId: 1, runningScores: { "0": 2, "1": 1 } },
+          { timestampMs: 20000, teamId: 0, runningScores: { "0": 3, "1": 1 } },
+          { timestampMs: 35000, teamId: 1, runningScores: { "0": 3, "1": 2 } },
+          { timestampMs: 40000, teamId: 1, runningScores: { "0": 3, "1": 3 } },
+        ],
+        controlPeriods: [
+          { startMs: 0, endMs: 30000, controllingTeamId: 0 },
+          { startMs: 30000, endMs: 60000, controllingTeamId: 1 },
+        ],
+      },
+    });
+
+    it("starts each team line at (0, 0)", () => {
+      const result = formatScoreProgression(kothData, TEAM_COLORS);
+      expect(result?.teamLines[0]?.points[0]).toEqual({ timestampMs: 0, score: 0 });
+      expect(result?.teamLines[1]?.points[0]).toEqual({ timestampMs: 0, score: 0 });
+    });
+
+    it("accumulates hold ticks per team within each hill period", () => {
+      const result = formatScoreProgression(kothData, TEAM_COLORS);
+      expect(result?.teamLines[0]?.points.find((p) => p.timestampMs === 29999)?.score).toBe(3);
+      expect(result?.teamLines[1]?.points.find((p) => p.timestampMs === 29999)?.score).toBe(1);
+    });
+
+    it("resets both team lines to 0 at each hill transition", () => {
+      const result = formatScoreProgression(kothData, TEAM_COLORS);
+      expect(result?.teamLines[0]?.points.find((p) => p.timestampMs === 30000)?.score).toBe(0);
+      expect(result?.teamLines[1]?.points.find((p) => p.timestampMs === 30000)?.score).toBe(0);
+    });
+
+    it("accumulates hold ticks independently in the next hill period after a reset", () => {
+      const result = formatScoreProgression(kothData, TEAM_COLORS);
+      expect(result?.teamLines[1]?.points.at(-1)?.score).toBe(2);
+    });
+
+    it("extends each team line to durationMs", () => {
+      const result = formatScoreProgression(kothData, TEAM_COLORS);
+      expect(result?.teamLines[0]?.points.at(-1)?.timestampMs).toBe(60000);
+      expect(result?.teamLines[1]?.points.at(-1)?.timestampMs).toBe(60000);
+    });
+
+    it("returns null scoreDelta for KOTH", () => {
+      const result = formatScoreProgression(kothData, TEAM_COLORS);
+      expect(result?.scoreDelta).toBeNull();
+    });
+
+    it("still returns controlPeriods for KOTH shading", () => {
+      const result = formatScoreProgression(kothData, TEAM_COLORS);
+      expect(result?.controlPeriods).toEqual([
+        { startMs: 0, endMs: 30000, color: "#0000ff" },
+        { startMs: 30000, endMs: 60000, color: "#ff0000" },
+      ]);
+    });
+  });
+
   describe("playerAdvantage", () => {
     it("returns null playerAdvantage when more than 2 teams are present", () => {
       const data = aFakeScoreProgressionWith({
