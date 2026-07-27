@@ -1,12 +1,6 @@
 import React from "react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
-import {
-  AXIS_STROKE,
-  TICK_FILL,
-  TICK_FONT_SIZE,
-  TICK_STYLE,
-  formatTime,
-} from "../chart-constants";
+import { AXIS_STROKE, TICK_FILL, TICK_FONT_SIZE, TICK_STYLE, formatTime } from "../chart-constants";
 import type { KothHillData, KothHillSegment, KothTimelineViewModel } from "../types";
 import styles from "./koth-timeline-chart.module.css";
 
@@ -27,7 +21,13 @@ interface HillBarProps {
   hill?: KothHillData;
 }
 
-function HillBar({ y = 0, height = 0, background, durationMs = 1, hill }: HillBarProps): React.ReactElement | null {
+export function HillBar({
+  y = 0,
+  height = 0,
+  background,
+  durationMs = 1,
+  hill,
+}: HillBarProps): React.ReactElement | null {
   if (background == null || hill == null) {
     return null;
   }
@@ -124,23 +124,17 @@ function HillTooltip({ active, payload }: HillTooltipProps): React.ReactElement 
     return null;
   }
 
+  const occupiedPct = hill.teamOccupancies.reduce((sum, o) => sum + o.percentage, 0);
+
   return (
     <div className={styles.tooltip}>
       <div className={styles.tooltipHill}>Hill {hill.hillIndex}</div>
       {hill.teamOccupancies.map((o) => (
-        <div
-          key={o.teamId}
-          className={styles.tooltipTeam}
-          style={{ "--team-color": o.color } as React.CSSProperties}
-        >
+        <div key={o.teamId} className={styles.tooltipTeam} style={{ "--team-color": o.color } as React.CSSProperties}>
           {o.name}: {o.percentage}%
         </div>
       ))}
-      {hill.teamOccupancies.reduce((sum, o) => sum + o.percentage, 0) < 100 && (
-        <div className={styles.tooltipUnoccupied}>
-          Unoccupied: {100 - hill.teamOccupancies.reduce((sum, o) => sum + o.percentage, 0)}%
-        </div>
-      )}
+      {occupiedPct < 100 && <div className={styles.tooltipUnoccupied}>Unoccupied: {100 - occupiedPct}%</div>}
     </div>
   );
 }
@@ -166,13 +160,7 @@ export function KothTimelineChart({ durationMs, hills }: KothTimelineViewModel):
           stroke={AXIS_STROKE}
           tick={TICK_STYLE}
         />
-        <YAxis
-          type="category"
-          dataKey="hillIndex"
-          width={Y_AXIS_WIDTH}
-          tick={hillTick}
-          stroke={AXIS_STROKE}
-        />
+        <YAxis type="category" dataKey="hillIndex" width={Y_AXIS_WIDTH} tick={hillTick} stroke={AXIS_STROKE} />
         <Tooltip content={<HillTooltip />} cursor={false} />
         <Bar dataKey="value" shape={<HillBar durationMs={durationMs} />} isAnimationActive={false} />
       </BarChart>

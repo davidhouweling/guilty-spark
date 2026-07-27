@@ -313,7 +313,7 @@ describe("formatScoreProgression", () => {
       expect(result?.scoreDelta).toBeNull();
     });
 
-    it("returns empty kothHills when controlPeriods is empty", () => {
+    it("falls back to standard progression when controlPeriods is empty (kothHills is null)", () => {
       const emptyPeriods = aFakeScoreProgressionWith({
         mode: 12,
         durationMs: 60000,
@@ -325,7 +325,8 @@ describe("formatScoreProgression", () => {
         },
       });
       const result = formatScoreProgression(emptyPeriods, TEAM_COLORS);
-      expect(result?.kothHills).toHaveLength(0);
+      expect(result?.kothHills).toBeNull();
+      expect(result?.teamLines).toHaveLength(2);
     });
 
     it("produces an entirely unoccupied segment for a hill with no events", () => {
@@ -347,6 +348,45 @@ describe("formatScoreProgression", () => {
       expect(emptyHill?.segments).toHaveLength(1);
       expect(emptyHill?.segments[0]?.teamId).toBeNull();
       expect(emptyHill?.winnerTeamId).toBeNull();
+    });
+
+    it("inserts an unoccupied gap when the same team leaves and returns with a gap greater than 2 ticks", () => {
+      const sameTeamGap = aFakeScoreProgressionWith({
+        mode: 12,
+        durationMs: 60000,
+        respawnDurationMs: null,
+        timeline: {
+          type: "objective-control",
+          events: [
+            { timestampMs: 2500, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+            { timestampMs: 5000, teamId: 0, runningScores: { "0": 2, "1": 0 } },
+            { timestampMs: 20000, teamId: 0, runningScores: { "0": 3, "1": 0 } },
+          ],
+          controlPeriods: [{ startMs: 0, endMs: 60000, controllingTeamId: 0 }],
+        },
+      });
+      const result = formatScoreProgression(sameTeamGap, TEAM_COLORS);
+      const hill = result?.kothHills?.[0];
+      const unoccupiedSegments = hill?.segments.filter((s) => s.teamId === null) ?? [];
+      expect(unoccupiedSegments.length).toBeGreaterThan(0);
+    });
+
+    it("returns 0% occupancy for all teams when hillDurationMs is 0", () => {
+      const zeroDuration = aFakeScoreProgressionWith({
+        mode: 12,
+        durationMs: 30000,
+        respawnDurationMs: null,
+        timeline: {
+          type: "objective-control",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+          controlPeriods: [{ startMs: 10000, endMs: 10000, controllingTeamId: 0 }],
+        },
+      });
+      const result = formatScoreProgression(zeroDuration, TEAM_COLORS);
+      const hill = result?.kothHills?.[0];
+      for (const occupancy of hill?.teamOccupancies ?? []) {
+        expect(occupancy.percentage).toBe(0);
+      }
     });
   });
 

@@ -233,7 +233,7 @@ function buildKothHills(
       teamId,
       name: getTeamName(teamId),
       color: Preconditions.checkExists(teamColorByTeamId.get(teamId)),
-      percentage: Math.round(((holdMs.get(teamId) ?? 0) / hillDurationMs) * 100),
+      percentage: hillDurationMs > 0 ? Math.round(((holdMs.get(teamId) ?? 0) / hillDurationMs) * 100) : 0,
     }));
 
     return {
@@ -281,7 +281,7 @@ export function formatScoreProgression(
   const teamColorByTeamId = new Map([...teamState.entries()].map(([teamId, state]) => [teamId, state.color]));
 
   const kothMode: number = GameVariantCategory.MultiplayerKingOfTheHill;
-  if (mode === kothMode && timeline.type === "objective-control") {
+  if (mode === kothMode && timeline.type === "objective-control" && timeline.controlPeriods.length > 0) {
     return {
       durationMs,
       teamLines: [],
