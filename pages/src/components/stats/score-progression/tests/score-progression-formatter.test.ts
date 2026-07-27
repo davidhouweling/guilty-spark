@@ -223,7 +223,7 @@ describe("formatScoreProgression", () => {
     });
   });
 
-  describe("KOTH sawtooth (mode=12)", () => {
+  describe("KOTH timeline (mode=12)", () => {
     const kothData = aFakeScoreProgressionWith({
       mode: 12,
       durationMs: 60000,
@@ -231,12 +231,12 @@ describe("formatScoreProgression", () => {
       timeline: {
         type: "objective-control",
         events: [
-          { timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
-          { timestampMs: 10000, teamId: 0, runningScores: { "0": 2, "1": 0 } },
-          { timestampMs: 15000, teamId: 1, runningScores: { "0": 2, "1": 1 } },
+          { timestampMs: 2500, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+          { timestampMs: 5000, teamId: 0, runningScores: { "0": 2, "1": 0 } },
+          { timestampMs: 12500, teamId: 1, runningScores: { "0": 2, "1": 1 } },
           { timestampMs: 20000, teamId: 0, runningScores: { "0": 3, "1": 1 } },
           { timestampMs: 35000, teamId: 1, runningScores: { "0": 3, "1": 2 } },
-          { timestampMs: 40000, teamId: 1, runningScores: { "0": 3, "1": 3 } },
+          { timestampMs: 37500, teamId: 1, runningScores: { "0": 3, "1": 3 } },
         ],
         controlPeriods: [
           { startMs: 0, endMs: 30000, controllingTeamId: 0 },
@@ -245,47 +245,67 @@ describe("formatScoreProgression", () => {
       },
     });
 
-    it("starts each team line at (0, 0)", () => {
+    it("returns one hill per control period", () => {
       const result = formatScoreProgression(kothData, TEAM_COLORS);
-      expect(result?.teamLines[0]?.points[0]).toEqual({ timestampMs: 0, score: 0 });
-      expect(result?.teamLines[1]?.points[0]).toEqual({ timestampMs: 0, score: 0 });
+      expect(result?.kothHills).toHaveLength(2);
     });
 
-    it("accumulates hold ticks per team within each hill period", () => {
+    it("assigns 1-based hillIndex to each hill", () => {
       const result = formatScoreProgression(kothData, TEAM_COLORS);
-      expect(result?.teamLines[0]?.points.find((p) => p.timestampMs === 29999)?.score).toBe(3);
-      expect(result?.teamLines[1]?.points.find((p) => p.timestampMs === 29999)?.score).toBe(1);
+      expect(result?.kothHills?.[0]?.hillIndex).toBe(1);
+      expect(result?.kothHills?.[1]?.hillIndex).toBe(2);
     });
 
-    it("resets both team lines to 0 at each hill transition", () => {
+    it("sets hill startMs and endMs from the control period", () => {
       const result = formatScoreProgression(kothData, TEAM_COLORS);
-      expect(result?.teamLines[0]?.points.find((p) => p.timestampMs === 30000)?.score).toBe(0);
-      expect(result?.teamLines[1]?.points.find((p) => p.timestampMs === 30000)?.score).toBe(0);
+      expect(result?.kothHills?.[0]?.startMs).toBe(0);
+      expect(result?.kothHills?.[0]?.endMs).toBe(30000);
     });
 
-    it("accumulates hold ticks independently in the next hill period after a reset", () => {
+    it("identifies the winner as the team with the last mode event before the hill transition", () => {
       const result = formatScoreProgression(kothData, TEAM_COLORS);
-      expect(result?.teamLines[1]?.points.at(-1)?.score).toBe(2);
+      expect(result?.kothHills?.[0]?.winnerTeamId).toBe(0);
+      expect(result?.kothHills?.[1]?.winnerTeamId).toBe(1);
     });
 
-    it("extends each team line to durationMs", () => {
+    it("sets winnerColor from the winning team's color", () => {
       const result = formatScoreProgression(kothData, TEAM_COLORS);
-      expect(result?.teamLines[0]?.points.at(-1)?.timestampMs).toBe(60000);
-      expect(result?.teamLines[1]?.points.at(-1)?.timestampMs).toBe(60000);
+      expect(result?.kothHills?.[0]?.winnerColor).toBe("#0000ff");
+      expect(result?.kothHills?.[1]?.winnerColor).toBe("#ff0000");
     });
 
-    it("adds sync points for the non-holding team at every opponent event timestamp", () => {
+    it("produces team occupancy percentages for each hill", () => {
       const result = formatScoreProgression(kothData, TEAM_COLORS);
-      const team1Points = result?.teamLines[1]?.points ?? [];
-      expect(team1Points.find((p) => p.timestampMs === 5000)?.score).toBe(0);
-      expect(team1Points.find((p) => p.timestampMs === 10000)?.score).toBe(0);
+      const hill1 = result?.kothHills?.[0];
+      expect(hill1?.teamOccupancies).toHaveLength(2);
+      expect(hill1?.teamOccupancies.every((o) => o.percentage >= 0 && o.percentage <= 100)).toBe(true);
     });
 
-    it("keeps non-holding team line flat while other team accumulates on the same hill", () => {
+    it("produces segments covering the full hill period with no gaps", () => {
       const result = formatScoreProgression(kothData, TEAM_COLORS);
-      const team1Points = result?.teamLines[1]?.points ?? [];
-      const pointsBeforeTeam1Fires = team1Points.filter((p) => p.timestampMs < 15000);
-      expect(pointsBeforeTeam1Fires.every((p) => p.score === 0)).toBe(true);
+      const hill1 = result?.kothHills?.[0];
+      if (hill1 == null) {
+        return;
+      }
+      const covered = hill1.segments.reduce((sum, s) => sum + (s.endMs - s.startMs), 0);
+      expect(covered).toBe(hill1.endMs - hill1.startMs);
+    });
+
+    it("assigns team colors to occupied segments and null to unoccupied segments", () => {
+      const result = formatScoreProgression(kothData, TEAM_COLORS);
+      const hill1 = result?.kothHills?.[0];
+      for (const seg of hill1?.segments ?? []) {
+        if (seg.teamId != null) {
+          expect(seg.color).not.toBeNull();
+        } else {
+          expect(seg.color).toBeNull();
+        }
+      }
+    });
+
+    it("returns empty teamLines for KOTH", () => {
+      const result = formatScoreProgression(kothData, TEAM_COLORS);
+      expect(result?.teamLines).toHaveLength(0);
     });
 
     it("returns null scoreDelta for KOTH", () => {
@@ -293,15 +313,7 @@ describe("formatScoreProgression", () => {
       expect(result?.scoreDelta).toBeNull();
     });
 
-    it("still returns controlPeriods for KOTH shading", () => {
-      const result = formatScoreProgression(kothData, TEAM_COLORS);
-      expect(result?.controlPeriods).toEqual([
-        { startMs: 0, endMs: 30000, color: "#0000ff" },
-        { startMs: 30000, endMs: 60000, color: "#ff0000" },
-      ]);
-    });
-
-    it("returns minimal (0,0) to (durationMs,0) lines when controlPeriods is empty", () => {
+    it("returns empty kothHills when controlPeriods is empty", () => {
       const emptyPeriods = aFakeScoreProgressionWith({
         mode: 12,
         durationMs: 60000,
@@ -313,28 +325,28 @@ describe("formatScoreProgression", () => {
         },
       });
       const result = formatScoreProgression(emptyPeriods, TEAM_COLORS);
-      expect(result?.teamLines[0]?.points).toEqual([
-        { timestampMs: 0, score: 0 },
-        { timestampMs: 60000, score: 0 },
-      ]);
+      expect(result?.kothHills).toHaveLength(0);
     });
 
-    it("extends last accumulated score to durationMs without reset when only one hill period spans the match", () => {
-      const singlePeriod = aFakeScoreProgressionWith({
+    it("produces an entirely unoccupied segment for a hill with no events", () => {
+      const noEvents = aFakeScoreProgressionWith({
         mode: 12,
-        durationMs: 60000,
+        durationMs: 30000,
         respawnDurationMs: null,
         timeline: {
           type: "objective-control",
-          events: [
-            { timestampMs: 10000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
-            { timestampMs: 20000, teamId: 0, runningScores: { "0": 2, "1": 0 } },
+          events: [{ timestampMs: 15000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+          controlPeriods: [
+            { startMs: 0, endMs: 10000, controllingTeamId: null },
+            { startMs: 10000, endMs: 30000, controllingTeamId: 0 },
           ],
-          controlPeriods: [{ startMs: 0, endMs: 60000, controllingTeamId: 0 }],
         },
       });
-      const result = formatScoreProgression(singlePeriod, TEAM_COLORS);
-      expect(result?.teamLines[0]?.points.at(-1)).toEqual({ timestampMs: 60000, score: 2 });
+      const result = formatScoreProgression(noEvents, TEAM_COLORS);
+      const emptyHill = result?.kothHills?.[0];
+      expect(emptyHill?.segments).toHaveLength(1);
+      expect(emptyHill?.segments[0]?.teamId).toBeNull();
+      expect(emptyHill?.winnerTeamId).toBeNull();
     });
   });
 

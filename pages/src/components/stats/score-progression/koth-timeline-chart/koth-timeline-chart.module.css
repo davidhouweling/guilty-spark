@@ -1,0 +1,21 @@
+.tooltip {
+  background: var(--halo-bg-card);
+  border: 1px solid rgb(93 212 216 / 30%);
+  border-radius: var(--radius-base);
+  color: var(--halo-white);
+  font-size: 12px;
+  padding: 8px 12px;
+}
+
+.tooltipHill {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.tooltipTeam {
+  color: var(--team-color);
+}
+
+.tooltipUnoccupied {
+  color: rgb(255 255 255 / 40%);
+}

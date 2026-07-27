@@ -41,6 +41,7 @@ const BASE_INPUT = {
   teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
   playerAdvantage: null,
   controlPeriods: [],
+  kothHills: null,
   ariaLabel: "test chart",
 };
 

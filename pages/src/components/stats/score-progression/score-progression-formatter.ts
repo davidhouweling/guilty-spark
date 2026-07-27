@@ -11,12 +11,15 @@ import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type {
+  KothHillData,
+  KothHillSegment,
   ObjectiveControlPeriodDisplay,
   PlayerAdvantageData,
   ScoreDeltaData,
   ScoreProgressionPoint,
   ScoreProgressionTeamLine,
   ScoreProgressionViewData,
+  KothHillTeamOccupancy,
 } from "./types";
 
 function buildScoreDelta(
@@ -141,63 +144,109 @@ function buildControlPeriods(
   }));
 }
 
-function buildKothSawtooth(
+const KOTH_TICK_MS = 2_500;
+
+function deriveHillSegments(
+  periodEvents: readonly ObjectiveControlEvent[],
+  period: ObjectiveControlPeriod,
+  teamColorByTeamId: Map<number, string>,
+): KothHillSegment[] {
+  if (periodEvents.length === 0) {
+    return [{ startMs: period.startMs, endMs: period.endMs, teamId: null, color: null }];
+  }
+
+  const segments: KothHillSegment[] = [];
+  const firstEvent = Preconditions.checkExists(periodEvents[0]);
+  const startGap = firstEvent.timestampMs - period.startMs;
+  const segmentStart = startGap <= KOTH_TICK_MS ? period.startMs : firstEvent.timestampMs;
+
+  if (segmentStart > period.startMs) {
+    segments.push({ startMs: period.startMs, endMs: segmentStart, teamId: null, color: null });
+  }
+
+  let currentTeamId = firstEvent.teamId;
+  let currentSegmentStart = segmentStart;
+
+  for (let i = 1; i < periodEvents.length; i++) {
+    const event = Preconditions.checkExists(periodEvents[i]);
+    const prevEvent = Preconditions.checkExists(periodEvents[i - 1]);
+    const gap = event.timestampMs - prevEvent.timestampMs;
+
+    if (event.teamId !== currentTeamId || gap > KOTH_TICK_MS * 2) {
+      const prevEnd = Math.min(prevEvent.timestampMs + KOTH_TICK_MS, event.timestampMs);
+      segments.push({
+        startMs: currentSegmentStart,
+        endMs: prevEnd,
+        teamId: currentTeamId,
+        color: teamColorByTeamId.get(currentTeamId) ?? null,
+      });
+      if (prevEnd < event.timestampMs) {
+        segments.push({ startMs: prevEnd, endMs: event.timestampMs, teamId: null, color: null });
+      }
+      currentTeamId = event.teamId;
+      currentSegmentStart = event.timestampMs;
+    }
+  }
+
+  const lastEvent = Preconditions.checkExists(periodEvents.at(-1));
+  const lastEnd = Math.min(lastEvent.timestampMs + KOTH_TICK_MS, period.endMs);
+  segments.push({
+    startMs: currentSegmentStart,
+    endMs: lastEnd,
+    teamId: currentTeamId,
+    color: teamColorByTeamId.get(currentTeamId) ?? null,
+  });
+  if (lastEnd < period.endMs) {
+    segments.push({ startMs: lastEnd, endMs: period.endMs, teamId: null, color: null });
+  }
+
+  return segments;
+}
+
+function buildKothHills(
   events: readonly ObjectiveControlEvent[],
   controlPeriods: readonly ObjectiveControlPeriod[],
   teamIds: readonly number[],
   teamColorByTeamId: Map<number, string>,
-  durationMs: number,
-): ScoreProgressionTeamLine[] {
-  const teamIdSet = new Set(teamIds);
-  const lines = new Map<number, ScoreProgressionPoint[]>(teamIds.map((id) => [id, [{ timestampMs: 0, score: 0 }]]));
+): KothHillData[] {
+  return controlPeriods.map((period, periodIndex) => {
+    const periodEvents = events
+      .filter((e) => e.timestampMs >= period.startMs && e.timestampMs < period.endMs)
+      .sort((a, b) => a.timestampMs - b.timestampMs);
 
-  for (const period of controlPeriods) {
-    const hillCounts = new Map<number, number>(teamIds.map((id) => [id, 0]));
+    const segments = deriveHillSegments(periodEvents, period, teamColorByTeamId);
 
-    for (const event of events) {
-      if (event.timestampMs < period.startMs || event.timestampMs >= period.endMs) {
-        continue;
-      }
-      if (!teamIdSet.has(event.teamId)) {
-        continue;
-      }
-      const prevScore = Preconditions.checkExists(hillCounts.get(event.teamId));
-      hillCounts.set(event.teamId, prevScore + 1);
+    const lastEvent = periodEvents.at(-1);
+    const winnerTeamId = lastEvent?.teamId ?? null;
+    const winnerColor = winnerTeamId != null ? (teamColorByTeamId.get(winnerTeamId) ?? null) : null;
+    const winnerName = winnerTeamId != null ? getTeamName(winnerTeamId) : null;
 
-      for (const teamId of teamIds) {
-        const points = Preconditions.checkExists(lines.get(teamId));
-        const currentScore = Preconditions.checkExists(hillCounts.get(teamId));
-        if (teamId === event.teamId) {
-          points.push({ timestampMs: event.timestampMs, score: prevScore });
-          points.push({ timestampMs: event.timestampMs, score: currentScore });
-        } else {
-          points.push({ timestampMs: event.timestampMs, score: currentScore });
-        }
+    const hillDurationMs = period.endMs - period.startMs;
+    const holdMs = new Map<number, number>(teamIds.map((id) => [id, 0]));
+    for (const segment of segments) {
+      if (segment.teamId != null) {
+        holdMs.set(segment.teamId, (holdMs.get(segment.teamId) ?? 0) + (segment.endMs - segment.startMs));
       }
     }
 
-    if (period.endMs < durationMs) {
-      for (const teamId of teamIds) {
-        const points = Preconditions.checkExists(lines.get(teamId));
-        const currentScore = Preconditions.checkExists(hillCounts.get(teamId));
-        if ((points.at(-1)?.timestampMs ?? -1) < period.endMs - 1) {
-          points.push({ timestampMs: period.endMs - 1, score: currentScore });
-        }
-        points.push({ timestampMs: period.endMs, score: 0 });
-      }
-    }
-  }
+    const teamOccupancies: KothHillTeamOccupancy[] = teamIds.map((teamId) => ({
+      teamId,
+      name: getTeamName(teamId),
+      color: Preconditions.checkExists(teamColorByTeamId.get(teamId)),
+      percentage: Math.round(((holdMs.get(teamId) ?? 0) / hillDurationMs) * 100),
+    }));
 
-  for (const [, points] of lines) {
-    points.push({ timestampMs: durationMs, score: points.at(-1)?.score ?? 0 });
-  }
-
-  return teamIds.map((teamId) => ({
-    teamId,
-    name: getTeamName(teamId),
-    color: Preconditions.checkExists(teamColorByTeamId.get(teamId)),
-    points: Preconditions.checkExists(lines.get(teamId)),
-  }));
+    return {
+      hillIndex: periodIndex + 1,
+      startMs: period.startMs,
+      endMs: period.endMs,
+      segments,
+      winnerTeamId,
+      winnerColor,
+      winnerName,
+      teamOccupancies,
+    };
+  });
 }
 
 export function formatScoreProgression(
@@ -235,10 +284,11 @@ export function formatScoreProgression(
   if (mode === kothMode && timeline.type === "objective-control") {
     return {
       durationMs,
-      teamLines: buildKothSawtooth(timeline.events, timeline.controlPeriods, teamIds, teamColorByTeamId, durationMs),
+      teamLines: [],
       scoreDelta: null,
       playerAdvantage: null,
-      controlPeriods: buildControlPeriods(timeline, teamColorByTeamId),
+      controlPeriods: [],
+      kothHills: buildKothHills(timeline.events, timeline.controlPeriods, teamIds, teamColorByTeamId),
     };
   }
 
@@ -273,5 +323,6 @@ export function formatScoreProgression(
     scoreDelta: buildScoreDelta(teamIds, events, durationMs),
     playerAdvantage,
     controlPeriods: buildControlPeriods(timeline, teamColorByTeamId),
+    kothHills: null,
   };
 }

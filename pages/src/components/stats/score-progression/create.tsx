@@ -3,6 +3,7 @@ import { ScoreProgressionPresenter } from "./score-progression-presenter";
 import { ScoreProgressionStore } from "./score-progression-store";
 import { ScoreProgression } from "./score-progression";
 import type {
+  KothHillData,
   ObjectiveControlPeriodDisplay,
   PlayerAdvantageData,
   ScoreDeltaData,
@@ -15,6 +16,7 @@ export interface ScoreProgressionProps {
   readonly scoreDelta: ScoreDeltaData | null;
   readonly playerAdvantage: PlayerAdvantageData | null;
   readonly controlPeriods: readonly ObjectiveControlPeriodDisplay[];
+  readonly kothHills: readonly KothHillData[] | null;
   readonly ariaLabel: string;
 }
 
@@ -24,6 +26,7 @@ function ScoreProgressionInternal({
   scoreDelta,
   playerAdvantage,
   controlPeriods,
+  kothHills,
   ariaLabel,
 }: ScoreProgressionProps): React.ReactElement {
   const store = useMemo(() => new ScoreProgressionStore(), []);
@@ -33,8 +36,16 @@ function ScoreProgressionInternal({
 
   const model = useMemo(
     () =>
-      presenter.present(snapshot, { durationMs, teamLines, scoreDelta, playerAdvantage, controlPeriods, ariaLabel }),
-    [presenter, snapshot, durationMs, teamLines, scoreDelta, playerAdvantage, controlPeriods, ariaLabel],
+      presenter.present(snapshot, {
+        durationMs,
+        teamLines,
+        scoreDelta,
+        playerAdvantage,
+        controlPeriods,
+        kothHills,
+        ariaLabel,
+      }),
+    [presenter, snapshot, durationMs, teamLines, scoreDelta, playerAdvantage, controlPeriods, kothHills, ariaLabel],
   );
 
   return <ScoreProgression {...model} />;

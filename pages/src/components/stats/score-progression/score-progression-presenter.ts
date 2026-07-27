@@ -2,6 +2,8 @@ import { TICK_FILL } from "./chart-constants";
 import type { ScoreProgressionSnapshot, ScoreProgressionStore } from "./score-progression-store";
 import type {
   ChartType,
+  KothHillData,
+  KothTimelineViewModel,
   ObjectiveControlPeriodDisplay,
   PlayerAdvantageData,
   ScoreDeltaData,
@@ -20,6 +22,7 @@ export interface ScoreProgressionInput {
   readonly scoreDelta: ScoreDeltaData | null;
   readonly playerAdvantage: PlayerAdvantageData | null;
   readonly controlPeriods: readonly ObjectiveControlPeriodDisplay[];
+  readonly kothHills: readonly KothHillData[] | null;
   readonly ariaLabel: string;
 }
 
@@ -68,6 +71,9 @@ export class ScoreProgressionPresenter {
     const hasDelta = input.scoreDelta != null;
     const hasPlayerAdvantage = input.playerAdvantage != null;
 
+    const kothTimelineViewModel: KothTimelineViewModel | null =
+      input.kothHills != null ? { durationMs: input.durationMs, hills: input.kothHills } : null;
+
     return {
       ariaLabel: input.ariaLabel,
       effectiveChartType,
@@ -86,6 +92,7 @@ export class ScoreProgressionPresenter {
           name: string | number | undefined,
         ): [string, string] => this.formatProgressionTooltip(value, name, team0Name, team1Name),
       },
+      kothTimelineViewModel,
       onChartTypeChange: this.onChartTypeChange,
       onPlayerAdvantageChange: this.onPlayerAdvantageChange,
     };
