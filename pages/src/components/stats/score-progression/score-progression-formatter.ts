@@ -7,6 +7,7 @@ import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type {
+  ObjectiveControlPeriodDisplay,
   PlayerAdvantageData,
   ScoreDeltaData,
   ScoreProgressionPoint,
@@ -120,6 +121,22 @@ function buildPlayerAdvantage(
   return { points, minScore, maxScore };
 }
 
+type Timeline = NonNullable<MatchAnalytics["scoreProgression"]>["timeline"];
+
+function buildControlPeriods(
+  timeline: Timeline,
+  teamColorByTeamId: Map<number, string>,
+): readonly ObjectiveControlPeriodDisplay[] {
+  if (timeline.type !== "objective-control") {
+    return [];
+  }
+  return timeline.controlPeriods.map((period) => ({
+    startMs: period.startMs,
+    endMs: period.endMs,
+    color: period.controllingTeamId != null ? (teamColorByTeamId.get(period.controllingTeamId) ?? null) : null,
+  }));
+}
+
 export function formatScoreProgression(
   scoreProgression: MatchAnalytics["scoreProgression"],
   teamColors: readonly TeamColor[],
@@ -148,6 +165,8 @@ export function formatScoreProgression(
       },
     ]),
   );
+
+  const teamColorByTeamId = new Map([...teamState.entries()].map(([teamId, state]) => [teamId, state.color]));
 
   for (const event of events) {
     const newScore = event.runningScores[String(event.teamId)] ?? 0;
@@ -179,5 +198,6 @@ export function formatScoreProgression(
     teamLines,
     scoreDelta: buildScoreDelta(teamIds, events, durationMs),
     playerAdvantage,
+    controlPeriods: buildControlPeriods(timeline, teamColorByTeamId),
   };
 }

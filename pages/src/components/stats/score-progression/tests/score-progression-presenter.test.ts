@@ -40,6 +40,7 @@ const BASE_INPUT = {
   durationMs: 600000,
   teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
   playerAdvantage: null,
+  controlPeriods: [],
   ariaLabel: "test chart",
 };
 
@@ -260,6 +261,21 @@ describe("ScoreProgressionPresenter", () => {
       const model = presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: null });
       expect(model.progressionViewModel.tooltipFormatter(5, "Eagle")).toEqual(["5", "Eagle"]);
       expect(model.progressionViewModel.tooltipFormatter(3, "Cobra")).toEqual(["3", "Cobra"]);
+    });
+  });
+
+  describe("progressionViewModel.controlPeriods", () => {
+    it("passes controlPeriods through to progressionViewModel", () => {
+      const { store, presenter } = makePresenter();
+      const controlPeriods = [{ startMs: 0, endMs: 5000, color: "#ff0000" }] as const;
+      const model = presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: null, controlPeriods });
+      expect(model.progressionViewModel.controlPeriods).toBe(controlPeriods);
+    });
+
+    it("passes empty controlPeriods when input has none", () => {
+      const { store, presenter } = makePresenter();
+      const model = presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: null });
+      expect(model.progressionViewModel.controlPeriods).toEqual([]);
     });
   });
 
