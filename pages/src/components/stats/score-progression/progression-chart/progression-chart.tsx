@@ -58,10 +58,10 @@ export function ProgressionChart({
           labelFormatter={formatTooltipLabel}
           formatter={tooltipFormatter}
         />
-        {controlPeriods.map((period, i) =>
+        {controlPeriods.map((period) =>
           period.color != null ? (
             <ReferenceArea
-              key={i}
+              key={period.startMs}
               x1={period.startMs}
               x2={period.endMs}
               fill={period.color}
