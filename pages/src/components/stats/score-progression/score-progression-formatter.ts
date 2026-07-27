@@ -4,7 +4,6 @@ import type {
   KillRaceEvent,
   MatchAnalytics,
   ObjectiveControlEvent,
-  ObjectiveControlPeriod,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
@@ -146,9 +145,57 @@ function buildControlPeriods(
 
 const KOTH_TICK_MS = 2_500;
 
+interface HillPeriod {
+  startMs: number;
+  endMs: number;
+}
+
+function deriveKothHillPeriods(
+  events: readonly ObjectiveControlEvent[],
+  teamIds: readonly number[],
+  durationMs: number,
+): HillPeriod[] {
+  if (events.length === 0) {
+    return [];
+  }
+
+  const sorted = [...events].sort((a, b) => a.timestampMs - b.timestampMs);
+  const hillGroups: ObjectiveControlEvent[][] = [];
+  let currentGroup: ObjectiveControlEvent[] = [];
+  let prevScores: Record<string, number> = {};
+
+  for (const event of sorted) {
+    let isReset = false;
+    for (const id of teamIds) {
+      if ((event.runningScores[String(id)] ?? 0) < (prevScores[String(id)] ?? 0)) {
+        isReset = true;
+        break;
+      }
+    }
+
+    if (isReset && currentGroup.length > 0) {
+      hillGroups.push(currentGroup);
+      currentGroup = [];
+      prevScores = {};
+    }
+
+    currentGroup.push(event);
+    prevScores = event.runningScores;
+  }
+
+  if (currentGroup.length > 0) {
+    hillGroups.push(currentGroup);
+  }
+
+  return hillGroups.map((group, i) => ({
+    startMs: Preconditions.checkExists(group[0]).timestampMs,
+    endMs: hillGroups[i + 1]?.[0]?.timestampMs ?? durationMs,
+  }));
+}
+
 function deriveHillSegments(
   periodEvents: readonly ObjectiveControlEvent[],
-  period: ObjectiveControlPeriod,
+  period: HillPeriod,
   teamColorByTeamId: Map<number, string>,
 ): KothHillSegment[] {
   if (periodEvents.length === 0) {
@@ -205,14 +252,11 @@ function deriveHillSegments(
 
 function buildKothHills(
   events: readonly ObjectiveControlEvent[],
-  controlPeriods: readonly ObjectiveControlPeriod[],
   teamIds: readonly number[],
   teamColorByTeamId: Map<number, string>,
+  durationMs: number,
 ): KothHillData[] {
-  // Skip periods that end before the first mode event — these are pre-game
-  // transitions before any hill became contestable.
-  const firstEventTime = events.reduce((min, e) => Math.min(min, e.timestampMs), Infinity);
-  const hillPeriods = controlPeriods.filter((p) => p.endMs > firstEventTime);
+  const hillPeriods = deriveKothHillPeriods(events, teamIds, durationMs);
 
   return hillPeriods.map((period, periodIndex) => {
     const periodEvents = events
@@ -286,14 +330,14 @@ export function formatScoreProgression(
   const teamColorByTeamId = new Map([...teamState.entries()].map(([teamId, state]) => [teamId, state.color]));
 
   const kothMode: number = GameVariantCategory.MultiplayerKingOfTheHill;
-  if (mode === kothMode && timeline.type === "objective-control" && timeline.controlPeriods.length > 0) {
+  if (mode === kothMode && timeline.type === "objective-control") {
     return {
       durationMs,
       teamLines: [],
       scoreDelta: null,
       playerAdvantage: null,
       controlPeriods: [],
-      kothHills: buildKothHills(timeline.events, timeline.controlPeriods, teamIds, teamColorByTeamId),
+      kothHills: buildKothHills(timeline.events, teamIds, teamColorByTeamId, durationMs),
     };
   }
 
