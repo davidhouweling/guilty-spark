@@ -2145,6 +2145,32 @@ describe("HaloFilmService", () => {
       expect(result.events[1]).toMatchObject({ timestampMs: 10000, teamId: 0 });
     });
 
+    it("deduplicates when the last relocation capture timestamp equals the match-end event", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+      const team0Xuid = "0100000000000000";
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        modeEvent(team0Xuid, 5000),
+        modeEvent(team0Xuid, 10000),
+        modeEvent(team0Xuid, 15000),
+        modeEvent(team0Xuid, 20000),
+        modeEvent(team0Xuid, 25000),
+      ]);
+      // Null gap starts right at the last tick — matchEndEvent.timestampMs === relocation capture timestamp
+      vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([
+        { timeMs: 25001, fromValue: 0x40, toValue: 0x41 },
+        { timeMs: 30000, fromValue: 0x41, toValue: 0x42 },
+      ]);
+
+      const result = await service.buildObjectiveControlProgression(match, 300000);
+
+      expect(result.hillCaptureTimestamps).toEqual([25000]);
+    });
+
     it("returns empty when no mode events are present", async () => {
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
