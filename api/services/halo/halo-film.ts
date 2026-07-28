@@ -195,8 +195,7 @@ export class HaloFilmService {
       if (chunks.length === 0) {
         return [];
       }
-      const byte2Transitions: StateByte2Transition[] = [];
-      await Promise.all(
+      const perChunkTransitions = await Promise.all(
         chunks.map(async ({ chunk, startMs }) => {
           const bytes = await this.fetchReplicationChunkBytes(
             matchId,
@@ -204,18 +203,15 @@ export class HaloFilmService {
             filmMetadata.BlobStoragePathPrefix,
             authResolver,
           );
-          let chunkData: Uint8Array;
           try {
-            chunkData = new Uint8Array(inflateSync(bytes));
+            const chunkData = new Uint8Array(inflateSync(bytes));
+            return scanStateByte2Transitions(chunkData, startMs, chunk.DurationMilliseconds);
           } catch {
-            return;
-          }
-          for (const t of scanStateByte2Transitions(chunkData, startMs, chunk.DurationMilliseconds)) {
-            byte2Transitions.push(t);
+            return [] as StateByte2Transition[];
           }
         }),
       );
-      return byte2Transitions;
+      return perChunkTransitions.flat().sort((a, b) => a.timeMs - b.timeMs);
     } catch {
       return [];
     }
@@ -271,9 +267,11 @@ export class HaloFilmService {
     );
 
     return [
-      ...withinLocationTimestamps,
-      ...relocationCaptures.map((c) => c.timestampMs),
-      matchEndEvent.timestampMs,
+      ...new Set([
+        ...withinLocationTimestamps,
+        ...relocationCaptures.map((c) => c.timestampMs),
+        matchEndEvent.timestampMs,
+      ]),
     ].sort((a, b) => a - b);
   }
 
