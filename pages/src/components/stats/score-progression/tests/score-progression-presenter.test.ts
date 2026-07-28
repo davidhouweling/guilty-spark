@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ScoreProgressionPresenter } from "../score-progression-presenter";
 import { ScoreProgressionStore } from "../score-progression-store";
-import type { PlayerAdvantageData, ScoreDeltaData, ScoreProgressionTeamLine } from "../types";
+import type { KothControlChartViewData, PlayerAdvantageData, ScoreDeltaData, ScoreProgressionTeamLine } from "../types";
 
 const aFakeScoreDeltaData = (): ScoreDeltaData => ({
   points: [
@@ -282,6 +282,25 @@ describe("ScoreProgressionPresenter", () => {
       const { store, presenter } = makePresenter();
       presenter.onChartTypeChange("invalid");
       expect(store.getSnapshot().chartType).toBe("progression");
+    });
+  });
+
+  describe("kothControlChart passthrough", () => {
+    it("passes non-null kothControlChart through to view model", () => {
+      const { store, presenter } = makePresenter();
+      const chart: KothControlChartViewData = { durationMs: 600000, segments: [], captureMarkers: [] };
+      const model = presenter.present(store.getSnapshot(), {
+        ...BASE_INPUT,
+        scoreDelta: null,
+        kothControlChart: chart,
+      });
+      expect(model.kothControlChart).toBe(chart);
+    });
+
+    it("passes null kothControlChart through to view model", () => {
+      const { store, presenter } = makePresenter();
+      const model = presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: null });
+      expect(model.kothControlChart).toBeNull();
     });
   });
 });

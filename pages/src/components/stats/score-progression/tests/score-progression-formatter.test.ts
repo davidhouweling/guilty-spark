@@ -385,5 +385,13 @@ describe("formatScoreProgression", () => {
       const result = formatScoreProgression(data, TEAM_COLORS);
       expect(result?.kothControlChart?.durationMs).toBe(732278);
     });
+
+    it("returns null kothControlChart when controlPeriods is empty", () => {
+      const data = aFakeScoreProgressionWith({
+        timeline: { ...KOTH_TIMELINE, controlPeriods: [] },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.kothControlChart).toBeNull();
+    });
   });
 });

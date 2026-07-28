@@ -14,11 +14,16 @@ export function KothChart({ durationMs, segments, captureMarkers }: KothControlC
       <ResponsiveContainer width="100%" height={KOTH_CHART_HEIGHT}>
         <ComposedChart data={[]} margin={KOTH_CHART_MARGIN}>
           <XAxis hide {...timeAxisProps(durationMs)} />
-          {segments.map((seg, i) => (
-            <ReferenceArea key={i} x1={seg.startMs} x2={seg.endMs} fill={seg.color} fillOpacity={1} />
+          {segments.map((seg) => (
+            <ReferenceArea key={seg.startMs} x1={seg.startMs} x2={seg.endMs} fill={seg.color} fillOpacity={1} />
           ))}
-          {captureMarkers.map((marker, i) => (
-            <ReferenceLine key={i} x={marker.timestampMs} stroke={CAPTURE_LINE_STROKE} strokeWidth={1} />
+          {captureMarkers.map((marker) => (
+            <ReferenceLine
+              key={marker.timestampMs}
+              x={marker.timestampMs}
+              stroke={CAPTURE_LINE_STROKE}
+              strokeWidth={1}
+            />
           ))}
         </ComposedChart>
       </ResponsiveContainer>

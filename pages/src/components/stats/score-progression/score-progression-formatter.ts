@@ -1,6 +1,5 @@
 import type {
   KillRaceDeathEvent,
-  KillRaceEvent,
   MatchAnalytics,
   ObjectiveControlTimeline,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
@@ -18,9 +17,15 @@ import type {
   ScoreProgressionViewData,
 } from "./types";
 
+interface ProgressionEvent {
+  readonly timestampMs: number;
+  readonly teamId: number;
+  readonly runningScores: Record<string, number>;
+}
+
 function buildScoreDelta(
   teamIds: readonly number[],
-  events: readonly KillRaceEvent[],
+  events: readonly ProgressionEvent[],
   durationMs: number,
 ): ScoreDeltaData | null {
   if (teamIds.length !== 2) {
@@ -204,7 +209,9 @@ export function formatScoreProgression(
       : null;
 
   const kothControlChart =
-    timeline.type === "objective-control" ? formatKothControlChart(timeline, teamLines, durationMs) : null;
+    timeline.type === "objective-control" && timeline.controlPeriods.length > 0
+      ? formatKothControlChart(timeline, teamLines, durationMs)
+      : null;
 
   return {
     durationMs,
