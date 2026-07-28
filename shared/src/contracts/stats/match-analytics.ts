@@ -41,6 +41,7 @@ const objectiveControlTimelineSchema = z.object({
 
 export type ObjectiveControlEvent = z.infer<typeof objectiveControlEventSchema>;
 export type ObjectiveControlPeriod = z.infer<typeof objectiveControlPeriodSchema>;
+export type ObjectiveControlTimeline = z.infer<typeof objectiveControlTimelineSchema>;
 
 export const killMatrixEntrySchema = z.object({
   count: z.number().int().nonnegative().describe("Total kills for this killer/victim pair"),

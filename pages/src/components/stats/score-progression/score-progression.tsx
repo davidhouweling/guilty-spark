@@ -2,6 +2,7 @@ import React from "react";
 import { Checkbox } from "../../checkbox/checkbox";
 import { Select } from "../../select/select";
 import { DeltaChart } from "./delta-chart/delta-chart";
+import { KothChart } from "./koth-chart/koth-chart";
 import { ProgressionChart } from "./progression-chart/progression-chart";
 import type { ScoreProgressionViewModel } from "./types";
 import styles from "./score-progression.module.css";
@@ -15,6 +16,7 @@ export function ScoreProgression({
   showToolbar,
   deltaViewModel,
   progressionViewModel,
+  kothControlChart,
   onChartTypeChange,
   onPlayerAdvantageChange,
 }: ScoreProgressionViewModel): React.ReactElement {
@@ -57,6 +59,7 @@ export function ScoreProgression({
           <ProgressionChart {...progressionViewModel} />
         )}
       </div>
+      {kothControlChart != null && <KothChart {...kothControlChart} />}
     </div>
   );
 }

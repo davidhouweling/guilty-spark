@@ -22,11 +22,28 @@ export interface PlayerAdvantageData {
   readonly maxScore: number;
 }
 
+export interface KothControlSegment {
+  readonly startMs: number;
+  readonly endMs: number;
+  readonly color: string;
+}
+
+export interface KothCaptureMarker {
+  readonly timestampMs: number;
+}
+
+export interface KothControlChartViewData {
+  readonly durationMs: number;
+  readonly segments: readonly KothControlSegment[];
+  readonly captureMarkers: readonly KothCaptureMarker[];
+}
+
 export interface ScoreProgressionViewData {
   readonly durationMs: number;
   readonly teamLines: readonly ScoreProgressionTeamLine[];
   readonly scoreDelta: ScoreDeltaData | null;
   readonly playerAdvantage: PlayerAdvantageData | null;
+  readonly kothControlChart: KothControlChartViewData | null;
 }
 
 export type ChartType = "progression" | "delta";
@@ -62,6 +79,7 @@ export interface ScoreProgressionViewModel {
   readonly showToolbar: boolean;
   readonly deltaViewModel: ScoreProgressionDeltaViewModel | null;
   readonly progressionViewModel: ScoreProgressionProgressionViewModel;
+  readonly kothControlChart: KothControlChartViewData | null;
   readonly onChartTypeChange: (value: string) => void;
   readonly onPlayerAdvantageChange: (checked: boolean) => void;
 }

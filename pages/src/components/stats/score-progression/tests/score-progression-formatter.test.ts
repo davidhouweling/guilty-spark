@@ -7,6 +7,20 @@ const TEAM_COLORS = [
   { id: "cobra", hex: "#ff0000", name: "Cobra" },
 ] as const;
 
+const KOTH_TIMELINE = {
+  type: "objective-control" as const,
+  events: [
+    { timestampMs: 10000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+    { timestampMs: 20000, teamId: 0, runningScores: { "0": 2, "1": 0 } },
+  ],
+  controlPeriods: [
+    { startMs: 0, endMs: 5000, controllingTeamId: null },
+    { startMs: 5000, endMs: 25000, controllingTeamId: 0 },
+    { startMs: 25000, endMs: 50000, controllingTeamId: 1 },
+  ],
+  hillCaptureTimestamps: [10000, 20000],
+};
+
 describe("formatScoreProgression", () => {
   it("returns null when scoreProgression is null", () => {
     expect(formatScoreProgression(null, TEAM_COLORS)).toBeNull();
@@ -329,6 +343,47 @@ describe("formatScoreProgression", () => {
       const result = formatScoreProgression(data, TEAM_COLORS, 4);
       expect(result?.playerAdvantage?.minScore).toBe(-4);
       expect(result?.playerAdvantage?.maxScore).toBe(4);
+    });
+  });
+
+  describe("kothControlChart", () => {
+    it("returns null kothControlChart when timeline is kill-race", () => {
+      const result = formatScoreProgression(aFakeScoreProgressionWith(), TEAM_COLORS);
+      expect(result?.kothControlChart).toBeNull();
+    });
+
+    it("returns non-null kothControlChart when timeline is objective-control", () => {
+      const data = aFakeScoreProgressionWith({ timeline: KOTH_TIMELINE });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.kothControlChart).not.toBeNull();
+    });
+
+    it("maps controlPeriods to segments with team colors by teamId", () => {
+      const data = aFakeScoreProgressionWith({ timeline: KOTH_TIMELINE });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.kothControlChart?.segments).toEqual([
+        { startMs: 0, endMs: 5000, color: "rgba(255, 255, 255, 0.08)" },
+        { startMs: 5000, endMs: 25000, color: "#0000ff" },
+        { startMs: 25000, endMs: 50000, color: "#ff0000" },
+      ]);
+    });
+
+    it("maps null controllingTeamId to neutral segment color", () => {
+      const data = aFakeScoreProgressionWith({ timeline: KOTH_TIMELINE });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.kothControlChart?.segments[0]?.color).toBe("rgba(255, 255, 255, 0.08)");
+    });
+
+    it("maps hillCaptureTimestamps to captureMarkers", () => {
+      const data = aFakeScoreProgressionWith({ timeline: KOTH_TIMELINE });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.kothControlChart?.captureMarkers).toEqual([{ timestampMs: 10000 }, { timestampMs: 20000 }]);
+    });
+
+    it("passes durationMs through to kothControlChart", () => {
+      const data = aFakeScoreProgressionWith({ durationMs: 732278, timeline: KOTH_TIMELINE });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.kothControlChart?.durationMs).toBe(732278);
     });
   });
 });

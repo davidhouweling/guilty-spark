@@ -40,6 +40,7 @@ const BASE_INPUT = {
   durationMs: 600000,
   teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
   playerAdvantage: null,
+  kothControlChart: null,
   ariaLabel: "test chart",
 };
 

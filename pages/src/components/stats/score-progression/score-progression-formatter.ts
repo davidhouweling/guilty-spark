@@ -2,11 +2,15 @@ import type {
   KillRaceDeathEvent,
   KillRaceEvent,
   MatchAnalytics,
+  ObjectiveControlTimeline,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type {
+  KothCaptureMarker,
+  KothControlChartViewData,
+  KothControlSegment,
   PlayerAdvantageData,
   ScoreDeltaData,
   ScoreProgressionPoint,
@@ -120,6 +124,31 @@ function buildPlayerAdvantage(
   return { points, minScore, maxScore };
 }
 
+const KOTH_NEUTRAL_SEGMENT_COLOR = "rgba(255, 255, 255, 0.08)";
+
+function formatKothControlChart(
+  timeline: ObjectiveControlTimeline,
+  teamLines: readonly ScoreProgressionTeamLine[],
+  durationMs: number,
+): KothControlChartViewData {
+  const teamColorMap = new Map(teamLines.map((line) => [line.teamId, line.color]));
+
+  const segments: KothControlSegment[] = timeline.controlPeriods.map((period) => ({
+    startMs: period.startMs,
+    endMs: period.endMs,
+    color:
+      period.controllingTeamId != null
+        ? (teamColorMap.get(period.controllingTeamId) ?? KOTH_NEUTRAL_SEGMENT_COLOR)
+        : KOTH_NEUTRAL_SEGMENT_COLOR,
+  }));
+
+  const captureMarkers: KothCaptureMarker[] = timeline.hillCaptureTimestamps.map((ts) => ({
+    timestampMs: ts,
+  }));
+
+  return { durationMs, segments, captureMarkers };
+}
+
 export function formatScoreProgression(
   scoreProgression: MatchAnalytics["scoreProgression"],
   teamColors: readonly TeamColor[],
@@ -174,10 +203,14 @@ export function formatScoreProgression(
       ? buildPlayerAdvantage(teamIds, timeline.deathTimeline, respawnDurationMs, durationMs, teamSize)
       : null;
 
+  const kothControlChart =
+    timeline.type === "objective-control" ? formatKothControlChart(timeline, teamLines, durationMs) : null;
+
   return {
     durationMs,
     teamLines,
     scoreDelta: buildScoreDelta(teamIds, events, durationMs),
     playerAdvantage,
+    kothControlChart,
   };
 }
