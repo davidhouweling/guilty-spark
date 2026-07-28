@@ -170,7 +170,7 @@ export function formatScoreProgression(
   }
 
   const playerAdvantage =
-    respawnDurationMs != null
+    respawnDurationMs != null && timeline.type === "kill-race"
       ? buildPlayerAdvantage(teamIds, timeline.deathTimeline, respawnDurationMs, durationMs, teamSize)
       : null;
 

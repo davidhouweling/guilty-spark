@@ -3,7 +3,7 @@ import type { MatchStats, SpartanTokenProvider } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { wrapXuid, unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { FireEvent } from "./halo-film-type2";
-import { scanFireEvents, scanFormulaAEvents, WeaponAttributor } from "./halo-film-type2";
+import { scanFireEvents, scanFormulaAEvents, scanStateByte2Transitions, WeaponAttributor } from "./halo-film-type2";
 import { weaponIdToHex } from "./weapon-ids";
 import {
   HALO_PC_USER_AGENT,
@@ -28,6 +28,10 @@ import type {
   KillRaceDeathEvent,
   KillRaceProgression,
   KillRaceProgressionEvent,
+  ObjectiveControlProgression,
+  ObjectiveControlProgressionEvent,
+  ObjectiveControlPeriod,
+  StateByte2Transition,
   HaloFilmServiceOpts,
 } from "./types";
 
@@ -41,6 +45,14 @@ interface FilmAttributionData {
   timeline: WeaponTimeline;
   chunkTimings: ChunkTiming[];
 }
+
+const OBJECTIVE_TICK_DEDUP_MS = 2_500;
+const GAMEPLAY_BYTE2_MIN = 0x40;
+const GAMEPLAY_BYTE2_MAX = 0xa0;
+// Gap between the capturing team's last tick and the null-period start must be within this window.
+const CAPTURE_RECENCY_THRESHOLD_MS = 4_000;
+// The capturing team must have accumulated at least this many per-location ticks to be a valid capture.
+const MIN_CAPTURE_TICKS = 5;
 
 export class HaloFilmService {
   private static readonly FILM_CACHE_TTL_SECONDS = 604_800;
@@ -149,6 +161,356 @@ export class HaloFilmService {
       }
     }
     return timeline;
+  }
+
+  async buildObjectiveControlProgression(
+    matchStats: MatchStats,
+    durationMs: number,
+  ): Promise<ObjectiveControlProgression> {
+    const [events, byte2Transitions] = await Promise.all([
+      this.loadEnrichedEventsForMatch(matchStats),
+      this.getStateByte2Transitions(matchStats.MatchId),
+    ]);
+    const modeEvents = events.filter((e) => e.eventType === "mode");
+    const knownTeamIds = new Set<number>(matchStats.Teams.map((team) => team.TeamId));
+    const teamMatchScores = new Map(matchStats.Teams.map((t) => [t.TeamId, t.Stats.CoreStats.Score]));
+    return this.buildObjectiveControlProgressionFromData(
+      modeEvents,
+      byte2Transitions,
+      knownTeamIds,
+      teamMatchScores,
+      durationMs,
+    );
+  }
+
+  async getStateByte2Transitions(matchId: string): Promise<StateByte2Transition[]> {
+    try {
+      let authPromise: Promise<{ spartanToken: string; clearanceToken: string }> | null = null;
+      const authResolver = async (): Promise<{ spartanToken: string; clearanceToken: string }> => {
+        authPromise ??= this.resolveAuthContext();
+        return authPromise;
+      };
+      const filmMetadata = await this.getOrFetchFilmMetadata(matchId, authResolver);
+      const chunks = this.findReplicationChunksWithStartMs(filmMetadata);
+      if (chunks.length === 0) {
+        return [];
+      }
+      const byte2Transitions: StateByte2Transition[] = [];
+      await Promise.all(
+        chunks.map(async ({ chunk, startMs }) => {
+          const bytes = await this.fetchReplicationChunkBytes(
+            matchId,
+            chunk,
+            filmMetadata.BlobStoragePathPrefix,
+            authResolver,
+          );
+          let chunkData: Uint8Array;
+          try {
+            chunkData = new Uint8Array(inflateSync(bytes));
+          } catch {
+            return;
+          }
+          for (const t of scanStateByte2Transitions(chunkData, startMs, chunk.DurationMilliseconds)) {
+            byte2Transitions.push(t);
+          }
+        }),
+      );
+      return byte2Transitions;
+    } catch {
+      return [];
+    }
+  }
+
+  private buildObjectiveControlProgressionFromData(
+    modeEvents: ParsedHighlightEvent[],
+    byte2Transitions: StateByte2Transition[],
+    knownTeamIds: ReadonlySet<number>,
+    teamMatchScores: ReadonlyMap<number, number>,
+    durationMs: number,
+  ): ObjectiveControlProgression {
+    const events = this.buildObjectiveScoreEvents(modeEvents, knownTeamIds);
+    const controlPeriods = this.buildObjectiveControlPeriods(byte2Transitions, modeEvents, durationMs);
+    return {
+      events,
+      controlPeriods,
+      hillCaptureTimestamps: this.buildHillCaptureTimestamps(events, controlPeriods, teamMatchScores),
+      teamCount: knownTeamIds.size,
+    };
+  }
+
+  private buildHillCaptureTimestamps(
+    events: ObjectiveControlProgressionEvent[],
+    controlPeriods: ObjectiveControlPeriod[],
+    teamMatchScores: ReadonlyMap<number, number>,
+  ): number[] {
+    const matchEndEvent = events.at(-1);
+    if (matchEndEvent == null || controlPeriods.length === 0) {
+      return [];
+    }
+
+    const relocationCaptures = this.findRelocationCaptures(events, controlPeriods);
+    const initialScores = this.detectInitialScores(teamMatchScores, matchEndEvent.runningScores);
+
+    const inGameCaptures = new Map<number, number>();
+    for (const [teamId, matchScore] of teamMatchScores) {
+      inGameCaptures.set(teamId, matchScore - (initialScores.get(teamId) ?? 0));
+    }
+
+    const knownCapturesByTeam = new Map<number, number>();
+    for (const cap of relocationCaptures) {
+      knownCapturesByTeam.set(cap.teamId, (knownCapturesByTeam.get(cap.teamId) ?? 0) + 1);
+    }
+    knownCapturesByTeam.set(matchEndEvent.teamId, (knownCapturesByTeam.get(matchEndEvent.teamId) ?? 0) + 1);
+
+    const withinLocationTimestamps = this.findWithinLocationCaptureTimestamps(
+      events,
+      relocationCaptures,
+      matchEndEvent,
+      inGameCaptures,
+      knownCapturesByTeam,
+    );
+
+    return [
+      ...withinLocationTimestamps,
+      ...relocationCaptures.map((c) => c.timestampMs),
+      matchEndEvent.timestampMs,
+    ].sort((a, b) => a - b);
+  }
+
+  private findRelocationCaptures(
+    events: ObjectiveControlProgressionEvent[],
+    controlPeriods: ObjectiveControlPeriod[],
+  ): { timestampMs: number; teamId: number; runningScores: Record<string, number> }[] {
+    const nullGroups: { startMs: number; endMs: number }[] = [];
+    for (const period of controlPeriods) {
+      if (period.controllingTeamId !== null) {
+        continue;
+      }
+      const last = nullGroups.at(-1);
+      if (last?.endMs === period.startMs) {
+        last.endMs = period.endMs;
+      } else {
+        nullGroups.push({ startMs: period.startMs, endMs: period.endMs });
+      }
+    }
+
+    const captures: { timestampMs: number; teamId: number; runningScores: Record<string, number> }[] = [];
+    const baselineCumulatives = new Map<number, number>();
+
+    for (const { startMs: gapStart } of nullGroups) {
+      if (gapStart === 0) {
+        continue;
+      }
+      const prePeriod = controlPeriods.findLast((p) => p.endMs === gapStart && p.controllingTeamId !== null);
+      if (prePeriod?.controllingTeamId == null) {
+        continue;
+      }
+      const teamBefore = prePeriod.controllingTeamId;
+
+      let lastTickEvent: ObjectiveControlProgressionEvent | null = null;
+      for (const event of events) {
+        if (event.teamId === teamBefore && event.timestampMs <= gapStart) {
+          lastTickEvent = event;
+        }
+      }
+      if (lastTickEvent == null) {
+        continue;
+      }
+
+      const recency = gapStart - lastTickEvent.timestampMs;
+      if (recency > CAPTURE_RECENCY_THRESHOLD_MS) {
+        continue;
+      }
+
+      const baseline = baselineCumulatives.get(teamBefore) ?? 0;
+      const perLocationTicks = (lastTickEvent.runningScores[String(teamBefore)] ?? 0) - baseline;
+      if (perLocationTicks < MIN_CAPTURE_TICKS) {
+        continue;
+      }
+
+      captures.push({
+        timestampMs: lastTickEvent.timestampMs,
+        teamId: teamBefore,
+        runningScores: lastTickEvent.runningScores,
+      });
+
+      for (const [teamIdStr, cum] of Object.entries(lastTickEvent.runningScores)) {
+        baselineCumulatives.set(Number(teamIdStr), cum);
+      }
+    }
+
+    return captures;
+  }
+
+  private detectInitialScores(
+    teamMatchScores: ReadonlyMap<number, number>,
+    finalRunningScores: Record<string, number>,
+  ): Map<number, number> {
+    const initialScores = new Map<number, number>();
+    for (const [teamId, matchScore] of teamMatchScores) {
+      const finalCumulative = finalRunningScores[String(teamId)] ?? 0;
+      let initial = 0;
+      for (let candidate = 0; candidate < matchScore; candidate++) {
+        const inGame = matchScore - candidate;
+        if (inGame > 0 && finalCumulative % inGame === 0) {
+          initial = candidate;
+          break;
+        }
+      }
+      initialScores.set(teamId, initial);
+    }
+    return initialScores;
+  }
+
+  private findWithinLocationCaptureTimestamps(
+    events: ObjectiveControlProgressionEvent[],
+    relocationCaptures: readonly { timestampMs: number; teamId: number; runningScores: Record<string, number> }[],
+    matchEndEvent: ObjectiveControlProgressionEvent,
+    inGameCaptures: ReadonlyMap<number, number>,
+    knownCapturesByTeam: ReadonlyMap<number, number>,
+  ): number[] {
+    const timestamps: number[] = [];
+    const [firstRelocation] = relocationCaptures;
+    if (firstRelocation == null) {
+      return [];
+    }
+
+    const relocationTeamId = firstRelocation.teamId;
+    const allCaptures: readonly { timestampMs: number; runningScores: Record<string, number> }[] = [
+      ...relocationCaptures,
+      matchEndEvent,
+    ].sort((a, b) => a.timestampMs - b.timestampMs);
+    const threshold = this.computeCaptureThreshold(relocationTeamId, allCaptures);
+    if (threshold <= 0) {
+      return [];
+    }
+
+    const cumAtFirstRelocation = firstRelocation.runningScores[String(relocationTeamId)] ?? 0;
+    const resetCumulative = cumAtFirstRelocation - threshold;
+    const breakAtCumulative = resetCumulative + 1;
+
+    for (const [teamId, inGame] of inGameCaptures) {
+      if (teamId === relocationTeamId) {
+        continue;
+      }
+      const known = knownCapturesByTeam.get(teamId) ?? 0;
+      if (inGame - known <= 0) {
+        continue;
+      }
+
+      let withinLocationEvent: ObjectiveControlProgressionEvent | null = null;
+      for (const event of events) {
+        if (event.timestampMs >= firstRelocation.timestampMs) {
+          break;
+        }
+        const relocationTeamCum = event.runningScores[String(relocationTeamId)] ?? 0;
+        if (relocationTeamCum >= breakAtCumulative) {
+          break;
+        }
+        if (event.teamId === teamId) {
+          withinLocationEvent = event;
+        }
+      }
+
+      if (withinLocationEvent != null) {
+        timestamps.push(withinLocationEvent.timestampMs);
+      }
+    }
+
+    return timestamps;
+  }
+
+  private computeCaptureThreshold(
+    teamId: number,
+    captures: readonly { timestampMs: number; runningScores: Record<string, number> }[],
+  ): number {
+    const sorted = [...captures].sort((a, b) => a.timestampMs - b.timestampMs);
+    let maxDelta = 0;
+    for (let i = 1; i < sorted.length; i++) {
+      const prev = sorted[i - 1];
+      const curr = sorted[i];
+      if (prev == null || curr == null) {
+        continue;
+      }
+      const prevCum = prev.runningScores[String(teamId)] ?? 0;
+      const currCum = curr.runningScores[String(teamId)] ?? 0;
+      if (currCum > prevCum) {
+        maxDelta = Math.max(maxDelta, currCum - prevCum);
+      }
+    }
+    return maxDelta;
+  }
+
+  private buildObjectiveScoreEvents(
+    modeEvents: ParsedHighlightEvent[],
+    knownTeamIds: ReadonlySet<number>,
+  ): ObjectiveControlProgressionEvent[] {
+    const runningScores = new Map<number, number>([...knownTeamIds].map((id) => [id, 0]));
+    const events: ObjectiveControlProgressionEvent[] = [];
+    const lastEventTimeByTeam = new Map<number, number>();
+
+    for (const event of modeEvents) {
+      if (event.teamId == null || !knownTeamIds.has(event.teamId)) {
+        continue;
+      }
+      const lastTime = lastEventTimeByTeam.get(event.teamId) ?? -Infinity;
+      if (event.timeMs - lastTime < OBJECTIVE_TICK_DEDUP_MS) {
+        continue;
+      }
+      lastEventTimeByTeam.set(event.teamId, event.timeMs);
+      runningScores.set(event.teamId, Preconditions.checkExists(runningScores.get(event.teamId)) + 1);
+      events.push({
+        timestampMs: event.timeMs,
+        teamId: event.teamId,
+        runningScores: Object.fromEntries(runningScores),
+      });
+    }
+
+    return events;
+  }
+
+  private buildObjectiveControlPeriods(
+    byte2Transitions: StateByte2Transition[],
+    modeEvents: ParsedHighlightEvent[],
+    durationMs: number,
+  ): ObjectiveControlPeriod[] {
+    const gameplayTransitions = byte2Transitions.filter(
+      (t) => t.toValue >= GAMEPLAY_BYTE2_MIN && t.toValue < GAMEPLAY_BYTE2_MAX,
+    );
+    if (gameplayTransitions.length === 0) {
+      return [];
+    }
+    const boundaries = [0, ...gameplayTransitions.map((t) => t.timeMs), durationMs];
+    const periods: ObjectiveControlPeriod[] = [];
+    for (let i = 0; i < boundaries.length - 1; i++) {
+      const startMs = boundaries[i] ?? 0;
+      const endMs = boundaries[i + 1] ?? durationMs;
+      periods.push({ startMs, endMs, controllingTeamId: this.findControllingTeamInWindow(modeEvents, startMs, endMs) });
+    }
+    return periods;
+  }
+
+  private findControllingTeamInWindow(
+    modeEvents: ParsedHighlightEvent[],
+    startMs: number,
+    endMs: number,
+  ): number | null {
+    const teamCounts = new Map<number, number>();
+    for (const event of modeEvents) {
+      if (event.teamId == null || event.timeMs < startMs || event.timeMs >= endMs) {
+        continue;
+      }
+      teamCounts.set(event.teamId, (teamCounts.get(event.teamId) ?? 0) + 1);
+    }
+    let controllingTeamId: number | null = null;
+    let maxCount = 0;
+    for (const [teamId, count] of teamCounts) {
+      if (count > maxCount) {
+        maxCount = count;
+        controllingTeamId = teamId;
+      }
+    }
+    return controllingTeamId;
   }
 
   async buildKillMatrixAnalytics(matchStats: MatchStats): Promise<KillMatrixAnalytics> {

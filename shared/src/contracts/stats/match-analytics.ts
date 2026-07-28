@@ -20,6 +20,28 @@ const killRaceTimelineSchema = z.object({
   deathTimeline: z.array(killRaceDeathEventSchema),
 });
 
+const objectiveControlEventSchema = z.object({
+  timestampMs: z.number().int().nonnegative(),
+  teamId: z.number().int().nonnegative(),
+  runningScores: z.record(z.string().regex(/^\d+$/), z.number().int().nonnegative()),
+});
+
+const objectiveControlPeriodSchema = z.object({
+  startMs: z.number().int().nonnegative(),
+  endMs: z.number().int().nonnegative(),
+  controllingTeamId: z.number().int().nonnegative().nullable(),
+});
+
+const objectiveControlTimelineSchema = z.object({
+  type: z.literal("objective-control"),
+  events: z.array(objectiveControlEventSchema),
+  controlPeriods: z.array(objectiveControlPeriodSchema),
+  hillCaptureTimestamps: z.array(z.number().int().nonnegative()),
+});
+
+export type ObjectiveControlEvent = z.infer<typeof objectiveControlEventSchema>;
+export type ObjectiveControlPeriod = z.infer<typeof objectiveControlPeriodSchema>;
+
 export const killMatrixEntrySchema = z.object({
   count: z.number().int().nonnegative().describe("Total kills for this killer/victim pair"),
   headshotKills: z.number().int().nonnegative().describe("Headshot kill count for this killer/victim pair"),
@@ -79,7 +101,7 @@ export const matchAnalyticsSchema = z.object({
       durationMs: z.number().int().nonnegative(),
       teamCount: z.number().int().positive(),
       respawnDurationMs: z.number().int().positive().nullable(),
-      timeline: killRaceTimelineSchema,
+      timeline: z.discriminatedUnion("type", [killRaceTimelineSchema, objectiveControlTimelineSchema]),
     })
     .nullable(),
 });
