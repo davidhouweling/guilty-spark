@@ -290,7 +290,7 @@ export function MatchStats({
                         teamLines={scoreProgressionViewData.teamLines}
                         scoreDelta={scoreProgressionViewData.scoreDelta}
                         playerAdvantage={scoreProgressionViewData.playerAdvantage}
-                        kothControlChart={scoreProgressionViewData.kothControlChart}
+                        kothHills={scoreProgressionViewData.kothHills}
                         ariaLabel="Match score progression timeline"
                       />
                     ) : (

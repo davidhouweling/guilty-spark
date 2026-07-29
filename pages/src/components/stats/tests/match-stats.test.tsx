@@ -226,7 +226,7 @@ describe("MatchStats", () => {
       teamLines: [],
       scoreDelta: null,
       playerAdvantage: null,
-      kothControlChart: null,
+      kothHills: null,
     };
     const baseProps = {
       data,
