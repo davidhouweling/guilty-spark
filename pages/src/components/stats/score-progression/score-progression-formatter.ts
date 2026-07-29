@@ -175,7 +175,7 @@ function buildKothHills(
   teamColorByTeamId: Map<number, string>,
   durationMs: number,
 ): KothHillData[] {
-  const { hillCaptureTimestamps, events } = timeline;
+  const { hillCaptureTimestamps } = timeline;
 
   interface HillPeriod {
     startMs: number;
@@ -196,9 +196,13 @@ function buildKothHills(
   return hillPeriods.map((period, periodIndex) => {
     const segments = buildHillSegments(period.startMs, period.endMs, timeline, teamColorByTeamId);
 
-    const hillEvents = events.filter((e) => e.timestampMs > period.startMs && e.timestampMs <= period.endMs);
-    const lastEvent = hillEvents.at(-1);
-    const winnerTeamId = period.isCaptured ? (lastEvent?.teamId ?? null) : null;
+    // The capturing team is whoever was in control at the exact capture timestamp.
+    const controlAtCapture = period.isCaptured
+      ? timeline.controlPeriods
+          .filter((cp) => cp.controllingTeamId != null && cp.startMs < period.endMs && cp.endMs >= period.endMs)
+          .at(-1)
+      : null;
+    const winnerTeamId = controlAtCapture?.controllingTeamId ?? null;
     const winnerColor = winnerTeamId != null ? (teamColorByTeamId.get(winnerTeamId) ?? null) : null;
     const winnerName = winnerTeamId != null ? getTeamName(winnerTeamId) : null;
 

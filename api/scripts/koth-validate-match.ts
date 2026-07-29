@@ -57,7 +57,11 @@ const xboxService = new XboxService({ env, authenticate });
 const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
 const infiniteClient = createHaloInfiniteClientProxy({ env });
 const haloService = new HaloService({
-  env, logService, databaseService, xboxService, infiniteClient,
+  env,
+  logService,
+  databaseService,
+  xboxService,
+  infiniteClient,
   playerMatchesRateLimiter: aFakePlayerMatchesRateLimiterWith(),
 });
 const haloFilmService = new HaloFilmService({ env, spartanTokenProvider });
@@ -92,7 +96,9 @@ if (progression == null) {
   process.exit(1);
 }
 
-console.log(`\nMode: ${String(progression.mode)}, durationMs: ${String(progression.durationMs)} (${fmtMs(progression.durationMs)})`);
+console.log(
+  `\nMode: ${String(progression.mode)}, durationMs: ${String(progression.durationMs)} (${fmtMs(progression.durationMs)})`,
+);
 
 if (progression.timeline.type !== "objective-control") {
   console.log(`\nERROR: Expected objective-control timeline, got: ${progression.timeline.type}`);
@@ -113,7 +119,9 @@ for (const cp of controlPeriods) {
 
 console.log(`\nTotal score events: ${String(events.length)}`);
 const perTeam = new Map<number, number>();
-for (const e of events) { perTeam.set(e.teamId, (perTeam.get(e.teamId) ?? 0) + 1); }
+for (const e of events) {
+  perTeam.set(e.teamId, (perTeam.get(e.teamId) ?? 0) + 1);
+}
 for (const [teamId, count] of perTeam) {
   console.log(`  Team ${String(teamId)}: ${String(count)} events`);
 }
@@ -128,7 +136,11 @@ const TEAM_COLORS = [
   { teamId: 0, color: "#0000ff", name: "Eagle" },
   { teamId: 1, color: "#ff0000", name: "Cobra" },
 ];
-interface HillPeriod { startMs: number; endMs: number; isCaptured: boolean; }
+interface HillPeriod {
+  startMs: number;
+  endMs: number;
+  isCaptured: boolean;
+}
 const hillPeriods: HillPeriod[] = [];
 let hillStart = 0;
 for (const captureTs of hillCaptureTimestamps) {
@@ -141,17 +153,23 @@ if (hillStart < progression.durationMs) {
 
 for (const [i, period] of hillPeriods.entries()) {
   const hillIndex = i + 1;
-  const hillEvents = events.filter((e) => e.timestampMs > period.startMs && e.timestampMs <= period.endMs);
-  const lastEvent = hillEvents.at(-1);
-  const winnerTeamId = period.isCaptured ? (lastEvent?.teamId ?? null) : null;
-  const winnerName = winnerTeamId != null ? (TEAM_COLORS.find((t) => t.teamId === winnerTeamId)?.name ?? "?") : "(none)";
+  const controlAtCapture = period.isCaptured
+    ? controlPeriods
+        .filter((cp) => cp.controllingTeamId != null && cp.startMs < period.endMs && cp.endMs >= period.endMs)
+        .at(-1)
+    : null;
+  const winnerTeamId = controlAtCapture?.controllingTeamId ?? null;
+  const winnerName =
+    winnerTeamId != null ? (TEAM_COLORS.find((t) => t.teamId === winnerTeamId)?.name ?? "?") : "(none)";
 
   const hillDurationMs = period.endMs - period.startMs;
 
   // Compute occupancy from controlPeriods
   const holdMs = new Map<number, number>();
   for (const cp of controlPeriods) {
-    if (cp.controllingTeamId == null) { continue; }
+    if (cp.controllingTeamId == null) {
+      continue;
+    }
     const segStart = Math.max(cp.startMs, period.startMs);
     const segEnd = Math.min(cp.endMs, period.endMs);
     if (segEnd > segStart) {
@@ -169,7 +187,6 @@ for (const [i, period] of hillPeriods.entries()) {
   console.log(`\nHill ${String(hillIndex)} [${fmtMs(period.startMs)} → ${fmtMs(period.endMs)}]`);
   console.log(`  Winner: ${winnerName} (isCaptured=${String(period.isCaptured)})`);
   console.log(`  Occupancy: ${occupancyStr}`);
-  console.log(`  Events in period: ${String(hillEvents.length)}`);
 }
 
 console.log("\n=== EXPECTED (from user) ===");
