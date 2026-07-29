@@ -256,7 +256,13 @@ export class HaloFilmService {
     for (const cap of relocationCaptures) {
       knownCapturesByTeam.set(cap.teamId, (knownCapturesByTeam.get(cap.teamId) ?? 0) + 1);
     }
-    knownCapturesByTeam.set(matchEndEvent.teamId, (knownCapturesByTeam.get(matchEndEvent.teamId) ?? 0) + 1);
+
+    const totalCaptures = [...inGameCaptures.values()].reduce((a, b) => a + b, 0);
+    const needsMatchEndEvent = relocationCaptures.length < totalCaptures;
+
+    if (needsMatchEndEvent) {
+      knownCapturesByTeam.set(matchEndEvent.teamId, (knownCapturesByTeam.get(matchEndEvent.teamId) ?? 0) + 1);
+    }
 
     const withinLocationTimestamps = this.findWithinLocationCaptureTimestamps(
       events,
@@ -266,13 +272,15 @@ export class HaloFilmService {
       knownCapturesByTeam,
     );
 
-    return [
+    const timestamps = [
       ...new Set([
         ...withinLocationTimestamps,
         ...relocationCaptures.map((c) => c.timestampMs),
-        matchEndEvent.timestampMs,
+        ...(needsMatchEndEvent ? [matchEndEvent.timestampMs] : []),
       ]),
     ].sort((a, b) => a - b);
+
+    return timestamps;
   }
 
   private findRelocationCaptures(
