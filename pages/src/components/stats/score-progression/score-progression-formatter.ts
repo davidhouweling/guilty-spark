@@ -193,10 +193,6 @@ function buildKothHills(
     hillPeriods.push({ startMs: hillStart, endMs: durationMs, isCaptured: false });
   }
 
-  if (hillPeriods.length === 0) {
-    return [];
-  }
-
   return hillPeriods.map((period, periodIndex) => {
     const segments = buildHillSegments(period.startMs, period.endMs, timeline, teamColorByTeamId);
 
