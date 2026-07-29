@@ -313,5 +313,11 @@ describe("ScoreProgressionPresenter", () => {
       const model = presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: null });
       expect(model.kothTimelineViewModel).toBeNull();
     });
+
+    it("sets kothTimelineViewModel to null when kothHills is empty", () => {
+      const { store, presenter } = makePresenter();
+      const model = presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: null, kothHills: [] });
+      expect(model.kothTimelineViewModel).toBeNull();
+    });
   });
 });

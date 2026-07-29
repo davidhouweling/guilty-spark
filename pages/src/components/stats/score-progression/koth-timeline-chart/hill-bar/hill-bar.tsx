@@ -2,16 +2,15 @@ import React from "react";
 import { TICK_FILL } from "../../chart-constants";
 import type { KothHillData, KothHillSegment } from "../../types";
 
-const WINNER_DOT_RADIUS = 5;
-const WINNER_DOT_OFFSET = 10;
+export const WINNER_DOT_RADIUS = 5;
+export const WINNER_DOT_OFFSET = 10;
 const UNOCCUPIED_FILL = "rgba(255,255,255,0.08)";
 const UNOCCUPIED_STROKE = "rgba(255,255,255,0.15)";
 
 export interface HillBarProps {
-  x?: number;
   y?: number;
-  width?: number;
   height?: number;
+  // Recharts passes the full bar-background rect so segments are positioned relative to it
   background?: { x: number; y: number; width: number; height: number };
   durationMs?: number;
   hill?: KothHillData;
