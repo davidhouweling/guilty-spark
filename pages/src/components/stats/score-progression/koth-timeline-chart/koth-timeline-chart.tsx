@@ -2,13 +2,11 @@ import React from "react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { AXIS_STROKE, TICK_FILL, TICK_FONT_SIZE, TICK_STYLE, formatTime } from "../chart-constants";
 import type { KothHillData, KothTimelineViewModel } from "../types";
-import { HillBar } from "./hill-bar/hill-bar";
+import { HillBar, WINNER_DOT_RADIUS, WINNER_DOT_OFFSET } from "./hill-bar/hill-bar";
 import styles from "./koth-timeline-chart.module.css";
 
 const ROW_HEIGHT = 52;
 const Y_AXIS_WIDTH = 168;
-const WINNER_DOT_RADIUS = 5;
-const WINNER_DOT_OFFSET = 10;
 
 interface HillTickProps {
   x?: number;
