@@ -1,3 +1,4 @@
+import { GameVariantCategory } from "halo-infinite-api";
 import type {
   KillRaceDeathEvent,
   MatchAnalytics,
@@ -6,10 +7,11 @@ import type {
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
+import { TICK_FILL } from "./chart-constants";
 import type {
-  KothCaptureMarker,
-  KothControlChartViewData,
-  KothControlSegment,
+  KothHillData,
+  KothHillSegment,
+  KothHillTeamOccupancy,
   PlayerAdvantageData,
   ScoreDeltaData,
   ScoreProgressionPoint,
@@ -129,29 +131,96 @@ function buildPlayerAdvantage(
   return { points, minScore, maxScore };
 }
 
-const KOTH_NEUTRAL_SEGMENT_COLOR = "rgba(255, 255, 255, 0.08)";
-
-function formatKothControlChart(
+function buildHillSegments(
+  hillStart: number,
+  hillEnd: number,
   timeline: ObjectiveControlTimeline,
-  teamLines: readonly ScoreProgressionTeamLine[],
-  durationMs: number,
-): KothControlChartViewData {
-  const teamColorMap = new Map(teamLines.map((line) => [line.teamId, line.color]));
+  teamColorByTeamId: Map<number, string>,
+): KothHillSegment[] {
+  const overlapping = timeline.controlPeriods
+    .filter((cp) => cp.endMs > hillStart && cp.startMs < hillEnd)
+    .map((cp) => ({
+      startMs: Math.max(cp.startMs, hillStart),
+      endMs: Math.min(cp.endMs, hillEnd),
+      controllingTeamId: cp.controllingTeamId,
+    }))
+    .sort((a, b) => a.startMs - b.startMs);
 
-  const segments: KothControlSegment[] = timeline.controlPeriods.map((period) => ({
-    startMs: period.startMs,
-    endMs: period.endMs,
-    color:
-      period.controllingTeamId != null
-        ? (teamColorMap.get(period.controllingTeamId) ?? KOTH_NEUTRAL_SEGMENT_COLOR)
-        : KOTH_NEUTRAL_SEGMENT_COLOR,
-  }));
+  const segments: KothHillSegment[] = [];
+  let cursor = hillStart;
 
-  const captureMarkers: KothCaptureMarker[] = timeline.hillCaptureTimestamps.map((ts) => ({
-    timestampMs: ts,
-  }));
+  for (const cp of overlapping) {
+    if (cp.startMs > cursor) {
+      segments.push({ startMs: cursor, endMs: cp.startMs, teamId: null, color: null });
+    }
+    segments.push({
+      startMs: cp.startMs,
+      endMs: cp.endMs,
+      teamId: cp.controllingTeamId,
+      color: cp.controllingTeamId != null ? (teamColorByTeamId.get(cp.controllingTeamId) ?? null) : null,
+    });
+    cursor = cp.endMs;
+  }
 
-  return { durationMs, segments, captureMarkers };
+  if (cursor < hillEnd) {
+    segments.push({ startMs: cursor, endMs: hillEnd, teamId: null, color: null });
+  }
+
+  return segments;
+}
+
+function buildKothHills(
+  timeline: ObjectiveControlTimeline,
+  teamIds: readonly number[],
+  teamColorByTeamId: Map<number, string>,
+): KothHillData[] {
+  const { hillCaptureTimestamps, events } = timeline;
+  if (hillCaptureTimestamps.length === 0) {
+    return [];
+  }
+
+  const hillPeriods: { startMs: number; endMs: number }[] = [];
+  let hillStart = 0;
+  for (const captureTs of hillCaptureTimestamps) {
+    hillPeriods.push({ startMs: hillStart, endMs: captureTs });
+    hillStart = captureTs;
+  }
+
+  return hillPeriods.map((period, periodIndex) => {
+    const segments = buildHillSegments(period.startMs, period.endMs, timeline, teamColorByTeamId);
+
+    const hillEvents = events.filter((e) => e.timestampMs > period.startMs && e.timestampMs <= period.endMs);
+    const lastEvent = hillEvents.at(-1);
+    const winnerTeamId = lastEvent?.teamId ?? null;
+    const winnerColor = winnerTeamId != null ? (teamColorByTeamId.get(winnerTeamId) ?? null) : null;
+    const winnerName = winnerTeamId != null ? getTeamName(winnerTeamId) : null;
+
+    const hillDurationMs = period.endMs - period.startMs;
+    const holdMs = new Map(teamIds.map((id) => [id, 0]));
+    for (const segment of segments) {
+      if (segment.teamId != null) {
+        holdMs.set(segment.teamId, (holdMs.get(segment.teamId) ?? 0) + (segment.endMs - segment.startMs));
+      }
+    }
+
+    const teamOccupancies: KothHillTeamOccupancy[] = teamIds.map((teamId) => ({
+      teamId,
+      name: getTeamName(teamId),
+      color: teamColorByTeamId.get(teamId) ?? TICK_FILL,
+      percentage: hillDurationMs > 0 ? Math.round(((holdMs.get(teamId) ?? 0) / hillDurationMs) * 100) : 0,
+    }));
+
+    return {
+      hillIndex: periodIndex + 1,
+      startMs: period.startMs,
+      endMs: period.endMs,
+      segments,
+      winnerTeamId,
+      winnerColor,
+      winnerName,
+      teamOccupancies,
+    };
+  });
 }
 
 export function formatScoreProgression(
@@ -163,7 +232,7 @@ export function formatScoreProgression(
     return null;
   }
 
-  const { durationMs, timeline, respawnDurationMs } = scoreProgression;
+  const { mode, durationMs, timeline, respawnDurationMs } = scoreProgression;
   const { events } = timeline;
 
   const [firstEvent] = events;
@@ -182,6 +251,19 @@ export function formatScoreProgression(
       },
     ]),
   );
+
+  const teamColorByTeamId = new Map([...teamState.entries()].map(([teamId, state]) => [teamId, state.color]));
+
+  const kothMode: number = GameVariantCategory.MultiplayerKingOfTheHill;
+  if (mode === kothMode && timeline.type === "objective-control") {
+    return {
+      durationMs,
+      teamLines: [],
+      scoreDelta: null,
+      playerAdvantage: null,
+      kothHills: buildKothHills(timeline, teamIds, teamColorByTeamId),
+    };
+  }
 
   for (const event of events) {
     const newScore = event.runningScores[String(event.teamId)] ?? 0;
@@ -208,16 +290,11 @@ export function formatScoreProgression(
       ? buildPlayerAdvantage(teamIds, timeline.deathTimeline, respawnDurationMs, durationMs, teamSize)
       : null;
 
-  const kothControlChart =
-    timeline.type === "objective-control" && timeline.controlPeriods.length > 0
-      ? formatKothControlChart(timeline, teamLines, durationMs)
-      : null;
-
   return {
     durationMs,
     teamLines,
     scoreDelta: buildScoreDelta(teamIds, events, durationMs),
     playerAdvantage,
-    kothControlChart,
+    kothHills: null,
   };
 }
