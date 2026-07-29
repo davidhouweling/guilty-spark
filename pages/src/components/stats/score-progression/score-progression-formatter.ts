@@ -198,7 +198,7 @@ function buildKothHills(
 
     // hillCaptureTimestamps entries are the capturing team's last score-event timestamp,
     // so the event at period.endMs directly identifies the winner.
-    const capturingEvent = period.isCaptured ? timeline.events.find((e) => e.timestampMs === period.endMs) : null;
+    const capturingEvent = period.isCaptured ? timeline.events.findLast((e) => e.timestampMs === period.endMs) : null;
     const winnerTeamId = capturingEvent?.teamId ?? null;
     const winnerColor = winnerTeamId != null ? (teamColorByTeamId.get(winnerTeamId) ?? null) : null;
     const winnerName = winnerTeamId != null ? getTeamName(winnerTeamId) : null;
