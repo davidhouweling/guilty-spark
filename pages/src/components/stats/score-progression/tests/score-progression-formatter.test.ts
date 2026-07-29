@@ -399,10 +399,33 @@ describe("formatScoreProgression", () => {
       expect(result?.kothHills?.[0]?.endMs).toBe(30000);
     });
 
-    it("identifies the winner as the team with the last event at or before the hill end", () => {
+    it("identifies the winner as the team in control at the capture timestamp", () => {
       const result = formatScoreProgression(KOTH_DATA, TEAM_COLORS);
       expect(result?.kothHills?.[0]?.winnerTeamId).toBe(0);
       expect(result?.kothHills?.[1]?.winnerTeamId).toBe(1);
+    });
+
+    it("awards the hill to the team in control at capture even when the other team had the last score event", () => {
+      const data = aFakeScoreProgressionWith({
+        mode: KOTH_MODE,
+        durationMs: 60000,
+        timeline: {
+          type: "objective-control",
+          events: [
+            { timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+            { timestampMs: 25000, teamId: 0, runningScores: { "0": 2, "1": 0 } },
+          ],
+          controlPeriods: [
+            { startMs: 0, endMs: 20000, controllingTeamId: 0 },
+            { startMs: 20000, endMs: 30000, controllingTeamId: 1 },
+          ],
+          hillCaptureTimestamps: [30000],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      // Team 0 (Eagle) had the last score event (t=25000), but Team 1 (Cobra) was
+      // in control at the capture timestamp (t=30000) — Cobra should win.
+      expect(result?.kothHills?.[0]?.winnerTeamId).toBe(1);
     });
 
     it("sets winnerColor from the winning team's color", () => {
