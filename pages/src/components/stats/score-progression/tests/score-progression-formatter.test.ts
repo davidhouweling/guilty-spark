@@ -12,6 +12,8 @@ const KOTH_MODE = GameVariantCategory.MultiplayerKingOfTheHill;
 
 // Hill 1: team 0 holds the full period (0→30000); team 0 captured at t=30000.
 // Hill 2: team 1 holds the full period (30000→55000); team 1 captured at t=55000.
+// Capture timestamps must match a score event because buildHillCaptureTimestamps
+// always uses the capturing team's last score event timestamp.
 const KOTH_DATA = aFakeScoreProgressionWith({
   mode: KOTH_MODE,
   durationMs: 60000,
@@ -23,9 +25,10 @@ const KOTH_DATA = aFakeScoreProgressionWith({
       { timestampMs: 5000, teamId: 0, runningScores: { "0": 2, "1": 0 } },
       { timestampMs: 12500, teamId: 1, runningScores: { "0": 2, "1": 1 } },
       { timestampMs: 20000, teamId: 0, runningScores: { "0": 3, "1": 1 } },
-      { timestampMs: 32500, teamId: 1, runningScores: { "0": 3, "1": 2 } },
-      { timestampMs: 45000, teamId: 1, runningScores: { "0": 3, "1": 3 } },
-      { timestampMs: 55000, teamId: 1, runningScores: { "0": 3, "1": 4 } },
+      { timestampMs: 30000, teamId: 0, runningScores: { "0": 4, "1": 1 } },
+      { timestampMs: 32500, teamId: 1, runningScores: { "0": 4, "1": 2 } },
+      { timestampMs: 45000, teamId: 1, runningScores: { "0": 4, "1": 3 } },
+      { timestampMs: 55000, teamId: 1, runningScores: { "0": 4, "1": 4 } },
     ],
     controlPeriods: [
       { startMs: 0, endMs: 30000, controllingTeamId: 0 },
@@ -399,13 +402,13 @@ describe("formatScoreProgression", () => {
       expect(result?.kothHills?.[0]?.endMs).toBe(30000);
     });
 
-    it("identifies the winner as the team in control at the capture timestamp", () => {
+    it("identifies the winner as the team whose score event matches the capture timestamp", () => {
       const result = formatScoreProgression(KOTH_DATA, TEAM_COLORS);
       expect(result?.kothHills?.[0]?.winnerTeamId).toBe(0);
       expect(result?.kothHills?.[1]?.winnerTeamId).toBe(1);
     });
 
-    it("awards the hill to the team in control at capture even when the other team had the last score event", () => {
+    it("awards the hill to the team whose score event is the capture timestamp even when they are a minority in the control period", () => {
       const data = aFakeScoreProgressionWith({
         mode: KOTH_MODE,
         durationMs: 60000,
@@ -413,18 +416,16 @@ describe("formatScoreProgression", () => {
           type: "objective-control",
           events: [
             { timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
-            { timestampMs: 25000, teamId: 0, runningScores: { "0": 2, "1": 0 } },
+            { timestampMs: 15000, teamId: 0, runningScores: { "0": 2, "1": 0 } },
+            { timestampMs: 30000, teamId: 1, runningScores: { "0": 2, "1": 1 } },
           ],
-          controlPeriods: [
-            { startMs: 0, endMs: 20000, controllingTeamId: 0 },
-            { startMs: 20000, endMs: 30000, controllingTeamId: 1 },
-          ],
+          controlPeriods: [{ startMs: 0, endMs: 30000, controllingTeamId: 0 }],
           hillCaptureTimestamps: [30000],
         },
       });
       const result = formatScoreProgression(data, TEAM_COLORS);
-      // Team 0 (Eagle) had the last score event (t=25000), but Team 1 (Cobra) was
-      // in control at the capture timestamp (t=30000) — Cobra should win.
+      // Team 1 (Cobra) has the score event at the capture timestamp (t=30000),
+      // even though Team 0 (Eagle) majority-controlled the period — Cobra should win.
       expect(result?.kothHills?.[0]?.winnerTeamId).toBe(1);
     });
 

@@ -196,13 +196,10 @@ function buildKothHills(
   return hillPeriods.map((period, periodIndex) => {
     const segments = buildHillSegments(period.startMs, period.endMs, timeline, teamColorByTeamId);
 
-    // The capturing team is whoever was in control at the exact capture timestamp.
-    const controlAtCapture = period.isCaptured
-      ? timeline.controlPeriods
-          .filter((cp) => cp.controllingTeamId != null && cp.startMs < period.endMs && cp.endMs >= period.endMs)
-          .at(-1)
-      : null;
-    const winnerTeamId = controlAtCapture?.controllingTeamId ?? null;
+    // hillCaptureTimestamps entries are the capturing team's last score-event timestamp,
+    // so the event at period.endMs directly identifies the winner.
+    const capturingEvent = period.isCaptured ? timeline.events.find((e) => e.timestampMs === period.endMs) : null;
+    const winnerTeamId = capturingEvent?.teamId ?? null;
     const winnerColor = winnerTeamId != null ? (teamColorByTeamId.get(winnerTeamId) ?? null) : null;
     const winnerName = winnerTeamId != null ? getTeamName(winnerTeamId) : null;
 

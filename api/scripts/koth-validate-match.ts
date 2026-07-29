@@ -117,13 +117,12 @@ for (const cp of controlPeriods) {
   console.log(`  [${fmtMs(cp.startMs)} → ${fmtMs(cp.endMs)}] team=${String(cp.controllingTeamId ?? "null")}`);
 }
 
-console.log(`\nTotal score events: ${String(events.length)}`);
-const perTeam = new Map<number, number>();
+console.log(`\nAll score events:`);
 for (const e of events) {
-  perTeam.set(e.teamId, (perTeam.get(e.teamId) ?? 0) + 1);
-}
-for (const [teamId, count] of perTeam) {
-  console.log(`  Team ${String(teamId)}: ${String(count)} events`);
+  const scores = Object.entries(e.runningScores)
+    .map(([k, v]) => `T${k}:${String(v)}`)
+    .join(" ");
+  console.log(`  Team ${String(e.teamId)} @ ${fmtMs(e.timestampMs)} (${String(e.timestampMs)}ms) [${scores}]`);
 }
 
 // ─── Simulate formatter output ───────────────────────────────────────────────
