@@ -50,9 +50,14 @@ const OBJECTIVE_TICK_DEDUP_MS = 2_500;
 const GAMEPLAY_BYTE2_MIN = 0x40;
 const GAMEPLAY_BYTE2_MAX = 0xa0;
 // Gap between the capturing team's last tick and the null-period start must be within this window.
-const CAPTURE_RECENCY_THRESHOLD_MS = 4_000;
+// 7 000 ms covers the ~6 700 ms game-clock lag observed for Hill 3 while still rejecting mid-hill
+// null blips (which appear ~8 000+ ms after the last tick).
+const CAPTURE_RECENCY_THRESHOLD_MS = 7_000;
 // The capturing team must have accumulated at least this many per-location ticks to be a valid capture.
 const MIN_CAPTURE_TICKS = 5;
+// The control period immediately before a null gap must be at least this long.
+// Filters out false positives from rapid byte2 oscillations (20ms blips) vs. real captures (hundreds of ms+).
+const MIN_PRE_PERIOD_MS = 500;
 
 export class HaloFilmService {
   private static readonly FILM_CACHE_TTL_SECONDS = 604_800;
@@ -311,17 +316,24 @@ export class HaloFilmService {
       if (prePeriod?.controllingTeamId == null) {
         continue;
       }
-      const teamBefore = prePeriod.controllingTeamId;
 
+      // Rapid byte2 oscillations (e.g. 20ms blips) create spurious null gaps; skip them.
+      if (prePeriod.endMs - prePeriod.startMs < MIN_PRE_PERIOD_MS) {
+        continue;
+      }
+
+      // The capturing team is whoever had the most recent tick before the gap — not necessarily the
+      // period's majority team. In contested hills the majority team can differ from the final capturer.
       let lastTickEvent: ObjectiveControlProgressionEvent | null = null;
       for (const event of events) {
-        if (event.teamId === teamBefore && event.timestampMs <= gapStart) {
+        if (event.timestampMs <= gapStart) {
           lastTickEvent = event;
         }
       }
       if (lastTickEvent == null) {
         continue;
       }
+      const teamBefore = lastTickEvent.teamId;
 
       const recency = gapStart - lastTickEvent.timestampMs;
       if (recency > CAPTURE_RECENCY_THRESHOLD_MS) {

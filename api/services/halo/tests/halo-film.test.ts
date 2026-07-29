@@ -2236,6 +2236,144 @@ describe("HaloFilmService", () => {
       expect(result.hillCaptureTimestamps).toEqual([25000]);
     });
 
+    it("ignores a null gap whose preceding control period is shorter than the minimum pre-period duration", async () => {
+      // Set up 5 valid relocation captures (Eagle=3, Cobra=2 — matches koth fixture) plus a
+      // spurious rapid-oscillation blip after the 5th capture. The blip creates a null gap
+      // whose prePeriod is only 100ms (well below MIN_PRE_PERIOD_MS=500ms) and would otherwise
+      // pass recency and perLocationTicks checks — verifying it is filtered.
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+      const team0Xuid = "0100000000000000";
+      const team1Xuid = "0400000000000000";
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        modeEvent(team0Xuid, 5000),
+        modeEvent(team0Xuid, 10000),
+        modeEvent(team0Xuid, 15000),
+        modeEvent(team0Xuid, 20000),
+        modeEvent(team0Xuid, 25000), // Loc A: Eagle captures
+        modeEvent(team1Xuid, 70000),
+        modeEvent(team1Xuid, 75000),
+        modeEvent(team1Xuid, 80000),
+        modeEvent(team1Xuid, 85000),
+        modeEvent(team1Xuid, 90000), // Loc B: Cobra captures
+        modeEvent(team0Xuid, 140000),
+        modeEvent(team0Xuid, 145000),
+        modeEvent(team0Xuid, 150000),
+        modeEvent(team0Xuid, 155000),
+        modeEvent(team0Xuid, 160000), // Loc C: Eagle captures
+        modeEvent(team1Xuid, 220000),
+        modeEvent(team1Xuid, 225000),
+        modeEvent(team1Xuid, 230000),
+        modeEvent(team1Xuid, 235000),
+        modeEvent(team1Xuid, 240000), // Loc D: Cobra captures
+        modeEvent(team0Xuid, 300000),
+        modeEvent(team0Xuid, 305000),
+        modeEvent(team0Xuid, 310000),
+        modeEvent(team0Xuid, 315000),
+        modeEvent(team0Xuid, 320000), // Loc E: Eagle captures
+        // Rapid blip: 5 ticks inside [325100→325200ms] create a prePeriod of only 100ms.
+        // Without MIN_PRE_PERIOD_MS these would produce a spurious capture at 325150ms.
+        modeEvent(team0Xuid, 325110),
+        modeEvent(team0Xuid, 325120),
+        modeEvent(team0Xuid, 325130),
+        modeEvent(team0Xuid, 325140),
+        modeEvent(team0Xuid, 325150),
+      ]);
+      vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([
+        { timeMs: 25500, fromValue: 0x40, toValue: 0x41 },
+        { timeMs: 30000, fromValue: 0x41, toValue: 0x42 },
+        { timeMs: 90500, fromValue: 0x42, toValue: 0x43 },
+        { timeMs: 95000, fromValue: 0x43, toValue: 0x44 },
+        { timeMs: 160500, fromValue: 0x44, toValue: 0x45 },
+        { timeMs: 165000, fromValue: 0x45, toValue: 0x46 },
+        { timeMs: 240500, fromValue: 0x46, toValue: 0x47 },
+        { timeMs: 245000, fromValue: 0x47, toValue: 0x48 },
+        { timeMs: 320500, fromValue: 0x48, toValue: 0x49 },
+        { timeMs: 325000, fromValue: 0x49, toValue: 0x4a },
+        // Blip: occupied [325100→325200ms] = 100ms prePeriod — filtered by MIN_PRE_PERIOD_MS
+        { timeMs: 325100, fromValue: 0x4a, toValue: 0x4b },
+        { timeMs: 325200, fromValue: 0x4b, toValue: 0x4a },
+      ]);
+
+      const result = await service.buildObjectiveControlProgression(match, 732278);
+
+      expect(result.hillCaptureTimestamps).toEqual([25000, 90000, 160000, 240000, 320000]);
+    });
+
+    it("attributes a relocation capture to the team with the most recent tick even when the other team majority-controlled the period", async () => {
+      // Hill 1: Team 1 has 7 ticks (majority in the occupied period), Team 0 has 6 ticks
+      // including the final tick at 49000ms (most recent before the gap at 50000ms).
+      // Events are spaced 3000ms apart to avoid the 2500ms dedup window.
+      // The capture should be attributed to Team 0 (most-recent-tick-wins), not Team 1.
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+      const team0Xuid = "0100000000000000";
+      const team1Xuid = "0400000000000000";
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        // Hill 1: T0=6 ticks (3000ms spacing), T1=7 ticks (3000ms spacing), T0 last tick at 49000ms
+        modeEvent(team0Xuid, 5000),
+        modeEvent(team0Xuid, 8000),
+        modeEvent(team0Xuid, 11000),
+        modeEvent(team0Xuid, 14000),
+        modeEvent(team0Xuid, 17000),
+        modeEvent(team1Xuid, 18500),
+        modeEvent(team1Xuid, 21500),
+        modeEvent(team1Xuid, 24500),
+        modeEvent(team1Xuid, 27500),
+        modeEvent(team1Xuid, 30500),
+        modeEvent(team1Xuid, 33500),
+        modeEvent(team1Xuid, 36500),
+        modeEvent(team0Xuid, 49000), // most recent tick before gap at 50000ms
+        // Hills 2–5 (single-team, 3000ms spacing, Eagle=3 total, Cobra=2 total)
+        modeEvent(team1Xuid, 100000),
+        modeEvent(team1Xuid, 103000),
+        modeEvent(team1Xuid, 106000),
+        modeEvent(team1Xuid, 109000),
+        modeEvent(team1Xuid, 112000), // Hill 2: Cobra
+        modeEvent(team0Xuid, 160000),
+        modeEvent(team0Xuid, 163000),
+        modeEvent(team0Xuid, 166000),
+        modeEvent(team0Xuid, 169000),
+        modeEvent(team0Xuid, 172000), // Hill 3: Eagle
+        modeEvent(team1Xuid, 220000),
+        modeEvent(team1Xuid, 223000),
+        modeEvent(team1Xuid, 226000),
+        modeEvent(team1Xuid, 229000),
+        modeEvent(team1Xuid, 232000), // Hill 4: Cobra
+        modeEvent(team0Xuid, 280000),
+        modeEvent(team0Xuid, 283000),
+        modeEvent(team0Xuid, 286000),
+        modeEvent(team0Xuid, 289000),
+        modeEvent(team0Xuid, 292000), // Hill 5: Eagle
+      ]);
+      vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([
+        { timeMs: 5000, fromValue: 0x40, toValue: 0x41 },
+        { timeMs: 50000, fromValue: 0x41, toValue: 0x42 },
+        { timeMs: 95000, fromValue: 0x42, toValue: 0x43 },
+        { timeMs: 115000, fromValue: 0x43, toValue: 0x44 },
+        { timeMs: 155000, fromValue: 0x44, toValue: 0x45 },
+        { timeMs: 175000, fromValue: 0x45, toValue: 0x46 },
+        { timeMs: 215000, fromValue: 0x46, toValue: 0x47 },
+        { timeMs: 235000, fromValue: 0x47, toValue: 0x48 },
+        { timeMs: 275000, fromValue: 0x48, toValue: 0x49 },
+        { timeMs: 295000, fromValue: 0x49, toValue: 0x4a },
+      ]);
+
+      const result = await service.buildObjectiveControlProgression(match, 732278);
+
+      // hillCaptureTimestamps[0] must be 49000ms (T0's last tick) not 36500ms (T1's last tick),
+      // proving the most-recent-tick-wins logic rather than majority-period-team wins.
+      expect(result.hillCaptureTimestamps).toEqual([49000, 112000, 172000, 232000, 292000]);
+    });
+
     it("returns empty when no mode events are present", async () => {
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
