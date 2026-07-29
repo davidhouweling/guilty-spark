@@ -173,17 +173,28 @@ function buildKothHills(
   timeline: ObjectiveControlTimeline,
   teamIds: readonly number[],
   teamColorByTeamId: Map<number, string>,
+  durationMs: number,
 ): KothHillData[] {
   const { hillCaptureTimestamps, events } = timeline;
-  if (hillCaptureTimestamps.length === 0) {
-    return [];
+
+  interface HillPeriod {
+    startMs: number;
+    endMs: number;
+    isCaptured: boolean;
   }
 
-  const hillPeriods: { startMs: number; endMs: number }[] = [];
+  const hillPeriods: HillPeriod[] = [];
   let hillStart = 0;
   for (const captureTs of hillCaptureTimestamps) {
-    hillPeriods.push({ startMs: hillStart, endMs: captureTs });
+    hillPeriods.push({ startMs: hillStart, endMs: captureTs, isCaptured: true });
     hillStart = captureTs;
+  }
+  if (hillStart < durationMs) {
+    hillPeriods.push({ startMs: hillStart, endMs: durationMs, isCaptured: false });
+  }
+
+  if (hillPeriods.length === 0) {
+    return [];
   }
 
   return hillPeriods.map((period, periodIndex) => {
@@ -191,7 +202,7 @@ function buildKothHills(
 
     const hillEvents = events.filter((e) => e.timestampMs > period.startMs && e.timestampMs <= period.endMs);
     const lastEvent = hillEvents.at(-1);
-    const winnerTeamId = lastEvent?.teamId ?? null;
+    const winnerTeamId = period.isCaptured ? (lastEvent?.teamId ?? null) : null;
     const winnerColor = winnerTeamId != null ? (teamColorByTeamId.get(winnerTeamId) ?? null) : null;
     const winnerName = winnerTeamId != null ? getTeamName(winnerTeamId) : null;
 
@@ -261,7 +272,7 @@ export function formatScoreProgression(
       teamLines: [],
       scoreDelta: null,
       playerAdvantage: null,
-      kothHills: buildKothHills(timeline, teamIds, teamColorByTeamId),
+      kothHills: buildKothHills(timeline, teamIds, teamColorByTeamId, durationMs),
     };
   }
 

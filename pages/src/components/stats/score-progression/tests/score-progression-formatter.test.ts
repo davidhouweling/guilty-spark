@@ -380,15 +380,17 @@ describe("formatScoreProgression", () => {
       expect(result?.kothHills).toBeNull();
     });
 
-    it("returns one hill per capture timestamp", () => {
+    it("returns one hill per capture plus a trailing uncaptured hill", () => {
       const result = formatScoreProgression(KOTH_DATA, TEAM_COLORS);
-      expect(result?.kothHills).toHaveLength(2);
+      // KOTH_DATA has 2 capture timestamps and durationMs=60000 > last capture (55000)
+      expect(result?.kothHills).toHaveLength(3);
     });
 
-    it("assigns 1-based hillIndex to each hill", () => {
+    it("assigns 1-based hillIndex to each hill including the trailing one", () => {
       const result = formatScoreProgression(KOTH_DATA, TEAM_COLORS);
       expect(result?.kothHills?.[0]?.hillIndex).toBe(1);
       expect(result?.kothHills?.[1]?.hillIndex).toBe(2);
+      expect(result?.kothHills?.[2]?.hillIndex).toBe(3);
     });
 
     it("sets hill startMs from match start and endMs from the capture timestamp", () => {
@@ -443,9 +445,30 @@ describe("formatScoreProgression", () => {
       expect(unoccupied.every((s) => s.color === null)).toBe(true);
     });
 
-    it("returns empty kothHills array when hillCaptureTimestamps is empty", () => {
+    it("includes a trailing uncaptured hill when hillCaptureTimestamps does not reach durationMs", () => {
       const data = aFakeScoreProgressionWith({
         mode: KOTH_MODE,
+        durationMs: 60000,
+        timeline: {
+          type: "objective-control",
+          events: [
+            { timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+            { timestampMs: 45000, teamId: 1, runningScores: { "0": 1, "1": 1 } },
+          ],
+          controlPeriods: [{ startMs: 0, endMs: 30000, controllingTeamId: 0 }],
+          hillCaptureTimestamps: [30000],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.kothHills).toHaveLength(2);
+      expect(result?.kothHills?.[1]?.endMs).toBe(60000);
+      expect(result?.kothHills?.[1]?.winnerTeamId).toBeNull();
+    });
+
+    it("returns a single uncaptured hill when hillCaptureTimestamps is empty", () => {
+      const data = aFakeScoreProgressionWith({
+        mode: KOTH_MODE,
+        durationMs: 60000,
         timeline: {
           type: "objective-control",
           events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
@@ -454,7 +477,10 @@ describe("formatScoreProgression", () => {
         },
       });
       const result = formatScoreProgression(data, TEAM_COLORS);
-      expect(result?.kothHills).toEqual([]);
+      expect(result?.kothHills).toHaveLength(1);
+      expect(result?.kothHills?.[0]?.startMs).toBe(0);
+      expect(result?.kothHills?.[0]?.endMs).toBe(60000);
+      expect(result?.kothHills?.[0]?.winnerTeamId).toBeNull();
     });
 
     it("returns empty teamLines for a KOTH match", () => {

@@ -70,7 +70,9 @@ export class ScoreProgressionPresenter {
     const hasPlayerAdvantage = input.playerAdvantage != null;
 
     const kothTimelineViewModel: KothTimelineViewModel | null =
-      input.kothHills != null ? { durationMs: input.durationMs, hills: input.kothHills } : null;
+      input.kothHills != null && input.kothHills.length > 0
+        ? { durationMs: input.durationMs, hills: input.kothHills }
+        : null;
 
     return {
       ariaLabel: input.ariaLabel,
