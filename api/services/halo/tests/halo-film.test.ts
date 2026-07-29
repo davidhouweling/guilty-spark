@@ -2237,10 +2237,11 @@ describe("HaloFilmService", () => {
     });
 
     it("ignores a null gap whose preceding control period is shorter than the minimum pre-period duration", async () => {
-      // Set up 5 valid relocation captures (Eagle=3, Cobra=2 — matches koth fixture) plus a
-      // spurious rapid-oscillation blip after the 5th capture. The blip creates a null gap
-      // whose prePeriod is only 100ms (well below MIN_PRE_PERIOD_MS=500ms) and would otherwise
-      // pass recency and perLocationTicks checks — verifying it is filtered.
+      // 5 valid captures (Eagle=3, Cobra=2). During Loc E's occupation, a rapid oscillation
+      // creates the pattern: [Long occupied] → [20ms null] → [300ms re-occupied] → [False null gap].
+      // The false null gap's prePeriod is 300ms < MIN_PRE_PERIOD_MS (500ms) → filtered.
+      // Without MIN_PRE_PERIOD_MS the tick at 298400ms (perLocationTicks=6, recency=200ms) would
+      // be recorded as a spurious 5th capture; the real Loc E capture at 307800ms would become 6th.
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
@@ -2254,34 +2255,37 @@ describe("HaloFilmService", () => {
         modeEvent(team0Xuid, 10000),
         modeEvent(team0Xuid, 15000),
         modeEvent(team0Xuid, 20000),
-        modeEvent(team0Xuid, 25000), // Loc A: Eagle captures
+        modeEvent(team0Xuid, 25000), // Loc A: Eagle (T0 cumulative=5)
         modeEvent(team1Xuid, 70000),
         modeEvent(team1Xuid, 75000),
         modeEvent(team1Xuid, 80000),
         modeEvent(team1Xuid, 85000),
-        modeEvent(team1Xuid, 90000), // Loc B: Cobra captures
+        modeEvent(team1Xuid, 90000), // Loc B: Cobra (T1 cumulative=5)
         modeEvent(team0Xuid, 140000),
         modeEvent(team0Xuid, 145000),
         modeEvent(team0Xuid, 150000),
         modeEvent(team0Xuid, 155000),
-        modeEvent(team0Xuid, 160000), // Loc C: Eagle captures
+        modeEvent(team0Xuid, 160000), // Loc C: Eagle (T0 cumulative=10)
         modeEvent(team1Xuid, 220000),
         modeEvent(team1Xuid, 225000),
         modeEvent(team1Xuid, 230000),
         modeEvent(team1Xuid, 235000),
-        modeEvent(team1Xuid, 240000), // Loc D: Cobra captures
-        modeEvent(team0Xuid, 300000),
-        modeEvent(team0Xuid, 305000),
-        modeEvent(team0Xuid, 310000),
-        modeEvent(team0Xuid, 315000),
-        modeEvent(team0Xuid, 320000), // Loc E: Eagle captures
-        // Rapid blip: 5 ticks inside [325100→325200ms] create a prePeriod of only 100ms.
-        // Without MIN_PRE_PERIOD_MS these would produce a spurious capture at 325150ms.
-        modeEvent(team0Xuid, 325110),
-        modeEvent(team0Xuid, 325120),
-        modeEvent(team0Xuid, 325130),
-        modeEvent(team0Xuid, 325140),
-        modeEvent(team0Xuid, 325150),
+        modeEvent(team1Xuid, 240000), // Loc D: Cobra (T1 cumulative=10)
+        // Loc E pre-blip: 5 ticks (T0 cumulative=15); last at 277000ms is > 7000ms before blip
+        modeEvent(team0Xuid, 265500),
+        modeEvent(team0Xuid, 268500),
+        modeEvent(team0Xuid, 271500),
+        modeEvent(team0Xuid, 274500),
+        modeEvent(team0Xuid, 277000),
+        // Blip tick: 298400ms is 21400ms after 277000ms (survives dedup); it is inside the 300ms
+        // re-occupied window [298300→298600ms] — perLocationTicks=6, recency=200ms. Without
+        // MIN_PRE_PERIOD_MS it produces a spurious capture here; with it the gap is filtered.
+        modeEvent(team0Xuid, 298400),
+        // Loc E post-blip: 4 more ticks; 298800ms is deduped (400ms after 298400ms)
+        modeEvent(team0Xuid, 298800),
+        modeEvent(team0Xuid, 301800),
+        modeEvent(team0Xuid, 304800),
+        modeEvent(team0Xuid, 307800), // Loc E real capture tick (T0 cumulative=19 after dedup)
       ]);
       vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([
         { timeMs: 25500, fromValue: 0x40, toValue: 0x41 },
@@ -2292,16 +2296,19 @@ describe("HaloFilmService", () => {
         { timeMs: 165000, fromValue: 0x45, toValue: 0x46 },
         { timeMs: 240500, fromValue: 0x46, toValue: 0x47 },
         { timeMs: 245000, fromValue: 0x47, toValue: 0x48 },
-        { timeMs: 320500, fromValue: 0x48, toValue: 0x49 },
-        { timeMs: 325000, fromValue: 0x49, toValue: 0x4a },
-        // Blip: occupied [325100→325200ms] = 100ms prePeriod — filtered by MIN_PRE_PERIOD_MS
-        { timeMs: 325100, fromValue: 0x4a, toValue: 0x4b },
-        { timeMs: 325200, fromValue: 0x4b, toValue: 0x4a },
+        { timeMs: 265000, fromValue: 0x48, toValue: 0x49 }, // Loc E starts
+        // Oscillation: [298000→298300ms] briefly null, [298300→298600ms] 300ms re-occupied,
+        // [298600→298700ms] null again — the 300ms prePeriod is filtered by MIN_PRE_PERIOD_MS.
+        { timeMs: 298000, fromValue: 0x49, toValue: 0x48 },
+        { timeMs: 298300, fromValue: 0x48, toValue: 0x49 },
+        { timeMs: 298600, fromValue: 0x49, toValue: 0x48 },
+        { timeMs: 298700, fromValue: 0x48, toValue: 0x49 }, // Loc E resumes
+        { timeMs: 312000, fromValue: 0x49, toValue: 0x4a }, // Loc E captured
       ]);
 
       const result = await service.buildObjectiveControlProgression(match, 732278);
 
-      expect(result.hillCaptureTimestamps).toEqual([25000, 90000, 160000, 240000, 320000]);
+      expect(result.hillCaptureTimestamps).toEqual([25000, 90000, 160000, 240000, 307800]);
     });
 
     it("attributes a relocation capture to the team with the most recent tick even when the other team majority-controlled the period", async () => {

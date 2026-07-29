@@ -317,34 +317,32 @@ export class HaloFilmService {
         continue;
       }
 
-      // Rapid byte2 oscillations (e.g. 20ms blips) create spurious null gaps; skip them.
       if (prePeriod.endMs - prePeriod.startMs < MIN_PRE_PERIOD_MS) {
         continue;
       }
 
-      // The capturing team is whoever had the most recent tick before the gap — not necessarily the
-      // period's majority team. In contested hills the majority team can differ from the final capturer.
+      // In contested hills the majority team can differ from the actual capturer, so we
+      // prefer the most recent qualifying tick rather than the prePeriod's majority team.
       let lastTickEvent: ObjectiveControlProgressionEvent | null = null;
-      for (const event of events) {
-        if (event.timestampMs <= gapStart) {
+      for (let i = events.length - 1; i >= 0; i--) {
+        const event = Preconditions.checkExists(events[i]);
+        if (event.timestampMs > gapStart) {
+          continue;
+        }
+        if (gapStart - event.timestampMs > CAPTURE_RECENCY_THRESHOLD_MS) {
+          break;
+        }
+        const baseline = baselineCumulatives.get(event.teamId) ?? 0;
+        const perLocationTicks = (event.runningScores[String(event.teamId)] ?? 0) - baseline;
+        if (perLocationTicks >= MIN_CAPTURE_TICKS) {
           lastTickEvent = event;
+          break;
         }
       }
       if (lastTickEvent == null) {
         continue;
       }
       const teamBefore = lastTickEvent.teamId;
-
-      const recency = gapStart - lastTickEvent.timestampMs;
-      if (recency > CAPTURE_RECENCY_THRESHOLD_MS) {
-        continue;
-      }
-
-      const baseline = baselineCumulatives.get(teamBefore) ?? 0;
-      const perLocationTicks = (lastTickEvent.runningScores[String(teamBefore)] ?? 0) - baseline;
-      if (perLocationTicks < MIN_CAPTURE_TICKS) {
-        continue;
-      }
 
       captures.push({
         timestampMs: lastTickEvent.timestampMs,
