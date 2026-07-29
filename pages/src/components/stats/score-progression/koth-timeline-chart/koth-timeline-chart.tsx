@@ -127,11 +127,17 @@ function HillTooltip({ active, payload }: HillTooltipProps): React.ReactElement 
   return (
     <div className={styles.tooltip}>
       <div className={styles.tooltipHill}>Hill {hill.hillIndex}</div>
-      {hill.teamOccupancies.map((o) => (
-        <div key={o.teamId} className={styles.tooltipTeam} style={{ "--team-color": o.color } as React.CSSProperties}>
-          {o.name}: {o.percentage}%
-        </div>
-      ))}
+      {hill.teamOccupancies.map((o) =>
+        o.percentage > 0 ? (
+          <div key={o.teamId} className={styles.tooltipTeam} style={{ "--team-color": o.color } as React.CSSProperties}>
+            {o.name}: {o.percentage}%
+          </div>
+        ) : (
+          <div key={o.teamId} className={styles.tooltipUnoccupied}>
+            {o.name}: 0%
+          </div>
+        ),
+      )}
     </div>
   );
 }
