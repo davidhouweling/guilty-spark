@@ -53,7 +53,6 @@ const GAMEPLAY_BYTE2_MAX = 0xa0;
 // 7 000 ms covers the ~6 700 ms game-clock lag observed for Hill 3 while still rejecting mid-hill
 // null blips (which appear ~8 000+ ms after the last tick).
 const CAPTURE_RECENCY_THRESHOLD_MS = 7_000;
-// The capturing team must have accumulated at least this many per-location ticks to be a valid capture.
 const MIN_CAPTURE_TICKS = 5;
 // The control period immediately before a null gap must be at least this long.
 // Filters out false positives from rapid byte2 oscillations (20ms blips) vs. real captures (hundreds of ms+).
@@ -368,7 +367,9 @@ export class HaloFilmService {
       let initial = 0;
       for (let candidate = 0; candidate < matchScore; candidate++) {
         const inGame = matchScore - candidate;
-        if (inGame > 0 && finalCumulative % inGame === 0) {
+        // inGame > 1 prevents the trivial inGame=1 case (% 1 === 0 always) from
+        // falsely claiming captures happened before the film period started.
+        if (inGame > 1 && finalCumulative % inGame === 0) {
           initial = candidate;
           break;
         }
