@@ -1,79 +1,112 @@
-# Discord Message Content Form Draft
+# Discord Message Content Form Responses
 
-Last Updated: 2026-07-25
+Last Updated: 2026-07-30
 
-This is a working draft for the privileged Message Content intent resubmission. The wording is aligned to the current code and privacy policy, but should be adapted to the exact Discord form fields at submission time.
+This document is formatted as direct responses for the current Discord Request Intents form shown in docs/form.html.
 
-## Short Summary
+## Application Details
 
-Guilty Spark is a Discord bot for Halo Infinite communities that integrates with NeatQueue-managed custom game series. It uses Message Content in a limited, feature-specific way to interpret NeatQueue result and active-queue messages so it can reliably provide automated stats, historical queue lookups, and live-tracker recovery for the exact series a guild is asking about.
+### Field: What does your application do?
 
-## Why Message Content Is Needed
+### Input name: application_description
 
-Guilty Spark needs Message Content because key series identifiers and participant references are conveyed through NeatQueue-authored Discord messages. Those messages are the authoritative bridge between Discord queue activity and the Halo match/statistics workflows that Guilty Spark performs.
+Suggested response:
 
-Without Message Content access, the bot would lose the ability to reliably:
+Guilty Spark is a Discord bot for Halo Infinite communities that automates NeatQueue custom-series workflows. It supports setup and configuration, account linking, automated series stats posting, manual queue stats lookup, and live series tracking. For NeatQueue-driven flows, the bot correlates queue and participant context from Discord messages with Halo statistics retrieval so communities can reliably recover series results and track in-progress games. It is purpose-built for custom game operations in Discord servers, including recovery paths when webhook or cached state is incomplete.
 
-- recover queue context from NeatQueue result messages;
-- support `/stats neatqueue` lookups for recent or historical queue numbers;
-- recover active-series context for live tracking when deterministic state is unavailable or incomplete;
-- map Discord queue participants to the correct Halo/Xbox stats workflow in the moment users request it.
+### Field: Do you have a public Privacy Policy telling your users about their data usage?
 
-## Why Interactions And Webhooks Alone Are Not Enough
+### Input name: application_privacy_policy_public
 
-Slash commands and webhooks are part of the system, but they are not sufficient on their own.
+Suggested selection:
 
-- Webhooks tell Guilty Spark that a NeatQueue event happened, but downstream reliability still depends on the actual Discord messages that represent results and active queue context.
-- Users can request stats later with `/stats neatqueue`, including explicit historical queue numbers, which requires looking up the relevant queue context rather than relying on a one-time webhook event.
-- Discord search indexing is not always immediate, so Guilty Spark now prefers deterministic cached/persisted state first and uses bounded Discord lookup only as a fallback.
+- Yes
 
-## How Access Is Minimized
+Supporting links to keep on hand:
 
-Guilty Spark minimizes Message Content usage in several ways:
+- Privacy policy page: https://guilty-spark.app/privacy-policy
+- Terms page: https://guilty-spark.app/terms-of-service
 
-- It is limited to specific NeatQueue-related workflows rather than broad general message ingestion.
-- Deterministic state/cache lookup is attempted before Discord recovery/search paths.
-- Fallback retrieval is bounded and purpose-specific.
-- The bot does not use collected data to train general-purpose AI models.
-- Public privacy policy disclosures now describe processed data categories, retention framing, provider processing, and deletion pathways.
+## Privileged Gateway Intents
 
-## Where Is Your Privacy Policy Available?
+### Field: Which intents are you applying for?
 
-The policy is available in multiple user-visible places:
+Suggested selection:
 
-- the public website footer on `https://guilty-spark.app`;
-- the direct policy page at `https://guilty-spark.app/privacy-policy`;
-- the Discord app / bot listing privacy-policy URL configured in the Developer Portal, if the reviewer checks the app metadata directly.
+- Message Content Intent
 
-This lets users find the policy from the website itself and gives Discord reviewers a stable public URL to verify.
+## Message Content Intent
 
-## Data Processed In These Flows
+### Field: Can users opt-out of having their message content data tracked?
 
-For the relevant workflows, Guilty Spark may process:
+### Input name: intents_gateway_message_content_opt_out_stored
 
-- Discord user, guild, channel, and message identifiers;
-- command and interaction metadata;
-- limited message content from NeatQueue-related messages where needed to determine queue context;
-- Discord-to-Xbox linkage data used to fetch Halo statistics;
-- operational logs/telemetry for reliability and debugging.
+Suggested selection:
 
-## Retention And User Controls
+- Yes
 
-- Short-lived cache/state data is retained using explicit TTL-based windows.
-- Queue-related transient state is generally retained only for short operational periods.
-- Persistent linkage/configuration data is retained until changed, removed, or no longer needed.
-- Users can remove Discord-to-Xbox linkage through the product’s unlink/remove flow.
-- Broader deletion requests can be submitted through the project contact path documented in the privacy policy.
+Rationale for reviewer consistency:
 
-## Evidence To Attach
+- Processing is limited to NeatQueue-related operational flows.
+- Guild admins can disable NeatQueue-related features.
+- Users can remove account linkage through the bot flow.
 
-- Setup/configuration flow showing NeatQueue integration and live-tracking options.
-- Automated completed-series stats flow.
-- Manual `/stats neatqueue` lookup flow.
-- Fallback/recovery example showing why narrow message-content access remains necessary.
-- Live-tracker flow during an active series.
-- Public privacy policy link.
+### Field: Are you storing message content data off-platform (outside of Discord)?
 
-## Reviewer Notes
+### Input name: intents_gateway_message_content_store_off_platform
 
-If the form allows an additional notes field, emphasize that the recent implementation work reduced reliance on broader lookup behavior by preferring deterministic cache/state paths first, while preserving bounded recovery behavior needed for reliability.
+Suggested selection:
+
+- No
+
+Rationale for reviewer consistency:
+
+- Raw message content is not persisted off-platform.
+- Persistent storage is limited to Cloudflare D1 records used for account linkage, configuration, and tracker/session features.
+- Observability is handled via Cloudflare observability tooling for operational monitoring.
+
+### Field: Will the message content data be used to train machine learning or AI Models?
+
+### Input name: intents_gateway_message_content_ai_training
+
+Suggested selection:
+
+- No
+
+### Field: Why do you need the Message Content intent?
+
+### Input name: intents_gateway_message_content_use_case_description
+
+Suggested response:
+
+Guilty Spark needs Message Content for a narrow operational use case tied to NeatQueue-managed Halo custom series. NeatQueue result and active-queue messages contain the queue and participant context needed to reliably resolve which series a user is requesting. This is required for automated stats posting, manual stats recovery through /stats neatqueue (including historical queue lookups), and live-tracker discovery/recovery when deterministic state is incomplete.
+
+Interactions and webhooks alone are not sufficient for these workflows. Webhooks signal that events occurred, but the bot must still correlate to the authoritative Discord message context users and channels are operating in. To minimize access, Guilty Spark uses deterministic state/cache lookup first and keeps Discord lookup as bounded fallback behavior only when needed for reliability.
+
+### Field: Please provide links to screenshots and/or videos that demonstrate your use case
+
+### Input name: intents_gateway_message_content_use_case_supplemental_material_description
+
+Suggested response:
+
+Primary demo video:
+https://1drv.ms/v/c/8d269e024aa96471/IQDrU_R23BtzQZfJCBTCLONuAftfEnDylWZS3uwGofrm3uo
+
+Public policy links:
+
+- https://guilty-spark.app/privacy-policy
+- https://guilty-spark.app/terms-of-service
+
+Implementation references:
+
+- Stats command: https://github.com/davidhouweling/guilty-spark/blob/main/api/commands/stats/stats.ts
+- Connect unlink flow: https://github.com/davidhouweling/guilty-spark/blob/main/api/commands/connect/connect.ts
+- Webhook route registration: https://github.com/davidhouweling/guilty-spark/blob/main/api/server.ts
+- Discord retrieval/cache logic: https://github.com/davidhouweling/guilty-spark/blob/main/api/services/discord/discord.ts
+- Live tracker orchestration: https://github.com/davidhouweling/guilty-spark/blob/main/api/services/live-tracker/live-tracker.ts
+
+## Final Pre-Submit Checks
+
+- Confirm the Privacy Policy URL in the Discord Developer Portal exactly matches https://guilty-spark.app/privacy-policy.
+- Confirm all shared media links are publicly viewable without login barriers for reviewers.
+- Confirm selections are consistent with policy language: no AI training use, no off-platform persistence of raw message content, and public policy availability.

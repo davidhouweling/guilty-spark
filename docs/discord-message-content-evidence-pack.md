@@ -1,6 +1,6 @@
 # Discord Message Content Evidence Pack
 
-Last Updated: 2026-07-25
+Last Updated: 2026-07-30
 
 This document is the working checklist for the Discord Message Content privileged intent resubmission. It is meant to collect public links, capture steps, and implementation evidence that match the behavior currently shipped in Guilty Spark.
 
@@ -11,6 +11,10 @@ This document is the working checklist for the Discord Message Content privilege
 - Privacy policy: https://guilty-spark.app/privacy-policy
 - Terms of service: https://guilty-spark.app/terms-of-service
 - Bot invite: https://discord.com/oauth2/authorize?client_id=1290269474536034357&permissions=311385476096&integration_type=0&scope=bot+applications.commands
+
+## Evidence Assets
+
+- Core demonstration video: https://1drv.ms/v/c/8d269e024aa96471/IQDrU_R23BtzQZfJCBTCLONuAftfEnDylWZS3uwGofrm3uo
 
 ## Submission Narrative
 
@@ -151,6 +155,7 @@ Expected proof points:
 - [ ] Public privacy policy link verified.
 - [ ] Footer link to privacy policy verified on the public website.
 - [ ] Public links confirmed accessible while logged out.
+- [ ] Demo video link verified and set to public viewer access.
 
 ## Supporting Implementation References
 
@@ -159,6 +164,19 @@ Expected proof points:
 - NeatQueue webhook entrypoint: `api/server.ts`
 - Discord retrieval/cache logic: `api/services/discord/discord.ts`
 - Live tracker orchestration: `api/services/live-tracker/live-tracker.ts`
+
+## Wiki-Navigable Source Links
+
+Use these direct GitHub links in the wiki page so reviewers can jump from a claim to the source file immediately.
+
+- Stats command surface: https://github.com/davidhouweling/guilty-spark/blob/main/api/commands/stats/stats.ts
+- Connect unlink flow: https://github.com/davidhouweling/guilty-spark/blob/main/api/commands/connect/connect.ts
+- NeatQueue webhook entrypoint: https://github.com/davidhouweling/guilty-spark/blob/main/api/server.ts
+- Discord retrieval/cache logic: https://github.com/davidhouweling/guilty-spark/blob/main/api/services/discord/discord.ts
+- Live tracker orchestration: https://github.com/davidhouweling/guilty-spark/blob/main/api/services/live-tracker/live-tracker.ts
+- Privacy policy page source: https://github.com/davidhouweling/guilty-spark/blob/main/pages/src/pages/privacy-policy.astro
+- Terms page source: https://github.com/davidhouweling/guilty-spark/blob/main/pages/src/pages/terms-of-service.astro
+- Footer policy discoverability source: https://github.com/davidhouweling/guilty-spark/blob/main/pages/src/components/footer/footer.astro
 
 ## Packaging Notes
 
