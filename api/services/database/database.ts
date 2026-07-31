@@ -376,7 +376,7 @@ export class DatabaseService {
     const query = `
       INSERT INTO LeaderboardGames (MatchId, GuildId, QueueNumber, QueueChannelId, GameIndexInSeries, GameVariantCategory, ModeName, MapName, MapAssetId, MapVersionId, Team0Score, Team1Score, StartedAt, EndedAt, CreatedAt)
       VALUES ${placeholders}
-      ON CONFLICT(MatchId) DO UPDATE SET GuildId=excluded.GuildId, QueueNumber=excluded.QueueNumber, QueueChannelId=excluded.QueueChannelId, GameIndexInSeries=excluded.GameIndexInSeries, GameVariantCategory=excluded.GameVariantCategory, ModeName=excluded.ModeName, MapName=excluded.MapName, MapAssetId=excluded.MapAssetId, MapVersionId=excluded.MapVersionId, Team0Score=excluded.Team0Score, Team1Score=excluded.Team1Score, StartedAt=excluded.StartedAt, EndedAt=excluded.EndedAt
+      ON CONFLICT(GuildId, QueueNumber, MatchId) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, GameIndexInSeries=excluded.GameIndexInSeries, GameVariantCategory=excluded.GameVariantCategory, ModeName=excluded.ModeName, MapName=excluded.MapName, MapAssetId=excluded.MapAssetId, MapVersionId=excluded.MapVersionId, Team0Score=excluded.Team0Score, Team1Score=excluded.Team1Score, StartedAt=excluded.StartedAt, EndedAt=excluded.EndedAt
     `;
     const values = games.flatMap((game) => [
       game.MatchId,
@@ -417,7 +417,7 @@ export class DatabaseService {
       const query = `
         INSERT INTO LeaderboardGamePlayers (MatchId, GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginning, RankInMatch, PersonalScore, Kills, Deaths, Assists, Kda, Accuracy, ShotsHit, ShotsFired, DamageDealt, DamageTaken, DamageRatio, AvgLifeSeconds, AvgDamagePerLife, ObjectiveStatsJson, MedalsJson, CreatedAt)
         VALUES ${placeholders}
-        ON CONFLICT(MatchId, XboxXuid) DO UPDATE SET GuildId=excluded.GuildId, QueueNumber=excluded.QueueNumber, QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginning=excluded.PresentAtBeginning, RankInMatch=excluded.RankInMatch, PersonalScore=excluded.PersonalScore, Kills=excluded.Kills, Deaths=excluded.Deaths, Assists=excluded.Assists, Kda=excluded.Kda, Accuracy=excluded.Accuracy, ShotsHit=excluded.ShotsHit, ShotsFired=excluded.ShotsFired, DamageDealt=excluded.DamageDealt, DamageTaken=excluded.DamageTaken, DamageRatio=excluded.DamageRatio, AvgLifeSeconds=excluded.AvgLifeSeconds, AvgDamagePerLife=excluded.AvgDamagePerLife, ObjectiveStatsJson=excluded.ObjectiveStatsJson, MedalsJson=excluded.MedalsJson
+        ON CONFLICT(GuildId, QueueNumber, MatchId, XboxXuid) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginning=excluded.PresentAtBeginning, RankInMatch=excluded.RankInMatch, PersonalScore=excluded.PersonalScore, Kills=excluded.Kills, Deaths=excluded.Deaths, Assists=excluded.Assists, Kda=excluded.Kda, Accuracy=excluded.Accuracy, ShotsHit=excluded.ShotsHit, ShotsFired=excluded.ShotsFired, DamageDealt=excluded.DamageDealt, DamageTaken=excluded.DamageTaken, DamageRatio=excluded.DamageRatio, AvgLifeSeconds=excluded.AvgLifeSeconds, AvgDamagePerLife=excluded.AvgDamagePerLife, ObjectiveStatsJson=excluded.ObjectiveStatsJson, MedalsJson=excluded.MedalsJson
       `;
       const values = chunk.flatMap((player) => [
         player.MatchId,
@@ -461,6 +461,12 @@ export class DatabaseService {
   async deleteLeaderboardDataForQueue(guildId: string, queueChannelId: string): Promise<void> {
     const query = "DELETE FROM LeaderboardSeries WHERE GuildId = ? AND QueueChannelId = ?";
     const stmt = this.DB.prepare(query).bind(guildId, queueChannelId);
+    await stmt.run();
+  }
+
+  async deleteLeaderboardSeriesByQueueNumber(guildId: string, queueNumber: number): Promise<void> {
+    const query = "DELETE FROM LeaderboardSeries WHERE GuildId = ? AND QueueNumber = ?";
+    const stmt = this.DB.prepare(query).bind(guildId, queueNumber);
     await stmt.run();
   }
 

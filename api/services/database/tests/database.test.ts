@@ -652,6 +652,19 @@ describe("Database Service", () => {
       expect(bindSpy).toHaveBeenNthCalledWith(2, "guild-123", "queue-789");
       expect(runSpy).toHaveBeenCalledTimes(2);
     });
+
+    it("deletes leaderboard series by guild and queue number", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.deleteLeaderboardSeriesByQueueNumber("guild-123", 789);
+
+      expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM LeaderboardSeries WHERE GuildId = ? AND QueueNumber = ?");
+      expect(bindSpy).toHaveBeenCalledWith("guild-123", 789);
+      expect(runSpy).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("getUserSession()", () => {

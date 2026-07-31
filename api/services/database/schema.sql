@@ -186,7 +186,7 @@ CREATE INDEX IF NOT EXISTS IdxLeaderboardSeriesPlayersGuildQueueDiscord
     ON LeaderboardSeriesPlayers (GuildId, QueueChannelId, DiscordUserId);
 
 CREATE TABLE IF NOT EXISTS LeaderboardGames (
-    MatchId TEXT PRIMARY KEY NOT NULL,
+    MatchId TEXT NOT NULL,
     GuildId TEXT NOT NULL,
     QueueNumber INTEGER NOT NULL,
     QueueChannelId TEXT NOT NULL,
@@ -201,6 +201,7 @@ CREATE TABLE IF NOT EXISTS LeaderboardGames (
     StartedAt INTEGER NOT NULL,
     EndedAt INTEGER NOT NULL,
     CreatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    PRIMARY KEY (GuildId, QueueNumber, MatchId),
     UNIQUE (GuildId, QueueNumber, GameIndexInSeries),
     FOREIGN KEY (GuildId, QueueNumber) REFERENCES LeaderboardSeries(GuildId, QueueNumber) ON DELETE CASCADE
 );
@@ -237,8 +238,8 @@ CREATE TABLE IF NOT EXISTS LeaderboardGamePlayers (
     ObjectiveStatsJson TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(ObjectiveStatsJson)),
     MedalsJson TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(MedalsJson)),
     CreatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
-    PRIMARY KEY (MatchId, XboxXuid),
-    FOREIGN KEY (MatchId) REFERENCES LeaderboardGames(MatchId) ON DELETE CASCADE,
+    PRIMARY KEY (GuildId, QueueNumber, MatchId, XboxXuid),
+    FOREIGN KEY (GuildId, QueueNumber, MatchId) REFERENCES LeaderboardGames(GuildId, QueueNumber, MatchId) ON DELETE CASCADE,
     FOREIGN KEY (GuildId, QueueNumber) REFERENCES LeaderboardSeries(GuildId, QueueNumber) ON DELETE CASCADE
 );
 

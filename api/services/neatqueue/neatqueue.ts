@@ -2300,8 +2300,6 @@ export class NeatQueueService {
         UpdatedAt: nowEpoch,
       };
 
-      await databaseService.upsertLeaderboardSeries(seriesRow);
-
       const gamertagMap = await haloService.getPlayerXuidsToGametags(sortedSeries);
       const allXuids = this.getSortedDistinctXuids(sortedSeries);
       const associations = await databaseService.getDiscordAssociationsByXboxId(allXuids);
@@ -2317,9 +2315,31 @@ export class NeatQueueService {
         xuidToDiscordId,
       });
 
-      await databaseService.upsertLeaderboardGames(gamesRows);
-      await databaseService.upsertLeaderboardGamePlayers(gamePlayerRows);
-      await databaseService.upsertLeaderboardSeriesPlayers(seriesPlayerRows);
+      let seriesWriteStarted = false;
+      try {
+        await databaseService.upsertLeaderboardSeries(seriesRow);
+        seriesWriteStarted = true;
+        await databaseService.upsertLeaderboardGames(gamesRows);
+        await databaseService.upsertLeaderboardGamePlayers(gamePlayerRows);
+        await databaseService.upsertLeaderboardSeriesPlayers(seriesPlayerRows);
+      } catch (writeError) {
+        if (seriesWriteStarted) {
+          try {
+            await databaseService.deleteLeaderboardSeriesByQueueNumber(request.guild, request.match_number);
+          } catch (cleanupError) {
+            logService.warn(
+              cleanupError,
+              new Map([
+                ["guildId", request.guild],
+                ["queueNumber", request.match_number.toString()],
+                ["reason", "Failed to rollback partially persisted leaderboard series data"],
+              ]),
+            );
+          }
+        }
+
+        throw writeError;
+      }
     } catch (error) {
       logService.warn(
         error,
