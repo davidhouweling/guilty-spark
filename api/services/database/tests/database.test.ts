@@ -529,10 +529,25 @@ describe("Database Service", () => {
       const seriesPlayers = [aFakeLeaderboardSeriesPlayersRow()];
       const games = [aFakeLeaderboardGamesRow()];
       const gamePlayers = [aFakeLeaderboardGamePlayersRow()];
-      const fakePreparedStatement = new FakePreparedStatement();
-      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
-      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
-      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+      const seriesPlayersStatement = new FakePreparedStatement();
+      const deleteGamesStatement = new FakePreparedStatement();
+      const upsertGamesStatement = new FakePreparedStatement();
+      const gamePlayersStatement = new FakePreparedStatement();
+
+      vi.spyOn(seriesPlayersStatement, "bind").mockReturnThis();
+      vi.spyOn(deleteGamesStatement, "bind").mockReturnThis();
+      vi.spyOn(upsertGamesStatement, "bind").mockReturnThis();
+      vi.spyOn(gamePlayersStatement, "bind").mockReturnThis();
+
+      const runSeriesPlayersSpy = vi.spyOn(seriesPlayersStatement, "run");
+      const runGamePlayersSpy = vi.spyOn(gamePlayersStatement, "run");
+      const prepareSpy = vi
+        .spyOn(env.DB, "prepare")
+        .mockReturnValueOnce(seriesPlayersStatement)
+        .mockReturnValueOnce(deleteGamesStatement)
+        .mockReturnValueOnce(upsertGamesStatement)
+        .mockReturnValueOnce(gamePlayersStatement);
+      const batchSpy = vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
 
       await databaseService.upsertLeaderboardSeriesPlayers(seriesPlayers);
       await databaseService.upsertLeaderboardGames(games);
@@ -542,8 +557,10 @@ describe("Database Service", () => {
         2,
         "DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?",
       );
-      expect(bindSpy).toHaveBeenCalledTimes(4);
-      expect(runSpy).toHaveBeenCalledTimes(4);
+      expect(prepareSpy).toHaveBeenNthCalledWith(3, expect.stringContaining("INSERT INTO LeaderboardGames"));
+      expect(batchSpy).toHaveBeenCalledWith([deleteGamesStatement, upsertGamesStatement]);
+      expect(runSeriesPlayersSpy).toHaveBeenCalledTimes(1);
+      expect(runGamePlayersSpy).toHaveBeenCalledTimes(1);
     });
 
     it("does not overwrite created timestamps in leaderboard upserts", async () => {

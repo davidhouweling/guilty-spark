@@ -343,6 +343,7 @@ export class DatabaseService {
       return;
     }
 
+    const statements: D1PreparedStatement[] = [];
     const queueNumbersByGuild = new Map<string, Set<number>>();
     for (const game of games) {
       const queueNumbers = queueNumbersByGuild.get(game.GuildId);
@@ -359,7 +360,7 @@ export class DatabaseService {
           guildId,
           queueNumber,
         );
-        await deleteStmt.run();
+        statements.push(deleteStmt);
       }
     }
 
@@ -387,7 +388,8 @@ export class DatabaseService {
       game.CreatedAt,
     ]);
     const stmt = this.DB.prepare(query).bind(...values);
-    await stmt.run();
+    statements.push(stmt);
+    await this.DB.batch(statements);
   }
 
   async upsertLeaderboardGamePlayers(players: LeaderboardGamePlayersRow[]): Promise<void> {
