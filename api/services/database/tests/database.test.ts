@@ -508,6 +508,7 @@ describe("Database Service", () => {
       await databaseService.upsertLeaderboardSeries(series);
 
       expect(prepareSpy).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO LeaderboardSeries"));
+      expect(prepareSpy).toHaveBeenCalledWith(expect.not.stringContaining("CreatedAt=excluded.CreatedAt"));
       expect(bindSpy).toHaveBeenCalledWith(
         series.GuildId,
         series.QueueNumber,
@@ -529,7 +530,7 @@ describe("Database Service", () => {
       const games = [aFakeLeaderboardGamesRow()];
       const gamePlayers = [aFakeLeaderboardGamePlayersRow()];
       const fakePreparedStatement = new FakePreparedStatement();
-      vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
 
@@ -537,8 +538,35 @@ describe("Database Service", () => {
       await databaseService.upsertLeaderboardGames(games);
       await databaseService.upsertLeaderboardGamePlayers(gamePlayers);
 
-      expect(bindSpy).toHaveBeenCalledTimes(3);
-      expect(runSpy).toHaveBeenCalledTimes(3);
+      expect(prepareSpy).toHaveBeenNthCalledWith(
+        2,
+        "DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?",
+      );
+      expect(bindSpy).toHaveBeenCalledTimes(4);
+      expect(runSpy).toHaveBeenCalledTimes(4);
+    });
+
+    it("does not overwrite created timestamps in leaderboard upserts", async () => {
+      const series = aFakeLeaderboardSeriesRow();
+      const seriesPlayers = [aFakeLeaderboardSeriesPlayersRow()];
+      const games = [aFakeLeaderboardGamesRow()];
+      const gamePlayers = [aFakeLeaderboardGamePlayersRow()];
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.upsertLeaderboardSeries(series);
+      await databaseService.upsertLeaderboardSeriesPlayers(seriesPlayers);
+      await databaseService.upsertLeaderboardGames(games);
+      await databaseService.upsertLeaderboardGamePlayers(gamePlayers);
+
+      const preparedQueries = prepareSpy.mock.calls
+        .map(([query]) => query)
+        .filter((query) => typeof query === "string");
+      for (const query of preparedQueries) {
+        expect(query).not.toContain("CreatedAt=excluded.CreatedAt");
+      }
     });
 
     it("does nothing for empty leaderboard player/game upserts", async () => {
