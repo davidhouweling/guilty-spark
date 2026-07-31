@@ -2270,7 +2270,7 @@ export class NeatQueueService {
     neatQueueConfig: NeatQueueConfigRow;
     series: MatchStats[];
   }): Promise<void> {
-    if (series.length === 0) {
+    if (series.length === 0 || request.winning_team_index === -1) {
       return;
     }
 
@@ -2390,6 +2390,7 @@ export class NeatQueueService {
     const gamesRows: LeaderboardGamesRow[] = [];
     const gamePlayerRows: LeaderboardGamePlayersRow[] = [];
     const playersByXuid = new Map<string, LeaderboardSeriesPlayersRow>();
+    const participationByXuid = new Map<string, boolean[]>();
 
     for (const [index, match] of sortedSeries.entries()) {
       const gameTypeAndMap = await this.haloService.getGameTypeAndMap(match.MatchInfo);
@@ -2423,6 +2424,15 @@ export class NeatQueueService {
         }
 
         const xuid = getPlayerXuid(player);
+        const participation = participationByXuid.get(xuid);
+        if (participation == null) {
+          const initialParticipation = Array<boolean>(sortedSeries.length).fill(false);
+          initialParticipation[index] = true;
+          participationByXuid.set(xuid, initialParticipation);
+        } else {
+          participation[index] = true;
+        }
+
         const teamStats = Preconditions.checkExists(
           player.PlayerTeamStats.find((candidate) => match.Teams.some((team) => team.TeamId === candidate.TeamId)),
           "Expected player team stats",
@@ -2486,6 +2496,20 @@ export class NeatQueueService {
           existing.SubstituteInCount += 1;
         }
       }
+    }
+
+    for (const row of playersByXuid.values()) {
+      const participation = Preconditions.checkExists(
+        participationByXuid.get(row.XboxXuid),
+        "Expected player participation across series",
+      );
+      let substituteOutCount = 0;
+      for (let i = 0; i < participation.length - 1; i += 1) {
+        if (participation[i] === true && participation[i + 1] !== true) {
+          substituteOutCount += 1;
+        }
+      }
+      row.SubstituteOutCount = substituteOutCount;
     }
 
     const seriesPlayerRows = [...playersByXuid.values()].sort((left, right) =>

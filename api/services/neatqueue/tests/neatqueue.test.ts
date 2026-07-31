@@ -755,6 +755,10 @@ describe("NeatQueueService", () => {
         await jobToComplete?.();
 
         expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:state:guild-1:2");
+        expect(upsertLeaderboardSeriesSpy).not.toHaveBeenCalled();
+        expect(upsertLeaderboardGamesSpy).not.toHaveBeenCalled();
+        expect(upsertLeaderboardGamePlayersSpy).not.toHaveBeenCalled();
+        expect(upsertLeaderboardSeriesPlayersSpy).not.toHaveBeenCalled();
       });
 
       it("discard neatqueue events that are not of concern", async () => {
@@ -939,6 +943,56 @@ describe("NeatQueueService", () => {
           expect(upsertLeaderboardGamePlayersSpy).toHaveBeenCalledOnce();
           expect(upsertLeaderboardSeriesPlayersSpy).toHaveBeenCalledOnce();
           expect(getDiscordAssociationsByXboxIdSpy).toHaveBeenCalledOnce();
+
+          const [seriesRow] = upsertLeaderboardSeriesSpy.mock.calls[0] ?? [];
+          expect(seriesRow).toEqual(
+            expect.objectContaining({
+              GuildId: "guild-id",
+              QueueNumber: 2,
+              QueueChannelId: "channel-1",
+              ResultsChannelId: "results-channel-1",
+              WinnerTeamIndex: 0,
+            }),
+          );
+
+          const [gamesRowsArg] = upsertLeaderboardGamesSpy.mock.calls[0] ?? [];
+          const gamesRows = Preconditions.checkExists(gamesRowsArg);
+          expect(gamesRows).toEqual(expect.any(Array));
+          for (const row of gamesRows) {
+            expect(row).toEqual(
+              expect.objectContaining({
+                GuildId: "guild-id",
+                QueueNumber: 2,
+                QueueChannelId: "channel-1",
+              }),
+            );
+          }
+
+          const [gamePlayerRowsArg] = upsertLeaderboardGamePlayersSpy.mock.calls[0] ?? [];
+          const gamePlayerRows = Preconditions.checkExists(gamePlayerRowsArg);
+          expect(gamePlayerRows).toEqual(expect.any(Array));
+          for (const row of gamePlayerRows) {
+            expect(row).toEqual(
+              expect.objectContaining({
+                GuildId: "guild-id",
+                QueueNumber: 2,
+                QueueChannelId: "channel-1",
+              }),
+            );
+          }
+
+          const [seriesPlayerRowsArg] = upsertLeaderboardSeriesPlayersSpy.mock.calls[0] ?? [];
+          const seriesPlayerRows = Preconditions.checkExists(seriesPlayerRowsArg);
+          expect(seriesPlayerRows).toEqual(expect.any(Array));
+          for (const row of seriesPlayerRows) {
+            expect(row).toEqual(
+              expect.objectContaining({
+                GuildId: "guild-id",
+                QueueNumber: 2,
+                QueueChannelId: "channel-1",
+              }),
+            );
+          }
         });
 
         it("creates the thread/message and posts overviews and game stats, clears timeline", async () => {
@@ -1150,6 +1204,11 @@ describe("NeatQueueService", () => {
 
           expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(5);
           expect(discordServiceCreateMessageSpy.mock.calls).toMatchSnapshot();
+
+          const [seriesPlayerRowsArg] = upsertLeaderboardSeriesPlayersSpy.mock.calls[0] ?? [];
+          const seriesPlayerRows = Preconditions.checkExists(seriesPlayerRowsArg);
+          expect(seriesPlayerRows).toEqual(expect.any(Array));
+          expect(seriesPlayerRows.some((row) => row.SubstituteOutCount > 0)).toBe(true);
         });
 
         describe("substitution team name in Discord embed", () => {

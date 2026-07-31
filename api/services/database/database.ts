@@ -256,7 +256,7 @@ export class DatabaseService {
 
     if (autoCreate) {
       const insertStmt = this.DB.prepare(
-        "INSERT INTO LeaderboardConfig (GuildId, EnabledWindowsJson, DefaultWindow, DefaultMetric, UpdatedAt) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO LeaderboardConfig (GuildId, EnabledWindowsJson, DefaultWindow, DefaultMetric, UpdatedAt) VALUES (?, ?, ?, ?, ?) ON CONFLICT(GuildId) DO NOTHING",
       ).bind(
         defaultConfig.GuildId,
         defaultConfig.EnabledWindowsJson,

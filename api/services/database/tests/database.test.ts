@@ -468,13 +468,14 @@ describe("Database Service", () => {
 
     it("auto-creates leaderboard config when requested", async () => {
       const fakePreparedStatement = new FakePreparedStatement();
-      vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
 
       await databaseService.getLeaderboardConfig("guild-123", true);
 
+      expect(prepareSpy).toHaveBeenCalledWith(expect.stringContaining("ON CONFLICT(GuildId) DO NOTHING"));
       expect(runSpy).toHaveBeenCalled();
     });
 
