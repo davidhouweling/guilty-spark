@@ -11,6 +11,11 @@ import {
   aFakeIndividualTrackerGamesRow,
   aFakeStreamerViewSettingsRow,
   aFakeIndividualTrackersRow,
+  aFakeLeaderboardConfigRow,
+  aFakeLeaderboardSeriesRow,
+  aFakeLeaderboardSeriesPlayersRow,
+  aFakeLeaderboardGamesRow,
+  aFakeLeaderboardGamePlayersRow,
 } from "../fakes/database.fake";
 import type { GuildConfigRow } from "../types/guild_config";
 import { StatsReturnType, MapsPostType, MapsPlaylistType, MapsFormatType } from "../types/guild_config";
@@ -21,6 +26,7 @@ import type { LinkedIdentitiesRow } from "../types/linked_identities";
 import type { IndividualTrackerProfilesRow } from "../types/individual_tracker_profiles";
 import type { IndividualTrackerGamesRow } from "../types/individual_tracker_games";
 import type { StreamerViewSettingsRow } from "../types/streamer_view_settings";
+import { LeaderboardMetric, LeaderboardWindow } from "../types/leaderboard_config";
 
 describe("Database Service", () => {
   let env: Env;
@@ -440,6 +446,128 @@ describe("Database Service", () => {
       expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM NeatQueueConfig WHERE GuildId = ? AND ChannelId = ?");
       expect(bindSpy).toHaveBeenCalledWith("guild-123", "channel-456");
       expect(runSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("Leaderboard persistence", () => {
+    it("returns default leaderboard config when not found", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+
+      const result = await databaseService.getLeaderboardConfig("guild-123");
+
+      expect(result).not.toBeNull();
+      expect(result.GuildId).toBe("guild-123");
+      expect(result.EnabledWindowsJson).toBe('["1W","1M","3M","6M","12M"]');
+      expect(result.DefaultWindow).toBe(LeaderboardWindow.ThreeMonths);
+      expect(result.DefaultMetric).toBe(LeaderboardMetric.SeriesWinRate);
+      expect(result.UpdatedAt).toEqual(expect.any(Number));
+    });
+
+    it("auto-creates leaderboard config when requested", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.getLeaderboardConfig("guild-123", true);
+
+      expect(runSpy).toHaveBeenCalled();
+    });
+
+    it("upserts leaderboard config", async () => {
+      const config = aFakeLeaderboardConfigRow({ GuildId: "guild-123" });
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.upsertLeaderboardConfig(config);
+
+      expect(prepareSpy).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO LeaderboardConfig"));
+      expect(bindSpy).toHaveBeenCalledWith(
+        config.GuildId,
+        config.EnabledWindowsJson,
+        config.DefaultWindow,
+        config.DefaultMetric,
+        config.UpdatedAt,
+      );
+      expect(runSpy).toHaveBeenCalled();
+    });
+
+    it("upserts leaderboard series", async () => {
+      const series = aFakeLeaderboardSeriesRow();
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.upsertLeaderboardSeries(series);
+
+      expect(prepareSpy).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO LeaderboardSeries"));
+      expect(bindSpy).toHaveBeenCalledWith(
+        series.GuildId,
+        series.QueueNumber,
+        series.QueueChannelId,
+        series.ResultsChannelId,
+        series.StartedAt,
+        series.CompletedAt,
+        series.WinnerTeamIndex,
+        series.SeriesScore,
+        series.Source,
+        series.CreatedAt,
+        series.UpdatedAt,
+      );
+      expect(runSpy).toHaveBeenCalled();
+    });
+
+    it("upserts leaderboard series players and games/game players", async () => {
+      const seriesPlayers = [aFakeLeaderboardSeriesPlayersRow()];
+      const games = [aFakeLeaderboardGamesRow()];
+      const gamePlayers = [aFakeLeaderboardGamePlayersRow()];
+      const fakePreparedStatement = new FakePreparedStatement();
+      vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.upsertLeaderboardSeriesPlayers(seriesPlayers);
+      await databaseService.upsertLeaderboardGames(games);
+      await databaseService.upsertLeaderboardGamePlayers(gamePlayers);
+
+      expect(bindSpy).toHaveBeenCalledTimes(3);
+      expect(runSpy).toHaveBeenCalledTimes(3);
+    });
+
+    it("does nothing for empty leaderboard player/game upserts", async () => {
+      const prepareSpy = vi.spyOn(env.DB, "prepare");
+
+      await databaseService.upsertLeaderboardSeriesPlayers([]);
+      await databaseService.upsertLeaderboardGames([]);
+      await databaseService.upsertLeaderboardGamePlayers([]);
+
+      expect(prepareSpy).not.toHaveBeenCalled();
+    });
+
+    it("deletes leaderboard data by guild and queue", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.deleteLeaderboardDataForGuild("guild-123");
+      await databaseService.deleteLeaderboardDataForQueue("guild-123", "queue-789");
+
+      expect(prepareSpy).toHaveBeenNthCalledWith(1, "DELETE FROM LeaderboardSeries WHERE GuildId = ?");
+      expect(prepareSpy).toHaveBeenNthCalledWith(
+        2,
+        "DELETE FROM LeaderboardSeries WHERE GuildId = ? AND QueueChannelId = ?",
+      );
+      expect(bindSpy).toHaveBeenNthCalledWith(1, "guild-123");
+      expect(bindSpy).toHaveBeenNthCalledWith(2, "guild-123", "queue-789");
+      expect(runSpy).toHaveBeenCalledTimes(2);
     });
   });
 

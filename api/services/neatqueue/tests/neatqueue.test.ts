@@ -647,6 +647,11 @@ describe("NeatQueueService", () => {
       let discordServiceStartThreadFromMessageSpy: MockInstance<typeof discordService.startThreadFromMessage>;
       let discordServiceCreateMessageSpy: MockInstance<typeof discordService.createMessage>;
       let cacheResolvedDiscordSeriesStatsSpy: MockInstance<typeof discordService.cacheResolvedDiscordSeriesStats>;
+      let upsertLeaderboardSeriesSpy: MockInstance<typeof databaseService.upsertLeaderboardSeries>;
+      let upsertLeaderboardGamesSpy: MockInstance<typeof databaseService.upsertLeaderboardGames>;
+      let upsertLeaderboardGamePlayersSpy: MockInstance<typeof databaseService.upsertLeaderboardGamePlayers>;
+      let upsertLeaderboardSeriesPlayersSpy: MockInstance<typeof databaseService.upsertLeaderboardSeriesPlayers>;
+      let getDiscordAssociationsByXboxIdSpy: MockInstance<typeof databaseService.getDiscordAssociationsByXboxId>;
 
       beforeEach(() => {
         appDataGetSpy = vi.spyOn(env.APP_DATA, "get");
@@ -688,6 +693,15 @@ describe("NeatQueueService", () => {
           .spyOn(discordService, "startThreadFromMessage")
           .mockResolvedValue(startThread);
         discordServiceCreateMessageSpy = vi.spyOn(discordService, "createMessage").mockResolvedValue(apiMessage);
+        upsertLeaderboardSeriesSpy = vi.spyOn(databaseService, "upsertLeaderboardSeries").mockResolvedValue();
+        upsertLeaderboardGamesSpy = vi.spyOn(databaseService, "upsertLeaderboardGames").mockResolvedValue();
+        upsertLeaderboardGamePlayersSpy = vi.spyOn(databaseService, "upsertLeaderboardGamePlayers").mockResolvedValue();
+        upsertLeaderboardSeriesPlayersSpy = vi
+          .spyOn(databaseService, "upsertLeaderboardSeriesPlayers")
+          .mockResolvedValue();
+        getDiscordAssociationsByXboxIdSpy = vi
+          .spyOn(databaseService, "getDiscordAssociationsByXboxId")
+          .mockResolvedValue([]);
         vi.spyOn(discordService, "getUsers").mockResolvedValue([
           aGuildMemberWith({
             user: {
@@ -920,6 +934,11 @@ describe("NeatQueueService", () => {
               matchIds: expect.any(Array) as string[],
             }),
           );
+          expect(upsertLeaderboardSeriesSpy).toHaveBeenCalledOnce();
+          expect(upsertLeaderboardGamesSpy).toHaveBeenCalledOnce();
+          expect(upsertLeaderboardGamePlayersSpy).toHaveBeenCalledOnce();
+          expect(upsertLeaderboardSeriesPlayersSpy).toHaveBeenCalledOnce();
+          expect(getDiscordAssociationsByXboxIdSpy).toHaveBeenCalledOnce();
         });
 
         it("creates the thread/message and posts overviews and game stats, clears timeline", async () => {
