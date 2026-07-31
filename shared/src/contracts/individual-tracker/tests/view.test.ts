@@ -160,6 +160,23 @@ describe("trackerViewContract", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts a zero teamCount in match summaries", () => {
+    const result = trackerViewContract.safeParse({
+      ...validResponse,
+      view: {
+        ...validResponse.view,
+        matches: [
+          {
+            ...validResponse.view.matches[0],
+            teamCount: 0,
+          },
+        ],
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it("rejects an unknown status", () => {
     const result = trackerViewContract.safeParse({
       ...validResponse,
