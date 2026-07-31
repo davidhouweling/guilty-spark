@@ -28,6 +28,7 @@ export interface IndividualTrackerMatchSummary {
   gameVariantCategory: number;
   outcome: NormalizedMatchOutcome;
   score: string;
+  teamCount?: number;
   killsDeathsAssistsKda?: string;
   damageDealtTakenRatio?: string;
   kills?: number;

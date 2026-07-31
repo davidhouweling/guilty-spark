@@ -2340,6 +2340,87 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.activeSeries?.matchIds).toEqual([]);
     });
 
+    it("does not attach a discovered custom match to active series when match stats have more than two teams", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
+        .mockResolvedValueOnce([]);
+      ownerClient.getMatchStats.mockResolvedValueOnce(
+        aFakeMatchStatsWith({
+          Teams: [
+            aFakeTeamWith({ TeamId: 0, Outcome: 2 }),
+            aFakeTeamWith({ TeamId: 1, Outcome: 3 }),
+            aFakeTeamWith({ TeamId: 2, Outcome: 3 }),
+          ],
+        }),
+      );
+
+      const activeSeries: ActiveSeries = {
+        title: "Active Series",
+        subtitle: "Customs",
+        guildIconUrl: null,
+        teams: [],
+        matchIds: [],
+        startedAt: "2024-11-26T11:00:00.000Z",
+        isActive: true,
+      };
+
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: [],
+          discoveredMatches: {},
+          activeSeries,
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.matchIds).toEqual([]);
+      expect(persisted.matchIds).toContain("match-new");
+      expect(persisted.discoveredMatches["match-new"]?.teamOutcomes).toEqual([2, 3, 3]);
+    });
+
+    it("does not attach a discovered custom match to active series when match stats have zero teams", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
+        .mockResolvedValueOnce([]);
+      ownerClient.getMatchStats.mockResolvedValueOnce(
+        aFakeMatchStatsWith({
+          Teams: [],
+        }),
+      );
+
+      const activeSeries: ActiveSeries = {
+        title: "Active Series",
+        subtitle: "Customs",
+        guildIconUrl: null,
+        teams: [],
+        matchIds: [],
+        startedAt: "2024-11-26T11:00:00.000Z",
+        isActive: true,
+      };
+
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: [],
+          discoveredMatches: {},
+          activeSeries,
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.matchIds).toEqual([]);
+      expect(persisted.matchIds).toContain("match-new");
+      expect(persisted.discoveredMatches["match-new"]?.teamOutcomes).toEqual([]);
+      expect(persisted.discoveredMatches["match-new"]?.teamCount).toBe(0);
+    });
+
     it("falls back to an empty score and re-enriches on the next poll when getMatchStats fails", async () => {
       ownerClient.getPlayerMatches
         .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])

@@ -121,11 +121,11 @@ describe("buildViewerRenderModel", () => {
     expect.assertions(5);
     const view = aFakeTrackerViewStateWith({
       matches: [
-        aFakeTrackerMatchSummaryWith({ matchId: "m1", outcome: "Win" }),
-        aFakeTrackerMatchSummaryWith({ matchId: "m2", outcome: "Loss" }),
-        aFakeTrackerMatchSummaryWith({ matchId: "m3", outcome: "Tie" }),
-        aFakeTrackerMatchSummaryWith({ matchId: "m4", outcome: "DNF" }),
-        aFakeTrackerMatchSummaryWith({ matchId: "m5", outcome: "Unknown" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m1", outcome: "Win", teamCount: 2 }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m2", outcome: "Loss", teamCount: 2 }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m3", outcome: "Tie", teamCount: 2 }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m4", outcome: "DNF", teamCount: 2 }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m5", outcome: "Unknown", teamCount: 2 }),
       ],
     });
 
@@ -143,7 +143,7 @@ describe("buildViewerRenderModel", () => {
   it("keeps Unknown outcome neutral with no colour", () => {
     expect.assertions(2);
     const view = aFakeTrackerViewStateWith({
-      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1", outcome: "Unknown" })],
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1", outcome: "Unknown", teamCount: 2 })],
     });
 
     const model = buildViewerRenderModel({ view });
@@ -151,6 +151,50 @@ describe("buildViewerRenderModel", () => {
     const [first] = model.timeline;
     if (first.type === "match") {
       expect(first.match.outcome).toBe("Unknown");
+      expect(first.match.colorHex).toBeUndefined();
+    }
+  });
+
+  it("keeps non-2-team summaries neutral with no colour", () => {
+    expect.assertions(2);
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m-ffa",
+          outcome: "Win",
+          teamCount: 4,
+          isMatchmaking: true,
+        }),
+      ],
+    });
+
+    const model = buildViewerRenderModel({ view });
+
+    const [first] = model.timeline;
+    if (first.type === "match") {
+      expect(first.match.outcome).toBe("Win");
+      expect(first.match.colorHex).toBeUndefined();
+    }
+  });
+
+  it("keeps zero-team summaries neutral with no colour", () => {
+    expect.assertions(2);
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m-ffa-zero",
+          outcome: "Win",
+          teamCount: 0,
+          isMatchmaking: true,
+        }),
+      ],
+    });
+
+    const model = buildViewerRenderModel({ view });
+
+    const [first] = model.timeline;
+    if (first.type === "match") {
+      expect(first.match.outcome).toBe("Win");
       expect(first.match.colorHex).toBeUndefined();
     }
   });
@@ -191,8 +235,8 @@ describe("buildViewerRenderModel", () => {
     expect.assertions(2);
     const view = aFakeTrackerViewStateWith({
       matches: [
-        aFakeTrackerMatchSummaryWith({ matchId: "m1", outcome: "Win" }),
-        aFakeTrackerMatchSummaryWith({ matchId: "m2", outcome: "Loss" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m1", outcome: "Win", teamCount: 2 }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m2", outcome: "Loss", teamCount: 2 }),
       ],
     });
 
