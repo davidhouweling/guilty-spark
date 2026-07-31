@@ -2314,6 +2314,10 @@ export class NeatQueueService {
         gamertagMap,
         xuidToDiscordId,
       });
+      const existingSeries = await databaseService.getLeaderboardSeriesByQueueNumber(
+        request.guild,
+        request.match_number,
+      );
 
       let seriesWriteStarted = false;
       try {
@@ -2323,7 +2327,7 @@ export class NeatQueueService {
         await databaseService.upsertLeaderboardGamePlayers(gamePlayerRows);
         await databaseService.upsertLeaderboardSeriesPlayers(seriesPlayerRows);
       } catch (writeError) {
-        if (seriesWriteStarted) {
+        if (seriesWriteStarted && existingSeries == null) {
           try {
             await databaseService.deleteLeaderboardSeriesByQueueNumber(request.guild, request.match_number);
           } catch (cleanupError) {

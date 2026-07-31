@@ -321,6 +321,11 @@ export class DatabaseService {
       return;
     }
 
+    const firstPlayer = Preconditions.checkExists(players[0]);
+    const deleteStmt = this.DB.prepare(
+      "DELETE FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ?",
+    ).bind(firstPlayer.GuildId, firstPlayer.QueueNumber);
+
     const placeholders = players.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(",");
     const query = `
       INSERT INTO LeaderboardSeriesPlayers (GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginningCount, SubstituteInCount, SubstituteOutCount, GamesPlayedCount, SeriesWon, CreatedAt)
@@ -342,8 +347,8 @@ export class DatabaseService {
       player.SeriesWon,
       player.CreatedAt,
     ]);
-    const stmt = this.DB.prepare(query).bind(...values);
-    await stmt.run();
+    const insertStmt = this.DB.prepare(query).bind(...values);
+    await this.DB.batch([deleteStmt, insertStmt]);
   }
 
   async upsertLeaderboardGames(games: LeaderboardGamesRow[]): Promise<void> {
@@ -468,6 +473,12 @@ export class DatabaseService {
     const query = "DELETE FROM LeaderboardSeries WHERE GuildId = ? AND QueueNumber = ?";
     const stmt = this.DB.prepare(query).bind(guildId, queueNumber);
     await stmt.run();
+  }
+
+  async getLeaderboardSeriesByQueueNumber(guildId: string, queueNumber: number): Promise<LeaderboardSeriesRow | null> {
+    const query = "SELECT * FROM LeaderboardSeries WHERE GuildId = ? AND QueueNumber = ?";
+    const stmt = this.DB.prepare(query).bind(guildId, queueNumber);
+    return await stmt.first<LeaderboardSeriesRow>();
   }
 
   async getUserSession(sessionId: string): Promise<UserSessionsRow | null> {

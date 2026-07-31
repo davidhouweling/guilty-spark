@@ -548,37 +548,47 @@ describe("Database Service", () => {
       const seriesPlayers = [aFakeLeaderboardSeriesPlayersRow()];
       const games = [aFakeLeaderboardGamesRow()];
       const gamePlayers = [aFakeLeaderboardGamePlayersRow()];
-      const seriesPlayersStatement = new FakePreparedStatement();
+      const deleteSeriesPlayersStatement = new FakePreparedStatement();
+      const insertSeriesPlayersStatement = new FakePreparedStatement();
       const deleteGamesStatement = new FakePreparedStatement();
       const upsertGamesStatement = new FakePreparedStatement();
       const gamePlayersStatement = new FakePreparedStatement();
 
-      vi.spyOn(seriesPlayersStatement, "bind").mockReturnThis();
+      vi.spyOn(deleteSeriesPlayersStatement, "bind").mockReturnThis();
+      vi.spyOn(insertSeriesPlayersStatement, "bind").mockReturnThis();
       vi.spyOn(deleteGamesStatement, "bind").mockReturnThis();
       vi.spyOn(upsertGamesStatement, "bind").mockReturnThis();
       vi.spyOn(gamePlayersStatement, "bind").mockReturnThis();
 
-      const runSeriesPlayersSpy = vi.spyOn(seriesPlayersStatement, "run");
       const runGamePlayersSpy = vi.spyOn(gamePlayersStatement, "run");
       const prepareSpy = vi
         .spyOn(env.DB, "prepare")
-        .mockReturnValueOnce(seriesPlayersStatement)
+        .mockReturnValueOnce(deleteSeriesPlayersStatement)
+        .mockReturnValueOnce(insertSeriesPlayersStatement)
         .mockReturnValueOnce(deleteGamesStatement)
         .mockReturnValueOnce(upsertGamesStatement)
         .mockReturnValueOnce(gamePlayersStatement);
-      const batchSpy = vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
+      const batchSpy = vi
+        .spyOn(env.DB, "batch")
+        .mockResolvedValue([{ ...fakeD1Response, results: [] }])
+        .mockResolvedValueOnce([{ ...fakeD1Response, results: [] }]);
 
       await databaseService.upsertLeaderboardSeriesPlayers(seriesPlayers);
       await databaseService.upsertLeaderboardGames(games);
       await databaseService.upsertLeaderboardGamePlayers(gamePlayers);
 
       expect(prepareSpy).toHaveBeenNthCalledWith(
-        2,
+        1,
+        "DELETE FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ?",
+      );
+      expect(prepareSpy).toHaveBeenNthCalledWith(2, expect.stringContaining("INSERT INTO LeaderboardSeriesPlayers"));
+      expect(prepareSpy).toHaveBeenNthCalledWith(
+        3,
         "DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?",
       );
-      expect(prepareSpy).toHaveBeenNthCalledWith(3, expect.stringContaining("INSERT INTO LeaderboardGames"));
-      expect(batchSpy).toHaveBeenCalledWith([deleteGamesStatement, upsertGamesStatement]);
-      expect(runSeriesPlayersSpy).toHaveBeenCalledTimes(1);
+      expect(prepareSpy).toHaveBeenNthCalledWith(4, expect.stringContaining("INSERT INTO LeaderboardGames"));
+      expect(batchSpy).toHaveBeenNthCalledWith(1, [deleteSeriesPlayersStatement, insertSeriesPlayersStatement]);
+      expect(batchSpy).toHaveBeenNthCalledWith(2, [deleteGamesStatement, upsertGamesStatement]);
       expect(runGamePlayersSpy).toHaveBeenCalledTimes(1);
     });
 
@@ -664,6 +674,21 @@ describe("Database Service", () => {
       expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM LeaderboardSeries WHERE GuildId = ? AND QueueNumber = ?");
       expect(bindSpy).toHaveBeenCalledWith("guild-123", 789);
       expect(runSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("gets leaderboard series by guild and queue number", async () => {
+      const series = aFakeLeaderboardSeriesRow();
+      const fakePreparedStatement = new FakePreparedStatement<typeof series>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const firstSpy = vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(series);
+
+      const result = await databaseService.getLeaderboardSeriesByQueueNumber("guild-123", 789);
+
+      expect(prepareSpy).toHaveBeenCalledWith("SELECT * FROM LeaderboardSeries WHERE GuildId = ? AND QueueNumber = ?");
+      expect(bindSpy).toHaveBeenCalledWith("guild-123", 789);
+      expect(firstSpy).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(series);
     });
   });
 

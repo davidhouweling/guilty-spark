@@ -19,6 +19,7 @@ import {
   aFakeDatabaseServiceWith,
   aFakeDiscordAssociationsRow,
   aFakeGuildConfigRow,
+  aFakeLeaderboardSeriesRow,
   aFakeLinkedIdentitiesRow,
   aFakeNeatQueueConfigRow,
 } from "../../database/fakes/database.fake";
@@ -651,6 +652,10 @@ describe("NeatQueueService", () => {
       let upsertLeaderboardGamesSpy: MockInstance<typeof databaseService.upsertLeaderboardGames>;
       let upsertLeaderboardGamePlayersSpy: MockInstance<typeof databaseService.upsertLeaderboardGamePlayers>;
       let upsertLeaderboardSeriesPlayersSpy: MockInstance<typeof databaseService.upsertLeaderboardSeriesPlayers>;
+      let getLeaderboardSeriesByQueueNumberSpy: MockInstance<typeof databaseService.getLeaderboardSeriesByQueueNumber>;
+      let deleteLeaderboardSeriesByQueueNumberSpy: MockInstance<
+        typeof databaseService.deleteLeaderboardSeriesByQueueNumber
+      >;
       let getDiscordAssociationsByXboxIdSpy: MockInstance<typeof databaseService.getDiscordAssociationsByXboxId>;
 
       beforeEach(() => {
@@ -698,6 +703,12 @@ describe("NeatQueueService", () => {
         upsertLeaderboardGamePlayersSpy = vi.spyOn(databaseService, "upsertLeaderboardGamePlayers").mockResolvedValue();
         upsertLeaderboardSeriesPlayersSpy = vi
           .spyOn(databaseService, "upsertLeaderboardSeriesPlayers")
+          .mockResolvedValue();
+        getLeaderboardSeriesByQueueNumberSpy = vi
+          .spyOn(databaseService, "getLeaderboardSeriesByQueueNumber")
+          .mockResolvedValue(null);
+        deleteLeaderboardSeriesByQueueNumberSpy = vi
+          .spyOn(databaseService, "deleteLeaderboardSeriesByQueueNumber")
           .mockResolvedValue();
         getDiscordAssociationsByXboxIdSpy = vi
           .spyOn(databaseService, "getDiscordAssociationsByXboxId")
@@ -1020,6 +1031,40 @@ describe("NeatQueueService", () => {
           expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(6);
           expect(discordServiceCreateMessageSpy.mock.calls).toMatchSnapshot();
           expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:state:guild-1:2");
+        });
+
+        it("deletes the series row when downstream leaderboard writes fail after a new series upsert", async () => {
+          upsertLeaderboardGamesSpy.mockRejectedValueOnce(new Error("upsert leaderboard games failed"));
+
+          const { jobToComplete } = neatQueueService.handleRequest(
+            getFakeNeatQueueData("matchCompleted"),
+            neatQueueConfig,
+          );
+
+          await jobToComplete?.();
+
+          expect(getLeaderboardSeriesByQueueNumberSpy).toHaveBeenCalledWith("guild-id", 2);
+          expect(deleteLeaderboardSeriesByQueueNumberSpy).toHaveBeenCalledWith("guild-id", 2);
+        });
+
+        it("does not delete existing series rows when downstream leaderboard writes fail", async () => {
+          getLeaderboardSeriesByQueueNumberSpy.mockResolvedValueOnce(
+            aFakeLeaderboardSeriesRow({
+              GuildId: "guild-id",
+              QueueNumber: 2,
+            }),
+          );
+          upsertLeaderboardGamesSpy.mockRejectedValueOnce(new Error("upsert leaderboard games failed"));
+
+          const { jobToComplete } = neatQueueService.handleRequest(
+            getFakeNeatQueueData("matchCompleted"),
+            neatQueueConfig,
+          );
+
+          await jobToComplete?.();
+
+          expect(getLeaderboardSeriesByQueueNumberSpy).toHaveBeenCalledWith("guild-id", 2);
+          expect(deleteLeaderboardSeriesByQueueNumberSpy).not.toHaveBeenCalled();
         });
 
         it("calls haloService.updateDiscordAssociations with expected parameters", async () => {
