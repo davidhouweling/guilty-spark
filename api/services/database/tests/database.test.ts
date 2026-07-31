@@ -57,6 +57,15 @@ describe("Database Service", () => {
 
       expect(discordAssociations).toEqual([association1, association2]);
     });
+
+    it("returns empty array when no Discord IDs are provided", async () => {
+      const prepareSpy = vi.spyOn(env.DB, "prepare");
+
+      const discordAssociations = await databaseService.getDiscordAssociations([]);
+
+      expect(discordAssociations).toEqual([]);
+      expect(prepareSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe("getDiscordAssociationsByXboxId()", () => {

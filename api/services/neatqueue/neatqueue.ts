@@ -2393,8 +2393,7 @@ export class NeatQueueService {
     const participationByXuid = new Map<string, boolean[]>();
 
     for (const [index, match] of sortedSeries.entries()) {
-      const gameTypeAndMap = await this.haloService.getGameTypeAndMap(match.MatchInfo);
-      const gameMap = this.getGameMapNameFromGameTypeAndMap(gameTypeAndMap);
+      const { gameType, gameMap } = await this.haloService.getGameTypeAndMapParts(match.MatchInfo);
       const startedAt = this.toEpochSeconds(match.MatchInfo.StartTime) ?? nowEpoch;
       const endedAt = this.toEpochSeconds(match.MatchInfo.EndTime) ?? nowEpoch;
       const team0Score = match.Teams.find((team) => team.TeamId === 0)?.Stats.CoreStats.Score ?? null;
@@ -2407,7 +2406,7 @@ export class NeatQueueService {
         QueueChannelId: queueChannelId,
         GameIndexInSeries: index,
         GameVariantCategory: match.MatchInfo.GameVariantCategory,
-        ModeName: gameTypeAndMap,
+        ModeName: gameType,
         MapName: gameMap,
         MapAssetId: match.MatchInfo.MapVariant.AssetId,
         MapVersionId: match.MatchInfo.MapVariant.VersionId,
@@ -2521,16 +2520,6 @@ export class NeatQueueService {
       gamePlayerRows,
       seriesPlayerRows,
     };
-  }
-
-  private getGameMapNameFromGameTypeAndMap(gameTypeAndMap: string): string {
-    const separatorIndex = gameTypeAndMap.indexOf(":");
-    if (separatorIndex === -1) {
-      return gameTypeAndMap;
-    }
-
-    const mapName = gameTypeAndMap.slice(separatorIndex + 1).trim();
-    return mapName === "" ? gameTypeAndMap : mapName;
   }
 
   private async clearTimeline(request: NeatQueueTimelineRequest, neatQueueConfig: NeatQueueConfigRow): Promise<void> {

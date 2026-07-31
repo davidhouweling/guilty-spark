@@ -966,6 +966,8 @@ describe("NeatQueueService", () => {
                 QueueChannelId: "channel-1",
               }),
             );
+            expect(row.ModeName).not.toContain(":");
+            expect(row.MapName.length).toBeGreaterThan(0);
           }
 
           const [gamePlayerRowsArg] = upsertLeaderboardGamePlayersSpy.mock.calls[0] ?? [];
