@@ -211,6 +211,7 @@ function toReadableDurationOrUnknown(startTime: string, endTime: string): string
 function toMatchTab(summary: TrackerMatchSummary, teamHex: string, enemyHex: string): ViewerMatchTab {
   const outcome = normalizeOutcomeString(summary.outcome);
   const duration = toReadableDurationOrUnknown(summary.startTime, summary.endTime);
+  const colorHex = summary.teamCount === 2 ? getOutcomeColor(outcome, teamHex, enemyHex) : undefined;
 
   return {
     matchId: summary.matchId,
@@ -227,7 +228,7 @@ function toMatchTab(summary: TrackerMatchSummary, teamHex: string, enemyHex: str
     score: summary.score,
     killsDeathsAssistsKda: summary.killsDeathsAssistsKda,
     damageDealtTakenRatio: summary.damageDealtTakenRatio,
-    colorHex: getOutcomeColor(outcome, teamHex, enemyHex),
+    colorHex,
     startTime: summary.startTime,
     endTime: summary.endTime,
   };

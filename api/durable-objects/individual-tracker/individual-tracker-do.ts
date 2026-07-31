@@ -383,6 +383,10 @@ function isEligibleForActiveSeries(
     return false;
   }
 
+  if (summary.teamOutcomes?.length !== 2) {
+    return false;
+  }
+
   const expectedRosters = getExpectedSeriesTeamRosters(activeSeries.teams);
   if (expectedRosters == null) {
     return true;
@@ -998,6 +1002,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     summary.score = buildMatchScore(matchStats);
+    summary.teamCount = matchStats.Teams.length;
     const trackedPlayerSummaryStats = computeTrackedPlayerSummaryStats(matchStats, trackedXuid);
     summary.killsDeathsAssistsKda = trackedPlayerSummaryStats.killsDeathsAssistsKda;
     summary.damageDealtTakenRatio = trackedPlayerSummaryStats.damageDealtTakenRatio;
@@ -1736,6 +1741,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         gameVariantCategory: matchStats.MatchInfo.GameVariantCategory,
         outcome,
         score: buildMatchScore(matchStats),
+        teamCount: matchStats.Teams.length,
         ...computeTrackedPlayerSummaryStats(matchStats, getPlayerXuid(playerEntry)),
         isMatchmaking: matchStats.MatchInfo.Playlist != null,
         ...(matchmakingPlaylist != null ? { matchmakingPlaylist } : {}),
