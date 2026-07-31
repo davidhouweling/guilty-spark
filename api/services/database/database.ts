@@ -33,6 +33,10 @@ export class DatabaseService {
   }
 
   async getDiscordAssociations(discordIds: string[]): Promise<DiscordAssociationsRow[]> {
+    if (discordIds.length === 0) {
+      return [];
+    }
+
     const placeholders = discordIds.map(() => "?").join(",");
     const query = `SELECT * FROM DiscordAssociations WHERE DiscordId IN (${placeholders})`;
     const stmt = this.DB.prepare(query).bind(...discordIds);
@@ -41,6 +45,10 @@ export class DatabaseService {
   }
 
   async getDiscordAssociationsByXboxId(xboxIds: string[]): Promise<DiscordAssociationsRow[]> {
+    if (xboxIds.length === 0) {
+      return [];
+    }
+
     const placeholders = xboxIds.map(() => "?").join(",");
     const query = `SELECT * FROM DiscordAssociations WHERE XboxId IN (${placeholders})`;
     const stmt = this.DB.prepare(query).bind(...xboxIds);

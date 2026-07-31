@@ -79,6 +79,15 @@ describe("Database Service", () => {
 
       expect(discordAssociations).toEqual([association1, association2]);
     });
+
+    it("returns empty array when no Xbox IDs are provided", async () => {
+      const prepareSpy = vi.spyOn(env.DB, "prepare");
+
+      const discordAssociations = await databaseService.getDiscordAssociationsByXboxId([]);
+
+      expect(discordAssociations).toEqual([]);
+      expect(prepareSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe("upsertDiscordAssociations()", () => {
