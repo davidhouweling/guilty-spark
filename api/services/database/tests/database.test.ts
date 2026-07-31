@@ -582,6 +582,25 @@ describe("Database Service", () => {
       expect(runGamePlayersSpy).toHaveBeenCalledTimes(1);
     });
 
+    it("chunks leaderboard game player upserts to stay below sqlite variable limit", async () => {
+      const gamePlayers = Array.from({ length: 40 }, (_, index) =>
+        aFakeLeaderboardGamePlayersRow({
+          MatchId: `match-${index.toString()}`,
+          XboxXuid: `xuid-${index.toString()}`,
+        }),
+      );
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.upsertLeaderboardGamePlayers(gamePlayers);
+
+      expect(prepareSpy).toHaveBeenCalledTimes(2);
+      expect(bindSpy).toHaveBeenCalledTimes(2);
+      expect(runSpy).toHaveBeenCalledTimes(2);
+    });
+
     it("does not overwrite created timestamps in leaderboard upserts", async () => {
       const series = aFakeLeaderboardSeriesRow();
       const seriesPlayers = [aFakeLeaderboardSeriesPlayersRow()];

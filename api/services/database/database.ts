@@ -405,44 +405,51 @@ export class DatabaseService {
       return;
     }
 
-    const placeholders = players
-      .map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-      .join(",");
-    const query = `
-      INSERT INTO LeaderboardGamePlayers (MatchId, GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginning, RankInMatch, PersonalScore, Kills, Deaths, Assists, Kda, Accuracy, ShotsHit, ShotsFired, DamageDealt, DamageTaken, DamageRatio, AvgLifeSeconds, AvgDamagePerLife, ObjectiveStatsJson, MedalsJson, CreatedAt)
-      VALUES ${placeholders}
-      ON CONFLICT(MatchId, XboxXuid) DO UPDATE SET GuildId=excluded.GuildId, QueueNumber=excluded.QueueNumber, QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginning=excluded.PresentAtBeginning, RankInMatch=excluded.RankInMatch, PersonalScore=excluded.PersonalScore, Kills=excluded.Kills, Deaths=excluded.Deaths, Assists=excluded.Assists, Kda=excluded.Kda, Accuracy=excluded.Accuracy, ShotsHit=excluded.ShotsHit, ShotsFired=excluded.ShotsFired, DamageDealt=excluded.DamageDealt, DamageTaken=excluded.DamageTaken, DamageRatio=excluded.DamageRatio, AvgLifeSeconds=excluded.AvgLifeSeconds, AvgDamagePerLife=excluded.AvgDamagePerLife, ObjectiveStatsJson=excluded.ObjectiveStatsJson, MedalsJson=excluded.MedalsJson
-    `;
-    const values = players.flatMap((player) => [
-      player.MatchId,
-      player.GuildId,
-      player.QueueNumber,
-      player.QueueChannelId,
-      player.XboxXuid,
-      player.DiscordUserId,
-      player.GamertagSnapshot,
-      player.TeamId,
-      player.PresentAtBeginning,
-      player.RankInMatch,
-      player.PersonalScore,
-      player.Kills,
-      player.Deaths,
-      player.Assists,
-      player.Kda,
-      player.Accuracy,
-      player.ShotsHit,
-      player.ShotsFired,
-      player.DamageDealt,
-      player.DamageTaken,
-      player.DamageRatio,
-      player.AvgLifeSeconds,
-      player.AvgDamagePerLife,
-      player.ObjectiveStatsJson,
-      player.MedalsJson,
-      player.CreatedAt,
-    ]);
-    const stmt = this.DB.prepare(query).bind(...values);
-    await stmt.run();
+    const sqliteMaxVariables = 999;
+    const variablesPerRow = 26;
+    const maxRowsPerStatement = Math.floor(sqliteMaxVariables / variablesPerRow);
+
+    for (let start = 0; start < players.length; start += maxRowsPerStatement) {
+      const chunk = players.slice(start, start + maxRowsPerStatement);
+      const placeholders = chunk
+        .map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .join(",");
+      const query = `
+        INSERT INTO LeaderboardGamePlayers (MatchId, GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginning, RankInMatch, PersonalScore, Kills, Deaths, Assists, Kda, Accuracy, ShotsHit, ShotsFired, DamageDealt, DamageTaken, DamageRatio, AvgLifeSeconds, AvgDamagePerLife, ObjectiveStatsJson, MedalsJson, CreatedAt)
+        VALUES ${placeholders}
+        ON CONFLICT(MatchId, XboxXuid) DO UPDATE SET GuildId=excluded.GuildId, QueueNumber=excluded.QueueNumber, QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginning=excluded.PresentAtBeginning, RankInMatch=excluded.RankInMatch, PersonalScore=excluded.PersonalScore, Kills=excluded.Kills, Deaths=excluded.Deaths, Assists=excluded.Assists, Kda=excluded.Kda, Accuracy=excluded.Accuracy, ShotsHit=excluded.ShotsHit, ShotsFired=excluded.ShotsFired, DamageDealt=excluded.DamageDealt, DamageTaken=excluded.DamageTaken, DamageRatio=excluded.DamageRatio, AvgLifeSeconds=excluded.AvgLifeSeconds, AvgDamagePerLife=excluded.AvgDamagePerLife, ObjectiveStatsJson=excluded.ObjectiveStatsJson, MedalsJson=excluded.MedalsJson
+      `;
+      const values = chunk.flatMap((player) => [
+        player.MatchId,
+        player.GuildId,
+        player.QueueNumber,
+        player.QueueChannelId,
+        player.XboxXuid,
+        player.DiscordUserId,
+        player.GamertagSnapshot,
+        player.TeamId,
+        player.PresentAtBeginning,
+        player.RankInMatch,
+        player.PersonalScore,
+        player.Kills,
+        player.Deaths,
+        player.Assists,
+        player.Kda,
+        player.Accuracy,
+        player.ShotsHit,
+        player.ShotsFired,
+        player.DamageDealt,
+        player.DamageTaken,
+        player.DamageRatio,
+        player.AvgLifeSeconds,
+        player.AvgDamagePerLife,
+        player.ObjectiveStatsJson,
+        player.MedalsJson,
+        player.CreatedAt,
+      ]);
+      const stmt = this.DB.prepare(query).bind(...values);
+      await stmt.run();
+    }
   }
 
   async deleteLeaderboardDataForGuild(guildId: string): Promise<void> {
