@@ -244,7 +244,7 @@ export class HaloService {
   async getPlayerXuidsToGametags(matches: MatchStats | MatchStats[]): Promise<Map<string, string>> {
     const xuidsToResolve = (Array.isArray(matches) ? matches : [matches])
       .flatMap((match) => match.Players)
-      .filter((player) => player.PlayerType === 1 && player.ParticipationInfo.PresentAtBeginning)
+      .filter((player) => player.PlayerType === 1)
       .map((player) => getPlayerXuid(player))
       .filter((xuid) => !this.xuidToGamerTagCache.has(xuid));
 
