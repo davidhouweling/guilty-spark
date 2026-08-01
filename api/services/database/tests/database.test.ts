@@ -679,6 +679,17 @@ describe("Database Service", () => {
       expect(prepareSpy).not.toHaveBeenCalled();
     });
 
+    it("throws when series players contain multiple guild/queue combinations", async () => {
+      const players = [
+        aFakeLeaderboardSeriesPlayersRow({ GuildId: "guild-1", QueueNumber: 100 }),
+        aFakeLeaderboardSeriesPlayersRow({ GuildId: "guild-2", QueueNumber: 200, XboxXuid: "xuid-2" }),
+      ];
+
+      await expect(databaseService.upsertLeaderboardSeriesPlayers(players)).rejects.toThrow(
+        "Expected leaderboard series players to belong to a single guild and queue",
+      );
+    });
+
     it("deletes leaderboard data by guild and queue", async () => {
       const fakePreparedStatement = new FakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);

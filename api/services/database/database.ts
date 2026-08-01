@@ -322,6 +322,13 @@ export class DatabaseService {
     }
 
     const firstPlayer = Preconditions.checkExists(players[0]);
+    for (const player of players) {
+      const isSameSeries = player.GuildId === firstPlayer.GuildId && player.QueueNumber === firstPlayer.QueueNumber;
+      if (!isSameSeries) {
+        throw new Error("Expected leaderboard series players to belong to a single guild and queue");
+      }
+    }
+
     const deleteStmt = this.DB.prepare(
       "DELETE FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ?",
     ).bind(firstPlayer.GuildId, firstPlayer.QueueNumber);
