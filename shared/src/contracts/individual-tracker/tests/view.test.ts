@@ -180,11 +180,14 @@ describe("trackerViewContract", () => {
   });
 
   it("rejects a match summary without teamCount", () => {
+    const matchWithoutTeamCount = Object.fromEntries(
+      Object.entries(Preconditions.checkExists(validResponse.view.matches[0])).filter(([key]) => key !== "teamCount"),
+    );
     const result = trackerViewContract.safeParse({
       ...validResponse,
       view: {
         ...validResponse.view,
-        matches: [{ ...Preconditions.checkExists(validResponse.view.matches[0]), teamCount: undefined }],
+        matches: [matchWithoutTeamCount],
       },
     });
 
