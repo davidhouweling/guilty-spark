@@ -329,9 +329,11 @@ export class DatabaseService {
       }
     }
 
+    const playerXuids = [...new Set(players.map((player) => player.XboxXuid))];
+    const deletePlaceholders = playerXuids.map(() => "?").join(",");
     const deleteStmt = this.DB.prepare(
-      "DELETE FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ?",
-    ).bind(firstPlayer.GuildId, firstPlayer.QueueNumber);
+      `DELETE FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ? AND XboxXuid NOT IN (${deletePlaceholders})`,
+    ).bind(firstPlayer.GuildId, firstPlayer.QueueNumber, ...playerXuids);
 
     const placeholders = players.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(",");
     const query = `
@@ -500,15 +502,32 @@ export class DatabaseService {
     );
     statements.push(upsertSeriesStmt);
 
-    const deleteSeriesPlayersStmt = this.DB.prepare(
-      "DELETE FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ?",
-    ).bind(series.GuildId, series.QueueNumber);
+    const seriesPlayerXuids = [...new Set(seriesPlayers.map((player) => player.XboxXuid))];
+    const deleteSeriesPlayersStmt =
+      seriesPlayerXuids.length === 0
+        ? this.DB.prepare("DELETE FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ?").bind(
+            series.GuildId,
+            series.QueueNumber,
+          )
+        : this.DB.prepare(
+            `DELETE FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ? AND XboxXuid NOT IN (${seriesPlayerXuids
+              .map(() => "?")
+              .join(",")})`,
+          ).bind(series.GuildId, series.QueueNumber, ...seriesPlayerXuids);
     statements.push(deleteSeriesPlayersStmt);
 
-    const deleteGamesStmt = this.DB.prepare("DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?").bind(
-      series.GuildId,
-      series.QueueNumber,
-    );
+    const matchIds = [...new Set(games.map((game) => game.MatchId))];
+    const deleteGamesStmt =
+      matchIds.length === 0
+        ? this.DB.prepare("DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?").bind(
+            series.GuildId,
+            series.QueueNumber,
+          )
+        : this.DB.prepare(
+            `DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ? AND MatchId NOT IN (${matchIds
+              .map(() => "?")
+              .join(",")})`,
+          ).bind(series.GuildId, series.QueueNumber, ...matchIds);
     statements.push(deleteGamesStmt);
 
     if (games.length > 0) {
@@ -539,6 +558,31 @@ export class DatabaseService {
         ]),
       );
       statements.push(upsertGamesStmt);
+    }
+
+    const xuidsByMatchId = new Map<string, Set<string>>();
+    for (const player of gamePlayers) {
+      const existingXuids = xuidsByMatchId.get(player.MatchId);
+      if (existingXuids == null) {
+        xuidsByMatchId.set(player.MatchId, new Set([player.XboxXuid]));
+      } else {
+        existingXuids.add(player.XboxXuid);
+      }
+    }
+
+    for (const game of games) {
+      const matchXuids = [...(xuidsByMatchId.get(game.MatchId) ?? new Set<string>())];
+      const deleteGamePlayersStmt =
+        matchXuids.length === 0
+          ? this.DB.prepare(
+              "DELETE FROM LeaderboardGamePlayers WHERE GuildId = ? AND QueueNumber = ? AND MatchId = ?",
+            ).bind(series.GuildId, series.QueueNumber, game.MatchId)
+          : this.DB.prepare(
+              `DELETE FROM LeaderboardGamePlayers WHERE GuildId = ? AND QueueNumber = ? AND MatchId = ? AND XboxXuid NOT IN (${matchXuids
+                .map(() => "?")
+                .join(",")})`,
+            ).bind(series.GuildId, series.QueueNumber, game.MatchId, ...matchXuids);
+      statements.push(deleteGamePlayersStmt);
     }
 
     if (gamePlayers.length > 0) {

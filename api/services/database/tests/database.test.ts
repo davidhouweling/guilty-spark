@@ -579,7 +579,7 @@ describe("Database Service", () => {
 
       expect(prepareSpy).toHaveBeenNthCalledWith(
         1,
-        "DELETE FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ?",
+        "DELETE FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ? AND XboxXuid NOT IN (?)",
       );
       expect(prepareSpy).toHaveBeenNthCalledWith(2, expect.stringContaining("INSERT INTO LeaderboardSeriesPlayers"));
       expect(prepareSpy).toHaveBeenNthCalledWith(
@@ -622,7 +622,7 @@ describe("Database Service", () => {
       const seriesPlayers = [aFakeLeaderboardSeriesPlayersRow()];
       const games = [aFakeLeaderboardGamesRow()];
       const gamePlayers = [aFakeLeaderboardGamePlayersRow()];
-      const statements = Array.from({ length: 6 }, () => new FakePreparedStatement());
+      const statements = Array.from({ length: 7 }, () => new FakePreparedStatement());
 
       for (const statement of statements) {
         vi.spyOn(statement, "bind").mockReturnThis();
