@@ -3725,6 +3725,44 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.searchStartTime).toBe(startedAt);
     });
 
+    it("prefers payload searchStartTime over startedAt for match discovery while keeping startedAt for display", async () => {
+      const startedAt = "2026-07-25T12:00:00Z";
+      const searchStartTime = "2026-07-25T11:30:00Z";
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ searchStartTime: "2026-01-01T00:00:00Z" }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", {
+          method: "POST",
+          body: JSON.stringify(aSeriesPayload({ startedAt, searchStartTime })),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.searchStartTime).toBe(searchStartTime);
+      expect(persisted.activeSeries?.startedAt).toBe(startedAt);
+    });
+
+    it("falls back to startedAt for searchStartTime when payload searchStartTime is unparseable", async () => {
+      const startedAt = "2026-07-25T12:00:00Z";
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ searchStartTime: "2026-01-01T00:00:00Z" }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", {
+          method: "POST",
+          body: JSON.stringify(aSeriesPayload({ startedAt, searchStartTime: "not-a-valid-date" })),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.searchStartTime).toBe(startedAt);
+    });
+
     it("keeps existing searchStartTime when a started nudge omits startedAt", async () => {
       const previousSearchStartTime = "2026-01-01T00:00:00Z";
       storageGetSpy.mockResolvedValue(

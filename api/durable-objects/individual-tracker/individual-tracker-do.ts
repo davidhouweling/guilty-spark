@@ -2262,7 +2262,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           startedAt,
           isActive: true,
         };
-        if (payload.startedAt != null && isParseableTimestamp(payload.startedAt)) {
+        if (payload.searchStartTime != null && isParseableTimestamp(payload.searchStartTime)) {
+          trackerState.searchStartTime = payload.searchStartTime;
+        } else if (payload.startedAt != null && isParseableTimestamp(payload.startedAt)) {
           trackerState.searchStartTime = payload.startedAt;
         }
         delete trackerState.preSeriesPlayerInfoLatestMatchId;

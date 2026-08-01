@@ -434,6 +434,33 @@ describe("buildViewerRenderModel", () => {
     }
   });
 
+  it("appends the pending active pre-series row after existing timeline matches", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1" }), aFakeTrackerMatchSummaryWith({ matchId: "m2" })],
+      series: [],
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Alpha vs Beta",
+        subtitle: "Bo5",
+        guildIconUrl: null,
+        startedAt: "2026-07-17T09:23:30.659Z",
+        teams: [],
+      },
+    });
+
+    const model = buildViewerRenderModel({ view });
+
+    expect(model.timeline).toHaveLength(3);
+    expect(model.timeline[0]?.type).toBe("match");
+    expect(model.timeline[1]?.type).toBe("match");
+    const last = model.timeline.at(-1);
+    expect(last?.type).toBe("series");
+    if (last?.type === "series") {
+      expect(last.series.isActive).toBe(true);
+      expect(last.series.matches).toHaveLength(0);
+    }
+  });
+
   it("replaces the pending pre-series row once active series match data is available", () => {
     const pendingView = aFakeTrackerViewStateWith({
       matches: [],
