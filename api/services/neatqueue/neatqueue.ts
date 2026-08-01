@@ -684,7 +684,8 @@ export class NeatQueueService {
         title,
         subtitle: `Queue #${request.match_number.toString()}`,
         guildIconUrl,
-        startedAt: this.resolveSeriesStartedAt(request),
+        startedAt: new Date().toISOString(),
+        searchStartTime: this.resolveSeriesSearchStartTime(request),
         teams: seriesTeams,
       };
       queueState.seriesContext = seriesContext;
@@ -722,7 +723,7 @@ export class NeatQueueService {
     }
   }
 
-  private resolveSeriesStartedAt(request: NeatQueueTeamsCreatedRequest): string {
+  private resolveSeriesSearchStartTime(request: NeatQueueTeamsCreatedRequest): string {
     const validTimestamps = request.teams
       .flatMap((team) => team.map((player) => player.timestamp))
       .map((value) => value.trim())
