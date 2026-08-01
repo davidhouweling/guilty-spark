@@ -19,7 +19,6 @@ import {
   aFakeDatabaseServiceWith,
   aFakeDiscordAssociationsRow,
   aFakeGuildConfigRow,
-  aFakeLeaderboardSeriesRow,
   aFakeLinkedIdentitiesRow,
   aFakeNeatQueueConfigRow,
 } from "../../database/fakes/database.fake";
@@ -648,14 +647,7 @@ describe("NeatQueueService", () => {
       let discordServiceStartThreadFromMessageSpy: MockInstance<typeof discordService.startThreadFromMessage>;
       let discordServiceCreateMessageSpy: MockInstance<typeof discordService.createMessage>;
       let cacheResolvedDiscordSeriesStatsSpy: MockInstance<typeof discordService.cacheResolvedDiscordSeriesStats>;
-      let upsertLeaderboardSeriesSpy: MockInstance<typeof databaseService.upsertLeaderboardSeries>;
-      let upsertLeaderboardGamesSpy: MockInstance<typeof databaseService.upsertLeaderboardGames>;
-      let upsertLeaderboardGamePlayersSpy: MockInstance<typeof databaseService.upsertLeaderboardGamePlayers>;
-      let upsertLeaderboardSeriesPlayersSpy: MockInstance<typeof databaseService.upsertLeaderboardSeriesPlayers>;
-      let getLeaderboardSeriesByQueueNumberSpy: MockInstance<typeof databaseService.getLeaderboardSeriesByQueueNumber>;
-      let deleteLeaderboardSeriesByQueueNumberSpy: MockInstance<
-        typeof databaseService.deleteLeaderboardSeriesByQueueNumber
-      >;
+      let upsertLeaderboardSeriesDataBatchSpy: MockInstance<typeof databaseService.upsertLeaderboardSeriesDataBatch>;
       let getDiscordAssociationsByXboxIdSpy: MockInstance<typeof databaseService.getDiscordAssociationsByXboxId>;
 
       beforeEach(() => {
@@ -698,17 +690,8 @@ describe("NeatQueueService", () => {
           .spyOn(discordService, "startThreadFromMessage")
           .mockResolvedValue(startThread);
         discordServiceCreateMessageSpy = vi.spyOn(discordService, "createMessage").mockResolvedValue(apiMessage);
-        upsertLeaderboardSeriesSpy = vi.spyOn(databaseService, "upsertLeaderboardSeries").mockResolvedValue();
-        upsertLeaderboardGamesSpy = vi.spyOn(databaseService, "upsertLeaderboardGames").mockResolvedValue();
-        upsertLeaderboardGamePlayersSpy = vi.spyOn(databaseService, "upsertLeaderboardGamePlayers").mockResolvedValue();
-        upsertLeaderboardSeriesPlayersSpy = vi
-          .spyOn(databaseService, "upsertLeaderboardSeriesPlayers")
-          .mockResolvedValue();
-        getLeaderboardSeriesByQueueNumberSpy = vi
-          .spyOn(databaseService, "getLeaderboardSeriesByQueueNumber")
-          .mockResolvedValue(null);
-        deleteLeaderboardSeriesByQueueNumberSpy = vi
-          .spyOn(databaseService, "deleteLeaderboardSeriesByQueueNumber")
+        upsertLeaderboardSeriesDataBatchSpy = vi
+          .spyOn(databaseService, "upsertLeaderboardSeriesDataBatch")
           .mockResolvedValue();
         getDiscordAssociationsByXboxIdSpy = vi
           .spyOn(databaseService, "getDiscordAssociationsByXboxId")
@@ -766,10 +749,7 @@ describe("NeatQueueService", () => {
         await jobToComplete?.();
 
         expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:state:guild-1:2");
-        expect(upsertLeaderboardSeriesSpy).not.toHaveBeenCalled();
-        expect(upsertLeaderboardGamesSpy).not.toHaveBeenCalled();
-        expect(upsertLeaderboardGamePlayersSpy).not.toHaveBeenCalled();
-        expect(upsertLeaderboardSeriesPlayersSpy).not.toHaveBeenCalled();
+        expect(upsertLeaderboardSeriesDataBatchSpy).not.toHaveBeenCalled();
       });
 
       it("discard neatqueue events that are not of concern", async () => {
@@ -949,13 +929,16 @@ describe("NeatQueueService", () => {
               matchIds: expect.any(Array) as string[],
             }),
           );
-          expect(upsertLeaderboardSeriesSpy).toHaveBeenCalledOnce();
-          expect(upsertLeaderboardGamesSpy).toHaveBeenCalledOnce();
-          expect(upsertLeaderboardGamePlayersSpy).toHaveBeenCalledOnce();
-          expect(upsertLeaderboardSeriesPlayersSpy).toHaveBeenCalledOnce();
+          expect(upsertLeaderboardSeriesDataBatchSpy).toHaveBeenCalledOnce();
           expect(getDiscordAssociationsByXboxIdSpy).toHaveBeenCalledOnce();
 
-          const [seriesRow] = upsertLeaderboardSeriesSpy.mock.calls[0] ?? [];
+          const [batchArg] = upsertLeaderboardSeriesDataBatchSpy.mock.calls[0] ?? [];
+          const {
+            series: seriesRow,
+            games: gamesRows,
+            gamePlayers: gamePlayerRows,
+            seriesPlayers: seriesPlayerRows,
+          } = Preconditions.checkExists(batchArg);
           expect(seriesRow).toEqual(
             expect.objectContaining({
               GuildId: "guild-id",
@@ -966,8 +949,6 @@ describe("NeatQueueService", () => {
             }),
           );
 
-          const [gamesRowsArg] = upsertLeaderboardGamesSpy.mock.calls[0] ?? [];
-          const gamesRows = Preconditions.checkExists(gamesRowsArg);
           expect(gamesRows).toEqual(expect.any(Array));
           for (const row of gamesRows) {
             expect(row).toEqual(
@@ -981,8 +962,6 @@ describe("NeatQueueService", () => {
             expect(row.MapName.length).toBeGreaterThan(0);
           }
 
-          const [gamePlayerRowsArg] = upsertLeaderboardGamePlayersSpy.mock.calls[0] ?? [];
-          const gamePlayerRows = Preconditions.checkExists(gamePlayerRowsArg);
           expect(gamePlayerRows).toEqual(expect.any(Array));
           for (const row of gamePlayerRows) {
             expect(row).toEqual(
@@ -994,8 +973,6 @@ describe("NeatQueueService", () => {
             );
           }
 
-          const [seriesPlayerRowsArg] = upsertLeaderboardSeriesPlayersSpy.mock.calls[0] ?? [];
-          const seriesPlayerRows = Preconditions.checkExists(seriesPlayerRowsArg);
           expect(seriesPlayerRows).toEqual(expect.any(Array));
           for (const row of seriesPlayerRows) {
             expect(row).toEqual(
@@ -1033,8 +1010,9 @@ describe("NeatQueueService", () => {
           expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:state:guild-1:2");
         });
 
-        it("deletes the series row when downstream leaderboard writes fail after a new series upsert", async () => {
-          upsertLeaderboardGamesSpy.mockRejectedValueOnce(new Error("upsert leaderboard games failed"));
+        it("logs a warning when batched leaderboard persistence fails", async () => {
+          const logWarnSpy = vi.spyOn(logService, "warn");
+          upsertLeaderboardSeriesDataBatchSpy.mockRejectedValueOnce(new Error("upsert leaderboard batch failed"));
 
           const { jobToComplete } = neatQueueService.handleRequest(
             getFakeNeatQueueData("matchCompleted"),
@@ -1043,28 +1021,15 @@ describe("NeatQueueService", () => {
 
           await jobToComplete?.();
 
-          expect(getLeaderboardSeriesByQueueNumberSpy).toHaveBeenCalledWith("guild-id", 2);
-          expect(deleteLeaderboardSeriesByQueueNumberSpy).toHaveBeenCalledWith("guild-id", 2);
-        });
-
-        it("does not delete existing series rows when downstream leaderboard writes fail", async () => {
-          getLeaderboardSeriesByQueueNumberSpy.mockResolvedValueOnce(
-            aFakeLeaderboardSeriesRow({
-              GuildId: "guild-id",
-              QueueNumber: 2,
-            }),
+          expect(upsertLeaderboardSeriesDataBatchSpy).toHaveBeenCalledOnce();
+          expect(logWarnSpy).toHaveBeenCalledWith(
+            expect.any(Error),
+            new Map([
+              ["guildId", "guild-id"],
+              ["queueNumber", "2"],
+              ["reason", "Failed to persist leaderboard series data"],
+            ]),
           );
-          upsertLeaderboardGamesSpy.mockRejectedValueOnce(new Error("upsert leaderboard games failed"));
-
-          const { jobToComplete } = neatQueueService.handleRequest(
-            getFakeNeatQueueData("matchCompleted"),
-            neatQueueConfig,
-          );
-
-          await jobToComplete?.();
-
-          expect(getLeaderboardSeriesByQueueNumberSpy).toHaveBeenCalledWith("guild-id", 2);
-          expect(deleteLeaderboardSeriesByQueueNumberSpy).not.toHaveBeenCalled();
         });
 
         it("calls haloService.updateDiscordAssociations with expected parameters", async () => {
@@ -1252,8 +1217,8 @@ describe("NeatQueueService", () => {
           expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(5);
           expect(discordServiceCreateMessageSpy.mock.calls).toMatchSnapshot();
 
-          const [seriesPlayerRowsArg] = upsertLeaderboardSeriesPlayersSpy.mock.calls[0] ?? [];
-          const seriesPlayerRows = Preconditions.checkExists(seriesPlayerRowsArg);
+          const [batchArg] = upsertLeaderboardSeriesDataBatchSpy.mock.calls[0] ?? [];
+          const seriesPlayerRows = Preconditions.checkExists(batchArg).seriesPlayers;
           expect(seriesPlayerRows).toEqual(expect.any(Array));
           expect(seriesPlayerRows.some((row) => row.SubstituteOutCount > 0)).toBe(true);
         });

@@ -2314,36 +2314,12 @@ export class NeatQueueService {
         gamertagMap,
         xuidToDiscordId,
       });
-      const existingSeries = await databaseService.getLeaderboardSeriesByQueueNumber(
-        request.guild,
-        request.match_number,
-      );
-
-      let seriesWriteStarted = false;
-      try {
-        await databaseService.upsertLeaderboardSeries(seriesRow);
-        seriesWriteStarted = true;
-        await databaseService.upsertLeaderboardGames(gamesRows);
-        await databaseService.upsertLeaderboardGamePlayers(gamePlayerRows);
-        await databaseService.upsertLeaderboardSeriesPlayers(seriesPlayerRows);
-      } catch (writeError) {
-        if (seriesWriteStarted && existingSeries == null) {
-          try {
-            await databaseService.deleteLeaderboardSeriesByQueueNumber(request.guild, request.match_number);
-          } catch (cleanupError) {
-            logService.warn(
-              cleanupError,
-              new Map([
-                ["guildId", request.guild],
-                ["queueNumber", request.match_number.toString()],
-                ["reason", "Failed to rollback partially persisted leaderboard series data"],
-              ]),
-            );
-          }
-        }
-
-        throw writeError;
-      }
+      await databaseService.upsertLeaderboardSeriesDataBatch({
+        series: seriesRow,
+        games: gamesRows,
+        gamePlayers: gamePlayerRows,
+        seriesPlayers: seriesPlayerRows,
+      });
     } catch (error) {
       logService.warn(
         error,

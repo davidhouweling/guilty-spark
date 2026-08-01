@@ -413,6 +413,7 @@ export class DatabaseService {
     const sqliteMaxVariables = 999;
     const variablesPerRow = 26;
     const maxRowsPerStatement = Math.floor(sqliteMaxVariables / variablesPerRow);
+    const statements: D1PreparedStatement[] = [];
 
     for (let start = 0; start < players.length; start += maxRowsPerStatement) {
       const chunk = players.slice(start, start + maxRowsPerStatement);
@@ -453,8 +454,165 @@ export class DatabaseService {
         player.CreatedAt,
       ]);
       const stmt = this.DB.prepare(query).bind(...values);
-      await stmt.run();
+      statements.push(stmt);
     }
+
+    await this.DB.batch(statements);
+  }
+
+  async upsertLeaderboardSeriesDataBatch({
+    series,
+    games,
+    gamePlayers,
+    seriesPlayers,
+  }: {
+    series: LeaderboardSeriesRow;
+    games: LeaderboardGamesRow[];
+    gamePlayers: LeaderboardGamePlayersRow[];
+    seriesPlayers: LeaderboardSeriesPlayersRow[];
+  }): Promise<void> {
+    const statements: D1PreparedStatement[] = [];
+    const upsertSeriesStmt = this.DB.prepare(
+      `
+      INSERT INTO LeaderboardSeries (GuildId, QueueNumber, QueueChannelId, ResultsChannelId, StartedAt, CompletedAt, WinnerTeamIndex, SeriesScore, Source, CreatedAt, UpdatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(GuildId, QueueNumber) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, ResultsChannelId=excluded.ResultsChannelId, StartedAt=excluded.StartedAt, CompletedAt=excluded.CompletedAt, WinnerTeamIndex=excluded.WinnerTeamIndex, SeriesScore=excluded.SeriesScore, Source=excluded.Source, UpdatedAt=excluded.UpdatedAt
+      `,
+    ).bind(
+      series.GuildId,
+      series.QueueNumber,
+      series.QueueChannelId,
+      series.ResultsChannelId,
+      series.StartedAt,
+      series.CompletedAt,
+      series.WinnerTeamIndex,
+      series.SeriesScore,
+      series.Source,
+      series.CreatedAt,
+      series.UpdatedAt,
+    );
+    statements.push(upsertSeriesStmt);
+
+    const deleteSeriesPlayersStmt = this.DB.prepare(
+      "DELETE FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ?",
+    ).bind(series.GuildId, series.QueueNumber);
+    statements.push(deleteSeriesPlayersStmt);
+
+    const deleteGamesStmt = this.DB.prepare("DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?").bind(
+      series.GuildId,
+      series.QueueNumber,
+    );
+    statements.push(deleteGamesStmt);
+
+    if (games.length > 0) {
+      const gamesPlaceholders = games.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(",");
+      const upsertGamesStmt = this.DB.prepare(
+        `
+      INSERT INTO LeaderboardGames (MatchId, GuildId, QueueNumber, QueueChannelId, GameIndexInSeries, GameVariantCategory, ModeName, MapName, MapAssetId, MapVersionId, Team0Score, Team1Score, StartedAt, EndedAt, CreatedAt)
+      VALUES ${gamesPlaceholders}
+      ON CONFLICT(GuildId, QueueNumber, MatchId) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, GameIndexInSeries=excluded.GameIndexInSeries, GameVariantCategory=excluded.GameVariantCategory, ModeName=excluded.ModeName, MapName=excluded.MapName, MapAssetId=excluded.MapAssetId, MapVersionId=excluded.MapVersionId, Team0Score=excluded.Team0Score, Team1Score=excluded.Team1Score, StartedAt=excluded.StartedAt, EndedAt=excluded.EndedAt
+    `,
+      ).bind(
+        ...games.flatMap((game) => [
+          game.MatchId,
+          game.GuildId,
+          game.QueueNumber,
+          game.QueueChannelId,
+          game.GameIndexInSeries,
+          game.GameVariantCategory,
+          game.ModeName,
+          game.MapName,
+          game.MapAssetId,
+          game.MapVersionId,
+          game.Team0Score,
+          game.Team1Score,
+          game.StartedAt,
+          game.EndedAt,
+          game.CreatedAt,
+        ]),
+      );
+      statements.push(upsertGamesStmt);
+    }
+
+    if (gamePlayers.length > 0) {
+      const sqliteMaxVariables = 999;
+      const variablesPerRow = 26;
+      const maxRowsPerStatement = Math.floor(sqliteMaxVariables / variablesPerRow);
+
+      for (let start = 0; start < gamePlayers.length; start += maxRowsPerStatement) {
+        const chunk = gamePlayers.slice(start, start + maxRowsPerStatement);
+        const placeholders = chunk
+          .map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+          .join(",");
+        const stmt = this.DB.prepare(
+          `
+        INSERT INTO LeaderboardGamePlayers (MatchId, GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginning, RankInMatch, PersonalScore, Kills, Deaths, Assists, Kda, Accuracy, ShotsHit, ShotsFired, DamageDealt, DamageTaken, DamageRatio, AvgLifeSeconds, AvgDamagePerLife, ObjectiveStatsJson, MedalsJson, CreatedAt)
+        VALUES ${placeholders}
+        ON CONFLICT(GuildId, QueueNumber, MatchId, XboxXuid) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginning=excluded.PresentAtBeginning, RankInMatch=excluded.RankInMatch, PersonalScore=excluded.PersonalScore, Kills=excluded.Kills, Deaths=excluded.Deaths, Assists=excluded.Assists, Kda=excluded.Kda, Accuracy=excluded.Accuracy, ShotsHit=excluded.ShotsHit, ShotsFired=excluded.ShotsFired, DamageDealt=excluded.DamageDealt, DamageTaken=excluded.DamageTaken, DamageRatio=excluded.DamageRatio, AvgLifeSeconds=excluded.AvgLifeSeconds, AvgDamagePerLife=excluded.AvgDamagePerLife, ObjectiveStatsJson=excluded.ObjectiveStatsJson, MedalsJson=excluded.MedalsJson
+      `,
+        ).bind(
+          ...chunk.flatMap((player) => [
+            player.MatchId,
+            player.GuildId,
+            player.QueueNumber,
+            player.QueueChannelId,
+            player.XboxXuid,
+            player.DiscordUserId,
+            player.GamertagSnapshot,
+            player.TeamId,
+            player.PresentAtBeginning,
+            player.RankInMatch,
+            player.PersonalScore,
+            player.Kills,
+            player.Deaths,
+            player.Assists,
+            player.Kda,
+            player.Accuracy,
+            player.ShotsHit,
+            player.ShotsFired,
+            player.DamageDealt,
+            player.DamageTaken,
+            player.DamageRatio,
+            player.AvgLifeSeconds,
+            player.AvgDamagePerLife,
+            player.ObjectiveStatsJson,
+            player.MedalsJson,
+            player.CreatedAt,
+          ]),
+        );
+        statements.push(stmt);
+      }
+    }
+
+    if (seriesPlayers.length > 0) {
+      const seriesPlayersPlaceholders = seriesPlayers.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(",");
+      const upsertSeriesPlayersStmt = this.DB.prepare(
+        `
+      INSERT INTO LeaderboardSeriesPlayers (GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginningCount, SubstituteInCount, SubstituteOutCount, GamesPlayedCount, SeriesWon, CreatedAt)
+      VALUES ${seriesPlayersPlaceholders}
+      ON CONFLICT(GuildId, QueueNumber, XboxXuid) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginningCount=excluded.PresentAtBeginningCount, SubstituteInCount=excluded.SubstituteInCount, SubstituteOutCount=excluded.SubstituteOutCount, GamesPlayedCount=excluded.GamesPlayedCount, SeriesWon=excluded.SeriesWon
+    `,
+      ).bind(
+        ...seriesPlayers.flatMap((player) => [
+          player.GuildId,
+          player.QueueNumber,
+          player.QueueChannelId,
+          player.XboxXuid,
+          player.DiscordUserId,
+          player.GamertagSnapshot,
+          player.TeamId,
+          player.PresentAtBeginningCount,
+          player.SubstituteInCount,
+          player.SubstituteOutCount,
+          player.GamesPlayedCount,
+          player.SeriesWon,
+          player.CreatedAt,
+        ]),
+      );
+      statements.push(upsertSeriesPlayersStmt);
+    }
+
+    await this.DB.batch(statements);
   }
 
   async deleteLeaderboardDataForGuild(guildId: string): Promise<void> {

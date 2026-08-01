@@ -560,7 +560,6 @@ describe("Database Service", () => {
       vi.spyOn(upsertGamesStatement, "bind").mockReturnThis();
       vi.spyOn(gamePlayersStatement, "bind").mockReturnThis();
 
-      const runGamePlayersSpy = vi.spyOn(gamePlayersStatement, "run");
       const prepareSpy = vi
         .spyOn(env.DB, "prepare")
         .mockReturnValueOnce(deleteSeriesPlayersStatement)
@@ -571,6 +570,7 @@ describe("Database Service", () => {
       const batchSpy = vi
         .spyOn(env.DB, "batch")
         .mockResolvedValue([{ ...fakeD1Response, results: [] }])
+        .mockResolvedValueOnce([{ ...fakeD1Response, results: [] }])
         .mockResolvedValueOnce([{ ...fakeD1Response, results: [] }]);
 
       await databaseService.upsertLeaderboardSeriesPlayers(seriesPlayers);
@@ -589,7 +589,7 @@ describe("Database Service", () => {
       expect(prepareSpy).toHaveBeenNthCalledWith(4, expect.stringContaining("INSERT INTO LeaderboardGames"));
       expect(batchSpy).toHaveBeenNthCalledWith(1, [deleteSeriesPlayersStatement, insertSeriesPlayersStatement]);
       expect(batchSpy).toHaveBeenNthCalledWith(2, [deleteGamesStatement, upsertGamesStatement]);
-      expect(runGamePlayersSpy).toHaveBeenCalledTimes(1);
+      expect(batchSpy).toHaveBeenNthCalledWith(3, [gamePlayersStatement]);
     });
 
     it("chunks leaderboard game player upserts to stay below sqlite variable limit", async () => {
@@ -599,16 +599,51 @@ describe("Database Service", () => {
           XboxXuid: `xuid-${index.toString()}`,
         }),
       );
-      const fakePreparedStatement = new FakePreparedStatement();
-      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
-      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
-      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+      const firstPreparedStatement = new FakePreparedStatement();
+      const secondPreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi
+        .spyOn(env.DB, "prepare")
+        .mockReturnValueOnce(firstPreparedStatement)
+        .mockReturnValueOnce(secondPreparedStatement);
+      const bindFirstSpy = vi.spyOn(firstPreparedStatement, "bind");
+      const bindSecondSpy = vi.spyOn(secondPreparedStatement, "bind");
+      const batchSpy = vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
 
       await databaseService.upsertLeaderboardGamePlayers(gamePlayers);
 
       expect(prepareSpy).toHaveBeenCalledTimes(2);
-      expect(bindSpy).toHaveBeenCalledTimes(2);
-      expect(runSpy).toHaveBeenCalledTimes(2);
+      expect(bindFirstSpy).toHaveBeenCalledTimes(1);
+      expect(bindSecondSpy).toHaveBeenCalledTimes(1);
+      expect(batchSpy).toHaveBeenCalledWith([firstPreparedStatement, secondPreparedStatement]);
+    });
+
+    it("upserts leaderboard series, games, and players in a single batch", async () => {
+      const series = aFakeLeaderboardSeriesRow();
+      const seriesPlayers = [aFakeLeaderboardSeriesPlayersRow()];
+      const games = [aFakeLeaderboardGamesRow()];
+      const gamePlayers = [aFakeLeaderboardGamePlayersRow()];
+      const statements = Array.from({ length: 6 }, () => new FakePreparedStatement());
+
+      for (const statement of statements) {
+        vi.spyOn(statement, "bind").mockReturnThis();
+      }
+
+      const prepareSpy = vi.spyOn(env.DB, "prepare");
+      for (const statement of statements) {
+        prepareSpy.mockReturnValueOnce(statement);
+      }
+
+      const batchSpy = vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
+
+      await databaseService.upsertLeaderboardSeriesDataBatch({
+        series,
+        games,
+        gamePlayers,
+        seriesPlayers,
+      });
+
+      expect(batchSpy).toHaveBeenCalledTimes(1);
+      expect(batchSpy).toHaveBeenCalledWith(statements);
     });
 
     it("does not overwrite created timestamps in leaderboard upserts", async () => {
