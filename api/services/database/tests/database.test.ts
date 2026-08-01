@@ -622,18 +622,35 @@ describe("Database Service", () => {
       const seriesPlayers = [aFakeLeaderboardSeriesPlayersRow()];
       const games = [aFakeLeaderboardGamesRow()];
       const gamePlayers = [aFakeLeaderboardGamePlayersRow()];
-      const statements = Array.from({ length: 7 }, () => new FakePreparedStatement());
+      const existingGamesStmt = new FakePreparedStatement<{ MatchId: string; CreatedAt: number }>();
+      const existingGamePlayersStmt = new FakePreparedStatement<{
+        MatchId: string;
+        XboxXuid: string;
+        CreatedAt: number;
+      }>();
+      const existingSeriesPlayersStmt = new FakePreparedStatement<{ XboxXuid: string; CreatedAt: number }>();
+      const batchedStatements = Array.from({ length: 6 }, () => new FakePreparedStatement());
+      const prepareSpy = vi
+        .spyOn(env.DB, "prepare")
+        .mockReturnValueOnce(existingGamesStmt)
+        .mockReturnValueOnce(existingGamePlayersStmt)
+        .mockReturnValueOnce(existingSeriesPlayersStmt);
 
-      for (const statement of statements) {
-        vi.spyOn(statement, "bind").mockReturnThis();
-      }
-
-      const prepareSpy = vi.spyOn(env.DB, "prepare");
-      for (const statement of statements) {
+      for (const statement of batchedStatements) {
         prepareSpy.mockReturnValueOnce(statement);
       }
 
       const batchSpy = vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
+      vi.spyOn(existingGamesStmt, "bind").mockReturnThis();
+      vi.spyOn(existingGamePlayersStmt, "bind").mockReturnThis();
+      vi.spyOn(existingSeriesPlayersStmt, "bind").mockReturnThis();
+      vi.spyOn(existingGamesStmt, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+      vi.spyOn(existingGamePlayersStmt, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+      vi.spyOn(existingSeriesPlayersStmt, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+
+      for (const statement of batchedStatements) {
+        vi.spyOn(statement, "bind").mockReturnThis();
+      }
 
       await databaseService.upsertLeaderboardSeriesDataBatch({
         series,
@@ -642,8 +659,24 @@ describe("Database Service", () => {
         seriesPlayers,
       });
 
+      expect(prepareSpy).toHaveBeenNthCalledWith(
+        1,
+        "SELECT MatchId, CreatedAt FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?",
+      );
+      expect(prepareSpy).toHaveBeenNthCalledWith(
+        2,
+        "SELECT MatchId, XboxXuid, CreatedAt FROM LeaderboardGamePlayers WHERE GuildId = ? AND QueueNumber = ?",
+      );
+      expect(prepareSpy).toHaveBeenNthCalledWith(
+        3,
+        "SELECT XboxXuid, CreatedAt FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ?",
+      );
+      expect(prepareSpy).toHaveBeenNthCalledWith(
+        6,
+        "DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?",
+      );
       expect(batchSpy).toHaveBeenCalledTimes(1);
-      expect(batchSpy).toHaveBeenCalledWith(statements);
+      expect(batchSpy).toHaveBeenCalledWith(batchedStatements);
     });
 
     it("does not overwrite created timestamps in leaderboard upserts", async () => {

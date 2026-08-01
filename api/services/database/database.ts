@@ -480,6 +480,28 @@ export class DatabaseService {
     gamePlayers: LeaderboardGamePlayersRow[];
     seriesPlayers: LeaderboardSeriesPlayersRow[];
   }): Promise<void> {
+    const existingGameCreatedAt = await this.getLeaderboardGameCreatedAtByMatchId(series.GuildId, series.QueueNumber);
+    const existingGamePlayerCreatedAt = await this.getLeaderboardGamePlayerCreatedAtByKey(
+      series.GuildId,
+      series.QueueNumber,
+    );
+    const existingSeriesPlayerCreatedAt = await this.getLeaderboardSeriesPlayerCreatedAtByXuid(
+      series.GuildId,
+      series.QueueNumber,
+    );
+    const normalizedGames = games.map((game) => ({
+      ...game,
+      CreatedAt: existingGameCreatedAt.get(game.MatchId) ?? game.CreatedAt,
+    }));
+    const normalizedGamePlayers = gamePlayers.map((player) => ({
+      ...player,
+      CreatedAt: existingGamePlayerCreatedAt.get(`${player.MatchId}:${player.XboxXuid}`) ?? player.CreatedAt,
+    }));
+    const normalizedSeriesPlayers = seriesPlayers.map((player) => ({
+      ...player,
+      CreatedAt: existingSeriesPlayerCreatedAt.get(player.XboxXuid) ?? player.CreatedAt,
+    }));
+
     const statements: D1PreparedStatement[] = [];
     const upsertSeriesStmt = this.DB.prepare(
       `
@@ -502,7 +524,7 @@ export class DatabaseService {
     );
     statements.push(upsertSeriesStmt);
 
-    const seriesPlayerXuids = [...new Set(seriesPlayers.map((player) => player.XboxXuid))];
+    const seriesPlayerXuids = [...new Set(normalizedSeriesPlayers.map((player) => player.XboxXuid))];
     const deleteSeriesPlayersStmt =
       seriesPlayerXuids.length === 0
         ? this.DB.prepare("DELETE FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ?").bind(
@@ -516,22 +538,14 @@ export class DatabaseService {
           ).bind(series.GuildId, series.QueueNumber, ...seriesPlayerXuids);
     statements.push(deleteSeriesPlayersStmt);
 
-    const matchIds = [...new Set(games.map((game) => game.MatchId))];
-    const deleteGamesStmt =
-      matchIds.length === 0
-        ? this.DB.prepare("DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?").bind(
-            series.GuildId,
-            series.QueueNumber,
-          )
-        : this.DB.prepare(
-            `DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ? AND MatchId NOT IN (${matchIds
-              .map(() => "?")
-              .join(",")})`,
-          ).bind(series.GuildId, series.QueueNumber, ...matchIds);
+    const deleteGamesStmt = this.DB.prepare("DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?").bind(
+      series.GuildId,
+      series.QueueNumber,
+    );
     statements.push(deleteGamesStmt);
 
-    if (games.length > 0) {
-      const gamesPlaceholders = games.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(",");
+    if (normalizedGames.length > 0) {
+      const gamesPlaceholders = normalizedGames.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(",");
       const upsertGamesStmt = this.DB.prepare(
         `
       INSERT INTO LeaderboardGames (MatchId, GuildId, QueueNumber, QueueChannelId, GameIndexInSeries, GameVariantCategory, ModeName, MapName, MapAssetId, MapVersionId, Team0Score, Team1Score, StartedAt, EndedAt, CreatedAt)
@@ -539,7 +553,7 @@ export class DatabaseService {
       ON CONFLICT(GuildId, QueueNumber, MatchId) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, GameIndexInSeries=excluded.GameIndexInSeries, GameVariantCategory=excluded.GameVariantCategory, ModeName=excluded.ModeName, MapName=excluded.MapName, MapAssetId=excluded.MapAssetId, MapVersionId=excluded.MapVersionId, Team0Score=excluded.Team0Score, Team1Score=excluded.Team1Score, StartedAt=excluded.StartedAt, EndedAt=excluded.EndedAt
     `,
       ).bind(
-        ...games.flatMap((game) => [
+        ...normalizedGames.flatMap((game) => [
           game.MatchId,
           game.GuildId,
           game.QueueNumber,
@@ -560,38 +574,13 @@ export class DatabaseService {
       statements.push(upsertGamesStmt);
     }
 
-    const xuidsByMatchId = new Map<string, Set<string>>();
-    for (const player of gamePlayers) {
-      const existingXuids = xuidsByMatchId.get(player.MatchId);
-      if (existingXuids == null) {
-        xuidsByMatchId.set(player.MatchId, new Set([player.XboxXuid]));
-      } else {
-        existingXuids.add(player.XboxXuid);
-      }
-    }
-
-    for (const game of games) {
-      const matchXuids = [...(xuidsByMatchId.get(game.MatchId) ?? new Set<string>())];
-      const deleteGamePlayersStmt =
-        matchXuids.length === 0
-          ? this.DB.prepare(
-              "DELETE FROM LeaderboardGamePlayers WHERE GuildId = ? AND QueueNumber = ? AND MatchId = ?",
-            ).bind(series.GuildId, series.QueueNumber, game.MatchId)
-          : this.DB.prepare(
-              `DELETE FROM LeaderboardGamePlayers WHERE GuildId = ? AND QueueNumber = ? AND MatchId = ? AND XboxXuid NOT IN (${matchXuids
-                .map(() => "?")
-                .join(",")})`,
-            ).bind(series.GuildId, series.QueueNumber, game.MatchId, ...matchXuids);
-      statements.push(deleteGamePlayersStmt);
-    }
-
-    if (gamePlayers.length > 0) {
+    if (normalizedGamePlayers.length > 0) {
       const sqliteMaxVariables = 999;
       const variablesPerRow = 26;
       const maxRowsPerStatement = Math.floor(sqliteMaxVariables / variablesPerRow);
 
-      for (let start = 0; start < gamePlayers.length; start += maxRowsPerStatement) {
-        const chunk = gamePlayers.slice(start, start + maxRowsPerStatement);
+      for (let start = 0; start < normalizedGamePlayers.length; start += maxRowsPerStatement) {
+        const chunk = normalizedGamePlayers.slice(start, start + maxRowsPerStatement);
         const placeholders = chunk
           .map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
           .join(",");
@@ -635,8 +624,10 @@ export class DatabaseService {
       }
     }
 
-    if (seriesPlayers.length > 0) {
-      const seriesPlayersPlaceholders = seriesPlayers.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(",");
+    if (normalizedSeriesPlayers.length > 0) {
+      const seriesPlayersPlaceholders = normalizedSeriesPlayers
+        .map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .join(",");
       const upsertSeriesPlayersStmt = this.DB.prepare(
         `
       INSERT INTO LeaderboardSeriesPlayers (GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginningCount, SubstituteInCount, SubstituteOutCount, GamesPlayedCount, SeriesWon, CreatedAt)
@@ -644,7 +635,7 @@ export class DatabaseService {
       ON CONFLICT(GuildId, QueueNumber, XboxXuid) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginningCount=excluded.PresentAtBeginningCount, SubstituteInCount=excluded.SubstituteInCount, SubstituteOutCount=excluded.SubstituteOutCount, GamesPlayedCount=excluded.GamesPlayedCount, SeriesWon=excluded.SeriesWon
     `,
       ).bind(
-        ...seriesPlayers.flatMap((player) => [
+        ...normalizedSeriesPlayers.flatMap((player) => [
           player.GuildId,
           player.QueueNumber,
           player.QueueChannelId,
@@ -664,6 +655,42 @@ export class DatabaseService {
     }
 
     await this.DB.batch(statements);
+  }
+
+  private async getLeaderboardGameCreatedAtByMatchId(
+    guildId: string,
+    queueNumber: number,
+  ): Promise<Map<string, number>> {
+    const stmt = this.DB.prepare(
+      "SELECT MatchId, CreatedAt FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?",
+    ).bind(guildId, queueNumber);
+    const response = await stmt.all<{ MatchId: string; CreatedAt: number }>();
+    const rows = response.results;
+    return new Map(rows.map((row) => [row.MatchId, row.CreatedAt]));
+  }
+
+  private async getLeaderboardGamePlayerCreatedAtByKey(
+    guildId: string,
+    queueNumber: number,
+  ): Promise<Map<string, number>> {
+    const stmt = this.DB.prepare(
+      "SELECT MatchId, XboxXuid, CreatedAt FROM LeaderboardGamePlayers WHERE GuildId = ? AND QueueNumber = ?",
+    ).bind(guildId, queueNumber);
+    const response = await stmt.all<{ MatchId: string; XboxXuid: string; CreatedAt: number }>();
+    const rows = response.results;
+    return new Map(rows.map((row) => [`${row.MatchId}:${row.XboxXuid}`, row.CreatedAt]));
+  }
+
+  private async getLeaderboardSeriesPlayerCreatedAtByXuid(
+    guildId: string,
+    queueNumber: number,
+  ): Promise<Map<string, number>> {
+    const stmt = this.DB.prepare(
+      "SELECT XboxXuid, CreatedAt FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ?",
+    ).bind(guildId, queueNumber);
+    const response = await stmt.all<{ XboxXuid: string; CreatedAt: number }>();
+    const rows = response.results;
+    return new Map(rows.map((row) => [row.XboxXuid, row.CreatedAt]));
   }
 
   async deleteLeaderboardDataForGuild(guildId: string): Promise<void> {
