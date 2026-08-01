@@ -54,6 +54,7 @@ export interface IndividualTrackerViewMatch {
   gameVariantCategory: number;
   outcome: NormalizedMatchOutcome;
   score: string;
+  teamCount: number;
   killsDeathsAssistsKda: string;
   damageDealtTakenRatio: string;
   isMatchmaking: boolean;

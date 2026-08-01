@@ -686,12 +686,14 @@ export class NeatQueueService {
           this.buildSeriesPlayer(queueState.playersAssociationData[player.id], player.id, player.name),
         ),
       }));
+      const searchStartTime = this.resolveSeriesSearchStartTime(request);
       const seriesContext: SeriesStartedPayload = {
         type: "started",
         title,
         subtitle: `Queue #${request.match_number.toString()}`,
         guildIconUrl,
-        startedAt: this.resolveSeriesStartedAt(request),
+        startedAt: new Date().toISOString(),
+        ...(searchStartTime != null ? { searchStartTime } : {}),
         teams: seriesTeams,
       };
       queueState.seriesContext = seriesContext;
@@ -729,7 +731,7 @@ export class NeatQueueService {
     }
   }
 
-  private resolveSeriesStartedAt(request: NeatQueueTeamsCreatedRequest): string {
+  private resolveSeriesSearchStartTime(request: NeatQueueTeamsCreatedRequest): string | undefined {
     const validTimestamps = request.teams
       .flatMap((team) => team.map((player) => player.timestamp))
       .map((value) => value.trim())
@@ -741,7 +743,7 @@ export class NeatQueueService {
       return new Date(Math.min(...validTimestamps)).toISOString();
     }
 
-    return new Date().toISOString();
+    return undefined;
   }
 
   private async fetchGuildDisplayInfo(guildId: string): Promise<{ title: string; guildIconUrl: string | null }> {

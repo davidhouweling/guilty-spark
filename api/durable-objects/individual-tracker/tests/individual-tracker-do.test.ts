@@ -536,6 +536,7 @@ describe("IndividualTrackerDO", () => {
           "gameVariantCategory",
           "outcome",
           "score",
+          "teamCount",
           "killsDeathsAssistsKda",
           "damageDealtTakenRatio",
           "isMatchmaking",
@@ -2769,7 +2770,7 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.lastMatchDiscoveredAt).toBeUndefined();
     });
 
-    it("auto-stops and deletes the alarm when idle beyond idleTimeoutHours", async () => {
+    it("auto-stops, deletes the alarm, and flushes state when idle beyond idleTimeoutHours", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           idleTimeoutHours: 6,
@@ -2780,10 +2781,8 @@ describe("IndividualTrackerDO", () => {
 
       await individualTrackerDO.alarm();
 
-      expect(storagePutSpy).toHaveBeenCalledWith(
-        "individualTrackerState",
-        expect.objectContaining({ status: "stopped" }),
-      );
+      expect(storageDeleteSpy).toHaveBeenCalledWith("individualTrackerState");
+      expect(storagePutSpy).not.toHaveBeenCalledWith("individualTrackerState", expect.anything());
       expect(storageDeleteAlarmSpy).toHaveBeenCalled();
       expect(storageSetAlarmSpy).not.toHaveBeenCalled();
       expect(ownerClient.getPlayerMatches).not.toHaveBeenCalled();
@@ -3264,6 +3263,36 @@ describe("IndividualTrackerDO", () => {
       expect(parsed.view.matches.some((m) => m.matchId === "new-match")).toBe(true);
     });
 
+    it("includes teamCount in broadcast match summaries", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValueOnce([]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["old-match"],
+          selectedMatchIds: ["old-match"],
+          discoveredMatches: {
+            "old-match": aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "old-match",
+              teamCount: 3,
+              teamOutcomes: [2, 3],
+              kills: 10,
+              deaths: 7,
+              assists: 4,
+              damageDealt: 4200,
+              damageTaken: 3900,
+            }),
+          },
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+
+      expect(response.status).toBe(200);
+      expect(webSocketAdapter.broadcasts).toHaveLength(1);
+      const parsed = trackerViewMessageContract.parse(Preconditions.checkExists(webSocketAdapter.broadcasts[0]));
+      const match = parsed.view.matches.find((m) => m.matchId === "old-match");
+      expect(match?.teamCount).toBe(3);
+    });
+
     it("does not broadcast when a poll discovers no new match", async () => {
       ownerClient.getPlayerMatches.mockResolvedValueOnce([]);
       storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith({ matchIds: [] }));
@@ -3338,6 +3367,23 @@ describe("IndividualTrackerDO", () => {
       await individualTrackerDO.alarm();
 
       expect(webSocketAdapter.closes).toHaveLength(1);
+    });
+
+    it("broadcasts a stopped view when the tracker auto-stops on idle timeout", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          status: "active",
+          idleTimeoutHours: 6,
+          startTime: "2024-11-26T05:00:00.000Z",
+          lastMatchDiscoveredAt: "2024-11-26T05:00:00.000Z",
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      expect(webSocketAdapter.broadcasts).toHaveLength(1);
+      const parsed = trackerViewMessageContract.parse(Preconditions.checkExists(webSocketAdapter.broadcasts[0]));
+      expect(parsed.view.status).toBe("stopped");
     });
 
     it("ignores client messages and does not throw on close/error", () => {
@@ -3671,6 +3717,44 @@ describe("IndividualTrackerDO", () => {
         new Request("http://do/nudge", {
           method: "POST",
           body: JSON.stringify(aSeriesPayload({ startedAt })),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.searchStartTime).toBe(startedAt);
+    });
+
+    it("prefers payload searchStartTime over startedAt for match discovery while keeping startedAt for display", async () => {
+      const startedAt = "2026-07-25T12:00:00Z";
+      const searchStartTime = "2026-07-25T11:30:00Z";
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ searchStartTime: "2026-01-01T00:00:00Z" }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", {
+          method: "POST",
+          body: JSON.stringify(aSeriesPayload({ startedAt, searchStartTime })),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.searchStartTime).toBe(searchStartTime);
+      expect(persisted.activeSeries?.startedAt).toBe(startedAt);
+    });
+
+    it("falls back to startedAt for searchStartTime when payload searchStartTime is unparseable", async () => {
+      const startedAt = "2026-07-25T12:00:00Z";
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ searchStartTime: "2026-01-01T00:00:00Z" }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", {
+          method: "POST",
+          body: JSON.stringify(aSeriesPayload({ startedAt, searchStartTime: "not-a-valid-date" })),
         }),
       );
 

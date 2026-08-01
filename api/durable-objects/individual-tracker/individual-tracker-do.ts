@@ -618,7 +618,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         trackerState.status = "stopped";
         trackerState.lastUpdateTime = new Date().toISOString();
         await this.state.storage.deleteAlarm();
-        await this.setState(trackerState);
+        await this.state.storage.delete(STATE_STORAGE_KEY);
         await this.broadcastViewState(trackerState);
         this.closeWebSockets("Tracker idle timeout");
         await this.markRegistryStopped(trackerState);
@@ -2262,7 +2262,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           startedAt,
           isActive: true,
         };
-        if (payload.startedAt != null && isParseableTimestamp(payload.startedAt)) {
+        if (payload.searchStartTime != null && isParseableTimestamp(payload.searchStartTime)) {
+          trackerState.searchStartTime = payload.searchStartTime;
+        } else if (payload.startedAt != null && isParseableTimestamp(payload.startedAt)) {
           trackerState.searchStartTime = payload.startedAt;
         }
         delete trackerState.preSeriesPlayerInfoLatestMatchId;
@@ -2738,6 +2740,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         gameVariantCategory: summary.gameVariantCategory,
         outcome: summary.outcome,
         score: summary.score,
+        teamCount: summary.teamCount ?? 0,
         killsDeathsAssistsKda: summary.killsDeathsAssistsKda ?? UNKNOWN_KDA_DISPLAY,
         damageDealtTakenRatio: summary.damageDealtTakenRatio ?? UNKNOWN_DAMAGE_RATIO_DISPLAY,
         isMatchmaking: summary.isMatchmaking,

@@ -18,7 +18,7 @@ export const trackerMatchSummarySchema = z.object({
   mapBackgroundUrl: z.string().optional(),
   outcome: trackerMatchOutcomeSchema,
   score: z.string(),
-  teamCount: z.number().int().min(0).optional(),
+  teamCount: z.number().int().min(0),
   killsDeathsAssistsKda: z.string(),
   damageDealtTakenRatio: z.string(),
   isMatchmaking: z.boolean(),
