@@ -18,6 +18,7 @@ const validEntry = {
       gameVariantCategory: 6,
       outcome: "Win" as const,
       score: "50:42",
+      teamCount: 2,
       killsDeathsAssistsKda: "10:7:4 (1.62)",
       damageDealtTakenRatio: "4,200:3,900 (1.08)",
       isMatchmaking: false,

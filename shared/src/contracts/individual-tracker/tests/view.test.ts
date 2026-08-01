@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { Preconditions } from "../../../base/preconditions";
 import {
   trackerViewContract,
   trackerViewMessageContract,
@@ -26,6 +27,7 @@ describe("trackerViewContract", () => {
           gameVariantCategory: 6,
           outcome: "Win",
           score: "50:42",
+          teamCount: 2,
           killsDeathsAssistsKda: "10:7:4 (1.62)",
           damageDealtTakenRatio: "4,200:3,900 (1.08)",
           isMatchmaking: false,
@@ -177,6 +179,21 @@ describe("trackerViewContract", () => {
     expect(result.success).toBe(true);
   });
 
+  it("rejects a match summary without teamCount", () => {
+    const matchWithoutTeamCount = Object.fromEntries(
+      Object.entries(Preconditions.checkExists(validResponse.view.matches[0])).filter(([key]) => key !== "teamCount"),
+    );
+    const result = trackerViewContract.safeParse({
+      ...validResponse,
+      view: {
+        ...validResponse.view,
+        matches: [matchWithoutTeamCount],
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("rejects an unknown status", () => {
     const result = trackerViewContract.safeParse({
       ...validResponse,
@@ -222,6 +239,7 @@ describe("trackerViewMessageSchema", () => {
           gameVariantCategory: 6,
           outcome: "Win",
           score: "50:42",
+          teamCount: 2,
           killsDeathsAssistsKda: "10:7:4 (1.62)",
           damageDealtTakenRatio: "4,200:3,900 (1.08)",
           isMatchmaking: false,
