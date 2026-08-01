@@ -1,12 +1,17 @@
+import { GameVariantCategory } from "halo-infinite-api";
 import type {
   KillRaceDeathEvent,
-  KillRaceEvent,
   MatchAnalytics,
+  ObjectiveControlTimeline,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
+import { TICK_FILL } from "./chart-constants";
 import type {
+  KothHillData,
+  KothHillSegment,
+  KothHillTeamOccupancy,
   PlayerAdvantageData,
   ScoreDeltaData,
   ScoreProgressionPoint,
@@ -14,9 +19,15 @@ import type {
   ScoreProgressionViewData,
 } from "./types";
 
+interface ProgressionEvent {
+  readonly timestampMs: number;
+  readonly teamId: number;
+  readonly runningScores: Record<string, number>;
+}
+
 function buildScoreDelta(
   teamIds: readonly number[],
-  events: readonly KillRaceEvent[],
+  events: readonly ProgressionEvent[],
   durationMs: number,
 ): ScoreDeltaData | null {
   if (teamIds.length !== 2) {
@@ -120,6 +131,106 @@ function buildPlayerAdvantage(
   return { points, minScore, maxScore };
 }
 
+function buildHillSegments(
+  hillStart: number,
+  hillEnd: number,
+  timeline: ObjectiveControlTimeline,
+  teamColorByTeamId: Map<number, string>,
+): KothHillSegment[] {
+  const overlapping = timeline.controlPeriods
+    .filter((cp) => cp.endMs > hillStart && cp.startMs < hillEnd)
+    .map((cp) => ({
+      startMs: Math.max(cp.startMs, hillStart),
+      endMs: Math.min(cp.endMs, hillEnd),
+      controllingTeamId: cp.controllingTeamId,
+    }))
+    .sort((a, b) => a.startMs - b.startMs);
+
+  const segments: KothHillSegment[] = [];
+  let cursor = hillStart;
+
+  for (const cp of overlapping) {
+    if (cp.startMs > cursor) {
+      segments.push({ startMs: cursor, endMs: cp.startMs, teamId: null, color: null });
+    }
+    segments.push({
+      startMs: cp.startMs,
+      endMs: cp.endMs,
+      teamId: cp.controllingTeamId,
+      color: cp.controllingTeamId != null ? (teamColorByTeamId.get(cp.controllingTeamId) ?? null) : null,
+    });
+    cursor = cp.endMs;
+  }
+
+  if (cursor < hillEnd) {
+    segments.push({ startMs: cursor, endMs: hillEnd, teamId: null, color: null });
+  }
+
+  return segments;
+}
+
+function buildKothHills(
+  timeline: ObjectiveControlTimeline,
+  teamIds: readonly number[],
+  teamColorByTeamId: Map<number, string>,
+  durationMs: number,
+): KothHillData[] {
+  const { hillCaptureTimestamps } = timeline;
+
+  interface HillPeriod {
+    startMs: number;
+    endMs: number;
+    isCaptured: boolean;
+  }
+
+  const hillPeriods: HillPeriod[] = [];
+  let hillStart = 0;
+  for (const captureTs of hillCaptureTimestamps) {
+    hillPeriods.push({ startMs: hillStart, endMs: captureTs, isCaptured: true });
+    hillStart = captureTs;
+  }
+  if (hillStart < durationMs) {
+    hillPeriods.push({ startMs: hillStart, endMs: durationMs, isCaptured: false });
+  }
+
+  return hillPeriods.map((period, periodIndex) => {
+    const segments = buildHillSegments(period.startMs, period.endMs, timeline, teamColorByTeamId);
+
+    // hillCaptureTimestamps entries are the capturing team's last score-event timestamp,
+    // so the event at period.endMs directly identifies the winner.
+    const capturingEvent = period.isCaptured ? timeline.events.findLast((e) => e.timestampMs === period.endMs) : null;
+    const winnerTeamId = capturingEvent?.teamId ?? null;
+    const winnerColor = winnerTeamId != null ? (teamColorByTeamId.get(winnerTeamId) ?? null) : null;
+    const winnerName = winnerTeamId != null ? getTeamName(winnerTeamId) : null;
+
+    const hillDurationMs = period.endMs - period.startMs;
+    const holdMs = new Map(teamIds.map((id) => [id, 0]));
+    for (const segment of segments) {
+      if (segment.teamId != null) {
+        holdMs.set(segment.teamId, (holdMs.get(segment.teamId) ?? 0) + (segment.endMs - segment.startMs));
+      }
+    }
+
+    const teamOccupancies: KothHillTeamOccupancy[] = teamIds.map((teamId) => ({
+      teamId,
+      name: getTeamName(teamId),
+      color: teamColorByTeamId.get(teamId) ?? TICK_FILL,
+      percentage: hillDurationMs > 0 ? Math.round(((holdMs.get(teamId) ?? 0) / hillDurationMs) * 100) : 0,
+    }));
+
+    return {
+      hillIndex: periodIndex + 1,
+      startMs: period.startMs,
+      endMs: period.endMs,
+      segments,
+      winnerTeamId,
+      winnerColor,
+      winnerName,
+      teamOccupancies,
+    };
+  });
+}
+
 export function formatScoreProgression(
   scoreProgression: MatchAnalytics["scoreProgression"],
   teamColors: readonly TeamColor[],
@@ -129,7 +240,7 @@ export function formatScoreProgression(
     return null;
   }
 
-  const { durationMs, timeline, respawnDurationMs } = scoreProgression;
+  const { mode, durationMs, timeline, respawnDurationMs } = scoreProgression;
   const { events } = timeline;
 
   const [firstEvent] = events;
@@ -148,6 +259,19 @@ export function formatScoreProgression(
       },
     ]),
   );
+
+  const teamColorByTeamId = new Map([...teamState.entries()].map(([teamId, state]) => [teamId, state.color]));
+
+  const kothMode: number = GameVariantCategory.MultiplayerKingOfTheHill;
+  if (mode === kothMode && timeline.type === "objective-control") {
+    return {
+      durationMs,
+      teamLines: [],
+      scoreDelta: null,
+      playerAdvantage: null,
+      kothHills: buildKothHills(timeline, teamIds, teamColorByTeamId, durationMs),
+    };
+  }
 
   for (const event of events) {
     const newScore = event.runningScores[String(event.teamId)] ?? 0;
@@ -170,7 +294,7 @@ export function formatScoreProgression(
   }
 
   const playerAdvantage =
-    respawnDurationMs != null
+    respawnDurationMs != null && timeline.type === "kill-race"
       ? buildPlayerAdvantage(teamIds, timeline.deathTimeline, respawnDurationMs, durationMs, teamSize)
       : null;
 
@@ -179,5 +303,6 @@ export function formatScoreProgression(
     teamLines,
     scoreDelta: buildScoreDelta(teamIds, events, durationMs),
     playerAdvantage,
+    kothHills: null,
   };
 }

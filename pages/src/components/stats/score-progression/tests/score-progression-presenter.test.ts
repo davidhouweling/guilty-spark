@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ScoreProgressionPresenter } from "../score-progression-presenter";
 import { ScoreProgressionStore } from "../score-progression-store";
-import type { PlayerAdvantageData, ScoreDeltaData, ScoreProgressionTeamLine } from "../types";
+import type { KothHillData, PlayerAdvantageData, ScoreDeltaData, ScoreProgressionTeamLine } from "../types";
 
 const aFakeScoreDeltaData = (): ScoreDeltaData => ({
   points: [
@@ -40,6 +40,7 @@ const BASE_INPUT = {
   durationMs: 600000,
   teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
   playerAdvantage: null,
+  kothHills: null,
   ariaLabel: "test chart",
 };
 
@@ -281,6 +282,42 @@ describe("ScoreProgressionPresenter", () => {
       const { store, presenter } = makePresenter();
       presenter.onChartTypeChange("invalid");
       expect(store.getSnapshot().chartType).toBe("progression");
+    });
+  });
+
+  describe("kothTimelineViewModel", () => {
+    it("builds kothTimelineViewModel from non-null kothHills", () => {
+      const { store, presenter } = makePresenter();
+      const hills: KothHillData[] = [
+        {
+          hillIndex: 1,
+          startMs: 0,
+          endMs: 30000,
+          segments: [],
+          winnerTeamId: 0,
+          winnerColor: "#f00",
+          winnerName: "Eagle",
+          teamOccupancies: [],
+        },
+      ];
+      const model = presenter.present(store.getSnapshot(), {
+        ...BASE_INPUT,
+        scoreDelta: null,
+        kothHills: hills,
+      });
+      expect(model.kothTimelineViewModel).toEqual({ durationMs: 600000, hills });
+    });
+
+    it("sets kothTimelineViewModel to null when kothHills is null", () => {
+      const { store, presenter } = makePresenter();
+      const model = presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: null });
+      expect(model.kothTimelineViewModel).toBeNull();
+    });
+
+    it("sets kothTimelineViewModel to null when kothHills is empty", () => {
+      const { store, presenter } = makePresenter();
+      const model = presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: null, kothHills: [] });
+      expect(model.kothTimelineViewModel).toBeNull();
     });
   });
 });

@@ -2019,6 +2019,445 @@ describe("HaloFilmService", () => {
     });
   });
 
+  describe("buildObjectiveControlProgression", () => {
+    function modeEvent(xuid: string, timeMs: number): ParsedHighlightEvent {
+      return {
+        xuid,
+        gamertag: "player",
+        typeHint: 0,
+        isMedal: false,
+        eventType: "mode",
+        timeMs,
+        medalValue: 0,
+        teamId: null,
+      };
+    }
+
+    it("derives hill capture timestamps from relocation gaps and match-end event", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+      const team0Xuid = "0100000000000000";
+      const team1Xuid = "0400000000000000";
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        // Location A: Team 0 accumulates 5 ticks (captures, causing relocation)
+        modeEvent(team0Xuid, 5000),
+        modeEvent(team0Xuid, 10000),
+        modeEvent(team0Xuid, 15000),
+        modeEvent(team0Xuid, 20000),
+        modeEvent(team0Xuid, 25000),
+        // Location B: Team 1 accumulates 5 ticks (captures, causing relocation)
+        modeEvent(team1Xuid, 70000),
+        modeEvent(team1Xuid, 75000),
+        modeEvent(team1Xuid, 80000),
+        modeEvent(team1Xuid, 85000),
+        modeEvent(team1Xuid, 90000),
+        // Location C: Team 0 accumulates 5 ticks (captures, causing relocation)
+        modeEvent(team0Xuid, 140000),
+        modeEvent(team0Xuid, 145000),
+        modeEvent(team0Xuid, 150000),
+        modeEvent(team0Xuid, 155000),
+        modeEvent(team0Xuid, 160000),
+        // Location D: Team 1 accumulates 5 ticks (captures, causing relocation)
+        modeEvent(team1Xuid, 220000),
+        modeEvent(team1Xuid, 225000),
+        modeEvent(team1Xuid, 230000),
+        modeEvent(team1Xuid, 235000),
+        modeEvent(team1Xuid, 240000),
+        // Location E: Team 0 accumulates 5 ticks and ends the match
+        modeEvent(team0Xuid, 300000),
+        modeEvent(team0Xuid, 305000),
+        modeEvent(team0Xuid, 310000),
+        modeEvent(team0Xuid, 315000),
+        modeEvent(team0Xuid, 320000),
+      ]);
+      vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([
+        { timeMs: 25500, fromValue: 0x40, toValue: 0x41 }, // end of Location A control
+        { timeMs: 30000, fromValue: 0x41, toValue: 0x42 }, // start of Location B control
+        { timeMs: 90500, fromValue: 0x42, toValue: 0x43 }, // end of Location B control
+        { timeMs: 95000, fromValue: 0x43, toValue: 0x44 }, // start of Location C control
+        { timeMs: 160500, fromValue: 0x44, toValue: 0x45 }, // end of Location C control
+        { timeMs: 165000, fromValue: 0x45, toValue: 0x46 }, // start of Location D control
+        { timeMs: 240500, fromValue: 0x46, toValue: 0x47 }, // end of Location D control
+        { timeMs: 245000, fromValue: 0x47, toValue: 0x48 }, // start of Location E control
+      ]);
+
+      const durationMs = 732278;
+      const result = await service.buildObjectiveControlProgression(match, durationMs);
+
+      expect(result.teamCount).toBe(2);
+      expect(result.hillCaptureTimestamps).toEqual([25000, 90000, 160000, 240000, 320000]);
+      expect(result.events).toHaveLength(25);
+      expect(result.controlPeriods).toHaveLength(9);
+    });
+
+    it("includes the match-end capture when per-location tick counts are uneven across hills", async () => {
+      // Loc E has 7 ticks instead of 5 — T0 total=17, not divisible by matchScore=3. A naive
+      // divisibility check (% 1 === 0 always true) would detect initial=2, shrink inGameCaptures
+      // from 3 to 1, and set needsMatchEndEvent=false, dropping Loc E from the result.
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+      const team0Xuid = "0100000000000000";
+      const team1Xuid = "0400000000000000";
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        modeEvent(team0Xuid, 5000),
+        modeEvent(team0Xuid, 10000),
+        modeEvent(team0Xuid, 15000),
+        modeEvent(team0Xuid, 20000),
+        modeEvent(team0Xuid, 25000), // Loc A: 5 T0 ticks
+        modeEvent(team1Xuid, 70000),
+        modeEvent(team1Xuid, 75000),
+        modeEvent(team1Xuid, 80000),
+        modeEvent(team1Xuid, 85000),
+        modeEvent(team1Xuid, 90000), // Loc B: 5 T1 ticks
+        modeEvent(team0Xuid, 140000),
+        modeEvent(team0Xuid, 145000),
+        modeEvent(team0Xuid, 150000),
+        modeEvent(team0Xuid, 155000),
+        modeEvent(team0Xuid, 160000), // Loc C: 5 T0 ticks
+        modeEvent(team1Xuid, 220000),
+        modeEvent(team1Xuid, 225000),
+        modeEvent(team1Xuid, 230000),
+        modeEvent(team1Xuid, 235000),
+        modeEvent(team1Xuid, 240000), // Loc D: 5 T1 ticks
+        // Loc E: 7 T0 ticks → T0 cumulative=17 (5+5+7), 17 % 3 ≠ 0
+        modeEvent(team0Xuid, 300000),
+        modeEvent(team0Xuid, 305000),
+        modeEvent(team0Xuid, 310000),
+        modeEvent(team0Xuid, 315000),
+        modeEvent(team0Xuid, 320000),
+        modeEvent(team0Xuid, 325000),
+        modeEvent(team0Xuid, 330000),
+      ]);
+      vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([
+        { timeMs: 25500, fromValue: 0x40, toValue: 0x41 },
+        { timeMs: 30000, fromValue: 0x41, toValue: 0x42 },
+        { timeMs: 90500, fromValue: 0x42, toValue: 0x43 },
+        { timeMs: 95000, fromValue: 0x43, toValue: 0x44 },
+        { timeMs: 160500, fromValue: 0x44, toValue: 0x45 },
+        { timeMs: 165000, fromValue: 0x45, toValue: 0x46 },
+        { timeMs: 240500, fromValue: 0x46, toValue: 0x47 },
+        { timeMs: 245000, fromValue: 0x47, toValue: 0x48 },
+      ]);
+
+      const result = await service.buildObjectiveControlProgression(match, 732278);
+
+      expect(result.hillCaptureTimestamps).toEqual([25000, 90000, 160000, 240000, 330000]);
+    });
+
+    it("returns empty hillCaptureTimestamps when no byte2 transitions are available", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+      const team0Xuid = "0100000000000000";
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        modeEvent(team0Xuid, 5000),
+        modeEvent(team0Xuid, 10000),
+      ]);
+      vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([]);
+
+      const result = await service.buildObjectiveControlProgression(match, 300000);
+
+      expect(result.hillCaptureTimestamps).toEqual([]);
+      expect(result.controlPeriods).toEqual([]);
+    });
+
+    it("deduplicates mode events within 2500ms of the same team", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+      const team0Xuid = "0100000000000000";
+      const team1Xuid = "0400000000000000";
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        // Two Team 0 events within 2500ms — only the first counts
+        modeEvent(team0Xuid, 5000),
+        modeEvent(team0Xuid, 5001),
+        modeEvent(team0Xuid, 10000),
+        modeEvent(team0Xuid, 15000),
+        modeEvent(team0Xuid, 20000),
+        // Team 1 ends the match
+        modeEvent(team1Xuid, 200000),
+      ]);
+      vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([
+        { timeMs: 20500, fromValue: 0x40, toValue: 0x41 },
+        { timeMs: 25000, fromValue: 0x41, toValue: 0x42 },
+      ]);
+
+      const result = await service.buildObjectiveControlProgression(match, 300000);
+
+      expect(result.events).toHaveLength(5);
+      expect(result.events[0]).toMatchObject({ timestampMs: 5000, teamId: 0 });
+      expect(result.events[1]).toMatchObject({ timestampMs: 10000, teamId: 0 });
+    });
+
+    it("does not add matchEndEvent tick as a capture when all captures are already detected via relocation gaps", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      // koth.json: Eagle=3, Cobra=2 → 5 total captures
+      const match = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+      const team0Xuid = "0100000000000000";
+      const team1Xuid = "0400000000000000";
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        // Location A: Eagle captures (5 ticks → relocation)
+        modeEvent(team0Xuid, 5000),
+        modeEvent(team0Xuid, 10000),
+        modeEvent(team0Xuid, 15000),
+        modeEvent(team0Xuid, 20000),
+        modeEvent(team0Xuid, 25000),
+        // Location B: Cobra captures (5 ticks → relocation)
+        modeEvent(team1Xuid, 70000),
+        modeEvent(team1Xuid, 75000),
+        modeEvent(team1Xuid, 80000),
+        modeEvent(team1Xuid, 85000),
+        modeEvent(team1Xuid, 90000),
+        // Location C: Eagle captures (5 ticks → relocation)
+        modeEvent(team0Xuid, 140000),
+        modeEvent(team0Xuid, 145000),
+        modeEvent(team0Xuid, 150000),
+        modeEvent(team0Xuid, 155000),
+        modeEvent(team0Xuid, 160000),
+        // Location D: Cobra captures (5 ticks → relocation)
+        modeEvent(team1Xuid, 220000),
+        modeEvent(team1Xuid, 225000),
+        modeEvent(team1Xuid, 230000),
+        modeEvent(team1Xuid, 235000),
+        modeEvent(team1Xuid, 240000),
+        // Location E: Eagle captures (5 ticks → relocation)
+        modeEvent(team0Xuid, 300000),
+        modeEvent(team0Xuid, 305000),
+        modeEvent(team0Xuid, 310000),
+        modeEvent(team0Xuid, 315000),
+        modeEvent(team0Xuid, 320000),
+        // Location F: match ends on time — hill never captured, these ticks must NOT become a capture
+        modeEvent(team0Xuid, 380000),
+        modeEvent(team0Xuid, 385000),
+      ]);
+      vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([
+        { timeMs: 25500, fromValue: 0x40, toValue: 0x41 },
+        { timeMs: 30000, fromValue: 0x41, toValue: 0x42 },
+        { timeMs: 90500, fromValue: 0x42, toValue: 0x43 },
+        { timeMs: 95000, fromValue: 0x43, toValue: 0x44 },
+        { timeMs: 160500, fromValue: 0x44, toValue: 0x45 },
+        { timeMs: 165000, fromValue: 0x45, toValue: 0x46 },
+        { timeMs: 240500, fromValue: 0x46, toValue: 0x47 },
+        { timeMs: 245000, fromValue: 0x47, toValue: 0x48 },
+        { timeMs: 320500, fromValue: 0x48, toValue: 0x49 }, // Location E ends → F begins
+        { timeMs: 325000, fromValue: 0x49, toValue: 0x4a },
+      ]);
+
+      const result = await service.buildObjectiveControlProgression(match, 732278);
+
+      // All 5 captures detected from relocation gaps — the 2 ticks on Location F
+      // are not a capture, so matchEndEvent (385000) must NOT appear.
+      expect(result.hillCaptureTimestamps).toEqual([25000, 90000, 160000, 240000, 320000]);
+    });
+
+    it("deduplicates when the last relocation capture timestamp equals the match-end event", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+      const team0Xuid = "0100000000000000";
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        modeEvent(team0Xuid, 5000),
+        modeEvent(team0Xuid, 10000),
+        modeEvent(team0Xuid, 15000),
+        modeEvent(team0Xuid, 20000),
+        modeEvent(team0Xuid, 25000),
+      ]);
+      // Null gap starts right at the last tick — matchEndEvent.timestampMs === relocation capture timestamp
+      vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([
+        { timeMs: 25001, fromValue: 0x40, toValue: 0x41 },
+        { timeMs: 30000, fromValue: 0x41, toValue: 0x42 },
+      ]);
+
+      const result = await service.buildObjectiveControlProgression(match, 300000);
+
+      expect(result.hillCaptureTimestamps).toEqual([25000]);
+    });
+
+    it("ignores a null gap whose preceding control period is shorter than the minimum pre-period duration", async () => {
+      // 5 valid captures (Eagle=3, Cobra=2). During Loc E's occupation, a rapid oscillation
+      // creates the pattern: [Long occupied] → [20ms null] → [300ms re-occupied] → [False null gap].
+      // The false null gap's prePeriod is 300ms < MIN_PRE_PERIOD_MS (500ms) → filtered.
+      // Without MIN_PRE_PERIOD_MS the tick at 298400ms (perLocationTicks=6, recency=200ms) would
+      // be recorded as a spurious 5th capture; the real Loc E capture at 307800ms would become 6th.
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+      const team0Xuid = "0100000000000000";
+      const team1Xuid = "0400000000000000";
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        modeEvent(team0Xuid, 5000),
+        modeEvent(team0Xuid, 10000),
+        modeEvent(team0Xuid, 15000),
+        modeEvent(team0Xuid, 20000),
+        modeEvent(team0Xuid, 25000), // Loc A: Eagle (T0 cumulative=5)
+        modeEvent(team1Xuid, 70000),
+        modeEvent(team1Xuid, 75000),
+        modeEvent(team1Xuid, 80000),
+        modeEvent(team1Xuid, 85000),
+        modeEvent(team1Xuid, 90000), // Loc B: Cobra (T1 cumulative=5)
+        modeEvent(team0Xuid, 140000),
+        modeEvent(team0Xuid, 145000),
+        modeEvent(team0Xuid, 150000),
+        modeEvent(team0Xuid, 155000),
+        modeEvent(team0Xuid, 160000), // Loc C: Eagle (T0 cumulative=10)
+        modeEvent(team1Xuid, 220000),
+        modeEvent(team1Xuid, 225000),
+        modeEvent(team1Xuid, 230000),
+        modeEvent(team1Xuid, 235000),
+        modeEvent(team1Xuid, 240000), // Loc D: Cobra (T1 cumulative=10)
+        // Loc E pre-blip: 5 ticks (T0 cumulative=15); last at 277000ms is > 7000ms before blip
+        modeEvent(team0Xuid, 265500),
+        modeEvent(team0Xuid, 268500),
+        modeEvent(team0Xuid, 271500),
+        modeEvent(team0Xuid, 274500),
+        modeEvent(team0Xuid, 277000),
+        // Blip tick: 298400ms is 21400ms after 277000ms (survives dedup); it is inside the 300ms
+        // re-occupied window [298300→298600ms] — perLocationTicks=6, recency=200ms. Without
+        // MIN_PRE_PERIOD_MS it produces a spurious capture here; with it the gap is filtered.
+        modeEvent(team0Xuid, 298400),
+        // Loc E post-blip: 4 more ticks; 298800ms is deduped (400ms after 298400ms)
+        modeEvent(team0Xuid, 298800),
+        modeEvent(team0Xuid, 301800),
+        modeEvent(team0Xuid, 304800),
+        modeEvent(team0Xuid, 307800), // Loc E real capture tick (T0 cumulative=19 after dedup)
+      ]);
+      vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([
+        { timeMs: 25500, fromValue: 0x40, toValue: 0x41 },
+        { timeMs: 30000, fromValue: 0x41, toValue: 0x42 },
+        { timeMs: 90500, fromValue: 0x42, toValue: 0x43 },
+        { timeMs: 95000, fromValue: 0x43, toValue: 0x44 },
+        { timeMs: 160500, fromValue: 0x44, toValue: 0x45 },
+        { timeMs: 165000, fromValue: 0x45, toValue: 0x46 },
+        { timeMs: 240500, fromValue: 0x46, toValue: 0x47 },
+        { timeMs: 245000, fromValue: 0x47, toValue: 0x48 },
+        { timeMs: 265000, fromValue: 0x48, toValue: 0x49 }, // Loc E starts
+        // Oscillation: [298000→298300ms] briefly null, [298300→298600ms] 300ms re-occupied,
+        // [298600→298700ms] null again — the 300ms prePeriod is filtered by MIN_PRE_PERIOD_MS.
+        { timeMs: 298000, fromValue: 0x49, toValue: 0x48 },
+        { timeMs: 298300, fromValue: 0x48, toValue: 0x49 },
+        { timeMs: 298600, fromValue: 0x49, toValue: 0x48 },
+        { timeMs: 298700, fromValue: 0x48, toValue: 0x49 }, // Loc E resumes
+        { timeMs: 312000, fromValue: 0x49, toValue: 0x4a }, // Loc E captured
+      ]);
+
+      const result = await service.buildObjectiveControlProgression(match, 732278);
+
+      expect(result.hillCaptureTimestamps).toEqual([25000, 90000, 160000, 240000, 307800]);
+    });
+
+    it("attributes a relocation capture to the team with the most recent tick even when the other team majority-controlled the period", async () => {
+      // Hill 1: Team 1 has 7 ticks (majority in the occupied period), Team 0 has 6 ticks
+      // including the final tick at 49000ms (most recent before the gap at 50000ms).
+      // Events are spaced 3000ms apart to avoid the 2500ms dedup window.
+      // The capture should be attributed to Team 0 (most-recent-tick-wins), not Team 1.
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+      const team0Xuid = "0100000000000000";
+      const team1Xuid = "0400000000000000";
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        // Hill 1: T0=6 ticks (3000ms spacing), T1=7 ticks (3000ms spacing), T0 last tick at 49000ms
+        modeEvent(team0Xuid, 5000),
+        modeEvent(team0Xuid, 8000),
+        modeEvent(team0Xuid, 11000),
+        modeEvent(team0Xuid, 14000),
+        modeEvent(team0Xuid, 17000),
+        modeEvent(team1Xuid, 18500),
+        modeEvent(team1Xuid, 21500),
+        modeEvent(team1Xuid, 24500),
+        modeEvent(team1Xuid, 27500),
+        modeEvent(team1Xuid, 30500),
+        modeEvent(team1Xuid, 33500),
+        modeEvent(team1Xuid, 36500),
+        modeEvent(team0Xuid, 49000), // most recent tick before gap at 50000ms
+        // Hills 2–5 (single-team, 3000ms spacing, Eagle=3 total, Cobra=2 total)
+        modeEvent(team1Xuid, 100000),
+        modeEvent(team1Xuid, 103000),
+        modeEvent(team1Xuid, 106000),
+        modeEvent(team1Xuid, 109000),
+        modeEvent(team1Xuid, 112000), // Hill 2: Cobra
+        modeEvent(team0Xuid, 160000),
+        modeEvent(team0Xuid, 163000),
+        modeEvent(team0Xuid, 166000),
+        modeEvent(team0Xuid, 169000),
+        modeEvent(team0Xuid, 172000), // Hill 3: Eagle
+        modeEvent(team1Xuid, 220000),
+        modeEvent(team1Xuid, 223000),
+        modeEvent(team1Xuid, 226000),
+        modeEvent(team1Xuid, 229000),
+        modeEvent(team1Xuid, 232000), // Hill 4: Cobra
+        modeEvent(team0Xuid, 280000),
+        modeEvent(team0Xuid, 283000),
+        modeEvent(team0Xuid, 286000),
+        modeEvent(team0Xuid, 289000),
+        modeEvent(team0Xuid, 292000), // Hill 5: Eagle
+      ]);
+      vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([
+        { timeMs: 5000, fromValue: 0x40, toValue: 0x41 },
+        { timeMs: 50000, fromValue: 0x41, toValue: 0x42 },
+        { timeMs: 95000, fromValue: 0x42, toValue: 0x43 },
+        { timeMs: 115000, fromValue: 0x43, toValue: 0x44 },
+        { timeMs: 155000, fromValue: 0x44, toValue: 0x45 },
+        { timeMs: 175000, fromValue: 0x45, toValue: 0x46 },
+        { timeMs: 215000, fromValue: 0x46, toValue: 0x47 },
+        { timeMs: 235000, fromValue: 0x47, toValue: 0x48 },
+        { timeMs: 275000, fromValue: 0x48, toValue: 0x49 },
+        { timeMs: 295000, fromValue: 0x49, toValue: 0x4a },
+      ]);
+
+      const result = await service.buildObjectiveControlProgression(match, 732278);
+
+      // hillCaptureTimestamps[0] must be 49000ms (T0's last tick) not 36500ms (T1's last tick),
+      // proving the most-recent-tick-wins logic rather than majority-period-team wins.
+      expect(result.hillCaptureTimestamps).toEqual([49000, 112000, 172000, 232000, 292000]);
+    });
+
+    it("returns empty when no mode events are present", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([]);
+      vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([
+        { timeMs: 100000, fromValue: 0x40, toValue: 0x41 },
+      ]);
+
+      const result = await service.buildObjectiveControlProgression(match, 300000);
+
+      expect(result.hillCaptureTimestamps).toEqual([]);
+      expect(result.events).toHaveLength(0);
+    });
+  });
+
   describe("highlight events KV cache", () => {
     it("returns KV-cached events without hitting the network", async () => {
       const env = aFakeCacheBackedEnvWith();
