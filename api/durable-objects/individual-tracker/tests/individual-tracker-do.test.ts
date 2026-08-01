@@ -536,6 +536,7 @@ describe("IndividualTrackerDO", () => {
           "gameVariantCategory",
           "outcome",
           "score",
+          "teamCount",
           "killsDeathsAssistsKda",
           "damageDealtTakenRatio",
           "isMatchmaking",
@@ -3262,6 +3263,36 @@ describe("IndividualTrackerDO", () => {
       const parsed = trackerViewMessageContract.parse(Preconditions.checkExists(webSocketAdapter.broadcasts[0]));
       expect(parsed.type).toBe("view");
       expect(parsed.view.matches.some((m) => m.matchId === "new-match")).toBe(true);
+    });
+
+    it("includes teamCount in broadcast match summaries", async () => {
+      ownerClient.getPlayerMatches.mockResolvedValueOnce([]);
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["old-match"],
+          selectedMatchIds: ["old-match"],
+          discoveredMatches: {
+            "old-match": aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "old-match",
+              teamCount: 3,
+              teamOutcomes: [2, 3],
+              kills: 10,
+              deaths: 7,
+              assists: 4,
+              damageDealt: 4200,
+              damageTaken: 3900,
+            }),
+          },
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+
+      expect(response.status).toBe(200);
+      expect(webSocketAdapter.broadcasts).toHaveLength(1);
+      const parsed = trackerViewMessageContract.parse(Preconditions.checkExists(webSocketAdapter.broadcasts[0]));
+      const match = parsed.view.matches.find((m) => m.matchId === "old-match");
+      expect(match?.teamCount).toBe(3);
     });
 
     it("does not broadcast when a poll discovers no new match", async () => {
