@@ -2326,6 +2326,35 @@ describe("NeatQueueService", () => {
         expect(payload.searchStartTime).toBe("2026-07-17T09:58:00.000Z");
       });
 
+      it("omits searchStartTime when no player timestamps are valid", async () => {
+        const teamsCreatedRequest = getFakeNeatQueueData("teamsCreated");
+        for (const team of teamsCreatedRequest.teams) {
+          for (const player of team) {
+            player.timestamp = "not-a-date";
+          }
+        }
+
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());
+        vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
+        vi.spyOn(discordService, "getGuild").mockResolvedValue({
+          ...guild,
+          id: "guild-1",
+          name: "Test Server",
+          icon: null,
+        });
+        vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
+          aFakeGuildConfigRow({ NeatQueueInformerLiveTracking: "N" }),
+        );
+
+        const { jobToComplete } = neatQueueService.handleRequest(teamsCreatedRequest, neatQueueConfig);
+        await jobToComplete?.();
+
+        expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
+        const [, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], SeriesStartedPayload];
+        expect(payload.searchStartTime).toBeUndefined();
+        expect(payload.startedAt).toBe(new Date(now).toISOString());
+      });
+
       it("uses guild ID as title fallback when getGuild fails and team names are unavailable", async () => {
         const teamsCreatedRequest = getFakeNeatQueueData("teamsCreated");
         teamsCreatedRequest.teams = [];
