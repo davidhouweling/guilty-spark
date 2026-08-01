@@ -209,6 +209,12 @@ export interface KillRaceDeathEvent {
   teamId: number;
 }
 
+export interface StateByte2Transition {
+  timeMs: number;
+  fromValue: number;
+  toValue: number;
+}
+
 export interface KillRaceProgression {
   events: KillRaceProgressionEvent[];
   deathTimeline: KillRaceDeathEvent[];
