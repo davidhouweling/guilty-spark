@@ -481,6 +481,7 @@ describe("Database Service", () => {
       expect(result.EnabledWindowsJson).toBe('["1W","1M","3M","6M","12M"]');
       expect(result.DefaultWindow).toBe(LeaderboardWindow.ThreeMonths);
       expect(result.DefaultMetric).toBe(LeaderboardMetric.SeriesWinRate);
+      expect(result.MinGamesPlayed).toBe(5);
       expect(result.UpdatedAt).toEqual(expect.any(Number));
     });
 
@@ -512,6 +513,7 @@ describe("Database Service", () => {
         config.EnabledWindowsJson,
         config.DefaultWindow,
         config.DefaultMetric,
+        config.MinGamesPlayed,
         config.UpdatedAt,
       );
       expect(runSpy).toHaveBeenCalled();

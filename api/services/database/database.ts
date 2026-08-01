@@ -259,17 +259,19 @@ export class DatabaseService {
       EnabledWindowsJson: DEFAULT_LEADERBOARD_ENABLED_WINDOWS_JSON,
       DefaultWindow: LeaderboardWindow.ThreeMonths,
       DefaultMetric: LeaderboardMetric.SeriesWinRate,
+      MinGamesPlayed: 5,
       UpdatedAt: Math.floor(Date.now() / 1000),
     };
 
     if (autoCreate) {
       const insertStmt = this.DB.prepare(
-        "INSERT INTO LeaderboardConfig (GuildId, EnabledWindowsJson, DefaultWindow, DefaultMetric, UpdatedAt) VALUES (?, ?, ?, ?, ?) ON CONFLICT(GuildId) DO NOTHING",
+        "INSERT INTO LeaderboardConfig (GuildId, EnabledWindowsJson, DefaultWindow, DefaultMetric, MinGamesPlayed, UpdatedAt) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(GuildId) DO NOTHING",
       ).bind(
         defaultConfig.GuildId,
         defaultConfig.EnabledWindowsJson,
         defaultConfig.DefaultWindow,
         defaultConfig.DefaultMetric,
+        defaultConfig.MinGamesPlayed,
         defaultConfig.UpdatedAt,
       );
 
@@ -281,14 +283,15 @@ export class DatabaseService {
 
   async upsertLeaderboardConfig(config: LeaderboardConfigRow): Promise<void> {
     const query = `
-      INSERT INTO LeaderboardConfig (GuildId, EnabledWindowsJson, DefaultWindow, DefaultMetric, UpdatedAt) VALUES (?, ?, ?, ?, ?)
-      ON CONFLICT(GuildId) DO UPDATE SET EnabledWindowsJson=excluded.EnabledWindowsJson, DefaultWindow=excluded.DefaultWindow, DefaultMetric=excluded.DefaultMetric, UpdatedAt=excluded.UpdatedAt
+      INSERT INTO LeaderboardConfig (GuildId, EnabledWindowsJson, DefaultWindow, DefaultMetric, MinGamesPlayed, UpdatedAt) VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(GuildId) DO UPDATE SET EnabledWindowsJson=excluded.EnabledWindowsJson, DefaultWindow=excluded.DefaultWindow, DefaultMetric=excluded.DefaultMetric, MinGamesPlayed=excluded.MinGamesPlayed, UpdatedAt=excluded.UpdatedAt
     `;
     const stmt = this.DB.prepare(query).bind(
       config.GuildId,
       config.EnabledWindowsJson,
       config.DefaultWindow,
       config.DefaultMetric,
+      config.MinGamesPlayed,
       config.UpdatedAt,
     );
     await stmt.run();

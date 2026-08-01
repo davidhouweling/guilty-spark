@@ -209,6 +209,7 @@ export function aFakeLeaderboardConfigRow(opts: Partial<LeaderboardConfigRow> = 
     EnabledWindowsJson: '["1W","1M","3M","6M","12M"]',
     DefaultWindow: LeaderboardWindow.ThreeMonths,
     DefaultMetric: LeaderboardMetric.SeriesWinRate,
+    MinGamesPlayed: 5,
     UpdatedAt: Math.floor(Date.now() / 1000),
   };
 

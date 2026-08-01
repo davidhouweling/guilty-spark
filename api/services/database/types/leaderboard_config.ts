@@ -24,5 +24,6 @@ export interface LeaderboardConfigRow {
   EnabledWindowsJson: string;
   DefaultWindow: LeaderboardWindow;
   DefaultMetric: LeaderboardMetric;
+  MinGamesPlayed: number;
   UpdatedAt: number;
 }

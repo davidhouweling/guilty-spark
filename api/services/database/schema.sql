@@ -139,6 +139,7 @@ CREATE TABLE IF NOT EXISTS LeaderboardConfig (
     EnabledWindowsJson TEXT NOT NULL DEFAULT '["1W","1M","3M","6M","12M"]' CHECK (json_valid(EnabledWindowsJson)),
     DefaultWindow TEXT NOT NULL DEFAULT '3M' CHECK (DefaultWindow IN ('1W', '1M', '3M', '6M', '12M')),
     DefaultMetric TEXT NOT NULL DEFAULT 'SERIES_WIN_RATE' CHECK (DefaultMetric IN ('SERIES_WIN_RATE', 'KILLS', 'DEATHS', 'ASSISTS', 'KDA', 'ACCURACY', 'DAMAGE_DEALT', 'DAMAGE_TAKEN', 'DAMAGE_RATIO', 'PERSONAL_SCORE')),
+    MinGamesPlayed INTEGER NOT NULL DEFAULT 5 CHECK (MinGamesPlayed >= 0),
     UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
