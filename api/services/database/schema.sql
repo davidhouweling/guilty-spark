@@ -208,8 +208,6 @@ CREATE TABLE IF NOT EXISTS LeaderboardGames (
 
 CREATE INDEX IF NOT EXISTS IdxLeaderboardGamesGuildQueueStartedAt
     ON LeaderboardGames (GuildId, QueueChannelId, StartedAt DESC);
-CREATE INDEX IF NOT EXISTS IdxLeaderboardGamesGuildIdQueueNumber
-    ON LeaderboardGames (GuildId, QueueNumber);
 
 CREATE TABLE IF NOT EXISTS LeaderboardGamePlayers (
     MatchId TEXT NOT NULL,
