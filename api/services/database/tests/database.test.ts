@@ -730,7 +730,7 @@ describe("Database Service", () => {
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
 
       await databaseService.deleteLeaderboardDataForGuild("guild-123");
-      await databaseService.deleteLeaderboardDataForQueue("guild-123", "queue-789");
+      await databaseService.deleteLeaderboardDataForQueueChannel("guild-123", "queue-789");
 
       expect(prepareSpy).toHaveBeenNthCalledWith(1, "DELETE FROM LeaderboardSeries WHERE GuildId = ?");
       expect(prepareSpy).toHaveBeenNthCalledWith(

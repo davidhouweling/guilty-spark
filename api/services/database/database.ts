@@ -699,7 +699,7 @@ export class DatabaseService {
     await stmt.run();
   }
 
-  async deleteLeaderboardDataForQueue(guildId: string, queueChannelId: string): Promise<void> {
+  async deleteLeaderboardDataForQueueChannel(guildId: string, queueChannelId: string): Promise<void> {
     const query = "DELETE FROM LeaderboardSeries WHERE GuildId = ? AND QueueChannelId = ?";
     const stmt = this.DB.prepare(query).bind(guildId, queueChannelId);
     await stmt.run();
