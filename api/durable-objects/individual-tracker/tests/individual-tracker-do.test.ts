@@ -289,6 +289,30 @@ describe("IndividualTrackerDO", () => {
       expect(Number(alarmTime)).toBeLessThanOrEqual(Date.now() + 1000);
     });
 
+    it("normalizes an unparseable seed startedAt to a parseable timestamp", async () => {
+      const request = new Request("http://do/start", {
+        method: "POST",
+        body: JSON.stringify(
+          createMockStartRequest({
+            seriesSeed: {
+              title: "Test Server",
+              subtitle: "Queue #5",
+              guildIconUrl: null,
+              startedAt: "not-a-valid-date",
+              teams: [],
+              matchIds: [],
+            },
+          }),
+        ),
+      });
+
+      await individualTrackerDO.fetch(request);
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.startedAt).not.toBe("not-a-valid-date");
+      expect(Number.isNaN(Date.parse(persisted.activeSeries?.startedAt ?? ""))).toBe(false);
+    });
+
     it("keeps the requested searchStartTime when the seed window is not earlier", async () => {
       const request = new Request("http://do/start", {
         method: "POST",

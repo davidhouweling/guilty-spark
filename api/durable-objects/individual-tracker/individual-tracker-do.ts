@@ -1321,7 +1321,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       guildIconUrl: seriesSeed.guildIconUrl,
       teams: seriesSeed.teams,
       matchIds: [],
-      startedAt: seriesSeed.startedAt,
+      startedAt: isParseableTimestamp(seriesSeed.startedAt) ? seriesSeed.startedAt : new Date().toISOString(),
       isActive: true,
     };
 

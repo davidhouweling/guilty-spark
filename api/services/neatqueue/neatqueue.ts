@@ -726,11 +726,11 @@ export class NeatQueueService {
   }
 
   async findActiveSeriesForPlayer(xuid: string, gamertag: string): Promise<ActiveSeriesForPlayer | null> {
-    const { keys } = await this.env.APP_DATA.list({ prefix: "neatqueue:state:" });
+    const stateKeys = await this.listQueueStateKeys();
     let latest: ActiveSeriesForPlayer | null = null;
 
-    for (const key of keys) {
-      const candidate = await this.getActiveSeriesCandidate(key.name, xuid, gamertag);
+    for (const stateKey of stateKeys) {
+      const candidate = await this.getActiveSeriesCandidate(stateKey, xuid, gamertag);
       if (candidate == null) {
         continue;
       }
@@ -743,13 +743,29 @@ export class NeatQueueService {
     return latest;
   }
 
+  private async listQueueStateKeys(): Promise<string[]> {
+    const names: string[] = [];
+    let cursor: string | undefined;
+
+    do {
+      const result = await this.env.APP_DATA.list({
+        prefix: "neatqueue:state:",
+        ...(cursor !== undefined ? { cursor } : {}),
+      });
+      names.push(...result.keys.map((key) => key.name));
+      cursor = result.list_complete ? undefined : result.cursor;
+    } while (cursor !== undefined);
+
+    return names;
+  }
+
   private async getActiveSeriesCandidate(
     stateKey: string,
     xuid: string,
     gamertag: string,
   ): Promise<ActiveSeriesForPlayer | null> {
     const [, , guildId, queueNumber] = stateKey.split(":");
-    if (guildId == null || queueNumber == null) {
+    if (guildId == null || guildId === "" || queueNumber == null || !/^\d+$/.test(queueNumber)) {
       return null;
     }
 

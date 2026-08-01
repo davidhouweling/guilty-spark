@@ -106,6 +106,46 @@ describe("NeatQueueService.findActiveSeriesForPlayer()", () => {
     expect(result).toBeNull();
   });
 
+  it("follows KV list pagination across multiple pages", async () => {
+    const association = {
+      "discord-1": aFakePlayerAssociationDataWith({ discordId: "discord-1", xboxId: "xuid-1" }),
+    };
+    listSpy.mockImplementation(async (options?: KVNamespaceListOptions): Promise<KVNamespaceListResult<unknown>> => {
+      if (options?.cursor === "page-2") {
+        return Promise.resolve(listResultWith(["neatqueue:state:guild-2:9"]));
+      }
+      return Promise.resolve({
+        list_complete: false,
+        cursor: "page-2",
+        keys: [{ name: "neatqueue:state:guild-1:5" }],
+        cacheStatus: null,
+      });
+    });
+    getSpy.mockImplementation(async (key: string) => {
+      if (key === "neatqueue:state:guild-2:9") {
+        return Promise.resolve(
+          aFakeNeatQueueStateWith({ seriesContext: aSeriesContextWith(), playersAssociationData: association }),
+        );
+      }
+      return Promise.resolve(aFakeNeatQueueStateWith());
+    });
+
+    const result = await neatQueueService.findActiveSeriesForPlayer("xuid-1", "Chief");
+
+    expect(listSpy).toHaveBeenCalledTimes(2);
+    expect(listSpy).toHaveBeenCalledWith({ prefix: "neatqueue:state:", cursor: "page-2" });
+    expect(result?.guildId).toBe("guild-2");
+  });
+
+  it("ignores queue state keys with a non-numeric queue number", async () => {
+    listSpy.mockResolvedValue(listResultWith(["neatqueue:state:guild-1:not-a-number"]));
+
+    const result = await neatQueueService.findActiveSeriesForPlayer("xuid-1", "Chief");
+
+    expect(result).toBeNull();
+    expect(getSpy).not.toHaveBeenCalled();
+  });
+
   it("picks the most recently started series when the player is in multiple", async () => {
     listSpy.mockResolvedValue(listResultWith(["neatqueue:state:guild-1:5", "neatqueue:state:guild-2:9"]));
     const association = {
