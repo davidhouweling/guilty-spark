@@ -6,6 +6,11 @@
   "compatibility_date": "2026-02-28",
   "upload_source_maps": true,
 
+  // Daily cleanup of NeatQueue configs whose queue channel no longer exists
+  "triggers": {
+    "crons": ["43 15 * * *"],
+  },
+
   // KV namespaces for development
   "kv_namespaces": [
     {

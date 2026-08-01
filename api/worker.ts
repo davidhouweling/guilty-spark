@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/cloudflare";
 import { installServices } from "./services/install";
 import { createApiRouter } from "./base/router";
 import { Server } from "./server";
+import { StaleNeatQueueConfigCleanup } from "./services/neatqueue/stale-config-cleanup";
 
 // Export Durable Object classes
 export { LiveTrackerDO } from "./durable-objects/live-tracker/live-tracker-do";
@@ -43,5 +44,10 @@ export default Sentry.withSentry(
   }),
   {
     fetch: server.router.fetch,
+    scheduled: async (_controller: ScheduledController, env: Env): Promise<void> => {
+      const { databaseService, discordService, logService } = installServices({ env });
+      const cleanup = new StaleNeatQueueConfigCleanup({ databaseService, discordService, logService });
+      await cleanup.execute();
+    },
   },
 );
