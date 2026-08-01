@@ -26,6 +26,7 @@ import {
   aFakeUserTrackerDOWith,
   type FakeUserTrackerDO,
 } from "../../../durable-objects/user-tracker/fakes/user-tracker-do.fake";
+import { aFakeLiveTrackerStateWith } from "../../../durable-objects/live-tracker/fakes/live-tracker-do.fake";
 import { aFakeIndividualTrackersRow } from "../../../services/database/fakes/database.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/individual-tracker";
@@ -115,6 +116,109 @@ describe("/api/individual-tracker manage routes", () => {
     expect(body.tracker.gamertag).toBe("ResolvedTag");
     expect(body.tracker.status).toBe("active");
     expect(startSpy).toHaveBeenCalledWith("http://do/start", expect.objectContaining({ method: "POST" }));
+  });
+
+  it("attaches a series seed to the DO start request when the player is in an active series", async () => {
+    const doStub = aFakeIndividualTrackerDOWith({
+      startResponse: {
+        success: true,
+        state: aFakeIndividualTrackerStateWith({ trackerId: "new-tracker", gamertag: "ResolvedTag" }),
+      },
+    });
+    const startSpy: MockInstance<FakeIndividualTrackerDO["fetch"]> = vi.spyOn(doStub, "fetch");
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
+
+    const row = aFakeIndividualTrackersRow({
+      TrackerId: "new-tracker",
+      Gamertag: "ResolvedTag",
+      Xuid: "xuid-1",
+      Status: "active",
+    });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env: localEnv });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith());
+      vi.spyOn(services.individualTrackerService, "createTracker").mockResolvedValue(row);
+      vi.spyOn(services.neatQueueService, "findActiveSeriesForPlayer").mockResolvedValue({
+        guildId: "guild-1",
+        queueNumber: 5,
+        seriesContext: {
+          type: "started",
+          title: "Test Server",
+          subtitle: "Queue #5",
+          guildIconUrl: null,
+          startedAt: "2026-08-01T10:00:00.000Z",
+          searchStartTime: "2026-08-01T09:30:00.000Z",
+          teams: [],
+        },
+      });
+      vi.spyOn(services.liveTrackerService, "getTrackerStatusByQueue").mockResolvedValue({
+        state: aFakeLiveTrackerStateWith({ status: "active", matchIds: ["m1", "m2"] }),
+      });
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      postRequest("/api/individual-tracker/manage/start", { gamertag: "ResolvedTag", xuid: "xuid-1" }),
+      localEnv,
+    )) as Response;
+
+    expect(res.status).toBe(200);
+    const startCall = startSpy.mock.calls.find(([url]) => url === "http://do/start");
+    const rawStartBody = Preconditions.checkExists(startCall?.[1]?.body);
+    if (typeof rawStartBody !== "string") {
+      throw new Error("Expected DO start request body to be a JSON string");
+    }
+    const startBody = JSON.parse(rawStartBody) as Record<string, unknown>;
+    expect(startBody["seriesSeed"]).toEqual({
+      title: "Test Server",
+      subtitle: "Queue #5",
+      guildIconUrl: null,
+      startedAt: "2026-08-01T10:00:00.000Z",
+      searchStartTime: "2026-08-01T09:30:00.000Z",
+      teams: [],
+      matchIds: ["m1", "m2"],
+    });
+  });
+
+  it("starts without a series seed when the player has no active series", async () => {
+    const doStub = aFakeIndividualTrackerDOWith({
+      startResponse: {
+        success: true,
+        state: aFakeIndividualTrackerStateWith({ trackerId: "new-tracker", gamertag: "ResolvedTag" }),
+      },
+    });
+    const startSpy: MockInstance<FakeIndividualTrackerDO["fetch"]> = vi.spyOn(doStub, "fetch");
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
+
+    const row = aFakeIndividualTrackersRow({
+      TrackerId: "new-tracker",
+      Gamertag: "ResolvedTag",
+      Xuid: "xuid-1",
+      Status: "active",
+    });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env: localEnv });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith());
+      vi.spyOn(services.individualTrackerService, "createTracker").mockResolvedValue(row);
+      vi.spyOn(services.neatQueueService, "findActiveSeriesForPlayer").mockResolvedValue(null);
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      postRequest("/api/individual-tracker/manage/start", { gamertag: "ResolvedTag", xuid: "xuid-1" }),
+      localEnv,
+    )) as Response;
+
+    expect(res.status).toBe(200);
+    const startCall = startSpy.mock.calls.find(([url]) => url === "http://do/start");
+    const rawStartBody = Preconditions.checkExists(startCall?.[1]?.body);
+    if (typeof rawStartBody !== "string") {
+      throw new Error("Expected DO start request body to be a JSON string");
+    }
+    const startBody = JSON.parse(rawStartBody) as Record<string, unknown>;
+    expect(startBody).not.toHaveProperty("seriesSeed");
   });
 
   it("returns 429 on start when the user is at the tracker limit", async () => {

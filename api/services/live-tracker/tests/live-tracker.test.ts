@@ -535,6 +535,40 @@ describe("LiveTrackerService", () => {
     });
   });
 
+  describe("getTrackerStatusByQueue", () => {
+    it("gets tracker status by queue identity successfully", async () => {
+      const mockResponse: LiveTrackerStatusResponse = {
+        state: state,
+      };
+
+      fetch.mockResolvedValue(
+        aFakeResponseWith({
+          json: vi.fn().mockResolvedValue(mockResponse),
+        }),
+      );
+
+      const result = await service.getTrackerStatusByQueue(liveTrackerContext.guildId, liveTrackerContext.queueNumber);
+
+      expect(result).toEqual(mockResponse);
+      expect(fetch).toHaveBeenCalledWith("http://do/status", {
+        method: "GET",
+      });
+    });
+
+    it("returns null when DO returns non-ok response", async () => {
+      fetch.mockResolvedValue(
+        aFakeResponseWith({
+          ok: false,
+          status: 404,
+        }),
+      );
+
+      const result = await service.getTrackerStatusByQueue(liveTrackerContext.guildId, liveTrackerContext.queueNumber);
+
+      expect(result).toBeNull();
+    });
+  });
+
   describe("repostTracker", () => {
     it("reposts a tracker successfully", async () => {
       const mockResponse: LiveTrackerRepostResponse = {

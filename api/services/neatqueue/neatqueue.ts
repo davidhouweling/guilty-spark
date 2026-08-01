@@ -47,6 +47,7 @@ import { buildDiscordSeriesRenderDataFromMatches } from "../discord/discord-seri
 import type { SeriesPlayer, SeriesTeam } from "../../durable-objects/individual-tracker/types";
 import type { IndividualTrackerService } from "../individual-tracker/individual-tracker";
 import type {
+  ActiveSeriesForPlayer,
   VerifyNeatQueueResponse,
   NeatQueueRequest,
   NeatQueueMatchCompletedRequest,
@@ -722,6 +723,57 @@ export class NeatQueueService {
         ]),
       );
     }
+  }
+
+  async findActiveSeriesForPlayer(xuid: string, gamertag: string): Promise<ActiveSeriesForPlayer | null> {
+    const { keys } = await this.env.APP_DATA.list({ prefix: "neatqueue:state:" });
+    let latest: ActiveSeriesForPlayer | null = null;
+
+    for (const key of keys) {
+      const candidate = await this.getActiveSeriesCandidate(key.name, xuid, gamertag);
+      if (candidate == null) {
+        continue;
+      }
+
+      if (latest == null || (candidate.seriesContext.startedAt ?? "") > (latest.seriesContext.startedAt ?? "")) {
+        latest = candidate;
+      }
+    }
+
+    return latest;
+  }
+
+  private async getActiveSeriesCandidate(
+    stateKey: string,
+    xuid: string,
+    gamertag: string,
+  ): Promise<ActiveSeriesForPlayer | null> {
+    const [, , guildId, queueNumber] = stateKey.split(":");
+    if (guildId == null || queueNumber == null) {
+      return null;
+    }
+
+    const state = await this.env.APP_DATA.get<NeatQueueState>(stateKey, { type: "json" });
+    if (state?.seriesContext == null) {
+      return null;
+    }
+
+    if (!this.isPlayerInAssociationData(state.playersAssociationData, xuid, gamertag)) {
+      return null;
+    }
+
+    return { guildId, queueNumber: Number(queueNumber), seriesContext: state.seriesContext };
+  }
+
+  private isPlayerInAssociationData(
+    playersAssociationData: Record<string, PlayerAssociationData>,
+    xuid: string,
+    gamertag: string,
+  ): boolean {
+    const normalizedGamertag = gamertag.toLowerCase();
+    return Object.values(playersAssociationData).some(
+      (player) => player.xboxId === xuid || player.gamertag?.toLowerCase() === normalizedGamertag,
+    );
   }
 
   private resolveSeriesSearchStartTime(request: NeatQueueTeamsCreatedRequest): string | undefined {

@@ -580,8 +580,28 @@ export class LiveTrackerService {
     return liveTrackerSeriesDataContract.fromResponse(response);
   }
 
+  /**
+   * Gets the status of a live tracker by its queue identity, without requiring a full context
+   */
+  async getTrackerStatusByQueue(guildId: string, queueNumber: number): Promise<LiveTrackerStatusResponse | null> {
+    const doStub = this.getDurableObjectStubForQueue(guildId, queueNumber);
+    const response = await doStub.fetch("http://do/status", {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return liveTrackerStatusContract.fromResponse(response);
+  }
+
   private getDurableObjectStub(context: LiveTrackerContext): DurableObjectStub<LiveTrackerDO> {
-    const doId = this.env.LIVE_TRACKER_DO.idFromName(`${context.guildId}:${context.queueNumber.toString()}`);
+    return this.getDurableObjectStubForQueue(context.guildId, context.queueNumber);
+  }
+
+  private getDurableObjectStubForQueue(guildId: string, queueNumber: number): DurableObjectStub<LiveTrackerDO> {
+    const doId = this.env.LIVE_TRACKER_DO.idFromName(`${guildId}:${queueNumber.toString()}`);
 
     return this.env.LIVE_TRACKER_DO.get(doId);
   }

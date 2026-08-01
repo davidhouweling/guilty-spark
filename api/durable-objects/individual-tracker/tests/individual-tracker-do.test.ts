@@ -233,6 +233,155 @@ describe("IndividualTrackerDO", () => {
       expect(storageSetAlarmSpy).toHaveBeenCalled();
     });
 
+    it("seeds the active series and backdates searchStartTime when a series seed is provided", async () => {
+      const request = new Request("http://do/start", {
+        method: "POST",
+        body: JSON.stringify(
+          createMockStartRequest({
+            searchStartTime: "2024-11-26T12:00:00.000Z",
+            seriesSeed: {
+              title: "Test Server",
+              subtitle: "Queue #5",
+              guildIconUrl: null,
+              startedAt: "2024-11-26T10:00:00.000Z",
+              searchStartTime: "2024-11-26T09:30:00.000Z",
+              teams: [],
+              matchIds: [],
+            },
+          }),
+        ),
+      });
+
+      const response = await individualTrackerDO.fetch(request);
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toMatchObject({
+        title: "Test Server",
+        subtitle: "Queue #5",
+        startedAt: "2024-11-26T10:00:00.000Z",
+        isActive: true,
+        matchIds: [],
+      });
+      expect(persisted.searchStartTime).toBe("2024-11-26T09:30:00.000Z");
+    });
+
+    it("schedules an immediate alarm when a series seed is provided", async () => {
+      const request = new Request("http://do/start", {
+        method: "POST",
+        body: JSON.stringify(
+          createMockStartRequest({
+            seriesSeed: {
+              title: "Test Server",
+              subtitle: "Queue #5",
+              guildIconUrl: null,
+              startedAt: "2024-11-26T10:00:00.000Z",
+              teams: [],
+              matchIds: [],
+            },
+          }),
+        ),
+      });
+
+      await individualTrackerDO.fetch(request);
+
+      const alarmTime = Preconditions.checkExists(storageSetAlarmSpy.mock.calls[0]?.[0]);
+      expect(Number(alarmTime)).toBeLessThanOrEqual(Date.now() + 1000);
+    });
+
+    it("keeps the requested searchStartTime when the seed window is not earlier", async () => {
+      const request = new Request("http://do/start", {
+        method: "POST",
+        body: JSON.stringify(
+          createMockStartRequest({
+            searchStartTime: "2024-11-26T08:00:00.000Z",
+            seriesSeed: {
+              title: "Test Server",
+              subtitle: "Queue #5",
+              guildIconUrl: null,
+              startedAt: "2024-11-26T10:00:00.000Z",
+              teams: [],
+              matchIds: [],
+            },
+          }),
+        ),
+      });
+
+      await individualTrackerDO.fetch(request);
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.searchStartTime).toBe("2024-11-26T08:00:00.000Z");
+    });
+
+    it("hydrates and auto-selects seeded series matches", async () => {
+      ownerClient.getMatchStats.mockImplementation(async (matchId: string) => {
+        const startTime = matchId === "m1" ? "2024-11-26T10:10:00.000Z" : "2024-11-26T10:30:00.000Z";
+        return Promise.resolve(
+          aFakeMatchStatsWith({
+            MatchId: matchId,
+            MatchInfo: {
+              ...aFakeMatchStatsWith().MatchInfo,
+              StartTime: startTime,
+            },
+            Players: [aFakePlayerWith({ PlayerId: "test-xuid", Outcome: 2 })],
+          }),
+        );
+      });
+      const request = new Request("http://do/start", {
+        method: "POST",
+        body: JSON.stringify(
+          createMockStartRequest({
+            searchStartTime: "2024-11-26T12:00:00.000Z",
+            seriesSeed: {
+              title: "Test Server",
+              subtitle: "Queue #5",
+              guildIconUrl: null,
+              startedAt: "2024-11-26T10:00:00.000Z",
+              teams: [],
+              matchIds: ["m2", "m1"],
+            },
+          }),
+        ),
+      });
+
+      const response = await individualTrackerDO.fetch(request);
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.matchIds).toEqual(["m1", "m2"]);
+      expect(persisted.selectedMatchIds).toEqual(["m1", "m2"]);
+      expect(persisted.activeSeries?.matchIds).toEqual(["m1", "m2"]);
+      expect(persisted.discoveredMatches["m1"]?.startTime).toBe("2024-11-26T10:10:00.000Z");
+      expect(persisted.discoveredMatches["m2"]?.startTime).toBe("2024-11-26T10:30:00.000Z");
+    });
+
+    it("starts with the series seeded but no matches when hydration fails", async () => {
+      ownerClient.getMatchStats.mockRejectedValue(new Error("Halo API unavailable"));
+      const request = new Request("http://do/start", {
+        method: "POST",
+        body: JSON.stringify(
+          createMockStartRequest({
+            seriesSeed: {
+              title: "Test Server",
+              subtitle: "Queue #5",
+              guildIconUrl: null,
+              startedAt: "2024-11-26T10:00:00.000Z",
+              teams: [],
+              matchIds: ["m1"],
+            },
+          }),
+        ),
+      });
+
+      const response = await individualTrackerDO.fetch(request);
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.title).toBe("Test Server");
+      expect(persisted.matchIds).toEqual([]);
+      expect(persisted.selectedMatchIds).toEqual([]);
+    });
+
     it("notifies UserTrackerDO after start state is persisted", async () => {
       const userTrackerDo = aFakeUserTrackerDOWith();
       const userTrackerFetchSpy = vi.spyOn(userTrackerDo, "fetch");
