@@ -127,6 +127,23 @@ describe("StaleNeatQueueConfigCleanup", () => {
     expect(deleteConfigSpy).toHaveBeenCalledWith("guild-kicked", "channel-2");
   });
 
+  it("does not cache an unexpected guild error as a definitive answer", async () => {
+    getAllConfigsSpy.mockResolvedValue([
+      aFakeNeatQueueConfigRow({ GuildId: "guild-flaky", ChannelId: "channel-1" }),
+      aFakeNeatQueueConfigRow({ GuildId: "guild-flaky", ChannelId: "channel-2" }),
+    ]);
+    getChannelSpy.mockRejectedValue(new DiscordError(403, { code: 50001, message: "Missing Access" }));
+    getGuildSpy
+      .mockRejectedValueOnce(new DiscordError(500, { code: 0, message: "Internal Server Error" }))
+      .mockRejectedValueOnce(new DiscordError(403, { code: 50001, message: "Missing Access" }));
+
+    await cleanup.execute();
+
+    expect(getGuildSpy).toHaveBeenCalledTimes(2);
+    expect(deleteConfigSpy).toHaveBeenCalledTimes(1);
+    expect(deleteConfigSpy).toHaveBeenCalledWith("guild-flaky", "channel-2");
+  });
+
   it("processes remaining configs independently when one is stale", async () => {
     getAllConfigsSpy.mockResolvedValue([
       aFakeNeatQueueConfigRow({ GuildId: "guild-1", ChannelId: "channel-gone" }),

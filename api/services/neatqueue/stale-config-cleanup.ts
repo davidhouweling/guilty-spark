@@ -107,24 +107,24 @@ export class StaleNeatQueueConfigCleanup {
       return cached;
     }
 
-    let removed = false;
     try {
       await this.discordService.getGuild(guildId);
+      this.guildAccessCache.set(guildId, false);
+      return false;
     } catch (error) {
       if (error instanceof DiscordError && (error.httpStatus === 404 || error.httpStatus === 403)) {
-        removed = true;
-      } else {
-        this.logService.warn(
-          "StaleNeatQueueConfigCleanup: unexpected error fetching guild, keeping config",
-          new Map([
-            ["guildId", guildId],
-            ["error", String(error)],
-          ]),
-        );
+        this.guildAccessCache.set(guildId, true);
+        return true;
       }
-    }
 
-    this.guildAccessCache.set(guildId, removed);
-    return removed;
+      this.logService.warn(
+        "StaleNeatQueueConfigCleanup: unexpected error fetching guild, keeping config",
+        new Map([
+          ["guildId", guildId],
+          ["error", String(error)],
+        ]),
+      );
+      return false;
+    }
   }
 }
