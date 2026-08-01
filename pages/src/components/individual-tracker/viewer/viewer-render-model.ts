@@ -408,7 +408,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
     view.hasActiveSeries &&
     view.activeSeriesContext != null &&
     !timelineWithFallback.some((item) => item.type === "series" && item.series.isActive)
-      ? ([{ type: "series", series: toPendingActiveSeriesTab(view) }, ...timelineWithFallback] as ViewerTimelineItem[])
+      ? ([...timelineWithFallback, { type: "series", series: toPendingActiveSeriesTab(view) }] as ViewerTimelineItem[])
       : timelineWithFallback;
 
   const accumulated = accumulate(view.matches);
