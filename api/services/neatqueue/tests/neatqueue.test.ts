@@ -1010,6 +1010,31 @@ describe("NeatQueueService", () => {
           expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:state:guild-1:2");
         });
 
+        it("persists infinite ratio values when denominator stats are zero but damage dealt is non-zero", async () => {
+          const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+          const matchPlayer = Preconditions.checkExists(match.Players.find((player) => player.PlayerType === 1));
+          const playerTeamStats = Preconditions.checkExists(matchPlayer.PlayerTeamStats[0]);
+          playerTeamStats.Stats.CoreStats.DamageTaken = 0;
+          playerTeamStats.Stats.CoreStats.Deaths = 0;
+          playerTeamStats.Stats.CoreStats.DamageDealt = 4000;
+          haloServiceGetSeriesFromDiscordQueueSpy.mockResolvedValueOnce([match]);
+
+          const { jobToComplete } = neatQueueService.handleRequest(
+            getFakeNeatQueueData("matchCompleted"),
+            neatQueueConfig,
+          );
+
+          await jobToComplete?.();
+
+          const [batchArg] = upsertLeaderboardSeriesDataBatchSpy.mock.calls[0] ?? [];
+          const gamePlayerRows = Preconditions.checkExists(batchArg).gamePlayers;
+          const ratioRow = gamePlayerRows.find((row) => row.DamageTaken === 0 && row.DamageDealt > 0);
+          const damagePerLifeRow = gamePlayerRows.find((row) => row.Deaths === 0 && row.DamageDealt > 0);
+
+          expect(Preconditions.checkExists(ratioRow).DamageRatio).toBe(Number.POSITIVE_INFINITY);
+          expect(Preconditions.checkExists(damagePerLifeRow).AvgDamagePerLife).toBe(Number.POSITIVE_INFINITY);
+        });
+
         it("logs a warning when batched leaderboard persistence fails", async () => {
           const logWarnSpy = vi.spyOn(logService, "warn");
           upsertLeaderboardSeriesDataBatchSpy.mockRejectedValueOnce(new Error("upsert leaderboard batch failed"));

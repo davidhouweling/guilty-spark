@@ -16,6 +16,7 @@ import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
+import { getSafeRatioValue } from "@guilty-spark/shared/halo/stat-formatting";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { SeriesStartedPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
@@ -2391,9 +2392,25 @@ export class NeatQueueService {
     const gamePlayerRows: LeaderboardGamePlayersRow[] = [];
     const playersByXuid = new Map<string, LeaderboardSeriesPlayersRow>();
     const participationByXuid = new Map<string, boolean[]>();
+    const gameTypeAndMapByMatchId = new Map<string, { gameType: string; gameMap: string }>();
+    const gameTypesAndMaps = await Promise.all(
+      sortedSeries.map(async (match) => ({
+        matchId: match.MatchId,
+        ...(await this.haloService.getGameTypeAndMapParts(match.MatchInfo)),
+      })),
+    );
+    for (const gameTypeAndMap of gameTypesAndMaps) {
+      gameTypeAndMapByMatchId.set(gameTypeAndMap.matchId, {
+        gameType: gameTypeAndMap.gameType,
+        gameMap: gameTypeAndMap.gameMap,
+      });
+    }
 
     for (const [index, match] of sortedSeries.entries()) {
-      const { gameType, gameMap } = await this.haloService.getGameTypeAndMapParts(match.MatchInfo);
+      const { gameType, gameMap } = Preconditions.checkExists(
+        gameTypeAndMapByMatchId.get(match.MatchId),
+        "Expected resolved game type and map",
+      );
       const startedAt = this.toEpochSeconds(match.MatchInfo.StartTime) ?? nowEpoch;
       const endedAt = this.toEpochSeconds(match.MatchInfo.EndTime) ?? nowEpoch;
       const team0Score = match.Teams.find((team) => team.TeamId === 0)?.Stats.CoreStats.Score ?? null;
@@ -2460,9 +2477,9 @@ export class NeatQueueService {
           ShotsFired: coreStats.ShotsFired,
           DamageDealt: coreStats.DamageDealt,
           DamageTaken: coreStats.DamageTaken,
-          DamageRatio: coreStats.DamageTaken === 0 ? 0 : coreStats.DamageDealt / coreStats.DamageTaken,
+          DamageRatio: getSafeRatioValue(coreStats.DamageDealt, coreStats.DamageTaken),
           AvgLifeSeconds: this.getAverageLifeSeconds(coreStats.AverageLifeDuration),
-          AvgDamagePerLife: deaths === 0 ? 0 : coreStats.DamageDealt / deaths,
+          AvgDamagePerLife: getSafeRatioValue(coreStats.DamageDealt, deaths),
           ObjectiveStatsJson: JSON.stringify(teamStats.Stats),
           MedalsJson: JSON.stringify(coreStats.Medals),
           CreatedAt: nowEpoch,
