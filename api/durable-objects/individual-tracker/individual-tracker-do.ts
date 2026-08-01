@@ -27,6 +27,7 @@ import {
   individualTrackerStartRequestSchema,
   individualTrackerStopContract,
   type IndividualTrackerDoState,
+  type IndividualTrackerSeriesSeed,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
 import {
   individualTrackerStatusContract,
@@ -1278,9 +1279,14 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       },
     };
 
+    if (body.seriesSeed != null) {
+      await this.applySeriesSeed(trackerState, body.seriesSeed);
+    }
+
     await this.setState(trackerState);
     this.notifyUserTracker(trackerState);
-    await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
+    const firstAlarmDelayMs = body.seriesSeed != null ? 0 : ALARM_INTERVAL_MS;
+    await this.state.storage.setAlarm(addMilliseconds(new Date(), firstAlarmDelayMs).getTime());
 
     this.logService.info(
       "IndividualTracker: tracker started",
@@ -1288,11 +1294,72 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         ["userId", body.userId],
         ["trackerId", body.trackerId],
         ["gamertag", body.gamertag],
-        ["searchStartTime", body.searchStartTime],
+        ["searchStartTime", trackerState.searchStartTime],
+        ["seededSeries", String(body.seriesSeed != null)],
+        ["seededMatchCount", (body.seriesSeed?.matchIds.length ?? 0).toString()],
       ]),
     );
 
     return individualTrackerStartContract.toResponse({ success: true, state: this.sanitizeState(trackerState) });
+  }
+
+  private async applySeriesSeed(
+    trackerState: IndividualTrackerInternalState,
+    seriesSeed: IndividualTrackerSeriesSeed,
+  ): Promise<void> {
+    const seedSearchStartTime = seriesSeed.searchStartTime ?? seriesSeed.startedAt;
+    if (
+      isParseableTimestamp(seedSearchStartTime) &&
+      new Date(seedSearchStartTime) < new Date(trackerState.searchStartTime)
+    ) {
+      trackerState.searchStartTime = seedSearchStartTime;
+    }
+
+    trackerState.activeSeries = {
+      title: seriesSeed.title,
+      subtitle: seriesSeed.subtitle,
+      guildIconUrl: seriesSeed.guildIconUrl,
+      teams: seriesSeed.teams,
+      matchIds: [],
+      startedAt: isParseableTimestamp(seriesSeed.startedAt) ? seriesSeed.startedAt : new Date().toISOString(),
+      isActive: true,
+    };
+
+    if (seriesSeed.matchIds.length === 0) {
+      return;
+    }
+
+    try {
+      const hydrationResult = await this.hydrateMatchSummaries(trackerState, seriesSeed.matchIds);
+      if (!hydrationResult.success) {
+        this.logService.warn(
+          "IndividualTracker: series seed hydration failed, matches will be discovered by polling",
+          new Map([
+            ["trackerId", trackerState.trackerId],
+            ["failingIds", hydrationResult.failingIds.join(",")],
+          ]),
+        );
+        return;
+      }
+
+      this.mergeHydratedMatches(trackerState, hydrationResult.summaries);
+      const seededMatchIds = new Set(seriesSeed.matchIds);
+      for (const matchId of seriesSeed.matchIds) {
+        if (!trackerState.selectedMatchIds.includes(matchId)) {
+          trackerState.selectedMatchIds.push(matchId);
+        }
+      }
+      trackerState.selectedMatchIds.sort();
+      trackerState.activeSeries.matchIds = trackerState.matchIds.filter((id) => seededMatchIds.has(id));
+    } catch (error) {
+      this.logService.warn(
+        "IndividualTracker: series seed hydration errored, matches will be discovered by polling",
+        new Map([
+          ["trackerId", trackerState.trackerId],
+          ["error", String(error)],
+        ]),
+      );
+    }
   }
 
   private async handlePause(): Promise<Response> {
