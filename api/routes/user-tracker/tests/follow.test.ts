@@ -218,7 +218,7 @@ describe("/u/:gamertag follow routes", () => {
       expect(res.status).toBe(426);
     });
 
-    it("decodes a percent-encoded gamertag containing a space before looking it up", async () => {
+    it("decodes a percent-encoded gamertag containing a space before looking it up (websocket route)", async () => {
       const identity = aFakeLinkedIdentitiesRow({ UserId: "user-1", Gamertag: "CAP0 CRIMINI" });
       const userTrackerDo = aFakeUserTrackerDOWith();
       const localEnv = aFakeEnvWith({ USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(userTrackerDo) });
