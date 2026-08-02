@@ -979,6 +979,131 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(model.statsHighlights).toEqual([]);
   });
 
+  it("includes a series stats ticker group ahead of match groups when in an active series", () => {
+    const matchId = "series-match-1";
+    const activeSeries = aSeriesWith({
+      id: "series-active",
+      isActive: true,
+      matches: [aMatchWith({ matchId })],
+    });
+
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        hasActiveSeries: true,
+        activeSeriesContext: {
+          title: "Series",
+          subtitle: "Bo3",
+          teams: [],
+        },
+        timeline: [{ type: "series", series: activeSeries }],
+      }),
+      streamerSettings: undefined,
+      matchStatsByMatchId: new Map([
+        [
+          matchId,
+          {
+            status: "loaded" as const,
+            stats: aFakeMatchStatsWith({ MatchId: matchId }),
+            playerMap: new Map<string, string>([
+              ["1111111111", "TrackedPlayer"],
+              ["2222222222", "PlayerTwo"],
+              ["3333333333", "PlayerThree"],
+              ["4444444444", "PlayerFour"],
+            ]),
+            medalMetadata: aFakeMedalMetadata(),
+            analytics: null,
+            analyticsStatus: ComponentLoaderStatus.LOADED,
+          },
+        ],
+      ]),
+      selectedMatchId: null,
+    });
+
+    expect(model.tickerMatchGroups.length).toBeGreaterThanOrEqual(2);
+    const [seriesGroup, matchGroup] = model.tickerMatchGroups;
+    expect(seriesGroup.label).toBe("Series Stats");
+    expect(seriesGroup.matchIndex).toBe(-1);
+    expect(seriesGroup.rows.some((row) => row.type === "team")).toBe(true);
+    expect(seriesGroup.rows.some((row) => row.type === "player")).toBe(true);
+    expect(matchGroup.matchIndex).not.toBe(-1);
+  });
+
+  it("shows only the tracked player row in the series stats group when inSeriesMyStatsOnly is enabled", () => {
+    const matchId = "series-match-1";
+    const activeSeries = aSeriesWith({
+      id: "series-active",
+      isActive: true,
+      matches: [aMatchWith({ matchId })],
+    });
+
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        hasActiveSeries: true,
+        activeSeriesContext: {
+          title: "Series",
+          subtitle: "Bo3",
+          teams: [],
+        },
+        timeline: [{ type: "series", series: activeSeries }],
+      }),
+      streamerSettings: {
+        styleFlags: {
+          inSeriesMyStatsOnly: true,
+        },
+      } satisfies StreamerViewSettings,
+      matchStatsByMatchId: new Map([
+        [
+          matchId,
+          {
+            status: "loaded" as const,
+            stats: aFakeMatchStatsWith({ MatchId: matchId }),
+            playerMap: new Map<string, string>([
+              ["1111111111", "TrackedPlayer"],
+              ["2222222222", "PlayerTwo"],
+              ["3333333333", "PlayerThree"],
+              ["4444444444", "PlayerFour"],
+            ]),
+            medalMetadata: aFakeMedalMetadata(),
+            analytics: null,
+            analyticsStatus: ComponentLoaderStatus.LOADED,
+          },
+        ],
+      ]),
+      selectedMatchId: null,
+    });
+
+    const [seriesGroup] = model.tickerMatchGroups;
+    expect(seriesGroup.label).toBe("Series Stats");
+    expect(seriesGroup.rows).toHaveLength(1);
+    expect(seriesGroup.rows[0].type).toBe("player");
+    expect(seriesGroup.rows[0].name).toBe("TrackedPlayer");
+  });
+
+  it("omits the series stats group when no series match stats are loaded", () => {
+    const activeSeries = aSeriesWith({
+      id: "series-active",
+      isActive: true,
+      matches: [aMatchWith({ matchId: "series-match-1" })],
+    });
+
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        hasActiveSeries: true,
+        activeSeriesContext: {
+          title: "Series",
+          subtitle: "Bo3",
+          teams: [],
+        },
+        timeline: [{ type: "series", series: activeSeries }],
+      }),
+      streamerSettings: undefined,
+      matchStatsByMatchId: new Map(),
+      selectedMatchId: null,
+    });
+
+    expect(model.tickerMatchGroups.some((group) => group.label === "Series Stats")).toBe(false);
+  });
+
   it("shows only the tracked player row in matchmaking ticker when matchmakingMyStatsOnly is enabled", () => {
     const matchId = "matchmaking-1";
 

@@ -38,6 +38,10 @@ const InformationTickerComponent = function InformationTicker({
   onScrollComplete,
 }: InformationTickerProps): React.ReactElement {
   const [currentRowIndex, setCurrentRowIndex] = React.useState(0);
+  // Incremented on every completed cycle so the component re-renders even when the row/group
+  // index does not change (e.g. a single row in a single group). Without it the ScrollingContent
+  // effect never re-arms after its one-shot completion and the ticker freezes permanently.
+  const [, setCompletedCycleCount] = React.useState(0);
   const { rows } = currentMatchGroup;
   const hasRows = rows.length > 0;
   const safeRowIndex = hasRows ? Math.min(currentRowIndex, rows.length - 1) : 0;
@@ -72,6 +76,7 @@ const InformationTickerComponent = function InformationTicker({
     } else {
       // All rows complete, notify parent
       setCurrentRowIndex(0);
+      setCompletedCycleCount((count) => count + 1);
       onScrollComplete();
     }
   };
