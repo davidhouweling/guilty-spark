@@ -335,7 +335,7 @@ describe("individual-tracker-overlay-presenter", () => {
     }
   });
 
-  it("dims lost icons only for matchmaking series tabs", () => {
+  it("dims lost icons for both matchmaking and custom series tabs", () => {
     const timeline: ViewerTimelineItem[] = [
       {
         type: "series",
@@ -376,7 +376,7 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(customTab?.type).toBe("series");
     if (customTab?.type === "series") {
       expect(customTab.icons).toEqual([
-        { src: gameModeIconSrc(6), dimmed: false },
+        { src: gameModeIconSrc(6), dimmed: true },
         { src: gameModeIconSrc(6), dimmed: false },
       ]);
     }
@@ -495,7 +495,7 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(groups).toHaveLength(0);
   });
 
-  it("shows series with teams and players when pre-series with active teams", () => {
+  it("shows per-player rank info rows when pre-series with active teams", () => {
     const groups = presenter.buildPreSeriesTickerGroup({
       showTicker: true,
       showPreSeriesInfo: true,
@@ -508,14 +508,23 @@ describe("individual-tracker-overlay-presenter", () => {
             id: 0,
             name: "Eagle",
             players: [
-              { discordName: "DiscordPlayer1", gamertag: "Player1" },
+              {
+                discordName: "DiscordPlayer1",
+                gamertag: "Player1",
+                currentRank: 1550,
+                currentRankTier: "Diamond",
+                currentRankSubTier: 2,
+                allTimePeakRank: 1625,
+                esra: 1502.4,
+                lastRankedGamePlayed: "2026-01-01T00:00:00.000Z",
+              },
               { discordName: null, gamertag: "Player2" },
             ],
           },
           {
             id: 1,
             name: "Cobra",
-            players: [{ discordName: "DiscordPlayer3", gamertag: "Player3" }],
+            players: [{ discordName: "DiscordPlayer3", gamertag: "Player3", esra: 1400 }],
           },
         ],
       }),
@@ -527,17 +536,37 @@ describe("individual-tracker-overlay-presenter", () => {
 
     expect(groups).toHaveLength(1);
     expect(groups[0].label).toBe("Eagle vs Cobra");
-    expect(groups[0].rows).toHaveLength(5); // 2 teams + 3 players
-    expect(groups[0].rows[0]?.type).toBe("team");
-    expect(groups[0].rows[0]?.name).toBe("Eagle");
-    expect(groups[0].rows[1]?.type).toBe("player");
-    expect(groups[0].rows[1]?.gamertag).toBe("Player1");
-    expect(groups[0].rows[2]?.type).toBe("player");
-    expect(groups[0].rows[2]?.gamertag).toBe("Player2");
-    expect(groups[0].rows[3]?.type).toBe("team");
-    expect(groups[0].rows[3]?.name).toBe("Cobra");
-    expect(groups[0].rows[4]?.type).toBe("player");
-    expect(groups[0].rows[4]?.gamertag).toBe("Player3");
+    expect(groups[0].rows).toHaveLength(3);
+
+    const [playerWithData, playerWithoutData, opposingPlayer] = groups[0].rows;
+    expect(playerWithData.type).toBe("player");
+    expect(playerWithData.teamId).toBe(0);
+    expect(playerWithData.gamertag).toBe("Player1");
+    expect(playerWithData.stats.map((stat) => stat.name)).toEqual([
+      "Current rank",
+      "Peak rank",
+      "ESRA",
+      "Last ranked match played",
+    ]);
+    expect(playerWithData.stats[0].display).toBe("1,550");
+    expect(playerWithData.stats[1].display).toBe("1,625");
+    expect(playerWithData.stats[2].display).toBe("1,502");
+
+    expect(playerWithoutData.gamertag).toBe("Player2");
+    expect(playerWithoutData.stats).toEqual([
+      {
+        name: "Player information",
+        value: 0,
+        bestInTeam: false,
+        bestInMatch: false,
+        display: "No data",
+      },
+    ]);
+
+    expect(opposingPlayer.teamId).toBe(1);
+    expect(opposingPlayer.gamertag).toBe("Player3");
+    expect(opposingPlayer.stats[2].name).toBe("ESRA");
+    expect(opposingPlayer.stats[2].display).toBe("1,400");
   });
 
   it("uses pre-series player info in matchmaking pre-series ticker when available", () => {
