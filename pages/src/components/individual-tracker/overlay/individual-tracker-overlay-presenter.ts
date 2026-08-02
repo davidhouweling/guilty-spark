@@ -13,6 +13,8 @@ import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { TickerMatchGroup, TickerStatRow } from "../../information-ticker/information-ticker";
 import { createMatchStatsFormatter } from "../../../controllers/stats/create";
+import { SeriesTeamStatsFormatter } from "../../../controllers/stats/series-team-stats-formatter";
+import { SeriesPlayerStatsFormatter } from "../../../controllers/stats/series-player-stats-formatter";
 import type { MatchStatsValues } from "../../../controllers/stats/types";
 import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
 import type {
@@ -502,14 +504,21 @@ export class IndividualTrackerOverlayPresenter {
       matchmakingSummaryScore,
     });
     const trimmedTabs = this.trimTabsToMaxPreviousGames(tabs, this.getMaxPreviousGamesToShow(streamerSettings));
-    const loadedTickerGroups = this.buildTickerGroups(options.matchStatsByMatchId, trimmedTabs, {
+    const tickerFilterOptions: TickerFilterOptions = {
       trackedGamertag: renderModel.gamertag,
       includeOnlyTrackedPlayer: this.getIncludeOnlyTrackedPlayer(streamerSettings, activeSeries),
       applyPlayerPerspectiveTickerColors: activeSeries == null,
       selectedSlayerStats: this.getSelectedSlayerStats(streamerSettings),
       showObjectiveStats: this.getShowObjectiveStats(streamerSettings),
       medalRarityFilter: this.getMedalRarityFilter(streamerSettings),
-    });
+    };
+    const seriesStatsTickerGroup =
+      activeSeries != null
+        ? this.buildSeriesStatsTickerGroup(options.matchStatsByMatchId, activeSeries, tickerFilterOptions)
+        : null;
+    const matchTickerGroups = this.buildTickerGroups(options.matchStatsByMatchId, trimmedTabs, tickerFilterOptions);
+    const loadedTickerGroups =
+      seriesStatsTickerGroup != null ? [seriesStatsTickerGroup, ...matchTickerGroups] : matchTickerGroups;
     const tickerMatchGroups =
       loadedTickerGroups.length > 0
         ? loadedTickerGroups
@@ -656,6 +665,64 @@ export class IndividualTrackerOverlayPresenter {
     // If player is on team 0, playerTeamColor goes to team 0
     // If player is on team 1, playerTeamColor goes to team 1, enemyTeamColor to team 0
     return trackedPlayerTeamId === 0 ? [playerTeamColor, enemyTeamColor] : [enemyTeamColor, playerTeamColor];
+  }
+
+  private buildSeriesStatsTickerGroup(
+    matchStatsByMatchId: ReadonlyMap<string, MatchStatsState>,
+    activeSeries: ViewerSeriesTab,
+    filterOptions: TickerFilterOptions,
+  ): TickerMatchGroup | null {
+    const loadedStates = activeSeries.matches
+      .map((match) => matchStatsByMatchId.get(match.matchId))
+      .filter((state) => state?.status === "loaded");
+    if (loadedStates.length === 0) {
+      return null;
+    }
+    const [firstState] = loadedStates;
+
+    const playerMap = new Map<string, string>();
+    for (const state of loadedStates) {
+      for (const [xuid, gamertag] of state.playerMap) {
+        playerMap.set(xuid, gamertag);
+      }
+    }
+
+    const matches = loadedStates.map((state) => state.stats);
+    const teamData = new SeriesTeamStatsFormatter().getSeriesData(matches, playerMap, firstState.medalMetadata);
+    const playerData = new SeriesPlayerStatsFormatter().getSeriesData(matches, playerMap, firstState.medalMetadata);
+
+    const rows: TickerMatchGroup["rows"] = [
+      ...teamData.map((team) => ({
+        type: "team" as const,
+        teamId: team.teamId,
+        name: getTeamName(team.teamId),
+        stats: this.filterTickerStats(team.teamStats, filterOptions),
+        medals: this.filterTickerMedals(team.teamMedals, filterOptions.medalRarityFilter),
+      })),
+      ...playerData.flatMap((team) =>
+        team.players.map((player) => ({
+          type: "player" as const,
+          teamId: team.teamId,
+          name: player.name,
+          discordName: null,
+          gamertag: player.name,
+          stats: this.filterTickerStats(player.values, filterOptions),
+          medals: this.filterTickerMedals(player.medals, filterOptions.medalRarityFilter),
+        })),
+      ),
+    ];
+
+    const rowsWithColorSlots = this.applyTickerColorSlots(rows, filterOptions);
+    const filteredRows = this.filterRowsForTrackedPlayer(rowsWithColorSlots, filterOptions);
+    if (filteredRows.length === 0) {
+      return null;
+    }
+
+    return {
+      matchIndex: -1,
+      label: "Series Stats",
+      rows: filteredRows,
+    };
   }
 
   private buildTickerGroups(
