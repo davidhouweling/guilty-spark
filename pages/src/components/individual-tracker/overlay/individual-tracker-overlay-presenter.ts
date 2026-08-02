@@ -49,6 +49,17 @@ const DIFFICULTY_RANGE = new Map<number, readonly [number, number]>([
   [3, [200, Infinity]],
 ]);
 
+interface PreSeriesRankInfo {
+  readonly currentRank?: number | null;
+  readonly currentRankTier?: string | null;
+  readonly currentRankSubTier?: number | null;
+  readonly currentRankMeasurementMatchesRemaining?: number | null;
+  readonly currentRankInitialMeasurementMatches?: number | null;
+  readonly allTimePeakRank?: number | null;
+  readonly esra?: number | null;
+  readonly lastRankedGamePlayed?: string | null;
+}
+
 interface TickerFilterOptions {
   readonly trackedGamertag: string;
   readonly includeOnlyTrackedPlayer: boolean;
@@ -254,8 +265,6 @@ export class IndividualTrackerOverlayPresenter {
           return [];
         }
 
-        const isMatchmakingSeries = item.series.matches.every((match) => match.isMatchmaking);
-
         return [
           {
             type: "series",
@@ -266,7 +275,7 @@ export class IndividualTrackerOverlayPresenter {
             teamColor: getSeriesOutcomeColorHex(item.series),
             icons: item.series.matches.map((match) => ({
               src: gameModeIconSrc(match.gameVariantCategory),
-              dimmed: isMatchmakingSeries && match.outcome === "Loss",
+              dimmed: match.outcome === "Loss",
             })),
           },
         ];
@@ -299,6 +308,90 @@ export class IndividualTrackerOverlayPresenter {
     }
 
     return selectedSeriesId != null && seriesEntryState != null;
+  }
+
+  private hasPreSeriesRankData(info: PreSeriesRankInfo): boolean {
+    return info.currentRank != null || info.allTimePeakRank != null || info.esra != null;
+  }
+
+  private buildNoRankDataStats(): MatchStatsValues[] {
+    return [
+      {
+        name: "Player information",
+        value: 0,
+        bestInTeam: false,
+        bestInMatch: false,
+        display: "No data",
+      },
+    ];
+  }
+
+  private buildPreSeriesRankStats(info: PreSeriesRankInfo): MatchStatsValues[] {
+    const currentRankDisplay =
+      info.currentRank != null && info.currentRank > 0 ? info.currentRank.toLocaleString() : "Unranked";
+    const peakRankDisplay = info.allTimePeakRank != null ? info.allTimePeakRank.toLocaleString() : "-";
+    const esraDisplay = info.esra != null ? Math.round(info.esra).toLocaleString() : "-";
+    let lastRankedDisplay = "-";
+    if (info.lastRankedGamePlayed != null) {
+      const ago = differenceInHours(new Date(), new Date(info.lastRankedGamePlayed));
+      lastRankedDisplay = ago < 1 ? "Less than an hour ago" : timeAgo.format(new Date(info.lastRankedGamePlayed));
+    }
+
+    return [
+      {
+        name: "Current rank",
+        value: info.currentRank ?? 0,
+        bestInTeam: false,
+        bestInMatch: false,
+        display: currentRankDisplay,
+        icon: createElement(RankIcon, {
+          rankTier: info.currentRankTier ?? null,
+          subTier: info.currentRankSubTier ?? null,
+          measurementMatchesRemaining: info.currentRankMeasurementMatchesRemaining ?? null,
+          initialMeasurementMatches: info.currentRankInitialMeasurementMatches ?? null,
+          size: "x-small",
+        }),
+      },
+      {
+        name: "Peak rank",
+        value: info.allTimePeakRank ?? 0,
+        bestInTeam: false,
+        bestInMatch: false,
+        display: peakRankDisplay,
+        icon:
+          info.allTimePeakRank != null
+            ? createElement(RankIcon, {
+                ...getRankTierFromCsr(info.allTimePeakRank),
+                measurementMatchesRemaining: null,
+                initialMeasurementMatches: null,
+                size: "x-small",
+              })
+            : undefined,
+      },
+      {
+        name: "ESRA",
+        value: info.esra ?? 0,
+        bestInTeam: false,
+        bestInMatch: false,
+        display: esraDisplay,
+        icon:
+          info.esra != null
+            ? createElement(RankIcon, {
+                ...getRankTierFromCsr(Math.round(info.esra)),
+                measurementMatchesRemaining: null,
+                initialMeasurementMatches: null,
+                size: "x-small",
+              })
+            : undefined,
+      },
+      {
+        name: "Last ranked match played",
+        value: info.lastRankedGamePlayed != null ? new Date(info.lastRankedGamePlayed).getTime() : 0,
+        bestInTeam: false,
+        bestInMatch: false,
+        display: lastRankedDisplay,
+      },
+    ];
   }
 
   public buildPreSeriesTickerGroup(options: {
@@ -337,71 +430,7 @@ export class IndividualTrackerOverlayPresenter {
         return createPlaceholderStats();
       }
 
-      const currentRankDisplay =
-        info.currentRank != null && info.currentRank > 0 ? info.currentRank.toLocaleString() : "Unranked";
-      const peakRankDisplay = info.allTimePeakRank != null ? info.allTimePeakRank.toLocaleString() : "-";
-      const esraDisplay = info.esra != null ? Math.round(info.esra).toLocaleString() : "-";
-      let lastRankedDisplay = "-";
-      if (info.lastRankedGamePlayed != null) {
-        const ago = differenceInHours(new Date(), new Date(info.lastRankedGamePlayed));
-        lastRankedDisplay = ago < 1 ? "Less than an hour ago" : timeAgo.format(new Date(info.lastRankedGamePlayed));
-      }
-
-      return [
-        {
-          name: "Current rank",
-          value: info.currentRank ?? 0,
-          bestInTeam: false,
-          bestInMatch: false,
-          display: currentRankDisplay,
-          icon: createElement(RankIcon, {
-            rankTier: info.currentRankTier,
-            subTier: info.currentRankSubTier,
-            measurementMatchesRemaining: info.currentRankMeasurementMatchesRemaining,
-            initialMeasurementMatches: info.currentRankInitialMeasurementMatches,
-            size: "x-small",
-          }),
-        },
-        {
-          name: "Peak rank",
-          value: info.allTimePeakRank ?? 0,
-          bestInTeam: false,
-          bestInMatch: false,
-          display: peakRankDisplay,
-          icon:
-            info.allTimePeakRank != null
-              ? createElement(RankIcon, {
-                  ...getRankTierFromCsr(info.allTimePeakRank),
-                  measurementMatchesRemaining: null,
-                  initialMeasurementMatches: null,
-                  size: "x-small",
-                })
-              : undefined,
-        },
-        {
-          name: "ESRA",
-          value: info.esra ?? 0,
-          bestInTeam: false,
-          bestInMatch: false,
-          display: esraDisplay,
-          icon:
-            info.esra != null
-              ? createElement(RankIcon, {
-                  ...getRankTierFromCsr(Math.round(info.esra)),
-                  measurementMatchesRemaining: null,
-                  initialMeasurementMatches: null,
-                  size: "x-small",
-                })
-              : undefined,
-        },
-        {
-          name: "Last ranked match played",
-          value: info.lastRankedGamePlayed != null ? new Date(info.lastRankedGamePlayed).getTime() : 0,
-          bestInTeam: false,
-          bestInMatch: false,
-          display: lastRankedDisplay,
-        },
-      ];
+      return this.buildPreSeriesRankStats(info);
     };
 
     // Case 1: Pre-series with active series that has teams (series exists but no matches yet)
@@ -410,18 +439,7 @@ export class IndividualTrackerOverlayPresenter {
       const seriesLabel = activeSeries.title || "Series Info";
       const rows: TickerStatRow[] = [];
 
-      // Add each team and its players
       for (const team of activeSeries.teams) {
-        // Add team row
-        rows.push({
-          type: "team",
-          teamId: team.id,
-          name: team.name,
-          stats: createPlaceholderStats(),
-          medals: [],
-        });
-
-        // Add each player in the team
         for (const player of team.players) {
           rows.push({
             type: "player",
@@ -429,7 +447,9 @@ export class IndividualTrackerOverlayPresenter {
             discordName: player.discordName,
             gamertag: player.gamertag,
             name: player.discordName ?? player.gamertag,
-            stats: createPlaceholderStats(),
+            stats: this.hasPreSeriesRankData(player)
+              ? this.buildPreSeriesRankStats(player)
+              : this.buildNoRankDataStats(),
             medals: [],
           });
         }
