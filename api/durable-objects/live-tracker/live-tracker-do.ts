@@ -1067,7 +1067,12 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         true,
       );
 
+      const matchCountBefore = Object.keys(trackerState.discoveredMatches).length;
       await this.enrichAndMergeMatches(trackerState, matches);
+
+      if (Object.keys(trackerState.discoveredMatches).length > matchCountBefore) {
+        await this.persistDiscordAssociations();
+      }
 
       return Object.values(trackerState.discoveredMatches);
     } catch (error) {
@@ -1077,6 +1082,26 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         return Object.values(trackerState.discoveredMatches);
       }
       throw error;
+    }
+  }
+
+  // getSeriesFromDiscordQueue's fuzzy team-position matching (run above) is the only way to
+  // identify a player whose Discord name doesn't resemble their gamertag and whose match history
+  // is private - but it only updates the in-memory userCache. doNotUpdateDiscordAssociations=true
+  // above skips the auto-persist on its no-match-found paths (this poll loop runs every ~3
+  // minutes for the whole match and would otherwise spam writes before any match exists to
+  // correlate against). A newly discovered match is exactly when that matching has fresh data to
+  // work with, so persist here - without this, any identity resolved during live tracking is
+  // discarded every cycle (clearUserCache runs before each fetch) and never reaches the database,
+  // so future series always start from scratch.
+  private async persistDiscordAssociations(): Promise<void> {
+    try {
+      await this.haloService.updateDiscordAssociations();
+    } catch (error) {
+      this.logService.warn(
+        "Failed to persist Discord associations discovered during live tracking",
+        new Map([["error", String(error)]]),
+      );
     }
   }
 
