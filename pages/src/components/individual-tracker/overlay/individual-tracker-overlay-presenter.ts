@@ -674,7 +674,7 @@ export class IndividualTrackerOverlayPresenter {
   ): TickerMatchGroup | null {
     const loadedStates = activeSeries.matches
       .map((match) => matchStatsByMatchId.get(match.matchId))
-      .filter((state) => state?.status === "loaded");
+      .filter((state): state is Extract<MatchStatsState, { status: "loaded" }> => state?.status === "loaded");
     if (loadedStates.length === 0) {
       return null;
     }
