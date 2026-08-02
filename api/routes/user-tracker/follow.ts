@@ -7,7 +7,23 @@ import type { UserTrackerDO } from "../../durable-objects/user-tracker/user-trac
 import { emptyTrackerDirectory } from "../../durable-objects/user-tracker/types";
 import type { RoutesRegisterHandler } from "../base/types";
 
-const gamertagParamsSchema = z.object({ gamertag: z.string().min(1) });
+// itty-router captures path params straight from URL.pathname, which never decodes
+// percent-escapes (e.g. a gamertag containing a space arrives as "Foo%20Bar"). Decode here so
+// the shared schema covers both routes below; a malformed escape fails validation like any
+// other invalid gamertag rather than throwing.
+const gamertagParamsSchema = z.object({
+  gamertag: z
+    .string()
+    .min(1)
+    .transform((value, ctx) => {
+      try {
+        return decodeURIComponent(value);
+      } catch {
+        ctx.addIssue({ code: "custom", message: "Invalid gamertag encoding" });
+        return z.NEVER;
+      }
+    }),
+});
 
 function getUserTrackerStub(env: Env, userId: string): DurableObjectStub<UserTrackerDO> {
   const doId = env.USER_TRACKER_DO.idFromName(userId);
