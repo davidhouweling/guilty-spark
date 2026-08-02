@@ -76,6 +76,7 @@ function aSeriesWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesTab 
     startTime: overrides.startTime ?? "2026-01-01T00:00:00.000Z",
     endTime: overrides.endTime ?? "2026-01-01T00:30:00.000Z",
     matches,
+    iconMatches: overrides.iconMatches ?? matches,
     colorHex: overrides.colorHex,
   };
 }
@@ -378,6 +379,36 @@ describe("individual-tracker-overlay-presenter", () => {
       expect(customTab.icons).toEqual([
         { src: gameModeIconSrc(6), dimmed: true },
         { src: gameModeIconSrc(6), dimmed: false },
+      ]);
+    }
+  });
+
+  it("builds the consolidated series tab's icons from iconMatches, not the full matches list", () => {
+    const fullMatches = [
+      aMatchWith({ matchId: "m1", gameVariantCategory: 6 }),
+      aMatchWith({ matchId: "m2", gameVariantCategory: 7 }),
+      aMatchWith({ matchId: "m3", gameVariantCategory: 7 }),
+    ];
+    const timeline: ViewerTimelineItem[] = [
+      {
+        type: "series",
+        series: aSeriesWith({
+          id: "series-rematch",
+          isActive: false,
+          matches: fullMatches,
+          iconMatches: [fullMatches[0], fullMatches[2]],
+        }),
+      },
+    ];
+
+    const tabs = presenter.buildTabs(timeline);
+    const seriesTab = tabs.find((tab) => tab.type === "series" && tab.seriesId === "series-rematch");
+
+    expect(seriesTab?.type).toBe("series");
+    if (seriesTab?.type === "series") {
+      expect(seriesTab.icons).toEqual([
+        { src: gameModeIconSrc(6), dimmed: false },
+        { src: gameModeIconSrc(7), dimmed: false },
       ]);
     }
   });

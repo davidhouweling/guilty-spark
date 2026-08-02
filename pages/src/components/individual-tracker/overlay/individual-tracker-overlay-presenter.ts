@@ -275,7 +275,7 @@ export class IndividualTrackerOverlayPresenter {
             label: item.series.title,
             score: item.series.score,
             teamColor: getSeriesOutcomeColorHex(item.series),
-            icons: item.series.matches.map((match) => ({
+            icons: item.series.iconMatches.map((match) => ({
               src: gameModeIconSrc(match.gameVariantCategory),
               dimmed: match.outcome === "Loss",
             })),
@@ -610,6 +610,7 @@ export class IndividualTrackerOverlayPresenter {
       startTime: "",
       endTime: "",
       matches: [],
+      iconMatches: [],
       colorHex: undefined,
     };
   }
