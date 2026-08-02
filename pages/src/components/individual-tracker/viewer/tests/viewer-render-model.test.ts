@@ -70,6 +70,75 @@ describe("buildViewerRenderModel", () => {
     }
   });
 
+  it("collapses a consecutive same-map/mode rematch to its final game in iconMatches, keeping matches intact", () => {
+    expect.assertions(2);
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m1",
+          startTime: "2100-01-01T00:00:00.000Z",
+          mapAssetId: "map-a",
+          gameVariantCategory: 6,
+        }),
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m2",
+          startTime: "2100-01-01T00:10:00.000Z",
+          mapAssetId: "map-b",
+          gameVariantCategory: 7,
+        }),
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m3",
+          startTime: "2100-01-01T00:20:00.000Z",
+          mapAssetId: "map-b",
+          gameVariantCategory: 7,
+        }),
+      ],
+      series: [aFakeTrackerSeriesGroupWith({ id: "s1", matchIds: ["m1", "m2", "m3"] })],
+    });
+
+    const model = buildViewerRenderModel({ view });
+
+    const [first] = model.timeline;
+    if (first.type === "series") {
+      expect(first.series.matches.map((m) => m.matchId)).toEqual(["m1", "m2", "m3"]);
+      expect(first.series.iconMatches.map((m) => m.matchId)).toEqual(["m1", "m3"]);
+    }
+  });
+
+  it("does not collapse matches on the same map/mode when they are not consecutive", () => {
+    expect.assertions(1);
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m1",
+          startTime: "2100-01-01T00:00:00.000Z",
+          mapAssetId: "map-a",
+          gameVariantCategory: 6,
+        }),
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m2",
+          startTime: "2100-01-01T00:10:00.000Z",
+          mapAssetId: "map-b",
+          gameVariantCategory: 7,
+        }),
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m3",
+          startTime: "2100-01-01T00:20:00.000Z",
+          mapAssetId: "map-a",
+          gameVariantCategory: 6,
+        }),
+      ],
+      series: [aFakeTrackerSeriesGroupWith({ id: "s1", matchIds: ["m1", "m2", "m3"] })],
+    });
+
+    const model = buildViewerRenderModel({ view });
+
+    const [first] = model.timeline;
+    if (first.type === "series") {
+      expect(first.series.iconMatches.map((m) => m.matchId)).toEqual(["m1", "m2", "m3"]);
+    }
+  });
+
   it("derives series start and end times from the actual chronological bounds", () => {
     expect.assertions(2);
     const view = aFakeTrackerViewStateWith({

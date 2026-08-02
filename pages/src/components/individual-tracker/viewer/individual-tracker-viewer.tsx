@@ -556,7 +556,7 @@ export function IndividualTrackerViewer({
                         <div className={styles.entryHeaderRight}>
                           <div className={styles.entryHeaderVisuals}>
                             <div className={styles.seriesModeIcons}>
-                              {series.matches.map((seriesMatch, iconIndex) => (
+                              {series.iconMatches.map((seriesMatch, iconIndex) => (
                                 <img
                                   key={`${seriesMatch.matchId}:${iconIndex.toString()}`}
                                   src={gameModeIconSrc(seriesMatch.gameVariantCategory)}
