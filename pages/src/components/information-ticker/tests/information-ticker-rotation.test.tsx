@@ -7,9 +7,7 @@ import type { TickerMatchGroup } from "../information-ticker";
 import { InformationTicker } from "../information-ticker";
 
 vi.mock("../../icons/team-icon", () => ({
-  TeamIcon: ({ teamId }: { teamId: number }): React.ReactNode => (
-    <div data-testid={`team-icon-${teamId.toString()}`} />
-  ),
+  TeamIcon: ({ teamId }: { teamId: number }): React.ReactNode => <div data-testid={`team-icon-${teamId.toString()}`} />,
 }));
 
 // Uses the real ScrollingContent (unlike information-ticker.test.tsx which mocks it) so the
