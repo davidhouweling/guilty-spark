@@ -2099,13 +2099,14 @@ describe("Halo service", () => {
       );
     });
 
-    it("filters out players not present at beginning", async () => {
+    it("includes players not present at beginning", async () => {
       const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
       Preconditions.checkExists(match.Players[0]).ParticipationInfo.PresentAtBeginning = false;
 
       const result = await haloService.getPlayerXuidsToGametags(match);
       expect(result).toEqual(
         new Map([
+          ["0100000000000000", "gamertag0100000000000000"],
           ["0200000000000000", "gamertag0200000000000000"],
           ["0500000000000000", "gamertag0500000000000000"],
           ["0400000000000000", "gamertag0400000000000000"],

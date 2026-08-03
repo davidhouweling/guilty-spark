@@ -14,6 +14,12 @@ import type { IndividualTrackerProfilesRow } from "../types/individual_tracker_p
 import type { IndividualTrackerGamesRow } from "../types/individual_tracker_games";
 import type { StreamerViewSettingsRow } from "../types/streamer_view_settings";
 import type { IndividualTrackersRow } from "../types/individual_trackers";
+import type { LeaderboardConfigRow } from "../types/leaderboard_config";
+import { LeaderboardWindow, LeaderboardMetric } from "../types/leaderboard_config";
+import type { LeaderboardSeriesRow } from "../types/leaderboard_series";
+import type { LeaderboardSeriesPlayersRow } from "../types/leaderboard_series_players";
+import type { LeaderboardGamesRow } from "../types/leaderboard_games";
+import type { LeaderboardGamePlayersRow } from "../types/leaderboard_game_players";
 
 export function aFakeDiscordAssociationsRow(opts: Partial<DiscordAssociationsRow> = {}): DiscordAssociationsRow {
   const defaultOpts: DiscordAssociationsRow = {
@@ -189,6 +195,133 @@ export function aFakeIndividualTrackersRow(opts: Partial<IndividualTrackersRow> 
     IsLive: 0,
     CreatedAt: nowEpoch,
     UpdatedAt: nowEpoch,
+  };
+
+  return {
+    ...defaultOpts,
+    ...opts,
+  };
+}
+
+export function aFakeLeaderboardConfigRow(opts: Partial<LeaderboardConfigRow> = {}): LeaderboardConfigRow {
+  const defaultOpts: LeaderboardConfigRow = {
+    GuildId: "guild-1",
+    EnabledWindowsJson: '["1W","1M","3M","6M","12M"]',
+    DefaultWindow: LeaderboardWindow.ThreeMonths,
+    DefaultMetric: LeaderboardMetric.SeriesWinRate,
+    MinGamesPlayed: 5,
+    UpdatedAt: Math.floor(Date.now() / 1000),
+  };
+
+  return {
+    ...defaultOpts,
+    ...opts,
+  };
+}
+
+export function aFakeLeaderboardSeriesRow(opts: Partial<LeaderboardSeriesRow> = {}): LeaderboardSeriesRow {
+  const nowEpoch = Math.floor(Date.now() / 1000);
+  const defaultOpts: LeaderboardSeriesRow = {
+    GuildId: "guild-1",
+    QueueNumber: 100,
+    QueueChannelId: "queue-channel-1",
+    ResultsChannelId: "results-channel-1",
+    StartedAt: nowEpoch - 1800,
+    CompletedAt: nowEpoch,
+    WinnerTeamIndex: 0,
+    SeriesScore: "2:1",
+    Source: "neatqueue",
+    CreatedAt: nowEpoch,
+    UpdatedAt: nowEpoch,
+  };
+
+  return {
+    ...defaultOpts,
+    ...opts,
+  };
+}
+
+export function aFakeLeaderboardSeriesPlayersRow(
+  opts: Partial<LeaderboardSeriesPlayersRow> = {},
+): LeaderboardSeriesPlayersRow {
+  const defaultOpts: LeaderboardSeriesPlayersRow = {
+    GuildId: "guild-1",
+    QueueNumber: 100,
+    QueueChannelId: "queue-channel-1",
+    XboxXuid: "2533274000000001",
+    DiscordUserId: "discord-user-1",
+    GamertagSnapshot: "PlayerOne",
+    TeamId: 0,
+    PresentAtBeginningCount: 3,
+    SubstituteInCount: 0,
+    SubstituteOutCount: 0,
+    GamesPlayedCount: 3,
+    SeriesWon: 1,
+    CreatedAt: Math.floor(Date.now() / 1000),
+  };
+
+  return {
+    ...defaultOpts,
+    ...opts,
+  };
+}
+
+export function aFakeLeaderboardGamesRow(opts: Partial<LeaderboardGamesRow> = {}): LeaderboardGamesRow {
+  const nowEpoch = Math.floor(Date.now() / 1000);
+  const defaultOpts: LeaderboardGamesRow = {
+    MatchId: "match-1",
+    GuildId: "guild-1",
+    QueueNumber: 100,
+    QueueChannelId: "queue-channel-1",
+    GameIndexInSeries: 0,
+    GameVariantCategory: 0,
+    ModeName: "Slayer",
+    MapName: "Recharge",
+    MapAssetId: "map-asset",
+    MapVersionId: "map-version",
+    Team0Score: 50,
+    Team1Score: 45,
+    StartedAt: nowEpoch - 900,
+    EndedAt: nowEpoch - 300,
+    CreatedAt: nowEpoch,
+  };
+
+  return {
+    ...defaultOpts,
+    ...opts,
+  };
+}
+
+export function aFakeLeaderboardGamePlayersRow(
+  opts: Partial<LeaderboardGamePlayersRow> = {},
+): LeaderboardGamePlayersRow {
+  const defaultOpts: LeaderboardGamePlayersRow = {
+    MatchId: "match-1",
+    GuildId: "guild-1",
+    QueueNumber: 100,
+    QueueChannelId: "queue-channel-1",
+    XboxXuid: "2533274000000001",
+    DiscordUserId: "discord-user-1",
+    GamertagSnapshot: "PlayerOne",
+    TeamId: 0,
+    PresentAtBeginning: 1,
+    RankInMatch: 1,
+    PersonalScore: 2500,
+    Kills: 20,
+    Deaths: 15,
+    Assists: 10,
+    Kda: 2,
+    Accuracy: 55.5,
+    ShotsHit: 300,
+    ShotsFired: 540,
+    DamageDealt: 12000,
+    DamageTaken: 10000,
+    DamageRatio: 1.2,
+    AvgLifeSeconds: 28,
+    AvgDamagePerLife: 800,
+    ObjectiveStatsJson: "{}",
+    MedalsJson: "[]",
+    CreatedAt: Math.floor(Date.now() / 1000),
   };
 
   return {
