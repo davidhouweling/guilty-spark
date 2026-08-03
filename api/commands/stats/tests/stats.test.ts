@@ -913,22 +913,17 @@ describe("StatsCommand", () => {
       const { jobToComplete } = statsCommand.execute(queuePlayerInteraction);
       await jobToComplete?.();
 
-      expect(updateDeferredReplySpy).toHaveBeenCalledWith(
-        "fake-token",
-        expect.objectContaining({
-          components: expect.arrayContaining([
-            expect.objectContaining({
-              type: ComponentType.ActionRow,
-              components: [
-                expect.objectContaining({
-                  type: ComponentType.StringSelect,
-                  custom_id: "btn_stats_fix_player_select",
-                }),
-              ],
-            }),
-          ]),
-        }),
-      );
+      expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", expect.anything());
+      const updatePayload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+      expect(updatePayload.components?.[0]).toMatchObject({
+        type: ComponentType.ActionRow,
+        components: [
+          expect.objectContaining({
+            type: ComponentType.StringSelect,
+            custom_id: "btn_stats_fix_player_select",
+          }),
+        ],
+      });
       expect(setInteractionMetadataSpy).toHaveBeenCalledWith(
         "statsFix:fix-flow-message-id",
         expect.objectContaining({
@@ -1020,7 +1015,7 @@ describe("StatsCommand", () => {
           XboxId: "xuid-1",
         }),
       ]);
-      vi.spyOn(services.haloService, "getPlayerCustomGames").mockResolvedValue(getPlayerMatches().slice(0, 3));
+      vi.spyOn(services.haloService, "getPlayerMatches").mockResolvedValue(getPlayerMatches().slice(0, 3));
       const setInteractionMetadataSpy = vi.spyOn(services.discordService, "setInteractionMetadata").mockResolvedValue();
 
       const { response, jobToComplete } = statsCommand.execute(interaction);
@@ -1028,27 +1023,20 @@ describe("StatsCommand", () => {
 
       await jobToComplete?.();
 
-      expect(updateDeferredReplySpy).toHaveBeenCalledWith(
-        "fake-token",
-        expect.objectContaining({
-          components: expect.arrayContaining([
-            expect.objectContaining({
-              components: [
-                expect.objectContaining({
-                  custom_id: "btn_stats_fix_games_select",
-                }),
-              ],
-            }),
-          ]),
-        }),
-      );
-      expect(setInteractionMetadataSpy).toHaveBeenCalledWith(
-        "statsFix:fix-flow-message-id",
-        expect.objectContaining({
-          selectedPlayerId: "000000000000000001",
-          selectedMatchIds: expect.any(Array),
-        }),
-      );
+      expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", expect.anything());
+      const updatePayload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+      expect(updatePayload.components?.[0]).toMatchObject({
+        components: [
+          expect.objectContaining({
+            custom_id: "btn_stats_fix_games_select",
+          }),
+        ],
+      });
+
+      expect(setInteractionMetadataSpy).toHaveBeenCalledWith("statsFix:fix-flow-message-id", expect.anything());
+      const interactionMetadata = Preconditions.checkExists(setInteractionMetadataSpy.mock.calls[0]?.[1]);
+      expect(interactionMetadata["selectedPlayerId"]).toBe("000000000000000001");
+      expect(Array.isArray(interactionMetadata["selectedMatchIds"])).toBe(true);
     });
 
     it("returns an error when selected player has no linked xbox account", async () => {
@@ -1191,7 +1179,6 @@ describe("StatsCommand", () => {
       const bulkDeleteMessagesSpy = vi.spyOn(services.discordService, "bulkDeleteMessages").mockResolvedValue();
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
       vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
-      const warmRouteFetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
 
       const { response, jobToComplete } = statsCommand.execute(interaction);
       expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
@@ -1203,23 +1190,12 @@ describe("StatsCommand", () => {
         ["thread-msg-1", "thread-msg-2"],
         "Replacing amended series stats",
       );
-      expect(createMessageSpy).toHaveBeenCalledWith(
-        "related-thread-id",
-        expect.objectContaining({
-          embeds: expect.arrayContaining([
-            expect.objectContaining({
-              fields: expect.arrayContaining([
-                expect.objectContaining({
-                  name: "Amended by",
-                }),
-              ]),
-            }),
-          ]),
-        }),
-      );
-      expect(warmRouteFetchSpy).toHaveBeenCalledWith("http://localhost:8787/api/stats/discord/fake-guild-id/777", {
-        method: "GET",
-      });
+      expect(createMessageSpy).toHaveBeenCalledWith("related-thread-id", expect.anything());
+      const createMessagePayload = Preconditions.checkExists(createMessageSpy.mock.calls[0]?.[1]);
+      const firstEmbed = Preconditions.checkExists(createMessagePayload.embeds?.[0]);
+      const amendedByField = firstEmbed.fields?.find((field) => field.name === "Amended by");
+      expect(amendedByField).toBeDefined();
+      expect(Preconditions.checkExists(amendedByField).value.length).toBeGreaterThan(0);
       expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
         content: "Series stats were amended successfully.",
         embeds: [],

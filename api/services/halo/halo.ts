@@ -582,10 +582,6 @@ export class HaloService {
     }
   }
 
-  async getPlayerCustomGames(playerXuid: string, count = 25): Promise<PlayerMatchHistory[]> {
-    return this.getPlayerMatches(playerXuid, MatchType.Custom, count, 0);
-  }
-
   async getEnrichedMatchHistory(
     gamertag: string,
     locale: string,

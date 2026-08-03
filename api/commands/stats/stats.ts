@@ -18,7 +18,7 @@ import {
   InteractionContextType,
   PermissionFlagsBits,
 } from "discord-api-types/v10";
-import type { MatchStats, GameVariantCategory } from "halo-infinite-api";
+import { type MatchStats, type GameVariantCategory, MatchType } from "halo-infinite-api";
 import { subHours } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
@@ -951,12 +951,12 @@ export class StatsCommand extends BaseCommand {
         throw new EndUserError("Could not find fix-flow state. Please run /stats fix again.");
       }
 
-      const association = (await databaseService.getDiscordAssociations([selectedPlayerId]))[0];
+      const [association] = await databaseService.getDiscordAssociations([selectedPlayerId]);
       if (association?.XboxId == null || association.XboxId === "") {
         throw new EndUserError("That player does not have a linked Xbox account.");
       }
 
-      const games = await haloService.getPlayerCustomGames(association.XboxId, 25);
+      const games = await haloService.getPlayerMatches(association.XboxId, MatchType.Custom, 25);
       if (games.length === 0) {
         throw new EndUserError("No recent custom games were found for that player.");
       }
@@ -1110,9 +1110,7 @@ export class StatsCommand extends BaseCommand {
         inline: false,
       };
       const amendedOverviewEmbed = Preconditions.checkExists(amendedSeriesEmbed.embeds[0]);
-      if (amendedOverviewEmbed.fields == null) {
-        amendedOverviewEmbed.fields = [];
-      }
+      amendedOverviewEmbed.fields ??= [];
       amendedOverviewEmbed.fields.push(amendedField);
 
       const activeThreads = await discordService.getThreads(metadata.channelId);
@@ -1148,7 +1146,6 @@ export class StatsCommand extends BaseCommand {
       });
       await this.postSeriesEmbedsToThread(destinationThreadId, series, guildConfig, locale);
       await this.postGameStatsOrButton(destinationThreadId, series, guildConfig, locale);
-      await this.warmDiscordSeriesStatsRoute(metadata.guildId, metadata.queueData.queue);
 
       await discordService.updateDeferredReply(interaction.token, {
         content: "Series stats were amended successfully.",
