@@ -1167,14 +1167,39 @@ describe("StatsCommand", () => {
       );
       vi.spyOn(services.discordService, "getThreads").mockResolvedValue([
         {
-          id: "related-thread-id",
+          id: "queue-parent-message-id",
           type: ChannelType.PublicThread,
-          parent_id: "queue-parent-message-id",
+          parent_id: "parent-channel-id",
         } as APIThreadChannel,
       ]);
       vi.spyOn(services.discordService, "getMessages").mockResolvedValue([
-        { ...apiMessage, id: "thread-msg-1" },
-        { ...apiMessage, id: "thread-msg-2" },
+        {
+          ...apiMessage,
+          id: "thread-msg-1",
+          content: "old bot stats message",
+          author: {
+            ...apiMessage.author,
+            id: env.DISCORD_APP_ID,
+          },
+        },
+        {
+          ...apiMessage,
+          id: "thread-msg-2",
+          content: "regular user message",
+          author: {
+            ...apiMessage.author,
+            id: "non-bot-user-id",
+          },
+        },
+        {
+          ...apiMessage,
+          id: "thread-msg-3",
+          content: "another bot stats message",
+          author: {
+            ...apiMessage.author,
+            id: env.DISCORD_APP_ID,
+          },
+        },
       ]);
       const bulkDeleteMessagesSpy = vi.spyOn(services.discordService, "bulkDeleteMessages").mockResolvedValue();
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
@@ -1186,16 +1211,110 @@ describe("StatsCommand", () => {
       await jobToComplete?.();
 
       expect(bulkDeleteMessagesSpy).toHaveBeenCalledWith(
-        "related-thread-id",
-        ["thread-msg-1", "thread-msg-2"],
+        "queue-parent-message-id",
+        ["thread-msg-1", "thread-msg-3"],
         "Replacing amended series stats",
       );
-      expect(createMessageSpy).toHaveBeenCalledWith("related-thread-id", expect.anything());
+      expect(createMessageSpy).toHaveBeenCalledWith("queue-parent-message-id", expect.anything());
       const createMessagePayload = Preconditions.checkExists(createMessageSpy.mock.calls[0]?.[1]);
       const firstEmbed = Preconditions.checkExists(createMessagePayload.embeds?.[0]);
       const amendedByField = firstEmbed.fields?.find((field) => field.name === "Amended by");
       expect(amendedByField).toBeDefined();
       expect(Preconditions.checkExists(amendedByField).value.length).toBeGreaterThan(0);
+      expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
+        content: "Series stats were amended successfully.",
+        embeds: [],
+        components: [],
+      });
+    });
+
+    it("falls back to single deletes when bulk delete fails in an existing thread", async () => {
+      const interaction: APIMessageComponentButtonInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: "btn_stats_fix_confirm",
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          id: "fix-flow-message-id",
+        },
+      };
+
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "fake-channel-id",
+        queueData: {
+          ...discordNeatQueueData,
+          message: {
+            ...discordNeatQueueData.message,
+            id: "queue-parent-message-id",
+          },
+        },
+        selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+        Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
+      ]);
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+        aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
+      );
+      vi.spyOn(services.discordService, "getThreads").mockResolvedValue([
+        {
+          id: "queue-parent-message-id",
+          type: ChannelType.PublicThread,
+          parent_id: "parent-channel-id",
+        } as APIThreadChannel,
+      ]);
+      vi.spyOn(services.discordService, "getMessages").mockResolvedValue([
+        {
+          ...apiMessage,
+          id: "thread-msg-1",
+          content: "old bot stats message",
+          author: {
+            ...apiMessage.author,
+            id: env.DISCORD_APP_ID,
+          },
+        },
+        {
+          ...apiMessage,
+          id: "thread-msg-2",
+          content: "another bot stats message",
+          author: {
+            ...apiMessage.author,
+            id: env.DISCORD_APP_ID,
+          },
+        },
+      ]);
+      const bulkDeleteMessagesSpy = vi
+        .spyOn(services.discordService, "bulkDeleteMessages")
+        .mockRejectedValueOnce(new Error("bulk delete failed"));
+      const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue();
+      vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
+
+      const { jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      expect(bulkDeleteMessagesSpy).toHaveBeenCalledWith(
+        "queue-parent-message-id",
+        ["thread-msg-1", "thread-msg-2"],
+        "Replacing amended series stats",
+      );
+      expect(deleteMessageSpy).toHaveBeenCalledTimes(2);
+      expect(deleteMessageSpy).toHaveBeenNthCalledWith(
+        1,
+        "queue-parent-message-id",
+        "thread-msg-1",
+        "Replacing amended series stats",
+      );
+      expect(deleteMessageSpy).toHaveBeenNthCalledWith(
+        2,
+        "queue-parent-message-id",
+        "thread-msg-2",
+        "Replacing amended series stats",
+      );
       expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
         content: "Series stats were amended successfully.",
         embeds: [],

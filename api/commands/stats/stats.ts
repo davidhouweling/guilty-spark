@@ -1114,17 +1114,21 @@ export class StatsCommand extends BaseCommand {
       amendedOverviewEmbed.fields.push(amendedField);
 
       const activeThreads = await discordService.getThreads(metadata.channelId);
-      const relatedThread = activeThreads.find(
-        (thread) => "parent_id" in thread && thread.parent_id === metadata.queueData.message.id,
-      );
+      const relatedThread = activeThreads.find((thread) => thread.id === metadata.queueData.message.id);
 
       let destinationThreadId: string;
       if (relatedThread != null) {
         destinationThreadId = relatedThread.id;
         const existingThreadMessages = await discordService.getMessages(destinationThreadId);
+        const existingGuiltySparkMessageIds = existingThreadMessages
+          .filter(
+            (message) =>
+              message.author.id === this.env.DISCORD_APP_ID && (message.content !== "" || message.embeds.length > 0),
+          )
+          .map((message) => message.id);
         await this.deleteMessagesInChunks(
           destinationThreadId,
-          existingThreadMessages.map((message) => message.id),
+          existingGuiltySparkMessageIds,
           "Replacing amended series stats",
         );
       } else {
@@ -1196,7 +1200,7 @@ export class StatsCommand extends BaseCommand {
   }
 
   private async deleteMessagesInChunks(channelId: string, messageIds: string[], reason: string): Promise<void> {
-    const { discordService } = this.services;
+    const { discordService, logService } = this.services;
 
     for (let start = 0; start < messageIds.length; start += 100) {
       const chunk = messageIds.slice(start, start + 100);
@@ -1207,7 +1211,21 @@ export class StatsCommand extends BaseCommand {
         await discordService.deleteMessage(channelId, Preconditions.checkExists(chunk[0]), reason);
         continue;
       }
-      await discordService.bulkDeleteMessages(channelId, chunk, reason);
+      try {
+        await discordService.bulkDeleteMessages(channelId, chunk, reason);
+      } catch (error) {
+        logService.warn(
+          error,
+          new Map([
+            ["channelId", channelId],
+            ["messageCount", chunk.length.toString()],
+            ["reason", "Bulk delete failed, falling back to per-message delete"],
+          ]),
+        );
+        for (const messageId of chunk) {
+          await discordService.deleteMessage(channelId, messageId, reason);
+        }
+      }
     }
   }
 }
