@@ -1227,6 +1227,26 @@ describe("DiscordService", () => {
   });
 
   describe("computeMemberPermissions()", () => {
+    it("returns all permissions for the guild owner", async () => {
+      vi.spyOn(discordService, "getGuild").mockResolvedValue({
+        id: "fake-guild-id",
+        owner_id: "fake-owner-id",
+        roles: [
+          {
+            id: "fake-guild-id",
+            name: "@everyone",
+            permissions: "0",
+          },
+        ],
+      } as APIGuild);
+
+      vi.spyOn(discordService, "getGuildMember").mockResolvedValue(aGuildMemberWith({ roles: ["fake-guild-id"] }));
+
+      const permissions = await discordService.computeMemberPermissions("fake-guild-id", "fake-owner-id");
+
+      expect(permissions).toEqual(~0n);
+    });
+
     it("combines @everyone and member role permissions", async () => {
       const getGuildSpy = vi.spyOn(discordService, "getGuild").mockResolvedValue({
         id: "fake-guild-id",

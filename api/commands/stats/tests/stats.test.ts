@@ -890,6 +890,115 @@ describe("StatsCommand", () => {
       });
     });
 
+    it("starts in-thread fix flow when queue_number is omitted", async () => {
+      vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+        name: "fix",
+        mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>(),
+        options: [],
+      });
+      const getMessagesSpy = vi.spyOn(services.discordService, "getMessages").mockResolvedValue([
+        {
+          ...apiMessage,
+          id: "thread-first-message-id",
+          type: MessageType.ThreadStarterMessage,
+          referenced_message: {
+            ...apiMessage,
+            id: "neat-queue-result-message-id",
+            author: {
+              ...apiMessage.author,
+              id: "857633321064595466",
+              bot: true,
+            },
+          },
+        },
+      ]);
+      const getTeamsFromMessageSpy = vi
+        .spyOn(services.discordService, "getTeamsFromMessage")
+        .mockResolvedValue(discordNeatQueueData);
+      vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValue(0n);
+      vi.spyOn(services.discordService, "getMessageFromInteractionToken").mockResolvedValue({
+        ...apiMessage,
+        id: "fix-flow-message-id",
+      });
+      const setInteractionMetadataSpy = vi.spyOn(services.discordService, "setInteractionMetadata").mockResolvedValue();
+
+      const threadInteraction: APIApplicationCommandInteraction = {
+        ...applicationCommandInteractionStatsFix,
+        channel: threadChannel,
+        member: {
+          ...Preconditions.checkExists(applicationCommandInteractionStatsFix.member),
+          user: {
+            ...Preconditions.checkExists(applicationCommandInteractionStatsFix.member?.user),
+            id: "000000000000000001",
+          },
+        },
+      };
+
+      const { response, jobToComplete } = statsCommand.execute(threadInteraction);
+      expect(response).toEqual({
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data: {
+          flags: MessageFlags.Ephemeral,
+        },
+      });
+
+      await jobToComplete?.();
+
+      expect(getMessagesSpy).toHaveBeenCalledWith("thread-channel-id");
+      expect(getTeamsFromMessageSpy).toHaveBeenCalledWith(
+        "fake-guild-id",
+        expect.objectContaining({ id: "neat-queue-result-message-id" }),
+      );
+      expect(setInteractionMetadataSpy).toHaveBeenCalledWith(
+        "statsFix:fix-flow-message-id",
+        expect.objectContaining({
+          channelId: "parent-id",
+        }),
+      );
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it("returns an error when in-thread fix starter is not a NeatQueue reference", async () => {
+      vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+        name: "fix",
+        mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>(),
+        options: [],
+      });
+      vi.spyOn(services.discordService, "getMessages").mockResolvedValue([
+        {
+          ...apiMessage,
+          id: "thread-first-message-id",
+          type: MessageType.ThreadStarterMessage,
+          referenced_message: {
+            ...apiMessage,
+            id: "not-neat-queue-message-id",
+            author: {
+              ...apiMessage.author,
+              id: "wrong-bot-id",
+              bot: true,
+            },
+          },
+        },
+      ]);
+      const getTeamsFromMessageSpy = vi.spyOn(services.discordService, "getTeamsFromMessage");
+
+      const threadInteraction: APIApplicationCommandInteraction = {
+        ...applicationCommandInteractionStatsFix,
+        channel: threadChannel,
+      };
+
+      const { jobToComplete } = statsCommand.execute(threadInteraction);
+      await jobToComplete?.();
+
+      expect(getTeamsFromMessageSpy).not.toHaveBeenCalled();
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          message: "The first message in this thread is not from NeatQueue.",
+        }),
+      );
+    });
+
     it("starts player selection flow when user is queue player", async () => {
       const queuePlayerInteraction: APIApplicationCommandInteraction = {
         ...applicationCommandInteractionStatsFix,
