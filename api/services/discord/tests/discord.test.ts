@@ -1324,6 +1324,41 @@ describe("DiscordService", () => {
     });
   });
 
+  describe("getMessages()", () => {
+    it("fetches messages for a channel without a limit by default", async () => {
+      mockFetch.mockResolvedValue(new Response(JSON.stringify([apiMessage])));
+
+      const messages = await discordService.getMessages("fake-channel");
+
+      expect(mockFetch).toHaveBeenCalledWith("https://discord.com/api/v10/channels/fake-channel/messages", {
+        body: null,
+        headers: new Headers({
+          Authorization: "Bot DISCORD_TOKEN",
+          "content-type": "application/json;charset=UTF-8",
+        }),
+        method: "GET",
+      });
+      expect(messages).toEqual([apiMessage]);
+    });
+
+    it("fetches messages with the given limit when provided", async () => {
+      mockFetch.mockResolvedValue(new Response(JSON.stringify([apiMessage])));
+
+      const messages = await discordService.getMessages("fake-channel", 100);
+
+      expect(mockFetch).toHaveBeenCalledWith("https://discord.com/api/v10/channels/fake-channel/messages?limit=100", {
+        body: null,
+        headers: new Headers({
+          Authorization: "Bot DISCORD_TOKEN",
+          "content-type": "application/json;charset=UTF-8",
+        }),
+        method: "GET",
+        queryParameters: { limit: 100 },
+      });
+      expect(messages).toEqual([apiMessage]);
+    });
+  });
+
   describe("getActiveThreads()", () => {
     it("fetches active threads for a channel", async () => {
       const fakeThread: APIChannel = {

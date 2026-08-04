@@ -1060,9 +1060,10 @@ export class DiscordService {
     );
   }
 
-  async getMessages(channelId: string): Promise<APIMessage[]> {
+  async getMessages(channelId: string, limit?: number): Promise<APIMessage[]> {
     return this.fetch<APIMessage[]>(Routes.channelMessages(channelId), {
       method: "GET",
+      ...(limit != null ? { queryParameters: { limit } } : {}),
     });
   }
 

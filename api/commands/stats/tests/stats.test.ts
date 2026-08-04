@@ -1319,6 +1319,10 @@ describe("StatsCommand", () => {
         referenced_message: {
           ...apiMessage,
           id: "original-overview-message-id",
+          author: {
+            ...apiMessage.author,
+            id: env.DISCORD_APP_ID,
+          },
         },
       });
       const editMessageSpy = vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
@@ -1350,6 +1354,73 @@ describe("StatsCommand", () => {
         embeds: [],
         components: [],
       });
+    });
+
+    it("skips editing the thread starter's referenced message when it wasn't authored by Guilty Spark", async () => {
+      const interaction: APIMessageComponentButtonInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: "btn_stats_fix_confirm",
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          id: "fix-flow-message-id",
+        },
+      };
+
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "fake-channel-id",
+        queueData: {
+          ...discordNeatQueueData,
+          message: {
+            ...discordNeatQueueData.message,
+            id: "queue-neatqueue-message-id",
+          },
+        },
+        selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+        Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
+      ]);
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+        aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
+      );
+      vi.spyOn(services.discordService, "getActiveThreads").mockResolvedValue([
+        {
+          id: "existing-thread-id",
+          name: "Queue #777 series stats (🦅 2:1 🐍)",
+          type: ChannelType.PublicThread,
+          parent_id: "fake-channel-id",
+        },
+      ]);
+      vi.spyOn(services.discordService, "getArchivedPublicThreads").mockResolvedValue([]);
+      vi.spyOn(services.discordService, "getMessages").mockResolvedValue([]);
+      vi.spyOn(services.discordService, "bulkDeleteMessages").mockResolvedValue();
+      vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.discordService, "getThreadStarterMessage").mockResolvedValue({
+        ...apiMessage,
+        id: "existing-thread-id",
+        type: MessageType.ThreadStarterMessage,
+        referenced_message: {
+          ...apiMessage,
+          id: "not-guilty-spark-message-id",
+          author: {
+            ...apiMessage.author,
+            id: "some-other-bot-id",
+          },
+        },
+      });
+      const editMessageSpy = vi.spyOn(services.discordService, "editMessage");
+      vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
+
+      const { jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      expect(editMessageSpy).not.toHaveBeenCalled();
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
     });
 
     it("picks the most recently created thread when multiple threads match the queue name", async () => {

@@ -1133,7 +1133,7 @@ export class StatsCommand extends BaseCommand {
       let destinationThreadId: string;
       if (relatedThread != null) {
         destinationThreadId = relatedThread.id;
-        const existingThreadMessages = await discordService.getMessages(destinationThreadId);
+        const existingThreadMessages = await discordService.getMessages(destinationThreadId, 100);
         const existingGuiltySparkMessageIds = existingThreadMessages
           .filter(
             (message) =>
@@ -1147,7 +1147,7 @@ export class StatsCommand extends BaseCommand {
         );
 
         const threadStarterMessage = await discordService.getThreadStarterMessage(destinationThreadId);
-        if (threadStarterMessage?.referenced_message != null) {
+        if (threadStarterMessage?.referenced_message?.author.id === this.env.DISCORD_APP_ID) {
           await discordService.editMessage(metadata.channelId, threadStarterMessage.referenced_message.id, {
             embeds: amendedSeriesEmbed.embeds,
             components: amendedSeriesEmbed.components,
