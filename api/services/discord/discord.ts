@@ -117,6 +117,7 @@ const PENDING_CACHE_TTL_SECONDS = 60 * 5;
 const NOT_FOUND_CACHE_TTL_SECONDS = 60 * 5;
 const ACTIVE_QUEUE_LOOKUP_CACHE_TTL_SECONDS = 60 * 5;
 const MAX_MESSAGE_SEARCH_PAGES = 10;
+const ALL_PERMISSIONS_BITMASK = Object.values(PermissionFlagsBits).reduce((acc, bit) => acc | bit, 0n);
 
 function getDiscordSeriesStatsLookupCacheKey(guildId: string, queueNumber: number): string {
   return `${getDiscordSeriesStatsCacheKey(guildId, queueNumber)}:lookup`;
@@ -992,7 +993,7 @@ export class DiscordService {
     const guild = await this.getGuild(guildId);
 
     if (guild.owner_id === userId) {
-      return ~0n;
+      return ALL_PERMISSIONS_BITMASK;
     }
 
     const guildMember = await this.getGuildMember(guildId, userId);
@@ -1014,7 +1015,7 @@ export class DiscordService {
     }
 
     if ((permissions & PermissionFlagsBits.Administrator) !== 0n) {
-      return ~0n;
+      return ALL_PERMISSIONS_BITMASK;
     }
 
     return permissions;

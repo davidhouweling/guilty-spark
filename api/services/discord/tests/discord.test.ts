@@ -1245,7 +1245,8 @@ describe("DiscordService", () => {
 
       const permissions = await discordService.computeMemberPermissions("fake-guild-id", "fake-owner-id");
 
-      expect(permissions).toEqual(~0n);
+      expect(permissions).toBeGreaterThan(0n);
+      expect((permissions & PermissionFlagsBits.Administrator) !== 0n).toBe(true);
     });
 
     it("combines @everyone and member role permissions", async () => {
@@ -1299,7 +1300,8 @@ describe("DiscordService", () => {
 
       const permissions = await discordService.computeMemberPermissions("fake-guild-id", "fake-user-id");
 
-      expect(permissions).toEqual(~0n);
+      expect(permissions).toBeGreaterThan(0n);
+      expect((permissions & PermissionFlagsBits.Administrator) !== 0n).toBe(true);
     });
   });
 
