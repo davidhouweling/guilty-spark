@@ -1475,6 +1475,48 @@ describe("DiscordService", () => {
         "Discord is still indexing recent messages for search. Please try again in a few seconds.",
       );
     });
+
+    it("pages through multiple full pages of search results", async () => {
+      const firstPage = Array.from({ length: 25 }, (_, index) => [
+        { ...apiMessage, id: `page-1-message-${index.toString()}` },
+      ]);
+      const secondPage = [[{ ...apiMessage, id: "page-2-message-0" }]];
+      mockFetch
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ doing_deep_historical_index: false, total_results: 26, messages: firstPage })),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ doing_deep_historical_index: false, total_results: 26, messages: secondPage })),
+        );
+
+      const messages = await discordService.findBotMessagesInThread("fake-guild-id", "fake-thread-id");
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenNthCalledWith(2, expect.stringContaining("offset=25"), expect.anything());
+      expect(messages).toHaveLength(26);
+    });
+
+    it("logs a warning and stops after the page limit when every page is full", async () => {
+      const logWarnSpy = vi.spyOn(logService, "warn");
+      let call = 0;
+      mockFetch.mockImplementation(async () => {
+        call += 1;
+        const page = Array.from({ length: 25 }, (_, index) => [
+          { ...apiMessage, id: `message-${call.toString()}-${index.toString()}` },
+        ]);
+        return Promise.resolve(
+          new Response(JSON.stringify({ doing_deep_historical_index: false, total_results: 250, messages: page })),
+        );
+      });
+
+      const messages = await discordService.findBotMessagesInThread("fake-guild-id", "fake-thread-id");
+
+      expect(messages).toHaveLength(250);
+      expect(logWarnSpy).toHaveBeenCalledWith(
+        "findBotMessagesInThread: reached page limit while paging through search results",
+        expect.anything(),
+      );
+    });
   });
 
   describe("findQueueNumberForThread()", () => {
@@ -1528,6 +1570,52 @@ describe("DiscordService", () => {
 
       await expect(discordService.findQueueNumberForThread("fake-guild-id", "fake-thread-id")).rejects.toThrow(
         "Discord is still indexing recent messages for search. Please try again in a few seconds.",
+      );
+    });
+
+    it("pages to a later page when the overview embed isn't in the first page", async () => {
+      const firstPage = Array.from({ length: 25 }, (_, index) => [
+        { ...apiMessage, id: `page-1-message-${index.toString()}`, embeds: [] },
+      ]);
+      const overviewMessage: APIMessage = {
+        ...apiMessage,
+        id: "overview-message-id",
+        embeds: [{ type: EmbedType.Rich, color: EmbedColors.INFO, title: "Series stats for queue #777 (🦅 2:1 🐍)" }],
+      };
+      mockFetch
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ doing_deep_historical_index: false, total_results: 26, messages: firstPage })),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ doing_deep_historical_index: false, total_results: 26, messages: [[overviewMessage]] }),
+          ),
+        );
+
+      const queueNumber = await discordService.findQueueNumberForThread("fake-guild-id", "fake-thread-id");
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenNthCalledWith(2, expect.stringContaining("offset=25"), expect.anything());
+      expect(queueNumber).toEqual(777);
+    });
+
+    it("logs a warning and returns undefined after the page limit when every page is full", async () => {
+      const logWarnSpy = vi.spyOn(logService, "warn");
+      mockFetch.mockImplementation(async () => {
+        const page = Array.from({ length: 25 }, (_, index) => [
+          { ...apiMessage, id: `message-${index.toString()}`, embeds: [] },
+        ]);
+        return Promise.resolve(
+          new Response(JSON.stringify({ doing_deep_historical_index: false, total_results: 250, messages: page })),
+        );
+      });
+
+      const queueNumber = await discordService.findQueueNumberForThread("fake-guild-id", "fake-thread-id");
+
+      expect(queueNumber).toBeUndefined();
+      expect(logWarnSpy).toHaveBeenCalledWith(
+        "findQueueNumberForThread: reached page limit without finding an overview embed",
+        expect.anything(),
       );
     });
   });

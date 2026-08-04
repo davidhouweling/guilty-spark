@@ -122,6 +122,8 @@ const PENDING_CACHE_TTL_SECONDS = 60 * 5;
 const NOT_FOUND_CACHE_TTL_SECONDS = 60 * 5;
 const ACTIVE_QUEUE_LOOKUP_CACHE_TTL_SECONDS = 60 * 5;
 const ALL_PERMISSIONS_BITMASK = Object.values(PermissionFlagsBits).reduce((acc, bit) => acc | bit, 0n);
+const SEARCH_RESULT_PAGE_SIZE = 25;
+const MAX_SEARCH_RESULT_PAGES = 10;
 const SEARCH_INDEXING_MESSAGE =
   "Discord is still indexing recent messages for search. Please try again in a few seconds.";
 
@@ -1102,35 +1104,70 @@ export class DiscordService {
   }
 
   async findBotMessagesInThread(guildId: string, threadId: string): Promise<APIMessage[]> {
-    const searchResponse = await this.searchGuildMessages(guildId, {
-      channel_id: [threadId],
-      author_id: [this.env.DISCORD_APP_ID],
-      author_type: [MessageSearchAuthorType.Bot],
-      sort_by: MessageSearchSortMode.Timestamp,
-      sort_order: "desc",
-      limit: 25,
-    });
+    const allMessages: APIMessage[] = [];
 
-    return this.flattenSearchMessages(searchResponse);
+    for (let page = 0; page < MAX_SEARCH_RESULT_PAGES; page++) {
+      const searchResponse = await this.searchGuildMessages(guildId, {
+        channel_id: [threadId],
+        author_id: [this.env.DISCORD_APP_ID],
+        author_type: [MessageSearchAuthorType.Bot],
+        sort_by: MessageSearchSortMode.Timestamp,
+        sort_order: "desc",
+        limit: SEARCH_RESULT_PAGE_SIZE,
+        offset: page * SEARCH_RESULT_PAGE_SIZE,
+      });
+
+      const messages = this.flattenSearchMessages(searchResponse);
+      allMessages.push(...messages);
+
+      if (messages.length < SEARCH_RESULT_PAGE_SIZE) {
+        return allMessages;
+      }
+    }
+
+    this.logService.warn(
+      "findBotMessagesInThread: reached page limit while paging through search results",
+      new Map([
+        ["threadId", threadId],
+        ["maxPages", MAX_SEARCH_RESULT_PAGES.toString()],
+      ]),
+    );
+
+    return allMessages;
   }
 
   async findQueueNumberForThread(guildId: string, threadId: string): Promise<number | undefined> {
-    const searchResponse = await this.searchGuildMessages(guildId, {
-      channel_id: [threadId],
-      author_id: [this.env.DISCORD_APP_ID],
-      author_type: [MessageSearchAuthorType.Bot],
-      sort_by: MessageSearchSortMode.Timestamp,
-      sort_order: "desc",
-      limit: 25,
-    });
+    for (let page = 0; page < MAX_SEARCH_RESULT_PAGES; page++) {
+      const searchResponse = await this.searchGuildMessages(guildId, {
+        channel_id: [threadId],
+        author_id: [this.env.DISCORD_APP_ID],
+        author_type: [MessageSearchAuthorType.Bot],
+        sort_by: MessageSearchSortMode.Timestamp,
+        sort_order: "desc",
+        limit: SEARCH_RESULT_PAGE_SIZE,
+        offset: page * SEARCH_RESULT_PAGE_SIZE,
+      });
 
-    const messages = this.flattenSearchMessages(searchResponse);
-    for (const message of messages) {
-      const queueNumber = extractQueueNumberFromSeriesOverviewEmbed(message);
-      if (queueNumber != null) {
-        return queueNumber;
+      const messages = this.flattenSearchMessages(searchResponse);
+      for (const message of messages) {
+        const queueNumber = extractQueueNumberFromSeriesOverviewEmbed(message);
+        if (queueNumber != null) {
+          return queueNumber;
+        }
+      }
+
+      if (messages.length < SEARCH_RESULT_PAGE_SIZE) {
+        return undefined;
       }
     }
+
+    this.logService.warn(
+      "findQueueNumberForThread: reached page limit without finding an overview embed",
+      new Map([
+        ["threadId", threadId],
+        ["maxPages", MAX_SEARCH_RESULT_PAGES.toString()],
+      ]),
+    );
 
     return undefined;
   }
