@@ -1311,6 +1311,16 @@ describe("StatsCommand", () => {
       ]);
       const bulkDeleteMessagesSpy = vi.spyOn(services.discordService, "bulkDeleteMessages").mockResolvedValue();
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.discordService, "getThreadStarterMessage").mockResolvedValue({
+        ...apiMessage,
+        id: "existing-thread-id",
+        type: MessageType.ThreadStarterMessage,
+        referenced_message: {
+          ...apiMessage,
+          id: "original-overview-message-id",
+        },
+      });
+      const editMessageSpy = vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
       vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
 
       const { response, jobToComplete } = statsCommand.execute(interaction);
@@ -1329,6 +1339,11 @@ describe("StatsCommand", () => {
       const amendedByField = firstEmbed.fields?.find((field) => field.name === "Amended by");
       expect(amendedByField).toBeDefined();
       expect(Preconditions.checkExists(amendedByField).value.length).toBeGreaterThan(0);
+      expect(editMessageSpy).toHaveBeenCalledWith(
+        "fake-channel-id",
+        "original-overview-message-id",
+        expect.objectContaining({ embeds: createMessagePayload.embeds }),
+      );
       expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
         content: "Series stats were amended successfully.",
         embeds: [],
@@ -1401,6 +1416,7 @@ describe("StatsCommand", () => {
         .mockRejectedValueOnce(new Error("bulk delete failed"));
       const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue();
       vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.discordService, "getThreadStarterMessage").mockResolvedValue(undefined);
       vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
 
       const { jobToComplete } = statsCommand.execute(interaction);

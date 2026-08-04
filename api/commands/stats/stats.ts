@@ -1132,6 +1132,14 @@ export class StatsCommand extends BaseCommand {
           existingGuiltySparkMessageIds,
           "Replacing amended series stats",
         );
+
+        const threadStarterMessage = await discordService.getThreadStarterMessage(destinationThreadId);
+        if (threadStarterMessage?.referenced_message != null) {
+          await discordService.editMessage(metadata.channelId, threadStarterMessage.referenced_message.id, {
+            embeds: amendedSeriesEmbed.embeds,
+            components: amendedSeriesEmbed.components,
+          });
+        }
       } else {
         const seriesOverviewMessage = await discordService.createMessage(metadata.channelId, {
           embeds: amendedSeriesEmbed.embeds,
