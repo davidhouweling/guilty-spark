@@ -933,10 +933,15 @@ export class StatsCommand extends BaseCommand {
     });
 
     const message = await discordService.getMessageFromInteractionToken(interaction.token);
+    const queueDataWithoutTimestamp: Omit<QueueData, "timestamp"> = {
+      message: queueData.message,
+      queue: queueData.queue,
+      teams: queueData.teams,
+    };
     await this.setFixMetadata(message.id, {
       guildId,
       channelId,
-      queueData,
+      queueData: queueDataWithoutTimestamp,
     });
   }
 

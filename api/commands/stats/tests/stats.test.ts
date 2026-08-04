@@ -940,6 +940,10 @@ describe("StatsCommand", () => {
           channelId: "parent-id",
         }),
       );
+      const storedMetadata = Preconditions.checkExists(setInteractionMetadataSpy.mock.calls[0]?.[1]) as {
+        queueData: Record<string, unknown>;
+      };
+      expect(storedMetadata.queueData["timestamp"]).toBeUndefined();
       expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
     });
 
