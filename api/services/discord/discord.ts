@@ -1030,9 +1030,18 @@ export class DiscordService {
     return this.env.APP_DATA.get<T>(`interactionMetadata:${key}`, "json");
   }
 
-  async getThreads(channelId: string): Promise<APIChannel[]> {
+  async getActiveThreads(channelId: string): Promise<APIChannel[]> {
     const response = await this.fetch<{ threads: APIChannel[] }>(`/channels/${channelId}/threads/active`, {
       method: "GET",
+    });
+
+    return response.threads;
+  }
+
+  async getArchivedPublicThreads(channelId: string): Promise<APIChannel[]> {
+    const response = await this.fetch<{ threads: APIChannel[] }>(`/channels/${channelId}/threads/archived/public`, {
+      method: "GET",
+      queryParameters: { limit: 100 },
     });
 
     return response.threads;
@@ -1077,6 +1086,14 @@ export class DiscordService {
 
       before = messages[messages.length - 1]?.id;
     }
+
+    this.logService.warn(
+      "getThreadStarterMessage: reached page limit without finding a starter message",
+      new Map([
+        ["threadId", threadId],
+        ["maxPages", MAX_THREAD_STARTER_MESSAGE_PAGES.toString()],
+      ]),
+    );
 
     return undefined;
   }

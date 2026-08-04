@@ -1324,7 +1324,7 @@ describe("DiscordService", () => {
     });
   });
 
-  describe("getThreads()", () => {
+  describe("getActiveThreads()", () => {
     it("fetches active threads for a channel", async () => {
       const fakeThread: APIChannel = {
         id: "thread-1",
@@ -1338,7 +1338,7 @@ describe("DiscordService", () => {
         }),
       );
 
-      const threads = await discordService.getThreads("fake-channel");
+      const threads = await discordService.getActiveThreads("fake-channel");
 
       expect(mockFetch).toHaveBeenCalledWith("https://discord.com/api/v10/channels/fake-channel/threads/active", {
         body: null,
@@ -1348,6 +1348,38 @@ describe("DiscordService", () => {
         }),
         method: "GET",
       });
+      expect(threads).toEqual([fakeThread]);
+    });
+  });
+
+  describe("getArchivedPublicThreads()", () => {
+    it("fetches archived public threads for a channel", async () => {
+      const fakeThread: APIChannel = {
+        id: "thread-1",
+        type: ChannelType.PublicThread,
+      } as APIChannel;
+
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ threads: [fakeThread], has_more: false }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const threads = await discordService.getArchivedPublicThreads("fake-channel");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "https://discord.com/api/v10/channels/fake-channel/threads/archived/public?limit=100",
+        {
+          body: null,
+          headers: new Headers({
+            Authorization: "Bot DISCORD_TOKEN",
+            "content-type": "application/json;charset=UTF-8",
+          }),
+          method: "GET",
+          queryParameters: { limit: 100 },
+        },
+      );
       expect(threads).toEqual([fakeThread]);
     });
   });
@@ -1407,6 +1439,20 @@ describe("DiscordService", () => {
       const result = await discordService.getThreadStarterMessage("fake-thread-id");
 
       expect(result).toBeUndefined();
+    });
+
+    it("logs a warning and returns undefined when the page limit is reached without finding a starter message", async () => {
+      const logWarnSpy = vi.spyOn(logService, "warn");
+      const nonStarterMessage: APIMessage = { ...apiMessage, id: "non-starter-message-id" };
+      mockFetch.mockImplementation(async () => Promise.resolve(new Response(JSON.stringify([nonStarterMessage]))));
+
+      const result = await discordService.getThreadStarterMessage("fake-thread-id");
+
+      expect(result).toBeUndefined();
+      expect(logWarnSpy).toHaveBeenCalledWith(
+        "getThreadStarterMessage: reached page limit without finding a starter message",
+        expect.anything(),
+      );
     });
   });
 

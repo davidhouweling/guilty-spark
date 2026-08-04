@@ -1014,16 +1014,16 @@ export class StatsCommand extends BaseCommand {
     }
   }
 
-  private async handleFixGamesSelectJob(_interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
+  private async handleFixGamesSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
     const { discordService, haloService } = this.services;
 
     try {
-      const selectedMatchIds = _interaction.data.values;
+      const selectedMatchIds = interaction.data.values;
       if (selectedMatchIds.length === 0) {
         throw new EndUserError("Select at least one game.");
       }
 
-      const metadata = await this.getFixMetadata(_interaction.message.id);
+      const metadata = await this.getFixMetadata(interaction.message.id);
       if (metadata == null) {
         throw new EndUserError("Could not find fix-flow state. Please run /stats fix again.");
       }
@@ -1036,17 +1036,17 @@ export class StatsCommand extends BaseCommand {
       const seriesEmbed = await this.createSeriesEmbed({
         guildId: metadata.guildId,
         channelId: metadata.channelId,
-        locale: _interaction.guild_locale ?? _interaction.locale,
+        locale: interaction.guild_locale ?? interaction.locale,
         queueData: metadata.queueData,
         series,
       });
 
-      await this.setFixMetadata(_interaction.message.id, {
+      await this.setFixMetadata(interaction.message.id, {
         ...metadata,
         selectedMatchIds,
       });
 
-      await discordService.updateDeferredReply(_interaction.token, {
+      await discordService.updateDeferredReply(interaction.token, {
         content: "Preview generated. Confirm to replace the previous series stats.",
         embeds: seriesEmbed.embeds,
         components: [
@@ -1070,7 +1070,7 @@ export class StatsCommand extends BaseCommand {
         ],
       });
     } catch (error) {
-      await discordService.updateDeferredReplyWithError(_interaction.token, error);
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
 
@@ -1114,9 +1114,12 @@ export class StatsCommand extends BaseCommand {
       amendedOverviewEmbed.fields ??= [];
       amendedOverviewEmbed.fields.push(amendedField);
 
-      const activeThreads = await discordService.getThreads(metadata.channelId);
+      const [activeThreads, archivedThreads] = await Promise.all([
+        discordService.getActiveThreads(metadata.channelId),
+        discordService.getArchivedPublicThreads(metadata.channelId),
+      ]);
       const relatedThreadNamePrefix = `Queue #${metadata.queueData.queue.toString()} series stats`;
-      const matchingThreads = activeThreads.filter(
+      const matchingThreads = [...activeThreads, ...archivedThreads].filter(
         (thread) => thread.name?.startsWith(relatedThreadNamePrefix) === true,
       );
       // if multiple stats threads exist for the queue (e.g. /stats neatqueue was run more than once), prefer the most recently created one

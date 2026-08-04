@@ -1272,7 +1272,7 @@ describe("StatsCommand", () => {
       vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
         aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
       );
-      vi.spyOn(services.discordService, "getThreads").mockResolvedValue([
+      vi.spyOn(services.discordService, "getActiveThreads").mockResolvedValue([
         {
           id: "existing-thread-id",
           name: "Queue #777 series stats (🦅 2:1 🐍)",
@@ -1280,6 +1280,7 @@ describe("StatsCommand", () => {
           parent_id: "fake-channel-id",
         },
       ]);
+      vi.spyOn(services.discordService, "getArchivedPublicThreads").mockResolvedValue([]);
       vi.spyOn(services.discordService, "getMessages").mockResolvedValue([
         {
           ...apiMessage,
@@ -1383,7 +1384,7 @@ describe("StatsCommand", () => {
       vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
         aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
       );
-      vi.spyOn(services.discordService, "getThreads").mockResolvedValue([
+      vi.spyOn(services.discordService, "getActiveThreads").mockResolvedValue([
         {
           id: "100000000000000001",
           name: "Queue #777 series stats (🦅 1:0 🐍)",
@@ -1397,6 +1398,7 @@ describe("StatsCommand", () => {
           parent_id: "fake-channel-id",
         },
       ]);
+      vi.spyOn(services.discordService, "getArchivedPublicThreads").mockResolvedValue([]);
       vi.spyOn(services.discordService, "getMessages").mockResolvedValue([]);
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
       vi.spyOn(services.discordService, "getThreadStarterMessage").mockResolvedValue(undefined);
@@ -1406,6 +1408,58 @@ describe("StatsCommand", () => {
       await jobToComplete?.();
 
       expect(createMessageSpy).toHaveBeenCalledWith("100000000000000002", expect.anything());
+    });
+
+    it("reuses a matching thread that has since auto-archived", async () => {
+      const interaction: APIMessageComponentButtonInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: "btn_stats_fix_confirm",
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          id: "fix-flow-message-id",
+        },
+      };
+
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "fake-channel-id",
+        queueData: {
+          ...discordNeatQueueData,
+          message: {
+            ...discordNeatQueueData.message,
+            id: "queue-neatqueue-message-id",
+          },
+        },
+        selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+        Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
+      ]);
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+        aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
+      );
+      vi.spyOn(services.discordService, "getActiveThreads").mockResolvedValue([]);
+      vi.spyOn(services.discordService, "getArchivedPublicThreads").mockResolvedValue([
+        {
+          id: "archived-thread-id",
+          name: "Queue #777 series stats (🦅 2:1 🐍)",
+          type: ChannelType.PublicThread,
+          parent_id: "fake-channel-id",
+        },
+      ]);
+      vi.spyOn(services.discordService, "getMessages").mockResolvedValue([]);
+      const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.discordService, "getThreadStarterMessage").mockResolvedValue(undefined);
+      vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
+
+      const { jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      expect(createMessageSpy).toHaveBeenCalledWith("archived-thread-id", expect.anything());
     });
 
     it("falls back to single deletes when bulk delete fails in an existing thread", async () => {
@@ -1440,7 +1494,7 @@ describe("StatsCommand", () => {
       vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
         aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
       );
-      vi.spyOn(services.discordService, "getThreads").mockResolvedValue([
+      vi.spyOn(services.discordService, "getActiveThreads").mockResolvedValue([
         {
           id: "existing-thread-id",
           name: "Queue #777 series stats (🦅 2:1 🐍)",
@@ -1448,6 +1502,7 @@ describe("StatsCommand", () => {
           parent_id: "fake-channel-id",
         },
       ]);
+      vi.spyOn(services.discordService, "getArchivedPublicThreads").mockResolvedValue([]);
       vi.spyOn(services.discordService, "getMessages").mockResolvedValue([
         {
           ...apiMessage,
