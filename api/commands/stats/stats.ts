@@ -1,6 +1,7 @@
 import type {
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
+  APIChannel,
   APIEmbed,
   APIInteractionResponseDeferredChannelMessageWithSource,
   APIMessageComponentButtonInteraction,
@@ -1115,7 +1116,16 @@ export class StatsCommand extends BaseCommand {
 
       const activeThreads = await discordService.getThreads(metadata.channelId);
       const relatedThreadNamePrefix = `Queue #${metadata.queueData.queue.toString()} series stats`;
-      const relatedThread = activeThreads.find((thread) => thread.name?.startsWith(relatedThreadNamePrefix) === true);
+      const matchingThreads = activeThreads.filter(
+        (thread) => thread.name?.startsWith(relatedThreadNamePrefix) === true,
+      );
+      // if multiple stats threads exist for the queue (e.g. /stats neatqueue was run more than once), prefer the most recently created one
+      const relatedThread = matchingThreads.reduce<APIChannel | undefined>((mostRecent, thread) => {
+        if (mostRecent == null || BigInt(thread.id) > BigInt(mostRecent.id)) {
+          return thread;
+        }
+        return mostRecent;
+      }, undefined);
 
       let destinationThreadId: string;
       if (relatedThread != null) {

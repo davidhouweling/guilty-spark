@@ -1020,14 +1020,14 @@ export class DiscordService {
     return permissions;
   }
 
-  async setInteractionMetadata(token: string, data: Record<string, unknown>): Promise<void> {
-    await this.env.APP_DATA.put(`interactionMetadata:${token}`, JSON.stringify(data), {
+  async setInteractionMetadata(key: string, data: Record<string, unknown>): Promise<void> {
+    await this.env.APP_DATA.put(`interactionMetadata:${key}`, JSON.stringify(data), {
       expirationTtl: TimeInSeconds["1_HOUR"],
     });
   }
 
-  async getInteractionMetadata<T extends Record<string, unknown>>(token: string): Promise<T | null> {
-    return this.env.APP_DATA.get<T>(`interactionMetadata:${token}`, "json");
+  async getInteractionMetadata<T extends Record<string, unknown>>(key: string): Promise<T | null> {
+    return this.env.APP_DATA.get<T>(`interactionMetadata:${key}`, "json");
   }
 
   async getThreads(channelId: string): Promise<APIChannel[]> {
