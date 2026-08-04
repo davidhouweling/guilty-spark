@@ -1243,7 +1243,7 @@ describe("DiscordService", () => {
         ],
       } as APIGuild);
 
-      vi.spyOn(discordService, "getGuildMember").mockResolvedValue(aGuildMemberWith({ roles: ["fake-guild-id"] }));
+      vi.spyOn(discordService, "getGuildMember").mockResolvedValue(aGuildMemberWith());
 
       const permissions = await discordService.computeMemberPermissions("fake-guild-id", "fake-owner-id");
 
@@ -1270,7 +1270,7 @@ describe("DiscordService", () => {
 
       const getGuildMemberSpy = vi
         .spyOn(discordService, "getGuildMember")
-        .mockResolvedValue(aGuildMemberWith({ roles: ["fake-guild-id", "mod-role"] }));
+        .mockResolvedValue(aGuildMemberWith({ roles: ["mod-role"] }));
 
       const permissions = await discordService.computeMemberPermissions("fake-guild-id", "fake-user-id");
 
@@ -1296,9 +1296,7 @@ describe("DiscordService", () => {
         ],
       } as APIGuild);
 
-      vi.spyOn(discordService, "getGuildMember").mockResolvedValue(
-        aGuildMemberWith({ roles: ["fake-guild-id", "admin-role"] }),
-      );
+      vi.spyOn(discordService, "getGuildMember").mockResolvedValue(aGuildMemberWith({ roles: ["admin-role"] }));
 
       const permissions = await discordService.computeMemberPermissions("fake-guild-id", "fake-user-id");
 
