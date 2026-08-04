@@ -39,7 +39,8 @@ import { create } from "../../embeds/stats/create";
 interface FixFlowMetadata extends Record<string, unknown> {
   guildId: string;
   channelId: string;
-  queueData: QueueData;
+  // timestamp is a Date at fetch time but becomes a string after the JSON round-trip through KV, so it's omitted here
+  queueData: Omit<QueueData, "timestamp">;
   selectedPlayerId?: string;
   selectedMatchIds?: string[];
 }
@@ -723,7 +724,7 @@ export class StatsCommand extends BaseCommand {
     guildId: string;
     channelId: string;
     locale: string;
-    queueData: QueueData;
+    queueData: Omit<QueueData, "timestamp">;
     series: MatchStats[];
   }): Promise<SeriesOverviewEmbedOutput> {
     const { discordService, haloService } = this.services;
