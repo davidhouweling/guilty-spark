@@ -1040,12 +1040,40 @@ export class DiscordService {
   }
 
   async getArchivedPublicThreads(channelId: string): Promise<APIChannel[]> {
-    const response = await this.fetch<{ threads: APIChannel[] }>(`/channels/${channelId}/threads/archived/public`, {
-      method: "GET",
-      queryParameters: { limit: 100 },
-    });
+    const allThreads: APIChannel[] = [];
+    let before: string | undefined;
 
-    return response.threads;
+    for (let page = 0; page < MAX_MESSAGE_SEARCH_PAGES; page++) {
+      const response = await this.fetch<{ threads: APIChannel[]; has_more: boolean }>(
+        `/channels/${channelId}/threads/archived/public`,
+        {
+          method: "GET",
+          queryParameters: { limit: 100, before: before ?? null },
+        },
+      );
+
+      allThreads.push(...response.threads);
+
+      const lastThread = response.threads[response.threads.length - 1];
+      const archiveTimestamp =
+        lastThread != null && "thread_metadata" in lastThread ? lastThread.thread_metadata.archive_timestamp : null;
+
+      if (!response.has_more || archiveTimestamp == null) {
+        return allThreads;
+      }
+
+      before = archiveTimestamp;
+    }
+
+    this.logService.warn(
+      "getArchivedPublicThreads: reached page limit while paging through archived threads",
+      new Map([
+        ["channelId", channelId],
+        ["maxPages", MAX_MESSAGE_SEARCH_PAGES.toString()],
+      ]),
+    );
+
+    return allThreads;
   }
 
   async getMessage(channelId: string, messageId: string): Promise<APIMessage> {

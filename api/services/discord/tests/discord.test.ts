@@ -1488,10 +1488,61 @@ describe("DiscordService", () => {
             "content-type": "application/json;charset=UTF-8",
           }),
           method: "GET",
-          queryParameters: { limit: 100 },
+          queryParameters: { limit: 100, before: null },
         },
       );
       expect(threads).toEqual([fakeThread]);
+    });
+
+    it("pages through archived threads while has_more is true", async () => {
+      const firstThread: APIChannel = {
+        id: "thread-1",
+        type: ChannelType.PublicThread,
+        thread_metadata: { archived: true, archive_timestamp: "2026-01-01T00:00:00.000Z", auto_archive_duration: 60 },
+      } as APIChannel;
+      const secondThread: APIChannel = {
+        id: "thread-2",
+        type: ChannelType.PublicThread,
+        thread_metadata: { archived: true, archive_timestamp: "2025-12-01T00:00:00.000Z", auto_archive_duration: 60 },
+      } as APIChannel;
+      mockFetch
+        .mockResolvedValueOnce(new Response(JSON.stringify({ threads: [firstThread], has_more: true })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ threads: [secondThread], has_more: false })));
+
+      const threads = await discordService.getArchivedPublicThreads("fake-channel");
+
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        2,
+        "https://discord.com/api/v10/channels/fake-channel/threads/archived/public?limit=100&before=2026-01-01T00%3A00%3A00.000Z",
+        expect.anything(),
+      );
+      expect(threads).toEqual([firstThread, secondThread]);
+    });
+
+    it("logs a warning and stops after the page limit when has_more never becomes false", async () => {
+      const logWarnSpy = vi.spyOn(logService, "warn");
+      let call = 0;
+      mockFetch.mockImplementation(async () => {
+        call += 1;
+        const thread: APIChannel = {
+          id: `thread-${call.toString()}`,
+          type: ChannelType.PublicThread,
+          thread_metadata: {
+            archived: true,
+            archive_timestamp: `2026-01-${call.toString().padStart(2, "0")}T00:00:00.000Z`,
+            auto_archive_duration: 60,
+          },
+        } as APIChannel;
+        return Promise.resolve(new Response(JSON.stringify({ threads: [thread], has_more: true })));
+      });
+
+      const threads = await discordService.getArchivedPublicThreads("fake-channel");
+
+      expect(threads).toHaveLength(10);
+      expect(logWarnSpy).toHaveBeenCalledWith(
+        "getArchivedPublicThreads: reached page limit while paging through archived threads",
+        expect.anything(),
+      );
     });
   });
 
