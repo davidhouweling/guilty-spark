@@ -1114,7 +1114,8 @@ export class StatsCommand extends BaseCommand {
       amendedOverviewEmbed.fields.push(amendedField);
 
       const activeThreads = await discordService.getThreads(metadata.channelId);
-      const relatedThread = activeThreads.find((thread) => thread.id === metadata.queueData.message.id);
+      const relatedThreadNamePrefix = `Queue #${metadata.queueData.queue.toString()} series stats`;
+      const relatedThread = activeThreads.find((thread) => thread.name?.startsWith(relatedThreadNamePrefix) === true);
 
       let destinationThreadId: string;
       if (relatedThread != null) {

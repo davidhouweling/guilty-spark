@@ -987,11 +987,13 @@ export class DiscordService {
   }
 
   async computeMemberPermissions(guildId: string, userId: string): Promise<bigint> {
-    const [guild, guildMember] = await Promise.all([this.getGuild(guildId), this.getGuildMember(guildId, userId)]);
+    const guild = await this.getGuild(guildId);
 
     if (guild.owner_id === userId) {
       return ~0n;
     }
+
+    const guildMember = await this.getGuildMember(guildId, userId);
 
     const everyoneRole = guild.roles.find((role) => role.id === guild.id);
     let permissions = BigInt(everyoneRole?.permissions ?? "0");

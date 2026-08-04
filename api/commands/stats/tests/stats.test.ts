@@ -1262,7 +1262,7 @@ describe("StatsCommand", () => {
           ...discordNeatQueueData,
           message: {
             ...discordNeatQueueData.message,
-            id: "queue-parent-message-id",
+            id: "queue-neatqueue-message-id",
           },
         },
         selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
@@ -1276,10 +1276,11 @@ describe("StatsCommand", () => {
       );
       vi.spyOn(services.discordService, "getThreads").mockResolvedValue([
         {
-          id: "queue-parent-message-id",
+          id: "existing-thread-id",
+          name: "Queue #777 series stats (🦅 2:1 🐍)",
           type: ChannelType.PublicThread,
-          parent_id: "parent-channel-id",
-        } as APIThreadChannel,
+          parent_id: "fake-channel-id",
+        },
       ]);
       vi.spyOn(services.discordService, "getMessages").mockResolvedValue([
         {
@@ -1320,11 +1321,11 @@ describe("StatsCommand", () => {
       await jobToComplete?.();
 
       expect(bulkDeleteMessagesSpy).toHaveBeenCalledWith(
-        "queue-parent-message-id",
+        "existing-thread-id",
         ["thread-msg-1", "thread-msg-3"],
         "Replacing amended series stats",
       );
-      expect(createMessageSpy).toHaveBeenCalledWith("queue-parent-message-id", expect.anything());
+      expect(createMessageSpy).toHaveBeenCalledWith("existing-thread-id", expect.anything());
       const createMessagePayload = Preconditions.checkExists(createMessageSpy.mock.calls[0]?.[1]);
       const firstEmbed = Preconditions.checkExists(createMessagePayload.embeds?.[0]);
       const amendedByField = firstEmbed.fields?.find((field) => field.name === "Amended by");
@@ -1357,7 +1358,7 @@ describe("StatsCommand", () => {
           ...discordNeatQueueData,
           message: {
             ...discordNeatQueueData.message,
-            id: "queue-parent-message-id",
+            id: "queue-neatqueue-message-id",
           },
         },
         selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
@@ -1371,10 +1372,11 @@ describe("StatsCommand", () => {
       );
       vi.spyOn(services.discordService, "getThreads").mockResolvedValue([
         {
-          id: "queue-parent-message-id",
+          id: "existing-thread-id",
+          name: "Queue #777 series stats (🦅 2:1 🐍)",
           type: ChannelType.PublicThread,
-          parent_id: "parent-channel-id",
-        } as APIThreadChannel,
+          parent_id: "fake-channel-id",
+        },
       ]);
       vi.spyOn(services.discordService, "getMessages").mockResolvedValue([
         {
@@ -1407,20 +1409,20 @@ describe("StatsCommand", () => {
       await jobToComplete?.();
 
       expect(bulkDeleteMessagesSpy).toHaveBeenCalledWith(
-        "queue-parent-message-id",
+        "existing-thread-id",
         ["thread-msg-1", "thread-msg-2"],
         "Replacing amended series stats",
       );
       expect(deleteMessageSpy).toHaveBeenCalledTimes(2);
       expect(deleteMessageSpy).toHaveBeenNthCalledWith(
         1,
-        "queue-parent-message-id",
+        "existing-thread-id",
         "thread-msg-1",
         "Replacing amended series stats",
       );
       expect(deleteMessageSpy).toHaveBeenNthCalledWith(
         2,
-        "queue-parent-message-id",
+        "existing-thread-id",
         "thread-msg-2",
         "Replacing amended series stats",
       );
