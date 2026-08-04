@@ -896,8 +896,9 @@ describe("StatsCommand", () => {
         mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>(),
         options: [],
       });
-      const getMessagesSpy = vi.spyOn(services.discordService, "getMessages").mockResolvedValue([
-        {
+      const getThreadStarterMessageSpy = vi
+        .spyOn(services.discordService, "getThreadStarterMessage")
+        .mockResolvedValue({
           ...apiMessage,
           id: "thread-first-message-id",
           type: MessageType.ThreadStarterMessage,
@@ -910,8 +911,7 @@ describe("StatsCommand", () => {
               bot: true,
             },
           },
-        },
-      ]);
+        });
       const getTeamsFromMessageSpy = vi
         .spyOn(services.discordService, "getTeamsFromMessage")
         .mockResolvedValue(discordNeatQueueData);
@@ -944,7 +944,7 @@ describe("StatsCommand", () => {
 
       await jobToComplete?.();
 
-      expect(getMessagesSpy).toHaveBeenCalledWith("thread-channel-id");
+      expect(getThreadStarterMessageSpy).toHaveBeenCalledWith("thread-channel-id");
       expect(getTeamsFromMessageSpy).toHaveBeenCalledWith(
         "fake-guild-id",
         expect.objectContaining({ id: "neat-queue-result-message-id" }),
@@ -964,22 +964,20 @@ describe("StatsCommand", () => {
         mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>(),
         options: [],
       });
-      vi.spyOn(services.discordService, "getMessages").mockResolvedValue([
-        {
+      vi.spyOn(services.discordService, "getThreadStarterMessage").mockResolvedValue({
+        ...apiMessage,
+        id: "thread-first-message-id",
+        type: MessageType.ThreadStarterMessage,
+        referenced_message: {
           ...apiMessage,
-          id: "thread-first-message-id",
-          type: MessageType.ThreadStarterMessage,
-          referenced_message: {
-            ...apiMessage,
-            id: "not-neat-queue-message-id",
-            author: {
-              ...apiMessage.author,
-              id: "wrong-bot-id",
-              bot: true,
-            },
+          id: "not-neat-queue-message-id",
+          author: {
+            ...apiMessage.author,
+            id: "wrong-bot-id",
+            bot: true,
           },
         },
-      ]);
+      });
       const getTeamsFromMessageSpy = vi.spyOn(services.discordService, "getTeamsFromMessage");
 
       const threadInteraction: APIApplicationCommandInteraction = {

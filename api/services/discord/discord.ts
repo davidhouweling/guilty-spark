@@ -33,6 +33,7 @@ import {
   MessageSearchAuthorType,
   MessageSearchSortMode,
   MessageFlags,
+  MessageType,
   APIVersion,
   ApplicationCommandType,
   InteractionResponseType,
@@ -115,6 +116,7 @@ const DEFAULT_PENDING_RETRY_SECONDS = 2;
 const PENDING_CACHE_TTL_SECONDS = 60 * 5;
 const NOT_FOUND_CACHE_TTL_SECONDS = 60 * 5;
 const ACTIVE_QUEUE_LOOKUP_CACHE_TTL_SECONDS = 60 * 5;
+const MAX_THREAD_STARTER_MESSAGE_PAGES = 10;
 
 function getDiscordSeriesStatsLookupCacheKey(guildId: string, queueNumber: number): string {
   return `${getDiscordSeriesStatsCacheKey(guildId, queueNumber)}:lookup`;
@@ -1053,6 +1055,30 @@ export class DiscordService {
     return this.fetch<APIMessage[]>(Routes.channelMessages(channelId), {
       method: "GET",
     });
+  }
+
+  async getThreadStarterMessage(threadId: string): Promise<APIMessage | undefined> {
+    let before: string | undefined;
+
+    for (let page = 0; page < MAX_THREAD_STARTER_MESSAGE_PAGES; page++) {
+      const messages = await this.fetch<APIMessage[]>(Routes.channelMessages(threadId), {
+        method: "GET",
+        queryParameters: { limit: 100, before: before ?? null },
+      });
+
+      if (messages.length === 0) {
+        return undefined;
+      }
+
+      const starterMessage = messages.find((message) => message.type === MessageType.ThreadStarterMessage);
+      if (starterMessage != null) {
+        return starterMessage;
+      }
+
+      before = messages[messages.length - 1]?.id;
+    }
+
+    return undefined;
   }
 
   async createMessage(

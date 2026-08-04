@@ -19,6 +19,7 @@ import {
   PermissionFlagsBits,
   MessageSearchAuthorType,
   MessageSearchSortMode,
+  MessageType,
 } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { DiscordService } from "../discord";
@@ -1348,6 +1349,64 @@ describe("DiscordService", () => {
         method: "GET",
       });
       expect(threads).toEqual([fakeThread]);
+    });
+  });
+
+  describe("getThreadStarterMessage()", () => {
+    it("returns the starter message when it is on the first page", async () => {
+      const starterMessage: APIMessage = {
+        ...apiMessage,
+        id: "starter-message-id",
+        type: MessageType.ThreadStarterMessage,
+      };
+      mockFetch.mockResolvedValue(new Response(JSON.stringify([starterMessage])));
+
+      const result = await discordService.getThreadStarterMessage("fake-thread-id");
+
+      expect(mockFetch).toHaveBeenCalledWith("https://discord.com/api/v10/channels/fake-thread-id/messages?limit=100", {
+        body: null,
+        headers: new Headers({
+          Authorization: "Bot DISCORD_TOKEN",
+          "content-type": "application/json;charset=UTF-8",
+        }),
+        method: "GET",
+        queryParameters: { limit: 100, before: null },
+      });
+      expect(result).toEqual(starterMessage);
+    });
+
+    it("pages backwards until it finds the starter message", async () => {
+      const recentMessage: APIMessage = { ...apiMessage, id: "recent-message-id" };
+      const starterMessage: APIMessage = {
+        ...apiMessage,
+        id: "starter-message-id",
+        type: MessageType.ThreadStarterMessage,
+      };
+      mockFetch
+        .mockResolvedValueOnce(new Response(JSON.stringify([recentMessage])))
+        .mockResolvedValueOnce(new Response(JSON.stringify([starterMessage])));
+
+      const result = await discordService.getThreadStarterMessage("fake-thread-id");
+
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        1,
+        "https://discord.com/api/v10/channels/fake-thread-id/messages?limit=100",
+        expect.anything(),
+      );
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        2,
+        "https://discord.com/api/v10/channels/fake-thread-id/messages?limit=100&before=recent-message-id",
+        expect.anything(),
+      );
+      expect(result).toEqual(starterMessage);
+    });
+
+    it("returns undefined when the thread has no more messages to page through", async () => {
+      mockFetch.mockResolvedValue(new Response(JSON.stringify([])));
+
+      const result = await discordService.getThreadStarterMessage("fake-thread-id");
+
+      expect(result).toBeUndefined();
     });
   });
 

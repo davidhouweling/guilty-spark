@@ -856,8 +856,7 @@ export class StatsCommand extends BaseCommand {
       }
 
       const guildId = Preconditions.checkExists(interaction.guild_id, "No guild ID found in interaction");
-      const threadMessages = await discordService.getMessages(interaction.channel.id);
-      const firstMessage = threadMessages[threadMessages.length - 1];
+      const firstMessage = await discordService.getThreadStarterMessage(interaction.channel.id);
 
       if (
         firstMessage?.referenced_message?.author.bot !== true ||
