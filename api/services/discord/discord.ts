@@ -33,7 +33,6 @@ import {
   MessageSearchAuthorType,
   MessageSearchSortMode,
   MessageFlags,
-  MessageType,
   APIVersion,
   ApplicationCommandType,
   InteractionResponseType,
@@ -64,6 +63,7 @@ import { DiscordError } from "./discord-error";
 import {
   DISCORD_SERIES_STATS_RESOLVED_CACHE_TTL_SECONDS,
   extractDiscordSeriesMatchIdsFromEmbeds,
+  extractQueueNumberFromSeriesOverviewEmbed,
   getDiscordSeriesOverviewEmbed,
   getDiscordSeriesStatsCacheKey,
 } from "./discord-series-stats";
@@ -78,6 +78,11 @@ export interface QueueData {
     name: string;
     players: APIGuildMember[];
   }[];
+}
+
+export interface ExistingSeriesStatsThreadLocation {
+  threadId: string;
+  parentOverviewMessageId?: string;
 }
 
 export interface DiscordServiceOpts {
@@ -116,8 +121,9 @@ const DEFAULT_PENDING_RETRY_SECONDS = 2;
 const PENDING_CACHE_TTL_SECONDS = 60 * 5;
 const NOT_FOUND_CACHE_TTL_SECONDS = 60 * 5;
 const ACTIVE_QUEUE_LOOKUP_CACHE_TTL_SECONDS = 60 * 5;
-const MAX_PAGINATION_PAGES = 10;
 const ALL_PERMISSIONS_BITMASK = Object.values(PermissionFlagsBits).reduce((acc, bit) => acc | bit, 0n);
+const SEARCH_INDEXING_MESSAGE =
+  "Discord is still indexing recent messages for search. Please try again in a few seconds.";
 
 function getDiscordSeriesStatsLookupCacheKey(guildId: string, queueNumber: number): string {
   return `${getDiscordSeriesStatsCacheKey(guildId, queueNumber)}:lookup`;
@@ -1031,51 +1037,6 @@ export class DiscordService {
     return this.env.APP_DATA.get<T>(`interactionMetadata:${key}`, "json");
   }
 
-  async getActiveThreads(channelId: string): Promise<APIChannel[]> {
-    const response = await this.fetch<{ threads: APIChannel[] }>(`/channels/${channelId}/threads/active`, {
-      method: "GET",
-    });
-
-    return response.threads;
-  }
-
-  async getArchivedPublicThreads(channelId: string): Promise<APIChannel[]> {
-    const allThreads: APIChannel[] = [];
-    let before: string | undefined;
-
-    for (let page = 0; page < MAX_PAGINATION_PAGES; page++) {
-      const response = await this.fetch<{ threads: APIChannel[]; has_more: boolean }>(
-        `/channels/${channelId}/threads/archived/public`,
-        {
-          method: "GET",
-          queryParameters: { limit: 100, before: before ?? null },
-        },
-      );
-
-      allThreads.push(...response.threads);
-
-      const lastThread = response.threads[response.threads.length - 1];
-      const archiveTimestamp =
-        lastThread != null && "thread_metadata" in lastThread ? lastThread.thread_metadata.archive_timestamp : null;
-
-      if (!response.has_more || archiveTimestamp == null) {
-        return allThreads;
-      }
-
-      before = archiveTimestamp;
-    }
-
-    this.logService.warn(
-      "getArchivedPublicThreads: reached page limit while paging through archived threads",
-      new Map([
-        ["channelId", channelId],
-        ["maxPages", MAX_PAGINATION_PAGES.toString()],
-      ]),
-    );
-
-    return allThreads;
-  }
-
   async getMessage(channelId: string, messageId: string): Promise<APIMessage> {
     return this.fetch<APIMessage>(Routes.channelMessage(channelId, messageId), {
       method: "GET",
@@ -1089,64 +1050,87 @@ export class DiscordService {
     );
   }
 
-  async getMessages(channelId: string, limit?: number, before?: string): Promise<APIMessage[]> {
+  async getMessages(channelId: string): Promise<APIMessage[]> {
     return this.fetch<APIMessage[]>(Routes.channelMessages(channelId), {
       method: "GET",
-      ...(limit != null || before != null ? { queryParameters: { limit: limit ?? null, before: before ?? null } } : {}),
     });
   }
 
-  async getAllMessages(channelId: string): Promise<APIMessage[]> {
-    const allMessages: APIMessage[] = [];
-    let before: string | undefined;
-
-    for (let page = 0; page < MAX_PAGINATION_PAGES; page++) {
-      const messages = await this.getMessages(channelId, 100, before);
-      allMessages.push(...messages);
-
-      if (messages.length < 100) {
-        return allMessages;
-      }
-
-      before = messages[messages.length - 1]?.id;
+  private flattenSearchMessages(searchResponse: RESTGetAPIGuildMessagesSearchResult): APIMessage[] {
+    if ("retry_after" in searchResponse) {
+      throw new EndUserError(SEARCH_INDEXING_MESSAGE, { errorType: EndUserErrorType.WARNING, handled: true });
     }
 
-    this.logService.warn(
-      "getAllMessages: reached page limit while paging through channel messages",
-      new Map([
-        ["channelId", channelId],
-        ["maxPages", MAX_PAGINATION_PAGES.toString()],
-      ]),
-    );
-
-    return allMessages;
+    return searchResponse.messages.flatMap((messages) => messages);
   }
 
-  async getThreadStarterMessage(threadId: string): Promise<APIMessage | undefined> {
-    let before: string | undefined;
+  private async findSeriesOverviewMessage(guildId: string, queueNumber: number): Promise<APIMessage | undefined> {
+    const searchResponse = await this.searchGuildMessages(guildId, {
+      content: `Series stats for queue #${queueNumber.toString()}`,
+      author_id: [this.env.DISCORD_APP_ID],
+      author_type: [MessageSearchAuthorType.Bot],
+      sort_by: MessageSearchSortMode.Timestamp,
+      sort_order: "desc",
+      limit: 25,
+    });
 
-    for (let page = 0; page < MAX_PAGINATION_PAGES; page++) {
-      const messages = await this.getMessages(threadId, 100, before);
+    const messages = this.flattenSearchMessages(searchResponse);
+    return messages.find((message) => getDiscordSeriesOverviewEmbed(message, queueNumber) != null);
+  }
 
-      if (messages.length === 0) {
-        return undefined;
-      }
-
-      const starterMessage = messages.find((message) => message.type === MessageType.ThreadStarterMessage);
-      if (starterMessage != null) {
-        return starterMessage;
-      }
-
-      before = messages[messages.length - 1]?.id;
+  async findExistingSeriesStatsThreadLocation(
+    guildId: string,
+    queueNumber: number,
+  ): Promise<ExistingSeriesStatsThreadLocation | undefined> {
+    const message = await this.findSeriesOverviewMessage(guildId, queueNumber);
+    if (message == null) {
+      return undefined;
     }
 
-    this.logService.warn(
-      "getThreadStarterMessage: reached page limit without finding a starter message",
-      new Map([
-        ["threadId", threadId],
-        ["maxPages", MAX_PAGINATION_PAGES.toString()],
-      ]),
-    );
+    if (message.thread != null) {
+      return { threadId: message.thread.id, parentOverviewMessageId: message.id };
+    }
+
+    const channel = await this.getChannel(message.channel_id);
+    const isThreadChannel = [
+      ChannelType.PublicThread,
+      ChannelType.PrivateThread,
+      ChannelType.AnnouncementThread,
+    ].includes(channel.type);
+
+    return isThreadChannel ? { threadId: channel.id } : undefined;
+  }
+
+  async findBotMessagesInThread(guildId: string, threadId: string): Promise<APIMessage[]> {
+    const searchResponse = await this.searchGuildMessages(guildId, {
+      channel_id: [threadId],
+      author_id: [this.env.DISCORD_APP_ID],
+      author_type: [MessageSearchAuthorType.Bot],
+      sort_by: MessageSearchSortMode.Timestamp,
+      sort_order: "desc",
+      limit: 25,
+    });
+
+    return this.flattenSearchMessages(searchResponse);
+  }
+
+  async findQueueNumberForThread(guildId: string, threadId: string): Promise<number | undefined> {
+    const searchResponse = await this.searchGuildMessages(guildId, {
+      channel_id: [threadId],
+      author_id: [this.env.DISCORD_APP_ID],
+      author_type: [MessageSearchAuthorType.Bot],
+      sort_by: MessageSearchSortMode.Timestamp,
+      sort_order: "desc",
+      limit: 25,
+    });
+
+    const messages = this.flattenSearchMessages(searchResponse);
+    for (const message of messages) {
+      const queueNumber = extractQueueNumberFromSeriesOverviewEmbed(message);
+      if (queueNumber != null) {
+        return queueNumber;
+      }
+    }
 
     return undefined;
   }

@@ -1,7 +1,6 @@
 import type {
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
-  APIChannel,
   APIEmbed,
   APIInteractionResponseDeferredChannelMessageWithSource,
   APIMessageComponentButtonInteraction,
@@ -857,24 +856,17 @@ export class StatsCommand extends BaseCommand {
       }
 
       const guildId = Preconditions.checkExists(interaction.guild_id, "No guild ID found in interaction");
-      const firstMessage = await discordService.getThreadStarterMessage(interaction.channel.id);
+      const queueNumber = await discordService.findQueueNumberForThread(guildId, interaction.channel.id);
 
-      if (firstMessage == null) {
+      if (queueNumber == null) {
         throw new EndUserError(
-          "Could not find this thread's starter message. Try running /stats fix queue_number:<queue> from the parent channel instead.",
+          "Could not determine which queue this thread's stats are for. Try running /stats fix queue_number:<queue> from the parent channel instead.",
         );
       }
 
-      if (
-        firstMessage.referenced_message?.author.bot !== true ||
-        firstMessage.referenced_message.author.id !== NEAT_QUEUE_BOT_USER_ID
-      ) {
-        throw new EndUserError("The first message in this thread is not from NeatQueue.");
-      }
-
-      const queueData = await discordService.getTeamsFromMessage(guildId, firstMessage.referenced_message);
       const parentChannelId = "parent_id" in interaction.channel ? interaction.channel.parent_id : undefined;
       const channelId = parentChannelId ?? interaction.channel.id;
+      const queueData = await discordService.getTeamsFromQueueResult(guildId, channelId, queueNumber);
 
       await this.fixCommandStartFlow(interaction, channelId, queueData);
     } catch (error) {
@@ -1120,31 +1112,20 @@ export class StatsCommand extends BaseCommand {
       amendedOverviewEmbed.fields ??= [];
       amendedOverviewEmbed.fields.push(amendedField);
 
-      const [activeThreads, archivedThreads] = await Promise.all([
-        discordService.getActiveThreads(metadata.channelId),
-        discordService.getArchivedPublicThreads(metadata.channelId),
-      ]);
-      const relatedThreadNamePrefix = `Queue #${metadata.queueData.queue.toString()} series stats`;
-      const matchingThreads = [...activeThreads, ...archivedThreads].filter(
-        (thread) => thread.name?.startsWith(relatedThreadNamePrefix) === true,
+      const existingLocation = await discordService.findExistingSeriesStatsThreadLocation(
+        metadata.guildId,
+        metadata.queueData.queue,
       );
-      // if multiple stats threads exist for the queue (e.g. /stats neatqueue was run more than once), prefer the most recently created one
-      const relatedThread = matchingThreads.reduce<APIChannel | undefined>((mostRecent, thread) => {
-        if (mostRecent == null || BigInt(thread.id) > BigInt(mostRecent.id)) {
-          return thread;
-        }
-        return mostRecent;
-      }, undefined);
 
       let destinationThreadId: string;
-      if (relatedThread != null) {
-        destinationThreadId = relatedThread.id;
-        const existingThreadMessages = await discordService.getAllMessages(destinationThreadId);
+      if (existingLocation != null) {
+        destinationThreadId = existingLocation.threadId;
+        const existingThreadMessages = await discordService.findBotMessagesInThread(
+          metadata.guildId,
+          destinationThreadId,
+        );
         const existingGuiltySparkMessageIds = existingThreadMessages
-          .filter(
-            (message) =>
-              message.author.id === this.env.DISCORD_APP_ID && (message.content !== "" || message.embeds.length > 0),
-          )
+          .filter((message) => message.content !== "" || message.embeds.length > 0)
           .map((message) => message.id);
         await this.deleteMessagesInChunks(
           destinationThreadId,
@@ -1152,9 +1133,8 @@ export class StatsCommand extends BaseCommand {
           "Replacing amended series stats",
         );
 
-        const threadStarterMessage = await discordService.getThreadStarterMessage(destinationThreadId);
-        if (threadStarterMessage?.referenced_message?.author.id === this.env.DISCORD_APP_ID) {
-          await discordService.editMessage(metadata.channelId, threadStarterMessage.referenced_message.id, {
+        if (existingLocation.parentOverviewMessageId != null) {
+          await discordService.editMessage(metadata.channelId, existingLocation.parentOverviewMessageId, {
             embeds: amendedSeriesEmbed.embeds,
             components: amendedSeriesEmbed.components,
           });
