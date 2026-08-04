@@ -1073,7 +1073,7 @@ export class DiscordService {
       author_type: [MessageSearchAuthorType.Bot],
       sort_by: MessageSearchSortMode.Timestamp,
       sort_order: "desc",
-      limit: 25,
+      limit: SEARCH_RESULT_PAGE_SIZE,
     });
 
     const messages = this.flattenSearchMessages(searchResponse);
