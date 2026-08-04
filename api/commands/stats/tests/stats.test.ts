@@ -997,6 +997,33 @@ describe("StatsCommand", () => {
       );
     });
 
+    it("returns an actionable error when the thread's starter message cannot be found", async () => {
+      vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+        name: "fix",
+        mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>(),
+        options: [],
+      });
+      vi.spyOn(services.discordService, "getThreadStarterMessage").mockResolvedValue(undefined);
+      const getTeamsFromMessageSpy = vi.spyOn(services.discordService, "getTeamsFromMessage");
+
+      const threadInteraction: APIApplicationCommandInteraction = {
+        ...applicationCommandInteractionStatsFix,
+        channel: threadChannel,
+      };
+
+      const { jobToComplete } = statsCommand.execute(threadInteraction);
+      await jobToComplete?.();
+
+      expect(getTeamsFromMessageSpy).not.toHaveBeenCalled();
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          message:
+            "Could not find this thread's starter message. Try running /stats fix queue_number:<queue> from the parent channel instead.",
+        }),
+      );
+    });
+
     it("starts player selection flow when user is queue player", async () => {
       const queuePlayerInteraction: APIApplicationCommandInteraction = {
         ...applicationCommandInteractionStatsFix,
@@ -1281,7 +1308,7 @@ describe("StatsCommand", () => {
         },
       ]);
       vi.spyOn(services.discordService, "getArchivedPublicThreads").mockResolvedValue([]);
-      vi.spyOn(services.discordService, "getMessages").mockResolvedValue([
+      vi.spyOn(services.discordService, "getAllMessages").mockResolvedValue([
         {
           ...apiMessage,
           id: "thread-msg-1",
@@ -1397,7 +1424,7 @@ describe("StatsCommand", () => {
         },
       ]);
       vi.spyOn(services.discordService, "getArchivedPublicThreads").mockResolvedValue([]);
-      vi.spyOn(services.discordService, "getMessages").mockResolvedValue([]);
+      vi.spyOn(services.discordService, "getAllMessages").mockResolvedValue([]);
       vi.spyOn(services.discordService, "bulkDeleteMessages").mockResolvedValue();
       vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
       vi.spyOn(services.discordService, "getThreadStarterMessage").mockResolvedValue({
@@ -1470,7 +1497,7 @@ describe("StatsCommand", () => {
         },
       ]);
       vi.spyOn(services.discordService, "getArchivedPublicThreads").mockResolvedValue([]);
-      vi.spyOn(services.discordService, "getMessages").mockResolvedValue([]);
+      vi.spyOn(services.discordService, "getAllMessages").mockResolvedValue([]);
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
       vi.spyOn(services.discordService, "getThreadStarterMessage").mockResolvedValue(undefined);
       vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
@@ -1522,7 +1549,7 @@ describe("StatsCommand", () => {
           parent_id: "fake-channel-id",
         },
       ]);
-      vi.spyOn(services.discordService, "getMessages").mockResolvedValue([]);
+      vi.spyOn(services.discordService, "getAllMessages").mockResolvedValue([]);
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
       vi.spyOn(services.discordService, "getThreadStarterMessage").mockResolvedValue(undefined);
       vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
@@ -1574,7 +1601,7 @@ describe("StatsCommand", () => {
         },
       ]);
       vi.spyOn(services.discordService, "getArchivedPublicThreads").mockResolvedValue([]);
-      vi.spyOn(services.discordService, "getMessages").mockResolvedValue([
+      vi.spyOn(services.discordService, "getAllMessages").mockResolvedValue([
         {
           ...apiMessage,
           id: "thread-msg-1",

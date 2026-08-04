@@ -116,7 +116,7 @@ const DEFAULT_PENDING_RETRY_SECONDS = 2;
 const PENDING_CACHE_TTL_SECONDS = 60 * 5;
 const NOT_FOUND_CACHE_TTL_SECONDS = 60 * 5;
 const ACTIVE_QUEUE_LOOKUP_CACHE_TTL_SECONDS = 60 * 5;
-const MAX_THREAD_STARTER_MESSAGE_PAGES = 10;
+const MAX_MESSAGE_SEARCH_PAGES = 10;
 
 function getDiscordSeriesStatsLookupCacheKey(guildId: string, queueNumber: number): string {
   return `${getDiscordSeriesStatsCacheKey(guildId, queueNumber)}:lookup`;
@@ -1060,21 +1060,44 @@ export class DiscordService {
     );
   }
 
-  async getMessages(channelId: string, limit?: number): Promise<APIMessage[]> {
+  async getMessages(channelId: string, limit?: number, before?: string): Promise<APIMessage[]> {
     return this.fetch<APIMessage[]>(Routes.channelMessages(channelId), {
       method: "GET",
-      ...(limit != null ? { queryParameters: { limit } } : {}),
+      ...(limit != null || before != null ? { queryParameters: { limit: limit ?? null, before: before ?? null } } : {}),
     });
+  }
+
+  async getAllMessages(channelId: string): Promise<APIMessage[]> {
+    const allMessages: APIMessage[] = [];
+    let before: string | undefined;
+
+    for (let page = 0; page < MAX_MESSAGE_SEARCH_PAGES; page++) {
+      const messages = await this.getMessages(channelId, 100, before);
+      allMessages.push(...messages);
+
+      if (messages.length < 100) {
+        return allMessages;
+      }
+
+      before = messages[messages.length - 1]?.id;
+    }
+
+    this.logService.warn(
+      "getAllMessages: reached page limit while paging through channel messages",
+      new Map([
+        ["channelId", channelId],
+        ["maxPages", MAX_MESSAGE_SEARCH_PAGES.toString()],
+      ]),
+    );
+
+    return allMessages;
   }
 
   async getThreadStarterMessage(threadId: string): Promise<APIMessage | undefined> {
     let before: string | undefined;
 
-    for (let page = 0; page < MAX_THREAD_STARTER_MESSAGE_PAGES; page++) {
-      const messages = await this.fetch<APIMessage[]>(Routes.channelMessages(threadId), {
-        method: "GET",
-        queryParameters: { limit: 100, before: before ?? null },
-      });
+    for (let page = 0; page < MAX_MESSAGE_SEARCH_PAGES; page++) {
+      const messages = await this.getMessages(threadId, 100, before);
 
       if (messages.length === 0) {
         return undefined;
@@ -1092,7 +1115,7 @@ export class DiscordService {
       "getThreadStarterMessage: reached page limit without finding a starter message",
       new Map([
         ["threadId", threadId],
-        ["maxPages", MAX_THREAD_STARTER_MESSAGE_PAGES.toString()],
+        ["maxPages", MAX_MESSAGE_SEARCH_PAGES.toString()],
       ]),
     );
 

@@ -859,8 +859,14 @@ export class StatsCommand extends BaseCommand {
       const guildId = Preconditions.checkExists(interaction.guild_id, "No guild ID found in interaction");
       const firstMessage = await discordService.getThreadStarterMessage(interaction.channel.id);
 
+      if (firstMessage == null) {
+        throw new EndUserError(
+          "Could not find this thread's starter message. Try running /stats fix queue_number:<queue> from the parent channel instead.",
+        );
+      }
+
       if (
-        firstMessage?.referenced_message?.author.bot !== true ||
+        firstMessage.referenced_message?.author.bot !== true ||
         firstMessage.referenced_message.author.id !== NEAT_QUEUE_BOT_USER_ID
       ) {
         throw new EndUserError("The first message in this thread is not from NeatQueue.");
@@ -1133,7 +1139,7 @@ export class StatsCommand extends BaseCommand {
       let destinationThreadId: string;
       if (relatedThread != null) {
         destinationThreadId = relatedThread.id;
-        const existingThreadMessages = await discordService.getMessages(destinationThreadId, 100);
+        const existingThreadMessages = await discordService.getAllMessages(destinationThreadId);
         const existingGuiltySparkMessageIds = existingThreadMessages
           .filter(
             (message) =>

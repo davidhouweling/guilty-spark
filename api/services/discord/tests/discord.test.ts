@@ -1353,9 +1353,83 @@ describe("DiscordService", () => {
           "content-type": "application/json;charset=UTF-8",
         }),
         method: "GET",
-        queryParameters: { limit: 100 },
+        queryParameters: { limit: 100, before: null },
       });
       expect(messages).toEqual([apiMessage]);
+    });
+
+    it("fetches messages before a given message id when provided", async () => {
+      mockFetch.mockResolvedValue(new Response(JSON.stringify([apiMessage])));
+
+      const messages = await discordService.getMessages("fake-channel", 100, "before-message-id");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "https://discord.com/api/v10/channels/fake-channel/messages?limit=100&before=before-message-id",
+        {
+          body: null,
+          headers: new Headers({
+            Authorization: "Bot DISCORD_TOKEN",
+            "content-type": "application/json;charset=UTF-8",
+          }),
+          method: "GET",
+          queryParameters: { limit: 100, before: "before-message-id" },
+        },
+      );
+      expect(messages).toEqual([apiMessage]);
+    });
+  });
+
+  describe("getAllMessages()", () => {
+    it("returns messages from a single page when fewer than the page size", async () => {
+      mockFetch.mockResolvedValue(new Response(JSON.stringify([apiMessage])));
+
+      const messages = await discordService.getAllMessages("fake-channel");
+
+      expect(messages).toEqual([apiMessage]);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("pages through multiple full pages until a partial page is returned", async () => {
+      const firstPage = Array.from({ length: 100 }, (_, index) => ({
+        ...apiMessage,
+        id: `page-1-message-${index.toString()}`,
+      }));
+      const secondPage = [{ ...apiMessage, id: "page-2-message-0" }];
+      mockFetch
+        .mockResolvedValueOnce(new Response(JSON.stringify(firstPage)))
+        .mockResolvedValueOnce(new Response(JSON.stringify(secondPage)));
+
+      const messages = await discordService.getAllMessages("fake-channel");
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        2,
+        "https://discord.com/api/v10/channels/fake-channel/messages?limit=100&before=page-1-message-99",
+        expect.anything(),
+      );
+      expect(messages).toEqual([...firstPage, ...secondPage]);
+    });
+
+    it("logs a warning and stops after the page limit when every page is full", async () => {
+      const logWarnSpy = vi.spyOn(logService, "warn");
+      let call = 0;
+      // every page is full (100 items), so paging never terminates naturally and the cap kicks in
+      mockFetch.mockImplementation(async () => {
+        call += 1;
+        const page = Array.from({ length: 100 }, (_, index) => ({
+          ...apiMessage,
+          id: `message-${call.toString()}-${index.toString()}`,
+        }));
+        return Promise.resolve(new Response(JSON.stringify(page)));
+      });
+
+      const messages = await discordService.getAllMessages("fake-channel");
+
+      expect(messages).toHaveLength(1000);
+      expect(logWarnSpy).toHaveBeenCalledWith(
+        "getAllMessages: reached page limit while paging through channel messages",
+        expect.anything(),
+      );
     });
   });
 
