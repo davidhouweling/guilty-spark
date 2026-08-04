@@ -116,7 +116,7 @@ const DEFAULT_PENDING_RETRY_SECONDS = 2;
 const PENDING_CACHE_TTL_SECONDS = 60 * 5;
 const NOT_FOUND_CACHE_TTL_SECONDS = 60 * 5;
 const ACTIVE_QUEUE_LOOKUP_CACHE_TTL_SECONDS = 60 * 5;
-const MAX_MESSAGE_SEARCH_PAGES = 10;
+const MAX_PAGINATION_PAGES = 10;
 const ALL_PERMISSIONS_BITMASK = Object.values(PermissionFlagsBits).reduce((acc, bit) => acc | bit, 0n);
 
 function getDiscordSeriesStatsLookupCacheKey(guildId: string, queueNumber: number): string {
@@ -1043,7 +1043,7 @@ export class DiscordService {
     const allThreads: APIChannel[] = [];
     let before: string | undefined;
 
-    for (let page = 0; page < MAX_MESSAGE_SEARCH_PAGES; page++) {
+    for (let page = 0; page < MAX_PAGINATION_PAGES; page++) {
       const response = await this.fetch<{ threads: APIChannel[]; has_more: boolean }>(
         `/channels/${channelId}/threads/archived/public`,
         {
@@ -1069,7 +1069,7 @@ export class DiscordService {
       "getArchivedPublicThreads: reached page limit while paging through archived threads",
       new Map([
         ["channelId", channelId],
-        ["maxPages", MAX_MESSAGE_SEARCH_PAGES.toString()],
+        ["maxPages", MAX_PAGINATION_PAGES.toString()],
       ]),
     );
 
@@ -1100,7 +1100,7 @@ export class DiscordService {
     const allMessages: APIMessage[] = [];
     let before: string | undefined;
 
-    for (let page = 0; page < MAX_MESSAGE_SEARCH_PAGES; page++) {
+    for (let page = 0; page < MAX_PAGINATION_PAGES; page++) {
       const messages = await this.getMessages(channelId, 100, before);
       allMessages.push(...messages);
 
@@ -1115,7 +1115,7 @@ export class DiscordService {
       "getAllMessages: reached page limit while paging through channel messages",
       new Map([
         ["channelId", channelId],
-        ["maxPages", MAX_MESSAGE_SEARCH_PAGES.toString()],
+        ["maxPages", MAX_PAGINATION_PAGES.toString()],
       ]),
     );
 
@@ -1125,7 +1125,7 @@ export class DiscordService {
   async getThreadStarterMessage(threadId: string): Promise<APIMessage | undefined> {
     let before: string | undefined;
 
-    for (let page = 0; page < MAX_MESSAGE_SEARCH_PAGES; page++) {
+    for (let page = 0; page < MAX_PAGINATION_PAGES; page++) {
       const messages = await this.getMessages(threadId, 100, before);
 
       if (messages.length === 0) {
@@ -1144,7 +1144,7 @@ export class DiscordService {
       "getThreadStarterMessage: reached page limit without finding a starter message",
       new Map([
         ["threadId", threadId],
-        ["maxPages", MAX_MESSAGE_SEARCH_PAGES.toString()],
+        ["maxPages", MAX_PAGINATION_PAGES.toString()],
       ]),
     );
 
