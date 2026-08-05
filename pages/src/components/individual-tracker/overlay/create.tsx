@@ -59,7 +59,7 @@ function IndividualTrackerOverlayPageInternal({
     [haloClient, medalMetadataResolver, matchAnalyticsService, store],
   );
 
-  const { snapshot, model, onRetry, onToggleEntry } = useIndividualTrackerViewer({
+  const { snapshot, model, onRetry } = useIndividualTrackerViewer({
     individualTrackerViewService,
     matchAnalyticsService,
     seriesMatchesService,
@@ -139,16 +139,9 @@ function IndividualTrackerOverlayPageInternal({
 
     return null;
   }, [model.renderModel, overlayModel.selectedSeriesId]);
-  const selectedSeriesEntryState = useMemo(() => {
-    if (overlayModel.selectedSeriesId == null) {
-      return null;
-    }
-
-    return model.entryStates.get(`series:${overlayModel.selectedSeriesId}`) ?? null;
-  }, [model.entryStates, overlayModel.selectedSeriesId]);
   const selectedSeriesPanelState = useMemo(
-    () => (selectedSeriesEntryState?.kind === "series" ? selectedSeriesEntryState.state : null),
-    [selectedSeriesEntryState],
+    () => presenter.buildSeriesStatsPanelState(selectedSeries, overlaySnapshot.matchStatsByMatchId),
+    [presenter, selectedSeries, overlaySnapshot.matchStatsByMatchId],
   );
   const overlayViewModel = useMemo(
     () =>
@@ -210,7 +203,7 @@ function IndividualTrackerOverlayPageInternal({
               presenter.selectMatch(matchId);
             }}
             onSelectSeries={(seriesId): void => {
-              presenter.selectSeriesAndToggleIfAvailable(model.renderModel?.timeline ?? null, seriesId, onToggleEntry);
+              presenter.selectSeries(seriesId);
             }}
             onDeselect={(): void => {
               presenter.deselect();
