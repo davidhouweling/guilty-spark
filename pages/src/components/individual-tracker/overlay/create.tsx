@@ -59,7 +59,7 @@ function IndividualTrackerOverlayPageInternal({
     [haloClient, medalMetadataResolver, matchAnalyticsService, store],
   );
 
-  const { snapshot, model, onRetry, onToggleEntry } = useIndividualTrackerViewer({
+  const { snapshot, model, onRetry } = useIndividualTrackerViewer({
     individualTrackerViewService,
     matchAnalyticsService,
     seriesMatchesService,
@@ -83,19 +83,7 @@ function IndividualTrackerOverlayPageInternal({
       return;
     }
 
-    const matchIds = new Set<string>();
-    for (const item of model.renderModel.timeline) {
-      if (item.type === "match") {
-        matchIds.add(item.match.matchId);
-        continue;
-      }
-
-      for (const match of item.series.matches) {
-        matchIds.add(match.matchId);
-      }
-    }
-
-    presenter.preloadMatchStats([...matchIds]);
+    presenter.preloadTimelineMatchStats(model.renderModel.timeline);
   }, [model.renderModel, presenter]);
 
   const overlaySnapshot = useSyncExternalStore(
@@ -106,49 +94,23 @@ function IndividualTrackerOverlayPageInternal({
 
   const overlayModel = useMemo(() => presenter.present(overlaySnapshot), [overlaySnapshot, presenter]);
   const overlayPresenter = useMemo(() => new IndividualTrackerOverlayPresenter(), []);
-  const selectedMatch = useMemo(() => {
-    if (model.renderModel == null || overlayModel.selectedMatchId == null) {
-      return null;
-    }
-
-    for (const item of model.renderModel.timeline) {
-      if (item.type === "match" && item.match.matchId === overlayModel.selectedMatchId) {
-        return item.match;
-      }
-
-      if (item.type === "series") {
-        const seriesMatch = item.series.matches.find((match) => match.matchId === overlayModel.selectedMatchId);
-        if (seriesMatch != null) {
-          return seriesMatch;
-        }
-      }
-    }
-
-    return null;
-  }, [model.renderModel, overlayModel.selectedMatchId]);
-  const selectedSeries = useMemo(() => {
-    if (model.renderModel == null || overlayModel.selectedSeriesId == null) {
-      return null;
-    }
-
-    for (const item of model.renderModel.timeline) {
-      if (item.type === "series" && item.series.id === overlayModel.selectedSeriesId) {
-        return item.series;
-      }
-    }
-
-    return null;
-  }, [model.renderModel, overlayModel.selectedSeriesId]);
-  const selectedSeriesEntryState = useMemo(() => {
-    if (overlayModel.selectedSeriesId == null) {
-      return null;
-    }
-
-    return model.entryStates.get(`series:${overlayModel.selectedSeriesId}`) ?? null;
-  }, [model.entryStates, overlayModel.selectedSeriesId]);
+  const selectedMatch = useMemo(
+    () =>
+      model.renderModel == null
+        ? null
+        : presenter.findSelectedMatch(model.renderModel.timeline, overlayModel.selectedMatchId),
+    [model.renderModel, overlayModel.selectedMatchId, presenter],
+  );
+  const selectedSeries = useMemo(
+    () =>
+      model.renderModel == null
+        ? null
+        : presenter.findSelectedSeries(model.renderModel.timeline, overlayModel.selectedSeriesId),
+    [model.renderModel, overlayModel.selectedSeriesId, presenter],
+  );
   const selectedSeriesPanelState = useMemo(
-    () => (selectedSeriesEntryState?.kind === "series" ? selectedSeriesEntryState.state : null),
-    [selectedSeriesEntryState],
+    () => presenter.buildSeriesStatsPanelState(selectedSeries, overlaySnapshot.matchStatsByMatchId),
+    [presenter, selectedSeries, overlaySnapshot.matchStatsByMatchId],
   );
   const overlayViewModel = useMemo(
     () =>
@@ -210,7 +172,7 @@ function IndividualTrackerOverlayPageInternal({
               presenter.selectMatch(matchId);
             }}
             onSelectSeries={(seriesId): void => {
-              presenter.selectSeriesAndToggleIfAvailable(model.renderModel?.timeline ?? null, seriesId, onToggleEntry);
+              presenter.selectSeries(seriesId);
             }}
             onDeselect={(): void => {
               presenter.deselect();
