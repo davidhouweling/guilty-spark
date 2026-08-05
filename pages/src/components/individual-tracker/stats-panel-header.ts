@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { isValid, parseISO } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { StatsHeaderItem } from "../stats/stats-header";
 import type { ViewerMatchTab, ViewerSeriesTab } from "./viewer/types";
@@ -8,8 +9,8 @@ function formatDate(value: string | null): string {
     return "unknown";
   }
 
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "unknown" : date.toLocaleString();
+  const date = parseISO(value);
+  return isValid(date) ? date.toLocaleString() : "unknown";
 }
 
 export function buildMatchHeaderTitle(match: ViewerMatchTab): string {
