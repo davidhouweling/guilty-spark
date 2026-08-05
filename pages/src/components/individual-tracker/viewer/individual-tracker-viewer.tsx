@@ -463,7 +463,7 @@ export function IndividualTrackerViewer({
                                   src={gameModeIconSrc(seriesMatch.gameVariantCategory)}
                                   alt={seriesMatch.gameModeName}
                                   className={classNames(styles.entryModeIcon, {
-                                    [styles.seriesModeIconMuted]: seriesMatch.outcome === "Loss",
+                                    [styles.seriesModeIconMuted]: !series.isActive && seriesMatch.outcome === "Loss",
                                   })}
                                 />
                               ))}
