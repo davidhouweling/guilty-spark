@@ -219,6 +219,68 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.queryByText(/End time/)).not.toBeInTheDocument();
   });
 
+  it("does not mute a lost match's icon while its series is still active", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m-1",
+          mapAssetId: "map-asset-1",
+          gameVariantCategory: 6,
+          outcome: "Win",
+        }),
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m-2",
+          mapAssetId: "map-asset-2",
+          gameVariantCategory: 7,
+          outcome: "Loss",
+        }),
+      ],
+      series: [
+        aFakeTrackerSeriesGroupWith({ matchIds: ["m-1", "m-2"], title: "Ranked Series", subtitle: "Best of 3" }),
+      ],
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Ranked Series",
+        subtitle: "Best of 3",
+        teams: [],
+      },
+    });
+
+    renderViewer(view);
+
+    const icons = within(screen.getByLabelText("Series Ranked Series")).getAllByRole("img");
+    expect(icons).toHaveLength(2);
+    expect(icons.every((icon) => !icon.className.includes("seriesModeIconMuted"))).toBe(true);
+  });
+
+  it("mutes a lost match's icon once its series has completed", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m-1",
+          mapAssetId: "map-asset-1",
+          gameVariantCategory: 6,
+          outcome: "Win",
+        }),
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m-2",
+          mapAssetId: "map-asset-2",
+          gameVariantCategory: 7,
+          outcome: "Loss",
+        }),
+      ],
+      series: [
+        aFakeTrackerSeriesGroupWith({ matchIds: ["m-1", "m-2"], title: "Completed Series", subtitle: "Best of 3" }),
+      ],
+    });
+
+    renderViewer(view);
+
+    const icons = within(screen.getByLabelText("Series Completed Series")).getAllByRole("img");
+    expect(icons).toHaveLength(2);
+    expect(icons.some((icon) => icon.className.includes("seriesModeIconMuted"))).toBe(true);
+  });
+
   it("marks only the most recent series as In progress when active context is missing", () => {
     const view = aFakeTrackerViewStateWith({
       matches: [
