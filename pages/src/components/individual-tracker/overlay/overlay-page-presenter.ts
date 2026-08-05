@@ -9,7 +9,13 @@ import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
-import type { MatchDetailsState, SeriesDetailsState, ViewerMatchTab, ViewerSeriesTab } from "../viewer/types";
+import type {
+  MatchDetailsState,
+  SeriesDetailsState,
+  ViewerMatchTab,
+  ViewerSeriesTab,
+  ViewerTimelineItem,
+} from "../viewer/types";
 import { formatScoreProgression } from "../../stats/score-progression/score-progression-formatter";
 import { buildSeriesViewModel, type ResolvedSeriesMatch } from "../../series-stats/build-series-view-model";
 import type { SeriesStatsViewModel } from "../../series-stats/types";
@@ -72,6 +78,51 @@ export class OverlayPagePresenter {
     }
   }
 
+  public preloadTimelineMatchStats(timeline: readonly ViewerTimelineItem[]): void {
+    this.preloadMatchStats(this.collectTimelineMatchIds(timeline));
+  }
+
+  public findSelectedMatch(
+    timeline: readonly ViewerTimelineItem[],
+    selectedMatchId: string | null,
+  ): ViewerMatchTab | null {
+    if (selectedMatchId == null) {
+      return null;
+    }
+
+    for (const item of timeline) {
+      if (item.type === "match" && item.match.matchId === selectedMatchId) {
+        return item.match;
+      }
+
+      if (item.type === "series") {
+        const seriesMatch = item.series.matches.find((match) => match.matchId === selectedMatchId);
+        if (seriesMatch != null) {
+          return seriesMatch;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  public findSelectedSeries(
+    timeline: readonly ViewerTimelineItem[],
+    selectedSeriesId: string | null,
+  ): ViewerSeriesTab | null {
+    if (selectedSeriesId == null) {
+      return null;
+    }
+
+    for (const item of timeline) {
+      if (item.type === "series" && item.series.id === selectedSeriesId) {
+        return item.series;
+      }
+    }
+
+    return null;
+  }
+
   public selectMatch(matchId: string): void {
     this.config.store.setSelectedMatchId(matchId);
 
@@ -116,6 +167,22 @@ export class OverlayPagePresenter {
       seriesId: series.id,
       viewModel: this.buildSeriesViewModelFromCache(series, loadedMatches),
     };
+  }
+
+  private collectTimelineMatchIds(timeline: readonly ViewerTimelineItem[]): readonly string[] {
+    const matchIds = new Set<string>();
+    for (const item of timeline) {
+      if (item.type === "match") {
+        matchIds.add(item.match.matchId);
+        continue;
+      }
+
+      for (const match of item.series.matches) {
+        matchIds.add(match.matchId);
+      }
+    }
+
+    return [...matchIds];
   }
 
   private toLoadedSeriesMatches(

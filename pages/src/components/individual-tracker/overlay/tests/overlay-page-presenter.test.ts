@@ -6,7 +6,7 @@ import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
 import { HaloMedalMetadataResolver } from "../../../../services/halo/medal-metadata-resolver";
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
-import type { ViewerMatchTab, ViewerSeriesTab } from "../../viewer/types";
+import type { ViewerMatchTab, ViewerSeriesTab, ViewerTimelineItem } from "../../viewer/types";
 import type { MatchStatsState } from "../individual-tracker-overlay-presenter";
 import { OverlayPagePresenter } from "../overlay-page-presenter";
 import { OverlayPageStore } from "../overlay-page-store";
@@ -108,6 +108,19 @@ function aMedalsMetadataFile(): Awaited<ReturnType<HaloInfiniteClient["getMedals
       },
     ],
   };
+}
+
+function aPresenter(): OverlayPagePresenter {
+  const store = new OverlayPageStore();
+  const haloClient = aFakeHaloClientWith({
+    getMatchStats: vi.fn(async () => Promise.resolve(aFakeMatchStatsWith())),
+  });
+  return new OverlayPagePresenter({
+    store,
+    haloClient,
+    medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
+    matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+  });
 }
 
 describe("OverlayPagePresenter", () => {
@@ -344,20 +357,91 @@ describe("OverlayPagePresenter", () => {
     unsubscribe();
   });
 
-  describe("buildSeriesStatsPanelState", () => {
-    function aPresenter(): OverlayPagePresenter {
+  describe("preloadTimelineMatchStats", () => {
+    it("preloads stats for standalone matches and matches nested inside series entries", async () => {
+      const getMatchStats = vi
+        .fn(async (matchId: string) => Promise.resolve(aFakeMatchStatsWith({ MatchId: matchId })))
+        .mockName("getMatchStats");
       const store = new OverlayPageStore();
       const haloClient = aFakeHaloClientWith({
-        getMatchStats: vi.fn(async () => Promise.resolve(aFakeMatchStatsWith())),
+        getMatchStats,
+        getUsers: vi.fn(async (xuids: string[]) => Promise.resolve(aUsersFor(xuids))),
       });
-      return new OverlayPagePresenter({
+      const presenter = new OverlayPagePresenter({
         store,
         haloClient,
         medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
         matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
       });
-    }
+      const timeline: readonly ViewerTimelineItem[] = [
+        { type: "match", match: aMatchTabWith({ matchId: "standalone-1" }) },
+        {
+          type: "series",
+          series: aSeriesTabWith({
+            matches: [aMatchTabWith({ matchId: "series-match-1" }), aMatchTabWith({ matchId: "series-match-2" })],
+          }),
+        },
+      ];
 
+      presenter.preloadTimelineMatchStats(timeline);
+
+      await waitFor(() => {
+        expect(store.getSnapshot().matchStatsByMatchId.get("standalone-1")?.status).toBe("loaded");
+        expect(store.getSnapshot().matchStatsByMatchId.get("series-match-1")?.status).toBe("loaded");
+        expect(store.getSnapshot().matchStatsByMatchId.get("series-match-2")?.status).toBe("loaded");
+      });
+      expect(getMatchStats).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe("findSelectedMatch", () => {
+    it("returns null when no match is selected", () => {
+      expect(aPresenter().findSelectedMatch([], null)).toBeNull();
+    });
+
+    it("finds a standalone match tab by id", () => {
+      const match = aMatchTabWith({ matchId: "match-1" });
+      const timeline: readonly ViewerTimelineItem[] = [{ type: "match", match }];
+
+      expect(aPresenter().findSelectedMatch(timeline, "match-1")).toBe(match);
+    });
+
+    it("finds a match nested inside a series entry", () => {
+      const seriesMatch = aMatchTabWith({ matchId: "series-match-1" });
+      const timeline: readonly ViewerTimelineItem[] = [
+        { type: "series", series: aSeriesTabWith({ matches: [seriesMatch] }) },
+      ];
+
+      expect(aPresenter().findSelectedMatch(timeline, "series-match-1")).toBe(seriesMatch);
+    });
+
+    it("returns null when the selected match id isn't in the timeline", () => {
+      const timeline: readonly ViewerTimelineItem[] = [{ type: "match", match: aMatchTabWith({ matchId: "match-1" }) }];
+
+      expect(aPresenter().findSelectedMatch(timeline, "missing")).toBeNull();
+    });
+  });
+
+  describe("findSelectedSeries", () => {
+    it("returns null when no series is selected", () => {
+      expect(aPresenter().findSelectedSeries([], null)).toBeNull();
+    });
+
+    it("finds a series entry by id", () => {
+      const series = aSeriesTabWith({ id: "series-1" });
+      const timeline: readonly ViewerTimelineItem[] = [{ type: "series", series }];
+
+      expect(aPresenter().findSelectedSeries(timeline, "series-1")).toBe(series);
+    });
+
+    it("returns null when the selected series id isn't in the timeline", () => {
+      const timeline: readonly ViewerTimelineItem[] = [{ type: "series", series: aSeriesTabWith({ id: "series-1" }) }];
+
+      expect(aPresenter().findSelectedSeries(timeline, "missing")).toBeNull();
+    });
+  });
+
+  describe("buildSeriesStatsPanelState", () => {
     it("returns null when there is no selected series", () => {
       expect(aPresenter().buildSeriesStatsPanelState(null, new Map())).toBeNull();
     });
