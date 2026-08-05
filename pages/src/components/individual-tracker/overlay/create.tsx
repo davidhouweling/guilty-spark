@@ -106,6 +106,39 @@ function IndividualTrackerOverlayPageInternal({
 
   const overlayModel = useMemo(() => presenter.present(overlaySnapshot), [overlaySnapshot, presenter]);
   const overlayPresenter = useMemo(() => new IndividualTrackerOverlayPresenter(), []);
+  const selectedMatch = useMemo(() => {
+    if (model.renderModel == null || overlayModel.selectedMatchId == null) {
+      return null;
+    }
+
+    for (const item of model.renderModel.timeline) {
+      if (item.type === "match" && item.match.matchId === overlayModel.selectedMatchId) {
+        return item.match;
+      }
+
+      if (item.type === "series") {
+        const seriesMatch = item.series.matches.find((match) => match.matchId === overlayModel.selectedMatchId);
+        if (seriesMatch != null) {
+          return seriesMatch;
+        }
+      }
+    }
+
+    return null;
+  }, [model.renderModel, overlayModel.selectedMatchId]);
+  const selectedSeries = useMemo(() => {
+    if (model.renderModel == null || overlayModel.selectedSeriesId == null) {
+      return null;
+    }
+
+    for (const item of model.renderModel.timeline) {
+      if (item.type === "series" && item.series.id === overlayModel.selectedSeriesId) {
+        return item.series;
+      }
+    }
+
+    return null;
+  }, [model.renderModel, overlayModel.selectedSeriesId]);
   const selectedSeriesEntryState = useMemo(() => {
     if (overlayModel.selectedSeriesId == null) {
       return null;
@@ -167,6 +200,8 @@ function IndividualTrackerOverlayPageInternal({
             matchesLength={model.renderModel.accumulated.total}
             matchStatsPanelState={overlayModel.matchStatsPanelState}
             seriesStatsPanelState={selectedSeriesPanelState}
+            selectedMatch={selectedMatch}
+            selectedSeries={selectedSeries}
             selectedMatchId={overlayModel.selectedMatchId}
             selectedSeriesId={overlayModel.selectedSeriesId}
             showPreview={showPreview}

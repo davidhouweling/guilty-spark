@@ -4,3 +4,33 @@
   overflow: hidden;
   position: fixed;
 }
+
+.seriesPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.headerVisuals {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.headerModeIcon {
+  filter: drop-shadow(0 2px 4px rgb(0 0 0 / 50%));
+  height: 1.75rem;
+  width: 1.75rem;
+}
+
+.seriesModeIcons {
+  display: flex;
+  flex-flow: row wrap;
+  gap: var(--space-1);
+  justify-content: flex-end;
+  max-width: 160px;
+}
+
+.seriesModeIconMuted {
+  filter: grayscale(100%) opacity(45%);
+}
