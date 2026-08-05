@@ -1,9 +1,10 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { act, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook } from "@testing-library/react";
 import { useRotatingBackgroundTick } from "../use-rotating-background-tick";
 
 describe("useRotatingBackgroundTick", () => {
   afterEach(() => {
+    cleanup();
     vi.useRealTimers();
   });
 
