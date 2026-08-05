@@ -192,6 +192,7 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(seriesTab.type).toBe("series");
     if (seriesTab.type === "series") {
       expect(seriesTab.seriesId).toBe("series-complete");
+      expect(seriesTab.label).toBe("Eagle vs Cobra - Best of 3");
       expect(seriesTab.icons).toEqual([
         { src: gameModeIconSrc(6), dimmed: false },
         { src: gameModeIconSrc(7), dimmed: false },
@@ -201,6 +202,25 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(matchTab.type).toBe("match");
     if (matchTab.type === "match") {
       expect(matchTab.icon).toBe(gameModeIconSrc(8));
+    }
+  });
+
+  it("omits the subtitle from a matchmaking series tab's label when there is none", () => {
+    const completedSeries = aSeriesWith({
+      id: "series-no-subtitle",
+      isActive: false,
+      title: "Eagle vs Cobra",
+      subtitle: "",
+    });
+
+    const timeline: ViewerTimelineItem[] = [{ type: "series", series: completedSeries }];
+
+    const tabs = presenter.buildTabs(timeline);
+    const seriesTab = tabs.find((tab) => tab.type === "series" && tab.seriesId === "series-no-subtitle");
+
+    expect(seriesTab?.type).toBe("series");
+    if (seriesTab?.type === "series") {
+      expect(seriesTab.label).toBe("Eagle vs Cobra");
     }
   });
 

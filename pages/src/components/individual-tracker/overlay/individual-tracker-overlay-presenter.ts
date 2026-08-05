@@ -85,6 +85,10 @@ function getSeriesOutcomeColorHex(series: ViewerSeriesTab): string | undefined {
   return undefined;
 }
 
+function getSeriesTabLabel(series: ViewerSeriesTab): string {
+  return series.subtitle !== "" ? `${series.title} - ${series.subtitle}` : series.title;
+}
+
 export type MatchStatsState =
   | { readonly status: "loading" }
   | {
@@ -272,7 +276,7 @@ export class IndividualTrackerOverlayPresenter {
             type: "series",
             seriesId: item.series.id,
             index: seriesIdx--,
-            label: item.series.title,
+            label: getSeriesTabLabel(item.series),
             score: item.series.score,
             teamColor: getSeriesOutcomeColorHex(item.series),
             icons: item.series.iconMatches.map((match) => ({
