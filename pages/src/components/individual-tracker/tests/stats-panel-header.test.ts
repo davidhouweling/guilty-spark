@@ -51,9 +51,7 @@ function aSeriesWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesTab 
 
 describe("buildMatchHeaderTitle", () => {
   it("combines the game mode name and map name", () => {
-    expect(buildMatchHeaderTitle(aMatchWith({ gameModeName: "Slayer", mapName: "Aquarius" }))).toBe(
-      "Slayer: Aquarius",
-    );
+    expect(buildMatchHeaderTitle(aMatchWith({ gameModeName: "Slayer", mapName: "Aquarius" }))).toBe("Slayer: Aquarius");
   });
 });
 
@@ -111,9 +109,7 @@ describe("buildSeriesHeaderMetadata", () => {
   });
 
   it("shows start time instead of end time for an active series", () => {
-    const metadata = buildSeriesHeaderMetadata(
-      aSeriesWith({ isActive: true, startTime: "2026-01-01T00:00:00.000Z" }),
-    );
+    const metadata = buildSeriesHeaderMetadata(aSeriesWith({ isActive: true, startTime: "2026-01-01T00:00:00.000Z" }));
 
     expect(metadata.map((item) => item.label)).toEqual([
       "Score",
