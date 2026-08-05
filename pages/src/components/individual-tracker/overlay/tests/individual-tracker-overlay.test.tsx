@@ -30,6 +30,47 @@ function aRenderModel(
   return buildViewerRenderModel({ view: aFakeTrackerViewStateWith(overrides) });
 }
 
+function findTimelineMatch(
+  timeline: ReturnType<typeof buildViewerRenderModel>["timeline"],
+  matchId: string | null,
+): React.ComponentProps<typeof IndividualTrackerOverlay>["selectedMatch"] {
+  if (matchId == null) {
+    return null;
+  }
+
+  for (const item of timeline) {
+    if (item.type === "match" && item.match.matchId === matchId) {
+      return item.match;
+    }
+
+    if (item.type === "series") {
+      const seriesMatch = item.series.matches.find((match) => match.matchId === matchId);
+      if (seriesMatch != null) {
+        return seriesMatch;
+      }
+    }
+  }
+
+  return null;
+}
+
+function findTimelineSeries(
+  timeline: ReturnType<typeof buildViewerRenderModel>["timeline"],
+  seriesId: string | null,
+): React.ComponentProps<typeof IndividualTrackerOverlay>["selectedSeries"] {
+  if (seriesId == null) {
+    return null;
+  }
+
+  for (const item of timeline) {
+    if (item.type === "series" && item.series.id === seriesId) {
+      return item.series;
+    }
+  }
+
+  return null;
+}
+
 function aPropsWith(options?: {
   renderModel?: ReturnType<typeof buildViewerRenderModel>;
   streamerSettings?: StreamerViewSettings;
@@ -47,8 +88,11 @@ function aPropsWith(options?: {
   const streamerSettings = options?.streamerSettings;
   const matchStatsState = options?.matchStatsState ?? null;
   const selectedMatchId = options?.selectedMatchId ?? null;
+  const selectedSeriesId = options?.selectedSeriesId ?? null;
   const matchStatsByMatchId =
     selectedMatchId != null && matchStatsState != null ? new Map([[selectedMatchId, matchStatsState]]) : new Map();
+  const selectedMatch = findTimelineMatch(renderModel.timeline, selectedMatchId);
+  const selectedSeries = findTimelineSeries(renderModel.timeline, selectedSeriesId);
 
   return {
     viewModel: presenter.present({
@@ -60,14 +104,16 @@ function aPropsWith(options?: {
     isPanelOpen: presenter.isPanelOpen(
       selectedMatchId,
       matchStatsState,
-      options?.selectedSeriesId ?? null,
+      selectedSeriesId,
       options?.seriesStatsPanelState ?? null,
     ),
     matchesLength: renderModel.accumulated.total,
     matchStatsPanelState: options?.matchStatsPanelState ?? null,
     seriesStatsPanelState: options?.seriesStatsPanelState ?? null,
+    selectedMatch,
+    selectedSeries,
     selectedMatchId,
-    selectedSeriesId: options?.selectedSeriesId ?? null,
+    selectedSeriesId,
     onSelectMatch: options?.onSelectMatch ?? ((): void => undefined),
     onSelectSeries: options?.onSelectSeries ?? ((): void => undefined),
     onDeselect: options?.onDeselect ?? ((): void => undefined),
