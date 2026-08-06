@@ -72,6 +72,7 @@ export class AuthService {
     microsoftScopes?: string;
     sessionSecret: string;
     tokenEncryptionSecret: string;
+    cookieDomain?: string;
     databaseService: DatabaseService;
   }) {
     this.microsoftAuth = new MicrosoftAuthService({
@@ -82,7 +83,10 @@ export class AuthService {
       scopes: config.microsoftScopes,
     });
 
-    this.sessionManager = new SessionManager(Preconditions.checkExists(config.sessionSecret, "sessionSecret"));
+    this.sessionManager = new SessionManager(
+      Preconditions.checkExists(config.sessionSecret, "sessionSecret"),
+      config.cookieDomain,
+    );
     this.tokenEncryptor = new TokenEncryptor(
       Preconditions.checkExists(config.tokenEncryptionSecret, "tokenEncryptionSecret"),
     );
