@@ -205,4 +205,4 @@ Then schedule the next iteration with `/after 1m #copilot-loop.prompt.md`. On su
 - Commit message: `fix(scope): description`
 - ESLint rules to watch: `strict-boolean-expressions`, `no-unnecessary-condition`
 - Always check `isResolved` before resolving a thread to avoid errors
-- Fixing a suppressed comment can surface a *new* suppressed comment on a later review (e.g. fixing one flagged pattern in a file can expose an adjacent one Copilot previously deprioritized) — this is expected; keep looping until a review has neither inline nor suppressed comments
+- Fixing a suppressed comment can surface a _new_ suppressed comment on a later review (e.g. fixing one flagged pattern in a file can expose an adjacent one Copilot previously deprioritized) — this is expected; keep looping until a review has neither inline nor suppressed comments
