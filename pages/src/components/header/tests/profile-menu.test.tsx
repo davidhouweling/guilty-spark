@@ -52,10 +52,10 @@ describe("ProfileMenu", () => {
     expect(signIn.className).not.toBe("iconLink");
   });
 
-  it("renders a direct sign-in link after expected auth resolves unauthenticated", async () => {
+  it("renders a direct sign-in link after unauthenticated session resolves", async () => {
     installWithSession({ authenticated: false });
 
-    render(<ProfileMenu apiHost="https://api.example.com" expectAuthenticated />);
+    render(<ProfileMenu apiHost="https://api.example.com" />);
 
     const signIn = await screen.findByRole("link", { name: "Sign in" });
     expect(signIn).toHaveAttribute("href", "/login");
