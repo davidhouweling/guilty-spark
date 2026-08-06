@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import classNames from "classnames";
 import type { SessionResponse } from "@guilty-spark/shared/contracts/auth/session";
 import { Dropdown } from "../dropdown/dropdown";
@@ -17,11 +17,9 @@ export function ProfileMenu({ apiHost, iconLinkClassName, signInLinkClassName }:
   const [authService, setAuthService] = useState<AuthService | null>(null);
   const [session, setSession] = useState<SessionResponse | null>(null);
   const [avatarFailed, setAvatarFailed] = useState(false);
-  const isDisposedRef = useRef(false);
-
   useEffect(() => {
-    isDisposedRef.current = false;
-    const isDisposed = (): boolean => isDisposedRef.current;
+    let isCancelled = false;
+    const isDisposed = (): boolean => isCancelled;
 
     async function installAndLoadSession(): Promise<void> {
       try {
@@ -49,7 +47,7 @@ export function ProfileMenu({ apiHost, iconLinkClassName, signInLinkClassName }:
     void installAndLoadSession();
 
     return (): void => {
-      isDisposedRef.current = true;
+      isCancelled = true;
     };
   }, [apiHost]);
 
