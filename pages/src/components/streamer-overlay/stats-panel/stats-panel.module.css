@@ -72,6 +72,7 @@
   right: var(--space-4);
   top: var(--space-4);
   transition: all var(--transition-fast);
+  z-index: 10;
 }
 
 .closeButton:hover {

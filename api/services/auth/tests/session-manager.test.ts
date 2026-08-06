@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { SessionManager } from "../session-manager";
 
 describe("SessionManager", () => {
@@ -54,13 +55,27 @@ describe("SessionManager", () => {
     const response = new Response();
     manager.setSessionCookie(response, "test-token");
 
-    const setCookie = response.headers.get("Set-Cookie");
-    expect(setCookie).toContain("auth-session=test-token");
-    expect(setCookie).toContain("HttpOnly");
-    expect(setCookie).toContain("Secure");
-    expect(setCookie).toContain("SameSite=Strict");
-    expect(setCookie).toContain("Path=/");
-    expect(setCookie).toContain("Max-Age=2592000");
+    const setCookies = response.headers.getSetCookie();
+    const sessionCookie = Preconditions.checkExists(
+      setCookies.find((cookie) => cookie.startsWith("auth-session=")),
+      "auth-session cookie",
+    );
+    const presenceCookie = Preconditions.checkExists(
+      setCookies.find((cookie) => cookie.startsWith("auth-presence=")),
+      "auth-presence cookie",
+    );
+
+    expect(sessionCookie).toContain("auth-session=test-token");
+    expect(sessionCookie).toContain("HttpOnly");
+    expect(sessionCookie).toContain("Secure");
+    expect(sessionCookie).toContain("SameSite=Strict");
+    expect(sessionCookie).toContain("Path=/");
+    expect(sessionCookie).toContain("Max-Age=2592000");
+
+    expect(presenceCookie).toContain("auth-presence=1");
+    expect(presenceCookie).not.toContain("HttpOnly");
+    expect(presenceCookie).toContain("Secure");
+    expect(presenceCookie).toContain("SameSite=Strict");
   });
 
   it("clears session cookie on logout", () => {
@@ -70,10 +85,20 @@ describe("SessionManager", () => {
     const response = new Response();
     manager.clearSessionCookie(response);
 
-    const setCookie = response.headers.get("Set-Cookie");
-    expect(setCookie).toContain("auth-session=");
-    expect(setCookie).toContain("Max-Age=0");
-    expect(setCookie).toContain("Expires=Thu, 01 Jan 1970");
+    const setCookies = response.headers.getSetCookie();
+    const sessionCookie = Preconditions.checkExists(
+      setCookies.find((cookie) => cookie.startsWith("auth-session=")),
+      "auth-session cookie",
+    );
+    const presenceCookie = Preconditions.checkExists(
+      setCookies.find((cookie) => cookie.startsWith("auth-presence=")),
+      "auth-presence cookie",
+    );
+
+    expect(sessionCookie).toContain("Max-Age=0");
+    expect(sessionCookie).toContain("Expires=Thu, 01 Jan 1970");
+    expect(presenceCookie).toContain("Max-Age=0");
+    expect(presenceCookie).toContain("Expires=Thu, 01 Jan 1970");
   });
 
   it("extracts session token from request cookies", () => {

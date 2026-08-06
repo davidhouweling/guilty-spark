@@ -1,6 +1,8 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 
 const SESSION_COOKIE_NAME = "auth-session";
+const SESSION_HINT_COOKIE_NAME = "auth-presence";
+const SESSION_HINT_COOKIE_VALUE = "1";
 const PKCE_COOKIE_NAME = "auth-pkce-state";
 export const SESSION_COOKIE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days
 const PKCE_COOKIE_MAX_AGE_SECONDS = 10 * 60;
@@ -107,12 +109,39 @@ export class SessionManager {
     response.headers.append("Set-Cookie", cookieValue);
   }
 
+  private setReadableCookie(
+    response: Response,
+    cookieName: string,
+    value: string,
+    expiresAt: number,
+    maxAgeSeconds = SESSION_COOKIE_MAX_AGE_SECONDS,
+    sameSite: "Lax" | "Strict" = "Strict",
+  ): void {
+    const expiresDate = new Date(expiresAt);
+    const cookieValue = `${cookieName}=${value}; Path=/; Secure; SameSite=${sameSite}; Max-Age=${maxAgeSeconds.toString()}; Expires=${expiresDate.toUTCString()}`;
+
+    response.headers.append("Set-Cookie", cookieValue);
+  }
+
+  private clearReadableCookie(response: Response, cookieName: string, sameSite: "Lax" | "Strict" = "Strict"): void {
+    const cookieValue = `${cookieName}=; Path=/; Secure; SameSite=${sameSite}; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+
+    response.headers.append("Set-Cookie", cookieValue);
+  }
+
   /**
    * Set a signed session token in an HttpOnly, Secure, SameSite cookie.
    */
   public setSessionCookie(response: Response, token: string): void {
     const expiresAt = Date.now() + SESSION_COOKIE_MAX_AGE_SECONDS * 1000;
     this.setCookie(response, SESSION_COOKIE_NAME, token, expiresAt);
+    this.setReadableCookie(
+      response,
+      SESSION_HINT_COOKIE_NAME,
+      SESSION_HINT_COOKIE_VALUE,
+      expiresAt,
+      SESSION_COOKIE_MAX_AGE_SECONDS,
+    );
   }
 
   /**
@@ -120,6 +149,7 @@ export class SessionManager {
    */
   public clearSessionCookie(response: Response): void {
     this.clearCookie(response, SESSION_COOKIE_NAME);
+    this.clearReadableCookie(response, SESSION_HINT_COOKIE_NAME);
   }
 
   public setPkceStateCookie(response: Response, token: string): void {

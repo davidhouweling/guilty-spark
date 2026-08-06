@@ -1,13 +1,20 @@
 import React, { useCallback, useMemo } from "react";
+import classNames from "classnames";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
+import { summarizeSeriesOutcome } from "@guilty-spark/shared/halo/match-enrichment";
 import { createStreamerOverlaySection } from "../../streamer-overlay/create";
 import { TopSection } from "../../streamer-overlay/top-section";
 import { TeamDetailsContent } from "../../streamer-overlay/team-details-content";
 import { StatsPanel } from "../viewer/stats-panel";
 import { SeriesStatsView } from "../../series-stats/series-stats";
+import { StatsHeader } from "../../stats/stats-header";
+import { OutcomeBadge } from "../../outcome-badge/outcome-badge";
 import { Alert } from "../../alert/alert";
 import { LoadingState } from "../../loading-state/loading-state";
-import type { MatchDetailsState, SeriesDetailsState } from "../viewer/types";
+import { gameModeIconSrc } from "../game-mode-icon";
+import { buildSeriesHeaderMetadata, seriesHeaderBackgroundStyle } from "../stats-panel-header";
+import { useRotatingBackgroundTick } from "../use-rotating-background-tick";
+import type { MatchDetailsState, SeriesDetailsState, ViewerMatchTab, ViewerSeriesTab } from "../viewer/types";
 import { OverlayStatsHighlights } from "./overlay-stats-highlights";
 import { MATCHMAKING_SUMMARY_TAB_SERIES_ID, type IndividualTrackerOverlayViewModel } from "./types";
 import styles from "./individual-tracker-overlay.module.css";
@@ -18,6 +25,8 @@ interface IndividualTrackerOverlayProps {
   readonly matchesLength: number;
   readonly matchStatsPanelState: MatchDetailsState | null;
   readonly seriesStatsPanelState: SeriesDetailsState | null;
+  readonly selectedMatch: ViewerMatchTab | null;
+  readonly selectedSeries: ViewerSeriesTab | null;
   readonly selectedMatchId: string | null;
   readonly selectedSeriesId: string | null;
   readonly showPreview?: boolean;
@@ -33,6 +42,8 @@ export function IndividualTrackerOverlay({
   matchesLength,
   matchStatsPanelState,
   seriesStatsPanelState,
+  selectedMatch,
+  selectedSeries,
   selectedMatchId,
   selectedSeriesId,
   showPreview = false,
@@ -42,6 +53,11 @@ export function IndividualTrackerOverlay({
   onDeselect,
 }: IndividualTrackerOverlayProps): React.ReactElement {
   const StreamerOverlaySection = useMemo(() => createStreamerOverlaySection(), []);
+  const {
+    tick: seriesBackgroundTick,
+    isTransitioning: isSeriesBackgroundTransitioning,
+    isGlitching: isSeriesBackgroundGlitching,
+  } = useRotatingBackgroundTick();
 
   const topSection = useMemo(() => {
     if (viewModel.topSection != null) {
@@ -143,32 +159,87 @@ export function IndividualTrackerOverlay({
 
       if (selectedTab?.type === "series") {
         if (selectedTab.seriesId === MATCHMAKING_SUMMARY_TAB_SERIES_ID && seriesStatsPanelState == null) {
-          return <StatsPanel state={matchStatsPanelState} />;
+          return <StatsPanel match={selectedMatch} state={matchStatsPanelState} />;
         }
 
         if (seriesStatsPanelState == null) {
           return null;
         }
 
+        let seriesBody: React.ReactElement;
         switch (seriesStatsPanelState.status) {
           case "loading": {
-            return <LoadingState text="Loading series stats..." />;
+            seriesBody = <LoadingState text="Loading series stats..." />;
+            break;
           }
           case "error": {
-            return <Alert variant="error">{seriesStatsPanelState.message}</Alert>;
+            seriesBody = <Alert variant="error">{seriesStatsPanelState.message}</Alert>;
+            break;
           }
           case "loaded": {
-            return <SeriesStatsView {...seriesStatsPanelState.viewModel} noGutter={true} />;
+            seriesBody = <SeriesStatsView {...seriesStatsPanelState.viewModel} noGutter={true} />;
+            break;
           }
           default: {
             throw new UnreachableError(seriesStatsPanelState);
           }
         }
+
+        return (
+          <div className={styles.seriesPanel}>
+            {selectedSeries != null && (
+              <StatsHeader
+                title={selectedSeries.title}
+                subtitle={selectedSeries.subtitle}
+                metadata={buildSeriesHeaderMetadata(selectedSeries)}
+                backgroundStyle={seriesHeaderBackgroundStyle(
+                  selectedSeries.matchBackgroundUrls,
+                  seriesBackgroundTick,
+                  isSeriesBackgroundTransitioning,
+                  isSeriesBackgroundGlitching,
+                )}
+                rightContent={
+                  <div className={styles.headerVisuals}>
+                    <div className={styles.seriesModeIcons}>
+                      {selectedSeries.iconMatches.map((seriesMatch, iconIndex) => (
+                        <img
+                          key={`${seriesMatch.matchId}:${iconIndex.toString()}`}
+                          src={gameModeIconSrc(seriesMatch.gameVariantCategory)}
+                          alt={seriesMatch.gameModeName}
+                          className={classNames(styles.headerModeIcon, {
+                            [styles.seriesModeIconMuted]: seriesMatch.outcome === "Loss",
+                          })}
+                        />
+                      ))}
+                    </div>
+                    <OutcomeBadge
+                      outcome={
+                        selectedSeries.isActive
+                          ? "In progress"
+                          : summarizeSeriesOutcome(selectedSeries.matches.map((seriesMatch) => seriesMatch.outcome))
+                      }
+                    />
+                  </div>
+                }
+              />
+            )}
+            {seriesBody}
+          </div>
+        );
       }
 
-      return <StatsPanel state={matchStatsPanelState} />;
+      return <StatsPanel match={selectedMatch} state={matchStatsPanelState} />;
     },
-    [matchStatsPanelState, seriesStatsPanelState, viewModel.tabs],
+    [
+      matchStatsPanelState,
+      seriesStatsPanelState,
+      selectedMatch,
+      selectedSeries,
+      seriesBackgroundTick,
+      isSeriesBackgroundTransitioning,
+      isSeriesBackgroundGlitching,
+      viewModel.tabs,
+    ],
   );
 
   return (

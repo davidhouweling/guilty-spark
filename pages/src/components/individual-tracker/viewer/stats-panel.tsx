@@ -3,15 +3,19 @@ import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Alert } from "../../alert/alert";
 import { LoadingState } from "../../loading-state/loading-state";
 import { MatchStats } from "../../stats/match-stats";
+import { StatsHeader } from "../../stats/stats-header";
+import { OutcomeBadge } from "../../outcome-badge/outcome-badge";
 import { gameModeIconSrc } from "../game-mode-icon";
-import type { MatchDetailsState } from "./types";
+import { buildMatchHeaderMetadata, buildMatchHeaderTitle, matchHeaderBackgroundStyle } from "../stats-panel-header";
+import type { MatchDetailsState, ViewerMatchTab } from "./types";
 import styles from "./stats-panel.module.css";
 
 interface StatsPanelProps {
+  readonly match: ViewerMatchTab | null;
   readonly state: MatchDetailsState | null;
 }
 
-export function StatsPanel({ state }: StatsPanelProps): React.ReactElement | null {
+export function StatsPanel({ match, state }: StatsPanelProps): React.ReactElement | null {
   if (state == null) {
     return null;
   }
@@ -34,6 +38,24 @@ export function StatsPanel({ state }: StatsPanelProps): React.ReactElement | nul
     case "loaded": {
       return (
         <div className={styles.wrapper}>
+          {match != null && (
+            <StatsHeader
+              title={buildMatchHeaderTitle(match)}
+              subtitle={match.subtitle}
+              metadata={buildMatchHeaderMetadata(match)}
+              backgroundStyle={matchHeaderBackgroundStyle(match.mapBackgroundUrl, state.gameMapThumbnailUrl)}
+              rightContent={
+                <div className={styles.headerVisuals}>
+                  <img
+                    src={gameModeIconSrc(match.gameVariantCategory)}
+                    alt={match.gameModeName}
+                    className={styles.headerModeIcon}
+                  />
+                  <OutcomeBadge outcome={match.outcome} />
+                </div>
+              }
+            />
+          )}
           <MatchStats
             data={state.data}
             id={state.matchId}
@@ -52,6 +74,7 @@ export function StatsPanel({ state }: StatsPanelProps): React.ReactElement | nul
             swappedCrossTeamData={state.swappedCrossTeamKillMatrixData}
             killMatrixStatus={state.killMatrixStatus}
             scoreProgressionViewData={state.scoreProgressionViewData}
+            showHeader={false}
           />
         </div>
       );
