@@ -4,6 +4,7 @@ import Logo from "../logo/logo.astro";
 import Container from "../container/container.astro";
 import { SUPPORT_SERVER_URL, GITHUB_URL, API_HOST } from "../../constants";
 import { ProfileMenu } from "./profile-menu";
+import { ProfileAvatar } from "./profile-avatar";
 import styles from "./header.module.css";
 import profileMenuStyles from "./profile-menu.module.css";
 
@@ -92,12 +93,7 @@ const profileTemplateId = "profile-menu-template";
         </a>
         <div id={profileSlotId} data-expect-authenticated={String(expectAuthenticated)}>
           <a href="/login" class={signInLinkClassName} aria-label="Sign in" title="Sign in">
-            <span class={profileMenuStyles.profileAvatar} aria-hidden="true">
-              <span class={profileMenuStyles.profileAvatarGeneric}>
-                <span class={profileMenuStyles.avatarHead}></span>
-                <span class={profileMenuStyles.avatarBody}></span>
-              </span>
-            </span>
+            <ProfileAvatar />
           </a>
         </div>
       </div>
