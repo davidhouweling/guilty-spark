@@ -74,6 +74,7 @@
   "vars": {
     "HOST_URL": "http://localhost:8787",
     "PAGES_URL": "http://localhost:4321",
+    "COOKIE_DOMAIN": "",
     "MODE": "development",
   },
 
@@ -121,6 +122,7 @@
       "vars": {
         "HOST_URL": "https://staging-api.guilty-spark.app",
         "PAGES_URL": "https://staging.guilty-spark.app",
+        "COOKIE_DOMAIN": "guilty-spark.app",
         "MODE": "production",
       },
     },
@@ -161,6 +163,7 @@
       "vars": {
         "HOST_URL": "https://api.guilty-spark.app",
         "PAGES_URL": "https://guilty-spark.app",
+        "COOKIE_DOMAIN": "guilty-spark.app",
         "MODE": "production",
       },
     },
