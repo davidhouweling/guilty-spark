@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import classNames from "classnames";
 import type { SessionResponse } from "@guilty-spark/shared/contracts/auth/session";
 import { Dropdown } from "../dropdown/dropdown";
@@ -10,50 +10,55 @@ import styles from "./profile-menu.module.css";
 interface ProfileMenuProps {
   readonly apiHost: string;
   readonly iconLinkClassName?: string;
-  readonly expectAuthenticated?: boolean;
+  readonly signInLinkClassName?: string;
 }
 
 export function ProfileMenu({
   apiHost,
   iconLinkClassName,
-  expectAuthenticated = false,
+  signInLinkClassName,
 }: ProfileMenuProps): React.ReactElement {
   const [authService, setAuthService] = useState<AuthService | null>(null);
   const [session, setSession] = useState<SessionResponse | null>(null);
   const [avatarFailed, setAvatarFailed] = useState(false);
+  const isDisposedRef = useRef(false);
 
   useEffect(() => {
-    let isCancelled = false;
+    isDisposedRef.current = false;
+    const isDisposed = (): boolean => isDisposedRef.current;
 
-    installAuthService(apiHost)
-      .then((service): Promise<SessionResponse> | undefined => {
-        if (isCancelled) {
-          return undefined;
-        }
-        setAuthService(service);
-        return service.getSession();
-      })
-      .then((resolvedSession) => {
-        if (isCancelled || resolvedSession == null) {
+    async function installAndLoadSession(): Promise<void> {
+      try {
+        const service = await installAuthService(apiHost);
+        if (isDisposed()) {
           return;
         }
+        setAuthService(service);
+
+        const resolvedSession = await service.getSession();
+        if (isDisposed()) {
+          return;
+        }
+
         setAvatarFailed(false);
         setSession(resolvedSession);
-      })
-      .catch(() => {
-        if (!isCancelled) {
-          setSession({ authenticated: false });
+      } catch {
+        if (isDisposed()) {
+          return;
         }
-      });
+        setSession({ authenticated: false });
+      }
+    }
+
+    void installAndLoadSession();
 
     return (): void => {
-      isCancelled = true;
+      isDisposedRef.current = true;
     };
   }, [apiHost]);
 
   const hasAuthenticatedSession = session?.authenticated === true;
-  const isLoadingExpectedSession = expectAuthenticated && session == null;
-  const showDropdown = hasAuthenticatedSession || isLoadingExpectedSession;
+  const showDropdown = hasAuthenticatedSession || session == null;
   const avatarUrl = hasAuthenticatedSession && !avatarFailed ? (session.avatarUrl ?? null) : null;
 
   const avatar = (
@@ -66,10 +71,11 @@ export function ProfileMenu({
   );
 
   const profileButtonClassName = classNames(styles.profileIconButton, iconLinkClassName);
+  const signInClassName = signInLinkClassName ?? profileButtonClassName;
 
   if (!showDropdown) {
     return (
-      <a href="/login" className={profileButtonClassName} aria-label="Sign in" title="Sign in">
+      <a href="/login" className={signInClassName} aria-label="Sign in" title="Sign in">
         {avatar}
       </a>
     );

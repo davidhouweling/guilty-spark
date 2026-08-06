@@ -17,6 +17,7 @@ const {
 } = Astro.props;
 
 const hasAuthSessionCookie = Astro.cookies.has("auth-session");
+const hasAuthHintCookie = Astro.cookies.has("auth-presence");
 ---
 
 <!doctype html>
@@ -91,7 +92,7 @@ const hasAuthSessionCookie = Astro.cookies.has("auth-session");
     <title>{title}</title>
   </head>
   <body>
-    <Header hasAuthSessionCookie={hasAuthSessionCookie} />
+    <Header hasAuthSessionCookie={hasAuthSessionCookie} hasAuthHintCookie={hasAuthHintCookie} />
     <main>
       <slot />
     </main>

@@ -56,6 +56,7 @@ describe("SessionManager", () => {
 
     const setCookie = response.headers.get("Set-Cookie");
     expect(setCookie).toContain("auth-session=test-token");
+    expect(setCookie).toContain("auth-presence=1");
     expect(setCookie).toContain("HttpOnly");
     expect(setCookie).toContain("Secure");
     expect(setCookie).toContain("SameSite=Strict");
@@ -72,6 +73,7 @@ describe("SessionManager", () => {
 
     const setCookie = response.headers.get("Set-Cookie");
     expect(setCookie).toContain("auth-session=");
+    expect(setCookie).toContain("auth-presence=");
     expect(setCookie).toContain("Max-Age=0");
     expect(setCookie).toContain("Expires=Thu, 01 Jan 1970");
   });
