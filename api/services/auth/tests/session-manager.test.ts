@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { SessionManager } from "../session-manager";
 
 describe("SessionManager", () => {
@@ -55,8 +56,14 @@ describe("SessionManager", () => {
     manager.setSessionCookie(response, "test-token");
 
     const setCookies = response.headers.getSetCookie();
-    const sessionCookie = setCookies.find((cookie) => cookie.startsWith("auth-session="));
-    const presenceCookie = setCookies.find((cookie) => cookie.startsWith("auth-presence="));
+    const sessionCookie = Preconditions.checkExists(
+      setCookies.find((cookie) => cookie.startsWith("auth-session=")),
+      "auth-session cookie",
+    );
+    const presenceCookie = Preconditions.checkExists(
+      setCookies.find((cookie) => cookie.startsWith("auth-presence=")),
+      "auth-presence cookie",
+    );
 
     expect(sessionCookie).toContain("auth-session=test-token");
     expect(sessionCookie).toContain("HttpOnly");
@@ -79,8 +86,14 @@ describe("SessionManager", () => {
     manager.clearSessionCookie(response);
 
     const setCookies = response.headers.getSetCookie();
-    const sessionCookie = setCookies.find((cookie) => cookie.startsWith("auth-session="));
-    const presenceCookie = setCookies.find((cookie) => cookie.startsWith("auth-presence="));
+    const sessionCookie = Preconditions.checkExists(
+      setCookies.find((cookie) => cookie.startsWith("auth-session=")),
+      "auth-session cookie",
+    );
+    const presenceCookie = Preconditions.checkExists(
+      setCookies.find((cookie) => cookie.startsWith("auth-presence=")),
+      "auth-presence cookie",
+    );
 
     expect(sessionCookie).toContain("Max-Age=0");
     expect(sessionCookie).toContain("Expires=Thu, 01 Jan 1970");
