@@ -170,6 +170,7 @@ export class SessionManager {
       "Strict",
       this.cookieDomain,
     );
+    this.clearLegacyHostOnlySessionCookies(response);
   }
 
   /**
@@ -178,6 +179,22 @@ export class SessionManager {
   public clearSessionCookie(response: Response): void {
     this.clearCookie(response, SESSION_COOKIE_NAME, "Strict", this.cookieDomain);
     this.clearReadableCookie(response, SESSION_HINT_COOKIE_NAME, "Strict", this.cookieDomain);
+    this.clearLegacyHostOnlySessionCookies(response);
+  }
+
+  /**
+   * Cookies set before cookieDomain was introduced are host-only (no Domain attribute) and
+   * share a name with the domain-scoped cookie, so a browser can hold both at once. Expire
+   * the host-only variant whenever a domain is configured so only one copy of each cookie
+   * remains and extractSessionToken never has to pick between them.
+   */
+  private clearLegacyHostOnlySessionCookies(response: Response): void {
+    if (this.cookieDomain == null) {
+      return;
+    }
+
+    this.clearCookie(response, SESSION_COOKIE_NAME, "Strict");
+    this.clearReadableCookie(response, SESSION_HINT_COOKIE_NAME, "Strict");
   }
 
   public setPkceStateCookie(response: Response, token: string): void {

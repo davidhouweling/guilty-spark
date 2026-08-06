@@ -141,6 +141,66 @@ describe("SessionManager", () => {
     expect(presenceCookie).toContain("Domain=guilty-spark.app");
   });
 
+  it("also clears the legacy host-only cookies when setting a domain-scoped session cookie", () => {
+    const sessionSecret = "a1".repeat(32);
+    const manager = new SessionManager(sessionSecret, "guilty-spark.app");
+
+    const response = new Response();
+    manager.setSessionCookie(response, "test-token");
+
+    const setCookies = response.headers.getSetCookie();
+    const sessionCookies = setCookies.filter((cookie) => cookie.startsWith("auth-session="));
+    const presenceCookies = setCookies.filter((cookie) => cookie.startsWith("auth-presence="));
+
+    expect(sessionCookies).toHaveLength(2);
+    expect(
+      sessionCookies.some((cookie) => cookie.includes("Domain=guilty-spark.app") && cookie.includes("test-token")),
+    ).toBe(true);
+    expect(sessionCookies.some((cookie) => !cookie.includes("Domain=") && cookie.includes("Max-Age=0"))).toBe(true);
+
+    expect(presenceCookies).toHaveLength(2);
+    expect(
+      presenceCookies.some(
+        (cookie) => cookie.includes("Domain=guilty-spark.app") && cookie.includes("auth-presence=1"),
+      ),
+    ).toBe(true);
+    expect(presenceCookies.some((cookie) => !cookie.includes("Domain=") && cookie.includes("Max-Age=0"))).toBe(true);
+  });
+
+  it("does not emit legacy clear cookies when cookieDomain is not configured", () => {
+    const sessionSecret = "a2".repeat(32);
+    const manager = new SessionManager(sessionSecret);
+
+    const response = new Response();
+    manager.setSessionCookie(response, "test-token");
+
+    const setCookies = response.headers.getSetCookie();
+    expect(setCookies.filter((cookie) => cookie.startsWith("auth-session="))).toHaveLength(1);
+    expect(setCookies.filter((cookie) => cookie.startsWith("auth-presence="))).toHaveLength(1);
+  });
+
+  it("also clears the legacy host-only cookies when clearing a domain-scoped session cookie", () => {
+    const sessionSecret = "a3".repeat(32);
+    const manager = new SessionManager(sessionSecret, "guilty-spark.app");
+
+    const response = new Response();
+    manager.clearSessionCookie(response);
+
+    const setCookies = response.headers.getSetCookie();
+    const sessionCookies = setCookies.filter((cookie) => cookie.startsWith("auth-session="));
+    const presenceCookies = setCookies.filter((cookie) => cookie.startsWith("auth-presence="));
+
+    expect(sessionCookies).toHaveLength(2);
+    expect(sessionCookies.every((cookie) => cookie.includes("Max-Age=0"))).toBe(true);
+    expect(sessionCookies.some((cookie) => cookie.includes("Domain=guilty-spark.app"))).toBe(true);
+    expect(sessionCookies.some((cookie) => !cookie.includes("Domain="))).toBe(true);
+
+    expect(presenceCookies).toHaveLength(2);
+    expect(presenceCookies.every((cookie) => cookie.includes("Max-Age=0"))).toBe(true);
+    expect(presenceCookies.some((cookie) => cookie.includes("Domain=guilty-spark.app"))).toBe(true);
+    expect(presenceCookies.some((cookie) => !cookie.includes("Domain="))).toBe(true);
+  });
+
   it("does not apply cookieDomain to the PKCE state cookie", () => {
     const sessionSecret = "9".repeat(64);
     const manager = new SessionManager(sessionSecret, "guilty-spark.app");
