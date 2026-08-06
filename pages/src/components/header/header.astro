@@ -90,10 +90,7 @@ const profileTemplateId = "profile-menu-template";
             ></path>
           </svg>
         </a>
-        <div
-          id={profileSlotId}
-          data-expect-authenticated={String(expectAuthenticated)}
-        >
+        <div id={profileSlotId} data-expect-authenticated={String(expectAuthenticated)}>
           <a href="/login" class={signInLinkClassName} aria-label="Sign in" title="Sign in">
             <span class={profileMenuStyles.profileAvatar} aria-hidden="true">
               <span class={profileMenuStyles.profileAvatarGeneric}>
@@ -117,8 +114,8 @@ const profileTemplateId = "profile-menu-template";
   />
 </template>
 
-<script type="module">
-  const profileSlot = document.getElementById("profile-menu-slot");
+<script type="module" define:vars={{ profileSlotId, profileTemplateId }}>
+  const profileSlot = document.getElementById(profileSlotId);
   if (!(profileSlot instanceof HTMLElement)) {
     throw new Error("Profile menu slot not found");
   }
@@ -132,7 +129,7 @@ const profileTemplateId = "profile-menu-template";
 
   const shouldHydrateProfileMenu = expectAuthenticated || hasAuthPresenceCookie;
   if (shouldHydrateProfileMenu) {
-    const profileTemplate = document.getElementById("profile-menu-template");
+    const profileTemplate = document.getElementById(profileTemplateId);
     if (!(profileTemplate instanceof HTMLTemplateElement)) {
       throw new Error("Profile menu template not found");
     }

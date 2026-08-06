@@ -109,7 +109,7 @@ export class SessionManager {
     response.headers.append("Set-Cookie", cookieValue);
   }
 
-  public setReadableCookie(
+  private setReadableCookie(
     response: Response,
     cookieName: string,
     value: string,
@@ -123,7 +123,7 @@ export class SessionManager {
     response.headers.append("Set-Cookie", cookieValue);
   }
 
-  public clearReadableCookie(response: Response, cookieName: string, sameSite: "Lax" | "Strict" = "Strict"): void {
+  private clearReadableCookie(response: Response, cookieName: string, sameSite: "Lax" | "Strict" = "Strict"): void {
     const cookieValue = `${cookieName}=; Path=/; Secure; SameSite=${sameSite}; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
 
     response.headers.append("Set-Cookie", cookieValue);

@@ -13,11 +13,7 @@ interface ProfileMenuProps {
   readonly signInLinkClassName?: string;
 }
 
-export function ProfileMenu({
-  apiHost,
-  iconLinkClassName,
-  signInLinkClassName,
-}: ProfileMenuProps): React.ReactElement {
+export function ProfileMenu({ apiHost, iconLinkClassName, signInLinkClassName }: ProfileMenuProps): React.ReactElement {
   const [authService, setAuthService] = useState<AuthService | null>(null);
   const [session, setSession] = useState<SessionResponse | null>(null);
   const [avatarFailed, setAvatarFailed] = useState(false);
