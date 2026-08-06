@@ -1,11 +1,11 @@
 ---
 agent: agent
-description: "Process the latest Copilot PR review: fix valid issues, reply to all comments, resolve threads, request a new review, poll every minute for up to 15 minutes, and reschedule itself with /after until the review is clean."
+description: "Process the latest Copilot PR review: fix valid issues (including suppressed low-confidence comments buried in the review body), reply to all inline comments, resolve threads, request a new review, poll every minute for up to 15 minutes, and reschedule itself with /after until the review has neither inline nor suppressed comments."
 ---
 
 Run one iteration of the Copilot review loop on the current PR in the GitHub Copilot CLI interactive session. From the VS Code integrated terminal, start that session with `copilot`. Experimental scheduling must be enabled first with `/experimental on` or `--experimental`.
 
-Keep the loop quiet. Each `/after` invocation runs in a fresh stateless context — only `/tmp/copilot-loop-{PR}.txt` persists across runs (line 1: `pollingStartedAt` ISO timestamp; line 2: `lastProcessedReviewId`). The findings ledger lives in session memory and is lost between invocations; rebuild it from git log if needed. Emit the final report only when the review is clean. Poll every 1 minute for up to 15 minutes, then fall back to 10 minutes.
+Keep the loop quiet. Each `/after` invocation runs in a fresh stateless context — only `/tmp/copilot-loop-{PR}.txt` persists across runs (line 1: `pollingStartedAt` ISO timestamp; line 2: `lastProcessedReviewId`). The findings ledger lives in session memory and is lost between invocations; rebuild it from git log if needed. Emit the final report only when the review is clean — meaning zero inline comments AND zero suppressed comments. Poll every 1 minute for up to 15 minutes, then fall back to 10 minutes.
 
 ## Step 1 — Identify the PR
 
@@ -27,11 +27,14 @@ if last:
     body = last.get('body') or ''
     print(last['id'], last['submitted_at'], last['commit_id'][:8])
     print('BODY_CLEAN:', 'generated no new comments' in body)
-    print('BODY:', body.replace('\n', ' ')[:500])
+    print('HAS_SUPPRESSED:', 'Suppressed comments' in body)
+    print('BODY:', body)
 else:
     print('NO_REVIEW')
 "
 ```
+
+Do not truncate `BODY` — the suppressed-comments section (if present) contains the finding text and code snippets needed in Step 4, and truncating can cut it off.
 
 If `NO_REVIEW`: on the first poll (temp file does not yet exist), request a review and initialize the temp file:
 
@@ -91,7 +94,11 @@ for c in reversed(comments):
 
 Clean if the body contains any of: `clean`, `no issues`, `good to merge`, `no new comments`, `all.*tests pass`.
 
-If clean: do not schedule another run. Delete the temp file:
+**Check 3 — suppressed comments in the review body:**
+
+Clean if `HAS_SUPPRESSED: False` was printed in Step 2. A `<details><summary>Suppressed comments (N)</summary>` block in the body means Copilot found low-confidence issues it chose not to post as real review comments — these still need triage, so do not treat the review as clean while this section is present.
+
+The review is clean only if Checks 1, 2, and 3 all pass. If clean: do not schedule another run. Delete the temp file:
 
 ```bash
 rm -f /tmp/copilot-loop-{PR}.txt
@@ -99,13 +106,19 @@ rm -f /tmp/copilot-loop-{PR}.txt
 
 Emit the final report:
 
-| Round | Finding | Status        | How handled | Evidence                       |
-| ----- | ------- | ------------- | ----------- | ------------------------------ |
-| 1     | ...     | fixed/refuted | ...         | thread id, commit SHA, or path |
+| Round | Finding          | Status        | How handled | Evidence                       |
+| ----- | ---------------- | ------------- | ----------- | ------------------------------ |
+| 1     | ...              | fixed/refuted | ...         | thread id, commit SHA, or path |
+| 1     | ... (suppressed) | fixed/refuted | ...         | commit SHA or path — no thread |
 
-## Step 4 — Process each inline comment
+## Step 4 — Process each finding
 
-For each comment:
+Process two sources of findings from this review:
+
+1. **Inline comments** — from the `gh api .../comments` call in Check 1. Each has a `COMMENT_ID` used later for replying/resolving.
+2. **Suppressed comments** — if `HAS_SUPPRESSED: True`, parse them out of the `BODY` text printed in Step 2. Each entry starts with a `**path/to/file.ts:LINE**` heading, followed by a `*` bullet with the finding text (sometimes noting "This issue also appears on line N of the same file") and a fenced code snippet for context. Treat each `**path:line**` heading as one finding. These have **no comment ID** — there is no PR comment or thread behind them, so no reply/resolve step applies to them (see Step 5).
+
+For each finding (inline or suppressed):
 
 1. **Assess validity.** Read the referenced file and surrounding context. Is the concern real?
 
@@ -117,9 +130,9 @@ For each comment:
 
 3. **If invalid/refuted:** Note the reason. No code changes.
 
-4. Add one row to the findings ledger for every comment you process. Include the review round, the finding, whether it was fixed or refuted, and how it was handled.
+4. Add one row to the findings ledger for every finding you process (inline or suppressed). Include the review round, the finding, whether it was fixed or refuted, and how it was handled — mark suppressed findings clearly (e.g. append "(suppressed)" to the finding text) since they skip the reply/resolve step.
 
-5. Commit all fixes together once all comments are processed:
+5. Commit all fixes together once all findings are processed:
 
    ```bash
    git add <changed files>
@@ -132,7 +145,7 @@ For each comment:
 git push
 ```
 
-**Reply in-thread to every comment:**
+**Reply in-thread to every inline comment** (skip this for suppressed findings — they have no `COMMENT_ID`):
 
 ```bash
 gh api repos/{owner}/{repo}/pulls/{PR}/comments/{COMMENT_ID}/replies \
@@ -142,7 +155,7 @@ gh api repos/{owner}/{repo}/pulls/{PR}/comments/{COMMENT_ID}/replies \
   -X POST -f body="Not actioned: <reason>."
 ```
 
-**Resolve every unresolved Copilot thread.** Get thread node IDs, including the author of the first comment so you can filter to Copilot-owned threads only:
+**Resolve every unresolved Copilot thread** (inline comments only — suppressed findings have no thread). Get thread node IDs, including the author of the first comment so you can filter to Copilot-owned threads only:
 
 ```bash
 gh api graphql -f query='
@@ -192,3 +205,4 @@ Then schedule the next iteration with `/after 1m #copilot-loop.prompt.md`. On su
 - Commit message: `fix(scope): description`
 - ESLint rules to watch: `strict-boolean-expressions`, `no-unnecessary-condition`
 - Always check `isResolved` before resolving a thread to avoid errors
+- Fixing a suppressed comment can surface a *new* suppressed comment on a later review (e.g. fixing one flagged pattern in a file can expose an adjacent one Copilot previously deprioritized) — this is expected; keep looping until a review has neither inline nor suppressed comments
