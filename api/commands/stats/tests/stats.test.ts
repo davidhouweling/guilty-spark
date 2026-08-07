@@ -36,12 +36,7 @@ import {
   textChannel,
   threadChannel,
 } from "../../../services/discord/fakes/data";
-import {
-  aFakeMatchHistoryEntryWith,
-  getMatchStats,
-  getPlayerMatches,
-  getPlayerXuidsToGametags,
-} from "../../../services/halo/fakes/data";
+import { aFakeMatchHistoryEntryWith, getMatchStats, getPlayerXuidsToGametags } from "../../../services/halo/fakes/data";
 import { StatsReturnType } from "../../../services/database/types/guild_config";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeDiscordAssociationsRow, aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake";
