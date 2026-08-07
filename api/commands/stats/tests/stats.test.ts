@@ -36,7 +36,12 @@ import {
   textChannel,
   threadChannel,
 } from "../../../services/discord/fakes/data";
-import { getMatchStats, getPlayerMatches, getPlayerXuidsToGametags } from "../../../services/halo/fakes/data";
+import {
+  aFakeMatchHistoryEntryWith,
+  getMatchStats,
+  getPlayerMatches,
+  getPlayerXuidsToGametags,
+} from "../../../services/halo/fakes/data";
 import { StatsReturnType } from "../../../services/database/types/guild_config";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeDiscordAssociationsRow, aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake";
@@ -1096,6 +1101,9 @@ describe("StatsCommand", () => {
 
   describe("execute(): message component fix player select", () => {
     it("loads candidate games and shows multi-select", async () => {
+      const firstMatchId = "d81554d7-ddfe-44da-a6cb-000000000ctf";
+      const secondMatchId = "e20900f9-4c6c-4003-a175-00000000koth";
+      const thirdMatchId = "9535b946-f30c-4a43-b852-000000slayer";
       const interaction: APIMessageComponentSelectMenuInteraction = {
         ...fakeButtonClickInteraction,
         data: {
@@ -1120,20 +1128,96 @@ describe("StatsCommand", () => {
           XboxId: "xuid-1",
         }),
       ]);
-      vi.spyOn(services.haloService, "getPlayerMatches").mockResolvedValue(getPlayerMatches().slice(0, 3));
+      vi.spyOn(services.haloService, "getUsersByXuids").mockResolvedValue([{ xuid: "xuid-1", gamertag: "player-one" }]);
+      vi.spyOn(services.haloService, "getEnrichedMatchHistory").mockResolvedValue({
+        gamertag: "player-one",
+        xuid: "xuid-1",
+        suggestedGroupings: [],
+        matches: [
+          aFakeMatchHistoryEntryWith({
+            matchId: firstMatchId,
+            modeName: "CTF",
+            mapName: "Bazaar",
+            resultString: "Win - 3:1",
+            endTime: "2025-01-01 10:00 AM",
+          }),
+          aFakeMatchHistoryEntryWith({
+            matchId: secondMatchId,
+            modeName: "Strongholds",
+            mapName: "Live Fire",
+            resultString: "Loss - 2:3",
+            endTime: "2025-01-01 10:20 AM",
+          }),
+          aFakeMatchHistoryEntryWith({
+            matchId: thirdMatchId,
+            modeName: "Slayer",
+            mapName: "Recharge",
+            resultString: "Win - 50:45",
+            endTime: "2025-01-01 10:40 AM",
+          }),
+        ],
+      });
+      vi.spyOn(services.discordService, "findExistingSeriesStatsThreadLocation").mockResolvedValue({
+        threadId: "existing-thread-id",
+        parentOverviewMessageId: "stats-overview-id",
+      });
+      vi.spyOn(services.discordService, "getMessage").mockResolvedValue({
+        ...apiMessage,
+        id: "stats-overview-id",
+        embeds: [
+          {
+            type: EmbedType.Rich,
+            color: 0x3498db,
+            title: "Series stats for queue #777 (2-1)",
+            fields: [
+              {
+                name: "Game",
+                value:
+                  "[CTF on Bazaar](https://halodatahive.com/Infinite/Match/d81554d7-ddfe-44da-a6cb-000000000ctf)\n[Slayer on Recharge](https://halodatahive.com/Infinite/Match/9535b946-f30c-4a43-b852-000000slayer)",
+                inline: true,
+              },
+            ],
+          },
+        ],
+      });
       const setInteractionMetadataSpy = vi.spyOn(services.discordService, "setInteractionMetadata").mockResolvedValue();
 
       const { response, jobToComplete } = statsCommand.execute(interaction);
-      expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
+      expect(response).toEqual({
+        type: InteractionResponseType.UpdateMessage,
+        data: {
+          content: "Fetching recent custom games...",
+          components: [],
+        },
+      });
 
       await jobToComplete?.();
 
       expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", expect.anything());
+      expect(updateDeferredReplySpy).toHaveBeenCalledTimes(1);
+
       const updatePayload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
       expect(updatePayload.components?.[0]).toMatchObject({
         components: [
           expect.objectContaining({
             custom_id: "btn_stats_fix_games_select",
+            options: [
+              expect.objectContaining({
+                value: firstMatchId,
+                label: "CTF Bazaar - Win - 3:1 (2025-01-01 10:00 AM)",
+                default: true,
+              }),
+              expect.objectContaining({
+                value: secondMatchId,
+                label: "Strongholds Live Fire - Loss - 2:3 (2025-01-01 10:20 AM)",
+                default: false,
+              }),
+              expect.objectContaining({
+                value: thirdMatchId,
+                label: "Slayer Recharge - Win - 50:45 (2025-01-01 10:40 AM)",
+                default: true,
+              }),
+            ],
           }),
         ],
       });
@@ -1141,7 +1225,7 @@ describe("StatsCommand", () => {
       expect(setInteractionMetadataSpy).toHaveBeenCalledWith("statsFix:fix-flow-message-id", expect.anything());
       const interactionMetadata = Preconditions.checkExists(setInteractionMetadataSpy.mock.calls[0]?.[1]);
       expect(interactionMetadata["selectedPlayerId"]).toBe("000000000000000001");
-      expect(Array.isArray(interactionMetadata["selectedMatchIds"])).toBe(true);
+      expect(interactionMetadata["selectedMatchIds"]).toEqual([firstMatchId, thirdMatchId]);
     });
 
     it("returns an error when selected player has no linked xbox account", async () => {

@@ -30,7 +30,10 @@ import { SeriesPlayersEmbed } from "../../embeds/stats/series-players-embed";
 import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed";
 import type { SeriesOverviewEmbedOutput } from "../../embeds/stats/series-overview-embed";
 import { SeriesTeamsEmbed } from "../../embeds/stats/series-teams-embed";
-import { buildDiscordSeriesRenderDataFromMatches } from "../../services/discord/discord-series-stats";
+import {
+  buildDiscordSeriesRenderDataFromMatches,
+  extractDiscordSeriesMatchIdsFromEmbeds,
+} from "../../services/discord/discord-series-stats";
 import type { GuildConfigRow } from "../../services/database/types/guild_config";
 import { StatsReturnType } from "../../services/database/types/guild_config";
 import { EndUserError } from "../../base/end-user-error";
@@ -213,7 +216,11 @@ export class StatsCommand extends BaseCommand {
           case InteractionButton.FixPlayerSelect.toString(): {
             return {
               response: {
-                type: InteractionResponseType.DeferredMessageUpdate,
+                type: InteractionResponseType.UpdateMessage,
+                data: {
+                  content: "Fetching recent custom games...",
+                  components: [],
+                },
               },
               jobToComplete: async () =>
                 this.handleFixPlayerSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
@@ -879,26 +886,48 @@ export class StatsCommand extends BaseCommand {
     channelId: string,
     queueData: QueueData,
   ): Promise<void> {
-    const { discordService } = this.services;
+    const { databaseService, discordService, haloService } = this.services;
 
     const guildId = Preconditions.checkExists(interaction.guild_id, "No guild ID found in interaction");
     const userId = discordService.getDiscordUserId(interaction);
     const permissions = await discordService.computeMemberPermissions(guildId, userId);
     const isAdmin = (permissions & PermissionFlagsBits.Administrator) !== 0n;
-    const queuePlayerIds = new Set(queueData.teams.flatMap((team) => team.players.map((player) => player.user.id)));
+    const queuePlayers = queueData.teams.flatMap((team) => team.players);
+    const queuePlayerIds = new Set(queuePlayers.map((player) => player.user.id));
 
     if (!isAdmin && !queuePlayerIds.has(userId)) {
       throw new EndUserError("Only players from that queue (or admins) can run /stats fix.");
     }
 
+    const discordAssociations = await databaseService.getDiscordAssociations([...queuePlayerIds]);
+    const xboxIds = discordAssociations.flatMap((association) =>
+      association.XboxId !== "" ? [association.XboxId] : [],
+    );
+    const usersByXuid = xboxIds.length > 0 ? await haloService.getUsersByXuids(xboxIds) : [];
+    const xuidToGamertag = new Map(usersByXuid.map((user) => [user.xuid, user.gamertag]));
+    const discordIdToGamertag = new Map<string, string>();
+    for (const association of discordAssociations) {
+      if (association.XboxId === "") {
+        continue;
+      }
+
+      const gamertag = xuidToGamertag.get(association.XboxId);
+      if (gamertag == null || gamertag === "") {
+        continue;
+      }
+
+      discordIdToGamertag.set(association.DiscordId, gamertag);
+    }
+
     const selectOptions = queueData.teams.flatMap((team) =>
       team.players.map((player) => {
         const label = player.nick ?? player.user.global_name ?? player.user.username;
+        const gamertag = discordIdToGamertag.get(player.user.id) ?? "Not connected";
 
         return {
           label: label.slice(0, 100),
           value: player.user.id,
-          description: team.name.slice(0, 100),
+          description: `Gamertag: ${gamertag}`.slice(0, 100),
         };
       }),
     );
@@ -960,24 +989,29 @@ export class StatsCommand extends BaseCommand {
         throw new EndUserError("That player does not have a linked Xbox account.");
       }
 
-      const games = await haloService.getPlayerMatches(association.XboxId, MatchType.Custom, 25);
-      if (games.length === 0) {
+      const [user] = await haloService.getUsersByXuids([association.XboxId]);
+      if (user == null) {
+        throw new EndUserError("Could not find a Halo account for that player.");
+      }
+
+      const locale = interaction.guild_locale ?? interaction.locale;
+      const matchHistory = await haloService.getEnrichedMatchHistory(user.gamertag, locale, MatchType.Custom, 25);
+      if (matchHistory.matches.length === 0) {
         throw new EndUserError("No recent custom games were found for that player.");
       }
 
-      const gameOptions = games.map((game, index) => {
-        const startTime = new Date(game.MatchInfo.StartTime).toISOString().replace("T", " ").slice(0, 16);
-        const label = `${(index + 1).toString()}. ${startTime}`;
+      const preselectedMatchIds = await this.getPreselectedFixMatchIds(metadata, interaction);
 
+      const gameOptions = matchHistory.matches.map((match) => {
+        const label = this.getFixGameSelectionLabel(match.modeName, match.mapName, match.resultString, match.endTime);
         return {
           label: label.slice(0, 100),
-          value: game.MatchId,
-          description: game.MatchId.slice(0, 100),
-          default: true,
+          value: match.matchId,
+          default: preselectedMatchIds.has(match.matchId),
         };
       });
 
-      const selectedMatchIds = gameOptions.map((option) => option.value);
+      const selectedMatchIds = gameOptions.filter((option) => option.default).map((option) => option.value);
       await this.setFixMetadata(interaction.message.id, {
         ...metadata,
         selectedPlayerId,
@@ -1015,6 +1049,74 @@ export class StatsCommand extends BaseCommand {
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
+  }
+
+  private getFixGameSelectionLabel(modeName: string, mapName: string, result: string, endTime: string): string {
+    return `${modeName} ${mapName} - ${result} (${endTime})`;
+  }
+
+  private async getPreselectedFixMatchIds(
+    metadata: FixFlowMetadata,
+    interaction: APIMessageComponentSelectMenuInteraction,
+  ): Promise<Set<string>> {
+    const { discordService, logService } = this.services;
+    const preselectedMatchIds = new Set<string>();
+
+    try {
+      if (this.isThreadChannel(interaction.channel.type)) {
+        const threadMessages = await discordService.findBotMessagesInThread(metadata.guildId, interaction.channel.id);
+        for (const threadMessage of threadMessages) {
+          const matchIds = extractDiscordSeriesMatchIdsFromEmbeds(threadMessage.embeds);
+          for (const matchId of matchIds) {
+            preselectedMatchIds.add(matchId);
+          }
+        }
+
+        if (preselectedMatchIds.size > 0) {
+          return preselectedMatchIds;
+        }
+      }
+
+      const existingLocation = await discordService.findExistingSeriesStatsThreadLocation(
+        metadata.guildId,
+        metadata.queueData.queue,
+      );
+
+      if (existingLocation?.parentOverviewMessageId != null) {
+        const overviewMessage = await discordService.getMessage(
+          metadata.channelId,
+          existingLocation.parentOverviewMessageId,
+        );
+        const matchIds = extractDiscordSeriesMatchIdsFromEmbeds(overviewMessage.embeds);
+        for (const matchId of matchIds) {
+          preselectedMatchIds.add(matchId);
+        }
+      }
+
+      if (preselectedMatchIds.size === 0 && existingLocation?.threadId != null) {
+        const threadMessages = await discordService.findBotMessagesInThread(
+          metadata.guildId,
+          existingLocation.threadId,
+        );
+        for (const threadMessage of threadMessages) {
+          const matchIds = extractDiscordSeriesMatchIdsFromEmbeds(threadMessage.embeds);
+          for (const matchId of matchIds) {
+            preselectedMatchIds.add(matchId);
+          }
+        }
+      }
+    } catch (error) {
+      logService.warn(
+        error,
+        new Map([
+          ["guildId", metadata.guildId],
+          ["queueNumber", metadata.queueData.queue.toString()],
+          ["reason", "Failed to discover existing series match IDs for /stats fix preselection"],
+        ]),
+      );
+    }
+
+    return preselectedMatchIds;
   }
 
   private async handleFixGamesSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
