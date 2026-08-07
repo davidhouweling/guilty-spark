@@ -36,6 +36,7 @@ import {
 } from "../../services/discord/discord-series-stats";
 import type { GuildConfigRow } from "../../services/database/types/guild_config";
 import { StatsReturnType } from "../../services/database/types/guild_config";
+import { EmbedColors } from "../../embeds/colors";
 import { EndUserError } from "../../base/end-user-error";
 import { create } from "../../embeds/stats/create";
 
@@ -218,7 +219,7 @@ export class StatsCommand extends BaseCommand {
               response: {
                 type: InteractionResponseType.UpdateMessage,
                 data: {
-                  content: "Fetching recent custom games...",
+                  embeds: [this.createStatusEmbed("Fetching recent custom games...")],
                   components: [],
                 },
               },
@@ -919,21 +920,31 @@ export class StatsCommand extends BaseCommand {
       discordIdToGamertag.set(association.DiscordId, gamertag);
     }
 
-    const selectOptions = queueData.teams.flatMap((team) =>
-      team.players.map((player) => {
-        const label = player.nick ?? player.user.global_name ?? player.user.username;
-        const gamertag = discordIdToGamertag.get(player.user.id) ?? "Not connected";
+    const selectOptions = queueData.teams
+      .flatMap((team) =>
+        team.players
+          .filter((player) => discordIdToGamertag.has(player.user.id))
+          .map((player) => {
+            const label = player.nick ?? player.user.global_name ?? player.user.username;
+            const gamertag = Preconditions.checkExists(discordIdToGamertag.get(player.user.id));
 
-        return {
-          label: label.slice(0, 100),
-          value: player.user.id,
-          description: `Gamertag: ${gamertag}`.slice(0, 100),
-        };
-      }),
-    );
+            return {
+              label: label.slice(0, 100),
+              value: player.user.id,
+              description: `Gamertag: ${gamertag}`.slice(0, 100),
+            };
+          }),
+      )
+      .slice(0, 25); // Discord select menu has a max of 25 options
+
+    if (selectOptions.length === 0) {
+      throw new EndUserError(
+        "No players in that queue have a connected Halo account. Ask a player to run /connect first.",
+      );
+    }
 
     await discordService.updateDeferredReply(interaction.token, {
-      content: "Select a player from the queue to load candidate custom games.",
+      embeds: [this.createStatusEmbed("Select a player from the queue to load candidate custom games.")],
       components: [
         {
           type: ComponentType.ActionRow,
@@ -1019,7 +1030,7 @@ export class StatsCommand extends BaseCommand {
       });
 
       await discordService.updateDeferredReply(interaction.token, {
-        content: "Select the custom games that belong to this series.",
+        embeds: [this.createStatusEmbed("Select the custom games that belong to this series.")],
         components: [
           {
             type: ComponentType.ActionRow,
@@ -1152,8 +1163,7 @@ export class StatsCommand extends BaseCommand {
       });
 
       await discordService.updateDeferredReply(interaction.token, {
-        content: "Preview generated. Confirm to replace the previous series stats.",
-        embeds: seriesEmbed.embeds,
+        embeds: [this.createStatusEmbed("Preview generated. Confirm to replace the previous series stats."), ...seriesEmbed.embeds],
         components: [
           {
             type: ComponentType.ActionRow,
@@ -1267,8 +1277,7 @@ export class StatsCommand extends BaseCommand {
       await this.postGameStatsOrButton(destinationThreadId, series, guildConfig, locale);
 
       await discordService.updateDeferredReply(interaction.token, {
-        content: "Series stats were amended successfully.",
-        embeds: [],
+        embeds: [this.createStatusEmbed("Series stats were amended successfully.")],
         components: [],
       });
     } catch (error) {
@@ -1281,13 +1290,19 @@ export class StatsCommand extends BaseCommand {
 
     try {
       await discordService.updateDeferredReply(interaction.token, {
-        content: "Cancelled.",
+        embeds: [this.createStatusEmbed("Cancelled.")],
         components: [],
-        embeds: [],
       });
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
+  }
+
+  private createStatusEmbed(description: string): APIEmbed {
+    return {
+      color: EmbedColors.NEUTRAL,
+      description,
+    };
   }
 
   private isThreadChannel(channelType: ChannelType): boolean {

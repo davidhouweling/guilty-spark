@@ -904,6 +904,13 @@ describe("StatsCommand", () => {
         .spyOn(services.discordService, "getTeamsFromQueueResult")
         .mockResolvedValue(discordNeatQueueData);
       vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValue(0n);
+      vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([
+        aFakeDiscordAssociationsRow({
+          DiscordId: "000000000000000001",
+          XboxId: "xuid-1",
+        }),
+      ]);
+      vi.spyOn(services.haloService, "getUsersByXuids").mockResolvedValue([{ xuid: "xuid-1", gamertag: "player-one" }]);
       vi.spyOn(services.discordService, "getMessageFromInteractionToken").mockResolvedValue({
         ...apiMessage,
         id: "fix-flow-message-id",
@@ -1009,6 +1016,13 @@ describe("StatsCommand", () => {
 
       vi.spyOn(services.discordService, "getTeamsFromQueueResult").mockResolvedValue(discordNeatQueueData);
       vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValue(0n);
+      vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([
+        aFakeDiscordAssociationsRow({
+          DiscordId: "000000000000000001",
+          XboxId: "xuid-1",
+        }),
+      ]);
+      vi.spyOn(services.haloService, "getUsersByXuids").mockResolvedValue([{ xuid: "xuid-1", gamertag: "player-one" }]);
       vi.spyOn(services.discordService, "getMessageFromInteractionToken").mockResolvedValue({
         ...apiMessage,
         id: "fix-flow-message-id",
@@ -1064,11 +1078,50 @@ describe("StatsCommand", () => {
       );
     });
 
+    it("returns an error when queue players do not have connected Halo accounts", async () => {
+      const queuePlayerInteraction: APIApplicationCommandInteraction = {
+        ...applicationCommandInteractionStatsFix,
+        member: {
+          ...Preconditions.checkExists(applicationCommandInteractionStatsFix.member),
+          user: {
+            ...Preconditions.checkExists(applicationCommandInteractionStatsFix.member?.user),
+            id: "000000000000000001",
+          },
+        },
+      };
+
+      vi.spyOn(services.discordService, "getTeamsFromQueueResult").mockResolvedValue(discordNeatQueueData);
+      vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValue(0n);
+      vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([
+        aFakeDiscordAssociationsRow({
+          DiscordId: "000000000000000001",
+          XboxId: "",
+        }),
+      ]);
+
+      const { jobToComplete } = statsCommand.execute(queuePlayerInteraction);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          message: "No players in that queue have a connected Halo account. Ask a player to run /connect first.",
+        }),
+      );
+    });
+
     it("allows admins that are not queue players", async () => {
       vi.spyOn(services.discordService, "getTeamsFromQueueResult").mockResolvedValue(discordNeatQueueData);
       vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValue(
         PermissionFlagsBits.Administrator,
       );
+      vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([
+        aFakeDiscordAssociationsRow({
+          DiscordId: "000000000000000001",
+          XboxId: "xuid-1",
+        }),
+      ]);
+      vi.spyOn(services.haloService, "getUsersByXuids").mockResolvedValue([{ xuid: "xuid-1", gamertag: "player-one" }]);
       vi.spyOn(services.discordService, "getMessageFromInteractionToken").mockResolvedValue({
         ...apiMessage,
         id: "fix-flow-message-id",
@@ -1181,7 +1234,7 @@ describe("StatsCommand", () => {
       expect(response).toEqual({
         type: InteractionResponseType.UpdateMessage,
         data: {
-          content: "Fetching recent custom games...",
+          embeds: [expect.objectContaining({ description: "Fetching recent custom games..." })],
           components: [],
         },
       });
@@ -1301,7 +1354,9 @@ describe("StatsCommand", () => {
       expect(updateDeferredReplySpy).toHaveBeenCalledWith(
         "fake-token",
         expect.objectContaining({
-          content: "Preview generated. Confirm to replace the previous series stats.",
+          embeds: expect.arrayContaining([
+            expect.objectContaining({ description: "Preview generated. Confirm to replace the previous series stats." }),
+          ]),
           components: [
             {
               type: ComponentType.ActionRow,
@@ -1403,8 +1458,7 @@ describe("StatsCommand", () => {
         expect.objectContaining({ embeds: createMessagePayload.embeds }),
       );
       expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
-        content: "Series stats were amended successfully.",
-        embeds: [],
+        embeds: [expect.objectContaining({ description: "Series stats were amended successfully." })],
         components: [],
       });
     });
@@ -1462,8 +1516,7 @@ describe("StatsCommand", () => {
       );
       expect(createMessageSpy).toHaveBeenCalledWith("new-thread-id", expect.anything());
       expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
-        content: "Series stats were amended successfully.",
-        embeds: [],
+        embeds: [expect.objectContaining({ description: "Series stats were amended successfully." })],
         components: [],
       });
     });
@@ -1552,8 +1605,7 @@ describe("StatsCommand", () => {
         "Replacing amended series stats",
       );
       expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
-        content: "Series stats were amended successfully.",
-        embeds: [],
+        embeds: [expect.objectContaining({ description: "Series stats were amended successfully." })],
         components: [],
       });
     });
@@ -1575,9 +1627,8 @@ describe("StatsCommand", () => {
       await jobToComplete?.();
 
       expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
-        content: "Cancelled.",
+        embeds: [expect.objectContaining({ description: "Cancelled." })],
         components: [],
-        embeds: [],
       });
     });
   });
