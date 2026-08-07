@@ -66,6 +66,7 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
   const defaultOpts: Env = {
     HOST_URL: "http://localhost:8787",
     PAGES_URL: "http://localhost:4321",
+    COOKIE_DOMAIN: "",
     MODE: "development",
     DISCORD_APP_ID: "DISCORD_APP_ID",
     DISCORD_PUBLIC_KEY: "DISCORD_PUBLIC_KEY",
