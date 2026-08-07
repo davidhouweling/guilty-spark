@@ -4,6 +4,8 @@ import type { verifyKey } from "discord-interactions";
 import type {
   APIApplicationCommandInteraction,
   APIChannel,
+  APIEmbed,
+  APIGuild,
   APIGuildMember,
   APIInteraction,
   APIMessage,
@@ -11,13 +13,17 @@ import type {
 import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
+  ChannelType,
   ComponentType,
+  EmbedType,
   InteractionType,
   Locale,
+  PermissionFlagsBits,
   MessageSearchAuthorType,
   MessageSearchSortMode,
 } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { EmbedColors } from "../../../embeds/colors";
 import { DiscordService } from "../discord";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { EndUserError, EndUserErrorType } from "../../../base/end-user-error";
@@ -1220,6 +1226,395 @@ describe("DiscordService", () => {
       delete cloneInteraction.user;
 
       expect(() => discordService.getDiscordUserId(cloneInteraction)).toThrow("No user found on interaction");
+    });
+  });
+
+  describe("computeMemberPermissions()", () => {
+    it("returns all permissions for the guild owner", async () => {
+      vi.spyOn(discordService, "getGuild").mockResolvedValue({
+        id: "fake-guild-id",
+        owner_id: "fake-owner-id",
+        roles: [
+          {
+            id: "fake-guild-id",
+            name: "@everyone",
+            permissions: "0",
+          },
+        ],
+      } as APIGuild);
+
+      vi.spyOn(discordService, "getGuildMember").mockResolvedValue(aGuildMemberWith());
+
+      const permissions = await discordService.computeMemberPermissions("fake-guild-id", "fake-owner-id");
+
+      expect(permissions).toBeGreaterThan(0n);
+      expect((permissions & PermissionFlagsBits.Administrator) !== 0n).toBe(true);
+    });
+
+    it("combines @everyone and member role permissions", async () => {
+      const getGuildSpy = vi.spyOn(discordService, "getGuild").mockResolvedValue({
+        id: "fake-guild-id",
+        roles: [
+          {
+            id: "fake-guild-id",
+            name: "@everyone",
+            permissions: "1",
+          },
+          {
+            id: "mod-role",
+            name: "mod",
+            permissions: "4",
+          },
+        ],
+      } as APIGuild);
+
+      const getGuildMemberSpy = vi
+        .spyOn(discordService, "getGuildMember")
+        .mockResolvedValue(aGuildMemberWith({ roles: ["mod-role"] }));
+
+      const permissions = await discordService.computeMemberPermissions("fake-guild-id", "fake-user-id");
+
+      expect(getGuildSpy).toHaveBeenCalledWith("fake-guild-id");
+      expect(getGuildMemberSpy).toHaveBeenCalledWith("fake-guild-id", "fake-user-id");
+      expect(permissions).toEqual(5n);
+    });
+
+    it("returns all permissions when administrator permission is present", async () => {
+      vi.spyOn(discordService, "getGuild").mockResolvedValue({
+        id: "fake-guild-id",
+        roles: [
+          {
+            id: "fake-guild-id",
+            name: "@everyone",
+            permissions: "1",
+          },
+          {
+            id: "admin-role",
+            name: "admin",
+            permissions: PermissionFlagsBits.Administrator.toString(),
+          },
+        ],
+      } as APIGuild);
+
+      vi.spyOn(discordService, "getGuildMember").mockResolvedValue(aGuildMemberWith({ roles: ["admin-role"] }));
+
+      const permissions = await discordService.computeMemberPermissions("fake-guild-id", "fake-user-id");
+
+      expect(permissions).toBeGreaterThan(0n);
+      expect((permissions & PermissionFlagsBits.Administrator) !== 0n).toBe(true);
+    });
+  });
+
+  describe("interaction metadata", () => {
+    it("stores interaction metadata in KV", async () => {
+      const putSpy = vi.spyOn(env.APP_DATA, "put");
+
+      await discordService.setInteractionMetadata("token-1", { queueNumber: 777, userId: "user-1" });
+
+      expect(putSpy).toHaveBeenCalledWith("interactionMetadata:token-1", '{"queueNumber":777,"userId":"user-1"}', {
+        expirationTtl: 3600,
+      });
+    });
+
+    it("retrieves interaction metadata from KV", async () => {
+      const getSpy = vi.spyOn(env.APP_DATA, "get").mockResolvedValue({ queueNumber: 888 } as never);
+
+      const metadata = await discordService.getInteractionMetadata<{ queueNumber: number }>("token-2");
+
+      expect(getSpy).toHaveBeenCalledWith("interactionMetadata:token-2", "json");
+      expect(metadata).toEqual({ queueNumber: 888 });
+    });
+  });
+
+  describe("getMessages()", () => {
+    it("fetches messages for a channel", async () => {
+      mockFetch.mockResolvedValue(new Response(JSON.stringify([apiMessage])));
+
+      const messages = await discordService.getMessages("fake-channel");
+
+      expect(mockFetch).toHaveBeenCalledWith("https://discord.com/api/v10/channels/fake-channel/messages", {
+        body: null,
+        headers: new Headers({
+          Authorization: "Bot DISCORD_TOKEN",
+          "content-type": "application/json;charset=UTF-8",
+        }),
+        method: "GET",
+      });
+      expect(messages).toEqual([apiMessage]);
+    });
+  });
+
+  describe("findExistingSeriesStatsThreadLocation()", () => {
+    function aSeriesOverviewEmbedWith(queueNumber: number): APIEmbed {
+      return {
+        type: EmbedType.Rich,
+        color: EmbedColors.INFO,
+        title: `Series stats for queue #${queueNumber.toString()} (🦅 2:1 🐍)`,
+      };
+    }
+
+    function aSearchResultWith(messages: APIMessage[]): unknown {
+      return { doing_deep_historical_index: false, total_results: messages.length, messages: messages.map((m) => [m]) };
+    }
+
+    it("returns the thread and parent overview message id when the overview message started a thread", async () => {
+      const overviewMessage: APIMessage = {
+        ...apiMessage,
+        id: "overview-message-id",
+        channel_id: "parent-channel-id",
+        embeds: [aSeriesOverviewEmbedWith(777)],
+        thread: { id: "new-thread-id", type: ChannelType.PublicThread } as APIChannel,
+      };
+      mockFetch.mockResolvedValue(new Response(JSON.stringify(aSearchResultWith([overviewMessage]))));
+
+      const result = await discordService.findExistingSeriesStatsThreadLocation("fake-guild-id", 777);
+
+      expect(result).toEqual({ threadId: "new-thread-id", parentOverviewMessageId: "overview-message-id" });
+    });
+
+    it("returns just the thread id when the overview message already lives inside a thread", async () => {
+      const overviewMessage: APIMessage = {
+        ...apiMessage,
+        id: "overview-message-id",
+        channel_id: "existing-thread-id",
+        embeds: [aSeriesOverviewEmbedWith(777)],
+      };
+      mockFetch.mockResolvedValue(new Response(JSON.stringify(aSearchResultWith([overviewMessage]))));
+      vi.spyOn(discordService, "getChannel").mockResolvedValue({
+        id: "existing-thread-id",
+        type: ChannelType.PublicThread,
+      } as APIChannel);
+
+      const result = await discordService.findExistingSeriesStatsThreadLocation("fake-guild-id", 777);
+
+      expect(result).toEqual({ threadId: "existing-thread-id" });
+    });
+
+    it("returns undefined when no matching overview message is found", async () => {
+      mockFetch.mockResolvedValue(new Response(JSON.stringify(aSearchResultWith([]))));
+
+      const result = await discordService.findExistingSeriesStatsThreadLocation("fake-guild-id", 777);
+
+      expect(result).toBeUndefined();
+    });
+
+    it("returns undefined when the overview message's channel is not a thread and started none", async () => {
+      const overviewMessage: APIMessage = {
+        ...apiMessage,
+        id: "overview-message-id",
+        channel_id: "plain-channel-id",
+        embeds: [aSeriesOverviewEmbedWith(777)],
+      };
+      mockFetch.mockResolvedValue(new Response(JSON.stringify(aSearchResultWith([overviewMessage]))));
+      vi.spyOn(discordService, "getChannel").mockResolvedValue({
+        id: "plain-channel-id",
+        type: ChannelType.GuildText,
+      } as APIChannel);
+
+      const result = await discordService.findExistingSeriesStatsThreadLocation("fake-guild-id", 777);
+
+      expect(result).toBeUndefined();
+    });
+
+    it("throws an actionable error when the search index isn't ready", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            message: "The search index is not ready",
+            code: 110000,
+            documents_indexed: 0,
+            retry_after: 5,
+          }),
+        ),
+      );
+
+      await expect(discordService.findExistingSeriesStatsThreadLocation("fake-guild-id", 777)).rejects.toThrow(
+        "Discord is still indexing recent messages for search. Please try again in a few seconds.",
+      );
+    });
+  });
+
+  describe("findBotMessagesInThread()", () => {
+    it("returns the flattened search results for the given thread", async () => {
+      const firstMessage: APIMessage = { ...apiMessage, id: "message-1" };
+      const secondMessage: APIMessage = { ...apiMessage, id: "message-2" };
+      mockFetch.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            doing_deep_historical_index: false,
+            total_results: 2,
+            messages: [[firstMessage], [secondMessage]],
+          }),
+        ),
+      );
+
+      const messages = await discordService.findBotMessagesInThread("fake-guild-id", "fake-thread-id");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("channel_id=fake-thread-id"),
+        expect.objectContaining({ method: "GET" }),
+      );
+      expect(messages).toEqual([firstMessage, secondMessage]);
+    });
+
+    it("throws an actionable error when the search index isn't ready", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            message: "The search index is not ready",
+            code: 110000,
+            documents_indexed: 0,
+            retry_after: 5,
+          }),
+        ),
+      );
+
+      await expect(discordService.findBotMessagesInThread("fake-guild-id", "fake-thread-id")).rejects.toThrow(
+        "Discord is still indexing recent messages for search. Please try again in a few seconds.",
+      );
+    });
+
+    it("pages through multiple full pages of search results", async () => {
+      const firstPage = Array.from({ length: 25 }, (_, index) => [
+        { ...apiMessage, id: `page-1-message-${index.toString()}` },
+      ]);
+      const secondPage = [[{ ...apiMessage, id: "page-2-message-0" }]];
+      mockFetch
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ doing_deep_historical_index: false, total_results: 26, messages: firstPage })),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ doing_deep_historical_index: false, total_results: 26, messages: secondPage })),
+        );
+
+      const messages = await discordService.findBotMessagesInThread("fake-guild-id", "fake-thread-id");
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenNthCalledWith(2, expect.stringContaining("offset=25"), expect.anything());
+      expect(messages).toHaveLength(26);
+    });
+
+    it("logs a warning and stops after the page limit when every page is full", async () => {
+      const logWarnSpy = vi.spyOn(logService, "warn");
+      let call = 0;
+      mockFetch.mockImplementation(async () => {
+        call += 1;
+        const page = Array.from({ length: 25 }, (_, index) => [
+          { ...apiMessage, id: `message-${call.toString()}-${index.toString()}` },
+        ]);
+        return Promise.resolve(
+          new Response(JSON.stringify({ doing_deep_historical_index: false, total_results: 250, messages: page })),
+        );
+      });
+
+      const messages = await discordService.findBotMessagesInThread("fake-guild-id", "fake-thread-id");
+
+      expect(messages).toHaveLength(250);
+      expect(logWarnSpy).toHaveBeenCalledWith(
+        "findBotMessagesInThread: reached page limit while paging through search results",
+        expect.anything(),
+      );
+    });
+  });
+
+  describe("findQueueNumberForThread()", () => {
+    it("extracts the queue number from the most recent overview embed", async () => {
+      const overviewMessage: APIMessage = {
+        ...apiMessage,
+        id: "overview-message-id",
+        embeds: [
+          {
+            type: EmbedType.Rich,
+            color: EmbedColors.INFO,
+            title: "Series stats for queue #777 (🦅 2:1 🐍)",
+          },
+        ],
+      };
+      mockFetch.mockResolvedValue(
+        new Response(
+          JSON.stringify({ doing_deep_historical_index: false, total_results: 1, messages: [[overviewMessage]] }),
+        ),
+      );
+
+      const queueNumber = await discordService.findQueueNumberForThread("fake-guild-id", "fake-thread-id");
+
+      expect(queueNumber).toEqual(777);
+    });
+
+    it("returns undefined when no overview embed is found among the results", async () => {
+      const nonOverviewMessage: APIMessage = { ...apiMessage, id: "non-overview-message-id", embeds: [] };
+      mockFetch.mockResolvedValue(
+        new Response(
+          JSON.stringify({ doing_deep_historical_index: false, total_results: 1, messages: [[nonOverviewMessage]] }),
+        ),
+      );
+
+      const queueNumber = await discordService.findQueueNumberForThread("fake-guild-id", "fake-thread-id");
+
+      expect(queueNumber).toBeUndefined();
+    });
+
+    it("throws an actionable error when the search index isn't ready", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            message: "The search index is not ready",
+            code: 110000,
+            documents_indexed: 0,
+            retry_after: 5,
+          }),
+        ),
+      );
+
+      await expect(discordService.findQueueNumberForThread("fake-guild-id", "fake-thread-id")).rejects.toThrow(
+        "Discord is still indexing recent messages for search. Please try again in a few seconds.",
+      );
+    });
+
+    it("pages to a later page when the overview embed isn't in the first page", async () => {
+      const firstPage = Array.from({ length: 25 }, (_, index) => [
+        { ...apiMessage, id: `page-1-message-${index.toString()}`, embeds: [] },
+      ]);
+      const overviewMessage: APIMessage = {
+        ...apiMessage,
+        id: "overview-message-id",
+        embeds: [{ type: EmbedType.Rich, color: EmbedColors.INFO, title: "Series stats for queue #777 (🦅 2:1 🐍)" }],
+      };
+      mockFetch
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ doing_deep_historical_index: false, total_results: 26, messages: firstPage })),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ doing_deep_historical_index: false, total_results: 26, messages: [[overviewMessage]] }),
+          ),
+        );
+
+      const queueNumber = await discordService.findQueueNumberForThread("fake-guild-id", "fake-thread-id");
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenNthCalledWith(2, expect.stringContaining("offset=25"), expect.anything());
+      expect(queueNumber).toEqual(777);
+    });
+
+    it("logs a warning and returns undefined after the page limit when every page is full", async () => {
+      const logWarnSpy = vi.spyOn(logService, "warn");
+      mockFetch.mockImplementation(async () => {
+        const page = Array.from({ length: 25 }, (_, index) => [
+          { ...apiMessage, id: `message-${index.toString()}`, embeds: [] },
+        ]);
+        return Promise.resolve(
+          new Response(JSON.stringify({ doing_deep_historical_index: false, total_results: 250, messages: page })),
+        );
+      });
+
+      const queueNumber = await discordService.findQueueNumberForThread("fake-guild-id", "fake-thread-id");
+
+      expect(queueNumber).toBeUndefined();
+      expect(logWarnSpy).toHaveBeenCalledWith(
+        "findQueueNumberForThread: reached page limit without finding an overview embed",
+        expect.anything(),
+      );
     });
   });
 

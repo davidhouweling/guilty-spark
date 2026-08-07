@@ -41,6 +41,21 @@ export function getDiscordSeriesOverviewEmbed(message: APIMessage, queueNumber: 
   return null;
 }
 
+export function extractQueueNumberFromSeriesOverviewEmbed(message: APIMessage): number | undefined {
+  for (const embed of message.embeds) {
+    if (embed.type !== EmbedType.Rich || embed.color !== EmbedColors.INFO) {
+      continue;
+    }
+
+    const match = embed.title?.match(/^Series stats for queue #(\d+)\b/);
+    if (match?.[1] != null) {
+      return Number(match[1]);
+    }
+  }
+
+  return undefined;
+}
+
 export function extractDiscordSeriesMatchIdsFromEmbeds(embeds: readonly APIEmbed[]): string[] {
   const matchIds = new Set<string>();
 
