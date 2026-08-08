@@ -5,6 +5,7 @@ import type {
   APIInteractionResponseDeferredChannelMessageWithSource,
   APIMessageComponentButtonInteraction,
   APIMessageComponentSelectMenuInteraction,
+  APISelectMenuOption,
 } from "discord-api-types/v10";
 import {
   EmbedType,
@@ -1013,16 +1014,17 @@ export class StatsCommand extends BaseCommand {
 
       const preselectedMatchIds = await this.getPreselectedFixMatchIds(metadata, interaction);
 
-      const gameOptions = matchHistory.matches.map((match) => {
-        const label = this.getFixGameSelectionLabel(match.modeName, match.mapName, match.resultString, match.endTime);
+      const gameOptions: APISelectMenuOption[] = matchHistory.matches.map<APISelectMenuOption>((match) => {
+        const label = this.getFixGameSelectionLabel(match.modeName, match.mapName, match.resultString);
         return {
           label: label.slice(0, 100),
           value: match.matchId,
+          description: `Date: ${discordService.getTimestamp(match.endTime)}`,
           default: preselectedMatchIds.has(match.matchId),
         };
       });
 
-      const selectedMatchIds = gameOptions.filter((option) => option.default).map((option) => option.value);
+      const selectedMatchIds = gameOptions.filter((option) => Boolean(option.default)).map((option) => option.value);
       await this.setFixMetadata(interaction.message.id, {
         ...metadata,
         selectedPlayerId,
@@ -1062,8 +1064,8 @@ export class StatsCommand extends BaseCommand {
     }
   }
 
-  private getFixGameSelectionLabel(modeName: string, mapName: string, result: string, endTime: string): string {
-    return `${modeName} ${mapName} - ${result} (${endTime})`;
+  private getFixGameSelectionLabel(modeName: string, mapName: string, result: string): string {
+    return `${modeName} ${mapName} - ${result}`;
   }
 
   private async getPreselectedFixMatchIds(
@@ -1163,7 +1165,10 @@ export class StatsCommand extends BaseCommand {
       });
 
       await discordService.updateDeferredReply(interaction.token, {
-        embeds: [this.createStatusEmbed("Preview generated. Confirm to replace the previous series stats."), ...seriesEmbed.embeds],
+        embeds: [
+          this.createStatusEmbed("Preview generated. Confirm to replace the previous series stats."),
+          ...seriesEmbed.embeds,
+        ],
         components: [
           {
             type: ComponentType.ActionRow,
@@ -1235,26 +1240,40 @@ export class StatsCommand extends BaseCommand {
       );
 
       let destinationThreadId: string;
+      let shouldPostOverviewInThread = false;
       if (existingLocation != null) {
-        destinationThreadId = existingLocation.threadId;
         const existingThreadMessages = await discordService.findBotMessagesInThread(
           metadata.guildId,
-          destinationThreadId,
+          existingLocation.threadId,
         );
         const existingGuiltySparkMessageIds = existingThreadMessages
           .filter((message) => message.content !== "" || message.embeds.length > 0)
           .map((message) => message.id);
         await this.deleteMessagesInChunks(
-          destinationThreadId,
+          existingLocation.threadId,
           existingGuiltySparkMessageIds,
           "Replacing amended series stats",
         );
 
         if (existingLocation.parentOverviewMessageId != null) {
-          await discordService.editMessage(metadata.channelId, existingLocation.parentOverviewMessageId, {
+          await discordService.deleteMessage(
+            metadata.channelId,
+            existingLocation.parentOverviewMessageId,
+            "Replacing amended series stats",
+          );
+          const seriesOverviewMessage = await discordService.createMessage(metadata.channelId, {
             embeds: amendedSeriesEmbed.embeds,
             components: amendedSeriesEmbed.components,
           });
+          const createdThread = await discordService.startThreadFromMessage(
+            metadata.channelId,
+            seriesOverviewMessage.id,
+            `Queue #${metadata.queueData.queue.toString()} series stats (${haloService.getSeriesScore(series, locale, true)})`,
+          );
+          destinationThreadId = createdThread.id;
+        } else {
+          destinationThreadId = existingLocation.threadId;
+          shouldPostOverviewInThread = true;
         }
       } else {
         const seriesOverviewMessage = await discordService.createMessage(metadata.channelId, {
@@ -1269,10 +1288,12 @@ export class StatsCommand extends BaseCommand {
         destinationThreadId = createdThread.id;
       }
 
-      await discordService.createMessage(destinationThreadId, {
-        embeds: amendedSeriesEmbed.embeds,
-        components: amendedSeriesEmbed.components,
-      });
+      if (shouldPostOverviewInThread) {
+        await discordService.createMessage(destinationThreadId, {
+          embeds: amendedSeriesEmbed.embeds,
+          components: amendedSeriesEmbed.components,
+        });
+      }
       await this.postSeriesEmbedsToThread(destinationThreadId, series, guildConfig, locale);
       await this.postGameStatsOrButton(destinationThreadId, series, guildConfig, locale);
 

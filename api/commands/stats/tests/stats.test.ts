@@ -1252,17 +1252,20 @@ describe("StatsCommand", () => {
             options: [
               expect.objectContaining({
                 value: firstMatchId,
-                label: "CTF Bazaar - Win - 3:1 (2025-01-01 10:00 AM)",
+                label: "CTF Bazaar - Win - 3:1",
+                description: "Date: <t:1735686000:f>",
                 default: true,
               }),
               expect.objectContaining({
                 value: secondMatchId,
-                label: "Strongholds Live Fire - Loss - 2:3 (2025-01-01 10:20 AM)",
+                label: "Strongholds Live Fire - Loss - 2:3",
+                description: "Date: <t:1735687200:f>",
                 default: false,
               }),
               expect.objectContaining({
                 value: thirdMatchId,
-                label: "Slayer Recharge - Win - 50:45 (2025-01-01 10:40 AM)",
+                label: "Slayer Recharge - Win - 50:45",
+                description: "Date: <t:1735688400:f>",
                 default: true,
               }),
             ],
@@ -1351,23 +1354,18 @@ describe("StatsCommand", () => {
           selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
         }),
       );
-      expect(updateDeferredReplySpy).toHaveBeenCalledWith(
-        "fake-token",
-        expect.objectContaining({
-          embeds: expect.arrayContaining([
-            expect.objectContaining({ description: "Preview generated. Confirm to replace the previous series stats." }),
-          ]),
+      const updatePayload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+      const statusEmbed = Preconditions.checkExists(updatePayload.embeds?.[0]);
+      expect(statusEmbed.description).toBe("Preview generated. Confirm to replace the previous series stats.");
+      expect(updatePayload.components).toEqual([
+        {
+          type: ComponentType.ActionRow,
           components: [
-            {
-              type: ComponentType.ActionRow,
-              components: [
-                expect.objectContaining({ custom_id: "btn_stats_fix_confirm" }),
-                expect.objectContaining({ custom_id: "btn_stats_fix_cancel" }),
-              ],
-            },
+            expect.objectContaining({ custom_id: "btn_stats_fix_confirm" }),
+            expect.objectContaining({ custom_id: "btn_stats_fix_cancel" }),
           ],
-        }),
-      );
+        },
+      ]);
     });
   });
 
@@ -1430,8 +1428,14 @@ describe("StatsCommand", () => {
           },
         ]);
       const bulkDeleteMessagesSpy = vi.spyOn(services.discordService, "bulkDeleteMessages").mockResolvedValue();
-      const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
-      const editMessageSpy = vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+      const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue();
+      const createMessageSpy = vi
+        .spyOn(services.discordService, "createMessage")
+        .mockResolvedValueOnce({ ...apiMessage, id: "replacement-overview-message-id" })
+        .mockResolvedValue(apiMessage);
+      const startThreadFromMessageSpy = vi
+        .spyOn(services.discordService, "startThreadFromMessage")
+        .mockResolvedValue({ id: "replacement-thread-id" } as RESTPostAPIChannelThreadsResult);
       vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
 
       const { response, jobToComplete } = statsCommand.execute(interaction);
@@ -1446,17 +1450,22 @@ describe("StatsCommand", () => {
         ["thread-msg-1", "thread-msg-3"],
         "Replacing amended series stats",
       );
-      expect(createMessageSpy).toHaveBeenCalledWith("existing-thread-id", expect.anything());
+      expect(deleteMessageSpy).toHaveBeenCalledWith(
+        "fake-channel-id",
+        "original-overview-message-id",
+        "Replacing amended series stats",
+      );
+      expect(createMessageSpy).toHaveBeenCalledWith("fake-channel-id", expect.anything());
+      expect(startThreadFromMessageSpy).toHaveBeenCalledWith(
+        "fake-channel-id",
+        "replacement-overview-message-id",
+        expect.stringContaining("Queue #777 series stats"),
+      );
       const createMessagePayload = Preconditions.checkExists(createMessageSpy.mock.calls[0]?.[1]);
       const firstEmbed = Preconditions.checkExists(createMessagePayload.embeds?.[0]);
       const amendedByField = firstEmbed.fields?.find((field) => field.name === "Amended by");
       expect(amendedByField).toBeDefined();
       expect(Preconditions.checkExists(amendedByField).value.length).toBeGreaterThan(0);
-      expect(editMessageSpy).toHaveBeenCalledWith(
-        "fake-channel-id",
-        "original-overview-message-id",
-        expect.objectContaining({ embeds: createMessagePayload.embeds }),
-      );
       expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
         embeds: [expect.objectContaining({ description: "Series stats were amended successfully." })],
         components: [],
