@@ -219,7 +219,7 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.queryByText(/End time/)).not.toBeInTheDocument();
   });
 
-  it("does not mute a lost match's icon while its series is still active", () => {
+  it("mutes a lost match's icon while its series is still active", () => {
     const view = aFakeTrackerViewStateWith({
       matches: [
         aFakeTrackerMatchSummaryWith({
@@ -248,9 +248,10 @@ describe("IndividualTrackerViewer", () => {
 
     renderViewer(view);
 
-    const icons = within(screen.getByLabelText("Series Ranked Series")).getAllByRole("img");
-    expect(icons).toHaveLength(2);
-    expect(icons.every((icon) => !icon.className.includes("seriesModeIconMuted"))).toBe(true);
+    const seriesEntry = within(screen.getByLabelText("Series Ranked Series"));
+    expect(seriesEntry.getAllByRole("img")).toHaveLength(2);
+    expect(seriesEntry.getByAltText("Slayer").className).not.toContain("seriesModeIconMuted");
+    expect(seriesEntry.getByAltText("Attrition").className).toContain("seriesModeIconMuted");
   });
 
   it("mutes a lost match's icon once its series has completed", () => {
@@ -276,9 +277,10 @@ describe("IndividualTrackerViewer", () => {
 
     renderViewer(view);
 
-    const icons = within(screen.getByLabelText("Series Completed Series")).getAllByRole("img");
-    expect(icons).toHaveLength(2);
-    expect(icons.some((icon) => icon.className.includes("seriesModeIconMuted"))).toBe(true);
+    const seriesEntry = within(screen.getByLabelText("Series Completed Series"));
+    expect(seriesEntry.getAllByRole("img")).toHaveLength(2);
+    expect(seriesEntry.getByAltText("Slayer").className).not.toContain("seriesModeIconMuted");
+    expect(seriesEntry.getByAltText("Attrition").className).toContain("seriesModeIconMuted");
   });
 
   it("marks only the most recent series as In progress when active context is missing", () => {
