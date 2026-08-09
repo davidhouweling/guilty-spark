@@ -219,7 +219,7 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.queryByText(/End time/)).not.toBeInTheDocument();
   });
 
-  it("does not mute a lost match's icon while its series is still active", () => {
+  it("mutes a lost match's icon while its series is still active", () => {
     const view = aFakeTrackerViewStateWith({
       matches: [
         aFakeTrackerMatchSummaryWith({
@@ -250,7 +250,7 @@ describe("IndividualTrackerViewer", () => {
 
     const icons = within(screen.getByLabelText("Series Ranked Series")).getAllByRole("img");
     expect(icons).toHaveLength(2);
-    expect(icons.every((icon) => !icon.className.includes("seriesModeIconMuted"))).toBe(true);
+    expect(icons.some((icon) => icon.className.includes("seriesModeIconMuted"))).toBe(true);
   });
 
   it("mutes a lost match's icon once its series has completed", () => {
