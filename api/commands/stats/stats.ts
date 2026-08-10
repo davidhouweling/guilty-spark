@@ -20,7 +20,7 @@ import {
   PermissionFlagsBits,
 } from "discord-api-types/v10";
 import { type MatchStats, type GameVariantCategory, MatchType } from "halo-infinite-api";
-import { subHours } from "date-fns";
+import { formatDistanceToNowStrict, subHours } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { BaseInteraction, ExecuteResponse, ApplicationCommandData, CommandData } from "../base/base-command";
@@ -1019,7 +1019,7 @@ export class StatsCommand extends BaseCommand {
         return {
           label: label.slice(0, 100),
           value: match.matchId,
-          description: `Date: ${discordService.getTimestamp(match.endTime)}`,
+          description: this.getFixGameSelectionDescription(match.endTime).slice(0, 100),
           default: preselectedMatchIds.has(match.matchId),
         };
       });
@@ -1066,6 +1066,17 @@ export class StatsCommand extends BaseCommand {
 
   private getFixGameSelectionLabel(modeName: string, mapName: string, result: string): string {
     return `${modeName} ${mapName} - ${result}`;
+  }
+
+  private getFixGameSelectionDescription(endTime: string): string {
+    const endDate = new Date(endTime);
+    if (Number.isNaN(endDate.getTime())) {
+      return "Ended at unknown time";
+    }
+
+    const relative = formatDistanceToNowStrict(endDate, { addSuffix: true });
+    const absoluteUtc = `${endDate.toISOString().replace("T", " ").slice(0, 16)} UTC`;
+    return `Ended ${relative} (${absoluteUtc})`;
   }
 
   private async getPreselectedFixMatchIds(

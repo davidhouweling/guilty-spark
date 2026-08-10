@@ -1253,19 +1253,19 @@ describe("StatsCommand", () => {
               expect.objectContaining({
                 value: firstMatchId,
                 label: "CTF Bazaar - Win - 3:1",
-                description: "Date: <t:1735686000:f>",
+                description: expect.stringMatching(/^Ended .+ ago \(\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC\)$/) as string,
                 default: true,
               }),
               expect.objectContaining({
                 value: secondMatchId,
                 label: "Strongholds Live Fire - Loss - 2:3",
-                description: "Date: <t:1735687200:f>",
+                description: expect.stringMatching(/^Ended .+ ago \(\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC\)$/) as string,
                 default: false,
               }),
               expect.objectContaining({
                 value: thirdMatchId,
                 label: "Slayer Recharge - Win - 50:45",
-                description: "Date: <t:1735688400:f>",
+                description: expect.stringMatching(/^Ended .+ ago \(\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC\)$/) as string,
                 default: true,
               }),
             ],
