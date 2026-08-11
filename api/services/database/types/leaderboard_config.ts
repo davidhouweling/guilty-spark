@@ -1,5 +1,5 @@
-export { LeaderboardWindow, LeaderboardMetric } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+export { LeaderboardWindow, LeaderboardMetric } from "@guilty-spark/shared/halo/leaderboard";
 
 export interface LeaderboardConfigRow {
   GuildId: string;
