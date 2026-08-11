@@ -28,6 +28,7 @@ import type { DiscordService } from "../../discord/discord";
 import type { HaloService } from "../../halo/halo";
 import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
+import { LeaderboardService } from "../../leaderboard/leaderboard";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeLiveTrackerServiceWith } from "../../live-tracker/fakes/live-tracker.fake";
 import { aFakeLiveTrackerStateWith } from "../../../durable-objects/live-tracker/fakes/live-tracker-do.fake";
@@ -72,6 +73,7 @@ describe("NeatQueueService", () => {
   let databaseService: DatabaseService;
   let discordService: DiscordService;
   let haloService: HaloService;
+  let leaderboardService: LeaderboardService;
   let liveTrackerService: LiveTrackerService;
   let individualTrackerService: IndividualTrackerService;
   let neatQueueService: NeatQueueService;
@@ -85,6 +87,7 @@ describe("NeatQueueService", () => {
     databaseService = aFakeDatabaseServiceWith();
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
+    leaderboardService = new LeaderboardService({ databaseService, haloService, logService });
     liveTrackerService = aFakeLiveTrackerServiceWith({ logService, discordService, env });
     individualTrackerService = aFakeIndividualTrackerServiceWith();
     neatQueueService = new NeatQueueService({
@@ -93,6 +96,7 @@ describe("NeatQueueService", () => {
       databaseService,
       discordService,
       haloService,
+      leaderboardService,
       liveTrackerService,
       individualTrackerService,
     });
