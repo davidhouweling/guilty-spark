@@ -1617,6 +1617,9 @@ describe("StatsCommand", () => {
       const editMessageSpy = vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
       const startThreadFromMessageSpy = vi.spyOn(services.discordService, "startThreadFromMessage");
+      const cacheResolvedDiscordSeriesStatsSpy = vi
+        .spyOn(services.discordService, "cacheResolvedDiscordSeriesStats")
+        .mockResolvedValue();
       vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
 
       const { response, jobToComplete } = statsCommand.execute(interaction);
@@ -1639,6 +1642,12 @@ describe("StatsCommand", () => {
       expect(editMessageSpy).toHaveBeenCalledWith("fake-channel-id", "original-overview-message-id", expect.anything());
       expect(startThreadFromMessageSpy).not.toHaveBeenCalled();
       expect(createMessageSpy).toHaveBeenCalledWith("existing-thread-id", expect.anything());
+      expect(cacheResolvedDiscordSeriesStatsSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          guildId: "fake-guild-id",
+          queueNumber: 777,
+        }),
+      );
       const editMessagePayload = Preconditions.checkExists(editMessageSpy.mock.calls[0]?.[2]);
       const firstEmbed = Preconditions.checkExists(editMessagePayload.embeds?.[0]);
       const amendedByField = firstEmbed.fields?.find((field) => field.name === "Amended by");

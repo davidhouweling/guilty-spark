@@ -1307,6 +1307,7 @@ export class StatsCommand extends BaseCommand {
       }
       await this.postSeriesEmbedsToThread(destinationThreadId, series, guildConfig, locale);
       await this.postGameStatsOrButton(destinationThreadId, series, guildConfig, locale);
+      await this.cacheDiscordSeriesStats(metadata.guildId, metadata.queueData.queue, series);
 
       await discordService.updateDeferredReply(interaction.token, {
         embeds: [this.createStatusEmbed("Series stats were amended successfully.")],
