@@ -758,31 +758,66 @@ export class DatabaseService {
   }: LeaderboardRankingsQuery): Promise<{ total: number; rows: LeaderboardRankingRow[] }> {
     const aggregateSql = `
       SELECT
-        sp.XboxXuid AS XboxXuid,
-        MAX(sp.DiscordUserId) AS DiscordUserId,
-        MAX(sp.GamertagSnapshot) AS Gamertag,
-        COUNT(*) AS SeriesPlayed,
-        SUM(sp.SeriesWon) AS SeriesWins,
-        SUM(sp.GamesPlayedCount) AS GamesPlayed,
-        CAST(SUM(sp.SeriesWon) AS REAL) / COUNT(*) AS MetricValue
-      FROM LeaderboardSeriesPlayers sp
-      INNER JOIN LeaderboardSeries s
-        ON s.GuildId = sp.GuildId
-        AND s.QueueNumber = sp.QueueNumber
-      WHERE s.GuildId = ?
-        AND s.CompletedAt >= ?
-        AND (? IS NULL OR s.QueueChannelId = ?)
-      GROUP BY sp.XboxXuid
-      HAVING SUM(sp.GamesPlayedCount) >= ?
+        stats.XboxXuid AS XboxXuid,
+        identity.DiscordUserId AS DiscordUserId,
+        identity.GamertagSnapshot AS Gamertag,
+        stats.SeriesPlayed AS SeriesPlayed,
+        stats.SeriesWins AS SeriesWins,
+        stats.GamesPlayed AS GamesPlayed,
+        CAST(stats.SeriesWins AS REAL) / stats.SeriesPlayed AS MetricValue
+      FROM (
+        SELECT
+          sp.XboxXuid AS XboxXuid,
+          COUNT(*) AS SeriesPlayed,
+          SUM(sp.SeriesWon) AS SeriesWins,
+          SUM(sp.GamesPlayedCount) AS GamesPlayed
+        FROM LeaderboardSeriesPlayers sp
+        INNER JOIN LeaderboardSeries s
+          ON s.GuildId = sp.GuildId
+          AND s.QueueNumber = sp.QueueNumber
+        WHERE s.GuildId = ?
+          AND s.CompletedAt >= ?
+          AND (? IS NULL OR s.QueueChannelId = ?)
+        GROUP BY sp.XboxXuid
+        HAVING SUM(sp.GamesPlayedCount) >= ?
+      ) stats
+      INNER JOIN (
+        SELECT ranked.XboxXuid, ranked.DiscordUserId, ranked.GamertagSnapshot
+        FROM (
+          SELECT
+            sp.XboxXuid AS XboxXuid,
+            sp.DiscordUserId AS DiscordUserId,
+            sp.GamertagSnapshot AS GamertagSnapshot,
+            ROW_NUMBER() OVER (
+              PARTITION BY sp.XboxXuid
+              ORDER BY s.CompletedAt DESC, sp.CreatedAt DESC
+            ) AS RowNumber
+          FROM LeaderboardSeriesPlayers sp
+          INNER JOIN LeaderboardSeries s
+            ON s.GuildId = sp.GuildId
+            AND s.QueueNumber = sp.QueueNumber
+          WHERE s.GuildId = ?
+            AND s.CompletedAt >= ?
+            AND (? IS NULL OR s.QueueChannelId = ?)
+        ) ranked
+        WHERE ranked.RowNumber = 1
+      ) identity
+        ON identity.XboxXuid = stats.XboxXuid
     `;
 
-    const countStmt = this.DB.prepare(`SELECT COUNT(*) AS Total FROM (${aggregateSql}) agg`).bind(
+    const bindings = [
       guildId,
       startEpochSeconds,
       queueChannelId,
       queueChannelId,
       minGamesPlayed,
-    );
+      guildId,
+      startEpochSeconds,
+      queueChannelId,
+      queueChannelId,
+    ] as const;
+
+    const countStmt = this.DB.prepare(`SELECT COUNT(*) AS Total FROM (${aggregateSql}) agg`).bind(...bindings);
     const countRow = await countStmt.first<{ Total: number }>();
 
     const rowsStmt = this.DB.prepare(
@@ -791,7 +826,7 @@ export class DatabaseService {
         ORDER BY agg.MetricValue DESC, agg.SeriesWins DESC, agg.GamesPlayed DESC, agg.Gamertag ASC
         LIMIT ? OFFSET ?
       `,
-    ).bind(guildId, startEpochSeconds, queueChannelId, queueChannelId, minGamesPlayed, limit, offset);
+    ).bind(...bindings, limit, offset);
     const rowsResponse = await rowsStmt.all<LeaderboardRankingRow>();
 
     return {
@@ -858,32 +893,87 @@ export class DatabaseService {
 
     const aggregateSql = `
       SELECT
-        gp.XboxXuid AS XboxXuid,
-        MAX(gp.DiscordUserId) AS DiscordUserId,
-        MAX(gp.GamertagSnapshot) AS Gamertag,
-        COUNT(DISTINCT gp.QueueNumber) AS SeriesPlayed,
-        0 AS SeriesWins,
-        COUNT(*) AS GamesPlayed,
-        ${metricSql} AS MetricValue
-      FROM LeaderboardGamePlayers gp
-      INNER JOIN LeaderboardGames g
-        ON g.GuildId = gp.GuildId
-        AND g.QueueNumber = gp.QueueNumber
-        AND g.MatchId = gp.MatchId
-      WHERE gp.GuildId = ?
-        AND g.EndedAt >= ?
-        AND (? IS NULL OR gp.QueueChannelId = ?)
-      GROUP BY gp.XboxXuid
-      HAVING COUNT(*) >= ?
+        stats.XboxXuid AS XboxXuid,
+        identity.DiscordUserId AS DiscordUserId,
+        identity.GamertagSnapshot AS Gamertag,
+        COALESCE(seriesStats.SeriesPlayed, stats.SeriesPlayed) AS SeriesPlayed,
+        COALESCE(seriesStats.SeriesWins, 0) AS SeriesWins,
+        stats.GamesPlayed AS GamesPlayed,
+        stats.MetricValue AS MetricValue
+      FROM (
+        SELECT
+          gp.XboxXuid AS XboxXuid,
+          COUNT(DISTINCT gp.QueueNumber) AS SeriesPlayed,
+          COUNT(*) AS GamesPlayed,
+          ${metricSql} AS MetricValue
+        FROM LeaderboardGamePlayers gp
+        INNER JOIN LeaderboardGames g
+          ON g.GuildId = gp.GuildId
+          AND g.QueueNumber = gp.QueueNumber
+          AND g.MatchId = gp.MatchId
+        WHERE gp.GuildId = ?
+          AND g.EndedAt >= ?
+          AND (? IS NULL OR gp.QueueChannelId = ?)
+        GROUP BY gp.XboxXuid
+        HAVING COUNT(*) >= ?
+      ) stats
+      LEFT JOIN (
+        SELECT
+          sp.XboxXuid AS XboxXuid,
+          COUNT(*) AS SeriesPlayed,
+          SUM(sp.SeriesWon) AS SeriesWins
+        FROM LeaderboardSeriesPlayers sp
+        INNER JOIN LeaderboardSeries s
+          ON s.GuildId = sp.GuildId
+          AND s.QueueNumber = sp.QueueNumber
+        WHERE s.GuildId = ?
+          AND s.CompletedAt >= ?
+          AND (? IS NULL OR s.QueueChannelId = ?)
+        GROUP BY sp.XboxXuid
+      ) seriesStats
+        ON seriesStats.XboxXuid = stats.XboxXuid
+      INNER JOIN (
+        SELECT ranked.XboxXuid, ranked.DiscordUserId, ranked.GamertagSnapshot
+        FROM (
+          SELECT
+            gp.XboxXuid AS XboxXuid,
+            gp.DiscordUserId AS DiscordUserId,
+            gp.GamertagSnapshot AS GamertagSnapshot,
+            ROW_NUMBER() OVER (
+              PARTITION BY gp.XboxXuid
+              ORDER BY g.EndedAt DESC, gp.CreatedAt DESC
+            ) AS RowNumber
+          FROM LeaderboardGamePlayers gp
+          INNER JOIN LeaderboardGames g
+            ON g.GuildId = gp.GuildId
+            AND g.QueueNumber = gp.QueueNumber
+            AND g.MatchId = gp.MatchId
+          WHERE gp.GuildId = ?
+            AND g.EndedAt >= ?
+            AND (? IS NULL OR gp.QueueChannelId = ?)
+        ) ranked
+        WHERE ranked.RowNumber = 1
+      ) identity
+        ON identity.XboxXuid = stats.XboxXuid
     `;
 
-    const countStmt = this.DB.prepare(`SELECT COUNT(*) AS Total FROM (${aggregateSql}) agg`).bind(
+    const bindings = [
       guildId,
       startEpochSeconds,
       queueChannelId,
       queueChannelId,
       minGamesPlayed,
-    );
+      guildId,
+      startEpochSeconds,
+      queueChannelId,
+      queueChannelId,
+      guildId,
+      startEpochSeconds,
+      queueChannelId,
+      queueChannelId,
+    ] as const;
+
+    const countStmt = this.DB.prepare(`SELECT COUNT(*) AS Total FROM (${aggregateSql}) agg`).bind(...bindings);
     const countRow = await countStmt.first<{ Total: number }>();
 
     const rowsStmt = this.DB.prepare(
@@ -892,7 +982,7 @@ export class DatabaseService {
         ORDER BY agg.MetricValue DESC, agg.GamesPlayed DESC, agg.Gamertag ASC
         LIMIT ? OFFSET ?
       `,
-    ).bind(guildId, startEpochSeconds, queueChannelId, queueChannelId, minGamesPlayed, limit, offset);
+    ).bind(...bindings, limit, offset);
     const rowsResponse = await rowsStmt.all<LeaderboardRankingRow>();
 
     return {
