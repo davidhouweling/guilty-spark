@@ -50,6 +50,8 @@ interface FixFlowMetadata extends Record<string, unknown> {
   selectedMatchIds?: string[];
 }
 
+const FIX_METADATA_RETRY_DELAY_MS = 200;
+
 export enum InteractionButton {
   Retry = "btn_stats_retry",
   LoadGames = "btn_stats_load_games",
@@ -991,7 +993,7 @@ export class StatsCommand extends BaseCommand {
 
     try {
       const selectedPlayerId = Preconditions.checkExists(interaction.data.values[0], "No player selected");
-      const metadata = await this.getFixMetadata(interaction.message.id);
+      const metadata = await this.getFixMetadataWithRetry(interaction.message.id);
       if (metadata == null) {
         throw new EndUserError("Could not find fix-flow state. Please run /stats fix again.");
       }
@@ -1359,6 +1361,22 @@ export class StatsCommand extends BaseCommand {
     );
 
     return metadata;
+  }
+
+  private async getFixMetadataWithRetry(messageId: string): Promise<FixFlowMetadata | null> {
+    const metadata = await this.getFixMetadata(messageId);
+    if (metadata != null) {
+      return metadata;
+    }
+
+    await this.wait(FIX_METADATA_RETRY_DELAY_MS);
+    return this.getFixMetadata(messageId);
+  }
+
+  private async wait(milliseconds: number): Promise<void> {
+    return new Promise((resolve) => {
+      setTimeout(resolve, milliseconds);
+    });
   }
 
   private fixMetadataKey(messageId: string): string {

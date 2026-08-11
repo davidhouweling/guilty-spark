@@ -1148,6 +1148,36 @@ describe("StatsCommand", () => {
   });
 
   describe("execute(): message component fix player select", () => {
+    it("retries fix-flow metadata once before returning not-found error", async () => {
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: "btn_stats_fix_player_select",
+          values: ["000000000000000001"],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          id: "fix-flow-message-id",
+        },
+      };
+
+      const getInteractionMetadataSpy = vi
+        .spyOn(services.discordService, "getInteractionMetadata")
+        .mockResolvedValue(null);
+
+      const { jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      expect(getInteractionMetadataSpy).toHaveBeenCalledTimes(2);
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          message: "Could not find fix-flow state. Please run /stats fix again.",
+        }),
+      );
+    });
+
     it("loads candidate games and shows multi-select", async () => {
       const firstMatchId = "d81554d7-ddfe-44da-a6cb-000000000ctf";
       const secondMatchId = "e20900f9-4c6c-4003-a175-00000000koth";
