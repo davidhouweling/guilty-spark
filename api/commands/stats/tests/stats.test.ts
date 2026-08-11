@@ -1614,13 +1614,9 @@ describe("StatsCommand", () => {
         ]);
       const bulkDeleteMessagesSpy = vi.spyOn(services.discordService, "bulkDeleteMessages").mockResolvedValue();
       const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue();
-      const createMessageSpy = vi
-        .spyOn(services.discordService, "createMessage")
-        .mockResolvedValueOnce({ ...apiMessage, id: "replacement-overview-message-id" })
-        .mockResolvedValue(apiMessage);
-      const startThreadFromMessageSpy = vi
-        .spyOn(services.discordService, "startThreadFromMessage")
-        .mockResolvedValue({ id: "replacement-thread-id" } as RESTPostAPIChannelThreadsResult);
+      const editMessageSpy = vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+      const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      const startThreadFromMessageSpy = vi.spyOn(services.discordService, "startThreadFromMessage");
       vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
 
       const { response, jobToComplete } = statsCommand.execute(interaction);
@@ -1635,19 +1631,16 @@ describe("StatsCommand", () => {
         ["thread-msg-1", "thread-msg-3"],
         "Replacing amended series stats",
       );
-      expect(deleteMessageSpy).toHaveBeenCalledWith(
+      expect(deleteMessageSpy).not.toHaveBeenCalledWith(
         "fake-channel-id",
         "original-overview-message-id",
         "Replacing amended series stats",
       );
-      expect(createMessageSpy).toHaveBeenCalledWith("fake-channel-id", expect.anything());
-      expect(startThreadFromMessageSpy).toHaveBeenCalledWith(
-        "fake-channel-id",
-        "replacement-overview-message-id",
-        expect.stringContaining("Queue #777 series stats"),
-      );
-      const createMessagePayload = Preconditions.checkExists(createMessageSpy.mock.calls[0]?.[1]);
-      const firstEmbed = Preconditions.checkExists(createMessagePayload.embeds?.[0]);
+      expect(editMessageSpy).toHaveBeenCalledWith("fake-channel-id", "original-overview-message-id", expect.anything());
+      expect(startThreadFromMessageSpy).not.toHaveBeenCalled();
+      expect(createMessageSpy).toHaveBeenCalledWith("existing-thread-id", expect.anything());
+      const editMessagePayload = Preconditions.checkExists(editMessageSpy.mock.calls[0]?.[2]);
+      const firstEmbed = Preconditions.checkExists(editMessagePayload.embeds?.[0]);
       const amendedByField = firstEmbed.fields?.find((field) => field.name === "Amended by");
       expect(amendedByField).toBeDefined();
       expect(Preconditions.checkExists(amendedByField).value.length).toBeGreaterThan(0);

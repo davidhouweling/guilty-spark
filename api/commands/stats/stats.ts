@@ -1277,21 +1277,11 @@ export class StatsCommand extends BaseCommand {
         );
 
         if (existingLocation.parentOverviewMessageId != null) {
-          await discordService.deleteMessage(
-            metadata.channelId,
-            existingLocation.parentOverviewMessageId,
-            "Replacing amended series stats",
-          );
-          const seriesOverviewMessage = await discordService.createMessage(metadata.channelId, {
+          await discordService.editMessage(metadata.channelId, existingLocation.parentOverviewMessageId, {
             embeds: amendedSeriesEmbed.embeds,
             components: amendedSeriesEmbed.components,
           });
-          const createdThread = await discordService.startThreadFromMessage(
-            metadata.channelId,
-            seriesOverviewMessage.id,
-            `Queue #${metadata.queueData.queue.toString()} series stats (${haloService.getSeriesScore(series, locale, true)})`,
-          );
-          destinationThreadId = createdThread.id;
+          destinationThreadId = existingLocation.threadId;
         } else {
           destinationThreadId = existingLocation.threadId;
           shouldPostOverviewInThread = true;
