@@ -200,7 +200,7 @@ export class DiscordService {
   private readonly globalFetch: typeof fetch;
   private readonly verifyKey: typeof discordInteractionsVerifyKey;
   private commands: Map<string, BaseCommand> | undefined = undefined;
-  private readonly userCache = new Map<string, APIGuildMember>();
+  private readonly guildMemberCache = new Map<string, APIGuildMember>();
   private readonly rateLimitDebounceMap = new Map<string, { timeout: NodeJS.Timeout; data: string }>();
 
   constructor({ env, logService, fetch, verifyKey }: DiscordServiceOpts) {
@@ -984,17 +984,19 @@ export class DiscordService {
   }
 
   async getGuildMember(guildId: string, userId: string): Promise<RESTGetAPIGuildMemberResult> {
-    if (!this.userCache.has(userId)) {
+    const cacheKey = this.getGuildMemberCacheKey(guildId, userId);
+
+    if (!this.guildMemberCache.has(cacheKey)) {
       const user = await this.fetch<RESTGetAPIGuildMemberResult>(Routes.guildMember(guildId, userId), {
         method: "GET",
         cf: {
           cacheTtlByStatus: { "200-299": TimeInSeconds["5_MINUTES"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
         },
       });
-      this.userCache.set(userId, user);
+      this.guildMemberCache.set(cacheKey, user);
     }
 
-    return Preconditions.checkExists(this.userCache.get(userId));
+    return Preconditions.checkExists(this.guildMemberCache.get(cacheKey));
   }
 
   async computeMemberPermissions(guildId: string, userId: string): Promise<bigint> {
@@ -1134,6 +1136,10 @@ export class DiscordService {
     );
 
     return allMessages;
+  }
+
+  private getGuildMemberCacheKey(guildId: string, userId: string): string {
+    return `${guildId}:${userId}`;
   }
 
   async findQueueNumberForThread(guildId: string, threadId: string): Promise<number | undefined> {

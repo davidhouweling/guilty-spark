@@ -1229,6 +1229,62 @@ describe("DiscordService", () => {
     });
   });
 
+  describe("getGuildMember()", () => {
+    it("caches guild members per guild and user", async () => {
+      mockFetch.mockImplementation(async (path) => {
+        if (typeof path !== "string") {
+          throw new Error("unexpected path type");
+        }
+
+        const prefix = "https://discord.com/api/v10";
+        if (path === `${prefix}/guilds/guild-a/members/shared-user`) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify(
+                aGuildMemberWith({
+                  user: {
+                    id: "member-in-guild-a",
+                    username: "user-a",
+                    global_name: "user-a",
+                    discriminator: "1234",
+                    avatar: "avatar-a",
+                  },
+                }),
+              ),
+            ),
+          );
+        }
+
+        if (path === `${prefix}/guilds/guild-b/members/shared-user`) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify(
+                aGuildMemberWith({
+                  user: {
+                    id: "member-in-guild-b",
+                    username: "user-b",
+                    global_name: "user-b",
+                    discriminator: "1234",
+                    avatar: "avatar-b",
+                  },
+                }),
+              ),
+            ),
+          );
+        }
+
+        return Promise.reject(new Error(`Invalid path: ${path}`));
+      });
+
+      const guildAMember = await discordService.getGuildMember("guild-a", "shared-user");
+      const guildBMember = await discordService.getGuildMember("guild-b", "shared-user");
+
+      expect(Preconditions.checkExists(guildAMember.user).id).toBe("member-in-guild-a");
+      expect(Preconditions.checkExists(guildBMember.user).id).toBe("member-in-guild-b");
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe("computeMemberPermissions()", () => {
     it("returns all permissions for the guild owner", async () => {
       vi.spyOn(discordService, "getGuild").mockResolvedValue({

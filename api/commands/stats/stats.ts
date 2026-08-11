@@ -1071,7 +1071,7 @@ export class StatsCommand extends BaseCommand {
   private getFixGameSelectionDescription(endTime: string): string {
     const endDate = new Date(endTime);
     if (Number.isNaN(endDate.getTime())) {
-      return "Ended at unknown time";
+      return `Ended at ${endTime}`;
     }
 
     const relative = formatDistanceToNowStrict(endDate, { addSuffix: true });

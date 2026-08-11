@@ -1279,6 +1279,91 @@ describe("StatsCommand", () => {
       expect(interactionMetadata["selectedMatchIds"]).toEqual([firstMatchId, thirdMatchId]);
     });
 
+    it("keeps the provided end time when relative-time parsing fails", async () => {
+      const firstMatchId = "d81554d7-ddfe-44da-a6cb-000000000ctf";
+      const secondMatchId = "e20900f9-4c6c-4003-a175-00000000koth";
+      const thirdMatchId = "9535b946-f30c-4a43-b852-000000slayer";
+      const unparseableEndTime = "31.12.2025, 22:10:00";
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: "btn_stats_fix_player_select",
+          values: ["000000000000000001"],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          id: "fix-flow-message-id",
+        },
+      };
+
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "fake-channel-id",
+        queueData: discordNeatQueueData,
+      });
+      vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([
+        aFakeDiscordAssociationsRow({
+          DiscordId: "000000000000000001",
+          XboxId: "xuid-1",
+        }),
+      ]);
+      vi.spyOn(services.haloService, "getUsersByXuids").mockResolvedValue([{ xuid: "xuid-1", gamertag: "player-one" }]);
+      vi.spyOn(services.haloService, "getEnrichedMatchHistory").mockResolvedValue({
+        gamertag: "player-one",
+        xuid: "xuid-1",
+        suggestedGroupings: [],
+        matches: [
+          aFakeMatchHistoryEntryWith({
+            matchId: firstMatchId,
+            modeName: "CTF",
+            mapName: "Bazaar",
+            resultString: "Win - 3:1",
+            endTime: unparseableEndTime,
+          }),
+          aFakeMatchHistoryEntryWith({
+            matchId: secondMatchId,
+            modeName: "Strongholds",
+            mapName: "Live Fire",
+            resultString: "Loss - 2:3",
+            endTime: "2025-01-01 10:20 AM",
+          }),
+          aFakeMatchHistoryEntryWith({
+            matchId: thirdMatchId,
+            modeName: "Slayer",
+            mapName: "Recharge",
+            resultString: "Win - 50:45",
+            endTime: "2025-01-01 10:40 AM",
+          }),
+        ],
+      });
+      vi.spyOn(services.discordService, "findExistingSeriesStatsThreadLocation").mockResolvedValue(undefined);
+
+      const { jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      const updatePayload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+      const actionRow = Preconditions.checkExists(updatePayload.components?.[0]);
+      if (!("components" in actionRow)) {
+        throw new Error("Expected action row component");
+      }
+      const selectComponent = Preconditions.checkExists(actionRow.components[0]);
+      if (!("options" in selectComponent)) {
+        throw new Error("Expected select component");
+      }
+      expect(selectComponent).toMatchObject({
+        custom_id: "btn_stats_fix_games_select",
+      });
+      expect(selectComponent.options).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            value: firstMatchId,
+            description: `Ended at ${unparseableEndTime}`,
+          }),
+        ]),
+      );
+    });
+
     it("returns an error when selected player has no linked xbox account", async () => {
       const interaction: APIMessageComponentSelectMenuInteraction = {
         ...fakeButtonClickInteraction,
