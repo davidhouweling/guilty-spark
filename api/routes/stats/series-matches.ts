@@ -52,7 +52,9 @@ export const seriesMatchesRoute: RoutesRegisterHandler = (router, installService
         .map((matchId) => matchesById[matchId])
         .filter((match): match is MatchStats => match != null);
 
-      const playerXuidToGametagMap = await resolvedHaloService.getPlayerXuidsToGametags(orderedMatches);
+      const playerXuidToGametagMap = await resolvedHaloService.getPlayerXuidsToGametags(orderedMatches, {
+        presentAtBeginningOnly: true,
+      });
 
       const responseMatches = await Promise.all(
         orderedMatches.map(async (match) => {

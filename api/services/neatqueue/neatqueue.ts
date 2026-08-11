@@ -2222,7 +2222,9 @@ export class NeatQueueService {
       embeds: [seriesTeamsEmbedOutput],
     });
 
-    const seriesPlayers = await haloService.getPlayerXuidsToGametags(series);
+    const seriesPlayers = await haloService.getPlayerXuidsToGametags(series, {
+      presentAtBeginningOnly: true,
+    });
     const seriesPlayersEmbed = new SeriesPlayersEmbed({
       discordService,
       haloService,
@@ -2257,7 +2259,9 @@ export class NeatQueueService {
       });
     } else {
       for (const match of series) {
-        const players = await haloService.getPlayerXuidsToGametags(match);
+        const players = await haloService.getPlayerXuidsToGametags(match, {
+          presentAtBeginningOnly: true,
+        });
         const matchEmbed = this.getMatchEmbed(guildConfig, match, this.locale);
         const embed = await matchEmbed.getEmbed(match, players);
 

@@ -150,7 +150,9 @@ export async function buildDiscordSeriesRenderDataFromMatches({
     left.MatchInfo.StartTime.localeCompare(right.MatchInfo.StartTime),
   );
 
-  const playerXuidToGametagMap = await haloService.getPlayerXuidsToGametags(sortedMatches);
+  const playerXuidToGametagMap = await haloService.getPlayerXuidsToGametags(sortedMatches, {
+    presentAtBeginningOnly: true,
+  });
 
   const renderMatches = await Promise.all(
     sortedMatches.map(async (match) => {

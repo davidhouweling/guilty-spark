@@ -69,7 +69,9 @@ export class LeaderboardService {
         UpdatedAt: nowEpoch,
       };
 
-      const gamertagMap = await this.haloService.getPlayerXuidsToGametags(sortedSeries);
+      const gamertagMap = await this.haloService.getPlayerXuidsToGametags(sortedSeries, {
+        presentAtBeginningOnly: true,
+      });
       const allXuids = this.getSortedDistinctXuids(sortedSeries);
       const associations = await this.databaseService.getDiscordAssociationsByXboxId(allXuids);
       const xuidToDiscordId = new Map(associations.map((association) => [association.XboxId, association.DiscordId]));

@@ -241,10 +241,17 @@ export class HaloService {
     return wins.length === 2 ? `🦅 ${score} 🐍` : score;
   }
 
-  async getPlayerXuidsToGametags(matches: MatchStats | MatchStats[]): Promise<Map<string, string>> {
+  async getPlayerXuidsToGametags(
+    matches: MatchStats | MatchStats[],
+    opts: { presentAtBeginningOnly?: boolean } = {},
+  ): Promise<Map<string, string>> {
     const xuidsToResolve = (Array.isArray(matches) ? matches : [matches])
       .flatMap((match) => match.Players)
-      .filter((player) => player.PlayerType === 1)
+      .filter(
+        (player) =>
+          player.PlayerType === 1 &&
+          (opts.presentAtBeginningOnly != true || player.ParticipationInfo.PresentAtBeginning),
+      )
       .map((player) => getPlayerXuid(player))
       .filter((xuid) => !this.xuidToGamerTagCache.has(xuid));
 

@@ -2117,6 +2117,24 @@ describe("Halo service", () => {
         ]),
       );
     });
+
+    it("can limit to players present at beginning", async () => {
+      const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      Preconditions.checkExists(match.Players[0]).ParticipationInfo.PresentAtBeginning = false;
+
+      const result = await haloService.getPlayerXuidsToGametags(match, { presentAtBeginningOnly: true });
+      expect(result).toEqual(
+        new Map([
+          ["0200000000000000", "gamertag0200000000000000"],
+          ["0500000000000000", "gamertag0500000000000000"],
+          ["0400000000000000", "gamertag0400000000000000"],
+          ["0900000000000000", "gamertag0900000000000000"],
+          ["0800000000000000", "gamertag0800000000000000"],
+          ["1100000000000000", "gamertag1100000000000000"],
+          ["1200000000000000", "gamertag1200000000000000"],
+        ]),
+      );
+    });
   });
 
   describe("getUsersByXuids()", () => {
