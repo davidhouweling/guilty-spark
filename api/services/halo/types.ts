@@ -28,6 +28,7 @@ export interface MatchHistoryEntry {
   matchId: string;
   startTime: string;
   endTime: string;
+  endTimeIso: string;
   duration: string;
   mapName: string;
   modeName: string;

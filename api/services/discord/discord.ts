@@ -63,6 +63,7 @@ import { DiscordError } from "./discord-error";
 import {
   DISCORD_SERIES_STATS_RESOLVED_CACHE_TTL_SECONDS,
   extractDiscordSeriesMatchIdsFromEmbeds,
+  extractQueueNumberFromSeriesOverviewEmbed,
   getDiscordSeriesOverviewEmbed,
   getDiscordSeriesStatsCacheKey,
 } from "./discord-series-stats";
@@ -77,6 +78,11 @@ export interface QueueData {
     name: string;
     players: APIGuildMember[];
   }[];
+}
+
+export interface ExistingSeriesStatsThreadLocation {
+  threadId: string;
+  parentOverviewMessageId?: string;
 }
 
 export interface DiscordServiceOpts {
@@ -115,6 +121,12 @@ const DEFAULT_PENDING_RETRY_SECONDS = 2;
 const PENDING_CACHE_TTL_SECONDS = 60 * 5;
 const NOT_FOUND_CACHE_TTL_SECONDS = 60 * 5;
 const ACTIVE_QUEUE_LOOKUP_CACHE_TTL_SECONDS = 60 * 5;
+const ALL_PERMISSIONS_BITMASK = Object.values(PermissionFlagsBits).reduce((acc, bit) => acc | bit, 0n);
+const SEARCH_RESULT_PAGE_SIZE = 25;
+const MAX_SEARCH_RESULT_PAGES = 10;
+const SEARCH_INDEXING_MESSAGE =
+  "Discord is still indexing recent messages for search. Please try again in a few seconds.";
+const SEARCH_RATE_LIMIT_MESSAGE = "Discord is rate limiting message search. Please try again in a few seconds.";
 
 function getDiscordSeriesStatsLookupCacheKey(guildId: string, queueNumber: number): string {
   return `${getDiscordSeriesStatsCacheKey(guildId, queueNumber)}:lookup`;
@@ -189,7 +201,7 @@ export class DiscordService {
   private readonly globalFetch: typeof fetch;
   private readonly verifyKey: typeof discordInteractionsVerifyKey;
   private commands: Map<string, BaseCommand> | undefined = undefined;
-  private readonly userCache = new Map<string, APIGuildMember>();
+  private readonly guildMemberCache = new Map<string, APIGuildMember>();
   private readonly rateLimitDebounceMap = new Map<string, { timeout: NodeJS.Timeout; data: string }>();
 
   constructor({ env, logService, fetch, verifyKey }: DiscordServiceOpts) {
@@ -972,18 +984,79 @@ export class DiscordService {
     });
   }
 
-  async getGuildMember(guildId: string, userId: string): Promise<RESTGetAPIGuildMemberResult> {
-    if (!this.userCache.has(userId)) {
+  async getGuildMember(
+    guildId: string,
+    userId: string,
+    options?: { useEdgeCache: boolean },
+  ): Promise<RESTGetAPIGuildMemberResult> {
+    const cacheKey = this.getGuildMemberCacheKey(guildId, userId);
+    const useEdgeCache = options?.useEdgeCache ?? true;
+
+    if (!useEdgeCache) {
+      const user = await this.fetch<RESTGetAPIGuildMemberResult>(Routes.guildMember(guildId, userId), {
+        method: "GET",
+      });
+      this.guildMemberCache.set(cacheKey, user);
+      return user;
+    }
+
+    if (!this.guildMemberCache.has(cacheKey)) {
       const user = await this.fetch<RESTGetAPIGuildMemberResult>(Routes.guildMember(guildId, userId), {
         method: "GET",
         cf: {
-          cacheTtlByStatus: { "200-299": TimeInSeconds["5_MINUTES"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
+          cacheTtlByStatus: {
+            "200-299": TimeInSeconds["5_MINUTES"],
+            404: TimeInSeconds["1_MINUTE"],
+            "500-599": 0,
+          },
         },
       });
-      this.userCache.set(userId, user);
+      this.guildMemberCache.set(cacheKey, user);
     }
 
-    return Preconditions.checkExists(this.userCache.get(userId));
+    return Preconditions.checkExists(this.guildMemberCache.get(cacheKey));
+  }
+
+  async computeMemberPermissions(guildId: string, userId: string): Promise<bigint> {
+    const guild = await this.getGuild(guildId);
+
+    if (guild.owner_id === userId) {
+      return ALL_PERMISSIONS_BITMASK;
+    }
+
+    const guildMember = await this.getGuildMember(guildId, userId, { useEdgeCache: false });
+
+    const everyoneRole = guild.roles.find((role) => role.id === guild.id);
+    let permissions = BigInt(everyoneRole?.permissions ?? "0");
+
+    for (const roleId of guildMember.roles) {
+      if (roleId === guild.id) {
+        continue;
+      }
+
+      const role = guild.roles.find((guildRole) => guildRole.id === roleId);
+      if (role == null) {
+        continue;
+      }
+
+      permissions |= BigInt(role.permissions);
+    }
+
+    if ((permissions & PermissionFlagsBits.Administrator) !== 0n) {
+      return ALL_PERMISSIONS_BITMASK;
+    }
+
+    return permissions;
+  }
+
+  async setInteractionMetadata(key: string, data: Record<string, unknown>): Promise<void> {
+    await this.env.APP_DATA.put(`interactionMetadata:${key}`, JSON.stringify(data), {
+      expirationTtl: TimeInSeconds["1_HOUR"],
+    });
+  }
+
+  async getInteractionMetadata<T extends Record<string, unknown>>(key: string): Promise<T | null> {
+    return this.env.APP_DATA.get<T>(`interactionMetadata:${key}`, "json");
   }
 
   async getMessage(channelId: string, messageId: string): Promise<APIMessage> {
@@ -1003,6 +1076,131 @@ export class DiscordService {
     return this.fetch<APIMessage[]>(Routes.channelMessages(channelId), {
       method: "GET",
     });
+  }
+
+  private flattenSearchMessages(searchResponse: RESTGetAPIGuildMessagesSearchResult): APIMessage[] {
+    if ("retry_after" in searchResponse) {
+      const isSearchIndexNotReady =
+        searchResponse.code === 110000 ||
+        (typeof searchResponse.message === "string" && searchResponse.message.includes("search index is not ready"));
+      if (isSearchIndexNotReady) {
+        throw new EndUserError(SEARCH_INDEXING_MESSAGE, { errorType: EndUserErrorType.WARNING, handled: true });
+      }
+
+      throw new EndUserError(SEARCH_RATE_LIMIT_MESSAGE, { errorType: EndUserErrorType.WARNING, handled: true });
+    }
+
+    return searchResponse.messages.flatMap((messages) => messages);
+  }
+
+  private async findSeriesOverviewMessage(guildId: string, queueNumber: number): Promise<APIMessage | undefined> {
+    const searchResponse = await this.searchGuildMessages(guildId, {
+      content: `Series stats for queue #${queueNumber.toString()}`,
+      author_id: [this.env.DISCORD_APP_ID],
+      author_type: [MessageSearchAuthorType.Bot],
+      sort_by: MessageSearchSortMode.Timestamp,
+      sort_order: "desc",
+      limit: SEARCH_RESULT_PAGE_SIZE,
+    });
+
+    const messages = this.flattenSearchMessages(searchResponse);
+    return messages.find((message) => getDiscordSeriesOverviewEmbed(message, queueNumber) != null);
+  }
+
+  async findExistingSeriesStatsThreadLocation(
+    guildId: string,
+    queueNumber: number,
+  ): Promise<ExistingSeriesStatsThreadLocation | undefined> {
+    const message = await this.findSeriesOverviewMessage(guildId, queueNumber);
+    if (message == null) {
+      return undefined;
+    }
+
+    if (message.thread != null) {
+      return { threadId: message.thread.id, parentOverviewMessageId: message.id };
+    }
+
+    const channel = await this.getChannel(message.channel_id);
+    const isThreadChannel = [
+      ChannelType.PublicThread,
+      ChannelType.PrivateThread,
+      ChannelType.AnnouncementThread,
+    ].includes(channel.type);
+
+    return isThreadChannel ? { threadId: channel.id } : undefined;
+  }
+
+  async findBotMessagesInThread(guildId: string, threadId: string): Promise<APIMessage[]> {
+    const allMessages: APIMessage[] = [];
+
+    for (let page = 0; page < MAX_SEARCH_RESULT_PAGES; page++) {
+      const searchResponse = await this.searchGuildMessages(guildId, {
+        channel_id: [threadId],
+        author_id: [this.env.DISCORD_APP_ID],
+        author_type: [MessageSearchAuthorType.Bot],
+        sort_by: MessageSearchSortMode.Timestamp,
+        sort_order: "desc",
+        limit: SEARCH_RESULT_PAGE_SIZE,
+        offset: page * SEARCH_RESULT_PAGE_SIZE,
+      });
+
+      const messages = this.flattenSearchMessages(searchResponse);
+      allMessages.push(...messages);
+
+      if (messages.length < SEARCH_RESULT_PAGE_SIZE) {
+        return allMessages;
+      }
+    }
+
+    this.logService.warn(
+      "findBotMessagesInThread: reached page limit while paging through search results",
+      new Map([
+        ["threadId", threadId],
+        ["maxPages", MAX_SEARCH_RESULT_PAGES.toString()],
+      ]),
+    );
+
+    return allMessages;
+  }
+
+  private getGuildMemberCacheKey(guildId: string, userId: string): string {
+    return `${guildId}:${userId}`;
+  }
+
+  async findQueueNumberForThread(guildId: string, threadId: string): Promise<number | undefined> {
+    for (let page = 0; page < MAX_SEARCH_RESULT_PAGES; page++) {
+      const searchResponse = await this.searchGuildMessages(guildId, {
+        channel_id: [threadId],
+        author_id: [this.env.DISCORD_APP_ID],
+        author_type: [MessageSearchAuthorType.Bot],
+        sort_by: MessageSearchSortMode.Timestamp,
+        sort_order: "desc",
+        limit: SEARCH_RESULT_PAGE_SIZE,
+        offset: page * SEARCH_RESULT_PAGE_SIZE,
+      });
+
+      const messages = this.flattenSearchMessages(searchResponse);
+      for (const message of messages) {
+        const queueNumber = extractQueueNumberFromSeriesOverviewEmbed(message);
+        if (queueNumber != null) {
+          return queueNumber;
+        }
+      }
+
+      if (messages.length < SEARCH_RESULT_PAGE_SIZE) {
+        return undefined;
+      }
+    }
+
+    this.logService.warn(
+      "findQueueNumberForThread: reached page limit without finding an overview embed",
+      new Map([
+        ["threadId", threadId],
+        ["maxPages", MAX_SEARCH_RESULT_PAGES.toString()],
+      ]),
+    );
+
+    return undefined;
   }
 
   async createMessage(
