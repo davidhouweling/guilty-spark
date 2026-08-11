@@ -133,23 +133,25 @@ export class LeaderboardService {
     const offset = (resolvedPage - 1) * resolvedPageSize;
     const startEpochSeconds = this.getWindowStartEpochSeconds(resolvedWindow);
 
-    const allRows =
+    const rankings =
       resolvedMetric === LeaderboardMetric.SeriesWinRate
-        ? await this.getSeriesWinRateRows({
+        ? await this.databaseService.getLeaderboardSeriesWinRateRankings({
             guildId,
             queueChannelId: queueChannelId ?? null,
             startEpochSeconds,
             minGamesPlayed: resolvedMinGamesPlayed,
+            limit: resolvedPageSize,
+            offset,
           })
-        : await this.getMetricRows({
+        : await this.databaseService.getLeaderboardStatMetricRankings({
             guildId,
             queueChannelId: queueChannelId ?? null,
             startEpochSeconds,
             minGamesPlayed: resolvedMinGamesPlayed,
+            limit: resolvedPageSize,
+            offset,
             metric: resolvedMetric,
           });
-
-    const pagedRows = allRows.slice(offset, offset + resolvedPageSize);
 
     return {
       guildId,
@@ -159,252 +161,26 @@ export class LeaderboardService {
       minGamesPlayed: resolvedMinGamesPlayed,
       page: resolvedPage,
       pageSize: resolvedPageSize,
-      total: allRows.length,
-      rows: pagedRows.map((row, index) => ({
+      total: rankings.total,
+      rows: rankings.rows.map((row, index) => ({
         rank: offset + index + 1,
-        xboxXuid: row.xboxXuid,
-        discordUserId: row.discordUserId,
-        gamertag: row.gamertag,
-        seriesPlayed: row.seriesPlayed,
-        seriesWins: row.seriesWins,
-        gamesPlayed: row.gamesPlayed,
-        metricValue: row.metricValue,
+        xboxXuid: row.XboxXuid,
+        discordUserId: row.DiscordUserId,
+        gamertag: row.Gamertag,
+        seriesPlayed: row.SeriesPlayed,
+        seriesWins: row.SeriesWins,
+        gamesPlayed: row.GamesPlayed,
+        metricValue: this.toFiniteMetricValue(row.MetricValue),
       })),
     };
   }
 
-  private async getSeriesWinRateRows({
-    guildId,
-    queueChannelId,
-    startEpochSeconds,
-    minGamesPlayed,
-  }: {
-    guildId: string;
-    queueChannelId: string | null;
-    startEpochSeconds: number;
-    minGamesPlayed: number;
-  }): Promise<
-    {
-      xboxXuid: string;
-      discordUserId: string | null;
-      gamertag: string;
-      seriesPlayed: number;
-      seriesWins: number;
-      gamesPlayed: number;
-      metricValue: number;
-    }[]
-  > {
-    const facts = await this.databaseService.getLeaderboardSeriesPlayerFacts({
-      guildId,
-      queueChannelId,
-      startEpochSeconds,
-    });
-    const byXuid = new Map<
-      string,
-      {
-        xboxXuid: string;
-        discordUserId: string | null;
-        gamertag: string;
-        seriesPlayed: number;
-        seriesWins: number;
-        gamesPlayed: number;
-      }
-    >();
-
-    for (const fact of facts) {
-      const existing = byXuid.get(fact.XboxXuid);
-      if (existing == null) {
-        byXuid.set(fact.XboxXuid, {
-          xboxXuid: fact.XboxXuid,
-          discordUserId: fact.DiscordUserId,
-          gamertag: fact.Gamertag,
-          seriesPlayed: 1,
-          seriesWins: fact.SeriesWon,
-          gamesPlayed: fact.GamesPlayedCount,
-        });
-        continue;
-      }
-
-      existing.discordUserId = existing.discordUserId ?? fact.DiscordUserId;
-      existing.gamertag = fact.Gamertag;
-      existing.seriesPlayed += 1;
-      existing.seriesWins += fact.SeriesWon;
-      existing.gamesPlayed += fact.GamesPlayedCount;
+  private toFiniteMetricValue(metricValue: number): number {
+    if (Number.isFinite(metricValue)) {
+      return metricValue;
     }
 
-    return [...byXuid.values()]
-      .filter((row) => row.gamesPlayed >= minGamesPlayed)
-      .map((row) => ({
-        ...row,
-        metricValue: row.seriesPlayed === 0 ? 0 : row.seriesWins / row.seriesPlayed,
-      }))
-      .sort((left, right) => {
-        if (right.metricValue !== left.metricValue) {
-          return right.metricValue - left.metricValue;
-        }
-
-        if (right.seriesWins !== left.seriesWins) {
-          return right.seriesWins - left.seriesWins;
-        }
-
-        if (right.gamesPlayed !== left.gamesPlayed) {
-          return right.gamesPlayed - left.gamesPlayed;
-        }
-
-        return left.gamertag.localeCompare(right.gamertag);
-      });
-  }
-
-  private async getMetricRows({
-    guildId,
-    queueChannelId,
-    startEpochSeconds,
-    minGamesPlayed,
-    metric,
-  }: {
-    guildId: string;
-    queueChannelId: string | null;
-    startEpochSeconds: number;
-    minGamesPlayed: number;
-    metric: Exclude<LeaderboardMetric, LeaderboardMetric.SeriesWinRate>;
-  }): Promise<
-    {
-      xboxXuid: string;
-      discordUserId: string | null;
-      gamertag: string;
-      seriesPlayed: number;
-      seriesWins: number;
-      gamesPlayed: number;
-      metricValue: number;
-    }[]
-  > {
-    const facts = await this.databaseService.getLeaderboardGamePlayerFacts({
-      guildId,
-      queueChannelId,
-      startEpochSeconds,
-    });
-    const byXuid = new Map<
-      string,
-      {
-        xboxXuid: string;
-        discordUserId: string | null;
-        gamertag: string;
-        seriesNumbers: Set<number>;
-        gamesPlayed: number;
-        kills: number;
-        deaths: number;
-        assists: number;
-        kdaSum: number;
-        accuracySum: number;
-        damageDealt: number;
-        damageTaken: number;
-        personalScore: number;
-      }
-    >();
-
-    for (const fact of facts) {
-      const existing = byXuid.get(fact.XboxXuid);
-      if (existing == null) {
-        byXuid.set(fact.XboxXuid, {
-          xboxXuid: fact.XboxXuid,
-          discordUserId: fact.DiscordUserId,
-          gamertag: fact.Gamertag,
-          seriesNumbers: new Set([fact.QueueNumber]),
-          gamesPlayed: 1,
-          kills: fact.Kills,
-          deaths: fact.Deaths,
-          assists: fact.Assists,
-          kdaSum: fact.Kda,
-          accuracySum: fact.Accuracy,
-          damageDealt: fact.DamageDealt,
-          damageTaken: fact.DamageTaken,
-          personalScore: fact.PersonalScore,
-        });
-        continue;
-      }
-
-      existing.discordUserId = existing.discordUserId ?? fact.DiscordUserId;
-      existing.gamertag = fact.Gamertag;
-      existing.seriesNumbers.add(fact.QueueNumber);
-      existing.gamesPlayed += 1;
-      existing.kills += fact.Kills;
-      existing.deaths += fact.Deaths;
-      existing.assists += fact.Assists;
-      existing.kdaSum += fact.Kda;
-      existing.accuracySum += fact.Accuracy;
-      existing.damageDealt += fact.DamageDealt;
-      existing.damageTaken += fact.DamageTaken;
-      existing.personalScore += fact.PersonalScore;
-    }
-
-    const rows = [...byXuid.values()]
-      .filter((row) => row.gamesPlayed >= minGamesPlayed)
-      .map((row) => {
-        let metricValue = row.personalScore;
-        switch (metric) {
-          case LeaderboardMetric.Kills: {
-            metricValue = row.kills;
-            break;
-          }
-          case LeaderboardMetric.Deaths: {
-            metricValue = row.deaths;
-            break;
-          }
-          case LeaderboardMetric.Assists: {
-            metricValue = row.assists;
-            break;
-          }
-          case LeaderboardMetric.Kda: {
-            metricValue = row.kdaSum / row.gamesPlayed;
-            break;
-          }
-          case LeaderboardMetric.Accuracy: {
-            metricValue = row.accuracySum / row.gamesPlayed;
-            break;
-          }
-          case LeaderboardMetric.DamageDealt: {
-            metricValue = row.damageDealt;
-            break;
-          }
-          case LeaderboardMetric.DamageTaken: {
-            metricValue = row.damageTaken;
-            break;
-          }
-          case LeaderboardMetric.DamageRatio: {
-            metricValue = getSafeRatioValue(row.damageDealt, row.damageTaken);
-            break;
-          }
-          case LeaderboardMetric.PersonalScore: {
-            metricValue = row.personalScore;
-            break;
-          }
-          default: {
-            throw new UnreachableError(metric);
-          }
-        }
-
-        return {
-          xboxXuid: row.xboxXuid,
-          discordUserId: row.discordUserId,
-          gamertag: row.gamertag,
-          seriesPlayed: row.seriesNumbers.size,
-          seriesWins: 0,
-          gamesPlayed: row.gamesPlayed,
-          metricValue,
-        };
-      });
-
-    return rows.sort((left, right) => {
-      if (right.metricValue !== left.metricValue) {
-        return right.metricValue - left.metricValue;
-      }
-
-      if (right.gamesPlayed !== left.gamesPlayed) {
-        return right.gamesPlayed - left.gamesPlayed;
-      }
-
-      return left.gamertag.localeCompare(right.gamertag);
-    });
+    return Number.MAX_VALUE;
   }
 
   private getWindowStartEpochSeconds(window: LeaderboardWindow): number {

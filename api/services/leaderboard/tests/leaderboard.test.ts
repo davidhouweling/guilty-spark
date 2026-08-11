@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
-import type { LeaderboardGamePlayerFactRow, LeaderboardSeriesPlayerFactRow } from "../../database/database";
+import type { LeaderboardRankingRow } from "../../database/database";
 import { aFakeDatabaseServiceWith, aFakeLeaderboardConfigRow } from "../../database/fakes/database.fake";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
@@ -10,86 +10,45 @@ import { LeaderboardService } from "../leaderboard";
 describe("LeaderboardService", () => {
   const nowIso = "2026-08-11T12:00:00.000Z";
 
-  const seriesFacts: LeaderboardSeriesPlayerFactRow[] = [
+  const seriesRankingRows: LeaderboardRankingRow[] = [
     {
       XboxXuid: "xuid-1",
       DiscordUserId: "discord-1",
       Gamertag: "Alpha",
-      SeriesWon: 1,
-      GamesPlayedCount: 3,
-    },
-    {
-      XboxXuid: "xuid-1",
-      DiscordUserId: "discord-1",
-      Gamertag: "Alpha",
-      SeriesWon: 1,
-      GamesPlayedCount: 2,
+      SeriesPlayed: 2,
+      SeriesWins: 2,
+      GamesPlayed: 5,
+      MetricValue: 1,
     },
     {
       XboxXuid: "xuid-2",
       DiscordUserId: "discord-2",
       Gamertag: "Bravo",
-      SeriesWon: 1,
-      GamesPlayedCount: 1,
-    },
-    {
-      XboxXuid: "xuid-2",
-      DiscordUserId: "discord-2",
-      Gamertag: "Bravo",
-      SeriesWon: 0,
-      GamesPlayedCount: 1,
-    },
-    {
-      XboxXuid: "xuid-3",
-      DiscordUserId: "discord-3",
-      Gamertag: "Charlie",
-      SeriesWon: 0,
-      GamesPlayedCount: 1,
+      SeriesPlayed: 2,
+      SeriesWins: 1,
+      GamesPlayed: 2,
+      MetricValue: 0.5,
     },
   ];
 
-  const gameFacts: LeaderboardGamePlayerFactRow[] = [
+  const killsRankingRows: LeaderboardRankingRow[] = [
     {
       XboxXuid: "xuid-1",
       DiscordUserId: "discord-1",
       Gamertag: "Alpha",
-      Kills: 5,
-      Deaths: 4,
-      Assists: 2,
-      Kda: 1.75,
-      Accuracy: 45,
-      DamageDealt: 4200,
-      DamageTaken: 2000,
-      PersonalScore: 2000,
-      QueueNumber: 10,
-    },
-    {
-      XboxXuid: "xuid-1",
-      DiscordUserId: "discord-1",
-      Gamertag: "Alpha",
-      Kills: 10,
-      Deaths: 6,
-      Assists: 5,
-      Kda: 2.5,
-      Accuracy: 48,
-      DamageDealt: 5200,
-      DamageTaken: 2500,
-      PersonalScore: 3000,
-      QueueNumber: 11,
+      SeriesPlayed: 2,
+      SeriesWins: 0,
+      GamesPlayed: 2,
+      MetricValue: 15,
     },
     {
       XboxXuid: "xuid-2",
       DiscordUserId: "discord-2",
       Gamertag: "Bravo",
-      Kills: 20,
-      Deaths: 11,
-      Assists: 1,
-      Kda: 1.9,
-      Accuracy: 38,
-      DamageDealt: 8000,
-      DamageTaken: 0,
-      PersonalScore: 4500,
-      QueueNumber: 12,
+      SeriesPlayed: 1,
+      SeriesWins: 0,
+      GamesPlayed: 1,
+      MetricValue: 20,
     },
   ];
 
@@ -112,9 +71,10 @@ describe("LeaderboardService", () => {
         MinGamesPlayed: 2,
       }),
     );
-    const getSeriesFactsSpy = vi
-      .spyOn(databaseService, "getLeaderboardSeriesPlayerFacts")
-      .mockResolvedValue(seriesFacts);
+    const getSeriesRankingsSpy = vi.spyOn(databaseService, "getLeaderboardSeriesWinRateRankings").mockResolvedValue({
+      total: 2,
+      rows: seriesRankingRows,
+    });
 
     const result = await service.getLeaderboard({ guildId: "guild-1" });
 
@@ -127,11 +87,14 @@ describe("LeaderboardService", () => {
       [2, "Bravo", 0.5],
     ]);
 
-    expect(getSeriesFactsSpy).toHaveBeenCalledTimes(1);
-    const [seriesFactArgs] = Preconditions.checkExists(getSeriesFactsSpy.mock.calls[0]);
-    expect(seriesFactArgs.guildId).toBe("guild-1");
-    expect(seriesFactArgs.queueChannelId).toBeNull();
-    expect(seriesFactArgs.startEpochSeconds).toBeGreaterThan(0);
+    expect(getSeriesRankingsSpy).toHaveBeenCalledTimes(1);
+    const [seriesRankingArgs] = Preconditions.checkExists(getSeriesRankingsSpy.mock.calls[0]);
+    expect(seriesRankingArgs.guildId).toBe("guild-1");
+    expect(seriesRankingArgs.queueChannelId).toBeNull();
+    expect(seriesRankingArgs.startEpochSeconds).toBeGreaterThan(0);
+    expect(seriesRankingArgs.minGamesPlayed).toBe(2);
+    expect(seriesRankingArgs.limit).toBe(25);
+    expect(seriesRankingArgs.offset).toBe(0);
   });
 
   it("supports queue scope and pagination for stat metrics", async () => {
@@ -148,7 +111,10 @@ describe("LeaderboardService", () => {
         MinGamesPlayed: 0,
       }),
     );
-    const getGameFactsSpy = vi.spyOn(databaseService, "getLeaderboardGamePlayerFacts").mockResolvedValue(gameFacts);
+    const getMetricRankingsSpy = vi.spyOn(databaseService, "getLeaderboardStatMetricRankings").mockResolvedValue({
+      total: 2,
+      rows: [Preconditions.checkExists(killsRankingRows[0])],
+    });
 
     const result = await service.getLeaderboard({
       guildId: "guild-1",
@@ -176,14 +142,18 @@ describe("LeaderboardService", () => {
       },
     ]);
 
-    expect(getGameFactsSpy).toHaveBeenCalledTimes(1);
-    const [gameFactArgs] = Preconditions.checkExists(getGameFactsSpy.mock.calls[0]);
-    expect(gameFactArgs.guildId).toBe("guild-1");
-    expect(gameFactArgs.queueChannelId).toBe("queue-a");
-    expect(gameFactArgs.startEpochSeconds).toBeGreaterThan(0);
+    expect(getMetricRankingsSpy).toHaveBeenCalledTimes(1);
+    const [metricRankingArgs] = Preconditions.checkExists(getMetricRankingsSpy.mock.calls[0]);
+    expect(metricRankingArgs.guildId).toBe("guild-1");
+    expect(metricRankingArgs.queueChannelId).toBe("queue-a");
+    expect(metricRankingArgs.startEpochSeconds).toBeGreaterThan(0);
+    expect(metricRankingArgs.minGamesPlayed).toBe(1);
+    expect(metricRankingArgs.limit).toBe(1);
+    expect(metricRankingArgs.offset).toBe(1);
+    expect(metricRankingArgs.metric).toBe(LeaderboardMetric.Kills);
   });
 
-  it("computes infinite damage ratio when damage taken is zero", async () => {
+  it("clamps non-finite metric values to a JSON-safe maximum", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });
     const logService = aFakeLogServiceWith();
@@ -197,7 +167,20 @@ describe("LeaderboardService", () => {
         MinGamesPlayed: 0,
       }),
     );
-    vi.spyOn(databaseService, "getLeaderboardGamePlayerFacts").mockResolvedValue(gameFacts);
+    vi.spyOn(databaseService, "getLeaderboardStatMetricRankings").mockResolvedValue({
+      total: 1,
+      rows: [
+        {
+          XboxXuid: "xuid-2",
+          DiscordUserId: "discord-2",
+          Gamertag: "Bravo",
+          SeriesPlayed: 1,
+          SeriesWins: 0,
+          GamesPlayed: 1,
+          MetricValue: Number.POSITIVE_INFINITY,
+        },
+      ],
+    });
 
     const result = await service.getLeaderboard({
       guildId: "guild-1",
@@ -206,6 +189,6 @@ describe("LeaderboardService", () => {
     });
 
     expect(result.rows[0]?.gamertag).toBe("Bravo");
-    expect(result.rows[0]?.metricValue).toBe(Number.POSITIVE_INFINITY);
+    expect(result.rows[0]?.metricValue).toBe(Number.MAX_VALUE);
   });
 });

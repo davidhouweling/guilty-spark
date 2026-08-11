@@ -4,12 +4,14 @@ import { LeaderboardMetric, LeaderboardWindow } from "../../halo/leaderboard";
 
 const positiveIntString = z
   .string()
-  .transform((raw) => Number.parseInt(raw, 10))
+  .regex(/^\d+$/)
+  .transform((raw) => Number(raw))
   .pipe(z.number().int().positive());
 
 const nonNegativeIntString = z
   .string()
-  .transform((raw) => Number.parseInt(raw, 10))
+  .regex(/^\d+$/)
+  .transform((raw) => Number(raw))
   .pipe(z.number().int().nonnegative());
 
 export const leaderboardQuerySchema = z.object({
