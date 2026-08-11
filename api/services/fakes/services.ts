@@ -14,7 +14,7 @@ import { aFakeIndividualTrackerServiceWith } from "../individual-tracker/fakes/i
 import { aFakeAnalyticsServiceWith } from "../analytics/fakes/analytics.fake";
 import { aFakeHaloFilmServiceWith } from "../halo/fakes/halo-film.fake";
 import { CustomSpartanTokenProvider } from "../halo/custom-spartan-token-provider";
-import { LeaderboardService } from "../leaderboard/leaderboard";
+import { aFakeLeaderboardServiceWith } from "../leaderboard/fakes/leaderboard.fake";
 
 export function installFakeServicesWith(opts: Partial<Services & { env: Env }> = {}): Services {
   const env = opts.env ?? aFakeEnvWith();
@@ -34,7 +34,7 @@ export function installFakeServicesWith(opts: Partial<Services & { env: Env }> =
   const liveTrackerService =
     opts.liveTrackerService ?? aFakeLiveTrackerServiceWith({ logService, discordService, env });
   const leaderboardService =
-    opts.leaderboardService ?? new LeaderboardService({ databaseService, haloService, logService });
+    opts.leaderboardService ?? aFakeLeaderboardServiceWith({ databaseService, haloService, logService });
   const neatQueueService =
     opts.neatQueueService ??
     aFakeNeatQueueServiceWith({
