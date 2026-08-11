@@ -1569,6 +1569,21 @@ describe("DiscordService", () => {
       );
     });
 
+    it("throws a rate-limit specific error when search is rate limited", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            message: "You are being rate limited.",
+            retry_after: 2,
+          }),
+        ),
+      );
+
+      await expect(discordService.findBotMessagesInThread("fake-guild-id", "fake-thread-id")).rejects.toThrow(
+        "Discord is rate limiting message search. Please try again in a few seconds.",
+      );
+    });
+
     it("pages through multiple full pages of search results", async () => {
       const firstPage = Array.from({ length: 25 }, (_, index) => [
         { ...apiMessage, id: `page-1-message-${index.toString()}` },

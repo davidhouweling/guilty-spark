@@ -126,6 +126,7 @@ const SEARCH_RESULT_PAGE_SIZE = 25;
 const MAX_SEARCH_RESULT_PAGES = 10;
 const SEARCH_INDEXING_MESSAGE =
   "Discord is still indexing recent messages for search. Please try again in a few seconds.";
+const SEARCH_RATE_LIMIT_MESSAGE = "Discord is rate limiting message search. Please try again in a few seconds.";
 
 function getDiscordSeriesStatsLookupCacheKey(guildId: string, queueNumber: number): string {
   return `${getDiscordSeriesStatsCacheKey(guildId, queueNumber)}:lookup`;
@@ -1079,7 +1080,14 @@ export class DiscordService {
 
   private flattenSearchMessages(searchResponse: RESTGetAPIGuildMessagesSearchResult): APIMessage[] {
     if ("retry_after" in searchResponse) {
-      throw new EndUserError(SEARCH_INDEXING_MESSAGE, { errorType: EndUserErrorType.WARNING, handled: true });
+      const isSearchIndexNotReady =
+        searchResponse.code === 110000 ||
+        (typeof searchResponse.message === "string" && searchResponse.message.includes("search index is not ready"));
+      if (isSearchIndexNotReady) {
+        throw new EndUserError(SEARCH_INDEXING_MESSAGE, { errorType: EndUserErrorType.WARNING, handled: true });
+      }
+
+      throw new EndUserError(SEARCH_RATE_LIMIT_MESSAGE, { errorType: EndUserErrorType.WARNING, handled: true });
     }
 
     return searchResponse.messages.flatMap((messages) => messages);
