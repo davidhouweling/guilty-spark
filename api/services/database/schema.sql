@@ -133,3 +133,116 @@ CREATE INDEX IF NOT EXISTS IdxIndividualTrackersXuid ON IndividualTrackers (Xuid
 CREATE INDEX IF NOT EXISTS IdxIndividualTrackersUserIdCreatedAt
     ON IndividualTrackers (UserId, CreatedAt ASC);
 CREATE UNIQUE INDEX IF NOT EXISTS UqIndividualTrackersLivePerUser ON IndividualTrackers (UserId) WHERE IsLive = 1;
+
+CREATE TABLE IF NOT EXISTS LeaderboardConfig (
+    GuildId TEXT PRIMARY KEY NOT NULL,
+    EnabledWindowsJson TEXT NOT NULL DEFAULT '["1W","1M","3M","6M","12M"]' CHECK (json_valid(EnabledWindowsJson)),
+    DefaultWindow TEXT NOT NULL DEFAULT '3M' CHECK (DefaultWindow IN ('1W', '1M', '3M', '6M', '12M')),
+    DefaultMetric TEXT NOT NULL DEFAULT 'SERIES_WIN_RATE' CHECK (DefaultMetric IN ('SERIES_WIN_RATE', 'KILLS', 'DEATHS', 'ASSISTS', 'KDA', 'ACCURACY', 'DAMAGE_DEALT', 'DAMAGE_TAKEN', 'DAMAGE_RATIO', 'PERSONAL_SCORE')),
+    MinGamesPlayed INTEGER NOT NULL DEFAULT 5 CHECK (MinGamesPlayed >= 0),
+    UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE TABLE IF NOT EXISTS LeaderboardSeries (
+    GuildId TEXT NOT NULL,
+    QueueNumber INTEGER NOT NULL,
+    QueueChannelId TEXT NOT NULL,
+    ResultsChannelId TEXT,
+    StartedAt INTEGER,
+    CompletedAt INTEGER NOT NULL,
+    WinnerTeamIndex INTEGER NOT NULL,
+    SeriesScore TEXT NOT NULL,
+    Source TEXT NOT NULL DEFAULT 'neatqueue' CHECK (Source IN ('neatqueue')),
+    CreatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    PRIMARY KEY (GuildId, QueueNumber)
+);
+
+CREATE INDEX IF NOT EXISTS IdxLeaderboardSeriesGuildCompletedAt
+    ON LeaderboardSeries (GuildId, CompletedAt DESC);
+CREATE INDEX IF NOT EXISTS IdxLeaderboardSeriesGuildQueueCompletedAt
+    ON LeaderboardSeries (GuildId, QueueChannelId, CompletedAt DESC);
+
+CREATE TABLE IF NOT EXISTS LeaderboardSeriesPlayers (
+    GuildId TEXT NOT NULL,
+    QueueNumber INTEGER NOT NULL,
+    QueueChannelId TEXT NOT NULL,
+    XboxXuid TEXT NOT NULL,
+    DiscordUserId TEXT,
+    GamertagSnapshot TEXT NOT NULL,
+    TeamId INTEGER NOT NULL,
+    PresentAtBeginningCount INTEGER NOT NULL DEFAULT 0,
+    SubstituteInCount INTEGER NOT NULL DEFAULT 0,
+    SubstituteOutCount INTEGER NOT NULL DEFAULT 0,
+    GamesPlayedCount INTEGER NOT NULL DEFAULT 0,
+    SeriesWon INTEGER NOT NULL CHECK (SeriesWon IN (0, 1)),
+    CreatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    PRIMARY KEY (GuildId, QueueNumber, XboxXuid),
+    FOREIGN KEY (GuildId, QueueNumber) REFERENCES LeaderboardSeries(GuildId, QueueNumber) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS IdxLeaderboardSeriesPlayersGuildQueueXuid
+    ON LeaderboardSeriesPlayers (GuildId, QueueChannelId, XboxXuid);
+CREATE INDEX IF NOT EXISTS IdxLeaderboardSeriesPlayersGuildQueueDiscord
+    ON LeaderboardSeriesPlayers (GuildId, QueueChannelId, DiscordUserId);
+
+CREATE TABLE IF NOT EXISTS LeaderboardGames (
+    MatchId TEXT NOT NULL,
+    GuildId TEXT NOT NULL,
+    QueueNumber INTEGER NOT NULL,
+    QueueChannelId TEXT NOT NULL,
+    GameIndexInSeries INTEGER NOT NULL,
+    GameVariantCategory INTEGER NOT NULL,
+    ModeName TEXT NOT NULL,
+    MapName TEXT NOT NULL,
+    MapAssetId TEXT,
+    MapVersionId TEXT,
+    Team0Score INTEGER,
+    Team1Score INTEGER,
+    StartedAt INTEGER NOT NULL,
+    EndedAt INTEGER NOT NULL,
+    CreatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    PRIMARY KEY (GuildId, QueueNumber, MatchId),
+    UNIQUE (GuildId, QueueNumber, GameIndexInSeries),
+    FOREIGN KEY (GuildId, QueueNumber) REFERENCES LeaderboardSeries(GuildId, QueueNumber) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS IdxLeaderboardGamesGuildQueueStartedAt
+    ON LeaderboardGames (GuildId, QueueChannelId, StartedAt DESC);
+
+CREATE TABLE IF NOT EXISTS LeaderboardGamePlayers (
+    MatchId TEXT NOT NULL,
+    GuildId TEXT NOT NULL,
+    QueueNumber INTEGER NOT NULL,
+    QueueChannelId TEXT NOT NULL,
+    XboxXuid TEXT NOT NULL,
+    DiscordUserId TEXT,
+    GamertagSnapshot TEXT NOT NULL,
+    TeamId INTEGER NOT NULL,
+    PresentAtBeginning INTEGER NOT NULL CHECK (PresentAtBeginning IN (0, 1)),
+    RankInMatch INTEGER,
+    PersonalScore INTEGER NOT NULL,
+    Kills INTEGER NOT NULL,
+    Deaths INTEGER NOT NULL,
+    Assists INTEGER NOT NULL,
+    Kda REAL NOT NULL,
+    Accuracy REAL NOT NULL,
+    ShotsHit INTEGER NOT NULL,
+    ShotsFired INTEGER NOT NULL,
+    DamageDealt INTEGER NOT NULL,
+    DamageTaken INTEGER NOT NULL,
+    DamageRatio REAL NOT NULL,
+    AvgLifeSeconds REAL NOT NULL,
+    AvgDamagePerLife REAL NOT NULL,
+    ObjectiveStatsJson TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(ObjectiveStatsJson)),
+    MedalsJson TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(MedalsJson)),
+    CreatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    PRIMARY KEY (GuildId, QueueNumber, MatchId, XboxXuid),
+    FOREIGN KEY (GuildId, QueueNumber, MatchId) REFERENCES LeaderboardGames(GuildId, QueueNumber, MatchId) ON DELETE CASCADE,
+    FOREIGN KEY (GuildId, QueueNumber) REFERENCES LeaderboardSeries(GuildId, QueueNumber) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS IdxLeaderboardGamePlayersGuildQueueXuid
+    ON LeaderboardGamePlayers (GuildId, QueueChannelId, XboxXuid);
+CREATE INDEX IF NOT EXISTS IdxLeaderboardGamePlayersGuildQueueDiscord
+    ON LeaderboardGamePlayers (GuildId, QueueChannelId, DiscordUserId);

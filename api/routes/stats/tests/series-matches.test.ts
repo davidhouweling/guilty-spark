@@ -32,6 +32,7 @@ describe("/api/stats/series-matches", () => {
     }
 
     const services = installFakeServicesWith({ env });
+    const getPlayerXuidsToGametagsSpy = vi.spyOn(services.haloService, "getPlayerXuidsToGametags");
     vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([match]);
     vi.spyOn(services.haloService, "getGameTypeAndMapParts").mockResolvedValue({
       gameType: "Assault:Neutral Bomb",
@@ -49,6 +50,7 @@ describe("/api/stats/series-matches", () => {
     expect(response.status).toBe(200);
     const body = await seriesMatchesContract.fromResponse(response);
     expect(body).not.toHaveProperty("medalMetadata");
+    expect(getPlayerXuidsToGametagsSpy).toHaveBeenCalledWith([match], { presentAtBeginningOnly: true });
     expect(body.matches[0]).toMatchObject({
       gameTypeAndMap: "Assault:Neutral Bomb: Live Fire",
       gameType: "Assault:Neutral Bomb",

@@ -20,6 +20,7 @@ import { PlayerMatchesRateLimiter } from "./halo/player-matches-rate-limiter";
 import { UserTokenProvider } from "./halo/user-token-provider";
 import { AnalyticsService } from "./analytics/analytics";
 import { HaloFilmService } from "./halo/halo-film";
+import { LeaderboardService } from "./leaderboard/leaderboard";
 
 export interface Services {
   logService: LogService;
@@ -35,6 +36,7 @@ export interface Services {
   liveTrackerService: LiveTrackerService;
   neatQueueService: NeatQueueService;
   individualTrackerService: IndividualTrackerService;
+  leaderboardService: LeaderboardService;
 }
 
 interface InstallServicesOpts {
@@ -105,12 +107,14 @@ export function installServices({ env }: InstallServicesOpts): Services {
   const analyticsService = new AnalyticsService({ haloService, haloFilmService, logService });
   const liveTrackerService = new LiveTrackerService({ env, logService, discordService });
   const individualTrackerService = new IndividualTrackerService({ env, logService, databaseService });
+  const leaderboardService = new LeaderboardService({ databaseService, haloService, logService });
   const neatQueueService = new NeatQueueService({
     env,
     logService,
     databaseService,
     discordService,
     haloService,
+    leaderboardService,
     liveTrackerService,
     individualTrackerService,
   });
@@ -129,5 +133,6 @@ export function installServices({ env }: InstallServicesOpts): Services {
     liveTrackerService,
     neatQueueService,
     individualTrackerService,
+    leaderboardService,
   };
 }

@@ -828,7 +828,7 @@ describe("StatsCommand", () => {
       it("calls haloService.getPlayerXuidsToGamertags with the match data", async () => {
         await jobToComplete?.();
 
-        expect(getPlayerXuidsToGamertagsSpy).toHaveBeenCalledWith(ctfMatch);
+        expect(getPlayerXuidsToGamertagsSpy).toHaveBeenCalledWith(ctfMatch, { presentAtBeginningOnly: true });
       });
 
       it("calls discordService.updateDeferredReply with match embeds", async () => {

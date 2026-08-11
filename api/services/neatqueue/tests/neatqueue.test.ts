@@ -28,6 +28,7 @@ import type { DiscordService } from "../../discord/discord";
 import type { HaloService } from "../../halo/halo";
 import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
+import { aFakeLeaderboardServiceWith } from "../../leaderboard/fakes/leaderboard.fake";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeLiveTrackerServiceWith } from "../../live-tracker/fakes/live-tracker.fake";
 import { aFakeLiveTrackerStateWith } from "../../../durable-objects/live-tracker/fakes/live-tracker-do.fake";
@@ -72,6 +73,7 @@ describe("NeatQueueService", () => {
   let databaseService: DatabaseService;
   let discordService: DiscordService;
   let haloService: HaloService;
+  let leaderboardService: ReturnType<typeof aFakeLeaderboardServiceWith>;
   let liveTrackerService: LiveTrackerService;
   let individualTrackerService: IndividualTrackerService;
   let neatQueueService: NeatQueueService;
@@ -85,6 +87,7 @@ describe("NeatQueueService", () => {
     databaseService = aFakeDatabaseServiceWith();
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
+    leaderboardService = aFakeLeaderboardServiceWith({ databaseService, haloService, logService });
     liveTrackerService = aFakeLiveTrackerServiceWith({ logService, discordService, env });
     individualTrackerService = aFakeIndividualTrackerServiceWith();
     neatQueueService = new NeatQueueService({
@@ -93,6 +96,7 @@ describe("NeatQueueService", () => {
       databaseService,
       discordService,
       haloService,
+      leaderboardService,
       liveTrackerService,
       individualTrackerService,
     });
@@ -647,6 +651,7 @@ describe("NeatQueueService", () => {
       let discordServiceStartThreadFromMessageSpy: MockInstance<typeof discordService.startThreadFromMessage>;
       let discordServiceCreateMessageSpy: MockInstance<typeof discordService.createMessage>;
       let cacheResolvedDiscordSeriesStatsSpy: MockInstance<typeof discordService.cacheResolvedDiscordSeriesStats>;
+      let persistSeriesDataSpy: MockInstance<typeof leaderboardService.persistSeriesData>;
 
       beforeEach(() => {
         appDataGetSpy = vi.spyOn(env.APP_DATA, "get");
@@ -688,6 +693,7 @@ describe("NeatQueueService", () => {
           .spyOn(discordService, "startThreadFromMessage")
           .mockResolvedValue(startThread);
         discordServiceCreateMessageSpy = vi.spyOn(discordService, "createMessage").mockResolvedValue(apiMessage);
+        persistSeriesDataSpy = vi.spyOn(leaderboardService, "persistSeriesData").mockResolvedValue();
         vi.spyOn(discordService, "getUsers").mockResolvedValue([
           aGuildMemberWith({
             user: {
@@ -741,6 +747,7 @@ describe("NeatQueueService", () => {
         await jobToComplete?.();
 
         expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:state:guild-1:2");
+        expect(persistSeriesDataSpy).not.toHaveBeenCalled();
       });
 
       it("discard neatqueue events that are not of concern", async () => {
@@ -913,13 +920,23 @@ describe("NeatQueueService", () => {
           expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(5);
           expect(discordServiceCreateMessageSpy.mock.calls).toMatchSnapshot();
           expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:state:guild-1:2");
-          expect(cacheResolvedDiscordSeriesStatsSpy).toHaveBeenCalledWith(
-            expect.objectContaining({
-              queueNumber: 2,
-              guildId: expect.any(String) as string,
-              matchIds: expect.any(Array) as string[],
-            }),
-          );
+          expect(cacheResolvedDiscordSeriesStatsSpy).toHaveBeenCalledOnce();
+          const [cacheArg] = cacheResolvedDiscordSeriesStatsSpy.mock.calls[0] ?? [];
+          const resolvedCacheArg = Preconditions.checkExists(cacheArg);
+          expect(resolvedCacheArg.queueNumber).toBe(2);
+          expect(typeof resolvedCacheArg.guildId).toBe("string");
+          expect(Array.isArray(resolvedCacheArg.matchIds)).toBe(true);
+
+          expect(persistSeriesDataSpy).toHaveBeenCalledOnce();
+          const [persistArg] = persistSeriesDataSpy.mock.calls[0] ?? [];
+          const resolvedPersistArg = Preconditions.checkExists(persistArg);
+          expect(resolvedPersistArg.request.guild).toBe("guild-id");
+          expect(resolvedPersistArg.request.match_number).toBe(2);
+          expect(resolvedPersistArg.request.winning_team_index).toBe(0);
+          expect(resolvedPersistArg.neatQueueConfig.ChannelId).toBe("channel-1");
+          expect(resolvedPersistArg.neatQueueConfig.ResultsChannelId).toBe("results-channel-1");
+          expect(resolvedPersistArg.locale).toBe("en-US");
+          expect(Array.isArray(resolvedPersistArg.series)).toBe(true);
         });
 
         it("creates the thread/message and posts overviews and game stats, clears timeline", async () => {
@@ -945,6 +962,34 @@ describe("NeatQueueService", () => {
           expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(6);
           expect(discordServiceCreateMessageSpy.mock.calls).toMatchSnapshot();
           expect(appDataDeleteSpy).toHaveBeenCalledWith("neatqueue:state:guild-1:2");
+        });
+
+        it("passes modified match data to leaderboard persistence", async () => {
+          const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+          const matchPlayer = Preconditions.checkExists(match.Players.find((player) => player.PlayerType === 1));
+          const playerTeamStats = Preconditions.checkExists(matchPlayer.PlayerTeamStats[0]);
+          playerTeamStats.Stats.CoreStats.DamageTaken = 0;
+          playerTeamStats.Stats.CoreStats.Deaths = 0;
+          playerTeamStats.Stats.CoreStats.DamageDealt = 4000;
+          haloServiceGetSeriesFromDiscordQueueSpy.mockResolvedValueOnce([match]);
+
+          const { jobToComplete } = neatQueueService.handleRequest(
+            getFakeNeatQueueData("matchCompleted"),
+            neatQueueConfig,
+          );
+
+          await jobToComplete?.();
+
+          expect(persistSeriesDataSpy).toHaveBeenCalledOnce();
+          const [persistArg] = persistSeriesDataSpy.mock.calls[0] ?? [];
+          const [firstPersistedMatch] = Preconditions.checkExists(persistArg).series;
+          const persistedPlayer = Preconditions.checkExists(
+            Preconditions.checkExists(firstPersistedMatch).Players.find((player) => player.PlayerType === 1),
+          );
+          const persistedStats = Preconditions.checkExists(persistedPlayer.PlayerTeamStats[0]).Stats.CoreStats;
+          expect(persistedStats.DamageTaken).toBe(0);
+          expect(persistedStats.Deaths).toBe(0);
+          expect(persistedStats.DamageDealt).toBe(4000);
         });
 
         it("calls haloService.updateDiscordAssociations with expected parameters", async () => {
@@ -1131,6 +1176,7 @@ describe("NeatQueueService", () => {
 
           expect(discordServiceCreateMessageSpy).toHaveBeenCalledTimes(5);
           expect(discordServiceCreateMessageSpy.mock.calls).toMatchSnapshot();
+          expect(persistSeriesDataSpy).toHaveBeenCalledOnce();
         });
 
         describe("substitution team name in Discord embed", () => {

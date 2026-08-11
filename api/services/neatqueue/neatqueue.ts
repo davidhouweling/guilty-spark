@@ -24,6 +24,7 @@ import { NEAT_QUEUE_BOT_USER_ID, type DiscordService } from "../discord/discord"
 import type { HaloService } from "../halo/halo";
 import type { MatchPlayer, UserInfo, PlayerEsraData } from "../halo/types";
 import type { LiveTrackerService } from "../live-tracker/live-tracker";
+import type { LeaderboardService } from "../leaderboard/leaderboard";
 import type {
   SeriesOverviewEmbedSubstitution,
   SeriesOverviewEmbedOutput,
@@ -69,6 +70,7 @@ export interface NeatQueueServiceOpts {
   databaseService: DatabaseService;
   discordService: DiscordService;
   haloService: HaloService;
+  leaderboardService: LeaderboardService;
   liveTrackerService: LiveTrackerService;
   individualTrackerService: IndividualTrackerService;
 }
@@ -79,6 +81,7 @@ export class NeatQueueService {
   private readonly databaseService: DatabaseService;
   private readonly discordService: DiscordService;
   private readonly haloService: HaloService;
+  private readonly leaderboardService: LeaderboardService;
   private readonly liveTrackerService: LiveTrackerService;
   private readonly individualTrackerService: IndividualTrackerService;
   private readonly locale = "en-US";
@@ -90,6 +93,7 @@ export class NeatQueueService {
     databaseService,
     discordService,
     haloService,
+    leaderboardService,
     liveTrackerService,
     individualTrackerService,
   }: NeatQueueServiceOpts) {
@@ -98,6 +102,7 @@ export class NeatQueueService {
     this.databaseService = databaseService;
     this.discordService = discordService;
     this.haloService = haloService;
+    this.leaderboardService = leaderboardService;
     this.liveTrackerService = liveTrackerService;
     this.individualTrackerService = individualTrackerService;
   }
@@ -981,7 +986,7 @@ export class NeatQueueService {
       // Send substitution event to all players in the series
       const substitutionPayload = { type: "substituted" as const, teamId, playerOut, playerIn };
 
-      const getPlayerXuid = (player: SeriesPlayer): string | null => {
+      const resolvePlayerXuid = (player: SeriesPlayer): string | null => {
         if (player.xboxId != null) {
           return player.xboxId;
         }
@@ -999,7 +1004,7 @@ export class NeatQueueService {
       // Add XUIDs from original teams (includes player being subbed out)
       for (const team of originalTeams) {
         for (const player of team.players) {
-          const xuid = getPlayerXuid(player);
+          const xuid = resolvePlayerXuid(player);
           if (xuid != null) {
             playerXuidSet.add(xuid);
           }
@@ -1009,7 +1014,7 @@ export class NeatQueueService {
       // Add XUIDs from updated teams (includes player being subbed in)
       for (const team of updatedTeams) {
         for (const player of team.players) {
-          const xuid = getPlayerXuid(player);
+          const xuid = resolvePlayerXuid(player);
           if (xuid != null) {
             playerXuidSet.add(xuid);
           }
@@ -2015,6 +2020,7 @@ export class NeatQueueService {
 
       await Promise.all([
         this.cacheDiscordSeriesStats(request.guild, request.match_number, series),
+        this.leaderboardService.persistSeriesData({ request, neatQueueConfig, series, locale: this.locale }),
         this.postSeriesDetailsToChannel(thread.id, request.guild, series),
       ]);
     } catch (error) {
@@ -2133,6 +2139,7 @@ export class NeatQueueService {
       channelId = thread.id;
       await Promise.all([
         this.cacheDiscordSeriesStats(request.guild, request.match_number, series),
+        this.leaderboardService.persistSeriesData({ request, neatQueueConfig, series, locale: this.locale }),
         this.postSeriesDetailsToChannel(channelId, request.guild, series),
       ]);
     } catch (error) {
@@ -2215,7 +2222,9 @@ export class NeatQueueService {
       embeds: [seriesTeamsEmbedOutput],
     });
 
-    const seriesPlayers = await haloService.getPlayerXuidsToGametags(series);
+    const seriesPlayers = await haloService.getPlayerXuidsToGametags(series, {
+      presentAtBeginningOnly: true,
+    });
     const seriesPlayersEmbed = new SeriesPlayersEmbed({
       discordService,
       haloService,
@@ -2250,7 +2259,9 @@ export class NeatQueueService {
       });
     } else {
       for (const match of series) {
-        const players = await haloService.getPlayerXuidsToGametags(match);
+        const players = await haloService.getPlayerXuidsToGametags(match, {
+          presentAtBeginningOnly: true,
+        });
         const matchEmbed = this.getMatchEmbed(guildConfig, match, this.locale);
         const embed = await matchEmbed.getEmbed(match, players);
 

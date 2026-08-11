@@ -1162,7 +1162,9 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       const { AssetId, VersionId } = match.MatchInfo.MapVariant;
       const mapThumbnailUrl = await this.haloService.getMapThumbnailUrl(AssetId, VersionId);
 
-      const playerXuidToGametagMap = await this.haloService.getPlayerXuidsToGametags(match);
+      const playerXuidToGametagMap = await this.haloService.getPlayerXuidsToGametags(match, {
+        presentAtBeginningOnly: true,
+      });
       const playerXuidToGametag: Record<string, string> = {};
       for (const [xuid, gamertag] of playerXuidToGametagMap.entries()) {
         playerXuidToGametag[xuid] = gamertag;

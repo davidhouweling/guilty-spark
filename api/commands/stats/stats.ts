@@ -521,7 +521,7 @@ export class StatsCommand extends BaseCommand {
       }
 
       const match = Preconditions.checkExists(matches[0]);
-      const players = await haloService.getPlayerXuidsToGametags(match);
+      const players = await haloService.getPlayerXuidsToGametags(match, { presentAtBeginningOnly: true });
 
       const matchEmbed = this.getMatchEmbed(guildConfig, match, locale);
       const embed = await matchEmbed.getEmbed(match, players);
@@ -639,7 +639,7 @@ export class StatsCommand extends BaseCommand {
       }
 
       for (const match of matches) {
-        const players = await haloService.getPlayerXuidsToGametags(match);
+        const players = await haloService.getPlayerXuidsToGametags(match, { presentAtBeginningOnly: true });
         const matchEmbed = this.getMatchEmbed(guildConfig, match, locale);
         const embed = await matchEmbed.getEmbed(match, players);
 
@@ -679,7 +679,7 @@ export class StatsCommand extends BaseCommand {
     });
 
     const seriesPlayersEmbed = new SeriesPlayersEmbed({ discordService, haloService, guildConfig, locale });
-    const seriesPlayers = await haloService.getPlayerXuidsToGametags(series);
+    const seriesPlayers = await haloService.getPlayerXuidsToGametags(series, { presentAtBeginningOnly: true });
     const seriesPlayersEmbedsOutput = await seriesPlayersEmbed.getSeriesEmbed(series, seriesPlayers, locale);
     for (const seriesPlayersEmbedOutput of seriesPlayersEmbedsOutput) {
       await discordService.createMessage(threadId, {
@@ -717,7 +717,7 @@ export class StatsCommand extends BaseCommand {
       });
     } else {
       for (const match of series) {
-        const players = await haloService.getPlayerXuidsToGametags(match);
+        const players = await haloService.getPlayerXuidsToGametags(match, { presentAtBeginningOnly: true });
         const matchEmbed = this.getMatchEmbed(guildConfig, match, locale);
         const embed = await matchEmbed.getEmbed(match, players);
 
