@@ -1019,7 +1019,7 @@ export class StatsCommand extends BaseCommand {
         return {
           label: label.slice(0, 100),
           value: match.matchId,
-          description: this.getFixGameSelectionDescription(match.endTime).slice(0, 100),
+          description: this.getFixGameSelectionDescription(match.endTime, match.endTimeIso).slice(0, 100),
           default: preselectedMatchIds.has(match.matchId),
         };
       });
@@ -1068,8 +1068,12 @@ export class StatsCommand extends BaseCommand {
     return `${modeName} ${mapName} - ${result}`;
   }
 
-  private getFixGameSelectionDescription(endTime: string): string {
-    const endDate = new Date(endTime);
+  private getFixGameSelectionDescription(endTime: string, endTimeIso: string): string {
+    if (endTimeIso === "") {
+      return `Ended at ${endTime}`;
+    }
+
+    const endDate = new Date(endTimeIso);
     if (Number.isNaN(endDate.getTime())) {
       return `Ended at ${endTime}`;
     }

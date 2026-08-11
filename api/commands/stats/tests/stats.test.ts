@@ -1320,6 +1320,7 @@ describe("StatsCommand", () => {
             mapName: "Bazaar",
             resultString: "Win - 3:1",
             endTime: unparseableEndTime,
+            endTimeIso: "",
           }),
           aFakeMatchHistoryEntryWith({
             matchId: secondMatchId,
