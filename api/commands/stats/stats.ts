@@ -1162,7 +1162,7 @@ export class StatsCommand extends BaseCommand {
         throw new EndUserError("Select at least one game.");
       }
 
-      const metadata = await this.getFixMetadata(interaction.message.id);
+      const metadata = await this.getFixMetadataWithRetry(interaction.message.id);
       if (metadata == null) {
         throw new EndUserError("Could not find fix-flow state. Please run /stats fix again.");
       }
@@ -1219,7 +1219,7 @@ export class StatsCommand extends BaseCommand {
     const { databaseService, discordService, haloService } = this.services;
 
     try {
-      const metadata = await this.getFixMetadata(interaction.message.id);
+      const metadata = await this.getFixMetadataWithRetry(interaction.message.id);
       if (metadata == null) {
         throw new EndUserError("Could not find fix-flow state. Please run /stats fix again.");
       }
