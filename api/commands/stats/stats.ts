@@ -50,7 +50,8 @@ interface FixFlowMetadata extends Record<string, unknown> {
   selectedMatchIds?: string[];
 }
 
-const FIX_METADATA_RETRY_DELAY_MS = 200;
+const FIX_METADATA_RETRY_BASE_DELAY_MS = 150;
+const FIX_METADATA_MAX_RETRIES = 3;
 
 export enum InteractionButton {
   Retry = "btn_stats_retry",
@@ -1367,13 +1368,21 @@ export class StatsCommand extends BaseCommand {
   }
 
   private async getFixMetadataWithRetry(messageId: string): Promise<FixFlowMetadata | null> {
-    const metadata = await this.getFixMetadata(messageId);
-    if (metadata != null) {
-      return metadata;
+    for (let attempt = 0; attempt <= FIX_METADATA_MAX_RETRIES; attempt += 1) {
+      const metadata = await this.getFixMetadata(messageId);
+      if (metadata != null) {
+        return metadata;
+      }
+
+      if (attempt === FIX_METADATA_MAX_RETRIES) {
+        break;
+      }
+
+      const delayMilliseconds = FIX_METADATA_RETRY_BASE_DELAY_MS * (attempt + 1);
+      await this.wait(delayMilliseconds);
     }
 
-    await this.wait(FIX_METADATA_RETRY_DELAY_MS);
-    return this.getFixMetadata(messageId);
+    return null;
   }
 
   private async wait(milliseconds: number): Promise<void> {

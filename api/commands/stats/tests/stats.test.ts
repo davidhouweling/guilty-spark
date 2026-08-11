@@ -1150,7 +1150,7 @@ describe("StatsCommand", () => {
   });
 
   describe("execute(): message component fix player select", () => {
-    it("retries fix-flow metadata once before returning not-found error", async () => {
+    it("retries fix-flow metadata with backoff before returning not-found error", async () => {
       const interaction: APIMessageComponentSelectMenuInteraction = {
         ...fakeButtonClickInteraction,
         data: {
@@ -1171,7 +1171,7 @@ describe("StatsCommand", () => {
       const { jobToComplete } = statsCommand.execute(interaction);
       await jobToComplete?.();
 
-      expect(getInteractionMetadataSpy).toHaveBeenCalledTimes(2);
+      expect(getInteractionMetadataSpy).toHaveBeenCalledTimes(4);
       expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
         "fake-token",
         expect.objectContaining({
