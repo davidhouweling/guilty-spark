@@ -131,11 +131,15 @@ describe("IndividualTrackerViewer", () => {
       matches: [
         aFakeTrackerMatchSummaryWith({
           matchId: "m-1",
+          mapAssetId: "map-asset-1",
+          gameVariantCategory: 6,
           killsDeathsAssistsKda: "11:8:4 (1.54)",
           damageDealtTakenRatio: "4,400:3,900 (1.13)",
         }),
         aFakeTrackerMatchSummaryWith({
           matchId: "m-2",
+          mapAssetId: "map-asset-2",
+          gameVariantCategory: 7,
           killsDeathsAssistsKda: "9:7:5 (1.52)",
           damageDealtTakenRatio: "3,800:3,600 (1.06)",
         }),
@@ -161,6 +165,36 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByText(/End time/)).toBeInTheDocument();
   });
 
+  it("collapses a consecutive same-map/mode rematch to one icon in the series header", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m-1",
+          startTime: "2100-01-01T00:00:00.000Z",
+          mapAssetId: "map-asset-1",
+          gameVariantCategory: 6,
+        }),
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m-2",
+          startTime: "2100-01-01T00:10:00.000Z",
+          mapAssetId: "map-asset-1",
+          gameVariantCategory: 6,
+        }),
+      ],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          matchIds: ["m-1", "m-2"],
+          title: "Rematch Series",
+          score: "0:1",
+        }),
+      ],
+    });
+
+    renderViewer(view);
+
+    expect(within(screen.getByLabelText("Series Rematch Series")).getAllByRole("img")).toHaveLength(1);
+  });
+
   it("renders In progress for an active series", () => {
     const view = aFakeTrackerViewStateWith({
       matches: [
@@ -183,6 +217,70 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByText("In progress")).toBeInTheDocument();
     expect(screen.getByText(/Start time/)).toBeInTheDocument();
     expect(screen.queryByText(/End time/)).not.toBeInTheDocument();
+  });
+
+  it("mutes a lost match's icon while its series is still active", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m-1",
+          mapAssetId: "map-asset-1",
+          gameVariantCategory: 6,
+          outcome: "Win",
+        }),
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m-2",
+          mapAssetId: "map-asset-2",
+          gameVariantCategory: 7,
+          outcome: "Loss",
+        }),
+      ],
+      series: [
+        aFakeTrackerSeriesGroupWith({ matchIds: ["m-1", "m-2"], title: "Ranked Series", subtitle: "Best of 3" }),
+      ],
+      hasActiveSeries: true,
+      activeSeriesContext: {
+        title: "Ranked Series",
+        subtitle: "Best of 3",
+        teams: [],
+      },
+    });
+
+    renderViewer(view);
+
+    const seriesEntry = within(screen.getByLabelText("Series Ranked Series"));
+    expect(seriesEntry.getAllByRole("img")).toHaveLength(2);
+    expect(seriesEntry.getByAltText("Slayer").className).not.toContain("seriesModeIconMuted");
+    expect(seriesEntry.getByAltText("Attrition").className).toContain("seriesModeIconMuted");
+  });
+
+  it("mutes a lost match's icon once its series has completed", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m-1",
+          mapAssetId: "map-asset-1",
+          gameVariantCategory: 6,
+          outcome: "Win",
+        }),
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m-2",
+          mapAssetId: "map-asset-2",
+          gameVariantCategory: 7,
+          outcome: "Loss",
+        }),
+      ],
+      series: [
+        aFakeTrackerSeriesGroupWith({ matchIds: ["m-1", "m-2"], title: "Completed Series", subtitle: "Best of 3" }),
+      ],
+    });
+
+    renderViewer(view);
+
+    const seriesEntry = within(screen.getByLabelText("Series Completed Series"));
+    expect(seriesEntry.getAllByRole("img")).toHaveLength(2);
+    expect(seriesEntry.getByAltText("Slayer").className).not.toContain("seriesModeIconMuted");
+    expect(seriesEntry.getByAltText("Attrition").className).toContain("seriesModeIconMuted");
   });
 
   it("marks only the most recent series as In progress when active context is missing", () => {

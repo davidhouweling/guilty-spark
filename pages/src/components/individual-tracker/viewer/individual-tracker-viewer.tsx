@@ -1,8 +1,8 @@
 import React from "react";
+import type { CSSProperties } from "react";
 import classNames from "classnames";
 import ReactTimeAgo from "react-time-ago";
 import { addMinutes, isValid, parseISO } from "date-fns";
-import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import { summarizeSeriesOutcome } from "@guilty-spark/shared/halo/match-enrichment";
@@ -18,13 +18,17 @@ import { SeriesStatsView } from "../../series-stats/series-stats";
 import { PlayerPreSeriesInfo } from "../../player-pre-series-info/player-pre-series-info";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import { gameModeIconSrc } from "../game-mode-icon";
+import {
+  buildMatchHeaderMetadata,
+  buildMatchHeaderTitle,
+  buildSeriesHeaderMetadata,
+  matchHeaderBackgroundStyle,
+  seriesHeaderBackgroundStyle,
+} from "../stats-panel-header";
+import { useRotatingBackgroundTick } from "../use-rotating-background-tick";
 import { StatsHighlights } from "./stats-highlights";
 import type { IndividualTrackerViewerRenderModel, ViewerEntryState, ViewerTimelineItem } from "./types";
 import styles from "./individual-tracker-viewer.module.css";
-
-const SERIES_BACKGROUND_ROTATION_MS = 10_000;
-const SERIES_BACKGROUND_FADE_MS = 900;
-const SERIES_BACKGROUND_GLITCH_MS = 260;
 
 interface IndividualTrackerViewerProps {
   readonly renderModel: IndividualTrackerViewerRenderModel;
@@ -121,11 +125,6 @@ function parseDate(value: string | null): Date | null {
   return isValid(date) ? date : null;
 }
 
-function formatDate(value: string | null): string {
-  const date = parseDate(value);
-  return date == null ? "unknown" : date.toLocaleString();
-}
-
 function preSeriesStatusMessage(totalTrackedMatches: number): string {
   if (totalTrackedMatches === 0) {
     return "Series is active and waiting for the first tracked match.";
@@ -188,59 +187,13 @@ function connectionAwareNextUpdate(
   return nextUpdateContent(renderModel);
 }
 
-function getBackgroundAt(backgrounds: readonly string[], index: number): string {
-  return Preconditions.checkExists(backgrounds[index], "Expected series background at index");
-}
-
-function matchHeaderBackgroundStyle(
+function matchHeaderBackgroundStyleForEntry(
   mapBackgroundUrl: string,
   state: ViewerEntryState | undefined,
-): React.CSSProperties {
-  if (mapBackgroundUrl !== "" && mapBackgroundUrl !== "data:,") {
-    return {
-      "--match-bg": `url(${mapBackgroundUrl})`,
-    } as React.CSSProperties;
-  }
-
-  if (state?.kind === "match" && state.state.status === "loaded") {
-    return {
-      "--match-bg": `url(${state.state.gameMapThumbnailUrl})`,
-    } as React.CSSProperties;
-  }
-
-  return {
-    "--match-bg": "linear-gradient(135deg, #0a0e14 0%, #1a1e24 100%)",
-  } as React.CSSProperties;
-}
-
-function seriesHeaderBackgroundStyle(
-  matchBackgroundUrls: readonly string[],
-  rotationTick: number,
-  isTransitioning: boolean,
-  isGlitching: boolean,
-): React.CSSProperties {
-  const backgrounds = matchBackgroundUrls.filter((url) => url !== "" && url !== "data:,");
-
-  if (backgrounds.length > 0) {
-    const currentIndex = rotationTick % backgrounds.length;
-    const previousIndex = (currentIndex - 1 + backgrounds.length) % backgrounds.length;
-    const currentBackground = getBackgroundAt(backgrounds, currentIndex);
-    const previousBackground = getBackgroundAt(backgrounds, previousIndex);
-
-    const baseBackground = isTransitioning && backgrounds.length > 1 ? previousBackground : currentBackground;
-    const overlayBackground = currentBackground;
-
-    return {
-      "--match-bg": `url(${baseBackground})`,
-      "--match-bg-next": `url(${overlayBackground})`,
-      "--match-bg-next-opacity": isTransitioning ? 1 : 0,
-      "--match-glitch-opacity": isGlitching && backgrounds.length > 1 ? 0.28 : 0,
-    } as React.CSSProperties;
-  }
-
-  return {
-    "--match-bg": "linear-gradient(135deg, #0a0e14 0%, #1a1e24 100%)",
-  } as React.CSSProperties;
+): CSSProperties {
+  const fallback =
+    state?.kind === "match" && state.state.status === "loaded" ? state.state.gameMapThumbnailUrl : undefined;
+  return matchHeaderBackgroundStyle(mapBackgroundUrl, fallback);
 }
 
 export function IndividualTrackerViewer({
@@ -259,11 +212,11 @@ export function IndividualTrackerViewer({
   const nearLatestRef = React.useRef<boolean>(true);
   const [isNearLatestNow, setIsNearLatestNow] = React.useState(true);
   const [unseenEntries, setUnseenEntries] = React.useState(0);
-  const [seriesBackgroundTick, setSeriesBackgroundTick] = React.useState(0);
-  const [isSeriesBackgroundTransitioning, setIsSeriesBackgroundTransitioning] = React.useState(false);
-  const [isSeriesBackgroundGlitching, setIsSeriesBackgroundGlitching] = React.useState(false);
-  const seriesFadeTimeoutRef = React.useRef<number | null>(null);
-  const seriesGlitchTimeoutRef = React.useRef<number | null>(null);
+  const {
+    tick: seriesBackgroundTick,
+    isTransitioning: isSeriesBackgroundTransitioning,
+    isGlitching: isSeriesBackgroundGlitching,
+  } = useRotatingBackgroundTick();
 
   const { timeline } = renderModel;
 
@@ -303,44 +256,6 @@ export function IndividualTrackerViewer({
     }
     lastTimelineLengthRef.current = nextLength;
   }, [timeline.length, scrollToLatest]);
-
-  React.useEffect(() => {
-    const beginTransition = (): void => {
-      setSeriesBackgroundTick((current) => current + 1);
-      setIsSeriesBackgroundTransitioning(true);
-      setIsSeriesBackgroundGlitching(true);
-
-      if (seriesFadeTimeoutRef.current != null) {
-        window.clearTimeout(seriesFadeTimeoutRef.current);
-      }
-
-      if (seriesGlitchTimeoutRef.current != null) {
-        window.clearTimeout(seriesGlitchTimeoutRef.current);
-      }
-
-      seriesFadeTimeoutRef.current = window.setTimeout(() => {
-        setIsSeriesBackgroundTransitioning(false);
-      }, SERIES_BACKGROUND_FADE_MS);
-
-      seriesGlitchTimeoutRef.current = window.setTimeout(() => {
-        setIsSeriesBackgroundGlitching(false);
-      }, SERIES_BACKGROUND_GLITCH_MS);
-    };
-
-    const intervalId = window.setInterval(beginTransition, SERIES_BACKGROUND_ROTATION_MS);
-
-    return (): void => {
-      window.clearInterval(intervalId);
-
-      if (seriesFadeTimeoutRef.current != null) {
-        window.clearTimeout(seriesFadeTimeoutRef.current);
-      }
-
-      if (seriesGlitchTimeoutRef.current != null) {
-        window.clearTimeout(seriesGlitchTimeoutRef.current);
-      }
-    };
-  }, []);
 
   const statusBadge = getViewerStatusBadge(renderModel.status, connectionStatus);
   const canRefresh = statusBadge.tone === "active";
@@ -440,16 +355,10 @@ export function IndividualTrackerViewer({
                       aria-label={`Match ${match.gameModeName} on ${match.mapName}`}
                     >
                       <StatsHeader
-                        title={`${match.gameModeName}: ${match.mapName}`}
+                        title={buildMatchHeaderTitle(match)}
                         subtitle={match.subtitle}
-                        metadata={[
-                          { label: "Score", value: match.score },
-                          { label: "Duration", value: match.duration },
-                          { label: "End time", value: formatDate(match.endTime) },
-                          { label: "Kills:Deaths:Assists (KDA)", value: match.killsDeathsAssistsKda },
-                          { label: "Damage D:T (D/T)", value: match.damageDealtTakenRatio },
-                        ]}
-                        backgroundStyle={matchHeaderBackgroundStyle(match.mapBackgroundUrl, state)}
+                        metadata={buildMatchHeaderMetadata(match)}
+                        backgroundStyle={matchHeaderBackgroundStyleForEntry(match.mapBackgroundUrl, state)}
                         rightContent={
                           <div className={styles.entryHeaderRight}>
                             <div className={styles.entryHeaderVisuals}>
@@ -537,15 +446,7 @@ export function IndividualTrackerViewer({
                     <StatsHeader
                       title={series.title}
                       subtitle={series.subtitle}
-                      metadata={[
-                        { label: "Score", value: series.score },
-                        { label: "Duration", value: series.duration },
-                        series.isActive
-                          ? { label: "Start time", value: formatDate(series.startTime) }
-                          : { label: "End time", value: formatDate(series.endTime) },
-                        { label: "Kills:Deaths:Assists (KDA)", value: series.killsDeathsAssistsKda },
-                        { label: "Damage D:T (D/T)", value: series.damageDealtTakenRatio },
-                      ]}
+                      metadata={buildSeriesHeaderMetadata(series)}
                       backgroundStyle={seriesHeaderBackgroundStyle(
                         series.matchBackgroundUrls,
                         seriesBackgroundTick,
@@ -556,7 +457,7 @@ export function IndividualTrackerViewer({
                         <div className={styles.entryHeaderRight}>
                           <div className={styles.entryHeaderVisuals}>
                             <div className={styles.seriesModeIcons}>
-                              {series.matches.map((seriesMatch, iconIndex) => (
+                              {series.iconMatches.map((seriesMatch, iconIndex) => (
                                 <img
                                   key={`${seriesMatch.matchId}:${iconIndex.toString()}`}
                                   src={gameModeIconSrc(seriesMatch.gameVariantCategory)}

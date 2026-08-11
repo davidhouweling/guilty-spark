@@ -6,9 +6,65 @@ import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
 import { HaloMedalMetadataResolver } from "../../../../services/halo/medal-metadata-resolver";
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
-import type { ViewerTimelineItem } from "../../viewer/types";
+import type { ViewerMatchTab, ViewerSeriesTab, ViewerTimelineItem } from "../../viewer/types";
+import type { MatchStatsState } from "../individual-tracker-overlay-presenter";
 import { OverlayPagePresenter } from "../overlay-page-presenter";
 import { OverlayPageStore } from "../overlay-page-store";
+
+function aMatchTabWith(overrides: Partial<ViewerMatchTab> = {}): ViewerMatchTab {
+  return {
+    matchId: "match-1",
+    mapName: "Live Fire",
+    mapBackgroundUrl: "https://example.com/live-fire.jpg",
+    gameVariantCategory: 6,
+    isMatchmaking: false,
+    gameModeName: "Slayer",
+    duration: "10m",
+    outcome: "Win",
+    score: "50:42",
+    killsDeathsAssistsKda: "10:7:4 (1.62)",
+    damageDealtTakenRatio: "4,200:3,900 (1.08)",
+    colorHex: undefined,
+    startTime: "2026-01-01T00:00:00.000Z",
+    endTime: "2026-01-01T00:10:00.000Z",
+    ...overrides,
+  };
+}
+
+function aSeriesTabWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesTab {
+  return {
+    id: "series-1",
+    title: "Alpha vs Beta",
+    subtitle: "Best of 3",
+    isActive: false,
+    teams: [],
+    matchBackgroundUrls: [],
+    score: "1:0",
+    duration: "10m",
+    killsDeathsAssistsKda: "10:7:4 (1.62)",
+    damageDealtTakenRatio: "4,200:3,900 (1.08)",
+    startTime: "2026-01-01T00:00:00.000Z",
+    endTime: "2026-01-01T00:10:00.000Z",
+    matches: [],
+    iconMatches: [],
+    colorHex: undefined,
+    ...overrides,
+  };
+}
+
+function aLoadedMatchStatsStateWith(
+  overrides: Partial<Extract<MatchStatsState, { status: "loaded" }>> = {},
+): Extract<MatchStatsState, { status: "loaded" }> {
+  return {
+    status: "loaded",
+    stats: aFakeMatchStatsWith(),
+    playerMap: new Map(),
+    medalMetadata: {},
+    analytics: null,
+    analyticsStatus: ComponentLoaderStatus.LOADED,
+    ...overrides,
+  };
+}
 
 function aUsersFor(
   xuids: readonly string[],
@@ -52,6 +108,19 @@ function aMedalsMetadataFile(): Awaited<ReturnType<HaloInfiniteClient["getMedals
       },
     ],
   };
+}
+
+function aPresenter(): OverlayPagePresenter {
+  const store = new OverlayPageStore();
+  const haloClient = aFakeHaloClientWith({
+    getMatchStats: vi.fn(async () => Promise.resolve(aFakeMatchStatsWith())),
+  });
+  return new OverlayPagePresenter({
+    store,
+    haloClient,
+    medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
+    matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+  });
 }
 
 describe("OverlayPagePresenter", () => {
@@ -246,7 +315,7 @@ describe("OverlayPagePresenter", () => {
     expect(getMatchStats).toHaveBeenCalledTimes(3);
   });
 
-  it("selects a series and toggles the matching timeline item when present", () => {
+  it("selects a series by id", () => {
     const store = new OverlayPageStore();
     const haloClient = aFakeHaloClientWith({
       getMatchStats: vi.fn(async () => Promise.resolve(aFakeMatchStatsWith())),
@@ -257,33 +326,10 @@ describe("OverlayPagePresenter", () => {
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     });
-    const timeline: readonly ViewerTimelineItem[] = [
-      {
-        type: "series",
-        series: {
-          id: "series-1",
-          title: "Series 1",
-          subtitle: "Best of 1",
-          isActive: true,
-          teams: [],
-          matchBackgroundUrls: [],
-          score: "1:0",
-          duration: "10m",
-          killsDeathsAssistsKda: "10:7:4 (1.62)",
-          damageDealtTakenRatio: "4,200:3,900 (1.08)",
-          startTime: "2026-01-01T00:00:00.000Z",
-          endTime: "2026-01-01T00:10:00.000Z",
-          matches: [],
-          colorHex: undefined,
-        },
-      },
-    ];
-    const onToggleEntry = vi.fn<(item: ViewerTimelineItem) => void>();
 
-    presenter.selectSeriesAndToggleIfAvailable(timeline, "series-1", onToggleEntry);
+    presenter.selectSeries("series-1");
 
     expect(store.getSnapshot().selectedSeriesId).toBe("series-1");
-    expect(onToggleEntry).toHaveBeenCalledOnce();
   });
 
   it("clears selection with a single store notification", () => {
@@ -300,7 +346,7 @@ describe("OverlayPagePresenter", () => {
     const listener = vi.fn<() => void>();
     const unsubscribe = store.subscribe(listener);
 
-    presenter.selectSeriesAndToggleIfAvailable(null, "series-1", vi.fn<(item: ViewerTimelineItem) => void>());
+    presenter.selectSeries("series-1");
     listener.mockClear();
 
     presenter.deselect();
@@ -309,5 +355,162 @@ describe("OverlayPagePresenter", () => {
     expect(store.getSnapshot().selectedMatchId).toBeNull();
     expect(store.getSnapshot().selectedSeriesId).toBeNull();
     unsubscribe();
+  });
+
+  describe("preloadTimelineMatchStats", () => {
+    it("preloads stats for standalone matches and matches nested inside series entries", async () => {
+      const getMatchStats = vi
+        .fn(async (matchId: string) => Promise.resolve(aFakeMatchStatsWith({ MatchId: matchId })))
+        .mockName("getMatchStats");
+      const store = new OverlayPageStore();
+      const haloClient = aFakeHaloClientWith({
+        getMatchStats,
+        getUsers: vi.fn(async (xuids: string[]) => Promise.resolve(aUsersFor(xuids))),
+      });
+      const presenter = new OverlayPagePresenter({
+        store,
+        haloClient,
+        medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
+        matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      });
+      const timeline: readonly ViewerTimelineItem[] = [
+        { type: "match", match: aMatchTabWith({ matchId: "standalone-1" }) },
+        {
+          type: "series",
+          series: aSeriesTabWith({
+            matches: [aMatchTabWith({ matchId: "series-match-1" }), aMatchTabWith({ matchId: "series-match-2" })],
+          }),
+        },
+      ];
+
+      presenter.preloadTimelineMatchStats(timeline);
+
+      await waitFor(() => {
+        expect(store.getSnapshot().matchStatsByMatchId.get("standalone-1")?.status).toBe("loaded");
+        expect(store.getSnapshot().matchStatsByMatchId.get("series-match-1")?.status).toBe("loaded");
+        expect(store.getSnapshot().matchStatsByMatchId.get("series-match-2")?.status).toBe("loaded");
+      });
+      expect(getMatchStats).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe("findSelectedMatch", () => {
+    it("returns null when no match is selected", () => {
+      expect(aPresenter().findSelectedMatch([], null)).toBeNull();
+    });
+
+    it("finds a standalone match tab by id", () => {
+      const match = aMatchTabWith({ matchId: "match-1" });
+      const timeline: readonly ViewerTimelineItem[] = [{ type: "match", match }];
+
+      expect(aPresenter().findSelectedMatch(timeline, "match-1")).toBe(match);
+    });
+
+    it("finds a match nested inside a series entry", () => {
+      const seriesMatch = aMatchTabWith({ matchId: "series-match-1" });
+      const timeline: readonly ViewerTimelineItem[] = [
+        { type: "series", series: aSeriesTabWith({ matches: [seriesMatch] }) },
+      ];
+
+      expect(aPresenter().findSelectedMatch(timeline, "series-match-1")).toBe(seriesMatch);
+    });
+
+    it("returns null when the selected match id isn't in the timeline", () => {
+      const timeline: readonly ViewerTimelineItem[] = [{ type: "match", match: aMatchTabWith({ matchId: "match-1" }) }];
+
+      expect(aPresenter().findSelectedMatch(timeline, "missing")).toBeNull();
+    });
+  });
+
+  describe("findSelectedSeries", () => {
+    it("returns null when no series is selected", () => {
+      expect(aPresenter().findSelectedSeries([], null)).toBeNull();
+    });
+
+    it("finds a series entry by id", () => {
+      const series = aSeriesTabWith({ id: "series-1" });
+      const timeline: readonly ViewerTimelineItem[] = [{ type: "series", series }];
+
+      expect(aPresenter().findSelectedSeries(timeline, "series-1")).toBe(series);
+    });
+
+    it("returns null when the selected series id isn't in the timeline", () => {
+      const timeline: readonly ViewerTimelineItem[] = [{ type: "series", series: aSeriesTabWith({ id: "series-1" }) }];
+
+      expect(aPresenter().findSelectedSeries(timeline, "missing")).toBeNull();
+    });
+  });
+
+  describe("buildSeriesStatsPanelState", () => {
+    it("returns null when there is no selected series", () => {
+      expect(aPresenter().buildSeriesStatsPanelState(null, new Map())).toBeNull();
+    });
+
+    it("returns null when the series has no matches yet", () => {
+      const series = aSeriesTabWith({ matches: [] });
+
+      expect(aPresenter().buildSeriesStatsPanelState(series, new Map())).toBeNull();
+    });
+
+    it("returns loading while any match's cached stats are still pending", () => {
+      const match = aMatchTabWith({ matchId: "match-1" });
+      const series = aSeriesTabWith({ matches: [match] });
+
+      expect(aPresenter().buildSeriesStatsPanelState(series, new Map())).toEqual({ status: "loading" });
+    });
+
+    it("returns the error message when a match's cached stats failed to load", () => {
+      const match = aMatchTabWith({ matchId: "match-1" });
+      const series = aSeriesTabWith({ matches: [match] });
+      const matchStatsByMatchId = new Map<string, MatchStatsState>([
+        ["match-1", { status: "error", message: "Failed to load match stats" }],
+      ]);
+
+      expect(aPresenter().buildSeriesStatsPanelState(series, matchStatsByMatchId)).toEqual({
+        status: "error",
+        message: "Failed to load match stats",
+      });
+    });
+
+    it("builds a loaded view model from cached match stats without any additional fetch", () => {
+      const matchOne = aMatchTabWith({ matchId: "match-1", mapName: "Live Fire" });
+      const matchTwo = aMatchTabWith({ matchId: "match-2", mapName: "Aquarius" });
+      const series = aSeriesTabWith({ title: "Alpha vs Beta", subtitle: "Best of 3", matches: [matchOne, matchTwo] });
+      const playerMap = new Map([
+        ["1111111111", "Alpha"],
+        ["2222222222", "Bravo"],
+        ["3333333333", "Charlie"],
+        ["4444444444", "Delta"],
+      ]);
+      const matchStatsByMatchId = new Map<string, MatchStatsState>([
+        [
+          "match-1",
+          aLoadedMatchStatsStateWith({
+            stats: aFakeMatchStatsWith({ MatchId: "match-1" }),
+            playerMap,
+            medalMetadata: { 1: { name: "Killing Spree", sortingWeight: 100 } },
+          }),
+        ],
+        [
+          "match-2",
+          aLoadedMatchStatsStateWith({
+            stats: aFakeMatchStatsWith({ MatchId: "match-2" }),
+            playerMap,
+            medalMetadata: { 2: { name: "Double Kill", sortingWeight: 50 } },
+          }),
+        ],
+      ]);
+
+      const state = aPresenter().buildSeriesStatsPanelState(series, matchStatsByMatchId);
+
+      expect(state?.status).toBe("loaded");
+      if (state?.status !== "loaded") {
+        throw new Error("expected loaded series stats state");
+      }
+      expect(state.seriesId).toBe("series-1");
+      expect(state.viewModel.title).toBe("Alpha vs Beta");
+      expect(state.viewModel.subtitle).toBe("Best of 3");
+      expect(state.viewModel.matchSummaries.map((summary) => summary.matchId)).toEqual(["match-1", "match-2"]);
+    });
   });
 });

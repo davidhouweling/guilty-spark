@@ -1,6 +1,8 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 
 const SESSION_COOKIE_NAME = "auth-session";
+const SESSION_HINT_COOKIE_NAME = "auth-presence";
+const SESSION_HINT_COOKIE_VALUE = "1";
 const PKCE_COOKIE_NAME = "auth-pkce-state";
 export const SESSION_COOKIE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days
 const PKCE_COOKIE_MAX_AGE_SECONDS = 10 * 60;
@@ -11,8 +13,9 @@ const PKCE_COOKIE_MAX_AGE_SECONDS = 10 * 60;
  */
 export class SessionManager {
   private readonly sessionSecret: Uint8Array;
+  private readonly cookieDomain: string | undefined;
 
-  public constructor(sessionSecretHex: string) {
+  public constructor(sessionSecretHex: string, cookieDomain?: string) {
     // Convert hex string to Uint8Array
     const secret = Preconditions.checkExists(sessionSecretHex, "sessionSecretHex");
     if (secret.length !== 64 || !/^[0-9a-f]+$/i.test(secret)) {
@@ -26,6 +29,7 @@ export class SessionManager {
     }
 
     this.sessionSecret = new Uint8Array(decodedSecret);
+    this.cookieDomain = cookieDomain != null && cookieDomain !== "" ? cookieDomain : undefined;
   }
 
   /**
@@ -94,15 +98,51 @@ export class SessionManager {
     expiresAt: number,
     maxAgeSeconds = SESSION_COOKIE_MAX_AGE_SECONDS,
     sameSite: "Lax" | "Strict" = "Strict",
+    domain?: string,
   ): void {
     const expiresDate = new Date(expiresAt);
-    const cookieValue = `${cookieName}=${token}; Path=/; HttpOnly; Secure; SameSite=${sameSite}; Max-Age=${maxAgeSeconds.toString()}; Expires=${expiresDate.toUTCString()}`;
+    const domainAttribute = domain != null && domain !== "" ? `; Domain=${domain}` : "";
+    const cookieValue = `${cookieName}=${token}; Path=/; HttpOnly; Secure; SameSite=${sameSite}; Max-Age=${maxAgeSeconds.toString()}; Expires=${expiresDate.toUTCString()}${domainAttribute}`;
 
     response.headers.append("Set-Cookie", cookieValue);
   }
 
-  public clearCookie(response: Response, cookieName: string, sameSite: "Lax" | "Strict" = "Strict"): void {
-    const cookieValue = `${cookieName}=; Path=/; HttpOnly; Secure; SameSite=${sameSite}; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  public clearCookie(
+    response: Response,
+    cookieName: string,
+    sameSite: "Lax" | "Strict" = "Strict",
+    domain?: string,
+  ): void {
+    const domainAttribute = domain != null && domain !== "" ? `; Domain=${domain}` : "";
+    const cookieValue = `${cookieName}=; Path=/; HttpOnly; Secure; SameSite=${sameSite}; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT${domainAttribute}`;
+
+    response.headers.append("Set-Cookie", cookieValue);
+  }
+
+  private setReadableCookie(
+    response: Response,
+    cookieName: string,
+    value: string,
+    expiresAt: number,
+    maxAgeSeconds = SESSION_COOKIE_MAX_AGE_SECONDS,
+    sameSite: "Lax" | "Strict" = "Strict",
+    domain?: string,
+  ): void {
+    const expiresDate = new Date(expiresAt);
+    const domainAttribute = domain != null && domain !== "" ? `; Domain=${domain}` : "";
+    const cookieValue = `${cookieName}=${value}; Path=/; Secure; SameSite=${sameSite}; Max-Age=${maxAgeSeconds.toString()}; Expires=${expiresDate.toUTCString()}${domainAttribute}`;
+
+    response.headers.append("Set-Cookie", cookieValue);
+  }
+
+  private clearReadableCookie(
+    response: Response,
+    cookieName: string,
+    sameSite: "Lax" | "Strict" = "Strict",
+    domain?: string,
+  ): void {
+    const domainAttribute = domain != null && domain !== "" ? `; Domain=${domain}` : "";
+    const cookieValue = `${cookieName}=; Path=/; Secure; SameSite=${sameSite}; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT${domainAttribute}`;
 
     response.headers.append("Set-Cookie", cookieValue);
   }
@@ -112,14 +152,49 @@ export class SessionManager {
    */
   public setSessionCookie(response: Response, token: string): void {
     const expiresAt = Date.now() + SESSION_COOKIE_MAX_AGE_SECONDS * 1000;
-    this.setCookie(response, SESSION_COOKIE_NAME, token, expiresAt);
+    this.setCookie(
+      response,
+      SESSION_COOKIE_NAME,
+      token,
+      expiresAt,
+      SESSION_COOKIE_MAX_AGE_SECONDS,
+      "Strict",
+      this.cookieDomain,
+    );
+    this.setReadableCookie(
+      response,
+      SESSION_HINT_COOKIE_NAME,
+      SESSION_HINT_COOKIE_VALUE,
+      expiresAt,
+      SESSION_COOKIE_MAX_AGE_SECONDS,
+      "Strict",
+      this.cookieDomain,
+    );
+    this.clearLegacyHostOnlySessionCookies(response);
   }
 
   /**
    * Clear the session cookie.
    */
   public clearSessionCookie(response: Response): void {
-    this.clearCookie(response, SESSION_COOKIE_NAME);
+    this.clearCookie(response, SESSION_COOKIE_NAME, "Strict", this.cookieDomain);
+    this.clearReadableCookie(response, SESSION_HINT_COOKIE_NAME, "Strict", this.cookieDomain);
+    this.clearLegacyHostOnlySessionCookies(response);
+  }
+
+  /**
+   * Cookies set before cookieDomain was introduced are host-only (no Domain attribute) and
+   * share a name with the domain-scoped cookie, so a browser can hold both at once. Expire
+   * the host-only variant whenever a domain is configured so only one copy of each cookie
+   * remains and extractSessionToken never has to pick between them.
+   */
+  private clearLegacyHostOnlySessionCookies(response: Response): void {
+    if (this.cookieDomain == null) {
+      return;
+    }
+
+    this.clearCookie(response, SESSION_COOKIE_NAME, "Strict");
+    this.clearReadableCookie(response, SESSION_HINT_COOKIE_NAME, "Strict");
   }
 
   public setPkceStateCookie(response: Response, token: string): void {

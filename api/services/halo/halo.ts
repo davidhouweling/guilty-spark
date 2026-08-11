@@ -665,6 +665,7 @@ export class HaloService {
         matchId: match.MatchId,
         startTime: dateTimeFormat.format(startDate),
         endTime: dateTimeFormat.format(endDate),
+        endTimeIso: match.MatchInfo.EndTime,
         duration: getReadableDuration(match.MatchInfo.Duration, locale),
         mapName,
         modeName,

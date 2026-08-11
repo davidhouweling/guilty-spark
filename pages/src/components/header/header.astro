@@ -15,9 +15,10 @@ interface NavLink {
 
 interface Props {
   readonly hasAuthSessionCookie?: boolean;
+  readonly hasAuthHintCookie?: boolean;
 }
 
-const { hasAuthSessionCookie = false } = Astro.props;
+const { hasAuthSessionCookie = false, hasAuthHintCookie = false } = Astro.props;
 
 const navLinks: NavLink[] = [
   { href: "/discord-commands", label: "Commands" },
@@ -26,6 +27,10 @@ const navLinks: NavLink[] = [
   { href: "/faq", label: "FAQ" },
 ];
 const signInLinkClassName = [styles.iconLink, profileMenuStyles.profileIconButton].join(" ");
+const iconLinkClassName = styles.iconLink;
+const expectAuthenticated = hasAuthSessionCookie || hasAuthHintCookie;
+const profileSlotId = "profile-menu-slot";
+const profileTemplateId = "profile-menu-template";
 ---
 
 <nav id="halo-nav" class={styles.haloNav} aria-label="Primary">
@@ -86,24 +91,48 @@ const signInLinkClassName = [styles.iconLink, profileMenuStyles.profileIconButto
             ></path>
           </svg>
         </a>
-        {
-          hasAuthSessionCookie ? (
-            <ProfileMenu
-              client:load
-              apiHost={API_HOST}
-              iconLinkClassName={styles.iconLink}
-              expectAuthenticated={hasAuthSessionCookie}
-            />
-          ) : (
-            <a href="/login" class={signInLinkClassName} aria-label="Sign in" title="Sign in">
-              <ProfileAvatar />
-            </a>
-          )
-        }
+        <div id={profileSlotId} data-expect-authenticated={String(expectAuthenticated)}>
+          <a href="/login" class={signInLinkClassName} aria-label="Sign in" title="Sign in">
+            <ProfileAvatar />
+          </a>
+        </div>
       </div>
     </div>
   </Container>
 </nav>
+
+<template id={profileTemplateId}>
+  <ProfileMenu
+    client:load
+    apiHost={API_HOST}
+    iconLinkClassName={iconLinkClassName}
+    signInLinkClassName={signInLinkClassName}
+  />
+</template>
+
+<script type="module" define:vars={{ profileSlotId, profileTemplateId }}>
+  const profileSlot = document.getElementById(profileSlotId);
+  if (!(profileSlot instanceof HTMLElement)) {
+    console.error("Profile menu slot not found; keeping the logged-out fallback.");
+  } else {
+    const expectAuthenticated = profileSlot.dataset.expectAuthenticated === "true";
+
+    const hasAuthPresenceCookie = document.cookie
+      .split(";")
+      .map((cookie) => cookie.trim())
+      .some((cookie) => cookie === "auth-presence=1");
+
+    const shouldHydrateProfileMenu = expectAuthenticated || hasAuthPresenceCookie;
+    if (shouldHydrateProfileMenu) {
+      const profileTemplate = document.getElementById(profileTemplateId);
+      if (!(profileTemplate instanceof HTMLTemplateElement)) {
+        console.error("Profile menu template not found; keeping the logged-out fallback.");
+      } else {
+        profileSlot.replaceChildren(profileTemplate.content.cloneNode(true));
+      }
+    }
+  }
+</script>
 
 <script>
   // Mobile menu toggle

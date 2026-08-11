@@ -76,6 +76,7 @@ function aSeriesWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesTab 
     startTime: overrides.startTime ?? "2026-01-01T00:00:00.000Z",
     endTime: overrides.endTime ?? "2026-01-01T00:30:00.000Z",
     matches,
+    iconMatches: overrides.iconMatches ?? matches,
     colorHex: overrides.colorHex,
   };
 }
@@ -191,6 +192,7 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(seriesTab.type).toBe("series");
     if (seriesTab.type === "series") {
       expect(seriesTab.seriesId).toBe("series-complete");
+      expect(seriesTab.label).toBe("Eagle vs Cobra - Best of 3");
       expect(seriesTab.icons).toEqual([
         { src: gameModeIconSrc(6), dimmed: false },
         { src: gameModeIconSrc(7), dimmed: false },
@@ -200,6 +202,25 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(matchTab.type).toBe("match");
     if (matchTab.type === "match") {
       expect(matchTab.icon).toBe(gameModeIconSrc(8));
+    }
+  });
+
+  it("omits the subtitle from a matchmaking series tab's label when there is none", () => {
+    const completedSeries = aSeriesWith({
+      id: "series-no-subtitle",
+      isActive: false,
+      title: "Eagle vs Cobra",
+      subtitle: "",
+    });
+
+    const timeline: ViewerTimelineItem[] = [{ type: "series", series: completedSeries }];
+
+    const tabs = presenter.buildTabs(timeline);
+    const seriesTab = tabs.find((tab) => tab.type === "series" && tab.seriesId === "series-no-subtitle");
+
+    expect(seriesTab?.type).toBe("series");
+    if (seriesTab?.type === "series") {
+      expect(seriesTab.label).toBe("Eagle vs Cobra");
     }
   });
 
@@ -335,7 +356,7 @@ describe("individual-tracker-overlay-presenter", () => {
     }
   });
 
-  it("dims lost icons only for matchmaking series tabs", () => {
+  it("dims lost icons for both matchmaking and custom series tabs", () => {
     const timeline: ViewerTimelineItem[] = [
       {
         type: "series",
@@ -376,8 +397,38 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(customTab?.type).toBe("series");
     if (customTab?.type === "series") {
       expect(customTab.icons).toEqual([
+        { src: gameModeIconSrc(6), dimmed: true },
         { src: gameModeIconSrc(6), dimmed: false },
+      ]);
+    }
+  });
+
+  it("builds the consolidated series tab's icons from iconMatches, not the full matches list", () => {
+    const fullMatches = [
+      aMatchWith({ matchId: "m1", gameVariantCategory: 6 }),
+      aMatchWith({ matchId: "m2", gameVariantCategory: 7 }),
+      aMatchWith({ matchId: "m3", gameVariantCategory: 7 }),
+    ];
+    const timeline: ViewerTimelineItem[] = [
+      {
+        type: "series",
+        series: aSeriesWith({
+          id: "series-rematch",
+          isActive: false,
+          matches: fullMatches,
+          iconMatches: [fullMatches[0], fullMatches[2]],
+        }),
+      },
+    ];
+
+    const tabs = presenter.buildTabs(timeline);
+    const seriesTab = tabs.find((tab) => tab.type === "series" && tab.seriesId === "series-rematch");
+
+    expect(seriesTab?.type).toBe("series");
+    if (seriesTab?.type === "series") {
+      expect(seriesTab.icons).toEqual([
         { src: gameModeIconSrc(6), dimmed: false },
+        { src: gameModeIconSrc(7), dimmed: false },
       ]);
     }
   });
@@ -495,7 +546,7 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(groups).toHaveLength(0);
   });
 
-  it("shows series with teams and players when pre-series with active teams", () => {
+  it("shows per-player rank info rows when pre-series with active teams", () => {
     const groups = presenter.buildPreSeriesTickerGroup({
       showTicker: true,
       showPreSeriesInfo: true,
@@ -508,14 +559,23 @@ describe("individual-tracker-overlay-presenter", () => {
             id: 0,
             name: "Eagle",
             players: [
-              { discordName: "DiscordPlayer1", gamertag: "Player1" },
+              {
+                discordName: "DiscordPlayer1",
+                gamertag: "Player1",
+                currentRank: 1550,
+                currentRankTier: "Diamond",
+                currentRankSubTier: 2,
+                allTimePeakRank: 1625,
+                esra: 1502.4,
+                lastRankedGamePlayed: "2026-01-01T00:00:00.000Z",
+              },
               { discordName: null, gamertag: "Player2" },
             ],
           },
           {
             id: 1,
             name: "Cobra",
-            players: [{ discordName: "DiscordPlayer3", gamertag: "Player3" }],
+            players: [{ discordName: "DiscordPlayer3", gamertag: "Player3", esra: 1400 }],
           },
         ],
       }),
@@ -527,17 +587,37 @@ describe("individual-tracker-overlay-presenter", () => {
 
     expect(groups).toHaveLength(1);
     expect(groups[0].label).toBe("Eagle vs Cobra");
-    expect(groups[0].rows).toHaveLength(5); // 2 teams + 3 players
-    expect(groups[0].rows[0]?.type).toBe("team");
-    expect(groups[0].rows[0]?.name).toBe("Eagle");
-    expect(groups[0].rows[1]?.type).toBe("player");
-    expect(groups[0].rows[1]?.gamertag).toBe("Player1");
-    expect(groups[0].rows[2]?.type).toBe("player");
-    expect(groups[0].rows[2]?.gamertag).toBe("Player2");
-    expect(groups[0].rows[3]?.type).toBe("team");
-    expect(groups[0].rows[3]?.name).toBe("Cobra");
-    expect(groups[0].rows[4]?.type).toBe("player");
-    expect(groups[0].rows[4]?.gamertag).toBe("Player3");
+    expect(groups[0].rows).toHaveLength(3);
+
+    const [playerWithData, playerWithoutData, opposingPlayer] = groups[0].rows;
+    expect(playerWithData.type).toBe("player");
+    expect(playerWithData.teamId).toBe(0);
+    expect(playerWithData.gamertag).toBe("Player1");
+    expect(playerWithData.stats.map((stat) => stat.name)).toEqual([
+      "Current rank",
+      "Peak rank",
+      "ESRA",
+      "Last ranked match played",
+    ]);
+    expect(playerWithData.stats[0].display).toBe("1,550");
+    expect(playerWithData.stats[1].display).toBe("1,625");
+    expect(playerWithData.stats[2].display).toBe("1,502");
+
+    expect(playerWithoutData.gamertag).toBe("Player2");
+    expect(playerWithoutData.stats).toEqual([
+      {
+        name: "Player information",
+        value: 0,
+        bestInTeam: false,
+        bestInMatch: false,
+        display: "No data",
+      },
+    ]);
+
+    expect(opposingPlayer.teamId).toBe(1);
+    expect(opposingPlayer.gamertag).toBe("Player3");
+    expect(opposingPlayer.stats[2].name).toBe("ESRA");
+    expect(opposingPlayer.stats[2].display).toBe("1,400");
   });
 
   it("uses pre-series player info in matchmaking pre-series ticker when available", () => {
@@ -948,6 +1028,131 @@ describe("individual-tracker-overlay-presenter", () => {
 
     expect(model.topSection).toBeNull();
     expect(model.statsHighlights).toEqual([]);
+  });
+
+  it("includes a series stats ticker group ahead of match groups when in an active series", () => {
+    const matchId = "series-match-1";
+    const activeSeries = aSeriesWith({
+      id: "series-active",
+      isActive: true,
+      matches: [aMatchWith({ matchId })],
+    });
+
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        hasActiveSeries: true,
+        activeSeriesContext: {
+          title: "Series",
+          subtitle: "Bo3",
+          teams: [],
+        },
+        timeline: [{ type: "series", series: activeSeries }],
+      }),
+      streamerSettings: undefined,
+      matchStatsByMatchId: new Map([
+        [
+          matchId,
+          {
+            status: "loaded" as const,
+            stats: aFakeMatchStatsWith({ MatchId: matchId }),
+            playerMap: new Map<string, string>([
+              ["1111111111", "TrackedPlayer"],
+              ["2222222222", "PlayerTwo"],
+              ["3333333333", "PlayerThree"],
+              ["4444444444", "PlayerFour"],
+            ]),
+            medalMetadata: aFakeMedalMetadata(),
+            analytics: null,
+            analyticsStatus: ComponentLoaderStatus.LOADED,
+          },
+        ],
+      ]),
+      selectedMatchId: null,
+    });
+
+    expect(model.tickerMatchGroups.length).toBeGreaterThanOrEqual(2);
+    const [seriesGroup, matchGroup] = model.tickerMatchGroups;
+    expect(seriesGroup.label).toBe("Series Stats");
+    expect(seriesGroup.matchIndex).toBe(-1);
+    expect(seriesGroup.rows.some((row) => row.type === "team")).toBe(true);
+    expect(seriesGroup.rows.some((row) => row.type === "player")).toBe(true);
+    expect(matchGroup.matchIndex).not.toBe(-1);
+  });
+
+  it("shows only the tracked player row in the series stats group when inSeriesMyStatsOnly is enabled", () => {
+    const matchId = "series-match-1";
+    const activeSeries = aSeriesWith({
+      id: "series-active",
+      isActive: true,
+      matches: [aMatchWith({ matchId })],
+    });
+
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        hasActiveSeries: true,
+        activeSeriesContext: {
+          title: "Series",
+          subtitle: "Bo3",
+          teams: [],
+        },
+        timeline: [{ type: "series", series: activeSeries }],
+      }),
+      streamerSettings: {
+        styleFlags: {
+          inSeriesMyStatsOnly: true,
+        },
+      } satisfies StreamerViewSettings,
+      matchStatsByMatchId: new Map([
+        [
+          matchId,
+          {
+            status: "loaded" as const,
+            stats: aFakeMatchStatsWith({ MatchId: matchId }),
+            playerMap: new Map<string, string>([
+              ["1111111111", "TrackedPlayer"],
+              ["2222222222", "PlayerTwo"],
+              ["3333333333", "PlayerThree"],
+              ["4444444444", "PlayerFour"],
+            ]),
+            medalMetadata: aFakeMedalMetadata(),
+            analytics: null,
+            analyticsStatus: ComponentLoaderStatus.LOADED,
+          },
+        ],
+      ]),
+      selectedMatchId: null,
+    });
+
+    const [seriesGroup] = model.tickerMatchGroups;
+    expect(seriesGroup.label).toBe("Series Stats");
+    expect(seriesGroup.rows).toHaveLength(1);
+    expect(seriesGroup.rows[0].type).toBe("player");
+    expect(seriesGroup.rows[0].name).toBe("TrackedPlayer");
+  });
+
+  it("omits the series stats group when no series match stats are loaded", () => {
+    const activeSeries = aSeriesWith({
+      id: "series-active",
+      isActive: true,
+      matches: [aMatchWith({ matchId: "series-match-1" })],
+    });
+
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        hasActiveSeries: true,
+        activeSeriesContext: {
+          title: "Series",
+          subtitle: "Bo3",
+          teams: [],
+        },
+        timeline: [{ type: "series", series: activeSeries }],
+      }),
+      streamerSettings: undefined,
+      matchStatsByMatchId: new Map(),
+      selectedMatchId: null,
+    });
+
+    expect(model.tickerMatchGroups.some((group) => group.label === "Series Stats")).toBe(false);
   });
 
   it("shows only the tracked player row in matchmaking ticker when matchmakingMyStatsOnly is enabled", () => {

@@ -62,6 +62,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
     microsoftScopes: env.MICROSOFT_SCOPES,
     sessionSecret: env.SESSION_SECRET,
     tokenEncryptionSecret: env.TOKEN_ENCRYPTION_SECRET,
+    cookieDomain: env.COOKIE_DOMAIN,
     databaseService,
   });
   const discordService = new DiscordService({ env, logService, fetch, verifyKey });

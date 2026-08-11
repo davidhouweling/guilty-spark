@@ -1,5 +1,7 @@
 import type { AutoRouterType } from "itty-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { MockInstance } from "vitest";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { TrackerDirectoryResponse } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { withStreamerViewSettingsDefaults } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { createApiRouter } from "../../../base/router";
@@ -7,6 +9,7 @@ import { aFakeDurableObjectNamespaceWith } from "../../../base/fakes/do.fake";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeUserTrackerDOWith } from "../../../durable-objects/user-tracker/fakes/user-tracker-do.fake";
 import { aFakeLinkedIdentitiesRow } from "../../../services/database/fakes/database.fake";
+import type { DatabaseService } from "../../../services/database/database";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { userTrackerRoutesRegisterHandler } from "../user-tracker";
 
@@ -131,6 +134,39 @@ describe("/u/:gamertag follow routes", () => {
       expect(parsedUrl.searchParams.get("userId")).toBe("user-1");
     });
 
+    it("decodes a percent-encoded gamertag containing a space before looking it up", async () => {
+      const identity = aFakeLinkedIdentitiesRow({ UserId: "user-1", Gamertag: "CAP0 CRIMINI" });
+      const userTrackerDo = aFakeUserTrackerDOWith({ viewStateResponse: { state: null } });
+      const localEnv = aFakeEnvWith({ USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(userTrackerDo) });
+
+      let findByGamertagSpy: MockInstance<DatabaseService["findActiveXboxIdentityByGamertag"]> | null = null;
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env: localEnv });
+        findByGamertagSpy = vi
+          .spyOn(services.databaseService, "findActiveXboxIdentityByGamertag")
+          .mockResolvedValue(identity);
+        return services;
+      });
+      userTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      const res = (await router.fetch(getRequest("/u/CAP0%20CRIMINI"), localEnv)) as Response;
+
+      expect(res.status).toBe(200);
+      expect(Preconditions.checkExists(findByGamertagSpy, "findByGamertag spy")).toHaveBeenCalledWith("CAP0 CRIMINI");
+    });
+
+    it("returns 400 when the gamertag contains a malformed percent-escape", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        return services;
+      });
+      userTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      const res = (await router.fetch(getRequest("/u/Bad%"), env)) as Response;
+
+      expect(res.status).toBe(400);
+    });
+
     it("returns an empty directory when UserTrackerDO has not built state yet", async () => {
       const identity = aFakeLinkedIdentitiesRow({ UserId: "user-1", Gamertag: "EmptyTag" });
       const userTrackerDo = aFakeUserTrackerDOWith({ viewStateResponse: { state: null } });
@@ -180,6 +216,27 @@ describe("/u/:gamertag follow routes", () => {
       const res = (await router.fetch(getRequest("/u/SomeTag/ws"), env)) as Response;
 
       expect(res.status).toBe(426);
+    });
+
+    it("decodes a percent-encoded gamertag containing a space before looking it up (websocket route)", async () => {
+      const identity = aFakeLinkedIdentitiesRow({ UserId: "user-1", Gamertag: "CAP0 CRIMINI" });
+      const userTrackerDo = aFakeUserTrackerDOWith();
+      const localEnv = aFakeEnvWith({ USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(userTrackerDo) });
+
+      let findByGamertagSpy: MockInstance<DatabaseService["findActiveXboxIdentityByGamertag"]> | null = null;
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env: localEnv });
+        findByGamertagSpy = vi
+          .spyOn(services.databaseService, "findActiveXboxIdentityByGamertag")
+          .mockResolvedValue(identity);
+        return services;
+      });
+      userTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      const res = (await router.fetch(wsRequest("/u/CAP0%20CRIMINI/ws"), localEnv)) as Response;
+
+      expect(res.headers.get("x-fake-upgrade")).toBe("websocket");
+      expect(Preconditions.checkExists(findByGamertagSpy, "findByGamertag spy")).toHaveBeenCalledWith("CAP0 CRIMINI");
     });
 
     it("forwards websocket upgrades to UserTrackerDO and passes userId in the internal request", async () => {

@@ -518,27 +518,10 @@ function NeatQueueStreamerOverlay({
     ],
   );
 
-  const observedTeamId = useMemo((): number => {
-    if (settings.global.colors.mode !== "player") {
-      return 0;
-    }
-
-    const { selectedPlayerId } = settings.global.colors.playerView;
-    if (selectedPlayerId == null || selectedPlayerId === "") {
-      return 0;
-    }
-
-    const playerTeamId = neatQueueState.teams.findIndex((team) =>
-      team.players.some((player) => player.id === selectedPlayerId),
-    );
-    return playerTeamId >= 0 ? playerTeamId : 0;
-  }, [neatQueueState.teams, settings.global.colors.mode, settings.global.colors.playerView.selectedPlayerId]);
-
   const tabs = useMemo<readonly OverlayTab[]>(() => {
     const allMatchTabs = neatQueueState.matches.map((match, idx): OverlayTab => {
       const winningTeamId = match.rawMatchStats?.Teams.find((team) => team.Outcome === 2)?.TeamId ?? null;
       const teamColor = winningTeamId !== null ? teamColors[winningTeamId]?.hex : undefined;
-      const isLoss = winningTeamId !== null && winningTeamId !== observedTeamId;
 
       return {
         type: "match" as const,
@@ -549,7 +532,7 @@ function NeatQueueStreamerOverlay({
         icons: [
           {
             src: gameModeIconUrl(match.gameType, match.rawMatchStats?.MatchInfo.GameVariantCategory),
-            dimmed: isLoss,
+            dimmed: false,
           },
         ],
         teamColor,
@@ -572,7 +555,6 @@ function NeatQueueStreamerOverlay({
     gameModeIconUrl,
     neatQueueState.matches,
     neatQueueState.seriesScore,
-    observedTeamId,
     settings.global.ticker.showTabs,
     teamColors,
   ]);

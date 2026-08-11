@@ -54,6 +54,7 @@ import { buildDiscordSeriesRenderDataFromMatches } from "../discord/discord-seri
 import type { SeriesPlayer, SeriesTeam } from "../../durable-objects/individual-tracker/types";
 import type { IndividualTrackerService } from "../individual-tracker/individual-tracker";
 import type {
+  ActiveSeriesForPlayer,
   VerifyNeatQueueResponse,
   NeatQueueRequest,
   NeatQueueMatchCompletedRequest,
@@ -729,6 +730,73 @@ export class NeatQueueService {
         ]),
       );
     }
+  }
+
+  async findActiveSeriesForPlayer(xuid: string, gamertag: string): Promise<ActiveSeriesForPlayer | null> {
+    const stateKeys = await this.listQueueStateKeys();
+    let latest: ActiveSeriesForPlayer | null = null;
+
+    for (const stateKey of stateKeys) {
+      const candidate = await this.getActiveSeriesCandidate(stateKey, xuid, gamertag);
+      if (candidate == null) {
+        continue;
+      }
+
+      if (latest == null || (candidate.seriesContext.startedAt ?? "") > (latest.seriesContext.startedAt ?? "")) {
+        latest = candidate;
+      }
+    }
+
+    return latest;
+  }
+
+  private async listQueueStateKeys(): Promise<string[]> {
+    const names: string[] = [];
+    let cursor: string | undefined;
+
+    do {
+      const result = await this.env.APP_DATA.list({
+        prefix: "neatqueue:state:",
+        ...(cursor !== undefined ? { cursor } : {}),
+      });
+      names.push(...result.keys.map((key) => key.name));
+      cursor = result.list_complete ? undefined : result.cursor;
+    } while (cursor !== undefined);
+
+    return names;
+  }
+
+  private async getActiveSeriesCandidate(
+    stateKey: string,
+    xuid: string,
+    gamertag: string,
+  ): Promise<ActiveSeriesForPlayer | null> {
+    const [, , guildId, queueNumber] = stateKey.split(":");
+    if (guildId == null || guildId === "" || queueNumber == null || !/^\d+$/.test(queueNumber)) {
+      return null;
+    }
+
+    const state = await this.env.APP_DATA.get<NeatQueueState>(stateKey, { type: "json" });
+    if (state?.seriesContext == null) {
+      return null;
+    }
+
+    if (!this.isPlayerInAssociationData(state.playersAssociationData, xuid, gamertag)) {
+      return null;
+    }
+
+    return { guildId, queueNumber: Number(queueNumber), seriesContext: state.seriesContext };
+  }
+
+  private isPlayerInAssociationData(
+    playersAssociationData: Record<string, PlayerAssociationData>,
+    xuid: string,
+    gamertag: string,
+  ): boolean {
+    const normalizedGamertag = gamertag.toLowerCase();
+    return Object.values(playersAssociationData).some(
+      (player) => player.xboxId === xuid || player.gamertag?.toLowerCase() === normalizedGamertag,
+    );
   }
 
   private resolveSeriesSearchStartTime(request: NeatQueueTeamsCreatedRequest): string | undefined {

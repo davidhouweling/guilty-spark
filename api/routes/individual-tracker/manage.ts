@@ -45,6 +45,7 @@ import {
 import type { LogService } from "../../services/log/types";
 import type { CreateTrackerOptions } from "../../services/individual-tracker/types";
 import { toTracker } from "../../individual-tracker/mapper";
+import { resolveSeriesSeed } from "../../individual-tracker/series-seed";
 import type { RoutesRegisterHandler } from "../base/types";
 import { requireSession } from "../base/require-session";
 
@@ -266,7 +267,7 @@ async function refreshTrackerDo(env: Env, userId: string, trackerId: string): Pr
 export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
   router.post("/api/individual-tracker/manage/start", async (request, env: Env) => {
     const services = installServices({ env });
-    const { authService, individualTrackerService, logService } = services;
+    const { authService, individualTrackerService, liveTrackerService, logService, neatQueueService } = services;
 
     try {
       const auth = await requireSession(request, authService);
@@ -298,6 +299,14 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
         throw error;
       }
 
+      const seriesSeed = await resolveSeriesSeed({
+        neatQueueService,
+        liveTrackerService,
+        logService,
+        xuid: tracker.Xuid,
+        gamertag: tracker.Gamertag,
+      });
+
       const startRequest: IndividualTrackerStartRequest = {
         userId: auth.session.userId,
         trackerId: tracker.TrackerId,
@@ -305,6 +314,7 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
         gamertag: tracker.Gamertag,
         searchStartTime: parsed.data.searchStartTime ?? new Date().toISOString(),
         idleTimeoutHours: parsed.data.idleTimeoutHours ?? DEFAULT_IDLE_TIMEOUT_HOURS,
+        ...(seriesSeed != null ? { seriesSeed } : {}),
       };
 
       const state = await startTrackerDo(env, startRequest);

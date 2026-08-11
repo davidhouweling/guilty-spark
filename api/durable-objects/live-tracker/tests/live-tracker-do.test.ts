@@ -871,6 +871,91 @@ describe("LiveTrackerDO", () => {
       expect(storagePutSpy).toHaveBeenCalledTimes(2);
     });
 
+    it("persists Discord associations when a new match is discovered during refresh", async () => {
+      const trackerState = createMockTrackerState();
+      trackerState.lastMessageState = {
+        matchCount: 0,
+        substitutionCount: 0,
+      };
+      trackerState.discoveredMatches = {};
+      const eightPlayerSetup = createEightPlayerSetup();
+      trackerState.teams = eightPlayerSetup.teams;
+      trackerState.players = eightPlayerSetup.players;
+      storageGetSpy.mockResolvedValue(trackerState);
+
+      const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
+      vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
+      vi.spyOn(haloDuration, "getReadableDuration").mockReturnValue("5:00");
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
+      vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
+        ...apiMessage,
+        id: "new-refresh-message-id",
+      });
+      vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+      const updateDiscordAssociationsSpy = vi
+        .spyOn(services.haloService, "updateDiscordAssociations")
+        .mockResolvedValue();
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+
+      expect(response.status).toBe(200);
+      expect(updateDiscordAssociationsSpy).toHaveBeenCalledOnce();
+    });
+
+    it("does not persist Discord associations when no new match is discovered during refresh", async () => {
+      const trackerState = createMockTrackerState();
+      trackerState.lastMessageState = {
+        matchCount: 0,
+        substitutionCount: 0,
+      };
+      trackerState.discoveredMatches = {};
+      storageGetSpy.mockResolvedValue(trackerState);
+
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+      const updateDiscordAssociationsSpy = vi
+        .spyOn(services.haloService, "updateDiscordAssociations")
+        .mockResolvedValue();
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+
+      expect(response.status).toBe(200);
+      expect(updateDiscordAssociationsSpy).not.toHaveBeenCalled();
+    });
+
+    it("does not fail the refresh when persisting Discord associations errors", async () => {
+      const trackerState = createMockTrackerState();
+      trackerState.lastMessageState = {
+        matchCount: 0,
+        substitutionCount: 0,
+      };
+      trackerState.discoveredMatches = {};
+      const eightPlayerSetup = createEightPlayerSetup();
+      trackerState.teams = eightPlayerSetup.teams;
+      trackerState.players = eightPlayerSetup.players;
+      storageGetSpy.mockResolvedValue(trackerState);
+
+      const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("1:0");
+      vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
+      vi.spyOn(haloDuration, "getReadableDuration").mockReturnValue("5:00");
+      vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
+      vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
+        ...apiMessage,
+        id: "new-refresh-message-id",
+      });
+      vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+      vi.spyOn(services.haloService, "updateDiscordAssociations").mockRejectedValue(new Error("D1 unavailable"));
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+
+      expect(response.status).toBe(200);
+    });
+
     it("edits existing message during refresh when no new content is detected", async () => {
       const trackerState = createMockTrackerState();
       trackerState.lastMessageState = {

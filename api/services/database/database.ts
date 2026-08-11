@@ -222,6 +222,14 @@ export class DatabaseService {
     return results;
   }
 
+  async getAllNeatQueueConfigs(): Promise<NeatQueueConfigRow[]> {
+    const query = "SELECT * FROM NeatQueueConfig";
+    const stmt = this.DB.prepare(query);
+    const { results } = await stmt.all<NeatQueueConfigRow>();
+
+    return results;
+  }
+
   async upsertNeatQueueConfig(config: NeatQueueConfigRow): Promise<void> {
     const query = `
       INSERT INTO NeatQueueConfig (GuildId, ChannelId, WebhookSecret, ResultsChannelId, PostSeriesMode, PostSeriesChannelId) VALUES (?, ?, ?, ?, ?, ?)

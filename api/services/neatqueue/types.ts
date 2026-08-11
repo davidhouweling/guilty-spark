@@ -125,6 +125,12 @@ export interface NeatQueueState {
   seriesContext?: SeriesStartedPayload;
 }
 
+export interface ActiveSeriesForPlayer {
+  guildId: string;
+  queueNumber: number;
+  seriesContext: SeriesStartedPayload;
+}
+
 export interface FetchedPlayersData {
   associationData: Record<string, PlayerAssociationData>;
   embedData: PlayersEmbedData;

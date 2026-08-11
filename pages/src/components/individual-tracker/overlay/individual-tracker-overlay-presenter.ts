@@ -13,6 +13,8 @@ import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { TickerMatchGroup, TickerStatRow } from "../../information-ticker/information-ticker";
 import { createMatchStatsFormatter } from "../../../controllers/stats/create";
+import { SeriesTeamStatsFormatter } from "../../../controllers/stats/series-team-stats-formatter";
+import { SeriesPlayerStatsFormatter } from "../../../controllers/stats/series-player-stats-formatter";
 import type { MatchStatsValues } from "../../../controllers/stats/types";
 import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
 import type {
@@ -49,6 +51,17 @@ const DIFFICULTY_RANGE = new Map<number, readonly [number, number]>([
   [3, [200, Infinity]],
 ]);
 
+interface PreSeriesRankInfo {
+  readonly currentRank?: number | null;
+  readonly currentRankTier?: string | null;
+  readonly currentRankSubTier?: number | null;
+  readonly currentRankMeasurementMatchesRemaining?: number | null;
+  readonly currentRankInitialMeasurementMatches?: number | null;
+  readonly allTimePeakRank?: number | null;
+  readonly esra?: number | null;
+  readonly lastRankedGamePlayed?: string | null;
+}
+
 interface TickerFilterOptions {
   readonly trackedGamertag: string;
   readonly includeOnlyTrackedPlayer: boolean;
@@ -70,6 +83,10 @@ function getSeriesOutcomeColorHex(series: ViewerSeriesTab): string | undefined {
   }
 
   return undefined;
+}
+
+function getSeriesTabLabel(series: ViewerSeriesTab): string {
+  return series.subtitle !== "" ? `${series.title} - ${series.subtitle}` : series.title;
 }
 
 export type MatchStatsState =
@@ -254,19 +271,17 @@ export class IndividualTrackerOverlayPresenter {
           return [];
         }
 
-        const isMatchmakingSeries = item.series.matches.every((match) => match.isMatchmaking);
-
         return [
           {
             type: "series",
             seriesId: item.series.id,
             index: seriesIdx--,
-            label: item.series.title,
+            label: getSeriesTabLabel(item.series),
             score: item.series.score,
             teamColor: getSeriesOutcomeColorHex(item.series),
-            icons: item.series.matches.map((match) => ({
+            icons: item.series.iconMatches.map((match) => ({
               src: gameModeIconSrc(match.gameVariantCategory),
-              dimmed: isMatchmakingSeries && match.outcome === "Loss",
+              dimmed: match.outcome === "Loss",
             })),
           },
         ];
@@ -299,6 +314,90 @@ export class IndividualTrackerOverlayPresenter {
     }
 
     return selectedSeriesId != null && seriesEntryState != null;
+  }
+
+  private hasPreSeriesRankData(info: PreSeriesRankInfo): boolean {
+    return info.currentRank != null || info.allTimePeakRank != null || info.esra != null;
+  }
+
+  private buildNoRankDataStats(): MatchStatsValues[] {
+    return [
+      {
+        name: "Player information",
+        value: 0,
+        bestInTeam: false,
+        bestInMatch: false,
+        display: "No data",
+      },
+    ];
+  }
+
+  private buildPreSeriesRankStats(info: PreSeriesRankInfo): MatchStatsValues[] {
+    const currentRankDisplay =
+      info.currentRank != null && info.currentRank > 0 ? info.currentRank.toLocaleString() : "Unranked";
+    const peakRankDisplay = info.allTimePeakRank != null ? info.allTimePeakRank.toLocaleString() : "-";
+    const esraDisplay = info.esra != null ? Math.round(info.esra).toLocaleString() : "-";
+    let lastRankedDisplay = "-";
+    if (info.lastRankedGamePlayed != null) {
+      const ago = differenceInHours(new Date(), new Date(info.lastRankedGamePlayed));
+      lastRankedDisplay = ago < 1 ? "Less than an hour ago" : timeAgo.format(new Date(info.lastRankedGamePlayed));
+    }
+
+    return [
+      {
+        name: "Current rank",
+        value: info.currentRank ?? 0,
+        bestInTeam: false,
+        bestInMatch: false,
+        display: currentRankDisplay,
+        icon: createElement(RankIcon, {
+          rankTier: info.currentRankTier ?? null,
+          subTier: info.currentRankSubTier ?? null,
+          measurementMatchesRemaining: info.currentRankMeasurementMatchesRemaining ?? null,
+          initialMeasurementMatches: info.currentRankInitialMeasurementMatches ?? null,
+          size: "x-small",
+        }),
+      },
+      {
+        name: "Peak rank",
+        value: info.allTimePeakRank ?? 0,
+        bestInTeam: false,
+        bestInMatch: false,
+        display: peakRankDisplay,
+        icon:
+          info.allTimePeakRank != null
+            ? createElement(RankIcon, {
+                ...getRankTierFromCsr(info.allTimePeakRank),
+                measurementMatchesRemaining: null,
+                initialMeasurementMatches: null,
+                size: "x-small",
+              })
+            : undefined,
+      },
+      {
+        name: "ESRA",
+        value: info.esra ?? 0,
+        bestInTeam: false,
+        bestInMatch: false,
+        display: esraDisplay,
+        icon:
+          info.esra != null
+            ? createElement(RankIcon, {
+                ...getRankTierFromCsr(Math.round(info.esra)),
+                measurementMatchesRemaining: null,
+                initialMeasurementMatches: null,
+                size: "x-small",
+              })
+            : undefined,
+      },
+      {
+        name: "Last ranked match played",
+        value: info.lastRankedGamePlayed != null ? new Date(info.lastRankedGamePlayed).getTime() : 0,
+        bestInTeam: false,
+        bestInMatch: false,
+        display: lastRankedDisplay,
+      },
+    ];
   }
 
   public buildPreSeriesTickerGroup(options: {
@@ -337,71 +436,7 @@ export class IndividualTrackerOverlayPresenter {
         return createPlaceholderStats();
       }
 
-      const currentRankDisplay =
-        info.currentRank != null && info.currentRank > 0 ? info.currentRank.toLocaleString() : "Unranked";
-      const peakRankDisplay = info.allTimePeakRank != null ? info.allTimePeakRank.toLocaleString() : "-";
-      const esraDisplay = info.esra != null ? Math.round(info.esra).toLocaleString() : "-";
-      let lastRankedDisplay = "-";
-      if (info.lastRankedGamePlayed != null) {
-        const ago = differenceInHours(new Date(), new Date(info.lastRankedGamePlayed));
-        lastRankedDisplay = ago < 1 ? "Less than an hour ago" : timeAgo.format(new Date(info.lastRankedGamePlayed));
-      }
-
-      return [
-        {
-          name: "Current rank",
-          value: info.currentRank ?? 0,
-          bestInTeam: false,
-          bestInMatch: false,
-          display: currentRankDisplay,
-          icon: createElement(RankIcon, {
-            rankTier: info.currentRankTier,
-            subTier: info.currentRankSubTier,
-            measurementMatchesRemaining: info.currentRankMeasurementMatchesRemaining,
-            initialMeasurementMatches: info.currentRankInitialMeasurementMatches,
-            size: "x-small",
-          }),
-        },
-        {
-          name: "Peak rank",
-          value: info.allTimePeakRank ?? 0,
-          bestInTeam: false,
-          bestInMatch: false,
-          display: peakRankDisplay,
-          icon:
-            info.allTimePeakRank != null
-              ? createElement(RankIcon, {
-                  ...getRankTierFromCsr(info.allTimePeakRank),
-                  measurementMatchesRemaining: null,
-                  initialMeasurementMatches: null,
-                  size: "x-small",
-                })
-              : undefined,
-        },
-        {
-          name: "ESRA",
-          value: info.esra ?? 0,
-          bestInTeam: false,
-          bestInMatch: false,
-          display: esraDisplay,
-          icon:
-            info.esra != null
-              ? createElement(RankIcon, {
-                  ...getRankTierFromCsr(Math.round(info.esra)),
-                  measurementMatchesRemaining: null,
-                  initialMeasurementMatches: null,
-                  size: "x-small",
-                })
-              : undefined,
-        },
-        {
-          name: "Last ranked match played",
-          value: info.lastRankedGamePlayed != null ? new Date(info.lastRankedGamePlayed).getTime() : 0,
-          bestInTeam: false,
-          bestInMatch: false,
-          display: lastRankedDisplay,
-        },
-      ];
+      return this.buildPreSeriesRankStats(info);
     };
 
     // Case 1: Pre-series with active series that has teams (series exists but no matches yet)
@@ -410,18 +445,7 @@ export class IndividualTrackerOverlayPresenter {
       const seriesLabel = activeSeries.title || "Series Info";
       const rows: TickerStatRow[] = [];
 
-      // Add each team and its players
       for (const team of activeSeries.teams) {
-        // Add team row
-        rows.push({
-          type: "team",
-          teamId: team.id,
-          name: team.name,
-          stats: createPlaceholderStats(),
-          medals: [],
-        });
-
-        // Add each player in the team
         for (const player of team.players) {
           rows.push({
             type: "player",
@@ -429,7 +453,9 @@ export class IndividualTrackerOverlayPresenter {
             discordName: player.discordName,
             gamertag: player.gamertag,
             name: player.discordName ?? player.gamertag,
-            stats: createPlaceholderStats(),
+            stats: this.hasPreSeriesRankData(player)
+              ? this.buildPreSeriesRankStats(player)
+              : this.buildNoRankDataStats(),
             medals: [],
           });
         }
@@ -482,14 +508,21 @@ export class IndividualTrackerOverlayPresenter {
       matchmakingSummaryScore,
     });
     const trimmedTabs = this.trimTabsToMaxPreviousGames(tabs, this.getMaxPreviousGamesToShow(streamerSettings));
-    const loadedTickerGroups = this.buildTickerGroups(options.matchStatsByMatchId, trimmedTabs, {
+    const tickerFilterOptions: TickerFilterOptions = {
       trackedGamertag: renderModel.gamertag,
       includeOnlyTrackedPlayer: this.getIncludeOnlyTrackedPlayer(streamerSettings, activeSeries),
       applyPlayerPerspectiveTickerColors: activeSeries == null,
       selectedSlayerStats: this.getSelectedSlayerStats(streamerSettings),
       showObjectiveStats: this.getShowObjectiveStats(streamerSettings),
       medalRarityFilter: this.getMedalRarityFilter(streamerSettings),
-    });
+    };
+    const seriesStatsTickerGroup =
+      activeSeries != null
+        ? this.buildSeriesStatsTickerGroup(options.matchStatsByMatchId, activeSeries, tickerFilterOptions)
+        : null;
+    const matchTickerGroups = this.buildTickerGroups(options.matchStatsByMatchId, trimmedTabs, tickerFilterOptions);
+    const loadedTickerGroups =
+      seriesStatsTickerGroup != null ? [seriesStatsTickerGroup, ...matchTickerGroups] : matchTickerGroups;
     const tickerMatchGroups =
       loadedTickerGroups.length > 0
         ? loadedTickerGroups
@@ -581,6 +614,7 @@ export class IndividualTrackerOverlayPresenter {
       startTime: "",
       endTime: "",
       matches: [],
+      iconMatches: [],
       colorHex: undefined,
     };
   }
@@ -636,6 +670,64 @@ export class IndividualTrackerOverlayPresenter {
     // If player is on team 0, playerTeamColor goes to team 0
     // If player is on team 1, playerTeamColor goes to team 1, enemyTeamColor to team 0
     return trackedPlayerTeamId === 0 ? [playerTeamColor, enemyTeamColor] : [enemyTeamColor, playerTeamColor];
+  }
+
+  private buildSeriesStatsTickerGroup(
+    matchStatsByMatchId: ReadonlyMap<string, MatchStatsState>,
+    activeSeries: ViewerSeriesTab,
+    filterOptions: TickerFilterOptions,
+  ): TickerMatchGroup | null {
+    const loadedStates = activeSeries.matches
+      .map((match) => matchStatsByMatchId.get(match.matchId))
+      .filter((state): state is Extract<MatchStatsState, { status: "loaded" }> => state?.status === "loaded");
+    if (loadedStates.length === 0) {
+      return null;
+    }
+    const [firstState] = loadedStates;
+
+    const playerMap = new Map<string, string>();
+    for (const state of loadedStates) {
+      for (const [xuid, gamertag] of state.playerMap) {
+        playerMap.set(xuid, gamertag);
+      }
+    }
+
+    const matches = loadedStates.map((state) => state.stats);
+    const teamData = new SeriesTeamStatsFormatter().getSeriesData(matches, playerMap, firstState.medalMetadata);
+    const playerData = new SeriesPlayerStatsFormatter().getSeriesData(matches, playerMap, firstState.medalMetadata);
+
+    const rows: TickerMatchGroup["rows"] = [
+      ...teamData.map((team) => ({
+        type: "team" as const,
+        teamId: team.teamId,
+        name: getTeamName(team.teamId),
+        stats: this.filterTickerStats(team.teamStats, filterOptions),
+        medals: this.filterTickerMedals(team.teamMedals, filterOptions.medalRarityFilter),
+      })),
+      ...playerData.flatMap((team) =>
+        team.players.map((player) => ({
+          type: "player" as const,
+          teamId: team.teamId,
+          name: player.name,
+          discordName: null,
+          gamertag: player.name,
+          stats: this.filterTickerStats(player.values, filterOptions),
+          medals: this.filterTickerMedals(player.medals, filterOptions.medalRarityFilter),
+        })),
+      ),
+    ];
+
+    const rowsWithColorSlots = this.applyTickerColorSlots(rows, filterOptions);
+    const filteredRows = this.filterRowsForTrackedPlayer(rowsWithColorSlots, filterOptions);
+    if (filteredRows.length === 0) {
+      return null;
+    }
+
+    return {
+      matchIndex: -1,
+      label: "Series Stats",
+      rows: filteredRows,
+    };
   }
 
   private buildTickerGroups(

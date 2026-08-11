@@ -4,6 +4,7 @@ import { SESSION_COOKIE_MAX_AGE_SECONDS } from "../../auth/session-manager";
 import { DatabaseService } from "../database";
 import {
   aFakeDiscordAssociationsRow,
+  aFakeNeatQueueConfigRow,
   aFakeUserSessionsRow,
   aFakeUserCredentialsRow,
   aFakeLinkedIdentitiesRow,
@@ -418,6 +419,22 @@ describe("Database Service", () => {
       const results = await databaseService.findNeatQueueConfig({});
 
       expect(results).toEqual([]);
+    });
+  });
+
+  describe("getAllNeatQueueConfigs()", () => {
+    it("returns every NeatQueueConfig row", async () => {
+      const config1 = aFakeNeatQueueConfigRow({ GuildId: "guild-1", ChannelId: "channel-1" });
+      const config2 = aFakeNeatQueueConfigRow({ GuildId: "guild-2", ChannelId: "channel-2" });
+
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [config1, config2] });
+
+      const results = await databaseService.getAllNeatQueueConfigs();
+
+      expect(prepareSpy).toHaveBeenCalledWith("SELECT * FROM NeatQueueConfig");
+      expect(results).toEqual([config1, config2]);
     });
   });
 

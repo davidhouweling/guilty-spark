@@ -47,7 +47,7 @@ function SeriesTab({ series, selected, onSelect }: SeriesTabProps): React.ReactE
       <span className={styles.tabSeriesTitle}>{series.title}</span>
       <span className={styles.tabScore}>{series.score}</span>
       <div className={styles.tabIcons}>
-        {series.matches.map((match) => (
+        {series.iconMatches.map((match) => (
           <img key={match.matchId} className={styles.tabIcon} src={gameModeIconSrc(match.gameVariantCategory)} alt="" />
         ))}
       </div>

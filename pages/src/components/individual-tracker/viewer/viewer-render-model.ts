@@ -5,7 +5,11 @@ import type {
 } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { getGameModeName } from "@guilty-spark/shared/halo/game-variants";
 import { getDurationInIsoString, getReadableDuration } from "@guilty-spark/shared/halo/duration";
-import { normalizeOutcomeString, getOutcomeColor } from "@guilty-spark/shared/halo/match-enrichment";
+import {
+  normalizeOutcomeString,
+  getOutcomeColor,
+  collapseSequentialSeriesEntries,
+} from "@guilty-spark/shared/halo/match-enrichment";
 import { differenceInSeconds, isValid, parseISO } from "date-fns";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
@@ -188,8 +192,17 @@ function toPendingActiveSeriesTab(view: TrackerViewState): ViewerSeriesTab {
     startTime: activeSeriesContext.startedAt ?? view.lastUpdateTime,
     endTime: "",
     matches: [],
+    iconMatches: [],
     colorHex: undefined,
   };
+}
+
+function toIconMatches(
+  seriesMatches: readonly ViewerMatchTab[],
+  seriesSummaries: readonly TrackerMatchSummary[],
+): ViewerMatchTab[] {
+  const survivingMatchIds = new Set(collapseSequentialSeriesEntries(seriesSummaries).map((summary) => summary.matchId));
+  return seriesMatches.filter((match) => survivingMatchIds.has(match.matchId));
 }
 
 function toReadableDurationOrUnknown(startTime: string, endTime: string): string {
@@ -369,6 +382,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         startTime: seriesStartTime,
         endTime: seriesEndTime,
         matches: seriesMatches,
+        iconMatches: toIconMatches(seriesMatches, seriesSummaries),
         colorHex: undefined,
       };
       const seriesWithPreSeriesData: ViewerSeriesTab =

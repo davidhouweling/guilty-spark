@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { defineContract } from "../../base";
 import { trackerStateSchema } from "../../individual-tracker/tracker";
+import { trackerSeriesTeamSchema } from "../../individual-tracker/view";
 
 // hasActiveSeries is optional here because old persisted DO state may predate the field.
 // trackerStateSchema marks it required (suitable for fresh API responses).
@@ -9,6 +10,17 @@ export const individualTrackerStateSchema = trackerStateSchema.extend({
 });
 export type IndividualTrackerDoState = z.infer<typeof individualTrackerStateSchema>;
 
+export const individualTrackerSeriesSeedSchema = z.object({
+  title: z.string(),
+  subtitle: z.string(),
+  guildIconUrl: z.string().nullable(),
+  startedAt: z.string(),
+  searchStartTime: z.string().optional(),
+  teams: z.array(trackerSeriesTeamSchema),
+  matchIds: z.array(z.string()),
+});
+export type IndividualTrackerSeriesSeed = z.infer<typeof individualTrackerSeriesSeedSchema>;
+
 export const individualTrackerStartRequestSchema = z.object({
   userId: z.string(),
   trackerId: z.string(),
@@ -16,6 +28,7 @@ export const individualTrackerStartRequestSchema = z.object({
   gamertag: z.string(),
   searchStartTime: z.string(),
   idleTimeoutHours: z.number(),
+  seriesSeed: individualTrackerSeriesSeedSchema.optional(),
 });
 export type IndividualTrackerStartRequest = z.infer<typeof individualTrackerStartRequestSchema>;
 

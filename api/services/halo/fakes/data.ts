@@ -366,6 +366,7 @@ export function aFakeMatchHistoryEntryWith(overrides?: Partial<MatchHistoryEntry
     matchId: baseMatch.MatchId,
     startTime: baseMatch.MatchInfo.StartTime,
     endTime: baseMatch.MatchInfo.EndTime,
+    endTimeIso: baseMatch.MatchInfo.EndTime,
     duration: baseMatch.MatchInfo.Duration,
     mapName: "Live Fire",
     modeName: "Slayer",
