@@ -991,21 +991,25 @@ export class DiscordService {
     const cacheKey = this.getGuildMemberCacheKey(guildId, userId);
     const useEdgeCache = options?.useEdgeCache ?? true;
 
+    if (!useEdgeCache) {
+      const user = await this.fetch<RESTGetAPIGuildMemberResult>(Routes.guildMember(guildId, userId), {
+        method: "GET",
+      });
+      this.guildMemberCache.set(cacheKey, user);
+      return user;
+    }
+
     if (!this.guildMemberCache.has(cacheKey)) {
-      const user = useEdgeCache
-        ? await this.fetch<RESTGetAPIGuildMemberResult>(Routes.guildMember(guildId, userId), {
-            method: "GET",
-            cf: {
-              cacheTtlByStatus: {
-                "200-299": TimeInSeconds["5_MINUTES"],
-                404: TimeInSeconds["1_MINUTE"],
-                "500-599": 0,
-              },
-            },
-          })
-        : await this.fetch<RESTGetAPIGuildMemberResult>(Routes.guildMember(guildId, userId), {
-            method: "GET",
-          });
+      const user = await this.fetch<RESTGetAPIGuildMemberResult>(Routes.guildMember(guildId, userId), {
+        method: "GET",
+        cf: {
+          cacheTtlByStatus: {
+            "200-299": TimeInSeconds["5_MINUTES"],
+            404: TimeInSeconds["1_MINUTE"],
+            "500-599": 0,
+          },
+        },
+      });
       this.guildMemberCache.set(cacheKey, user);
     }
 

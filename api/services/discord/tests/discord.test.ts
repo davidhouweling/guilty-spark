@@ -1283,6 +1283,45 @@ describe("DiscordService", () => {
       expect(Preconditions.checkExists(guildBMember.user).id).toBe("member-in-guild-b");
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
+
+    it("bypasses in-memory cache when edge cache is disabled", async () => {
+      let callCount = 0;
+      mockFetch.mockImplementation(async (path) => {
+        if (typeof path !== "string") {
+          throw new Error("unexpected path type");
+        }
+
+        const prefix = "https://discord.com/api/v10";
+        if (path !== `${prefix}/guilds/guild-a/members/shared-user`) {
+          return Promise.reject(new Error(`Invalid path: ${path}`));
+        }
+
+        callCount += 1;
+        const userId = callCount === 1 ? "member-from-cacheable-fetch" : "member-from-fresh-fetch";
+        return Promise.resolve(
+          new Response(
+            JSON.stringify(
+              aGuildMemberWith({
+                user: {
+                  id: userId,
+                  username: userId,
+                  global_name: userId,
+                  discriminator: "1234",
+                  avatar: "avatar",
+                },
+              }),
+            ),
+          ),
+        );
+      });
+
+      const cachedMember = await discordService.getGuildMember("guild-a", "shared-user");
+      const refreshedMember = await discordService.getGuildMember("guild-a", "shared-user", { useEdgeCache: false });
+
+      expect(Preconditions.checkExists(cachedMember.user).id).toBe("member-from-cacheable-fetch");
+      expect(Preconditions.checkExists(refreshedMember.user).id).toBe("member-from-fresh-fetch");
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe("computeMemberPermissions()", () => {
