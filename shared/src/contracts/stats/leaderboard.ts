@@ -6,13 +6,13 @@ const positiveIntString = z
   .string()
   .regex(/^\d+$/)
   .transform((raw) => Number(raw))
-  .pipe(z.number().int().positive());
+  .pipe(z.number().int().positive().max(Number.MAX_SAFE_INTEGER));
 
 const nonNegativeIntString = z
   .string()
   .regex(/^\d+$/)
   .transform((raw) => Number(raw))
-  .pipe(z.number().int().nonnegative());
+  .pipe(z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER));
 
 export const leaderboardQuerySchema = z.object({
   guildId: z.string().min(1),

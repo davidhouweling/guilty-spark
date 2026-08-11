@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
-import type { LeaderboardRankingRow } from "../../database/database";
+import type { LeaderboardRankingRow } from "../../database/types/leaderboard_ranking_row";
 import { aFakeDatabaseServiceWith, aFakeLeaderboardConfigRow } from "../../database/fakes/database.fake";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
