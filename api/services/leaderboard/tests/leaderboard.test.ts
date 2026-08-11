@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardRankingRow } from "../../database/database";
@@ -55,6 +55,10 @@ describe("LeaderboardService", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(nowIso));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("uses config defaults and ranks by series win rate", async () => {
