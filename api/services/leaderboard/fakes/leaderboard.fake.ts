@@ -1,4 +1,3 @@
-import type { Mocked } from "vitest";
 import { vi } from "vitest";
 import { aFakeDatabaseServiceWith } from "../../database/fakes/database.fake";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
@@ -8,15 +7,19 @@ import type { HaloService } from "../../halo/halo";
 import type { LogService } from "../../log/types";
 import { LeaderboardService } from "../leaderboard";
 
-export function aFakeLeaderboardServiceWith(
-  opts: { databaseService?: DatabaseService; haloService?: HaloService; logService?: LogService } = {},
-): Mocked<LeaderboardService> {
+interface LeaderboardServiceDependencies {
+  databaseService: DatabaseService;
+  haloService: HaloService;
+  logService: LogService;
+}
+
+export function aFakeLeaderboardServiceWith(opts: Partial<LeaderboardServiceDependencies> = {}): LeaderboardService {
   const databaseService = opts.databaseService ?? aFakeDatabaseServiceWith();
   const haloService = opts.haloService ?? aFakeHaloServiceWith({ databaseService });
   const logService = opts.logService ?? aFakeLogServiceWith();
 
-  const service = new LeaderboardService({ databaseService, haloService, logService }) as Mocked<LeaderboardService>;
-  service.persistSeriesData = vi.fn<LeaderboardService["persistSeriesData"]>().mockResolvedValue(undefined);
+  const service = new LeaderboardService({ databaseService, haloService, logService });
+  vi.spyOn(service, "persistSeriesData").mockResolvedValue(undefined);
 
   return service;
 }
