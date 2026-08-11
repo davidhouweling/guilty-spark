@@ -31,29 +31,6 @@ export interface LeaderboardRankingRow {
   MetricValue: number;
 }
 
-export interface LeaderboardSeriesPlayerFactRow {
-  XboxXuid: string;
-  DiscordUserId: string | null;
-  Gamertag: string;
-  SeriesWon: number;
-  GamesPlayedCount: number;
-}
-
-export interface LeaderboardGamePlayerFactRow {
-  XboxXuid: string;
-  DiscordUserId: string | null;
-  Gamertag: string;
-  Kills: number;
-  Deaths: number;
-  Assists: number;
-  Kda: number;
-  Accuracy: number;
-  DamageDealt: number;
-  DamageTaken: number;
-  PersonalScore: number;
-  QueueNumber: number;
-}
-
 interface LeaderboardRankingsQuery {
   guildId: string;
   queueChannelId: string | null;
@@ -769,84 +746,6 @@ export class DatabaseService {
     const query = "SELECT * FROM LeaderboardSeries WHERE GuildId = ? AND QueueNumber = ?";
     const stmt = this.DB.prepare(query).bind(guildId, queueNumber);
     return await stmt.first<LeaderboardSeriesRow>();
-  }
-
-  async getLeaderboardSeriesPlayerFacts({
-    guildId,
-    queueChannelId,
-    startEpochSeconds,
-  }: {
-    guildId: string;
-    queueChannelId: string | null;
-    startEpochSeconds: number;
-  }): Promise<LeaderboardSeriesPlayerFactRow[]> {
-    const bindings: (string | number)[] = [guildId, startEpochSeconds];
-    let query = `
-      SELECT
-        sp.XboxXuid AS XboxXuid,
-        sp.DiscordUserId AS DiscordUserId,
-        sp.GamertagSnapshot AS Gamertag,
-        sp.SeriesWon AS SeriesWon,
-        sp.GamesPlayedCount AS GamesPlayedCount
-      FROM LeaderboardSeriesPlayers sp
-      INNER JOIN LeaderboardSeries s
-        ON s.GuildId = sp.GuildId
-        AND s.QueueNumber = sp.QueueNumber
-      WHERE s.GuildId = ?
-        AND s.CompletedAt >= ?
-    `;
-
-    if (queueChannelId != null) {
-      query += " AND s.QueueChannelId = ?";
-      bindings.push(queueChannelId);
-    }
-
-    const stmt = this.DB.prepare(query).bind(...bindings);
-    const response = await stmt.all<LeaderboardSeriesPlayerFactRow>();
-    return response.results;
-  }
-
-  async getLeaderboardGamePlayerFacts({
-    guildId,
-    queueChannelId,
-    startEpochSeconds,
-  }: {
-    guildId: string;
-    queueChannelId: string | null;
-    startEpochSeconds: number;
-  }): Promise<LeaderboardGamePlayerFactRow[]> {
-    const bindings: (string | number)[] = [guildId, startEpochSeconds];
-    let query = `
-      SELECT
-        gp.XboxXuid AS XboxXuid,
-        gp.DiscordUserId AS DiscordUserId,
-        gp.GamertagSnapshot AS Gamertag,
-        gp.Kills AS Kills,
-        gp.Deaths AS Deaths,
-        gp.Assists AS Assists,
-        gp.Kda AS Kda,
-        gp.Accuracy AS Accuracy,
-        gp.DamageDealt AS DamageDealt,
-        gp.DamageTaken AS DamageTaken,
-        gp.PersonalScore AS PersonalScore,
-        gp.QueueNumber AS QueueNumber
-      FROM LeaderboardGamePlayers gp
-      INNER JOIN LeaderboardGames g
-        ON g.GuildId = gp.GuildId
-        AND g.QueueNumber = gp.QueueNumber
-        AND g.MatchId = gp.MatchId
-      WHERE gp.GuildId = ?
-        AND g.EndedAt >= ?
-    `;
-
-    if (queueChannelId != null) {
-      query += " AND gp.QueueChannelId = ?";
-      bindings.push(queueChannelId);
-    }
-
-    const stmt = this.DB.prepare(query).bind(...bindings);
-    const response = await stmt.all<LeaderboardGamePlayerFactRow>();
-    return response.results;
   }
 
   async getLeaderboardSeriesWinRateRankings({

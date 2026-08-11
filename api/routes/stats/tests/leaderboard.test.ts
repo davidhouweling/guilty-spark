@@ -39,6 +39,19 @@ describe("/api/stats/leaderboard", () => {
     expect(response.status).toBe(400);
   });
 
+  it("returns 400 when pageSize exceeds the maximum", async () => {
+    const services = installFakeServicesWith({ env });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      new Request("http://localhost/api/stats/leaderboard?guildId=guild-1&pageSize=101"),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(400);
+  });
+
   it("returns leaderboard payload and parses query options", async () => {
     const services = installFakeServicesWith({ env });
     const getLeaderboardSpy = vi.spyOn(services.leaderboardService, "getLeaderboard").mockResolvedValue({

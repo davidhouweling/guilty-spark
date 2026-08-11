@@ -20,7 +20,7 @@ export const leaderboardQuerySchema = z.object({
   window: z.enum(LeaderboardWindow).optional(),
   metric: z.enum(LeaderboardMetric).optional(),
   page: positiveIntString.optional(),
-  pageSize: positiveIntString.optional(),
+  pageSize: positiveIntString.pipe(z.number().int().max(100)).optional(),
   minGamesPlayed: nonNegativeIntString.optional(),
 });
 
