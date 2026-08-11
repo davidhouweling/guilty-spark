@@ -1,8 +1,12 @@
 import type { MatchStats } from "halo-infinite-api";
+import { sub } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { getSafeRatioValue } from "@guilty-spark/shared/halo/stat-formatting";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
+import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import type { DatabaseService } from "../database/database";
 import type { LeaderboardSeriesRow } from "../database/types/leaderboard_series";
 import type { LeaderboardSeriesPlayersRow } from "../database/types/leaderboard_series_players";
@@ -100,6 +104,331 @@ export class LeaderboardService {
           ["reason", "Failed to persist leaderboard series data"],
         ]),
       );
+    }
+  }
+
+  async getLeaderboard({
+    guildId,
+    queueChannelId,
+    window,
+    metric,
+    page,
+    pageSize,
+    minGamesPlayed,
+  }: {
+    guildId: string;
+    queueChannelId?: string;
+    window?: LeaderboardWindow;
+    metric?: LeaderboardMetric;
+    page?: number;
+    pageSize?: number;
+    minGamesPlayed?: number;
+  }): Promise<LeaderboardResponse> {
+    const config = await this.databaseService.getLeaderboardConfig(guildId, true);
+    const resolvedWindow = window ?? config.DefaultWindow;
+    const resolvedMetric = metric ?? config.DefaultMetric;
+    const resolvedMinGamesPlayed = minGamesPlayed ?? config.MinGamesPlayed;
+    const resolvedPage = Math.max(1, page ?? 1);
+    const resolvedPageSize = Math.min(100, Math.max(1, pageSize ?? 25));
+    const offset = (resolvedPage - 1) * resolvedPageSize;
+    const startEpochSeconds = this.getWindowStartEpochSeconds(resolvedWindow);
+
+    const allRows =
+      resolvedMetric === LeaderboardMetric.SeriesWinRate
+        ? await this.getSeriesWinRateRows({
+            guildId,
+            queueChannelId: queueChannelId ?? null,
+            startEpochSeconds,
+            minGamesPlayed: resolvedMinGamesPlayed,
+          })
+        : await this.getMetricRows({
+            guildId,
+            queueChannelId: queueChannelId ?? null,
+            startEpochSeconds,
+            minGamesPlayed: resolvedMinGamesPlayed,
+            metric: resolvedMetric,
+          });
+
+    const pagedRows = allRows.slice(offset, offset + resolvedPageSize);
+
+    return {
+      guildId,
+      queueChannelId: queueChannelId ?? null,
+      window: resolvedWindow,
+      metric: resolvedMetric,
+      minGamesPlayed: resolvedMinGamesPlayed,
+      page: resolvedPage,
+      pageSize: resolvedPageSize,
+      total: allRows.length,
+      rows: pagedRows.map((row, index) => ({
+        rank: offset + index + 1,
+        xboxXuid: row.xboxXuid,
+        discordUserId: row.discordUserId,
+        gamertag: row.gamertag,
+        seriesPlayed: row.seriesPlayed,
+        seriesWins: row.seriesWins,
+        gamesPlayed: row.gamesPlayed,
+        metricValue: row.metricValue,
+      })),
+    };
+  }
+
+  private async getSeriesWinRateRows({
+    guildId,
+    queueChannelId,
+    startEpochSeconds,
+    minGamesPlayed,
+  }: {
+    guildId: string;
+    queueChannelId: string | null;
+    startEpochSeconds: number;
+    minGamesPlayed: number;
+  }): Promise<
+    {
+      xboxXuid: string;
+      discordUserId: string | null;
+      gamertag: string;
+      seriesPlayed: number;
+      seriesWins: number;
+      gamesPlayed: number;
+      metricValue: number;
+    }[]
+  > {
+    const facts = await this.databaseService.getLeaderboardSeriesPlayerFacts({
+      guildId,
+      queueChannelId,
+      startEpochSeconds,
+    });
+    const byXuid = new Map<
+      string,
+      {
+        xboxXuid: string;
+        discordUserId: string | null;
+        gamertag: string;
+        seriesPlayed: number;
+        seriesWins: number;
+        gamesPlayed: number;
+      }
+    >();
+
+    for (const fact of facts) {
+      const existing = byXuid.get(fact.XboxXuid);
+      if (existing == null) {
+        byXuid.set(fact.XboxXuid, {
+          xboxXuid: fact.XboxXuid,
+          discordUserId: fact.DiscordUserId,
+          gamertag: fact.Gamertag,
+          seriesPlayed: 1,
+          seriesWins: fact.SeriesWon,
+          gamesPlayed: fact.GamesPlayedCount,
+        });
+        continue;
+      }
+
+      existing.discordUserId = existing.discordUserId ?? fact.DiscordUserId;
+      existing.gamertag = fact.Gamertag;
+      existing.seriesPlayed += 1;
+      existing.seriesWins += fact.SeriesWon;
+      existing.gamesPlayed += fact.GamesPlayedCount;
+    }
+
+    return [...byXuid.values()]
+      .filter((row) => row.gamesPlayed >= minGamesPlayed)
+      .map((row) => ({
+        ...row,
+        metricValue: row.seriesPlayed === 0 ? 0 : row.seriesWins / row.seriesPlayed,
+      }))
+      .sort((left, right) => {
+        if (right.metricValue !== left.metricValue) {
+          return right.metricValue - left.metricValue;
+        }
+
+        if (right.seriesWins !== left.seriesWins) {
+          return right.seriesWins - left.seriesWins;
+        }
+
+        if (right.gamesPlayed !== left.gamesPlayed) {
+          return right.gamesPlayed - left.gamesPlayed;
+        }
+
+        return left.gamertag.localeCompare(right.gamertag);
+      });
+  }
+
+  private async getMetricRows({
+    guildId,
+    queueChannelId,
+    startEpochSeconds,
+    minGamesPlayed,
+    metric,
+  }: {
+    guildId: string;
+    queueChannelId: string | null;
+    startEpochSeconds: number;
+    minGamesPlayed: number;
+    metric: Exclude<LeaderboardMetric, LeaderboardMetric.SeriesWinRate>;
+  }): Promise<
+    {
+      xboxXuid: string;
+      discordUserId: string | null;
+      gamertag: string;
+      seriesPlayed: number;
+      seriesWins: number;
+      gamesPlayed: number;
+      metricValue: number;
+    }[]
+  > {
+    const facts = await this.databaseService.getLeaderboardGamePlayerFacts({
+      guildId,
+      queueChannelId,
+      startEpochSeconds,
+    });
+    const byXuid = new Map<
+      string,
+      {
+        xboxXuid: string;
+        discordUserId: string | null;
+        gamertag: string;
+        seriesNumbers: Set<number>;
+        gamesPlayed: number;
+        kills: number;
+        deaths: number;
+        assists: number;
+        kdaSum: number;
+        accuracySum: number;
+        damageDealt: number;
+        damageTaken: number;
+        personalScore: number;
+      }
+    >();
+
+    for (const fact of facts) {
+      const existing = byXuid.get(fact.XboxXuid);
+      if (existing == null) {
+        byXuid.set(fact.XboxXuid, {
+          xboxXuid: fact.XboxXuid,
+          discordUserId: fact.DiscordUserId,
+          gamertag: fact.Gamertag,
+          seriesNumbers: new Set([fact.QueueNumber]),
+          gamesPlayed: 1,
+          kills: fact.Kills,
+          deaths: fact.Deaths,
+          assists: fact.Assists,
+          kdaSum: fact.Kda,
+          accuracySum: fact.Accuracy,
+          damageDealt: fact.DamageDealt,
+          damageTaken: fact.DamageTaken,
+          personalScore: fact.PersonalScore,
+        });
+        continue;
+      }
+
+      existing.discordUserId = existing.discordUserId ?? fact.DiscordUserId;
+      existing.gamertag = fact.Gamertag;
+      existing.seriesNumbers.add(fact.QueueNumber);
+      existing.gamesPlayed += 1;
+      existing.kills += fact.Kills;
+      existing.deaths += fact.Deaths;
+      existing.assists += fact.Assists;
+      existing.kdaSum += fact.Kda;
+      existing.accuracySum += fact.Accuracy;
+      existing.damageDealt += fact.DamageDealt;
+      existing.damageTaken += fact.DamageTaken;
+      existing.personalScore += fact.PersonalScore;
+    }
+
+    const rows = [...byXuid.values()]
+      .filter((row) => row.gamesPlayed >= minGamesPlayed)
+      .map((row) => {
+        let metricValue = row.personalScore;
+        switch (metric) {
+          case LeaderboardMetric.Kills: {
+            metricValue = row.kills;
+            break;
+          }
+          case LeaderboardMetric.Deaths: {
+            metricValue = row.deaths;
+            break;
+          }
+          case LeaderboardMetric.Assists: {
+            metricValue = row.assists;
+            break;
+          }
+          case LeaderboardMetric.Kda: {
+            metricValue = row.kdaSum / row.gamesPlayed;
+            break;
+          }
+          case LeaderboardMetric.Accuracy: {
+            metricValue = row.accuracySum / row.gamesPlayed;
+            break;
+          }
+          case LeaderboardMetric.DamageDealt: {
+            metricValue = row.damageDealt;
+            break;
+          }
+          case LeaderboardMetric.DamageTaken: {
+            metricValue = row.damageTaken;
+            break;
+          }
+          case LeaderboardMetric.DamageRatio: {
+            metricValue = getSafeRatioValue(row.damageDealt, row.damageTaken);
+            break;
+          }
+          case LeaderboardMetric.PersonalScore: {
+            metricValue = row.personalScore;
+            break;
+          }
+          default: {
+            throw new UnreachableError(metric);
+          }
+        }
+
+        return {
+          xboxXuid: row.xboxXuid,
+          discordUserId: row.discordUserId,
+          gamertag: row.gamertag,
+          seriesPlayed: row.seriesNumbers.size,
+          seriesWins: 0,
+          gamesPlayed: row.gamesPlayed,
+          metricValue,
+        };
+      });
+
+    return rows.sort((left, right) => {
+      if (right.metricValue !== left.metricValue) {
+        return right.metricValue - left.metricValue;
+      }
+
+      if (right.gamesPlayed !== left.gamesPlayed) {
+        return right.gamesPlayed - left.gamesPlayed;
+      }
+
+      return left.gamertag.localeCompare(right.gamertag);
+    });
+  }
+
+  private getWindowStartEpochSeconds(window: LeaderboardWindow): number {
+    const now = new Date();
+
+    switch (window) {
+      case LeaderboardWindow.OneWeek: {
+        return Math.floor(sub(now, { weeks: 1 }).getTime() / 1000);
+      }
+      case LeaderboardWindow.OneMonth: {
+        return Math.floor(sub(now, { months: 1 }).getTime() / 1000);
+      }
+      case LeaderboardWindow.ThreeMonths: {
+        return Math.floor(sub(now, { months: 3 }).getTime() / 1000);
+      }
+      case LeaderboardWindow.SixMonths: {
+        return Math.floor(sub(now, { months: 6 }).getTime() / 1000);
+      }
+      case LeaderboardWindow.TwelveMonths: {
+        return Math.floor(sub(now, { months: 12 }).getTime() / 1000);
+      }
+      default: {
+        throw new UnreachableError(window);
+      }
     }
   }
 

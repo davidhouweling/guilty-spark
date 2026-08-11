@@ -1,4 +1,5 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { SESSION_COOKIE_MAX_AGE_SECONDS } from "../auth/session-manager";
 import type { DiscordAssociationsRow } from "./types/discord_associations";
 import type { GuildConfigRow } from "./types/guild_config";
@@ -19,6 +20,48 @@ import type { LeaderboardConfigRow } from "./types/leaderboard_config";
 import { LeaderboardWindow, LeaderboardMetric } from "./types/leaderboard_config";
 
 const DEFAULT_LEADERBOARD_ENABLED_WINDOWS_JSON = '["1W","1M","3M","6M","12M"]';
+
+export interface LeaderboardRankingRow {
+  XboxXuid: string;
+  DiscordUserId: string | null;
+  Gamertag: string;
+  SeriesPlayed: number;
+  SeriesWins: number;
+  GamesPlayed: number;
+  MetricValue: number;
+}
+
+export interface LeaderboardSeriesPlayerFactRow {
+  XboxXuid: string;
+  DiscordUserId: string | null;
+  Gamertag: string;
+  SeriesWon: number;
+  GamesPlayedCount: number;
+}
+
+export interface LeaderboardGamePlayerFactRow {
+  XboxXuid: string;
+  DiscordUserId: string | null;
+  Gamertag: string;
+  Kills: number;
+  Deaths: number;
+  Assists: number;
+  Kda: number;
+  Accuracy: number;
+  DamageDealt: number;
+  DamageTaken: number;
+  PersonalScore: number;
+  QueueNumber: number;
+}
+
+interface LeaderboardRankingsQuery {
+  guildId: string;
+  queueChannelId: string | null;
+  startEpochSeconds: number;
+  minGamesPlayed: number;
+  limit: number;
+  offset: number;
+}
 
 export interface DatabaseServiceOpts {
   env: Env;
@@ -726,6 +769,237 @@ export class DatabaseService {
     const query = "SELECT * FROM LeaderboardSeries WHERE GuildId = ? AND QueueNumber = ?";
     const stmt = this.DB.prepare(query).bind(guildId, queueNumber);
     return await stmt.first<LeaderboardSeriesRow>();
+  }
+
+  async getLeaderboardSeriesPlayerFacts({
+    guildId,
+    queueChannelId,
+    startEpochSeconds,
+  }: {
+    guildId: string;
+    queueChannelId: string | null;
+    startEpochSeconds: number;
+  }): Promise<LeaderboardSeriesPlayerFactRow[]> {
+    const bindings: (string | number)[] = [guildId, startEpochSeconds];
+    let query = `
+      SELECT
+        sp.XboxXuid AS XboxXuid,
+        sp.DiscordUserId AS DiscordUserId,
+        sp.GamertagSnapshot AS Gamertag,
+        sp.SeriesWon AS SeriesWon,
+        sp.GamesPlayedCount AS GamesPlayedCount
+      FROM LeaderboardSeriesPlayers sp
+      INNER JOIN LeaderboardSeries s
+        ON s.GuildId = sp.GuildId
+        AND s.QueueNumber = sp.QueueNumber
+      WHERE s.GuildId = ?
+        AND s.CompletedAt >= ?
+    `;
+
+    if (queueChannelId != null) {
+      query += " AND s.QueueChannelId = ?";
+      bindings.push(queueChannelId);
+    }
+
+    const stmt = this.DB.prepare(query).bind(...bindings);
+    const response = await stmt.all<LeaderboardSeriesPlayerFactRow>();
+    return response.results;
+  }
+
+  async getLeaderboardGamePlayerFacts({
+    guildId,
+    queueChannelId,
+    startEpochSeconds,
+  }: {
+    guildId: string;
+    queueChannelId: string | null;
+    startEpochSeconds: number;
+  }): Promise<LeaderboardGamePlayerFactRow[]> {
+    const bindings: (string | number)[] = [guildId, startEpochSeconds];
+    let query = `
+      SELECT
+        gp.XboxXuid AS XboxXuid,
+        gp.DiscordUserId AS DiscordUserId,
+        gp.GamertagSnapshot AS Gamertag,
+        gp.Kills AS Kills,
+        gp.Deaths AS Deaths,
+        gp.Assists AS Assists,
+        gp.Kda AS Kda,
+        gp.Accuracy AS Accuracy,
+        gp.DamageDealt AS DamageDealt,
+        gp.DamageTaken AS DamageTaken,
+        gp.PersonalScore AS PersonalScore,
+        gp.QueueNumber AS QueueNumber
+      FROM LeaderboardGamePlayers gp
+      INNER JOIN LeaderboardGames g
+        ON g.GuildId = gp.GuildId
+        AND g.QueueNumber = gp.QueueNumber
+        AND g.MatchId = gp.MatchId
+      WHERE gp.GuildId = ?
+        AND g.EndedAt >= ?
+    `;
+
+    if (queueChannelId != null) {
+      query += " AND gp.QueueChannelId = ?";
+      bindings.push(queueChannelId);
+    }
+
+    const stmt = this.DB.prepare(query).bind(...bindings);
+    const response = await stmt.all<LeaderboardGamePlayerFactRow>();
+    return response.results;
+  }
+
+  async getLeaderboardSeriesWinRateRankings({
+    guildId,
+    queueChannelId,
+    startEpochSeconds,
+    minGamesPlayed,
+    limit,
+    offset,
+  }: LeaderboardRankingsQuery): Promise<{ total: number; rows: LeaderboardRankingRow[] }> {
+    const aggregateSql = `
+      SELECT
+        sp.XboxXuid AS XboxXuid,
+        MAX(sp.DiscordUserId) AS DiscordUserId,
+        MAX(sp.GamertagSnapshot) AS Gamertag,
+        COUNT(*) AS SeriesPlayed,
+        SUM(sp.SeriesWon) AS SeriesWins,
+        SUM(sp.GamesPlayedCount) AS GamesPlayed,
+        CAST(SUM(sp.SeriesWon) AS REAL) / COUNT(*) AS MetricValue
+      FROM LeaderboardSeriesPlayers sp
+      INNER JOIN LeaderboardSeries s
+        ON s.GuildId = sp.GuildId
+        AND s.QueueNumber = sp.QueueNumber
+      WHERE s.GuildId = ?
+        AND s.CompletedAt >= ?
+        AND (? IS NULL OR s.QueueChannelId = ?)
+      GROUP BY sp.XboxXuid
+      HAVING SUM(sp.GamesPlayedCount) >= ?
+    `;
+
+    const countStmt = this.DB.prepare(`SELECT COUNT(*) AS Total FROM (${aggregateSql}) agg`).bind(
+      guildId,
+      startEpochSeconds,
+      queueChannelId,
+      queueChannelId,
+      minGamesPlayed,
+    );
+    const countRow = await countStmt.first<{ Total: number }>();
+
+    const rowsStmt = this.DB.prepare(
+      `
+        SELECT * FROM (${aggregateSql}) agg
+        ORDER BY agg.MetricValue DESC, agg.SeriesWins DESC, agg.GamesPlayed DESC, agg.Gamertag ASC
+        LIMIT ? OFFSET ?
+      `,
+    ).bind(guildId, startEpochSeconds, queueChannelId, queueChannelId, minGamesPlayed, limit, offset);
+    const rowsResponse = await rowsStmt.all<LeaderboardRankingRow>();
+
+    return {
+      total: countRow?.Total ?? 0,
+      rows: rowsResponse.results,
+    };
+  }
+
+  async getLeaderboardStatMetricRankings({
+    guildId,
+    queueChannelId,
+    startEpochSeconds,
+    minGamesPlayed,
+    limit,
+    offset,
+    metric,
+  }: LeaderboardRankingsQuery & { metric: Exclude<LeaderboardMetric, LeaderboardMetric.SeriesWinRate> }): Promise<{
+    total: number;
+    rows: LeaderboardRankingRow[];
+  }> {
+    let metricSql = "SUM(gp.PersonalScore)";
+    switch (metric) {
+      case LeaderboardMetric.Kills: {
+        metricSql = "SUM(gp.Kills)";
+        break;
+      }
+      case LeaderboardMetric.Deaths: {
+        metricSql = "SUM(gp.Deaths)";
+        break;
+      }
+      case LeaderboardMetric.Assists: {
+        metricSql = "SUM(gp.Assists)";
+        break;
+      }
+      case LeaderboardMetric.Kda: {
+        metricSql = "AVG(gp.Kda)";
+        break;
+      }
+      case LeaderboardMetric.Accuracy: {
+        metricSql = "AVG(gp.Accuracy)";
+        break;
+      }
+      case LeaderboardMetric.DamageDealt: {
+        metricSql = "SUM(gp.DamageDealt)";
+        break;
+      }
+      case LeaderboardMetric.DamageTaken: {
+        metricSql = "SUM(gp.DamageTaken)";
+        break;
+      }
+      case LeaderboardMetric.DamageRatio: {
+        metricSql =
+          "CASE WHEN SUM(gp.DamageTaken) = 0 THEN CASE WHEN SUM(gp.DamageDealt) = 0 THEN 0 ELSE 1e309 END ELSE CAST(SUM(gp.DamageDealt) AS REAL) / SUM(gp.DamageTaken) END";
+        break;
+      }
+      case LeaderboardMetric.PersonalScore: {
+        metricSql = "SUM(gp.PersonalScore)";
+        break;
+      }
+      default: {
+        throw new UnreachableError(metric);
+      }
+    }
+
+    const aggregateSql = `
+      SELECT
+        gp.XboxXuid AS XboxXuid,
+        MAX(gp.DiscordUserId) AS DiscordUserId,
+        MAX(gp.GamertagSnapshot) AS Gamertag,
+        COUNT(DISTINCT gp.QueueNumber) AS SeriesPlayed,
+        0 AS SeriesWins,
+        COUNT(*) AS GamesPlayed,
+        ${metricSql} AS MetricValue
+      FROM LeaderboardGamePlayers gp
+      INNER JOIN LeaderboardGames g
+        ON g.GuildId = gp.GuildId
+        AND g.QueueNumber = gp.QueueNumber
+        AND g.MatchId = gp.MatchId
+      WHERE gp.GuildId = ?
+        AND g.EndedAt >= ?
+        AND (? IS NULL OR gp.QueueChannelId = ?)
+      GROUP BY gp.XboxXuid
+      HAVING COUNT(*) >= ?
+    `;
+
+    const countStmt = this.DB.prepare(`SELECT COUNT(*) AS Total FROM (${aggregateSql}) agg`).bind(
+      guildId,
+      startEpochSeconds,
+      queueChannelId,
+      queueChannelId,
+      minGamesPlayed,
+    );
+    const countRow = await countStmt.first<{ Total: number }>();
+
+    const rowsStmt = this.DB.prepare(
+      `
+        SELECT * FROM (${aggregateSql}) agg
+        ORDER BY agg.MetricValue DESC, agg.GamesPlayed DESC, agg.Gamertag ASC
+        LIMIT ? OFFSET ?
+      `,
+    ).bind(guildId, startEpochSeconds, queueChannelId, queueChannelId, minGamesPlayed, limit, offset);
+    const rowsResponse = await rowsStmt.all<LeaderboardRankingRow>();
+
+    return {
+      total: countRow?.Total ?? 0,
+      rows: rowsResponse.results,
+    };
   }
 
   async getUserSession(sessionId: string): Promise<UserSessionsRow | null> {

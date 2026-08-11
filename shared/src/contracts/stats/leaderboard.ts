@@ -1,0 +1,52 @@
+import { z } from "zod";
+import { defineContract } from "../base";
+import { LeaderboardMetric, LeaderboardWindow } from "../../halo/leaderboard";
+
+const positiveIntString = z
+  .string()
+  .transform((raw) => Number.parseInt(raw, 10))
+  .pipe(z.number().int().positive());
+
+const nonNegativeIntString = z
+  .string()
+  .transform((raw) => Number.parseInt(raw, 10))
+  .pipe(z.number().int().nonnegative());
+
+export const leaderboardQuerySchema = z.object({
+  guildId: z.string().min(1),
+  queueChannelId: z.string().min(1).optional(),
+  window: z.enum(LeaderboardWindow).optional(),
+  metric: z.enum(LeaderboardMetric).optional(),
+  page: positiveIntString.optional(),
+  pageSize: positiveIntString.optional(),
+  minGamesPlayed: nonNegativeIntString.optional(),
+});
+
+export type LeaderboardQuery = z.infer<typeof leaderboardQuerySchema>;
+
+export const leaderboardContract = defineContract(
+  z.object({
+    guildId: z.string(),
+    queueChannelId: z.string().nullable(),
+    window: z.enum(LeaderboardWindow),
+    metric: z.enum(LeaderboardMetric),
+    minGamesPlayed: z.number().int().nonnegative(),
+    page: z.number().int().positive(),
+    pageSize: z.number().int().positive(),
+    total: z.number().int().nonnegative(),
+    rows: z.array(
+      z.object({
+        rank: z.number().int().positive(),
+        xboxXuid: z.string(),
+        discordUserId: z.string().nullable(),
+        gamertag: z.string(),
+        seriesPlayed: z.number().int().nonnegative(),
+        seriesWins: z.number().int().nonnegative(),
+        gamesPlayed: z.number().int().nonnegative(),
+        metricValue: z.number(),
+      }),
+    ),
+  }),
+);
+
+export type LeaderboardResponse = z.infer<typeof leaderboardContract.schema>;
