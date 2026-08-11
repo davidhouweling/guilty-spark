@@ -911,7 +911,7 @@ describe("StatsCommand", () => {
         }),
       ]);
       vi.spyOn(services.haloService, "getUsersByXuids").mockResolvedValue([{ xuid: "xuid-1", gamertag: "player-one" }]);
-      vi.spyOn(services.discordService, "getMessageFromInteractionToken").mockResolvedValue({
+      updateDeferredReplySpy.mockResolvedValue({
         ...apiMessage,
         id: "fix-flow-message-id",
       });
@@ -1023,7 +1023,8 @@ describe("StatsCommand", () => {
         }),
       ]);
       vi.spyOn(services.haloService, "getUsersByXuids").mockResolvedValue([{ xuid: "xuid-1", gamertag: "player-one" }]);
-      vi.spyOn(services.discordService, "getMessageFromInteractionToken").mockResolvedValue({
+      const getMessageFromInteractionTokenSpy = vi.spyOn(services.discordService, "getMessageFromInteractionToken");
+      updateDeferredReplySpy.mockResolvedValue({
         ...apiMessage,
         id: "fix-flow-message-id",
       });
@@ -1032,6 +1033,7 @@ describe("StatsCommand", () => {
       const { jobToComplete } = statsCommand.execute(queuePlayerInteraction);
       await jobToComplete?.();
 
+      expect(getMessageFromInteractionTokenSpy).not.toHaveBeenCalled();
       expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", expect.anything());
       const updatePayload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
       expect(updatePayload.components?.[0]).toMatchObject({
@@ -1122,7 +1124,7 @@ describe("StatsCommand", () => {
         }),
       ]);
       vi.spyOn(services.haloService, "getUsersByXuids").mockResolvedValue([{ xuid: "xuid-1", gamertag: "player-one" }]);
-      vi.spyOn(services.discordService, "getMessageFromInteractionToken").mockResolvedValue({
+      updateDeferredReplySpy.mockResolvedValue({
         ...apiMessage,
         id: "fix-flow-message-id",
       });

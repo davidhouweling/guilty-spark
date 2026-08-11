@@ -946,7 +946,7 @@ export class StatsCommand extends BaseCommand {
       );
     }
 
-    await discordService.updateDeferredReply(interaction.token, {
+    const message = await discordService.updateDeferredReply(interaction.token, {
       embeds: [this.createStatusEmbed("Select a player from the queue to load candidate custom games.")],
       components: [
         {
@@ -975,7 +975,6 @@ export class StatsCommand extends BaseCommand {
       ],
     });
 
-    const message = await discordService.getMessageFromInteractionToken(interaction.token);
     const queueDataWithoutTimestamp: Omit<QueueData, "timestamp"> = {
       message: queueData.message,
       queue: queueData.queue,
