@@ -1079,8 +1079,12 @@ export class StatsCommand extends BaseCommand {
       return `Ended at ${endTime}`;
     }
 
-    const relative = formatDistanceToNowStrict(endDate, { addSuffix: true });
     const absoluteUtc = `${endDate.toISOString().replace("T", " ").slice(0, 16)} UTC`;
+    if (endDate.getTime() > Date.now()) {
+      return `Ended at ${absoluteUtc}`;
+    }
+
+    const relative = formatDistanceToNowStrict(endDate, { addSuffix: true });
     return `Ended ${relative} (${absoluteUtc})`;
   }
 

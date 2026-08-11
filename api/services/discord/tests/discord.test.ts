@@ -1331,7 +1331,7 @@ describe("DiscordService", () => {
       const permissions = await discordService.computeMemberPermissions("fake-guild-id", "fake-user-id");
 
       expect(getGuildSpy).toHaveBeenCalledWith("fake-guild-id");
-      expect(getGuildMemberSpy).toHaveBeenCalledWith("fake-guild-id", "fake-user-id");
+      expect(getGuildMemberSpy).toHaveBeenCalledWith("fake-guild-id", "fake-user-id", { useEdgeCache: false });
       expect(permissions).toEqual(5n);
     });
 

@@ -983,16 +983,29 @@ export class DiscordService {
     });
   }
 
-  async getGuildMember(guildId: string, userId: string): Promise<RESTGetAPIGuildMemberResult> {
+  async getGuildMember(
+    guildId: string,
+    userId: string,
+    options?: { useEdgeCache: boolean },
+  ): Promise<RESTGetAPIGuildMemberResult> {
     const cacheKey = this.getGuildMemberCacheKey(guildId, userId);
+    const useEdgeCache = options?.useEdgeCache ?? true;
 
     if (!this.guildMemberCache.has(cacheKey)) {
-      const user = await this.fetch<RESTGetAPIGuildMemberResult>(Routes.guildMember(guildId, userId), {
-        method: "GET",
-        cf: {
-          cacheTtlByStatus: { "200-299": TimeInSeconds["5_MINUTES"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
-        },
-      });
+      const user = useEdgeCache
+        ? await this.fetch<RESTGetAPIGuildMemberResult>(Routes.guildMember(guildId, userId), {
+            method: "GET",
+            cf: {
+              cacheTtlByStatus: {
+                "200-299": TimeInSeconds["5_MINUTES"],
+                404: TimeInSeconds["1_MINUTE"],
+                "500-599": 0,
+              },
+            },
+          })
+        : await this.fetch<RESTGetAPIGuildMemberResult>(Routes.guildMember(guildId, userId), {
+            method: "GET",
+          });
       this.guildMemberCache.set(cacheKey, user);
     }
 
@@ -1006,7 +1019,7 @@ export class DiscordService {
       return ALL_PERMISSIONS_BITMASK;
     }
 
-    const guildMember = await this.getGuildMember(guildId, userId);
+    const guildMember = await this.getGuildMember(guildId, userId, { useEdgeCache: false });
 
     const everyoneRole = guild.roles.find((role) => role.id === guild.id);
     let permissions = BigInt(everyoneRole?.permissions ?? "0");

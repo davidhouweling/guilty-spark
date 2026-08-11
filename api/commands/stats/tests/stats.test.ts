@@ -1397,6 +1397,73 @@ describe("StatsCommand", () => {
       );
     });
 
+    it("falls back to absolute time when end time resolves in the future", async () => {
+      const firstMatchId = "d81554d7-ddfe-44da-a6cb-000000000ctf";
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: "btn_stats_fix_player_select",
+          values: ["000000000000000001"],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          id: "fix-flow-message-id",
+        },
+      };
+
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "fake-channel-id",
+        queueData: discordNeatQueueData,
+      });
+      vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([
+        aFakeDiscordAssociationsRow({
+          DiscordId: "000000000000000001",
+          XboxId: "xuid-1",
+        }),
+      ]);
+      vi.spyOn(services.haloService, "getUsersByXuids").mockResolvedValue([{ xuid: "xuid-1", gamertag: "player-one" }]);
+      vi.spyOn(services.haloService, "getEnrichedMatchHistory").mockResolvedValue({
+        gamertag: "player-one",
+        xuid: "xuid-1",
+        suggestedGroupings: [],
+        matches: [
+          aFakeMatchHistoryEntryWith({
+            matchId: firstMatchId,
+            modeName: "CTF",
+            mapName: "Bazaar",
+            resultString: "Win - 3:1",
+            endTime: "9/1/2100, 3:00:00 PM",
+            endTimeIso: "2100-09-01T15:00:00.000Z",
+          }),
+        ],
+      });
+      vi.spyOn(services.discordService, "findExistingSeriesStatsThreadLocation").mockResolvedValue(undefined);
+
+      const { jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      const updatePayload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+      const actionRow = Preconditions.checkExists(updatePayload.components?.[0]);
+      if (!("components" in actionRow)) {
+        throw new Error("Expected action row component");
+      }
+      const selectComponent = Preconditions.checkExists(actionRow.components[0]);
+      if (!("options" in selectComponent)) {
+        throw new Error("Expected select component");
+      }
+
+      expect(selectComponent.options).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            value: firstMatchId,
+            description: "Ended at 2100-09-01 15:00 UTC",
+          }),
+        ]),
+      );
+    });
+
     it("returns an error when selected player has no linked xbox account", async () => {
       const interaction: APIMessageComponentSelectMenuInteraction = {
         ...fakeButtonClickInteraction,
