@@ -22,6 +22,8 @@ import type { LeaderboardConfigRow } from "./types/leaderboard_config";
 
 const DEFAULT_LEADERBOARD_ENABLED_WINDOWS_JSON = '["1W","1M","3M","6M","12M"]';
 const SQLITE_MAX_VARIABLES = 999;
+// D1 accepts at most 100 bound parameters per statement, so batch upserts must chunk below this cap.
+const D1_SAFE_MAX_VARIABLES_PER_STATEMENT = 100;
 
 interface LeaderboardRankingsQuery {
   guildId: string;
@@ -523,6 +525,7 @@ export class DatabaseService {
       ...player,
       CreatedAt: existingSeriesPlayerCreatedAt.get(player.XboxXuid) ?? player.CreatedAt,
     }));
+    const statementVariableLimit = Math.min(SQLITE_MAX_VARIABLES, D1_SAFE_MAX_VARIABLES_PER_STATEMENT);
 
     const statements: D1PreparedStatement[] = [];
     const upsertSeriesStmt = this.DB.prepare(
@@ -559,7 +562,7 @@ export class DatabaseService {
 
     if (normalizedGames.length > 0) {
       const variablesPerRow = 15;
-      const maxRowsPerStatement = Math.floor(SQLITE_MAX_VARIABLES / variablesPerRow);
+      const maxRowsPerStatement = Math.max(1, Math.floor(statementVariableLimit / variablesPerRow));
 
       for (let start = 0; start < normalizedGames.length; start += maxRowsPerStatement) {
         const chunk = normalizedGames.slice(start, start + maxRowsPerStatement);
@@ -595,7 +598,7 @@ export class DatabaseService {
 
     if (normalizedGamePlayers.length > 0) {
       const variablesPerRow = 26;
-      const maxRowsPerStatement = Math.floor(SQLITE_MAX_VARIABLES / variablesPerRow);
+      const maxRowsPerStatement = Math.max(1, Math.floor(statementVariableLimit / variablesPerRow));
 
       for (let start = 0; start < normalizedGamePlayers.length; start += maxRowsPerStatement) {
         const chunk = normalizedGamePlayers.slice(start, start + maxRowsPerStatement);
@@ -644,7 +647,7 @@ export class DatabaseService {
 
     if (normalizedSeriesPlayers.length > 0) {
       const variablesPerRow = 13;
-      const maxRowsPerStatement = Math.floor(SQLITE_MAX_VARIABLES / variablesPerRow);
+      const maxRowsPerStatement = Math.max(1, Math.floor(statementVariableLimit / variablesPerRow));
 
       for (let start = 0; start < normalizedSeriesPlayers.length; start += maxRowsPerStatement) {
         const chunk = normalizedSeriesPlayers.slice(start, start + maxRowsPerStatement);
