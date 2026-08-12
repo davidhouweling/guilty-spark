@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import { aFakeEnvWith, fakeD1Response, FakePreparedStatement } from "../../../base/fakes/env.fake";
 import { SESSION_COOKIE_MAX_AGE_SECONDS } from "../../auth/session-manager";
 import { DatabaseService } from "../database";
@@ -27,7 +28,6 @@ import type { LinkedIdentitiesRow } from "../types/linked_identities";
 import type { IndividualTrackerProfilesRow } from "../types/individual_tracker_profiles";
 import type { IndividualTrackerGamesRow } from "../types/individual_tracker_games";
 import type { StreamerViewSettingsRow } from "../types/streamer_view_settings";
-import { LeaderboardMetric, LeaderboardWindow } from "../types/leaderboard_config";
 
 describe("Database Service", () => {
   let env: Env;

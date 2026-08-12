@@ -1,5 +1,6 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
+import { LeaderboardWindow, LeaderboardMetric } from "@guilty-spark/shared/halo/leaderboard";
 import { SESSION_COOKIE_MAX_AGE_SECONDS } from "../auth/session-manager";
 import type { DiscordAssociationsRow } from "./types/discord_associations";
 import type { GuildConfigRow } from "./types/guild_config";
@@ -18,7 +19,6 @@ import type { LeaderboardGamesRow } from "./types/leaderboard_games";
 import type { LeaderboardGamePlayersRow } from "./types/leaderboard_game_players";
 import type { LeaderboardRankingRow } from "./types/leaderboard_ranking_row";
 import type { LeaderboardConfigRow } from "./types/leaderboard_config";
-import { LeaderboardWindow, LeaderboardMetric } from "./types/leaderboard_config";
 
 const DEFAULT_LEADERBOARD_ENABLED_WINDOWS_JSON = '["1W","1M","3M","6M","12M"]';
 
