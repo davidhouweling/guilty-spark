@@ -1207,16 +1207,41 @@ export class NeatQueueService {
     request: NeatQueueMatchCompletedRequest,
     neatQueueConfig: NeatQueueConfigRow,
   ): Promise<void> {
+    this.logService.info(
+      "Starting NeatQueue MATCH_COMPLETED background job",
+      new Map([
+        ["guildId", request.guild],
+        ["channelId", request.channel],
+        ["queueNumber", request.match_number.toString()],
+        ["postSeriesMode", neatQueueConfig.PostSeriesMode],
+      ]),
+    );
+
     const timeline = await this.getTimeline(request, neatQueueConfig);
     timeline.push({ timestamp: new Date().toISOString(), event: request });
 
     let series: MatchStats[] = [];
     let errorOccurred = false;
+    let seriesSource = "timeline";
 
     try {
-      series =
-        (await this.resolveSeriesFromLiveTracker(request)) ??
-        (await this.getSeriesDataFromTimeline(timeline, neatQueueConfig));
+      const liveTrackerSeries = await this.resolveSeriesFromLiveTracker(request);
+      if (liveTrackerSeries != null) {
+        series = liveTrackerSeries;
+        seriesSource = "live-tracker";
+      } else {
+        series = await this.getSeriesDataFromTimeline(timeline, neatQueueConfig);
+      }
+
+      this.logService.info(
+        "Resolved series data for MATCH_COMPLETED",
+        new Map([
+          ["guildId", request.guild],
+          ["queueNumber", request.match_number.toString()],
+          ["seriesSource", seriesSource],
+          ["seriesMatchCount", series.length.toString()],
+        ]),
+      );
     } catch (error) {
       this.logService.info(error, new Map([["reason", "Failed to get series data from timeline"]]));
       errorOccurred = true;
@@ -1227,12 +1252,49 @@ export class NeatQueueService {
     }
 
     if (!errorOccurred && series.length > 0) {
+      this.logService.info(
+        "Posting series data and triggering leaderboard persistence",
+        new Map([
+          ["guildId", request.guild],
+          ["queueNumber", request.match_number.toString()],
+          ["postSeriesMode", neatQueueConfig.PostSeriesMode],
+          ["seriesMatchCount", series.length.toString()],
+        ]),
+      );
+
       const opts = { request, neatQueueConfig, series, timeline };
       await this.handlePostSeriesData(neatQueueConfig.PostSeriesMode, opts);
+
+      this.logService.info(
+        "Completed series post flow for MATCH_COMPLETED",
+        new Map([
+          ["guildId", request.guild],
+          ["queueNumber", request.match_number.toString()],
+          ["postSeriesMode", neatQueueConfig.PostSeriesMode],
+        ]),
+      );
+    } else if (!errorOccurred && series.length === 0) {
+      this.logService.warn(
+        "No series data resolved for MATCH_COMPLETED; leaderboard persistence will not run",
+        new Map([
+          ["guildId", request.guild],
+          ["queueNumber", request.match_number.toString()],
+          ["seriesSource", seriesSource],
+        ]),
+      );
     }
 
     const completedQueueState = await this.getQueueState(neatQueueConfig.GuildId, request.match_number);
     const allPlayerXuids = await this.extractXuidsWithFallback(completedQueueState.playersAssociationData);
+
+    this.logService.debug(
+      "Running MATCH_COMPLETED cleanup tasks",
+      new Map([
+        ["guildId", request.guild],
+        ["queueNumber", request.match_number.toString()],
+        ["resolvedXuidCount", allPlayerXuids.length.toString()],
+      ]),
+    );
 
     await Promise.all([
       this.nudgeIndividualTrackersForMatchCompletion(request, neatQueueConfig, allPlayerXuids),
@@ -1241,6 +1303,14 @@ export class NeatQueueService {
       this.deletePlayersMessageId(request, neatQueueConfig),
       this.haloService.updateDiscordAssociations(),
     ]);
+
+    this.logService.info(
+      "Completed NeatQueue MATCH_COMPLETED background job",
+      new Map([
+        ["guildId", request.guild],
+        ["queueNumber", request.match_number.toString()],
+      ]),
+    );
   }
 
   private async nudgeIndividualTrackersForMatchCompletion(
@@ -1279,11 +1349,26 @@ export class NeatQueueService {
     };
     const liveTrackerStatus = await this.liveTrackerService.getTrackerStatus(context);
     if (liveTrackerStatus?.state.status !== "active") {
+      this.logService.debug(
+        "Live tracker is not active for MATCH_COMPLETED; falling back to timeline resolution",
+        new Map([
+          ["guildId", request.guild],
+          ["queueNumber", request.match_number.toString()],
+          ["status", liveTrackerStatus?.state.status ?? "not_found"],
+        ]),
+      );
       return null;
     }
 
     const refreshResult = await this.liveTrackerService.refreshTracker(context, true);
     if (!isSuccessResponse(refreshResult)) {
+      this.logService.warn(
+        "Live tracker refresh failed for MATCH_COMPLETED; falling back to timeline resolution",
+        new Map([
+          ["guildId", request.guild],
+          ["queueNumber", request.match_number.toString()],
+        ]),
+      );
       return null;
     }
 

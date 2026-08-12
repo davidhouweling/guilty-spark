@@ -119,7 +119,19 @@ export class Server {
         const { response, jobToComplete } = neatQueueService.handleRequest(interaction, neatQueueConfig);
 
         if (jobToComplete) {
-          ctx.waitUntil(jobToComplete());
+          ctx.waitUntil(
+            jobToComplete().catch((error: unknown) => {
+              services.logService.error(
+                error,
+                new Map([
+                  ["reason", "NeatQueue background job failed"],
+                  ["action", interaction.action],
+                  ["guildId", neatQueueConfig.GuildId],
+                  ["channelId", neatQueueConfig.ChannelId],
+                ]),
+              );
+            }),
+          );
         }
 
         return response;
