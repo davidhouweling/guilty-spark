@@ -1,3 +1,4 @@
+import { LeaderboardWindow, LeaderboardMetric } from "@guilty-spark/shared/halo/leaderboard";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import type { DatabaseServiceOpts } from "../database";
 import { DatabaseService } from "../database";
@@ -15,7 +16,6 @@ import type { IndividualTrackerGamesRow } from "../types/individual_tracker_game
 import type { StreamerViewSettingsRow } from "../types/streamer_view_settings";
 import type { IndividualTrackersRow } from "../types/individual_trackers";
 import type { LeaderboardConfigRow } from "../types/leaderboard_config";
-import { LeaderboardWindow, LeaderboardMetric } from "../types/leaderboard_config";
 import type { LeaderboardSeriesRow } from "../types/leaderboard_series";
 import type { LeaderboardSeriesPlayersRow } from "../types/leaderboard_series_players";
 import type { LeaderboardGamesRow } from "../types/leaderboard_games";

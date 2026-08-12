@@ -1,8 +1,12 @@
 import type { MatchStats } from "halo-infinite-api";
+import { sub } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { getSafeRatioValue } from "@guilty-spark/shared/halo/stat-formatting";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
+import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import type { DatabaseService } from "../database/database";
 import type { LeaderboardSeriesRow } from "../database/types/leaderboard_series";
 import type { LeaderboardSeriesPlayersRow } from "../database/types/leaderboard_series_players";
@@ -100,6 +104,107 @@ export class LeaderboardService {
           ["reason", "Failed to persist leaderboard series data"],
         ]),
       );
+    }
+  }
+
+  async getLeaderboard({
+    guildId,
+    queueChannelId,
+    window,
+    metric,
+    page,
+    pageSize,
+    minGamesPlayed,
+  }: {
+    guildId: string;
+    queueChannelId?: string;
+    window?: LeaderboardWindow;
+    metric?: LeaderboardMetric;
+    page?: number;
+    pageSize?: number;
+    minGamesPlayed?: number;
+  }): Promise<LeaderboardResponse> {
+    const config = await this.databaseService.getLeaderboardConfig(guildId, true);
+    const resolvedWindow = window ?? config.DefaultWindow;
+    const resolvedMetric = metric ?? config.DefaultMetric;
+    const resolvedMinGamesPlayed = minGamesPlayed ?? config.MinGamesPlayed;
+    const resolvedPage = Math.max(1, page ?? 1);
+    const resolvedPageSize = Math.min(100, Math.max(1, pageSize ?? 25));
+    const offset = (resolvedPage - 1) * resolvedPageSize;
+    const startEpochSeconds = this.getWindowStartEpochSeconds(resolvedWindow);
+
+    const rankings =
+      resolvedMetric === LeaderboardMetric.SeriesWinRate
+        ? await this.databaseService.getLeaderboardSeriesWinRateRankings({
+            guildId,
+            queueChannelId: queueChannelId ?? null,
+            startEpochSeconds,
+            minGamesPlayed: resolvedMinGamesPlayed,
+            limit: resolvedPageSize,
+            offset,
+          })
+        : await this.databaseService.getLeaderboardStatMetricRankings({
+            guildId,
+            queueChannelId: queueChannelId ?? null,
+            startEpochSeconds,
+            minGamesPlayed: resolvedMinGamesPlayed,
+            limit: resolvedPageSize,
+            offset,
+            metric: resolvedMetric,
+          });
+
+    return {
+      guildId,
+      queueChannelId: queueChannelId ?? null,
+      window: resolvedWindow,
+      metric: resolvedMetric,
+      minGamesPlayed: resolvedMinGamesPlayed,
+      page: resolvedPage,
+      pageSize: resolvedPageSize,
+      total: rankings.total,
+      rows: rankings.rows.map((row, index) => ({
+        rank: offset + index + 1,
+        xboxXuid: row.XboxXuid,
+        discordUserId: row.DiscordUserId,
+        gamertag: row.Gamertag,
+        seriesPlayed: row.SeriesPlayed,
+        seriesWins: row.SeriesWins,
+        gamesPlayed: row.GamesPlayed,
+        metricValue: this.toFiniteMetricValue(row.MetricValue),
+      })),
+    };
+  }
+
+  private toFiniteMetricValue(metricValue: number): number {
+    if (Number.isFinite(metricValue)) {
+      return metricValue;
+    }
+
+    return Number.MAX_VALUE;
+  }
+
+  private getWindowStartEpochSeconds(window: LeaderboardWindow): number {
+    const now = new Date();
+
+    switch (window) {
+      case LeaderboardWindow.OneWeek: {
+        return Math.floor(sub(now, { weeks: 1 }).getTime() / 1000);
+      }
+      case LeaderboardWindow.OneMonth: {
+        return Math.floor(sub(now, { months: 1 }).getTime() / 1000);
+      }
+      case LeaderboardWindow.ThreeMonths: {
+        return Math.floor(sub(now, { months: 3 }).getTime() / 1000);
+      }
+      case LeaderboardWindow.SixMonths: {
+        return Math.floor(sub(now, { months: 6 }).getTime() / 1000);
+      }
+      case LeaderboardWindow.TwelveMonths: {
+        return Math.floor(sub(now, { months: 12 }).getTime() / 1000);
+      }
+      default: {
+        throw new UnreachableError(window);
+      }
     }
   }
 
