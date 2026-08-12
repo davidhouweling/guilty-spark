@@ -2,9 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardRankingRow } from "../../database/types/leaderboard_ranking_row";
-import { aFakeDatabaseServiceWith, aFakeLeaderboardConfigRow } from "../../database/fakes/database.fake";
+import {
+  aFakeDatabaseServiceWith,
+  aFakeLeaderboardConfigRow,
+  aFakeNeatQueueConfigRow,
+} from "../../database/fakes/database.fake";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
+import { getMatchStats } from "../../halo/fakes/data";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
+import type { NeatQueueMatchCompletedRequest } from "../../neatqueue/types";
 import { LeaderboardService } from "../leaderboard";
 
 describe("LeaderboardService", () => {
@@ -194,5 +200,69 @@ describe("LeaderboardService", () => {
 
     expect(result.rows[0]?.gamertag).toBe("Bravo");
     expect(result.rows[0]?.metricValue).toBe(Number.MAX_VALUE);
+  });
+
+  it("skips persistence when no series matches are resolved", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    const upsertSpy = vi.spyOn(databaseService, "upsertLeaderboardSeriesDataBatch");
+    const infoSpy = vi.spyOn(logService, "info");
+
+    const request: NeatQueueMatchCompletedRequest = {
+      action: "MATCH_COMPLETED",
+      guild: "guild-1",
+      channel: "channel-1",
+      queue: "ranked",
+      match_number: 42,
+      winning_team_index: 0,
+      teams: [],
+    };
+
+    await service.persistSeriesData({
+      request,
+      neatQueueConfig: aFakeNeatQueueConfigRow(),
+      series: [],
+      locale: "en-US",
+    });
+
+    expect(upsertSpy).not.toHaveBeenCalled();
+    expect(infoSpy).toHaveBeenCalledWith(
+      "Leaderboard persistence skipped because series data is empty",
+      expect.any(Map),
+    );
+  });
+
+  it("skips persistence when winning team index is unresolved", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    const upsertSpy = vi.spyOn(databaseService, "upsertLeaderboardSeriesDataBatch");
+    const infoSpy = vi.spyOn(logService, "info");
+
+    const request: NeatQueueMatchCompletedRequest = {
+      action: "MATCH_COMPLETED",
+      guild: "guild-1",
+      channel: "channel-1",
+      queue: "ranked",
+      match_number: 42,
+      winning_team_index: -1,
+      teams: [],
+    };
+
+    await service.persistSeriesData({
+      request,
+      neatQueueConfig: aFakeNeatQueueConfigRow(),
+      series: [Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"))],
+      locale: "en-US",
+    });
+
+    expect(upsertSpy).not.toHaveBeenCalled();
+    expect(infoSpy).toHaveBeenCalledWith(
+      "Leaderboard persistence skipped because winning team index is unresolved",
+      expect.any(Map),
+    );
   });
 });

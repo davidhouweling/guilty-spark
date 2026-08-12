@@ -45,11 +45,43 @@ export class LeaderboardService {
     series: MatchStats[];
     locale: string;
   }): Promise<void> {
-    if (series.length === 0 || request.winning_team_index === -1) {
+    if (series.length === 0) {
+      this.logService.info(
+        "Leaderboard persistence skipped because series data is empty",
+        new Map([
+          ["guildId", request.guild],
+          ["channelId", request.channel],
+          ["queueNumber", request.match_number.toString()],
+        ]),
+      );
+      return;
+    }
+
+    if (request.winning_team_index === -1) {
+      this.logService.info(
+        "Leaderboard persistence skipped because winning team index is unresolved",
+        new Map([
+          ["guildId", request.guild],
+          ["channelId", request.channel],
+          ["queueNumber", request.match_number.toString()],
+          ["winningTeamIndex", request.winning_team_index.toString()],
+        ]),
+      );
       return;
     }
 
     try {
+      this.logService.info(
+        "Starting leaderboard persistence for completed series",
+        new Map([
+          ["guildId", request.guild],
+          ["channelId", request.channel],
+          ["queueNumber", request.match_number.toString()],
+          ["seriesMatchCount", series.length.toString()],
+          ["queueChannelId", neatQueueConfig.ChannelId],
+        ]),
+      );
+
       const sortedSeries = [...series].sort((left, right) =>
         left.MatchInfo.StartTime.localeCompare(right.MatchInfo.StartTime),
       );
@@ -80,6 +112,17 @@ export class LeaderboardService {
       const associations = await this.databaseService.getDiscordAssociationsByXboxId(allXuids);
       const xuidToDiscordId = new Map(associations.map((association) => [association.XboxId, association.DiscordId]));
 
+      this.logService.debug(
+        "Resolved leaderboard identity mappings",
+        new Map([
+          ["guildId", request.guild],
+          ["queueNumber", request.match_number.toString()],
+          ["distinctXuidCount", allXuids.length.toString()],
+          ["gamertagMapCount", gamertagMap.size.toString()],
+          ["discordAssociationCount", associations.length.toString()],
+        ]),
+      );
+
       const { gamesRows, gamePlayerRows, seriesPlayerRows } = await this.buildLeaderboardRows({
         guildId: request.guild,
         queueNumber: request.match_number,
@@ -89,12 +132,32 @@ export class LeaderboardService {
         gamertagMap,
         xuidToDiscordId,
       });
+
+      this.logService.info(
+        "Prepared leaderboard row payloads",
+        new Map([
+          ["guildId", request.guild],
+          ["queueNumber", request.match_number.toString()],
+          ["gamesRowCount", gamesRows.length.toString()],
+          ["gamePlayerRowCount", gamePlayerRows.length.toString()],
+          ["seriesPlayerRowCount", seriesPlayerRows.length.toString()],
+        ]),
+      );
+
       await this.databaseService.upsertLeaderboardSeriesDataBatch({
         series: seriesRow,
         games: gamesRows,
         gamePlayers: gamePlayerRows,
         seriesPlayers: seriesPlayerRows,
       });
+
+      this.logService.info(
+        "Completed leaderboard persistence for series",
+        new Map([
+          ["guildId", request.guild],
+          ["queueNumber", request.match_number.toString()],
+        ]),
+      );
     } catch (error) {
       this.logService.warn(
         error,
