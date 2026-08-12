@@ -1233,16 +1233,6 @@ export class NeatQueueService {
         seriesSource = "timeline";
         series = await this.getSeriesDataFromTimeline(timeline, neatQueueConfig);
       }
-
-      this.logService.info(
-        "Resolved series data for MATCH_COMPLETED",
-        new Map([
-          ["guildId", request.guild],
-          ["queueNumber", request.match_number.toString()],
-          ["seriesSource", seriesSource],
-          ["seriesMatchCount", series.length.toString()],
-        ]),
-      );
     } catch (error) {
       this.logService.warn(
         error,
@@ -1262,6 +1252,16 @@ export class NeatQueueService {
     }
 
     if (!errorOccurred && series.length > 0) {
+      this.logService.info(
+        "Resolved series data for MATCH_COMPLETED",
+        new Map([
+          ["guildId", request.guild],
+          ["channelId", request.channel],
+          ["queueNumber", request.match_number.toString()],
+          ["seriesSource", seriesSource],
+          ["seriesMatchCount", series.length.toString()],
+        ]),
+      );
       this.logService.info(
         "Posting series data and triggering leaderboard persistence",
         new Map([
@@ -1288,6 +1288,7 @@ export class NeatQueueService {
         "No series data resolved for MATCH_COMPLETED; leaderboard persistence will not run",
         new Map([
           ["guildId", request.guild],
+          ["channelId", request.channel],
           ["queueNumber", request.match_number.toString()],
           ["seriesSource", seriesSource],
         ]),
@@ -1363,6 +1364,7 @@ export class NeatQueueService {
         "Live tracker is not active for MATCH_COMPLETED; falling back to timeline resolution",
         new Map([
           ["guildId", request.guild],
+          ["channelId", request.channel],
           ["queueNumber", request.match_number.toString()],
           ["status", liveTrackerStatus?.state.status ?? "not_found"],
         ]),
@@ -1375,6 +1377,7 @@ export class NeatQueueService {
       const failureDetails = this.getLiveTrackerRefreshFailureDetails(refreshResult);
       const logParams = new Map([
         ["guildId", request.guild],
+        ["channelId", request.channel],
         ["queueNumber", request.match_number.toString()],
       ]);
       for (const [key, value] of failureDetails) {

@@ -121,8 +121,9 @@ export class Server {
         if (jobToComplete) {
           ctx.waitUntil(
             jobToComplete().catch((error: unknown) => {
+              const normalizedError = error instanceof Error ? error : new Error(String(error));
               services.logService.error(
-                error,
+                normalizedError,
                 new Map([
                   ["reason", "NeatQueue background job failed"],
                   ["action", interaction.action],
@@ -130,7 +131,7 @@ export class Server {
                   ["channelId", neatQueueConfig.ChannelId],
                 ]),
               );
-              throw error;
+              throw normalizedError;
             }),
           );
         }
