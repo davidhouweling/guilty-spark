@@ -22,6 +22,7 @@ import type { LeaderboardConfigRow } from "./types/leaderboard_config";
 
 const DEFAULT_LEADERBOARD_ENABLED_WINDOWS_JSON = '["1W","1M","3M","6M","12M"]';
 const SQLITE_MAX_VARIABLES = 999;
+// Keep statement bind counts well below the D1/SQLite 999-variable ceiling in batch upserts.
 const D1_SAFE_MAX_VARIABLES_PER_STATEMENT = 100;
 
 interface LeaderboardRankingsQuery {
