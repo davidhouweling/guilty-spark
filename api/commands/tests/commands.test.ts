@@ -36,6 +36,9 @@ describe("getCommands", () => {
 
     const serviceRecordCommand = commandMap.get("servicerecord");
     expect(serviceRecordCommand).toBeDefined();
+
+    const leaderboardCommand = commandMap.get("leaderboard");
+    expect(leaderboardCommand).toBeDefined();
   });
 
   it("all commands have required data property", () => {
