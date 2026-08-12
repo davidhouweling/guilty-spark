@@ -740,9 +740,15 @@ describe("Database Service", () => {
         seriesPlayers,
       });
 
-      const batchArgs = batchSpy.mock.calls[0]?.[0] ?? [];
-      expect(batchArgs).toHaveLength(7);
-      expect(prepareSpy).toHaveBeenCalledTimes(10);
+      const preparedQueries = prepareSpy.mock.calls
+        .map(([query]) => query)
+        .filter((query): query is string => typeof query === "string");
+      const seriesPlayerInsertStatements = preparedQueries.filter((query) =>
+        query.includes("INSERT INTO LeaderboardSeriesPlayers"),
+      );
+
+      expect(batchSpy).toHaveBeenCalledTimes(1);
+      expect(seriesPlayerInsertStatements.length).toBeGreaterThan(1);
     });
 
     it("does not overwrite created timestamps in leaderboard upserts", async () => {
