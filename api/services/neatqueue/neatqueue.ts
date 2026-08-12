@@ -1244,7 +1244,7 @@ export class NeatQueueService {
         ]),
       );
     } catch (error) {
-      this.logService.info(
+      this.logService.warn(
         error,
         new Map([
           ["reason", "Failed to resolve series data for MATCH_COMPLETED"],
