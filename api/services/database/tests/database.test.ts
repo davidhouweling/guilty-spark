@@ -698,6 +698,59 @@ describe("Database Service", () => {
       expect(batchSpy).toHaveBeenCalledWith(batchedStatements);
     });
 
+    it("chunks series-player upserts to stay under D1 variable limits", async () => {
+      const series = aFakeLeaderboardSeriesRow();
+      const seriesPlayers = Array.from({ length: 80 }, (_, index) =>
+        aFakeLeaderboardSeriesPlayersRow({
+          XboxXuid: `xuid-${index.toString()}`,
+          DiscordUserId: `discord-${index.toString()}`,
+        }),
+      );
+      const games = [aFakeLeaderboardGamesRow()];
+      const gamePlayers = [aFakeLeaderboardGamePlayersRow()];
+
+      const existingGamesStmt = new FakePreparedStatement<{ MatchId: string; CreatedAt: number }>();
+      const existingGamePlayersStmt = new FakePreparedStatement<{
+        MatchId: string;
+        XboxXuid: string;
+        CreatedAt: number;
+      }>();
+      const existingSeriesPlayersStmt = new FakePreparedStatement<{ XboxXuid: string; CreatedAt: number }>();
+
+      const prepareSpy = vi
+        .spyOn(env.DB, "prepare")
+        .mockReturnValueOnce(existingGamesStmt)
+        .mockReturnValueOnce(existingGamePlayersStmt)
+        .mockReturnValueOnce(existingSeriesPlayersStmt)
+        .mockImplementation(() => new FakePreparedStatement());
+
+      vi.spyOn(existingGamesStmt, "bind").mockReturnThis();
+      vi.spyOn(existingGamePlayersStmt, "bind").mockReturnThis();
+      vi.spyOn(existingSeriesPlayersStmt, "bind").mockReturnThis();
+      vi.spyOn(existingGamesStmt, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+      vi.spyOn(existingGamePlayersStmt, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+      vi.spyOn(existingSeriesPlayersStmt, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+
+      const batchSpy = vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
+
+      await databaseService.upsertLeaderboardSeriesDataBatch({
+        series,
+        games,
+        gamePlayers,
+        seriesPlayers,
+      });
+
+      const preparedQueries = prepareSpy.mock.calls
+        .map(([query]) => query)
+        .filter((query): query is string => typeof query === "string");
+      const seriesPlayerInsertStatements = preparedQueries.filter((query) =>
+        query.includes("INSERT INTO LeaderboardSeriesPlayers"),
+      );
+
+      expect(batchSpy).toHaveBeenCalledTimes(1);
+      expect(seriesPlayerInsertStatements.length).toBeGreaterThan(1);
+    });
+
     it("does not overwrite created timestamps in leaderboard upserts", async () => {
       const series = aFakeLeaderboardSeriesRow();
       const seriesPlayers = [aFakeLeaderboardSeriesPlayersRow()];

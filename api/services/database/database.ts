@@ -21,6 +21,7 @@ import type { LeaderboardRankingRow } from "./types/leaderboard_ranking_row";
 import type { LeaderboardConfigRow } from "./types/leaderboard_config";
 
 const DEFAULT_LEADERBOARD_ENABLED_WINDOWS_JSON = '["1W","1M","3M","6M","12M"]';
+const SQLITE_MAX_VARIABLES = 999;
 
 interface LeaderboardRankingsQuery {
   guildId: string;
@@ -441,9 +442,8 @@ export class DatabaseService {
       return;
     }
 
-    const sqliteMaxVariables = 999;
     const variablesPerRow = 26;
-    const maxRowsPerStatement = Math.floor(sqliteMaxVariables / variablesPerRow);
+    const maxRowsPerStatement = Math.floor(SQLITE_MAX_VARIABLES / variablesPerRow);
     const statements: D1PreparedStatement[] = [];
 
     for (let start = 0; start < players.length; start += maxRowsPerStatement) {
@@ -546,18 +546,9 @@ export class DatabaseService {
     );
     statements.push(upsertSeriesStmt);
 
-    const seriesPlayerXuids = [...new Set(normalizedSeriesPlayers.map((player) => player.XboxXuid))];
-    const deleteSeriesPlayersStmt =
-      seriesPlayerXuids.length === 0
-        ? this.DB.prepare("DELETE FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ?").bind(
-            series.GuildId,
-            series.QueueNumber,
-          )
-        : this.DB.prepare(
-            `DELETE FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ? AND XboxXuid NOT IN (${seriesPlayerXuids
-              .map(() => "?")
-              .join(",")})`,
-          ).bind(series.GuildId, series.QueueNumber, ...seriesPlayerXuids);
+    const deleteSeriesPlayersStmt = this.DB.prepare(
+      "DELETE FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ?",
+    ).bind(series.GuildId, series.QueueNumber);
     statements.push(deleteSeriesPlayersStmt);
 
     const deleteGamesStmt = this.DB.prepare("DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?").bind(
@@ -567,39 +558,44 @@ export class DatabaseService {
     statements.push(deleteGamesStmt);
 
     if (normalizedGames.length > 0) {
-      const gamesPlaceholders = normalizedGames.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(",");
-      const upsertGamesStmt = this.DB.prepare(
-        `
+      const variablesPerRow = 15;
+      const maxRowsPerStatement = Math.floor(SQLITE_MAX_VARIABLES / variablesPerRow);
+
+      for (let start = 0; start < normalizedGames.length; start += maxRowsPerStatement) {
+        const chunk = normalizedGames.slice(start, start + maxRowsPerStatement);
+        const gamesPlaceholders = chunk.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(",");
+        const upsertGamesStmt = this.DB.prepare(
+          `
       INSERT INTO LeaderboardGames (MatchId, GuildId, QueueNumber, QueueChannelId, GameIndexInSeries, GameVariantCategory, ModeName, MapName, MapAssetId, MapVersionId, Team0Score, Team1Score, StartedAt, EndedAt, CreatedAt)
       VALUES ${gamesPlaceholders}
       ON CONFLICT(GuildId, QueueNumber, MatchId) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, GameIndexInSeries=excluded.GameIndexInSeries, GameVariantCategory=excluded.GameVariantCategory, ModeName=excluded.ModeName, MapName=excluded.MapName, MapAssetId=excluded.MapAssetId, MapVersionId=excluded.MapVersionId, Team0Score=excluded.Team0Score, Team1Score=excluded.Team1Score, StartedAt=excluded.StartedAt, EndedAt=excluded.EndedAt
     `,
-      ).bind(
-        ...normalizedGames.flatMap((game) => [
-          game.MatchId,
-          game.GuildId,
-          game.QueueNumber,
-          game.QueueChannelId,
-          game.GameIndexInSeries,
-          game.GameVariantCategory,
-          game.ModeName,
-          game.MapName,
-          game.MapAssetId,
-          game.MapVersionId,
-          game.Team0Score,
-          game.Team1Score,
-          game.StartedAt,
-          game.EndedAt,
-          game.CreatedAt,
-        ]),
-      );
-      statements.push(upsertGamesStmt);
+        ).bind(
+          ...chunk.flatMap((game) => [
+            game.MatchId,
+            game.GuildId,
+            game.QueueNumber,
+            game.QueueChannelId,
+            game.GameIndexInSeries,
+            game.GameVariantCategory,
+            game.ModeName,
+            game.MapName,
+            game.MapAssetId,
+            game.MapVersionId,
+            game.Team0Score,
+            game.Team1Score,
+            game.StartedAt,
+            game.EndedAt,
+            game.CreatedAt,
+          ]),
+        );
+        statements.push(upsertGamesStmt);
+      }
     }
 
     if (normalizedGamePlayers.length > 0) {
-      const sqliteMaxVariables = 999;
       const variablesPerRow = 26;
-      const maxRowsPerStatement = Math.floor(sqliteMaxVariables / variablesPerRow);
+      const maxRowsPerStatement = Math.floor(SQLITE_MAX_VARIABLES / variablesPerRow);
 
       for (let start = 0; start < normalizedGamePlayers.length; start += maxRowsPerStatement) {
         const chunk = normalizedGamePlayers.slice(start, start + maxRowsPerStatement);
@@ -647,33 +643,37 @@ export class DatabaseService {
     }
 
     if (normalizedSeriesPlayers.length > 0) {
-      const seriesPlayersPlaceholders = normalizedSeriesPlayers
-        .map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .join(",");
-      const upsertSeriesPlayersStmt = this.DB.prepare(
-        `
+      const variablesPerRow = 13;
+      const maxRowsPerStatement = Math.floor(SQLITE_MAX_VARIABLES / variablesPerRow);
+
+      for (let start = 0; start < normalizedSeriesPlayers.length; start += maxRowsPerStatement) {
+        const chunk = normalizedSeriesPlayers.slice(start, start + maxRowsPerStatement);
+        const seriesPlayersPlaceholders = chunk.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(",");
+        const upsertSeriesPlayersStmt = this.DB.prepare(
+          `
       INSERT INTO LeaderboardSeriesPlayers (GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginningCount, SubstituteInCount, SubstituteOutCount, GamesPlayedCount, SeriesWon, CreatedAt)
       VALUES ${seriesPlayersPlaceholders}
       ON CONFLICT(GuildId, QueueNumber, XboxXuid) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginningCount=excluded.PresentAtBeginningCount, SubstituteInCount=excluded.SubstituteInCount, SubstituteOutCount=excluded.SubstituteOutCount, GamesPlayedCount=excluded.GamesPlayedCount, SeriesWon=excluded.SeriesWon
     `,
-      ).bind(
-        ...normalizedSeriesPlayers.flatMap((player) => [
-          player.GuildId,
-          player.QueueNumber,
-          player.QueueChannelId,
-          player.XboxXuid,
-          player.DiscordUserId,
-          player.GamertagSnapshot,
-          player.TeamId,
-          player.PresentAtBeginningCount,
-          player.SubstituteInCount,
-          player.SubstituteOutCount,
-          player.GamesPlayedCount,
-          player.SeriesWon,
-          player.CreatedAt,
-        ]),
-      );
-      statements.push(upsertSeriesPlayersStmt);
+        ).bind(
+          ...chunk.flatMap((player) => [
+            player.GuildId,
+            player.QueueNumber,
+            player.QueueChannelId,
+            player.XboxXuid,
+            player.DiscordUserId,
+            player.GamertagSnapshot,
+            player.TeamId,
+            player.PresentAtBeginningCount,
+            player.SubstituteInCount,
+            player.SubstituteOutCount,
+            player.GamesPlayedCount,
+            player.SeriesWon,
+            player.CreatedAt,
+          ]),
+        );
+        statements.push(upsertSeriesPlayersStmt);
+      }
     }
 
     await this.DB.batch(statements);
