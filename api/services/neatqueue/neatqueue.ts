@@ -1266,6 +1266,7 @@ export class NeatQueueService {
         "Posting series data and triggering leaderboard persistence",
         new Map([
           ["guildId", request.guild],
+          ["channelId", request.channel],
           ["queueNumber", request.match_number.toString()],
           ["postSeriesMode", neatQueueConfig.PostSeriesMode],
           ["seriesMatchCount", series.length.toString()],
@@ -1319,6 +1320,7 @@ export class NeatQueueService {
       "Completed NeatQueue MATCH_COMPLETED background job",
       new Map([
         ["guildId", request.guild],
+        ["channelId", request.channel],
         ["queueNumber", request.match_number.toString()],
       ]),
     );

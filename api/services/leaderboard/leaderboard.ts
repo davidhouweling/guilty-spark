@@ -50,6 +50,7 @@ export class LeaderboardService {
         "Leaderboard persistence skipped because series data is empty",
         new Map([
           ["guildId", request.guild],
+          ["channelId", request.channel],
           ["queueNumber", request.match_number.toString()],
         ]),
       );
@@ -61,6 +62,7 @@ export class LeaderboardService {
         "Leaderboard persistence skipped because winning team index is unresolved",
         new Map([
           ["guildId", request.guild],
+          ["channelId", request.channel],
           ["queueNumber", request.match_number.toString()],
           ["winningTeamIndex", request.winning_team_index.toString()],
         ]),
@@ -73,6 +75,7 @@ export class LeaderboardService {
         "Starting leaderboard persistence for completed series",
         new Map([
           ["guildId", request.guild],
+          ["channelId", request.channel],
           ["queueNumber", request.match_number.toString()],
           ["seriesMatchCount", series.length.toString()],
           ["queueChannelId", neatQueueConfig.ChannelId],
