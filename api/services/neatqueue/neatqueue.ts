@@ -1280,6 +1280,7 @@ export class NeatQueueService {
         "Completed series post flow for MATCH_COMPLETED",
         new Map([
           ["guildId", request.guild],
+          ["channelId", request.channel],
           ["queueNumber", request.match_number.toString()],
           ["postSeriesMode", neatQueueConfig.PostSeriesMode],
         ]),
@@ -1446,7 +1447,7 @@ export class NeatQueueService {
     if ("error" in refreshResult) {
       return new Map([
         ["error", refreshResult.error],
-        ["message", refreshResult.message],
+        ["refreshMessage", refreshResult.message],
       ]);
     }
 
