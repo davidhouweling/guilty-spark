@@ -811,9 +811,17 @@ describe("Database Service", () => {
       const seriesPlayerInsertStatements = preparedQueries.filter((query) =>
         query.includes("INSERT INTO LeaderboardSeriesPlayers"),
       );
+      const d1MaxBoundParametersPerStatement = 100;
+      const countBoundParameters = (sql: string): number => sql.split("?").length - 1;
 
       expect(gamePlayerInsertStatements.length).toBeGreaterThan(1);
       expect(seriesPlayerInsertStatements.length).toBeGreaterThan(1);
+      for (const query of gamePlayerInsertStatements) {
+        expect(countBoundParameters(query)).toBeLessThanOrEqual(d1MaxBoundParametersPerStatement);
+      }
+      for (const query of seriesPlayerInsertStatements) {
+        expect(countBoundParameters(query)).toBeLessThanOrEqual(d1MaxBoundParametersPerStatement);
+      }
     });
 
     it("does not overwrite created timestamps in leaderboard upserts", async () => {
