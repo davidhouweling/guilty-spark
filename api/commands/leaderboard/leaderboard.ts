@@ -374,7 +374,7 @@ export class LeaderboardCommand extends BaseCommand {
       fields: [
         {
           name: "Rankings",
-          value: rankingLines.length > 0 ? rankingLines.join("\n") : "No players qualify for this filter yet.",
+          value: this.getRankingContent(rankingLines, leaderboard.total),
           inline: false,
         },
       ],
@@ -503,10 +503,15 @@ export class LeaderboardCommand extends BaseCommand {
     const components = Preconditions.checkExists(interaction.message.components);
     const stateUrl = this.getStateUrlFromComponents(components);
     const params = new URL(stateUrl).searchParams;
+    const interactionGuildId = interaction.guild_id;
 
-    const guildId = params.get("guildId") ?? interaction.guild_id;
-    if (guildId == null || guildId === "") {
+    if (interactionGuildId == null || interactionGuildId === "") {
       throw new Error("Missing guildId in leaderboard interaction state");
+    }
+
+    const stateGuildId = params.get("guildId");
+    if (stateGuildId != null && stateGuildId !== "" && stateGuildId !== interactionGuildId) {
+      throw new Error("Leaderboard interaction state guild does not match this server");
     }
 
     const parsedWindow = this.parseWindowOption(params.get("window") ?? undefined);
@@ -520,13 +525,33 @@ export class LeaderboardCommand extends BaseCommand {
     const parsedMinGamesPlayed = Number.parseInt(params.get("minGamesPlayed") ?? "0", 10);
 
     return {
-      guildId,
-      queueChannelId: params.get("queueChannelId"),
+      guildId: interactionGuildId,
+      queueChannelId: this.parseQueueChannelId(params.get("queueChannelId")),
       window: parsedWindow,
       metric: parsedMetric,
       page: Number.isNaN(parsedPage) ? 1 : Math.max(1, parsedPage),
       minGamesPlayed: Number.isNaN(parsedMinGamesPlayed) ? 0 : Math.max(0, parsedMinGamesPlayed),
     };
+  }
+
+  private parseQueueChannelId(value: string | null): string | null {
+    if (value == null || value === "") {
+      return null;
+    }
+
+    return value;
+  }
+
+  private getRankingContent(rankingLines: string[], totalPlayers: number): string {
+    if (rankingLines.length > 0) {
+      return rankingLines.join("\n");
+    }
+
+    if (totalPlayers === 0) {
+      return "No players qualify for this filter yet.";
+    }
+
+    return "No players found on this page. Try a lower page number.";
   }
 
   private getStateUrlFromComponents(components: APIMessageTopLevelComponent[]): string {
