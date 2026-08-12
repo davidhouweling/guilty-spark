@@ -17,6 +17,7 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import type { SeriesStartedPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
+import type { LiveTrackerRefreshResponse } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
 import type { DatabaseService } from "../database/database";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config";
@@ -1243,7 +1244,16 @@ export class NeatQueueService {
         ]),
       );
     } catch (error) {
-      this.logService.info(error, new Map([["reason", "Failed to get series data from timeline"]]));
+      this.logService.info(
+        error,
+        new Map([
+          ["reason", "Failed to resolve series data for MATCH_COMPLETED"],
+          ["guildId", request.guild],
+          ["channelId", request.channel],
+          ["queueNumber", request.match_number.toString()],
+          ["seriesSource", seriesSource],
+        ]),
+      );
       errorOccurred = true;
 
       const handledError = error instanceof Error ? error : new Error(String(error));
@@ -1362,12 +1372,17 @@ export class NeatQueueService {
 
     const refreshResult = await this.liveTrackerService.refreshTracker(context, true);
     if (!isSuccessResponse(refreshResult)) {
+      const failureDetails = this.getLiveTrackerRefreshFailureDetails(refreshResult);
+      const logParams = new Map([
+        ["guildId", request.guild],
+        ["queueNumber", request.match_number.toString()],
+      ]);
+      for (const [key, value] of failureDetails) {
+        logParams.set(key, value);
+      }
       this.logService.warn(
         "Live tracker refresh failed for MATCH_COMPLETED; falling back to timeline resolution",
-        new Map([
-          ["guildId", request.guild],
-          ["queueNumber", request.match_number.toString()],
-        ]),
+        logParams,
       );
       return null;
     }
@@ -1420,6 +1435,17 @@ export class NeatQueueService {
     }
 
     return series.length > 0 ? series : null;
+  }
+
+  private getLiveTrackerRefreshFailureDetails(refreshResult: LiveTrackerRefreshResponse): Map<string, string> {
+    if ("error" in refreshResult) {
+      return new Map([
+        ["error", refreshResult.error],
+        ["message", refreshResult.message],
+      ]);
+    }
+
+    return new Map([["error", "refresh_unsuccessful_without_error_message"]]);
   }
 
   private async handlePostSeriesError(
