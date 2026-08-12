@@ -27,6 +27,7 @@ import { LeaderboardCommand } from "../leaderboard";
 
 const INTERACTION_PREV_PAGE = "btn_leaderboard_prev";
 const INTERACTION_METRIC_SELECT = "select_leaderboard_metric";
+const INTERACTION_WINDOW_SELECT = "select_leaderboard_window";
 
 function aStateComponentsWith(url: string): APIMessageTopLevelComponent[] {
   return [
@@ -284,6 +285,48 @@ describe("LeaderboardCommand", () => {
       page: 1,
       pageSize: 10,
       minGamesPlayed: 0,
+    });
+  });
+
+  it("switches window from string-select interaction and resets to page 1", async () => {
+    const stateUrl =
+      "https://guilty-spark.app/leaderboard?guildId=test-guild-id&window=1M&metric=KILLS&page=4&minGamesPlayed=2";
+    const interaction: APIMessageComponentSelectMenuInteraction = {
+      ...aWizardStringSelectWith({ customId: INTERACTION_WINDOW_SELECT, value: LeaderboardWindow.SixMonths }),
+      message: {
+        ...aWizardStringSelectWith({ customId: INTERACTION_WINDOW_SELECT, value: LeaderboardWindow.SixMonths }).message,
+        components: aStateComponentsWith(stateUrl),
+      },
+    };
+
+    const getLeaderboardSpy = vi.spyOn(services.leaderboardService, "getLeaderboard").mockResolvedValue({
+      guildId: "test-guild-id",
+      queueChannelId: null,
+      window: LeaderboardWindow.SixMonths,
+      metric: LeaderboardMetric.Kills,
+      minGamesPlayed: 2,
+      page: 1,
+      pageSize: 10,
+      total: 3,
+      rows: [],
+    });
+    vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      ...Preconditions.checkExists(interaction.message),
+      type: MessageType.Default,
+    });
+
+    const result = command.execute(interaction);
+
+    expect(result.response.type).toBe(InteractionResponseType.DeferredMessageUpdate);
+    await result.jobToComplete?.();
+
+    expect(getLeaderboardSpy).toHaveBeenCalledWith({
+      guildId: "test-guild-id",
+      window: LeaderboardWindow.SixMonths,
+      metric: LeaderboardMetric.Kills,
+      page: 1,
+      pageSize: 10,
+      minGamesPlayed: 2,
     });
   });
 

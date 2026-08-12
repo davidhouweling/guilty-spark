@@ -12,6 +12,7 @@ import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
   ButtonStyle,
+  ChannelType,
   ComponentType,
   InteractionContextType,
   InteractionType,
@@ -80,6 +81,7 @@ export class LeaderboardCommand extends BaseCommand {
               name: "queue_channel",
               description: "Limit ranking scope to a single queue channel",
               type: ApplicationCommandOptionType.Channel,
+              channel_types: [ChannelType.GuildText, ChannelType.GuildAnnouncement],
               required: false,
             },
             {
