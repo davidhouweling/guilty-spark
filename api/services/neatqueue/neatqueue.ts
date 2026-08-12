@@ -1223,14 +1223,14 @@ export class NeatQueueService {
 
     let series: MatchStats[] = [];
     let errorOccurred = false;
-    let seriesSource = "timeline";
+    let seriesSource = "live-tracker";
 
     try {
       const liveTrackerSeries = await this.resolveSeriesFromLiveTracker(request);
       if (liveTrackerSeries != null) {
         series = liveTrackerSeries;
-        seriesSource = "live-tracker";
       } else {
+        seriesSource = "timeline";
         series = await this.getSeriesDataFromTimeline(timeline, neatQueueConfig);
       }
 
