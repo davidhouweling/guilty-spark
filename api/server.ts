@@ -130,6 +130,7 @@ export class Server {
                   ["channelId", neatQueueConfig.ChannelId],
                 ]),
               );
+              throw error;
             }),
           );
         }
