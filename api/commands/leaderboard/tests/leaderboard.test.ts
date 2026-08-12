@@ -194,6 +194,57 @@ describe("LeaderboardCommand", () => {
     expect(linkUrl).toContain("page=2");
   });
 
+  it("uses service defaults when leaderboard options are omitted", async () => {
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "show",
+      options: [],
+      mappedOptions: new Map<string, string | number>(),
+    });
+
+    const getLeaderboardSpy = vi.spyOn(services.leaderboardService, "getLeaderboard").mockResolvedValue({
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.Kda,
+      minGamesPlayed: 2,
+      page: 1,
+      pageSize: 10,
+      total: 0,
+      rows: [],
+    });
+    vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      ...fakeButtonClickInteraction.message,
+      type: MessageType.Default,
+    });
+
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      guild_id: "guild-123",
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [
+          {
+            type: ApplicationCommandOptionType.Subcommand,
+            name: "show",
+            options: [],
+          },
+        ],
+      },
+    };
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(getLeaderboardSpy).toHaveBeenCalledWith({
+      guildId: "guild-123",
+      page: 1,
+      pageSize: 10,
+    });
+  });
+
   it("paginates from interaction state when previous button is pressed", async () => {
     const stateUrl =
       "https://guilty-spark.app/leaderboard?guildId=guild-123&queueChannelId=queue-123&window=3M&metric=KILLS&page=2&minGamesPlayed=4";
@@ -394,5 +445,43 @@ describe("LeaderboardCommand", () => {
 
     const [, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
     expect(payload.embeds?.[0]?.fields?.[0]?.value).toBe("No players qualify for this filter yet.");
+  });
+
+  it("updates deferred reply with error when leaderboard refresh fails", async () => {
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "show",
+      options: [],
+      mappedOptions: new Map<string, string | number>(),
+    });
+    const error = new Error("Leaderboard service failed");
+    vi.spyOn(services.leaderboardService, "getLeaderboard").mockRejectedValue(error);
+    const updateDeferredReplyWithErrorSpy = vi
+      .spyOn(services.discordService, "updateDeferredReplyWithError")
+      .mockResolvedValue(undefined);
+    const logErrorSpy = vi.spyOn(services.logService, "error");
+
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      guild_id: "guild-123",
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [
+          {
+            type: ApplicationCommandOptionType.Subcommand,
+            name: "show",
+            options: [],
+          },
+        ],
+      },
+    };
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(logErrorSpy).toHaveBeenCalledWith(error);
+    expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(interaction.token, error);
   });
 });

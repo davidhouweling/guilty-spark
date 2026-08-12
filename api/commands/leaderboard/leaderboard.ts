@@ -57,10 +57,10 @@ const METRIC_OPTIONS_BY_VALUE = new Map<string, LeaderboardMetric>([
 interface LeaderboardViewState {
   guildId: string;
   queueChannelId: string | null;
-  window: LeaderboardWindow;
-  metric: LeaderboardMetric;
+  window?: LeaderboardWindow;
+  metric?: LeaderboardMetric;
   page: number;
-  minGamesPlayed: number;
+  minGamesPlayed?: number;
 }
 
 export class LeaderboardCommand extends BaseCommand {
@@ -230,15 +230,15 @@ export class LeaderboardCommand extends BaseCommand {
     const window = this.parseWindowOption(this.getOptionalStringOption(options, "window"));
     const metric = this.parseMetricOption(this.getOptionalStringOption(options, "metric"));
     const page = this.getOptionalNumberOption(options, "page") ?? 1;
-    const minGamesPlayed = this.getOptionalNumberOption(options, "min_games_played") ?? 0;
+    const minGamesPlayed = this.getOptionalNumberOption(options, "min_games_played");
 
     await this.refreshLeaderboard(interaction.token, interaction.locale, {
       guildId,
       queueChannelId,
-      window: window ?? LeaderboardWindow.ThreeMonths,
-      metric: metric ?? LeaderboardMetric.SeriesWinRate,
+      ...(window != null ? { window } : {}),
+      ...(metric != null ? { metric } : {}),
       page,
-      minGamesPlayed,
+      ...(minGamesPlayed != null ? { minGamesPlayed } : {}),
     });
   }
 
@@ -298,18 +298,23 @@ export class LeaderboardCommand extends BaseCommand {
   }
 
   private async refreshLeaderboard(token: string, locale: string, state: LeaderboardViewState): Promise<void> {
-    const leaderboard = await this.services.leaderboardService.getLeaderboard({
-      guildId: state.guildId,
-      ...(state.queueChannelId != null ? { queueChannelId: state.queueChannelId } : {}),
-      window: state.window,
-      metric: state.metric,
-      page: state.page,
-      pageSize: DEFAULT_PAGE_SIZE,
-      minGamesPlayed: state.minGamesPlayed,
-    });
+    try {
+      const leaderboard = await this.services.leaderboardService.getLeaderboard({
+        guildId: state.guildId,
+        ...(state.queueChannelId != null ? { queueChannelId: state.queueChannelId } : {}),
+        ...(state.window != null ? { window: state.window } : {}),
+        ...(state.metric != null ? { metric: state.metric } : {}),
+        page: state.page,
+        pageSize: DEFAULT_PAGE_SIZE,
+        ...(state.minGamesPlayed != null ? { minGamesPlayed: state.minGamesPlayed } : {}),
+      });
 
-    const response = this.createLeaderboardResponse(locale, leaderboard);
-    await this.services.discordService.updateDeferredReply(token, response);
+      const response = this.createLeaderboardResponse(locale, leaderboard);
+      await this.services.discordService.updateDeferredReply(token, response);
+    } catch (error) {
+      this.services.logService.error(error);
+      await this.services.discordService.updateDeferredReplyWithError(token, error);
+    }
   }
 
   private createLeaderboardResponse(
