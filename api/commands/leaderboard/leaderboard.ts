@@ -250,11 +250,10 @@ export class LeaderboardCommand extends BaseCommand {
       throw new Error("Unexpected component type for leaderboard page action");
     }
 
-    const state = this.getStateFromInteractionMessage(interaction);
-    await this.refreshLeaderboard(interaction.token, interaction.locale, {
+    await this.executeStateInteraction(interaction, (state) => ({
       ...state,
       page: Math.max(1, state.page + delta),
-    });
+    }));
   }
 
   private async handleMetricSelect(
@@ -269,12 +268,11 @@ export class LeaderboardCommand extends BaseCommand {
       throw new Error("Leaderboard metric selection is missing");
     }
 
-    const state = this.getStateFromInteractionMessage(interaction);
-    await this.refreshLeaderboard(interaction.token, interaction.locale, {
+    await this.executeStateInteraction(interaction, (state) => ({
       ...state,
       metric: selectedMetric,
       page: 1,
-    });
+    }));
   }
 
   private async handleWindowSelect(
@@ -289,12 +287,48 @@ export class LeaderboardCommand extends BaseCommand {
       throw new Error("Leaderboard window selection is missing");
     }
 
-    const state = this.getStateFromInteractionMessage(interaction);
-    await this.refreshLeaderboard(interaction.token, interaction.locale, {
+    await this.executeStateInteraction(interaction, (state) => ({
       ...state,
       window: selectedWindow,
       page: 1,
-    });
+    }));
+  }
+
+  private async executeStateInteraction(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+    stateUpdater: (state: LeaderboardViewState) => LeaderboardViewState,
+  ): Promise<void> {
+    try {
+      await this.assertCanUseLeaderboardControls(interaction);
+      const state = this.getStateFromInteractionMessage(interaction);
+      await this.refreshLeaderboard(interaction.token, interaction.locale, stateUpdater(state));
+    } catch (error) {
+      this.services.logService.error(error);
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async assertCanUseLeaderboardControls(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+  ): Promise<void> {
+    const guildId = interaction.guild_id;
+    if (guildId == null || guildId === "") {
+      throw new EndUserError("Leaderboard controls can only be used inside a server.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+
+    const userId = this.services.discordService.getDiscordUserId(interaction);
+    const permissions = await this.services.discordService.computeMemberPermissions(guildId, userId);
+    const hasManageGuildPermission = (permissions & PermissionFlagsBits.ManageGuild) !== 0n;
+
+    if (!hasManageGuildPermission) {
+      throw new EndUserError("You need the Manage Server permission to use leaderboard controls.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
   }
 
   private async refreshLeaderboard(token: string, locale: string, state: LeaderboardViewState): Promise<void> {

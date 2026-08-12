@@ -13,6 +13,7 @@ import {
   InteractionResponseType,
   InteractionType,
   MessageType,
+  PermissionFlagsBits,
 } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
@@ -26,6 +27,7 @@ import {
 import { LeaderboardCommand } from "../leaderboard";
 
 const INTERACTION_PREV_PAGE = "btn_leaderboard_prev";
+const INTERACTION_NEXT_PAGE = "btn_leaderboard_next";
 const INTERACTION_METRIC_SELECT = "select_leaderboard_metric";
 const INTERACTION_WINDOW_SELECT = "select_leaderboard_window";
 
@@ -78,6 +80,7 @@ describe("LeaderboardCommand", () => {
     env = aFakeEnvWith();
     services = installFakeServicesWith({ env });
     command = new LeaderboardCommand(services, env);
+    vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValue(PermissionFlagsBits.ManageGuild);
   });
 
   it("registers leaderboard show subcommand", () => {
@@ -297,6 +300,58 @@ describe("LeaderboardCommand", () => {
     });
   });
 
+  it("paginates from interaction state when next button is pressed", async () => {
+    const stateUrl =
+      "https://guilty-spark.app/leaderboard?guildId=guild-123&queueChannelId=queue-123&window=3M&metric=KILLS&page=2&minGamesPlayed=4";
+    const interaction: APIMessageComponentButtonInteraction = {
+      ...fakeButtonClickInteraction,
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(fakeButtonClickInteraction.guild),
+        id: "guild-123",
+      },
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: INTERACTION_NEXT_PAGE,
+      },
+      message: {
+        ...fakeButtonClickInteraction.message,
+        components: aStateComponentsWith(stateUrl),
+      },
+    };
+
+    const getLeaderboardSpy = vi.spyOn(services.leaderboardService, "getLeaderboard").mockResolvedValue({
+      guildId: "guild-123",
+      queueChannelId: "queue-123",
+      window: LeaderboardWindow.ThreeMonths,
+      metric: LeaderboardMetric.Kills,
+      minGamesPlayed: 4,
+      page: 3,
+      pageSize: 10,
+      total: 30,
+      rows: [],
+    });
+    vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      ...fakeButtonClickInteraction.message,
+      type: MessageType.Default,
+    });
+
+    const result = command.execute(interaction);
+
+    expect(result.response.type).toBe(InteractionResponseType.DeferredMessageUpdate);
+    await result.jobToComplete?.();
+
+    expect(getLeaderboardSpy).toHaveBeenCalledWith({
+      guildId: "guild-123",
+      queueChannelId: "queue-123",
+      window: LeaderboardWindow.ThreeMonths,
+      metric: LeaderboardMetric.Kills,
+      page: 3,
+      pageSize: 10,
+      minGamesPlayed: 4,
+    });
+  });
+
   it("switches metric from string-select interaction and resets to page 1", async () => {
     const stateUrl =
       "https://guilty-spark.app/leaderboard?guildId=test-guild-id&window=1M&metric=SERIES_WIN_RATE&page=6&minGamesPlayed=0";
@@ -483,5 +538,39 @@ describe("LeaderboardCommand", () => {
 
     expect(logErrorSpy).toHaveBeenCalledWith(error);
     expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(interaction.token, error);
+  });
+
+  it("updates deferred reply with error when interaction state cannot be parsed", async () => {
+    const interaction: APIMessageComponentButtonInteraction = {
+      ...fakeButtonClickInteraction,
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(fakeButtonClickInteraction.guild),
+        id: "guild-123",
+      },
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: INTERACTION_PREV_PAGE,
+      },
+      message: {
+        ...fakeButtonClickInteraction.message,
+        components: aStateComponentsWith("https://guilty-spark.app/leaderboard?guildId=guild-123&page=2"),
+      },
+    };
+
+    const updateDeferredReplyWithErrorSpy = vi
+      .spyOn(services.discordService, "updateDeferredReplyWithError")
+      .mockResolvedValue(undefined);
+    const logErrorSpy = vi.spyOn(services.logService, "error");
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(logErrorSpy).toHaveBeenCalledTimes(1);
+    expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledTimes(1);
+    expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({ message: "Missing leaderboard filter state from interaction" }),
+    );
   });
 });
