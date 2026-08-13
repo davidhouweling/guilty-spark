@@ -1,7 +1,7 @@
 import type {
   APIEmbed,
-  APIInteractionResponseCallbackData,
   APIMessageTopLevelComponent,
+  RESTPostAPIChannelMessageJSONBody,
   APISelectMenuOption,
 } from "discord-api-types/v10";
 import { ButtonStyle, ComponentType } from "discord-api-types/v10";
@@ -271,7 +271,7 @@ function createComponents(leaderboard: LeaderboardResponse): APIMessageTopLevelC
 export function createLeaderboardResponse(
   locale: string,
   leaderboard: LeaderboardResponse,
-): APIInteractionResponseCallbackData {
+): RESTPostAPIChannelMessageJSONBody {
   const rows = leaderboard.rows.slice(0, MAX_ROWS_IN_DISCORD_EMBED);
   const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
   const metricLabel = getMetricLabel(leaderboard.metric);
