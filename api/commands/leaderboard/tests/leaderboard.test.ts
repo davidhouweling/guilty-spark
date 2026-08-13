@@ -1016,6 +1016,41 @@ describe("LeaderboardCommand", () => {
     );
   });
 
+  it("updates deferred reply with error when interaction state URL is malformed", async () => {
+    const interaction: APIMessageComponentButtonInteraction = {
+      ...fakeButtonClickInteraction,
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(fakeButtonClickInteraction.guild),
+        id: "guild-123",
+      },
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: INTERACTION_PREV_PAGE,
+      },
+      message: {
+        ...fakeButtonClickInteraction.message,
+        components: aStateComponentsWith("https://%/leaderboard?window=3M&metric=KILLS&page=1"),
+      },
+    };
+
+    const updateDeferredReplyWithErrorSpy = vi
+      .spyOn(services.discordService, "updateDeferredReplyWithError")
+      .mockResolvedValue(undefined);
+    const logErrorSpy = vi.spyOn(services.logService, "error");
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(logErrorSpy).not.toHaveBeenCalled();
+    expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({
+        endUserMessage: "This leaderboard message has invalid filter settings. Run /leaderboard show again.",
+      }),
+    );
+  });
+
   it("updates deferred reply with error when interaction state guildId mismatches the interaction guild", async () => {
     const interaction: APIMessageComponentButtonInteraction = {
       ...fakeButtonClickInteraction,

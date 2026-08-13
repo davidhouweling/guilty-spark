@@ -548,7 +548,7 @@ export class LeaderboardCommand extends BaseCommand {
     }
 
     const stateUrl = this.getStateUrlFromComponents(components);
-    const params = new URL(stateUrl).searchParams;
+    const params = this.getStateQueryParams(stateUrl);
     const interactionGuildId = interaction.guild_id;
 
     if (interactionGuildId == null || interactionGuildId === "") {
@@ -595,6 +595,17 @@ export class LeaderboardCommand extends BaseCommand {
     }
 
     return value;
+  }
+
+  private getStateQueryParams(stateUrl: string): URLSearchParams {
+    try {
+      return new URL(stateUrl).searchParams;
+    } catch {
+      throw new EndUserError("This leaderboard message has invalid filter settings. Run /leaderboard show again.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
   }
 
   private getRankingContent(rankingLines: string[], totalPlayers: number): string {
