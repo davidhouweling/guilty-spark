@@ -1,5 +1,5 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import type { ObjectiveControlProgressionEvent } from "./types";
+import type { ObjectiveControlPeriod, ObjectiveControlProgressionEvent } from "./types";
 
 export const MIN_CAPTURE_TICKS = 5;
 // A capture relocates the hill, so no team can score for the travel time afterwards. Ticks arrive
@@ -12,13 +12,16 @@ interface CaptureStep {
   eventIndex: number;
   perHillTicks: number;
   overtakenTeams: number;
+  byte2Contradicted: boolean;
 }
 
 interface AssignmentScore {
   capturesPlaced: number;
   violations: number;
+  byte2Contradictions: number;
   variance: number;
   totalTicks: number;
+  timestampSum: number;
 }
 
 function compareAssignmentScores(a: AssignmentScore, b: AssignmentScore): number {
@@ -28,10 +31,18 @@ function compareAssignmentScores(a: AssignmentScore, b: AssignmentScore): number
   if (a.violations !== b.violations) {
     return a.violations - b.violations;
   }
+  if (a.byte2Contradictions !== b.byte2Contradictions) {
+    return a.byte2Contradictions - b.byte2Contradictions;
+  }
   if (a.variance !== b.variance) {
     return a.variance - b.variance;
   }
-  return b.totalTicks - a.totalTicks;
+  if (a.totalTicks !== b.totalTicks) {
+    return b.totalTicks - a.totalTicks;
+  }
+  // Later boundaries attribute ambiguous ticks to the earlier hill — the capture meter only
+  // completes once it is genuinely full, so extra same-hill scoring outranks an early split.
+  return b.timestampSum - a.timestampSum;
 }
 
 function varianceOf(counts: readonly number[]): number {
@@ -44,6 +55,7 @@ function varianceOf(counts: readonly number[]): number {
 
 class KothCaptureSearch {
   private readonly events: readonly ObjectiveControlProgressionEvent[];
+  private readonly controlPeriods: readonly ObjectiveControlPeriod[];
   private readonly remainingCaptures: Map<number, number>;
   private readonly steps: CaptureStep[] = [];
   private visitedNodes = 0;
@@ -52,9 +64,11 @@ class KothCaptureSearch {
   constructor(
     events: readonly ObjectiveControlProgressionEvent[],
     targetCapturesByTeam: ReadonlyMap<number, number>,
+    controlPeriods: readonly ObjectiveControlPeriod[],
   ) {
     this.events = events;
     this.remainingCaptures = new Map(targetCapturesByTeam);
+    this.controlPeriods = controlPeriods;
   }
 
   run(): number[] {
@@ -76,8 +90,7 @@ class KothCaptureSearch {
       if (remainingForTeam <= 0) {
         continue;
       }
-      const perHillTicks =
-        (event.runningScores[String(event.teamId)] ?? 0) - (hillBaseline[String(event.teamId)] ?? 0);
+      const perHillTicks = (event.runningScores[String(event.teamId)] ?? 0) - (hillBaseline[String(event.teamId)] ?? 0);
       if (perHillTicks < MIN_CAPTURE_TICKS) {
         continue;
       }
@@ -90,6 +103,7 @@ class KothCaptureSearch {
         eventIndex: index,
         perHillTicks,
         overtakenTeams: this.countOvertakenTeams(event, hillBaseline, perHillTicks),
+        byte2Contradicted: this.isContradictedByControlPeriods(event),
       });
       this.remainingCaptures.set(event.teamId, remainingForTeam - 1);
       this.explore(index + 1, event.runningScores);
@@ -114,20 +128,29 @@ class KothCaptureSearch {
       if (Number(teamIdKey) === event.teamId) {
         continue;
       }
-      if (cumulative - (hillBaseline[teamIdKey] ?? 0) >= perHillTicks) {
+      // Strictly greater: equal tick counts are common dedup jitter, not an implausibility.
+      if (cumulative - (hillBaseline[teamIdKey] ?? 0) > perHillTicks) {
         overtaken += 1;
       }
     }
     return overtaken;
   }
 
+  // Control periods attribute each film window to the team with the majority of mode events in
+  // it, so a capture tick sitting inside a window dominated by another team is an outlier —
+  // almost always an artefact of reading a hill boundary into the middle of an opponent's run.
+  private isContradictedByControlPeriods(event: ObjectiveControlProgressionEvent): boolean {
+    const containing = this.controlPeriods.find(
+      (period) => period.startMs <= event.timestampMs && event.timestampMs < period.endMs,
+    );
+    return containing?.controllingTeamId != null && containing.controllingTeamId !== event.teamId;
+  }
+
   private recordCandidate(hillBaseline: Record<string, number>): void {
     const score = this.scoreCurrentAssignment(hillBaseline);
     if (this.best == null || compareAssignmentScores(score, this.best.score) < 0) {
       this.best = {
-        timestamps: this.steps.map(
-          (step) => Preconditions.checkExists(this.events[step.eventIndex]).timestampMs,
-        ),
+        timestamps: this.steps.map((step) => Preconditions.checkExists(this.events[step.eventIndex]).timestampMs),
         score,
       };
     }
@@ -141,8 +164,13 @@ class KothCaptureSearch {
     return {
       capturesPlaced: perHillCounts.length,
       violations,
+      byte2Contradictions: this.steps.reduce((acc, step) => acc + (step.byte2Contradicted ? 1 : 0), 0),
       variance: varianceOf(perHillCounts),
       totalTicks: perHillCounts.reduce((acc, count) => acc + count, 0),
+      timestampSum: this.steps.reduce(
+        (acc, step) => acc + Preconditions.checkExists(this.events[step.eventIndex]).timestampMs,
+        0,
+      ),
     };
   }
 
@@ -164,15 +192,18 @@ class KothCaptureSearch {
 
 /**
  * Finds the most plausible ordered set of hill-capture events given each team's known capture
- * count (match score). A capture candidate is a score tick whose per-hill tick count has reached
- * MIN_CAPTURE_TICKS and that is followed by a relocation-sized quiet gap. Among assignments that
- * place the most captures, prefers fewest physical implausibilities (another team holding more
- * per-hill ticks than the capturer, or a trailing uncaptured hill with capture-worthy ticks),
- * then the most uniform per-capture tick counts (the capture meter fills at a fixed rate).
+ * count (match score, minus any hills pre-awarded in the lobby). A capture candidate is a score
+ * tick whose per-hill tick count has reached MIN_CAPTURE_TICKS and that is followed by a
+ * relocation-sized quiet gap. Among assignments that place the most captures, prefers fewest
+ * physical implausibilities (another team holding more per-hill ticks than the capturer, or a
+ * trailing uncaptured hill with capture-worthy ticks), then fewest byte2 control-period
+ * contradictions, then the most uniform per-capture tick counts (the capture meter fills at a
+ * fixed rate).
  */
 export function findBestKothCaptureAssignment(
   events: readonly ObjectiveControlProgressionEvent[],
   targetCapturesByTeam: ReadonlyMap<number, number>,
+  controlPeriods: readonly ObjectiveControlPeriod[],
 ): number[] {
-  return new KothCaptureSearch(events, targetCapturesByTeam).run();
+  return new KothCaptureSearch(events, targetCapturesByTeam, controlPeriods).run();
 }

@@ -512,6 +512,29 @@ describe("formatScoreProgression", () => {
       expect(result?.kothHills?.[1]?.winnerTeamId).toBe(1);
     });
 
+    it("discards a sub-2-second trailing sliver when the match ends on the final capture", () => {
+      const data = aFakeScoreProgressionWith({
+        mode: KOTH_MODE,
+        durationMs: 60000,
+        timeline: {
+          type: "objective-control",
+          events: [
+            { timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+            { timestampMs: 59100, teamId: 1, runningScores: { "0": 1, "1": 1 } },
+          ],
+          controlPeriods: [
+            { startMs: 0, endMs: 30000, controllingTeamId: 0 },
+            { startMs: 30000, endMs: 60000, controllingTeamId: 1 },
+          ],
+          hillCaptureTimestamps: [30000, 59100],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.kothHills).toHaveLength(2);
+      expect(result?.kothHills?.[1]?.endMs).toBe(59100);
+      expect(result?.kothHills?.[1]?.winnerTeamId).toBe(1);
+    });
+
     it("returns a single uncaptured hill when hillCaptureTimestamps is empty", () => {
       const data = aFakeScoreProgressionWith({
         mode: KOTH_MODE,

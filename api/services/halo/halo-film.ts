@@ -48,6 +48,11 @@ interface FilmAttributionData {
 }
 
 const OBJECTIVE_TICK_DEDUP_MS = 2_500;
+// A hill capture requires ~40 seconds of scoring meter (HCS King of the Hill settings), and
+// ZonesStats counts one StrongholdScoringTick per scoring second. A team's match score can also
+// include hills pre-awarded in the lobby (e.g. resuming an abandoned series game) which never
+// appear in the film, so a team's in-film captures can never exceed scoringTicks / 40.
+const SCORING_TICKS_PER_CAPTURE = 40;
 const GAMEPLAY_BYTE2_MIN = 0x40;
 const GAMEPLAY_BYTE2_MAX = 0xa0;
 
@@ -170,14 +175,26 @@ export class HaloFilmService {
     ]);
     const modeEvents = events.filter((e) => e.eventType === "mode");
     const knownTeamIds = new Set<number>(matchStats.Teams.map((team) => team.TeamId));
-    const teamMatchScores = new Map(matchStats.Teams.map((t) => [t.TeamId, t.Stats.CoreStats.Score]));
     return this.buildObjectiveControlProgressionFromData(
       modeEvents,
       byte2Transitions,
       knownTeamIds,
-      teamMatchScores,
+      this.buildTeamCaptureTargets(matchStats),
       durationMs,
     );
+  }
+
+  private buildTeamCaptureTargets(matchStats: MatchStats): Map<number, number> {
+    const targets = new Map<number, number>();
+    for (const team of matchStats.Teams) {
+      const matchScore = team.Stats.CoreStats.Score;
+      const maxInFilmCaptures =
+        "ZonesStats" in team.Stats
+          ? Math.floor(team.Stats.ZonesStats.StrongholdScoringTicks / SCORING_TICKS_PER_CAPTURE)
+          : matchScore;
+      targets.set(team.TeamId, Math.min(matchScore, maxInFilmCaptures));
+    }
+    return targets;
   }
 
   async getStateByte2Transitions(matchId: string): Promise<StateByte2Transition[]> {
@@ -218,7 +235,7 @@ export class HaloFilmService {
     modeEvents: ParsedHighlightEvent[],
     byte2Transitions: StateByte2Transition[],
     knownTeamIds: ReadonlySet<number>,
-    teamMatchScores: ReadonlyMap<number, number>,
+    targetCapturesByTeam: ReadonlyMap<number, number>,
     durationMs: number,
   ): ObjectiveControlProgression {
     const events = this.buildObjectiveScoreEvents(modeEvents, knownTeamIds);
@@ -226,16 +243,9 @@ export class HaloFilmService {
     return {
       events,
       controlPeriods,
-      hillCaptureTimestamps: this.buildHillCaptureTimestamps(events, teamMatchScores),
+      hillCaptureTimestamps: findBestKothCaptureAssignment(events, targetCapturesByTeam, controlPeriods),
       teamCount: knownTeamIds.size,
     };
-  }
-
-  private buildHillCaptureTimestamps(
-    events: ObjectiveControlProgressionEvent[],
-    teamMatchScores: ReadonlyMap<number, number>,
-  ): number[] {
-    return findBestKothCaptureAssignment(events, teamMatchScores);
   }
 
   private buildObjectiveScoreEvents(

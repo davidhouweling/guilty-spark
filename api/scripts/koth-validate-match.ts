@@ -196,6 +196,14 @@ const EXPECTED: Record<string, string[]> = {
     "Hill 4: never captured, ~9:36 end, Eagle 20% meter, Cobra 10% meter",
     "Final score: 2:1 Eagle",
   ],
+  "3a1dd96b-35e8-46e4-997a-abe592ad195a": [
+    "Eagle started with 1 pre-awarded hill (lobby-configured) — only 4 in-film hills",
+    "Hill 1: ~2:45 end, Cobra wins, Eagle meter was at ~95%",
+    "Hill 2: ~4:42 end, Eagle wins, Cobra ~50%",
+    "Hill 3: ~6:34 end, Eagle wins, Cobra ~85-90%",
+    "Hill 4: ~8:14 end, Eagle wins, Cobra ~80% — capture ends the match",
+    "Final score: 4:1 Eagle (3:1 in-film)",
+  ],
 };
 const expected = EXPECTED[MATCH_ID] ?? ["(no expected data for this match ID)"];
 console.log("\n=== EXPECTED (from user) ===");

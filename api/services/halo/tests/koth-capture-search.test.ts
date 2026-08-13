@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ObjectiveControlProgressionEvent } from "../types";
+import type { ObjectiveControlPeriod, ObjectiveControlProgressionEvent } from "../types";
 import { findBestKothCaptureAssignment } from "../koth-capture-search";
 
 function eventsFromTicks(ticksByTeam: ReadonlyMap<number, readonly number[]>): ObjectiveControlProgressionEvent[] {
@@ -16,6 +16,10 @@ function eventsFromTicks(ticksByTeam: ReadonlyMap<number, readonly number[]>): O
     running.set(teamId, (running.get(teamId) ?? 0) + 1);
     return { timestampMs, teamId, runningScores: Object.fromEntries(running) };
   });
+}
+
+function controlPeriod(startMs: number, endMs: number, controllingTeamId: number | null): ObjectiveControlPeriod {
+  return { startMs, endMs, controllingTeamId };
 }
 
 // Real match 5c39e8a4-1986-4221-8c9e-dbb46fdfe2ca (2:1 Eagle). Captures verified against
@@ -50,6 +54,47 @@ const MATCH_72C3_TICKS = new Map<number, readonly number[]>([
   ],
 ]);
 
+// Simplified from the match's byte2 film data: the Cobra scoring run at 2:51–3:30 means an
+// Eagle capture read at 3:29 (209993) would sit inside an opponent-controlled window.
+const MATCH_72C3_CONTROL_PERIODS: ObjectiveControlPeriod[] = [
+  controlPeriod(156000, 158000, 0),
+  controlPeriod(171000, 210000, 1),
+  controlPeriod(227000, 297000, 0),
+  controlPeriod(396000, 425000, 0),
+];
+
+// Real match 3a1dd96b-35e8-46e4-997a-abe592ad195a (4:1 Eagle, one Eagle hill pre-awarded in the
+// lobby so only 3 Eagle captures exist in-film). Captures verified against gameplay footage:
+// Cobra at 2:45, Eagle at 4:42, 6:34 and 8:14 (match ends on the final capture).
+const MATCH_3A1D_TICKS = new Map<number, readonly number[]>([
+  [
+    0,
+    [
+      42741, 47732, 112170, 117159, 122766, 134111, 147967, 176399, 182739, 187728, 198911, 227834, 232823, 237829,
+      247138, 278521, 282192, 347895, 353788, 358497, 363503, 370728, 375719, 389419, 395359, 458591, 463597, 468604,
+      473611, 478615, 483621, 488631, 495423,
+    ],
+  ],
+  [
+    1,
+    [
+      67059, 72065, 77074, 82080, 93450, 160280, 165285, 212147, 257354, 271526, 292307, 297318, 316835, 321840, 326851,
+      330922, 416398, 421387, 426395, 431403, 436412, 438981,
+    ],
+  ],
+]);
+
+// Simplified from the match's byte2 film data: Cobra dominated 2:34–3:44, so an Eagle capture
+// read at 3:07 (187728) would sit inside an opponent-controlled window.
+const MATCH_3A1D_CONTROL_PERIODS: ObjectiveControlPeriod[] = [
+  controlPeriod(154000, 224000, 1),
+  controlPeriod(224000, 278000, 0),
+  controlPeriod(281000, 288000, 0),
+  controlPeriod(292000, 342000, 1),
+  controlPeriod(343000, 398000, 0),
+  controlPeriod(452000, 503000, 0),
+];
+
 describe("findBestKothCaptureAssignment", () => {
   it("returns the verified capture timestamps for match 5c39e8a4 (2:1, Cobra takes hill 3)", () => {
     const events = eventsFromTicks(MATCH_5C39_TICKS);
@@ -59,6 +104,7 @@ describe("findBestKothCaptureAssignment", () => {
         [0, 2],
         [1, 1],
       ]),
+      [],
     );
     expect(result).toEqual([193666, 302478, 419812]);
   });
@@ -77,8 +123,22 @@ describe("findBestKothCaptureAssignment", () => {
         [0, 3],
         [1, 0],
       ]),
+      MATCH_72C3_CONTROL_PERIODS,
     );
     expect(result).toEqual([156837, 268352, 422941]);
+  });
+
+  it("returns the verified capture timestamps for match 3a1dd96b (Cobra first, contested hills)", () => {
+    const events = eventsFromTicks(MATCH_3A1D_TICKS);
+    const result = findBestKothCaptureAssignment(
+      events,
+      new Map([
+        [0, 3],
+        [1, 1],
+      ]),
+      MATCH_3A1D_CONTROL_PERIODS,
+    );
+    expect(result).toEqual([165285, 282192, 395359, 495423]);
   });
 
   it("never places a capture on a tick followed within the relocation gap by another tick", () => {
@@ -87,7 +147,7 @@ describe("findBestKothCaptureAssignment", () => {
     const events = eventsFromTicks(
       new Map([[0, [5000, 10000, 15000, 20000, 25000, 30000, 35000, 40000, 45000, 50000]]]),
     );
-    const result = findBestKothCaptureAssignment(events, new Map([[0, 1]]));
+    const result = findBestKothCaptureAssignment(events, new Map([[0, 1]]), []);
     expect(result).toEqual([50000]);
   });
 
@@ -99,18 +159,19 @@ describe("findBestKothCaptureAssignment", () => {
         [0, 3],
         [1, 2],
       ]),
+      [],
     );
     expect(result).toEqual([25000]);
   });
 
   it("returns empty when there are no events", () => {
-    const result = findBestKothCaptureAssignment([], new Map([[0, 2]]));
+    const result = findBestKothCaptureAssignment([], new Map([[0, 2]]), []);
     expect(result).toEqual([]);
   });
 
   it("returns empty when no team has enough ticks for a capture", () => {
     const events = eventsFromTicks(new Map([[0, [5000, 10000]]]));
-    const result = findBestKothCaptureAssignment(events, new Map([[0, 1]]));
+    const result = findBestKothCaptureAssignment(events, new Map([[0, 1]]), []);
     expect(result).toEqual([]);
   });
 
@@ -118,7 +179,13 @@ describe("findBestKothCaptureAssignment", () => {
     // Two 8-tick Team 0 hills and a 7-tick Team 1 hill: {8,8,7} beats splits like {5,11,7}.
     const events = eventsFromTicks(
       new Map<number, readonly number[]>([
-        [0, [5000, 10000, 15000, 20000, 25000, 30000, 35000, 40000, 60000, 65000, 70000, 75000, 80000, 85000, 90000, 95000]],
+        [
+          0,
+          [
+            5000, 10000, 15000, 20000, 25000, 30000, 35000, 40000, 60000, 65000, 70000, 75000, 80000, 85000, 90000,
+            95000,
+          ],
+        ],
         [1, [115000, 120000, 125000, 130000, 135000, 140000, 145000]],
       ]),
     );
@@ -128,7 +195,37 @@ describe("findBestKothCaptureAssignment", () => {
         [0, 2],
         [1, 1],
       ]),
+      [],
     );
     expect(result).toEqual([40000, 95000, 145000]);
+  });
+
+  it("rejects a capture whose tick sits inside a window controlled by another team", () => {
+    // Both hills read as 5 ticks either way, but the control period says team 1 owned the
+    // window around 60000 — so team 0's capture must be the earlier 25000 boundary.
+    const events = eventsFromTicks(
+      new Map<number, readonly number[]>([
+        [0, [5000, 10000, 15000, 20000, 25000, 60000]],
+        [1, [36000, 41000, 46000, 51000, 56000, 90000, 95000, 100000, 105000, 110000]],
+      ]),
+    );
+    const withoutPeriods = findBestKothCaptureAssignment(
+      events,
+      new Map([
+        [0, 1],
+        [1, 1],
+      ]),
+      [],
+    );
+    const withPeriods = findBestKothCaptureAssignment(
+      events,
+      new Map([
+        [0, 1],
+        [1, 1],
+      ]),
+      [controlPeriod(30000, 70000, 1)],
+    );
+    expect(withoutPeriods).toEqual([60000, 110000]);
+    expect(withPeriods).toEqual([25000, 110000]);
   });
 });

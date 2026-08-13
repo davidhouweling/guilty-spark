@@ -25,6 +25,8 @@ interface ProgressionEvent {
   readonly runningScores: Record<string, number>;
 }
 
+const MIN_TRAILING_HILL_MS = 2_000;
+
 function buildScoreDelta(
   teamIds: readonly number[],
   events: readonly ProgressionEvent[],
@@ -189,7 +191,9 @@ function buildKothHills(
     hillPeriods.push({ startMs: hillStart, endMs: captureTs, isCaptured: true });
     hillStart = captureTs;
   }
-  if (hillStart < durationMs) {
+  // A match that ends on a capture leaves a sliver between the final capture and the film end;
+  // that sliver is not a real hill, so only keep a trailing hill the teams actually contested.
+  if (durationMs - hillStart >= MIN_TRAILING_HILL_MS) {
     hillPeriods.push({ startMs: hillStart, endMs: durationMs, isCaptured: false });
   }
 
