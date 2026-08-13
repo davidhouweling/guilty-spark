@@ -69,7 +69,10 @@ describe("LeaderboardPostReaper", () => {
 
   it("continues reaping posts when deletion of one missing registration fails", async () => {
     const firstPost = aFakeLeaderboardPostRow();
-    const secondPost = aFakeLeaderboardPostRow({ ChannelId: "leaderboard-channel-2", MessageId: "leaderboard-message-2" });
+    const secondPost = aFakeLeaderboardPostRow({
+      ChannelId: "leaderboard-channel-2",
+      MessageId: "leaderboard-message-2",
+    });
     vi.spyOn(databaseService, "getAllLeaderboardPosts").mockResolvedValue([firstPost, secondPost]);
     vi.spyOn(discordService, "getMessage")
       .mockRejectedValueOnce(new DiscordError(404, { code: 10008, message: "Unknown Message" }))
