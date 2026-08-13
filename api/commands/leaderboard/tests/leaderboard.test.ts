@@ -29,6 +29,9 @@ import { LeaderboardCommand } from "../leaderboard";
 
 const INTERACTION_PREV_PAGE = "btn_leaderboard_prev";
 const INTERACTION_NEXT_PAGE = "btn_leaderboard_next";
+const INTERACTION_FIRST_PAGE = "btn_leaderboard_first";
+const INTERACTION_REFRESH = "btn_leaderboard_refresh";
+const INTERACTION_LAST_PAGE = "btn_leaderboard_last";
 const INTERACTION_METRIC_SELECT = "select_leaderboard_metric";
 const INTERACTION_WINDOW_SELECT = "select_leaderboard_window";
 
@@ -190,6 +193,16 @@ describe("LeaderboardCommand", () => {
     const [token, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
     expect(token).toBe(interaction.token);
     expect(payload.embeds?.[0]?.title).toBe("Leaderboard - Queue <#queue-123>");
+    expect(payload.components?.[0]).toMatchObject({
+      type: ComponentType.ActionRow,
+      components: [
+        { custom_id: INTERACTION_FIRST_PAGE, disabled: false },
+        { custom_id: INTERACTION_PREV_PAGE, disabled: false },
+        { custom_id: INTERACTION_REFRESH },
+        { custom_id: INTERACTION_NEXT_PAGE, disabled: false },
+        { custom_id: INTERACTION_LAST_PAGE, disabled: false },
+      ],
+    });
     const linkUrl = getBrowserUrlFromComponents(payload.components);
     expect(linkUrl).toContain("guildId=guild-123");
     expect(linkUrl).toContain("queueChannelId=queue-123");
@@ -274,7 +287,11 @@ describe("LeaderboardCommand", () => {
     await result.jobToComplete?.();
 
     const [, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
-    expect(payload.embeds?.[0]?.fields?.[0]?.value).toContain("1. <@discord-1> (Alpha) - 12,5%");
+    expect(payload.embeds?.[0]?.fields).toEqual([
+      { name: "Rank", value: "#1", inline: true },
+      { name: "Player", value: "<@discord-1> (Alpha)", inline: true },
+      { name: "Accuracy", value: "12,5%", inline: true },
+    ]);
   });
 
   it("uses service defaults when leaderboard options are omitted", async () => {
@@ -459,6 +476,80 @@ describe("LeaderboardCommand", () => {
     await result.jobToComplete?.();
 
     expect(getLeaderboardSpy).toHaveBeenCalledWith({
+      guildId: "guild-123",
+      queueChannelId: "queue-123",
+      window: LeaderboardWindow.ThreeMonths,
+      metric: LeaderboardMetric.Kills,
+      page: 3,
+      pageSize: 10,
+      minGamesPlayed: 4,
+    });
+  });
+
+  it("resolves and fetches the last available leaderboard page", async () => {
+    const stateUrl =
+      "https://guilty-spark.app/leaderboard?guildId=guild-123&queueChannelId=queue-123&window=3M&metric=KILLS&page=2&minGamesPlayed=4";
+    const interaction: APIMessageComponentButtonInteraction = {
+      ...fakeButtonClickInteraction,
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(fakeButtonClickInteraction.guild),
+        id: "guild-123",
+      },
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: INTERACTION_LAST_PAGE,
+      },
+      message: {
+        ...fakeButtonClickInteraction.message,
+        components: aStateComponentsWith(stateUrl),
+      },
+    };
+
+    const getLeaderboardSpy = vi
+      .spyOn(services.leaderboardService, "getLeaderboard")
+      .mockResolvedValueOnce({
+        guildId: "guild-123",
+        queueChannelId: "queue-123",
+        window: LeaderboardWindow.ThreeMonths,
+        metric: LeaderboardMetric.Kills,
+        minGamesPlayed: 4,
+        page: 1,
+        pageSize: 10,
+        total: 23,
+        rows: [],
+      })
+      .mockResolvedValueOnce({
+        guildId: "guild-123",
+        queueChannelId: "queue-123",
+        window: LeaderboardWindow.ThreeMonths,
+        metric: LeaderboardMetric.Kills,
+        minGamesPlayed: 4,
+        page: 3,
+        pageSize: 10,
+        total: 23,
+        rows: [],
+      });
+    vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      ...fakeButtonClickInteraction.message,
+      type: MessageType.Default,
+    });
+
+    const result = command.execute(interaction);
+
+    expect(result.response.type).toBe(InteractionResponseType.DeferredMessageUpdate);
+    await result.jobToComplete?.();
+
+    expect(getLeaderboardSpy).toHaveBeenNthCalledWith(1, {
+      guildId: "guild-123",
+      queueChannelId: "queue-123",
+      window: LeaderboardWindow.ThreeMonths,
+      metric: LeaderboardMetric.Kills,
+      page: 1,
+      pageSize: 10,
+      minGamesPlayed: 4,
+    });
+    expect(getLeaderboardSpy).toHaveBeenNthCalledWith(2, {
       guildId: "guild-123",
       queueChannelId: "queue-123",
       window: LeaderboardWindow.ThreeMonths,
@@ -874,7 +965,11 @@ describe("LeaderboardCommand", () => {
 
     const [, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
     expect(payload.embeds?.[0]?.description).toContain("Page: 2");
-    expect(payload.embeds?.[0]?.fields?.[0]?.value).toContain("11. <@discord-2> (Bravo) - 80%");
+    expect(payload.embeds?.[0]?.fields).toEqual([
+      { name: "Rank", value: "#11", inline: true },
+      { name: "Player", value: "<@discord-2> (Bravo)", inline: true },
+      { name: "Series win rate", value: "80%", inline: true },
+    ]);
   });
 
   it("clamps empty leaderboard page to 1 without re-fetching", async () => {
@@ -1261,6 +1356,10 @@ describe("LeaderboardCommand", () => {
     await result.jobToComplete?.();
 
     const [, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
-    expect(payload.embeds?.[0]?.fields?.[0]?.value).toContain("1. <@discord-1> (Alpha) - ∞");
+    expect(payload.embeds?.[0]?.fields).toEqual([
+      { name: "Rank", value: "#1", inline: true },
+      { name: "Player", value: "<@discord-1> (Alpha)", inline: true },
+      { name: "Damage ratio", value: "∞", inline: true },
+    ]);
   });
 });

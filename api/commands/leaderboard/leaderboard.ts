@@ -28,8 +28,11 @@ import { BaseCommand } from "../base/base-command";
 const DEFAULT_PAGE_SIZE = 10;
 const MAX_ROWS_IN_DISCORD_EMBED = 10;
 const METRIC_SELECT_LIMIT = 25;
+const INTERACTION_FIRST_PAGE = "btn_leaderboard_first";
 const INTERACTION_PREV_PAGE = "btn_leaderboard_prev";
+const INTERACTION_REFRESH = "btn_leaderboard_refresh";
 const INTERACTION_NEXT_PAGE = "btn_leaderboard_next";
+const INTERACTION_LAST_PAGE = "btn_leaderboard_last";
 const INTERACTION_METRIC_SELECT = "select_leaderboard_metric";
 const INTERACTION_WINDOW_SELECT = "select_leaderboard_window";
 
@@ -141,6 +144,13 @@ export class LeaderboardCommand extends BaseCommand {
         type: InteractionType.MessageComponent,
         data: {
           component_type: ComponentType.Button,
+          custom_id: INTERACTION_FIRST_PAGE,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
           custom_id: INTERACTION_PREV_PAGE,
         },
       },
@@ -148,7 +158,21 @@ export class LeaderboardCommand extends BaseCommand {
         type: InteractionType.MessageComponent,
         data: {
           component_type: ComponentType.Button,
+          custom_id: INTERACTION_REFRESH,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
           custom_id: INTERACTION_NEXT_PAGE,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: INTERACTION_LAST_PAGE,
         },
       },
       {
@@ -187,11 +211,20 @@ export class LeaderboardCommand extends BaseCommand {
       }
       case InteractionType.MessageComponent: {
         switch (interaction.data.custom_id) {
+          case INTERACTION_FIRST_PAGE: {
+            return this.deferUpdate(async () => this.handleFirstPage(interaction));
+          }
           case INTERACTION_PREV_PAGE: {
             return this.deferUpdate(async () => this.handlePageChange(interaction, -1));
           }
+          case INTERACTION_REFRESH: {
+            return this.deferUpdate(async () => this.handleRefresh(interaction));
+          }
           case INTERACTION_NEXT_PAGE: {
             return this.deferUpdate(async () => this.handlePageChange(interaction, 1));
+          }
+          case INTERACTION_LAST_PAGE: {
+            return this.deferUpdate(async () => this.handleLastPage(interaction));
           }
           case INTERACTION_METRIC_SELECT: {
             return this.deferUpdate(async () => this.handleMetricSelect(interaction));
@@ -251,15 +284,74 @@ export class LeaderboardCommand extends BaseCommand {
     delta: number,
   ): Promise<void> {
     await this.executeStateInteraction(interaction, (state) => {
-      if (interaction.data.component_type !== ComponentType.Button) {
-        throw this.createInvalidLeaderboardControlError();
-      }
+      this.assertButtonInteraction(interaction);
 
       return {
         ...state,
         page: Math.max(1, state.page + delta),
       };
     });
+  }
+
+  private async handleFirstPage(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+  ): Promise<void> {
+    await this.executeStateInteraction(interaction, (state) => ({
+      ...this.getFirstPageState(interaction, state),
+    }));
+  }
+
+  private async handleRefresh(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+  ): Promise<void> {
+    await this.executeStateInteraction(interaction, (state) => this.getRefreshState(interaction, state));
+  }
+
+  private async handleLastPage(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+  ): Promise<void> {
+    try {
+      this.assertButtonInteraction(interaction);
+      await this.assertCanUseLeaderboardControls(interaction);
+      const state = this.getStateFromInteractionMessage(interaction);
+      const locale = this.getInteractionLocale(interaction);
+      const firstPage = await this.services.leaderboardService.getLeaderboard({
+        guildId: state.guildId,
+        ...(state.queueChannelId != null ? { queueChannelId: state.queueChannelId } : {}),
+        ...(state.window != null ? { window: state.window } : {}),
+        ...(state.metric != null ? { metric: state.metric } : {}),
+        page: 1,
+        pageSize: DEFAULT_PAGE_SIZE,
+        ...(state.minGamesPlayed != null ? { minGamesPlayed: state.minGamesPlayed } : {}),
+      });
+      const lastPage = Math.max(1, Math.ceil(firstPage.total / firstPage.pageSize));
+
+      await this.refreshLeaderboard(interaction.token, locale, {
+        ...state,
+        page: lastPage,
+      });
+    } catch (error) {
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private getFirstPageState(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+    state: LeaderboardViewState,
+  ): LeaderboardViewState {
+    this.assertButtonInteraction(interaction);
+    return {
+      ...state,
+      page: 1,
+    };
+  }
+
+  private getRefreshState(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+    state: LeaderboardViewState,
+  ): LeaderboardViewState {
+    this.assertButtonInteraction(interaction);
+    return state;
   }
 
   private async handleMetricSelect(
@@ -391,11 +483,7 @@ export class LeaderboardCommand extends BaseCommand {
     locale: string,
     leaderboard: LeaderboardResponse,
   ): APIInteractionResponseCallbackData {
-    const rankingLines = leaderboard.rows.slice(0, MAX_ROWS_IN_DISCORD_EMBED).map((row) => {
-      const player = row.discordUserId != null ? `<@${row.discordUserId}> (${row.gamertag})` : row.gamertag;
-      const metricValue = this.formatMetricValue(row.metricValue, leaderboard.metric, locale);
-      return `${row.rank.toString()}. ${player} - ${metricValue}`;
-    });
+    const rows = leaderboard.rows.slice(0, MAX_ROWS_IN_DISCORD_EMBED);
 
     const metricLabel = this.getMetricLabel(leaderboard.metric);
     const windowLabel = this.getWindowLabel(leaderboard.window);
@@ -407,13 +495,7 @@ export class LeaderboardCommand extends BaseCommand {
       description:
         `Metric: ${metricLabel} | Window: ${windowLabel}\n` +
         `Page: ${leaderboard.page.toString()} | Min games: ${leaderboard.minGamesPlayed.toString()} | Total players: ${leaderboard.total.toString()}`,
-      fields: [
-        {
-          name: "Rankings",
-          value: this.getRankingContent(rankingLines, leaderboard.total),
-          inline: false,
-        },
-      ],
+      fields: this.createRankingFields(rows, leaderboard.total, leaderboard.metric, locale),
     };
 
     const components = this.createComponents(leaderboard);
@@ -450,22 +532,36 @@ export class LeaderboardCommand extends BaseCommand {
           {
             type: ComponentType.Button,
             style: ButtonStyle.Secondary,
-            custom_id: INTERACTION_PREV_PAGE,
-            label: "Previous",
+            custom_id: INTERACTION_FIRST_PAGE,
+            emoji: { name: "⏮️" },
             disabled: leaderboard.page <= 1,
           },
           {
             type: ComponentType.Button,
             style: ButtonStyle.Secondary,
+            custom_id: INTERACTION_PREV_PAGE,
+            emoji: { name: "◀️" },
+            disabled: leaderboard.page <= 1,
+          },
+          {
+            type: ComponentType.Button,
+            style: ButtonStyle.Secondary,
+            custom_id: INTERACTION_REFRESH,
+            emoji: { name: "🔄" },
+          },
+          {
+            type: ComponentType.Button,
+            style: ButtonStyle.Secondary,
             custom_id: INTERACTION_NEXT_PAGE,
-            label: "Next",
+            emoji: { name: "▶️" },
             disabled: leaderboard.page >= totalPages,
           },
           {
             type: ComponentType.Button,
-            style: ButtonStyle.Link,
-            label: "Open in browser",
-            url: webUrl,
+            style: ButtonStyle.Secondary,
+            custom_id: INTERACTION_LAST_PAGE,
+            emoji: { name: "⏭️" },
+            disabled: leaderboard.page >= totalPages,
           },
         ],
       },
@@ -494,6 +590,54 @@ export class LeaderboardCommand extends BaseCommand {
             options: windowOptions,
           },
         ],
+      },
+      {
+        type: ComponentType.ActionRow,
+        components: [
+          {
+            type: ComponentType.Button,
+            style: ButtonStyle.Link,
+            label: "Open in browser",
+            url: webUrl,
+          },
+        ],
+      },
+    ];
+  }
+
+  private createRankingFields(
+    rows: LeaderboardResponse["rows"],
+    totalPlayers: number,
+    metric: LeaderboardMetric,
+    locale: string,
+  ): NonNullable<APIEmbed["fields"]> {
+    if (rows.length === 0) {
+      return [
+        {
+          name: "Rankings",
+          value: this.getRankingContent([], totalPlayers),
+          inline: false,
+        },
+      ];
+    }
+
+    return [
+      {
+        name: "Rank",
+        value: rows.map((row) => `#${row.rank.toString()}`).join("\n"),
+        inline: true,
+      },
+      {
+        name: "Player",
+        value: rows
+          .map((row) => (row.discordUserId != null ? `<@${row.discordUserId}> (${row.gamertag})` : row.gamertag))
+          .join("\n"),
+        inline: true,
+      },
+      {
+        name: this.getMetricLabel(metric),
+        value: rows.map((row) => this.formatMetricValue(row.metricValue, metric, locale)).join("\n"),
+        inline: true,
       },
     ];
   }
@@ -819,5 +963,13 @@ export class LeaderboardCommand extends BaseCommand {
       handled: true,
       errorType: EndUserErrorType.WARNING,
     });
+  }
+
+  private assertButtonInteraction(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+  ): void {
+    if (interaction.data.component_type !== ComponentType.Button) {
+      throw this.createInvalidLeaderboardControlError();
+    }
   }
 }
