@@ -98,7 +98,7 @@ describe("LeaderboardCommand", () => {
     expect(subcommands?.[0]?.name).toBe("show");
   });
 
-  it("fetches leaderboard data and updates deferred reply with controls and browser URL", async () => {
+  it("fetches leaderboard data and updates deferred reply with stateful controls", async () => {
     const mappedOptions = new Map<string, string | number>();
     mappedOptions.set("queue_channel", "queue-123");
     mappedOptions.set("window", LeaderboardWindow.OneMonth);
@@ -193,22 +193,46 @@ describe("LeaderboardCommand", () => {
     const [token, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
     expect(token).toBe(interaction.token);
     expect(payload.embeds?.[0]?.title).toBe("Leaderboard - Queue <#queue-123>");
-    expect(payload.components?.[0]).toMatchObject({
+    expect(payload.components?.[0]).toEqual({
       type: ComponentType.ActionRow,
       components: [
-        { custom_id: INTERACTION_FIRST_PAGE, disabled: false },
-        { custom_id: INTERACTION_PREV_PAGE, disabled: false },
-        { custom_id: INTERACTION_REFRESH },
-        { custom_id: INTERACTION_NEXT_PAGE, disabled: false },
-        { custom_id: INTERACTION_LAST_PAGE, disabled: false },
+        {
+          type: ComponentType.Button,
+          style: ButtonStyle.Secondary,
+          custom_id: `${INTERACTION_FIRST_PAGE}:guild-123:queue-123:1M:KILLS:2:3`,
+          emoji: { name: "⏮️" },
+          disabled: false,
+        },
+        {
+          type: ComponentType.Button,
+          style: ButtonStyle.Secondary,
+          custom_id: `${INTERACTION_PREV_PAGE}:guild-123:queue-123:1M:KILLS:2:3`,
+          emoji: { name: "◀️" },
+          disabled: false,
+        },
+        {
+          type: ComponentType.Button,
+          style: ButtonStyle.Secondary,
+          custom_id: `${INTERACTION_REFRESH}:guild-123:queue-123:1M:KILLS:2:3`,
+          emoji: { name: "🔄" },
+        },
+        {
+          type: ComponentType.Button,
+          style: ButtonStyle.Secondary,
+          custom_id: `${INTERACTION_NEXT_PAGE}:guild-123:queue-123:1M:KILLS:2:3`,
+          emoji: { name: "▶️" },
+          disabled: false,
+        },
+        {
+          type: ComponentType.Button,
+          style: ButtonStyle.Secondary,
+          custom_id: `${INTERACTION_LAST_PAGE}:guild-123:queue-123:1M:KILLS:2:3`,
+          emoji: { name: "⏭️" },
+          disabled: false,
+        },
       ],
     });
-    const linkUrl = getBrowserUrlFromComponents(payload.components);
-    expect(linkUrl).toContain("guildId=guild-123");
-    expect(linkUrl).toContain("queueChannelId=queue-123");
-    expect(linkUrl).toContain("window=1M");
-    expect(linkUrl).toContain("metric=KILLS");
-    expect(linkUrl).toContain("page=2");
+    expect(getBrowserUrlFromComponents(payload.components)).toBeNull();
   });
 
   it("prefers guild locale over user locale for leaderboard formatting", async () => {
@@ -383,8 +407,7 @@ describe("LeaderboardCommand", () => {
   });
 
   it("paginates from interaction state when previous button is pressed", async () => {
-    const stateUrl =
-      "https://guilty-spark.app/leaderboard?guildId=guild-123&queueChannelId=queue-123&window=3M&metric=KILLS&page=2&minGamesPlayed=4";
+    const controlId = "btn_leaderboard_prev:guild-123:queue-123:3M:KILLS:2:4";
     const interaction: APIMessageComponentButtonInteraction = {
       ...fakeButtonClickInteraction,
       guild_id: "guild-123",
@@ -394,11 +417,11 @@ describe("LeaderboardCommand", () => {
       },
       data: {
         component_type: ComponentType.Button,
-        custom_id: INTERACTION_PREV_PAGE,
+        custom_id: controlId,
       },
       message: {
         ...fakeButtonClickInteraction.message,
-        components: aStateComponentsWith(stateUrl),
+        components: [],
       },
     };
 

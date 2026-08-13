@@ -22,6 +22,7 @@ import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
+import { EmbedColors } from "../../embeds/colors";
 import type { ApplicationCommandData, BaseInteraction, CommandData, ExecuteResponse } from "../base/base-command";
 import { BaseCommand } from "../base/base-command";
 
@@ -63,6 +64,12 @@ interface LeaderboardViewState {
   metric?: LeaderboardMetric;
   page: number;
   minGamesPlayed?: number;
+}
+
+interface ResolvedLeaderboardViewState extends LeaderboardViewState {
+  window: LeaderboardWindow;
+  metric: LeaderboardMetric;
+  minGamesPlayed: number;
 }
 
 export class LeaderboardCommand extends BaseCommand {
@@ -210,7 +217,7 @@ export class LeaderboardCommand extends BaseCommand {
         }
       }
       case InteractionType.MessageComponent: {
-        switch (interaction.data.custom_id) {
+        switch (this.getLeaderboardControlId(interaction.data.custom_id)) {
           case INTERACTION_FIRST_PAGE: {
             return this.deferUpdate(async () => this.handleFirstPage(interaction));
           }
@@ -491,6 +498,7 @@ export class LeaderboardCommand extends BaseCommand {
       leaderboard.queueChannelId != null ? `Queue <#${leaderboard.queueChannelId}>` : "Server-wide (all queues)";
 
     const embed: APIEmbed = {
+      color: EmbedColors.GOLD,
       title: `Leaderboard - ${scopeLabel}`,
       description:
         `Metric: ${metricLabel} | Window: ${windowLabel}\n` +
@@ -511,20 +519,6 @@ export class LeaderboardCommand extends BaseCommand {
     const metricOptions = this.getMetricSelectOptions(leaderboard.metric);
     const windowOptions = this.getWindowSelectOptions(leaderboard.window);
 
-    const params = new URLSearchParams({
-      guildId: leaderboard.guildId,
-      window: leaderboard.window,
-      metric: leaderboard.metric,
-      page: leaderboard.page.toString(),
-      minGamesPlayed: leaderboard.minGamesPlayed.toString(),
-    });
-
-    if (leaderboard.queueChannelId != null) {
-      params.set("queueChannelId", leaderboard.queueChannelId);
-    }
-
-    const webUrl = `${this.env.PAGES_URL}/leaderboard?${params.toString()}`;
-
     return [
       {
         type: ComponentType.ActionRow,
@@ -532,34 +526,34 @@ export class LeaderboardCommand extends BaseCommand {
           {
             type: ComponentType.Button,
             style: ButtonStyle.Secondary,
-            custom_id: INTERACTION_FIRST_PAGE,
+            custom_id: this.createLeaderboardControlId(INTERACTION_FIRST_PAGE, leaderboard),
             emoji: { name: "⏮️" },
             disabled: leaderboard.page <= 1,
           },
           {
             type: ComponentType.Button,
             style: ButtonStyle.Secondary,
-            custom_id: INTERACTION_PREV_PAGE,
+            custom_id: this.createLeaderboardControlId(INTERACTION_PREV_PAGE, leaderboard),
             emoji: { name: "◀️" },
             disabled: leaderboard.page <= 1,
           },
           {
             type: ComponentType.Button,
             style: ButtonStyle.Secondary,
-            custom_id: INTERACTION_REFRESH,
+            custom_id: this.createLeaderboardControlId(INTERACTION_REFRESH, leaderboard),
             emoji: { name: "🔄" },
           },
           {
             type: ComponentType.Button,
             style: ButtonStyle.Secondary,
-            custom_id: INTERACTION_NEXT_PAGE,
+            custom_id: this.createLeaderboardControlId(INTERACTION_NEXT_PAGE, leaderboard),
             emoji: { name: "▶️" },
             disabled: leaderboard.page >= totalPages,
           },
           {
             type: ComponentType.Button,
             style: ButtonStyle.Secondary,
-            custom_id: INTERACTION_LAST_PAGE,
+            custom_id: this.createLeaderboardControlId(INTERACTION_LAST_PAGE, leaderboard),
             emoji: { name: "⏭️" },
             disabled: leaderboard.page >= totalPages,
           },
@@ -570,7 +564,7 @@ export class LeaderboardCommand extends BaseCommand {
         components: [
           {
             type: ComponentType.StringSelect,
-            custom_id: INTERACTION_METRIC_SELECT,
+            custom_id: this.createLeaderboardControlId(INTERACTION_METRIC_SELECT, leaderboard),
             placeholder: "Select metric",
             min_values: 1,
             max_values: 1,
@@ -583,22 +577,11 @@ export class LeaderboardCommand extends BaseCommand {
         components: [
           {
             type: ComponentType.StringSelect,
-            custom_id: INTERACTION_WINDOW_SELECT,
+            custom_id: this.createLeaderboardControlId(INTERACTION_WINDOW_SELECT, leaderboard),
             placeholder: "Select window",
             min_values: 1,
             max_values: 1,
             options: windowOptions,
-          },
-        ],
-      },
-      {
-        type: ComponentType.ActionRow,
-        components: [
-          {
-            type: ComponentType.Button,
-            style: ButtonStyle.Link,
-            label: "Open in browser",
-            url: webUrl,
           },
         ],
       },
@@ -680,6 +663,11 @@ export class LeaderboardCommand extends BaseCommand {
   private getStateFromInteractionMessage(
     interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
   ): LeaderboardViewState {
+    const encodedState = this.parseLeaderboardControlState(interaction.data.custom_id);
+    if (encodedState != null) {
+      return this.validateInteractionState(interaction, encodedState);
+    }
+
     const { components } = interaction.message;
     if (components == null || components.length === 0) {
       throw new EndUserError(
@@ -693,26 +681,8 @@ export class LeaderboardCommand extends BaseCommand {
 
     const stateUrl = this.getStateUrlFromComponents(components);
     const params = this.getStateQueryParams(stateUrl);
-    const interactionGuildId = interaction.guild_id;
-
-    if (interactionGuildId == null || interactionGuildId === "") {
-      throw new EndUserError("Unable to determine the server for this leaderboard interaction.", {
-        handled: true,
-        errorType: EndUserErrorType.WARNING,
-      });
-    }
-
-    const stateGuildId = params.get("guildId");
-    if (stateGuildId != null && stateGuildId !== "" && stateGuildId !== interactionGuildId) {
-      throw new EndUserError("This leaderboard interaction does not belong to this server.", {
-        handled: true,
-        errorType: EndUserErrorType.WARNING,
-      });
-    }
-
     const parsedWindow = this.parseWindowOption(params.get("window") ?? undefined);
     const parsedMetric = this.parseMetricOption(params.get("metric") ?? undefined);
-
     if (parsedWindow == null || parsedMetric == null) {
       throw new EndUserError("This leaderboard message is missing filter settings. Run /leaderboard show again.", {
         handled: true,
@@ -723,13 +693,94 @@ export class LeaderboardCommand extends BaseCommand {
     const parsedPage = Number.parseInt(params.get("page") ?? "1", 10);
     const parsedMinGamesPlayed = Number.parseInt(params.get("minGamesPlayed") ?? "0", 10);
 
-    return {
-      guildId: interactionGuildId,
+    return this.validateInteractionState(interaction, {
+      guildId: params.get("guildId") ?? "",
       queueChannelId: this.parseQueueChannelId(params.get("queueChannelId")),
       window: parsedWindow,
       metric: parsedMetric,
       page: Number.isNaN(parsedPage) ? 1 : Math.max(1, parsedPage),
       minGamesPlayed: Number.isNaN(parsedMinGamesPlayed) ? 0 : Math.max(0, parsedMinGamesPlayed),
+    });
+  }
+
+  private validateInteractionState(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+    state: ResolvedLeaderboardViewState,
+  ): ResolvedLeaderboardViewState {
+    const interactionGuildId = interaction.guild_id;
+
+    if (interactionGuildId == null || interactionGuildId === "") {
+      throw new EndUserError("Unable to determine the server for this leaderboard interaction.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+
+    if (state.guildId !== interactionGuildId) {
+      throw new EndUserError("This leaderboard interaction does not belong to this server.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+
+    return {
+      guildId: interactionGuildId,
+      queueChannelId: state.queueChannelId,
+      window: state.window,
+      metric: state.metric,
+      page: state.page,
+      minGamesPlayed: state.minGamesPlayed,
+    };
+  }
+
+  private createLeaderboardControlId(controlId: string, leaderboard: LeaderboardResponse): string {
+    const queueChannelId = leaderboard.queueChannelId ?? "-";
+    return [
+      controlId,
+      leaderboard.guildId,
+      queueChannelId,
+      leaderboard.window,
+      leaderboard.metric,
+      leaderboard.page.toString(36),
+      leaderboard.minGamesPlayed.toString(36),
+    ].join(":");
+  }
+
+  private getLeaderboardControlId(customId: string): string {
+    return customId.split(":", 1)[0] ?? "";
+  }
+
+  private parseLeaderboardControlState(customId: string): ResolvedLeaderboardViewState | null {
+    const [controlId, guildId, rawQueueChannelId, rawWindow, rawMetric, rawPage, rawMinGamesPlayed] =
+      customId.split(":");
+    if (
+      controlId == null ||
+      guildId == null ||
+      rawQueueChannelId == null ||
+      rawWindow == null ||
+      rawMetric == null ||
+      rawPage == null ||
+      rawMinGamesPlayed == null
+    ) {
+      return null;
+    }
+
+    const window = this.parseWindowOption(rawWindow);
+    const metric = this.parseMetricOption(rawMetric);
+    const page = Number.parseInt(rawPage, 36);
+    const minGamesPlayed = Number.parseInt(rawMinGamesPlayed, 36);
+
+    if (window == null || metric == null || Number.isNaN(page) || Number.isNaN(minGamesPlayed)) {
+      throw this.createInvalidLeaderboardControlError();
+    }
+
+    return {
+      guildId,
+      queueChannelId: rawQueueChannelId === "-" ? null : rawQueueChannelId,
+      window,
+      metric,
+      page: Math.max(1, page),
+      minGamesPlayed: Math.max(0, minGamesPlayed),
     };
   }
 

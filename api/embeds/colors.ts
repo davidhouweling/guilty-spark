@@ -16,6 +16,9 @@ export const EmbedColors = {
   /** Warning orange - used for paused states, warnings */
   WARNING: 0xffa500,
 
+  /** Gold - used for leaderboard rankings */
+  GOLD: 0xd4af37,
+
   /** Gray - used for stopped/inactive states */
   INACTIVE: 0x808080,
 } as const;
