@@ -144,9 +144,9 @@ CREATE TABLE IF NOT EXISTS LeaderboardConfig (
 );
 
 CREATE TABLE IF NOT EXISTS LeaderboardPosts (
+    GuildId TEXT NOT NULL,
     ChannelId TEXT NOT NULL,
     MessageId TEXT NOT NULL,
-    GuildId TEXT NOT NULL,
     QueueChannelId TEXT,
     PRIMARY KEY (ChannelId, MessageId)
 );
