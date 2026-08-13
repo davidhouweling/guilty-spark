@@ -469,6 +469,46 @@ describe("LeaderboardCommand", () => {
     });
   });
 
+  it("updates deferred reply with error when leaderboard controls are used without manage server permission", async () => {
+    vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValueOnce(0n);
+    const interaction: APIMessageComponentButtonInteraction = {
+      ...fakeButtonClickInteraction,
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(fakeButtonClickInteraction.guild),
+        id: "guild-123",
+      },
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: INTERACTION_NEXT_PAGE,
+      },
+      message: {
+        ...fakeButtonClickInteraction.message,
+        components: aStateComponentsWith(
+          "https://guilty-spark.app/leaderboard?guildId=guild-123&window=3M&metric=KILLS&page=2",
+        ),
+      },
+    };
+
+    const updateDeferredReplyWithErrorSpy = vi
+      .spyOn(services.discordService, "updateDeferredReplyWithError")
+      .mockResolvedValue(undefined);
+    const getLeaderboardSpy = vi.spyOn(services.leaderboardService, "getLeaderboard");
+    const logErrorSpy = vi.spyOn(services.logService, "error");
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(getLeaderboardSpy).not.toHaveBeenCalled();
+    expect(logErrorSpy).not.toHaveBeenCalled();
+    expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({
+        endUserMessage: "You need the Manage Server permission to use leaderboard controls.",
+      }),
+    );
+  });
+
   it("switches metric from string-select interaction and resets to page 1", async () => {
     const stateUrl =
       "https://guilty-spark.app/leaderboard?guildId=test-guild-id&window=1M&metric=SERIES_WIN_RATE&page=6&minGamesPlayed=0";
