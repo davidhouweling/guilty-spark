@@ -19,6 +19,7 @@ import type { LeaderboardGamesRow } from "./types/leaderboard_games";
 import type { LeaderboardGamePlayersRow } from "./types/leaderboard_game_players";
 import type { LeaderboardRankingRow } from "./types/leaderboard_ranking_row";
 import type { LeaderboardConfigRow } from "./types/leaderboard_config";
+import type { LeaderboardPostRow } from "./types/leaderboard_post";
 
 const DEFAULT_LEADERBOARD_ENABLED_WINDOWS_JSON = '["1W","1M","3M","6M","12M"]';
 const SQLITE_MAX_VARIABLES = 999;
@@ -316,6 +317,29 @@ export class DatabaseService {
       config.MinGamesPlayed,
       config.UpdatedAt,
     );
+    await stmt.run();
+  }
+
+  async upsertLeaderboardPost(post: LeaderboardPostRow): Promise<void> {
+    const query = `
+      INSERT INTO LeaderboardPosts (ChannelId, MessageId, GuildId, QueueChannelId)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(ChannelId, MessageId) DO UPDATE SET GuildId=excluded.GuildId, QueueChannelId=excluded.QueueChannelId
+    `;
+    const stmt = this.DB.prepare(query).bind(post.ChannelId, post.MessageId, post.GuildId, post.QueueChannelId);
+    await stmt.run();
+  }
+
+  async findLeaderboardPostsForRefresh(guildId: string, queueChannelId: string): Promise<LeaderboardPostRow[]> {
+    const query = "SELECT * FROM LeaderboardPosts WHERE GuildId = ? AND (QueueChannelId IS NULL OR QueueChannelId = ?)";
+    const stmt = this.DB.prepare(query).bind(guildId, queueChannelId);
+    const response = await stmt.all<LeaderboardPostRow>();
+    return response.results;
+  }
+
+  async deleteLeaderboardPost(channelId: string, messageId: string): Promise<void> {
+    const query = "DELETE FROM LeaderboardPosts WHERE ChannelId = ? AND MessageId = ?";
+    const stmt = this.DB.prepare(query).bind(channelId, messageId);
     await stmt.run();
   }
 

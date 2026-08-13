@@ -20,6 +20,7 @@ import type { LeaderboardSeriesRow } from "../types/leaderboard_series";
 import type { LeaderboardSeriesPlayersRow } from "../types/leaderboard_series_players";
 import type { LeaderboardGamesRow } from "../types/leaderboard_games";
 import type { LeaderboardGamePlayersRow } from "../types/leaderboard_game_players";
+import type { LeaderboardPostRow } from "../types/leaderboard_post";
 
 export function aFakeDiscordAssociationsRow(opts: Partial<DiscordAssociationsRow> = {}): DiscordAssociationsRow {
   const defaultOpts: DiscordAssociationsRow = {
@@ -66,6 +67,20 @@ export function aFakeNeatQueueConfigRow(opts: Partial<NeatQueueConfigRow> = {}):
     PostSeriesMode: NeatQueuePostSeriesDisplayMode.THREAD,
     PostSeriesChannelId: null,
   };
+  return {
+    ...defaultOpts,
+    ...opts,
+  };
+}
+
+export function aFakeLeaderboardPostRow(opts: Partial<LeaderboardPostRow> = {}): LeaderboardPostRow {
+  const defaultOpts: LeaderboardPostRow = {
+    ChannelId: "leaderboard-channel-1",
+    MessageId: "leaderboard-message-1",
+    GuildId: "guild-1",
+    QueueChannelId: null,
+  };
+
   return {
     ...defaultOpts,
     ...opts,

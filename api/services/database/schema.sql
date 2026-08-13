@@ -143,6 +143,17 @@ CREATE TABLE IF NOT EXISTS LeaderboardConfig (
     UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
+CREATE TABLE IF NOT EXISTS LeaderboardPosts (
+    GuildId TEXT NOT NULL,
+    ChannelId TEXT NOT NULL,
+    MessageId TEXT NOT NULL,
+    QueueChannelId TEXT,
+    PRIMARY KEY (ChannelId, MessageId)
+);
+
+CREATE INDEX IF NOT EXISTS IdxLeaderboardPostsGuildQueue
+    ON LeaderboardPosts (GuildId, QueueChannelId);
+
 CREATE TABLE IF NOT EXISTS LeaderboardSeries (
     GuildId TEXT NOT NULL,
     QueueNumber INTEGER NOT NULL,
