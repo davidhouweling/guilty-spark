@@ -315,6 +315,20 @@ describe("LeaderboardService", () => {
     expect(getGuildSpy).toHaveBeenCalledWith("guild-1");
   });
 
+  it("skips guild locale lookup when there are no posts to refresh", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const discordService = aFakeDiscordServiceWith();
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, discordService, haloService, logService });
+    vi.spyOn(databaseService, "findLeaderboardPostsForRefresh").mockResolvedValue([]);
+    const getGuildSpy = vi.spyOn(discordService, "getGuild");
+
+    await service.refreshPostsForCompletedQueue("guild-1", "queue-1");
+
+    expect(getGuildSpy).not.toHaveBeenCalled();
+  });
+
   it("removes a registered post when Discord confirms it is missing", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });
@@ -539,5 +553,51 @@ describe("LeaderboardService", () => {
       "Leaderboard persistence skipped because winning team index is unresolved",
       expect.any(Map),
     );
+  });
+
+  it("does not block series persistence while refreshing leaderboard posts", async () => {
+    vi.useRealTimers();
+
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    const refreshSpy = vi.spyOn(service, "refreshPostsForCompletedQueue").mockImplementation(async () => {
+      await new Promise<void>((resolve) => {
+        void resolve;
+      });
+    });
+
+    const request: NeatQueueMatchCompletedRequest = {
+      action: "MATCH_COMPLETED",
+      guild: "guild-1",
+      channel: "channel-1",
+      queue: "ranked",
+      match_number: 42,
+      winning_team_index: 0,
+      teams: [],
+    };
+
+    const persistPromise = service.persistSeriesData({
+      request,
+      neatQueueConfig: aFakeNeatQueueConfigRow({
+        GuildId: "guild-1",
+        ChannelId: "queue-1",
+      }),
+      series: [Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"))],
+      locale: "en-US",
+    });
+
+    const completion = await Promise.race([
+      persistPromise.then(() => "completed"),
+      new Promise<string>((resolve) => {
+        setTimeout(() => {
+          resolve("timed_out");
+        }, 1000);
+      }),
+    ]);
+
+    expect(completion).toBe("completed");
+    expect(refreshSpy).toHaveBeenCalledWith("guild-1", "queue-1");
   });
 });

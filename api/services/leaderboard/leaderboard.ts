@@ -158,7 +158,7 @@ export class LeaderboardService {
         gamePlayers: gamePlayerRows,
         seriesPlayers: seriesPlayerRows,
       });
-      await this.refreshPostsForCompletedQueue(request.guild, neatQueueConfig.ChannelId);
+      this.triggerLeaderboardPostRefresh(request.guild, neatQueueConfig.ChannelId);
 
       this.logService.info(
         "Completed leaderboard persistence for series",
@@ -204,6 +204,10 @@ export class LeaderboardService {
       return;
     }
 
+    if (posts.length === 0) {
+      return;
+    }
+
     let locale: string;
     try {
       locale = (await discordService.getGuild(guildId)).preferred_locale;
@@ -220,6 +224,25 @@ export class LeaderboardService {
 
     for (const post of posts) {
       await this.refreshLeaderboardPost(post, locale);
+    }
+  }
+
+  private triggerLeaderboardPostRefresh(guildId: string, queueChannelId: string): void {
+    void this.triggerLeaderboardPostRefreshAsync(guildId, queueChannelId);
+  }
+
+  private async triggerLeaderboardPostRefreshAsync(guildId: string, queueChannelId: string): Promise<void> {
+    try {
+      await this.refreshPostsForCompletedQueue(guildId, queueChannelId);
+    } catch (error) {
+      this.logService.warn(
+        error,
+        new Map([
+          ["guildId", guildId],
+          ["queueChannelId", queueChannelId],
+          ["reason", "Failed to trigger leaderboard post refresh"],
+        ]),
+      );
     }
   }
 

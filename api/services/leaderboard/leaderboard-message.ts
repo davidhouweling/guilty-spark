@@ -5,6 +5,7 @@ import type { LeaderboardPostRow } from "../database/types/leaderboard_post";
 import { LEADERBOARD_METRIC_SELECT_CONTROL_ID, LEADERBOARD_WINDOW_SELECT_CONTROL_ID } from "./leaderboard-response";
 
 const LEADERBOARD_FOOTER_PATTERN = /^Page (\d+) of (\d+) \| Min games: (\d+) \| Total players: (\d+)$/;
+const LEGACY_LEADERBOARD_DESCRIPTION_PATTERN = /Page (\d+) of (\d+) \| Min games: (\d+) \| Total players: (\d+)/;
 
 const WINDOW_BY_VALUE = new Map<string, LeaderboardWindow>([
   [LeaderboardWindow.OneWeek, LeaderboardWindow.OneWeek],
@@ -64,13 +65,8 @@ function getSelectedMetric(components: APIMessageTopLevelComponent[]): Leaderboa
   return value == null ? null : (METRIC_BY_VALUE.get(value) ?? null);
 }
 
-function getFooterState(embeds: APIEmbed[]): { page: number; minGamesPlayed: number } | null {
-  const footerText = embeds[0]?.footer?.text;
-  if (footerText == null) {
-    return null;
-  }
-
-  const match = LEADERBOARD_FOOTER_PATTERN.exec(footerText);
+function parsePageAndMinGames(text: string): { page: number; minGamesPlayed: number } | null {
+  const match = LEADERBOARD_FOOTER_PATTERN.exec(text) ?? LEGACY_LEADERBOARD_DESCRIPTION_PATTERN.exec(text);
   if (match == null) {
     return null;
   }
@@ -85,6 +81,20 @@ function getFooterState(embeds: APIEmbed[]): { page: number; minGamesPlayed: num
   return { page, minGamesPlayed };
 }
 
+function getPaginationState(embeds: APIEmbed[]): { page: number; minGamesPlayed: number } | null {
+  const footerText = embeds[0]?.footer?.text;
+  if (footerText != null) {
+    return parsePageAndMinGames(footerText);
+  }
+
+  const description = embeds[0]?.description;
+  if (description == null) {
+    return null;
+  }
+
+  return parsePageAndMinGames(description);
+}
+
 export function getLeaderboardMessageState(
   message: APIMessage,
   post: LeaderboardPostRow,
@@ -96,7 +106,7 @@ export function getLeaderboardMessageState(
 
   const window = getSelectedWindow(components);
   const metric = getSelectedMetric(components);
-  const footerState = getFooterState(message.embeds);
+  const footerState = getPaginationState(message.embeds);
 
   if (window == null || metric == null || footerState == null) {
     return null;

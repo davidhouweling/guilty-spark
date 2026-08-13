@@ -82,4 +82,39 @@ describe("getLeaderboardMessageState", () => {
 
     expect(state).toBeNull();
   });
+
+  it("derives pagination state from legacy embed description metadata", () => {
+    const state = getLeaderboardMessageState(
+      aLeaderboardMessageWith({
+        footer: "",
+      }),
+      aFakeLeaderboardPostRow({ GuildId: "guild-123", QueueChannelId: "queue-123" }),
+    );
+
+    expect(state).toBeNull();
+
+    const messageWithLegacyDescription = {
+      ...aLeaderboardMessageWith(),
+      embeds: [
+        {
+          title: "Leaderboard - Server-wide (all queues)",
+          description: "Metric: Kills | Window: 3 months | Page 4 of 6 | Min games: 7 | Total players: 88",
+        },
+      ],
+    };
+
+    const legacyState = getLeaderboardMessageState(
+      messageWithLegacyDescription,
+      aFakeLeaderboardPostRow({ GuildId: "guild-123", QueueChannelId: "queue-123" }),
+    );
+
+    expect(legacyState).toEqual({
+      guildId: "guild-123",
+      queueChannelId: "queue-123",
+      window: LeaderboardWindow.ThreeMonths,
+      metric: LeaderboardMetric.Kills,
+      page: 4,
+      minGamesPlayed: 7,
+    });
+  });
 });
