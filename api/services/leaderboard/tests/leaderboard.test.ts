@@ -585,4 +585,39 @@ describe("LeaderboardService", () => {
       expect.any(Map),
     );
   });
+
+  it("logs refresh failures separately from persistence failures", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    vi.spyOn(service, "refreshPostsForCompletedQueue").mockRejectedValue(new Error("Unexpected refresh failure"));
+    const warnSpy = vi.spyOn(logService, "warn");
+    const infoSpy = vi.spyOn(logService, "info");
+
+    const request: NeatQueueMatchCompletedRequest = {
+      action: "MATCH_COMPLETED",
+      guild: "guild-1",
+      channel: "channel-1",
+      queue: "ranked",
+      match_number: 42,
+      winning_team_index: 0,
+      teams: [],
+    };
+
+    await service.persistSeriesData({
+      request,
+      neatQueueConfig: aFakeNeatQueueConfigRow({ GuildId: "guild-1", ChannelId: "queue-1" }),
+      series: [Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"))],
+      locale: "en-US",
+    });
+
+    expect(infoSpy).toHaveBeenCalledWith("Completed leaderboard persistence for series", expect.any(Map));
+    expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
+    const [warnMessage, warnContext] = Preconditions.checkExists(warnSpy.mock.calls[0]);
+    expect(warnMessage).toBeInstanceOf(Error);
+    expect(Preconditions.checkExists(warnContext).get("reason")).toBe(
+      "Failed to refresh leaderboard posts after series persistence",
+    );
+  });
 });

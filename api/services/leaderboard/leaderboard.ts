@@ -160,7 +160,7 @@ export class LeaderboardService {
         gamePlayers: gamePlayerRows,
         seriesPlayers: seriesPlayerRows,
       });
-      await this.refreshPostsForCompletedQueue(request.guild, neatQueueConfig.ChannelId);
+      await this.refreshPostsForCompletedQueueSafely(request.guild, neatQueueConfig.ChannelId);
 
       this.logService.info(
         "Completed leaderboard persistence for series",
@@ -225,6 +225,21 @@ export class LeaderboardService {
 
     for (const post of posts) {
       await this.refreshLeaderboardPost(post, locale);
+    }
+  }
+
+  private async refreshPostsForCompletedQueueSafely(guildId: string, queueChannelId: string): Promise<void> {
+    try {
+      await this.refreshPostsForCompletedQueue(guildId, queueChannelId);
+    } catch (error) {
+      this.logService.warn(
+        error,
+        new Map([
+          ["guildId", guildId],
+          ["queueChannelId", queueChannelId],
+          ["reason", "Failed to refresh leaderboard posts after series persistence"],
+        ]),
+      );
     }
   }
 
