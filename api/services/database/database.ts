@@ -337,6 +337,12 @@ export class DatabaseService {
     return response.results;
   }
 
+  async getAllLeaderboardPosts(): Promise<LeaderboardPostRow[]> {
+    const stmt = this.DB.prepare("SELECT * FROM LeaderboardPosts");
+    const response = await stmt.all<LeaderboardPostRow>();
+    return response.results;
+  }
+
   async deleteLeaderboardPost(channelId: string, messageId: string): Promise<void> {
     const query = "DELETE FROM LeaderboardPosts WHERE ChannelId = ? AND MessageId = ?";
     const stmt = this.DB.prepare(query).bind(channelId, messageId);

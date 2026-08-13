@@ -3,6 +3,7 @@ import { installServices } from "./services/install";
 import { createApiRouter } from "./base/router";
 import { Server } from "./server";
 import { StaleNeatQueueConfigCleanup } from "./services/neatqueue/stale-config-cleanup";
+import { LeaderboardPostReaper } from "./services/leaderboard/leaderboard-post-reaper";
 
 // Export Durable Object classes
 export { LiveTrackerDO } from "./durable-objects/live-tracker/live-tracker-do";
@@ -44,10 +45,23 @@ export default Sentry.withSentry(
   }),
   {
     fetch: server.router.fetch,
-    scheduled: async (_controller: ScheduledController, env: Env): Promise<void> => {
+    scheduled: async (controller: ScheduledController, env: Env): Promise<void> => {
       const { databaseService, discordService, logService } = installServices({ env });
-      const cleanup = new StaleNeatQueueConfigCleanup({ databaseService, discordService, logService });
-      await cleanup.execute();
+      switch (controller.cron) {
+        case "0 15 * * *": {
+          const cleanup = new StaleNeatQueueConfigCleanup({ databaseService, discordService, logService });
+          await cleanup.execute();
+          break;
+        }
+        case "0 0 * * 0": {
+          const reaper = new LeaderboardPostReaper({ databaseService, discordService, logService });
+          await reaper.execute();
+          break;
+        }
+        default: {
+          logService.warn("Received unexpected cron expression", new Map([["cron", controller.cron]]));
+        }
+      }
     },
   },
 );
