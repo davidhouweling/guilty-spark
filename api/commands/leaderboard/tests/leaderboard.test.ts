@@ -17,7 +17,7 @@ import {
   PermissionFlagsBits,
 } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import { LeaderboardMetric, LeaderboardMetricFamily, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import {
@@ -32,7 +32,7 @@ const INTERACTION_NEXT_PAGE = "btn_leaderboard_next";
 const INTERACTION_FIRST_PAGE = "btn_leaderboard_first";
 const INTERACTION_REFRESH = "btn_leaderboard_refresh";
 const INTERACTION_LAST_PAGE = "btn_leaderboard_last";
-const INTERACTION_METRIC_SELECT = "select_leaderboard_metric";
+const INTERACTION_METRIC_SELECT = "select_leaderboard_metric_family";
 const INTERACTION_WINDOW_SELECT = "select_leaderboard_window";
 
 function aStateComponentsWith(url: string): APIMessageTopLevelComponent[] {
@@ -102,7 +102,7 @@ describe("LeaderboardCommand", () => {
     const mappedOptions = new Map<string, string | number>();
     mappedOptions.set("queue_channel", "queue-123");
     mappedOptions.set("window", LeaderboardWindow.OneMonth);
-    mappedOptions.set("metric", LeaderboardMetric.Kills);
+    mappedOptions.set("metric_family", LeaderboardMetricFamily.Kills);
     mappedOptions.set("page", 2);
     mappedOptions.set("min_games_played", 3);
 
@@ -249,7 +249,7 @@ describe("LeaderboardCommand", () => {
     vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
       name: "show",
       options: [],
-      mappedOptions: new Map<string, string | number>([["metric", LeaderboardMetric.Accuracy]]),
+      mappedOptions: new Map<string, string | number>([["metric_family", LeaderboardMetricFamily.Accuracy]]),
     });
     const updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
       id: "message-id",
@@ -403,7 +403,7 @@ describe("LeaderboardCommand", () => {
     const mappedOptions = new Map<string, string | number>();
     mappedOptions.set("queue_channel", "queue-123");
     mappedOptions.set("window", LeaderboardWindow.OneMonth);
-    mappedOptions.set("metric", LeaderboardMetric.Kills);
+    mappedOptions.set("metric_family", LeaderboardMetricFamily.Kills);
     mappedOptions.set("page", 2);
     mappedOptions.set("min_games_played", 3);
 
@@ -777,11 +777,11 @@ describe("LeaderboardCommand", () => {
 
   it("updates deferred reply with error when metric selection interaction payload is invalid", async () => {
     const interaction: APIMessageComponentSelectMenuInteraction = {
-      ...aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetric.Kills }),
+      ...aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetricFamily.Kills }),
       guild_id: "guild-123",
       guild: {
         ...Preconditions.checkExists(
-          aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetric.Kills }).guild,
+          aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetricFamily.Kills }).guild,
         ),
         id: "guild-123",
       },
@@ -791,7 +791,8 @@ describe("LeaderboardCommand", () => {
         values: [],
       },
       message: {
-        ...aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetric.Kills }).message,
+        ...aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetricFamily.Kills })
+          .message,
         components: aStateComponentsWith(
           "https://guilty-spark.app/leaderboard?guildId=guild-123&window=3M&metric=KILLS&page=2",
         ),
@@ -854,9 +855,9 @@ describe("LeaderboardCommand", () => {
     const stateUrl =
       "https://guilty-spark.app/leaderboard?guildId=test-guild-id&window=1M&metric=SERIES_WIN_RATE&page=6&minGamesPlayed=0";
     const interaction: APIMessageComponentSelectMenuInteraction = {
-      ...aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetric.Kda }),
+      ...aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetricFamily.Kda }),
       message: {
-        ...aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetric.Kda }).message,
+        ...aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetricFamily.Kda }).message,
         components: aStateComponentsWith(stateUrl),
       },
     };
@@ -1427,7 +1428,7 @@ describe("LeaderboardCommand", () => {
     vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
       name: "show",
       options: [],
-      mappedOptions: new Map<string, string | number>([["metric", LeaderboardMetric.DamageRatio]]),
+      mappedOptions: new Map<string, string | number>([["metric_family", LeaderboardMetricFamily.DamageRatio]]),
     });
     const updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
       id: "message-id",

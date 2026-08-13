@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { APIMessage, APIMessageTopLevelComponent } from "discord-api-types/v10";
 import { ComponentType } from "discord-api-types/v10";
-import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import {
+  LeaderboardMetric,
+  LeaderboardWindow,
+  getDefaultLeaderboardAggregation,
+  getLeaderboardMetricAggregationLabel,
+  getLeaderboardMetricFamily,
+  getLeaderboardMetricFamilyLabel,
+} from "@guilty-spark/shared/halo/leaderboard";
 import { aFakeLeaderboardPostRow } from "../../database/fakes/database.fake";
 import { fakeButtonClickInteraction } from "../../discord/fakes/data";
 import { getLeaderboardMessageState } from "../leaderboard-message";
@@ -15,19 +22,43 @@ function aLeaderboardMessageWith({
   window?: LeaderboardWindow;
   footer?: string;
 } = {}): APIMessage {
+  const family = getLeaderboardMetricFamily(metric);
+  const defaultAggregation = getDefaultLeaderboardAggregation(family);
   const components: APIMessageTopLevelComponent[] = [
     {
       type: ComponentType.ActionRow,
       components: [
         {
           type: ComponentType.StringSelect,
-          custom_id: "select_leaderboard_metric:state",
+          custom_id: "select_leaderboard_metric_family:state",
           min_values: 1,
           max_values: 1,
-          options: [{ label: "Kills", value: metric, default: true }],
+          options: [{ label: getLeaderboardMetricFamilyLabel(family), value: family, default: true }],
         },
       ],
     },
+    ...(defaultAggregation != null
+      ? [
+          {
+            type: ComponentType.ActionRow as const,
+            components: [
+              {
+                type: ComponentType.StringSelect as const,
+                custom_id: "select_leaderboard_metric_aggregation:state",
+                min_values: 1,
+                max_values: 1,
+                options: [
+                  {
+                    label: getLeaderboardMetricAggregationLabel(defaultAggregation),
+                    value: defaultAggregation,
+                    default: true,
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+      : []),
     {
       type: ComponentType.ActionRow,
       components: [

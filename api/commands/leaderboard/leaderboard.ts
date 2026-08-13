@@ -16,13 +16,24 @@ import {
   PermissionFlagsBits,
 } from "discord-api-types/v10";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import {
+  LeaderboardMetric,
+  LeaderboardMetricAggregation,
+  LeaderboardMetricFamily,
+  LeaderboardWindow,
+  getLeaderboardFamilyAggregations,
+  getLeaderboardMetricAggregationLabel,
+  getLeaderboardMetricFamily,
+  getLeaderboardMetricFamilyLabel,
+  resolveLeaderboardMetric,
+} from "@guilty-spark/shared/halo/leaderboard";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import {
   createLeaderboardResponse,
   LEADERBOARD_FIRST_PAGE_CONTROL_ID,
   LEADERBOARD_LAST_PAGE_CONTROL_ID,
-  LEADERBOARD_METRIC_SELECT_CONTROL_ID,
+  LEADERBOARD_METRIC_AGGREGATION_SELECT_CONTROL_ID,
+  LEADERBOARD_METRIC_FAMILY_SELECT_CONTROL_ID,
   LEADERBOARD_NEXT_PAGE_CONTROL_ID,
   LEADERBOARD_PREV_PAGE_CONTROL_ID,
   LEADERBOARD_REFRESH_CONTROL_ID,
@@ -32,6 +43,28 @@ import type { ApplicationCommandData, BaseInteraction, CommandData, ExecuteRespo
 import { BaseCommand } from "../base/base-command";
 
 const DEFAULT_PAGE_SIZE = 10;
+
+const METRIC_FAMILIES_IN_OPTION_ORDER: readonly LeaderboardMetricFamily[] = [
+  LeaderboardMetricFamily.PersonalScore,
+  LeaderboardMetricFamily.Kills,
+  LeaderboardMetricFamily.Deaths,
+  LeaderboardMetricFamily.Assists,
+  LeaderboardMetricFamily.HeadshotKills,
+  LeaderboardMetricFamily.ShotsHit,
+  LeaderboardMetricFamily.ShotsFired,
+  LeaderboardMetricFamily.DamageDealt,
+  LeaderboardMetricFamily.DamageTaken,
+  LeaderboardMetricFamily.SeriesWinRate,
+  LeaderboardMetricFamily.Kda,
+  LeaderboardMetricFamily.Accuracy,
+  LeaderboardMetricFamily.DamageRatio,
+  LeaderboardMetricFamily.AvgLifeSeconds,
+  LeaderboardMetricFamily.AvgDamagePerLife,
+];
+
+const METRIC_AGGREGATIONS_IN_OPTION_ORDER: readonly LeaderboardMetricAggregation[] = [
+  LeaderboardMetricAggregation.Total,
+];
 
 const WINDOW_OPTIONS_BY_VALUE = new Map<string, LeaderboardWindow>([
   [LeaderboardWindow.OneWeek, LeaderboardWindow.OneWeek],
@@ -57,6 +90,12 @@ const METRIC_OPTIONS_BY_VALUE = new Map<string, LeaderboardMetric>([
   [LeaderboardMetric.AvgDamagePerLife, LeaderboardMetric.AvgDamagePerLife],
   [LeaderboardMetric.PersonalScore, LeaderboardMetric.PersonalScore],
 ]);
+const METRIC_FAMILY_OPTIONS_BY_VALUE = new Map<string, LeaderboardMetricFamily>(
+  METRIC_FAMILIES_IN_OPTION_ORDER.map((family) => [family, family]),
+);
+const METRIC_AGGREGATION_OPTIONS_BY_VALUE = new Map<string, LeaderboardMetricAggregation>(
+  METRIC_AGGREGATIONS_IN_OPTION_ORDER.map((aggregation) => [aggregation, aggregation]),
+);
 
 interface LeaderboardViewState {
   guildId: string;
@@ -108,26 +147,27 @@ export class LeaderboardCommand extends BaseCommand {
               ],
             },
             {
-              name: "metric",
-              description: "Metric to rank players by",
+              name: "metric_family",
+              description: "Stat family to rank players by",
               type: ApplicationCommandOptionType.String,
               required: false,
               choices: [
-                { name: "Series win rate", value: LeaderboardMetric.SeriesWinRate },
-                { name: "Kills", value: LeaderboardMetric.Kills },
-                { name: "Deaths", value: LeaderboardMetric.Deaths },
-                { name: "Assists", value: LeaderboardMetric.Assists },
-                { name: "Headshot kills", value: LeaderboardMetric.HeadshotKills },
-                { name: "Shots hit", value: LeaderboardMetric.ShotsHit },
-                { name: "Shots fired", value: LeaderboardMetric.ShotsFired },
-                { name: "KDA", value: LeaderboardMetric.Kda },
-                { name: "Accuracy", value: LeaderboardMetric.Accuracy },
-                { name: "Damage dealt", value: LeaderboardMetric.DamageDealt },
-                { name: "Damage taken", value: LeaderboardMetric.DamageTaken },
-                { name: "Damage ratio", value: LeaderboardMetric.DamageRatio },
-                { name: "Avg life time", value: LeaderboardMetric.AvgLifeSeconds },
-                { name: "Avg damage per life", value: LeaderboardMetric.AvgDamagePerLife },
-                { name: "Personal score", value: LeaderboardMetric.PersonalScore },
+                ...METRIC_FAMILIES_IN_OPTION_ORDER.map((family) => ({
+                  name: getLeaderboardMetricFamilyLabel(family),
+                  value: family,
+                })),
+              ],
+            },
+            {
+              name: "aggregation",
+              description: "How the stat is aggregated (only applies to some stat families)",
+              type: ApplicationCommandOptionType.String,
+              required: false,
+              choices: [
+                ...METRIC_AGGREGATIONS_IN_OPTION_ORDER.map((aggregation) => ({
+                  name: getLeaderboardMetricAggregationLabel(aggregation),
+                  value: aggregation,
+                })),
               ],
             },
             {
@@ -192,7 +232,15 @@ export class LeaderboardCommand extends BaseCommand {
         type: InteractionType.MessageComponent,
         data: {
           component_type: ComponentType.StringSelect,
-          custom_id: LEADERBOARD_METRIC_SELECT_CONTROL_ID,
+          custom_id: LEADERBOARD_METRIC_FAMILY_SELECT_CONTROL_ID,
+          values: [],
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: LEADERBOARD_METRIC_AGGREGATION_SELECT_CONTROL_ID,
           values: [],
         },
       },
@@ -239,8 +287,11 @@ export class LeaderboardCommand extends BaseCommand {
           case LEADERBOARD_LAST_PAGE_CONTROL_ID: {
             return this.deferUpdate(async () => this.handleLastPage(interaction));
           }
-          case LEADERBOARD_METRIC_SELECT_CONTROL_ID: {
-            return this.deferUpdate(async () => this.handleMetricSelect(interaction));
+          case LEADERBOARD_METRIC_FAMILY_SELECT_CONTROL_ID: {
+            return this.deferUpdate(async () => this.handleMetricFamilySelect(interaction));
+          }
+          case LEADERBOARD_METRIC_AGGREGATION_SELECT_CONTROL_ID: {
+            return this.deferUpdate(async () => this.handleMetricAggregationSelect(interaction));
           }
           case LEADERBOARD_WINDOW_SELECT_CONTROL_ID: {
             return this.deferUpdate(async () => this.handleWindowSelect(interaction));
@@ -274,7 +325,10 @@ export class LeaderboardCommand extends BaseCommand {
 
       const queueChannelId = this.getOptionalStringOption(options, "queue_channel") ?? null;
       const window = this.parseWindowOption(this.getOptionalStringOption(options, "window"));
-      const metric = this.parseMetricOption(this.getOptionalStringOption(options, "metric"));
+      const metric = this.resolveMetricFromFamilyAndAggregationOptions(
+        this.getOptionalStringOption(options, "metric_family"),
+        this.getOptionalStringOption(options, "aggregation"),
+      );
       const page = this.getOptionalNumberOption(options, "page") ?? 1;
       const minGamesPlayed = this.getOptionalNumberOption(options, "min_games_played");
       const locale = this.getInteractionLocale(interaction);
@@ -367,7 +421,7 @@ export class LeaderboardCommand extends BaseCommand {
     return state;
   }
 
-  private async handleMetricSelect(
+  private async handleMetricFamilySelect(
     interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
   ): Promise<void> {
     await this.executeStateInteraction(interaction, (state) => {
@@ -375,14 +429,37 @@ export class LeaderboardCommand extends BaseCommand {
         throw this.createInvalidLeaderboardControlError();
       }
 
-      const selectedMetric = this.parseMetricOption(interaction.data.values[0]);
-      if (selectedMetric == null) {
+      const selectedFamily = this.parseMetricFamilyOption(interaction.data.values[0]);
+      if (selectedFamily == null) {
         throw this.createInvalidLeaderboardControlError();
       }
 
       return {
         ...state,
-        metric: selectedMetric,
+        metric: resolveLeaderboardMetric(selectedFamily, null),
+        page: 1,
+      };
+    });
+  }
+
+  private async handleMetricAggregationSelect(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+  ): Promise<void> {
+    await this.executeStateInteraction(interaction, (state) => {
+      if (interaction.data.component_type !== ComponentType.StringSelect) {
+        throw this.createInvalidLeaderboardControlError();
+      }
+
+      const selectedAggregation = this.parseMetricAggregationOption(interaction.data.values[0]);
+      if (selectedAggregation == null || state.metric == null) {
+        throw this.createInvalidLeaderboardControlError();
+      }
+
+      const currentFamily = getLeaderboardMetricFamily(state.metric);
+
+      return {
+        ...state,
+        metric: resolveLeaderboardMetric(currentFamily, selectedAggregation),
         page: 1,
       };
     });
@@ -687,6 +764,65 @@ export class LeaderboardCommand extends BaseCommand {
     }
 
     return parsedMetric;
+  }
+
+  private parseMetricFamilyOption(value: string | undefined): LeaderboardMetricFamily | undefined {
+    if (value == null) {
+      return undefined;
+    }
+
+    const parsedFamily = METRIC_FAMILY_OPTIONS_BY_VALUE.get(value);
+    if (parsedFamily == null) {
+      throw new EndUserError(
+        "This leaderboard message has an invalid stat family filter. Run /leaderboard show again.",
+        {
+          handled: true,
+          errorType: EndUserErrorType.WARNING,
+        },
+      );
+    }
+
+    return parsedFamily;
+  }
+
+  private parseMetricAggregationOption(value: string | undefined): LeaderboardMetricAggregation | undefined {
+    if (value == null) {
+      return undefined;
+    }
+
+    const parsedAggregation = METRIC_AGGREGATION_OPTIONS_BY_VALUE.get(value);
+    if (parsedAggregation == null) {
+      throw new EndUserError(
+        "This leaderboard message has an invalid aggregation filter. Run /leaderboard show again.",
+        {
+          handled: true,
+          errorType: EndUserErrorType.WARNING,
+        },
+      );
+    }
+
+    return parsedAggregation;
+  }
+
+  private resolveMetricFromFamilyAndAggregationOptions(
+    familyValue: string | undefined,
+    aggregationValue: string | undefined,
+  ): LeaderboardMetric | undefined {
+    const family = this.parseMetricFamilyOption(familyValue);
+    if (family == null) {
+      return undefined;
+    }
+
+    const aggregation = this.parseMetricAggregationOption(aggregationValue) ?? null;
+    const supportedAggregations = getLeaderboardFamilyAggregations(family);
+    if (aggregation != null && supportedAggregations.length > 0 && !supportedAggregations.includes(aggregation)) {
+      throw new EndUserError("This aggregation is not valid for the selected stat family.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+
+    return resolveLeaderboardMetric(family, aggregation);
   }
 
   private getOptionalStringOption(

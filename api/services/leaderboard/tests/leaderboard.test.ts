@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { APIMessage, APIMessageTopLevelComponent } from "discord-api-types/v10";
 import { ComponentType, Locale } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import { LeaderboardMetric, LeaderboardMetricFamily, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardRankingRow } from "../../database/types/leaderboard_ranking_row";
 import {
   aFakeDatabaseServiceWith,
@@ -30,10 +30,10 @@ function aLeaderboardMessageWith({
       components: [
         {
           type: ComponentType.StringSelect,
-          custom_id: "select_leaderboard_metric:guild-1:queue-1:3M:KILLS:2:3",
+          custom_id: "select_leaderboard_metric_family:guild-1:queue-1:3M:KILLS:2:3",
           min_values: 1,
           max_values: 1,
-          options: [{ label: "Kills", value: LeaderboardMetric.Kills, default: true }],
+          options: [{ label: "Kills", value: LeaderboardMetricFamily.Kills, default: true }],
         },
       ],
     },

@@ -45,7 +45,7 @@ describe("createLeaderboardResponse", () => {
         footer: { text: "Page 2 of 3 | Min games: 3 | Total players: 23" },
       },
     ]);
-    expect(response.components).toHaveLength(3);
+    expect(response.components).toHaveLength(4);
   });
 
   it("formats newly added metrics and includes them in metric select options", () => {
