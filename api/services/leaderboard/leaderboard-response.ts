@@ -199,6 +199,10 @@ function formatMetricValue(metricValue: number, metric: LeaderboardMetric, local
       return `${metricValue.toLocaleString(locale, { maximumFractionDigits: 1 })}s`;
     }
     case LeaderboardMetric.AvgDamagePerLife: {
+      if (metricValue === Number.MAX_VALUE) {
+        return "∞";
+      }
+
       return metricValue.toLocaleString(locale, { maximumFractionDigits: 2 });
     }
     case LeaderboardMetric.Kills:

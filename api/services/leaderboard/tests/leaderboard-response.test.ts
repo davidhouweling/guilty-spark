@@ -153,4 +153,37 @@ describe("createLeaderboardResponse", () => {
     expect(optionLabels).toContain("Avg life time");
     expect(optionLabels).toContain("Avg damage per life");
   });
+
+  it("formats AvgDamagePerLife as infinity when metric value is Number.MAX_VALUE", () => {
+    const leaderboard: LeaderboardResponse = {
+      guildId: "guild-123",
+      queueChannelId: "queue-123",
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.AvgDamagePerLife,
+      minGamesPlayed: 3,
+      page: 1,
+      pageSize: 10,
+      total: 1,
+      rows: [
+        {
+          rank: 1,
+          xboxXuid: "xuid-1",
+          discordUserId: "discord-1",
+          gamertag: "Alpha",
+          seriesPlayed: 3,
+          seriesWins: 2,
+          gamesPlayed: 9,
+          metricValue: Number.MAX_VALUE,
+        },
+      ],
+    };
+
+    const response = createLeaderboardResponse("en-US", leaderboard, "<t:1733483139:R>");
+    const fields = response.embeds?.[0]?.fields;
+    expect(fields?.[2]).toEqual({
+      name: "Avg damage per life",
+      value: "∞",
+      inline: true,
+    });
+  });
 });
