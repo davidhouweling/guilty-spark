@@ -218,28 +218,32 @@ export class LeaderboardCommand extends BaseCommand {
     interaction: APIApplicationCommandInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
   ): Promise<void> {
-    const guildId = interaction.guild_id;
-    if (guildId == null || guildId === "") {
-      throw new EndUserError("Leaderboard can only be used inside a server.", {
-        handled: true,
-        errorType: EndUserErrorType.WARNING,
+    try {
+      const guildId = interaction.guild_id;
+      if (guildId == null || guildId === "") {
+        throw new EndUserError("Leaderboard can only be used inside a server.", {
+          handled: true,
+          errorType: EndUserErrorType.WARNING,
+        });
+      }
+
+      const queueChannelId = this.getOptionalStringOption(options, "queue_channel") ?? null;
+      const window = this.parseWindowOption(this.getOptionalStringOption(options, "window"));
+      const metric = this.parseMetricOption(this.getOptionalStringOption(options, "metric"));
+      const page = this.getOptionalNumberOption(options, "page") ?? 1;
+      const minGamesPlayed = this.getOptionalNumberOption(options, "min_games_played");
+
+      await this.refreshLeaderboard(interaction.token, interaction.locale, {
+        guildId,
+        queueChannelId,
+        ...(window != null ? { window } : {}),
+        ...(metric != null ? { metric } : {}),
+        page,
+        ...(minGamesPlayed != null ? { minGamesPlayed } : {}),
       });
+    } catch (error) {
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
     }
-
-    const queueChannelId = this.getOptionalStringOption(options, "queue_channel") ?? null;
-    const window = this.parseWindowOption(this.getOptionalStringOption(options, "window"));
-    const metric = this.parseMetricOption(this.getOptionalStringOption(options, "metric"));
-    const page = this.getOptionalNumberOption(options, "page") ?? 1;
-    const minGamesPlayed = this.getOptionalNumberOption(options, "min_games_played");
-
-    await this.refreshLeaderboard(interaction.token, interaction.locale, {
-      guildId,
-      queueChannelId,
-      ...(window != null ? { window } : {}),
-      ...(metric != null ? { metric } : {}),
-      page,
-      ...(minGamesPlayed != null ? { minGamesPlayed } : {}),
-    });
   }
 
   private async handlePageChange(

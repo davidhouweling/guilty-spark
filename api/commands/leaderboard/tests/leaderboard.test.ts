@@ -248,6 +248,43 @@ describe("LeaderboardCommand", () => {
     });
   });
 
+  it("updates deferred reply with error when leaderboard command is used outside a guild", async () => {
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "show",
+      options: [],
+      mappedOptions: new Map<string, string | number>(),
+    });
+    const updateDeferredReplyWithErrorSpy = vi
+      .spyOn(services.discordService, "updateDeferredReplyWithError")
+      .mockResolvedValue(undefined);
+
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      guild_id: "",
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [
+          {
+            type: ApplicationCommandOptionType.Subcommand,
+            name: "show",
+            options: [],
+          },
+        ],
+      },
+    };
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({ endUserMessage: "Leaderboard can only be used inside a server." }),
+    );
+  });
+
   it("paginates from interaction state when previous button is pressed", async () => {
     const stateUrl =
       "https://guilty-spark.app/leaderboard?guildId=guild-123&queueChannelId=queue-123&window=3M&metric=KILLS&page=2&minGamesPlayed=4";
