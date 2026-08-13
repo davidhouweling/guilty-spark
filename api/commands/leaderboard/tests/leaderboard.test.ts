@@ -1007,7 +1007,7 @@ describe("LeaderboardCommand", () => {
     );
 
     const [, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
-    expect(payload.embeds?.[0]?.description).toContain("Page: 2");
+    expect(payload.embeds?.[0]?.footer?.text).toBe("Page 2 of 2 | Min games: 5 | Total players: 12");
     expect(payload.embeds?.[0]?.fields).toEqual([
       { name: "Rank", value: "#11", inline: true },
       { name: "Player", value: "<@discord-2> (Bravo)", inline: true },
@@ -1079,7 +1079,7 @@ describe("LeaderboardCommand", () => {
 
     expect(getLeaderboardSpy).toHaveBeenCalledTimes(1);
     const [, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
-    expect(payload.embeds?.[0]?.description).toContain("Page: 1");
+    expect(payload.embeds?.[0]?.footer?.text).toBe("Page 1 of 1 | Min games: 5 | Total players: 0");
   });
 
   it("updates deferred reply with error when leaderboard refresh fails", async () => {

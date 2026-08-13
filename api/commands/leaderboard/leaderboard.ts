@@ -491,6 +491,7 @@ export class LeaderboardCommand extends BaseCommand {
     leaderboard: LeaderboardResponse,
   ): APIInteractionResponseCallbackData {
     const rows = leaderboard.rows.slice(0, MAX_ROWS_IN_DISCORD_EMBED);
+    const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
 
     const metricLabel = this.getMetricLabel(leaderboard.metric);
     const windowLabel = this.getWindowLabel(leaderboard.window);
@@ -500,10 +501,11 @@ export class LeaderboardCommand extends BaseCommand {
     const embed: APIEmbed = {
       color: EmbedColors.GOLD,
       title: `Leaderboard - ${scopeLabel}`,
-      description:
-        `Metric: ${metricLabel} | Window: ${windowLabel}\n` +
-        `Page: ${leaderboard.page.toString()} | Min games: ${leaderboard.minGamesPlayed.toString()} | Total players: ${leaderboard.total.toString()}`,
+      description: `Metric: ${metricLabel} | Window: ${windowLabel}`,
       fields: this.createRankingFields(rows, leaderboard.total, leaderboard.metric, locale),
+      footer: {
+        text: `Page ${leaderboard.page.toString()} of ${totalPages.toString()} | Min games: ${leaderboard.minGamesPlayed.toString()} | Total players: ${leaderboard.total.toString()}`,
+      },
     };
 
     const components = this.createComponents(leaderboard);
