@@ -502,23 +502,47 @@ describe("LeaderboardCommand", () => {
     expect(payload.embeds?.[0]?.fields?.[0]?.value).toBe("No players qualify for this filter yet.");
   });
 
-  it("renders an out-of-range page message when total players exist but page has no rows", async () => {
+  it("re-fetches the last valid page when requested page is out of range", async () => {
     vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
       name: "show",
       options: [],
       mappedOptions: new Map<string, string | number>([["page", 999]]),
     });
-    vi.spyOn(services.leaderboardService, "getLeaderboard").mockResolvedValue({
-      guildId: "guild-123",
-      queueChannelId: null,
-      window: LeaderboardWindow.ThreeMonths,
-      metric: LeaderboardMetric.SeriesWinRate,
-      minGamesPlayed: 5,
-      page: 999,
-      pageSize: 10,
-      total: 12,
-      rows: [],
-    });
+    const getLeaderboardSpy = vi
+      .spyOn(services.leaderboardService, "getLeaderboard")
+      .mockResolvedValueOnce({
+        guildId: "guild-123",
+        queueChannelId: null,
+        window: LeaderboardWindow.ThreeMonths,
+        metric: LeaderboardMetric.SeriesWinRate,
+        minGamesPlayed: 5,
+        page: 999,
+        pageSize: 10,
+        total: 12,
+        rows: [],
+      })
+      .mockResolvedValueOnce({
+        guildId: "guild-123",
+        queueChannelId: null,
+        window: LeaderboardWindow.ThreeMonths,
+        metric: LeaderboardMetric.SeriesWinRate,
+        minGamesPlayed: 5,
+        page: 2,
+        pageSize: 10,
+        total: 12,
+        rows: [
+          {
+            rank: 11,
+            xboxXuid: "xuid-2",
+            discordUserId: "discord-2",
+            gamertag: "Bravo",
+            seriesPlayed: 5,
+            seriesWins: 4,
+            gamesPlayed: 9,
+            metricValue: 0.8,
+          },
+        ],
+      });
     const updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
       id: "message-id",
       channel_id: "channel-id",
@@ -564,8 +588,27 @@ describe("LeaderboardCommand", () => {
     const result = command.execute(interaction);
     await result.jobToComplete?.();
 
+    expect(getLeaderboardSpy).toHaveBeenCalledTimes(2);
+    expect(getLeaderboardSpy).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        guildId: "guild-123",
+        page: 999,
+        pageSize: 10,
+      }),
+    );
+    expect(getLeaderboardSpy).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        guildId: "guild-123",
+        page: 2,
+        pageSize: 10,
+      }),
+    );
+
     const [, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
-    expect(payload.embeds?.[0]?.fields?.[0]?.value).toBe("No players found on this page. Try a lower page number.");
+    expect(payload.embeds?.[0]?.description).toContain("Page: 2");
+    expect(payload.embeds?.[0]?.fields?.[0]?.value).toContain("11. <@discord-2> (Bravo) - 80%");
   });
 
   it("updates deferred reply with error when leaderboard refresh fails", async () => {

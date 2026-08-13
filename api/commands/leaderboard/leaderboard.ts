@@ -333,15 +333,7 @@ export class LeaderboardCommand extends BaseCommand {
 
   private async refreshLeaderboard(token: string, locale: string, state: LeaderboardViewState): Promise<void> {
     try {
-      const leaderboard = await this.services.leaderboardService.getLeaderboard({
-        guildId: state.guildId,
-        ...(state.queueChannelId != null ? { queueChannelId: state.queueChannelId } : {}),
-        ...(state.window != null ? { window: state.window } : {}),
-        ...(state.metric != null ? { metric: state.metric } : {}),
-        page: state.page,
-        pageSize: DEFAULT_PAGE_SIZE,
-        ...(state.minGamesPlayed != null ? { minGamesPlayed: state.minGamesPlayed } : {}),
-      });
+      const leaderboard = await this.getLeaderboardWithResolvedPage(state);
 
       const response = this.createLeaderboardResponse(locale, leaderboard);
       await this.services.discordService.updateDeferredReply(token, response);
@@ -349,6 +341,34 @@ export class LeaderboardCommand extends BaseCommand {
       this.services.logService.error(error);
       await this.services.discordService.updateDeferredReplyWithError(token, error);
     }
+  }
+
+  private async getLeaderboardWithResolvedPage(state: LeaderboardViewState): Promise<LeaderboardResponse> {
+    const leaderboard = await this.services.leaderboardService.getLeaderboard({
+      guildId: state.guildId,
+      ...(state.queueChannelId != null ? { queueChannelId: state.queueChannelId } : {}),
+      ...(state.window != null ? { window: state.window } : {}),
+      ...(state.metric != null ? { metric: state.metric } : {}),
+      page: state.page,
+      pageSize: DEFAULT_PAGE_SIZE,
+      ...(state.minGamesPlayed != null ? { minGamesPlayed: state.minGamesPlayed } : {}),
+    });
+
+    const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
+    const requestedPageIsOutOfRange = leaderboard.total > 0 && leaderboard.page > totalPages;
+    if (!requestedPageIsOutOfRange) {
+      return leaderboard;
+    }
+
+    return this.services.leaderboardService.getLeaderboard({
+      guildId: state.guildId,
+      ...(state.queueChannelId != null ? { queueChannelId: state.queueChannelId } : {}),
+      ...(state.window != null ? { window: state.window } : {}),
+      ...(state.metric != null ? { metric: state.metric } : {}),
+      page: totalPages,
+      pageSize: DEFAULT_PAGE_SIZE,
+      ...(state.minGamesPlayed != null ? { minGamesPlayed: state.minGamesPlayed } : {}),
+    });
   }
 
   private createLeaderboardResponse(
