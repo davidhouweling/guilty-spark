@@ -16,7 +16,6 @@ import {
   PermissionFlagsBits,
 } from "discord-api-types/v10";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import {
@@ -439,7 +438,15 @@ export class LeaderboardCommand extends BaseCommand {
 
   private async refreshLeaderboard(token: string, locale: string, state: LeaderboardViewState): Promise<void> {
     try {
-      const leaderboard = await this.getLeaderboardWithResolvedPage(state);
+      const leaderboard = await this.services.leaderboardService.getLeaderboardWithResolvedPage({
+        guildId: state.guildId,
+        ...(state.queueChannelId != null ? { queueChannelId: state.queueChannelId } : {}),
+        ...(state.window != null ? { window: state.window } : {}),
+        ...(state.metric != null ? { metric: state.metric } : {}),
+        page: state.page,
+        pageSize: DEFAULT_PAGE_SIZE,
+        ...(state.minGamesPlayed != null ? { minGamesPlayed: state.minGamesPlayed } : {}),
+      });
 
       const response = createLeaderboardResponse(locale, leaderboard);
       const message = await this.services.discordService.updateDeferredReply(token, response);
@@ -474,41 +481,6 @@ export class LeaderboardCommand extends BaseCommand {
         ]),
       );
     }
-  }
-
-  private async getLeaderboardWithResolvedPage(state: LeaderboardViewState): Promise<LeaderboardResponse> {
-    const leaderboard = await this.services.leaderboardService.getLeaderboard({
-      guildId: state.guildId,
-      ...(state.queueChannelId != null ? { queueChannelId: state.queueChannelId } : {}),
-      ...(state.window != null ? { window: state.window } : {}),
-      ...(state.metric != null ? { metric: state.metric } : {}),
-      page: state.page,
-      pageSize: DEFAULT_PAGE_SIZE,
-      ...(state.minGamesPlayed != null ? { minGamesPlayed: state.minGamesPlayed } : {}),
-    });
-
-    const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
-    const requestedPageIsOutOfRange = leaderboard.page > totalPages;
-    if (!requestedPageIsOutOfRange) {
-      return leaderboard;
-    }
-
-    if (leaderboard.total === 0) {
-      return {
-        ...leaderboard,
-        page: 1,
-      };
-    }
-
-    return this.services.leaderboardService.getLeaderboard({
-      guildId: state.guildId,
-      ...(state.queueChannelId != null ? { queueChannelId: state.queueChannelId } : {}),
-      ...(state.window != null ? { window: state.window } : {}),
-      ...(state.metric != null ? { metric: state.metric } : {}),
-      page: totalPages,
-      pageSize: DEFAULT_PAGE_SIZE,
-      ...(state.minGamesPlayed != null ? { minGamesPlayed: state.minGamesPlayed } : {}),
-    });
   }
 
   private getStateFromInteractionMessage(
