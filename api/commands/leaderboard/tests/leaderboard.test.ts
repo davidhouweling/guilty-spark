@@ -779,7 +779,6 @@ describe("LeaderboardCommand", () => {
     const updateDeferredReplyWithErrorSpy = vi
       .spyOn(services.discordService, "updateDeferredReplyWithError")
       .mockResolvedValue(undefined);
-    const logErrorSpy = vi.spyOn(services.logService, "error");
 
     const interaction: APIApplicationCommandInteraction = {
       ...fakeBaseAPIApplicationCommandInteraction,
@@ -802,7 +801,6 @@ describe("LeaderboardCommand", () => {
     const result = command.execute(interaction);
     await result.jobToComplete?.();
 
-    expect(logErrorSpy).toHaveBeenCalledWith(error);
     expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(interaction.token, error);
   });
 

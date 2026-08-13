@@ -308,9 +308,6 @@ export class LeaderboardCommand extends BaseCommand {
       const locale = this.getInteractionLocale(interaction);
       await this.refreshLeaderboard(interaction.token, locale, stateUpdater(state));
     } catch (error) {
-      if (!this.isHandledEndUserError(error)) {
-        this.services.logService.error(error);
-      }
       await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
@@ -345,7 +342,6 @@ export class LeaderboardCommand extends BaseCommand {
       const response = this.createLeaderboardResponse(locale, leaderboard);
       await this.services.discordService.updateDeferredReply(token, response);
     } catch (error) {
-      this.services.logService.error(error);
       await this.services.discordService.updateDeferredReplyWithError(token, error);
     }
   }
@@ -783,10 +779,6 @@ export class LeaderboardCommand extends BaseCommand {
         throw new UnreachableError(metric);
       }
     }
-  }
-
-  private isHandledEndUserError(error: unknown): error is EndUserError {
-    return error instanceof EndUserError && error.handled;
   }
 
   private getInteractionLocale(
