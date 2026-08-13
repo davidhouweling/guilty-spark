@@ -284,6 +284,26 @@ describe("LeaderboardCommand", () => {
           gamesPlayed: 1,
           metricValue: 12.5,
         },
+        {
+          rank: 2,
+          xboxXuid: "xuid-2",
+          discordUserId: "discord-2",
+          gamertag: "Bravo",
+          seriesPlayed: 1,
+          seriesWins: 1,
+          gamesPlayed: 1,
+          metricValue: 10,
+        },
+        {
+          rank: 3,
+          xboxXuid: "xuid-3",
+          discordUserId: "discord-3",
+          gamertag: "Charlie",
+          seriesPlayed: 1,
+          seriesWins: 1,
+          gamesPlayed: 1,
+          metricValue: 7.5,
+        },
       ],
     });
 
@@ -312,9 +332,9 @@ describe("LeaderboardCommand", () => {
 
     const [, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
     expect(payload.embeds?.[0]?.fields).toEqual([
-      { name: "Rank", value: "#1", inline: true },
-      { name: "Player", value: "<@discord-1> (Alpha)", inline: true },
-      { name: "Accuracy", value: "12,5%", inline: true },
+      { name: "Rank", value: "🥇\n🥈\n🥉", inline: true },
+      { name: "Player", value: "<@discord-1> (Alpha)\n<@discord-2> (Bravo)\n<@discord-3> (Charlie)", inline: true },
+      { name: "Accuracy", value: "12,5%\n10%\n7,5%", inline: true },
     ]);
   });
 
@@ -1380,7 +1400,7 @@ describe("LeaderboardCommand", () => {
 
     const [, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
     expect(payload.embeds?.[0]?.fields).toEqual([
-      { name: "Rank", value: "#1", inline: true },
+      { name: "Rank", value: "🥇", inline: true },
       { name: "Player", value: "<@discord-1> (Alpha)", inline: true },
       { name: "Damage ratio", value: "∞", inline: true },
     ]);

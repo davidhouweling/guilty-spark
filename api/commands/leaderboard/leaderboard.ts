@@ -607,7 +607,7 @@ export class LeaderboardCommand extends BaseCommand {
     return [
       {
         name: "Rank",
-        value: rows.map((row) => `#${row.rank.toString()}`).join("\n"),
+        value: rows.map((row) => this.formatRank(row.rank)).join("\n"),
         inline: true,
       },
       {
@@ -623,6 +623,23 @@ export class LeaderboardCommand extends BaseCommand {
         inline: true,
       },
     ];
+  }
+
+  private formatRank(rank: number): string {
+    switch (rank) {
+      case 1: {
+        return "🥇";
+      }
+      case 2: {
+        return "🥈";
+      }
+      case 3: {
+        return "🥉";
+      }
+      default: {
+        return `#${rank.toString()}`;
+      }
+    }
   }
 
   private getMetricSelectOptions(selectedMetric: LeaderboardMetric): APISelectMenuOption[] {
