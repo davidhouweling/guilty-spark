@@ -271,6 +271,7 @@ function createComponents(leaderboard: LeaderboardResponse): APIMessageTopLevelC
 export function createLeaderboardResponse(
   locale: string,
   leaderboard: LeaderboardResponse,
+  updatedTimestamp: string,
 ): RESTPostAPIChannelMessageJSONBody {
   const rows = leaderboard.rows.slice(0, MAX_ROWS_IN_DISCORD_EMBED);
   const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
@@ -284,7 +285,7 @@ export function createLeaderboardResponse(
       {
         color: EmbedColors.GOLD,
         title: `Leaderboard - ${scopeLabel}`,
-        description: `Metric: ${metricLabel} | Window: ${windowLabel}`,
+        description: `Metric: ${metricLabel} | Window: ${windowLabel}\n-# Updated: ${updatedTimestamp}`,
         fields: createRankingFields(rows, leaderboard.total, leaderboard.metric, locale),
         footer: {
           text: `Page ${leaderboard.page.toString()} of ${totalPages.toString()} | Min games: ${leaderboard.minGamesPlayed.toString()} | Total players: ${leaderboard.total.toString()}`,

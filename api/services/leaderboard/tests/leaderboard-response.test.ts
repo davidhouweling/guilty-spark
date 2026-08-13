@@ -29,13 +29,13 @@ describe("createLeaderboardResponse", () => {
       ],
     };
 
-    const response = createLeaderboardResponse("en-US", leaderboard);
+    const response = createLeaderboardResponse("en-US", leaderboard, "<t:1733483139:R>");
 
     expect(response.embeds).toEqual([
       {
         color: EmbedColors.GOLD,
         title: "Leaderboard - Queue <#queue-123>",
-        description: "Metric: Kills | Window: 1 month",
+        description: "Metric: Kills | Window: 1 month\n-# Updated: <t:1733483139:R>",
         fields: [
           { name: "Rank", value: "#11", inline: true },
           { name: "Player", value: "<@discord-1> (Alpha)", inline: true },

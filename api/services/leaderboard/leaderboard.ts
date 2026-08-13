@@ -265,7 +265,11 @@ export class LeaderboardService {
         pageSize: 10,
         minGamesPlayed: state.minGamesPlayed,
       });
-      await discordService.editMessage(post.ChannelId, post.MessageId, createLeaderboardResponse(locale, leaderboard));
+      await discordService.editMessage(
+        post.ChannelId,
+        post.MessageId,
+        createLeaderboardResponse(locale, leaderboard, discordService.getTimestamp(new Date().toISOString(), "R")),
+      );
     } catch (error) {
       if (
         error instanceof DiscordError &&

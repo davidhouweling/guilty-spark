@@ -448,7 +448,11 @@ export class LeaderboardCommand extends BaseCommand {
         ...(state.minGamesPlayed != null ? { minGamesPlayed: state.minGamesPlayed } : {}),
       });
 
-      const response = createLeaderboardResponse(locale, leaderboard);
+      const response = createLeaderboardResponse(
+        locale,
+        leaderboard,
+        this.services.discordService.getTimestamp(new Date().toISOString(), "R"),
+      );
       const message = await this.services.discordService.updateDeferredReply(token, response);
       await this.upsertLeaderboardPost({
         ChannelId: message.channel_id,
