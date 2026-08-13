@@ -1,14 +1,7 @@
 /**
- * Validates KOTH analytics output for match 72c3006a.
+ * Validates KOTH analytics output for a given match.
  *
- * Expected from user observations:
- *   Hill 1: ~2:36 end, Eagle wins, Cobra ~30%
- *   Hill 2: ~4:28 end, Eagle wins, Cobra ~95%
- *   Hill 3: ~7:02 end, Eagle wins, Cobra ~70%
- *   Hill 4: never captured, match ends at ~10:07, Eagle ~15%, Cobra ~50%
- *   Final score: 3:0 Eagle
- *
- * Run: DOTENV_CONFIG_PATH=api/.dev.vars npx tsx api/scripts/koth-validate-match.ts
+ * Run: DOTENV_CONFIG_PATH=api/.dev.vars npx tsx api/scripts/koth-validate-match.ts <matchId>
  */
 import "dotenv/config";
 import path from "node:path";
@@ -40,7 +33,7 @@ import { HaloFilmService } from "../services/halo/halo-film";
 import { AnalyticsService } from "../services/analytics/analytics.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const MATCH_ID = "72c3006a-82fc-48a2-8a2f-f862b675f984";
+const MATCH_ID = process.argv[2] ?? "72c3006a-82fc-48a2-8a2f-f862b675f984";
 
 // ─── Setup ───────────────────────────────────────────────────────────────────
 
@@ -188,9 +181,24 @@ for (const [i, period] of hillPeriods.entries()) {
   console.log(`  Occupancy: ${occupancyStr}`);
 }
 
+const EXPECTED: Record<string, string[]> = {
+  "72c3006a-82fc-48a2-8a2f-f862b675f984": [
+    "Hill 1: ~2:36 end, Eagle wins, Cobra ~30%",
+    "Hill 2: ~4:28 end, Eagle wins, Cobra ~95%",
+    "Hill 3: ~7:02 end, Eagle wins, Cobra ~70%",
+    "Hill 4: never captured, ~10:07 end, Eagle ~15%, Cobra ~50%",
+    "Final score: 3:0 Eagle",
+  ],
+  "5c39e8a4-1986-4221-8c9e-dbb46fdfe2ca": [
+    "Hill 1: ~3:14 end, Eagle wins",
+    "Hill 2: ~5:03 end, Eagle wins, Cobra 0% (never in hill)",
+    "Hill 3: ~7:00 end, Cobra wins, Eagle meter was at 80%",
+    "Hill 4: never captured, ~9:36 end, Eagle 20% meter, Cobra 10% meter",
+    "Final score: 2:1 Eagle",
+  ],
+};
+const expected = EXPECTED[MATCH_ID] ?? ["(no expected data for this match ID)"];
 console.log("\n=== EXPECTED (from user) ===");
-console.log("Hill 1: ~2:36 end, Eagle wins, Cobra ~30%");
-console.log("Hill 2: ~4:28 end, Eagle wins, Cobra ~95%");
-console.log("Hill 3: ~7:02 end, Eagle wins, Cobra ~70%");
-console.log("Hill 4: never captured, ~10:07 end, Eagle ~15%, Cobra ~50%");
-console.log("Final score: 3:0 Eagle");
+for (const line of expected) {
+  console.log(line);
+}

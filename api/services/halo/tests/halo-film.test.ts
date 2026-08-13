@@ -2033,7 +2033,7 @@ describe("HaloFilmService", () => {
       };
     }
 
-    it("derives hill capture timestamps from relocation gaps and match-end event", async () => {
+    it("derives hill capture timestamps from score events matching each team's capture count", async () => {
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
@@ -2095,9 +2095,9 @@ describe("HaloFilmService", () => {
     });
 
     it("includes the match-end capture when per-location tick counts are uneven across hills", async () => {
-      // Loc E has 7 ticks instead of 5 — T0 total=17, not divisible by matchScore=3. A naive
-      // divisibility check (% 1 === 0 always true) would detect initial=2, shrink inGameCaptures
-      // from 3 to 1, and set needsMatchEndEvent=false, dropping Loc E from the result.
+      // Loc E has 7 ticks instead of 5. The 5-tick reading of Loc E (capture at 320000) is
+      // rejected because the next tick lands 5000ms later — inside the relocation quiet gap —
+      // so the capture must be the uneven 7-tick match-end event at 330000.
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
@@ -2203,7 +2203,7 @@ describe("HaloFilmService", () => {
       expect(result.events[1]).toMatchObject({ timestampMs: 10000, teamId: 0 });
     });
 
-    it("does not add matchEndEvent tick as a capture when all captures are already detected via relocation gaps", async () => {
+    it("does not treat trailing uncaptured-hill ticks at match end as a capture", async () => {
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
@@ -2263,12 +2263,12 @@ describe("HaloFilmService", () => {
 
       const result = await service.buildObjectiveControlProgression(match, 732278);
 
-      // All 5 captures detected from relocation gaps — the 2 ticks on Location F
+      // All 5 captures fit the 5-tick pattern — the 2 trailing ticks on Location F
       // are not a capture, so matchEndEvent (385000) must NOT appear.
       expect(result.hillCaptureTimestamps).toEqual([25000, 90000, 160000, 240000, 320000]);
     });
 
-    it("deduplicates when the last relocation capture timestamp equals the match-end event", async () => {
+    it("falls back to the captures that fit the events when match scores exceed available ticks", async () => {
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
@@ -2283,7 +2283,7 @@ describe("HaloFilmService", () => {
         modeEvent(team0Xuid, 20000),
         modeEvent(team0Xuid, 25000),
       ]);
-      // Null gap starts right at the last tick — matchEndEvent.timestampMs === relocation capture timestamp
+      // koth.json says Eagle=3, Cobra=2 but only one 5-tick Eagle hill exists in the film events.
       vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([
         { timeMs: 25001, fromValue: 0x40, toValue: 0x41 },
         { timeMs: 30000, fromValue: 0x41, toValue: 0x42 },
@@ -2294,86 +2294,11 @@ describe("HaloFilmService", () => {
       expect(result.hillCaptureTimestamps).toEqual([25000]);
     });
 
-    it("ignores a null gap whose preceding control period is shorter than the minimum pre-period duration", async () => {
-      // 5 valid captures (Eagle=3, Cobra=2). During Loc E's occupation, a rapid oscillation
-      // creates the pattern: [Long occupied] → [20ms null] → [300ms re-occupied] → [False null gap].
-      // The false null gap's prePeriod is 300ms < MIN_PRE_PERIOD_MS (500ms) → filtered.
-      // Without MIN_PRE_PERIOD_MS the tick at 298400ms (perLocationTicks=6, recency=200ms) would
-      // be recorded as a spurious 5th capture; the real Loc E capture at 307800ms would become 6th.
-      const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
-      const match = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
-      const team0Xuid = "0100000000000000";
-      const team1Xuid = "0400000000000000";
-
-      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
-        modeEvent(team0Xuid, 5000),
-        modeEvent(team0Xuid, 10000),
-        modeEvent(team0Xuid, 15000),
-        modeEvent(team0Xuid, 20000),
-        modeEvent(team0Xuid, 25000), // Loc A: Eagle (T0 cumulative=5)
-        modeEvent(team1Xuid, 70000),
-        modeEvent(team1Xuid, 75000),
-        modeEvent(team1Xuid, 80000),
-        modeEvent(team1Xuid, 85000),
-        modeEvent(team1Xuid, 90000), // Loc B: Cobra (T1 cumulative=5)
-        modeEvent(team0Xuid, 140000),
-        modeEvent(team0Xuid, 145000),
-        modeEvent(team0Xuid, 150000),
-        modeEvent(team0Xuid, 155000),
-        modeEvent(team0Xuid, 160000), // Loc C: Eagle (T0 cumulative=10)
-        modeEvent(team1Xuid, 220000),
-        modeEvent(team1Xuid, 225000),
-        modeEvent(team1Xuid, 230000),
-        modeEvent(team1Xuid, 235000),
-        modeEvent(team1Xuid, 240000), // Loc D: Cobra (T1 cumulative=10)
-        // Loc E pre-blip: 5 ticks (T0 cumulative=15); last at 277000ms is > 7000ms before blip
-        modeEvent(team0Xuid, 265500),
-        modeEvent(team0Xuid, 268500),
-        modeEvent(team0Xuid, 271500),
-        modeEvent(team0Xuid, 274500),
-        modeEvent(team0Xuid, 277000),
-        // Blip tick: 298400ms is 21400ms after 277000ms (survives dedup); it is inside the 300ms
-        // re-occupied window [298300→298600ms] — perLocationTicks=6, recency=200ms. Without
-        // MIN_PRE_PERIOD_MS it produces a spurious capture here; with it the gap is filtered.
-        modeEvent(team0Xuid, 298400),
-        // Loc E post-blip: 4 more ticks; 298800ms is deduped (400ms after 298400ms)
-        modeEvent(team0Xuid, 298800),
-        modeEvent(team0Xuid, 301800),
-        modeEvent(team0Xuid, 304800),
-        modeEvent(team0Xuid, 307800), // Loc E real capture tick (T0 cumulative=19 after dedup)
-      ]);
-      vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([
-        { timeMs: 25500, fromValue: 0x40, toValue: 0x41 },
-        { timeMs: 30000, fromValue: 0x41, toValue: 0x42 },
-        { timeMs: 90500, fromValue: 0x42, toValue: 0x43 },
-        { timeMs: 95000, fromValue: 0x43, toValue: 0x44 },
-        { timeMs: 160500, fromValue: 0x44, toValue: 0x45 },
-        { timeMs: 165000, fromValue: 0x45, toValue: 0x46 },
-        { timeMs: 240500, fromValue: 0x46, toValue: 0x47 },
-        { timeMs: 245000, fromValue: 0x47, toValue: 0x48 },
-        { timeMs: 265000, fromValue: 0x48, toValue: 0x49 }, // Loc E starts
-        // Oscillation: [298000→298300ms] briefly null, [298300→298600ms] 300ms re-occupied,
-        // [298600→298700ms] null again — the 300ms prePeriod is filtered by MIN_PRE_PERIOD_MS.
-        { timeMs: 298000, fromValue: 0x49, toValue: 0x48 },
-        { timeMs: 298300, fromValue: 0x48, toValue: 0x49 },
-        { timeMs: 298600, fromValue: 0x49, toValue: 0x48 },
-        { timeMs: 298700, fromValue: 0x48, toValue: 0x49 }, // Loc E resumes
-        { timeMs: 312000, fromValue: 0x49, toValue: 0x4a }, // Loc E captured
-      ]);
-
-      const result = await service.buildObjectiveControlProgression(match, 732278);
-
-      expect(result.hillCaptureTimestamps).toEqual([25000, 90000, 160000, 240000, 307800]);
-    });
-
-    it("attributes a relocation capture to the team with the most recent tick even when the other team majority-controlled the period", async () => {
-      // Hill 1: Team 1 has 7 ticks (majority in the occupied period), Team 0 has 6 ticks
-      // including the final tick at 49000ms (most recent before the gap at 50000ms).
-      // Events are spaced 3000ms apart to avoid the 2500ms dedup window.
-      // The capture should be attributed to Team 0 (most-recent-tick-wins), not Team 1.
+    it("attributes a contested hill to the team whose captures fit the match score", async () => {
+      // Hill 1: Team 1 has 7 ticks (majority in the hill), Team 0 has 6 ticks including the
+      // final tick at 49000ms. Events are spaced 3000ms apart to avoid the 2500ms dedup window.
+      // Team 1 capturing hill 1 leaves no room for Team 0's three captures (match score 3:2),
+      // so the only assignment fitting both scores gives hill 1 to Team 0 at 49000ms.
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
@@ -2434,8 +2359,8 @@ describe("HaloFilmService", () => {
 
       const result = await service.buildObjectiveControlProgression(match, 732278);
 
-      // hillCaptureTimestamps[0] must be 49000ms (T0's last tick) not 36500ms (T1's last tick),
-      // proving the most-recent-tick-wins logic rather than majority-period-team wins.
+      // hillCaptureTimestamps[0] must be 49000ms (Team 0's capture) not 36500ms (Team 1's last
+      // tick) — only Team 0 capturing hill 1 allows all five captures in the match score to fit.
       expect(result.hillCaptureTimestamps).toEqual([49000, 112000, 172000, 232000, 292000]);
     });
 

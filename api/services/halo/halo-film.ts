@@ -20,6 +20,7 @@ import {
   PERFECT_MEDAL_NAME_ID,
   PERFECT_MEDAL_PAIRING_MAX_DELTA_MS,
 } from "./constants";
+import { findBestKothCaptureAssignment } from "./koth-capture-search";
 import type {
   FilmMetadataResponse,
   ParsedHighlightEvent,
@@ -49,14 +50,6 @@ interface FilmAttributionData {
 const OBJECTIVE_TICK_DEDUP_MS = 2_500;
 const GAMEPLAY_BYTE2_MIN = 0x40;
 const GAMEPLAY_BYTE2_MAX = 0xa0;
-// Gap between the capturing team's last tick and the null-period start must be within this window.
-// 7 000 ms covers the ~6 700 ms game-clock lag observed for Hill 3 while still rejecting mid-hill
-// null blips (which appear ~8 000+ ms after the last tick).
-const CAPTURE_RECENCY_THRESHOLD_MS = 7_000;
-const MIN_CAPTURE_TICKS = 5;
-// The control period immediately before a null gap must be at least this long.
-// Filters out false positives from rapid byte2 oscillations (20ms blips) vs. real captures (hundreds of ms+).
-const MIN_PRE_PERIOD_MS = 500;
 
 export class HaloFilmService {
   private static readonly FILM_CACHE_TTL_SECONDS = 604_800;
@@ -233,229 +226,16 @@ export class HaloFilmService {
     return {
       events,
       controlPeriods,
-      hillCaptureTimestamps: this.buildHillCaptureTimestamps(events, controlPeriods, teamMatchScores),
+      hillCaptureTimestamps: this.buildHillCaptureTimestamps(events, teamMatchScores),
       teamCount: knownTeamIds.size,
     };
   }
 
   private buildHillCaptureTimestamps(
     events: ObjectiveControlProgressionEvent[],
-    controlPeriods: ObjectiveControlPeriod[],
     teamMatchScores: ReadonlyMap<number, number>,
   ): number[] {
-    const matchEndEvent = events.at(-1);
-    if (matchEndEvent == null || controlPeriods.length === 0) {
-      return [];
-    }
-
-    const relocationCaptures = this.findRelocationCaptures(events, controlPeriods);
-    const initialScores = this.detectInitialScores(teamMatchScores, matchEndEvent.runningScores);
-
-    const inGameCaptures = new Map<number, number>();
-    for (const [teamId, matchScore] of teamMatchScores) {
-      inGameCaptures.set(teamId, matchScore - (initialScores.get(teamId) ?? 0));
-    }
-
-    const knownCapturesByTeam = new Map<number, number>();
-    for (const cap of relocationCaptures) {
-      knownCapturesByTeam.set(cap.teamId, (knownCapturesByTeam.get(cap.teamId) ?? 0) + 1);
-    }
-
-    const totalCaptures = [...inGameCaptures.values()].reduce((a, b) => a + b, 0);
-    const needsMatchEndEvent = relocationCaptures.length < totalCaptures;
-
-    if (needsMatchEndEvent) {
-      knownCapturesByTeam.set(matchEndEvent.teamId, (knownCapturesByTeam.get(matchEndEvent.teamId) ?? 0) + 1);
-    }
-
-    const withinLocationTimestamps = this.findWithinLocationCaptureTimestamps(
-      events,
-      relocationCaptures,
-      matchEndEvent,
-      inGameCaptures,
-      knownCapturesByTeam,
-    );
-
-    const timestamps = [
-      ...new Set([
-        ...withinLocationTimestamps,
-        ...relocationCaptures.map((c) => c.timestampMs),
-        ...(needsMatchEndEvent ? [matchEndEvent.timestampMs] : []),
-      ]),
-    ].sort((a, b) => a - b);
-
-    return timestamps;
-  }
-
-  private findRelocationCaptures(
-    events: ObjectiveControlProgressionEvent[],
-    controlPeriods: ObjectiveControlPeriod[],
-  ): { timestampMs: number; teamId: number; runningScores: Record<string, number> }[] {
-    const nullGroups: { startMs: number; endMs: number }[] = [];
-    for (const period of controlPeriods) {
-      if (period.controllingTeamId !== null) {
-        continue;
-      }
-      const last = nullGroups.at(-1);
-      if (last?.endMs === period.startMs) {
-        last.endMs = period.endMs;
-      } else {
-        nullGroups.push({ startMs: period.startMs, endMs: period.endMs });
-      }
-    }
-
-    const captures: { timestampMs: number; teamId: number; runningScores: Record<string, number> }[] = [];
-    const baselineCumulatives = new Map<number, number>();
-
-    for (const { startMs: gapStart } of nullGroups) {
-      if (gapStart === 0) {
-        continue;
-      }
-      const prePeriod = controlPeriods.findLast((p) => p.endMs === gapStart && p.controllingTeamId !== null);
-      if (prePeriod?.controllingTeamId == null) {
-        continue;
-      }
-
-      if (prePeriod.endMs - prePeriod.startMs < MIN_PRE_PERIOD_MS) {
-        continue;
-      }
-
-      // In contested hills the majority team can differ from the actual capturer, so we
-      // prefer the most recent qualifying tick rather than the prePeriod's majority team.
-      let lastTickEvent: ObjectiveControlProgressionEvent | null = null;
-      for (let i = events.length - 1; i >= 0; i--) {
-        const event = Preconditions.checkExists(events[i]);
-        if (event.timestampMs > gapStart) {
-          continue;
-        }
-        if (gapStart - event.timestampMs > CAPTURE_RECENCY_THRESHOLD_MS) {
-          break;
-        }
-        const baseline = baselineCumulatives.get(event.teamId) ?? 0;
-        const perLocationTicks = (event.runningScores[String(event.teamId)] ?? 0) - baseline;
-        if (perLocationTicks >= MIN_CAPTURE_TICKS) {
-          lastTickEvent = event;
-          break;
-        }
-      }
-      if (lastTickEvent == null) {
-        continue;
-      }
-      const teamBefore = lastTickEvent.teamId;
-
-      captures.push({
-        timestampMs: lastTickEvent.timestampMs,
-        teamId: teamBefore,
-        runningScores: lastTickEvent.runningScores,
-      });
-
-      for (const [teamIdStr, cum] of Object.entries(lastTickEvent.runningScores)) {
-        baselineCumulatives.set(Number(teamIdStr), cum);
-      }
-    }
-
-    return captures;
-  }
-
-  private detectInitialScores(
-    teamMatchScores: ReadonlyMap<number, number>,
-    finalRunningScores: Record<string, number>,
-  ): Map<number, number> {
-    const initialScores = new Map<number, number>();
-    for (const [teamId, matchScore] of teamMatchScores) {
-      const finalCumulative = finalRunningScores[String(teamId)] ?? 0;
-      let initial = 0;
-      for (let candidate = 0; candidate < matchScore; candidate++) {
-        const inGame = matchScore - candidate;
-        // inGame > 1 prevents the trivial inGame=1 case (% 1 === 0 always) from
-        // falsely claiming captures happened before the film period started.
-        if (inGame > 1 && finalCumulative % inGame === 0) {
-          initial = candidate;
-          break;
-        }
-      }
-      initialScores.set(teamId, initial);
-    }
-    return initialScores;
-  }
-
-  private findWithinLocationCaptureTimestamps(
-    events: ObjectiveControlProgressionEvent[],
-    relocationCaptures: readonly { timestampMs: number; teamId: number; runningScores: Record<string, number> }[],
-    matchEndEvent: ObjectiveControlProgressionEvent,
-    inGameCaptures: ReadonlyMap<number, number>,
-    knownCapturesByTeam: ReadonlyMap<number, number>,
-  ): number[] {
-    const timestamps: number[] = [];
-    const [firstRelocation] = relocationCaptures;
-    if (firstRelocation == null) {
-      return [];
-    }
-
-    const relocationTeamId = firstRelocation.teamId;
-    const allCaptures: readonly { timestampMs: number; runningScores: Record<string, number> }[] = [
-      ...relocationCaptures,
-      matchEndEvent,
-    ].sort((a, b) => a.timestampMs - b.timestampMs);
-    const threshold = this.computeCaptureThreshold(relocationTeamId, allCaptures);
-    if (threshold <= 0) {
-      return [];
-    }
-
-    const cumAtFirstRelocation = firstRelocation.runningScores[String(relocationTeamId)] ?? 0;
-    const resetCumulative = cumAtFirstRelocation - threshold;
-    const breakAtCumulative = resetCumulative + 1;
-
-    for (const [teamId, inGame] of inGameCaptures) {
-      if (teamId === relocationTeamId) {
-        continue;
-      }
-      const known = knownCapturesByTeam.get(teamId) ?? 0;
-      if (inGame - known <= 0) {
-        continue;
-      }
-
-      let withinLocationEvent: ObjectiveControlProgressionEvent | null = null;
-      for (const event of events) {
-        if (event.timestampMs >= firstRelocation.timestampMs) {
-          break;
-        }
-        const relocationTeamCum = event.runningScores[String(relocationTeamId)] ?? 0;
-        if (relocationTeamCum >= breakAtCumulative) {
-          break;
-        }
-        if (event.teamId === teamId) {
-          withinLocationEvent = event;
-        }
-      }
-
-      if (withinLocationEvent != null) {
-        timestamps.push(withinLocationEvent.timestampMs);
-      }
-    }
-
-    return timestamps;
-  }
-
-  private computeCaptureThreshold(
-    teamId: number,
-    captures: readonly { timestampMs: number; runningScores: Record<string, number> }[],
-  ): number {
-    const sorted = [...captures].sort((a, b) => a.timestampMs - b.timestampMs);
-    let maxDelta = 0;
-    for (let i = 1; i < sorted.length; i++) {
-      const prev = sorted[i - 1];
-      const curr = sorted[i];
-      if (prev == null || curr == null) {
-        continue;
-      }
-      const prevCum = prev.runningScores[String(teamId)] ?? 0;
-      const currCum = curr.runningScores[String(teamId)] ?? 0;
-      if (currCum > prevCum) {
-        maxDelta = Math.max(maxDelta, currCum - prevCum);
-      }
-    }
-    return maxDelta;
+    return findBestKothCaptureAssignment(events, teamMatchScores);
   }
 
   private buildObjectiveScoreEvents(
