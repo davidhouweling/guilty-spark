@@ -12,6 +12,7 @@ import {
   ComponentType,
   InteractionResponseType,
   InteractionType,
+  Locale,
   MessageType,
   PermissionFlagsBits,
 } from "discord-api-types/v10";
@@ -195,6 +196,85 @@ describe("LeaderboardCommand", () => {
     expect(linkUrl).toContain("window=1M");
     expect(linkUrl).toContain("metric=KILLS");
     expect(linkUrl).toContain("page=2");
+  });
+
+  it("prefers guild locale over user locale for leaderboard formatting", async () => {
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "show",
+      options: [],
+      mappedOptions: new Map<string, string | number>([["metric", LeaderboardMetric.Accuracy]]),
+    });
+    const updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      id: "message-id",
+      channel_id: "channel-id",
+      content: "",
+      timestamp: "2026-08-12T00:00:00.000Z",
+      edited_timestamp: null,
+      tts: false,
+      mention_everyone: false,
+      mentions: [],
+      mention_roles: [],
+      attachments: [],
+      embeds: [],
+      pinned: false,
+      type: MessageType.Default,
+      author: {
+        id: "bot-id",
+        username: "Guilty Spark",
+        discriminator: "0000",
+        avatar: null,
+        global_name: null,
+      },
+      components: [],
+    });
+    vi.spyOn(services.leaderboardService, "getLeaderboard").mockResolvedValue({
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.ThreeMonths,
+      metric: LeaderboardMetric.Accuracy,
+      minGamesPlayed: 0,
+      page: 1,
+      pageSize: 10,
+      total: 1,
+      rows: [
+        {
+          rank: 1,
+          xboxXuid: "xuid-1",
+          discordUserId: "discord-1",
+          gamertag: "Alpha",
+          seriesPlayed: 1,
+          seriesWins: 1,
+          gamesPlayed: 1,
+          metricValue: 12.5,
+        },
+      ],
+    });
+
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      guild_id: "guild-123",
+      locale: Locale.EnglishUS,
+      guild_locale: Locale.French,
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [
+          {
+            type: ApplicationCommandOptionType.Subcommand,
+            name: "show",
+            options: [],
+          },
+        ],
+      },
+    };
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    const [, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
+    expect(payload.embeds?.[0]?.fields?.[0]?.value).toContain("1. <@discord-1> (Alpha) - 12,5%");
   });
 
   it("uses service defaults when leaderboard options are omitted", async () => {

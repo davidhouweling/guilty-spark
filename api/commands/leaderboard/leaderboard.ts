@@ -231,8 +231,9 @@ export class LeaderboardCommand extends BaseCommand {
       const metric = this.parseMetricOption(this.getOptionalStringOption(options, "metric"));
       const page = this.getOptionalNumberOption(options, "page") ?? 1;
       const minGamesPlayed = this.getOptionalNumberOption(options, "min_games_played");
+      const locale = this.getInteractionLocale(interaction);
 
-      await this.refreshLeaderboard(interaction.token, interaction.locale, {
+      await this.refreshLeaderboard(interaction.token, locale, {
         guildId,
         queueChannelId,
         ...(window != null ? { window } : {}),
@@ -304,7 +305,8 @@ export class LeaderboardCommand extends BaseCommand {
     try {
       await this.assertCanUseLeaderboardControls(interaction);
       const state = this.getStateFromInteractionMessage(interaction);
-      await this.refreshLeaderboard(interaction.token, interaction.locale, stateUpdater(state));
+      const locale = this.getInteractionLocale(interaction);
+      await this.refreshLeaderboard(interaction.token, locale, stateUpdater(state));
     } catch (error) {
       if (!this.isHandledEndUserError(error)) {
         this.services.logService.error(error);
@@ -525,7 +527,7 @@ export class LeaderboardCommand extends BaseCommand {
   private getStateFromInteractionMessage(
     interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
   ): LeaderboardViewState {
-    const {components} = interaction.message;
+    const { components } = interaction.message;
     if (components == null || components.length === 0) {
       throw new EndUserError(
         "This leaderboard message is missing its interaction context. Run /leaderboard show again.",
@@ -785,5 +787,14 @@ export class LeaderboardCommand extends BaseCommand {
 
   private isHandledEndUserError(error: unknown): error is EndUserError {
     return error instanceof EndUserError && error.handled;
+  }
+
+  private getInteractionLocale(
+    interaction:
+      | APIApplicationCommandInteraction
+      | APIMessageComponentButtonInteraction
+      | APIMessageComponentSelectMenuInteraction,
+  ): string {
+    return interaction.guild_locale ?? interaction.locale;
   }
 }
