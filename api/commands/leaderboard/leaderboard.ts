@@ -364,9 +364,16 @@ export class LeaderboardCommand extends BaseCommand {
     });
 
     const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
-    const requestedPageIsOutOfRange = leaderboard.total > 0 && leaderboard.page > totalPages;
+    const requestedPageIsOutOfRange = leaderboard.page > totalPages;
     if (!requestedPageIsOutOfRange) {
       return leaderboard;
+    }
+
+    if (leaderboard.total === 0) {
+      return {
+        ...leaderboard,
+        page: 1,
+      };
     }
 
     return this.services.leaderboardService.getLeaderboard({

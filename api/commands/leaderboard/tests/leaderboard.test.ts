@@ -877,6 +877,73 @@ describe("LeaderboardCommand", () => {
     expect(payload.embeds?.[0]?.fields?.[0]?.value).toContain("11. <@discord-2> (Bravo) - 80%");
   });
 
+  it("clamps empty leaderboard page to 1 without re-fetching", async () => {
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "show",
+      options: [],
+      mappedOptions: new Map<string, string | number>([["page", 999]]),
+    });
+    const getLeaderboardSpy = vi.spyOn(services.leaderboardService, "getLeaderboard").mockResolvedValue({
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.ThreeMonths,
+      metric: LeaderboardMetric.SeriesWinRate,
+      minGamesPlayed: 5,
+      page: 999,
+      pageSize: 10,
+      total: 0,
+      rows: [],
+    });
+    const updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      id: "message-id",
+      channel_id: "channel-id",
+      content: "",
+      timestamp: "2026-08-12T00:00:00.000Z",
+      edited_timestamp: null,
+      tts: false,
+      mention_everyone: false,
+      mentions: [],
+      mention_roles: [],
+      attachments: [],
+      embeds: [],
+      pinned: false,
+      type: MessageType.Default,
+      author: {
+        id: "bot-id",
+        username: "Guilty Spark",
+        discriminator: "0000",
+        avatar: null,
+        global_name: null,
+      },
+      components: [],
+    });
+
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      guild_id: "guild-123",
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [
+          {
+            type: ApplicationCommandOptionType.Subcommand,
+            name: "show",
+            options: [],
+          },
+        ],
+      },
+    };
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(getLeaderboardSpy).toHaveBeenCalledTimes(1);
+    const [, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
+    expect(payload.embeds?.[0]?.description).toContain("Page: 1");
+  });
+
   it("updates deferred reply with error when leaderboard refresh fails", async () => {
     vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
       name: "show",
