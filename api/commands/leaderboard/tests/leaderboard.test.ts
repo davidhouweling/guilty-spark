@@ -509,6 +509,115 @@ describe("LeaderboardCommand", () => {
     );
   });
 
+  it("updates deferred reply with error when page-change interaction payload has wrong component type", async () => {
+    const interaction: APIMessageComponentSelectMenuInteraction = {
+      ...aWizardStringSelectWith({ customId: INTERACTION_PREV_PAGE, value: "unused" }),
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(
+          aWizardStringSelectWith({ customId: INTERACTION_PREV_PAGE, value: "unused" }).guild,
+        ),
+        id: "guild-123",
+      },
+      message: {
+        ...aWizardStringSelectWith({ customId: INTERACTION_PREV_PAGE, value: "unused" }).message,
+        components: aStateComponentsWith(
+          "https://guilty-spark.app/leaderboard?guildId=guild-123&window=3M&metric=KILLS&page=2",
+        ),
+      },
+    };
+    const updateDeferredReplyWithErrorSpy = vi
+      .spyOn(services.discordService, "updateDeferredReplyWithError")
+      .mockResolvedValue(undefined);
+    const getLeaderboardSpy = vi.spyOn(services.leaderboardService, "getLeaderboard");
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(getLeaderboardSpy).not.toHaveBeenCalled();
+    expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({
+        endUserMessage: "This leaderboard control interaction is invalid. Run /leaderboard show again.",
+      }),
+    );
+  });
+
+  it("updates deferred reply with error when metric selection interaction payload is invalid", async () => {
+    const interaction: APIMessageComponentSelectMenuInteraction = {
+      ...aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetric.Kills }),
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(
+          aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetric.Kills }).guild,
+        ),
+        id: "guild-123",
+      },
+      data: {
+        component_type: ComponentType.StringSelect,
+        custom_id: INTERACTION_METRIC_SELECT,
+        values: [],
+      },
+      message: {
+        ...aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetric.Kills }).message,
+        components: aStateComponentsWith(
+          "https://guilty-spark.app/leaderboard?guildId=guild-123&window=3M&metric=KILLS&page=2",
+        ),
+      },
+    };
+    const updateDeferredReplyWithErrorSpy = vi
+      .spyOn(services.discordService, "updateDeferredReplyWithError")
+      .mockResolvedValue(undefined);
+    const getLeaderboardSpy = vi.spyOn(services.leaderboardService, "getLeaderboard");
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(getLeaderboardSpy).not.toHaveBeenCalled();
+    expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({
+        endUserMessage: "This leaderboard control interaction is invalid. Run /leaderboard show again.",
+      }),
+    );
+  });
+
+  it("updates deferred reply with error when window selection interaction payload is invalid", async () => {
+    const interaction: APIMessageComponentButtonInteraction = {
+      ...fakeButtonClickInteraction,
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(fakeButtonClickInteraction.guild),
+        id: "guild-123",
+      },
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: INTERACTION_WINDOW_SELECT,
+      },
+      message: {
+        ...fakeButtonClickInteraction.message,
+        components: aStateComponentsWith(
+          "https://guilty-spark.app/leaderboard?guildId=guild-123&window=3M&metric=KILLS&page=2",
+        ),
+      },
+    };
+    const updateDeferredReplyWithErrorSpy = vi
+      .spyOn(services.discordService, "updateDeferredReplyWithError")
+      .mockResolvedValue(undefined);
+    const getLeaderboardSpy = vi.spyOn(services.leaderboardService, "getLeaderboard");
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(getLeaderboardSpy).not.toHaveBeenCalled();
+    expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({
+        endUserMessage: "This leaderboard control interaction is invalid. Run /leaderboard show again.",
+      }),
+    );
+  });
+
   it("switches metric from string-select interaction and resets to page 1", async () => {
     const stateUrl =
       "https://guilty-spark.app/leaderboard?guildId=test-guild-id&window=1M&metric=SERIES_WIN_RATE&page=6&minGamesPlayed=0";

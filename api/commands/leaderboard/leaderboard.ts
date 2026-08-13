@@ -250,52 +250,58 @@ export class LeaderboardCommand extends BaseCommand {
     interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
     delta: number,
   ): Promise<void> {
-    if (interaction.data.component_type !== ComponentType.Button) {
-      throw new Error("Unexpected component type for leaderboard page action");
-    }
+    await this.executeStateInteraction(interaction, (state) => {
+      if (interaction.data.component_type !== ComponentType.Button) {
+        throw this.createInvalidLeaderboardControlError();
+      }
 
-    await this.executeStateInteraction(interaction, (state) => ({
-      ...state,
-      page: Math.max(1, state.page + delta),
-    }));
+      return {
+        ...state,
+        page: Math.max(1, state.page + delta),
+      };
+    });
   }
 
   private async handleMetricSelect(
     interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
   ): Promise<void> {
-    if (interaction.data.component_type !== ComponentType.StringSelect) {
-      throw new Error("Unexpected component type for leaderboard metric select");
-    }
+    await this.executeStateInteraction(interaction, (state) => {
+      if (interaction.data.component_type !== ComponentType.StringSelect) {
+        throw this.createInvalidLeaderboardControlError();
+      }
 
-    const selectedMetric = this.parseMetricOption(interaction.data.values[0]);
-    if (selectedMetric == null) {
-      throw new Error("Leaderboard metric selection is missing");
-    }
+      const selectedMetric = this.parseMetricOption(interaction.data.values[0]);
+      if (selectedMetric == null) {
+        throw this.createInvalidLeaderboardControlError();
+      }
 
-    await this.executeStateInteraction(interaction, (state) => ({
-      ...state,
-      metric: selectedMetric,
-      page: 1,
-    }));
+      return {
+        ...state,
+        metric: selectedMetric,
+        page: 1,
+      };
+    });
   }
 
   private async handleWindowSelect(
     interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
   ): Promise<void> {
-    if (interaction.data.component_type !== ComponentType.StringSelect) {
-      throw new Error("Unexpected component type for leaderboard window select");
-    }
+    await this.executeStateInteraction(interaction, (state) => {
+      if (interaction.data.component_type !== ComponentType.StringSelect) {
+        throw this.createInvalidLeaderboardControlError();
+      }
 
-    const selectedWindow = this.parseWindowOption(interaction.data.values[0]);
-    if (selectedWindow == null) {
-      throw new Error("Leaderboard window selection is missing");
-    }
+      const selectedWindow = this.parseWindowOption(interaction.data.values[0]);
+      if (selectedWindow == null) {
+        throw this.createInvalidLeaderboardControlError();
+      }
 
-    await this.executeStateInteraction(interaction, (state) => ({
-      ...state,
-      window: selectedWindow,
-      page: 1,
-    }));
+      return {
+        ...state,
+        window: selectedWindow,
+        page: 1,
+      };
+    });
   }
 
   private async executeStateInteraction(
@@ -788,5 +794,12 @@ export class LeaderboardCommand extends BaseCommand {
       | APIMessageComponentSelectMenuInteraction,
   ): string {
     return interaction.guild_locale ?? interaction.locale;
+  }
+
+  private createInvalidLeaderboardControlError(): EndUserError {
+    return new EndUserError("This leaderboard control interaction is invalid. Run /leaderboard show again.", {
+      handled: true,
+      errorType: EndUserErrorType.WARNING,
+    });
   }
 }
