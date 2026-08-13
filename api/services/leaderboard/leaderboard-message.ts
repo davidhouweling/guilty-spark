@@ -6,6 +6,7 @@ import { LEADERBOARD_METRIC_SELECT_CONTROL_ID, LEADERBOARD_WINDOW_SELECT_CONTROL
 
 const LEADERBOARD_FOOTER_PATTERN = /^Page (\d+) of (\d+) \| Min games: (\d+) \| Total players: (\d+)$/;
 const LEGACY_LEADERBOARD_DESCRIPTION_PATTERN = /Page (\d+) of (\d+) \| Min games: (\d+) \| Total players: (\d+)/;
+const LEGACY_LEADERBOARD_SUMMARY_PATTERN = /Page: (\d+) \| Min games: (\d+) \| Total players: (\d+)/;
 
 const WINDOW_VALUES = new Set<string>(Object.values(LeaderboardWindow));
 const METRIC_VALUES = new Set<string>(Object.values(LeaderboardMetric));
@@ -66,12 +67,24 @@ function getSelectedMetric(components: APIMessageTopLevelComponent[]): Leaderboa
 
 function parsePageAndMinGames(text: string): { page: number; minGamesPlayed: number } | null {
   const match = LEADERBOARD_FOOTER_PATTERN.exec(text) ?? LEGACY_LEADERBOARD_DESCRIPTION_PATTERN.exec(text);
-  if (match == null) {
+  if (match != null) {
+    const page = Number.parseInt(match[1] ?? "", 10);
+    const minGamesPlayed = Number.parseInt(match[3] ?? "", 10);
+
+    if (Number.isNaN(page) || Number.isNaN(minGamesPlayed) || page < 1 || minGamesPlayed < 0) {
+      return null;
+    }
+
+    return { page, minGamesPlayed };
+  }
+
+  const legacySummaryMatch = LEGACY_LEADERBOARD_SUMMARY_PATTERN.exec(text);
+  if (legacySummaryMatch == null) {
     return null;
   }
 
-  const page = Number.parseInt(match[1] ?? "", 10);
-  const minGamesPlayed = Number.parseInt(match[3] ?? "", 10);
+  const page = Number.parseInt(legacySummaryMatch[1] ?? "", 10);
+  const minGamesPlayed = Number.parseInt(legacySummaryMatch[2] ?? "", 10);
 
   if (Number.isNaN(page) || Number.isNaN(minGamesPlayed) || page < 1 || minGamesPlayed < 0) {
     return null;
