@@ -292,7 +292,7 @@ export class DiscordService {
     }
 
     this.logService.info("getCommandToExecute", new Map([["name", name]]));
-    const command = this.commands.get(name);
+    const command = this.commands.get(name) ?? this.commands.get(name.split(":", 1)[0] ?? "");
     if (!command) {
       this.logService.warn("Command not found", new Map([["name", name]]));
 

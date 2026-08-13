@@ -8,6 +8,7 @@ import { SetupCommand } from "./setup/setup";
 import { MapsCommand } from "./maps/maps";
 import { TrackCommand } from "./track/track";
 import { ServiceRecordCommand } from "./service-record/service-record";
+import { LeaderboardCommand } from "./leaderboard/leaderboard";
 
 export function getCommands(services: Services, env: Env): Map<string, BaseCommand> {
   const commandMap = new Map<string, BaseCommand>();
@@ -18,6 +19,7 @@ export function getCommands(services: Services, env: Env): Map<string, BaseComma
     new SetupCommand(services, env),
     new TrackCommand(services, env),
     new ServiceRecordCommand(services, env),
+    new LeaderboardCommand(services, env),
   ];
 
   for (const command of commands) {
