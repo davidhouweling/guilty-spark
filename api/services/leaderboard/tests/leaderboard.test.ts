@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { APIMessage, APIMessageTopLevelComponent } from "discord-api-types/v10";
-import { ComponentType } from "discord-api-types/v10";
+import { ComponentType, Locale } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardRankingRow } from "../../database/types/leaderboard_ranking_row";
@@ -294,7 +294,9 @@ describe("LeaderboardService", () => {
       rows: killsRankingRows,
     });
     vi.spyOn(discordService, "getMessage").mockResolvedValue(aLeaderboardMessageWith());
-    const getGuildPreferredLocaleSpy = vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue("en-US");
+    const getGuildPreferredLocaleSpy = vi
+      .spyOn(discordService, "getGuildPreferredLocale")
+      .mockResolvedValue(Locale.EnglishUS);
     const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
 
     await service.refreshPostsForCompletedQueue("guild-1", "queue-1");
@@ -333,7 +335,7 @@ describe("LeaderboardService", () => {
     const service = new LeaderboardService({ databaseService, discordService, haloService, logService });
     const post = aFakeLeaderboardPostRow();
     vi.spyOn(databaseService, "findLeaderboardPostsForRefresh").mockResolvedValue([post]);
-    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue("en-US");
+    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue(Locale.EnglishUS);
     vi.spyOn(discordService, "getMessage").mockResolvedValue(aLeaderboardMessageWith());
     vi.spyOn(databaseService, "getLeaderboardConfig").mockResolvedValue(
       aFakeLeaderboardConfigRow({ GuildId: "guild-1", MinGamesPlayed: 3 }),
@@ -357,7 +359,7 @@ describe("LeaderboardService", () => {
     const service = new LeaderboardService({ databaseService, discordService, haloService, logService });
     const post = aFakeLeaderboardPostRow();
     vi.spyOn(databaseService, "findLeaderboardPostsForRefresh").mockResolvedValue([post]);
-    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue("en-US");
+    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue(Locale.EnglishUS);
     vi.spyOn(discordService, "getMessage").mockRejectedValue(
       new DiscordError(404, { code: 10008, message: "Unknown Message" }),
     );
@@ -387,7 +389,7 @@ describe("LeaderboardService", () => {
       total: 23,
       rows: killsRankingRows,
     });
-    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue("en-US");
+    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue(Locale.EnglishUS);
     const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
     const warnSpy = vi.spyOn(logService, "warn");
 
@@ -424,7 +426,7 @@ describe("LeaderboardService", () => {
       total: 23,
       rows: killsRankingRows,
     });
-    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue("en-US");
+    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue(Locale.EnglishUS);
     const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
     const warnSpy = vi.spyOn(logService, "warn");
 
@@ -454,7 +456,7 @@ describe("LeaderboardService", () => {
       MessageId: "leaderboard-message-1",
     });
     vi.spyOn(databaseService, "findLeaderboardPostsForRefresh").mockResolvedValue([post]);
-    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue("en-US");
+    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue(Locale.EnglishUS);
     vi.spyOn(discordService, "getMessage").mockResolvedValue(
       aLeaderboardMessageWith({ footer: "Leaderboard pagination unavailable" }),
     );

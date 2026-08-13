@@ -926,6 +926,18 @@ describe("Database Service", () => {
       expect(posts).toEqual([guildWidePost, queuePost]);
     });
 
+    it("gets every leaderboard post for reaping", async () => {
+      const post = aFakeLeaderboardPostRow();
+      const fakePreparedStatement = new FakePreparedStatement<typeof post>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [post] });
+
+      const posts = await databaseService.getAllLeaderboardPosts();
+
+      expect(prepareSpy).toHaveBeenCalledWith("SELECT * FROM LeaderboardPosts");
+      expect(posts).toEqual([post]);
+    });
+
     it("deletes a leaderboard post registration by Discord message identity", async () => {
       const fakePreparedStatement = new FakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
