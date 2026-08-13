@@ -29,6 +29,16 @@ export interface LeaderboardServiceOpts {
   logService: LogService;
 }
 
+interface GetLeaderboardOpts {
+  guildId: string;
+  queueChannelId?: string | undefined;
+  window?: LeaderboardWindow | undefined;
+  metric?: LeaderboardMetric | undefined;
+  page?: number | undefined;
+  pageSize?: number | undefined;
+  minGamesPlayed?: number | undefined;
+}
+
 export class LeaderboardService {
   private readonly databaseService: DatabaseService;
   private readonly discordService: DiscordService | undefined;
@@ -180,14 +190,10 @@ export class LeaderboardService {
   }
 
   async refreshPostsForCompletedQueue(guildId: string, queueChannelId: string): Promise<void> {
-    if (this.discordService == null) {
+    const { discordService } = this;
+    if (discordService == null) {
       return;
     }
-
-    const discordService = Preconditions.checkExists(
-      this.discordService,
-      "Discord service is required for leaderboard refresh",
-    );
 
     let posts: LeaderboardPostRow[];
     try {
@@ -306,37 +312,25 @@ export class LeaderboardService {
     page,
     pageSize,
     minGamesPlayed,
-  }: {
-    guildId: string;
-    queueChannelId?: string;
-    window?: LeaderboardWindow;
-    metric?: LeaderboardMetric;
-    page?: number;
-    pageSize?: number;
-    minGamesPlayed?: number;
-  }): Promise<LeaderboardResponse> {
-    const leaderboard = await this.getLeaderboard({
+  }: GetLeaderboardOpts): Promise<LeaderboardResponse> {
+    const opts: GetLeaderboardOpts = {
       guildId,
-      ...(queueChannelId != null ? { queueChannelId } : {}),
-      ...(window != null ? { window } : {}),
-      ...(metric != null ? { metric } : {}),
-      ...(page != null ? { page } : {}),
-      ...(pageSize != null ? { pageSize } : {}),
-      ...(minGamesPlayed != null ? { minGamesPlayed } : {}),
-    });
+      queueChannelId,
+      window,
+      metric,
+      page,
+      pageSize,
+      minGamesPlayed,
+    };
+    const leaderboard = await this.getLeaderboard(opts);
     const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
     if (leaderboard.page <= totalPages || leaderboard.total === 0) {
       return leaderboard.total === 0 && leaderboard.page > 1 ? { ...leaderboard, page: 1 } : leaderboard;
     }
 
     return await this.getLeaderboard({
-      guildId,
-      ...(queueChannelId != null ? { queueChannelId } : {}),
-      ...(window != null ? { window } : {}),
-      ...(metric != null ? { metric } : {}),
+      ...opts,
       page: totalPages,
-      ...(pageSize != null ? { pageSize } : {}),
-      ...(minGamesPlayed != null ? { minGamesPlayed } : {}),
     });
   }
 
@@ -348,15 +342,7 @@ export class LeaderboardService {
     page,
     pageSize,
     minGamesPlayed,
-  }: {
-    guildId: string;
-    queueChannelId?: string;
-    window?: LeaderboardWindow;
-    metric?: LeaderboardMetric;
-    page?: number;
-    pageSize?: number;
-    minGamesPlayed?: number;
-  }): Promise<LeaderboardResponse> {
+  }: GetLeaderboardOpts): Promise<LeaderboardResponse> {
     const config = await this.databaseService.getLeaderboardConfig(guildId, true);
     const resolvedWindow = window ?? config.DefaultWindow;
     const resolvedMetric = metric ?? config.DefaultMetric;
