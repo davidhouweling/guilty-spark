@@ -8,7 +8,7 @@
 
   // Scheduled jobs: daily stale NeatQueue cleanup and weekly leaderboard post reaping
   "triggers": {
-    "crons": ["43 15 * * *", "0 0 * * 0"],
+    "crons": ["0 15 * * *", "0 0 * * 0"],
   },
 
   // KV namespaces for development

@@ -48,7 +48,7 @@ export default Sentry.withSentry(
     scheduled: async (controller: ScheduledController, env: Env): Promise<void> => {
       const { databaseService, discordService, logService } = installServices({ env });
       switch (controller.cron) {
-        case "43 15 * * *": {
+        case "0 15 * * *": {
           const cleanup = new StaleNeatQueueConfigCleanup({ databaseService, discordService, logService });
           await cleanup.execute();
           break;
