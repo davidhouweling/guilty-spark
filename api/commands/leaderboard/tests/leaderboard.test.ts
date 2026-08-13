@@ -133,6 +133,9 @@ describe("LeaderboardCommand", () => {
         },
       ],
     });
+    const upsertLeaderboardPostSpy = vi
+      .spyOn(services.databaseService, "upsertLeaderboardPost")
+      .mockResolvedValue(undefined);
     const updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
       id: "message-id",
       channel_id: "channel-id",
@@ -193,6 +196,12 @@ describe("LeaderboardCommand", () => {
     const [token, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
     expect(token).toBe(interaction.token);
     expect(payload.embeds?.[0]?.title).toBe("Leaderboard - Queue <#queue-123>");
+    expect(upsertLeaderboardPostSpy).toHaveBeenCalledWith({
+      ChannelId: "channel-id",
+      MessageId: "message-id",
+      GuildId: "guild-123",
+      QueueChannelId: "queue-123",
+    });
     expect(payload.components?.[0]).toEqual({
       type: ComponentType.ActionRow,
       components: [
@@ -215,6 +224,7 @@ describe("LeaderboardCommand", () => {
           style: ButtonStyle.Secondary,
           custom_id: `${INTERACTION_REFRESH}:guild-123:queue-123:1M:KILLS:2:3`,
           emoji: { name: "🔄" },
+          disabled: false,
         },
         {
           type: ComponentType.Button,
@@ -387,6 +397,94 @@ describe("LeaderboardCommand", () => {
       page: 1,
       pageSize: 10,
     });
+  });
+
+  it("keeps successful leaderboard response when post registration fails", async () => {
+    const mappedOptions = new Map<string, string | number>();
+    mappedOptions.set("queue_channel", "queue-123");
+    mappedOptions.set("window", LeaderboardWindow.OneMonth);
+    mappedOptions.set("metric", LeaderboardMetric.Kills);
+    mappedOptions.set("page", 2);
+    mappedOptions.set("min_games_played", 3);
+
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "show",
+      options: [],
+      mappedOptions,
+    });
+    vi.spyOn(services.leaderboardService, "getLeaderboard").mockResolvedValue({
+      guildId: "guild-123",
+      queueChannelId: "queue-123",
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.Kills,
+      minGamesPlayed: 3,
+      page: 2,
+      pageSize: 10,
+      total: 23,
+      rows: [],
+    });
+    vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      id: "message-id",
+      channel_id: "channel-id",
+      content: "",
+      timestamp: "2026-08-12T00:00:00.000Z",
+      edited_timestamp: null,
+      tts: false,
+      mention_everyone: false,
+      mentions: [],
+      mention_roles: [],
+      attachments: [],
+      embeds: [],
+      pinned: false,
+      type: MessageType.Default,
+      author: {
+        id: "bot-id",
+        username: "Guilty Spark",
+        discriminator: "0000",
+        avatar: null,
+        global_name: null,
+      },
+      components: [],
+    });
+    vi.spyOn(services.databaseService, "upsertLeaderboardPost").mockRejectedValue(new Error("D1 unavailable"));
+    const updateDeferredReplyWithErrorSpy = vi
+      .spyOn(services.discordService, "updateDeferredReplyWithError")
+      .mockResolvedValue(undefined);
+    const warnSpy = vi.spyOn(services.logService, "warn");
+
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      guild_id: "guild-123",
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [
+          {
+            type: ApplicationCommandOptionType.Subcommand,
+            name: "show",
+            options: [],
+          },
+        ],
+      },
+    };
+
+    const result = command.execute(interaction);
+
+    expect(result.response.type).toBe(InteractionResponseType.DeferredChannelMessageWithSource);
+    await result.jobToComplete?.();
+
+    expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
+    const [warnMessage, warnContext] = Preconditions.checkExists(warnSpy.mock.calls[0]);
+    expect(warnMessage).toBeInstanceOf(Error);
+    const context = Preconditions.checkExists(warnContext);
+    expect(context.get("guildId")).toBe("guild-123");
+    expect(context.get("queueChannelId")).toBe("queue-123");
+    expect(context.get("channelId")).toBe("channel-id");
+    expect(context.get("messageId")).toBe("message-id");
+    expect(context.get("reason")).toBe("Failed to register leaderboard post");
   });
 
   it("updates deferred reply with error when leaderboard command is used outside a guild", async () => {
@@ -1007,7 +1105,7 @@ describe("LeaderboardCommand", () => {
     );
 
     const [, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
-    expect(payload.embeds?.[0]?.description).toContain("Page: 2");
+    expect(payload.embeds?.[0]?.footer?.text).toBe("Page 2 of 2 | Min games: 5 | Total players: 12");
     expect(payload.embeds?.[0]?.fields).toEqual([
       { name: "Rank", value: "#11", inline: true },
       { name: "Player", value: "<@discord-2> (Bravo)", inline: true },
@@ -1079,7 +1177,7 @@ describe("LeaderboardCommand", () => {
 
     expect(getLeaderboardSpy).toHaveBeenCalledTimes(1);
     const [, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
-    expect(payload.embeds?.[0]?.description).toContain("Page: 1");
+    expect(payload.embeds?.[0]?.footer?.text).toBe("Page 1 of 1 | Min games: 5 | Total players: 0");
   });
 
   it("updates deferred reply with error when leaderboard refresh fails", async () => {
