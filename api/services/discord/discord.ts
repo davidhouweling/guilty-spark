@@ -37,6 +37,7 @@ import {
   ApplicationCommandType,
   InteractionResponseType,
   InteractionType,
+  Locale,
   Routes,
   PermissionFlagsBits,
   OverwriteType,
@@ -946,6 +947,23 @@ export class DiscordService {
       method: "GET",
       cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
     });
+  }
+
+  async getGuildPreferredLocale(guildId: string): Promise<string> {
+    try {
+      const { preferred_locale } = await this.getGuild(guildId);
+
+      return preferred_locale;
+    } catch (error) {
+      this.logService.warn(
+        error,
+        new Map([
+          ["guildId", guildId],
+          ["reason", "Failed to load guild preferred locale"],
+        ]),
+      );
+      return Locale.EnglishUS;
+    }
   }
 
   getGuildIconUrl(id: string, icon: string | null): string | null {

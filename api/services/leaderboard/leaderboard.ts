@@ -22,8 +22,6 @@ import type { NeatQueueMatchCompletedRequest } from "../neatqueue/types";
 import { getLeaderboardMessageState } from "./leaderboard-message";
 import { createLeaderboardResponse } from "./leaderboard-response";
 
-const DEFAULT_LEADERBOARD_LOCALE = "en-US";
-
 export interface LeaderboardServiceOpts {
   databaseService: DatabaseService;
   discordService?: DiscordService;
@@ -210,18 +208,7 @@ export class LeaderboardService {
       return;
     }
 
-    let locale = DEFAULT_LEADERBOARD_LOCALE;
-    try {
-      locale = (await discordService.getGuild(guildId)).preferred_locale;
-    } catch (error) {
-      this.logService.warn(
-        error,
-        new Map([
-          ["guildId", guildId],
-          ["reason", "Failed to load guild locale for leaderboard refresh"],
-        ]),
-      );
-    }
+    const locale = await discordService.getGuildPreferredLocale(guildId);
 
     for (const post of posts) {
       await this.refreshLeaderboardPost(post, locale);

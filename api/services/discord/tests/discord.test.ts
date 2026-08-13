@@ -30,6 +30,7 @@ import { EndUserError, EndUserErrorType } from "../../../base/end-user-error";
 import {
   apiMessage,
   channelMessages,
+  guild,
   pingInteraction,
   fakeButtonClickInteraction,
   modalSubmitInteraction,
@@ -1040,6 +1041,33 @@ describe("DiscordService", () => {
       const url = discordService.getGuildIconUrl("fake-guild-id", null);
 
       expect(url).toBeNull();
+    });
+  });
+
+  describe("getGuildPreferredLocale()", () => {
+    it("returns the guild preferred locale", async () => {
+      vi.spyOn(discordService, "getGuild").mockResolvedValue({ ...guild, preferred_locale: Locale.French });
+
+      const locale = await discordService.getGuildPreferredLocale("fake-guild-id");
+
+      expect(locale).toBe(Locale.French);
+    });
+
+    it("returns English US and logs warning when guild lookup fails", async () => {
+      const error = new Error("Discord unavailable");
+      vi.spyOn(discordService, "getGuild").mockRejectedValue(error);
+      const warnSpy = vi.spyOn(logService, "warn");
+
+      const locale = await discordService.getGuildPreferredLocale("fake-guild-id");
+
+      expect(locale).toBe(Locale.EnglishUS);
+      expect(warnSpy).toHaveBeenCalledWith(
+        error,
+        new Map([
+          ["guildId", "fake-guild-id"],
+          ["reason", "Failed to load guild preferred locale"],
+        ]),
+      );
     });
   });
 

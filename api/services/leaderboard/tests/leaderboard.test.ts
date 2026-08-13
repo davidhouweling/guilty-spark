@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { APIMessage, APIMessageTopLevelComponent } from "discord-api-types/v10";
-import { ComponentType, Locale } from "discord-api-types/v10";
+import { ComponentType } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardRankingRow } from "../../database/types/leaderboard_ranking_row";
@@ -11,7 +11,7 @@ import {
   aFakeLeaderboardPostRow,
 } from "../../database/fakes/database.fake";
 import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake";
-import { apiMessage, guild } from "../../discord/fakes/data";
+import { apiMessage } from "../../discord/fakes/data";
 import { DiscordError } from "../../discord/discord-error";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
 import { getMatchStats } from "../../halo/fakes/data";
@@ -294,11 +294,7 @@ describe("LeaderboardService", () => {
       rows: killsRankingRows,
     });
     vi.spyOn(discordService, "getMessage").mockResolvedValue(aLeaderboardMessageWith());
-    const getGuildSpy = vi.spyOn(discordService, "getGuild").mockResolvedValue({
-      ...guild,
-      id: "guild-1",
-      preferred_locale: Locale.EnglishUS,
-    });
+    const getGuildPreferredLocaleSpy = vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue("en-US");
     const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
 
     await service.refreshPostsForCompletedQueue("guild-1", "queue-1");
@@ -311,8 +307,8 @@ describe("LeaderboardService", () => {
       expect.any(Object),
     );
     expect(editMessageSpy).toHaveBeenNthCalledWith(2, "channel-2", "message-2", expect.any(Object));
-    expect(getGuildSpy).toHaveBeenCalledTimes(1);
-    expect(getGuildSpy).toHaveBeenCalledWith("guild-1");
+    expect(getGuildPreferredLocaleSpy).toHaveBeenCalledTimes(1);
+    expect(getGuildPreferredLocaleSpy).toHaveBeenCalledWith("guild-1");
   });
 
   it("skips guild locale lookup when there are no posts to refresh", async () => {
@@ -322,14 +318,14 @@ describe("LeaderboardService", () => {
     const logService = aFakeLogServiceWith();
     const service = new LeaderboardService({ databaseService, discordService, haloService, logService });
     vi.spyOn(databaseService, "findLeaderboardPostsForRefresh").mockResolvedValue([]);
-    const getGuildSpy = vi.spyOn(discordService, "getGuild");
+    const getGuildPreferredLocaleSpy = vi.spyOn(discordService, "getGuildPreferredLocale");
 
     await service.refreshPostsForCompletedQueue("guild-1", "queue-1");
 
-    expect(getGuildSpy).not.toHaveBeenCalled();
+    expect(getGuildPreferredLocaleSpy).not.toHaveBeenCalled();
   });
 
-  it("continues refreshing posts with fallback locale when guild locale lookup fails", async () => {
+  it("continues refreshing posts with the preferred locale helper result", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });
     const discordService = aFakeDiscordServiceWith();
@@ -337,7 +333,7 @@ describe("LeaderboardService", () => {
     const service = new LeaderboardService({ databaseService, discordService, haloService, logService });
     const post = aFakeLeaderboardPostRow();
     vi.spyOn(databaseService, "findLeaderboardPostsForRefresh").mockResolvedValue([post]);
-    vi.spyOn(discordService, "getGuild").mockRejectedValue(new Error("Discord unavailable"));
+    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue("en-US");
     vi.spyOn(discordService, "getMessage").mockResolvedValue(aLeaderboardMessageWith());
     vi.spyOn(databaseService, "getLeaderboardConfig").mockResolvedValue(
       aFakeLeaderboardConfigRow({ GuildId: "guild-1", MinGamesPlayed: 3 }),
@@ -347,17 +343,10 @@ describe("LeaderboardService", () => {
       rows: killsRankingRows,
     });
     const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
-    const warnSpy = vi.spyOn(logService, "warn");
 
     await service.refreshPostsForCompletedQueue("guild-1", "queue-1");
 
     expect(editMessageSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
-    const [warnMessage, warnContext] = Preconditions.checkExists(warnSpy.mock.calls[0]);
-    expect(warnMessage).toBeInstanceOf(Error);
-    expect(Preconditions.checkExists(warnContext).get("reason")).toBe(
-      "Failed to load guild locale for leaderboard refresh",
-    );
   });
 
   it("removes a registered post when Discord confirms it is missing", async () => {
@@ -368,11 +357,7 @@ describe("LeaderboardService", () => {
     const service = new LeaderboardService({ databaseService, discordService, haloService, logService });
     const post = aFakeLeaderboardPostRow();
     vi.spyOn(databaseService, "findLeaderboardPostsForRefresh").mockResolvedValue([post]);
-    vi.spyOn(discordService, "getGuild").mockResolvedValue({
-      ...guild,
-      id: "guild-1",
-      preferred_locale: Locale.EnglishUS,
-    });
+    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue("en-US");
     vi.spyOn(discordService, "getMessage").mockRejectedValue(
       new DiscordError(404, { code: 10008, message: "Unknown Message" }),
     );
@@ -402,11 +387,7 @@ describe("LeaderboardService", () => {
       total: 23,
       rows: killsRankingRows,
     });
-    vi.spyOn(discordService, "getGuild").mockResolvedValue({
-      ...guild,
-      id: "guild-1",
-      preferred_locale: Locale.EnglishUS,
-    });
+    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue("en-US");
     const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
     const warnSpy = vi.spyOn(logService, "warn");
 
@@ -443,11 +424,7 @@ describe("LeaderboardService", () => {
       total: 23,
       rows: killsRankingRows,
     });
-    vi.spyOn(discordService, "getGuild").mockResolvedValue({
-      ...guild,
-      id: "guild-1",
-      preferred_locale: Locale.EnglishUS,
-    });
+    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue("en-US");
     const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
     const warnSpy = vi.spyOn(logService, "warn");
 
@@ -477,11 +454,7 @@ describe("LeaderboardService", () => {
       MessageId: "leaderboard-message-1",
     });
     vi.spyOn(databaseService, "findLeaderboardPostsForRefresh").mockResolvedValue([post]);
-    vi.spyOn(discordService, "getGuild").mockResolvedValue({
-      ...guild,
-      id: "guild-1",
-      preferred_locale: Locale.EnglishUS,
-    });
+    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue("en-US");
     vi.spyOn(discordService, "getMessage").mockResolvedValue(
       aLeaderboardMessageWith({ footer: "Leaderboard pagination unavailable" }),
     );
