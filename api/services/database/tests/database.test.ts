@@ -18,6 +18,7 @@ import {
   aFakeLeaderboardSeriesPlayersRow,
   aFakeLeaderboardGamesRow,
   aFakeLeaderboardGamePlayersRow,
+  aFakeLeaderboardPostRow,
 } from "../fakes/database.fake";
 import type { GuildConfigRow } from "../types/guild_config";
 import { StatsReturnType, MapsPostType, MapsPlaylistType, MapsFormatType } from "../types/guild_config";
@@ -885,6 +886,69 @@ describe("Database Service", () => {
       expect(bindSpy).toHaveBeenNthCalledWith(1, "guild-123");
       expect(bindSpy).toHaveBeenNthCalledWith(2, "guild-123", "queue-789");
       expect(runSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("upserts a leaderboard post registration", async () => {
+      const post = aFakeLeaderboardPostRow();
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.upsertLeaderboardPost(post);
+
+      expect(prepareSpy).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO LeaderboardPosts"));
+      expect(bindSpy).toHaveBeenCalledWith(
+        post.ChannelId,
+        post.MessageId,
+        post.GuildId,
+        post.QueueChannelId,
+        post.Window,
+        post.Metric,
+        post.MinGamesPlayed,
+        post.Page,
+        post.Locale,
+        post.CreatedAt,
+        post.UpdatedAt,
+      );
+      expect(runSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("finds guild-wide and matching queue leaderboard posts for refresh", async () => {
+      const guildWidePost = aFakeLeaderboardPostRow();
+      const queuePost = aFakeLeaderboardPostRow({
+        ChannelId: "leaderboard-channel-2",
+        MessageId: "leaderboard-message-2",
+        QueueChannelId: "queue-channel-1",
+      });
+      const fakePreparedStatement = new FakePreparedStatement<typeof guildWidePost>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({
+        ...fakeD1Response,
+        results: [guildWidePost, queuePost],
+      });
+
+      const posts = await databaseService.findLeaderboardPostsForRefresh("guild-1", "queue-channel-1");
+
+      expect(prepareSpy).toHaveBeenCalledWith(
+        "SELECT * FROM LeaderboardPosts WHERE GuildId = ? AND (QueueChannelId IS NULL OR QueueChannelId = ?)",
+      );
+      expect(bindSpy).toHaveBeenCalledWith("guild-1", "queue-channel-1");
+      expect(posts).toEqual([guildWidePost, queuePost]);
+    });
+
+    it("deletes a leaderboard post registration by Discord message identity", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const runSpy = vi.spyOn(fakePreparedStatement, "run");
+
+      await databaseService.deleteLeaderboardPost("leaderboard-channel-1", "leaderboard-message-1");
+
+      expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM LeaderboardPosts WHERE ChannelId = ? AND MessageId = ?");
+      expect(bindSpy).toHaveBeenCalledWith("leaderboard-channel-1", "leaderboard-message-1");
+      expect(runSpy).toHaveBeenCalledTimes(1);
     });
 
     it("deletes leaderboard series by guild and queue number", async () => {

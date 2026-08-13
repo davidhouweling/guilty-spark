@@ -143,6 +143,24 @@ CREATE TABLE IF NOT EXISTS LeaderboardConfig (
     UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
+CREATE TABLE IF NOT EXISTS LeaderboardPosts (
+    ChannelId TEXT NOT NULL,
+    MessageId TEXT NOT NULL,
+    GuildId TEXT NOT NULL,
+    QueueChannelId TEXT,
+    Window TEXT NOT NULL CHECK (Window IN ('1W', '1M', '3M', '6M', '12M')),
+    Metric TEXT NOT NULL CHECK (Metric IN ('SERIES_WIN_RATE', 'KILLS', 'DEATHS', 'ASSISTS', 'KDA', 'ACCURACY', 'DAMAGE_DEALT', 'DAMAGE_TAKEN', 'DAMAGE_RATIO', 'PERSONAL_SCORE')),
+    MinGamesPlayed INTEGER NOT NULL CHECK (MinGamesPlayed >= 0),
+    Page INTEGER NOT NULL CHECK (Page >= 1),
+    Locale TEXT NOT NULL,
+    CreatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    PRIMARY KEY (ChannelId, MessageId)
+);
+
+CREATE INDEX IF NOT EXISTS IdxLeaderboardPostsGuildQueue
+    ON LeaderboardPosts (GuildId, QueueChannelId);
+
 CREATE TABLE IF NOT EXISTS LeaderboardSeries (
     GuildId TEXT NOT NULL,
     QueueNumber INTEGER NOT NULL,
