@@ -19,7 +19,11 @@ import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import type { NeatQueueMatchCompletedRequest } from "../../neatqueue/types";
 import { LeaderboardService } from "../leaderboard";
 
-function aLeaderboardMessageWith(): APIMessage {
+function aLeaderboardMessageWith({
+  footer = "Page 2 of 3 | Min games: 3 | Total players: 23",
+}: {
+  footer?: string;
+} = {}): APIMessage {
   const components: APIMessageTopLevelComponent[] = [
     {
       type: ComponentType.ActionRow,
@@ -50,7 +54,7 @@ function aLeaderboardMessageWith(): APIMessage {
   return {
     ...apiMessage,
     components,
-    embeds: [{ footer: { text: "Page 2 of 3 | Min games: 3 | Total players: 23" } }],
+    embeds: [{ footer: { text: footer } }],
   };
 }
 
@@ -290,7 +294,7 @@ describe("LeaderboardService", () => {
       rows: killsRankingRows,
     });
     vi.spyOn(discordService, "getMessage").mockResolvedValue(aLeaderboardMessageWith());
-    vi.spyOn(discordService, "getGuild").mockResolvedValue({
+    const getGuildSpy = vi.spyOn(discordService, "getGuild").mockResolvedValue({
       ...guild,
       id: "guild-1",
       preferred_locale: Locale.EnglishUS,
@@ -307,6 +311,8 @@ describe("LeaderboardService", () => {
       expect.any(Object),
     );
     expect(editMessageSpy).toHaveBeenNthCalledWith(2, "channel-2", "message-2", expect.any(Object));
+    expect(getGuildSpy).toHaveBeenCalledTimes(1);
+    expect(getGuildSpy).toHaveBeenCalledWith("guild-1");
   });
 
   it("removes a registered post when Discord confirms it is missing", async () => {
@@ -317,6 +323,11 @@ describe("LeaderboardService", () => {
     const service = new LeaderboardService({ databaseService, discordService, haloService, logService });
     const post = aFakeLeaderboardPostRow();
     vi.spyOn(databaseService, "findLeaderboardPostsForRefresh").mockResolvedValue([post]);
+    vi.spyOn(discordService, "getGuild").mockResolvedValue({
+      ...guild,
+      id: "guild-1",
+      preferred_locale: Locale.EnglishUS,
+    });
     vi.spyOn(discordService, "getMessage").mockRejectedValue(
       new DiscordError(404, { code: 10008, message: "Unknown Message" }),
     );
@@ -352,11 +363,19 @@ describe("LeaderboardService", () => {
       preferred_locale: Locale.EnglishUS,
     });
     const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
+    const warnSpy = vi.spyOn(logService, "warn");
 
     await service.refreshPostsForCompletedQueue("guild-1", "queue-1");
 
     expect(editMessageSpy).toHaveBeenCalledTimes(1);
     expect(editMessageSpy).toHaveBeenCalledWith("channel-2", "message-2", expect.any(Object));
+    expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
+    const [, warnContext] = Preconditions.checkExists(warnSpy.mock.calls[0]);
+    const context = Preconditions.checkExists(warnContext);
+    expect(context.get("guildId")).toBe("guild-1");
+    expect(context.get("channelId")).toBe("leaderboard-channel-1");
+    expect(context.get("messageId")).toBe("leaderboard-message-1");
+    expect(context.get("reason")).toBe("Failed to refresh leaderboard post");
   });
 
   it("continues refreshing posts when deleting a missing post registration fails", async () => {
@@ -397,6 +416,41 @@ describe("LeaderboardService", () => {
     expect(Preconditions.checkExists(warnContext).get("reason")).toBe(
       "Failed to delete missing leaderboard post registration",
     );
+  });
+
+  it("logs full post context when message state is invalid", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const discordService = aFakeDiscordServiceWith();
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, discordService, haloService, logService });
+    const post = aFakeLeaderboardPostRow({
+      GuildId: "guild-1",
+      ChannelId: "leaderboard-channel-1",
+      MessageId: "leaderboard-message-1",
+    });
+    vi.spyOn(databaseService, "findLeaderboardPostsForRefresh").mockResolvedValue([post]);
+    vi.spyOn(discordService, "getGuild").mockResolvedValue({
+      ...guild,
+      id: "guild-1",
+      preferred_locale: Locale.EnglishUS,
+    });
+    vi.spyOn(discordService, "getMessage").mockResolvedValue(
+      aLeaderboardMessageWith({ footer: "Leaderboard pagination unavailable" }),
+    );
+    const warnSpy = vi.spyOn(logService, "warn");
+
+    await service.refreshPostsForCompletedQueue("guild-1", "queue-1");
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Leaderboard post refresh skipped because message state is invalid",
+      expect.any(Map),
+    );
+    const [, warnContext] = Preconditions.checkExists(warnSpy.mock.calls[0]);
+    const context = Preconditions.checkExists(warnContext);
+    expect(context.get("guildId")).toBe("guild-1");
+    expect(context.get("channelId")).toBe("leaderboard-channel-1");
+    expect(context.get("messageId")).toBe("leaderboard-message-1");
   });
 
   it("skips post refresh when loading refresh registrations fails", async () => {

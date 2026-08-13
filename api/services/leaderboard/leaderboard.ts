@@ -184,6 +184,11 @@ export class LeaderboardService {
       return;
     }
 
+    const discordService = Preconditions.checkExists(
+      this.discordService,
+      "Discord service is required for leaderboard refresh",
+    );
+
     let posts: LeaderboardPostRow[];
     try {
       posts = await this.databaseService.findLeaderboardPostsForRefresh(guildId, queueChannelId);
@@ -199,12 +204,26 @@ export class LeaderboardService {
       return;
     }
 
+    let locale: string;
+    try {
+      locale = (await discordService.getGuild(guildId)).preferred_locale;
+    } catch (error) {
+      this.logService.warn(
+        error,
+        new Map([
+          ["guildId", guildId],
+          ["reason", "Failed to load guild locale for leaderboard refresh"],
+        ]),
+      );
+      return;
+    }
+
     for (const post of posts) {
-      await this.refreshLeaderboardPost(post);
+      await this.refreshLeaderboardPost(post, locale);
     }
   }
 
-  private async refreshLeaderboardPost(post: LeaderboardPostRow): Promise<void> {
+  private async refreshLeaderboardPost(post: LeaderboardPostRow, locale: string): Promise<void> {
     try {
       const discordService = Preconditions.checkExists(
         this.discordService,
@@ -215,7 +234,11 @@ export class LeaderboardService {
       if (state == null) {
         this.logService.warn(
           "Leaderboard post refresh skipped because message state is invalid",
-          new Map([["messageId", post.MessageId]]),
+          new Map([
+            ["guildId", post.GuildId],
+            ["channelId", post.ChannelId],
+            ["messageId", post.MessageId],
+          ]),
         );
         return;
       }
@@ -229,7 +252,6 @@ export class LeaderboardService {
         pageSize: 10,
         minGamesPlayed: state.minGamesPlayed,
       });
-      const locale = (await discordService.getGuild(post.GuildId)).preferred_locale;
       await discordService.editMessage(post.ChannelId, post.MessageId, createLeaderboardResponse(locale, leaderboard));
     } catch (error) {
       if (
@@ -244,6 +266,8 @@ export class LeaderboardService {
       this.logService.warn(
         error,
         new Map([
+          ["guildId", post.GuildId],
+          ["channelId", post.ChannelId],
           ["messageId", post.MessageId],
           ["reason", "Failed to refresh leaderboard post"],
         ]),
