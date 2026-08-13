@@ -2,9 +2,8 @@ import type { APIEmbed, APIMessage, APIMessageTopLevelComponent } from "discord-
 import { ComponentType } from "discord-api-types/v10";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardPostRow } from "../database/types/leaderboard_post";
+import { LEADERBOARD_METRIC_SELECT_CONTROL_ID, LEADERBOARD_WINDOW_SELECT_CONTROL_ID } from "./leaderboard-response";
 
-const LEADERBOARD_METRIC_SELECT = "select_leaderboard_metric";
-const LEADERBOARD_WINDOW_SELECT = "select_leaderboard_window";
 const LEADERBOARD_FOOTER_PATTERN = /^Page (\d+) of (\d+) \| Min games: (\d+) \| Total players: (\d+)$/;
 
 const WINDOW_BY_VALUE = new Map<string, LeaderboardWindow>([
@@ -56,12 +55,12 @@ function getSelectedValue(components: APIMessageTopLevelComponent[], prefix: str
 }
 
 function getSelectedWindow(components: APIMessageTopLevelComponent[]): LeaderboardWindow | null {
-  const value = getSelectedValue(components, LEADERBOARD_WINDOW_SELECT);
+  const value = getSelectedValue(components, LEADERBOARD_WINDOW_SELECT_CONTROL_ID);
   return value == null ? null : (WINDOW_BY_VALUE.get(value) ?? null);
 }
 
 function getSelectedMetric(components: APIMessageTopLevelComponent[]): LeaderboardMetric | null {
-  const value = getSelectedValue(components, LEADERBOARD_METRIC_SELECT);
+  const value = getSelectedValue(components, LEADERBOARD_METRIC_SELECT_CONTROL_ID);
   return value == null ? null : (METRIC_BY_VALUE.get(value) ?? null);
 }
 

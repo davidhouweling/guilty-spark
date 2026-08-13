@@ -223,7 +223,7 @@ export class LeaderboardService {
         error.httpStatus === 404 &&
         (error.restError.code === 10003 || error.restError.code === 10008)
       ) {
-        await this.databaseService.deleteLeaderboardPost(post.ChannelId, post.MessageId);
+        await this.deleteMissingLeaderboardPost(post);
         return;
       }
 
@@ -232,6 +232,20 @@ export class LeaderboardService {
         new Map([
           ["messageId", post.MessageId],
           ["reason", "Failed to refresh leaderboard post"],
+        ]),
+      );
+    }
+  }
+
+  private async deleteMissingLeaderboardPost(post: LeaderboardPostRow): Promise<void> {
+    try {
+      await this.databaseService.deleteLeaderboardPost(post.ChannelId, post.MessageId);
+    } catch (error) {
+      this.logService.warn(
+        error,
+        new Map([
+          ["messageId", post.MessageId],
+          ["reason", "Failed to delete missing leaderboard post registration"],
         ]),
       );
     }

@@ -359,6 +359,46 @@ describe("LeaderboardService", () => {
     expect(editMessageSpy).toHaveBeenCalledWith("channel-2", "message-2", expect.any(Object));
   });
 
+  it("continues refreshing posts when deleting a missing post registration fails", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const discordService = aFakeDiscordServiceWith();
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, discordService, haloService, logService });
+    const missingPost = aFakeLeaderboardPostRow();
+    const secondPost = aFakeLeaderboardPostRow({ ChannelId: "channel-2", MessageId: "message-2" });
+    vi.spyOn(databaseService, "findLeaderboardPostsForRefresh").mockResolvedValue([missingPost, secondPost]);
+    vi.spyOn(discordService, "getMessage")
+      .mockRejectedValueOnce(new DiscordError(404, { code: 10008, message: "Unknown Message" }))
+      .mockResolvedValueOnce(aLeaderboardMessageWith());
+    vi.spyOn(databaseService, "deleteLeaderboardPost").mockRejectedValue(new Error("D1 temporarily unavailable"));
+    vi.spyOn(databaseService, "getLeaderboardConfig").mockResolvedValue(
+      aFakeLeaderboardConfigRow({ GuildId: "guild-1", MinGamesPlayed: 3 }),
+    );
+    vi.spyOn(databaseService, "getLeaderboardStatMetricRankings").mockResolvedValue({
+      total: 23,
+      rows: killsRankingRows,
+    });
+    vi.spyOn(discordService, "getGuild").mockResolvedValue({
+      ...guild,
+      id: "guild-1",
+      preferred_locale: Locale.EnglishUS,
+    });
+    const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
+    const warnSpy = vi.spyOn(logService, "warn");
+
+    await service.refreshPostsForCompletedQueue("guild-1", "queue-1");
+
+    expect(editMessageSpy).toHaveBeenCalledTimes(1);
+    expect(editMessageSpy).toHaveBeenCalledWith("channel-2", "message-2", expect.any(Object));
+    expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
+    const [warnMessage, warnContext] = Preconditions.checkExists(warnSpy.mock.calls[0]);
+    expect(warnMessage).toBeInstanceOf(Error);
+    expect(Preconditions.checkExists(warnContext).get("reason")).toBe(
+      "Failed to delete missing leaderboard post registration",
+    );
+  });
+
   it("skips persistence when no series matches are resolved", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });
