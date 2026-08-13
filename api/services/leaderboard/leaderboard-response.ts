@@ -21,144 +21,6 @@ export const LEADERBOARD_LAST_PAGE_CONTROL_ID = "btn_leaderboard_last";
 export const LEADERBOARD_METRIC_SELECT_CONTROL_ID = "select_leaderboard_metric";
 export const LEADERBOARD_WINDOW_SELECT_CONTROL_ID = "select_leaderboard_window";
 
-export function createLeaderboardResponse(
-  locale: string,
-  leaderboard: LeaderboardResponse,
-): APIInteractionResponseCallbackData {
-  const rows = leaderboard.rows.slice(0, MAX_ROWS_IN_DISCORD_EMBED);
-  const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
-  const metricLabel = getMetricLabel(leaderboard.metric);
-  const windowLabel = getWindowLabel(leaderboard.window);
-  const scopeLabel =
-    leaderboard.queueChannelId != null ? `Queue <#${leaderboard.queueChannelId}>` : "Server-wide (all queues)";
-
-  const embed: APIEmbed = {
-    color: EmbedColors.GOLD,
-    title: `Leaderboard - ${scopeLabel}`,
-    description: `Metric: ${metricLabel} | Window: ${windowLabel}`,
-    fields: createRankingFields(rows, leaderboard.total, leaderboard.metric, locale),
-    footer: {
-      text: `Page ${leaderboard.page.toString()} of ${totalPages.toString()} | Min games: ${leaderboard.minGamesPlayed.toString()} | Total players: ${leaderboard.total.toString()}`,
-    },
-  };
-
-  return {
-    embeds: [embed],
-    components: createComponents(leaderboard),
-  };
-}
-
-function createComponents(leaderboard: LeaderboardResponse): APIMessageTopLevelComponent[] {
-  const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
-  const metricOptions = getMetricSelectOptions(leaderboard.metric);
-  const windowOptions = getWindowSelectOptions(leaderboard.window);
-
-  return [
-    {
-      type: ComponentType.ActionRow,
-      components: [
-        {
-          type: ComponentType.Button,
-          style: ButtonStyle.Secondary,
-          custom_id: createLeaderboardControlId(LEADERBOARD_FIRST_PAGE_CONTROL_ID, leaderboard),
-          emoji: { name: "⏮️" },
-          disabled: leaderboard.page <= 1,
-        },
-        {
-          type: ComponentType.Button,
-          style: ButtonStyle.Secondary,
-          custom_id: createLeaderboardControlId(LEADERBOARD_PREV_PAGE_CONTROL_ID, leaderboard),
-          emoji: { name: "◀️" },
-          disabled: leaderboard.page <= 1,
-        },
-        {
-          type: ComponentType.Button,
-          style: ButtonStyle.Secondary,
-          custom_id: createLeaderboardControlId(LEADERBOARD_REFRESH_CONTROL_ID, leaderboard),
-          emoji: { name: "🔄" },
-        },
-        {
-          type: ComponentType.Button,
-          style: ButtonStyle.Secondary,
-          custom_id: createLeaderboardControlId(LEADERBOARD_NEXT_PAGE_CONTROL_ID, leaderboard),
-          emoji: { name: "▶️" },
-          disabled: leaderboard.page >= totalPages,
-        },
-        {
-          type: ComponentType.Button,
-          style: ButtonStyle.Secondary,
-          custom_id: createLeaderboardControlId(LEADERBOARD_LAST_PAGE_CONTROL_ID, leaderboard),
-          emoji: { name: "⏭️" },
-          disabled: leaderboard.page >= totalPages,
-        },
-      ],
-    },
-    {
-      type: ComponentType.ActionRow,
-      components: [
-        {
-          type: ComponentType.StringSelect,
-          custom_id: createLeaderboardControlId(LEADERBOARD_METRIC_SELECT_CONTROL_ID, leaderboard),
-          placeholder: "Select metric",
-          min_values: 1,
-          max_values: 1,
-          options: metricOptions,
-        },
-      ],
-    },
-    {
-      type: ComponentType.ActionRow,
-      components: [
-        {
-          type: ComponentType.StringSelect,
-          custom_id: createLeaderboardControlId(LEADERBOARD_WINDOW_SELECT_CONTROL_ID, leaderboard),
-          placeholder: "Select window",
-          min_values: 1,
-          max_values: 1,
-          options: windowOptions,
-        },
-      ],
-    },
-  ];
-}
-
-function createRankingFields(
-  rows: LeaderboardResponse["rows"],
-  totalPlayers: number,
-  metric: LeaderboardMetric,
-  locale: string,
-): NonNullable<APIEmbed["fields"]> {
-  if (rows.length === 0) {
-    return [
-      {
-        name: "Rankings",
-        value: getRankingContent([], totalPlayers),
-        inline: false,
-      },
-    ];
-  }
-
-  return [
-    {
-      name: "Rank",
-      value: rows.map((row) => formatRank(row.rank)).join("\n"),
-      inline: true,
-    },
-    {
-      name: "Player",
-      value: rows
-        .map((row) => (row.discordUserId != null ? `<@${row.discordUserId}> (${row.gamertag})` : row.gamertag))
-        .join("\n"),
-      inline: true,
-    },
-    {
-      name: getMetricLabel(metric),
-      value: rows.map((row) => formatMetricValue(row.metricValue, metric, locale)).join("\n"),
-      inline: true,
-    },
-  ];
-}
-
 function createLeaderboardControlId(controlId: string, leaderboard: LeaderboardResponse): string {
   const queueChannelId = leaderboard.queueChannelId ?? "-";
   return [
@@ -325,4 +187,110 @@ function formatMetricValue(metricValue: number, metric: LeaderboardMetric, local
       throw new UnreachableError(metric);
     }
   }
+}
+
+function createRankingFields(
+  rows: LeaderboardResponse["rows"],
+  totalPlayers: number,
+  metric: LeaderboardMetric,
+  locale: string,
+): NonNullable<APIEmbed["fields"]> {
+  if (rows.length === 0) {
+    return [{ name: "Rankings", value: getRankingContent([], totalPlayers), inline: false }];
+  }
+
+  return [
+    { name: "Rank", value: rows.map((row) => formatRank(row.rank)).join("\n"), inline: true },
+    {
+      name: "Player",
+      value: rows
+        .map((row) => (row.discordUserId != null ? `<@${row.discordUserId}> (${row.gamertag})` : row.gamertag))
+        .join("\n"),
+      inline: true,
+    },
+    {
+      name: getMetricLabel(metric),
+      value: rows.map((row) => formatMetricValue(row.metricValue, metric, locale)).join("\n"),
+      inline: true,
+    },
+  ];
+}
+
+function createComponents(leaderboard: LeaderboardResponse): APIMessageTopLevelComponent[] {
+  const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
+  const metricOptions = getMetricSelectOptions(leaderboard.metric);
+  const windowOptions = getWindowSelectOptions(leaderboard.window);
+  const controls = [
+    [LEADERBOARD_FIRST_PAGE_CONTROL_ID, "⏮️", leaderboard.page <= 1],
+    [LEADERBOARD_PREV_PAGE_CONTROL_ID, "◀️", leaderboard.page <= 1],
+    [LEADERBOARD_REFRESH_CONTROL_ID, "🔄", false],
+    [LEADERBOARD_NEXT_PAGE_CONTROL_ID, "▶️", leaderboard.page >= totalPages],
+    [LEADERBOARD_LAST_PAGE_CONTROL_ID, "⏭️", leaderboard.page >= totalPages],
+  ] as const;
+
+  return [
+    {
+      type: ComponentType.ActionRow,
+      components: controls.map(([controlId, emoji, disabled]) => ({
+        type: ComponentType.Button,
+        style: ButtonStyle.Secondary,
+        custom_id: createLeaderboardControlId(controlId, leaderboard),
+        emoji: { name: emoji },
+        disabled,
+      })),
+    },
+    {
+      type: ComponentType.ActionRow,
+      components: [
+        {
+          type: ComponentType.StringSelect,
+          custom_id: createLeaderboardControlId(LEADERBOARD_METRIC_SELECT_CONTROL_ID, leaderboard),
+          placeholder: "Select metric",
+          min_values: 1,
+          max_values: 1,
+          options: metricOptions,
+        },
+      ],
+    },
+    {
+      type: ComponentType.ActionRow,
+      components: [
+        {
+          type: ComponentType.StringSelect,
+          custom_id: createLeaderboardControlId(LEADERBOARD_WINDOW_SELECT_CONTROL_ID, leaderboard),
+          placeholder: "Select window",
+          min_values: 1,
+          max_values: 1,
+          options: windowOptions,
+        },
+      ],
+    },
+  ];
+}
+
+export function createLeaderboardResponse(
+  locale: string,
+  leaderboard: LeaderboardResponse,
+): APIInteractionResponseCallbackData {
+  const rows = leaderboard.rows.slice(0, MAX_ROWS_IN_DISCORD_EMBED);
+  const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
+  const metricLabel = getMetricLabel(leaderboard.metric);
+  const windowLabel = getWindowLabel(leaderboard.window);
+  const scopeLabel =
+    leaderboard.queueChannelId != null ? `Queue <#${leaderboard.queueChannelId}>` : "Server-wide (all queues)";
+
+  return {
+    embeds: [
+      {
+        color: EmbedColors.GOLD,
+        title: `Leaderboard - ${scopeLabel}`,
+        description: `Metric: ${metricLabel} | Window: ${windowLabel}`,
+        fields: createRankingFields(rows, leaderboard.total, leaderboard.metric, locale),
+        footer: {
+          text: `Page ${leaderboard.page.toString()} of ${totalPages.toString()} | Min games: ${leaderboard.minGamesPlayed.toString()} | Total players: ${leaderboard.total.toString()}`,
+        },
+      },
+    ],
+    components: createComponents(leaderboard),
+  };
 }

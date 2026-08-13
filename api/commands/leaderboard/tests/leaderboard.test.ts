@@ -224,6 +224,7 @@ describe("LeaderboardCommand", () => {
           style: ButtonStyle.Secondary,
           custom_id: `${INTERACTION_REFRESH}:guild-123:queue-123:1M:KILLS:2:3`,
           emoji: { name: "🔄" },
+          disabled: false,
         },
         {
           type: ComponentType.Button,

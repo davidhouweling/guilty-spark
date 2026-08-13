@@ -8,28 +8,36 @@ import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import type { DatabaseService } from "../database/database";
+import type { DiscordService } from "../discord/discord";
+import { DiscordError } from "../discord/discord-error";
 import type { LeaderboardSeriesRow } from "../database/types/leaderboard_series";
 import type { LeaderboardSeriesPlayersRow } from "../database/types/leaderboard_series_players";
 import type { LeaderboardGamesRow } from "../database/types/leaderboard_games";
 import type { LeaderboardGamePlayersRow } from "../database/types/leaderboard_game_players";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
+import type { LeaderboardPostRow } from "../database/types/leaderboard_post";
 import type { HaloService } from "../halo/halo";
 import type { LogService } from "../log/types";
 import type { NeatQueueMatchCompletedRequest } from "../neatqueue/types";
+import { getLeaderboardMessageState } from "./leaderboard-message";
+import { createLeaderboardResponse } from "./leaderboard-response";
 
 export interface LeaderboardServiceOpts {
   databaseService: DatabaseService;
+  discordService?: DiscordService;
   haloService: HaloService;
   logService: LogService;
 }
 
 export class LeaderboardService {
   private readonly databaseService: DatabaseService;
+  private readonly discordService: DiscordService | undefined;
   private readonly haloService: HaloService;
   private readonly logService: LogService;
 
-  constructor({ databaseService, haloService, logService }: LeaderboardServiceOpts) {
+  constructor({ databaseService, discordService, haloService, logService }: LeaderboardServiceOpts) {
     this.databaseService = databaseService;
+    this.discordService = discordService;
     this.haloService = haloService;
     this.logService = logService;
   }
@@ -150,6 +158,7 @@ export class LeaderboardService {
         gamePlayers: gamePlayerRows,
         seriesPlayers: seriesPlayerRows,
       });
+      await this.refreshPostsForCompletedQueue(request.guild, neatQueueConfig.ChannelId);
 
       this.logService.info(
         "Completed leaderboard persistence for series",
@@ -168,6 +177,106 @@ export class LeaderboardService {
         ]),
       );
     }
+  }
+
+  async refreshPostsForCompletedQueue(guildId: string, queueChannelId: string): Promise<void> {
+    if (this.discordService == null) {
+      return;
+    }
+
+    const posts = await this.databaseService.findLeaderboardPostsForRefresh(guildId, queueChannelId);
+    for (const post of posts) {
+      await this.refreshLeaderboardPost(post);
+    }
+  }
+
+  private async refreshLeaderboardPost(post: LeaderboardPostRow): Promise<void> {
+    try {
+      const discordService = Preconditions.checkExists(
+        this.discordService,
+        "Discord service is required for leaderboard refresh",
+      );
+      const message = await discordService.getMessage(post.ChannelId, post.MessageId);
+      const state = getLeaderboardMessageState(message, post);
+      if (state == null) {
+        this.logService.warn(
+          "Leaderboard post refresh skipped because message state is invalid",
+          new Map([["messageId", post.MessageId]]),
+        );
+        return;
+      }
+
+      const leaderboard = await this.getLeaderboardWithResolvedPage({
+        guildId: state.guildId,
+        ...(state.queueChannelId != null ? { queueChannelId: state.queueChannelId } : {}),
+        window: state.window,
+        metric: state.metric,
+        page: state.page,
+        pageSize: 10,
+        minGamesPlayed: state.minGamesPlayed,
+      });
+      const locale = (await discordService.getGuild(post.GuildId)).preferred_locale;
+      await discordService.editMessage(post.ChannelId, post.MessageId, createLeaderboardResponse(locale, leaderboard));
+    } catch (error) {
+      if (
+        error instanceof DiscordError &&
+        error.httpStatus === 404 &&
+        (error.restError.code === 10003 || error.restError.code === 10008)
+      ) {
+        await this.databaseService.deleteLeaderboardPost(post.ChannelId, post.MessageId);
+        return;
+      }
+
+      this.logService.warn(
+        error,
+        new Map([
+          ["messageId", post.MessageId],
+          ["reason", "Failed to refresh leaderboard post"],
+        ]),
+      );
+    }
+  }
+
+  async getLeaderboardWithResolvedPage({
+    guildId,
+    queueChannelId,
+    window,
+    metric,
+    page,
+    pageSize,
+    minGamesPlayed,
+  }: {
+    guildId: string;
+    queueChannelId?: string;
+    window?: LeaderboardWindow;
+    metric?: LeaderboardMetric;
+    page?: number;
+    pageSize?: number;
+    minGamesPlayed?: number;
+  }): Promise<LeaderboardResponse> {
+    const leaderboard = await this.getLeaderboard({
+      guildId,
+      ...(queueChannelId != null ? { queueChannelId } : {}),
+      ...(window != null ? { window } : {}),
+      ...(metric != null ? { metric } : {}),
+      ...(page != null ? { page } : {}),
+      ...(pageSize != null ? { pageSize } : {}),
+      ...(minGamesPlayed != null ? { minGamesPlayed } : {}),
+    });
+    const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
+    if (leaderboard.page <= totalPages || leaderboard.total === 0) {
+      return leaderboard.total === 0 && leaderboard.page > 1 ? { ...leaderboard, page: 1 } : leaderboard;
+    }
+
+    return await this.getLeaderboard({
+      guildId,
+      ...(queueChannelId != null ? { queueChannelId } : {}),
+      ...(window != null ? { window } : {}),
+      ...(metric != null ? { metric } : {}),
+      page: totalPages,
+      ...(pageSize != null ? { pageSize } : {}),
+      ...(minGamesPlayed != null ? { minGamesPlayed } : {}),
+    });
   }
 
   async getLeaderboard({

@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { APIMessage, APIMessageTopLevelComponent } from "discord-api-types/v10";
+import { ComponentType, Locale } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardRankingRow } from "../../database/types/leaderboard_ranking_row";
@@ -6,12 +8,51 @@ import {
   aFakeDatabaseServiceWith,
   aFakeLeaderboardConfigRow,
   aFakeNeatQueueConfigRow,
+  aFakeLeaderboardPostRow,
 } from "../../database/fakes/database.fake";
+import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake";
+import { apiMessage, guild } from "../../discord/fakes/data";
+import { DiscordError } from "../../discord/discord-error";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
 import { getMatchStats } from "../../halo/fakes/data";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import type { NeatQueueMatchCompletedRequest } from "../../neatqueue/types";
 import { LeaderboardService } from "../leaderboard";
+
+function aLeaderboardMessageWith(): APIMessage {
+  const components: APIMessageTopLevelComponent[] = [
+    {
+      type: ComponentType.ActionRow,
+      components: [
+        {
+          type: ComponentType.StringSelect,
+          custom_id: "select_leaderboard_metric:guild-1:queue-1:3M:KILLS:2:3",
+          min_values: 1,
+          max_values: 1,
+          options: [{ label: "Kills", value: LeaderboardMetric.Kills, default: true }],
+        },
+      ],
+    },
+    {
+      type: ComponentType.ActionRow,
+      components: [
+        {
+          type: ComponentType.StringSelect,
+          custom_id: "select_leaderboard_window:guild-1:queue-1:3M:KILLS:2:3",
+          min_values: 1,
+          max_values: 1,
+          options: [{ label: "3 months", value: LeaderboardWindow.ThreeMonths, default: true }],
+        },
+      ],
+    },
+  ];
+
+  return {
+    ...apiMessage,
+    components,
+    embeds: [{ footer: { text: "Page 2 of 3 | Min games: 3 | Total players: 23" } }],
+  };
+}
 
 describe("LeaderboardService", () => {
   const nowIso = "2026-08-11T12:00:00.000Z";
@@ -200,6 +241,122 @@ describe("LeaderboardService", () => {
 
     expect(result.rows[0]?.gamertag).toBe("Bravo");
     expect(result.rows[0]?.metricValue).toBe(Number.MAX_VALUE);
+  });
+
+  it("re-fetches the final valid page when a saved page is out of range", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    vi.spyOn(databaseService, "getLeaderboardConfig").mockResolvedValue(
+      aFakeLeaderboardConfigRow({ GuildId: "guild-1", MinGamesPlayed: 3 }),
+    );
+    const getMetricRankingsSpy = vi
+      .spyOn(databaseService, "getLeaderboardStatMetricRankings")
+      .mockResolvedValue({ total: 11, rows: [Preconditions.checkExists(killsRankingRows[0])] });
+
+    const result = await service.getLeaderboardWithResolvedPage({
+      guildId: "guild-1",
+      metric: LeaderboardMetric.Kills,
+      page: 3,
+      pageSize: 10,
+      minGamesPlayed: 3,
+    });
+
+    expect(result.page).toBe(2);
+    expect(getMetricRankingsSpy).toHaveBeenCalledTimes(2);
+    expect(getMetricRankingsSpy.mock.calls[0]?.[0]?.offset).toBe(20);
+    expect(getMetricRankingsSpy.mock.calls[1]?.[0]?.offset).toBe(10);
+  });
+
+  it("refreshes matching registered leaderboard posts", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const discordService = aFakeDiscordServiceWith();
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, discordService, haloService, logService });
+    const guildWidePost = aFakeLeaderboardPostRow();
+    const queuePost = aFakeLeaderboardPostRow({
+      ChannelId: "channel-2",
+      MessageId: "message-2",
+      QueueChannelId: "queue-1",
+    });
+    vi.spyOn(databaseService, "findLeaderboardPostsForRefresh").mockResolvedValue([guildWidePost, queuePost]);
+    vi.spyOn(databaseService, "getLeaderboardConfig").mockResolvedValue(
+      aFakeLeaderboardConfigRow({ GuildId: "guild-1", MinGamesPlayed: 3 }),
+    );
+    vi.spyOn(databaseService, "getLeaderboardStatMetricRankings").mockResolvedValue({
+      total: 23,
+      rows: killsRankingRows,
+    });
+    vi.spyOn(discordService, "getMessage").mockResolvedValue(aLeaderboardMessageWith());
+    vi.spyOn(discordService, "getGuild").mockResolvedValue({
+      ...guild,
+      id: "guild-1",
+      preferred_locale: Locale.EnglishUS,
+    });
+    const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
+
+    await service.refreshPostsForCompletedQueue("guild-1", "queue-1");
+
+    expect(editMessageSpy).toHaveBeenCalledTimes(2);
+    expect(editMessageSpy).toHaveBeenNthCalledWith(
+      1,
+      "leaderboard-channel-1",
+      "leaderboard-message-1",
+      expect.any(Object),
+    );
+    expect(editMessageSpy).toHaveBeenNthCalledWith(2, "channel-2", "message-2", expect.any(Object));
+  });
+
+  it("removes a registered post when Discord confirms it is missing", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const discordService = aFakeDiscordServiceWith();
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, discordService, haloService, logService });
+    const post = aFakeLeaderboardPostRow();
+    vi.spyOn(databaseService, "findLeaderboardPostsForRefresh").mockResolvedValue([post]);
+    vi.spyOn(discordService, "getMessage").mockRejectedValue(
+      new DiscordError(404, { code: 10008, message: "Unknown Message" }),
+    );
+    const deletePostSpy = vi.spyOn(databaseService, "deleteLeaderboardPost").mockResolvedValue(undefined);
+
+    await service.refreshPostsForCompletedQueue("guild-1", "queue-1");
+
+    expect(deletePostSpy).toHaveBeenCalledWith(post.ChannelId, post.MessageId);
+  });
+
+  it("continues refreshing posts when one Discord update fails", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const discordService = aFakeDiscordServiceWith();
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, discordService, haloService, logService });
+    const firstPost = aFakeLeaderboardPostRow();
+    const secondPost = aFakeLeaderboardPostRow({ ChannelId: "channel-2", MessageId: "message-2" });
+    vi.spyOn(databaseService, "findLeaderboardPostsForRefresh").mockResolvedValue([firstPost, secondPost]);
+    vi.spyOn(discordService, "getMessage")
+      .mockRejectedValueOnce(new Error("Discord temporarily unavailable"))
+      .mockResolvedValueOnce(aLeaderboardMessageWith());
+    vi.spyOn(databaseService, "getLeaderboardConfig").mockResolvedValue(
+      aFakeLeaderboardConfigRow({ GuildId: "guild-1", MinGamesPlayed: 3 }),
+    );
+    vi.spyOn(databaseService, "getLeaderboardStatMetricRankings").mockResolvedValue({
+      total: 23,
+      rows: killsRankingRows,
+    });
+    vi.spyOn(discordService, "getGuild").mockResolvedValue({
+      ...guild,
+      id: "guild-1",
+      preferred_locale: Locale.EnglishUS,
+    });
+    const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
+
+    await service.refreshPostsForCompletedQueue("guild-1", "queue-1");
+
+    expect(editMessageSpy).toHaveBeenCalledTimes(1);
+    expect(editMessageSpy).toHaveBeenCalledWith("channel-2", "message-2", expect.any(Object));
   });
 
   it("skips persistence when no series matches are resolved", async () => {

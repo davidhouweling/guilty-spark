@@ -107,7 +107,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
   const analyticsService = new AnalyticsService({ haloService, haloFilmService, logService });
   const liveTrackerService = new LiveTrackerService({ env, logService, discordService });
   const individualTrackerService = new IndividualTrackerService({ env, logService, databaseService });
-  const leaderboardService = new LeaderboardService({ databaseService, haloService, logService });
+  const leaderboardService = new LeaderboardService({ databaseService, discordService, haloService, logService });
   const neatQueueService = new NeatQueueService({
     env,
     logService,
