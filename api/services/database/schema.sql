@@ -236,6 +236,7 @@ CREATE TABLE IF NOT EXISTS LeaderboardGamePlayers (
     Kills INTEGER NOT NULL,
     Deaths INTEGER NOT NULL,
     Assists INTEGER NOT NULL,
+    HeadshotKills INTEGER NOT NULL,
     Kda REAL NOT NULL,
     Accuracy REAL NOT NULL,
     ShotsHit INTEGER NOT NULL,
