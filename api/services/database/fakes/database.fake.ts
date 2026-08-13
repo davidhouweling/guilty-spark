@@ -325,6 +325,7 @@ export function aFakeLeaderboardGamePlayersRow(
     Kills: 20,
     Deaths: 15,
     Assists: 10,
+    HeadshotKills: 12,
     Kda: 2,
     Accuracy: 55.5,
     ShotsHit: 300,

@@ -569,6 +569,7 @@ export class LeaderboardService {
           Kills: coreStats.Kills,
           Deaths: deaths,
           Assists: coreStats.Assists,
+          HeadshotKills: coreStats.HeadshotKills,
           Kda: coreStats.KDA,
           Accuracy: coreStats.Accuracy,
           ShotsHit: coreStats.ShotsHit,

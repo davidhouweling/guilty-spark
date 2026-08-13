@@ -607,6 +607,7 @@ describe("Database Service", () => {
         "DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?",
       );
       expect(prepareSpy).toHaveBeenNthCalledWith(4, expect.stringContaining("INSERT INTO LeaderboardGames"));
+      expect(prepareSpy).toHaveBeenNthCalledWith(5, expect.stringContaining("HeadshotKills"));
       expect(batchSpy).toHaveBeenNthCalledWith(1, [deleteSeriesPlayersStatement, insertSeriesPlayersStatement]);
       expect(batchSpy).toHaveBeenNthCalledWith(2, [deleteGamesStatement, upsertGamesStatement]);
       expect(batchSpy).toHaveBeenNthCalledWith(3, [gamePlayersStatement]);
@@ -936,6 +937,43 @@ describe("Database Service", () => {
 
       expect(prepareSpy).toHaveBeenCalledWith("SELECT * FROM LeaderboardPosts");
       expect(posts).toEqual([post]);
+    });
+
+    it("aggregates headshot kills and ranks deaths lowest first", async () => {
+      const countStatement = new FakePreparedStatement<{ Total: number }>();
+      const rowsStatement = new FakePreparedStatement();
+      const prepareSpy = vi
+        .spyOn(env.DB, "prepare")
+        .mockReturnValueOnce(countStatement)
+        .mockReturnValueOnce(rowsStatement)
+        .mockReturnValueOnce(countStatement)
+        .mockReturnValueOnce(rowsStatement);
+      vi.spyOn(countStatement, "bind").mockReturnThis();
+      vi.spyOn(rowsStatement, "bind").mockReturnThis();
+      vi.spyOn(countStatement, "first").mockResolvedValue({ Total: 0 });
+      vi.spyOn(rowsStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+
+      await databaseService.getLeaderboardStatMetricRankings({
+        guildId: "guild-1",
+        queueChannelId: null,
+        startEpochSeconds: 0,
+        minGamesPlayed: 0,
+        limit: 10,
+        offset: 0,
+        metric: LeaderboardMetric.HeadshotKills,
+      });
+      await databaseService.getLeaderboardStatMetricRankings({
+        guildId: "guild-1",
+        queueChannelId: null,
+        startEpochSeconds: 0,
+        minGamesPlayed: 0,
+        limit: 10,
+        offset: 0,
+        metric: LeaderboardMetric.Deaths,
+      });
+
+      expect(prepareSpy.mock.calls[0]?.[0]).toContain("SUM(gp.HeadshotKills) AS MetricValue");
+      expect(prepareSpy.mock.calls[3]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
     });
 
     it("deletes a leaderboard post registration by Discord message identity", async () => {

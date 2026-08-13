@@ -13,6 +13,7 @@ export interface LeaderboardGamePlayersRow {
   Kills: number;
   Deaths: number;
   Assists: number;
+  HeadshotKills: number;
   Kda: number;
   Accuracy: number;
   ShotsHit: number;
