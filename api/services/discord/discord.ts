@@ -949,7 +949,7 @@ export class DiscordService {
     });
   }
 
-  async getGuildPreferredLocale(guildId: string): Promise<string> {
+  async getGuildPreferredLocale(guildId: string): Promise<Locale> {
     try {
       const { preferred_locale } = await this.getGuild(guildId);
 
