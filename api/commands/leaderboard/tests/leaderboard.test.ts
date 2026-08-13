@@ -675,11 +675,13 @@ describe("LeaderboardCommand", () => {
     const result = command.execute(interaction);
     await result.jobToComplete?.();
 
-    expect(logErrorSpy).toHaveBeenCalledTimes(1);
+    expect(logErrorSpy).not.toHaveBeenCalled();
     expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledTimes(1);
     expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
       interaction.token,
-      expect.objectContaining({ message: "Missing leaderboard filter state from interaction" }),
+      expect.objectContaining({
+        endUserMessage: "This leaderboard message is missing filter settings. Run /leaderboard show again.",
+      }),
     );
   });
 
@@ -712,7 +714,84 @@ describe("LeaderboardCommand", () => {
 
     expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
       interaction.token,
-      expect.objectContaining({ message: "Leaderboard interaction state guild does not match this server" }),
+      expect.objectContaining({ endUserMessage: "This leaderboard interaction does not belong to this server." }),
     );
+  });
+
+  it("renders infinity for max-value ratio metrics", async () => {
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "show",
+      options: [],
+      mappedOptions: new Map<string, string | number>([["metric", LeaderboardMetric.DamageRatio]]),
+    });
+    const updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      id: "message-id",
+      channel_id: "channel-id",
+      content: "",
+      timestamp: "2026-08-12T00:00:00.000Z",
+      edited_timestamp: null,
+      tts: false,
+      mention_everyone: false,
+      mentions: [],
+      mention_roles: [],
+      attachments: [],
+      embeds: [],
+      pinned: false,
+      type: MessageType.Default,
+      author: {
+        id: "bot-id",
+        username: "Guilty Spark",
+        discriminator: "0000",
+        avatar: null,
+        global_name: null,
+      },
+      components: [],
+    });
+    vi.spyOn(services.leaderboardService, "getLeaderboard").mockResolvedValue({
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.ThreeMonths,
+      metric: LeaderboardMetric.DamageRatio,
+      minGamesPlayed: 0,
+      page: 1,
+      pageSize: 10,
+      total: 1,
+      rows: [
+        {
+          rank: 1,
+          xboxXuid: "xuid-1",
+          discordUserId: "discord-1",
+          gamertag: "Alpha",
+          seriesPlayed: 1,
+          seriesWins: 1,
+          gamesPlayed: 1,
+          metricValue: Number.MAX_VALUE,
+        },
+      ],
+    });
+
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      guild_id: "guild-123",
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [
+          {
+            type: ApplicationCommandOptionType.Subcommand,
+            name: "show",
+            options: [],
+          },
+        ],
+      },
+    };
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    const [, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
+    expect(payload.embeds?.[0]?.fields?.[0]?.value).toContain("1. <@discord-1> (Alpha) - ∞");
   });
 });

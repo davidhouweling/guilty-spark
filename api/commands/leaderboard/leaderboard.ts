@@ -303,7 +303,9 @@ export class LeaderboardCommand extends BaseCommand {
       const state = this.getStateFromInteractionMessage(interaction);
       await this.refreshLeaderboard(interaction.token, interaction.locale, stateUpdater(state));
     } catch (error) {
-      this.services.logService.error(error);
+      if (!this.isHandledEndUserError(error)) {
+        this.services.logService.error(error);
+      }
       await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
@@ -526,19 +528,28 @@ export class LeaderboardCommand extends BaseCommand {
     const interactionGuildId = interaction.guild_id;
 
     if (interactionGuildId == null || interactionGuildId === "") {
-      throw new Error("Missing guildId in leaderboard interaction state");
+      throw new EndUserError("Unable to determine the server for this leaderboard interaction.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
     }
 
     const stateGuildId = params.get("guildId");
     if (stateGuildId != null && stateGuildId !== "" && stateGuildId !== interactionGuildId) {
-      throw new Error("Leaderboard interaction state guild does not match this server");
+      throw new EndUserError("This leaderboard interaction does not belong to this server.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
     }
 
     const parsedWindow = this.parseWindowOption(params.get("window") ?? undefined);
     const parsedMetric = this.parseMetricOption(params.get("metric") ?? undefined);
 
     if (parsedWindow == null || parsedMetric == null) {
-      throw new Error("Missing leaderboard filter state from interaction");
+      throw new EndUserError("This leaderboard message is missing filter settings. Run /leaderboard show again.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
     }
 
     const parsedPage = Number.parseInt(params.get("page") ?? "1", 10);
@@ -595,7 +606,13 @@ export class LeaderboardCommand extends BaseCommand {
       }
     }
 
-    throw new Error("Unable to resolve leaderboard interaction state from message components");
+    throw new EndUserError(
+      "This leaderboard message is missing its interaction context. Run /leaderboard show again.",
+      {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      },
+    );
   }
 
   private parseWindowOption(value: string | undefined): LeaderboardWindow | undefined {
@@ -727,6 +744,10 @@ export class LeaderboardCommand extends BaseCommand {
       }
       case LeaderboardMetric.Kda:
       case LeaderboardMetric.DamageRatio: {
+        if (metricValue === Number.MAX_VALUE) {
+          return "∞";
+        }
+
         return metricValue.toLocaleString(locale, { maximumFractionDigits: 2 });
       }
       case LeaderboardMetric.Kills:
@@ -741,5 +762,9 @@ export class LeaderboardCommand extends BaseCommand {
         throw new UnreachableError(metric);
       }
     }
+  }
+
+  private isHandledEndUserError(error: unknown): error is EndUserError {
+    return error instanceof EndUserError && error.handled;
   }
 }
