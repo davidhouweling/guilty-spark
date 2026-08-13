@@ -18,7 +18,6 @@ import {
   InteractionType,
   PermissionFlagsBits,
 } from "discord-api-types/v10";
-import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
@@ -526,7 +525,17 @@ export class LeaderboardCommand extends BaseCommand {
   private getStateFromInteractionMessage(
     interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
   ): LeaderboardViewState {
-    const components = Preconditions.checkExists(interaction.message.components);
+    const {components} = interaction.message;
+    if (components == null || components.length === 0) {
+      throw new EndUserError(
+        "This leaderboard message is missing its interaction context. Run /leaderboard show again.",
+        {
+          handled: true,
+          errorType: EndUserErrorType.WARNING,
+        },
+      );
+    }
+
     const stateUrl = this.getStateUrlFromComponents(components);
     const params = new URL(stateUrl).searchParams;
     const interactionGuildId = interaction.guild_id;
@@ -626,7 +635,10 @@ export class LeaderboardCommand extends BaseCommand {
 
     const parsedWindow = WINDOW_OPTIONS_BY_VALUE.get(value);
     if (parsedWindow == null) {
-      throw new Error(`Invalid leaderboard window option: ${value}`);
+      throw new EndUserError("This leaderboard message has an invalid window filter. Run /leaderboard show again.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
     }
 
     return parsedWindow;
@@ -639,7 +651,10 @@ export class LeaderboardCommand extends BaseCommand {
 
     const parsedMetric = METRIC_OPTIONS_BY_VALUE.get(value);
     if (parsedMetric == null) {
-      throw new Error(`Invalid leaderboard metric option: ${value}`);
+      throw new EndUserError("This leaderboard message has an invalid metric filter. Run /leaderboard show again.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
     }
 
     return parsedMetric;

@@ -755,6 +755,109 @@ describe("LeaderboardCommand", () => {
     );
   });
 
+  it("updates deferred reply with error when interaction message has no components", async () => {
+    const interaction: APIMessageComponentButtonInteraction = {
+      ...fakeButtonClickInteraction,
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(fakeButtonClickInteraction.guild),
+        id: "guild-123",
+      },
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: INTERACTION_PREV_PAGE,
+      },
+      message: {
+        ...fakeButtonClickInteraction.message,
+        components: [],
+      },
+    };
+
+    const updateDeferredReplyWithErrorSpy = vi
+      .spyOn(services.discordService, "updateDeferredReplyWithError")
+      .mockResolvedValue(undefined);
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({
+        endUserMessage: "This leaderboard message is missing its interaction context. Run /leaderboard show again.",
+      }),
+    );
+  });
+
+  it("updates deferred reply with error when interaction state has invalid window filter", async () => {
+    const interaction: APIMessageComponentButtonInteraction = {
+      ...fakeButtonClickInteraction,
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(fakeButtonClickInteraction.guild),
+        id: "guild-123",
+      },
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: INTERACTION_PREV_PAGE,
+      },
+      message: {
+        ...fakeButtonClickInteraction.message,
+        components: aStateComponentsWith(
+          "https://guilty-spark.app/leaderboard?guildId=guild-123&window=BAD&metric=KILLS&page=2",
+        ),
+      },
+    };
+
+    const updateDeferredReplyWithErrorSpy = vi
+      .spyOn(services.discordService, "updateDeferredReplyWithError")
+      .mockResolvedValue(undefined);
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({
+        endUserMessage: "This leaderboard message has an invalid window filter. Run /leaderboard show again.",
+      }),
+    );
+  });
+
+  it("updates deferred reply with error when interaction state has invalid metric filter", async () => {
+    const interaction: APIMessageComponentButtonInteraction = {
+      ...fakeButtonClickInteraction,
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(fakeButtonClickInteraction.guild),
+        id: "guild-123",
+      },
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: INTERACTION_PREV_PAGE,
+      },
+      message: {
+        ...fakeButtonClickInteraction.message,
+        components: aStateComponentsWith(
+          "https://guilty-spark.app/leaderboard?guildId=guild-123&window=3M&metric=BAD&page=2",
+        ),
+      },
+    };
+
+    const updateDeferredReplyWithErrorSpy = vi
+      .spyOn(services.discordService, "updateDeferredReplyWithError")
+      .mockResolvedValue(undefined);
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({
+        endUserMessage: "This leaderboard message has an invalid metric filter. Run /leaderboard show again.",
+      }),
+    );
+  });
+
   it("renders infinity for max-value ratio metrics", async () => {
     vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
       name: "show",
