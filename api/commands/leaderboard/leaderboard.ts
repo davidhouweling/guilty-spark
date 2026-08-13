@@ -443,7 +443,7 @@ export class LeaderboardCommand extends BaseCommand {
 
       const response = createLeaderboardResponse(locale, leaderboard);
       const message = await this.services.discordService.updateDeferredReply(token, response);
-      await this.services.databaseService.upsertLeaderboardPost({
+      await this.upsertLeaderboardPost({
         ChannelId: message.channel_id,
         MessageId: message.id,
         GuildId: leaderboard.guildId,
@@ -451,6 +451,36 @@ export class LeaderboardCommand extends BaseCommand {
       });
     } catch (error) {
       await this.services.discordService.updateDeferredReplyWithError(token, error);
+    }
+  }
+
+  private async upsertLeaderboardPost({
+    ChannelId,
+    MessageId,
+    GuildId,
+    QueueChannelId,
+  }: {
+    ChannelId: string;
+    MessageId: string;
+    GuildId: string;
+    QueueChannelId: string | null;
+  }): Promise<void> {
+    try {
+      await this.services.databaseService.upsertLeaderboardPost({
+        ChannelId,
+        MessageId,
+        GuildId,
+        QueueChannelId,
+      });
+    } catch (error) {
+      this.services.logService.warn(
+        error,
+        new Map([
+          ["channelId", ChannelId],
+          ["messageId", MessageId],
+          ["reason", "Failed to register leaderboard post"],
+        ]),
+      );
     }
   }
 

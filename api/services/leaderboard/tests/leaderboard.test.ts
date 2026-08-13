@@ -399,6 +399,28 @@ describe("LeaderboardService", () => {
     );
   });
 
+  it("skips post refresh when loading refresh registrations fails", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const discordService = aFakeDiscordServiceWith();
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, discordService, haloService, logService });
+    vi.spyOn(databaseService, "findLeaderboardPostsForRefresh").mockRejectedValue(new Error("D1 unavailable"));
+    const warnSpy = vi.spyOn(logService, "warn");
+    const editMessageSpy = vi.spyOn(discordService, "editMessage");
+
+    await service.refreshPostsForCompletedQueue("guild-1", "queue-1");
+
+    expect(editMessageSpy).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
+    const [warnMessage, warnContext] = Preconditions.checkExists(warnSpy.mock.calls[0]);
+    expect(warnMessage).toBeInstanceOf(Error);
+    const context = Preconditions.checkExists(warnContext);
+    expect(context.get("guildId")).toBe("guild-1");
+    expect(context.get("queueChannelId")).toBe("queue-1");
+    expect(context.get("reason")).toBe("Failed to load leaderboard posts for refresh");
+  });
+
   it("skips persistence when no series matches are resolved", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });

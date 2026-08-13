@@ -184,7 +184,21 @@ export class LeaderboardService {
       return;
     }
 
-    const posts = await this.databaseService.findLeaderboardPostsForRefresh(guildId, queueChannelId);
+    let posts: LeaderboardPostRow[];
+    try {
+      posts = await this.databaseService.findLeaderboardPostsForRefresh(guildId, queueChannelId);
+    } catch (error) {
+      this.logService.warn(
+        error,
+        new Map([
+          ["guildId", guildId],
+          ["queueChannelId", queueChannelId],
+          ["reason", "Failed to load leaderboard posts for refresh"],
+        ]),
+      );
+      return;
+    }
+
     for (const post of posts) {
       await this.refreshLeaderboardPost(post);
     }

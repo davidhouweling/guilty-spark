@@ -399,6 +399,89 @@ describe("LeaderboardCommand", () => {
     });
   });
 
+  it("keeps successful leaderboard response when post registration fails", async () => {
+    const mappedOptions = new Map<string, string | number>();
+    mappedOptions.set("queue_channel", "queue-123");
+    mappedOptions.set("window", LeaderboardWindow.OneMonth);
+    mappedOptions.set("metric", LeaderboardMetric.Kills);
+    mappedOptions.set("page", 2);
+    mappedOptions.set("min_games_played", 3);
+
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "show",
+      options: [],
+      mappedOptions,
+    });
+    vi.spyOn(services.leaderboardService, "getLeaderboard").mockResolvedValue({
+      guildId: "guild-123",
+      queueChannelId: "queue-123",
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.Kills,
+      minGamesPlayed: 3,
+      page: 2,
+      pageSize: 10,
+      total: 23,
+      rows: [],
+    });
+    vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      id: "message-id",
+      channel_id: "channel-id",
+      content: "",
+      timestamp: "2026-08-12T00:00:00.000Z",
+      edited_timestamp: null,
+      tts: false,
+      mention_everyone: false,
+      mentions: [],
+      mention_roles: [],
+      attachments: [],
+      embeds: [],
+      pinned: false,
+      type: MessageType.Default,
+      author: {
+        id: "bot-id",
+        username: "Guilty Spark",
+        discriminator: "0000",
+        avatar: null,
+        global_name: null,
+      },
+      components: [],
+    });
+    vi.spyOn(services.databaseService, "upsertLeaderboardPost").mockRejectedValue(new Error("D1 unavailable"));
+    const updateDeferredReplyWithErrorSpy = vi
+      .spyOn(services.discordService, "updateDeferredReplyWithError")
+      .mockResolvedValue(undefined);
+    const warnSpy = vi.spyOn(services.logService, "warn");
+
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      guild_id: "guild-123",
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [
+          {
+            type: ApplicationCommandOptionType.Subcommand,
+            name: "show",
+            options: [],
+          },
+        ],
+      },
+    };
+
+    const result = command.execute(interaction);
+
+    expect(result.response.type).toBe(InteractionResponseType.DeferredChannelMessageWithSource);
+    await result.jobToComplete?.();
+
+    expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
+    const [warnMessage, warnContext] = Preconditions.checkExists(warnSpy.mock.calls[0]);
+    expect(warnMessage).toBeInstanceOf(Error);
+    expect(Preconditions.checkExists(warnContext).get("reason")).toBe("Failed to register leaderboard post");
+  });
+
   it("updates deferred reply with error when leaderboard command is used outside a guild", async () => {
     vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
       name: "show",
