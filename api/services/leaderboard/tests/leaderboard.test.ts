@@ -329,6 +329,37 @@ describe("LeaderboardService", () => {
     expect(getGuildSpy).not.toHaveBeenCalled();
   });
 
+  it("continues refreshing posts with fallback locale when guild locale lookup fails", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const discordService = aFakeDiscordServiceWith();
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, discordService, haloService, logService });
+    const post = aFakeLeaderboardPostRow();
+    vi.spyOn(databaseService, "findLeaderboardPostsForRefresh").mockResolvedValue([post]);
+    vi.spyOn(discordService, "getGuild").mockRejectedValue(new Error("Discord unavailable"));
+    vi.spyOn(discordService, "getMessage").mockResolvedValue(aLeaderboardMessageWith());
+    vi.spyOn(databaseService, "getLeaderboardConfig").mockResolvedValue(
+      aFakeLeaderboardConfigRow({ GuildId: "guild-1", MinGamesPlayed: 3 }),
+    );
+    vi.spyOn(databaseService, "getLeaderboardStatMetricRankings").mockResolvedValue({
+      total: 23,
+      rows: killsRankingRows,
+    });
+    const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
+    const warnSpy = vi.spyOn(logService, "warn");
+
+    await service.refreshPostsForCompletedQueue("guild-1", "queue-1");
+
+    expect(editMessageSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
+    const [warnMessage, warnContext] = Preconditions.checkExists(warnSpy.mock.calls[0]);
+    expect(warnMessage).toBeInstanceOf(Error);
+    expect(Preconditions.checkExists(warnContext).get("reason")).toBe(
+      "Failed to load guild locale for leaderboard refresh",
+    );
+  });
+
   it("removes a registered post when Discord confirms it is missing", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });

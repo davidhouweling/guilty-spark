@@ -7,25 +7,8 @@ import { LEADERBOARD_METRIC_SELECT_CONTROL_ID, LEADERBOARD_WINDOW_SELECT_CONTROL
 const LEADERBOARD_FOOTER_PATTERN = /^Page (\d+) of (\d+) \| Min games: (\d+) \| Total players: (\d+)$/;
 const LEGACY_LEADERBOARD_DESCRIPTION_PATTERN = /Page (\d+) of (\d+) \| Min games: (\d+) \| Total players: (\d+)/;
 
-const WINDOW_BY_VALUE = new Map<string, LeaderboardWindow>([
-  [LeaderboardWindow.OneWeek, LeaderboardWindow.OneWeek],
-  [LeaderboardWindow.OneMonth, LeaderboardWindow.OneMonth],
-  [LeaderboardWindow.ThreeMonths, LeaderboardWindow.ThreeMonths],
-  [LeaderboardWindow.SixMonths, LeaderboardWindow.SixMonths],
-  [LeaderboardWindow.TwelveMonths, LeaderboardWindow.TwelveMonths],
-]);
-const METRIC_BY_VALUE = new Map<string, LeaderboardMetric>([
-  [LeaderboardMetric.SeriesWinRate, LeaderboardMetric.SeriesWinRate],
-  [LeaderboardMetric.Kills, LeaderboardMetric.Kills],
-  [LeaderboardMetric.Deaths, LeaderboardMetric.Deaths],
-  [LeaderboardMetric.Assists, LeaderboardMetric.Assists],
-  [LeaderboardMetric.Kda, LeaderboardMetric.Kda],
-  [LeaderboardMetric.Accuracy, LeaderboardMetric.Accuracy],
-  [LeaderboardMetric.DamageDealt, LeaderboardMetric.DamageDealt],
-  [LeaderboardMetric.DamageTaken, LeaderboardMetric.DamageTaken],
-  [LeaderboardMetric.DamageRatio, LeaderboardMetric.DamageRatio],
-  [LeaderboardMetric.PersonalScore, LeaderboardMetric.PersonalScore],
-]);
+const WINDOW_VALUES = new Set<string>(Object.values(LeaderboardWindow));
+const METRIC_VALUES = new Set<string>(Object.values(LeaderboardMetric));
 
 export interface LeaderboardMessageState {
   guildId: string;
@@ -34,6 +17,14 @@ export interface LeaderboardMessageState {
   metric: LeaderboardMetric;
   page: number;
   minGamesPlayed: number;
+}
+
+function isLeaderboardWindow(value: string): value is LeaderboardWindow {
+  return WINDOW_VALUES.has(value);
+}
+
+function isLeaderboardMetric(value: string): value is LeaderboardMetric {
+  return METRIC_VALUES.has(value);
 }
 
 function getSelectedValue(components: APIMessageTopLevelComponent[], prefix: string): string | null {
@@ -57,12 +48,20 @@ function getSelectedValue(components: APIMessageTopLevelComponent[], prefix: str
 
 function getSelectedWindow(components: APIMessageTopLevelComponent[]): LeaderboardWindow | null {
   const value = getSelectedValue(components, LEADERBOARD_WINDOW_SELECT_CONTROL_ID);
-  return value == null ? null : (WINDOW_BY_VALUE.get(value) ?? null);
+  if (value == null || !isLeaderboardWindow(value)) {
+    return null;
+  }
+
+  return value;
 }
 
 function getSelectedMetric(components: APIMessageTopLevelComponent[]): LeaderboardMetric | null {
   const value = getSelectedValue(components, LEADERBOARD_METRIC_SELECT_CONTROL_ID);
-  return value == null ? null : (METRIC_BY_VALUE.get(value) ?? null);
+  if (value == null || !isLeaderboardMetric(value)) {
+    return null;
+  }
+
+  return value;
 }
 
 function parsePageAndMinGames(text: string): { page: number; minGamesPlayed: number } | null {
