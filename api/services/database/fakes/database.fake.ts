@@ -74,19 +74,11 @@ export function aFakeNeatQueueConfigRow(opts: Partial<NeatQueueConfigRow> = {}):
 }
 
 export function aFakeLeaderboardPostRow(opts: Partial<LeaderboardPostRow> = {}): LeaderboardPostRow {
-  const nowEpoch = Math.floor(Date.now() / 1000);
   const defaultOpts: LeaderboardPostRow = {
     ChannelId: "leaderboard-channel-1",
     MessageId: "leaderboard-message-1",
     GuildId: "guild-1",
     QueueChannelId: null,
-    Window: LeaderboardWindow.ThreeMonths,
-    Metric: LeaderboardMetric.SeriesWinRate,
-    MinGamesPlayed: 5,
-    Page: 1,
-    Locale: "en-US",
-    CreatedAt: nowEpoch,
-    UpdatedAt: nowEpoch,
   };
 
   return {

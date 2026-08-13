@@ -898,19 +898,7 @@ describe("Database Service", () => {
       await databaseService.upsertLeaderboardPost(post);
 
       expect(prepareSpy).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO LeaderboardPosts"));
-      expect(bindSpy).toHaveBeenCalledWith(
-        post.ChannelId,
-        post.MessageId,
-        post.GuildId,
-        post.QueueChannelId,
-        post.Window,
-        post.Metric,
-        post.MinGamesPlayed,
-        post.Page,
-        post.Locale,
-        post.CreatedAt,
-        post.UpdatedAt,
-      );
+      expect(bindSpy).toHaveBeenCalledWith(post.ChannelId, post.MessageId, post.GuildId, post.QueueChannelId);
       expect(runSpy).toHaveBeenCalledTimes(1);
     });
 

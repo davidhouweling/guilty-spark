@@ -322,23 +322,11 @@ export class DatabaseService {
 
   async upsertLeaderboardPost(post: LeaderboardPostRow): Promise<void> {
     const query = `
-      INSERT INTO LeaderboardPosts (ChannelId, MessageId, GuildId, QueueChannelId, Window, Metric, MinGamesPlayed, Page, Locale, CreatedAt, UpdatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(ChannelId, MessageId) DO UPDATE SET GuildId=excluded.GuildId, QueueChannelId=excluded.QueueChannelId, Window=excluded.Window, Metric=excluded.Metric, MinGamesPlayed=excluded.MinGamesPlayed, Page=excluded.Page, Locale=excluded.Locale, UpdatedAt=excluded.UpdatedAt
+      INSERT INTO LeaderboardPosts (ChannelId, MessageId, GuildId, QueueChannelId)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(ChannelId, MessageId) DO UPDATE SET GuildId=excluded.GuildId, QueueChannelId=excluded.QueueChannelId
     `;
-    const stmt = this.DB.prepare(query).bind(
-      post.ChannelId,
-      post.MessageId,
-      post.GuildId,
-      post.QueueChannelId,
-      post.Window,
-      post.Metric,
-      post.MinGamesPlayed,
-      post.Page,
-      post.Locale,
-      post.CreatedAt,
-      post.UpdatedAt,
-    );
+    const stmt = this.DB.prepare(query).bind(post.ChannelId, post.MessageId, post.GuildId, post.QueueChannelId);
     await stmt.run();
   }
 
