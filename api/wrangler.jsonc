@@ -6,7 +6,7 @@
   "compatibility_date": "2026-02-28",
   "upload_source_maps": true,
 
-  // Daily cleanup of NeatQueue configs whose queue channel no longer exists
+  // Scheduled jobs: daily stale NeatQueue cleanup and weekly leaderboard post reaping
   "triggers": {
     "crons": ["43 15 * * *", "0 0 * * 0"],
   },

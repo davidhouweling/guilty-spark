@@ -47,12 +47,20 @@ export default Sentry.withSentry(
     fetch: server.router.fetch,
     scheduled: async (controller: ScheduledController, env: Env): Promise<void> => {
       const { databaseService, discordService, logService } = installServices({ env });
-      const cleanup = new StaleNeatQueueConfigCleanup({ databaseService, discordService, logService });
-      await cleanup.execute();
-
-      if (controller.cron === "0 0 * * 0") {
-        const reaper = new LeaderboardPostReaper({ databaseService, discordService, logService });
-        await reaper.execute();
+      switch (controller.cron) {
+        case "43 15 * * *": {
+          const cleanup = new StaleNeatQueueConfigCleanup({ databaseService, discordService, logService });
+          await cleanup.execute();
+          break;
+        }
+        case "0 0 * * 0": {
+          const reaper = new LeaderboardPostReaper({ databaseService, discordService, logService });
+          await reaper.execute();
+          break;
+        }
+        default: {
+          logService.warn("Received unexpected cron expression", new Map([["cron", controller.cron]]));
+        }
       }
     },
   },
