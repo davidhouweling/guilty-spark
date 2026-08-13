@@ -454,30 +454,20 @@ export class LeaderboardCommand extends BaseCommand {
     }
   }
 
-  private async upsertLeaderboardPost({
-    ChannelId,
-    MessageId,
-    GuildId,
-    QueueChannelId,
-  }: {
+  private async upsertLeaderboardPost(post: {
     ChannelId: string;
     MessageId: string;
     GuildId: string;
     QueueChannelId: string | null;
   }): Promise<void> {
     try {
-      await this.services.databaseService.upsertLeaderboardPost({
-        ChannelId,
-        MessageId,
-        GuildId,
-        QueueChannelId,
-      });
+      await this.services.databaseService.upsertLeaderboardPost(post);
     } catch (error) {
       this.services.logService.warn(
         error,
         new Map([
-          ["channelId", ChannelId],
-          ["messageId", MessageId],
+          ["channelId", post.ChannelId],
+          ["messageId", post.MessageId],
           ["reason", "Failed to register leaderboard post"],
         ]),
       );
