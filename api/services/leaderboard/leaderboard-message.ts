@@ -90,7 +90,7 @@ export function getLeaderboardMessageState(
   message: APIMessage,
   post: LeaderboardPostRow,
 ): LeaderboardMessageState | null {
-  const {components} = message;
+  const { components } = message;
   if (components == null) {
     return null;
   }

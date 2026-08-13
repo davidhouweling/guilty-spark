@@ -133,6 +133,9 @@ describe("LeaderboardCommand", () => {
         },
       ],
     });
+    const upsertLeaderboardPostSpy = vi
+      .spyOn(services.databaseService, "upsertLeaderboardPost")
+      .mockResolvedValue(undefined);
     const updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
       id: "message-id",
       channel_id: "channel-id",
@@ -193,6 +196,12 @@ describe("LeaderboardCommand", () => {
     const [token, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
     expect(token).toBe(interaction.token);
     expect(payload.embeds?.[0]?.title).toBe("Leaderboard - Queue <#queue-123>");
+    expect(upsertLeaderboardPostSpy).toHaveBeenCalledWith({
+      ChannelId: "channel-id",
+      MessageId: "message-id",
+      GuildId: "guild-123",
+      QueueChannelId: "queue-123",
+    });
     expect(payload.components?.[0]).toEqual({
       type: ComponentType.ActionRow,
       components: [

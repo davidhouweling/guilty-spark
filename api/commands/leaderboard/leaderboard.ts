@@ -445,7 +445,13 @@ export class LeaderboardCommand extends BaseCommand {
       const leaderboard = await this.getLeaderboardWithResolvedPage(state);
 
       const response = this.createLeaderboardResponse(locale, leaderboard);
-      await this.services.discordService.updateDeferredReply(token, response);
+      const message = await this.services.discordService.updateDeferredReply(token, response);
+      await this.services.databaseService.upsertLeaderboardPost({
+        ChannelId: message.channel_id,
+        MessageId: message.id,
+        GuildId: leaderboard.guildId,
+        QueueChannelId: leaderboard.queueChannelId,
+      });
     } catch (error) {
       await this.services.discordService.updateDeferredReplyWithError(token, error);
     }
