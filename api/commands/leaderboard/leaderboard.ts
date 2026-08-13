@@ -1,12 +1,9 @@
 import type {
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
-  APIEmbed,
-  APIInteractionResponseCallbackData,
   APIMessageComponentButtonInteraction,
   APIMessageComponentSelectMenuInteraction,
   APIMessageTopLevelComponent,
-  APISelectMenuOption,
 } from "discord-api-types/v10";
 import {
   ApplicationCommandOptionType,
@@ -22,20 +19,20 @@ import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
-import { EmbedColors } from "../../embeds/colors";
+import {
+  createLeaderboardResponse,
+  LEADERBOARD_FIRST_PAGE_CONTROL_ID,
+  LEADERBOARD_LAST_PAGE_CONTROL_ID,
+  LEADERBOARD_METRIC_SELECT_CONTROL_ID,
+  LEADERBOARD_NEXT_PAGE_CONTROL_ID,
+  LEADERBOARD_PREV_PAGE_CONTROL_ID,
+  LEADERBOARD_REFRESH_CONTROL_ID,
+  LEADERBOARD_WINDOW_SELECT_CONTROL_ID,
+} from "../../services/leaderboard/leaderboard-response";
 import type { ApplicationCommandData, BaseInteraction, CommandData, ExecuteResponse } from "../base/base-command";
 import { BaseCommand } from "../base/base-command";
 
 const DEFAULT_PAGE_SIZE = 10;
-const MAX_ROWS_IN_DISCORD_EMBED = 10;
-const METRIC_SELECT_LIMIT = 25;
-const INTERACTION_FIRST_PAGE = "btn_leaderboard_first";
-const INTERACTION_PREV_PAGE = "btn_leaderboard_prev";
-const INTERACTION_REFRESH = "btn_leaderboard_refresh";
-const INTERACTION_NEXT_PAGE = "btn_leaderboard_next";
-const INTERACTION_LAST_PAGE = "btn_leaderboard_last";
-const INTERACTION_METRIC_SELECT = "select_leaderboard_metric";
-const INTERACTION_WINDOW_SELECT = "select_leaderboard_window";
 
 const WINDOW_OPTIONS_BY_VALUE = new Map<string, LeaderboardWindow>([
   [LeaderboardWindow.OneWeek, LeaderboardWindow.OneWeek],
@@ -151,42 +148,42 @@ export class LeaderboardCommand extends BaseCommand {
         type: InteractionType.MessageComponent,
         data: {
           component_type: ComponentType.Button,
-          custom_id: INTERACTION_FIRST_PAGE,
+          custom_id: LEADERBOARD_FIRST_PAGE_CONTROL_ID,
         },
       },
       {
         type: InteractionType.MessageComponent,
         data: {
           component_type: ComponentType.Button,
-          custom_id: INTERACTION_PREV_PAGE,
+          custom_id: LEADERBOARD_PREV_PAGE_CONTROL_ID,
         },
       },
       {
         type: InteractionType.MessageComponent,
         data: {
           component_type: ComponentType.Button,
-          custom_id: INTERACTION_REFRESH,
+          custom_id: LEADERBOARD_REFRESH_CONTROL_ID,
         },
       },
       {
         type: InteractionType.MessageComponent,
         data: {
           component_type: ComponentType.Button,
-          custom_id: INTERACTION_NEXT_PAGE,
+          custom_id: LEADERBOARD_NEXT_PAGE_CONTROL_ID,
         },
       },
       {
         type: InteractionType.MessageComponent,
         data: {
           component_type: ComponentType.Button,
-          custom_id: INTERACTION_LAST_PAGE,
+          custom_id: LEADERBOARD_LAST_PAGE_CONTROL_ID,
         },
       },
       {
         type: InteractionType.MessageComponent,
         data: {
           component_type: ComponentType.StringSelect,
-          custom_id: INTERACTION_METRIC_SELECT,
+          custom_id: LEADERBOARD_METRIC_SELECT_CONTROL_ID,
           values: [],
         },
       },
@@ -194,7 +191,7 @@ export class LeaderboardCommand extends BaseCommand {
         type: InteractionType.MessageComponent,
         data: {
           component_type: ComponentType.StringSelect,
-          custom_id: INTERACTION_WINDOW_SELECT,
+          custom_id: LEADERBOARD_WINDOW_SELECT_CONTROL_ID,
           values: [],
         },
       },
@@ -218,25 +215,25 @@ export class LeaderboardCommand extends BaseCommand {
       }
       case InteractionType.MessageComponent: {
         switch (this.getLeaderboardControlId(interaction.data.custom_id)) {
-          case INTERACTION_FIRST_PAGE: {
+          case LEADERBOARD_FIRST_PAGE_CONTROL_ID: {
             return this.deferUpdate(async () => this.handleFirstPage(interaction));
           }
-          case INTERACTION_PREV_PAGE: {
+          case LEADERBOARD_PREV_PAGE_CONTROL_ID: {
             return this.deferUpdate(async () => this.handlePageChange(interaction, -1));
           }
-          case INTERACTION_REFRESH: {
+          case LEADERBOARD_REFRESH_CONTROL_ID: {
             return this.deferUpdate(async () => this.handleRefresh(interaction));
           }
-          case INTERACTION_NEXT_PAGE: {
+          case LEADERBOARD_NEXT_PAGE_CONTROL_ID: {
             return this.deferUpdate(async () => this.handlePageChange(interaction, 1));
           }
-          case INTERACTION_LAST_PAGE: {
+          case LEADERBOARD_LAST_PAGE_CONTROL_ID: {
             return this.deferUpdate(async () => this.handleLastPage(interaction));
           }
-          case INTERACTION_METRIC_SELECT: {
+          case LEADERBOARD_METRIC_SELECT_CONTROL_ID: {
             return this.deferUpdate(async () => this.handleMetricSelect(interaction));
           }
-          case INTERACTION_WINDOW_SELECT: {
+          case LEADERBOARD_WINDOW_SELECT_CONTROL_ID: {
             return this.deferUpdate(async () => this.handleWindowSelect(interaction));
           }
           default: {
@@ -444,7 +441,7 @@ export class LeaderboardCommand extends BaseCommand {
     try {
       const leaderboard = await this.getLeaderboardWithResolvedPage(state);
 
-      const response = this.createLeaderboardResponse(locale, leaderboard);
+      const response = createLeaderboardResponse(locale, leaderboard);
       const message = await this.services.discordService.updateDeferredReply(token, response);
       await this.services.databaseService.upsertLeaderboardPost({
         ChannelId: message.channel_id,
@@ -490,199 +487,6 @@ export class LeaderboardCommand extends BaseCommand {
       pageSize: DEFAULT_PAGE_SIZE,
       ...(state.minGamesPlayed != null ? { minGamesPlayed: state.minGamesPlayed } : {}),
     });
-  }
-
-  private createLeaderboardResponse(
-    locale: string,
-    leaderboard: LeaderboardResponse,
-  ): APIInteractionResponseCallbackData {
-    const rows = leaderboard.rows.slice(0, MAX_ROWS_IN_DISCORD_EMBED);
-    const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
-
-    const metricLabel = this.getMetricLabel(leaderboard.metric);
-    const windowLabel = this.getWindowLabel(leaderboard.window);
-    const scopeLabel =
-      leaderboard.queueChannelId != null ? `Queue <#${leaderboard.queueChannelId}>` : "Server-wide (all queues)";
-
-    const embed: APIEmbed = {
-      color: EmbedColors.GOLD,
-      title: `Leaderboard - ${scopeLabel}`,
-      description: `Metric: ${metricLabel} | Window: ${windowLabel}`,
-      fields: this.createRankingFields(rows, leaderboard.total, leaderboard.metric, locale),
-      footer: {
-        text: `Page ${leaderboard.page.toString()} of ${totalPages.toString()} | Min games: ${leaderboard.minGamesPlayed.toString()} | Total players: ${leaderboard.total.toString()}`,
-      },
-    };
-
-    const components = this.createComponents(leaderboard);
-
-    return {
-      embeds: [embed],
-      components,
-    };
-  }
-
-  private createComponents(leaderboard: LeaderboardResponse): APIMessageTopLevelComponent[] {
-    const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
-    const metricOptions = this.getMetricSelectOptions(leaderboard.metric);
-    const windowOptions = this.getWindowSelectOptions(leaderboard.window);
-
-    return [
-      {
-        type: ComponentType.ActionRow,
-        components: [
-          {
-            type: ComponentType.Button,
-            style: ButtonStyle.Secondary,
-            custom_id: this.createLeaderboardControlId(INTERACTION_FIRST_PAGE, leaderboard),
-            emoji: { name: "⏮️" },
-            disabled: leaderboard.page <= 1,
-          },
-          {
-            type: ComponentType.Button,
-            style: ButtonStyle.Secondary,
-            custom_id: this.createLeaderboardControlId(INTERACTION_PREV_PAGE, leaderboard),
-            emoji: { name: "◀️" },
-            disabled: leaderboard.page <= 1,
-          },
-          {
-            type: ComponentType.Button,
-            style: ButtonStyle.Secondary,
-            custom_id: this.createLeaderboardControlId(INTERACTION_REFRESH, leaderboard),
-            emoji: { name: "🔄" },
-          },
-          {
-            type: ComponentType.Button,
-            style: ButtonStyle.Secondary,
-            custom_id: this.createLeaderboardControlId(INTERACTION_NEXT_PAGE, leaderboard),
-            emoji: { name: "▶️" },
-            disabled: leaderboard.page >= totalPages,
-          },
-          {
-            type: ComponentType.Button,
-            style: ButtonStyle.Secondary,
-            custom_id: this.createLeaderboardControlId(INTERACTION_LAST_PAGE, leaderboard),
-            emoji: { name: "⏭️" },
-            disabled: leaderboard.page >= totalPages,
-          },
-        ],
-      },
-      {
-        type: ComponentType.ActionRow,
-        components: [
-          {
-            type: ComponentType.StringSelect,
-            custom_id: this.createLeaderboardControlId(INTERACTION_METRIC_SELECT, leaderboard),
-            placeholder: "Select metric",
-            min_values: 1,
-            max_values: 1,
-            options: metricOptions,
-          },
-        ],
-      },
-      {
-        type: ComponentType.ActionRow,
-        components: [
-          {
-            type: ComponentType.StringSelect,
-            custom_id: this.createLeaderboardControlId(INTERACTION_WINDOW_SELECT, leaderboard),
-            placeholder: "Select window",
-            min_values: 1,
-            max_values: 1,
-            options: windowOptions,
-          },
-        ],
-      },
-    ];
-  }
-
-  private createRankingFields(
-    rows: LeaderboardResponse["rows"],
-    totalPlayers: number,
-    metric: LeaderboardMetric,
-    locale: string,
-  ): NonNullable<APIEmbed["fields"]> {
-    if (rows.length === 0) {
-      return [
-        {
-          name: "Rankings",
-          value: this.getRankingContent([], totalPlayers),
-          inline: false,
-        },
-      ];
-    }
-
-    return [
-      {
-        name: "Rank",
-        value: rows.map((row) => this.formatRank(row.rank)).join("\n"),
-        inline: true,
-      },
-      {
-        name: "Player",
-        value: rows
-          .map((row) => (row.discordUserId != null ? `<@${row.discordUserId}> (${row.gamertag})` : row.gamertag))
-          .join("\n"),
-        inline: true,
-      },
-      {
-        name: this.getMetricLabel(metric),
-        value: rows.map((row) => this.formatMetricValue(row.metricValue, metric, locale)).join("\n"),
-        inline: true,
-      },
-    ];
-  }
-
-  private formatRank(rank: number): string {
-    switch (rank) {
-      case 1: {
-        return "🥇";
-      }
-      case 2: {
-        return "🥈";
-      }
-      case 3: {
-        return "🥉";
-      }
-      default: {
-        return `#${rank.toString()}`;
-      }
-    }
-  }
-
-  private getMetricSelectOptions(selectedMetric: LeaderboardMetric): APISelectMenuOption[] {
-    const metricOptions = [
-      { label: "Series win rate", value: LeaderboardMetric.SeriesWinRate },
-      { label: "Kills", value: LeaderboardMetric.Kills },
-      { label: "Deaths", value: LeaderboardMetric.Deaths },
-      { label: "Assists", value: LeaderboardMetric.Assists },
-      { label: "KDA", value: LeaderboardMetric.Kda },
-      { label: "Accuracy", value: LeaderboardMetric.Accuracy },
-      { label: "Damage dealt", value: LeaderboardMetric.DamageDealt },
-      { label: "Damage taken", value: LeaderboardMetric.DamageTaken },
-      { label: "Damage ratio", value: LeaderboardMetric.DamageRatio },
-      { label: "Personal score", value: LeaderboardMetric.PersonalScore },
-    ];
-
-    return metricOptions.slice(0, METRIC_SELECT_LIMIT).map((option) => ({
-      ...option,
-      default: option.value === selectedMetric,
-    }));
-  }
-
-  private getWindowSelectOptions(selectedWindow: LeaderboardWindow): APISelectMenuOption[] {
-    const windowOptions = [
-      { label: "1 week", value: LeaderboardWindow.OneWeek },
-      { label: "1 month", value: LeaderboardWindow.OneMonth },
-      { label: "3 months", value: LeaderboardWindow.ThreeMonths },
-      { label: "6 months", value: LeaderboardWindow.SixMonths },
-      { label: "12 months", value: LeaderboardWindow.TwelveMonths },
-    ];
-
-    return windowOptions.map((option) => ({
-      ...option,
-      default: option.value === selectedWindow,
-    }));
   }
 
   private getStateFromInteractionMessage(
@@ -758,19 +562,6 @@ export class LeaderboardCommand extends BaseCommand {
     };
   }
 
-  private createLeaderboardControlId(controlId: string, leaderboard: LeaderboardResponse): string {
-    const queueChannelId = leaderboard.queueChannelId ?? "-";
-    return [
-      controlId,
-      leaderboard.guildId,
-      queueChannelId,
-      leaderboard.window,
-      leaderboard.metric,
-      leaderboard.page.toString(36),
-      leaderboard.minGamesPlayed.toString(36),
-    ].join(":");
-  }
-
   private getLeaderboardControlId(customId: string): string {
     return customId.split(":", 1)[0] ?? "";
   }
@@ -826,18 +617,6 @@ export class LeaderboardCommand extends BaseCommand {
         errorType: EndUserErrorType.WARNING,
       });
     }
-  }
-
-  private getRankingContent(rankingLines: string[], totalPlayers: number): string {
-    if (rankingLines.length > 0) {
-      return rankingLines.join("\n");
-    }
-
-    if (totalPlayers === 0) {
-      return "No players qualify for this filter yet.";
-    }
-
-    return "No players found on this page. Try a lower page number.";
   }
 
   private getStateUrlFromComponents(components: APIMessageTopLevelComponent[]): string {
@@ -932,97 +711,6 @@ export class LeaderboardCommand extends BaseCommand {
     }
 
     return value;
-  }
-
-  private getWindowLabel(window: LeaderboardWindow): string {
-    switch (window) {
-      case LeaderboardWindow.OneWeek: {
-        return "1 week";
-      }
-      case LeaderboardWindow.OneMonth: {
-        return "1 month";
-      }
-      case LeaderboardWindow.ThreeMonths: {
-        return "3 months";
-      }
-      case LeaderboardWindow.SixMonths: {
-        return "6 months";
-      }
-      case LeaderboardWindow.TwelveMonths: {
-        return "12 months";
-      }
-      default: {
-        throw new UnreachableError(window);
-      }
-    }
-  }
-
-  private getMetricLabel(metric: LeaderboardMetric): string {
-    switch (metric) {
-      case LeaderboardMetric.SeriesWinRate: {
-        return "Series win rate";
-      }
-      case LeaderboardMetric.Kills: {
-        return "Kills";
-      }
-      case LeaderboardMetric.Deaths: {
-        return "Deaths";
-      }
-      case LeaderboardMetric.Assists: {
-        return "Assists";
-      }
-      case LeaderboardMetric.Kda: {
-        return "KDA";
-      }
-      case LeaderboardMetric.Accuracy: {
-        return "Accuracy";
-      }
-      case LeaderboardMetric.DamageDealt: {
-        return "Damage dealt";
-      }
-      case LeaderboardMetric.DamageTaken: {
-        return "Damage taken";
-      }
-      case LeaderboardMetric.DamageRatio: {
-        return "Damage ratio";
-      }
-      case LeaderboardMetric.PersonalScore: {
-        return "Personal score";
-      }
-      default: {
-        throw new UnreachableError(metric);
-      }
-    }
-  }
-
-  private formatMetricValue(metricValue: number, metric: LeaderboardMetric, locale: string): string {
-    switch (metric) {
-      case LeaderboardMetric.SeriesWinRate: {
-        return `${(metricValue * 100).toLocaleString(locale, { maximumFractionDigits: 1 })}%`;
-      }
-      case LeaderboardMetric.Accuracy: {
-        return `${metricValue.toLocaleString(locale, { maximumFractionDigits: 1 })}%`;
-      }
-      case LeaderboardMetric.Kda:
-      case LeaderboardMetric.DamageRatio: {
-        if (metricValue === Number.MAX_VALUE) {
-          return "∞";
-        }
-
-        return metricValue.toLocaleString(locale, { maximumFractionDigits: 2 });
-      }
-      case LeaderboardMetric.Kills:
-      case LeaderboardMetric.Deaths:
-      case LeaderboardMetric.Assists:
-      case LeaderboardMetric.DamageDealt:
-      case LeaderboardMetric.DamageTaken:
-      case LeaderboardMetric.PersonalScore: {
-        return Math.round(metricValue).toLocaleString(locale);
-      }
-      default: {
-        throw new UnreachableError(metric);
-      }
-    }
   }
 
   private getInteractionLocale(
