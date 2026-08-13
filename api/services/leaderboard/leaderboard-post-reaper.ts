@@ -69,6 +69,14 @@ export class LeaderboardPostReaper {
   private async deletePost(post: LeaderboardPostRow): Promise<boolean> {
     try {
       await this.databaseService.deleteLeaderboardPost(post.ChannelId, post.MessageId);
+      this.logService.info(
+        "LeaderboardPostReaper: deleted missing leaderboard post registration",
+        new Map([
+          ["guildId", post.GuildId],
+          ["channelId", post.ChannelId],
+          ["messageId", post.MessageId],
+        ]),
+      );
       return true;
     } catch (error) {
       this.logService.warn(

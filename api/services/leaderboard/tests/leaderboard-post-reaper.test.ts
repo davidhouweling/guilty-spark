@@ -50,10 +50,19 @@ describe("LeaderboardPostReaper", () => {
       new DiscordError(404, { code: 10008, message: "Unknown Message" }),
     );
     const deletePostSpy = vi.spyOn(databaseService, "deleteLeaderboardPost").mockResolvedValue(undefined);
+    const infoSpy = vi.spyOn(logService, "info");
 
     await reaper.execute();
 
     expect(deletePostSpy).toHaveBeenCalledWith(post.ChannelId, post.MessageId);
+    expect(infoSpy).toHaveBeenCalledWith(
+      "LeaderboardPostReaper: deleted missing leaderboard post registration",
+      new Map([
+        ["guildId", post.GuildId],
+        ["channelId", post.ChannelId],
+        ["messageId", post.MessageId],
+      ]),
+    );
   });
 
   it("keeps posts when Discord reports a transient error", async () => {
