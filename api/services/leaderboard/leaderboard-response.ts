@@ -57,11 +57,16 @@ function getMetricSelectOptions(selectedMetric: LeaderboardMetric): APISelectMen
     { label: "Kills", value: LeaderboardMetric.Kills },
     { label: "Deaths", value: LeaderboardMetric.Deaths },
     { label: "Assists", value: LeaderboardMetric.Assists },
+    { label: "Headshot kills", value: LeaderboardMetric.HeadshotKills },
+    { label: "Shots hit", value: LeaderboardMetric.ShotsHit },
+    { label: "Shots fired", value: LeaderboardMetric.ShotsFired },
     { label: "KDA", value: LeaderboardMetric.Kda },
     { label: "Accuracy", value: LeaderboardMetric.Accuracy },
     { label: "Damage dealt", value: LeaderboardMetric.DamageDealt },
     { label: "Damage taken", value: LeaderboardMetric.DamageTaken },
     { label: "Damage ratio", value: LeaderboardMetric.DamageRatio },
+    { label: "Avg life time", value: LeaderboardMetric.AvgLifeSeconds },
+    { label: "Avg damage per life", value: LeaderboardMetric.AvgDamagePerLife },
     { label: "Personal score", value: LeaderboardMetric.PersonalScore },
   ];
 
@@ -135,6 +140,15 @@ function getMetricLabel(metric: LeaderboardMetric): string {
     case LeaderboardMetric.Assists: {
       return "Assists";
     }
+    case LeaderboardMetric.HeadshotKills: {
+      return "Headshot kills";
+    }
+    case LeaderboardMetric.ShotsHit: {
+      return "Shots hit";
+    }
+    case LeaderboardMetric.ShotsFired: {
+      return "Shots fired";
+    }
     case LeaderboardMetric.Kda: {
       return "KDA";
     }
@@ -149,6 +163,12 @@ function getMetricLabel(metric: LeaderboardMetric): string {
     }
     case LeaderboardMetric.DamageRatio: {
       return "Damage ratio";
+    }
+    case LeaderboardMetric.AvgLifeSeconds: {
+      return "Avg life time";
+    }
+    case LeaderboardMetric.AvgDamagePerLife: {
+      return "Avg damage per life";
     }
     case LeaderboardMetric.PersonalScore: {
       return "Personal score";
@@ -175,9 +195,18 @@ function formatMetricValue(metricValue: number, metric: LeaderboardMetric, local
 
       return metricValue.toLocaleString(locale, { maximumFractionDigits: 2 });
     }
+    case LeaderboardMetric.AvgLifeSeconds: {
+      return `${metricValue.toLocaleString(locale, { maximumFractionDigits: 1 })}s`;
+    }
+    case LeaderboardMetric.AvgDamagePerLife: {
+      return metricValue.toLocaleString(locale, { maximumFractionDigits: 2 });
+    }
     case LeaderboardMetric.Kills:
     case LeaderboardMetric.Deaths:
     case LeaderboardMetric.Assists:
+    case LeaderboardMetric.HeadshotKills:
+    case LeaderboardMetric.ShotsHit:
+    case LeaderboardMetric.ShotsFired:
     case LeaderboardMetric.DamageDealt:
     case LeaderboardMetric.DamageTaken:
     case LeaderboardMetric.PersonalScore: {

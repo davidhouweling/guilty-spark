@@ -887,6 +887,18 @@ export class DatabaseService {
         metricSql = "SUM(gp.Assists)";
         break;
       }
+      case LeaderboardMetric.HeadshotKills: {
+        metricSql = "SUM(gp.HeadshotKills)";
+        break;
+      }
+      case LeaderboardMetric.ShotsHit: {
+        metricSql = "SUM(gp.ShotsHit)";
+        break;
+      }
+      case LeaderboardMetric.ShotsFired: {
+        metricSql = "SUM(gp.ShotsFired)";
+        break;
+      }
       case LeaderboardMetric.Kda: {
         metricSql = "AVG(gp.Kda)";
         break;
@@ -906,6 +918,14 @@ export class DatabaseService {
       case LeaderboardMetric.DamageRatio: {
         metricSql =
           "CASE WHEN SUM(gp.DamageTaken) = 0 THEN CASE WHEN SUM(gp.DamageDealt) = 0 THEN 0 ELSE 1.7976931348623157e308 END ELSE CAST(SUM(gp.DamageDealt) AS REAL) / SUM(gp.DamageTaken) END";
+        break;
+      }
+      case LeaderboardMetric.AvgLifeSeconds: {
+        metricSql = "AVG(gp.AvgLifeSeconds)";
+        break;
+      }
+      case LeaderboardMetric.AvgDamagePerLife: {
+        metricSql = "AVG(gp.AvgDamagePerLife)";
         break;
       }
       case LeaderboardMetric.PersonalScore: {
@@ -1002,10 +1022,11 @@ export class DatabaseService {
     const countStmt = this.DB.prepare(`SELECT COUNT(*) AS Total FROM (${aggregateSql}) agg`).bind(...bindings);
     const countRow = await countStmt.first<{ Total: number }>();
 
+    const metricSortDirection = metric === LeaderboardMetric.Deaths ? "ASC" : "DESC";
     const rowsStmt = this.DB.prepare(
       `
         SELECT * FROM (${aggregateSql}) agg
-        ORDER BY agg.MetricValue DESC, agg.GamesPlayed DESC, agg.Gamertag ASC
+        ORDER BY agg.MetricValue ${metricSortDirection}, agg.GamesPlayed DESC, agg.Gamertag ASC
         LIMIT ? OFFSET ?
       `,
     ).bind(...bindings, limit, offset);
