@@ -282,6 +282,8 @@ export class LeaderboardService {
       this.logService.warn(
         error,
         new Map([
+          ["guildId", post.GuildId],
+          ["channelId", post.ChannelId],
           ["messageId", post.MessageId],
           ["reason", "Failed to delete missing leaderboard post registration"],
         ]),

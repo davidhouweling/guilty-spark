@@ -413,9 +413,11 @@ describe("LeaderboardService", () => {
     expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
     const [warnMessage, warnContext] = Preconditions.checkExists(warnSpy.mock.calls[0]);
     expect(warnMessage).toBeInstanceOf(Error);
-    expect(Preconditions.checkExists(warnContext).get("reason")).toBe(
-      "Failed to delete missing leaderboard post registration",
-    );
+    const context = Preconditions.checkExists(warnContext);
+    expect(context.get("guildId")).toBe("guild-1");
+    expect(context.get("channelId")).toBe("leaderboard-channel-1");
+    expect(context.get("messageId")).toBe("leaderboard-message-1");
+    expect(context.get("reason")).toBe("Failed to delete missing leaderboard post registration");
   });
 
   it("logs full post context when message state is invalid", async () => {

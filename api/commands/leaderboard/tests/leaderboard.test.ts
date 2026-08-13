@@ -479,7 +479,12 @@ describe("LeaderboardCommand", () => {
     expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
     const [warnMessage, warnContext] = Preconditions.checkExists(warnSpy.mock.calls[0]);
     expect(warnMessage).toBeInstanceOf(Error);
-    expect(Preconditions.checkExists(warnContext).get("reason")).toBe("Failed to register leaderboard post");
+    const context = Preconditions.checkExists(warnContext);
+    expect(context.get("guildId")).toBe("guild-123");
+    expect(context.get("queueChannelId")).toBe("queue-123");
+    expect(context.get("channelId")).toBe("channel-id");
+    expect(context.get("messageId")).toBe("message-id");
+    expect(context.get("reason")).toBe("Failed to register leaderboard post");
   });
 
   it("updates deferred reply with error when leaderboard command is used outside a guild", async () => {

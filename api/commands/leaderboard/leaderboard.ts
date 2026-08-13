@@ -466,6 +466,8 @@ export class LeaderboardCommand extends BaseCommand {
       this.services.logService.warn(
         error,
         new Map([
+          ["guildId", post.GuildId],
+          ["queueChannelId", post.QueueChannelId],
           ["channelId", post.ChannelId],
           ["messageId", post.MessageId],
           ["reason", "Failed to register leaderboard post"],
