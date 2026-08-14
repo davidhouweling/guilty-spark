@@ -751,7 +751,6 @@ describe("LeaderboardCommand", () => {
   });
 
   it("allows leaderboard controls without manage server permission", async () => {
-    vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValueOnce(0n);
     const interaction: APIMessageComponentButtonInteraction = {
       ...fakeButtonClickInteraction,
       guild_id: "guild-123",

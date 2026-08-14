@@ -375,7 +375,7 @@ export class LeaderboardCommand extends BaseCommand {
   ): Promise<void> {
     try {
       this.assertButtonInteraction(interaction);
-      await this.assertCanUseLeaderboardControls(interaction);
+      this.assertCanUseLeaderboardControls(interaction);
       const state = this.getStateFromInteractionMessage(interaction);
       const locale = this.getInteractionLocale(interaction);
       const firstPage = await this.services.leaderboardService.getLeaderboard({
@@ -498,7 +498,7 @@ export class LeaderboardCommand extends BaseCommand {
     stateUpdater: (state: LeaderboardViewState) => LeaderboardViewState,
   ): Promise<void> {
     try {
-      await this.assertCanUseLeaderboardControls(interaction);
+      this.assertCanUseLeaderboardControls(interaction);
       const state = this.getStateFromInteractionMessage(interaction);
       const locale = this.getInteractionLocale(interaction);
       await this.refreshLeaderboard(interaction.token, locale, stateUpdater(state));
@@ -507,10 +507,9 @@ export class LeaderboardCommand extends BaseCommand {
     }
   }
 
-  private async assertCanUseLeaderboardControls(
+  private assertCanUseLeaderboardControls(
     interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
-  ): Promise<void> {
-    await Promise.resolve();
+  ): void {
     const guildId = interaction.guild_id;
     if (guildId == null || guildId === "") {
       throw new EndUserError("Leaderboard controls can only be used inside a server.", {
