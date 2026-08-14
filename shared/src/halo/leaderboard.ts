@@ -1,6 +1,7 @@
 import { UnreachableError } from "../base/unreachable-error";
 
 export enum LeaderboardWindow {
+  LastReset = "RESET",
   OneWeek = "1W",
   OneMonth = "1M",
   ThreeMonths = "3M",
