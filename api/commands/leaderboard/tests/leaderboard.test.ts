@@ -944,7 +944,7 @@ describe("LeaderboardCommand", () => {
 
   it("switches metric from legacy metric string-select interaction and resets to page 1", async () => {
     const stateUrl =
-      "https://guilty-spark.app/leaderboard?guildId=test-guild-id&window=1M&metric=SERIES_WIN_RATE&page=6&minGamesPlayed=0";
+      "https://guilty-spark.app/leaderboard?guildId=test-guild-id&window=1M&metric=AVG_KILLS_PER_SERIES&page=6&minGamesPlayed=0";
     const interaction: APIMessageComponentSelectMenuInteraction = {
       ...aWizardStringSelectWith({ customId: INTERACTION_LEGACY_METRIC_SELECT, value: LeaderboardMetric.ShotsHit }),
       data: {

@@ -59,23 +59,9 @@ const WINDOW_OPTIONS_BY_VALUE = new Map<string, LeaderboardWindow>([
   [LeaderboardWindow.SixMonths, LeaderboardWindow.SixMonths],
   [LeaderboardWindow.TwelveMonths, LeaderboardWindow.TwelveMonths],
 ]);
-const METRIC_OPTIONS_BY_VALUE = new Map<string, LeaderboardMetric>([
-  [LeaderboardMetric.SeriesWinRate, LeaderboardMetric.SeriesWinRate],
-  [LeaderboardMetric.Kills, LeaderboardMetric.Kills],
-  [LeaderboardMetric.Deaths, LeaderboardMetric.Deaths],
-  [LeaderboardMetric.Assists, LeaderboardMetric.Assists],
-  [LeaderboardMetric.HeadshotKills, LeaderboardMetric.HeadshotKills],
-  [LeaderboardMetric.ShotsHit, LeaderboardMetric.ShotsHit],
-  [LeaderboardMetric.ShotsFired, LeaderboardMetric.ShotsFired],
-  [LeaderboardMetric.Kda, LeaderboardMetric.Kda],
-  [LeaderboardMetric.Accuracy, LeaderboardMetric.Accuracy],
-  [LeaderboardMetric.DamageDealt, LeaderboardMetric.DamageDealt],
-  [LeaderboardMetric.DamageTaken, LeaderboardMetric.DamageTaken],
-  [LeaderboardMetric.DamageRatio, LeaderboardMetric.DamageRatio],
-  [LeaderboardMetric.AvgLifeSeconds, LeaderboardMetric.AvgLifeSeconds],
-  [LeaderboardMetric.AvgDamagePerLife, LeaderboardMetric.AvgDamagePerLife],
-  [LeaderboardMetric.PersonalScore, LeaderboardMetric.PersonalScore],
-]);
+const METRIC_OPTIONS_BY_VALUE = new Map<string, LeaderboardMetric>(
+  Object.values(LeaderboardMetric).map((metric) => [metric, metric]),
+);
 const METRIC_FAMILY_OPTIONS_BY_VALUE = new Map<string, LeaderboardMetricFamily>(
   LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER.map((family) => [family, family]),
 );
