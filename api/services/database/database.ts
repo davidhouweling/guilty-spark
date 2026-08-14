@@ -535,7 +535,8 @@ export class DatabaseService {
     await this.ensureLeaderboardGameWonColumn();
 
     const variablesPerRow = 28;
-    const maxRowsPerStatement = Math.floor(SQLITE_MAX_VARIABLES / variablesPerRow);
+    const statementVariableLimit = Math.min(SQLITE_MAX_VARIABLES, D1_SAFE_MAX_VARIABLES_PER_STATEMENT);
+    const maxRowsPerStatement = Math.max(1, Math.floor(statementVariableLimit / variablesPerRow));
     const statements: D1PreparedStatement[] = [];
 
     for (let start = 0; start < players.length; start += maxRowsPerStatement) {

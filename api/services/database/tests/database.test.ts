@@ -654,7 +654,7 @@ describe("Database Service", () => {
       expect(batchSpy).toHaveBeenCalledWith([gamePlayersStatement]);
     });
 
-    it("chunks leaderboard game player upserts to stay below sqlite variable limit", async () => {
+    it("chunks leaderboard game player upserts to stay below d1 variable limit", async () => {
       const gamePlayers = Array.from({ length: 40 }, (_, index) =>
         aFakeLeaderboardGamePlayersRow({
           MatchId: `match-${index.toString()}`,
@@ -662,28 +662,33 @@ describe("Database Service", () => {
         }),
       );
       const tableInfoStatement = new FakePreparedStatement<{ name: string }>();
-      const firstPreparedStatement = new FakePreparedStatement();
-      const secondPreparedStatement = new FakePreparedStatement();
-      const prepareSpy = vi
-        .spyOn(env.DB, "prepare")
-        .mockReturnValueOnce(tableInfoStatement)
-        .mockReturnValueOnce(firstPreparedStatement)
-        .mockReturnValueOnce(secondPreparedStatement);
+      const chunkStatements = Array.from({ length: 14 }, () => new FakePreparedStatement());
+      let prepareCallCount = 0;
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockImplementation(() => {
+        if (prepareCallCount === 0) {
+          prepareCallCount += 1;
+          return tableInfoStatement;
+        }
+
+        const statement = chunkStatements[prepareCallCount - 1];
+        prepareCallCount += 1;
+        return statement ?? new FakePreparedStatement();
+      });
       vi.spyOn(tableInfoStatement, "all").mockResolvedValue({
         ...fakeD1Response,
         results: [{ name: "GameWon" }],
       });
-      const bindFirstSpy = vi.spyOn(firstPreparedStatement, "bind");
-      const bindSecondSpy = vi.spyOn(secondPreparedStatement, "bind");
+      const bindSpies = chunkStatements.map((statement) => vi.spyOn(statement, "bind").mockReturnThis());
       const batchSpy = vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
 
       await databaseService.upsertLeaderboardGamePlayers(gamePlayers);
 
-      expect(prepareSpy).toHaveBeenCalledTimes(3);
+      expect(prepareSpy).toHaveBeenCalledTimes(15);
       expect(prepareSpy).toHaveBeenNthCalledWith(1, "PRAGMA table_info(LeaderboardGamePlayers)");
-      expect(bindFirstSpy).toHaveBeenCalledTimes(1);
-      expect(bindSecondSpy).toHaveBeenCalledTimes(1);
-      expect(batchSpy).toHaveBeenCalledWith([firstPreparedStatement, secondPreparedStatement]);
+      for (const bindSpy of bindSpies) {
+        expect(bindSpy).toHaveBeenCalledTimes(1);
+      }
+      expect(batchSpy).toHaveBeenCalledWith(chunkStatements);
     });
 
     it("upserts leaderboard series, games, and players in a single batch", async () => {

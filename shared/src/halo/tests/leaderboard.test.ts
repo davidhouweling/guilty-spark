@@ -48,10 +48,10 @@ describe("resolveLeaderboardMetric", () => {
     expect(resolveLeaderboardMetric(LeaderboardMetricFamily.DamageDealt, null)).toBe(LeaderboardMetric.DamageDealt);
   });
 
-  it("resolves a rate/ratio/lifetime family with Overall performance", () => {
-    expect(
-      resolveLeaderboardMetric(LeaderboardMetricFamily.Kda, LeaderboardMetricAggregation.OverallPerformance),
-    ).toBe(LeaderboardMetric.Kda);
+  it("resolves a rate/ratio/lifetime family with Overall performance (explicit or defaulted)", () => {
+    expect(resolveLeaderboardMetric(LeaderboardMetricFamily.Kda, LeaderboardMetricAggregation.OverallPerformance)).toBe(
+      LeaderboardMetric.Kda,
+    );
     expect(resolveLeaderboardMetric(LeaderboardMetricFamily.SeriesWinRate, null)).toBe(LeaderboardMetric.SeriesWinRate);
   });
 
