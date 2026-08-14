@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { APIMessage, APIMessageTopLevelComponent } from "discord-api-types/v10";
 import { ComponentType } from "discord-api-types/v10";
-import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import {
+  LeaderboardMetric,
+  LeaderboardWindow,
+  getDefaultLeaderboardAggregation,
+  getLeaderboardMetricAggregationLabel,
+  getLeaderboardMetricFamily,
+  getLeaderboardMetricFamilyLabel,
+} from "@guilty-spark/shared/halo/leaderboard";
 import { aFakeLeaderboardPostRow } from "../../database/fakes/database.fake";
 import { fakeButtonClickInteraction } from "../../discord/fakes/data";
 import { getLeaderboardMessageState } from "../leaderboard-message";
@@ -10,24 +17,58 @@ function aLeaderboardMessageWith({
   metric = LeaderboardMetric.Kills,
   window = LeaderboardWindow.ThreeMonths,
   footer = "Page 2 of 4 | Min games: 5 | Total players: 32",
+  useLegacyMetricSelect = false,
 }: {
   metric?: LeaderboardMetric;
   window?: LeaderboardWindow;
   footer?: string;
+  useLegacyMetricSelect?: boolean;
 } = {}): APIMessage {
+  const family = getLeaderboardMetricFamily(metric);
+  const defaultAggregation = getDefaultLeaderboardAggregation(family);
   const components: APIMessageTopLevelComponent[] = [
     {
       type: ComponentType.ActionRow,
       components: [
         {
           type: ComponentType.StringSelect,
-          custom_id: "select_leaderboard_metric:state",
+          custom_id: useLegacyMetricSelect
+            ? "select_leaderboard_metric:state"
+            : "select_leaderboard_metric_family:state",
           min_values: 1,
           max_values: 1,
-          options: [{ label: "Kills", value: metric, default: true }],
+          options: [
+            {
+              label: useLegacyMetricSelect ? "Kills" : getLeaderboardMetricFamilyLabel(family),
+              value: useLegacyMetricSelect ? metric : family,
+              default: true,
+            },
+          ],
         },
       ],
     },
+    ...(!useLegacyMetricSelect && defaultAggregation != null
+      ? [
+          {
+            type: ComponentType.ActionRow as const,
+            components: [
+              {
+                type: ComponentType.StringSelect as const,
+                custom_id: "select_leaderboard_metric_aggregation:state",
+                min_values: 1,
+                max_values: 1,
+                options: [
+                  {
+                    label: getLeaderboardMetricAggregationLabel(defaultAggregation),
+                    value: defaultAggregation,
+                    default: true,
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+      : []),
     {
       type: ComponentType.ActionRow,
       components: [
@@ -69,6 +110,26 @@ describe("getLeaderboardMessageState", () => {
       queueChannelId: "queue-123",
       window: LeaderboardWindow.SixMonths,
       metric: LeaderboardMetric.DamageRatio,
+      page: 2,
+      minGamesPlayed: 5,
+    });
+  });
+
+  it("derives metric from legacy metric selector controls", () => {
+    const post = aFakeLeaderboardPostRow({ GuildId: "guild-123", QueueChannelId: "queue-123" });
+    const message = aLeaderboardMessageWith({
+      metric: LeaderboardMetric.HeadshotKills,
+      window: LeaderboardWindow.OneMonth,
+      useLegacyMetricSelect: true,
+    });
+
+    const state = getLeaderboardMessageState(message, post);
+
+    expect(state).toEqual({
+      guildId: "guild-123",
+      queueChannelId: "queue-123",
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.HeadshotKills,
       page: 2,
       minGamesPlayed: 5,
     });
