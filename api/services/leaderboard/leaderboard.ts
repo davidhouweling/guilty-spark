@@ -358,20 +358,20 @@ export class LeaderboardService {
 
     const rankings =
       resolvedMetric === LeaderboardMetric.SeriesWinRate ||
-        resolvedMetric === LeaderboardMetric.SeriesPlayed ||
-            resolvedMetric === LeaderboardMetric.SeriesWins ||
-            resolvedMetric === LeaderboardMetric.GamesPlayed ||
-            resolvedMetric === LeaderboardMetric.GameWins ||
-            resolvedMetric === LeaderboardMetric.GamesWinRate
-          ? await this.databaseService.getLeaderboardOutcomeMetricRankings({
-              guildId,
-              queueChannelId: queueChannelId ?? null,
-              startEpochSeconds,
-              minGamesPlayed: resolvedMinGamesPlayed,
-              limit: resolvedPageSize,
-              offset,
-              metric: resolvedMetric,
-            })
+      resolvedMetric === LeaderboardMetric.SeriesPlayed ||
+      resolvedMetric === LeaderboardMetric.SeriesWins ||
+      resolvedMetric === LeaderboardMetric.GamesPlayed ||
+      resolvedMetric === LeaderboardMetric.GameWins ||
+      resolvedMetric === LeaderboardMetric.GamesWinRate
+        ? await this.databaseService.getLeaderboardOutcomeMetricRankings({
+            guildId,
+            queueChannelId: queueChannelId ?? null,
+            startEpochSeconds,
+            minGamesPlayed: resolvedMinGamesPlayed,
+            limit: resolvedPageSize,
+            offset,
+            metric: resolvedMetric,
+          })
         : await this.databaseService.getLeaderboardStatMetricRankings({
             guildId,
             queueChannelId: queueChannelId ?? null,

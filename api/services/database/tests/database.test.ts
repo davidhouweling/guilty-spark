@@ -607,8 +607,9 @@ describe("Database Service", () => {
         "DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?",
       );
       expect(prepareSpy).toHaveBeenNthCalledWith(4, expect.stringContaining("INSERT INTO LeaderboardGames"));
-      expect(prepareSpy).toHaveBeenNthCalledWith(5, expect.stringContaining("HeadshotKills"));
-      const gamePlayersInsertQuery = prepareSpy.mock.calls[4]?.[0];
+      expect(prepareSpy).toHaveBeenNthCalledWith(5, "PRAGMA table_info(LeaderboardGamePlayers)");
+      expect(prepareSpy).toHaveBeenNthCalledWith(6, expect.stringContaining("HeadshotKills"));
+      const gamePlayersInsertQuery = prepareSpy.mock.calls[5]?.[0];
       const countBoundParameters = (sql: string): number => sql.split("?").length - 1;
       if (gamePlayersInsertQuery != null) {
         expect(countBoundParameters(gamePlayersInsertQuery)).toBe(28);
@@ -618,6 +619,41 @@ describe("Database Service", () => {
       expect(batchSpy).toHaveBeenNthCalledWith(3, [gamePlayersStatement]);
     });
 
+    it("adds missing GameWon column before upserting leaderboard game players", async () => {
+      const gamePlayers = [aFakeLeaderboardGamePlayersRow()];
+      const tableInfoStatement = new FakePreparedStatement<{ name: string }>();
+      const alterTableStatement = new FakePreparedStatement();
+      const gamePlayersStatement = new FakePreparedStatement();
+      const prepareSpy = vi
+        .spyOn(env.DB, "prepare")
+        .mockReturnValueOnce(tableInfoStatement)
+        .mockReturnValueOnce(alterTableStatement)
+        .mockReturnValueOnce(gamePlayersStatement);
+      const tableInfoAllSpy = vi.spyOn(tableInfoStatement, "all").mockResolvedValue({
+        ...fakeD1Response,
+        results: [{ name: "MatchId" }, { name: "GuildId" }],
+      });
+      const alterTableRunSpy = vi.spyOn(alterTableStatement, "run").mockResolvedValue({
+        ...fakeD1Response,
+        results: [],
+      });
+      const gamePlayersBindSpy = vi.spyOn(gamePlayersStatement, "bind").mockReturnThis();
+      const batchSpy = vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
+
+      await databaseService.upsertLeaderboardGamePlayers(gamePlayers);
+
+      expect(prepareSpy).toHaveBeenNthCalledWith(1, "PRAGMA table_info(LeaderboardGamePlayers)");
+      expect(tableInfoAllSpy).toHaveBeenCalledTimes(1);
+      expect(prepareSpy).toHaveBeenNthCalledWith(
+        2,
+        "ALTER TABLE LeaderboardGamePlayers ADD COLUMN GameWon INTEGER NOT NULL DEFAULT 0 CHECK (GameWon IN (0, 1))",
+      );
+      expect(alterTableRunSpy).toHaveBeenCalledTimes(1);
+      expect(prepareSpy).toHaveBeenNthCalledWith(3, expect.stringContaining("INSERT INTO LeaderboardGamePlayers"));
+      expect(gamePlayersBindSpy).toHaveBeenCalledTimes(1);
+      expect(batchSpy).toHaveBeenCalledWith([gamePlayersStatement]);
+    });
+
     it("chunks leaderboard game player upserts to stay below sqlite variable limit", async () => {
       const gamePlayers = Array.from({ length: 40 }, (_, index) =>
         aFakeLeaderboardGamePlayersRow({
@@ -625,19 +661,26 @@ describe("Database Service", () => {
           XboxXuid: `xuid-${index.toString()}`,
         }),
       );
+      const tableInfoStatement = new FakePreparedStatement<{ name: string }>();
       const firstPreparedStatement = new FakePreparedStatement();
       const secondPreparedStatement = new FakePreparedStatement();
       const prepareSpy = vi
         .spyOn(env.DB, "prepare")
+        .mockReturnValueOnce(tableInfoStatement)
         .mockReturnValueOnce(firstPreparedStatement)
         .mockReturnValueOnce(secondPreparedStatement);
+      vi.spyOn(tableInfoStatement, "all").mockResolvedValue({
+        ...fakeD1Response,
+        results: [{ name: "GameWon" }],
+      });
       const bindFirstSpy = vi.spyOn(firstPreparedStatement, "bind");
       const bindSecondSpy = vi.spyOn(secondPreparedStatement, "bind");
       const batchSpy = vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
 
       await databaseService.upsertLeaderboardGamePlayers(gamePlayers);
 
-      expect(prepareSpy).toHaveBeenCalledTimes(2);
+      expect(prepareSpy).toHaveBeenCalledTimes(3);
+      expect(prepareSpy).toHaveBeenNthCalledWith(1, "PRAGMA table_info(LeaderboardGamePlayers)");
       expect(bindFirstSpy).toHaveBeenCalledTimes(1);
       expect(bindSecondSpy).toHaveBeenCalledTimes(1);
       expect(batchSpy).toHaveBeenCalledWith([firstPreparedStatement, secondPreparedStatement]);
@@ -685,20 +728,21 @@ describe("Database Service", () => {
         seriesPlayers,
       });
 
+      expect(prepareSpy).toHaveBeenNthCalledWith(1, "PRAGMA table_info(LeaderboardGamePlayers)");
       expect(prepareSpy).toHaveBeenNthCalledWith(
-        1,
+        2,
         "SELECT MatchId, CreatedAt FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?",
       );
       expect(prepareSpy).toHaveBeenNthCalledWith(
-        2,
+        3,
         "SELECT MatchId, XboxXuid, CreatedAt FROM LeaderboardGamePlayers WHERE GuildId = ? AND QueueNumber = ?",
       );
       expect(prepareSpy).toHaveBeenNthCalledWith(
-        3,
+        4,
         "SELECT XboxXuid, CreatedAt FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ?",
       );
       expect(prepareSpy).toHaveBeenNthCalledWith(
-        6,
+        7,
         "DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?",
       );
       const preparedQueries = prepareSpy.mock.calls
@@ -1008,10 +1052,11 @@ describe("Database Service", () => {
         metric: LeaderboardMetric.AvgDeathsPerGame,
       });
 
-      expect(prepareSpy.mock.calls[0]?.[0]).toContain("SUM(gp.HeadshotKills) AS MetricValue");
-      expect(prepareSpy.mock.calls[3]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
-      expect(prepareSpy.mock.calls[5]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
-      expect(prepareSpy.mock.calls[7]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
+      expect(prepareSpy.mock.calls[0]?.[0]).toBe("PRAGMA table_info(LeaderboardGamePlayers)");
+      expect(prepareSpy.mock.calls[1]?.[0]).toContain("SUM(gp.HeadshotKills) AS MetricValue");
+      expect(prepareSpy.mock.calls[4]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
+      expect(prepareSpy.mock.calls[6]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
+      expect(prepareSpy.mock.calls[8]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
     });
 
     it("deletes a leaderboard post registration by Discord message identity", async () => {

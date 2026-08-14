@@ -66,9 +66,43 @@ export interface DatabaseServiceOpts {
 export class DatabaseService {
   private readonly DB: D1Database;
   private readonly guildConfigCache = new Map<string, GuildConfigRow>();
+  private leaderboardGameWonMigrationPromise: Promise<void> | null = null;
 
   constructor({ env }: DatabaseServiceOpts) {
     this.DB = env.DB;
+  }
+
+  private async ensureLeaderboardGameWonColumn(): Promise<void> {
+    this.leaderboardGameWonMigrationPromise ??= this.ensureLeaderboardGameWonColumnAsync();
+
+    await this.leaderboardGameWonMigrationPromise;
+  }
+
+  private async ensureLeaderboardGameWonColumnAsync(): Promise<void> {
+    const tableInfoStmt = this.DB.prepare("PRAGMA table_info(LeaderboardGamePlayers)");
+    const tableInfo = await tableInfoStmt.all<{ name: string }>();
+
+    if (tableInfo.results.length === 0) {
+      return;
+    }
+
+    for (const column of tableInfo.results) {
+      if (column.name === "GameWon") {
+        return;
+      }
+    }
+
+    try {
+      await this.DB.prepare(
+        "ALTER TABLE LeaderboardGamePlayers ADD COLUMN GameWon INTEGER NOT NULL DEFAULT 0 CHECK (GameWon IN (0, 1))",
+      ).run();
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.includes("duplicate column name: GameWon")) {
+        return;
+      }
+
+      throw error;
+    }
   }
 
   async getDiscordAssociations(discordIds: string[]): Promise<DiscordAssociationsRow[]> {
@@ -498,6 +532,8 @@ export class DatabaseService {
       return;
     }
 
+    await this.ensureLeaderboardGameWonColumn();
+
     const variablesPerRow = 28;
     const maxRowsPerStatement = Math.floor(SQLITE_MAX_VARIABLES / variablesPerRow);
     const statements: D1PreparedStatement[] = [];
@@ -559,6 +595,8 @@ export class DatabaseService {
     gamePlayers: LeaderboardGamePlayersRow[];
     seriesPlayers: LeaderboardSeriesPlayersRow[];
   }): Promise<void> {
+    await this.ensureLeaderboardGameWonColumn();
+
     const existingGameCreatedAt = await this.getLeaderboardGameCreatedAtByMatchId(series.GuildId, series.QueueNumber);
     const existingGamePlayerCreatedAt = await this.getLeaderboardGamePlayerCreatedAtByKey(
       series.GuildId,
@@ -907,6 +945,8 @@ export class DatabaseService {
     total: number;
     rows: LeaderboardRankingRow[];
   }> {
+    await this.ensureLeaderboardGameWonColumn();
+
     let metricSql = "SUM(gp.PersonalScore)";
     let metricBindings: readonly (string | number | null)[] = [];
     switch (metric) {
@@ -1174,6 +1214,8 @@ export class DatabaseService {
       | LeaderboardMetric.SeriesWinRate
       | LeaderboardMetric.GamesWinRate;
   }): Promise<{ total: number; rows: LeaderboardRankingRow[] }> {
+    await this.ensureLeaderboardGameWonColumn();
+
     const metricSql = ((): string => {
       switch (metric) {
         case LeaderboardMetric.SeriesPlayed: {
