@@ -9,6 +9,8 @@ import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
 import {
   LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER,
+  type LeaderboardMetricAggregation,
+  type LeaderboardMetricFamily,
   LeaderboardMetric,
   LeaderboardWindow,
   getDefaultLeaderboardAggregation,
@@ -17,8 +19,6 @@ import {
   getLeaderboardMetricFamily,
   getLeaderboardMetricFamilyLabel,
 } from "@guilty-spark/shared/halo/leaderboard";
-import type { LeaderboardMetricAggregation ,
-  LeaderboardMetricFamily} from "@guilty-spark/shared/halo/leaderboard";
 import { EmbedColors } from "../../embeds/colors";
 
 const MAX_ROWS_IN_DISCORD_EMBED = 10;

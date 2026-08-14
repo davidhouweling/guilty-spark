@@ -16,9 +16,8 @@ import {
   PermissionFlagsBits,
 } from "discord-api-types/v10";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import type {
-  LeaderboardMetricFamily} from "@guilty-spark/shared/halo/leaderboard";
 import {
+  type LeaderboardMetricFamily,
   LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER,
   LeaderboardMetric,
   LeaderboardMetricAggregation,
