@@ -1200,8 +1200,14 @@ describe("Database Service", () => {
       [LeaderboardMetric.SeriesWins, "stats.SeriesWins"],
       [LeaderboardMetric.GamesPlayed, "stats.GamesPlayed"],
       [LeaderboardMetric.GameWins, "stats.GameWins"],
-      [LeaderboardMetric.SeriesWinRate, "CAST(stats.SeriesWins AS REAL)"],
-      [LeaderboardMetric.GamesWinRate, "CAST(stats.GameWins AS REAL)"],
+      [
+        LeaderboardMetric.SeriesWinRate,
+        "CASE WHEN stats.SeriesPlayed = 0 THEN 0 ELSE CAST(stats.SeriesWins AS REAL) / stats.SeriesPlayed END",
+      ],
+      [
+        LeaderboardMetric.GamesWinRate,
+        "CASE WHEN stats.GamesPlayed = 0 THEN 0 ELSE CAST(stats.GameWins AS REAL) / stats.GamesPlayed END",
+      ],
     ] as const)("builds the expected outcome SQL for %s", async (metric, expectedSql) => {
       const tableInfoStatement = new FakePreparedStatement<{ name: string }>();
       const countStatement = new FakePreparedStatement<{ Total: number }>();
