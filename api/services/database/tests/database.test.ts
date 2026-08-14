@@ -1064,6 +1064,105 @@ describe("Database Service", () => {
       expect(prepareSpy.mock.calls[8]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
     });
 
+    it.each([
+      [LeaderboardMetric.PersonalScore, "SUM(gp.PersonalScore)", "DESC"],
+      [LeaderboardMetric.Kills, "SUM(gp.Kills)", "DESC"],
+      [LeaderboardMetric.Deaths, "SUM(gp.Deaths)", "ASC"],
+      [LeaderboardMetric.Assists, "SUM(gp.Assists)", "DESC"],
+      [LeaderboardMetric.HeadshotKills, "SUM(gp.HeadshotKills)", "DESC"],
+      [LeaderboardMetric.ShotsHit, "SUM(gp.ShotsHit)", "DESC"],
+      [LeaderboardMetric.ShotsFired, "SUM(gp.ShotsFired)", "DESC"],
+      [LeaderboardMetric.Kda, "AVG(gp.Kda)", "DESC"],
+      [LeaderboardMetric.Accuracy, "AVG(gp.Accuracy)", "DESC"],
+      [LeaderboardMetric.DamageDealt, "SUM(gp.DamageDealt)", "DESC"],
+      [LeaderboardMetric.DamageTaken, "SUM(gp.DamageTaken)", "DESC"],
+      [
+        LeaderboardMetric.DamageRatio,
+        "CASE WHEN SUM(gp.DamageTaken) = 0 THEN CASE WHEN SUM(gp.DamageDealt) = 0 THEN 0 ELSE 1.7976931348623157e308 END ELSE CAST(SUM(gp.DamageDealt) AS REAL) / SUM(gp.DamageTaken) END",
+        "DESC",
+      ],
+      [LeaderboardMetric.AvgLifeSeconds, "AVG(gp.AvgLifeSeconds)", "DESC"],
+      [LeaderboardMetric.AvgDamagePerLife, "AVG(gp.AvgDamagePerLife)", "DESC"],
+      [LeaderboardMetric.AvgPersonalScorePerGame, "AVG(gp.PersonalScore)", "DESC"],
+      [LeaderboardMetric.AvgKillsPerGame, "AVG(gp.Kills)", "DESC"],
+      [LeaderboardMetric.AvgDeathsPerGame, "AVG(gp.Deaths)", "ASC"],
+      [LeaderboardMetric.AvgAssistsPerGame, "AVG(gp.Assists)", "DESC"],
+      [LeaderboardMetric.AvgHeadshotKillsPerGame, "AVG(gp.HeadshotKills)", "DESC"],
+      [LeaderboardMetric.AvgShotsHitPerGame, "AVG(gp.ShotsHit)", "DESC"],
+      [LeaderboardMetric.AvgShotsFiredPerGame, "AVG(gp.ShotsFired)", "DESC"],
+      [LeaderboardMetric.AvgDamageDealtPerGame, "AVG(gp.DamageDealt)", "DESC"],
+      [LeaderboardMetric.AvgDamageTakenPerGame, "AVG(gp.DamageTaken)", "DESC"],
+    ] as const)("builds the expected SQL and sort direction for %s", async (metric, expectedSql, direction) => {
+      const queries: string[] = [];
+      vi.spyOn(env.DB, "prepare").mockImplementation((query) => {
+        queries.push(query);
+        const statement = new FakePreparedStatement();
+        if (query === "PRAGMA table_info(LeaderboardGamePlayers)") {
+          vi.spyOn(statement, "all").mockResolvedValue({ ...fakeD1Response, results: [{ name: "GameWon" }] });
+        } else if (query.startsWith("SELECT COUNT(*)")) {
+          vi.spyOn(statement, "first").mockResolvedValue({ Total: 0 });
+        } else {
+          vi.spyOn(statement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+        }
+        return statement;
+      });
+
+      await databaseService.getLeaderboardStatMetricRankings({
+        guildId: "guild-1",
+        queueChannelId: null,
+        startEpochSeconds: 0,
+        minGamesPlayed: 0,
+        limit: 10,
+        offset: 0,
+        metric,
+      });
+
+      const rankingQuery = queries.find((query) => query.includes("ORDER BY agg.MetricValue"));
+      expect(rankingQuery).toContain(expectedSql);
+      expect(rankingQuery).toContain(`ORDER BY agg.MetricValue ${direction}`);
+    });
+
+    it.each([
+      [LeaderboardMetric.AvgPersonalScorePerSeries, "PersonalScore"],
+      [LeaderboardMetric.AvgKillsPerSeries, "Kills"],
+      [LeaderboardMetric.AvgDeathsPerSeries, "Deaths"],
+      [LeaderboardMetric.AvgAssistsPerSeries, "Assists"],
+      [LeaderboardMetric.AvgHeadshotKillsPerSeries, "HeadshotKills"],
+      [LeaderboardMetric.AvgShotsHitPerSeries, "ShotsHit"],
+      [LeaderboardMetric.AvgShotsFiredPerSeries, "ShotsFired"],
+      [LeaderboardMetric.AvgDamageDealtPerSeries, "DamageDealt"],
+      [LeaderboardMetric.AvgDamageTakenPerSeries, "DamageTaken"],
+    ] as const)("aggregates %s by series before averaging", async (metric, column) => {
+      const queries: string[] = [];
+      vi.spyOn(env.DB, "prepare").mockImplementation((query) => {
+        queries.push(query);
+        const statement = new FakePreparedStatement();
+        if (query === "PRAGMA table_info(LeaderboardGamePlayers)") {
+          vi.spyOn(statement, "all").mockResolvedValue({ ...fakeD1Response, results: [{ name: "GameWon" }] });
+        } else if (query.startsWith("SELECT COUNT(*)")) {
+          vi.spyOn(statement, "first").mockResolvedValue({ Total: 0 });
+        } else {
+          vi.spyOn(statement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+        }
+        return statement;
+      });
+
+      await databaseService.getLeaderboardStatMetricRankings({
+        guildId: "guild-1",
+        queueChannelId: null,
+        startEpochSeconds: 0,
+        minGamesPlayed: 0,
+        limit: 10,
+        offset: 0,
+        metric,
+      });
+
+      const rankingQuery = queries.find((query) => query.includes("ORDER BY agg.MetricValue"));
+      expect(rankingQuery).toContain(`SUM(gpSeries.${column}) AS MetricValue`);
+      expect(rankingQuery).toContain("GROUP BY gpSeries.QueueNumber");
+      expect(rankingQuery).toContain("AVG(perSeries.MetricValue)");
+    });
+
     it("aligns game-win window filtering with series completion window", async () => {
       const tableInfoStatement = new FakePreparedStatement<{ name: string }>();
       const countStatement = new FakePreparedStatement<{ Total: number }>();
@@ -1094,6 +1193,53 @@ describe("Database Service", () => {
 
       expect(prepareSpy.mock.calls[1]?.[0]).toContain("sGames.CompletedAt >= ?");
       expect(prepareSpy.mock.calls[1]?.[0]).toContain("(? IS NULL OR sGames.QueueChannelId = ?)");
+    });
+
+    it.each([
+      [LeaderboardMetric.SeriesPlayed, "stats.SeriesPlayed"],
+      [LeaderboardMetric.SeriesWins, "stats.SeriesWins"],
+      [LeaderboardMetric.GamesPlayed, "stats.GamesPlayed"],
+      [LeaderboardMetric.GameWins, "stats.GameWins"],
+      [
+        LeaderboardMetric.SeriesWinRate,
+        "CASE WHEN stats.SeriesPlayed = 0 THEN 0 ELSE CAST(stats.SeriesWins AS REAL) / stats.SeriesPlayed END",
+      ],
+      [
+        LeaderboardMetric.GamesWinRate,
+        "CASE WHEN stats.GamesPlayed = 0 THEN 0 ELSE CAST(stats.GameWins AS REAL) / stats.GamesPlayed END",
+      ],
+    ] as const)("builds the expected outcome SQL for %s", async (metric, expectedSql) => {
+      const tableInfoStatement = new FakePreparedStatement<{ name: string }>();
+      const countStatement = new FakePreparedStatement<{ Total: number }>();
+      const rowsStatement = new FakePreparedStatement();
+      const prepareSpy = vi
+        .spyOn(env.DB, "prepare")
+        .mockReturnValueOnce(tableInfoStatement)
+        .mockReturnValueOnce(countStatement)
+        .mockReturnValueOnce(rowsStatement);
+      vi.spyOn(tableInfoStatement, "all").mockResolvedValue({
+        ...fakeD1Response,
+        results: [{ name: "GameWon" }],
+      });
+      vi.spyOn(countStatement, "bind").mockReturnThis();
+      vi.spyOn(rowsStatement, "bind").mockReturnThis();
+      vi.spyOn(countStatement, "first").mockResolvedValue({ Total: 0 });
+      vi.spyOn(rowsStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+
+      await databaseService.getLeaderboardOutcomeMetricRankings({
+        guildId: "guild-1",
+        queueChannelId: null,
+        startEpochSeconds: 0,
+        minGamesPlayed: 0,
+        limit: 10,
+        offset: 0,
+        metric,
+      });
+
+      const rankingQuery = prepareSpy.mock.calls[2]?.[0];
+      expect(rankingQuery).toContain(expectedSql);
+      expect(rankingQuery).toContain("sGames.CompletedAt >= ?");
+      expect(rankingQuery).toContain("s.CompletedAt >= ?");
     });
 
     it("deletes a leaderboard post registration by Discord message identity", async () => {
