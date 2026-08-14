@@ -5,5 +5,6 @@ export interface LeaderboardRankingRow {
   SeriesPlayed: number;
   SeriesWins: number;
   GamesPlayed: number;
+  GameWins: number;
   MetricValue: number;
 }

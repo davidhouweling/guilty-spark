@@ -1,4 +1,4 @@
-import type { MatchStats } from "halo-infinite-api";
+import { MatchOutcome, type MatchStats } from "halo-infinite-api";
 import { sub } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
@@ -357,14 +357,20 @@ export class LeaderboardService {
     const startEpochSeconds = this.getWindowStartEpochSeconds(resolvedWindow);
 
     const rankings =
-      resolvedMetric === LeaderboardMetric.SeriesWinRate
-        ? await this.databaseService.getLeaderboardSeriesWinRateRankings({
+      resolvedMetric === LeaderboardMetric.SeriesWinRate ||
+      resolvedMetric === LeaderboardMetric.SeriesPlayed ||
+      resolvedMetric === LeaderboardMetric.SeriesWins ||
+      resolvedMetric === LeaderboardMetric.GamesPlayed ||
+      resolvedMetric === LeaderboardMetric.GameWins ||
+      resolvedMetric === LeaderboardMetric.GamesWinRate
+        ? await this.databaseService.getLeaderboardOutcomeMetricRankings({
             guildId,
             queueChannelId: queueChannelId ?? null,
             startEpochSeconds,
             minGamesPlayed: resolvedMinGamesPlayed,
             limit: resolvedPageSize,
             offset,
+            metric: resolvedMetric,
           })
         : await this.databaseService.getLeaderboardStatMetricRankings({
             guildId,
@@ -393,6 +399,7 @@ export class LeaderboardService {
         seriesPlayed: row.SeriesPlayed,
         seriesWins: row.SeriesWins,
         gamesPlayed: row.GamesPlayed,
+        gameWins: row.GameWins,
         metricValue: this.toFiniteMetricValue(row.MetricValue),
       })),
     };
@@ -564,6 +571,7 @@ export class LeaderboardService {
           GamertagSnapshot: gamertagMap.get(xuid) ?? "Unknown",
           TeamId: teamStats.TeamId,
           PresentAtBeginning: player.ParticipationInfo.PresentAtBeginning ? 1 : 0,
+          GameWon: player.Outcome === MatchOutcome.Win ? 1 : 0,
           RankInMatch: player.Rank,
           PersonalScore: coreStats.PersonalScore,
           Kills: coreStats.Kills,

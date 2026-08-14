@@ -18,16 +18,22 @@ describe("getLeaderboardMetricFamily", () => {
 });
 
 describe("getLeaderboardFamilyAggregations / getDefaultLeaderboardAggregation", () => {
-  it("exposes a single Total aggregation for count/score families", () => {
+  it("exposes all aggregations for gameplay fact families in selector order", () => {
     expect(getLeaderboardFamilyAggregations(LeaderboardMetricFamily.Kills)).toEqual([
+      LeaderboardMetricAggregation.AvgPerSeries,
+      LeaderboardMetricAggregation.AvgPerGame,
       LeaderboardMetricAggregation.Total,
     ]);
     expect(getDefaultLeaderboardAggregation(LeaderboardMetricFamily.Kills)).toBe(LeaderboardMetricAggregation.Total);
   });
 
-  it("exposes no aggregations for rate/ratio/lifetime families", () => {
-    expect(getLeaderboardFamilyAggregations(LeaderboardMetricFamily.SeriesWinRate)).toEqual([]);
-    expect(getDefaultLeaderboardAggregation(LeaderboardMetricFamily.SeriesWinRate)).toBeNull();
+  it("exposes Overall performance for inherent-form families", () => {
+    expect(getLeaderboardFamilyAggregations(LeaderboardMetricFamily.SeriesWinRate)).toEqual([
+      LeaderboardMetricAggregation.OverallPerformance,
+    ]);
+    expect(getDefaultLeaderboardAggregation(LeaderboardMetricFamily.SeriesWinRate)).toBe(
+      LeaderboardMetricAggregation.OverallPerformance,
+    );
   });
 });
 
@@ -42,8 +48,10 @@ describe("resolveLeaderboardMetric", () => {
     expect(resolveLeaderboardMetric(LeaderboardMetricFamily.DamageDealt, null)).toBe(LeaderboardMetric.DamageDealt);
   });
 
-  it("resolves a rate/ratio/lifetime family without requiring an aggregation", () => {
-    expect(resolveLeaderboardMetric(LeaderboardMetricFamily.Kda, null)).toBe(LeaderboardMetric.Kda);
+  it("resolves a rate/ratio/lifetime family with Overall performance (explicit or defaulted)", () => {
+    expect(resolveLeaderboardMetric(LeaderboardMetricFamily.Kda, LeaderboardMetricAggregation.OverallPerformance)).toBe(
+      LeaderboardMetric.Kda,
+    );
     expect(resolveLeaderboardMetric(LeaderboardMetricFamily.SeriesWinRate, null)).toBe(LeaderboardMetric.SeriesWinRate);
   });
 
@@ -55,7 +63,12 @@ describe("resolveLeaderboardMetric", () => {
     for (const metric of Object.values(LeaderboardMetric)) {
       const family = getLeaderboardMetricFamily(metric);
       const defaultAggregation = getDefaultLeaderboardAggregation(family);
-      expect(resolveLeaderboardMetric(family, defaultAggregation)).toBe(metric);
+      const aggregation = metric.includes("_PER_SERIES")
+        ? LeaderboardMetricAggregation.AvgPerSeries
+        : metric.includes("_PER_GAME")
+          ? LeaderboardMetricAggregation.AvgPerGame
+          : defaultAggregation;
+      expect(resolveLeaderboardMetric(family, aggregation)).toBe(metric);
     }
   });
 });

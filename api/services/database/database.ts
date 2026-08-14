@@ -26,6 +26,30 @@ const SQLITE_MAX_VARIABLES = 999;
 // D1 accepts at most 100 bound parameters per statement, so batch upserts must chunk below this cap.
 const D1_SAFE_MAX_VARIABLES_PER_STATEMENT = 100;
 
+function getPerSeriesAverageSql(column: string, outerAlias: string): string {
+  return `(SELECT AVG(perSeries.MetricValue) FROM (
+    SELECT SUM(gpSeries.${column}) AS MetricValue
+    FROM LeaderboardGamePlayers gpSeries
+    INNER JOIN LeaderboardGames gSeries
+      ON gSeries.GuildId = gpSeries.GuildId
+      AND gSeries.QueueNumber = gpSeries.QueueNumber
+      AND gSeries.MatchId = gpSeries.MatchId
+    WHERE gpSeries.GuildId = ${outerAlias}.GuildId
+      AND gpSeries.XboxXuid = ${outerAlias}.XboxXuid
+      AND gSeries.EndedAt >= ?
+      AND (? IS NULL OR gpSeries.QueueChannelId = ?)
+    GROUP BY gpSeries.QueueNumber
+  ) perSeries)`;
+}
+
+function isAscendingMetric(metric: LeaderboardMetric): boolean {
+  return (
+    metric === LeaderboardMetric.Deaths ||
+    metric === LeaderboardMetric.AvgDeathsPerSeries ||
+    metric === LeaderboardMetric.AvgDeathsPerGame
+  );
+}
+
 interface LeaderboardRankingsQuery {
   guildId: string;
   queueChannelId: string | null;
@@ -42,9 +66,43 @@ export interface DatabaseServiceOpts {
 export class DatabaseService {
   private readonly DB: D1Database;
   private readonly guildConfigCache = new Map<string, GuildConfigRow>();
+  private leaderboardGameWonMigrationPromise: Promise<void> | null = null;
 
   constructor({ env }: DatabaseServiceOpts) {
     this.DB = env.DB;
+  }
+
+  private async ensureLeaderboardGameWonColumn(): Promise<void> {
+    this.leaderboardGameWonMigrationPromise ??= this.ensureLeaderboardGameWonColumnAsync();
+
+    await this.leaderboardGameWonMigrationPromise;
+  }
+
+  private async ensureLeaderboardGameWonColumnAsync(): Promise<void> {
+    const tableInfoStmt = this.DB.prepare("PRAGMA table_info(LeaderboardGamePlayers)");
+    const tableInfo = await tableInfoStmt.all<{ name: string }>();
+
+    if (tableInfo.results.length === 0) {
+      return;
+    }
+
+    for (const column of tableInfo.results) {
+      if (column.name === "GameWon") {
+        return;
+      }
+    }
+
+    try {
+      await this.DB.prepare(
+        "ALTER TABLE LeaderboardGamePlayers ADD COLUMN GameWon INTEGER NOT NULL DEFAULT 0 CHECK (GameWon IN (0, 1))",
+      ).run();
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.includes("duplicate column name: GameWon")) {
+        return;
+      }
+
+      throw error;
+    }
   }
 
   async getDiscordAssociations(discordIds: string[]): Promise<DiscordAssociationsRow[]> {
@@ -474,19 +532,21 @@ export class DatabaseService {
       return;
     }
 
-    const variablesPerRow = 27;
-    const maxRowsPerStatement = Math.floor(SQLITE_MAX_VARIABLES / variablesPerRow);
+    await this.ensureLeaderboardGameWonColumn();
+
+    const variablesPerRow = 28;
+    const statementVariableLimit = Math.min(SQLITE_MAX_VARIABLES, D1_SAFE_MAX_VARIABLES_PER_STATEMENT);
+    const maxRowsPerStatement = Math.max(1, Math.floor(statementVariableLimit / variablesPerRow));
     const statements: D1PreparedStatement[] = [];
 
     for (let start = 0; start < players.length; start += maxRowsPerStatement) {
       const chunk = players.slice(start, start + maxRowsPerStatement);
-      const placeholders = chunk
-        .map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .join(",");
+      const rowPlaceholders = `(${Array.from({ length: variablesPerRow }, () => "?").join(", ")})`;
+      const placeholders = chunk.map(() => rowPlaceholders).join(",");
       const query = `
-        INSERT INTO LeaderboardGamePlayers (MatchId, GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginning, RankInMatch, PersonalScore, Kills, Deaths, Assists, HeadshotKills, Kda, Accuracy, ShotsHit, ShotsFired, DamageDealt, DamageTaken, DamageRatio, AvgLifeSeconds, AvgDamagePerLife, ObjectiveStatsJson, MedalsJson, CreatedAt)
+        INSERT INTO LeaderboardGamePlayers (MatchId, GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginning, GameWon, RankInMatch, PersonalScore, Kills, Deaths, Assists, HeadshotKills, Kda, Accuracy, ShotsHit, ShotsFired, DamageDealt, DamageTaken, DamageRatio, AvgLifeSeconds, AvgDamagePerLife, ObjectiveStatsJson, MedalsJson, CreatedAt)
         VALUES ${placeholders}
-        ON CONFLICT(GuildId, QueueNumber, MatchId, XboxXuid) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginning=excluded.PresentAtBeginning, RankInMatch=excluded.RankInMatch, PersonalScore=excluded.PersonalScore, Kills=excluded.Kills, Deaths=excluded.Deaths, Assists=excluded.Assists, HeadshotKills=excluded.HeadshotKills, Kda=excluded.Kda, Accuracy=excluded.Accuracy, ShotsHit=excluded.ShotsHit, ShotsFired=excluded.ShotsFired, DamageDealt=excluded.DamageDealt, DamageTaken=excluded.DamageTaken, DamageRatio=excluded.DamageRatio, AvgLifeSeconds=excluded.AvgLifeSeconds, AvgDamagePerLife=excluded.AvgDamagePerLife, ObjectiveStatsJson=excluded.ObjectiveStatsJson, MedalsJson=excluded.MedalsJson
+        ON CONFLICT(GuildId, QueueNumber, MatchId, XboxXuid) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginning=excluded.PresentAtBeginning, GameWon=excluded.GameWon, RankInMatch=excluded.RankInMatch, PersonalScore=excluded.PersonalScore, Kills=excluded.Kills, Deaths=excluded.Deaths, Assists=excluded.Assists, HeadshotKills=excluded.HeadshotKills, Kda=excluded.Kda, Accuracy=excluded.Accuracy, ShotsHit=excluded.ShotsHit, ShotsFired=excluded.ShotsFired, DamageDealt=excluded.DamageDealt, DamageTaken=excluded.DamageTaken, DamageRatio=excluded.DamageRatio, AvgLifeSeconds=excluded.AvgLifeSeconds, AvgDamagePerLife=excluded.AvgDamagePerLife, ObjectiveStatsJson=excluded.ObjectiveStatsJson, MedalsJson=excluded.MedalsJson
       `;
       const values = chunk.flatMap((player) => [
         player.MatchId,
@@ -498,6 +558,7 @@ export class DatabaseService {
         player.GamertagSnapshot,
         player.TeamId,
         player.PresentAtBeginning,
+        player.GameWon,
         player.RankInMatch,
         player.PersonalScore,
         player.Kills,
@@ -535,6 +596,8 @@ export class DatabaseService {
     gamePlayers: LeaderboardGamePlayersRow[];
     seriesPlayers: LeaderboardSeriesPlayersRow[];
   }): Promise<void> {
+    await this.ensureLeaderboardGameWonColumn();
+
     const existingGameCreatedAt = await this.getLeaderboardGameCreatedAtByMatchId(series.GuildId, series.QueueNumber);
     const existingGamePlayerCreatedAt = await this.getLeaderboardGamePlayerCreatedAtByKey(
       series.GuildId,
@@ -628,19 +691,18 @@ export class DatabaseService {
     }
 
     if (normalizedGamePlayers.length > 0) {
-      const variablesPerRow = 27;
+      const variablesPerRow = 28;
       const maxRowsPerStatement = Math.max(1, Math.floor(statementVariableLimit / variablesPerRow));
 
       for (let start = 0; start < normalizedGamePlayers.length; start += maxRowsPerStatement) {
         const chunk = normalizedGamePlayers.slice(start, start + maxRowsPerStatement);
-        const placeholders = chunk
-          .map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-          .join(",");
+        const rowPlaceholders = `(${Array.from({ length: variablesPerRow }, () => "?").join(", ")})`;
+        const placeholders = chunk.map(() => rowPlaceholders).join(",");
         const stmt = this.DB.prepare(
           `
-        INSERT INTO LeaderboardGamePlayers (MatchId, GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginning, RankInMatch, PersonalScore, Kills, Deaths, Assists, HeadshotKills, Kda, Accuracy, ShotsHit, ShotsFired, DamageDealt, DamageTaken, DamageRatio, AvgLifeSeconds, AvgDamagePerLife, ObjectiveStatsJson, MedalsJson, CreatedAt)
+        INSERT INTO LeaderboardGamePlayers (MatchId, GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginning, GameWon, RankInMatch, PersonalScore, Kills, Deaths, Assists, HeadshotKills, Kda, Accuracy, ShotsHit, ShotsFired, DamageDealt, DamageTaken, DamageRatio, AvgLifeSeconds, AvgDamagePerLife, ObjectiveStatsJson, MedalsJson, CreatedAt)
         VALUES ${placeholders}
-        ON CONFLICT(GuildId, QueueNumber, MatchId, XboxXuid) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginning=excluded.PresentAtBeginning, RankInMatch=excluded.RankInMatch, PersonalScore=excluded.PersonalScore, Kills=excluded.Kills, Deaths=excluded.Deaths, Assists=excluded.Assists, HeadshotKills=excluded.HeadshotKills, Kda=excluded.Kda, Accuracy=excluded.Accuracy, ShotsHit=excluded.ShotsHit, ShotsFired=excluded.ShotsFired, DamageDealt=excluded.DamageDealt, DamageTaken=excluded.DamageTaken, DamageRatio=excluded.DamageRatio, AvgLifeSeconds=excluded.AvgLifeSeconds, AvgDamagePerLife=excluded.AvgDamagePerLife, ObjectiveStatsJson=excluded.ObjectiveStatsJson, MedalsJson=excluded.MedalsJson
+        ON CONFLICT(GuildId, QueueNumber, MatchId, XboxXuid) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginning=excluded.PresentAtBeginning, GameWon=excluded.GameWon, RankInMatch=excluded.RankInMatch, PersonalScore=excluded.PersonalScore, Kills=excluded.Kills, Deaths=excluded.Deaths, Assists=excluded.Assists, HeadshotKills=excluded.HeadshotKills, Kda=excluded.Kda, Accuracy=excluded.Accuracy, ShotsHit=excluded.ShotsHit, ShotsFired=excluded.ShotsFired, DamageDealt=excluded.DamageDealt, DamageTaken=excluded.DamageTaken, DamageRatio=excluded.DamageRatio, AvgLifeSeconds=excluded.AvgLifeSeconds, AvgDamagePerLife=excluded.AvgDamagePerLife, ObjectiveStatsJson=excluded.ObjectiveStatsJson, MedalsJson=excluded.MedalsJson
       `,
         ).bind(
           ...chunk.flatMap((player) => [
@@ -653,6 +715,7 @@ export class DatabaseService {
             player.GamertagSnapshot,
             player.TeamId,
             player.PresentAtBeginning,
+            player.GameWon,
             player.RankInMatch,
             player.PersonalScore,
             player.Kills,
@@ -869,11 +932,24 @@ export class DatabaseService {
     limit,
     offset,
     metric,
-  }: LeaderboardRankingsQuery & { metric: Exclude<LeaderboardMetric, LeaderboardMetric.SeriesWinRate> }): Promise<{
+  }: LeaderboardRankingsQuery & {
+    metric: Exclude<
+      LeaderboardMetric,
+      | LeaderboardMetric.SeriesPlayed
+      | LeaderboardMetric.SeriesWins
+      | LeaderboardMetric.SeriesWinRate
+      | LeaderboardMetric.GamesPlayed
+      | LeaderboardMetric.GameWins
+      | LeaderboardMetric.GamesWinRate
+    >;
+  }): Promise<{
     total: number;
     rows: LeaderboardRankingRow[];
   }> {
+    await this.ensureLeaderboardGameWonColumn();
+
     let metricSql = "SUM(gp.PersonalScore)";
+    let metricBindings: readonly (string | number | null)[] = [];
     switch (metric) {
       case LeaderboardMetric.Kills: {
         metricSql = "SUM(gp.Kills)";
@@ -932,6 +1008,87 @@ export class DatabaseService {
         metricSql = "SUM(gp.PersonalScore)";
         break;
       }
+      case LeaderboardMetric.AvgPersonalScorePerSeries: {
+        metricSql = getPerSeriesAverageSql("PersonalScore", "gp");
+        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+        break;
+      }
+      case LeaderboardMetric.AvgPersonalScorePerGame: {
+        metricSql = "AVG(gp.PersonalScore)";
+        break;
+      }
+      case LeaderboardMetric.AvgKillsPerSeries: {
+        metricSql = getPerSeriesAverageSql("Kills", "gp");
+        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+        break;
+      }
+      case LeaderboardMetric.AvgKillsPerGame: {
+        metricSql = "AVG(gp.Kills)";
+        break;
+      }
+      case LeaderboardMetric.AvgDeathsPerSeries: {
+        metricSql = getPerSeriesAverageSql("Deaths", "gp");
+        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+        break;
+      }
+      case LeaderboardMetric.AvgDeathsPerGame: {
+        metricSql = "AVG(gp.Deaths)";
+        break;
+      }
+      case LeaderboardMetric.AvgAssistsPerSeries: {
+        metricSql = getPerSeriesAverageSql("Assists", "gp");
+        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+        break;
+      }
+      case LeaderboardMetric.AvgAssistsPerGame: {
+        metricSql = "AVG(gp.Assists)";
+        break;
+      }
+      case LeaderboardMetric.AvgHeadshotKillsPerSeries: {
+        metricSql = getPerSeriesAverageSql("HeadshotKills", "gp");
+        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+        break;
+      }
+      case LeaderboardMetric.AvgHeadshotKillsPerGame: {
+        metricSql = "AVG(gp.HeadshotKills)";
+        break;
+      }
+      case LeaderboardMetric.AvgShotsHitPerSeries: {
+        metricSql = getPerSeriesAverageSql("ShotsHit", "gp");
+        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+        break;
+      }
+      case LeaderboardMetric.AvgShotsHitPerGame: {
+        metricSql = "AVG(gp.ShotsHit)";
+        break;
+      }
+      case LeaderboardMetric.AvgShotsFiredPerSeries: {
+        metricSql = getPerSeriesAverageSql("ShotsFired", "gp");
+        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+        break;
+      }
+      case LeaderboardMetric.AvgShotsFiredPerGame: {
+        metricSql = "AVG(gp.ShotsFired)";
+        break;
+      }
+      case LeaderboardMetric.AvgDamageDealtPerSeries: {
+        metricSql = getPerSeriesAverageSql("DamageDealt", "gp");
+        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+        break;
+      }
+      case LeaderboardMetric.AvgDamageDealtPerGame: {
+        metricSql = "AVG(gp.DamageDealt)";
+        break;
+      }
+      case LeaderboardMetric.AvgDamageTakenPerSeries: {
+        metricSql = getPerSeriesAverageSql("DamageTaken", "gp");
+        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+        break;
+      }
+      case LeaderboardMetric.AvgDamageTakenPerGame: {
+        metricSql = "AVG(gp.DamageTaken)";
+        break;
+      }
       default: {
         throw new UnreachableError(metric);
       }
@@ -945,12 +1102,14 @@ export class DatabaseService {
         COALESCE(seriesStats.SeriesPlayed, stats.SeriesPlayed) AS SeriesPlayed,
         COALESCE(seriesStats.SeriesWins, 0) AS SeriesWins,
         stats.GamesPlayed AS GamesPlayed,
+        stats.GameWins AS GameWins,
         stats.MetricValue AS MetricValue
       FROM (
         SELECT
           gp.XboxXuid AS XboxXuid,
           COUNT(DISTINCT gp.QueueNumber) AS SeriesPlayed,
           COUNT(*) AS GamesPlayed,
+          SUM(gp.GameWon) AS GameWins,
           ${metricSql} AS MetricValue
         FROM LeaderboardGamePlayers gp
         INNER JOIN LeaderboardGames g
@@ -1004,6 +1163,7 @@ export class DatabaseService {
     `;
 
     const bindings = [
+      ...metricBindings,
       guildId,
       startEpochSeconds,
       queueChannelId,
@@ -1022,7 +1182,7 @@ export class DatabaseService {
     const countStmt = this.DB.prepare(`SELECT COUNT(*) AS Total FROM (${aggregateSql}) agg`).bind(...bindings);
     const countRow = await countStmt.first<{ Total: number }>();
 
-    const metricSortDirection = metric === LeaderboardMetric.Deaths ? "ASC" : "DESC";
+    const metricSortDirection = isAscendingMetric(metric) ? "ASC" : "DESC";
     const rowsStmt = this.DB.prepare(
       `
         SELECT * FROM (${aggregateSql}) agg
@@ -1036,6 +1196,140 @@ export class DatabaseService {
       total: countRow?.Total ?? 0,
       rows: rowsResponse.results,
     };
+  }
+
+  async getLeaderboardOutcomeMetricRankings({
+    guildId,
+    queueChannelId,
+    startEpochSeconds,
+    minGamesPlayed,
+    limit,
+    offset,
+    metric,
+  }: LeaderboardRankingsQuery & {
+    metric:
+      | LeaderboardMetric.SeriesPlayed
+      | LeaderboardMetric.SeriesWins
+      | LeaderboardMetric.GamesPlayed
+      | LeaderboardMetric.GameWins
+      | LeaderboardMetric.SeriesWinRate
+      | LeaderboardMetric.GamesWinRate;
+  }): Promise<{ total: number; rows: LeaderboardRankingRow[] }> {
+    await this.ensureLeaderboardGameWonColumn();
+
+    const metricSql = ((): string => {
+      switch (metric) {
+        case LeaderboardMetric.SeriesPlayed: {
+          return "stats.SeriesPlayed";
+        }
+        case LeaderboardMetric.SeriesWins: {
+          return "stats.SeriesWins";
+        }
+        case LeaderboardMetric.GamesPlayed: {
+          return "stats.GamesPlayed";
+        }
+        case LeaderboardMetric.GameWins: {
+          return "stats.GameWins";
+        }
+        case LeaderboardMetric.SeriesWinRate: {
+          return "CASE WHEN stats.SeriesPlayed = 0 THEN 0 ELSE CAST(stats.SeriesWins AS REAL) / stats.SeriesPlayed END";
+        }
+        case LeaderboardMetric.GamesWinRate: {
+          return "CASE WHEN stats.GamesPlayed = 0 THEN 0 ELSE CAST(stats.GameWins AS REAL) / stats.GamesPlayed END";
+        }
+        default: {
+          throw new UnreachableError(metric);
+        }
+      }
+    })();
+
+    const aggregateSql = `
+      SELECT
+        stats.XboxXuid AS XboxXuid,
+        identity.DiscordUserId AS DiscordUserId,
+        identity.GamertagSnapshot AS Gamertag,
+        stats.SeriesPlayed AS SeriesPlayed,
+        stats.SeriesWins AS SeriesWins,
+        stats.GamesPlayed AS GamesPlayed,
+        stats.GameWins AS GameWins,
+        ${metricSql} AS MetricValue
+      FROM (
+        SELECT
+          sp.XboxXuid AS XboxXuid,
+          COUNT(*) AS SeriesPlayed,
+          SUM(sp.SeriesWon) AS SeriesWins,
+          SUM(sp.GamesPlayedCount) AS GamesPlayed,
+          COALESCE(gameStats.GameWins, 0) AS GameWins
+        FROM LeaderboardSeriesPlayers sp
+        INNER JOIN LeaderboardSeries s
+          ON s.GuildId = sp.GuildId
+          AND s.QueueNumber = sp.QueueNumber
+        LEFT JOIN (
+          SELECT gp.XboxXuid, SUM(gp.GameWon) AS GameWins
+          FROM LeaderboardGamePlayers gp
+          INNER JOIN LeaderboardSeries sGames
+            ON sGames.GuildId = gp.GuildId
+            AND sGames.QueueNumber = gp.QueueNumber
+          WHERE gp.GuildId = ?
+            AND sGames.CompletedAt >= ?
+            AND (? IS NULL OR sGames.QueueChannelId = ?)
+          GROUP BY gp.XboxXuid
+        ) gameStats
+          ON gameStats.XboxXuid = sp.XboxXuid
+        WHERE s.GuildId = ?
+          AND s.CompletedAt >= ?
+          AND (? IS NULL OR s.QueueChannelId = ?)
+        GROUP BY sp.XboxXuid
+        HAVING SUM(sp.GamesPlayedCount) >= ?
+      ) stats
+      INNER JOIN (
+        SELECT ranked.XboxXuid, ranked.DiscordUserId, ranked.GamertagSnapshot
+        FROM (
+          SELECT
+            gp.XboxXuid AS XboxXuid,
+            gp.DiscordUserId AS DiscordUserId,
+            gp.GamertagSnapshot AS GamertagSnapshot,
+            ROW_NUMBER() OVER (
+              PARTITION BY gp.XboxXuid
+              ORDER BY g.EndedAt DESC, gp.CreatedAt DESC
+            ) AS RowNumber
+          FROM LeaderboardGamePlayers gp
+          INNER JOIN LeaderboardGames g
+            ON g.GuildId = gp.GuildId
+            AND g.QueueNumber = gp.QueueNumber
+            AND g.MatchId = gp.MatchId
+          WHERE gp.GuildId = ?
+            AND g.EndedAt >= ?
+            AND (? IS NULL OR gp.QueueChannelId = ?)
+        ) ranked
+        WHERE ranked.RowNumber = 1
+      ) identity
+        ON identity.XboxXuid = stats.XboxXuid
+    `;
+
+    const bindings = [
+      guildId,
+      startEpochSeconds,
+      queueChannelId,
+      queueChannelId,
+      guildId,
+      startEpochSeconds,
+      queueChannelId,
+      queueChannelId,
+      minGamesPlayed,
+      guildId,
+      startEpochSeconds,
+      queueChannelId,
+      queueChannelId,
+    ] as const;
+    const countStmt = this.DB.prepare(`SELECT COUNT(*) AS Total FROM (${aggregateSql}) agg`).bind(...bindings);
+    const countRow = await countStmt.first<{ Total: number }>();
+    const rowsStmt = this.DB.prepare(
+      `SELECT * FROM (${aggregateSql}) agg ORDER BY agg.MetricValue DESC, agg.GamesPlayed DESC, agg.Gamertag ASC LIMIT ? OFFSET ?`,
+    ).bind(...bindings, limit, offset);
+    const rowsResponse = await rowsStmt.all<LeaderboardRankingRow>();
+
+    return { total: countRow?.Total ?? 0, rows: rowsResponse.results };
   }
 
   async getUserSession(sessionId: string): Promise<UserSessionsRow | null> {

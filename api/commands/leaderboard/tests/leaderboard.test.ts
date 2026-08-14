@@ -130,6 +130,7 @@ describe("LeaderboardCommand", () => {
           seriesPlayed: 3,
           seriesWins: 2,
           gamesPlayed: 9,
+          gameWins: 6,
           metricValue: 44,
         },
       ],
@@ -293,6 +294,7 @@ describe("LeaderboardCommand", () => {
           seriesPlayed: 1,
           seriesWins: 1,
           gamesPlayed: 1,
+          gameWins: 1,
           metricValue: 12.5,
         },
         {
@@ -303,6 +305,7 @@ describe("LeaderboardCommand", () => {
           seriesPlayed: 1,
           seriesWins: 1,
           gamesPlayed: 1,
+          gameWins: 1,
           metricValue: 10,
         },
         {
@@ -313,6 +316,7 @@ describe("LeaderboardCommand", () => {
           seriesPlayed: 1,
           seriesWins: 1,
           gamesPlayed: 1,
+          gameWins: 1,
           metricValue: 7.5,
         },
       ],
@@ -940,7 +944,7 @@ describe("LeaderboardCommand", () => {
 
   it("switches metric from legacy metric string-select interaction and resets to page 1", async () => {
     const stateUrl =
-      "https://guilty-spark.app/leaderboard?guildId=test-guild-id&window=1M&metric=SERIES_WIN_RATE&page=6&minGamesPlayed=0";
+      "https://guilty-spark.app/leaderboard?guildId=test-guild-id&window=1M&metric=AVG_KILLS_PER_SERIES&page=6&minGamesPlayed=0";
     const interaction: APIMessageComponentSelectMenuInteraction = {
       ...aWizardStringSelectWith({ customId: INTERACTION_LEGACY_METRIC_SELECT, value: LeaderboardMetric.ShotsHit }),
       data: {
@@ -959,7 +963,7 @@ describe("LeaderboardCommand", () => {
       guildId: "test-guild-id",
       queueChannelId: null,
       window: LeaderboardWindow.OneMonth,
-      metric: LeaderboardMetric.ShotsHit,
+      metric: LeaderboardMetric.AvgShotsHitPerSeries,
       minGamesPlayed: 0,
       page: 1,
       pageSize: 10,
@@ -979,10 +983,11 @@ describe("LeaderboardCommand", () => {
     expect(getLeaderboardSpy).toHaveBeenCalledWith({
       guildId: "test-guild-id",
       window: LeaderboardWindow.OneMonth,
-      metric: LeaderboardMetric.ShotsHit,
+      metric: LeaderboardMetric.AvgShotsHitPerSeries,
       page: 1,
       pageSize: 10,
       minGamesPlayed: 0,
+      queueChannelId: undefined,
     });
   });
 
@@ -1131,6 +1136,7 @@ describe("LeaderboardCommand", () => {
             seriesPlayed: 5,
             seriesWins: 4,
             gamesPlayed: 9,
+            gameWins: 6,
             metricValue: 0.8,
           },
         ],
@@ -1203,7 +1209,7 @@ describe("LeaderboardCommand", () => {
     expect(payload.embeds?.[0]?.fields).toEqual([
       { name: "Rank", value: "#11", inline: true },
       { name: "Player", value: "<@discord-2> (Bravo)", inline: true },
-      { name: "Series win rate", value: "80%", inline: true },
+      { name: "Series win rate", value: "80% (4/5)", inline: true },
     ]);
   });
 
@@ -1564,6 +1570,7 @@ describe("LeaderboardCommand", () => {
           seriesPlayed: 1,
           seriesWins: 1,
           gamesPlayed: 1,
+          gameWins: 1,
           metricValue: Number.MAX_VALUE,
         },
       ],

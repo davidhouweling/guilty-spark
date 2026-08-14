@@ -23,6 +23,8 @@ import {
   LeaderboardMetricAggregation,
   LeaderboardWindow,
   getLeaderboardFamilyAggregations,
+  getLeaderboardMetricAggregation,
+  getLeaderboardMetricFamiliesForAggregation,
   getLeaderboardMetricAggregationLabel,
   getLeaderboardMetricFamily,
   getLeaderboardMetricFamilyLabel,
@@ -47,6 +49,9 @@ const DEFAULT_PAGE_SIZE = 10;
 const LEGACY_LEADERBOARD_METRIC_SELECT_CONTROL_ID = "select_leaderboard_metric";
 
 const METRIC_AGGREGATIONS_IN_OPTION_ORDER: readonly LeaderboardMetricAggregation[] = [
+  LeaderboardMetricAggregation.OverallPerformance,
+  LeaderboardMetricAggregation.AvgPerSeries,
+  LeaderboardMetricAggregation.AvgPerGame,
   LeaderboardMetricAggregation.Total,
 ];
 
@@ -57,23 +62,9 @@ const WINDOW_OPTIONS_BY_VALUE = new Map<string, LeaderboardWindow>([
   [LeaderboardWindow.SixMonths, LeaderboardWindow.SixMonths],
   [LeaderboardWindow.TwelveMonths, LeaderboardWindow.TwelveMonths],
 ]);
-const METRIC_OPTIONS_BY_VALUE = new Map<string, LeaderboardMetric>([
-  [LeaderboardMetric.SeriesWinRate, LeaderboardMetric.SeriesWinRate],
-  [LeaderboardMetric.Kills, LeaderboardMetric.Kills],
-  [LeaderboardMetric.Deaths, LeaderboardMetric.Deaths],
-  [LeaderboardMetric.Assists, LeaderboardMetric.Assists],
-  [LeaderboardMetric.HeadshotKills, LeaderboardMetric.HeadshotKills],
-  [LeaderboardMetric.ShotsHit, LeaderboardMetric.ShotsHit],
-  [LeaderboardMetric.ShotsFired, LeaderboardMetric.ShotsFired],
-  [LeaderboardMetric.Kda, LeaderboardMetric.Kda],
-  [LeaderboardMetric.Accuracy, LeaderboardMetric.Accuracy],
-  [LeaderboardMetric.DamageDealt, LeaderboardMetric.DamageDealt],
-  [LeaderboardMetric.DamageTaken, LeaderboardMetric.DamageTaken],
-  [LeaderboardMetric.DamageRatio, LeaderboardMetric.DamageRatio],
-  [LeaderboardMetric.AvgLifeSeconds, LeaderboardMetric.AvgLifeSeconds],
-  [LeaderboardMetric.AvgDamagePerLife, LeaderboardMetric.AvgDamagePerLife],
-  [LeaderboardMetric.PersonalScore, LeaderboardMetric.PersonalScore],
-]);
+const METRIC_OPTIONS_BY_VALUE = new Map<string, LeaderboardMetric>(
+  Object.values(LeaderboardMetric).map((metric) => [metric, metric]),
+);
 const METRIC_FAMILY_OPTIONS_BY_VALUE = new Map<string, LeaderboardMetricFamily>(
   LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER.map((family) => [family, family]),
 );
@@ -429,9 +420,15 @@ export class LeaderboardCommand extends BaseCommand {
         throw this.createInvalidLeaderboardControlError();
       }
 
+      const currentAggregation = getLeaderboardMetricAggregation(state.metric ?? LeaderboardMetric.SeriesWinRate);
+      const validFamilies = getLeaderboardMetricFamiliesForAggregation(currentAggregation);
+      if (!validFamilies.includes(selectedFamily)) {
+        throw this.createInvalidLeaderboardControlError();
+      }
+
       return {
         ...state,
-        metric: resolveLeaderboardMetric(selectedFamily, null),
+        metric: resolveLeaderboardMetric(selectedFamily, currentAggregation),
         page: 1,
       };
     });
@@ -446,15 +443,20 @@ export class LeaderboardCommand extends BaseCommand {
       }
 
       const selectedAggregation = this.parseMetricAggregationOption(interaction.data.values[0]);
-      if (selectedAggregation == null || state.metric == null) {
+      if (selectedAggregation == null) {
         throw this.createInvalidLeaderboardControlError();
       }
 
-      const currentFamily = getLeaderboardMetricFamily(state.metric);
+      const currentFamily = getLeaderboardMetricFamily(state.metric ?? LeaderboardMetric.SeriesWinRate);
+      const validFamilies = getLeaderboardMetricFamiliesForAggregation(selectedAggregation);
+      const selectedFamily = validFamilies.includes(currentFamily) ? currentFamily : validFamilies[0];
+      if (selectedFamily == null) {
+        throw this.createInvalidLeaderboardControlError();
+      }
 
       return {
         ...state,
-        metric: resolveLeaderboardMetric(currentFamily, selectedAggregation),
+        metric: resolveLeaderboardMetric(selectedFamily, selectedAggregation),
         page: 1,
       };
     });

@@ -69,6 +69,7 @@ describe("LeaderboardService", () => {
       SeriesPlayed: 2,
       SeriesWins: 2,
       GamesPlayed: 5,
+      GameWins: 4,
       MetricValue: 1,
     },
     {
@@ -78,6 +79,7 @@ describe("LeaderboardService", () => {
       SeriesPlayed: 2,
       SeriesWins: 1,
       GamesPlayed: 2,
+      GameWins: 1,
       MetricValue: 0.5,
     },
   ];
@@ -90,6 +92,7 @@ describe("LeaderboardService", () => {
       SeriesPlayed: 2,
       SeriesWins: 0,
       GamesPlayed: 2,
+      GameWins: 1,
       MetricValue: 15,
     },
     {
@@ -99,6 +102,7 @@ describe("LeaderboardService", () => {
       SeriesPlayed: 1,
       SeriesWins: 0,
       GamesPlayed: 1,
+      GameWins: 0,
       MetricValue: 20,
     },
   ];
@@ -126,7 +130,7 @@ describe("LeaderboardService", () => {
         MinGamesPlayed: 2,
       }),
     );
-    const getSeriesRankingsSpy = vi.spyOn(databaseService, "getLeaderboardSeriesWinRateRankings").mockResolvedValue({
+    const getSeriesRankingsSpy = vi.spyOn(databaseService, "getLeaderboardOutcomeMetricRankings").mockResolvedValue({
       total: 2,
       rows: seriesRankingRows,
     });
@@ -193,6 +197,7 @@ describe("LeaderboardService", () => {
         seriesPlayed: 2,
         seriesWins: 0,
         gamesPlayed: 2,
+        gameWins: 1,
         metricValue: 15,
       },
     ]);
@@ -232,6 +237,7 @@ describe("LeaderboardService", () => {
           SeriesPlayed: 1,
           SeriesWins: 0,
           GamesPlayed: 1,
+          GameWins: 0,
           MetricValue: Number.POSITIVE_INFINITY,
         },
       ],

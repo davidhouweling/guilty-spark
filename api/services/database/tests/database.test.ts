@@ -607,35 +607,88 @@ describe("Database Service", () => {
         "DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?",
       );
       expect(prepareSpy).toHaveBeenNthCalledWith(4, expect.stringContaining("INSERT INTO LeaderboardGames"));
-      expect(prepareSpy).toHaveBeenNthCalledWith(5, expect.stringContaining("HeadshotKills"));
+      expect(prepareSpy).toHaveBeenNthCalledWith(5, "PRAGMA table_info(LeaderboardGamePlayers)");
+      expect(prepareSpy).toHaveBeenNthCalledWith(6, expect.stringContaining("HeadshotKills"));
+      const gamePlayersInsertQuery = prepareSpy.mock.calls[5]?.[0];
+      const countBoundParameters = (sql: string): number => sql.split("?").length - 1;
+      if (gamePlayersInsertQuery != null) {
+        expect(countBoundParameters(gamePlayersInsertQuery)).toBe(28);
+      }
       expect(batchSpy).toHaveBeenNthCalledWith(1, [deleteSeriesPlayersStatement, insertSeriesPlayersStatement]);
       expect(batchSpy).toHaveBeenNthCalledWith(2, [deleteGamesStatement, upsertGamesStatement]);
       expect(batchSpy).toHaveBeenNthCalledWith(3, [gamePlayersStatement]);
     });
 
-    it("chunks leaderboard game player upserts to stay below sqlite variable limit", async () => {
+    it("adds missing GameWon column before upserting leaderboard game players", async () => {
+      const gamePlayers = [aFakeLeaderboardGamePlayersRow()];
+      const tableInfoStatement = new FakePreparedStatement<{ name: string }>();
+      const alterTableStatement = new FakePreparedStatement();
+      const gamePlayersStatement = new FakePreparedStatement();
+      const prepareSpy = vi
+        .spyOn(env.DB, "prepare")
+        .mockReturnValueOnce(tableInfoStatement)
+        .mockReturnValueOnce(alterTableStatement)
+        .mockReturnValueOnce(gamePlayersStatement);
+      const tableInfoAllSpy = vi.spyOn(tableInfoStatement, "all").mockResolvedValue({
+        ...fakeD1Response,
+        results: [{ name: "MatchId" }, { name: "GuildId" }],
+      });
+      const alterTableRunSpy = vi.spyOn(alterTableStatement, "run").mockResolvedValue({
+        ...fakeD1Response,
+        results: [],
+      });
+      const gamePlayersBindSpy = vi.spyOn(gamePlayersStatement, "bind").mockReturnThis();
+      const batchSpy = vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
+
+      await databaseService.upsertLeaderboardGamePlayers(gamePlayers);
+
+      expect(prepareSpy).toHaveBeenNthCalledWith(1, "PRAGMA table_info(LeaderboardGamePlayers)");
+      expect(tableInfoAllSpy).toHaveBeenCalledTimes(1);
+      expect(prepareSpy).toHaveBeenNthCalledWith(
+        2,
+        "ALTER TABLE LeaderboardGamePlayers ADD COLUMN GameWon INTEGER NOT NULL DEFAULT 0 CHECK (GameWon IN (0, 1))",
+      );
+      expect(alterTableRunSpy).toHaveBeenCalledTimes(1);
+      expect(prepareSpy).toHaveBeenNthCalledWith(3, expect.stringContaining("INSERT INTO LeaderboardGamePlayers"));
+      expect(gamePlayersBindSpy).toHaveBeenCalledTimes(1);
+      expect(batchSpy).toHaveBeenCalledWith([gamePlayersStatement]);
+    });
+
+    it("chunks leaderboard game player upserts to stay below d1 variable limit", async () => {
       const gamePlayers = Array.from({ length: 40 }, (_, index) =>
         aFakeLeaderboardGamePlayersRow({
           MatchId: `match-${index.toString()}`,
           XboxXuid: `xuid-${index.toString()}`,
         }),
       );
-      const firstPreparedStatement = new FakePreparedStatement();
-      const secondPreparedStatement = new FakePreparedStatement();
-      const prepareSpy = vi
-        .spyOn(env.DB, "prepare")
-        .mockReturnValueOnce(firstPreparedStatement)
-        .mockReturnValueOnce(secondPreparedStatement);
-      const bindFirstSpy = vi.spyOn(firstPreparedStatement, "bind");
-      const bindSecondSpy = vi.spyOn(secondPreparedStatement, "bind");
+      const tableInfoStatement = new FakePreparedStatement<{ name: string }>();
+      const chunkStatements = Array.from({ length: 14 }, () => new FakePreparedStatement());
+      let prepareCallCount = 0;
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockImplementation(() => {
+        if (prepareCallCount === 0) {
+          prepareCallCount += 1;
+          return tableInfoStatement;
+        }
+
+        const statement = chunkStatements[prepareCallCount - 1];
+        prepareCallCount += 1;
+        return statement ?? new FakePreparedStatement();
+      });
+      vi.spyOn(tableInfoStatement, "all").mockResolvedValue({
+        ...fakeD1Response,
+        results: [{ name: "GameWon" }],
+      });
+      const bindSpies = chunkStatements.map((statement) => vi.spyOn(statement, "bind").mockReturnThis());
       const batchSpy = vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
 
       await databaseService.upsertLeaderboardGamePlayers(gamePlayers);
 
-      expect(prepareSpy).toHaveBeenCalledTimes(2);
-      expect(bindFirstSpy).toHaveBeenCalledTimes(1);
-      expect(bindSecondSpy).toHaveBeenCalledTimes(1);
-      expect(batchSpy).toHaveBeenCalledWith([firstPreparedStatement, secondPreparedStatement]);
+      expect(prepareSpy).toHaveBeenCalledTimes(15);
+      expect(prepareSpy).toHaveBeenNthCalledWith(1, "PRAGMA table_info(LeaderboardGamePlayers)");
+      for (const bindSpy of bindSpies) {
+        expect(bindSpy).toHaveBeenCalledTimes(1);
+      }
+      expect(batchSpy).toHaveBeenCalledWith(chunkStatements);
     });
 
     it("upserts leaderboard series, games, and players in a single batch", async () => {
@@ -680,22 +733,32 @@ describe("Database Service", () => {
         seriesPlayers,
       });
 
+      expect(prepareSpy).toHaveBeenNthCalledWith(1, "PRAGMA table_info(LeaderboardGamePlayers)");
       expect(prepareSpy).toHaveBeenNthCalledWith(
-        1,
+        2,
         "SELECT MatchId, CreatedAt FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?",
       );
       expect(prepareSpy).toHaveBeenNthCalledWith(
-        2,
+        3,
         "SELECT MatchId, XboxXuid, CreatedAt FROM LeaderboardGamePlayers WHERE GuildId = ? AND QueueNumber = ?",
       );
       expect(prepareSpy).toHaveBeenNthCalledWith(
-        3,
+        4,
         "SELECT XboxXuid, CreatedAt FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ?",
       );
       expect(prepareSpy).toHaveBeenNthCalledWith(
-        6,
+        7,
         "DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?",
       );
+      const preparedQueries = prepareSpy.mock.calls
+        .map(([query]) => query)
+        .filter((query): query is string => typeof query === "string");
+      const gamePlayerInsertQueries = preparedQueries.filter((query) =>
+        query.includes("INSERT INTO LeaderboardGamePlayers"),
+      );
+      const countBoundParameters = (sql: string): number => sql.split("?").length - 1;
+      expect(gamePlayerInsertQueries).toHaveLength(1);
+      expect(countBoundParameters(gamePlayerInsertQueries[0] ?? "")).toBe(28);
       expect(batchSpy).toHaveBeenCalledTimes(1);
       expect(batchSpy).toHaveBeenCalledWith(batchedStatements);
     });
@@ -939,11 +1002,15 @@ describe("Database Service", () => {
       expect(posts).toEqual([post]);
     });
 
-    it("aggregates headshot kills and ranks deaths lowest first", async () => {
+    it("aggregates headshot kills and ranks all deaths metrics lowest first", async () => {
       const countStatement = new FakePreparedStatement<{ Total: number }>();
       const rowsStatement = new FakePreparedStatement();
       const prepareSpy = vi
         .spyOn(env.DB, "prepare")
+        .mockReturnValueOnce(countStatement)
+        .mockReturnValueOnce(rowsStatement)
+        .mockReturnValueOnce(countStatement)
+        .mockReturnValueOnce(rowsStatement)
         .mockReturnValueOnce(countStatement)
         .mockReturnValueOnce(rowsStatement)
         .mockReturnValueOnce(countStatement)
@@ -971,9 +1038,62 @@ describe("Database Service", () => {
         offset: 0,
         metric: LeaderboardMetric.Deaths,
       });
+      await databaseService.getLeaderboardStatMetricRankings({
+        guildId: "guild-1",
+        queueChannelId: null,
+        startEpochSeconds: 0,
+        minGamesPlayed: 0,
+        limit: 10,
+        offset: 0,
+        metric: LeaderboardMetric.AvgDeathsPerSeries,
+      });
+      await databaseService.getLeaderboardStatMetricRankings({
+        guildId: "guild-1",
+        queueChannelId: null,
+        startEpochSeconds: 0,
+        minGamesPlayed: 0,
+        limit: 10,
+        offset: 0,
+        metric: LeaderboardMetric.AvgDeathsPerGame,
+      });
 
-      expect(prepareSpy.mock.calls[0]?.[0]).toContain("SUM(gp.HeadshotKills) AS MetricValue");
-      expect(prepareSpy.mock.calls[3]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
+      expect(prepareSpy.mock.calls[0]?.[0]).toBe("PRAGMA table_info(LeaderboardGamePlayers)");
+      expect(prepareSpy.mock.calls[1]?.[0]).toContain("SUM(gp.HeadshotKills) AS MetricValue");
+      expect(prepareSpy.mock.calls[4]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
+      expect(prepareSpy.mock.calls[6]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
+      expect(prepareSpy.mock.calls[8]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
+    });
+
+    it("aligns game-win window filtering with series completion window", async () => {
+      const tableInfoStatement = new FakePreparedStatement<{ name: string }>();
+      const countStatement = new FakePreparedStatement<{ Total: number }>();
+      const rowsStatement = new FakePreparedStatement();
+      const prepareSpy = vi
+        .spyOn(env.DB, "prepare")
+        .mockReturnValueOnce(tableInfoStatement)
+        .mockReturnValueOnce(countStatement)
+        .mockReturnValueOnce(rowsStatement);
+      vi.spyOn(tableInfoStatement, "all").mockResolvedValue({
+        ...fakeD1Response,
+        results: [{ name: "GameWon" }],
+      });
+      vi.spyOn(countStatement, "bind").mockReturnThis();
+      vi.spyOn(rowsStatement, "bind").mockReturnThis();
+      vi.spyOn(countStatement, "first").mockResolvedValue({ Total: 0 });
+      vi.spyOn(rowsStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+
+      await databaseService.getLeaderboardOutcomeMetricRankings({
+        guildId: "guild-1",
+        queueChannelId: null,
+        startEpochSeconds: 0,
+        minGamesPlayed: 0,
+        limit: 10,
+        offset: 0,
+        metric: LeaderboardMetric.GamesWinRate,
+      });
+
+      expect(prepareSpy.mock.calls[1]?.[0]).toContain("sGames.CompletedAt >= ?");
+      expect(prepareSpy.mock.calls[1]?.[0]).toContain("(? IS NULL OR sGames.QueueChannelId = ?)");
     });
 
     it("deletes a leaderboard post registration by Discord message identity", async () => {
