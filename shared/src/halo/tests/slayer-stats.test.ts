@@ -98,12 +98,20 @@ describe("getPlayerSlayerStats", () => {
       expect(result.get("Damage ratio")?.value).toBe(2);
     });
 
-    it("computes avg damage per life from dealt and deaths", () => {
+    it("computes avg damage per life from dealt and total lives", () => {
       const coreStats = aFakeCoreStatsWith({ DamageDealt: 15000, Deaths: 10 });
 
       const result = getPlayerSlayerStats(coreStats);
 
-      expect(result.get("Avg damage per life")?.value).toBe(1500);
+      expect(result.get("Avg damage per life")?.value).toBe(15000 / 11);
+    });
+
+    it("uses one life when a player has no deaths", () => {
+      const coreStats = aFakeCoreStatsWith({ DamageDealt: 15000, Deaths: 0 });
+
+      const result = getPlayerSlayerStats(coreStats);
+
+      expect(result.get("Avg damage per life")?.value).toBe(15000);
     });
 
     it("computes avg life time in seconds from ISO duration", () => {
