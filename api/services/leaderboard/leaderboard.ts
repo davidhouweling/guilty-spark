@@ -578,7 +578,7 @@ export class LeaderboardService {
           DamageTaken: coreStats.DamageTaken,
           DamageRatio: getSafeRatioValue(coreStats.DamageDealt, coreStats.DamageTaken),
           AvgLifeSeconds: this.getAverageLifeSeconds(coreStats.AverageLifeDuration),
-          AvgDamagePerLife: getSafeRatioValue(coreStats.DamageDealt, deaths),
+          AvgDamagePerLife: getSafeRatioValue(coreStats.DamageDealt, deaths + 1),
           ObjectiveStatsJson: JSON.stringify(teamStats.Stats),
           MedalsJson: JSON.stringify(coreStats.Medals),
           CreatedAt: nowEpoch,
