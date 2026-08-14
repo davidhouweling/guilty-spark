@@ -5,6 +5,7 @@ import type {
   APIMessageComponentSelectMenuInteraction,
   APIMessageTopLevelComponent,
 } from "discord-api-types/v10";
+import { isValid, parseISO } from "date-fns";
 import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
@@ -169,6 +170,32 @@ export class LeaderboardCommand extends BaseCommand {
             },
           ],
         },
+        {
+          type: ApplicationCommandOptionType.Subcommand,
+          name: "reset",
+          description: "Set a non-destructive leaderboard reset marker",
+          options: [
+            {
+              name: "queue_channel",
+              description: "Reset only this queue, or all server leaderboards when omitted",
+              type: ApplicationCommandOptionType.Channel,
+              channel_types: [ChannelType.GuildText, ChannelType.GuildAnnouncement],
+              required: false,
+            },
+            {
+              name: "date",
+              description: "UTC reset date in YYYY-MM-DD format; omitted means now",
+              type: ApplicationCommandOptionType.String,
+              required: false,
+            },
+            {
+              name: "confirm",
+              description: "Confirm resetting the selected leaderboard scope",
+              type: ApplicationCommandOptionType.Boolean,
+              required: true,
+            },
+          ],
+        },
       ],
     },
   ];
@@ -256,6 +283,9 @@ export class LeaderboardCommand extends BaseCommand {
           case "show": {
             return this.deferReply(async () => this.showLeaderboard(interaction, subcommand.mappedOptions));
           }
+          case "reset": {
+            return this.deferReply(async () => this.resetLeaderboard(interaction, subcommand.mappedOptions), true);
+          }
           default: {
             throw new Error("Unknown subcommand");
           }
@@ -340,6 +370,82 @@ export class LeaderboardCommand extends BaseCommand {
     } catch (error) {
       await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
     }
+  }
+
+  private async resetLeaderboard(
+    interaction: APIApplicationCommandInteraction,
+    options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
+  ): Promise<void> {
+    try {
+      const guildId = interaction.guild_id;
+      if (guildId == null || guildId === "") {
+        throw new EndUserError("Leaderboard can only be reset inside a server.", {
+          handled: true,
+          errorType: EndUserErrorType.WARNING,
+        });
+      }
+
+      const userId = this.services.discordService.getDiscordUserId(interaction);
+      const permissions = await this.services.discordService.computeMemberPermissions(guildId, userId);
+      if ((permissions & PermissionFlagsBits.ManageGuild) === 0n) {
+        throw new EndUserError("You need the Manage Server permission to reset leaderboards.", {
+          handled: true,
+          errorType: EndUserErrorType.WARNING,
+        });
+      }
+
+      if (this.getOptionalBooleanOption(options, "confirm") !== true) {
+        throw new EndUserError("Set confirm to true to reset the selected leaderboard scope.", {
+          handled: true,
+          errorType: EndUserErrorType.WARNING,
+        });
+      }
+
+      const queueChannelId = this.getOptionalStringOption(options, "queue_channel") ?? null;
+      const resetAt = this.parseResetDate(this.getOptionalStringOption(options, "date"));
+      const now = Math.floor(Date.now() / 1000);
+      await this.services.databaseService.upsertLeaderboardResetMarker({
+        GuildId: guildId,
+        QueueChannelId: queueChannelId,
+        ResetAt: resetAt,
+        CreatedAt: now,
+        UpdatedAt: now,
+      });
+
+      const scope = queueChannelId == null ? "all leaderboards in this server" : `the leaderboard for <#${queueChannelId}>`;
+      await this.services.discordService.updateDeferredReply(interaction.token, {
+        content: `Reset marker saved for ${scope} at <t:${resetAt.toString()}:F>. Existing data was retained.`,
+      });
+    } catch (error) {
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private parseResetDate(value: string | undefined): number {
+    if (value == null) {
+      return Math.floor(Date.now() / 1000);
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      throw new EndUserError("Reset date must use YYYY-MM-DD format.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+    const parsed = parseISO(`${value}T00:00:00.000Z`);
+    if (!isValid(parsed) || parsed.toISOString().slice(0, 10) !== value) {
+      throw new EndUserError("Reset date is not a valid calendar date.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+    const resetAt = Math.floor(parsed.getTime() / 1000);
+    if (resetAt > Math.floor(Date.now() / 1000)) {
+      throw new EndUserError("Reset date cannot be in the future.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+    return resetAt;
   }
 
   private async handlePageChange(

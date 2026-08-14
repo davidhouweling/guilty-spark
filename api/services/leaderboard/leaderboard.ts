@@ -38,6 +38,7 @@ interface GetLeaderboardOpts {
   page?: number | undefined;
   pageSize?: number | undefined;
   minGamesPlayed?: number | undefined;
+  resetAt?: number | undefined;
 }
 
 export class LeaderboardService {
@@ -317,6 +318,7 @@ export class LeaderboardService {
     page,
     pageSize,
     minGamesPlayed,
+    resetAt,
   }: GetLeaderboardOpts): Promise<LeaderboardResponse> {
     const opts: GetLeaderboardOpts = {
       guildId,
@@ -326,6 +328,7 @@ export class LeaderboardService {
       page,
       pageSize,
       minGamesPlayed,
+      resetAt,
     };
     const leaderboard = await this.getLeaderboard(opts);
     const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
@@ -347,15 +350,29 @@ export class LeaderboardService {
     page,
     pageSize,
     minGamesPlayed,
+    resetAt,
   }: GetLeaderboardOpts): Promise<LeaderboardResponse> {
     const config = await this.databaseService.getLeaderboardConfig(guildId, true);
-    const resolvedWindow = window ?? config.DefaultWindow;
+    const queueResetMarker = await this.databaseService.getLeaderboardResetMarker(guildId, queueChannelId ?? null);
+    const serverResetMarker =
+      queueChannelId != null && queueResetMarker == null
+        ? await this.databaseService.getLeaderboardResetMarker(guildId, null)
+        : null;
+    const resetMarker = queueResetMarker ?? serverResetMarker;
+    const resolvedWindow = window ?? (resetMarker == null ? config.DefaultWindow : LeaderboardWindow.LastReset);
+    const resolvedResetAt = resolvedWindow === LeaderboardWindow.LastReset ? (resetAt ?? resetMarker?.ResetAt) : null;
+    if (resolvedWindow === LeaderboardWindow.LastReset && resolvedResetAt == null) {
+      throw new Error("Leaderboard reset marker is missing");
+    }
     const resolvedMetric = metric ?? config.DefaultMetric;
     const resolvedMinGamesPlayed = minGamesPlayed ?? config.MinGamesPlayed;
     const resolvedPage = Math.max(1, page ?? 1);
     const resolvedPageSize = Math.min(100, Math.max(1, pageSize ?? 25));
     const offset = (resolvedPage - 1) * resolvedPageSize;
-    const startEpochSeconds = this.getWindowStartEpochSeconds(resolvedWindow);
+    const startEpochSeconds =
+      resolvedWindow === LeaderboardWindow.LastReset
+        ? Preconditions.checkExists(resolvedResetAt)
+        : this.getWindowStartEpochSeconds(resolvedWindow);
 
     const rankings =
       resolvedMetric === LeaderboardMetric.SeriesWinRate ||
@@ -387,6 +404,7 @@ export class LeaderboardService {
       guildId,
       queueChannelId: queueChannelId ?? null,
       window: resolvedWindow,
+      resetAt: resolvedResetAt,
       metric: resolvedMetric,
       minGamesPlayed: resolvedMinGamesPlayed,
       page: resolvedPage,
@@ -418,6 +436,9 @@ export class LeaderboardService {
     const now = new Date();
 
     switch (window) {
+      case LeaderboardWindow.LastReset: {
+        throw new Error("Last reset window requires a reset timestamp");
+      }
       case LeaderboardWindow.OneWeek: {
         return Math.floor(sub(now, { weeks: 1 }).getTime() / 1000);
       }

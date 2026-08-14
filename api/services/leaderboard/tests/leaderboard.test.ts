@@ -156,6 +156,58 @@ describe("LeaderboardService", () => {
     expect(seriesRankingArgs.offset).toBe(0);
   });
 
+  it("uses the scoped reset marker as the default leaderboard window", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    const resetAt = 1_723_600_000;
+
+    vi.spyOn(databaseService, "getLeaderboardResetMarker").mockResolvedValue({
+      GuildId: "guild-1",
+      QueueChannelId: null,
+      ResetAt: resetAt,
+      CreatedAt: resetAt,
+      UpdatedAt: resetAt,
+    });
+    vi.spyOn(databaseService, "getLeaderboardConfig").mockResolvedValue(aFakeLeaderboardConfigRow());
+    const rankingsSpy = vi.spyOn(databaseService, "getLeaderboardOutcomeMetricRankings").mockResolvedValue({
+      total: 0,
+      rows: [],
+    });
+
+    const result = await service.getLeaderboard({ guildId: "guild-1" });
+
+    expect(result.window).toBe(LeaderboardWindow.LastReset);
+    expect(result.resetAt).toBe(resetAt);
+    expect(rankingsSpy).toHaveBeenCalledWith(expect.objectContaining({ startEpochSeconds: resetAt }));
+  });
+
+  it("falls back to the server reset marker for a queue without its own marker", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    const resetAt = 1_723_600_000;
+    const getMarkerSpy = vi.spyOn(databaseService, "getLeaderboardResetMarker");
+    getMarkerSpy.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      GuildId: "guild-1",
+      QueueChannelId: null,
+      ResetAt: resetAt,
+      CreatedAt: resetAt,
+      UpdatedAt: resetAt,
+    });
+    vi.spyOn(databaseService, "getLeaderboardConfig").mockResolvedValue(aFakeLeaderboardConfigRow());
+    vi.spyOn(databaseService, "getLeaderboardOutcomeMetricRankings").mockResolvedValue({ total: 0, rows: [] });
+
+    const result = await service.getLeaderboard({ guildId: "guild-1", queueChannelId: "queue-1" });
+
+    expect(result.window).toBe(LeaderboardWindow.LastReset);
+    expect(result.resetAt).toBe(resetAt);
+    expect(getMarkerSpy).toHaveBeenNthCalledWith(1, "guild-1", "queue-1");
+    expect(getMarkerSpy).toHaveBeenNthCalledWith(2, "guild-1", null);
+  });
+
   it("supports queue scope and pagination for stat metrics", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });

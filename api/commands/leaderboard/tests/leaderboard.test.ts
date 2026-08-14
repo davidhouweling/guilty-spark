@@ -95,8 +95,9 @@ describe("LeaderboardCommand", () => {
     expect(slashCommand?.name).toBe("leaderboard");
 
     const subcommands = slashCommand?.options;
-    expect(subcommands).toHaveLength(1);
+    expect(subcommands).toHaveLength(2);
     expect(subcommands?.[0]?.name).toBe("show");
+    expect(subcommands?.[1]?.name).toBe("reset");
   });
 
   it("fetches leaderboard data and updates deferred reply with stateful controls", async () => {

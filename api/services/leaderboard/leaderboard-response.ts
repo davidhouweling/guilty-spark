@@ -84,7 +84,7 @@ function getMetricAggregationSelectOptions(
   }));
 }
 
-function getWindowSelectOptions(selectedWindow: LeaderboardWindow): APISelectMenuOption[] {
+function getWindowSelectOptions(selectedWindow: LeaderboardWindow, resetAt: number | null): APISelectMenuOption[] {
   const windowOptions = [
     { label: "1 week", value: LeaderboardWindow.OneWeek },
     { label: "1 month", value: LeaderboardWindow.OneMonth },
@@ -93,7 +93,9 @@ function getWindowSelectOptions(selectedWindow: LeaderboardWindow): APISelectMen
     { label: "12 months", value: LeaderboardWindow.TwelveMonths },
   ];
 
-  return windowOptions.map((option) => ({
+  const options = resetAt == null ? windowOptions : [{ label: `Last reset - ${new Date(resetAt * 1000).toISOString().slice(0, 10)}`, value: LeaderboardWindow.LastReset }, ...windowOptions];
+
+  return options.map((option) => ({
     ...option,
     default: option.value === selectedWindow,
   }));
@@ -111,8 +113,14 @@ function getRankingContent(rankingLines: string[], totalPlayers: number): string
   return "No players found on this page. Try a lower page number.";
 }
 
-function getWindowLabel(window: LeaderboardWindow): string {
+function getWindowLabel(window: LeaderboardWindow, resetAt: number | null): string {
   switch (window) {
+    case LeaderboardWindow.LastReset: {
+      if (resetAt == null) {
+        throw new Error("Reset timestamp is required for Last reset window");
+      }
+      return `Last reset - ${new Date(resetAt * 1000).toISOString().slice(0, 10)}`;
+    }
     case LeaderboardWindow.OneWeek: {
       return "1 week";
     }
@@ -366,7 +374,7 @@ function createComponents(leaderboard: LeaderboardResponse): APIMessageTopLevelC
   const selectedAggregation = getLeaderboardMetricAggregation(leaderboard.metric);
   const familyOptions = getMetricFamilySelectOptions(selectedAggregation, selectedFamily);
   const aggregationOptions = getMetricAggregationSelectOptions(selectedAggregation);
-  const windowOptions = getWindowSelectOptions(leaderboard.window);
+  const windowOptions = getWindowSelectOptions(leaderboard.window, leaderboard.resetAt ?? null);
   const controls = [
     [LEADERBOARD_FIRST_PAGE_CONTROL_ID, "⏮️", leaderboard.page <= 1],
     [LEADERBOARD_PREV_PAGE_CONTROL_ID, "◀️", leaderboard.page <= 1],
@@ -440,7 +448,7 @@ export function createLeaderboardResponse(
   const rows = leaderboard.rows.slice(0, MAX_ROWS_IN_DISCORD_EMBED);
   const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
   const metricLabel = getMetricLabel(leaderboard.metric);
-  const windowLabel = getWindowLabel(leaderboard.window);
+  const windowLabel = getWindowLabel(leaderboard.window, leaderboard.resetAt ?? null);
   const scopeLabel =
     leaderboard.queueChannelId != null ? `Queue <#${leaderboard.queueChannelId}>` : "Server-wide (all queues)";
 

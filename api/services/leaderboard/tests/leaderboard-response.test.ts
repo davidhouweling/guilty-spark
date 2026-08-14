@@ -252,6 +252,37 @@ describe("createLeaderboardResponse", () => {
     expect(windowSelect.placeholder).toBe("Select window");
   });
 
+  it("prepends the reset window when a reset marker exists", () => {
+    const leaderboard: LeaderboardResponse = {
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.LastReset,
+      resetAt: 1_723_600_000,
+      metric: LeaderboardMetric.Kills,
+      minGamesPlayed: 3,
+      page: 1,
+      pageSize: 10,
+      total: 0,
+      rows: [],
+    };
+
+    const response = createLeaderboardResponse("en-US", leaderboard, "<t:1733483139:R>");
+    const windowSelectRow = response.components?.[3];
+    if (windowSelectRow?.type !== ComponentType.ActionRow) {
+      throw new Error("Expected window select row to be an action row");
+    }
+    const [windowSelect] = windowSelectRow.components;
+    if (windowSelect?.type !== ComponentType.StringSelect) {
+      throw new Error("Expected window select control to be a string select");
+    }
+
+    expect(windowSelect.options[0]).toMatchObject({
+      label: "Last reset - 2024-08-14",
+      value: LeaderboardWindow.LastReset,
+      default: true,
+    });
+  });
+
   it("filters the family selector by the selected aggregation type", () => {
     const leaderboard: LeaderboardResponse = {
       guildId: "guild-123",
