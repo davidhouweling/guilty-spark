@@ -1266,13 +1266,12 @@ export class DatabaseService {
         LEFT JOIN (
           SELECT gp.XboxXuid, SUM(gp.GameWon) AS GameWins
           FROM LeaderboardGamePlayers gp
-          INNER JOIN LeaderboardGames g
-            ON g.GuildId = gp.GuildId
-            AND g.QueueNumber = gp.QueueNumber
-            AND g.MatchId = gp.MatchId
+          INNER JOIN LeaderboardSeries sGames
+            ON sGames.GuildId = gp.GuildId
+            AND sGames.QueueNumber = gp.QueueNumber
           WHERE gp.GuildId = ?
-            AND g.EndedAt >= ?
-            AND (? IS NULL OR gp.QueueChannelId = ?)
+            AND sGames.CompletedAt >= ?
+            AND (? IS NULL OR sGames.QueueChannelId = ?)
           GROUP BY gp.XboxXuid
         ) gameStats
           ON gameStats.XboxXuid = sp.XboxXuid

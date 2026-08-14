@@ -1059,6 +1059,38 @@ describe("Database Service", () => {
       expect(prepareSpy.mock.calls[8]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
     });
 
+    it("aligns game-win window filtering with series completion window", async () => {
+      const tableInfoStatement = new FakePreparedStatement<{ name: string }>();
+      const countStatement = new FakePreparedStatement<{ Total: number }>();
+      const rowsStatement = new FakePreparedStatement();
+      const prepareSpy = vi
+        .spyOn(env.DB, "prepare")
+        .mockReturnValueOnce(tableInfoStatement)
+        .mockReturnValueOnce(countStatement)
+        .mockReturnValueOnce(rowsStatement);
+      vi.spyOn(tableInfoStatement, "all").mockResolvedValue({
+        ...fakeD1Response,
+        results: [{ name: "GameWon" }],
+      });
+      vi.spyOn(countStatement, "bind").mockReturnThis();
+      vi.spyOn(rowsStatement, "bind").mockReturnThis();
+      vi.spyOn(countStatement, "first").mockResolvedValue({ Total: 0 });
+      vi.spyOn(rowsStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+
+      await databaseService.getLeaderboardOutcomeMetricRankings({
+        guildId: "guild-1",
+        queueChannelId: null,
+        startEpochSeconds: 0,
+        minGamesPlayed: 0,
+        limit: 10,
+        offset: 0,
+        metric: LeaderboardMetric.GamesWinRate,
+      });
+
+      expect(prepareSpy.mock.calls[1]?.[0]).toContain("sGames.CompletedAt >= ?");
+      expect(prepareSpy.mock.calls[1]?.[0]).toContain("(? IS NULL OR sGames.QueueChannelId = ?)");
+    });
+
     it("deletes a leaderboard post registration by Discord message identity", async () => {
       const fakePreparedStatement = new FakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
