@@ -561,6 +561,41 @@ describe("LeaderboardService", () => {
     );
   });
 
+  it("persists average damage per life using total lives", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+    const player = Preconditions.checkExists(match.Players[0]);
+    const teamStats = Preconditions.checkExists(player.PlayerTeamStats[0]);
+    teamStats.Stats.CoreStats = {
+      ...teamStats.Stats.CoreStats,
+      DamageDealt: 15000,
+      Deaths: 10,
+    };
+    const upsertSpy = vi.spyOn(databaseService, "upsertLeaderboardSeriesDataBatch");
+
+    await service.persistSeriesData({
+      request: {
+        action: "MATCH_COMPLETED",
+        guild: "guild-1",
+        channel: "channel-1",
+        queue: "ranked",
+        match_number: 42,
+        winning_team_index: teamStats.TeamId,
+        teams: [],
+      },
+      neatQueueConfig: aFakeNeatQueueConfigRow(),
+      series: [match],
+      locale: "en-US",
+    });
+
+    const [payload] = Preconditions.checkExists(upsertSpy.mock.calls[0]);
+    const gamePlayer = Preconditions.checkExists(payload.gamePlayers[0]);
+    expect(gamePlayer.AvgDamagePerLife).toBe(15000 / 11);
+  });
+
   it("logs refresh failures separately from persistence failures", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });

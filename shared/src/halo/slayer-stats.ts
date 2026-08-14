@@ -55,9 +55,9 @@ export function getPlayerSlayerStats(
     display: getReadableDuration(coreStats.AverageLifeDuration, locale),
   });
   slayerStats.set("Avg damage per life", {
-    value: getSafeRatioValue(coreStats.DamageDealt, coreStats.Deaths),
+    value: getSafeRatioValue(coreStats.DamageDealt, coreStats.Deaths + 1),
     sortBy: StatsValueSortBy.DESC,
-    display: formatDamageRatio(coreStats.DamageDealt, coreStats.Deaths, locale),
+    display: formatDamageRatio(coreStats.DamageDealt, coreStats.Deaths + 1, locale),
   });
 
   return slayerStats;
