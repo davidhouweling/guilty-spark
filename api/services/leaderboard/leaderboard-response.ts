@@ -8,8 +8,8 @@ import { ButtonStyle, ComponentType } from "discord-api-types/v10";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
 import {
+  LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER,
   LeaderboardMetric,
-  LeaderboardMetricFamily,
   LeaderboardWindow,
   getDefaultLeaderboardAggregation,
   getLeaderboardFamilyAggregations,
@@ -17,7 +17,8 @@ import {
   getLeaderboardMetricFamily,
   getLeaderboardMetricFamilyLabel,
 } from "@guilty-spark/shared/halo/leaderboard";
-import type { LeaderboardMetricAggregation } from "@guilty-spark/shared/halo/leaderboard";
+import type { LeaderboardMetricAggregation ,
+  LeaderboardMetricFamily} from "@guilty-spark/shared/halo/leaderboard";
 import { EmbedColors } from "../../embeds/colors";
 
 const MAX_ROWS_IN_DISCORD_EMBED = 10;
@@ -61,26 +62,8 @@ function formatRank(rank: number): string {
   }
 }
 
-const METRIC_FAMILIES_IN_DISPLAY_ORDER: readonly LeaderboardMetricFamily[] = [
-  LeaderboardMetricFamily.SeriesWinRate,
-  LeaderboardMetricFamily.Kda,
-  LeaderboardMetricFamily.Accuracy,
-  LeaderboardMetricFamily.DamageRatio,
-  LeaderboardMetricFamily.AvgLifeSeconds,
-  LeaderboardMetricFamily.AvgDamagePerLife,
-  LeaderboardMetricFamily.PersonalScore,
-  LeaderboardMetricFamily.Kills,
-  LeaderboardMetricFamily.Deaths,
-  LeaderboardMetricFamily.Assists,
-  LeaderboardMetricFamily.HeadshotKills,
-  LeaderboardMetricFamily.ShotsHit,
-  LeaderboardMetricFamily.ShotsFired,
-  LeaderboardMetricFamily.DamageDealt,
-  LeaderboardMetricFamily.DamageTaken,
-];
-
 function getMetricFamilySelectOptions(selectedFamily: LeaderboardMetricFamily): APISelectMenuOption[] {
-  return METRIC_FAMILIES_IN_DISPLAY_ORDER.map((family) => ({
+  return LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER.map((family) => ({
     label: getLeaderboardMetricFamilyLabel(family),
     value: family,
     default: family === selectedFamily,

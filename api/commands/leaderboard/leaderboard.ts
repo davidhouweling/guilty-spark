@@ -16,10 +16,12 @@ import {
   PermissionFlagsBits,
 } from "discord-api-types/v10";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
+import type {
+  LeaderboardMetricFamily} from "@guilty-spark/shared/halo/leaderboard";
 import {
+  LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER,
   LeaderboardMetric,
   LeaderboardMetricAggregation,
-  LeaderboardMetricFamily,
   LeaderboardWindow,
   getLeaderboardFamilyAggregations,
   getLeaderboardMetricAggregationLabel,
@@ -44,24 +46,6 @@ import { BaseCommand } from "../base/base-command";
 
 const DEFAULT_PAGE_SIZE = 10;
 const LEGACY_LEADERBOARD_METRIC_SELECT_CONTROL_ID = "select_leaderboard_metric";
-
-const METRIC_FAMILIES_IN_OPTION_ORDER: readonly LeaderboardMetricFamily[] = [
-  LeaderboardMetricFamily.SeriesWinRate,
-  LeaderboardMetricFamily.Kda,
-  LeaderboardMetricFamily.Accuracy,
-  LeaderboardMetricFamily.DamageRatio,
-  LeaderboardMetricFamily.AvgLifeSeconds,
-  LeaderboardMetricFamily.AvgDamagePerLife,
-  LeaderboardMetricFamily.PersonalScore,
-  LeaderboardMetricFamily.Kills,
-  LeaderboardMetricFamily.Deaths,
-  LeaderboardMetricFamily.Assists,
-  LeaderboardMetricFamily.HeadshotKills,
-  LeaderboardMetricFamily.ShotsHit,
-  LeaderboardMetricFamily.ShotsFired,
-  LeaderboardMetricFamily.DamageDealt,
-  LeaderboardMetricFamily.DamageTaken,
-];
 
 const METRIC_AGGREGATIONS_IN_OPTION_ORDER: readonly LeaderboardMetricAggregation[] = [
   LeaderboardMetricAggregation.Total,
@@ -92,7 +76,7 @@ const METRIC_OPTIONS_BY_VALUE = new Map<string, LeaderboardMetric>([
   [LeaderboardMetric.PersonalScore, LeaderboardMetric.PersonalScore],
 ]);
 const METRIC_FAMILY_OPTIONS_BY_VALUE = new Map<string, LeaderboardMetricFamily>(
-  METRIC_FAMILIES_IN_OPTION_ORDER.map((family) => [family, family]),
+  LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER.map((family) => [family, family]),
 );
 const METRIC_AGGREGATION_OPTIONS_BY_VALUE = new Map<string, LeaderboardMetricAggregation>(
   METRIC_AGGREGATIONS_IN_OPTION_ORDER.map((aggregation) => [aggregation, aggregation]),
@@ -153,7 +137,7 @@ export class LeaderboardCommand extends BaseCommand {
               type: ApplicationCommandOptionType.String,
               required: false,
               choices: [
-                ...METRIC_FAMILIES_IN_OPTION_ORDER.map((family) => ({
+                ...LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER.map((family) => ({
                   name: getLeaderboardMetricFamilyLabel(family),
                   value: family,
                 })),
