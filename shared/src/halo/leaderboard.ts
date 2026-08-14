@@ -270,10 +270,9 @@ export function getLeaderboardMetricFamilyLabel(family: LeaderboardMetricFamily)
 }
 
 export function getLeaderboardMetricAggregationLabel(aggregation: LeaderboardMetricAggregation): string {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- becomes non-trivial once PR6b adds aggregations
-  if (aggregation === LeaderboardMetricAggregation.Total) {
-    return "Total";
-  }
+  const labelsByAggregation: Record<LeaderboardMetricAggregation, string> = {
+    [LeaderboardMetricAggregation.Total]: "Total",
+  };
 
-  throw new UnreachableError(aggregation);
+  return labelsByAggregation[aggregation];
 }
