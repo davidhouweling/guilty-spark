@@ -1076,6 +1076,11 @@ describe("Database Service", () => {
       [LeaderboardMetric.Accuracy, "AVG(gp.Accuracy)", "DESC"],
       [LeaderboardMetric.DamageDealt, "SUM(gp.DamageDealt)", "DESC"],
       [LeaderboardMetric.DamageTaken, "SUM(gp.DamageTaken)", "DESC"],
+      [
+        LeaderboardMetric.DamageRatio,
+        "CASE WHEN SUM(gp.DamageTaken) = 0 THEN CASE WHEN SUM(gp.DamageDealt) = 0 THEN 0 ELSE 1.7976931348623157e308 END ELSE CAST(SUM(gp.DamageDealt) AS REAL) / SUM(gp.DamageTaken) END",
+        "DESC",
+      ],
       [LeaderboardMetric.AvgLifeSeconds, "AVG(gp.AvgLifeSeconds)", "DESC"],
       [LeaderboardMetric.AvgDamagePerLife, "AVG(gp.AvgDamagePerLife)", "DESC"],
       [LeaderboardMetric.AvgPersonalScorePerGame, "AVG(gp.PersonalScore)", "DESC"],
