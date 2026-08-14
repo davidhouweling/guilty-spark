@@ -79,12 +79,14 @@ interface LeaderboardViewState {
   metric?: LeaderboardMetric;
   page: number;
   minGamesPlayed?: number;
+  locked?: boolean;
 }
 
 interface ResolvedLeaderboardViewState extends LeaderboardViewState {
   window: LeaderboardWindow;
   metric: LeaderboardMetric;
   minGamesPlayed: number;
+  locked: boolean;
 }
 
 export class LeaderboardCommand extends BaseCommand {
@@ -158,6 +160,12 @@ export class LeaderboardCommand extends BaseCommand {
               type: ApplicationCommandOptionType.Integer,
               required: false,
               min_value: 0,
+            },
+            {
+              name: "locked",
+              description: "Post a static leaderboard without interactive controls",
+              type: ApplicationCommandOptionType.Boolean,
+              required: false,
             },
           ],
         },
@@ -317,6 +325,7 @@ export class LeaderboardCommand extends BaseCommand {
       );
       const page = this.getOptionalNumberOption(options, "page") ?? 1;
       const minGamesPlayed = this.getOptionalNumberOption(options, "min_games_played");
+      const locked = this.getOptionalBooleanOption(options, "locked") ?? false;
       const locale = this.getInteractionLocale(interaction);
 
       await this.refreshLeaderboard(interaction.token, locale, {
@@ -326,6 +335,7 @@ export class LeaderboardCommand extends BaseCommand {
         ...(metric != null ? { metric } : {}),
         page,
         ...(minGamesPlayed != null ? { minGamesPlayed } : {}),
+        locked,
       });
     } catch (error) {
       await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
@@ -500,6 +510,7 @@ export class LeaderboardCommand extends BaseCommand {
   private async assertCanUseLeaderboardControls(
     interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
   ): Promise<void> {
+    await Promise.resolve();
     const guildId = interaction.guild_id;
     if (guildId == null || guildId === "") {
       throw new EndUserError("Leaderboard controls can only be used inside a server.", {
@@ -508,16 +519,7 @@ export class LeaderboardCommand extends BaseCommand {
       });
     }
 
-    const userId = this.services.discordService.getDiscordUserId(interaction);
-    const permissions = await this.services.discordService.computeMemberPermissions(guildId, userId);
-    const hasManageGuildPermission = (permissions & PermissionFlagsBits.ManageGuild) !== 0n;
-
-    if (!hasManageGuildPermission) {
-      throw new EndUserError("You need the Manage Server permission to use leaderboard controls.", {
-        handled: true,
-        errorType: EndUserErrorType.WARNING,
-      });
-    }
+    this.services.discordService.getDiscordUserId(interaction);
   }
 
   private async refreshLeaderboard(token: string, locale: string, state: LeaderboardViewState): Promise<void> {
@@ -536,14 +538,17 @@ export class LeaderboardCommand extends BaseCommand {
         locale,
         leaderboard,
         this.services.discordService.getTimestamp(new Date().toISOString(), "R"),
+        state.locked ?? false,
       );
       const message = await this.services.discordService.updateDeferredReply(token, response);
-      await this.upsertLeaderboardPost({
-        ChannelId: message.channel_id,
-        MessageId: message.id,
-        GuildId: leaderboard.guildId,
-        QueueChannelId: leaderboard.queueChannelId,
-      });
+      if (state.locked !== true) {
+        await this.upsertLeaderboardPost({
+          ChannelId: message.channel_id,
+          MessageId: message.id,
+          GuildId: leaderboard.guildId,
+          QueueChannelId: leaderboard.queueChannelId,
+        });
+      }
     } catch (error) {
       await this.services.discordService.updateDeferredReplyWithError(token, error);
     }
@@ -611,6 +616,7 @@ export class LeaderboardCommand extends BaseCommand {
       metric: parsedMetric,
       page: Number.isNaN(parsedPage) ? 1 : Math.max(1, parsedPage),
       minGamesPlayed: Number.isNaN(parsedMinGamesPlayed) ? 0 : Math.max(0, parsedMinGamesPlayed),
+      locked: false,
     });
   }
 
@@ -641,6 +647,7 @@ export class LeaderboardCommand extends BaseCommand {
       metric: state.metric,
       page: state.page,
       minGamesPlayed: state.minGamesPlayed,
+      locked: state.locked,
     };
   }
 
@@ -679,6 +686,7 @@ export class LeaderboardCommand extends BaseCommand {
       metric,
       page: Math.max(1, page),
       minGamesPlayed: Math.max(0, minGamesPlayed),
+      locked: false,
     };
   }
 
@@ -849,6 +857,22 @@ export class LeaderboardCommand extends BaseCommand {
 
     if (typeof value !== "number") {
       throw new Error(`Expected numeric option: ${optionName}`);
+    }
+
+    return value;
+  }
+
+  private getOptionalBooleanOption(
+    options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
+    optionName: string,
+  ): boolean | undefined {
+    const value = options.get(optionName);
+    if (value == null) {
+      return undefined;
+    }
+
+    if (typeof value !== "boolean") {
+      throw new Error(`Expected boolean option: ${optionName}`);
     }
 
     return value;

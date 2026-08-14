@@ -435,6 +435,7 @@ export function createLeaderboardResponse(
   locale: string,
   leaderboard: LeaderboardResponse,
   updatedTimestamp: string,
+  locked = false,
 ): RESTPostAPIChannelMessageJSONBody {
   const rows = leaderboard.rows.slice(0, MAX_ROWS_IN_DISCORD_EMBED);
   const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
@@ -455,6 +456,6 @@ export function createLeaderboardResponse(
         },
       },
     ],
-    components: createComponents(leaderboard),
+    ...(locked ? {} : { components: createComponents(leaderboard) }),
   };
 }

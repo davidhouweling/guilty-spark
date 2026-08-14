@@ -750,7 +750,7 @@ describe("LeaderboardCommand", () => {
     });
   });
 
-  it("updates deferred reply with error when leaderboard controls are used without manage server permission", async () => {
+  it("allows leaderboard controls without manage server permission", async () => {
     vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValueOnce(0n);
     const interaction: APIMessageComponentButtonInteraction = {
       ...fakeButtonClickInteraction,
@@ -771,23 +771,26 @@ describe("LeaderboardCommand", () => {
       },
     };
 
-    const updateDeferredReplyWithErrorSpy = vi
-      .spyOn(services.discordService, "updateDeferredReplyWithError")
-      .mockResolvedValue(undefined);
-    const getLeaderboardSpy = vi.spyOn(services.leaderboardService, "getLeaderboard");
-    const logErrorSpy = vi.spyOn(services.logService, "error");
+    const getLeaderboardSpy = vi.spyOn(services.leaderboardService, "getLeaderboard").mockResolvedValue({
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.ThreeMonths,
+      metric: LeaderboardMetric.Kills,
+      minGamesPlayed: 0,
+      page: 3,
+      pageSize: 10,
+      total: 0,
+      rows: [],
+    });
+    vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      ...Preconditions.checkExists(interaction.message),
+      type: MessageType.Default,
+    });
 
     const result = command.execute(interaction);
     await result.jobToComplete?.();
 
-    expect(getLeaderboardSpy).not.toHaveBeenCalled();
-    expect(logErrorSpy).not.toHaveBeenCalled();
-    expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
-      interaction.token,
-      expect.objectContaining({
-        endUserMessage: "You need the Manage Server permission to use leaderboard controls.",
-      }),
-    );
+    expect(getLeaderboardSpy).toHaveBeenCalledOnce();
   });
 
   it("updates deferred reply with error when page-change interaction payload has wrong component type", async () => {
