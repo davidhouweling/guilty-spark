@@ -26,7 +26,7 @@ const SQLITE_MAX_VARIABLES = 999;
 // D1 accepts at most 100 bound parameters per statement, so batch upserts must chunk below this cap.
 const D1_SAFE_MAX_VARIABLES_PER_STATEMENT = 100;
 
-function getPerSeriesAverageSql(column: string): string {
+function getPerSeriesAverageSql(column: string, outerAlias: string): string {
   return `(SELECT AVG(perSeries.MetricValue) FROM (
     SELECT SUM(gpSeries.${column}) AS MetricValue
     FROM LeaderboardGamePlayers gpSeries
@@ -34,12 +34,20 @@ function getPerSeriesAverageSql(column: string): string {
       ON gSeries.GuildId = gpSeries.GuildId
       AND gSeries.QueueNumber = gpSeries.QueueNumber
       AND gSeries.MatchId = gpSeries.MatchId
-    WHERE gpSeries.GuildId = gp.GuildId
-      AND gpSeries.XboxXuid = gp.XboxXuid
+    WHERE gpSeries.GuildId = ${outerAlias}.GuildId
+      AND gpSeries.XboxXuid = ${outerAlias}.XboxXuid
       AND gSeries.EndedAt >= ?
       AND (? IS NULL OR gpSeries.QueueChannelId = ?)
     GROUP BY gpSeries.QueueNumber
   ) perSeries)`;
+}
+
+function isAscendingMetric(metric: LeaderboardMetric): boolean {
+  return (
+    metric === LeaderboardMetric.Deaths ||
+    metric === LeaderboardMetric.AvgDeathsPerSeries ||
+    metric === LeaderboardMetric.AvgDeathsPerGame
+  );
 }
 
 interface LeaderboardRankingsQuery {
@@ -962,7 +970,7 @@ export class DatabaseService {
         break;
       }
       case LeaderboardMetric.AvgPersonalScorePerSeries: {
-        metricSql = getPerSeriesAverageSql("PersonalScore");
+        metricSql = getPerSeriesAverageSql("PersonalScore", "gp");
         metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
         break;
       }
@@ -971,7 +979,7 @@ export class DatabaseService {
         break;
       }
       case LeaderboardMetric.AvgKillsPerSeries: {
-        metricSql = getPerSeriesAverageSql("Kills");
+        metricSql = getPerSeriesAverageSql("Kills", "gp");
         metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
         break;
       }
@@ -980,7 +988,7 @@ export class DatabaseService {
         break;
       }
       case LeaderboardMetric.AvgDeathsPerSeries: {
-        metricSql = getPerSeriesAverageSql("Deaths");
+        metricSql = getPerSeriesAverageSql("Deaths", "gp");
         metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
         break;
       }
@@ -989,7 +997,7 @@ export class DatabaseService {
         break;
       }
       case LeaderboardMetric.AvgAssistsPerSeries: {
-        metricSql = getPerSeriesAverageSql("Assists");
+        metricSql = getPerSeriesAverageSql("Assists", "gp");
         metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
         break;
       }
@@ -998,7 +1006,7 @@ export class DatabaseService {
         break;
       }
       case LeaderboardMetric.AvgHeadshotKillsPerSeries: {
-        metricSql = getPerSeriesAverageSql("HeadshotKills");
+        metricSql = getPerSeriesAverageSql("HeadshotKills", "gp");
         metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
         break;
       }
@@ -1007,7 +1015,7 @@ export class DatabaseService {
         break;
       }
       case LeaderboardMetric.AvgShotsHitPerSeries: {
-        metricSql = getPerSeriesAverageSql("ShotsHit");
+        metricSql = getPerSeriesAverageSql("ShotsHit", "gp");
         metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
         break;
       }
@@ -1016,7 +1024,7 @@ export class DatabaseService {
         break;
       }
       case LeaderboardMetric.AvgShotsFiredPerSeries: {
-        metricSql = getPerSeriesAverageSql("ShotsFired");
+        metricSql = getPerSeriesAverageSql("ShotsFired", "gp");
         metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
         break;
       }
@@ -1025,7 +1033,7 @@ export class DatabaseService {
         break;
       }
       case LeaderboardMetric.AvgDamageDealtPerSeries: {
-        metricSql = getPerSeriesAverageSql("DamageDealt");
+        metricSql = getPerSeriesAverageSql("DamageDealt", "gp");
         metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
         break;
       }
@@ -1034,7 +1042,7 @@ export class DatabaseService {
         break;
       }
       case LeaderboardMetric.AvgDamageTakenPerSeries: {
-        metricSql = getPerSeriesAverageSql("DamageTaken");
+        metricSql = getPerSeriesAverageSql("DamageTaken", "gp");
         metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
         break;
       }
@@ -1135,7 +1143,7 @@ export class DatabaseService {
     const countStmt = this.DB.prepare(`SELECT COUNT(*) AS Total FROM (${aggregateSql}) agg`).bind(...bindings);
     const countRow = await countStmt.first<{ Total: number }>();
 
-    const metricSortDirection = metric === LeaderboardMetric.Deaths ? "ASC" : "DESC";
+    const metricSortDirection = isAscendingMetric(metric) ? "ASC" : "DESC";
     const rowsStmt = this.DB.prepare(
       `
         SELECT * FROM (${aggregateSql}) agg

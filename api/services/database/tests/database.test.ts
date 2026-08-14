@@ -939,11 +939,15 @@ describe("Database Service", () => {
       expect(posts).toEqual([post]);
     });
 
-    it("aggregates headshot kills and ranks deaths lowest first", async () => {
+    it("aggregates headshot kills and ranks all deaths metrics lowest first", async () => {
       const countStatement = new FakePreparedStatement<{ Total: number }>();
       const rowsStatement = new FakePreparedStatement();
       const prepareSpy = vi
         .spyOn(env.DB, "prepare")
+        .mockReturnValueOnce(countStatement)
+        .mockReturnValueOnce(rowsStatement)
+        .mockReturnValueOnce(countStatement)
+        .mockReturnValueOnce(rowsStatement)
         .mockReturnValueOnce(countStatement)
         .mockReturnValueOnce(rowsStatement)
         .mockReturnValueOnce(countStatement)
@@ -971,9 +975,29 @@ describe("Database Service", () => {
         offset: 0,
         metric: LeaderboardMetric.Deaths,
       });
+      await databaseService.getLeaderboardStatMetricRankings({
+        guildId: "guild-1",
+        queueChannelId: null,
+        startEpochSeconds: 0,
+        minGamesPlayed: 0,
+        limit: 10,
+        offset: 0,
+        metric: LeaderboardMetric.AvgDeathsPerSeries,
+      });
+      await databaseService.getLeaderboardStatMetricRankings({
+        guildId: "guild-1",
+        queueChannelId: null,
+        startEpochSeconds: 0,
+        minGamesPlayed: 0,
+        limit: 10,
+        offset: 0,
+        metric: LeaderboardMetric.AvgDeathsPerGame,
+      });
 
       expect(prepareSpy.mock.calls[0]?.[0]).toContain("SUM(gp.HeadshotKills) AS MetricValue");
       expect(prepareSpy.mock.calls[3]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
+      expect(prepareSpy.mock.calls[5]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
+      expect(prepareSpy.mock.calls[7]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
     });
 
     it("deletes a leaderboard post registration by Discord message identity", async () => {

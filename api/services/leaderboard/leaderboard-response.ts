@@ -400,17 +400,17 @@ function createComponents(leaderboard: LeaderboardResponse): APIMessageTopLevelC
       ],
     },
     {
-    type: ComponentType.ActionRow,
-    components: [
-      {
-        type: ComponentType.StringSelect,
+      type: ComponentType.ActionRow,
+      components: [
+        {
+          type: ComponentType.StringSelect,
           custom_id: createLeaderboardControlId(LEADERBOARD_METRIC_FAMILY_SELECT_CONTROL_ID, leaderboard),
           placeholder: "Select stat",
-        min_values: 1,
-        max_values: 1,
+          min_values: 1,
+          max_values: 1,
           options: familyOptions,
-      },
-    ],
+        },
+      ],
     },
   ];
 

@@ -212,8 +212,9 @@ export function getLeaderboardMetricFamily(metric: LeaderboardMetric): Leaderboa
 }
 
 /**
- * Valid aggregations for a family, in preferred/default order. An empty array means the family
- * has a single inherent form represented by OverallPerformance.
+ * Valid aggregations for a family in selector display order. The default aggregation is the final
+ * entry returned by this function. Families with a single inherent form return
+ * `OverallPerformance` only.
  */
 export function getLeaderboardFamilyAggregations(
   family: LeaderboardMetricFamily,
