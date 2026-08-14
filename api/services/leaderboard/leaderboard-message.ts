@@ -1,12 +1,12 @@
 import type { APIEmbed, APIMessage, APIMessageTopLevelComponent } from "discord-api-types/v10";
 import { ComponentType } from "discord-api-types/v10";
 import {
+  LeaderboardMetric,
   LeaderboardMetricAggregation,
   LeaderboardMetricFamily,
   LeaderboardWindow,
   resolveLeaderboardMetric,
 } from "@guilty-spark/shared/halo/leaderboard";
-import type { LeaderboardMetric } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardPostRow } from "../database/types/leaderboard_post";
 import {
   LEADERBOARD_METRIC_AGGREGATION_SELECT_CONTROL_ID,
@@ -17,8 +17,10 @@ import {
 const LEADERBOARD_FOOTER_PATTERN = /^Page (\d+) of (\d+) \| Min games: (\d+) \| Total players: (\d+)$/;
 const LEGACY_LEADERBOARD_DESCRIPTION_PATTERN = /Page (\d+) of (\d+) \| Min games: (\d+) \| Total players: (\d+)/;
 const LEGACY_LEADERBOARD_SUMMARY_PATTERN = /Page: (\d+) \| Min games: (\d+) \| Total players: (\d+)/;
+const LEGACY_LEADERBOARD_METRIC_SELECT_CONTROL_ID = "select_leaderboard_metric";
 
 const WINDOW_VALUES = new Set<string>(Object.values(LeaderboardWindow));
+const METRIC_VALUES = new Set<string>(Object.values(LeaderboardMetric));
 const METRIC_FAMILY_VALUES = new Set<string>(Object.values(LeaderboardMetricFamily));
 const METRIC_AGGREGATION_VALUES = new Set<string>(Object.values(LeaderboardMetricAggregation));
 
@@ -37,6 +39,10 @@ function isLeaderboardWindow(value: string): value is LeaderboardWindow {
 
 function isLeaderboardMetricFamily(value: string): value is LeaderboardMetricFamily {
   return METRIC_FAMILY_VALUES.has(value);
+}
+
+function isLeaderboardMetric(value: string): value is LeaderboardMetric {
+  return METRIC_VALUES.has(value);
 }
 
 function isLeaderboardMetricAggregation(value: string): value is LeaderboardMetricAggregation {
@@ -73,20 +79,29 @@ function getSelectedWindow(components: APIMessageTopLevelComponent[]): Leaderboa
 
 function getSelectedMetric(components: APIMessageTopLevelComponent[]): LeaderboardMetric | null {
   const familyValue = getSelectedValue(components, LEADERBOARD_METRIC_FAMILY_SELECT_CONTROL_ID);
-  if (familyValue == null || !isLeaderboardMetricFamily(familyValue)) {
+  if (familyValue != null) {
+    if (!isLeaderboardMetricFamily(familyValue)) {
+      return null;
+    }
+
+    const aggregationValue = getSelectedValue(components, LEADERBOARD_METRIC_AGGREGATION_SELECT_CONTROL_ID);
+    if (aggregationValue != null && !isLeaderboardMetricAggregation(aggregationValue)) {
+      return null;
+    }
+
+    try {
+      return resolveLeaderboardMetric(familyValue, aggregationValue ?? null);
+    } catch {
+      return null;
+    }
+  }
+
+  const legacyMetricValue = getSelectedValue(components, LEGACY_LEADERBOARD_METRIC_SELECT_CONTROL_ID);
+  if (legacyMetricValue == null || !isLeaderboardMetric(legacyMetricValue)) {
     return null;
   }
 
-  const aggregationValue = getSelectedValue(components, LEADERBOARD_METRIC_AGGREGATION_SELECT_CONTROL_ID);
-  if (aggregationValue != null && !isLeaderboardMetricAggregation(aggregationValue)) {
-    return null;
-  }
-
-  try {
-    return resolveLeaderboardMetric(familyValue, aggregationValue ?? null);
-  } catch {
-    return null;
-  }
+  return legacyMetricValue;
 }
 
 function parsePageAndMinGames(text: string): { page: number; minGamesPlayed: number } | null {

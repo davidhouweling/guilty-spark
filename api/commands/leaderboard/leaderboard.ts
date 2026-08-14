@@ -43,6 +43,7 @@ import type { ApplicationCommandData, BaseInteraction, CommandData, ExecuteRespo
 import { BaseCommand } from "../base/base-command";
 
 const DEFAULT_PAGE_SIZE = 10;
+const LEGACY_LEADERBOARD_METRIC_SELECT_CONTROL_ID = "select_leaderboard_metric";
 
 const METRIC_FAMILIES_IN_OPTION_ORDER: readonly LeaderboardMetricFamily[] = [
   LeaderboardMetricFamily.PersonalScore,
@@ -240,6 +241,14 @@ export class LeaderboardCommand extends BaseCommand {
         type: InteractionType.MessageComponent,
         data: {
           component_type: ComponentType.StringSelect,
+          custom_id: LEGACY_LEADERBOARD_METRIC_SELECT_CONTROL_ID,
+          values: [],
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.StringSelect,
           custom_id: LEADERBOARD_METRIC_AGGREGATION_SELECT_CONTROL_ID,
           values: [],
         },
@@ -288,6 +297,9 @@ export class LeaderboardCommand extends BaseCommand {
             return this.deferUpdate(async () => this.handleLastPage(interaction));
           }
           case LEADERBOARD_METRIC_FAMILY_SELECT_CONTROL_ID: {
+            return this.deferUpdate(async () => this.handleMetricFamilySelect(interaction));
+          }
+          case LEGACY_LEADERBOARD_METRIC_SELECT_CONTROL_ID: {
             return this.deferUpdate(async () => this.handleMetricFamilySelect(interaction));
           }
           case LEADERBOARD_METRIC_AGGREGATION_SELECT_CONTROL_ID: {
@@ -774,7 +786,7 @@ export class LeaderboardCommand extends BaseCommand {
     const parsedFamily = METRIC_FAMILY_OPTIONS_BY_VALUE.get(value);
     if (parsedFamily == null) {
       throw new EndUserError(
-        "This leaderboard message has an invalid stat family filter. Run /leaderboard show again.",
+        "This leaderboard request has an invalid stat family filter. Run /leaderboard show again.",
         {
           handled: true,
           errorType: EndUserErrorType.WARNING,
@@ -793,7 +805,7 @@ export class LeaderboardCommand extends BaseCommand {
     const parsedAggregation = METRIC_AGGREGATION_OPTIONS_BY_VALUE.get(value);
     if (parsedAggregation == null) {
       throw new EndUserError(
-        "This leaderboard message has an invalid aggregation filter. Run /leaderboard show again.",
+        "This leaderboard request has an invalid aggregation filter. Run /leaderboard show again.",
         {
           handled: true,
           errorType: EndUserErrorType.WARNING,

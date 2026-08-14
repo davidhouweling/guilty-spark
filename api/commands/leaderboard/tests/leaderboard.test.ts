@@ -33,6 +33,7 @@ const INTERACTION_FIRST_PAGE = "btn_leaderboard_first";
 const INTERACTION_REFRESH = "btn_leaderboard_refresh";
 const INTERACTION_LAST_PAGE = "btn_leaderboard_last";
 const INTERACTION_METRIC_SELECT = "select_leaderboard_metric_family";
+const INTERACTION_LEGACY_METRIC_SELECT = "select_leaderboard_metric";
 const INTERACTION_WINDOW_SELECT = "select_leaderboard_window";
 
 function aStateComponentsWith(url: string): APIMessageTopLevelComponent[] {
@@ -931,6 +932,54 @@ describe("LeaderboardCommand", () => {
       guildId: "test-guild-id",
       window: LeaderboardWindow.OneMonth,
       metric: LeaderboardMetric.Kda,
+      page: 1,
+      pageSize: 10,
+      minGamesPlayed: 0,
+    });
+  });
+
+  it("switches metric from legacy metric string-select interaction and resets to page 1", async () => {
+    const stateUrl =
+      "https://guilty-spark.app/leaderboard?guildId=test-guild-id&window=1M&metric=SERIES_WIN_RATE&page=6&minGamesPlayed=0";
+    const interaction: APIMessageComponentSelectMenuInteraction = {
+      ...aWizardStringSelectWith({ customId: INTERACTION_LEGACY_METRIC_SELECT, value: LeaderboardMetric.ShotsHit }),
+      data: {
+        component_type: ComponentType.StringSelect,
+        custom_id: INTERACTION_LEGACY_METRIC_SELECT,
+        values: [LeaderboardMetric.ShotsHit],
+      },
+      message: {
+        ...aWizardStringSelectWith({ customId: INTERACTION_LEGACY_METRIC_SELECT, value: LeaderboardMetric.ShotsHit })
+          .message,
+        components: aStateComponentsWith(stateUrl),
+      },
+    };
+
+    const getLeaderboardSpy = vi.spyOn(services.leaderboardService, "getLeaderboard").mockResolvedValue({
+      guildId: "test-guild-id",
+      queueChannelId: null,
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.ShotsHit,
+      minGamesPlayed: 0,
+      page: 1,
+      pageSize: 10,
+      total: 5,
+      rows: [],
+    });
+    vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      ...Preconditions.checkExists(interaction.message),
+      type: MessageType.Default,
+    });
+
+    const result = command.execute(interaction);
+
+    expect(result.response.type).toBe(InteractionResponseType.DeferredMessageUpdate);
+    await result.jobToComplete?.();
+
+    expect(getLeaderboardSpy).toHaveBeenCalledWith({
+      guildId: "test-guild-id",
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.ShotsHit,
       page: 1,
       pageSize: 10,
       minGamesPlayed: 0,
