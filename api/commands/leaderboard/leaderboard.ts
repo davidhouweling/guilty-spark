@@ -46,6 +46,12 @@ const DEFAULT_PAGE_SIZE = 10;
 const LEGACY_LEADERBOARD_METRIC_SELECT_CONTROL_ID = "select_leaderboard_metric";
 
 const METRIC_FAMILIES_IN_OPTION_ORDER: readonly LeaderboardMetricFamily[] = [
+  LeaderboardMetricFamily.SeriesWinRate,
+  LeaderboardMetricFamily.Kda,
+  LeaderboardMetricFamily.Accuracy,
+  LeaderboardMetricFamily.DamageRatio,
+  LeaderboardMetricFamily.AvgLifeSeconds,
+  LeaderboardMetricFamily.AvgDamagePerLife,
   LeaderboardMetricFamily.PersonalScore,
   LeaderboardMetricFamily.Kills,
   LeaderboardMetricFamily.Deaths,
@@ -55,12 +61,6 @@ const METRIC_FAMILIES_IN_OPTION_ORDER: readonly LeaderboardMetricFamily[] = [
   LeaderboardMetricFamily.ShotsFired,
   LeaderboardMetricFamily.DamageDealt,
   LeaderboardMetricFamily.DamageTaken,
-  LeaderboardMetricFamily.SeriesWinRate,
-  LeaderboardMetricFamily.Kda,
-  LeaderboardMetricFamily.Accuracy,
-  LeaderboardMetricFamily.DamageRatio,
-  LeaderboardMetricFamily.AvgLifeSeconds,
-  LeaderboardMetricFamily.AvgDamagePerLife,
 ];
 
 const METRIC_AGGREGATIONS_IN_OPTION_ORDER: readonly LeaderboardMetricAggregation[] = [

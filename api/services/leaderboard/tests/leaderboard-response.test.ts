@@ -147,6 +147,14 @@ describe("createLeaderboardResponse", () => {
     }
 
     const optionLabels = metricSelect.options.map((option) => option.label);
+    expect(optionLabels.slice(0, 6)).toEqual([
+      "Series win rate",
+      "KDA",
+      "Accuracy",
+      "Damage ratio",
+      "Avg life time",
+      "Avg damage per life",
+    ]);
     expect(optionLabels).toContain("Headshot kills");
     expect(optionLabels).toContain("Shots hit");
     expect(optionLabels).toContain("Shots fired");

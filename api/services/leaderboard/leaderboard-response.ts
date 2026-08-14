@@ -62,6 +62,12 @@ function formatRank(rank: number): string {
 }
 
 const METRIC_FAMILIES_IN_DISPLAY_ORDER: readonly LeaderboardMetricFamily[] = [
+  LeaderboardMetricFamily.SeriesWinRate,
+  LeaderboardMetricFamily.Kda,
+  LeaderboardMetricFamily.Accuracy,
+  LeaderboardMetricFamily.DamageRatio,
+  LeaderboardMetricFamily.AvgLifeSeconds,
+  LeaderboardMetricFamily.AvgDamagePerLife,
   LeaderboardMetricFamily.PersonalScore,
   LeaderboardMetricFamily.Kills,
   LeaderboardMetricFamily.Deaths,
@@ -71,12 +77,6 @@ const METRIC_FAMILIES_IN_DISPLAY_ORDER: readonly LeaderboardMetricFamily[] = [
   LeaderboardMetricFamily.ShotsFired,
   LeaderboardMetricFamily.DamageDealt,
   LeaderboardMetricFamily.DamageTaken,
-  LeaderboardMetricFamily.SeriesWinRate,
-  LeaderboardMetricFamily.Kda,
-  LeaderboardMetricFamily.Accuracy,
-  LeaderboardMetricFamily.DamageRatio,
-  LeaderboardMetricFamily.AvgLifeSeconds,
-  LeaderboardMetricFamily.AvgDamagePerLife,
 ];
 
 function getMetricFamilySelectOptions(selectedFamily: LeaderboardMetricFamily): APISelectMenuOption[] {
