@@ -504,9 +504,8 @@ export class DatabaseService {
 
     for (let start = 0; start < players.length; start += maxRowsPerStatement) {
       const chunk = players.slice(start, start + maxRowsPerStatement);
-      const placeholders = chunk
-        .map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .join(",");
+      const rowPlaceholders = `(${Array.from({ length: variablesPerRow }, () => "?").join(", ")})`;
+      const placeholders = chunk.map(() => rowPlaceholders).join(",");
       const query = `
         INSERT INTO LeaderboardGamePlayers (MatchId, GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginning, GameWon, RankInMatch, PersonalScore, Kills, Deaths, Assists, HeadshotKills, Kda, Accuracy, ShotsHit, ShotsFired, DamageDealt, DamageTaken, DamageRatio, AvgLifeSeconds, AvgDamagePerLife, ObjectiveStatsJson, MedalsJson, CreatedAt)
         VALUES ${placeholders}
@@ -658,9 +657,8 @@ export class DatabaseService {
 
       for (let start = 0; start < normalizedGamePlayers.length; start += maxRowsPerStatement) {
         const chunk = normalizedGamePlayers.slice(start, start + maxRowsPerStatement);
-        const placeholders = chunk
-          .map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-          .join(",");
+        const rowPlaceholders = `(${Array.from({ length: variablesPerRow }, () => "?").join(", ")})`;
+        const placeholders = chunk.map(() => rowPlaceholders).join(",");
         const stmt = this.DB.prepare(
           `
         INSERT INTO LeaderboardGamePlayers (MatchId, GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginning, GameWon, RankInMatch, PersonalScore, Kills, Deaths, Assists, HeadshotKills, Kda, Accuracy, ShotsHit, ShotsFired, DamageDealt, DamageTaken, DamageRatio, AvgLifeSeconds, AvgDamagePerLife, ObjectiveStatsJson, MedalsJson, CreatedAt)

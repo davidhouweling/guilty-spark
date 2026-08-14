@@ -608,6 +608,11 @@ describe("Database Service", () => {
       );
       expect(prepareSpy).toHaveBeenNthCalledWith(4, expect.stringContaining("INSERT INTO LeaderboardGames"));
       expect(prepareSpy).toHaveBeenNthCalledWith(5, expect.stringContaining("HeadshotKills"));
+      const gamePlayersInsertQuery = prepareSpy.mock.calls[4]?.[0];
+      const countBoundParameters = (sql: string): number => sql.split("?").length - 1;
+      if (gamePlayersInsertQuery != null) {
+        expect(countBoundParameters(gamePlayersInsertQuery)).toBe(28);
+      }
       expect(batchSpy).toHaveBeenNthCalledWith(1, [deleteSeriesPlayersStatement, insertSeriesPlayersStatement]);
       expect(batchSpy).toHaveBeenNthCalledWith(2, [deleteGamesStatement, upsertGamesStatement]);
       expect(batchSpy).toHaveBeenNthCalledWith(3, [gamePlayersStatement]);
@@ -696,6 +701,15 @@ describe("Database Service", () => {
         6,
         "DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?",
       );
+      const preparedQueries = prepareSpy.mock.calls
+        .map(([query]) => query)
+        .filter((query): query is string => typeof query === "string");
+      const gamePlayerInsertQueries = preparedQueries.filter((query) =>
+        query.includes("INSERT INTO LeaderboardGamePlayers"),
+      );
+      const countBoundParameters = (sql: string): number => sql.split("?").length - 1;
+      expect(gamePlayerInsertQueries).toHaveLength(1);
+      expect(countBoundParameters(gamePlayerInsertQueries[0] ?? "")).toBe(28);
       expect(batchSpy).toHaveBeenCalledTimes(1);
       expect(batchSpy).toHaveBeenCalledWith(batchedStatements);
     });
