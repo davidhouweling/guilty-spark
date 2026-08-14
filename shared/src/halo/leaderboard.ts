@@ -7,7 +7,6 @@ export enum LeaderboardWindow {
   SixMonths = "6M",
   TwelveMonths = "12M",
 }
-
 export enum LeaderboardMetric {
   SeriesPlayed = "SERIES_PLAYED",
   SeriesWins = "SERIES_WINS",
@@ -102,6 +101,7 @@ export const LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER: readonly LeaderboardM
 ];
 
 export enum LeaderboardMetricAggregation {
+  OverallPerformance = "OVERALL_PERFORMANCE",
   AvgPerSeries = "AVG_PER_SERIES",
   AvgPerGame = "AVG_PER_GAME",
   Total = "TOTAL",
@@ -213,7 +213,7 @@ export function getLeaderboardMetricFamily(metric: LeaderboardMetric): Leaderboa
 
 /**
  * Valid aggregations for a family, in preferred/default order. An empty array means the family
- * has a single implicit form (rate/ratio/lifetime metrics) and should not show an aggregation selector.
+ * has a single inherent form represented by OverallPerformance.
  */
 export function getLeaderboardFamilyAggregations(
   family: LeaderboardMetricFamily,
@@ -247,7 +247,7 @@ export function getLeaderboardFamilyAggregations(
     case LeaderboardMetricFamily.DamageRatio:
     case LeaderboardMetricFamily.AvgLifeSeconds:
     case LeaderboardMetricFamily.AvgDamagePerLife: {
-      return [];
+      return [LeaderboardMetricAggregation.OverallPerformance];
     }
     default: {
       throw new UnreachableError(family);
@@ -258,6 +258,35 @@ export function getLeaderboardFamilyAggregations(
 export function getDefaultLeaderboardAggregation(family: LeaderboardMetricFamily): LeaderboardMetricAggregation | null {
   const aggregations = getLeaderboardFamilyAggregations(family);
   return aggregations[aggregations.length - 1] ?? null;
+}
+
+export function getLeaderboardMetricAggregation(metric: LeaderboardMetric): LeaderboardMetricAggregation {
+  const family = getLeaderboardMetricFamily(metric);
+  const aggregations = getLeaderboardFamilyAggregations(family);
+
+  if (aggregations.length === 1) {
+    const [aggregation] = aggregations;
+    if (aggregation != null) {
+      return aggregation;
+    }
+  }
+
+  if (metric.toString().includes("_PER_SERIES")) {
+    return LeaderboardMetricAggregation.AvgPerSeries;
+  }
+  if (metric.toString().includes("_PER_GAME")) {
+    return LeaderboardMetricAggregation.AvgPerGame;
+  }
+
+  return LeaderboardMetricAggregation.Total;
+}
+
+export function getLeaderboardMetricFamiliesForAggregation(
+  aggregation: LeaderboardMetricAggregation,
+): readonly LeaderboardMetricFamily[] {
+  return LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER.filter((family) =>
+    getLeaderboardFamilyAggregations(family).includes(aggregation),
+  );
 }
 
 function resolveAggregationMetric(
@@ -271,6 +300,9 @@ function resolveAggregationMetric(
   }
 
   switch (aggregation) {
+    case LeaderboardMetricAggregation.OverallPerformance: {
+      throw new Error("Overall performance is not valid for an aggregatable metric family");
+    }
     case LeaderboardMetricAggregation.AvgPerSeries: {
       return seriesMetric;
     }
@@ -291,6 +323,17 @@ function resolveAggregationMetric(
  * validate the aggregation against `getLeaderboardFamilyAggregations` before calling this — an
  * unsupported combination is treated as a programming error, not user input.
  */
+function resolveOverallPerformanceMetric(
+  aggregation: LeaderboardMetricAggregation | null,
+  metric: LeaderboardMetric,
+): LeaderboardMetric {
+  if (aggregation !== LeaderboardMetricAggregation.OverallPerformance) {
+    throw new Error("Overall performance aggregation is required for this metric family");
+  }
+
+  return metric;
+}
+
 export function resolveLeaderboardMetric(
   family: LeaderboardMetricFamily,
   aggregation: LeaderboardMetricAggregation | null,
@@ -318,9 +361,6 @@ export function resolveLeaderboardMetric(
     }
     case LeaderboardMetricFamily.GameWins: {
       return LeaderboardMetric.GameWins;
-    }
-    case LeaderboardMetricFamily.GamesWinRate: {
-      return LeaderboardMetric.GamesWinRate;
     }
     case LeaderboardMetricFamily.PersonalScore: {
       return resolveAggregationMetric(
@@ -395,22 +435,25 @@ export function resolveLeaderboardMetric(
       );
     }
     case LeaderboardMetricFamily.SeriesWinRate: {
-      return LeaderboardMetric.SeriesWinRate;
+      return resolveOverallPerformanceMetric(resolvedAggregation, LeaderboardMetric.SeriesWinRate);
+    }
+    case LeaderboardMetricFamily.GamesWinRate: {
+      return resolveOverallPerformanceMetric(resolvedAggregation, LeaderboardMetric.GamesWinRate);
     }
     case LeaderboardMetricFamily.Kda: {
-      return LeaderboardMetric.Kda;
+      return resolveOverallPerformanceMetric(resolvedAggregation, LeaderboardMetric.Kda);
     }
     case LeaderboardMetricFamily.Accuracy: {
-      return LeaderboardMetric.Accuracy;
+      return resolveOverallPerformanceMetric(resolvedAggregation, LeaderboardMetric.Accuracy);
     }
     case LeaderboardMetricFamily.DamageRatio: {
-      return LeaderboardMetric.DamageRatio;
+      return resolveOverallPerformanceMetric(resolvedAggregation, LeaderboardMetric.DamageRatio);
     }
     case LeaderboardMetricFamily.AvgLifeSeconds: {
-      return LeaderboardMetric.AvgLifeSeconds;
+      return resolveOverallPerformanceMetric(resolvedAggregation, LeaderboardMetric.AvgLifeSeconds);
     }
     case LeaderboardMetricFamily.AvgDamagePerLife: {
-      return LeaderboardMetric.AvgDamagePerLife;
+      return resolveOverallPerformanceMetric(resolvedAggregation, LeaderboardMetric.AvgDamagePerLife);
     }
     default: {
       throw new UnreachableError(family);
@@ -488,6 +531,7 @@ export function getLeaderboardMetricFamilyLabel(family: LeaderboardMetricFamily)
 
 export function getLeaderboardMetricAggregationLabel(aggregation: LeaderboardMetricAggregation): string {
   const labelsByAggregation: Record<LeaderboardMetricAggregation, string> = {
+    [LeaderboardMetricAggregation.OverallPerformance]: "Overall performance",
     [LeaderboardMetricAggregation.AvgPerSeries]: "Avg per series",
     [LeaderboardMetricAggregation.AvgPerGame]: "Avg per game",
     [LeaderboardMetricAggregation.Total]: "Total",

@@ -27,9 +27,13 @@ describe("getLeaderboardFamilyAggregations / getDefaultLeaderboardAggregation", 
     expect(getDefaultLeaderboardAggregation(LeaderboardMetricFamily.Kills)).toBe(LeaderboardMetricAggregation.Total);
   });
 
-  it("exposes no aggregations for rate/ratio/lifetime families", () => {
-    expect(getLeaderboardFamilyAggregations(LeaderboardMetricFamily.SeriesWinRate)).toEqual([]);
-    expect(getDefaultLeaderboardAggregation(LeaderboardMetricFamily.SeriesWinRate)).toBeNull();
+  it("exposes Overall performance for inherent-form families", () => {
+    expect(getLeaderboardFamilyAggregations(LeaderboardMetricFamily.SeriesWinRate)).toEqual([
+      LeaderboardMetricAggregation.OverallPerformance,
+    ]);
+    expect(getDefaultLeaderboardAggregation(LeaderboardMetricFamily.SeriesWinRate)).toBe(
+      LeaderboardMetricAggregation.OverallPerformance,
+    );
   });
 });
 
@@ -44,8 +48,10 @@ describe("resolveLeaderboardMetric", () => {
     expect(resolveLeaderboardMetric(LeaderboardMetricFamily.DamageDealt, null)).toBe(LeaderboardMetric.DamageDealt);
   });
 
-  it("resolves a rate/ratio/lifetime family without requiring an aggregation", () => {
-    expect(resolveLeaderboardMetric(LeaderboardMetricFamily.Kda, null)).toBe(LeaderboardMetric.Kda);
+  it("resolves a rate/ratio/lifetime family with Overall performance", () => {
+    expect(
+      resolveLeaderboardMetric(LeaderboardMetricFamily.Kda, LeaderboardMetricAggregation.OverallPerformance),
+    ).toBe(LeaderboardMetric.Kda);
     expect(resolveLeaderboardMetric(LeaderboardMetricFamily.SeriesWinRate, null)).toBe(LeaderboardMetric.SeriesWinRate);
   });
 

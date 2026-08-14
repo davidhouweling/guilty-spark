@@ -963,7 +963,7 @@ describe("LeaderboardCommand", () => {
       guildId: "test-guild-id",
       queueChannelId: null,
       window: LeaderboardWindow.OneMonth,
-      metric: LeaderboardMetric.ShotsHit,
+      metric: LeaderboardMetric.AvgShotsHitPerSeries,
       minGamesPlayed: 0,
       page: 1,
       pageSize: 10,
@@ -983,10 +983,11 @@ describe("LeaderboardCommand", () => {
     expect(getLeaderboardSpy).toHaveBeenCalledWith({
       guildId: "test-guild-id",
       window: LeaderboardWindow.OneMonth,
-      metric: LeaderboardMetric.ShotsHit,
+      metric: LeaderboardMetric.AvgShotsHitPerSeries,
       page: 1,
       pageSize: 10,
       minGamesPlayed: 0,
+      queueChannelId: undefined,
     });
   });
 

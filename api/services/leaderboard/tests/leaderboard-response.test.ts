@@ -137,7 +137,7 @@ describe("createLeaderboardResponse", () => {
     };
 
     const response = createLeaderboardResponse("en-US", leaderboardForOptions, "<t:1733483139:R>");
-    const metricSelectRow = response.components?.[1];
+    const metricSelectRow = response.components?.[2];
     expect(metricSelectRow?.type).toBe(ComponentType.ActionRow);
     if (metricSelectRow?.type !== ComponentType.ActionRow) {
       throw new Error("Expected metric select row to be an action row");
@@ -151,18 +151,18 @@ describe("createLeaderboardResponse", () => {
 
     const optionLabels = metricSelect.options.map((option) => option.label);
     expect(optionLabels.slice(0, 6)).toEqual([
-      "Series win rate",
-      "Games win rate",
-      "KDA",
-      "Accuracy",
-      "Damage ratio",
-      "Avg life time",
+      "Personal score",
+      "Kills",
+      "Deaths",
+      "Assists",
+      "Headshot kills",
+      "Shots hit",
     ]);
     expect(optionLabels).toContain("Headshot kills");
     expect(optionLabels).toContain("Shots hit");
     expect(optionLabels).toContain("Shots fired");
-    expect(optionLabels).toContain("Avg life time");
-    expect(optionLabels).toContain("Avg damage per life");
+    expect(optionLabels).not.toContain("Avg life time");
+    expect(optionLabels).not.toContain("Avg damage per life");
   });
 
   it("formats AvgDamagePerLife as infinity when metric value is Number.MAX_VALUE", () => {
@@ -199,7 +199,7 @@ describe("createLeaderboardResponse", () => {
     });
   });
 
-  it("omits aggregation selector for metrics with implicit aggregation", () => {
+  it("renders Overall performance aggregation for inherent-form metrics", () => {
     const leaderboard: LeaderboardResponse = {
       guildId: "guild-123",
       queueChannelId: "queue-123",
@@ -225,8 +225,20 @@ describe("createLeaderboardResponse", () => {
     };
 
     const response = createLeaderboardResponse("en-US", leaderboard, "<t:1733483139:R>");
-    expect(response.components).toHaveLength(3);
-    const windowSelectRow = response.components?.[2];
+    expect(response.components).toHaveLength(4);
+    const aggregationSelectRow = response.components?.[1];
+    expect(aggregationSelectRow?.type).toBe(ComponentType.ActionRow);
+    if (aggregationSelectRow?.type !== ComponentType.ActionRow) {
+      throw new Error("Expected aggregation select row to be an action row");
+    }
+    const [aggregationSelect] = aggregationSelectRow.components;
+    expect(aggregationSelect?.type).toBe(ComponentType.StringSelect);
+    if (aggregationSelect?.type !== ComponentType.StringSelect) {
+      throw new Error("Expected aggregation select control to be a string select");
+    }
+    expect(aggregationSelect.options[0]?.label).toBe("Overall performance");
+
+    const windowSelectRow = response.components?.[3];
     expect(windowSelectRow?.type).toBe(ComponentType.ActionRow);
     if (windowSelectRow?.type !== ComponentType.ActionRow) {
       throw new Error("Expected window select row to be an action row");
@@ -238,5 +250,36 @@ describe("createLeaderboardResponse", () => {
       throw new Error("Expected window select control to be a string select");
     }
     expect(windowSelect.placeholder).toBe("Select window");
+  });
+
+  it("filters the family selector by the selected aggregation type", () => {
+    const leaderboard: LeaderboardResponse = {
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.AvgKillsPerSeries,
+      minGamesPlayed: 3,
+      page: 1,
+      pageSize: 10,
+      total: 0,
+      rows: [],
+    };
+
+    const response = createLeaderboardResponse("en-US", leaderboard, "<t:1733483139:R>");
+    const familySelectRow = response.components?.[2];
+    if (familySelectRow?.type !== ComponentType.ActionRow) {
+      throw new Error("Expected family select row to be an action row");
+    }
+    const [familySelect] = familySelectRow.components;
+    if (familySelect?.type !== ComponentType.StringSelect) {
+      throw new Error("Expected family select control to be a string select");
+    }
+
+    expect(familySelect.options.map((option) => option.label).slice(0, 3)).toEqual([
+      "Personal score",
+      "Kills",
+      "Deaths",
+    ]);
+    expect(familySelect.options.map((option) => option.label)).not.toContain("Series win rate");
   });
 });

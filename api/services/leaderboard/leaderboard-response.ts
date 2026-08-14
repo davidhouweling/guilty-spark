@@ -8,13 +8,12 @@ import { ButtonStyle, ComponentType } from "discord-api-types/v10";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
 import {
-  LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER,
-  type LeaderboardMetricAggregation,
+  LeaderboardMetricAggregation,
   type LeaderboardMetricFamily,
   LeaderboardMetric,
   LeaderboardWindow,
-  getDefaultLeaderboardAggregation,
-  getLeaderboardFamilyAggregations,
+  getLeaderboardMetricAggregation,
+  getLeaderboardMetricFamiliesForAggregation,
   getLeaderboardMetricAggregationLabel,
   getLeaderboardMetricFamily,
   getLeaderboardMetricFamilyLabel,
@@ -62,8 +61,11 @@ function formatRank(rank: number): string {
   }
 }
 
-function getMetricFamilySelectOptions(selectedFamily: LeaderboardMetricFamily): APISelectMenuOption[] {
-  return LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER.map((family) => ({
+function getMetricFamilySelectOptions(
+  aggregation: LeaderboardMetricAggregation,
+  selectedFamily: LeaderboardMetricFamily,
+): APISelectMenuOption[] {
+  return getLeaderboardMetricFamiliesForAggregation(aggregation).map((family) => ({
     label: getLeaderboardMetricFamilyLabel(family),
     value: family,
     default: family === selectedFamily,
@@ -71,12 +73,11 @@ function getMetricFamilySelectOptions(selectedFamily: LeaderboardMetricFamily): 
 }
 
 function getMetricAggregationSelectOptions(
-  family: LeaderboardMetricFamily,
   selectedAggregation: LeaderboardMetricAggregation | null,
 ): APISelectMenuOption[] {
-  const resolvedSelectedAggregation = selectedAggregation ?? getDefaultLeaderboardAggregation(family);
+  const resolvedSelectedAggregation = selectedAggregation ?? LeaderboardMetricAggregation.Total;
 
-  return getLeaderboardFamilyAggregations(family).map((aggregation) => ({
+  return Object.values(LeaderboardMetricAggregation).map((aggregation) => ({
     label: getLeaderboardMetricAggregationLabel(aggregation),
     value: aggregation,
     default: aggregation === resolvedSelectedAggregation,
@@ -362,8 +363,9 @@ function createRankingFields(
 function createComponents(leaderboard: LeaderboardResponse): APIMessageTopLevelComponent[] {
   const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
   const selectedFamily = getLeaderboardMetricFamily(leaderboard.metric);
-  const familyOptions = getMetricFamilySelectOptions(selectedFamily);
-  const aggregationOptions = getMetricAggregationSelectOptions(selectedFamily, null);
+  const selectedAggregation = getLeaderboardMetricAggregation(leaderboard.metric);
+  const familyOptions = getMetricFamilySelectOptions(selectedAggregation, selectedFamily);
+  const aggregationOptions = getMetricAggregationSelectOptions(selectedAggregation);
   const windowOptions = getWindowSelectOptions(leaderboard.window);
   const controls = [
     [LEADERBOARD_FIRST_PAGE_CONTROL_ID, "⏮️", leaderboard.page <= 1],
@@ -389,31 +391,28 @@ function createComponents(leaderboard: LeaderboardResponse): APIMessageTopLevelC
       components: [
         {
           type: ComponentType.StringSelect,
-          custom_id: createLeaderboardControlId(LEADERBOARD_METRIC_FAMILY_SELECT_CONTROL_ID, leaderboard),
-          placeholder: "Select stat",
-          min_values: 1,
-          max_values: 1,
-          options: familyOptions,
-        },
-      ],
-    },
-  ];
-
-  if (aggregationOptions.length > 0) {
-    rows.push({
-      type: ComponentType.ActionRow,
-      components: [
-        {
-          type: ComponentType.StringSelect,
           custom_id: createLeaderboardControlId(LEADERBOARD_METRIC_AGGREGATION_SELECT_CONTROL_ID, leaderboard),
-          placeholder: "Select aggregation",
+          placeholder: "Select type",
           min_values: 1,
           max_values: 1,
           options: aggregationOptions,
         },
       ],
-    });
-  }
+    },
+    {
+    type: ComponentType.ActionRow,
+    components: [
+      {
+        type: ComponentType.StringSelect,
+          custom_id: createLeaderboardControlId(LEADERBOARD_METRIC_FAMILY_SELECT_CONTROL_ID, leaderboard),
+          placeholder: "Select stat",
+        min_values: 1,
+        max_values: 1,
+          options: familyOptions,
+      },
+    ],
+    },
+  ];
 
   rows.push({
     type: ComponentType.ActionRow,

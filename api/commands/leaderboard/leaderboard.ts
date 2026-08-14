@@ -23,6 +23,8 @@ import {
   LeaderboardMetricAggregation,
   LeaderboardWindow,
   getLeaderboardFamilyAggregations,
+  getLeaderboardMetricAggregation,
+  getLeaderboardMetricFamiliesForAggregation,
   getLeaderboardMetricAggregationLabel,
   getLeaderboardMetricFamily,
   getLeaderboardMetricFamilyLabel,
@@ -47,6 +49,7 @@ const DEFAULT_PAGE_SIZE = 10;
 const LEGACY_LEADERBOARD_METRIC_SELECT_CONTROL_ID = "select_leaderboard_metric";
 
 const METRIC_AGGREGATIONS_IN_OPTION_ORDER: readonly LeaderboardMetricAggregation[] = [
+  LeaderboardMetricAggregation.OverallPerformance,
   LeaderboardMetricAggregation.AvgPerSeries,
   LeaderboardMetricAggregation.AvgPerGame,
   LeaderboardMetricAggregation.Total,
@@ -417,9 +420,17 @@ export class LeaderboardCommand extends BaseCommand {
         throw this.createInvalidLeaderboardControlError();
       }
 
+      const currentAggregation = getLeaderboardMetricAggregation(
+        state.metric ?? LeaderboardMetric.SeriesWinRate,
+      );
+      const validFamilies = getLeaderboardMetricFamiliesForAggregation(currentAggregation);
+      if (!validFamilies.includes(selectedFamily)) {
+        throw this.createInvalidLeaderboardControlError();
+      }
+
       return {
         ...state,
-        metric: resolveLeaderboardMetric(selectedFamily, null),
+        metric: resolveLeaderboardMetric(selectedFamily, currentAggregation),
         page: 1,
       };
     });
@@ -434,15 +445,20 @@ export class LeaderboardCommand extends BaseCommand {
       }
 
       const selectedAggregation = this.parseMetricAggregationOption(interaction.data.values[0]);
-      if (selectedAggregation == null || state.metric == null) {
+      if (selectedAggregation == null) {
         throw this.createInvalidLeaderboardControlError();
       }
 
-      const currentFamily = getLeaderboardMetricFamily(state.metric);
+      const currentFamily = getLeaderboardMetricFamily(state.metric ?? LeaderboardMetric.SeriesWinRate);
+      const validFamilies = getLeaderboardMetricFamiliesForAggregation(selectedAggregation);
+      const selectedFamily = validFamilies.includes(currentFamily) ? currentFamily : validFamilies[0];
+      if (selectedFamily == null) {
+        throw this.createInvalidLeaderboardControlError();
+      }
 
       return {
         ...state,
-        metric: resolveLeaderboardMetric(currentFamily, selectedAggregation),
+        metric: resolveLeaderboardMetric(selectedFamily, selectedAggregation),
         page: 1,
       };
     });
