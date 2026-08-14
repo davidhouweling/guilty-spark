@@ -815,7 +815,7 @@ export class LeaderboardCommand extends BaseCommand {
 
     const aggregation = this.parseMetricAggregationOption(aggregationValue) ?? null;
     const supportedAggregations = getLeaderboardFamilyAggregations(family);
-    if (aggregation != null && supportedAggregations.length > 0 && !supportedAggregations.includes(aggregation)) {
+    if (aggregation != null && (supportedAggregations.length === 0 || !supportedAggregations.includes(aggregation))) {
       throw new EndUserError("This aggregation is not valid for the selected stat family.", {
         handled: true,
         errorType: EndUserErrorType.WARNING,

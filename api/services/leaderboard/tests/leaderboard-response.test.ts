@@ -186,4 +186,44 @@ describe("createLeaderboardResponse", () => {
       inline: true,
     });
   });
+
+  it("omits aggregation selector for metrics with implicit aggregation", () => {
+    const leaderboard: LeaderboardResponse = {
+      guildId: "guild-123",
+      queueChannelId: "queue-123",
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.Kda,
+      minGamesPlayed: 3,
+      page: 1,
+      pageSize: 10,
+      total: 1,
+      rows: [
+        {
+          rank: 1,
+          xboxXuid: "xuid-1",
+          discordUserId: "discord-1",
+          gamertag: "Alpha",
+          seriesPlayed: 3,
+          seriesWins: 2,
+          gamesPlayed: 9,
+          metricValue: 1.44,
+        },
+      ],
+    };
+
+    const response = createLeaderboardResponse("en-US", leaderboard, "<t:1733483139:R>");
+    expect(response.components).toHaveLength(3);
+    const windowSelectRow = response.components?.[2];
+    expect(windowSelectRow?.type).toBe(ComponentType.ActionRow);
+    if (windowSelectRow?.type !== ComponentType.ActionRow) {
+      throw new Error("Expected window select row to be an action row");
+    }
+
+    const [windowSelect] = windowSelectRow.components;
+    expect(windowSelect?.type).toBe(ComponentType.StringSelect);
+    if (windowSelect?.type !== ComponentType.StringSelect) {
+      throw new Error("Expected window select control to be a string select");
+    }
+    expect(windowSelect.placeholder).toBe("Select window");
+  });
 });

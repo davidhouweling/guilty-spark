@@ -524,6 +524,50 @@ describe("LeaderboardCommand", () => {
     );
   });
 
+  it("updates deferred reply with error when aggregation is provided for an implicit-aggregation family", async () => {
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "show",
+      options: [],
+      mappedOptions: new Map<string, string | number>([
+        ["metric_family", LeaderboardMetricFamily.Kda],
+        ["aggregation", "TOTAL"],
+      ]),
+    });
+    const updateDeferredReplyWithErrorSpy = vi
+      .spyOn(services.discordService, "updateDeferredReplyWithError")
+      .mockResolvedValue(undefined);
+    const getLeaderboardSpy = vi.spyOn(services.leaderboardService, "getLeaderboard");
+
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      guild_id: "guild-123",
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [
+          {
+            type: ApplicationCommandOptionType.Subcommand,
+            name: "show",
+            options: [],
+          },
+        ],
+      },
+    };
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(getLeaderboardSpy).not.toHaveBeenCalled();
+    expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({
+        endUserMessage: "This aggregation is not valid for the selected stat family.",
+      }),
+    );
+  });
+
   it("paginates from interaction state when previous button is pressed", async () => {
     const controlId = "btn_leaderboard_prev:guild-123:queue-123:3M:KILLS:2:4";
     const interaction: APIMessageComponentButtonInteraction = {

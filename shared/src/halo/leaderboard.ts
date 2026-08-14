@@ -28,9 +28,9 @@ export enum LeaderboardMetric {
 
 /**
  * Stat family groups leaderboard metrics for the two-step Discord picker (family -> aggregation).
- * Every `LeaderboardMetric` belongs to exactly one family; families with more than one valid
- * aggregation (e.g. total vs. average per series) will expose an aggregation selector once those
- * variants exist.
+ * Every `LeaderboardMetric` belongs to exactly one family; families with one or more valid
+ * aggregations expose the aggregation selector, while families with no valid aggregations are
+ * treated as having an implicit aggregation and skip that selector.
  */
 export enum LeaderboardMetricFamily {
   PersonalScore = "PERSONAL_SCORE",
