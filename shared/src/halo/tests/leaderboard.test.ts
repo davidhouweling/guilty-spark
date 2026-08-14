@@ -18,8 +18,10 @@ describe("getLeaderboardMetricFamily", () => {
 });
 
 describe("getLeaderboardFamilyAggregations / getDefaultLeaderboardAggregation", () => {
-  it("exposes a single Total aggregation for count/score families", () => {
+  it("exposes all aggregations for gameplay fact families in selector order", () => {
     expect(getLeaderboardFamilyAggregations(LeaderboardMetricFamily.Kills)).toEqual([
+      LeaderboardMetricAggregation.AvgPerSeries,
+      LeaderboardMetricAggregation.AvgPerGame,
       LeaderboardMetricAggregation.Total,
     ]);
     expect(getDefaultLeaderboardAggregation(LeaderboardMetricFamily.Kills)).toBe(LeaderboardMetricAggregation.Total);
@@ -55,7 +57,12 @@ describe("resolveLeaderboardMetric", () => {
     for (const metric of Object.values(LeaderboardMetric)) {
       const family = getLeaderboardMetricFamily(metric);
       const defaultAggregation = getDefaultLeaderboardAggregation(family);
-      expect(resolveLeaderboardMetric(family, defaultAggregation)).toBe(metric);
+      const aggregation = metric.includes("_PER_SERIES")
+        ? LeaderboardMetricAggregation.AvgPerSeries
+        : metric.includes("_PER_GAME")
+          ? LeaderboardMetricAggregation.AvgPerGame
+          : defaultAggregation;
+      expect(resolveLeaderboardMetric(family, aggregation)).toBe(metric);
     }
   });
 });

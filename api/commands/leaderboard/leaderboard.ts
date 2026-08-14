@@ -47,6 +47,8 @@ const DEFAULT_PAGE_SIZE = 10;
 const LEGACY_LEADERBOARD_METRIC_SELECT_CONTROL_ID = "select_leaderboard_metric";
 
 const METRIC_AGGREGATIONS_IN_OPTION_ORDER: readonly LeaderboardMetricAggregation[] = [
+  LeaderboardMetricAggregation.AvgPerSeries,
+  LeaderboardMetricAggregation.AvgPerGame,
   LeaderboardMetricAggregation.Total,
 ];
 

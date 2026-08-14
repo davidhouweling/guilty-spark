@@ -231,6 +231,7 @@ CREATE TABLE IF NOT EXISTS LeaderboardGamePlayers (
     GamertagSnapshot TEXT NOT NULL,
     TeamId INTEGER NOT NULL,
     PresentAtBeginning INTEGER NOT NULL CHECK (PresentAtBeginning IN (0, 1)),
+    GameWon INTEGER NOT NULL CHECK (GameWon IN (0, 1)),
     RankInMatch INTEGER,
     PersonalScore INTEGER NOT NULL,
     Kills INTEGER NOT NULL,

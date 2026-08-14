@@ -25,6 +25,7 @@ describe("createLeaderboardResponse", () => {
           seriesPlayed: 3,
           seriesWins: 2,
           gamesPlayed: 9,
+          gameWins: 6,
           metricValue: 44,
         },
       ],
@@ -96,6 +97,7 @@ describe("createLeaderboardResponse", () => {
             seriesPlayed: 3,
             seriesWins: 2,
             gamesPlayed: 9,
+            gameWins: 6,
             metricValue: 13.2,
           },
         ],
@@ -128,6 +130,7 @@ describe("createLeaderboardResponse", () => {
           seriesPlayed: 3,
           seriesWins: 2,
           gamesPlayed: 9,
+          gameWins: 6,
           metricValue: 44,
         },
       ],
@@ -149,11 +152,11 @@ describe("createLeaderboardResponse", () => {
     const optionLabels = metricSelect.options.map((option) => option.label);
     expect(optionLabels.slice(0, 6)).toEqual([
       "Series win rate",
+      "Games win rate",
       "KDA",
       "Accuracy",
       "Damage ratio",
       "Avg life time",
-      "Avg damage per life",
     ]);
     expect(optionLabels).toContain("Headshot kills");
     expect(optionLabels).toContain("Shots hit");
@@ -181,6 +184,7 @@ describe("createLeaderboardResponse", () => {
           seriesPlayed: 3,
           seriesWins: 2,
           gamesPlayed: 9,
+          gameWins: 6,
           metricValue: Number.MAX_VALUE,
         },
       ],
@@ -214,6 +218,7 @@ describe("createLeaderboardResponse", () => {
           seriesPlayed: 3,
           seriesWins: 2,
           gamesPlayed: 9,
+          gameWins: 6,
           metricValue: 1.44,
         },
       ],

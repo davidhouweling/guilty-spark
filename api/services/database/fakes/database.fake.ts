@@ -320,6 +320,7 @@ export function aFakeLeaderboardGamePlayersRow(
     GamertagSnapshot: "PlayerOne",
     TeamId: 0,
     PresentAtBeginning: 1,
+    GameWon: 1,
     RankInMatch: 1,
     PersonalScore: 2500,
     Kills: 20,

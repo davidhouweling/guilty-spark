@@ -9,7 +9,12 @@ export enum LeaderboardWindow {
 }
 
 export enum LeaderboardMetric {
+  SeriesPlayed = "SERIES_PLAYED",
+  SeriesWins = "SERIES_WINS",
   SeriesWinRate = "SERIES_WIN_RATE",
+  GamesPlayed = "GAMES_PLAYED",
+  GameWins = "GAME_WINS",
+  GamesWinRate = "GAMES_WIN_RATE",
   Kills = "KILLS",
   Deaths = "DEATHS",
   Assists = "ASSISTS",
@@ -24,6 +29,24 @@ export enum LeaderboardMetric {
   AvgLifeSeconds = "AVG_LIFE_SECONDS",
   AvgDamagePerLife = "AVG_DAMAGE_PER_LIFE",
   PersonalScore = "PERSONAL_SCORE",
+  AvgPersonalScorePerSeries = "AVG_PERSONAL_SCORE_PER_SERIES",
+  AvgKillsPerSeries = "AVG_KILLS_PER_SERIES",
+  AvgDeathsPerSeries = "AVG_DEATHS_PER_SERIES",
+  AvgAssistsPerSeries = "AVG_ASSISTS_PER_SERIES",
+  AvgHeadshotKillsPerSeries = "AVG_HEADSHOT_KILLS_PER_SERIES",
+  AvgShotsHitPerSeries = "AVG_SHOTS_HIT_PER_SERIES",
+  AvgShotsFiredPerSeries = "AVG_SHOTS_FIRED_PER_SERIES",
+  AvgDamageDealtPerSeries = "AVG_DAMAGE_DEALT_PER_SERIES",
+  AvgDamageTakenPerSeries = "AVG_DAMAGE_TAKEN_PER_SERIES",
+  AvgPersonalScorePerGame = "AVG_PERSONAL_SCORE_PER_GAME",
+  AvgKillsPerGame = "AVG_KILLS_PER_GAME",
+  AvgDeathsPerGame = "AVG_DEATHS_PER_GAME",
+  AvgAssistsPerGame = "AVG_ASSISTS_PER_GAME",
+  AvgHeadshotKillsPerGame = "AVG_HEADSHOT_KILLS_PER_GAME",
+  AvgShotsHitPerGame = "AVG_SHOTS_HIT_PER_GAME",
+  AvgShotsFiredPerGame = "AVG_SHOTS_FIRED_PER_GAME",
+  AvgDamageDealtPerGame = "AVG_DAMAGE_DEALT_PER_GAME",
+  AvgDamageTakenPerGame = "AVG_DAMAGE_TAKEN_PER_GAME",
 }
 
 /**
@@ -33,6 +56,11 @@ export enum LeaderboardMetric {
  * treated as having an implicit aggregation and skip that selector.
  */
 export enum LeaderboardMetricFamily {
+  SeriesPlayed = "SERIES_PLAYED",
+  SeriesWins = "SERIES_WINS",
+  GamesPlayed = "GAMES_PLAYED",
+  GameWins = "GAME_WINS",
+  GamesWinRate = "GAMES_WIN_RATE",
   PersonalScore = "PERSONAL_SCORE",
   Kills = "KILLS",
   Deaths = "DEATHS",
@@ -52,6 +80,7 @@ export enum LeaderboardMetricFamily {
 
 export const LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER: readonly LeaderboardMetricFamily[] = [
   LeaderboardMetricFamily.SeriesWinRate,
+  LeaderboardMetricFamily.GamesWinRate,
   LeaderboardMetricFamily.Kda,
   LeaderboardMetricFamily.Accuracy,
   LeaderboardMetricFamily.DamageRatio,
@@ -66,14 +95,35 @@ export const LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER: readonly LeaderboardM
   LeaderboardMetricFamily.ShotsFired,
   LeaderboardMetricFamily.DamageDealt,
   LeaderboardMetricFamily.DamageTaken,
+  LeaderboardMetricFamily.SeriesPlayed,
+  LeaderboardMetricFamily.SeriesWins,
+  LeaderboardMetricFamily.GamesPlayed,
+  LeaderboardMetricFamily.GameWins,
 ];
 
 export enum LeaderboardMetricAggregation {
+  AvgPerSeries = "AVG_PER_SERIES",
+  AvgPerGame = "AVG_PER_GAME",
   Total = "TOTAL",
 }
 
 export function getLeaderboardMetricFamily(metric: LeaderboardMetric): LeaderboardMetricFamily {
   switch (metric) {
+    case LeaderboardMetric.SeriesPlayed: {
+      return LeaderboardMetricFamily.SeriesPlayed;
+    }
+    case LeaderboardMetric.SeriesWins: {
+      return LeaderboardMetricFamily.SeriesWins;
+    }
+    case LeaderboardMetric.GamesPlayed: {
+      return LeaderboardMetricFamily.GamesPlayed;
+    }
+    case LeaderboardMetric.GameWins: {
+      return LeaderboardMetricFamily.GameWins;
+    }
+    case LeaderboardMetric.GamesWinRate: {
+      return LeaderboardMetricFamily.GamesWinRate;
+    }
     case LeaderboardMetric.PersonalScore: {
       return LeaderboardMetricFamily.PersonalScore;
     }
@@ -119,6 +169,42 @@ export function getLeaderboardMetricFamily(metric: LeaderboardMetric): Leaderboa
     case LeaderboardMetric.AvgDamagePerLife: {
       return LeaderboardMetricFamily.AvgDamagePerLife;
     }
+    case LeaderboardMetric.AvgPersonalScorePerSeries:
+    case LeaderboardMetric.AvgPersonalScorePerGame: {
+      return LeaderboardMetricFamily.PersonalScore;
+    }
+    case LeaderboardMetric.AvgKillsPerSeries:
+    case LeaderboardMetric.AvgKillsPerGame: {
+      return LeaderboardMetricFamily.Kills;
+    }
+    case LeaderboardMetric.AvgDeathsPerSeries:
+    case LeaderboardMetric.AvgDeathsPerGame: {
+      return LeaderboardMetricFamily.Deaths;
+    }
+    case LeaderboardMetric.AvgAssistsPerSeries:
+    case LeaderboardMetric.AvgAssistsPerGame: {
+      return LeaderboardMetricFamily.Assists;
+    }
+    case LeaderboardMetric.AvgHeadshotKillsPerSeries:
+    case LeaderboardMetric.AvgHeadshotKillsPerGame: {
+      return LeaderboardMetricFamily.HeadshotKills;
+    }
+    case LeaderboardMetric.AvgShotsHitPerSeries:
+    case LeaderboardMetric.AvgShotsHitPerGame: {
+      return LeaderboardMetricFamily.ShotsHit;
+    }
+    case LeaderboardMetric.AvgShotsFiredPerSeries:
+    case LeaderboardMetric.AvgShotsFiredPerGame: {
+      return LeaderboardMetricFamily.ShotsFired;
+    }
+    case LeaderboardMetric.AvgDamageDealtPerSeries:
+    case LeaderboardMetric.AvgDamageDealtPerGame: {
+      return LeaderboardMetricFamily.DamageDealt;
+    }
+    case LeaderboardMetric.AvgDamageTakenPerSeries:
+    case LeaderboardMetric.AvgDamageTakenPerGame: {
+      return LeaderboardMetricFamily.DamageTaken;
+    }
     default: {
       throw new UnreachableError(metric);
     }
@@ -142,9 +228,20 @@ export function getLeaderboardFamilyAggregations(
     case LeaderboardMetricFamily.ShotsFired:
     case LeaderboardMetricFamily.DamageDealt:
     case LeaderboardMetricFamily.DamageTaken: {
+      return [
+        LeaderboardMetricAggregation.AvgPerSeries,
+        LeaderboardMetricAggregation.AvgPerGame,
+        LeaderboardMetricAggregation.Total,
+      ];
+    }
+    case LeaderboardMetricFamily.SeriesPlayed:
+    case LeaderboardMetricFamily.SeriesWins:
+    case LeaderboardMetricFamily.GamesPlayed:
+    case LeaderboardMetricFamily.GameWins: {
       return [LeaderboardMetricAggregation.Total];
     }
     case LeaderboardMetricFamily.SeriesWinRate:
+    case LeaderboardMetricFamily.GamesWinRate:
     case LeaderboardMetricFamily.Kda:
     case LeaderboardMetricFamily.Accuracy:
     case LeaderboardMetricFamily.DamageRatio:
@@ -159,7 +256,34 @@ export function getLeaderboardFamilyAggregations(
 }
 
 export function getDefaultLeaderboardAggregation(family: LeaderboardMetricFamily): LeaderboardMetricAggregation | null {
-  return getLeaderboardFamilyAggregations(family)[0] ?? null;
+  const aggregations = getLeaderboardFamilyAggregations(family);
+  return aggregations[aggregations.length - 1] ?? null;
+}
+
+function resolveAggregationMetric(
+  aggregation: LeaderboardMetricAggregation | null,
+  totalMetric: LeaderboardMetric,
+  seriesMetric: LeaderboardMetric,
+  gameMetric: LeaderboardMetric,
+): LeaderboardMetric {
+  if (aggregation == null) {
+    throw new Error("Leaderboard aggregation is required for this metric family");
+  }
+
+  switch (aggregation) {
+    case LeaderboardMetricAggregation.AvgPerSeries: {
+      return seriesMetric;
+    }
+    case LeaderboardMetricAggregation.AvgPerGame: {
+      return gameMetric;
+    }
+    case LeaderboardMetricAggregation.Total: {
+      return totalMetric;
+    }
+    default: {
+      throw new UnreachableError(aggregation);
+    }
+  }
 }
 
 /**
@@ -183,32 +307,92 @@ export function resolveLeaderboardMetric(
   }
 
   switch (family) {
+    case LeaderboardMetricFamily.SeriesPlayed: {
+      return LeaderboardMetric.SeriesPlayed;
+    }
+    case LeaderboardMetricFamily.SeriesWins: {
+      return LeaderboardMetric.SeriesWins;
+    }
+    case LeaderboardMetricFamily.GamesPlayed: {
+      return LeaderboardMetric.GamesPlayed;
+    }
+    case LeaderboardMetricFamily.GameWins: {
+      return LeaderboardMetric.GameWins;
+    }
+    case LeaderboardMetricFamily.GamesWinRate: {
+      return LeaderboardMetric.GamesWinRate;
+    }
     case LeaderboardMetricFamily.PersonalScore: {
-      return LeaderboardMetric.PersonalScore;
+      return resolveAggregationMetric(
+        resolvedAggregation,
+        LeaderboardMetric.PersonalScore,
+        LeaderboardMetric.AvgPersonalScorePerSeries,
+        LeaderboardMetric.AvgPersonalScorePerGame,
+      );
     }
     case LeaderboardMetricFamily.Kills: {
-      return LeaderboardMetric.Kills;
+      return resolveAggregationMetric(
+        resolvedAggregation,
+        LeaderboardMetric.Kills,
+        LeaderboardMetric.AvgKillsPerSeries,
+        LeaderboardMetric.AvgKillsPerGame,
+      );
     }
     case LeaderboardMetricFamily.Deaths: {
-      return LeaderboardMetric.Deaths;
+      return resolveAggregationMetric(
+        resolvedAggregation,
+        LeaderboardMetric.Deaths,
+        LeaderboardMetric.AvgDeathsPerSeries,
+        LeaderboardMetric.AvgDeathsPerGame,
+      );
     }
     case LeaderboardMetricFamily.Assists: {
-      return LeaderboardMetric.Assists;
+      return resolveAggregationMetric(
+        resolvedAggregation,
+        LeaderboardMetric.Assists,
+        LeaderboardMetric.AvgAssistsPerSeries,
+        LeaderboardMetric.AvgAssistsPerGame,
+      );
     }
     case LeaderboardMetricFamily.HeadshotKills: {
-      return LeaderboardMetric.HeadshotKills;
+      return resolveAggregationMetric(
+        resolvedAggregation,
+        LeaderboardMetric.HeadshotKills,
+        LeaderboardMetric.AvgHeadshotKillsPerSeries,
+        LeaderboardMetric.AvgHeadshotKillsPerGame,
+      );
     }
     case LeaderboardMetricFamily.ShotsHit: {
-      return LeaderboardMetric.ShotsHit;
+      return resolveAggregationMetric(
+        resolvedAggregation,
+        LeaderboardMetric.ShotsHit,
+        LeaderboardMetric.AvgShotsHitPerSeries,
+        LeaderboardMetric.AvgShotsHitPerGame,
+      );
     }
     case LeaderboardMetricFamily.ShotsFired: {
-      return LeaderboardMetric.ShotsFired;
+      return resolveAggregationMetric(
+        resolvedAggregation,
+        LeaderboardMetric.ShotsFired,
+        LeaderboardMetric.AvgShotsFiredPerSeries,
+        LeaderboardMetric.AvgShotsFiredPerGame,
+      );
     }
     case LeaderboardMetricFamily.DamageDealt: {
-      return LeaderboardMetric.DamageDealt;
+      return resolveAggregationMetric(
+        resolvedAggregation,
+        LeaderboardMetric.DamageDealt,
+        LeaderboardMetric.AvgDamageDealtPerSeries,
+        LeaderboardMetric.AvgDamageDealtPerGame,
+      );
     }
     case LeaderboardMetricFamily.DamageTaken: {
-      return LeaderboardMetric.DamageTaken;
+      return resolveAggregationMetric(
+        resolvedAggregation,
+        LeaderboardMetric.DamageTaken,
+        LeaderboardMetric.AvgDamageTakenPerSeries,
+        LeaderboardMetric.AvgDamageTakenPerGame,
+      );
     }
     case LeaderboardMetricFamily.SeriesWinRate: {
       return LeaderboardMetric.SeriesWinRate;
@@ -236,6 +420,21 @@ export function resolveLeaderboardMetric(
 
 export function getLeaderboardMetricFamilyLabel(family: LeaderboardMetricFamily): string {
   switch (family) {
+    case LeaderboardMetricFamily.SeriesPlayed: {
+      return "Series played";
+    }
+    case LeaderboardMetricFamily.SeriesWins: {
+      return "Series wins";
+    }
+    case LeaderboardMetricFamily.GamesPlayed: {
+      return "Games played";
+    }
+    case LeaderboardMetricFamily.GameWins: {
+      return "Game wins";
+    }
+    case LeaderboardMetricFamily.GamesWinRate: {
+      return "Games win rate";
+    }
     case LeaderboardMetricFamily.PersonalScore: {
       return "Personal score";
     }
@@ -289,6 +488,8 @@ export function getLeaderboardMetricFamilyLabel(family: LeaderboardMetricFamily)
 
 export function getLeaderboardMetricAggregationLabel(aggregation: LeaderboardMetricAggregation): string {
   const labelsByAggregation: Record<LeaderboardMetricAggregation, string> = {
+    [LeaderboardMetricAggregation.AvgPerSeries]: "Avg per series",
+    [LeaderboardMetricAggregation.AvgPerGame]: "Avg per game",
     [LeaderboardMetricAggregation.Total]: "Total",
   };
 

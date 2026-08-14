@@ -130,6 +130,7 @@ describe("LeaderboardCommand", () => {
           seriesPlayed: 3,
           seriesWins: 2,
           gamesPlayed: 9,
+          gameWins: 6,
           metricValue: 44,
         },
       ],
@@ -293,6 +294,7 @@ describe("LeaderboardCommand", () => {
           seriesPlayed: 1,
           seriesWins: 1,
           gamesPlayed: 1,
+          gameWins: 1,
           metricValue: 12.5,
         },
         {
@@ -303,6 +305,7 @@ describe("LeaderboardCommand", () => {
           seriesPlayed: 1,
           seriesWins: 1,
           gamesPlayed: 1,
+          gameWins: 1,
           metricValue: 10,
         },
         {
@@ -313,6 +316,7 @@ describe("LeaderboardCommand", () => {
           seriesPlayed: 1,
           seriesWins: 1,
           gamesPlayed: 1,
+          gameWins: 1,
           metricValue: 7.5,
         },
       ],
@@ -1131,6 +1135,7 @@ describe("LeaderboardCommand", () => {
             seriesPlayed: 5,
             seriesWins: 4,
             gamesPlayed: 9,
+            gameWins: 6,
             metricValue: 0.8,
           },
         ],
@@ -1203,7 +1208,7 @@ describe("LeaderboardCommand", () => {
     expect(payload.embeds?.[0]?.fields).toEqual([
       { name: "Rank", value: "#11", inline: true },
       { name: "Player", value: "<@discord-2> (Bravo)", inline: true },
-      { name: "Series win rate", value: "80%", inline: true },
+      { name: "Series win rate", value: "80% (4/5)", inline: true },
     ]);
   });
 
@@ -1564,6 +1569,7 @@ describe("LeaderboardCommand", () => {
           seriesPlayed: 1,
           seriesWins: 1,
           gamesPlayed: 1,
+          gameWins: 1,
           metricValue: Number.MAX_VALUE,
         },
       ],

@@ -8,6 +8,7 @@ export interface LeaderboardGamePlayersRow {
   GamertagSnapshot: string;
   TeamId: number;
   PresentAtBeginning: 0 | 1;
+  GameWon: 0 | 1;
   RankInMatch: number | null;
   PersonalScore: number;
   Kills: number;

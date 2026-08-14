@@ -135,8 +135,23 @@ function getWindowLabel(window: LeaderboardWindow): string {
 
 function getMetricLabel(metric: LeaderboardMetric): string {
   switch (metric) {
+    case LeaderboardMetric.SeriesPlayed: {
+      return "Series played";
+    }
+    case LeaderboardMetric.SeriesWins: {
+      return "Series wins";
+    }
     case LeaderboardMetric.SeriesWinRate: {
       return "Series win rate";
+    }
+    case LeaderboardMetric.GamesPlayed: {
+      return "Games played";
+    }
+    case LeaderboardMetric.GameWins: {
+      return "Game wins";
+    }
+    case LeaderboardMetric.GamesWinRate: {
+      return "Games win rate";
     }
     case LeaderboardMetric.Kills: {
       return "Kills";
@@ -180,16 +195,78 @@ function getMetricLabel(metric: LeaderboardMetric): string {
     case LeaderboardMetric.PersonalScore: {
       return "Personal score";
     }
+    case LeaderboardMetric.AvgPersonalScorePerSeries: {
+      return "Avg personal score per series";
+    }
+    case LeaderboardMetric.AvgKillsPerSeries: {
+      return "Avg kills per series";
+    }
+    case LeaderboardMetric.AvgDeathsPerSeries: {
+      return "Avg deaths per series";
+    }
+    case LeaderboardMetric.AvgAssistsPerSeries: {
+      return "Avg assists per series";
+    }
+    case LeaderboardMetric.AvgHeadshotKillsPerSeries: {
+      return "Avg headshot kills per series";
+    }
+    case LeaderboardMetric.AvgShotsHitPerSeries: {
+      return "Avg shots hit per series";
+    }
+    case LeaderboardMetric.AvgShotsFiredPerSeries: {
+      return "Avg shots fired per series";
+    }
+    case LeaderboardMetric.AvgDamageDealtPerSeries: {
+      return "Avg damage dealt per series";
+    }
+    case LeaderboardMetric.AvgDamageTakenPerSeries: {
+      return "Avg damage taken per series";
+    }
+    case LeaderboardMetric.AvgPersonalScorePerGame: {
+      return "Avg personal score per game";
+    }
+    case LeaderboardMetric.AvgKillsPerGame: {
+      return "Avg kills per game";
+    }
+    case LeaderboardMetric.AvgDeathsPerGame: {
+      return "Avg deaths per game";
+    }
+    case LeaderboardMetric.AvgAssistsPerGame: {
+      return "Avg assists per game";
+    }
+    case LeaderboardMetric.AvgHeadshotKillsPerGame: {
+      return "Avg headshot kills per game";
+    }
+    case LeaderboardMetric.AvgShotsHitPerGame: {
+      return "Avg shots hit per game";
+    }
+    case LeaderboardMetric.AvgShotsFiredPerGame: {
+      return "Avg shots fired per game";
+    }
+    case LeaderboardMetric.AvgDamageDealtPerGame: {
+      return "Avg damage dealt per game";
+    }
+    case LeaderboardMetric.AvgDamageTakenPerGame: {
+      return "Avg damage taken per game";
+    }
     default: {
       throw new UnreachableError(metric);
     }
   }
 }
 
-function formatMetricValue(metricValue: number, metric: LeaderboardMetric, locale: string): string {
+function formatMetricValue(
+  metricValue: number,
+  metric: LeaderboardMetric,
+  row: LeaderboardResponse["rows"][number],
+  locale: string,
+): string {
   switch (metric) {
     case LeaderboardMetric.SeriesWinRate: {
-      return `${(metricValue * 100).toLocaleString(locale, { maximumFractionDigits: 1 })}%`;
+      return `${(metricValue * 100).toLocaleString(locale, { maximumFractionDigits: 1 })}% (${row.seriesWins.toLocaleString(locale)}/${row.seriesPlayed.toLocaleString(locale)})`;
+    }
+    case LeaderboardMetric.GamesWinRate: {
+      return `${(metricValue * 100).toLocaleString(locale, { maximumFractionDigits: 1 })}% (${row.gameWins.toLocaleString(locale)}/${row.gamesPlayed.toLocaleString(locale)})`;
     }
     case LeaderboardMetric.Accuracy: {
       return `${metricValue.toLocaleString(locale, { maximumFractionDigits: 1 })}%`;
@@ -211,6 +288,32 @@ function formatMetricValue(metricValue: number, metric: LeaderboardMetric, local
       }
 
       return metricValue.toLocaleString(locale, { maximumFractionDigits: 2 });
+    }
+    case LeaderboardMetric.AvgPersonalScorePerSeries:
+    case LeaderboardMetric.AvgKillsPerSeries:
+    case LeaderboardMetric.AvgDeathsPerSeries:
+    case LeaderboardMetric.AvgAssistsPerSeries:
+    case LeaderboardMetric.AvgHeadshotKillsPerSeries:
+    case LeaderboardMetric.AvgShotsHitPerSeries:
+    case LeaderboardMetric.AvgShotsFiredPerSeries:
+    case LeaderboardMetric.AvgDamageDealtPerSeries:
+    case LeaderboardMetric.AvgDamageTakenPerSeries:
+    case LeaderboardMetric.AvgPersonalScorePerGame:
+    case LeaderboardMetric.AvgKillsPerGame:
+    case LeaderboardMetric.AvgDeathsPerGame:
+    case LeaderboardMetric.AvgAssistsPerGame:
+    case LeaderboardMetric.AvgHeadshotKillsPerGame:
+    case LeaderboardMetric.AvgShotsHitPerGame:
+    case LeaderboardMetric.AvgShotsFiredPerGame:
+    case LeaderboardMetric.AvgDamageDealtPerGame:
+    case LeaderboardMetric.AvgDamageTakenPerGame: {
+      return metricValue.toLocaleString(locale, { maximumFractionDigits: 2 });
+    }
+    case LeaderboardMetric.SeriesPlayed:
+    case LeaderboardMetric.SeriesWins:
+    case LeaderboardMetric.GamesPlayed:
+    case LeaderboardMetric.GameWins: {
+      return Math.round(metricValue).toLocaleString(locale);
     }
     case LeaderboardMetric.Kills:
     case LeaderboardMetric.Deaths:
@@ -250,7 +353,7 @@ function createRankingFields(
     },
     {
       name: getMetricLabel(metric),
-      value: rows.map((row) => formatMetricValue(row.metricValue, metric, locale)).join("\n"),
+      value: rows.map((row) => formatMetricValue(row.metricValue, metric, row, locale)).join("\n"),
       inline: true,
     },
   ];
