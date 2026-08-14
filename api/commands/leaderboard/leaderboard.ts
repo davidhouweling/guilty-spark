@@ -420,9 +420,7 @@ export class LeaderboardCommand extends BaseCommand {
         throw this.createInvalidLeaderboardControlError();
       }
 
-      const currentAggregation = getLeaderboardMetricAggregation(
-        state.metric ?? LeaderboardMetric.SeriesWinRate,
-      );
+      const currentAggregation = getLeaderboardMetricAggregation(state.metric ?? LeaderboardMetric.SeriesWinRate);
       const validFamilies = getLeaderboardMetricFamiliesForAggregation(currentAggregation);
       if (!validFamilies.includes(selectedFamily)) {
         throw this.createInvalidLeaderboardControlError();
