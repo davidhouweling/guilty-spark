@@ -247,6 +247,86 @@ describe("LeaderboardCommand", () => {
     expect(getBrowserUrlFromComponents(payload.components)).toBeNull();
   });
 
+  it("omits controls and skips post registration for locked leaderboard show", async () => {
+    const mappedOptions = new Map<string, string | number | boolean>();
+    mappedOptions.set("locked", true);
+
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "show",
+      options: [],
+      mappedOptions,
+    });
+    const getLeaderboardSpy = vi.spyOn(services.leaderboardService, "getLeaderboard").mockResolvedValue({
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.ThreeMonths,
+      metric: LeaderboardMetric.SeriesWinRate,
+      minGamesPlayed: 0,
+      page: 1,
+      pageSize: 10,
+      total: 0,
+      rows: [],
+    });
+    const upsertLeaderboardPostSpy = vi
+      .spyOn(services.databaseService, "upsertLeaderboardPost")
+      .mockResolvedValue(undefined);
+    const updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      id: "message-id",
+      channel_id: "channel-id",
+      content: "",
+      timestamp: "2026-08-12T00:00:00.000Z",
+      edited_timestamp: null,
+      tts: false,
+      mention_everyone: false,
+      mentions: [],
+      mention_roles: [],
+      attachments: [],
+      embeds: [],
+      pinned: false,
+      type: MessageType.Default,
+      author: {
+        id: "bot-id",
+        username: "Guilty Spark",
+        discriminator: "0000",
+        avatar: null,
+        global_name: null,
+      },
+      components: [],
+    });
+
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      guild_id: "guild-123",
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [
+          {
+            type: ApplicationCommandOptionType.Subcommand,
+            name: "show",
+            options: [],
+          },
+        ],
+      },
+    };
+
+    const result = command.execute(interaction);
+
+    expect(result.response.type).toBe(InteractionResponseType.DeferredChannelMessageWithSource);
+    await result.jobToComplete?.();
+
+    expect(getLeaderboardSpy).toHaveBeenCalledWith({
+      guildId: "guild-123",
+      page: 1,
+      pageSize: 10,
+    });
+    expect(upsertLeaderboardPostSpy).not.toHaveBeenCalled();
+    const [, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
+    expect(payload.components).toBeUndefined();
+  });
+
   it("prefers guild locale over user locale for leaderboard formatting", async () => {
     vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
       name: "show",
@@ -750,8 +830,7 @@ describe("LeaderboardCommand", () => {
     });
   });
 
-  it("updates deferred reply with error when leaderboard controls are used without manage server permission", async () => {
-    vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValueOnce(0n);
+  it("allows leaderboard controls without manage server permission", async () => {
     const interaction: APIMessageComponentButtonInteraction = {
       ...fakeButtonClickInteraction,
       guild_id: "guild-123",
@@ -771,23 +850,26 @@ describe("LeaderboardCommand", () => {
       },
     };
 
-    const updateDeferredReplyWithErrorSpy = vi
-      .spyOn(services.discordService, "updateDeferredReplyWithError")
-      .mockResolvedValue(undefined);
-    const getLeaderboardSpy = vi.spyOn(services.leaderboardService, "getLeaderboard");
-    const logErrorSpy = vi.spyOn(services.logService, "error");
+    const getLeaderboardSpy = vi.spyOn(services.leaderboardService, "getLeaderboard").mockResolvedValue({
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.ThreeMonths,
+      metric: LeaderboardMetric.Kills,
+      minGamesPlayed: 0,
+      page: 3,
+      pageSize: 10,
+      total: 0,
+      rows: [],
+    });
+    vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      ...Preconditions.checkExists(interaction.message),
+      type: MessageType.Default,
+    });
 
     const result = command.execute(interaction);
     await result.jobToComplete?.();
 
-    expect(getLeaderboardSpy).not.toHaveBeenCalled();
-    expect(logErrorSpy).not.toHaveBeenCalled();
-    expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
-      interaction.token,
-      expect.objectContaining({
-        endUserMessage: "You need the Manage Server permission to use leaderboard controls.",
-      }),
-    );
+    expect(getLeaderboardSpy).toHaveBeenCalledOnce();
   });
 
   it("updates deferred reply with error when page-change interaction payload has wrong component type", async () => {

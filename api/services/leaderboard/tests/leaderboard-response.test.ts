@@ -282,4 +282,22 @@ describe("createLeaderboardResponse", () => {
     ]);
     expect(familySelect.options.map((option) => option.label)).not.toContain("Series win rate");
   });
+
+  it("omits components for a locked leaderboard", () => {
+    const leaderboard: LeaderboardResponse = {
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.Kills,
+      minGamesPlayed: 3,
+      page: 1,
+      pageSize: 10,
+      total: 0,
+      rows: [],
+    };
+
+    const response = createLeaderboardResponse("en-US", leaderboard, "<t:1733483139:R>", true);
+
+    expect(response.components).toBeUndefined();
+  });
 });
