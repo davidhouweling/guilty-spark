@@ -181,6 +181,69 @@ describe("LeaderboardCommand", () => {
     );
   });
 
+  it("allows admins to reset leaderboards without Manage Server", async () => {
+    vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValue(PermissionFlagsBits.Administrator);
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "reset",
+      options: [],
+      mappedOptions: new Map<string, string | number | boolean>(),
+    });
+    const updateSpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      ...fakeButtonClickInteraction.message,
+      type: MessageType.Default,
+    });
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      guild_id: "guild-123",
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [{ type: ApplicationCommandOptionType.Subcommand, name: "reset", options: [] }],
+      },
+    };
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(updateSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({ embeds: [expect.objectContaining({ title: "Leaderboard reset" })] }),
+    );
+  });
+
+  it("rejects reset requests without Manage Server or Administrator", async () => {
+    vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValue(0n);
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "reset",
+      options: [],
+      mappedOptions: new Map<string, string | number | boolean>(),
+    });
+    const errorSpy = vi.spyOn(services.discordService, "updateDeferredReplyWithError").mockResolvedValue(undefined);
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      guild_id: "guild-123",
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [{ type: ApplicationCommandOptionType.Subcommand, name: "reset", options: [] }],
+      },
+    };
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({
+        endUserMessage: "You need the Manage Server or Administrator permission to reset leaderboards.",
+      }),
+    );
+  });
+
   it("rejects tampered reset confirmations that point to a future date", async () => {
     const resetAt = Math.floor(Date.now() / 1000) + 60;
     const interaction: APIMessageComponentButtonInteraction = {

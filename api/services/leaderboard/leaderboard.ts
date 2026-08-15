@@ -38,7 +38,6 @@ interface GetLeaderboardOpts {
   page?: number | undefined;
   pageSize?: number | undefined;
   minGamesPlayed?: number | undefined;
-  resetAt?: number | undefined;
 }
 
 export class LeaderboardService {
@@ -326,7 +325,6 @@ export class LeaderboardService {
     page,
     pageSize,
     minGamesPlayed,
-    resetAt,
   }: GetLeaderboardOpts): Promise<LeaderboardResponse> {
     const opts: GetLeaderboardOpts = {
       guildId,
@@ -336,7 +334,6 @@ export class LeaderboardService {
       page,
       pageSize,
       minGamesPlayed,
-      resetAt,
     };
     const leaderboard = await this.getLeaderboard(opts);
     const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));

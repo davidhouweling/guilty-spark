@@ -208,7 +208,7 @@ describe("LeaderboardService", () => {
     expect(getMarkerSpy).toHaveBeenNthCalledWith(2, "guild-1", null);
   });
 
-  it("uses the stored reset marker even when a reset timestamp is provided", async () => {
+  it("uses the stored reset marker when the reset window is requested", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });
     const logService = aFakeLogServiceWith();
@@ -231,7 +231,6 @@ describe("LeaderboardService", () => {
     const result = await service.getLeaderboard({
       guildId: "guild-1",
       window: LeaderboardWindow.LastReset,
-      resetAt: resetAt - 100,
     });
 
     expect(result.window).toBe(LeaderboardWindow.LastReset);

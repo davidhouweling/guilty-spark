@@ -412,8 +412,8 @@ export class LeaderboardCommand extends BaseCommand {
 
       const userId = this.services.discordService.getDiscordUserId(interaction);
       const permissions = await this.services.discordService.computeMemberPermissions(guildId, userId);
-      if ((permissions & PermissionFlagsBits.ManageGuild) === 0n) {
-        throw new EndUserError("You need the Manage Server permission to reset leaderboards.", {
+      if (!this.hasResetLeaderboardPermission(permissions)) {
+        throw new EndUserError("You need the Manage Server or Administrator permission to reset leaderboards.", {
           handled: true,
           errorType: EndUserErrorType.WARNING,
         });
@@ -592,12 +592,16 @@ export class LeaderboardCommand extends BaseCommand {
   ): Promise<void> {
     const userId = this.services.discordService.getDiscordUserId(interaction);
     const permissions = await this.services.discordService.computeMemberPermissions(guildId, userId);
-    if ((permissions & PermissionFlagsBits.ManageGuild) === 0n) {
-      throw new EndUserError("You need the Manage Server permission to reset leaderboards.", {
+    if (!this.hasResetLeaderboardPermission(permissions)) {
+      throw new EndUserError("You need the Manage Server or Administrator permission to reset leaderboards.", {
         handled: true,
         errorType: EndUserErrorType.WARNING,
       });
     }
+  }
+
+  private hasResetLeaderboardPermission(permissions: bigint): boolean {
+    return (permissions & (PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator)) !== 0n;
   }
 
   private parseResetDate(value: string | undefined): number {
