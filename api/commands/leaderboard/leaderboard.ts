@@ -530,10 +530,13 @@ export class LeaderboardCommand extends BaseCommand {
     resetAt: number,
   ): { title: string; description: string; color: number } {
     const currentTimeframe =
-      currentResetAt == null ? "Start of available leaderboard data" : `<t:${currentResetAt.toString()}:f>`;
+      currentResetAt == null
+        ? "Start of available leaderboard data"
+        : this.services.discordService.getTimestamp(new Date(currentResetAt * 1000).toISOString(), "f");
+    const resetTimeframe = this.services.discordService.getTimestamp(new Date(resetAt * 1000).toISOString(), "f");
     return {
       title: "Leaderboard reset",
-      description: `Scope: ${this.getResetScopeLabel(queueChannelId)}\nCurrent timeframe: ${currentTimeframe}\nWill reset to: <t:${resetAt.toString()}:f>\n\nExisting leaderboard data will be retained.`,
+      description: `Scope: ${this.getResetScopeLabel(queueChannelId)}\nCurrent timeframe: ${currentTimeframe}\nWill reset to: ${resetTimeframe}\n\nExisting leaderboard data will be retained.`,
       color: EmbedColors.GOLD,
     };
   }
