@@ -560,7 +560,9 @@ export class LeaderboardCommand extends BaseCommand {
     if (
       (controlId !== LEADERBOARD_RESET_CONFIRM_CONTROL_ID && controlId !== LEADERBOARD_RESET_CANCEL_CONTROL_ID) ||
       guildId == null ||
+      guildId === "" ||
       rawQueueChannelId == null ||
+      rawQueueChannelId === "" ||
       rawResetAt == null
     ) {
       throw this.createInvalidLeaderboardControlError();
