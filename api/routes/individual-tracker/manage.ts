@@ -16,17 +16,21 @@ import {
   trackerContract,
   trackerParamsSchema,
   trackersContract,
-  type StartSeriesRequest,
-  type EditSeriesRequest,
-  type SelectMatchesRequest,
+} from "@guilty-spark/shared/contracts/individual-tracker/tracker";
+import type {
+  StartSeriesRequest,
+  EditSeriesRequest,
+  SelectMatchesRequest,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import {
   individualTrackerPauseContract,
   individualTrackerResumeContract,
   individualTrackerStartContract,
   individualTrackerStopContract,
-  type IndividualTrackerDoState,
-  type IndividualTrackerStartRequest,
+} from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
+import type {
+  IndividualTrackerDoState,
+  IndividualTrackerStartRequest,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
 import { individualTrackerStatusContract } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/management";
 import {

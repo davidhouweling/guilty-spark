@@ -2,7 +2,7 @@ import React, { createContext, useContext, useMemo } from "react";
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import type { MatchStatsData } from "../../controllers/stats/types";
 import type { SeriesMetadata } from "../../controllers/stats/series-metadata";
-import { type ComponentLoaderStatus } from "../component-loader/component-loader";
+import type { ComponentLoaderStatus } from "../component-loader/component-loader";
 import type { LiveTrackerParams } from "./live-tracker-store";
 import type {
   LiveTrackerAvailablePlayer,

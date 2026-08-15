@@ -1,14 +1,7 @@
 import { addMilliseconds, differenceInSeconds } from "date-fns";
 import type { LogService } from "../log/types";
-import {
-  type CircuitBreakerState,
-  type ErrorWindow,
-  type ProxyConfig,
-  ProxyType,
-  KV_KEYS,
-  CIRCUIT_BREAKER_CONFIG,
-  ISSUE_STATUS_CODES,
-} from "./types";
+import { ProxyType, KV_KEYS, CIRCUIT_BREAKER_CONFIG, ISSUE_STATUS_CODES } from "./types";
+import type { CircuitBreakerState, ErrorWindow, ProxyConfig } from "./types";
 
 interface ResilientFetchOptions {
   env: Env;

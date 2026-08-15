@@ -4,7 +4,8 @@ import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/ty
 import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
 import { Heading } from "../heading/heading";
 import { RankIcon } from "../icons/rank-icon";
-import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
+import { SortableTable } from "../table/sortable-table";
+import type { SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";
 import { TeamIcon } from "../icons/team-icon";
 import type { TeamColor } from "../team-colors/team-colors";

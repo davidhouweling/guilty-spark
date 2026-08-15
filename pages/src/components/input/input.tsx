@@ -1,4 +1,5 @@
-import React, { useId, type InputHTMLAttributes } from "react";
+import React, { useId } from "react";
+import type { InputHTMLAttributes } from "react";
 import classNames from "classnames";
 import styles from "./input.module.css";
 

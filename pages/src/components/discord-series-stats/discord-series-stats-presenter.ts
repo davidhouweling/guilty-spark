@@ -7,14 +7,12 @@ import type { MatchStatsData } from "../../controllers/stats/types";
 import { isMatchStats } from "../../controllers/stats/is-match-stats";
 import { StatsController } from "../../controllers/stats/stats-controller";
 import { GAMES_SUFFIX_RE, KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
-import {
-  EMPTY_KILL_MATRIX_PIVOT_DATA,
-  type KillMatrixPlayer,
-  type KillMatrixViewRow,
-} from "../../controllers/stats/kill-matrix/types";
+import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../controllers/stats/kill-matrix/types";
+import type { KillMatrixPlayer, KillMatrixViewRow } from "../../controllers/stats/kill-matrix/types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import { ComponentLoaderStatus } from "../component-loader/component-loader";
-import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault, type TeamColor } from "../team-colors/team-colors";
+import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault } from "../team-colors/team-colors";
+import type { TeamColor } from "../team-colors/team-colors";
 import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
 import type {
   SeriesMatchDetail as DiscordSeriesMatchDetail,

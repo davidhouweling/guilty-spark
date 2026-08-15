@@ -2,33 +2,34 @@ import * as Sentry from "@sentry/cloudflare";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import {
   userTrackerDirectoryMessageContract,
-  type UserTrackerStatusResponse,
-  type UserTrackerViewStateResponse,
   userTrackerStatusContract,
   userTrackerViewStateContract,
 } from "@guilty-spark/shared/contracts/durable-objects/user-tracker/management";
+import type {
+  UserTrackerStatusResponse,
+  UserTrackerViewStateResponse,
+} from "@guilty-spark/shared/contracts/durable-objects/user-tracker/management";
 import type { TrackerDirectory, TrackerDirectoryEntry } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import {
-  type TrackerChangedPayload,
   trackerChangedPayloadSchema,
   userTrackerNudgeContract,
 } from "@guilty-spark/shared/contracts/durable-objects/user-tracker/nudge";
+import type { TrackerChangedPayload } from "@guilty-spark/shared/contracts/durable-objects/user-tracker/nudge";
 import {
   DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS,
   INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
   withStreamerViewSettingsDefaults,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import {
-  CloudflareWebSocketHibernationAdapter,
-  type WebSocketHibernationAdapter,
-} from "../../base/websocket-hibernation-adapter";
+import { CloudflareWebSocketHibernationAdapter } from "../../base/websocket-hibernation-adapter";
+import type { WebSocketHibernationAdapter } from "../../base/websocket-hibernation-adapter";
 import { fetchTrackerDoViewState, toTrackerView } from "../../individual-tracker/mapper";
 import type { DatabaseService } from "../../services/database/database";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
 import type { IndividualTrackerService } from "../../services/individual-tracker/individual-tracker";
 import { installServices as installServicesImpl } from "../../services/install";
 import type { LogService } from "../../services/log/types";
-import { emptyTrackerDirectory, type UserTrackerInternalState } from "./types";
+import { emptyTrackerDirectory } from "./types";
+import type { UserTrackerInternalState } from "./types";
 
 const USER_TRACKER_STATE_KEY = "userTrackerState";
 const USER_TRACKER_MARKERS_KEY = "userTrackerMarkers";

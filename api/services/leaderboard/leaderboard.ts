@@ -1,4 +1,5 @@
-import { MatchOutcome, type MatchStats } from "halo-infinite-api";
+import { MatchOutcome } from "halo-infinite-api";
+import type { MatchStats } from "halo-infinite-api";
 import { sub } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";

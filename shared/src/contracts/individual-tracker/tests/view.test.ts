@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Preconditions } from "../../../base/preconditions";
-import {
-  trackerViewContract,
-  trackerViewMessageContract,
-  trackerViewMessageSchema,
-  type TrackerViewMessage,
-  type TrackerViewResponse,
-} from "../view";
+import { trackerViewContract, trackerViewMessageContract, trackerViewMessageSchema } from "../view";
+import type { TrackerViewMessage, TrackerViewResponse } from "../view";
 
 describe("trackerViewContract", () => {
   const validResponse: TrackerViewResponse = {

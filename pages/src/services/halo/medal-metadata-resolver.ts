@@ -1,5 +1,6 @@
 import type { HaloInfiniteClient, MatchStats } from "halo-infinite-api";
-import { getMedalMetadataFromMatches, type MedalMetadata } from "@guilty-spark/shared/halo/medals";
+import { getMedalMetadataFromMatches } from "@guilty-spark/shared/halo/medals";
+import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 
 type MedalLookup = ReadonlyMap<number, { name: string; sortingWeight: number }>;
 

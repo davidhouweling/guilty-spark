@@ -19,13 +19,15 @@ import {
   InteractionContextType,
   PermissionFlagsBits,
 } from "discord-api-types/v10";
-import { type MatchStats, type GameVariantCategory, MatchType } from "halo-infinite-api";
+import { MatchType } from "halo-infinite-api";
+import type { MatchStats, GameVariantCategory } from "halo-infinite-api";
 import { formatDistanceToNowStrict, subHours } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { BaseInteraction, ExecuteResponse, ApplicationCommandData, CommandData } from "../base/base-command";
 import { BaseCommand } from "../base/base-command";
-import { NEAT_QUEUE_BOT_USER_ID, type QueueData } from "../../services/discord/discord";
+import { NEAT_QUEUE_BOT_USER_ID } from "../../services/discord/discord";
+import type { QueueData } from "../../services/discord/discord";
 import type { BaseMatchEmbed } from "../../embeds/stats/base-match-embed";
 import { SeriesPlayersEmbed } from "../../embeds/stats/series-players-embed";
 import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed";

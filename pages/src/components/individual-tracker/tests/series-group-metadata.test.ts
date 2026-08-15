@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildSeriesGroupKey } from "@guilty-spark/shared/individual-tracker/series-grouping";
 import type { TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
-import {
-  alignSeriesGroupsToGroupings,
-  getDefaultSeriesGroupSubtitle,
-  type IndividualTrackerSeriesGroup,
-} from "../series-group-metadata";
+import { alignSeriesGroupsToGroupings, getDefaultSeriesGroupSubtitle } from "../series-group-metadata";
+import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
 
 function aMatchEntryWith(
   overrides: Partial<

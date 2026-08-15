@@ -21,7 +21,8 @@ import type { LiveTrackerRefreshResponse } from "@guilty-spark/shared/contracts/
 import type { DatabaseService } from "../database/database";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../database/types/neat_queue_config";
-import { NEAT_QUEUE_BOT_USER_ID, type DiscordService } from "../discord/discord";
+import { NEAT_QUEUE_BOT_USER_ID } from "../discord/discord";
+import type { DiscordService } from "../discord/discord";
 import type { HaloService } from "../halo/halo";
 import type { MatchPlayer, UserInfo, PlayerEsraData } from "../halo/types";
 import type { LiveTrackerService } from "../live-tracker/live-tracker";

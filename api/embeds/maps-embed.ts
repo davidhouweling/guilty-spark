@@ -5,7 +5,8 @@ import type {
   APISelectMenuOption,
 } from "discord-api-types/v10";
 import { ComponentType, ButtonStyle } from "discord-api-types/v10";
-import { HCS_LAST_UPDATED, type MapMode } from "../services/halo/hcs";
+import { HCS_LAST_UPDATED } from "../services/halo/hcs";
+import type { MapMode } from "../services/halo/hcs";
 import type { DiscordService } from "../services/discord/discord";
 import { GAMECOACH_GG_URLS } from "../commands/maps/gamecoachgg";
 import { MapsFormatType, MapsPlaylistType } from "../services/database/types/guild_config";

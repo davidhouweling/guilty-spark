@@ -2,9 +2,11 @@ import { parsePathParams } from "@guilty-spark/shared/base/request-parsing";
 import {
   discordSeriesStatsContract,
   discordSeriesStatsParamsSchema,
-  type DiscordSeriesStats,
-  type DiscordSeriesStatsForbidden,
-  type DiscordSeriesStatsResolved,
+} from "@guilty-spark/shared/contracts/stats/discord-series";
+import type {
+  DiscordSeriesStats,
+  DiscordSeriesStatsForbidden,
+  DiscordSeriesStatsResolved,
 } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";

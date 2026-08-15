@@ -16,7 +16,8 @@ import type {
   LiveTrackerStatusResponse,
   LiveTrackerRepostResponse,
 } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
-import { LiveTrackerService, type LiveTrackerContext } from "../live-tracker";
+import { LiveTrackerService } from "../live-tracker";
+import type { LiveTrackerContext } from "../live-tracker";
 import type { LogService } from "../../log/types";
 import type { DiscordService } from "../../discord/discord";
 import type {

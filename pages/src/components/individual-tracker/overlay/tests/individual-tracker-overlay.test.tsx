@@ -21,7 +21,8 @@ import {
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { buildViewerRenderModel } from "../../viewer/viewer-render-model";
-import { IndividualTrackerOverlayPresenter, type MatchStatsState } from "../individual-tracker-overlay-presenter";
+import { IndividualTrackerOverlayPresenter } from "../individual-tracker-overlay-presenter";
+import type { MatchStatsState } from "../individual-tracker-overlay-presenter";
 import { IndividualTrackerOverlay } from "../individual-tracker-overlay";
 
 function aRenderModel(

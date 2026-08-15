@@ -7,9 +7,11 @@ import { isMatchStats } from "../../controllers/stats/is-match-stats";
 import { calculateSeriesMetadata } from "../../controllers/stats/series-metadata";
 import { StatsController } from "../../controllers/stats/stats-controller";
 import { GAMES_SUFFIX_RE, KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
-import { EMPTY_KILL_MATRIX_PIVOT_DATA, type KillMatrixPlayer } from "../../controllers/stats/kill-matrix/types";
+import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../controllers/stats/kill-matrix/types";
+import type { KillMatrixPlayer } from "../../controllers/stats/kill-matrix/types";
 import type { ComponentLoaderStatus } from "../component-loader/component-loader";
-import { getTeamColorOrDefault, type TeamColor } from "../team-colors/team-colors";
+import { getTeamColorOrDefault } from "../team-colors/team-colors";
+import type { TeamColor } from "../team-colors/team-colors";
 import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
 import { formatScoreProgression } from "../stats/score-progression/score-progression-formatter";
 import type {

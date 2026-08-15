@@ -20,10 +20,8 @@ import {
 } from "../../individual-tracker/fakes/individual-tracker-do.fake";
 import { aFakeIndividualTrackersRow } from "../../../services/database/fakes/database.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
-import {
-  aFakeWebSocketHibernationAdapter,
-  type FakeWebSocketHibernationAdapter,
-} from "../../../base/fakes/websocket-hibernation-adapter.fake";
+import { aFakeWebSocketHibernationAdapter } from "../../../base/fakes/websocket-hibernation-adapter.fake";
+import type { FakeWebSocketHibernationAdapter } from "../../../base/fakes/websocket-hibernation-adapter.fake";
 
 describe("UserTrackerDO", () => {
   let userTrackerDO: UserTrackerDO;

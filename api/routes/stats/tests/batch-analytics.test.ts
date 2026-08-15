@@ -6,10 +6,8 @@ import type { LogService } from "../../../services/log/types";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeAuthSessionWith } from "../../../services/auth/fakes/data";
-import {
-  AnalyticsService,
-  type AnalyticsService as AnalyticsServiceInstance,
-} from "../../../services/analytics/analytics";
+import { AnalyticsService } from "../../../services/analytics/analytics";
+import type { AnalyticsService as AnalyticsServiceInstance } from "../../../services/analytics/analytics";
 import { aFakeMatchAnalyticsWith } from "../../../services/analytics/fakes/analytics.fake";
 import { aFakeIndividualTrackersRow } from "../../../services/database/fakes/database.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";

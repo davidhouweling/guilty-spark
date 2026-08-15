@@ -20,12 +20,10 @@ import { aFakeDurableObjectNamespaceWith } from "../../../base/fakes/do.fake";
 import {
   aFakeIndividualTrackerDOWith,
   aFakeIndividualTrackerStateWith,
-  type FakeIndividualTrackerDO,
 } from "../../../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
-import {
-  aFakeUserTrackerDOWith,
-  type FakeUserTrackerDO,
-} from "../../../durable-objects/user-tracker/fakes/user-tracker-do.fake";
+import type { FakeIndividualTrackerDO } from "../../../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
+import { aFakeUserTrackerDOWith } from "../../../durable-objects/user-tracker/fakes/user-tracker-do.fake";
+import type { FakeUserTrackerDO } from "../../../durable-objects/user-tracker/fakes/user-tracker-do.fake";
 import { aFakeLiveTrackerStateWith } from "../../../durable-objects/live-tracker/fakes/live-tracker-do.fake";
 import { aFakeIndividualTrackersRow } from "../../../services/database/fakes/database.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";

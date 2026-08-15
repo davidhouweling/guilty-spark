@@ -1,4 +1,5 @@
-import React, { type SelectHTMLAttributes } from "react";
+import React from "react";
+import type { SelectHTMLAttributes } from "react";
 import classNames from "classnames";
 import styles from "./select.module.css";
 

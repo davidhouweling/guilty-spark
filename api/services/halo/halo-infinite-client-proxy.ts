@@ -1,4 +1,5 @@
-import { RequestError, type HaloInfiniteClient } from "halo-infinite-api";
+import { RequestError } from "halo-infinite-api";
+import type { HaloInfiniteClient } from "halo-infinite-api";
 import {
   appendHaloProxyArgsToUrl,
   resolveHaloProxyOperation,

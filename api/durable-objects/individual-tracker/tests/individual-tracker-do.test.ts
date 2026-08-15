@@ -10,13 +10,8 @@ import {
   aFakePlayerWith,
   aFakeTeamWith,
 } from "@guilty-spark/shared/halo/fakes/data";
-import {
-  AssetKind,
-  type HaloInfiniteClient,
-  MatchType,
-  type PlayerMatchHistory,
-  RequestError,
-} from "halo-infinite-api";
+import { AssetKind, MatchType, RequestError } from "halo-infinite-api";
+import type { HaloInfiniteClient, PlayerMatchHistory } from "halo-infinite-api";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 import type { IndividualTrackerStartRequest } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
@@ -36,10 +31,8 @@ import {
   aFakeDurableObjectStateWith,
   aFakeWebSocket,
 } from "../../../base/fakes/do.fake";
-import {
-  aFakeWebSocketHibernationAdapter,
-  type FakeWebSocketHibernationAdapter,
-} from "../../../base/fakes/websocket-hibernation-adapter.fake";
+import { aFakeWebSocketHibernationAdapter } from "../../../base/fakes/websocket-hibernation-adapter.fake";
+import type { FakeWebSocketHibernationAdapter } from "../../../base/fakes/websocket-hibernation-adapter.fake";
 import { aFakeUserTrackerDOWith } from "../../user-tracker/fakes/user-tracker-do.fake";
 import type {
   IndividualTrackerInternalState,

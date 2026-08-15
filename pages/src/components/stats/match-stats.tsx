@@ -3,7 +3,8 @@ import React, { useMemo, useState } from "react";
 import classNames from "classnames";
 import { Heading } from "../heading/heading";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
-import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
+import { SortableTable } from "../table/sortable-table";
+import type { SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";
 import { TabbedSection } from "../tabbed-section/tabbed-section";
 import { TeamIcon } from "../icons/team-icon";
@@ -12,11 +13,8 @@ import type { TeamColor } from "../team-colors/team-colors";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
 import { LoadingState } from "../loading-state/loading-state";
-import {
-  EMPTY_KILL_MATRIX_PIVOT_DATA,
-  type KillMatrixCrossTeamData,
-  type KillMatrixPivotData,
-} from "../../controllers/stats/kill-matrix/types";
+import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../controllers/stats/kill-matrix/types";
+import type { KillMatrixCrossTeamData, KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
 import type { MatchStatsData, MatchStatsPlayerData } from "../../controllers/stats/types";
 import { sortByMedals, getTeamMedalsMap, getPlayerMedalsMap } from "../../controllers/stats/medals-sorting";
 import { KillMatrixTable } from "./kill-matrix/kill-matrix-table";

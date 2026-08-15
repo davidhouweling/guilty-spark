@@ -4,7 +4,8 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import { StatsController } from "../../../controllers/stats/stats-controller";
 import { KillMatrixFormatter } from "../../../controllers/stats/kill-matrix/kill-matrix-formatter";
-import { EMPTY_KILL_MATRIX_PIVOT_DATA, type KillMatrixPlayer } from "../../../controllers/stats/kill-matrix/types";
+import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../../controllers/stats/kill-matrix/types";
+import type { KillMatrixPlayer } from "../../../controllers/stats/kill-matrix/types";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
@@ -17,7 +18,8 @@ import type {
   ViewerTimelineItem,
 } from "../viewer/types";
 import { formatScoreProgression } from "../../stats/score-progression/score-progression-formatter";
-import { buildSeriesViewModel, type ResolvedSeriesMatch } from "../../series-stats/build-series-view-model";
+import { buildSeriesViewModel } from "../../series-stats/build-series-view-model";
+import type { ResolvedSeriesMatch } from "../../series-stats/build-series-view-model";
 import type { SeriesStatsViewModel } from "../../series-stats/types";
 import { buildMatchHeaderTitle } from "../stats-panel-header";
 import type { MatchStatsState } from "./individual-tracker-overlay-presenter";

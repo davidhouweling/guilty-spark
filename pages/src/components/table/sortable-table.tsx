@@ -1,13 +1,6 @@
 import React, { useMemo, useState } from "react";
-import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  flexRender,
-  type ColumnDef,
-  type SortingState,
-  type SortDirection,
-} from "@tanstack/react-table";
+import { useReactTable, getCoreRowModel, getSortedRowModel, flexRender } from "@tanstack/react-table";
+import type { ColumnDef, SortingState, SortDirection } from "@tanstack/react-table";
 import classNames from "classnames";
 import styles from "./table.module.css";
 

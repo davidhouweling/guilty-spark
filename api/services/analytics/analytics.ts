@@ -1,8 +1,8 @@
 import { GameVariantCategory } from "halo-infinite-api";
-import {
-  type AnalyticsModule,
-  type MatchAnalytics,
-  type KillMatrixEntry as ContractKillMatrixEntry,
+import type {
+  AnalyticsModule,
+  MatchAnalytics,
+  KillMatrixEntry as ContractKillMatrixEntry,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { KILL_RACE_RESPAWN_DURATION_MS } from "@guilty-spark/shared/halo/respawn-durations";

@@ -13,10 +13,8 @@ import { IndividualTrackerService, MAX_TRACKERS_PER_USER } from "../individual-t
 import { IdentityNotOwnedError, ProfileNotFoundError, TrackerLimitReachedError, TrackerNotFoundError } from "../errors";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeDurableObjectNamespaceWith } from "../../../base/fakes/do.fake";
-import {
-  aFakeIndividualTrackerDOWith,
-  type FakeIndividualTrackerDO,
-} from "../../../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
+import { aFakeIndividualTrackerDOWith } from "../../../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
+import type { FakeIndividualTrackerDO } from "../../../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import type { LogService } from "../../log/types";
 

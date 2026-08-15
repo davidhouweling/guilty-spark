@@ -1,14 +1,12 @@
 import { compareAsc } from "date-fns";
-import { type MatchStats, type PlaylistCsrContainer } from "halo-infinite-api";
+import type { MatchStats, PlaylistCsrContainer } from "halo-infinite-api";
 import { getDurationInIsoString, getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { analyzeMatchGroupings } from "@guilty-spark/shared/halo/match-enrichment";
 import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
 import { formatDamageRatio, formatStatValue } from "@guilty-spark/shared/halo/stat-formatting";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import {
-  INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTION_DEFINITIONS,
-  type IndividualStatsHighlightOption,
-} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import { INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTION_DEFINITIONS } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { IndividualStatsHighlightOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { PlayerEsraData } from "../../services/halo/types";
 import type {

@@ -1,4 +1,4 @@
-import { type CSSProperties, type ReactElement } from "react";
+import type { CSSProperties, ReactElement } from "react";
 import classNames from "classnames";
 import { Heading } from "../heading/heading";
 import { Container } from "../container/container";

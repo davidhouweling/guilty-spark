@@ -4,7 +4,8 @@ import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
 import { ComponentLoader, ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { TeamIcon } from "../../icons/team-icon";
-import { SortableTable, type SortableTableColumn } from "../../table/sortable-table";
+import { SortableTable } from "../../table/sortable-table";
+import type { SortableTableColumn } from "../../table/sortable-table";
 import tableStyles from "../../table/table.module.css";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type {
