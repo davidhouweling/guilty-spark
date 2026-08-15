@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Button } from "../../button/button";
 import { Dialog } from "../../dialog/dialog";
 import { Input } from "../../input/input";
@@ -100,7 +100,7 @@ export function ManualSeriesDialog({
   onBackfillMatchToggle,
   onStartSeries,
 }: ManualSeriesDialogProps): React.ReactElement | null {
-  const MatchHistorySection = React.useMemo(() => createMatchHistorySection(), []);
+  const MatchHistorySection = useMemo(() => createMatchHistorySection(), []);
 
   if (!isOpen) {
     return null;

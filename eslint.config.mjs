@@ -1,7 +1,7 @@
 import eslint from "@eslint/js";
 import { defineConfig } from "eslint/config";
 import { configs } from "typescript-eslint";
-import importPlugin from "eslint-plugin-import";
+import { flatConfigs as importFlatConfigs } from "eslint-plugin-import-x";
 import tsParser from "@typescript-eslint/parser";
 import { configs as astroConfigs } from "eslint-plugin-astro";
 
@@ -9,8 +9,8 @@ export default defineConfig(
   eslint.configs.recommended,
   configs.strictTypeChecked,
   configs.stylisticTypeChecked,
-  importPlugin.flatConfigs.recommended,
-  importPlugin.flatConfigs.typescript,
+  importFlatConfigs.recommended,
+  importFlatConfigs.typescript,
   {
     ignores: [
       ".claude/",
@@ -46,7 +46,7 @@ export default defineConfig(
       },
     },
     settings: {
-      "import/resolver": {
+      "import-x/resolver": {
         typescript: true,
         node: true,
       },
@@ -72,7 +72,7 @@ export default defineConfig(
       "@typescript-eslint/strict-boolean-expressions": "error",
       "@typescript-eslint/switch-exhaustiveness-check": "error",
       "@typescript-eslint/no-floating-promises": "error",
-      "import/order": "error",
+      "import-x/order": "error",
       curly: ["error", "all"],
       "default-case": "error",
       "no-fallthrough": "error",
@@ -91,7 +91,7 @@ export default defineConfig(
       },
     },
     settings: {
-      "import/resolver": {
+      "import-x/resolver": {
         typescript: {
           project: "./pages/tsconfig.json",
         },
@@ -114,7 +114,7 @@ export default defineConfig(
       },
     },
     settings: {
-      "import/core-modules": [
+      "import-x/core-modules": [
         "astro:assets",
         "astro:content",
         "astro:env/client",

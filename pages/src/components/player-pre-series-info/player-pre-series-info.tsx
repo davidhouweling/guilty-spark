@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import ReactTimeAgo from "react-time-ago";
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
@@ -71,7 +71,7 @@ export function PlayerPreSeriesInfo({
   teamColors,
 }: PlayerPreSeriesInfoProps): React.ReactElement {
   // Flatten player data with team information
-  const playerRows = React.useMemo<PlayerRow[]>(() => {
+  const playerRows = useMemo<PlayerRow[]>(() => {
     const rows: PlayerRow[] = [];
     teams.forEach((team, teamIndex) => {
       team.players.forEach((player) => {
@@ -100,7 +100,7 @@ export function PlayerPreSeriesInfo({
   }, [teams, playersAssociationData]);
 
   // Define columns
-  const columns = React.useMemo<SortableTableColumn<PlayerRow>[]>(
+  const columns = useMemo<SortableTableColumn<PlayerRow>[]>(
     () => [
       {
         id: "team",

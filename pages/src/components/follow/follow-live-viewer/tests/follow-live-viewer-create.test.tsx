@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 
-import React from "react";
+import React, { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
@@ -29,7 +29,7 @@ vi.mock("../../../individual-tracker/viewer/create", () => ({
       externalView?: TrackerViewState;
       connectionStatusOverride?: string;
     }): React.ReactElement {
-      const [instanceId] = React.useState(() => {
+      const [instanceId] = useState(() => {
         mockViewerInstanceCount += 1;
         return mockViewerInstanceCount;
       });

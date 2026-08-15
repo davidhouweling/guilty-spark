@@ -110,8 +110,8 @@ const profileTemplateId = "profile-menu-template";
   />
 </template>
 
-<script type="module" define:vars={{ profileSlotId, profileTemplateId }}>
-  const profileSlot = document.getElementById(profileSlotId);
+<script>
+  const profileSlot = document.getElementById("profile-menu-slot");
   if (!(profileSlot instanceof HTMLElement)) {
     console.error("Profile menu slot not found; keeping the logged-out fallback.");
   } else {
@@ -124,7 +124,7 @@ const profileTemplateId = "profile-menu-template";
 
     const shouldHydrateProfileMenu = expectAuthenticated || hasAuthPresenceCookie;
     if (shouldHydrateProfileMenu) {
-      const profileTemplate = document.getElementById(profileTemplateId);
+      const profileTemplate = document.getElementById("profile-menu-template");
       if (!(profileTemplate instanceof HTMLTemplateElement)) {
         console.error("Profile menu template not found; keeping the logged-out fallback.");
       } else {

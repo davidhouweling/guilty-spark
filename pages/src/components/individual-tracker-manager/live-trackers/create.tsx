@@ -1,4 +1,4 @@
-import React, { useEffect, useSyncExternalStore } from "react";
+import React, { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import { createAddTrackerDialogSection } from "../../individual-tracker/add-tracker-dialog/create";
@@ -20,21 +20,21 @@ function LiveTrackersSectionInternal({
   individualTrackerService,
   individualTrackerViewService,
 }: LiveTrackersSectionInternalProps): React.ReactElement {
-  const AddTrackerDialogSection = React.useMemo(
+  const AddTrackerDialogSection = useMemo(
     () =>
       createAddTrackerDialogSection({
         individualTrackerService,
       }),
     [individualTrackerService],
   );
-  const MatchSelectionDialogSection = React.useMemo(
+  const MatchSelectionDialogSection = useMemo(
     () =>
       createMatchSelectionDialogSection({
         individualTrackerService,
       }),
     [individualTrackerService],
   );
-  const ManualSeriesDialogSection = React.useMemo(
+  const ManualSeriesDialogSection = useMemo(
     () =>
       createManualSeriesDialogSection({
         individualTrackerService,

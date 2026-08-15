@@ -1,8 +1,8 @@
-import React from "react";
+import React, { type SelectHTMLAttributes } from "react";
 import classNames from "classnames";
 import styles from "./select.module.css";
 
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   readonly containerClassName?: string;
 }
 

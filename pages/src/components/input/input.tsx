@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useId, type InputHTMLAttributes } from "react";
 import classNames from "classnames";
 import styles from "./input.module.css";
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   containerClassName?: string;
   labelClassName?: string;
@@ -10,7 +10,7 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 export function Input({ label, containerClassName, labelClassName, hint, ...rest }: InputProps): React.ReactElement {
-  const inputId = rest.id ?? React.useId();
+  const inputId = rest.id ?? useId();
   const hintId = hint != null && hint !== "" ? `${inputId}-hint` : undefined;
   return (
     <div className={classNames(styles.inputField, containerClassName)}>

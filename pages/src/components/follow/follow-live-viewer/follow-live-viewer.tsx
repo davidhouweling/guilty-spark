@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { ComponentLoaderStatus } from "../../component-loader/component-loader";
@@ -50,7 +50,7 @@ export function FollowLiveViewer({
   onSelectTracker,
   onRetry,
 }: FollowLiveViewerProps): React.ReactElement {
-  const IndividualTrackerViewerPage = React.useMemo(
+  const IndividualTrackerViewerPage = useMemo(
     () =>
       createIndividualTrackerViewerPage({
         individualTrackerViewService,

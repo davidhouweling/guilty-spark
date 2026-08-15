@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
 import type { TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 import { Alert } from "../../alert/alert";
@@ -58,7 +58,7 @@ export function MatchSelectionDialog({
   onHideShortGamesChange,
   onLoadMore,
 }: MatchSelectionDialogProps): React.ReactElement | null {
-  const MatchHistorySection = React.useMemo(() => createMatchHistorySection(), []);
+  const MatchHistorySection = useMemo(() => createMatchHistorySection(), []);
 
   if (!isOpen) {
     return null;

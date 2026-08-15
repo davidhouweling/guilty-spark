@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import { AddTrackerDialogPresenter } from "./add-tracker-dialog-presenter";
 import { AddTrackerDialogStore } from "./add-tracker-dialog-store";
@@ -24,7 +24,7 @@ function AddTrackerDialogSectionInternal({
   onClose,
   onTrackerStarted,
 }: AddTrackerDialogSectionInternalProps): React.ReactElement {
-  const onTrackerStartedRef = React.useRef(onTrackerStarted);
+  const onTrackerStartedRef = useRef(onTrackerStarted);
   onTrackerStartedRef.current = onTrackerStarted;
 
   const { individualTrackerService } = config;
