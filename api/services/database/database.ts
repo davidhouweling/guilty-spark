@@ -389,7 +389,10 @@ export class DatabaseService {
     await stmt.run();
   }
 
-  async getLeaderboardResetMarker(guildId: string, queueChannelId: string | null): Promise<LeaderboardResetMarkerRow | null> {
+  async getLeaderboardResetMarker(
+    guildId: string,
+    queueChannelId: string | null,
+  ): Promise<LeaderboardResetMarkerRow | null> {
     const stmt = this.DB.prepare(
       "SELECT * FROM LeaderboardResetMarkers WHERE GuildId = ? AND QueueChannelId IS ?",
     ).bind(guildId, queueChannelId);

@@ -93,7 +93,16 @@ function getWindowSelectOptions(selectedWindow: LeaderboardWindow, resetAt: numb
     { label: "12 months", value: LeaderboardWindow.TwelveMonths },
   ];
 
-  const options = resetAt == null ? windowOptions : [{ label: `Last reset - ${new Date(resetAt * 1000).toISOString().slice(0, 10)}`, value: LeaderboardWindow.LastReset }, ...windowOptions];
+  const options =
+    resetAt == null
+      ? windowOptions
+      : [
+          {
+            label: `Last reset - ${new Date(resetAt * 1000).toISOString().slice(0, 10)}`,
+            value: LeaderboardWindow.LastReset,
+          },
+          ...windowOptions,
+        ];
 
   return options.map((option) => ({
     ...option,

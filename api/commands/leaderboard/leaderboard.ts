@@ -412,7 +412,8 @@ export class LeaderboardCommand extends BaseCommand {
         UpdatedAt: now,
       });
 
-      const scope = queueChannelId == null ? "all leaderboards in this server" : `the leaderboard for <#${queueChannelId}>`;
+      const scope =
+        queueChannelId == null ? "all leaderboards in this server" : `the leaderboard for <#${queueChannelId}>`;
       await this.services.discordService.updateDeferredReply(interaction.token, {
         content: `Reset marker saved for ${scope} at <t:${resetAt.toString()}:F>. Existing data was retained.`,
       });
