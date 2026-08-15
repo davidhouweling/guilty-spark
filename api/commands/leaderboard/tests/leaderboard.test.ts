@@ -1143,7 +1143,10 @@ describe("LeaderboardCommand", () => {
       ...aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetricFamily.GamesWinRate }),
       guild_id: "guild-123",
       guild: {
-        ...Preconditions.checkExists(aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetricFamily.GamesWinRate }).guild),
+        ...Preconditions.checkExists(
+          aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetricFamily.GamesWinRate })
+            .guild,
+        ),
         id: "guild-123",
       },
       data: {
