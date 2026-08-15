@@ -358,7 +358,6 @@ export class LeaderboardService {
     page,
     pageSize,
     minGamesPlayed,
-    resetAt,
   }: GetLeaderboardOpts): Promise<LeaderboardResponse> {
     const config = await this.databaseService.getLeaderboardConfig(guildId, true);
     const queueResetMarker = await this.databaseService.getLeaderboardResetMarker(guildId, queueChannelId ?? null);
@@ -368,11 +367,14 @@ export class LeaderboardService {
         : null;
     const resetMarker = queueResetMarker ?? serverResetMarker;
     const resetMarkerResetAt = resetMarker?.ResetAt ?? null;
-    const resolvedWindow = window ?? (resetMarker == null ? config.DefaultWindow : LeaderboardWindow.LastReset);
-    const resolvedResetAt = resolvedWindow === LeaderboardWindow.LastReset ? (resetAt ?? resetMarkerResetAt) : null;
-    if (resolvedWindow === LeaderboardWindow.LastReset && resolvedResetAt == null) {
-      throw new Error("Leaderboard reset marker is missing");
-    }
+    const resolvedWindowCandidate =
+      window ?? (resetMarker == null ? config.DefaultWindow : LeaderboardWindow.LastReset);
+    const resolvedWindow =
+      resolvedWindowCandidate === LeaderboardWindow.LastReset && resetMarkerResetAt == null
+        ? config.DefaultWindow
+        : resolvedWindowCandidate;
+    const resolvedResetAt =
+      resolvedWindow === LeaderboardWindow.LastReset ? Preconditions.checkExists(resetMarkerResetAt) : null;
     const resolvedMetric = metric ?? config.DefaultMetric;
     const resolvedMinGamesPlayed = minGamesPlayed ?? config.MinGamesPlayed;
     const resolvedPage = Math.max(1, page ?? 1);

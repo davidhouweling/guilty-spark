@@ -208,6 +208,61 @@ describe("LeaderboardService", () => {
     expect(getMarkerSpy).toHaveBeenNthCalledWith(2, "guild-1", null);
   });
 
+  it("uses the stored reset marker even when a reset timestamp is provided", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    const resetAt = 1_723_600_000;
+
+    vi.spyOn(databaseService, "getLeaderboardResetMarker").mockResolvedValue({
+      GuildId: "guild-1",
+      QueueChannelId: null,
+      ResetAt: resetAt,
+      CreatedAt: resetAt,
+      UpdatedAt: resetAt,
+    });
+    vi.spyOn(databaseService, "getLeaderboardConfig").mockResolvedValue(aFakeLeaderboardConfigRow());
+    const rankingsSpy = vi.spyOn(databaseService, "getLeaderboardOutcomeMetricRankings").mockResolvedValue({
+      total: 0,
+      rows: [],
+    });
+
+    const result = await service.getLeaderboard({
+      guildId: "guild-1",
+      window: LeaderboardWindow.LastReset,
+      resetAt: resetAt - 100,
+    });
+
+    expect(result.window).toBe(LeaderboardWindow.LastReset);
+    expect(result.resetAt).toBe(resetAt);
+    expect(rankingsSpy).toHaveBeenCalledWith(expect.objectContaining({ startEpochSeconds: resetAt }));
+  });
+
+  it("falls back to the configured default window when reset is requested without a marker", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+
+    vi.spyOn(databaseService, "getLeaderboardResetMarker").mockResolvedValue(null);
+    vi.spyOn(databaseService, "getLeaderboardConfig").mockResolvedValue(aFakeLeaderboardConfigRow());
+    const rankingsSpy = vi.spyOn(databaseService, "getLeaderboardOutcomeMetricRankings").mockResolvedValue({
+      total: 0,
+      rows: [],
+    });
+
+    const result = await service.getLeaderboard({
+      guildId: "guild-1",
+      window: LeaderboardWindow.LastReset,
+    });
+
+    expect(result.window).toBe(LeaderboardWindow.ThreeMonths);
+    expect(result.resetAt).toBeNull();
+    const [rankingArgs] = Preconditions.checkExists(rankingsSpy.mock.calls[0]);
+    expect(rankingArgs.startEpochSeconds).toBeGreaterThan(0);
+  });
+
   it("keeps reset window selectable when showing a rolling window", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });
