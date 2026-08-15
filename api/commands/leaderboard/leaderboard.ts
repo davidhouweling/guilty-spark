@@ -60,6 +60,7 @@ const METRIC_AGGREGATIONS_IN_OPTION_ORDER: readonly LeaderboardMetricAggregation
 ];
 
 const WINDOW_OPTIONS_BY_VALUE = new Map<string, LeaderboardWindow>([
+  [LeaderboardWindow.LastReset, LeaderboardWindow.LastReset],
   [LeaderboardWindow.OneWeek, LeaderboardWindow.OneWeek],
   [LeaderboardWindow.OneMonth, LeaderboardWindow.OneMonth],
   [LeaderboardWindow.ThreeMonths, LeaderboardWindow.ThreeMonths],

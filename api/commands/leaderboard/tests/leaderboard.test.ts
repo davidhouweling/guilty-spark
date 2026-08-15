@@ -1138,6 +1138,52 @@ describe("LeaderboardCommand", () => {
     });
   });
 
+  it("switches metric while the reset window is active", async () => {
+    const interaction: APIMessageComponentSelectMenuInteraction = {
+      ...aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetricFamily.GamesWinRate }),
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetricFamily.GamesWinRate }).guild),
+        id: "guild-123",
+      },
+      data: {
+        component_type: ComponentType.StringSelect,
+        custom_id: `${INTERACTION_METRIC_SELECT}:guild-123:-:RESET:SERIES_WIN_RATE:1:0`,
+        values: [LeaderboardMetricFamily.GamesWinRate],
+      },
+    };
+    vi.spyOn(services.databaseService, "getLeaderboardResetMarker").mockResolvedValue({
+      GuildId: "guild-123",
+      QueueChannelId: null,
+      ResetAt: 1_723_600_000,
+      CreatedAt: 1_723_600_000,
+      UpdatedAt: 1_723_600_000,
+    });
+    const getLeaderboardSpy = vi.spyOn(services.leaderboardService, "getLeaderboard").mockResolvedValue({
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.LastReset,
+      resetAt: 1_723_600_000,
+      metric: LeaderboardMetric.GamesWinRate,
+      minGamesPlayed: 0,
+      page: 1,
+      pageSize: 10,
+      total: 0,
+      rows: [],
+    });
+    vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      ...Preconditions.checkExists(interaction.message),
+      type: MessageType.Default,
+    });
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(getLeaderboardSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ window: LeaderboardWindow.LastReset, metric: LeaderboardMetric.GamesWinRate }),
+    );
+  });
+
   it("switches metric from legacy metric string-select interaction and resets to page 1", async () => {
     const stateUrl =
       "https://guilty-spark.app/leaderboard?guildId=test-guild-id&window=1M&metric=AVG_KILLS_PER_SERIES&page=6&minGamesPlayed=0";
