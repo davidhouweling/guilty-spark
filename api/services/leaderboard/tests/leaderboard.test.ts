@@ -208,6 +208,37 @@ describe("LeaderboardService", () => {
     expect(getMarkerSpy).toHaveBeenNthCalledWith(2, "guild-1", null);
   });
 
+  it("keeps reset window selectable when showing a rolling window", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    const resetAt = 1_723_600_000;
+
+    vi.spyOn(databaseService, "getLeaderboardResetMarker").mockResolvedValue({
+      GuildId: "guild-1",
+      QueueChannelId: null,
+      ResetAt: resetAt,
+      CreatedAt: resetAt,
+      UpdatedAt: resetAt,
+    });
+    vi.spyOn(databaseService, "getLeaderboardConfig").mockResolvedValue(aFakeLeaderboardConfigRow());
+    const rankingsSpy = vi.spyOn(databaseService, "getLeaderboardOutcomeMetricRankings").mockResolvedValue({
+      total: 0,
+      rows: [],
+    });
+
+    const result = await service.getLeaderboard({
+      guildId: "guild-1",
+      window: LeaderboardWindow.OneMonth,
+    });
+
+    expect(result.window).toBe(LeaderboardWindow.OneMonth);
+    expect(result.resetAt).toBe(resetAt);
+    const [rankingArgs] = Preconditions.checkExists(rankingsSpy.mock.calls[0]);
+    expect(rankingArgs.startEpochSeconds).toBeGreaterThan(0);
+  });
+
   it("supports queue scope and pagination for stat metrics", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });

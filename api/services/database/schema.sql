@@ -163,9 +163,6 @@ CREATE TABLE IF NOT EXISTS LeaderboardResetMarkers (
     PRIMARY KEY (GuildId, QueueChannelId)
 );
 
-CREATE INDEX IF NOT EXISTS IdxLeaderboardResetMarkersGuild
-    ON LeaderboardResetMarkers (GuildId, QueueChannelId);
-
 CREATE TABLE IF NOT EXISTS LeaderboardSeries (
     GuildId TEXT NOT NULL,
     QueueNumber INTEGER NOT NULL,

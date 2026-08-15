@@ -472,11 +472,12 @@ export class LeaderboardCommand extends BaseCommand {
       const { guildId, queueChannelId, resetAt } = this.parseResetControlId(interaction.data.custom_id);
       this.assertResetInteractionGuild(interaction, guildId);
       await this.assertCanResetLeaderboard(interaction, guildId);
+      const validatedResetAt = this.validateResetAtBoundary(resetAt);
       const now = Math.floor(Date.now() / 1000);
       await this.services.databaseService.upsertLeaderboardResetMarker({
         GuildId: guildId,
         QueueChannelId: queueChannelId,
-        ResetAt: resetAt,
+        ResetAt: validatedResetAt,
         CreatedAt: now,
         UpdatedAt: now,
       });
@@ -485,7 +486,7 @@ export class LeaderboardCommand extends BaseCommand {
       await this.services.discordService.updateDeferredReply(interaction.token, {
         embeds: [
           this.createResetStatusEmbed(
-            `Reset confirmed for ${scope} at <t:${resetAt.toString()}:f>. Existing data was retained.`,
+            `Reset confirmed for ${scope} at <t:${validatedResetAt.toString()}:f>. Existing data was retained.`,
           ),
         ],
         components: [],
@@ -621,6 +622,24 @@ export class LeaderboardCommand extends BaseCommand {
         errorType: EndUserErrorType.WARNING,
       });
     }
+    return resetAt;
+  }
+
+  private validateResetAtBoundary(resetAt: number): number {
+    if (!Number.isInteger(resetAt) || resetAt < 0) {
+      throw new EndUserError("Reset date is invalid.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+
+    if (resetAt > Math.floor(Date.now() / 1000)) {
+      throw new EndUserError("Reset date cannot be in the future.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+
     return resetAt;
   }
 

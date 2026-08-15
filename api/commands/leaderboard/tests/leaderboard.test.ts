@@ -181,6 +181,33 @@ describe("LeaderboardCommand", () => {
     );
   });
 
+  it("rejects tampered reset confirmations that point to a future date", async () => {
+    const resetAt = Math.floor(Date.now() / 1000) + 60;
+    const interaction: APIMessageComponentButtonInteraction = {
+      ...fakeButtonClickInteraction,
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(fakeButtonClickInteraction.guild),
+        id: "guild-123",
+      },
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: `btn_leaderboard_reset_confirm:guild-123:queue-123:${resetAt.toString(36)}`,
+      },
+    };
+    const upsertSpy = vi.spyOn(services.databaseService, "upsertLeaderboardResetMarker").mockResolvedValue(undefined);
+    const errorSpy = vi.spyOn(services.discordService, "updateDeferredReplyWithError").mockResolvedValue(undefined);
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(upsertSpy).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({ endUserMessage: "Reset date cannot be in the future." }),
+    );
+  });
+
   it("rejects reset requests that supply both date and queue number", async () => {
     const mappedOptions = new Map<string, string | number | boolean>([
       ["date", "2024-08-14"],
