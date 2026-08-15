@@ -40,8 +40,10 @@ export function TabbedSection<TId extends string>({
   const focusTab = useCallback(
     (tabId: TId): void => {
       const tabDomId = `${tabSetId}-${tabId}-tab`;
-      const button = tabListRef.current?.ownerDocument.getElementById(tabDomId) as HTMLButtonElement | null;
-      button?.focus();
+      const button = tabListRef.current?.ownerDocument.getElementById(tabDomId);
+      if (button instanceof HTMLButtonElement) {
+        button.focus();
+      }
     },
     [tabSetId],
   );
