@@ -176,6 +176,12 @@ export class LeaderboardCommand extends BaseCommand {
           description: "Set a non-destructive leaderboard reset marker",
           options: [
             {
+              name: "confirm",
+              description: "Confirm resetting the selected leaderboard scope",
+              type: ApplicationCommandOptionType.Boolean,
+              required: true,
+            },
+            {
               name: "queue_channel",
               description: "Reset only this queue, or all server leaderboards when omitted",
               type: ApplicationCommandOptionType.Channel,
@@ -194,12 +200,6 @@ export class LeaderboardCommand extends BaseCommand {
               type: ApplicationCommandOptionType.Integer,
               required: false,
               min_value: 1,
-            },
-            {
-              name: "confirm",
-              description: "Confirm resetting the selected leaderboard scope",
-              type: ApplicationCommandOptionType.Boolean,
-              required: true,
             },
           ],
         },

@@ -43,7 +43,10 @@ const response = await fetch(url, {
 console.log(`Refreshed commands with status ${response.status.toString()}`);
 
 if (!response.ok) {
-  throw new Error(`Failed to refresh commands: ${response.status.toString()} ${response.statusText}`);
+  const responseBody = await response.text();
+  throw new Error(
+    `Failed to refresh commands: ${response.status.toString()} ${response.statusText}\n${responseBody}`,
+  );
 }
 
 const data = await response.json<RESTPutAPIApplicationCommandsResult>();
