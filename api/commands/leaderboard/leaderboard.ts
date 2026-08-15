@@ -189,6 +189,13 @@ export class LeaderboardCommand extends BaseCommand {
               required: false,
             },
             {
+              name: "queue_number",
+              description: "Use this completed queue as the reset boundary",
+              type: ApplicationCommandOptionType.Integer,
+              required: false,
+              min_value: 1,
+            },
+            {
               name: "confirm",
               description: "Confirm resetting the selected leaderboard scope",
               type: ApplicationCommandOptionType.Boolean,
@@ -402,7 +409,12 @@ export class LeaderboardCommand extends BaseCommand {
       }
 
       const queueChannelId = this.getOptionalStringOption(options, "queue_channel") ?? null;
-      const resetAt = this.parseResetDate(this.getOptionalStringOption(options, "date"));
+      const resetAt = await this.resolveResetAt({
+        guildId,
+        queueChannelId,
+        date: this.getOptionalStringOption(options, "date"),
+        queueNumber: this.getOptionalNumberOption(options, "queue_number"),
+      });
       const now = Math.floor(Date.now() / 1000);
       await this.services.databaseService.upsertLeaderboardResetMarker({
         GuildId: guildId,
@@ -447,6 +459,46 @@ export class LeaderboardCommand extends BaseCommand {
       });
     }
     return resetAt;
+  }
+
+  private async resolveResetAt({
+    guildId,
+    queueChannelId,
+    date,
+    queueNumber,
+  }: {
+    guildId: string;
+    queueChannelId: string | null;
+    date: string | undefined;
+    queueNumber: number | undefined;
+  }): Promise<number> {
+    if (date != null && queueNumber != null) {
+      throw new EndUserError("Only one reset boundary can be used: date or queue number.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+
+    if (queueNumber == null) {
+      return this.parseResetDate(date);
+    }
+
+    const series = await this.services.databaseService.getLeaderboardSeriesByQueueNumber(guildId, queueNumber);
+    if (series == null) {
+      throw new EndUserError("No completed leaderboard series was found for that queue number.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+
+    if (queueChannelId != null && series.QueueChannelId !== queueChannelId) {
+      throw new EndUserError("That queue number belongs to a different queue channel.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+
+    return series.CompletedAt;
   }
 
   private async handlePageChange(

@@ -19,6 +19,7 @@ import {
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { LeaderboardMetric, LeaderboardMetricFamily, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
+import { aFakeLeaderboardSeriesRow } from "../../../services/database/fakes/database.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import {
   aWizardStringSelectWith,
@@ -98,6 +99,82 @@ describe("LeaderboardCommand", () => {
     expect(subcommands).toHaveLength(2);
     expect(subcommands?.[0]?.name).toBe("show");
     expect(subcommands?.[1]?.name).toBe("reset");
+  });
+
+  it("uses a queue completion time as the reset marker boundary", async () => {
+    const mappedOptions = new Map<string, string | number | boolean>([
+      ["queue_channel", "queue-123"],
+      ["queue_number", 42],
+      ["confirm", true],
+    ]);
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "reset",
+      options: [],
+      mappedOptions,
+    });
+    vi.spyOn(services.databaseService, "getLeaderboardSeriesByQueueNumber").mockResolvedValue(
+      aFakeLeaderboardSeriesRow({ GuildId: "guild-123", QueueNumber: 42, QueueChannelId: "queue-123", CompletedAt: 1_723_600_000 }),
+    );
+    const upsertSpy = vi.spyOn(services.databaseService, "upsertLeaderboardResetMarker").mockResolvedValue(undefined);
+    const updateSpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      ...fakeButtonClickInteraction.message,
+      type: MessageType.Default,
+    });
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      guild_id: "guild-123",
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [{ type: ApplicationCommandOptionType.Subcommand, name: "reset", options: [] }],
+      },
+    };
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(upsertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ GuildId: "guild-123", QueueChannelId: "queue-123", ResetAt: 1_723_600_000 }),
+    );
+    expect(updateSpy).toHaveBeenCalledWith(
+      interaction.token,
+      { content: "Reset marker saved for the leaderboard for <#queue-123> at <t:1723600000:F>. Existing data was retained." },
+    );
+  });
+
+  it("rejects reset requests that supply both date and queue number", async () => {
+    const mappedOptions = new Map<string, string | number | boolean>([
+      ["date", "2024-08-14"],
+      ["queue_number", 42],
+      ["confirm", true],
+    ]);
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "reset",
+      options: [],
+      mappedOptions,
+    });
+    const errorSpy = vi.spyOn(services.discordService, "updateDeferredReplyWithError").mockResolvedValue(undefined);
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      guild_id: "guild-123",
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [{ type: ApplicationCommandOptionType.Subcommand, name: "reset", options: [] }],
+      },
+    };
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({ endUserMessage: "Only one reset boundary can be used: date or queue number." }),
+    );
   });
 
   it("fetches leaderboard data and updates deferred reply with stateful controls", async () => {

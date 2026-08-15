@@ -156,7 +156,7 @@ CREATE INDEX IF NOT EXISTS IdxLeaderboardPostsGuildQueue
 
 CREATE TABLE IF NOT EXISTS LeaderboardResetMarkers (
     GuildId TEXT NOT NULL,
-    QueueChannelId TEXT,
+    QueueChannelId TEXT NOT NULL DEFAULT '',
     ResetAt INTEGER NOT NULL,
     CreatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
     UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch()),

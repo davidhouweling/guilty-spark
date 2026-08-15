@@ -394,8 +394,8 @@ export class DatabaseService {
     queueChannelId: string | null,
   ): Promise<LeaderboardResetMarkerRow | null> {
     const stmt = this.DB.prepare(
-      "SELECT * FROM LeaderboardResetMarkers WHERE GuildId = ? AND QueueChannelId IS ?",
-    ).bind(guildId, queueChannelId);
+      "SELECT GuildId, NULLIF(QueueChannelId, '') AS QueueChannelId, ResetAt, CreatedAt, UpdatedAt FROM LeaderboardResetMarkers WHERE GuildId = ? AND QueueChannelId = ?",
+    ).bind(guildId, queueChannelId ?? "");
     return await stmt.first<LeaderboardResetMarkerRow>();
   }
 
@@ -404,7 +404,7 @@ export class DatabaseService {
       `INSERT INTO LeaderboardResetMarkers (GuildId, QueueChannelId, ResetAt, CreatedAt, UpdatedAt)
        VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(GuildId, QueueChannelId) DO UPDATE SET ResetAt=excluded.ResetAt, UpdatedAt=excluded.UpdatedAt`,
-    ).bind(marker.GuildId, marker.QueueChannelId, marker.ResetAt, marker.CreatedAt, marker.UpdatedAt);
+    ).bind(marker.GuildId, marker.QueueChannelId ?? "", marker.ResetAt, marker.CreatedAt, marker.UpdatedAt);
     await stmt.run();
   }
 
