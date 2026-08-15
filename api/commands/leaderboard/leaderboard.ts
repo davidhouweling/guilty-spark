@@ -485,7 +485,7 @@ export class LeaderboardCommand extends BaseCommand {
       await this.services.discordService.updateDeferredReply(interaction.token, {
         embeds: [
           this.createResetStatusEmbed(
-            `Reset confirmed for ${scope} at <t:${resetAt.toString()}:F>. Existing data was retained.`,
+            `Reset confirmed for ${scope} at <t:${resetAt.toString()}:f>. Existing data was retained.`,
           ),
         ],
         components: [],
@@ -529,10 +529,10 @@ export class LeaderboardCommand extends BaseCommand {
     resetAt: number,
   ): { title: string; description: string; color: number } {
     const currentTimeframe =
-      currentResetAt == null ? "Start of available leaderboard data" : `<t:${currentResetAt.toString()}:F>`;
+      currentResetAt == null ? "Start of available leaderboard data" : `<t:${currentResetAt.toString()}:f>`;
     return {
       title: "Leaderboard reset",
-      description: `Scope: ${this.getResetScopeLabel(queueChannelId)}\nCurrent timeframe: ${currentTimeframe}\nWill reset to: <t:${resetAt.toString()}:F>\n\nExisting leaderboard data will be retained.`,
+      description: `Scope: ${this.getResetScopeLabel(queueChannelId)}\nCurrent timeframe: ${currentTimeframe}\nWill reset to: <t:${resetAt.toString()}:f>\n\nExisting leaderboard data will be retained.`,
       color: EmbedColors.GOLD,
     };
   }
@@ -860,6 +860,9 @@ export class LeaderboardCommand extends BaseCommand {
         leaderboard,
         this.services.discordService.getTimestamp(new Date().toISOString(), "R"),
         state.locked ?? false,
+        leaderboard.resetAt == null
+          ? null
+          : this.services.discordService.getTimestamp(new Date(leaderboard.resetAt * 1000).toISOString(), "f"),
       );
       const message = await this.services.discordService.updateDeferredReply(token, response);
       if (state.locked !== true) {

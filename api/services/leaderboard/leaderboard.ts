@@ -270,7 +270,15 @@ export class LeaderboardService {
       await discordService.editMessage(
         post.ChannelId,
         post.MessageId,
-        createLeaderboardResponse(locale, leaderboard, discordService.getTimestamp(new Date().toISOString(), "R")),
+        createLeaderboardResponse(
+          locale,
+          leaderboard,
+          discordService.getTimestamp(new Date().toISOString(), "R"),
+          false,
+          leaderboard.resetAt == null
+            ? null
+            : discordService.getTimestamp(new Date(leaderboard.resetAt * 1000).toISOString(), "f"),
+        ),
       );
     } catch (error) {
       if (

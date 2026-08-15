@@ -266,7 +266,8 @@ describe("createLeaderboardResponse", () => {
       rows: [],
     };
 
-    const response = createLeaderboardResponse("en-US", leaderboard, "<t:1733483139:R>");
+    const response = createLeaderboardResponse("en-US", leaderboard, "<t:1733483139:R>", false, "<t:1723600000:f>");
+    expect(response.embeds?.[0]?.description).toContain("Window: Since <t:1723600000:f>");
     const windowSelectRow = response.components?.[3];
     if (windowSelectRow?.type !== ComponentType.ActionRow) {
       throw new Error("Expected window select row to be an action row");

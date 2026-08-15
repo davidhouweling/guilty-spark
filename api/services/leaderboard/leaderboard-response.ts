@@ -122,13 +122,13 @@ function getRankingContent(rankingLines: string[], totalPlayers: number): string
   return "No players found on this page. Try a lower page number.";
 }
 
-function getWindowLabel(window: LeaderboardWindow, resetAt: number | null): string {
+function getWindowLabel(window: LeaderboardWindow, resetTimestamp: string | null): string {
   switch (window) {
     case LeaderboardWindow.LastReset: {
-      if (resetAt == null) {
+      if (resetTimestamp == null) {
         throw new Error("Reset timestamp is required for Last reset window");
       }
-      return `Last reset - ${new Date(resetAt * 1000).toISOString().slice(0, 10)}`;
+      return `Since ${resetTimestamp}`;
     }
     case LeaderboardWindow.OneWeek: {
       return "1 week";
@@ -453,11 +453,12 @@ export function createLeaderboardResponse(
   leaderboard: LeaderboardResponse,
   updatedTimestamp: string,
   locked = false,
+  resetTimestamp: string | null = null,
 ): RESTPostAPIChannelMessageJSONBody {
   const rows = leaderboard.rows.slice(0, MAX_ROWS_IN_DISCORD_EMBED);
   const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
   const metricLabel = getMetricLabel(leaderboard.metric);
-  const windowLabel = getWindowLabel(leaderboard.window, leaderboard.resetAt ?? null);
+  const windowLabel = getWindowLabel(leaderboard.window, resetTimestamp);
   const scopeLabel =
     leaderboard.queueChannelId != null ? `Queue <#${leaderboard.queueChannelId}>` : "Server-wide (all queues)";
 
