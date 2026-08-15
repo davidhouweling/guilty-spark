@@ -44,9 +44,7 @@ console.log(`Refreshed commands with status ${response.status.toString()}`);
 
 if (!response.ok) {
   const responseBody = await response.text();
-  throw new Error(
-    `Failed to refresh commands: ${response.status.toString()} ${response.statusText}\n${responseBody}`,
-  );
+  throw new Error(`Failed to refresh commands: ${response.status.toString()} ${response.statusText}\n${responseBody}`);
 }
 
 const data = await response.json<RESTPutAPIApplicationCommandsResult>();

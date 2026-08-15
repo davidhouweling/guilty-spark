@@ -101,11 +101,10 @@ describe("LeaderboardCommand", () => {
     expect(subcommands?.[1]?.name).toBe("reset");
   });
 
-  it("uses a queue completion time as the reset marker boundary", async () => {
+  it("previews a queue completion time before saving the reset marker", async () => {
     const mappedOptions = new Map<string, string | number | boolean>([
       ["queue_channel", "queue-123"],
       ["queue_number", 42],
-      ["confirm", true],
     ]);
     vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
       name: "reset",
@@ -113,7 +112,12 @@ describe("LeaderboardCommand", () => {
       mappedOptions,
     });
     vi.spyOn(services.databaseService, "getLeaderboardSeriesByQueueNumber").mockResolvedValue(
-      aFakeLeaderboardSeriesRow({ GuildId: "guild-123", QueueNumber: 42, QueueChannelId: "queue-123", CompletedAt: 1_723_600_000 }),
+      aFakeLeaderboardSeriesRow({
+        GuildId: "guild-123",
+        QueueNumber: 42,
+        QueueChannelId: "queue-123",
+        CompletedAt: 1_723_600_000,
+      }),
     );
     const upsertSpy = vi.spyOn(services.databaseService, "upsertLeaderboardResetMarker").mockResolvedValue(undefined);
     const updateSpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
@@ -135,12 +139,45 @@ describe("LeaderboardCommand", () => {
     const result = command.execute(interaction);
     await result.jobToComplete?.();
 
+    expect(upsertSpy).not.toHaveBeenCalled();
+    expect(updateSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({
+        embeds: [expect.objectContaining({ title: "Leaderboard reset", color: 13_938_487 })],
+        components: [expect.any(Object)],
+      }),
+    );
+  });
+
+  it("saves the reset marker when confirmation button is clicked", async () => {
+    const resetAt = 1_723_600_000;
+    const interaction: APIMessageComponentButtonInteraction = {
+      ...fakeButtonClickInteraction,
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(fakeButtonClickInteraction.guild),
+        id: "guild-123",
+      },
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: `btn_leaderboard_reset_confirm:guild-123:queue-123:${resetAt.toString(36)}`,
+      },
+    };
+    const upsertSpy = vi.spyOn(services.databaseService, "upsertLeaderboardResetMarker").mockResolvedValue(undefined);
+    const updateSpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      ...fakeButtonClickInteraction.message,
+      type: MessageType.Default,
+    });
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
     expect(upsertSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ GuildId: "guild-123", QueueChannelId: "queue-123", ResetAt: 1_723_600_000 }),
+      expect.objectContaining({ GuildId: "guild-123", QueueChannelId: "queue-123", ResetAt: resetAt }),
     );
     expect(updateSpy).toHaveBeenCalledWith(
       interaction.token,
-      { content: "Reset marker saved for the leaderboard for <#queue-123> at <t:1723600000:F>. Existing data was retained." },
+      expect.objectContaining({ embeds: [expect.objectContaining({ title: "Leaderboard reset" })], components: [] }),
     );
   });
 
@@ -148,7 +185,6 @@ describe("LeaderboardCommand", () => {
     const mappedOptions = new Map<string, string | number | boolean>([
       ["date", "2024-08-14"],
       ["queue_number", 42],
-      ["confirm", true],
     ]);
     vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
       name: "reset",
