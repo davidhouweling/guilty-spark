@@ -58,7 +58,7 @@ export function TabbedSection<TId extends string>({
         return;
       }
       const currentIndex = selectedTabId != null ? tabs.findIndex((t) => t.id === selectedTabId) : -1;
-      let nextIndex: number | null = null;
+      let nextIndex: number;
 
       switch (event.key) {
         case "ArrowRight": {

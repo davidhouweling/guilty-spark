@@ -45,7 +45,7 @@ export class RealAuthService implements AuthService {
     });
 
     if (response.status === 401) {
-      let unauthenticated: SessionResponse = { authenticated: false };
+      let unauthenticated: SessionResponse;
       try {
         unauthenticated = await sessionContract.fromResponse(response);
       } catch {
