@@ -2033,6 +2033,10 @@ describe("HaloFilmService", () => {
       };
     }
 
+    function tickBurst(xuid: string, startMs: number, count: number): ParsedHighlightEvent[] {
+      return Array.from({ length: count }, (_, tickIndex) => modeEvent(xuid, startMs + tickIndex * 5000));
+    }
+
     it("derives hill capture timestamps from score events matching each team's capture count", async () => {
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
@@ -2042,62 +2046,38 @@ describe("HaloFilmService", () => {
       const team0Xuid = "0100000000000000";
       const team1Xuid = "0400000000000000";
 
+      // 8 ticks × 5s cadence = the 40s capture meter; each burst captures and relocates the hill.
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
-        // Location A: Team 0 accumulates 5 ticks (captures, causing relocation)
-        modeEvent(team0Xuid, 5000),
-        modeEvent(team0Xuid, 10000),
-        modeEvent(team0Xuid, 15000),
-        modeEvent(team0Xuid, 20000),
-        modeEvent(team0Xuid, 25000),
-        // Location B: Team 1 accumulates 5 ticks (captures, causing relocation)
-        modeEvent(team1Xuid, 70000),
-        modeEvent(team1Xuid, 75000),
-        modeEvent(team1Xuid, 80000),
-        modeEvent(team1Xuid, 85000),
-        modeEvent(team1Xuid, 90000),
-        // Location C: Team 0 accumulates 5 ticks (captures, causing relocation)
-        modeEvent(team0Xuid, 140000),
-        modeEvent(team0Xuid, 145000),
-        modeEvent(team0Xuid, 150000),
-        modeEvent(team0Xuid, 155000),
-        modeEvent(team0Xuid, 160000),
-        // Location D: Team 1 accumulates 5 ticks (captures, causing relocation)
-        modeEvent(team1Xuid, 220000),
-        modeEvent(team1Xuid, 225000),
-        modeEvent(team1Xuid, 230000),
-        modeEvent(team1Xuid, 235000),
-        modeEvent(team1Xuid, 240000),
-        // Location E: Team 0 accumulates 5 ticks and ends the match
-        modeEvent(team0Xuid, 300000),
-        modeEvent(team0Xuid, 305000),
-        modeEvent(team0Xuid, 310000),
-        modeEvent(team0Xuid, 315000),
-        modeEvent(team0Xuid, 320000),
+        ...tickBurst(team0Xuid, 5000, 8), // Location A: Team 0 captures at 40000
+        ...tickBurst(team1Xuid, 70000, 8), // Location B: Team 1 captures at 105000
+        ...tickBurst(team0Xuid, 140000, 8), // Location C: Team 0 captures at 175000
+        ...tickBurst(team1Xuid, 220000, 8), // Location D: Team 1 captures at 255000
+        ...tickBurst(team0Xuid, 300000, 8), // Location E: Team 0 captures at 335000, ending the match
       ]);
       vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([
-        { timeMs: 25500, fromValue: 0x40, toValue: 0x41 }, // end of Location A control
-        { timeMs: 30000, fromValue: 0x41, toValue: 0x42 }, // start of Location B control
-        { timeMs: 90500, fromValue: 0x42, toValue: 0x43 }, // end of Location B control
-        { timeMs: 95000, fromValue: 0x43, toValue: 0x44 }, // start of Location C control
-        { timeMs: 160500, fromValue: 0x44, toValue: 0x45 }, // end of Location C control
-        { timeMs: 165000, fromValue: 0x45, toValue: 0x46 }, // start of Location D control
-        { timeMs: 240500, fromValue: 0x46, toValue: 0x47 }, // end of Location D control
-        { timeMs: 245000, fromValue: 0x47, toValue: 0x48 }, // start of Location E control
+        { timeMs: 40500, fromValue: 0x40, toValue: 0x41 }, // end of Location A control
+        { timeMs: 45000, fromValue: 0x41, toValue: 0x42 }, // start of Location B control
+        { timeMs: 105500, fromValue: 0x42, toValue: 0x43 }, // end of Location B control
+        { timeMs: 110000, fromValue: 0x43, toValue: 0x44 }, // start of Location C control
+        { timeMs: 175500, fromValue: 0x44, toValue: 0x45 }, // end of Location C control
+        { timeMs: 180000, fromValue: 0x45, toValue: 0x46 }, // start of Location D control
+        { timeMs: 255500, fromValue: 0x46, toValue: 0x47 }, // end of Location D control
+        { timeMs: 260000, fromValue: 0x47, toValue: 0x48 }, // start of Location E control
       ]);
 
       const durationMs = 732278;
       const result = await service.buildObjectiveControlProgression(match, durationMs);
 
       expect(result.teamCount).toBe(2);
-      expect(result.hillCaptureTimestamps).toEqual([25000, 90000, 160000, 240000, 320000]);
-      expect(result.events).toHaveLength(25);
+      expect(result.hillCaptureTimestamps).toEqual([40000, 105000, 175000, 255000, 335000]);
+      expect(result.events).toHaveLength(40);
       expect(result.controlPeriods).toHaveLength(9);
     });
 
     it("includes the match-end capture when per-location tick counts are uneven across hills", async () => {
-      // Loc E has 7 ticks instead of 5. The 5-tick reading of Loc E (capture at 320000) is
+      // Loc E has 10 ticks instead of 8. The 8-tick reading of Loc E (capture at 335000) is
       // rejected because the next tick lands 5000ms later — inside the relocation quiet gap —
-      // so the capture must be the uneven 7-tick match-end event at 330000.
+      // so the capture must be the uneven 10-tick match-end event at 345000.
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
@@ -2107,49 +2087,26 @@ describe("HaloFilmService", () => {
       const team1Xuid = "0400000000000000";
 
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
-        modeEvent(team0Xuid, 5000),
-        modeEvent(team0Xuid, 10000),
-        modeEvent(team0Xuid, 15000),
-        modeEvent(team0Xuid, 20000),
-        modeEvent(team0Xuid, 25000), // Loc A: 5 T0 ticks
-        modeEvent(team1Xuid, 70000),
-        modeEvent(team1Xuid, 75000),
-        modeEvent(team1Xuid, 80000),
-        modeEvent(team1Xuid, 85000),
-        modeEvent(team1Xuid, 90000), // Loc B: 5 T1 ticks
-        modeEvent(team0Xuid, 140000),
-        modeEvent(team0Xuid, 145000),
-        modeEvent(team0Xuid, 150000),
-        modeEvent(team0Xuid, 155000),
-        modeEvent(team0Xuid, 160000), // Loc C: 5 T0 ticks
-        modeEvent(team1Xuid, 220000),
-        modeEvent(team1Xuid, 225000),
-        modeEvent(team1Xuid, 230000),
-        modeEvent(team1Xuid, 235000),
-        modeEvent(team1Xuid, 240000), // Loc D: 5 T1 ticks
-        // Loc E: 7 T0 ticks → T0 cumulative=17 (5+5+7), 17 % 3 ≠ 0
-        modeEvent(team0Xuid, 300000),
-        modeEvent(team0Xuid, 305000),
-        modeEvent(team0Xuid, 310000),
-        modeEvent(team0Xuid, 315000),
-        modeEvent(team0Xuid, 320000),
-        modeEvent(team0Xuid, 325000),
-        modeEvent(team0Xuid, 330000),
+        ...tickBurst(team0Xuid, 5000, 8), // Loc A: Team 0 captures at 40000
+        ...tickBurst(team1Xuid, 70000, 8), // Loc B: Team 1 captures at 105000
+        ...tickBurst(team0Xuid, 140000, 8), // Loc C: Team 0 captures at 175000
+        ...tickBurst(team1Xuid, 220000, 8), // Loc D: Team 1 captures at 255000
+        ...tickBurst(team0Xuid, 300000, 10), // Loc E: 10 T0 ticks — uneven, ends the match at 345000
       ]);
       vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([
-        { timeMs: 25500, fromValue: 0x40, toValue: 0x41 },
-        { timeMs: 30000, fromValue: 0x41, toValue: 0x42 },
-        { timeMs: 90500, fromValue: 0x42, toValue: 0x43 },
-        { timeMs: 95000, fromValue: 0x43, toValue: 0x44 },
-        { timeMs: 160500, fromValue: 0x44, toValue: 0x45 },
-        { timeMs: 165000, fromValue: 0x45, toValue: 0x46 },
-        { timeMs: 240500, fromValue: 0x46, toValue: 0x47 },
-        { timeMs: 245000, fromValue: 0x47, toValue: 0x48 },
+        { timeMs: 40500, fromValue: 0x40, toValue: 0x41 },
+        { timeMs: 45000, fromValue: 0x41, toValue: 0x42 },
+        { timeMs: 105500, fromValue: 0x42, toValue: 0x43 },
+        { timeMs: 110000, fromValue: 0x43, toValue: 0x44 },
+        { timeMs: 175500, fromValue: 0x44, toValue: 0x45 },
+        { timeMs: 180000, fromValue: 0x45, toValue: 0x46 },
+        { timeMs: 255500, fromValue: 0x46, toValue: 0x47 },
+        { timeMs: 260000, fromValue: 0x47, toValue: 0x48 },
       ]);
 
       const result = await service.buildObjectiveControlProgression(match, 732278);
 
-      expect(result.hillCaptureTimestamps).toEqual([25000, 90000, 160000, 240000, 330000]);
+      expect(result.hillCaptureTimestamps).toEqual([40000, 105000, 175000, 255000, 345000]);
     });
 
     it("returns empty hillCaptureTimestamps when no byte2 transitions are available", async () => {
@@ -2214,58 +2171,33 @@ describe("HaloFilmService", () => {
       const team1Xuid = "0400000000000000";
 
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
-        // Location A: Eagle captures (5 ticks → relocation)
-        modeEvent(team0Xuid, 5000),
-        modeEvent(team0Xuid, 10000),
-        modeEvent(team0Xuid, 15000),
-        modeEvent(team0Xuid, 20000),
-        modeEvent(team0Xuid, 25000),
-        // Location B: Cobra captures (5 ticks → relocation)
-        modeEvent(team1Xuid, 70000),
-        modeEvent(team1Xuid, 75000),
-        modeEvent(team1Xuid, 80000),
-        modeEvent(team1Xuid, 85000),
-        modeEvent(team1Xuid, 90000),
-        // Location C: Eagle captures (5 ticks → relocation)
-        modeEvent(team0Xuid, 140000),
-        modeEvent(team0Xuid, 145000),
-        modeEvent(team0Xuid, 150000),
-        modeEvent(team0Xuid, 155000),
-        modeEvent(team0Xuid, 160000),
-        // Location D: Cobra captures (5 ticks → relocation)
-        modeEvent(team1Xuid, 220000),
-        modeEvent(team1Xuid, 225000),
-        modeEvent(team1Xuid, 230000),
-        modeEvent(team1Xuid, 235000),
-        modeEvent(team1Xuid, 240000),
-        // Location E: Eagle captures (5 ticks → relocation)
-        modeEvent(team0Xuid, 300000),
-        modeEvent(team0Xuid, 305000),
-        modeEvent(team0Xuid, 310000),
-        modeEvent(team0Xuid, 315000),
-        modeEvent(team0Xuid, 320000),
+        ...tickBurst(team0Xuid, 5000, 8), // Location A: Eagle captures at 40000
+        ...tickBurst(team1Xuid, 70000, 8), // Location B: Cobra captures at 105000
+        ...tickBurst(team0Xuid, 140000, 8), // Location C: Eagle captures at 175000
+        ...tickBurst(team1Xuid, 220000, 8), // Location D: Cobra captures at 255000
+        ...tickBurst(team0Xuid, 300000, 8), // Location E: Eagle captures at 335000
         // Location F: match ends on time — hill never captured, these ticks must NOT become a capture
-        modeEvent(team0Xuid, 380000),
-        modeEvent(team0Xuid, 385000),
+        modeEvent(team0Xuid, 395000),
+        modeEvent(team0Xuid, 400000),
       ]);
       vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([
-        { timeMs: 25500, fromValue: 0x40, toValue: 0x41 },
-        { timeMs: 30000, fromValue: 0x41, toValue: 0x42 },
-        { timeMs: 90500, fromValue: 0x42, toValue: 0x43 },
-        { timeMs: 95000, fromValue: 0x43, toValue: 0x44 },
-        { timeMs: 160500, fromValue: 0x44, toValue: 0x45 },
-        { timeMs: 165000, fromValue: 0x45, toValue: 0x46 },
-        { timeMs: 240500, fromValue: 0x46, toValue: 0x47 },
-        { timeMs: 245000, fromValue: 0x47, toValue: 0x48 },
-        { timeMs: 320500, fromValue: 0x48, toValue: 0x49 }, // Location E ends → F begins
-        { timeMs: 325000, fromValue: 0x49, toValue: 0x4a },
+        { timeMs: 40500, fromValue: 0x40, toValue: 0x41 },
+        { timeMs: 45000, fromValue: 0x41, toValue: 0x42 },
+        { timeMs: 105500, fromValue: 0x42, toValue: 0x43 },
+        { timeMs: 110000, fromValue: 0x43, toValue: 0x44 },
+        { timeMs: 175500, fromValue: 0x44, toValue: 0x45 },
+        { timeMs: 180000, fromValue: 0x45, toValue: 0x46 },
+        { timeMs: 255500, fromValue: 0x46, toValue: 0x47 },
+        { timeMs: 260000, fromValue: 0x47, toValue: 0x48 },
+        { timeMs: 335500, fromValue: 0x48, toValue: 0x49 }, // Location E ends → F begins
+        { timeMs: 340000, fromValue: 0x49, toValue: 0x4a },
       ]);
 
       const result = await service.buildObjectiveControlProgression(match, 732278);
 
-      // All 5 captures fit the 5-tick pattern — the 2 trailing ticks on Location F
-      // are not a capture, so matchEndEvent (385000) must NOT appear.
-      expect(result.hillCaptureTimestamps).toEqual([25000, 90000, 160000, 240000, 320000]);
+      // All 5 captures fit the 8-tick pattern — the 2 trailing ticks on Location F
+      // are not a capture, so matchEndEvent (400000) must NOT appear.
+      expect(result.hillCaptureTimestamps).toEqual([40000, 105000, 175000, 255000, 335000]);
     });
 
     it("falls back to the captures that fit the events when match scores exceed available ticks", async () => {

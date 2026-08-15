@@ -6,12 +6,20 @@ export const MIN_CAPTURE_TICKS = 5;
 // on a ~5 000 ms cadence while a hill is occupied; the shortest post-capture quiet gap observed in
 // real matches is ~11 100 ms, so 8 000 ms separates same-hill ticking from a relocation.
 export const RELOCATION_GAP_MS = 8_000;
+// A capture needs the meter full: 40 seconds of scoring (HCS King of the Hill settings). Each
+// film tick represents ~5 seconds of scoring, and a gap larger than 1.5 cadences between the
+// capturer's own ticks can hide one dropped film tick (or paused-meter time), granting one
+// extra tick of credit. A perfect-cadence 7-tick run is therefore ~35s — short of a capture.
+const TICK_SCORING_MS = 5_000;
+const CAPTURE_METER_MS = 40_000;
+const HIDDEN_TICK_GAP_MS = 7_500;
 const MAX_SEARCH_NODES = 50_000;
 
 interface CaptureStep {
   eventIndex: number;
   perHillTicks: number;
   overtakenTeams: number;
+  insufficientMeter: boolean;
   byte2Contradicted: boolean;
 }
 
@@ -103,6 +111,7 @@ class KothCaptureSearch {
         eventIndex: index,
         perHillTicks,
         overtakenTeams: this.countOvertakenTeams(event, hillBaseline, perHillTicks),
+        insufficientMeter: this.hasInsufficientMeterTime(startIndex, index),
         byte2Contradicted: this.isContradictedByControlPeriods(event),
       });
       this.remainingCaptures.set(event.teamId, remainingForTeam - 1);
@@ -123,27 +132,60 @@ class KothCaptureSearch {
     hillBaseline: Record<string, number>,
     perHillTicks: number,
   ): number {
+    const fullMeterTicks = CAPTURE_METER_MS / TICK_SCORING_MS;
     let overtaken = 0;
     for (const [teamIdKey, cumulative] of Object.entries(event.runningScores)) {
       if (Number(teamIdKey) === event.teamId) {
         continue;
       }
+      const otherTeamTicks = cumulative - (hillBaseline[teamIdKey] ?? 0);
       // Strictly greater: equal tick counts are common dedup jitter, not an implausibility.
-      if (cumulative - (hillBaseline[teamIdKey] ?? 0) > perHillTicks) {
+      // A full meter's worth of opponent ticks is a violation regardless — that team's meter
+      // would have completed first, so this hill cannot still be open for the capturer.
+      if (otherTeamTicks > perHillTicks || otherTeamTicks >= fullMeterTicks) {
         overtaken += 1;
       }
     }
     return overtaken;
   }
 
+  private hasInsufficientMeterTime(hillStartIndex: number, captureIndex: number): boolean {
+    const captureEvent = Preconditions.checkExists(this.events[captureIndex]);
+    let scoringMs = 0;
+    let previousOwnTickMs: number | null = null;
+    for (let index = hillStartIndex; index <= captureIndex; index++) {
+      const event = Preconditions.checkExists(this.events[index]);
+      if (event.teamId !== captureEvent.teamId) {
+        continue;
+      }
+      scoringMs += TICK_SCORING_MS;
+      if (previousOwnTickMs != null && event.timestampMs - previousOwnTickMs > HIDDEN_TICK_GAP_MS) {
+        scoringMs += TICK_SCORING_MS;
+      }
+      previousOwnTickMs = event.timestampMs;
+    }
+    return scoringMs < CAPTURE_METER_MS;
+  }
+
   // Control periods attribute each film window to the team with the majority of mode events in
-  // it, so a capture tick sitting inside a window dominated by another team is an outlier —
-  // almost always an artefact of reading a hill boundary into the middle of an opponent's run.
+  // it. A capture ends the window (the hill relocates), so if the window's team scores again
+  // AFTER the capture tick while still inside the same window, the hill demonstrably did not
+  // relocate there — the boundary was read into the middle of that team's run. A capture merely
+  // sitting late in an opponent-attributed window is fine (their run ended, then the capturer
+  // finished the meter).
   private isContradictedByControlPeriods(event: ObjectiveControlProgressionEvent): boolean {
     const containing = this.controlPeriods.find(
       (period) => period.startMs <= event.timestampMs && event.timestampMs < period.endMs,
     );
-    return containing?.controllingTeamId != null && containing.controllingTeamId !== event.teamId;
+    if (containing?.controllingTeamId == null || containing.controllingTeamId === event.teamId) {
+      return false;
+    }
+    return this.events.some(
+      (other) =>
+        other.teamId === containing.controllingTeamId &&
+        other.timestampMs > event.timestampMs &&
+        other.timestampMs < containing.endMs,
+    );
   }
 
   private recordCandidate(hillBaseline: Record<string, number>): void {
@@ -159,7 +201,7 @@ class KothCaptureSearch {
   private scoreCurrentAssignment(hillBaseline: Record<string, number>): AssignmentScore {
     const perHillCounts = this.steps.map((step) => step.perHillTicks);
     const violations =
-      this.steps.reduce((acc, step) => acc + step.overtakenTeams, 0) +
+      this.steps.reduce((acc, step) => acc + step.overtakenTeams + (step.insufficientMeter ? 1 : 0), 0) +
       this.countTrailingViolations(hillBaseline, perHillCounts);
     return {
       capturesPlaced: perHillCounts.length,

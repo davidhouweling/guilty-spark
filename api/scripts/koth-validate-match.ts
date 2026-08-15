@@ -133,24 +133,23 @@ interface HillPeriod {
   endMs: number;
   isCaptured: boolean;
 }
+// Mirrors buildKothHills in the pages formatter: trailing slivers under 2s are dropped and the
+// winner comes from the capturing team's score event at the hill boundary.
+const MIN_TRAILING_HILL_MS = 2_000;
 const hillPeriods: HillPeriod[] = [];
 let hillStart = 0;
 for (const captureTs of hillCaptureTimestamps) {
   hillPeriods.push({ startMs: hillStart, endMs: captureTs, isCaptured: true });
   hillStart = captureTs;
 }
-if (hillStart < progression.durationMs) {
+if (progression.durationMs - hillStart >= MIN_TRAILING_HILL_MS) {
   hillPeriods.push({ startMs: hillStart, endMs: progression.durationMs, isCaptured: false });
 }
 
 for (const [i, period] of hillPeriods.entries()) {
   const hillIndex = i + 1;
-  const controlAtCapture = period.isCaptured
-    ? controlPeriods
-        .filter((cp) => cp.controllingTeamId != null && cp.startMs < period.endMs && cp.endMs >= period.endMs)
-        .at(-1)
-    : null;
-  const winnerTeamId = controlAtCapture?.controllingTeamId ?? null;
+  const capturingEvent = period.isCaptured ? events.findLast((e) => e.timestampMs === period.endMs) : null;
+  const winnerTeamId = capturingEvent?.teamId ?? null;
   const winnerName =
     winnerTeamId != null ? (TEAM_COLORS.find((t) => t.teamId === winnerTeamId)?.name ?? "?") : "(none)";
 
@@ -195,6 +194,16 @@ const EXPECTED: Record<string, string[]> = {
     "Hill 3: ~7:00 end, Cobra wins, Eagle meter was at 80%",
     "Hill 4: never captured, ~9:36 end, Eagle 20% meter, Cobra 10% meter",
     "Final score: 2:1 Eagle",
+  ],
+  "93f5e373-8984-4714-915c-e55b31c8404e": [
+    "Hill 1: ~2:00 end, Cobra wins, Eagle ~35-40%",
+    "Hill 2: ~3:49 end, Cobra wins — Eagle hit 95% at 2:55 but did NOT capture (off hill 2:44-3:49)",
+    "Hill 3: ~5:37 end, Cobra wins, Eagle ~60%",
+    "Hill 4: ~6:32 end, Eagle wins, Cobra 0%",
+    "Hill 5: ~8:01 end, Eagle wins, Cobra ~5%",
+    "Hill 6: ~9:28 end, Eagle wins, Cobra ~40%",
+    "Hill 7: ~12:20 end, Eagle wins, Cobra ~60% — capture ends the match",
+    "Final score: 4:3 Eagle",
   ],
   "3a1dd96b-35e8-46e4-997a-abe592ad195a": [
     "Eagle started with 1 pre-awarded hill (lobby-configured) — only 4 in-film hills",

@@ -95,6 +95,31 @@ const MATCH_3A1D_CONTROL_PERIODS: ObjectiveControlPeriod[] = [
   controlPeriod(452000, 503000, 0),
 ];
 
+// Real match 93f5e373-8984-4714-915c-e55b31c8404e (4:3 Eagle, ends on the final capture at
+// 12:22). Captures verified against gameplay footage: Cobra at 2:00, 3:49 and 5:37, then Eagle
+// at 6:32, 8:01, 9:28 and 12:20. Eagle reached 95% at 2:55 (7 perfect-cadence ticks — ~35s of
+// meter, short of the 40s capture) without capturing; the meter-time feasibility rule is what
+// stops that run from being read as a capture.
+const MATCH_93F5_TICKS = new Map<number, readonly number[]>([
+  [
+    0,
+    [
+      62163, 67168, 72173, 145901, 150907, 155898, 160909, 165914, 170919, 175924, 241790, 247996, 253001, 258007,
+      262328, 349047, 359175, 364453, 367757, 372747, 380123, 385131, 388651, 392139, 403877, 408882, 419626, 437415,
+      460456, 474571, 477808, 481561, 507420, 512426, 518231, 524288, 529293, 534297, 566797, 632280, 638419, 653167,
+      724108, 729113, 734118, 738739, 742726,
+    ],
+  ],
+  [
+    1,
+    [
+      50218, 81099, 86103, 91108, 96113, 101106, 106112, 120143, 195343, 200348, 205353, 214646, 219651, 224656, 229661,
+      271804, 276809, 281814, 288003, 293009, 298014, 303019, 337937, 543390, 549696, 554701, 596927, 686585, 691590,
+      696595,
+    ],
+  ],
+]);
+
 describe("findBestKothCaptureAssignment", () => {
   it("returns the verified capture timestamps for match 5c39e8a4 (2:1, Cobra takes hill 3)", () => {
     const events = eventsFromTicks(MATCH_5C39_TICKS);
@@ -139,6 +164,19 @@ describe("findBestKothCaptureAssignment", () => {
       MATCH_3A1D_CONTROL_PERIODS,
     );
     expect(result).toEqual([165285, 282192, 395359, 495423]);
+  });
+
+  it("returns the verified capture timestamps for match 93f5e373 (95% near-miss not a capture)", () => {
+    const events = eventsFromTicks(MATCH_93F5_TICKS);
+    const result = findBestKothCaptureAssignment(
+      events,
+      new Map([
+        [0, 4],
+        [1, 3],
+      ]),
+      [],
+    );
+    expect(result).toEqual([120143, 229661, 337937, 392139, 481561, 566797, 742726]);
   });
 
   it("never places a capture on a tick followed within the relocation gap by another tick", () => {
@@ -200,13 +238,15 @@ describe("findBestKothCaptureAssignment", () => {
     expect(result).toEqual([40000, 95000, 145000]);
   });
 
-  it("rejects a capture whose tick sits inside a window controlled by another team", () => {
-    // Both hills read as 5 ticks either way, but the control period says team 1 owned the
-    // window around 60000 — so team 0's capture must be the earlier 25000 boundary.
+  it("rejects a capture read into the middle of another team's control window", () => {
+    // Team 0 can be read as capturing at 40000 (8 ticks) or 75000 (9 ticks); without control
+    // periods the 9-tick reading wins on uniformity against team 1's 9-tick capture. But the
+    // control period says team 1 owned the window around 75000 and team 1 scores again inside
+    // that window (at 90000) — the hill demonstrably did not relocate at 75000.
     const events = eventsFromTicks(
       new Map<number, readonly number[]>([
-        [0, [5000, 10000, 15000, 20000, 25000, 60000]],
-        [1, [36000, 41000, 46000, 51000, 56000, 90000, 95000, 100000, 105000, 110000]],
+        [0, [5000, 10000, 15000, 20000, 25000, 30000, 35000, 40000, 75000]],
+        [1, [90000, 95000, 100000, 105000, 110000, 115000, 120000, 125000, 130000]],
       ]),
     );
     const withoutPeriods = findBestKothCaptureAssignment(
@@ -223,9 +263,9 @@ describe("findBestKothCaptureAssignment", () => {
         [0, 1],
         [1, 1],
       ]),
-      [controlPeriod(30000, 70000, 1)],
+      [controlPeriod(60000, 95000, 1)],
     );
-    expect(withoutPeriods).toEqual([60000, 110000]);
-    expect(withPeriods).toEqual([25000, 110000]);
+    expect(withoutPeriods).toEqual([75000, 130000]);
+    expect(withPeriods).toEqual([40000, 130000]);
   });
 });
