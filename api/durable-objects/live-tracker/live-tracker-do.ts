@@ -972,7 +972,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
           trackerState,
           `Persistent errors: ${trackerState.errorState.consecutiveErrors.toString()} consecutive failures`,
         );
-        throw new Error("Tracker stopped due to persistent errors");
+        throw new Error("Tracker stopped due to persistent errors", { cause: error });
       }
     }
 

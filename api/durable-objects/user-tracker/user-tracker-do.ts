@@ -554,7 +554,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async queueDirectoryPushAsync(): Promise<void> {
-    let shouldContinueWithQueuedPush = false;
+    let shouldContinueWithQueuedPush: boolean;
 
     try {
       await this.drainPendingPushes();
