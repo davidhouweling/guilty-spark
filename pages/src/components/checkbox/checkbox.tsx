@@ -27,7 +27,8 @@ export function Checkbox({
     }
   };
 
-  const checkboxId = id ?? `checkbox-${useId()}`;
+  const generatedId = useId();
+  const checkboxId = id ?? `checkbox-${generatedId}`;
   const hasDescription = description != null && description !== "";
 
   return (

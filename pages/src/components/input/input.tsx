@@ -11,7 +11,8 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export function Input({ label, containerClassName, labelClassName, hint, ...rest }: InputProps): React.ReactElement {
-  const inputId = rest.id ?? useId();
+  const generatedId = useId();
+  const inputId = rest.id ?? generatedId;
   const hintId = hint != null && hint !== "" ? `${inputId}-hint` : undefined;
   return (
     <div className={classNames(styles.inputField, containerClassName)}>
