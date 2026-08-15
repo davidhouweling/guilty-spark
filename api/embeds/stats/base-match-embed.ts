@@ -6,8 +6,6 @@ import { getTeamName } from "@guilty-spark/shared/halo/team";
 import type { StatsCollection, StatsValue } from "@guilty-spark/shared/halo/types";
 import { getPlayerSlayerStats as getSharedPlayerSlayerStats } from "@guilty-spark/shared/halo/slayer-stats";
 import { getPlayerXuid, getTeamPlayersFromMatches } from "@guilty-spark/shared/halo/match-stats";
-export { StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
-export type { StatsValue } from "@guilty-spark/shared/halo/types";
 import type { HaloService } from "../../services/halo/halo";
 import type { DiscordService } from "../../services/discord/discord";
 import type { GuildConfigRow } from "../../services/database/types/guild_config";

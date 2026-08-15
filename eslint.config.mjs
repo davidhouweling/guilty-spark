@@ -82,9 +82,29 @@ export default defineConfig(
       "import-x/no-empty-named-blocks": "error",
       "import-x/no-useless-path-segments": "error",
       "import-x/consistent-type-specifier-style": ["error", "prefer-top-level"],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "ExportNamedDeclaration[source]",
+          message:
+            "Do not re-export a symbol from another module. Consumers must import directly from the source module.",
+        },
+        {
+          selector: "ExportAllDeclaration",
+          message:
+            "Do not re-export a symbol from another module. Consumers must import directly from the source module.",
+        },
+      ],
       curly: ["error", "all"],
       "default-case": "error",
       "no-fallthrough": "error",
+    },
+  },
+  {
+    files: ["api/worker.ts"],
+    rules: {
+      // Cloudflare Workers requires Durable Object classes to be exported from the worker entrypoint module.
+      "no-restricted-syntax": "off",
     },
   },
   {
