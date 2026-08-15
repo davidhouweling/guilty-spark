@@ -1,10 +1,5 @@
-import {
-  ButtonStyle,
-  ComponentType,
-  type APIComponentInMessageActionRow,
-  type APIEmbed,
-  type APIMessageTopLevelComponent,
-} from "discord-api-types/v10";
+import { ButtonStyle, ComponentType } from "discord-api-types/v10";
+import type { APIComponentInMessageActionRow, APIEmbed, APIMessageTopLevelComponent } from "discord-api-types/v10";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 
 type EndUserErrorAction = "connect" | "retry";

@@ -1,4 +1,5 @@
 import React from "react";
+import type { HTMLAttributes } from "react";
 import classNames from "classnames";
 import styles from "./heading.module.css";
 
@@ -7,7 +8,7 @@ type HeadingVariant = "plain" | "display";
 type HeadingSpacing = 1 | 2 | 3 | 4 | 5 | 6 | 8 | 10 | 12 | 16 | 20 | 24;
 type HeadingCSSProperties = React.CSSProperties & { "--heading-spacing"?: string };
 
-interface HeadingProps extends React.HTMLAttributes<HTMLHeadingElement> {
+interface HeadingProps extends HTMLAttributes<HTMLHeadingElement> {
   readonly tagName: HeadingTag;
   readonly styleAs?: HeadingTag;
   readonly variant?: HeadingVariant;

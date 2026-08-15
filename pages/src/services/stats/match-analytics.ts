@@ -1,4 +1,4 @@
-import { type MatchAnalytics, type AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { MatchAnalytics, AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { batchMatchAnalyticsContract } from "@guilty-spark/shared/contracts/stats/batch-match-analytics";
 import { normalizeTrackerId } from "./normalize-tracker-id";
 import type { MatchAnalyticsService } from "./match-analytics-types";

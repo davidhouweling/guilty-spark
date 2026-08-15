@@ -18,9 +18,11 @@ import type {
 import { isMatchStats } from "../../../controllers/stats/is-match-stats";
 import { StatsController } from "../../../controllers/stats/stats-controller";
 import { KillMatrixFormatter } from "../../../controllers/stats/kill-matrix/kill-matrix-formatter";
-import { EMPTY_KILL_MATRIX_PIVOT_DATA, type KillMatrixPlayer } from "../../../controllers/stats/kill-matrix/types";
+import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../../controllers/stats/kill-matrix/types";
+import type { KillMatrixPlayer } from "../../../controllers/stats/kill-matrix/types";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
-import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault, type TeamColor } from "../../team-colors/team-colors";
+import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault } from "../../team-colors/team-colors";
+import type { TeamColor } from "../../team-colors/team-colors";
 import { getReconnectDelayMs } from "../../../services/base/reconnect-policy";
 import { buildSeriesViewModel } from "../../series-stats/build-series-view-model";
 import { formatScoreProgression } from "../../stats/score-progression/score-progression-formatter";

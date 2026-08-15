@@ -20,8 +20,8 @@ import {
   useMatchCount,
   useHasMatches,
   useTrackerIdentity,
-  type LiveTrackerProviderProps,
 } from "../live-tracker-context";
+import type { LiveTrackerProviderProps } from "../live-tracker-context";
 
 const defaultParams = { type: "team" as const, server: "test-server", queue: "5" };
 

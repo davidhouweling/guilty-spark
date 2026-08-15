@@ -12,10 +12,8 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { KillMatrixFormatter } from "../../../../controllers/stats/kill-matrix/kill-matrix-formatter";
-import {
-  EMPTY_KILL_MATRIX_PIVOT_DATA,
-  type KillMatrixCrossTeamData,
-} from "../../../../controllers/stats/kill-matrix/types";
+import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../../../controllers/stats/kill-matrix/types";
+import type { KillMatrixCrossTeamData } from "../../../../controllers/stats/kill-matrix/types";
 import { KillMatrixTable } from "../kill-matrix-table";
 
 describe("KillMatrixTable", () => {

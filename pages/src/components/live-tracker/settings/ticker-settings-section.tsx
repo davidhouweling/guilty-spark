@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "../../button/button";
 import { Checkbox } from "../../checkbox/checkbox";
 import { Input } from "../../input/input";
@@ -28,11 +28,11 @@ export function TickerSettingsSection({
   showPreSeriesInfoToggle = true,
   onChange,
 }: TickerSettingsSectionProps): React.ReactElement {
-  const [maxPreviousGamesToShowInputValue, setMaxPreviousGamesToShowInputValue] = React.useState<string>(
+  const [maxPreviousGamesToShowInputValue, setMaxPreviousGamesToShowInputValue] = useState<string>(
     settings.maxPreviousGamesToShow.toString(),
   );
 
-  React.useEffect(() => {
+  useEffect(() => {
     setMaxPreviousGamesToShowInputValue(settings.maxPreviousGamesToShow.toString());
   }, [settings.maxPreviousGamesToShow]);
 

@@ -44,13 +44,13 @@ import {
 } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import {
-  discordSeriesStatsContract,
-  type DiscordSeriesStats,
-  type DiscordSeriesStatsForbidden,
-  type DiscordSeriesStatsNotFound,
-  type DiscordSeriesStatsPending,
-  type DiscordSeriesStatsResolved,
+import { discordSeriesStatsContract } from "@guilty-spark/shared/contracts/stats/discord-series";
+import type {
+  DiscordSeriesStats,
+  DiscordSeriesStatsForbidden,
+  DiscordSeriesStatsNotFound,
+  DiscordSeriesStatsPending,
+  DiscordSeriesStatsResolved,
 } from "@guilty-spark/shared/contracts/stats/discord-series";
 import type { BaseCommand, BaseInteraction } from "../../commands/base/base-command";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations";

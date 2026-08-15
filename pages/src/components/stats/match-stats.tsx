@@ -1,9 +1,10 @@
 import type { MatchStats } from "halo-infinite-api";
-import React from "react";
+import React, { useMemo, useState } from "react";
 import classNames from "classnames";
 import { Heading } from "../heading/heading";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
-import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
+import { SortableTable } from "../table/sortable-table";
+import type { SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";
 import { TabbedSection } from "../tabbed-section/tabbed-section";
 import { TeamIcon } from "../icons/team-icon";
@@ -12,11 +13,8 @@ import type { TeamColor } from "../team-colors/team-colors";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
 import { LoadingState } from "../loading-state/loading-state";
-import {
-  EMPTY_KILL_MATRIX_PIVOT_DATA,
-  type KillMatrixCrossTeamData,
-  type KillMatrixPivotData,
-} from "../../controllers/stats/kill-matrix/types";
+import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../controllers/stats/kill-matrix/types";
+import type { KillMatrixCrossTeamData, KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
 import type { MatchStatsData, MatchStatsPlayerData } from "../../controllers/stats/types";
 import { sortByMedals, getTeamMedalsMap, getPlayerMedalsMap } from "../../controllers/stats/medals-sorting";
 import { KillMatrixTable } from "./kill-matrix/kill-matrix-table";
@@ -70,15 +68,15 @@ export function MatchStats({
   scoreProgressionViewData,
   showHeader = true,
 }: MatchStatsProps): React.ReactElement {
-  const [activeTab, setActiveTab] = React.useState<"players" | "timeline" | "kill-matrix">("players");
+  const [activeTab, setActiveTab] = useState<"players" | "timeline" | "kill-matrix">("players");
   const hasTimelineTab = scoreProgressionViewData != null || killMatrixStatus !== undefined;
   const safeActiveTab: "players" | "timeline" | "kill-matrix" =
     activeTab === "timeline" && !hasTimelineTab ? "players" : activeTab;
-  const ScoreProgressionComponent = React.useMemo(() => createScoreProgression(), []);
+  const ScoreProgressionComponent = useMemo(() => createScoreProgression(), []);
   const hasTeamStats = data.length > 0 && data[0].teamStats.length > 0;
 
   // Define team stats columns
-  const teamColumns = React.useMemo<SortableTableColumn<MatchStatsData>[]>(() => {
+  const teamColumns = useMemo<SortableTableColumn<MatchStatsData>[]>(() => {
     if (!hasTeamStats) {
       return [];
     }
@@ -136,7 +134,7 @@ export function MatchStats({
   }, [data, hasTeamStats]);
 
   // Define player stats columns
-  const playerColumns = React.useMemo<SortableTableColumn<MatchStatsRow>[]>(() => {
+  const playerColumns = useMemo<SortableTableColumn<MatchStatsRow>[]>(() => {
     const statColumns = data[0]?.players[0]?.values ?? [];
     return [
       {
@@ -198,13 +196,13 @@ export function MatchStats({
     ];
   }, [data]);
 
-  const playerHeaders = React.useMemo(
+  const playerHeaders = useMemo(
     () => data.flatMap((d) => d.players.map((p) => ({ gamertag: p.name, teamId: d.teamId }))),
     [data],
   );
 
   // Flatten player data for table
-  const playerData = React.useMemo(
+  const playerData = useMemo(
     () =>
       data.flatMap((teamData) =>
         teamData.players.map((player) => ({

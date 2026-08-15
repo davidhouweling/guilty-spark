@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { trackerDirectoryContract, trackerDirectoryMessageContract, type TrackerDirectoryResponse } from "../follow";
+import { trackerDirectoryContract, trackerDirectoryMessageContract } from "../follow";
+import type { TrackerDirectoryResponse } from "../follow";
 
 const validEntry = {
   trackerId: "t1",

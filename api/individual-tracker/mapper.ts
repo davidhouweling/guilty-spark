@@ -9,10 +9,8 @@ import type {
 } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerDoState } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
-import {
-  individualTrackerViewStateContract,
-  type IndividualTrackerViewState,
-} from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/management";
+import { individualTrackerViewStateContract } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/management";
+import type { IndividualTrackerViewState } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/management";
 import type { IndividualTrackerProfilesRow } from "../services/database/types/individual_tracker_profiles";
 import type { IndividualTrackersRow } from "../services/database/types/individual_trackers";
 

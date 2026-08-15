@@ -1,8 +1,5 @@
-import {
-  HaloInfiniteClient,
-  StaticXstsTicketTokenSpartanTokenProvider,
-  type SpartanTokenProvider,
-} from "halo-infinite-api";
+import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
+import type { SpartanTokenProvider } from "halo-infinite-api";
 import type { AuthService } from "../auth/auth";
 import type { LogService } from "../log/types";
 import type { XboxService } from "../xbox/xbox";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { discordSeriesStatsContract } from "../../stats/discord-series";
+import { discordSeriesStatsContract } from "../discord-series";
 
 describe("discordSeriesStatsContract", () => {
   it("accepts a resolved payload without medalMetadata", () => {

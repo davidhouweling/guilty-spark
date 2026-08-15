@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 import classNames from "classnames";
 import styles from "./checkbox.module.css";
 
@@ -27,7 +27,8 @@ export function Checkbox({
     }
   };
 
-  const checkboxId = id ?? `checkbox-${React.useId()}`;
+  const generatedId = useId();
+  const checkboxId = id ?? `checkbox-${generatedId}`;
   const hasDescription = description != null && description !== "";
 
   return (

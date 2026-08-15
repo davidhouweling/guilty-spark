@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useSyncExternalStore, type ReactElement } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
+import type { ReactElement } from "react";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";

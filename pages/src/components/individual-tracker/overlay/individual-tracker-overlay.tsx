@@ -16,7 +16,8 @@ import { buildSeriesHeaderMetadata, seriesHeaderBackgroundStyle } from "../stats
 import { useRotatingBackgroundTick } from "../use-rotating-background-tick";
 import type { MatchDetailsState, SeriesDetailsState, ViewerMatchTab, ViewerSeriesTab } from "../viewer/types";
 import { OverlayStatsHighlights } from "./overlay-stats-highlights";
-import { MATCHMAKING_SUMMARY_TAB_SERIES_ID, type IndividualTrackerOverlayViewModel } from "./types";
+import { MATCHMAKING_SUMMARY_TAB_SERIES_ID } from "./types";
+import type { IndividualTrackerOverlayViewModel } from "./types";
 import styles from "./individual-tracker-overlay.module.css";
 
 interface IndividualTrackerOverlayProps {

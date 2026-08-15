@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo } from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import type { FollowLiveService } from "../../../services/follow/follow-types";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
@@ -37,17 +37,17 @@ export function createFollowLiveOverlay({
     showPreview = false,
     previewMode = "observer",
   }: FollowLiveOverlayProps): React.ReactElement {
-    const presenter = React.useMemo(() => new FollowLiveOverlayPresenter(), []);
+    const presenter = useMemo(() => new FollowLiveOverlayPresenter(), []);
     const { directory, directoryStatus } = useFollowLiveDirectory({
       followLiveService,
       gamertag,
     });
-    const model = React.useMemo(
+    const model = useMemo(
       () => presenter.present({ gamertag, directory, directoryStatus }),
       [directory, directoryStatus, gamertag, presenter],
     );
 
-    React.useEffect(() => {
+    useEffect(() => {
       document.title = model.title;
     }, [model.title]);
 

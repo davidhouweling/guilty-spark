@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useId, useRef } from "react";
 import classNames from "classnames";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { TabbedSectionTab } from "./types";
@@ -34,19 +34,21 @@ export function TabbedSection<TId extends string>({
   tabsClassName,
   tabContainerClassName,
 }: TabbedSectionComponentProps<TId>): React.ReactElement {
-  const tabSetId = React.useId();
-  const tabListRef = React.useRef<HTMLDivElement>(null);
+  const tabSetId = useId();
+  const tabListRef = useRef<HTMLDivElement>(null);
 
-  const focusTab = React.useCallback(
+  const focusTab = useCallback(
     (tabId: TId): void => {
       const tabDomId = `${tabSetId}-${tabId}-tab`;
-      const button = tabListRef.current?.ownerDocument.getElementById(tabDomId) as HTMLButtonElement | null;
-      button?.focus();
+      const button = tabListRef.current?.ownerDocument.getElementById(tabDomId);
+      if (button instanceof HTMLButtonElement) {
+        button.focus();
+      }
     },
     [tabSetId],
   );
 
-  const handleKeyDown = React.useCallback(
+  const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>): void => {
       if (tabs.length === 0) {
         return;

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo } from "react";
 import type { FollowLiveService } from "../../../services/follow/follow-types";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
@@ -28,17 +28,17 @@ export function createFollowLiveViewer({
   medalMetadataResolver,
 }: FollowLiveViewerDependencies) {
   return function FollowLiveViewerCreate({ gamertag }: FollowLiveViewerProps): React.ReactElement {
-    const presenter = React.useMemo(() => new FollowLiveViewerPresenter(), []);
+    const presenter = useMemo(() => new FollowLiveViewerPresenter(), []);
     const { directory, directoryStatus, selectedTrackerId, onSelectTracker, onRetry } = useFollowLiveDirectory({
       followLiveService,
       gamertag,
     });
-    const model = React.useMemo(
+    const model = useMemo(
       () => presenter.present({ gamertag, directory, directoryStatus, selectedTrackerId }),
       [directory, directoryStatus, gamertag, presenter, selectedTrackerId],
     );
 
-    React.useEffect(() => {
+    useEffect(() => {
       document.title = model.title;
     }, [model.title]);
 

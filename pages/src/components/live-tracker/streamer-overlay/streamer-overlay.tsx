@@ -4,12 +4,12 @@ import { getTeamName } from "@guilty-spark/shared/halo/team";
 import TimeAgo from "javascript-time-ago";
 import { differenceInHours } from "date-fns";
 import type { TeamColor } from "../../team-colors/team-colors";
-import { type TickerMatchGroup, type TickerStatRow } from "../../information-ticker/information-ticker";
+import type { TickerMatchGroup, TickerStatRow } from "../../information-ticker/information-ticker";
 import { RankIcon } from "../../icons/rank-icon";
 import discordLogo from "../../../assets/discord-logo.png";
 import xboxLogo from "../../../assets/xbox-logo.png";
-import { ALL_SLAYER_STATS, type AllStreamerSettings } from "../settings/types";
-import { MAX_PREVIOUS_GAMES_TO_SHOW, MIN_PREVIOUS_GAMES_TO_SHOW } from "../settings/types";
+import { ALL_SLAYER_STATS, MAX_PREVIOUS_GAMES_TO_SHOW, MIN_PREVIOUS_GAMES_TO_SHOW } from "../settings/types";
+import type { AllStreamerSettings } from "../settings/types";
 import {
   useTrackerState,
   useAllMatchStats,

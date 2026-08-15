@@ -1,4 +1,5 @@
-import { XSAPIClient, xnet, type authenticate } from "@xboxreplay/xboxlive-auth";
+import { XSAPIClient, xnet } from "@xboxreplay/xboxlive-auth";
+import type { authenticate } from "@xboxreplay/xboxlive-auth";
 import { differenceInSeconds } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { TokenInfo, XboxUserInfo, ProfileUser } from "./types";

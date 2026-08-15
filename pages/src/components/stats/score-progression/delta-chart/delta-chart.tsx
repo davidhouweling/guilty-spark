@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 import {
   Area,
   AreaChart,
@@ -76,7 +76,7 @@ export function DeltaChart({
   advantageTooltipFormatter,
 }: ScoreProgressionDeltaViewModel): React.ReactElement {
   const { points, minScore, maxScore } = scoreDelta;
-  const gradientId = React.useId();
+  const gradientId = useId();
   const strokeGradientId = `${gradientId}-stroke`;
   const margin = playerAdvantage != null ? { ...CHART_MARGIN, right: 36 } : CHART_MARGIN;
   const wrappedTooltipFormatter = (

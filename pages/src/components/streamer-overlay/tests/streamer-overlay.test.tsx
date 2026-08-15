@@ -6,7 +6,8 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { OverlayTab } from "../tabs-bar";
 import type { TickerMatchGroup } from "../../information-ticker/information-ticker";
-import { createStreamerOverlaySection, type StreamerOverlayProps } from "../create";
+import { createStreamerOverlaySection } from "../create";
+import type { StreamerOverlayProps } from "../create";
 
 vi.mock("../../information-ticker/information-ticker", () => ({
   InformationTicker: (): React.ReactNode => <div data-testid="information-ticker">Information Ticker</div>,

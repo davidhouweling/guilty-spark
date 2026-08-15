@@ -5,9 +5,8 @@ import {
   liveTrackerStateSchema,
   liveTrackerPauseContract,
   liveTrackerStopContract,
-  type LiveTrackerStartRequest,
-  type LiveTrackerStartResponse,
 } from "../lifecycle";
+import type { LiveTrackerStartRequest, LiveTrackerStartResponse } from "../lifecycle";
 import {
   liveTrackerRefreshContract,
   liveTrackerSubstitutionContract,

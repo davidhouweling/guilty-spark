@@ -1,19 +1,17 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import classNames from "classnames";
 import { Heading } from "../heading/heading";
 import type { ComponentLoaderStatus } from "../component-loader/component-loader";
-import { SortableTable, type SortableTableColumn } from "../table/sortable-table";
+import { SortableTable } from "../table/sortable-table";
+import type { SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";
 import { TabbedSection } from "../tabbed-section/tabbed-section";
 import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
 import type { TeamColor } from "../team-colors/team-colors";
 import { Container } from "../container/container";
-import {
-  EMPTY_KILL_MATRIX_PIVOT_DATA,
-  type KillMatrixCrossTeamData,
-  type KillMatrixPivotData,
-} from "../../controllers/stats/kill-matrix/types";
+import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../controllers/stats/kill-matrix/types";
+import type { KillMatrixCrossTeamData, KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
 import type { MatchStatsData, MatchStatsPlayerData } from "../../controllers/stats/types";
 import type { SeriesMetadata } from "../../controllers/stats/series-metadata";
 import { sortByMedals, getTeamMedalsMap, getPlayerMedalsMap } from "../../controllers/stats/medals-sorting";
@@ -50,12 +48,12 @@ export function SeriesStats({
   killMatrixStatus,
   showHeader = true,
 }: SeriesStatsProps): React.ReactElement {
-  const [activeTab, setActiveTab] = React.useState<"accumulated" | "kill-matrix">("accumulated");
+  const [activeTab, setActiveTab] = useState<"accumulated" | "kill-matrix">("accumulated");
   const hasTeamStats = teamData.length > 0 && teamData[0].teamStats.length > 0;
   const hasPlayerStats = playerData.length > 0 && playerData[0].players.length > 0;
 
   // Define team stats columns
-  const teamColumns = React.useMemo<SortableTableColumn<MatchStatsData>[]>(() => {
+  const teamColumns = useMemo<SortableTableColumn<MatchStatsData>[]>(() => {
     if (!hasTeamStats) {
       return [];
     }
@@ -113,7 +111,7 @@ export function SeriesStats({
   }, [teamData, hasTeamStats]);
 
   // Define player stats columns
-  const playerColumns = React.useMemo<SortableTableColumn<MatchStatsRow>[]>(() => {
+  const playerColumns = useMemo<SortableTableColumn<MatchStatsRow>[]>(() => {
     if (!hasPlayerStats) {
       return [];
     }
@@ -179,13 +177,13 @@ export function SeriesStats({
     ];
   }, [playerData, hasPlayerStats]);
 
-  const playerHeaders = React.useMemo(
+  const playerHeaders = useMemo(
     () => playerData.flatMap((d) => d.players.map((p) => ({ gamertag: p.name, teamId: d.teamId }))),
     [playerData],
   );
 
   // Flatten player data for table
-  const flattenedPlayerData = React.useMemo<MatchStatsRow[]>(
+  const flattenedPlayerData = useMemo<MatchStatsRow[]>(
     () =>
       playerData.flatMap((team) =>
         team.players.map((player) => ({

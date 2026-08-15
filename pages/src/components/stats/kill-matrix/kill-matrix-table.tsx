@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import classNames from "classnames";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
 import { ComponentLoader, ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { TeamIcon } from "../../icons/team-icon";
-import { SortableTable, type SortableTableColumn } from "../../table/sortable-table";
+import { SortableTable } from "../../table/sortable-table";
+import type { SortableTableColumn } from "../../table/sortable-table";
 import tableStyles from "../../table/table.module.css";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type {
@@ -53,8 +54,8 @@ export function KillMatrixTable({
 }: KillMatrixTableProps): React.ReactElement {
   const effectiveStatus = status ?? ComponentLoaderStatus.LOADED;
 
-  const [isTransposed, setIsTransposed] = React.useState(false);
-  const [h2hData, setH2hData] = React.useState<H2HDialogData | null>(null);
+  const [isTransposed, setIsTransposed] = useState(false);
+  const [h2hData, setH2hData] = useState<H2HDialogData | null>(null);
 
   const isTransposedActive = isTransposed && transposedPivotData != null;
   const activePivotData = isTransposedActive ? transposedPivotData : pivotData;
@@ -119,7 +120,7 @@ export function KillMatrixTable({
     </span>
   );
 
-  const crossTeamColumns = React.useMemo<SortableTableColumn<KillMatrixCrossTeamRow>[]>(() => {
+  const crossTeamColumns = useMemo<SortableTableColumn<KillMatrixCrossTeamRow>[]>(() => {
     if (effectiveStatus !== ComponentLoaderStatus.LOADED || activeCrossTeamData == null) {
       return [];
     }
@@ -181,7 +182,7 @@ export function KillMatrixTable({
     return cols;
   }, [effectiveStatus, xAxisLabel, yAxisLabel, activeCrossTeamData, teamColors]);
 
-  const columns = React.useMemo<SortableTableColumn<KillMatrixPivotRow>[]>(() => {
+  const columns = useMemo<SortableTableColumn<KillMatrixPivotRow>[]>(() => {
     if (effectiveStatus !== ComponentLoaderStatus.LOADED) {
       return [];
     }
@@ -252,7 +253,7 @@ export function KillMatrixTable({
   const crossTeamRowCount = crossTeamRowHeaders.length > 0 ? crossTeamRowHeaders.length : 4;
   const crossTeamColCount = crossTeamColHeaders.length > 0 ? crossTeamColHeaders.length : 4;
 
-  const crossTeamShimmerColumns = React.useMemo<SortableTableColumn<{ index: number }>[]>(() => {
+  const crossTeamShimmerColumns = useMemo<SortableTableColumn<{ index: number }>[]>(() => {
     const rowHeaders = isCrossTeamTransposedActive ? crossTeamColHeaders : crossTeamRowHeaders;
     const colHeaders = isCrossTeamTransposedActive ? crossTeamRowHeaders : crossTeamColHeaders;
     const cols: SortableTableColumn<{ index: number }>[] = [
@@ -314,7 +315,7 @@ export function KillMatrixTable({
 
   const activeRowCount =
     crossTeamData != null ? (isCrossTeamTransposedActive ? crossTeamColCount : crossTeamRowCount) : undefined;
-  const crossTeamShimmerRows = React.useMemo(
+  const crossTeamShimmerRows = useMemo(
     () => Array.from({ length: activeRowCount ?? crossTeamRowCount }, (_, i) => ({ index: i })),
     [activeRowCount, crossTeamRowCount],
   );
@@ -332,7 +333,7 @@ export function KillMatrixTable({
 
   const playerCount = playerHeaders !== undefined && playerHeaders.length > 0 ? playerHeaders.length : 8;
 
-  const shimmerColumns = React.useMemo<SortableTableColumn<{ index: number }>[]>(() => {
+  const shimmerColumns = useMemo<SortableTableColumn<{ index: number }>[]>(() => {
     const cols: SortableTableColumn<{ index: number }>[] = [
       {
         id: "xyHeader",
@@ -377,7 +378,7 @@ export function KillMatrixTable({
     return cols;
   }, [yAxisLabel, playerHeaders, teamColors]);
 
-  const shimmerRows = React.useMemo(() => Array.from({ length: playerCount }, (_, i) => ({ index: i })), [playerCount]);
+  const shimmerRows = useMemo(() => Array.from({ length: playerCount }, (_, i) => ({ index: i })), [playerCount]);
 
   const shimmer = (
     <div role="region" aria-busy="true" aria-label={ariaLabel}>

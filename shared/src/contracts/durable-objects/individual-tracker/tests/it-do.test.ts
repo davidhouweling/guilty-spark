@@ -3,11 +3,11 @@ import {
   individualTrackerStartContract,
   individualTrackerStartRequestSchema,
   individualTrackerStateSchema,
-  type IndividualTrackerStartRequest,
-  type IndividualTrackerStartResponse,
 } from "../lifecycle";
+import type { IndividualTrackerStartRequest, IndividualTrackerStartResponse } from "../lifecycle";
 import { individualTrackerStatusContract, individualTrackerViewStateContract } from "../management";
-import { seriesStartedPayloadSchema, seriesSubstitutedPayloadSchema, type SeriesStartedPayload } from "../nudge";
+import { seriesStartedPayloadSchema, seriesSubstitutedPayloadSchema } from "../nudge";
+import type { SeriesStartedPayload } from "../nudge";
 import {
   editSeriesContract,
   endSeriesContract,

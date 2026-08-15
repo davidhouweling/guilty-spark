@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { ComponentLoaderStatus } from "../../component-loader/component-loader";
@@ -40,7 +40,7 @@ export function FollowLiveOverlay({
   showPreview = false,
   previewMode = "observer",
 }: FollowLiveOverlayProps): React.ReactElement {
-  const IndividualTrackerOverlayPage = React.useMemo(
+  const IndividualTrackerOverlayPage = useMemo(
     () =>
       createIndividualTrackerOverlayPage({
         individualTrackerViewService,

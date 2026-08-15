@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { MatchAnalytics } from "../../stats/match-analytics";
-import { matchAnalyticsSchema, requestedModulesQuerySchema } from "../../stats/match-analytics";
+import type { MatchAnalytics } from "../match-analytics";
+import { matchAnalyticsSchema, requestedModulesQuerySchema } from "../match-analytics";
 
 function aValidAnalytics(): MatchAnalytics {
   return {

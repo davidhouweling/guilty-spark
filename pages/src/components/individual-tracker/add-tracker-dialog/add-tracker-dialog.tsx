@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
 import type { TrackerMatchHistoryEntry, TrackerSearchResult } from "../../../services/individual-tracker/types";
 import { Alert } from "../../alert/alert";
@@ -68,7 +68,7 @@ export function AddTrackerDialog({
   onSeriesGroupSubtitleChange,
   onStartTracker,
 }: AddTrackerDialogProps): React.ReactElement | null {
-  const MatchHistorySection = React.useMemo(() => createMatchHistorySection(), []);
+  const MatchHistorySection = useMemo(() => createMatchHistorySection(), []);
 
   return (
     <Dialog

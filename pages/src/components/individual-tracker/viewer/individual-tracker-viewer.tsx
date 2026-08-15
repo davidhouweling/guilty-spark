@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import classNames from "classnames";
 import ReactTimeAgo from "react-time-ago";
@@ -207,11 +207,11 @@ export function IndividualTrackerViewer({
   onBackToManage,
   onRefresh,
 }: IndividualTrackerViewerProps): React.ReactElement {
-  const latestEntryRef = React.useRef<HTMLDivElement | null>(null);
-  const lastTimelineLengthRef = React.useRef<number>(renderModel.timeline.length);
-  const nearLatestRef = React.useRef<boolean>(true);
-  const [isNearLatestNow, setIsNearLatestNow] = React.useState(true);
-  const [unseenEntries, setUnseenEntries] = React.useState(0);
+  const latestEntryRef = useRef<HTMLDivElement | null>(null);
+  const lastTimelineLengthRef = useRef<number>(renderModel.timeline.length);
+  const nearLatestRef = useRef<boolean>(true);
+  const [isNearLatestNow, setIsNearLatestNow] = useState(true);
+  const [unseenEntries, setUnseenEntries] = useState(0);
   const {
     tick: seriesBackgroundTick,
     isTransitioning: isSeriesBackgroundTransitioning,
@@ -220,11 +220,11 @@ export function IndividualTrackerViewer({
 
   const { timeline } = renderModel;
 
-  const scrollToLatest = React.useCallback((): void => {
+  const scrollToLatest = useCallback((): void => {
     latestEntryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     function onScrollOrResize(): void {
       const nearLatest = isNearLatest();
       nearLatestRef.current = nearLatest;
@@ -243,7 +243,7 @@ export function IndividualTrackerViewer({
     };
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const previousLength = lastTimelineLengthRef.current;
     const nextLength = timeline.length;
     if (nextLength > previousLength) {

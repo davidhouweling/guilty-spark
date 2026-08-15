@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { ComponentLoader } from "../../component-loader/component-loader";
@@ -63,7 +63,7 @@ function IndividualTrackerViewerPageInternal({
     externalView,
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (pageTitleVariant !== "tracker") {
       return;
     }

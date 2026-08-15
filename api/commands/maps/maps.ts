@@ -16,14 +16,14 @@ import {
 } from "discord-api-types/v10";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import {
-  type ExecuteResponse,
-  type BaseInteraction,
-  type ApplicationCommandData,
-  type ComponentHandlerMap,
-  BaseCommand,
+import { BaseCommand } from "../base/base-command";
+import type {
+  ExecuteResponse,
+  BaseInteraction,
+  ApplicationCommandData,
+  ComponentHandlerMap,
 } from "../base/base-command";
-import { type MapMode } from "../../services/halo/hcs";
+import type { MapMode } from "../../services/halo/hcs";
 import { MapsEmbed, InteractionComponent, mapPlaylistLabels, mapFormatLabels } from "../../embeds/maps-embed";
 import { MapsFormatType, MapsPlaylistType } from "../../services/database/types/guild_config";
 

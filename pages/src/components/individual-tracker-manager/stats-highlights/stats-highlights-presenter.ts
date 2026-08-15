@@ -3,8 +3,10 @@ import {
   DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS,
   INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
   INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTION_DEFINITIONS,
-  type IndividualStatsHighlightOption,
-  type IndividualStatsHighlightOptionGroup,
+} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type {
+  IndividualStatsHighlightOption,
+  IndividualStatsHighlightOptionGroup,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { StatsHighlightsSectionStore } from "./stats-highlights-store";
 import type {

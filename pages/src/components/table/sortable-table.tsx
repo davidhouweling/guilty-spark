@@ -1,13 +1,6 @@
-import React from "react";
-import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  flexRender,
-  type ColumnDef,
-  type SortingState,
-  type SortDirection,
-} from "@tanstack/react-table";
+import React, { useMemo, useState } from "react";
+import { useReactTable, getCoreRowModel, getSortedRowModel, flexRender } from "@tanstack/react-table";
+import type { ColumnDef, SortingState, SortDirection } from "@tanstack/react-table";
 import classNames from "classnames";
 import styles from "./table.module.css";
 
@@ -73,13 +66,13 @@ export function SortableTable<TData>({
   initialSort,
   getRowStyle,
 }: SortableTableProps<TData>): React.ReactElement {
-  const columnsById = React.useMemo<ReadonlyMap<string, SortableTableColumn<TData>>>(
+  const columnsById = useMemo<ReadonlyMap<string, SortableTableColumn<TData>>>(
     () => new Map(columns.map((column) => [column.id, column])),
     [columns],
   );
 
   // Convert our simplified column format to TanStack format
-  const tableColumns = React.useMemo<ColumnDef<TData>[]>(
+  const tableColumns = useMemo<ColumnDef<TData>[]>(
     () =>
       columns.map((col) => ({
         id: col.id,
@@ -96,7 +89,7 @@ export function SortableTable<TData>({
   );
 
   // Initialize sort state from initialSort prop
-  const [sorting, setSorting] = React.useState<SortingState>(() => {
+  const [sorting, setSorting] = useState<SortingState>(() => {
     if (initialSort != null) {
       return [{ id: initialSort.columnId, desc: initialSort.desc ?? false }];
     }

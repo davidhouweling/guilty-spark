@@ -4,7 +4,8 @@ import { describe, expect, it, afterEach } from "vitest";
 import { render, screen, within, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { SortableTable, type SortableTableColumn } from "../sortable-table";
+import { SortableTable } from "../sortable-table";
+import type { SortableTableColumn } from "../sortable-table";
 
 afterEach(() => {
   cleanup();

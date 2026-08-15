@@ -1,13 +1,8 @@
 import * as Sentry from "@sentry/cloudflare";
 import { addMilliseconds, compareAsc, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
 import { z } from "zod";
-import {
-  type PlayerMatchHistory,
-  type MatchStats,
-  MatchType,
-  type PlaylistCsrContainer,
-  RequestError,
-} from "halo-infinite-api";
+import { MatchType, RequestError } from "halo-infinite-api";
+import type { PlayerMatchHistory, MatchStats, PlaylistCsrContainer } from "halo-infinite-api";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import {
@@ -26,8 +21,10 @@ import {
   individualTrackerStartContract,
   individualTrackerStartRequestSchema,
   individualTrackerStopContract,
-  type IndividualTrackerDoState,
-  type IndividualTrackerSeriesSeed,
+} from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
+import type {
+  IndividualTrackerDoState,
+  IndividualTrackerSeriesSeed,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
 import {
   individualTrackerStatusContract,
@@ -37,8 +34,8 @@ import {
 import {
   individualTrackerNudgeContract,
   nudgePayloadSchema,
-  type SeriesSubstitutedPayload,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
+import type { SeriesSubstitutedPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import {
   analyzeMatchGroupings,
   buildMatchScore,
@@ -62,16 +59,15 @@ import {
   INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
   INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT,
   INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS,
-  type IndividualStatsHighlightOption,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { IndividualStatsHighlightOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { HaloService } from "../../services/halo/halo";
 import type { PlayerEsraData } from "../../services/halo/types";
 import type { JsonAny, LogService } from "../../services/log/types";
-import { installServices as installServicesImpl, type Services } from "../../services/install";
-import {
-  CloudflareWebSocketHibernationAdapter,
-  type WebSocketHibernationAdapter,
-} from "../../base/websocket-hibernation-adapter";
+import { installServices as installServicesImpl } from "../../services/install";
+import type { Services } from "../../services/install";
+import { CloudflareWebSocketHibernationAdapter } from "../../base/websocket-hibernation-adapter";
+import type { WebSocketHibernationAdapter } from "../../base/websocket-hibernation-adapter";
 import type {
   IndividualTrackerInternalState,
   IndividualTrackerMatchSummary,
