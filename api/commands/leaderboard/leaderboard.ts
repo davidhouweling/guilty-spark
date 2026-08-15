@@ -556,7 +556,11 @@ export class LeaderboardCommand extends BaseCommand {
   }
 
   private parseResetControlId(customId: string): { guildId: string; queueChannelId: string | null; resetAt: number } {
-    const [controlId, guildId, rawQueueChannelId, rawResetAt] = customId.split(":");
+    const customIdParts = customId.split(":");
+    if (customIdParts.length !== 4) {
+      throw this.createInvalidLeaderboardControlError();
+    }
+    const [controlId, guildId, rawQueueChannelId, rawResetAt] = customIdParts;
     if (
       (controlId !== LEADERBOARD_RESET_CONFIRM_CONTROL_ID && controlId !== LEADERBOARD_RESET_CANCEL_CONTROL_ID) ||
       guildId == null ||
