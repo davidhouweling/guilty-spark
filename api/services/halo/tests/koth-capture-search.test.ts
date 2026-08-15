@@ -120,6 +120,40 @@ const MATCH_93F5_TICKS = new Map<number, readonly number[]>([
   ],
 ]);
 
+// Real match f5a8c16b-f99c-489f-a34a-825a9d256a4d (3:2 Eagle, ends on time). Captures verified
+// against gameplay footage: Cobra at 4:04 (NOT 3:48 — Cobra was at ~80% there and Eagle ~90%),
+// Eagle at 5:28, 7:53 and 9:56, Cobra at 10:49. The under-tick cost keeps hill 1 from being cut
+// at Cobra's 7th tick, and the window-mismatch key keeps hill 3 at 7:54 (Eagle's own window)
+// instead of 8:37 (inside a Cobra window).
+const MATCH_F5A8_TICKS = new Map<number, readonly number[]>([
+  [
+    0,
+    [
+      107244, 112249, 142363, 155242, 188359, 193364, 203976, 265471, 270476, 277517, 282788, 290930, 318527, 323532,
+      328521, 365246, 370251, 375256, 459227, 464232, 469237, 474242, 517603, 530982, 548917, 553922, 558927, 563932,
+      591160, 596165,
+    ],
+  ],
+  [
+    1,
+    [
+      122709, 130117, 177181, 201206, 210749, 218190, 228351, 238744, 243749, 301694, 306699, 399884, 404889, 437839,
+      444696, 504205, 573208, 580783, 614383, 619388, 624393, 629398, 634403, 639408, 644413, 649402, 659528,
+    ],
+  ],
+]);
+
+// Simplified from the match's byte2 film data: the hill-3 boundary candidates fall in an
+// Eagle window (456-480s, the true 7:54 capture) and a Cobra window (480-522s, the false 8:37).
+const MATCH_F5A8_CONTROL_PERIODS: ObjectiveControlPeriod[] = [
+  controlPeriod(227000, 257000, 1),
+  controlPeriod(317000, 372000, 0),
+  controlPeriod(456000, 480000, 0),
+  controlPeriod(480000, 522000, 1),
+  controlPeriod(523000, 597000, 0),
+  controlPeriod(627000, 679000, 1),
+];
+
 describe("findBestKothCaptureAssignment", () => {
   it("returns the verified capture timestamps for match 5c39e8a4 (2:1, Cobra takes hill 3)", () => {
     const events = eventsFromTicks(MATCH_5C39_TICKS);
@@ -177,6 +211,19 @@ describe("findBestKothCaptureAssignment", () => {
       [],
     );
     expect(result).toEqual([120143, 229661, 337937, 392139, 481561, 566797, 742726]);
+  });
+
+  it("returns the verified capture timestamps for match f5a8c16b (no capture cut short of the meter)", () => {
+    const events = eventsFromTicks(MATCH_F5A8_TICKS);
+    const result = findBestKothCaptureAssignment(
+      events,
+      new Map([
+        [0, 3],
+        [1, 2],
+      ]),
+      MATCH_F5A8_CONTROL_PERIODS,
+    );
+    expect(result).toEqual([243749, 328521, 474242, 596165, 649402]);
   });
 
   it("never places a capture on a tick followed within the relocation gap by another tick", () => {

@@ -195,6 +195,15 @@ const EXPECTED: Record<string, string[]> = {
     "Hill 4: never captured, ~9:36 end, Eagle 20% meter, Cobra 10% meter",
     "Final score: 2:1 Eagle",
   ],
+  "f5a8c16b-f99c-489f-a34a-825a9d256a4d": [
+    "Hill 1: ~4:04 end, Cobra wins — at 3:48 Eagle ~90% / Cobra ~80%, still 0:0; Eagle ~90% at capture",
+    "Hill 2: ~5:28 end, Eagle wins, Cobra ~30%",
+    "Hill 3: ~7:53 end, Eagle wins, Cobra ~60%",
+    "Hill 4: ~9:56 end, Eagle wins, Cobra ~25%",
+    "Hill 5: ~10:49 end, Cobra wins, Eagle 0%",
+    "Hill 6: never captured, clock runs out ~11:34 — Eagle ~2%, Cobra ~10-15%",
+    "Final score: 3:2 Eagle",
+  ],
   "93f5e373-8984-4714-915c-e55b31c8404e": [
     "Hill 1: ~2:00 end, Cobra wins, Eagle ~35-40%",
     "Hill 2: ~3:49 end, Cobra wins — Eagle hit 95% at 2:55 but did NOT capture (off hill 2:44-3:49)",

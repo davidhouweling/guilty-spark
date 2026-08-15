@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 
-import React from "react";
+import React, { cloneElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { KothTimelineChart } from "../koth-timeline-chart";
@@ -19,9 +19,7 @@ vi.mock("recharts", () => ({
     tick,
   }: {
     tick: React.ReactElement<{ x?: number; y?: number; payload?: { value: number }; hills?: readonly KothHillData[] }>;
-  }): React.ReactElement => (
-    <div data-testid="y-axis">{React.cloneElement(tick, { x: 0, y: 0, payload: { value: 1 } })}</div>
-  ),
+  }): React.ReactElement => <div data-testid="y-axis">{cloneElement(tick, { x: 0, y: 0, payload: { value: 1 } })}</div>,
   Tooltip: (): null => null,
 }));
 

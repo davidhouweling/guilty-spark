@@ -21,13 +21,16 @@ interface CaptureStep {
   overtakenTeams: number;
   insufficientMeter: boolean;
   byte2Contradicted: boolean;
+  windowMismatched: boolean;
 }
 
 interface AssignmentScore {
   capturesPlaced: number;
   violations: number;
   byte2Contradictions: number;
+  underTickCost: number;
   variance: number;
+  windowMismatches: number;
   totalTicks: number;
   timestampSum: number;
 }
@@ -42,8 +45,18 @@ function compareAssignmentScores(a: AssignmentScore, b: AssignmentScore): number
   if (a.byte2Contradictions !== b.byte2Contradictions) {
     return a.byte2Contradictions - b.byte2Contradictions;
   }
+  // Captures below a full meter's worth of ticks are only ever explained (dropped film ticks),
+  // never preferred: cutting a scoring run short of 8 ticks reads an 80–95% meter as a capture.
+  if (a.underTickCost !== b.underTickCost) {
+    return a.underTickCost - b.underTickCost;
+  }
   if (a.variance !== b.variance) {
     return a.variance - b.variance;
+  }
+  // Weak byte2 signal: prefer captures sitting inside their own team's control window. Ranked
+  // below variance because a genuine capture can land late in an opponent-attributed window.
+  if (a.windowMismatches !== b.windowMismatches) {
+    return a.windowMismatches - b.windowMismatches;
   }
   if (a.totalTicks !== b.totalTicks) {
     return b.totalTicks - a.totalTicks;
@@ -113,6 +126,7 @@ class KothCaptureSearch {
         overtakenTeams: this.countOvertakenTeams(event, hillBaseline, perHillTicks),
         insufficientMeter: this.hasInsufficientMeterTime(startIndex, index),
         byte2Contradicted: this.isContradictedByControlPeriods(event),
+        windowMismatched: this.isInAnotherTeamsWindow(event),
       });
       this.remainingCaptures.set(event.teamId, remainingForTeam - 1);
       this.explore(index + 1, event.runningScores);
@@ -174,9 +188,7 @@ class KothCaptureSearch {
   // sitting late in an opponent-attributed window is fine (their run ended, then the capturer
   // finished the meter).
   private isContradictedByControlPeriods(event: ObjectiveControlProgressionEvent): boolean {
-    const containing = this.controlPeriods.find(
-      (period) => period.startMs <= event.timestampMs && event.timestampMs < period.endMs,
-    );
+    const containing = this.findContainingControlPeriod(event);
     if (containing?.controllingTeamId == null || containing.controllingTeamId === event.teamId) {
       return false;
     }
@@ -185,6 +197,17 @@ class KothCaptureSearch {
         other.teamId === containing.controllingTeamId &&
         other.timestampMs > event.timestampMs &&
         other.timestampMs < containing.endMs,
+    );
+  }
+
+  private isInAnotherTeamsWindow(event: ObjectiveControlProgressionEvent): boolean {
+    const containing = this.findContainingControlPeriod(event);
+    return containing?.controllingTeamId != null && containing.controllingTeamId !== event.teamId;
+  }
+
+  private findContainingControlPeriod(event: ObjectiveControlProgressionEvent): ObjectiveControlPeriod | undefined {
+    return this.controlPeriods.find(
+      (period) => period.startMs <= event.timestampMs && event.timestampMs < period.endMs,
     );
   }
 
@@ -203,11 +226,14 @@ class KothCaptureSearch {
     const violations =
       this.steps.reduce((acc, step) => acc + step.overtakenTeams + (step.insufficientMeter ? 1 : 0), 0) +
       this.countTrailingViolations(hillBaseline, perHillCounts);
+    const fullMeterTicks = CAPTURE_METER_MS / TICK_SCORING_MS;
     return {
       capturesPlaced: perHillCounts.length,
       violations,
       byte2Contradictions: this.steps.reduce((acc, step) => acc + (step.byte2Contradicted ? 1 : 0), 0),
+      underTickCost: perHillCounts.reduce((acc, count) => acc + Math.max(0, fullMeterTicks - count), 0),
       variance: varianceOf(perHillCounts),
+      windowMismatches: this.steps.reduce((acc, step) => acc + (step.windowMismatched ? 1 : 0), 0),
       totalTicks: perHillCounts.reduce((acc, count) => acc + count, 0),
       timestampSum: this.steps.reduce(
         (acc, step) => acc + Preconditions.checkExists(this.events[step.eventIndex]).timestampMs,
