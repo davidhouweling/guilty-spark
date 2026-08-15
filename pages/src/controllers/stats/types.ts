@@ -4,8 +4,6 @@ import type { MedalEntry } from "@guilty-spark/shared/halo/medals";
 export type PlayerTeamStats<TCategory extends GameVariantCategory> =
   MatchStats<TCategory>["Players"][0]["PlayerTeamStats"][0];
 
-export { StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
-
 export interface MatchStatsData {
   teamId: number;
   teamStats: MatchStatsValues[];
