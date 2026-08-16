@@ -926,13 +926,7 @@ export class DiscordService {
       };
 
       return await this.updateDeferredReply(interactionToken, {
-        embeds:
-          preservedMessage == null
-            ? [errorEmbed]
-            : [
-                ...preservedMessage.embeds.filter((embed) => embed.footer?.text !== errorEmbedFooter),
-                errorEmbed,
-              ],
+        embeds: this.getEmbedsForErrorUpdate(preservedMessage, errorEmbed, errorEmbedFooter),
         components: preservedMessage?.components ?? endUserError.discordActions,
       });
     } catch {
@@ -957,18 +951,28 @@ export class DiscordService {
       return await this.fetch<APIMessage>(Routes.channelMessage(channelId, messageId), {
         method: "PATCH",
         body: JSON.stringify({
-          embeds:
-            preservedMessage == null
-              ? [errorEmbed]
-              : [
-                  ...preservedMessage.embeds.filter((embed) => embed.footer?.text !== errorEmbedFooter),
-                  errorEmbed,
-                ],
+          embeds: this.getEmbedsForErrorUpdate(preservedMessage, errorEmbed, errorEmbedFooter),
         }),
       });
     } catch {
       return undefined;
     }
+  }
+
+  private getEmbedsForErrorUpdate(
+    preservedMessage: APIMessage | undefined,
+    errorEmbed: APIMessage["embeds"][number],
+    errorEmbedFooter: string | undefined,
+  ): APIMessage["embeds"] {
+    if (preservedMessage == null) {
+      return [errorEmbed];
+    }
+
+    const preservedEmbeds =
+      errorEmbedFooter == null
+        ? preservedMessage.embeds
+        : preservedMessage.embeds.filter((embed) => embed.footer?.text !== errorEmbedFooter);
+    return [...preservedEmbeds, errorEmbed];
   }
 
   async getGuild(guildId: string): Promise<APIGuild> {

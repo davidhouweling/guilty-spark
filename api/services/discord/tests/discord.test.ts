@@ -1032,10 +1032,7 @@ describe("DiscordService", () => {
     it("preserves the leaderboard message and replaces a previous temporary error", async () => {
       const message: APIMessage = {
         ...apiMessage,
-        embeds: [
-          { title: "Leaderboard" },
-          { title: "Old error", footer: { text: "Temporary leaderboard error" } },
-        ],
+        embeds: [{ title: "Leaderboard" }, { title: "Old error", footer: { text: "Temporary leaderboard error" } }],
         components: [
           {
             type: ComponentType.ActionRow,
@@ -1066,6 +1063,82 @@ describe("DiscordService", () => {
             ],
             components: message.components,
           }),
+        }),
+      );
+    });
+
+    it("preserves embeds without footers when no error footer is provided", async () => {
+      const message: APIMessage = {
+        ...apiMessage,
+        embeds: [{ title: "Leaderboard" }, { title: "No footer embed", description: "Keep me" }],
+        components: [
+          {
+            type: ComponentType.ActionRow,
+            components: [],
+          },
+        ],
+      };
+      const error = new Error("Leaderboard unavailable");
+
+      await discordService.updateDeferredReplyWithError("fake-interaction-token", error, {
+        preserveMessage: message,
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "https://discord.com/api/v10/webhooks/DISCORD_APP_ID/fake-interaction-token/messages/@original",
+        expect.objectContaining({
+          body: JSON.stringify({
+            embeds: [
+              { title: "Leaderboard" },
+              { title: "No footer embed", description: "Keep me" },
+              {
+                title: "Something went wrong",
+                description: "An unexpected error has occurred. It has been logged. Sorry for the inconvenience.",
+                color: 16_711_680,
+                fields: [],
+              },
+            ],
+            components: message.components,
+          }),
+        }),
+      );
+    });
+  });
+
+  describe("updateMessageWithError()", () => {
+    it("preserves embeds without footers when no error footer is provided", async () => {
+      mockFetch.mockImplementation(async (path) => {
+        if (path === "https://discord.com/api/v10/channels/fake-channel/messages/fake-message") {
+          return Promise.resolve(new Response(JSON.stringify(apiMessage)));
+        }
+        return Promise.reject(new Error(`Invalid path: ${typeof path === "string" ? path : "non-string path"}`));
+      });
+      const message: APIMessage = {
+        ...apiMessage,
+        embeds: [{ title: "Leaderboard" }, { title: "No footer embed", description: "Keep me too" }],
+      };
+      const error = new Error("Leaderboard unavailable");
+
+      await discordService.updateMessageWithError("fake-channel", "fake-message", error, {
+        preserveMessage: message,
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "https://discord.com/api/v10/channels/fake-channel/messages/fake-message",
+        expect.objectContaining({
+          body: JSON.stringify({
+            embeds: [
+              { title: "Leaderboard" },
+              { title: "No footer embed", description: "Keep me too" },
+              {
+                title: "Something went wrong",
+                description: "An unexpected error has occurred. It has been logged. Sorry for the inconvenience.",
+                color: 16_711_680,
+                fields: [],
+              },
+            ],
+          }),
+          method: "PATCH",
         }),
       );
     });
