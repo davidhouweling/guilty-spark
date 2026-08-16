@@ -87,39 +87,20 @@ export class DatabaseService {
     }
 
     const existingColumns = new Set(tableInfo.results.map((column) => column.name));
-    const requiredColumns = [
-      {
-        name: "GameWon",
-        sql: "ALTER TABLE LeaderboardGamePlayers ADD COLUMN GameWon INTEGER NOT NULL DEFAULT 0 CHECK (GameWon IN (0, 1))",
-      },
-      {
-        name: "MedalCount",
-        sql: "ALTER TABLE LeaderboardGamePlayers ADD COLUMN MedalCount INTEGER NOT NULL DEFAULT 0",
-      },
-      {
-        name: "MedalPoints",
-        sql: "ALTER TABLE LeaderboardGamePlayers ADD COLUMN MedalPoints INTEGER NOT NULL DEFAULT 0",
-      },
-      {
-        name: "MythicMedalCount",
-        sql: "ALTER TABLE LeaderboardGamePlayers ADD COLUMN MythicMedalCount INTEGER NOT NULL DEFAULT 0",
-      },
-    ] as const;
+    if (existingColumns.has("GameWon")) {
+      return;
+    }
 
-    for (const requiredColumn of requiredColumns) {
-      if (existingColumns.has(requiredColumn.name)) {
-        continue;
+    try {
+      await this.DB.prepare(
+        "ALTER TABLE LeaderboardGamePlayers ADD COLUMN GameWon INTEGER NOT NULL DEFAULT 0 CHECK (GameWon IN (0, 1))",
+      ).run();
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.includes("duplicate column name: GameWon")) {
+        return;
       }
 
-      try {
-        await this.DB.prepare(requiredColumn.sql).run();
-      } catch (error: unknown) {
-        if (error instanceof Error && error.message.includes(`duplicate column name: ${requiredColumn.name}`)) {
-          continue;
-        }
-
-        throw error;
-      }
+      throw error;
     }
   }
 
