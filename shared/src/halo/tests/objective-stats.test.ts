@@ -128,7 +128,7 @@ describe("zone objective stats", () => {
 
     const result = getKothObjectiveStats(stats);
 
-    expect(result.get("Points")?.value).toBe(39);
+    expect(result.get("Scoring ticks")?.value).toBe(39);
     expect(result.get("Occupation time")?.value).toBe(getDurationInSeconds("PT47.1S"));
     expect(result.has("Captures")).toBe(false);
     expect(result.has("Secures")).toBe(false);

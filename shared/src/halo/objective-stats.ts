@@ -178,7 +178,7 @@ export function getKothObjectiveStats(
   locale?: string,
 ): StatsCollection {
   return new Map([
-    ["Points", { value: stats.ZonesStats.StrongholdScoringTicks, sortBy: StatsValueSortBy.DESC }],
+    ["Scoring ticks", { value: stats.ZonesStats.StrongholdScoringTicks, sortBy: StatsValueSortBy.DESC }],
     [
       "Occupation time",
       {
