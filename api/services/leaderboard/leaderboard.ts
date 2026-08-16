@@ -196,9 +196,9 @@ export class LeaderboardService {
       return;
     }
 
-    let posts: LeaderboardPostRow[];
     try {
-      posts = await this.databaseService.findLeaderboardPostsForRefresh(guildId, queueChannelId);
+      const posts = await this.databaseService.findLeaderboardPostsForRefresh(guildId, queueChannelId);
+      await this.refreshLeaderboardPosts(posts, guildId);
     } catch (error) {
       this.logService.warn(
         error,
@@ -210,8 +210,30 @@ export class LeaderboardService {
       );
       return;
     }
+  }
 
-    if (posts.length === 0) {
+  async refreshPostsForReset(guildId: string, queueChannelId: string | null): Promise<void> {
+    try {
+      const posts =
+        queueChannelId == null
+          ? await this.databaseService.findLeaderboardPostsForGuildRefresh(guildId)
+          : await this.databaseService.findLeaderboardPostsForRefresh(guildId, queueChannelId);
+      await this.refreshLeaderboardPosts(posts, guildId);
+    } catch (error) {
+      this.logService.warn(
+        error,
+        new Map([
+          ["guildId", guildId],
+          ["queueChannelId", queueChannelId],
+          ["reason", "Failed to refresh leaderboard posts after reset"],
+        ]),
+      );
+    }
+  }
+
+  private async refreshLeaderboardPosts(posts: LeaderboardPostRow[], guildId: string): Promise<void> {
+    const { discordService } = this;
+    if (discordService == null || posts.length === 0) {
       return;
     }
 

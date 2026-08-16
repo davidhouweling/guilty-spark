@@ -164,6 +164,7 @@ describe("LeaderboardCommand", () => {
       },
     };
     const upsertSpy = vi.spyOn(services.databaseService, "upsertLeaderboardResetMarker").mockResolvedValue(undefined);
+    const refreshPostsSpy = vi.spyOn(services.leaderboardService, "refreshPostsForReset").mockResolvedValue(undefined);
     const updateSpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
       ...fakeButtonClickInteraction.message,
       type: MessageType.Default,
@@ -175,6 +176,7 @@ describe("LeaderboardCommand", () => {
     expect(upsertSpy).toHaveBeenCalledWith(
       expect.objectContaining({ GuildId: "guild-123", QueueChannelId: "queue-123", ResetAt: resetAt }),
     );
+    expect(refreshPostsSpy).toHaveBeenCalledWith("guild-123", "queue-123");
     expect(updateSpy).toHaveBeenCalledWith(
       interaction.token,
       expect.objectContaining({ embeds: [expect.objectContaining({ title: "Leaderboard reset" })], components: [] }),

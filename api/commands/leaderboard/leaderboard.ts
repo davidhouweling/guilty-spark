@@ -481,6 +481,7 @@ export class LeaderboardCommand extends BaseCommand {
         CreatedAt: now,
         UpdatedAt: now,
       });
+      await this.services.leaderboardService.refreshPostsForReset(guildId, queueChannelId);
 
       const scope = this.getResetScopeLabel(queueChannelId);
       await this.services.discordService.updateDeferredReply(interaction.token, {

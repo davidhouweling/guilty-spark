@@ -415,6 +415,12 @@ export class DatabaseService {
     return response.results;
   }
 
+  async findLeaderboardPostsForGuildRefresh(guildId: string): Promise<LeaderboardPostRow[]> {
+    const stmt = this.DB.prepare("SELECT * FROM LeaderboardPosts WHERE GuildId = ?").bind(guildId);
+    const response = await stmt.all<LeaderboardPostRow>();
+    return response.results;
+  }
+
   async getAllLeaderboardPosts(): Promise<LeaderboardPostRow[]> {
     const stmt = this.DB.prepare("SELECT * FROM LeaderboardPosts");
     const response = await stmt.all<LeaderboardPostRow>();

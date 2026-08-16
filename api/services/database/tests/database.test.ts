@@ -990,6 +990,20 @@ describe("Database Service", () => {
       expect(posts).toEqual([guildWidePost, queuePost]);
     });
 
+    it("finds every leaderboard post for a guild reset", async () => {
+      const post = aFakeLeaderboardPostRow();
+      const fakePreparedStatement = new FakePreparedStatement<typeof post>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [post] });
+
+      const posts = await databaseService.findLeaderboardPostsForGuildRefresh("guild-1");
+
+      expect(prepareSpy).toHaveBeenCalledWith("SELECT * FROM LeaderboardPosts WHERE GuildId = ?");
+      expect(bindSpy).toHaveBeenCalledWith("guild-1");
+      expect(posts).toEqual([post]);
+    });
+
     it("gets every leaderboard post for reaping", async () => {
       const post = aFakeLeaderboardPostRow();
       const fakePreparedStatement = new FakePreparedStatement<typeof post>();
