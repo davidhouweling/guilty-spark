@@ -30,6 +30,13 @@ import type { IndividualTrackerProfilesRow } from "../types/individual_tracker_p
 import type { IndividualTrackerGamesRow } from "../types/individual_tracker_games";
 import type { StreamerViewSettingsRow } from "../types/streamer_view_settings";
 
+const LEADERBOARD_GAME_PLAYER_SCHEMA_COLUMNS = [
+  { name: "GameWon" },
+  { name: "MedalCount" },
+  { name: "MedalPoints" },
+  { name: "MythicMedalCount" },
+];
+
 describe("Database Service", () => {
   let env: Env;
   let databaseService: DatabaseService;
@@ -619,21 +626,39 @@ describe("Database Service", () => {
       expect(batchSpy).toHaveBeenNthCalledWith(3, [gamePlayersStatement]);
     });
 
-    it("adds missing GameWon column before upserting leaderboard game players", async () => {
+    it("adds missing leaderboard game-player columns before upserting leaderboard game players", async () => {
       const gamePlayers = [aFakeLeaderboardGamePlayersRow()];
       const tableInfoStatement = new FakePreparedStatement<{ name: string }>();
-      const alterTableStatement = new FakePreparedStatement();
+      const alterGameWonStatement = new FakePreparedStatement();
+      const alterMedalCountStatement = new FakePreparedStatement();
+      const alterMedalPointsStatement = new FakePreparedStatement();
+      const alterMythicMedalCountStatement = new FakePreparedStatement();
       const gamePlayersStatement = new FakePreparedStatement();
       const prepareSpy = vi
         .spyOn(env.DB, "prepare")
         .mockReturnValueOnce(tableInfoStatement)
-        .mockReturnValueOnce(alterTableStatement)
+        .mockReturnValueOnce(alterGameWonStatement)
+        .mockReturnValueOnce(alterMedalCountStatement)
+        .mockReturnValueOnce(alterMedalPointsStatement)
+        .mockReturnValueOnce(alterMythicMedalCountStatement)
         .mockReturnValueOnce(gamePlayersStatement);
       const tableInfoAllSpy = vi.spyOn(tableInfoStatement, "all").mockResolvedValue({
         ...fakeD1Response,
         results: [{ name: "MatchId" }, { name: "GuildId" }],
       });
-      const alterTableRunSpy = vi.spyOn(alterTableStatement, "run").mockResolvedValue({
+      const alterGameWonRunSpy = vi.spyOn(alterGameWonStatement, "run").mockResolvedValue({
+        ...fakeD1Response,
+        results: [],
+      });
+      const alterMedalCountRunSpy = vi.spyOn(alterMedalCountStatement, "run").mockResolvedValue({
+        ...fakeD1Response,
+        results: [],
+      });
+      const alterMedalPointsRunSpy = vi.spyOn(alterMedalPointsStatement, "run").mockResolvedValue({
+        ...fakeD1Response,
+        results: [],
+      });
+      const alterMythicMedalCountRunSpy = vi.spyOn(alterMythicMedalCountStatement, "run").mockResolvedValue({
         ...fakeD1Response,
         results: [],
       });
@@ -648,8 +673,23 @@ describe("Database Service", () => {
         2,
         "ALTER TABLE LeaderboardGamePlayers ADD COLUMN GameWon INTEGER NOT NULL DEFAULT 0 CHECK (GameWon IN (0, 1))",
       );
-      expect(alterTableRunSpy).toHaveBeenCalledTimes(1);
-      expect(prepareSpy).toHaveBeenNthCalledWith(3, expect.stringContaining("INSERT INTO LeaderboardGamePlayers"));
+      expect(prepareSpy).toHaveBeenNthCalledWith(
+        3,
+        "ALTER TABLE LeaderboardGamePlayers ADD COLUMN MedalCount INTEGER NOT NULL DEFAULT 0",
+      );
+      expect(prepareSpy).toHaveBeenNthCalledWith(
+        4,
+        "ALTER TABLE LeaderboardGamePlayers ADD COLUMN MedalPoints INTEGER NOT NULL DEFAULT 0",
+      );
+      expect(prepareSpy).toHaveBeenNthCalledWith(
+        5,
+        "ALTER TABLE LeaderboardGamePlayers ADD COLUMN MythicMedalCount INTEGER NOT NULL DEFAULT 0",
+      );
+      expect(alterGameWonRunSpy).toHaveBeenCalledTimes(1);
+      expect(alterMedalCountRunSpy).toHaveBeenCalledTimes(1);
+      expect(alterMedalPointsRunSpy).toHaveBeenCalledTimes(1);
+      expect(alterMythicMedalCountRunSpy).toHaveBeenCalledTimes(1);
+      expect(prepareSpy).toHaveBeenNthCalledWith(6, expect.stringContaining("INSERT INTO LeaderboardGamePlayers"));
       expect(gamePlayersBindSpy).toHaveBeenCalledTimes(1);
       expect(batchSpy).toHaveBeenCalledWith([gamePlayersStatement]);
     });
@@ -676,7 +716,7 @@ describe("Database Service", () => {
       });
       vi.spyOn(tableInfoStatement, "all").mockResolvedValue({
         ...fakeD1Response,
-        results: [{ name: "GameWon" }],
+        results: LEADERBOARD_GAME_PLAYER_SCHEMA_COLUMNS,
       });
       const bindSpies = chunkStatements.map((statement) => vi.spyOn(statement, "bind").mockReturnThis());
       const batchSpy = vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
@@ -1158,7 +1198,10 @@ describe("Database Service", () => {
         queries.push(query);
         const statement = new FakePreparedStatement();
         if (query === "PRAGMA table_info(LeaderboardGamePlayers)") {
-          vi.spyOn(statement, "all").mockResolvedValue({ ...fakeD1Response, results: [{ name: "GameWon" }] });
+          vi.spyOn(statement, "all").mockResolvedValue({
+            ...fakeD1Response,
+            results: LEADERBOARD_GAME_PLAYER_SCHEMA_COLUMNS,
+          });
         } else if (query.startsWith("SELECT COUNT(*)")) {
           vi.spyOn(statement, "first").mockResolvedValue({ Total: 0 });
         } else {
@@ -1198,7 +1241,10 @@ describe("Database Service", () => {
         queries.push(query);
         const statement = new FakePreparedStatement();
         if (query === "PRAGMA table_info(LeaderboardGamePlayers)") {
-          vi.spyOn(statement, "all").mockResolvedValue({ ...fakeD1Response, results: [{ name: "GameWon" }] });
+          vi.spyOn(statement, "all").mockResolvedValue({
+            ...fakeD1Response,
+            results: LEADERBOARD_GAME_PLAYER_SCHEMA_COLUMNS,
+          });
         } else if (query.startsWith("SELECT COUNT(*)")) {
           vi.spyOn(statement, "first").mockResolvedValue({ Total: 0 });
         } else {
@@ -1234,7 +1280,7 @@ describe("Database Service", () => {
         .mockReturnValueOnce(rowsStatement);
       vi.spyOn(tableInfoStatement, "all").mockResolvedValue({
         ...fakeD1Response,
-        results: [{ name: "GameWon" }],
+        results: LEADERBOARD_GAME_PLAYER_SCHEMA_COLUMNS,
       });
       vi.spyOn(countStatement, "bind").mockReturnThis();
       vi.spyOn(rowsStatement, "bind").mockReturnThis();
@@ -1279,7 +1325,7 @@ describe("Database Service", () => {
         .mockReturnValueOnce(rowsStatement);
       vi.spyOn(tableInfoStatement, "all").mockResolvedValue({
         ...fakeD1Response,
-        results: [{ name: "GameWon" }],
+        results: LEADERBOARD_GAME_PLAYER_SCHEMA_COLUMNS,
       });
       vi.spyOn(countStatement, "bind").mockReturnThis();
       vi.spyOn(rowsStatement, "bind").mockReturnThis();

@@ -67,19 +67,18 @@ export interface DatabaseServiceOpts {
 export class DatabaseService {
   private readonly DB: D1Database;
   private readonly guildConfigCache = new Map<string, GuildConfigRow>();
-  private leaderboardGameWonMigrationPromise: Promise<void> | null = null;
+  private leaderboardGamePlayersColumnsMigrationPromise: Promise<void> | null = null;
 
   constructor({ env }: DatabaseServiceOpts) {
     this.DB = env.DB;
   }
 
-  private async ensureLeaderboardGameWonColumn(): Promise<void> {
-    this.leaderboardGameWonMigrationPromise ??= this.ensureLeaderboardGameWonColumnAsync();
-
-    await this.leaderboardGameWonMigrationPromise;
+  private async ensureLeaderboardGamePlayersColumns(): Promise<void> {
+    this.leaderboardGamePlayersColumnsMigrationPromise ??= this.ensureLeaderboardGamePlayersColumnsAsync();
+    await this.leaderboardGamePlayersColumnsMigrationPromise;
   }
 
-  private async ensureLeaderboardGameWonColumnAsync(): Promise<void> {
+  private async ensureLeaderboardGamePlayersColumnsAsync(): Promise<void> {
     const tableInfoStmt = this.DB.prepare("PRAGMA table_info(LeaderboardGamePlayers)");
     const tableInfo = await tableInfoStmt.all<{ name: string }>();
 
@@ -87,22 +86,40 @@ export class DatabaseService {
       return;
     }
 
-    for (const column of tableInfo.results) {
-      if (column.name === "GameWon") {
-        return;
-      }
-    }
+    const existingColumns = new Set(tableInfo.results.map((column) => column.name));
+    const requiredColumns = [
+      {
+        name: "GameWon",
+        sql: "ALTER TABLE LeaderboardGamePlayers ADD COLUMN GameWon INTEGER NOT NULL DEFAULT 0 CHECK (GameWon IN (0, 1))",
+      },
+      {
+        name: "MedalCount",
+        sql: "ALTER TABLE LeaderboardGamePlayers ADD COLUMN MedalCount INTEGER NOT NULL DEFAULT 0",
+      },
+      {
+        name: "MedalPoints",
+        sql: "ALTER TABLE LeaderboardGamePlayers ADD COLUMN MedalPoints INTEGER NOT NULL DEFAULT 0",
+      },
+      {
+        name: "MythicMedalCount",
+        sql: "ALTER TABLE LeaderboardGamePlayers ADD COLUMN MythicMedalCount INTEGER NOT NULL DEFAULT 0",
+      },
+    ] as const;
 
-    try {
-      await this.DB.prepare(
-        "ALTER TABLE LeaderboardGamePlayers ADD COLUMN GameWon INTEGER NOT NULL DEFAULT 0 CHECK (GameWon IN (0, 1))",
-      ).run();
-    } catch (error: unknown) {
-      if (error instanceof Error && error.message.includes("duplicate column name: GameWon")) {
-        return;
+    for (const requiredColumn of requiredColumns) {
+      if (existingColumns.has(requiredColumn.name)) {
+        continue;
       }
 
-      throw error;
+      try {
+        await this.DB.prepare(requiredColumn.sql).run();
+      } catch (error: unknown) {
+        if (error instanceof Error && error.message.includes(`duplicate column name: ${requiredColumn.name}`)) {
+          continue;
+        }
+
+        throw error;
+      }
     }
   }
 
@@ -558,7 +575,7 @@ export class DatabaseService {
       return;
     }
 
-    await this.ensureLeaderboardGameWonColumn();
+    await this.ensureLeaderboardGamePlayersColumns();
 
     const variablesPerRow = 31;
     const statementVariableLimit = Math.min(SQLITE_MAX_VARIABLES, D1_SAFE_MAX_VARIABLES_PER_STATEMENT);
@@ -625,7 +642,7 @@ export class DatabaseService {
     gamePlayers: LeaderboardGamePlayersRow[];
     seriesPlayers: LeaderboardSeriesPlayersRow[];
   }): Promise<void> {
-    await this.ensureLeaderboardGameWonColumn();
+    await this.ensureLeaderboardGamePlayersColumns();
 
     const existingGameCreatedAt = await this.getLeaderboardGameCreatedAtByMatchId(series.GuildId, series.QueueNumber);
     const existingGamePlayerCreatedAt = await this.getLeaderboardGamePlayerCreatedAtByKey(
@@ -978,7 +995,7 @@ export class DatabaseService {
     total: number;
     rows: LeaderboardRankingRow[];
   }> {
-    await this.ensureLeaderboardGameWonColumn();
+    await this.ensureLeaderboardGamePlayersColumns();
 
     let metricSql: string;
     let metricBindings: readonly (string | number | null)[] = [];
@@ -1257,7 +1274,7 @@ export class DatabaseService {
       | LeaderboardMetric.SeriesWinRate
       | LeaderboardMetric.GamesWinRate;
   }): Promise<{ total: number; rows: LeaderboardRankingRow[] }> {
-    await this.ensureLeaderboardGameWonColumn();
+    await this.ensureLeaderboardGamePlayersColumns();
 
     const metricSql = ((): string => {
       switch (metric) {
