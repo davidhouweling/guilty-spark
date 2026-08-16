@@ -1103,6 +1103,44 @@ describe("DiscordService", () => {
         }),
       );
     });
+
+    it("keeps only the most recent preserved embeds when appending an error embed", async () => {
+      const message: APIMessage = {
+        ...apiMessage,
+        embeds: Array.from({ length: 10 }, (_, index) => ({ title: `Embed ${index.toString()}` })),
+      };
+      const error = new Error("Leaderboard unavailable");
+
+      await discordService.updateDeferredReplyWithError("fake-interaction-token", error, {
+        preserveMessage: message,
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "https://discord.com/api/v10/webhooks/DISCORD_APP_ID/fake-interaction-token/messages/@original",
+        expect.objectContaining({
+          body: JSON.stringify({
+            embeds: [
+              { title: "Embed 1" },
+              { title: "Embed 2" },
+              { title: "Embed 3" },
+              { title: "Embed 4" },
+              { title: "Embed 5" },
+              { title: "Embed 6" },
+              { title: "Embed 7" },
+              { title: "Embed 8" },
+              { title: "Embed 9" },
+              {
+                title: "Something went wrong",
+                description: "An unexpected error has occurred. It has been logged. Sorry for the inconvenience.",
+                color: 16_711_680,
+                fields: [],
+              },
+            ],
+            components: [],
+          }),
+        }),
+      );
+    });
   });
 
   describe("updateMessageWithError()", () => {
@@ -1141,6 +1179,22 @@ describe("DiscordService", () => {
           method: "PATCH",
         }),
       );
+    });
+
+    it("skips service-level error logging when explicitly suppressed", async () => {
+      mockFetch.mockImplementation(async (path) => {
+        if (path === "https://discord.com/api/v10/channels/fake-channel/messages/fake-message") {
+          return Promise.resolve(new Response(JSON.stringify(apiMessage)));
+        }
+        return Promise.reject(new Error(`Invalid path: ${typeof path === "string" ? path : "non-string path"}`));
+      });
+      const errorSpy = vi.spyOn(logService, "error");
+
+      await discordService.updateMessageWithError("fake-channel", "fake-message", new Error("already logged"), {
+        suppressErrorLogging: true,
+      });
+
+      expect(errorSpy).not.toHaveBeenCalled();
     });
   });
 

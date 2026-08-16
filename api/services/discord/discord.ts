@@ -894,9 +894,9 @@ export class DiscordService {
     return response;
   }
 
-  private handleError(error: unknown, logService: LogService): EndUserError {
+  private handleError(error: unknown, logService: LogService, options?: { suppressLogging?: boolean }): EndUserError {
     const isHandled = error instanceof EndUserError && error.handled;
-    if (!isHandled) {
+    if (!isHandled && options?.suppressLogging !== true) {
       logService[error instanceof EndUserError && error.errorType === EndUserErrorType.WARNING ? "warn" : "error"](
         error,
       );
@@ -914,10 +914,13 @@ export class DiscordService {
   async updateDeferredReplyWithError(
     interactionToken: string,
     error: unknown,
-    options?: { preserveMessage?: APIMessage; errorEmbedFooter?: string },
+    options?: { preserveMessage?: APIMessage; errorEmbedFooter?: string; suppressErrorLogging?: boolean },
   ): Promise<APIMessage | undefined> {
     try {
-      const endUserError = this.handleError(error, this.logService);
+      const endUserError =
+        options?.suppressErrorLogging === true
+          ? this.handleError(error, this.logService, { suppressLogging: true })
+          : this.handleError(error, this.logService);
       const preservedMessage = options?.preserveMessage;
       const errorEmbedFooter = options?.errorEmbedFooter;
       const errorEmbed = {
@@ -938,10 +941,13 @@ export class DiscordService {
     channelId: string,
     messageId: string,
     error: unknown,
-    options?: { preserveMessage?: APIMessage; errorEmbedFooter?: string },
+    options?: { preserveMessage?: APIMessage; errorEmbedFooter?: string; suppressErrorLogging?: boolean },
   ): Promise<APIMessage | undefined> {
     try {
-      const endUserError = this.handleError(error, this.logService);
+      const endUserError =
+        options?.suppressErrorLogging === true
+          ? this.handleError(error, this.logService, { suppressLogging: true })
+          : this.handleError(error, this.logService);
       const preservedMessage = options?.preserveMessage;
       const errorEmbedFooter = options?.errorEmbedFooter;
       const errorEmbed = {
@@ -972,7 +978,7 @@ export class DiscordService {
       errorEmbedFooter == null
         ? preservedMessage.embeds
         : preservedMessage.embeds.filter((embed) => embed.footer?.text !== errorEmbedFooter);
-    return [...preservedEmbeds, errorEmbed];
+    return [...preservedEmbeds.slice(-9), errorEmbed];
   }
 
   async getGuild(guildId: string): Promise<APIGuild> {

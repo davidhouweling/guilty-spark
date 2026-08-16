@@ -332,6 +332,7 @@ export class LeaderboardService {
         await this.discordService?.updateMessageWithError(post.ChannelId, post.MessageId, error, {
           preserveMessage: message,
           errorEmbedFooter: LEADERBOARD_TEMPORARY_ERROR_FOOTER,
+          suppressErrorLogging: true,
         });
       }
     }

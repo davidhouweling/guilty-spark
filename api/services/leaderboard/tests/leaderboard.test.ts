@@ -651,19 +651,16 @@ describe("LeaderboardService", () => {
       total: 23,
       rows: killsRankingRows,
     });
-    const preserveErrorSpy = vi
-      .spyOn(discordService, "updateMessageWithError")
-      .mockResolvedValue(apiMessage);
+    const preserveErrorSpy = vi.spyOn(discordService, "updateMessageWithError").mockResolvedValue(apiMessage);
     const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
 
     await service.refreshPostsForCompletedQueue("guild-1", "queue-1");
 
-    expect(preserveErrorSpy).toHaveBeenCalledWith(
-      firstPost.ChannelId,
-      firstPost.MessageId,
-      refreshError,
-      { preserveMessage: firstMessage, errorEmbedFooter: "Temporary leaderboard error" },
-    );
+    expect(preserveErrorSpy).toHaveBeenCalledWith(firstPost.ChannelId, firstPost.MessageId, refreshError, {
+      preserveMessage: firstMessage,
+      errorEmbedFooter: "Temporary leaderboard error",
+      suppressErrorLogging: true,
+    });
     expect(editMessageSpy).toHaveBeenCalledWith("channel-2", "message-2", expect.any(Object));
   });
 
