@@ -746,16 +746,20 @@ export class LeaderboardCommand extends BaseCommand {
       });
       const lastPage = Math.max(1, Math.ceil(firstPage.total / firstPage.pageSize));
 
-      await this.refreshLeaderboard(interaction.token, locale, {
-        ...state,
-        page: lastPage,
-      }, interaction.message);
-    } catch (error) {
-      await this.services.discordService.updateDeferredReplyWithError(
+      await this.refreshLeaderboard(
         interaction.token,
-        error,
-        { preserveMessage: interaction.message, errorEmbedFooter: LEADERBOARD_TEMPORARY_ERROR_FOOTER },
+        locale,
+        {
+          ...state,
+          page: lastPage,
+        },
+        interaction.message,
       );
+    } catch (error) {
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error, {
+        preserveMessage: interaction.message,
+        errorEmbedFooter: LEADERBOARD_TEMPORARY_ERROR_FOOTER,
+      });
     }
   }
 
@@ -864,11 +868,10 @@ export class LeaderboardCommand extends BaseCommand {
       const locale = this.getInteractionLocale(interaction);
       await this.refreshLeaderboard(interaction.token, locale, stateUpdater(state), interaction.message);
     } catch (error) {
-      await this.services.discordService.updateDeferredReplyWithError(
-        interaction.token,
-        error,
-        { preserveMessage: interaction.message, errorEmbedFooter: LEADERBOARD_TEMPORARY_ERROR_FOOTER },
-      );
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error, {
+        preserveMessage: interaction.message,
+        errorEmbedFooter: LEADERBOARD_TEMPORARY_ERROR_FOOTER,
+      });
     }
   }
 
