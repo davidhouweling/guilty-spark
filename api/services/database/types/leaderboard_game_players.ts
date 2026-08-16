@@ -24,6 +24,9 @@ export interface LeaderboardGamePlayersRow {
   DamageRatio: number;
   AvgLifeSeconds: number;
   AvgDamagePerLife: number;
+  MedalCount: number;
+  MedalPoints: number;
+  MythicMedalCount: number;
   ObjectiveStatsJson: string;
   MedalsJson: string;
   CreatedAt: number;

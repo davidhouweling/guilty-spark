@@ -2635,6 +2635,7 @@ describe("Halo service", () => {
       expect(result).toEqual({
         difficulty: "normal",
         name: "Guardian Angel",
+        personalScore: 10,
         sortingWeight: 50,
         type: "skill",
       });

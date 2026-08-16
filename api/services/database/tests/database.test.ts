@@ -607,51 +607,15 @@ describe("Database Service", () => {
         "DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?",
       );
       expect(prepareSpy).toHaveBeenNthCalledWith(4, expect.stringContaining("INSERT INTO LeaderboardGames"));
-      expect(prepareSpy).toHaveBeenNthCalledWith(5, "PRAGMA table_info(LeaderboardGamePlayers)");
-      expect(prepareSpy).toHaveBeenNthCalledWith(6, expect.stringContaining("HeadshotKills"));
-      const gamePlayersInsertQuery = prepareSpy.mock.calls[5]?.[0];
+      expect(prepareSpy).toHaveBeenNthCalledWith(5, expect.stringContaining("HeadshotKills"));
+      const gamePlayersInsertQuery = prepareSpy.mock.calls[4]?.[0];
       const countBoundParameters = (sql: string): number => sql.split("?").length - 1;
       if (gamePlayersInsertQuery != null) {
-        expect(countBoundParameters(gamePlayersInsertQuery)).toBe(28);
+        expect(countBoundParameters(gamePlayersInsertQuery)).toBe(31);
       }
       expect(batchSpy).toHaveBeenNthCalledWith(1, [deleteSeriesPlayersStatement, insertSeriesPlayersStatement]);
       expect(batchSpy).toHaveBeenNthCalledWith(2, [deleteGamesStatement, upsertGamesStatement]);
       expect(batchSpy).toHaveBeenNthCalledWith(3, [gamePlayersStatement]);
-    });
-
-    it("adds missing GameWon column before upserting leaderboard game players", async () => {
-      const gamePlayers = [aFakeLeaderboardGamePlayersRow()];
-      const tableInfoStatement = new FakePreparedStatement<{ name: string }>();
-      const alterTableStatement = new FakePreparedStatement();
-      const gamePlayersStatement = new FakePreparedStatement();
-      const prepareSpy = vi
-        .spyOn(env.DB, "prepare")
-        .mockReturnValueOnce(tableInfoStatement)
-        .mockReturnValueOnce(alterTableStatement)
-        .mockReturnValueOnce(gamePlayersStatement);
-      const tableInfoAllSpy = vi.spyOn(tableInfoStatement, "all").mockResolvedValue({
-        ...fakeD1Response,
-        results: [{ name: "MatchId" }, { name: "GuildId" }],
-      });
-      const alterTableRunSpy = vi.spyOn(alterTableStatement, "run").mockResolvedValue({
-        ...fakeD1Response,
-        results: [],
-      });
-      const gamePlayersBindSpy = vi.spyOn(gamePlayersStatement, "bind").mockReturnThis();
-      const batchSpy = vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
-
-      await databaseService.upsertLeaderboardGamePlayers(gamePlayers);
-
-      expect(prepareSpy).toHaveBeenNthCalledWith(1, "PRAGMA table_info(LeaderboardGamePlayers)");
-      expect(tableInfoAllSpy).toHaveBeenCalledTimes(1);
-      expect(prepareSpy).toHaveBeenNthCalledWith(
-        2,
-        "ALTER TABLE LeaderboardGamePlayers ADD COLUMN GameWon INTEGER NOT NULL DEFAULT 0 CHECK (GameWon IN (0, 1))",
-      );
-      expect(alterTableRunSpy).toHaveBeenCalledTimes(1);
-      expect(prepareSpy).toHaveBeenNthCalledWith(3, expect.stringContaining("INSERT INTO LeaderboardGamePlayers"));
-      expect(gamePlayersBindSpy).toHaveBeenCalledTimes(1);
-      expect(batchSpy).toHaveBeenCalledWith([gamePlayersStatement]);
     });
 
     it("chunks leaderboard game player upserts to stay below d1 variable limit", async () => {
@@ -661,30 +625,19 @@ describe("Database Service", () => {
           XboxXuid: `xuid-${index.toString()}`,
         }),
       );
-      const tableInfoStatement = new FakePreparedStatement<{ name: string }>();
       const chunkStatements = Array.from({ length: 14 }, () => new FakePreparedStatement());
       let prepareCallCount = 0;
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockImplementation(() => {
-        if (prepareCallCount === 0) {
-          prepareCallCount += 1;
-          return tableInfoStatement;
-        }
-
-        const statement = chunkStatements[prepareCallCount - 1];
+        const statement = chunkStatements[prepareCallCount];
         prepareCallCount += 1;
         return statement ?? new FakePreparedStatement();
-      });
-      vi.spyOn(tableInfoStatement, "all").mockResolvedValue({
-        ...fakeD1Response,
-        results: [{ name: "GameWon" }],
       });
       const bindSpies = chunkStatements.map((statement) => vi.spyOn(statement, "bind").mockReturnThis());
       const batchSpy = vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
 
       await databaseService.upsertLeaderboardGamePlayers(gamePlayers);
 
-      expect(prepareSpy).toHaveBeenCalledTimes(15);
-      expect(prepareSpy).toHaveBeenNthCalledWith(1, "PRAGMA table_info(LeaderboardGamePlayers)");
+      expect(prepareSpy).toHaveBeenCalledTimes(14);
       for (const bindSpy of bindSpies) {
         expect(bindSpy).toHaveBeenCalledTimes(1);
       }
@@ -703,9 +656,11 @@ describe("Database Service", () => {
         CreatedAt: number;
       }>();
       const existingSeriesPlayersStmt = new FakePreparedStatement<{ XboxXuid: string; CreatedAt: number }>();
+      const gameWonTableInfoStmt = new FakePreparedStatement<{ name: string }>();
       const batchedStatements = Array.from({ length: 6 }, () => new FakePreparedStatement());
       const prepareSpy = vi
         .spyOn(env.DB, "prepare")
+        .mockReturnValueOnce(gameWonTableInfoStmt)
         .mockReturnValueOnce(existingGamesStmt)
         .mockReturnValueOnce(existingGamePlayersStmt)
         .mockReturnValueOnce(existingSeriesPlayersStmt);
@@ -733,21 +688,20 @@ describe("Database Service", () => {
         seriesPlayers,
       });
 
-      expect(prepareSpy).toHaveBeenNthCalledWith(1, "PRAGMA table_info(LeaderboardGamePlayers)");
       expect(prepareSpy).toHaveBeenNthCalledWith(
-        2,
+        1,
         "SELECT MatchId, CreatedAt FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?",
       );
       expect(prepareSpy).toHaveBeenNthCalledWith(
-        3,
+        2,
         "SELECT MatchId, XboxXuid, CreatedAt FROM LeaderboardGamePlayers WHERE GuildId = ? AND QueueNumber = ?",
       );
       expect(prepareSpy).toHaveBeenNthCalledWith(
-        4,
+        3,
         "SELECT XboxXuid, CreatedAt FROM LeaderboardSeriesPlayers WHERE GuildId = ? AND QueueNumber = ?",
       );
       expect(prepareSpy).toHaveBeenNthCalledWith(
-        7,
+        6,
         "DELETE FROM LeaderboardGames WHERE GuildId = ? AND QueueNumber = ?",
       );
       const preparedQueries = prepareSpy.mock.calls
@@ -758,7 +712,7 @@ describe("Database Service", () => {
       );
       const countBoundParameters = (sql: string): number => sql.split("?").length - 1;
       expect(gamePlayerInsertQueries).toHaveLength(1);
-      expect(countBoundParameters(gamePlayerInsertQueries[0] ?? "")).toBe(28);
+      expect(countBoundParameters(gamePlayerInsertQueries[0] ?? "")).toBe(31);
       expect(batchSpy).toHaveBeenCalledTimes(1);
       expect(batchSpy).toHaveBeenCalledWith(batchedStatements);
     });
@@ -1113,15 +1067,16 @@ describe("Database Service", () => {
         metric: LeaderboardMetric.AvgDeathsPerGame,
       });
 
-      expect(prepareSpy.mock.calls[0]?.[0]).toBe("PRAGMA table_info(LeaderboardGamePlayers)");
-      expect(prepareSpy.mock.calls[1]?.[0]).toContain("SUM(gp.HeadshotKills) AS MetricValue");
-      expect(prepareSpy.mock.calls[4]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
-      expect(prepareSpy.mock.calls[6]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
-      expect(prepareSpy.mock.calls[8]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
+      expect(prepareSpy.mock.calls[0]?.[0]).toContain("SUM(gp.HeadshotKills) AS MetricValue");
+      expect(prepareSpy.mock.calls[3]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
+      expect(prepareSpy.mock.calls[5]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
+      expect(prepareSpy.mock.calls[7]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
     });
 
     it.each([
       [LeaderboardMetric.PersonalScore, "SUM(gp.PersonalScore)", "DESC"],
+      [LeaderboardMetric.MedalPoints, "SUM(gp.MedalPoints)", "DESC"],
+      [LeaderboardMetric.MythicMedals, "SUM(gp.MythicMedalCount)", "DESC"],
       [LeaderboardMetric.Kills, "SUM(gp.Kills)", "DESC"],
       [LeaderboardMetric.Deaths, "SUM(gp.Deaths)", "ASC"],
       [LeaderboardMetric.Assists, "SUM(gp.Assists)", "DESC"],
@@ -1153,9 +1108,7 @@ describe("Database Service", () => {
       vi.spyOn(env.DB, "prepare").mockImplementation((query) => {
         queries.push(query);
         const statement = new FakePreparedStatement();
-        if (query === "PRAGMA table_info(LeaderboardGamePlayers)") {
-          vi.spyOn(statement, "all").mockResolvedValue({ ...fakeD1Response, results: [{ name: "GameWon" }] });
-        } else if (query.startsWith("SELECT COUNT(*)")) {
+        if (query.startsWith("SELECT COUNT(*)")) {
           vi.spyOn(statement, "first").mockResolvedValue({ Total: 0 });
         } else {
           vi.spyOn(statement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
@@ -1193,9 +1146,7 @@ describe("Database Service", () => {
       vi.spyOn(env.DB, "prepare").mockImplementation((query) => {
         queries.push(query);
         const statement = new FakePreparedStatement();
-        if (query === "PRAGMA table_info(LeaderboardGamePlayers)") {
-          vi.spyOn(statement, "all").mockResolvedValue({ ...fakeD1Response, results: [{ name: "GameWon" }] });
-        } else if (query.startsWith("SELECT COUNT(*)")) {
+        if (query.startsWith("SELECT COUNT(*)")) {
           vi.spyOn(statement, "first").mockResolvedValue({ Total: 0 });
         } else {
           vi.spyOn(statement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
@@ -1220,18 +1171,12 @@ describe("Database Service", () => {
     });
 
     it("aligns game-win window filtering with series completion window", async () => {
-      const tableInfoStatement = new FakePreparedStatement<{ name: string }>();
       const countStatement = new FakePreparedStatement<{ Total: number }>();
       const rowsStatement = new FakePreparedStatement();
       const prepareSpy = vi
         .spyOn(env.DB, "prepare")
-        .mockReturnValueOnce(tableInfoStatement)
         .mockReturnValueOnce(countStatement)
         .mockReturnValueOnce(rowsStatement);
-      vi.spyOn(tableInfoStatement, "all").mockResolvedValue({
-        ...fakeD1Response,
-        results: [{ name: "GameWon" }],
-      });
       vi.spyOn(countStatement, "bind").mockReturnThis();
       vi.spyOn(rowsStatement, "bind").mockReturnThis();
       vi.spyOn(countStatement, "first").mockResolvedValue({ Total: 0 });
@@ -1247,8 +1192,8 @@ describe("Database Service", () => {
         metric: LeaderboardMetric.GamesWinRate,
       });
 
-      expect(prepareSpy.mock.calls[1]?.[0]).toContain("sGames.CompletedAt >= ?");
-      expect(prepareSpy.mock.calls[1]?.[0]).toContain("(? IS NULL OR sGames.QueueChannelId = ?)");
+      expect(prepareSpy.mock.calls[0]?.[0]).toContain("sGames.CompletedAt >= ?");
+      expect(prepareSpy.mock.calls[0]?.[0]).toContain("(? IS NULL OR sGames.QueueChannelId = ?)");
     });
 
     it.each([
@@ -1265,18 +1210,12 @@ describe("Database Service", () => {
         "CASE WHEN stats.GamesPlayed = 0 THEN 0 ELSE CAST(stats.GameWins AS REAL) / stats.GamesPlayed END",
       ],
     ] as const)("builds the expected outcome SQL for %s", async (metric, expectedSql) => {
-      const tableInfoStatement = new FakePreparedStatement<{ name: string }>();
       const countStatement = new FakePreparedStatement<{ Total: number }>();
       const rowsStatement = new FakePreparedStatement();
       const prepareSpy = vi
         .spyOn(env.DB, "prepare")
-        .mockReturnValueOnce(tableInfoStatement)
         .mockReturnValueOnce(countStatement)
         .mockReturnValueOnce(rowsStatement);
-      vi.spyOn(tableInfoStatement, "all").mockResolvedValue({
-        ...fakeD1Response,
-        results: [{ name: "GameWon" }],
-      });
       vi.spyOn(countStatement, "bind").mockReturnThis();
       vi.spyOn(rowsStatement, "bind").mockReturnThis();
       vi.spyOn(countStatement, "first").mockResolvedValue({ Total: 0 });
@@ -1292,7 +1231,7 @@ describe("Database Service", () => {
         metric,
       });
 
-      const rankingQuery = prepareSpy.mock.calls[2]?.[0];
+      const rankingQuery = prepareSpy.mock.calls[1]?.[0];
       expect(rankingQuery).toContain(expectedSql);
       expect(rankingQuery).toContain("sGames.CompletedAt >= ?");
       expect(rankingQuery).toContain("s.CompletedAt >= ?");

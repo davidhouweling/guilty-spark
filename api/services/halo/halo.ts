@@ -548,6 +548,7 @@ export class HaloService {
 
     return {
       name: medal.name.value,
+      personalScore: medal.personalScore,
       sortingWeight: medal.sortingWeight,
       difficulty: Preconditions.checkExists(metadata.difficulties[medal.difficultyIndex]),
       type: Preconditions.checkExists(metadata.types[medal.typeIndex]),

@@ -19,6 +19,7 @@ export interface SeriesData {
 
 export interface Medal {
   name: string;
+  personalScore: number;
   sortingWeight: number;
   difficulty: string;
   type: string;

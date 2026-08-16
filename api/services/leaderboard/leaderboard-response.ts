@@ -169,6 +169,12 @@ function getMetricLabel(metric: LeaderboardMetric): string {
     case LeaderboardMetric.GameWins: {
       return "Game wins";
     }
+    case LeaderboardMetric.MedalPoints: {
+      return "Medals by points";
+    }
+    case LeaderboardMetric.MythicMedals: {
+      return "Mythic medals";
+    }
     case LeaderboardMetric.GamesWinRate: {
       return "Games win rate";
     }
@@ -280,6 +286,13 @@ function formatMetricValue(
   row: LeaderboardResponse["rows"][number],
   locale: string,
 ): string {
+  const pluralRules = new Intl.PluralRules(locale);
+  const formatCount = (value: number, singularLabel: string, pluralLabel: string): string => {
+    const roundedValue = Math.round(value);
+    const label = pluralRules.select(Math.abs(roundedValue)) === "one" ? singularLabel : pluralLabel;
+    return `${roundedValue.toLocaleString(locale)} ${label}`;
+  };
+
   switch (metric) {
     case LeaderboardMetric.SeriesWinRate: {
       return `${(metricValue * 100).toLocaleString(locale, { maximumFractionDigits: 1 })}% (${row.seriesWins.toLocaleString(locale)}/${row.seriesPlayed.toLocaleString(locale)})`;
@@ -333,6 +346,13 @@ function formatMetricValue(
     case LeaderboardMetric.GamesPlayed:
     case LeaderboardMetric.GameWins: {
       return Math.round(metricValue).toLocaleString(locale);
+    }
+    case LeaderboardMetric.MedalPoints: {
+      return `${formatCount(metricValue, "point", "points")} (${formatCount(row.medalCount, "medal", "medals")})`;
+    }
+    case LeaderboardMetric.MythicMedals: {
+      const mythicLabel = pluralRules.select(Math.abs(Math.round(metricValue))) === "one" ? "medal" : "medals";
+      return formatCount(metricValue, "mythic medal", `mythic ${mythicLabel}`);
     }
     case LeaderboardMetric.Kills:
     case LeaderboardMetric.Deaths:

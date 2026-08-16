@@ -6,6 +6,86 @@ import { EmbedColors } from "../../../embeds/colors";
 import { createLeaderboardResponse } from "../leaderboard-response";
 
 describe("createLeaderboardResponse", () => {
+  it("formats medal points with the supporting medal count", () => {
+    const leaderboard: LeaderboardResponse = {
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.MedalPoints,
+      minGamesPlayed: 3,
+      page: 1,
+      pageSize: 10,
+      total: 1,
+      rows: [
+        {
+          rank: 1,
+          xboxXuid: "xuid-1",
+          discordUserId: null,
+          gamertag: "Alpha",
+          seriesPlayed: 3,
+          seriesWins: 2,
+          gamesPlayed: 9,
+          gameWins: 6,
+          medalCount: 20,
+          metricValue: 12450,
+        },
+      ],
+    };
+
+    const response = createLeaderboardResponse("en-US", leaderboard, "<t:1733483139:R>");
+
+    expect(response.embeds?.[0]?.fields?.[2]).toEqual({
+      name: "Medals by points",
+      value: "12,450 points (20 medals)",
+      inline: true,
+    });
+  });
+
+  it("formats medal points and mythic medals with singular labels", () => {
+    const medalPointsLeaderboard: LeaderboardResponse = {
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.MedalPoints,
+      minGamesPlayed: 3,
+      page: 1,
+      pageSize: 10,
+      total: 1,
+      rows: [
+        {
+          rank: 1,
+          xboxXuid: "xuid-1",
+          discordUserId: null,
+          gamertag: "Alpha",
+          seriesPlayed: 3,
+          seriesWins: 2,
+          gamesPlayed: 9,
+          gameWins: 6,
+          medalCount: 1,
+          metricValue: 1,
+        },
+      ],
+    };
+    const mythicMedalsLeaderboard: LeaderboardResponse = {
+      ...medalPointsLeaderboard,
+      metric: LeaderboardMetric.MythicMedals,
+    };
+
+    const medalPointsResponse = createLeaderboardResponse("en-US", medalPointsLeaderboard, "<t:1733483139:R>");
+    expect(medalPointsResponse.embeds?.[0]?.fields?.[2]).toEqual({
+      name: "Medals by points",
+      value: "1 point (1 medal)",
+      inline: true,
+    });
+
+    const mythicMedalsResponse = createLeaderboardResponse("en-US", mythicMedalsLeaderboard, "<t:1733483139:R>");
+    expect(mythicMedalsResponse.embeds?.[0]?.fields?.[2]).toEqual({
+      name: "Mythic medals",
+      value: "1 mythic medal",
+      inline: true,
+    });
+  });
+
   it("creates the leaderboard embed and stateful controls", () => {
     const leaderboard: LeaderboardResponse = {
       guildId: "guild-123",
@@ -26,6 +106,7 @@ describe("createLeaderboardResponse", () => {
           seriesWins: 2,
           gamesPlayed: 9,
           gameWins: 6,
+          medalCount: 12,
           metricValue: 44,
         },
       ],
@@ -98,6 +179,7 @@ describe("createLeaderboardResponse", () => {
             seriesWins: 2,
             gamesPlayed: 9,
             gameWins: 6,
+            medalCount: 12,
             metricValue: 13.2,
           },
         ],
@@ -131,6 +213,7 @@ describe("createLeaderboardResponse", () => {
           seriesWins: 2,
           gamesPlayed: 9,
           gameWins: 6,
+          medalCount: 12,
           metricValue: 44,
         },
       ],
@@ -185,6 +268,7 @@ describe("createLeaderboardResponse", () => {
           seriesWins: 2,
           gamesPlayed: 9,
           gameWins: 6,
+          medalCount: 0,
           metricValue: Number.MAX_VALUE,
         },
       ],
@@ -219,6 +303,7 @@ describe("createLeaderboardResponse", () => {
           seriesWins: 2,
           gamesPlayed: 9,
           gameWins: 6,
+          medalCount: 0,
           metricValue: 1.44,
         },
       ],
