@@ -169,6 +169,12 @@ function getMetricLabel(metric: LeaderboardMetric): string {
     case LeaderboardMetric.GameWins: {
       return "Game wins";
     }
+    case LeaderboardMetric.MedalPoints: {
+      return "Medals by points";
+    }
+    case LeaderboardMetric.MythicMedals: {
+      return "Mythic medals";
+    }
     case LeaderboardMetric.GamesWinRate: {
       return "Games win rate";
     }
@@ -333,6 +339,12 @@ function formatMetricValue(
     case LeaderboardMetric.GamesPlayed:
     case LeaderboardMetric.GameWins: {
       return Math.round(metricValue).toLocaleString(locale);
+    }
+    case LeaderboardMetric.MedalPoints: {
+      return `${Math.round(metricValue).toLocaleString(locale)} points (${row.medalCount.toLocaleString(locale)} medals)`;
+    }
+    case LeaderboardMetric.MythicMedals: {
+      return `${Math.round(metricValue).toLocaleString(locale)} mythic medals`;
     }
     case LeaderboardMetric.Kills:
     case LeaderboardMetric.Deaths:

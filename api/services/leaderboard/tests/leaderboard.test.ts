@@ -70,6 +70,7 @@ describe("LeaderboardService", () => {
       SeriesWins: 2,
       GamesPlayed: 5,
       GameWins: 4,
+      MedalCount: 12,
       MetricValue: 1,
     },
     {
@@ -80,6 +81,7 @@ describe("LeaderboardService", () => {
       SeriesWins: 1,
       GamesPlayed: 2,
       GameWins: 1,
+      MedalCount: 8,
       MetricValue: 0.5,
     },
   ];
@@ -93,6 +95,7 @@ describe("LeaderboardService", () => {
       SeriesWins: 0,
       GamesPlayed: 2,
       GameWins: 1,
+      MedalCount: 4,
       MetricValue: 15,
     },
     {
@@ -103,6 +106,7 @@ describe("LeaderboardService", () => {
       SeriesWins: 0,
       GamesPlayed: 1,
       GameWins: 0,
+      MedalCount: 2,
       MetricValue: 20,
     },
   ];
@@ -335,6 +339,7 @@ describe("LeaderboardService", () => {
         seriesWins: 0,
         gamesPlayed: 2,
         gameWins: 1,
+        medalCount: 4,
         metricValue: 15,
       },
     ]);
@@ -375,6 +380,7 @@ describe("LeaderboardService", () => {
           SeriesWins: 0,
           GamesPlayed: 1,
           GameWins: 0,
+          MedalCount: 0,
           MetricValue: Number.POSITIVE_INFINITY,
         },
       ],
@@ -852,6 +858,47 @@ describe("LeaderboardService", () => {
     const [payload] = Preconditions.checkExists(upsertSpy.mock.calls[0]);
     const gamePlayer = Preconditions.checkExists(payload.gamePlayers[0]);
     expect(gamePlayer.AvgDamagePerLife).toBe(15000 / 11);
+  });
+
+  it("persists medal aggregates from Halo medal metadata", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+    const player = Preconditions.checkExists(match.Players[0]);
+    const teamStats = Preconditions.checkExists(player.PlayerTeamStats[0]);
+    teamStats.Stats.CoreStats = {
+      ...teamStats.Stats.CoreStats,
+      Medals: [
+        { NameId: 3334154676, Count: 2, TotalPersonalScoreAwarded: 20 },
+        { NameId: 835814121, Count: 3, TotalPersonalScoreAwarded: 450 },
+        { NameId: 0, Count: 1, TotalPersonalScoreAwarded: 0 },
+      ],
+    };
+    const upsertSpy = vi.spyOn(databaseService, "upsertLeaderboardSeriesDataBatch");
+
+    await service.persistSeriesData({
+      request: {
+        action: "MATCH_COMPLETED",
+        guild: "guild-1",
+        channel: "channel-1",
+        queue: "ranked",
+        match_number: 42,
+        winning_team_index: teamStats.TeamId,
+        teams: [],
+      },
+      neatQueueConfig: aFakeNeatQueueConfigRow(),
+      series: [match],
+      locale: "en-US",
+    });
+
+    const [payload] = Preconditions.checkExists(upsertSpy.mock.calls[0]);
+    const gamePlayer = Preconditions.checkExists(payload.gamePlayers[0]);
+    expect(gamePlayer.MedalCount).toBe(6);
+    expect(gamePlayer.MedalPoints).toBe(470);
+    expect(gamePlayer.MythicMedalCount).toBe(3);
+    expect(JSON.parse(gamePlayer.MedalsJson)).toHaveLength(3);
   });
 
   it("logs refresh failures separately from persistence failures", async () => {

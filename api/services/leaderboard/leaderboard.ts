@@ -19,6 +19,7 @@ import type { LeaderboardGamePlayersRow } from "../database/types/leaderboard_ga
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
 import type { LeaderboardPostRow } from "../database/types/leaderboard_post";
 import type { HaloService } from "../halo/halo";
+import type { Medal } from "../halo/types";
 import type { LogService } from "../log/types";
 import type { NeatQueueMatchCompletedRequest } from "../neatqueue/types";
 import { getLeaderboardMessageState } from "./leaderboard-message";
@@ -464,6 +465,7 @@ export class LeaderboardService {
         seriesWins: row.SeriesWins,
         gamesPlayed: row.GamesPlayed,
         gameWins: row.GameWins,
+        medalCount: row.MedalCount,
         metricValue: this.toFiniteMetricValue(row.MetricValue),
       })),
     };
@@ -564,6 +566,7 @@ export class LeaderboardService {
     const gamePlayerRows: LeaderboardGamePlayersRow[] = [];
     const playersByXuid = new Map<string, LeaderboardSeriesPlayersRow>();
     const participationByXuid = new Map<string, boolean[]>();
+    const medalMetadataById = new Map<number, Medal | undefined>();
     const gameTypeAndMapByMatchId = new Map<string, { gameType: string; gameMap: string }>();
     const gameTypesAndMaps = await Promise.all(
       sortedSeries.map(async (match) => ({
@@ -627,6 +630,7 @@ export class LeaderboardService {
         );
         const coreStats = teamStats.Stats.CoreStats;
         const deaths = coreStats.Deaths;
+        const medalAggregates = await this.getMedalAggregates(coreStats.Medals, medalMetadataById);
 
         gamePlayerRows.push({
           MatchId: match.MatchId,
@@ -654,6 +658,9 @@ export class LeaderboardService {
           DamageRatio: getSafeRatioValue(coreStats.DamageDealt, coreStats.DamageTaken),
           AvgLifeSeconds: this.getAverageLifeSeconds(coreStats.AverageLifeDuration),
           AvgDamagePerLife: getSafeRatioValue(coreStats.DamageDealt, deaths + 1),
+          MedalCount: medalAggregates.count,
+          MedalPoints: medalAggregates.points,
+          MythicMedalCount: medalAggregates.mythicCount,
           ObjectiveStatsJson: JSON.stringify(teamStats.Stats),
           MedalsJson: JSON.stringify(coreStats.Medals),
           CreatedAt: nowEpoch,
@@ -711,5 +718,34 @@ export class LeaderboardService {
       gamePlayerRows,
       seriesPlayerRows,
     };
+  }
+
+  private async getMedalAggregates(
+    medals: { NameId: number; Count: number }[],
+    metadataById: Map<number, Medal | undefined>,
+  ): Promise<{ count: number; points: number; mythicCount: number }> {
+    let count = 0;
+    let points = 0;
+    let mythicCount = 0;
+
+    for (const medal of medals) {
+      count += medal.Count;
+      let metadata = metadataById.get(medal.NameId);
+      if (!metadataById.has(medal.NameId)) {
+        metadata = await this.haloService.getMedal(medal.NameId);
+        metadataById.set(medal.NameId, metadata);
+      }
+
+      if (metadata == null) {
+        continue;
+      }
+
+      points += metadata.personalScore * medal.Count;
+      if (metadata.difficulty === "mythic") {
+        mythicCount += medal.Count;
+      }
+    }
+
+    return { count, points, mythicCount };
   }
 }
