@@ -485,6 +485,73 @@ describe("LeaderboardService", () => {
     expect(findQueuePostsSpy).not.toHaveBeenCalled();
   });
 
+  it("refreshes guild-wide posts for reset when queue channel is omitted", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const discordService = aFakeDiscordServiceWith();
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, discordService, haloService, logService });
+    const firstPost = aFakeLeaderboardPostRow();
+    const secondPost = aFakeLeaderboardPostRow({ ChannelId: "channel-2", MessageId: "message-2" });
+    const findGuildPostsSpy = vi
+      .spyOn(databaseService, "findLeaderboardPostsForGuildRefresh")
+      .mockResolvedValue([firstPost, secondPost]);
+    const findQueuePostsSpy = vi.spyOn(databaseService, "findLeaderboardPostsForRefresh");
+    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue(Locale.EnglishUS);
+    vi.spyOn(discordService, "getMessage").mockResolvedValue(aLeaderboardMessageWith());
+    vi.spyOn(databaseService, "getLeaderboardConfig").mockResolvedValue(
+      aFakeLeaderboardConfigRow({ GuildId: "guild-1", MinGamesPlayed: 3 }),
+    );
+    vi.spyOn(databaseService, "getLeaderboardStatMetricRankings").mockResolvedValue({
+      total: 23,
+      rows: killsRankingRows,
+    });
+    const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
+
+    await service.refreshPostsForReset("guild-1", null);
+
+    expect(findGuildPostsSpy).toHaveBeenCalledWith("guild-1");
+    expect(findQueuePostsSpy).not.toHaveBeenCalled();
+    expect(editMessageSpy).toHaveBeenCalledTimes(2);
+    expect(editMessageSpy).toHaveBeenNthCalledWith(
+      1,
+      "leaderboard-channel-1",
+      "leaderboard-message-1",
+      expect.any(Object),
+    );
+    expect(editMessageSpy).toHaveBeenNthCalledWith(2, "channel-2", "message-2", expect.any(Object));
+  });
+
+  it("refreshes queue-scoped posts for reset when queue channel is provided", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const discordService = aFakeDiscordServiceWith();
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, discordService, haloService, logService });
+    const queuePost = aFakeLeaderboardPostRow({ ChannelId: "channel-2", MessageId: "message-2" });
+    const findGuildPostsSpy = vi.spyOn(databaseService, "findLeaderboardPostsForGuildRefresh");
+    const findQueuePostsSpy = vi
+      .spyOn(databaseService, "findLeaderboardPostsForRefresh")
+      .mockResolvedValue([queuePost]);
+    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue(Locale.EnglishUS);
+    vi.spyOn(discordService, "getMessage").mockResolvedValue(aLeaderboardMessageWith());
+    vi.spyOn(databaseService, "getLeaderboardConfig").mockResolvedValue(
+      aFakeLeaderboardConfigRow({ GuildId: "guild-1", MinGamesPlayed: 3 }),
+    );
+    vi.spyOn(databaseService, "getLeaderboardStatMetricRankings").mockResolvedValue({
+      total: 23,
+      rows: killsRankingRows,
+    });
+    const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
+
+    await service.refreshPostsForReset("guild-1", "queue-1");
+
+    expect(findQueuePostsSpy).toHaveBeenCalledWith("guild-1", "queue-1");
+    expect(findGuildPostsSpy).not.toHaveBeenCalled();
+    expect(editMessageSpy).toHaveBeenCalledTimes(1);
+    expect(editMessageSpy).toHaveBeenCalledWith("channel-2", "message-2", expect.any(Object));
+  });
+
   it("continues refreshing posts with the preferred locale helper result", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });
