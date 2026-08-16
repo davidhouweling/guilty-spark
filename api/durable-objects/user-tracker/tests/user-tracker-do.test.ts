@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Mock } from "vitest";
 import {
   userTrackerDirectoryMessageContract,
   userTrackerStatusContract,
@@ -22,6 +23,47 @@ import { aFakeIndividualTrackersRow } from "../../../services/database/fakes/dat
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeWebSocketHibernationAdapter } from "../../../base/fakes/websocket-hibernation-adapter.fake";
 import type { FakeWebSocketHibernationAdapter } from "../../../base/fakes/websocket-hibernation-adapter.fake";
+
+const RECONCILE_WINDOW_MS = 300000;
+
+interface PersistentStateHarness {
+  state: DurableObjectState & { storage: DurableObjectStorage };
+  persistedStorage: Map<string, unknown>;
+  setAlarmMock: Mock<DurableObjectStorage["setAlarm"]>;
+  deleteAlarmMock: Mock<DurableObjectStorage["deleteAlarm"]>;
+}
+
+function aPersistentStateHarness(): PersistentStateHarness {
+  const persistedStorage = new Map<string, unknown>();
+  let alarmTime: number | null = null;
+  const setAlarmMock = vi.fn<DurableObjectStorage["setAlarm"]>(async (scheduledTime) => {
+    alarmTime = typeof scheduledTime === "number" ? scheduledTime : scheduledTime.getTime();
+    return Promise.resolve();
+  });
+  const getAlarmMock = vi.fn<DurableObjectStorage["getAlarm"]>(async () => Promise.resolve(alarmTime));
+  const deleteAlarmMock = vi.fn<DurableObjectStorage["deleteAlarm"]>(async () => {
+    alarmTime = null;
+    return Promise.resolve();
+  });
+  const storage = aFakeDurableObjectStorageWith({
+    get: (async (key: string) => Promise.resolve(persistedStorage.get(key))) as DurableObjectStorage["get"],
+    put: (async (key: string, value: unknown) => {
+      persistedStorage.set(key, value);
+      await Promise.resolve();
+    }) as DurableObjectStorage["put"],
+    delete: (async (key: string) => Promise.resolve(persistedStorage.delete(key))) as DurableObjectStorage["delete"],
+    setAlarm: setAlarmMock,
+    getAlarm: getAlarmMock,
+    deleteAlarm: deleteAlarmMock,
+  });
+
+  return {
+    state: aFakeDurableObjectStateWith({ storage }),
+    persistedStorage,
+    setAlarmMock,
+    deleteAlarmMock,
+  };
+}
 
 describe("UserTrackerDO", () => {
   let userTrackerDO: UserTrackerDO;
@@ -1344,6 +1386,86 @@ describe("UserTrackerDO", () => {
     expect(reconciledPayload.state?.directory.trackers).toHaveLength(0);
     expect(localSetAlarmMock).toHaveBeenCalledTimes(2);
     expect(localDeleteAlarmMock).not.toHaveBeenCalled();
+  });
+
+  it("stops reconciling and clears the alarm once the clientless reconcile window elapses", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2025-01-01T00:00:00.000Z"));
+    const harness = aPersistentStateHarness();
+    const localEnv = aFakeEnvWith({
+      INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(
+        aFakeIndividualTrackerDOWith({ viewStateResponse: { state: null } }),
+      ),
+    });
+    const services = installFakeServicesWith({ env: localEnv });
+    vi.spyOn(harness.state, "getWebSockets").mockReturnValue([]);
+    const findTrackersSpy = vi
+      .spyOn(services.databaseService, "findIndividualTrackersByUserId")
+      .mockResolvedValue([aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Status: "active" })]);
+    const localUserTrackerDO = new UserTrackerDO(harness.state, localEnv, () => services, webSocketAdapter);
+
+    await localUserTrackerDO.fetch(new Request("http://do/view-state?userId=user-1", { method: "GET" }));
+    expect(harness.setAlarmMock).toHaveBeenCalledOnce();
+
+    vi.advanceTimersByTime(RECONCILE_WINDOW_MS + 1);
+    findTrackersSpy.mockClear();
+    await localUserTrackerDO.alarm();
+
+    expect(harness.deleteAlarmMock).toHaveBeenCalledOnce();
+    expect(harness.setAlarmMock).toHaveBeenCalledOnce();
+    expect(findTrackersSpy).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("stops reconciling when no reconcile deadline has been recorded", async () => {
+    const harness = aPersistentStateHarness();
+    harness.persistedStorage.set("userTrackerState", {
+      state: { userId: "user-1", lastUpdateTime: new Date().toISOString() },
+      viewState: null,
+    });
+    const localEnv = aFakeEnvWith({
+      INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(
+        aFakeIndividualTrackerDOWith({ viewStateResponse: { state: null } }),
+      ),
+    });
+    const services = installFakeServicesWith({ env: localEnv });
+    vi.spyOn(harness.state, "getWebSockets").mockReturnValue([]);
+    const findTrackersSpy = vi.spyOn(services.databaseService, "findIndividualTrackersByUserId");
+    const localUserTrackerDO = new UserTrackerDO(harness.state, localEnv, () => services, webSocketAdapter);
+
+    await localUserTrackerDO.alarm();
+
+    expect(harness.deleteAlarmMock).toHaveBeenCalledOnce();
+    expect(harness.setAlarmMock).not.toHaveBeenCalled();
+    expect(findTrackersSpy).not.toHaveBeenCalled();
+  });
+
+  it("extends the reconcile window when view-state is requested again", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2025-01-01T00:00:00.000Z"));
+    const harness = aPersistentStateHarness();
+    const localEnv = aFakeEnvWith({
+      INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(
+        aFakeIndividualTrackerDOWith({ viewStateResponse: { state: null } }),
+      ),
+    });
+    const services = installFakeServicesWith({ env: localEnv });
+    vi.spyOn(harness.state, "getWebSockets").mockReturnValue([]);
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([
+      aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Status: "active" }),
+    ]);
+    const localUserTrackerDO = new UserTrackerDO(harness.state, localEnv, () => services, webSocketAdapter);
+
+    await localUserTrackerDO.fetch(new Request("http://do/view-state?userId=user-1", { method: "GET" }));
+    vi.advanceTimersByTime(RECONCILE_WINDOW_MS - 1000);
+    await localUserTrackerDO.fetch(new Request("http://do/view-state?userId=user-1", { method: "GET" }));
+
+    vi.advanceTimersByTime(2000);
+    await localUserTrackerDO.alarm();
+
+    expect(harness.deleteAlarmMock).not.toHaveBeenCalled();
+    expect(harness.setAlarmMock).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
   });
 
   it("re-arms reconcile alarm and logs directory refresh failures when rebuild fails transiently", async () => {
