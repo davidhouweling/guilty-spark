@@ -31,6 +31,7 @@ export const leaderboardContract = defineContract(
     guildId: z.string(),
     queueChannelId: z.string().nullable(),
     window: z.enum(LeaderboardWindow),
+    resetAt: z.number().int().nonnegative().nullable().optional(),
     metric: z.enum(LeaderboardMetric),
     minGamesPlayed: z.number().int().nonnegative(),
     page: z.number().int().positive(),

@@ -19,6 +19,7 @@ import {
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { LeaderboardMetric, LeaderboardMetricFamily, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
+import { aFakeLeaderboardSeriesRow } from "../../../services/database/fakes/database.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import {
   aWizardStringSelectWith,
@@ -95,8 +96,269 @@ describe("LeaderboardCommand", () => {
     expect(slashCommand?.name).toBe("leaderboard");
 
     const subcommands = slashCommand?.options;
-    expect(subcommands).toHaveLength(1);
+    expect(subcommands).toHaveLength(2);
     expect(subcommands?.[0]?.name).toBe("show");
+    expect(subcommands?.[1]?.name).toBe("reset");
+  });
+
+  it("previews a queue completion time before saving the reset marker", async () => {
+    const mappedOptions = new Map<string, string | number | boolean>([
+      ["queue_channel", "queue-123"],
+      ["queue_number", 42],
+    ]);
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "reset",
+      options: [],
+      mappedOptions,
+    });
+    vi.spyOn(services.databaseService, "getLeaderboardSeriesByQueueNumber").mockResolvedValue(
+      aFakeLeaderboardSeriesRow({
+        GuildId: "guild-123",
+        QueueNumber: 42,
+        QueueChannelId: "queue-123",
+        CompletedAt: 1_723_600_000,
+      }),
+    );
+    const upsertSpy = vi.spyOn(services.databaseService, "upsertLeaderboardResetMarker").mockResolvedValue(undefined);
+    const updateSpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      ...fakeButtonClickInteraction.message,
+      type: MessageType.Default,
+    });
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      guild_id: "guild-123",
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [{ type: ApplicationCommandOptionType.Subcommand, name: "reset", options: [] }],
+      },
+    };
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(upsertSpy).not.toHaveBeenCalled();
+    expect(updateSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({
+        embeds: [expect.objectContaining({ title: "Leaderboard reset", color: 13_938_487 })],
+        components: [expect.any(Object)],
+      }),
+    );
+  });
+
+  it("saves the reset marker when confirmation button is clicked", async () => {
+    const resetAt = 1_723_600_000;
+    const interaction: APIMessageComponentButtonInteraction = {
+      ...fakeButtonClickInteraction,
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(fakeButtonClickInteraction.guild),
+        id: "guild-123",
+      },
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: `btn_leaderboard_reset_confirm:guild-123:queue-123:${resetAt.toString(36)}`,
+      },
+    };
+    const upsertSpy = vi.spyOn(services.databaseService, "upsertLeaderboardResetMarker").mockResolvedValue(undefined);
+    const updateSpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      ...fakeButtonClickInteraction.message,
+      type: MessageType.Default,
+    });
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(upsertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ GuildId: "guild-123", QueueChannelId: "queue-123", ResetAt: resetAt }),
+    );
+    expect(updateSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({ embeds: [expect.objectContaining({ title: "Leaderboard reset" })], components: [] }),
+    );
+  });
+
+  it("allows admins to reset leaderboards without Manage Server", async () => {
+    vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValue(PermissionFlagsBits.Administrator);
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "reset",
+      options: [],
+      mappedOptions: new Map<string, string | number | boolean>(),
+    });
+    const updateSpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      ...fakeButtonClickInteraction.message,
+      type: MessageType.Default,
+    });
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      guild_id: "guild-123",
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [{ type: ApplicationCommandOptionType.Subcommand, name: "reset", options: [] }],
+      },
+    };
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(updateSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({ embeds: [expect.objectContaining({ title: "Leaderboard reset" })] }),
+    );
+  });
+
+  it("rejects reset requests without Manage Server or Administrator", async () => {
+    vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValue(0n);
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "reset",
+      options: [],
+      mappedOptions: new Map<string, string | number | boolean>(),
+    });
+    const errorSpy = vi.spyOn(services.discordService, "updateDeferredReplyWithError").mockResolvedValue(undefined);
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      guild_id: "guild-123",
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [{ type: ApplicationCommandOptionType.Subcommand, name: "reset", options: [] }],
+      },
+    };
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({
+        endUserMessage: "You need the Manage Server or Administrator permission to reset leaderboards.",
+      }),
+    );
+  });
+
+  it("rejects tampered reset confirmations that point to a future date", async () => {
+    const resetAt = Math.floor(Date.now() / 1000) + 60;
+    const interaction: APIMessageComponentButtonInteraction = {
+      ...fakeButtonClickInteraction,
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(fakeButtonClickInteraction.guild),
+        id: "guild-123",
+      },
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: `btn_leaderboard_reset_confirm:guild-123:queue-123:${resetAt.toString(36)}`,
+      },
+    };
+    const upsertSpy = vi.spyOn(services.databaseService, "upsertLeaderboardResetMarker").mockResolvedValue(undefined);
+    const errorSpy = vi.spyOn(services.discordService, "updateDeferredReplyWithError").mockResolvedValue(undefined);
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(upsertSpy).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({ endUserMessage: "Reset date cannot be in the future." }),
+    );
+  });
+
+  it("rejects tampered reset confirmations with an empty queue segment", async () => {
+    const resetAt = 1_723_600_000;
+    const interaction: APIMessageComponentButtonInteraction = {
+      ...fakeButtonClickInteraction,
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(fakeButtonClickInteraction.guild),
+        id: "guild-123",
+      },
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: `btn_leaderboard_reset_confirm:guild-123::${resetAt.toString(36)}`,
+      },
+    };
+    const upsertSpy = vi.spyOn(services.databaseService, "upsertLeaderboardResetMarker").mockResolvedValue(undefined);
+    const errorSpy = vi.spyOn(services.discordService, "updateDeferredReplyWithError").mockResolvedValue(undefined);
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(upsertSpy).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({
+        endUserMessage: "This leaderboard control interaction is invalid. Run /leaderboard show again.",
+      }),
+    );
+  });
+
+  it("rejects tampered reset confirmations with extra custom id segments", async () => {
+    const resetAt = 1_723_600_000;
+    const interaction: APIMessageComponentButtonInteraction = {
+      ...fakeButtonClickInteraction,
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(fakeButtonClickInteraction.guild),
+        id: "guild-123",
+      },
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: `btn_leaderboard_reset_confirm:guild-123:queue-123:${resetAt.toString(36)}:extra`,
+      },
+    };
+    const upsertSpy = vi.spyOn(services.databaseService, "upsertLeaderboardResetMarker").mockResolvedValue(undefined);
+    const errorSpy = vi.spyOn(services.discordService, "updateDeferredReplyWithError").mockResolvedValue(undefined);
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(upsertSpy).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({
+        endUserMessage: "This leaderboard control interaction is invalid. Run /leaderboard show again.",
+      }),
+    );
+  });
+
+  it("rejects reset requests that supply both date and queue number", async () => {
+    const mappedOptions = new Map<string, string | number | boolean>([
+      ["date", "2024-08-14"],
+      ["queue_number", 42],
+    ]);
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "reset",
+      options: [],
+      mappedOptions,
+    });
+    const errorSpy = vi.spyOn(services.discordService, "updateDeferredReplyWithError").mockResolvedValue(undefined);
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      guild_id: "guild-123",
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [{ type: ApplicationCommandOptionType.Subcommand, name: "reset", options: [] }],
+      },
+    };
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      interaction.token,
+      expect.objectContaining({ endUserMessage: "Only one reset boundary can be used: date or queue number." }),
+    );
   });
 
   it("fetches leaderboard data and updates deferred reply with stateful controls", async () => {
@@ -1022,6 +1284,55 @@ describe("LeaderboardCommand", () => {
       pageSize: 10,
       minGamesPlayed: 0,
     });
+  });
+
+  it("switches metric while the reset window is active", async () => {
+    const interaction: APIMessageComponentSelectMenuInteraction = {
+      ...aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetricFamily.GamesWinRate }),
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(
+          aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetricFamily.GamesWinRate })
+            .guild,
+        ),
+        id: "guild-123",
+      },
+      data: {
+        component_type: ComponentType.StringSelect,
+        custom_id: `${INTERACTION_METRIC_SELECT}:guild-123:-:RESET:SERIES_WIN_RATE:1:0`,
+        values: [LeaderboardMetricFamily.GamesWinRate],
+      },
+    };
+    vi.spyOn(services.databaseService, "getLeaderboardResetMarker").mockResolvedValue({
+      GuildId: "guild-123",
+      QueueChannelId: null,
+      ResetAt: 1_723_600_000,
+      CreatedAt: 1_723_600_000,
+      UpdatedAt: 1_723_600_000,
+    });
+    const getLeaderboardSpy = vi.spyOn(services.leaderboardService, "getLeaderboard").mockResolvedValue({
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.LastReset,
+      resetAt: 1_723_600_000,
+      metric: LeaderboardMetric.GamesWinRate,
+      minGamesPlayed: 0,
+      page: 1,
+      pageSize: 10,
+      total: 0,
+      rows: [],
+    });
+    vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      ...Preconditions.checkExists(interaction.message),
+      type: MessageType.Default,
+    });
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(getLeaderboardSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ window: LeaderboardWindow.LastReset, metric: LeaderboardMetric.GamesWinRate }),
+    );
   });
 
   it("switches metric from legacy metric string-select interaction and resets to page 1", async () => {

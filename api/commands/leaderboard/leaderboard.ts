@@ -5,6 +5,7 @@ import type {
   APIMessageComponentSelectMenuInteraction,
   APIMessageTopLevelComponent,
 } from "discord-api-types/v10";
+import { isValid, parseISO } from "date-fns";
 import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
@@ -31,6 +32,7 @@ import {
 } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardMetricFamily } from "@guilty-spark/shared/halo/leaderboard";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
+import { EmbedColors } from "../../embeds/colors";
 import {
   createLeaderboardResponse,
   LEADERBOARD_FIRST_PAGE_CONTROL_ID,
@@ -47,6 +49,8 @@ import { BaseCommand } from "../base/base-command";
 
 const DEFAULT_PAGE_SIZE = 10;
 const LEGACY_LEADERBOARD_METRIC_SELECT_CONTROL_ID = "select_leaderboard_metric";
+const LEADERBOARD_RESET_CONFIRM_CONTROL_ID = "btn_leaderboard_reset_confirm";
+const LEADERBOARD_RESET_CANCEL_CONTROL_ID = "btn_leaderboard_reset_cancel";
 
 const METRIC_AGGREGATIONS_IN_OPTION_ORDER: readonly LeaderboardMetricAggregation[] = [
   LeaderboardMetricAggregation.OverallPerformance,
@@ -56,6 +60,7 @@ const METRIC_AGGREGATIONS_IN_OPTION_ORDER: readonly LeaderboardMetricAggregation
 ];
 
 const WINDOW_OPTIONS_BY_VALUE = new Map<string, LeaderboardWindow>([
+  [LeaderboardWindow.LastReset, LeaderboardWindow.LastReset],
   [LeaderboardWindow.OneWeek, LeaderboardWindow.OneWeek],
   [LeaderboardWindow.OneMonth, LeaderboardWindow.OneMonth],
   [LeaderboardWindow.ThreeMonths, LeaderboardWindow.ThreeMonths],
@@ -169,6 +174,33 @@ export class LeaderboardCommand extends BaseCommand {
             },
           ],
         },
+        {
+          type: ApplicationCommandOptionType.Subcommand,
+          name: "reset",
+          description: "Set a non-destructive leaderboard reset marker",
+          options: [
+            {
+              name: "queue_channel",
+              description: "Reset only this queue, or all server leaderboards when omitted",
+              type: ApplicationCommandOptionType.Channel,
+              channel_types: [ChannelType.GuildText, ChannelType.GuildAnnouncement],
+              required: false,
+            },
+            {
+              name: "date",
+              description: "UTC reset date in YYYY-MM-DD format; omitted means now",
+              type: ApplicationCommandOptionType.String,
+              required: false,
+            },
+            {
+              name: "queue_number",
+              description: "Use this completed queue as the reset boundary",
+              type: ApplicationCommandOptionType.Integer,
+              required: false,
+              min_value: 1,
+            },
+          ],
+        },
       ],
     },
   ];
@@ -222,6 +254,20 @@ export class LeaderboardCommand extends BaseCommand {
       {
         type: InteractionType.MessageComponent,
         data: {
+          component_type: ComponentType.Button,
+          custom_id: LEADERBOARD_RESET_CONFIRM_CONTROL_ID,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: LEADERBOARD_RESET_CANCEL_CONTROL_ID,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
           component_type: ComponentType.StringSelect,
           custom_id: LEGACY_LEADERBOARD_METRIC_SELECT_CONTROL_ID,
           values: [],
@@ -256,6 +302,9 @@ export class LeaderboardCommand extends BaseCommand {
           case "show": {
             return this.deferReply(async () => this.showLeaderboard(interaction, subcommand.mappedOptions));
           }
+          case "reset": {
+            return this.deferReply(async () => this.resetLeaderboard(interaction, subcommand.mappedOptions), true);
+          }
           default: {
             throw new Error("Unknown subcommand");
           }
@@ -289,6 +338,12 @@ export class LeaderboardCommand extends BaseCommand {
           }
           case LEADERBOARD_WINDOW_SELECT_CONTROL_ID: {
             return this.deferUpdate(async () => this.handleWindowSelect(interaction));
+          }
+          case LEADERBOARD_RESET_CONFIRM_CONTROL_ID: {
+            return this.deferUpdate(async () => this.confirmResetLeaderboard(interaction));
+          }
+          case LEADERBOARD_RESET_CANCEL_CONTROL_ID: {
+            return this.deferUpdate(async () => this.cancelResetLeaderboard(interaction));
           }
           default: {
             throw new Error(`Unknown interaction: ${interaction.data.custom_id}`);
@@ -340,6 +395,305 @@ export class LeaderboardCommand extends BaseCommand {
     } catch (error) {
       await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
     }
+  }
+
+  private async resetLeaderboard(
+    interaction: APIApplicationCommandInteraction,
+    options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
+  ): Promise<void> {
+    try {
+      const guildId = interaction.guild_id;
+      if (guildId == null || guildId === "") {
+        throw new EndUserError("Leaderboard can only be reset inside a server.", {
+          handled: true,
+          errorType: EndUserErrorType.WARNING,
+        });
+      }
+
+      const userId = this.services.discordService.getDiscordUserId(interaction);
+      const permissions = await this.services.discordService.computeMemberPermissions(guildId, userId);
+      if (!this.hasResetLeaderboardPermission(permissions)) {
+        throw new EndUserError("You need the Manage Server or Administrator permission to reset leaderboards.", {
+          handled: true,
+          errorType: EndUserErrorType.WARNING,
+        });
+      }
+
+      const queueChannelId = this.getOptionalStringOption(options, "queue_channel") ?? null;
+      const resetAt = await this.resolveResetAt({
+        guildId,
+        queueChannelId,
+        date: this.getOptionalStringOption(options, "date"),
+        queueNumber: this.getOptionalNumberOption(options, "queue_number"),
+      });
+      const currentResetAt = await this.getCurrentResetAt(guildId, queueChannelId);
+      await this.services.discordService.updateDeferredReply(interaction.token, {
+        embeds: [this.createResetPreviewEmbed(queueChannelId, currentResetAt, resetAt)],
+        components: [
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.Button,
+                style: ButtonStyle.Danger,
+                custom_id: this.createResetControlId(
+                  LEADERBOARD_RESET_CONFIRM_CONTROL_ID,
+                  guildId,
+                  queueChannelId,
+                  resetAt,
+                ),
+                label: "Confirm reset",
+              },
+              {
+                type: ComponentType.Button,
+                style: ButtonStyle.Secondary,
+                custom_id: this.createResetControlId(
+                  LEADERBOARD_RESET_CANCEL_CONTROL_ID,
+                  guildId,
+                  queueChannelId,
+                  resetAt,
+                ),
+                label: "Cancel",
+              },
+            ],
+          },
+        ],
+      });
+    } catch (error) {
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async confirmResetLeaderboard(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+  ): Promise<void> {
+    try {
+      this.assertButtonInteraction(interaction);
+      const { guildId, queueChannelId, resetAt } = this.parseResetControlId(interaction.data.custom_id);
+      this.assertResetInteractionGuild(interaction, guildId);
+      await this.assertCanResetLeaderboard(interaction, guildId);
+      const validatedResetAt = this.validateResetAtBoundary(resetAt);
+      const now = Math.floor(Date.now() / 1000);
+      await this.services.databaseService.upsertLeaderboardResetMarker({
+        GuildId: guildId,
+        QueueChannelId: queueChannelId,
+        ResetAt: validatedResetAt,
+        CreatedAt: now,
+        UpdatedAt: now,
+      });
+
+      const scope = this.getResetScopeLabel(queueChannelId);
+      await this.services.discordService.updateDeferredReply(interaction.token, {
+        embeds: [
+          this.createResetStatusEmbed(
+            `Reset confirmed for ${scope} at <t:${validatedResetAt.toString()}:f>. Existing data was retained.`,
+          ),
+        ],
+        components: [],
+      });
+    } catch (error) {
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async cancelResetLeaderboard(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+  ): Promise<void> {
+    try {
+      this.assertButtonInteraction(interaction);
+      const { guildId } = this.parseResetControlId(interaction.data.custom_id);
+      this.assertResetInteractionGuild(interaction, guildId);
+      await this.services.discordService.updateDeferredReply(interaction.token, {
+        embeds: [this.createResetStatusEmbed("Leaderboard reset cancelled.")],
+        components: [],
+      });
+    } catch (error) {
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async getCurrentResetAt(guildId: string, queueChannelId: string | null): Promise<number | null> {
+    const queueMarker = await this.services.databaseService.getLeaderboardResetMarker(guildId, queueChannelId);
+    if (queueMarker != null) {
+      return queueMarker.ResetAt;
+    }
+    if (queueChannelId == null) {
+      return null;
+    }
+    const serverMarker = await this.services.databaseService.getLeaderboardResetMarker(guildId, null);
+    return serverMarker?.ResetAt ?? null;
+  }
+
+  private createResetPreviewEmbed(
+    queueChannelId: string | null,
+    currentResetAt: number | null,
+    resetAt: number,
+  ): { title: string; description: string; color: number } {
+    const currentTimeframe =
+      currentResetAt == null
+        ? "Start of available leaderboard data"
+        : this.services.discordService.getTimestamp(new Date(currentResetAt * 1000).toISOString(), "f");
+    const resetTimeframe = this.services.discordService.getTimestamp(new Date(resetAt * 1000).toISOString(), "f");
+    return {
+      title: "Leaderboard reset",
+      description: `Scope: ${this.getResetScopeLabel(queueChannelId)}\nCurrent timeframe: ${currentTimeframe}\nWill reset to: ${resetTimeframe}\n\nExisting leaderboard data will be retained.`,
+      color: EmbedColors.GOLD,
+    };
+  }
+
+  private createResetStatusEmbed(description: string): { title: string; description: string; color: number } {
+    return { title: "Leaderboard reset", description, color: EmbedColors.GOLD };
+  }
+
+  private getResetScopeLabel(queueChannelId: string | null): string {
+    return queueChannelId == null ? "All leaderboards in this server" : `Leaderboard for <#${queueChannelId}>`;
+  }
+
+  private createResetControlId(
+    controlId: string,
+    guildId: string,
+    queueChannelId: string | null,
+    resetAt: number,
+  ): string {
+    return [controlId, guildId, queueChannelId ?? "-", resetAt.toString(36)].join(":");
+  }
+
+  private parseResetControlId(customId: string): { guildId: string; queueChannelId: string | null; resetAt: number } {
+    const customIdParts = customId.split(":");
+    if (customIdParts.length !== 4) {
+      throw this.createInvalidLeaderboardControlError();
+    }
+    const [controlId, guildId, rawQueueChannelId, rawResetAt] = customIdParts;
+    if (
+      (controlId !== LEADERBOARD_RESET_CONFIRM_CONTROL_ID && controlId !== LEADERBOARD_RESET_CANCEL_CONTROL_ID) ||
+      guildId == null ||
+      guildId === "" ||
+      rawQueueChannelId == null ||
+      rawQueueChannelId === "" ||
+      rawResetAt == null
+    ) {
+      throw this.createInvalidLeaderboardControlError();
+    }
+    const resetAt = Number.parseInt(rawResetAt, 36);
+    if (Number.isNaN(resetAt)) {
+      throw this.createInvalidLeaderboardControlError();
+    }
+    return { guildId, queueChannelId: rawQueueChannelId === "-" ? null : rawQueueChannelId, resetAt };
+  }
+
+  private assertResetInteractionGuild(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+    guildId: string,
+  ): void {
+    if (interaction.guild_id !== guildId) {
+      throw new EndUserError("This reset confirmation does not belong to this server.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+  }
+
+  private async assertCanResetLeaderboard(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+    guildId: string,
+  ): Promise<void> {
+    const userId = this.services.discordService.getDiscordUserId(interaction);
+    const permissions = await this.services.discordService.computeMemberPermissions(guildId, userId);
+    if (!this.hasResetLeaderboardPermission(permissions)) {
+      throw new EndUserError("You need the Manage Server or Administrator permission to reset leaderboards.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+  }
+
+  private hasResetLeaderboardPermission(permissions: bigint): boolean {
+    return (permissions & (PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator)) !== 0n;
+  }
+
+  private parseResetDate(value: string | undefined): number {
+    if (value == null) {
+      return Math.floor(Date.now() / 1000);
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      throw new EndUserError("Reset date must use YYYY-MM-DD format.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+    const parsed = parseISO(`${value}T00:00:00.000Z`);
+    if (!isValid(parsed) || parsed.toISOString().slice(0, 10) !== value) {
+      throw new EndUserError("Reset date is not a valid calendar date.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+    const resetAt = Math.floor(parsed.getTime() / 1000);
+    if (resetAt > Math.floor(Date.now() / 1000)) {
+      throw new EndUserError("Reset date cannot be in the future.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+    return resetAt;
+  }
+
+  private validateResetAtBoundary(resetAt: number): number {
+    if (!Number.isInteger(resetAt) || resetAt < 0) {
+      throw new EndUserError("Reset date is invalid.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+
+    if (resetAt > Math.floor(Date.now() / 1000)) {
+      throw new EndUserError("Reset date cannot be in the future.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+
+    return resetAt;
+  }
+
+  private async resolveResetAt({
+    guildId,
+    queueChannelId,
+    date,
+    queueNumber,
+  }: {
+    guildId: string;
+    queueChannelId: string | null;
+    date: string | undefined;
+    queueNumber: number | undefined;
+  }): Promise<number> {
+    if (date != null && queueNumber != null) {
+      throw new EndUserError("Only one reset boundary can be used: date or queue number.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+
+    if (queueNumber == null) {
+      return this.parseResetDate(date);
+    }
+
+    const series = await this.services.databaseService.getLeaderboardSeriesByQueueNumber(guildId, queueNumber);
+    if (series == null) {
+      throw new EndUserError("No completed leaderboard series was found for that queue number.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+
+    if (queueChannelId != null && series.QueueChannelId !== queueChannelId) {
+      throw new EndUserError("That queue number belongs to a different queue channel.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+
+    return series.CompletedAt;
   }
 
   private async handlePageChange(
@@ -538,6 +892,9 @@ export class LeaderboardCommand extends BaseCommand {
         leaderboard,
         this.services.discordService.getTimestamp(new Date().toISOString(), "R"),
         state.locked ?? false,
+        leaderboard.resetAt == null
+          ? null
+          : this.services.discordService.getTimestamp(new Date(leaderboard.resetAt * 1000).toISOString(), "f"),
       );
       const message = await this.services.discordService.updateDeferredReply(token, response);
       if (state.locked !== true) {

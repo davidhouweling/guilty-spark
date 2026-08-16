@@ -20,6 +20,7 @@ import type { LeaderboardGamePlayersRow } from "./types/leaderboard_game_players
 import type { LeaderboardRankingRow } from "./types/leaderboard_ranking_row";
 import type { LeaderboardConfigRow } from "./types/leaderboard_config";
 import type { LeaderboardPostRow } from "./types/leaderboard_post";
+import type { LeaderboardResetMarkerRow } from "./types/leaderboard_reset_marker";
 
 const DEFAULT_LEADERBOARD_ENABLED_WINDOWS_JSON = '["1W","1M","3M","6M","12M"]';
 const SQLITE_MAX_VARIABLES = 999;
@@ -385,6 +386,25 @@ export class DatabaseService {
       ON CONFLICT(ChannelId, MessageId) DO UPDATE SET GuildId=excluded.GuildId, QueueChannelId=excluded.QueueChannelId
     `;
     const stmt = this.DB.prepare(query).bind(post.ChannelId, post.MessageId, post.GuildId, post.QueueChannelId);
+    await stmt.run();
+  }
+
+  async getLeaderboardResetMarker(
+    guildId: string,
+    queueChannelId: string | null,
+  ): Promise<LeaderboardResetMarkerRow | null> {
+    const stmt = this.DB.prepare(
+      "SELECT GuildId, NULLIF(QueueChannelId, '') AS QueueChannelId, ResetAt, CreatedAt, UpdatedAt FROM LeaderboardResetMarkers WHERE GuildId = ? AND QueueChannelId = ?",
+    ).bind(guildId, queueChannelId ?? "");
+    return await stmt.first<LeaderboardResetMarkerRow>();
+  }
+
+  async upsertLeaderboardResetMarker(marker: LeaderboardResetMarkerRow): Promise<void> {
+    const stmt = this.DB.prepare(
+      `INSERT INTO LeaderboardResetMarkers (GuildId, QueueChannelId, ResetAt, CreatedAt, UpdatedAt)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(GuildId, QueueChannelId) DO UPDATE SET ResetAt=excluded.ResetAt, UpdatedAt=excluded.UpdatedAt`,
+    ).bind(marker.GuildId, marker.QueueChannelId ?? "", marker.ResetAt, marker.CreatedAt, marker.UpdatedAt);
     await stmt.run();
   }
 

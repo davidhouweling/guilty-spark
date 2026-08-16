@@ -1002,6 +1002,48 @@ describe("Database Service", () => {
       expect(posts).toEqual([post]);
     });
 
+    it("upserts and reads a scoped leaderboard reset marker", async () => {
+      const marker = {
+        GuildId: "guild-123",
+        QueueChannelId: "queue-123",
+        ResetAt: 1_723_600_000,
+        CreatedAt: 1_723_600_000,
+        UpdatedAt: 1_723_600_000,
+      };
+      const statement = new FakePreparedStatement<typeof marker>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(statement);
+      const bindSpy = vi.spyOn(statement, "bind");
+      vi.spyOn(statement, "first").mockResolvedValue(marker);
+
+      await databaseService.upsertLeaderboardResetMarker(marker);
+      const result = await databaseService.getLeaderboardResetMarker("guild-123", "queue-123");
+
+      expect(prepareSpy.mock.calls[0]?.[0]).toContain("INSERT INTO LeaderboardResetMarkers");
+      expect(bindSpy).toHaveBeenCalledWith("guild-123", "queue-123", 1_723_600_000, 1_723_600_000, 1_723_600_000);
+      expect(result).toEqual(marker);
+    });
+
+    it("upserts and reads a server-wide leaderboard reset marker", async () => {
+      const marker = {
+        GuildId: "guild-123",
+        QueueChannelId: null,
+        ResetAt: 1_723_600_000,
+        CreatedAt: 1_723_600_000,
+        UpdatedAt: 1_723_600_000,
+      };
+      const statement = new FakePreparedStatement<typeof marker>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(statement);
+      const bindSpy = vi.spyOn(statement, "bind");
+      vi.spyOn(statement, "first").mockResolvedValue(marker);
+
+      await databaseService.upsertLeaderboardResetMarker(marker);
+      const result = await databaseService.getLeaderboardResetMarker("guild-123", null);
+
+      expect(prepareSpy.mock.calls[0]?.[0]).toContain("INSERT INTO LeaderboardResetMarkers");
+      expect(bindSpy).toHaveBeenCalledWith("guild-123", "", 1_723_600_000, 1_723_600_000, 1_723_600_000);
+      expect(result).toEqual(marker);
+    });
+
     it("aggregates headshot kills and ranks all deaths metrics lowest first", async () => {
       const countStatement = new FakePreparedStatement<{ Total: number }>();
       const rowsStatement = new FakePreparedStatement();
