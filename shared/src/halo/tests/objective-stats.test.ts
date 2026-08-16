@@ -4,6 +4,8 @@ import {
   getEmptyObjectiveStats,
   getEliminationObjectiveStats,
   getExtractionObjectiveStats,
+  getKothObjectiveStats,
+  getStrongholdsObjectiveStats,
 } from "../objective-stats";
 import { StatsValueSortBy } from "../stat-formatting";
 import { getDurationInSeconds } from "../duration";
@@ -84,6 +86,52 @@ describe("getCtfObjectiveStats", () => {
     expect(pagesResult.get("Captures")?.value).toBe(apiResult.get("Captures")?.value);
     expect(pagesResult.get("Grabs")?.value).toBe(apiResult.get("Grabs")?.value);
     expect(pagesResult.get("Carrier time")?.value).toBe(apiResult.get("Carrier time")?.value);
+  });
+});
+
+describe("zone objective stats", () => {
+  it("maps captures and secures for Strongholds", () => {
+    const stats = {
+      CoreStats: {} as never,
+      PvpStats: {} as never,
+      ZonesStats: {
+        StrongholdCaptures: 8,
+        StrongholdDefensiveKills: 3,
+        StrongholdOffensiveKills: 4,
+        StrongholdSecures: 2,
+        StrongholdOccupationTime: "PT1M20S",
+        StrongholdScoringTicks: 0,
+      },
+    } as never;
+
+    const result = getStrongholdsObjectiveStats(stats);
+
+    expect(result.get("Captures")?.value).toBe(8);
+    expect(result.get("Secures")?.value).toBe(2);
+    expect(result.get("Occupation time")?.value).toBe(getDurationInSeconds("PT1M20S"));
+    expect(result.has("Points")).toBe(false);
+  });
+
+  it("maps points rather than zero captures for King of the Hill", () => {
+    const stats = {
+      CoreStats: {} as never,
+      PvpStats: {} as never,
+      ZonesStats: {
+        StrongholdCaptures: 0,
+        StrongholdDefensiveKills: 1,
+        StrongholdOffensiveKills: 2,
+        StrongholdSecures: 0,
+        StrongholdOccupationTime: "PT47.1S",
+        StrongholdScoringTicks: 39,
+      },
+    } as never;
+
+    const result = getKothObjectiveStats(stats);
+
+    expect(result.get("Points")?.value).toBe(39);
+    expect(result.get("Occupation time")?.value).toBe(getDurationInSeconds("PT47.1S"));
+    expect(result.has("Captures")).toBe(false);
+    expect(result.has("Secures")).toBe(false);
   });
 });
 

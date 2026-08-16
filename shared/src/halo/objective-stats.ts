@@ -154,7 +154,7 @@ export function getOddballObjectiveStats(
 }
 
 export function getStrongholdsObjectiveStats(
-  stats: Stats<GameVariantCategory.MultiplayerStrongholds | GameVariantCategory.MultiplayerKingOfTheHill>,
+  stats: Stats<GameVariantCategory.MultiplayerStrongholds>,
   locale?: string,
 ): StatsCollection {
   return new Map([
@@ -168,6 +168,25 @@ export function getStrongholdsObjectiveStats(
       },
     ],
     ["Secures", { value: stats.ZonesStats.StrongholdSecures, sortBy: StatsValueSortBy.DESC }],
+    ["Offensive kills", { value: stats.ZonesStats.StrongholdOffensiveKills, sortBy: StatsValueSortBy.DESC }],
+    ["Defensive kills", { value: stats.ZonesStats.StrongholdDefensiveKills, sortBy: StatsValueSortBy.DESC }],
+  ]);
+}
+
+export function getKothObjectiveStats(
+  stats: Stats<GameVariantCategory.MultiplayerKingOfTheHill>,
+  locale?: string,
+): StatsCollection {
+  return new Map([
+    ["Points", { value: stats.ZonesStats.StrongholdScoringTicks, sortBy: StatsValueSortBy.DESC }],
+    [
+      "Occupation time",
+      {
+        value: getDurationInSeconds(stats.ZonesStats.StrongholdOccupationTime),
+        sortBy: StatsValueSortBy.DESC,
+        display: getReadableDuration(stats.ZonesStats.StrongholdOccupationTime, locale),
+      },
+    ],
     ["Offensive kills", { value: stats.ZonesStats.StrongholdOffensiveKills, sortBy: StatsValueSortBy.DESC }],
     ["Defensive kills", { value: stats.ZonesStats.StrongholdDefensiveKills, sortBy: StatsValueSortBy.DESC }],
   ]);
