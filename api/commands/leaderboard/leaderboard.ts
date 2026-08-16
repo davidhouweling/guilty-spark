@@ -491,6 +491,7 @@ export class LeaderboardCommand extends BaseCommand {
         ],
         components: [],
       });
+      await this.services.leaderboardService.refreshPostsForReset(guildId, queueChannelId);
     } catch (error) {
       await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
     }

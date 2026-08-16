@@ -164,6 +164,7 @@ describe("LeaderboardCommand", () => {
       },
     };
     const upsertSpy = vi.spyOn(services.databaseService, "upsertLeaderboardResetMarker").mockResolvedValue(undefined);
+    const refreshPostsSpy = vi.spyOn(services.leaderboardService, "refreshPostsForReset").mockResolvedValue(undefined);
     const updateSpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
       ...fakeButtonClickInteraction.message,
       type: MessageType.Default,
@@ -175,10 +176,55 @@ describe("LeaderboardCommand", () => {
     expect(upsertSpy).toHaveBeenCalledWith(
       expect.objectContaining({ GuildId: "guild-123", QueueChannelId: "queue-123", ResetAt: resetAt }),
     );
+    expect(refreshPostsSpy).toHaveBeenCalledWith("guild-123", "queue-123");
     expect(updateSpy).toHaveBeenCalledWith(
       interaction.token,
       expect.objectContaining({ embeds: [expect.objectContaining({ title: "Leaderboard reset" })], components: [] }),
     );
+  });
+
+  it("updates the reset confirmation before refreshing leaderboard posts", async () => {
+    const resetAt = 1_723_600_000;
+    const interaction: APIMessageComponentButtonInteraction = {
+      ...fakeButtonClickInteraction,
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(fakeButtonClickInteraction.guild),
+        id: "guild-123",
+      },
+      data: {
+        component_type: ComponentType.Button,
+        custom_id: `btn_leaderboard_reset_confirm:guild-123:queue-123:${resetAt.toString(36)}`,
+      },
+    };
+    const deferredRefresh = {
+      resolve: (): void => {
+        throw new Error("Expected refresh resolver to be initialized");
+      },
+    };
+    const refreshPromise = new Promise<void>((resolve) => {
+      deferredRefresh.resolve = resolve;
+    });
+    vi.spyOn(services.databaseService, "upsertLeaderboardResetMarker").mockResolvedValue(undefined);
+    const refreshSpy = vi.spyOn(services.leaderboardService, "refreshPostsForReset").mockReturnValue(refreshPromise);
+    const updateSpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      ...fakeButtonClickInteraction.message,
+      type: MessageType.Default,
+    });
+
+    const result = command.execute(interaction);
+    const completion = result.jobToComplete?.();
+
+    await vi.waitFor(() => {
+      expect(updateSpy).toHaveBeenCalledTimes(1);
+    });
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    expect(updateSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      Preconditions.checkExists(refreshSpy.mock.invocationCallOrder[0]),
+    );
+
+    deferredRefresh.resolve();
+    await completion;
   });
 
   it("allows admins to reset leaderboards without Manage Server", async () => {
