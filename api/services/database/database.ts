@@ -968,7 +968,7 @@ export class DatabaseService {
   }> {
     await this.ensureLeaderboardGameWonColumn();
 
-    let metricSql = "SUM(gp.PersonalScore)";
+    let metricSql: string;
     let metricBindings: readonly (string | number | null)[] = [];
     switch (metric) {
       case LeaderboardMetric.Kills: {

@@ -98,7 +98,7 @@ export function aFakeLiveTrackerDOWith(opts: FakeLiveTrackerDOOpts = {}): FakeLi
     const urlObj = new URL(urlString);
     const path = urlObj.pathname;
 
-    let responseBody: string | null = null;
+    let responseBody: string;
     switch (path) {
       case "/start":
         responseBody = JSON.stringify(startResponse);

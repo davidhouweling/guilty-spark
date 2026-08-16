@@ -1937,7 +1937,7 @@ export class NeatQueueService {
     const series: MatchStats[] = [];
     let seriesTeams: NeatQueuePlayer[][] = [];
     let startDateTime: Date | null = null;
-    let endDateTime: Date | null = null;
+    let endDateTime: Date;
 
     this.logService.debug("Timeline", new Map([["timeline", JSON.parse(JSON.stringify(timeline))]]));
 
@@ -1993,7 +1993,6 @@ export class NeatQueueService {
           }
 
           startDateTime = new Date(timestamp);
-          endDateTime = null;
           break;
         }
         case "MATCH_COMPLETED": {
