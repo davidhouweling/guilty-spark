@@ -1,5 +1,6 @@
 import { MatchOutcome } from "halo-infinite-api";
 import type { MatchStats } from "halo-infinite-api";
+import type { APIMessage } from "discord-api-types/v10";
 import { sub } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
@@ -21,7 +22,7 @@ import type { HaloService } from "../halo/halo";
 import type { LogService } from "../log/types";
 import type { NeatQueueMatchCompletedRequest } from "../neatqueue/types";
 import { getLeaderboardMessageState } from "./leaderboard-message";
-import { createLeaderboardResponse } from "./leaderboard-response";
+import { createLeaderboardResponse, LEADERBOARD_TEMPORARY_ERROR_FOOTER } from "./leaderboard-response";
 
 export interface LeaderboardServiceOpts {
   databaseService: DatabaseService;
@@ -265,12 +266,13 @@ export class LeaderboardService {
   }
 
   private async refreshLeaderboardPost(post: LeaderboardPostRow, locale: string): Promise<void> {
+    let message: APIMessage | undefined;
     try {
       const discordService = Preconditions.checkExists(
         this.discordService,
         "Discord service is required for leaderboard refresh",
       );
-      const message = await discordService.getMessage(post.ChannelId, post.MessageId);
+      message = await discordService.getMessage(post.ChannelId, post.MessageId);
       const state = getLeaderboardMessageState(message, post);
       if (state == null) {
         this.logService.warn(
@@ -325,6 +327,13 @@ export class LeaderboardService {
           ["reason", "Failed to refresh leaderboard post"],
         ]),
       );
+
+      if (message != null) {
+        await this.discordService?.updateMessageWithError(post.ChannelId, post.MessageId, error, {
+          preserveMessage: message,
+          errorEmbedFooter: LEADERBOARD_TEMPORARY_ERROR_FOOTER,
+        });
+      }
     }
   }
 

@@ -21,6 +21,7 @@ import type { LeaderboardMetricFamily } from "@guilty-spark/shared/halo/leaderbo
 import { EmbedColors } from "../../embeds/colors";
 
 const MAX_ROWS_IN_DISCORD_EMBED = 10;
+export const LEADERBOARD_TEMPORARY_ERROR_FOOTER = "Temporary leaderboard error";
 
 export const LEADERBOARD_FIRST_PAGE_CONTROL_ID = "btn_leaderboard_first";
 export const LEADERBOARD_PREV_PAGE_CONTROL_ID = "btn_leaderboard_prev";

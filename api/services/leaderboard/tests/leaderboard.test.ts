@@ -631,6 +631,42 @@ describe("LeaderboardService", () => {
     expect(context.get("reason")).toBe("Failed to refresh leaderboard post");
   });
 
+  it("preserves a posted leaderboard when its refresh query fails", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const discordService = aFakeDiscordServiceWith();
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, discordService, haloService, logService });
+    const firstPost = aFakeLeaderboardPostRow();
+    const secondPost = aFakeLeaderboardPostRow({ ChannelId: "channel-2", MessageId: "message-2" });
+    const firstMessage = aLeaderboardMessageWith();
+    const refreshError = new Error("Leaderboard query failed");
+    vi.spyOn(databaseService, "findLeaderboardPostsForRefresh").mockResolvedValue([firstPost, secondPost]);
+    vi.spyOn(discordService, "getMessage").mockResolvedValue(firstMessage);
+    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue(Locale.EnglishUS);
+    vi.spyOn(databaseService, "getLeaderboardConfig")
+      .mockRejectedValueOnce(refreshError)
+      .mockResolvedValue(aFakeLeaderboardConfigRow({ GuildId: "guild-1", MinGamesPlayed: 3 }));
+    vi.spyOn(databaseService, "getLeaderboardStatMetricRankings").mockResolvedValue({
+      total: 23,
+      rows: killsRankingRows,
+    });
+    const preserveErrorSpy = vi
+      .spyOn(discordService, "updateMessageWithError")
+      .mockResolvedValue(apiMessage);
+    const editMessageSpy = vi.spyOn(discordService, "editMessage").mockResolvedValue(apiMessage);
+
+    await service.refreshPostsForCompletedQueue("guild-1", "queue-1");
+
+    expect(preserveErrorSpy).toHaveBeenCalledWith(
+      firstPost.ChannelId,
+      firstPost.MessageId,
+      refreshError,
+      { preserveMessage: firstMessage, errorEmbedFooter: "Temporary leaderboard error" },
+    );
+    expect(editMessageSpy).toHaveBeenCalledWith("channel-2", "message-2", expect.any(Object));
+  });
+
   it("continues refreshing posts when deleting a missing post registration fails", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });

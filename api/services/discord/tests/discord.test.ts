@@ -1028,6 +1028,47 @@ describe("DiscordService", () => {
 
       expect(response).toEqual(apiMessage);
     });
+
+    it("preserves the leaderboard message and replaces a previous temporary error", async () => {
+      const message: APIMessage = {
+        ...apiMessage,
+        embeds: [
+          { title: "Leaderboard" },
+          { title: "Old error", footer: { text: "Temporary leaderboard error" } },
+        ],
+        components: [
+          {
+            type: ComponentType.ActionRow,
+            components: [],
+          },
+        ],
+      };
+      const error = new Error("Leaderboard unavailable");
+
+      await discordService.updateDeferredReplyWithError("fake-interaction-token", error, {
+        preserveMessage: message,
+        errorEmbedFooter: "Temporary leaderboard error",
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "https://discord.com/api/v10/webhooks/DISCORD_APP_ID/fake-interaction-token/messages/@original",
+        expect.objectContaining({
+          body: JSON.stringify({
+            embeds: [
+              { title: "Leaderboard" },
+              {
+                title: "Something went wrong",
+                description: "An unexpected error has occurred. It has been logged. Sorry for the inconvenience.",
+                color: 16_711_680,
+                fields: [],
+                footer: { text: "Temporary leaderboard error" },
+              },
+            ],
+            components: message.components,
+          }),
+        }),
+      );
+    });
   });
 
   describe("getGuildIconUrl()", () => {

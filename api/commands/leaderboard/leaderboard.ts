@@ -1,6 +1,7 @@
 import type {
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
+  APIMessage,
   APIMessageComponentButtonInteraction,
   APIMessageComponentSelectMenuInteraction,
   APIMessageTopLevelComponent,
@@ -42,6 +43,7 @@ import {
   LEADERBOARD_NEXT_PAGE_CONTROL_ID,
   LEADERBOARD_PREV_PAGE_CONTROL_ID,
   LEADERBOARD_REFRESH_CONTROL_ID,
+  LEADERBOARD_TEMPORARY_ERROR_FOOTER,
   LEADERBOARD_WINDOW_SELECT_CONTROL_ID,
 } from "../../services/leaderboard/leaderboard-response";
 import type { ApplicationCommandData, BaseInteraction, CommandData, ExecuteResponse } from "../base/base-command";
@@ -747,9 +749,13 @@ export class LeaderboardCommand extends BaseCommand {
       await this.refreshLeaderboard(interaction.token, locale, {
         ...state,
         page: lastPage,
-      });
+      }, interaction.message);
     } catch (error) {
-      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
+      await this.services.discordService.updateDeferredReplyWithError(
+        interaction.token,
+        error,
+        { preserveMessage: interaction.message, errorEmbedFooter: LEADERBOARD_TEMPORARY_ERROR_FOOTER },
+      );
     }
   }
 
@@ -856,9 +862,13 @@ export class LeaderboardCommand extends BaseCommand {
       this.assertCanUseLeaderboardControls(interaction);
       const state = this.getStateFromInteractionMessage(interaction);
       const locale = this.getInteractionLocale(interaction);
-      await this.refreshLeaderboard(interaction.token, locale, stateUpdater(state));
+      await this.refreshLeaderboard(interaction.token, locale, stateUpdater(state), interaction.message);
     } catch (error) {
-      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
+      await this.services.discordService.updateDeferredReplyWithError(
+        interaction.token,
+        error,
+        { preserveMessage: interaction.message, errorEmbedFooter: LEADERBOARD_TEMPORARY_ERROR_FOOTER },
+      );
     }
   }
 
@@ -876,7 +886,12 @@ export class LeaderboardCommand extends BaseCommand {
     this.services.discordService.getDiscordUserId(interaction);
   }
 
-  private async refreshLeaderboard(token: string, locale: string, state: LeaderboardViewState): Promise<void> {
+  private async refreshLeaderboard(
+    token: string,
+    locale: string,
+    state: LeaderboardViewState,
+    preservedMessage?: APIMessage,
+  ): Promise<void> {
     try {
       const leaderboard = await this.services.leaderboardService.getLeaderboardWithResolvedPage({
         guildId: state.guildId,
@@ -907,7 +922,15 @@ export class LeaderboardCommand extends BaseCommand {
         });
       }
     } catch (error) {
-      await this.services.discordService.updateDeferredReplyWithError(token, error);
+      if (preservedMessage == null) {
+        await this.services.discordService.updateDeferredReplyWithError(token, error);
+        return;
+      }
+
+      await this.services.discordService.updateDeferredReplyWithError(token, error, {
+        preserveMessage: preservedMessage,
+        errorEmbedFooter: LEADERBOARD_TEMPORARY_ERROR_FOOTER,
+      });
     }
   }
 
