@@ -721,7 +721,7 @@ export class LeaderboardService {
   }
 
   private async getMedalAggregates(
-    medals: { NameId: number; Count: number }[],
+    medals: { NameId: number; Count: number; TotalPersonalScoreAwarded?: number }[],
     metadataById: Map<number, Medal | undefined>,
   ): Promise<{ count: number; points: number; mythicCount: number }> {
     let count = 0;
@@ -737,6 +737,7 @@ export class LeaderboardService {
       }
 
       if (metadata == null) {
+        points += medal.TotalPersonalScoreAwarded ?? 0;
         continue;
       }
 
