@@ -1144,6 +1144,44 @@ describe("DiscordService", () => {
   });
 
   describe("updateMessageWithError()", () => {
+    it("replaces a previous temporary error embed when an error footer is provided", async () => {
+      mockFetch.mockImplementation(async (path) => {
+        if (path === "https://discord.com/api/v10/channels/fake-channel/messages/fake-message") {
+          return Promise.resolve(new Response(JSON.stringify(apiMessage)));
+        }
+        return Promise.reject(new Error(`Invalid path: ${typeof path === "string" ? path : "non-string path"}`));
+      });
+      const message: APIMessage = {
+        ...apiMessage,
+        embeds: [{ title: "Leaderboard" }, { title: "Old error", footer: { text: "Temporary leaderboard error" } }],
+      };
+      const error = new Error("Leaderboard unavailable");
+
+      await discordService.updateMessageWithError("fake-channel", "fake-message", error, {
+        preserveMessage: message,
+        errorEmbedFooter: "Temporary leaderboard error",
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "https://discord.com/api/v10/channels/fake-channel/messages/fake-message",
+        expect.objectContaining({
+          body: JSON.stringify({
+            embeds: [
+              { title: "Leaderboard" },
+              {
+                title: "Something went wrong",
+                description: "An unexpected error has occurred. It has been logged. Sorry for the inconvenience.",
+                color: 16_711_680,
+                fields: [],
+                footer: { text: "Temporary leaderboard error" },
+              },
+            ],
+          }),
+          method: "PATCH",
+        }),
+      );
+    });
+
     it("preserves embeds without footers when no error footer is provided", async () => {
       mockFetch.mockImplementation(async (path) => {
         if (path === "https://discord.com/api/v10/channels/fake-channel/messages/fake-message") {
