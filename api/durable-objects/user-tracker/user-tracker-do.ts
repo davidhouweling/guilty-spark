@@ -486,6 +486,15 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
   private async stopReconciling(userId: string): Promise<void> {
     this.logService.debug("UserTracker reconcile window elapsed", new Map([["userId", userId]]));
+
+    const stored = await this.loadState();
+    if (stored.state?.userId === userId && stored.viewState != null) {
+      await this.state.storage.put(USER_TRACKER_STATE_KEY, {
+        ...stored,
+        viewState: null,
+      });
+    }
+
     await this.state.storage.delete(USER_TRACKER_RECONCILE_DEADLINE_KEY);
     await this.state.storage.deleteAlarm();
   }

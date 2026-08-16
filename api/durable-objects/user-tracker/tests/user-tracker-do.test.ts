@@ -1414,6 +1414,9 @@ describe("UserTrackerDO", () => {
     expect(harness.deleteAlarmMock).toHaveBeenCalledOnce();
     expect(harness.setAlarmMock).toHaveBeenCalledOnce();
     expect(findTrackersSpy).not.toHaveBeenCalled();
+
+    await localUserTrackerDO.fetch(new Request("http://do/view-state?userId=user-1", { method: "GET" }));
+    expect(findTrackersSpy).toHaveBeenCalledOnce();
     vi.useRealTimers();
   });
 
