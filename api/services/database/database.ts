@@ -67,41 +67,8 @@ export interface DatabaseServiceOpts {
 export class DatabaseService {
   private readonly DB: D1Database;
   private readonly guildConfigCache = new Map<string, GuildConfigRow>();
-  private leaderboardGamePlayersColumnsMigrationPromise: Promise<void> | null = null;
-
   constructor({ env }: DatabaseServiceOpts) {
     this.DB = env.DB;
-  }
-
-  private async ensureLeaderboardGamePlayersColumns(): Promise<void> {
-    this.leaderboardGamePlayersColumnsMigrationPromise ??= this.ensureLeaderboardGamePlayersColumnsAsync();
-    await this.leaderboardGamePlayersColumnsMigrationPromise;
-  }
-
-  private async ensureLeaderboardGamePlayersColumnsAsync(): Promise<void> {
-    const tableInfoStmt = this.DB.prepare("PRAGMA table_info(LeaderboardGamePlayers)");
-    const tableInfo = await tableInfoStmt.all<{ name: string }>();
-
-    if (tableInfo.results.length === 0) {
-      return;
-    }
-
-    const existingColumns = new Set(tableInfo.results.map((column) => column.name));
-    if (existingColumns.has("GameWon")) {
-      return;
-    }
-
-    try {
-      await this.DB.prepare(
-        "ALTER TABLE LeaderboardGamePlayers ADD COLUMN GameWon INTEGER NOT NULL DEFAULT 0 CHECK (GameWon IN (0, 1))",
-      ).run();
-    } catch (error: unknown) {
-      if (error instanceof Error && error.message.includes("duplicate column name: GameWon")) {
-        return;
-      }
-
-      throw error;
-    }
   }
 
   async getDiscordAssociations(discordIds: string[]): Promise<DiscordAssociationsRow[]> {
@@ -556,8 +523,6 @@ export class DatabaseService {
       return;
     }
 
-    await this.ensureLeaderboardGamePlayersColumns();
-
     const variablesPerRow = 31;
     const statementVariableLimit = Math.min(SQLITE_MAX_VARIABLES, D1_SAFE_MAX_VARIABLES_PER_STATEMENT);
     const maxRowsPerStatement = Math.max(1, Math.floor(statementVariableLimit / variablesPerRow));
@@ -623,8 +588,6 @@ export class DatabaseService {
     gamePlayers: LeaderboardGamePlayersRow[];
     seriesPlayers: LeaderboardSeriesPlayersRow[];
   }): Promise<void> {
-    await this.ensureLeaderboardGamePlayersColumns();
-
     const existingGameCreatedAt = await this.getLeaderboardGameCreatedAtByMatchId(series.GuildId, series.QueueNumber);
     const existingGamePlayerCreatedAt = await this.getLeaderboardGamePlayerCreatedAtByKey(
       series.GuildId,
@@ -976,8 +939,6 @@ export class DatabaseService {
     total: number;
     rows: LeaderboardRankingRow[];
   }> {
-    await this.ensureLeaderboardGamePlayersColumns();
-
     let metricSql: string;
     let metricBindings: readonly (string | number | null)[] = [];
     switch (metric) {
@@ -1255,8 +1216,6 @@ export class DatabaseService {
       | LeaderboardMetric.SeriesWinRate
       | LeaderboardMetric.GamesWinRate;
   }): Promise<{ total: number; rows: LeaderboardRankingRow[] }> {
-    await this.ensureLeaderboardGamePlayersColumns();
-
     const metricSql = ((): string => {
       switch (metric) {
         case LeaderboardMetric.SeriesPlayed: {
