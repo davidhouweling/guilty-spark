@@ -470,6 +470,21 @@ describe("LeaderboardService", () => {
     expect(getGuildPreferredLocaleSpy).not.toHaveBeenCalled();
   });
 
+  it("skips loading reset refresh registrations when Discord service is unavailable", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    const findGuildPostsSpy = vi.spyOn(databaseService, "findLeaderboardPostsForGuildRefresh");
+    const findQueuePostsSpy = vi.spyOn(databaseService, "findLeaderboardPostsForRefresh");
+
+    await service.refreshPostsForReset("guild-1", null);
+    await service.refreshPostsForReset("guild-1", "queue-1");
+
+    expect(findGuildPostsSpy).not.toHaveBeenCalled();
+    expect(findQueuePostsSpy).not.toHaveBeenCalled();
+  });
+
   it("continues refreshing posts with the preferred locale helper result", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });

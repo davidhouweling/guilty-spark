@@ -213,6 +213,11 @@ export class LeaderboardService {
   }
 
   async refreshPostsForReset(guildId: string, queueChannelId: string | null): Promise<void> {
+    const { discordService } = this;
+    if (discordService == null) {
+      return;
+    }
+
     try {
       const posts =
         queueChannelId == null
