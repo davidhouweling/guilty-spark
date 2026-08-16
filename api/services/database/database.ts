@@ -68,7 +68,6 @@ export class DatabaseService {
   private readonly DB: D1Database;
   private readonly guildConfigCache = new Map<string, GuildConfigRow>();
   private leaderboardGameWonMigrationPromise: Promise<void> | null = null;
-  private leaderboardMedalColumnsMigrationPromise: Promise<void> | null = null;
 
   constructor({ env }: DatabaseServiceOpts) {
     this.DB = env.DB;
@@ -104,36 +103,6 @@ export class DatabaseService {
       }
 
       throw error;
-    }
-  }
-
-  private async ensureLeaderboardMedalColumns(): Promise<void> {
-    this.leaderboardMedalColumnsMigrationPromise ??= this.ensureLeaderboardMedalColumnsAsync();
-
-    await this.leaderboardMedalColumnsMigrationPromise;
-  }
-
-  private async ensureLeaderboardMedalColumnsAsync(): Promise<void> {
-    const tableInfo = await this.DB.prepare("PRAGMA table_info(LeaderboardGamePlayers)").all<{ name: string }>();
-    if (tableInfo.results.length === 0) {
-      return;
-    }
-
-    const existingColumns = new Set(tableInfo.results.map((column) => column.name));
-    for (const column of ["MedalCount", "MedalPoints", "MythicMedalCount"] as const) {
-      if (existingColumns.has(column)) {
-        continue;
-      }
-
-      try {
-        await this.DB.prepare(`ALTER TABLE LeaderboardGamePlayers ADD COLUMN ${column} INTEGER NOT NULL DEFAULT 0`).run();
-      } catch (error: unknown) {
-        if (error instanceof Error && error.message.includes(`duplicate column name: ${column}`)) {
-          continue;
-        }
-
-        throw error;
-      }
     }
   }
 
@@ -590,7 +559,6 @@ export class DatabaseService {
     }
 
     await this.ensureLeaderboardGameWonColumn();
-    await this.ensureLeaderboardMedalColumns();
 
     const variablesPerRow = 31;
     const statementVariableLimit = Math.min(SQLITE_MAX_VARIABLES, D1_SAFE_MAX_VARIABLES_PER_STATEMENT);
@@ -658,7 +626,6 @@ export class DatabaseService {
     seriesPlayers: LeaderboardSeriesPlayersRow[];
   }): Promise<void> {
     await this.ensureLeaderboardGameWonColumn();
-    await this.ensureLeaderboardMedalColumns();
 
     const existingGameCreatedAt = await this.getLeaderboardGameCreatedAtByMatchId(series.GuildId, series.QueueNumber);
     const existingGamePlayerCreatedAt = await this.getLeaderboardGamePlayerCreatedAtByKey(
