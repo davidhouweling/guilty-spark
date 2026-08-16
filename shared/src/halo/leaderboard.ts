@@ -14,6 +14,8 @@ export enum LeaderboardMetric {
   SeriesWinRate = "SERIES_WIN_RATE",
   GamesPlayed = "GAMES_PLAYED",
   GameWins = "GAME_WINS",
+  MedalPoints = "MEDAL_POINTS",
+  MythicMedals = "MYTHIC_MEDALS",
   GamesWinRate = "GAMES_WIN_RATE",
   Kills = "KILLS",
   Deaths = "DEATHS",
@@ -60,6 +62,8 @@ export enum LeaderboardMetricFamily {
   SeriesWins = "SERIES_WINS",
   GamesPlayed = "GAMES_PLAYED",
   GameWins = "GAME_WINS",
+  MedalPoints = "MEDAL_POINTS",
+  MythicMedals = "MYTHIC_MEDALS",
   GamesWinRate = "GAMES_WIN_RATE",
   PersonalScore = "PERSONAL_SCORE",
   Kills = "KILLS",
@@ -99,6 +103,8 @@ export const LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER: readonly LeaderboardM
   LeaderboardMetricFamily.SeriesWins,
   LeaderboardMetricFamily.GamesPlayed,
   LeaderboardMetricFamily.GameWins,
+  LeaderboardMetricFamily.MedalPoints,
+  LeaderboardMetricFamily.MythicMedals,
 ];
 
 export enum LeaderboardMetricAggregation {
@@ -115,6 +121,12 @@ export function getLeaderboardMetricFamily(metric: LeaderboardMetric): Leaderboa
     }
     case LeaderboardMetric.SeriesWins: {
       return LeaderboardMetricFamily.SeriesWins;
+    }
+    case LeaderboardMetric.MedalPoints: {
+      return LeaderboardMetricFamily.MedalPoints;
+    }
+    case LeaderboardMetric.MythicMedals: {
+      return LeaderboardMetricFamily.MythicMedals;
     }
     case LeaderboardMetric.GamesPlayed: {
       return LeaderboardMetricFamily.GamesPlayed;
@@ -242,6 +254,10 @@ export function getLeaderboardFamilyAggregations(
     case LeaderboardMetricFamily.GameWins: {
       return [LeaderboardMetricAggregation.Total];
     }
+    case LeaderboardMetricFamily.MedalPoints:
+    case LeaderboardMetricFamily.MythicMedals: {
+      return [LeaderboardMetricAggregation.Total];
+    }
     case LeaderboardMetricFamily.SeriesWinRate:
     case LeaderboardMetricFamily.GamesWinRate:
     case LeaderboardMetricFamily.Kda:
@@ -364,6 +380,12 @@ export function resolveLeaderboardMetric(
     case LeaderboardMetricFamily.GameWins: {
       return LeaderboardMetric.GameWins;
     }
+    case LeaderboardMetricFamily.MedalPoints: {
+      return LeaderboardMetric.MedalPoints;
+    }
+    case LeaderboardMetricFamily.MythicMedals: {
+      return LeaderboardMetric.MythicMedals;
+    }
     case LeaderboardMetricFamily.PersonalScore: {
       return resolveAggregationMetric(
         resolvedAggregation,
@@ -476,6 +498,12 @@ export function getLeaderboardMetricFamilyLabel(family: LeaderboardMetricFamily)
     }
     case LeaderboardMetricFamily.GameWins: {
       return "Game wins";
+    }
+    case LeaderboardMetricFamily.MedalPoints: {
+      return "Medals by points";
+    }
+    case LeaderboardMetricFamily.MythicMedals: {
+      return "Mythic medals";
     }
     case LeaderboardMetricFamily.GamesWinRate: {
       return "Games win rate";
