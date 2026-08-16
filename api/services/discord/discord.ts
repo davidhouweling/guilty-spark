@@ -894,9 +894,9 @@ export class DiscordService {
     return response;
   }
 
-  private handleError(error: EndUserError | Error, logService: LogService): EndUserError {
+  private handleError(error: unknown, logService: LogService, options?: { suppressLogging?: boolean }): EndUserError {
     const isHandled = error instanceof EndUserError && error.handled;
-    if (!isHandled) {
+    if (!isHandled && options?.suppressLogging !== true) {
       logService[error instanceof EndUserError && error.errorType === EndUserErrorType.WARNING ? "warn" : "error"](
         error,
       );
@@ -911,13 +911,26 @@ export class DiscordService {
       : new EndUserError("An unexpected error has occurred. It has been logged. Sorry for the inconvenience.");
   }
 
-  async updateDeferredReplyWithError(interactionToken: string, error: unknown): Promise<APIMessage | undefined> {
+  async updateDeferredReplyWithError(
+    interactionToken: string,
+    error: unknown,
+    options?: { preserveMessage?: APIMessage; errorEmbedFooter?: string; suppressErrorLogging?: boolean },
+  ): Promise<APIMessage | undefined> {
     try {
-      const endUserError = this.handleError(error as Error, this.logService);
+      const endUserError =
+        options?.suppressErrorLogging === true
+          ? this.handleError(error, this.logService, { suppressLogging: true })
+          : this.handleError(error, this.logService);
+      const preservedMessage = options?.preserveMessage;
+      const errorEmbedFooter = options?.errorEmbedFooter;
+      const errorEmbed = {
+        ...endUserError.discordEmbed,
+        ...(errorEmbedFooter != null ? { footer: { text: errorEmbedFooter } } : {}),
+      };
 
       return await this.updateDeferredReply(interactionToken, {
-        embeds: [endUserError.discordEmbed],
-        components: endUserError.discordActions,
+        embeds: this.getEmbedsForErrorUpdate(preservedMessage, errorEmbed, errorEmbedFooter),
+        components: preservedMessage?.components ?? endUserError.discordActions,
       });
     } catch {
       return undefined;
@@ -927,19 +940,45 @@ export class DiscordService {
   async updateMessageWithError(
     channelId: string,
     messageId: string,
-    error: EndUserError | Error,
+    error: unknown,
+    options?: { preserveMessage?: APIMessage; errorEmbedFooter?: string; suppressErrorLogging?: boolean },
   ): Promise<APIMessage | undefined> {
     try {
-      const endUserError = this.handleError(error, this.logService);
+      const endUserError =
+        options?.suppressErrorLogging === true
+          ? this.handleError(error, this.logService, { suppressLogging: true })
+          : this.handleError(error, this.logService);
+      const preservedMessage = options?.preserveMessage;
+      const errorEmbedFooter = options?.errorEmbedFooter;
+      const errorEmbed = {
+        ...endUserError.discordEmbed,
+        ...(errorEmbedFooter != null ? { footer: { text: errorEmbedFooter } } : {}),
+      };
       return await this.fetch<APIMessage>(Routes.channelMessage(channelId, messageId), {
         method: "PATCH",
         body: JSON.stringify({
-          embeds: [endUserError.discordEmbed],
+          embeds: this.getEmbedsForErrorUpdate(preservedMessage, errorEmbed, errorEmbedFooter),
         }),
       });
     } catch {
       return undefined;
     }
+  }
+
+  private getEmbedsForErrorUpdate(
+    preservedMessage: APIMessage | undefined,
+    errorEmbed: APIMessage["embeds"][number],
+    errorEmbedFooter: string | undefined,
+  ): APIMessage["embeds"] {
+    if (preservedMessage == null) {
+      return [errorEmbed];
+    }
+
+    const preservedEmbeds =
+      errorEmbedFooter == null
+        ? preservedMessage.embeds
+        : preservedMessage.embeds.filter((embed) => embed.footer?.text !== errorEmbedFooter);
+    return [...preservedEmbeds.slice(-9), errorEmbed];
   }
 
   async getGuild(guildId: string): Promise<APIGuild> {

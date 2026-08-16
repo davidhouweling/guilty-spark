@@ -1211,6 +1211,7 @@ describe("LeaderboardCommand", () => {
       expect.objectContaining({
         endUserMessage: "This leaderboard control interaction is invalid. Run /leaderboard show again.",
       }),
+      { preserveMessage: interaction.message, errorEmbedFooter: "Temporary leaderboard error" },
     );
   });
 
@@ -1251,6 +1252,7 @@ describe("LeaderboardCommand", () => {
       expect.objectContaining({
         endUserMessage: "This leaderboard control interaction is invalid. Run /leaderboard show again.",
       }),
+      { preserveMessage: interaction.message, errorEmbedFooter: "Temporary leaderboard error" },
     );
   });
 
@@ -1287,6 +1289,7 @@ describe("LeaderboardCommand", () => {
       expect.objectContaining({
         endUserMessage: "This leaderboard control interaction is invalid. Run /leaderboard show again.",
       }),
+      { preserveMessage: interaction.message, errorEmbedFooter: "Temporary leaderboard error" },
     );
   });
 
@@ -1788,6 +1791,7 @@ describe("LeaderboardCommand", () => {
       expect.objectContaining({
         endUserMessage: "This leaderboard message is missing filter settings. Run /leaderboard show again.",
       }),
+      { preserveMessage: interaction.message, errorEmbedFooter: "Temporary leaderboard error" },
     );
   });
 
@@ -1823,6 +1827,7 @@ describe("LeaderboardCommand", () => {
       expect.objectContaining({
         endUserMessage: "This leaderboard message has invalid filter settings. Run /leaderboard show again.",
       }),
+      { preserveMessage: interaction.message, errorEmbedFooter: "Temporary leaderboard error" },
     );
   });
 
@@ -1856,6 +1861,7 @@ describe("LeaderboardCommand", () => {
     expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
       interaction.token,
       expect.objectContaining({ endUserMessage: "This leaderboard interaction does not belong to this server." }),
+      { preserveMessage: interaction.message, errorEmbedFooter: "Temporary leaderboard error" },
     );
   });
 
@@ -1889,6 +1895,7 @@ describe("LeaderboardCommand", () => {
       expect.objectContaining({
         endUserMessage: "This leaderboard message is missing its interaction context. Run /leaderboard show again.",
       }),
+      { preserveMessage: interaction.message, errorEmbedFooter: "Temporary leaderboard error" },
     );
   });
 
@@ -1924,6 +1931,7 @@ describe("LeaderboardCommand", () => {
       expect.objectContaining({
         endUserMessage: "This leaderboard message has an invalid window filter. Run /leaderboard show again.",
       }),
+      { preserveMessage: interaction.message, errorEmbedFooter: "Temporary leaderboard error" },
     );
   });
 
@@ -1959,6 +1967,7 @@ describe("LeaderboardCommand", () => {
       expect.objectContaining({
         endUserMessage: "This leaderboard message has an invalid metric filter. Run /leaderboard show again.",
       }),
+      { preserveMessage: interaction.message, errorEmbedFooter: "Temporary leaderboard error" },
     );
   });
 
