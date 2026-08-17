@@ -1,7 +1,10 @@
 import type { MatchStats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { getDurationInIsoString, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import { getPlayerObjectiveSummary } from "@guilty-spark/shared/halo/objective-summary";
+import { StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import {
   aggregatePlayerCoreStats,
@@ -20,7 +23,9 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
     const playersCoreStats = aggregatePlayerCoreStats(matches);
     const playersStats = new Map<string, EmbedPlayerStats>();
     for (const [playerId, stats] of playersCoreStats) {
-      playersStats.set(playerId, this.getPlayerSlayerStats({ CoreStats: stats }));
+      const slayerStats = this.getPlayerSlayerStats({ CoreStats: stats });
+      const objectiveStats = this.getObjectiveSummaryStats(playerMatches.get(playerId) ?? [], playerId, locale);
+      playersStats.set(playerId, new Map([...slayerStats, ...objectiveStats]));
     }
 
     const seriesBestValues = this.getBestStatValues(playersStats);
@@ -90,5 +95,49 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
     }
 
     return embeds;
+  }
+
+  private getObjectiveSummaryStats(matches: MatchStats[], playerId: string, locale: string): EmbedPlayerStats {
+    const summary = getPlayerObjectiveSummary(matches, playerId);
+    if (summary == null) {
+      return new Map();
+    }
+
+    const objectiveTime = getReadableDuration(getDurationInIsoString(summary.objectiveTimeSeconds), locale);
+    if (summary.objectiveTeamContribution == null) {
+      return new Map([
+        [
+          "Objective time (team %)",
+          {
+            value: summary.objectiveTimeSeconds,
+            sortBy: StatsValueSortBy.DESC,
+            display: `${objectiveTime} (n/a)`,
+          },
+        ],
+      ]);
+    }
+
+    const teamContribution = `${(summary.objectiveTeamContribution * 100).toLocaleString(locale, {
+      maximumFractionDigits: 1,
+    })}%`;
+
+    return new Map([
+      [
+        "Team objective contribution (time)",
+        [
+          {
+            value: summary.objectiveTeamContribution,
+            sortBy: StatsValueSortBy.DESC,
+            display: teamContribution,
+          },
+          {
+            value: summary.objectiveTimeSeconds,
+            sortBy: StatsValueSortBy.DESC,
+            display: `(${objectiveTime})`,
+            prefix: " ",
+          },
+        ],
+      ],
+    ]);
   }
 }

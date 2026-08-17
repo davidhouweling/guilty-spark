@@ -44,6 +44,8 @@ export interface SortableTableColumn<TData extends RowData> extends Omit<
   cellStyle?: React.CSSProperties | ((row: TData) => React.CSSProperties);
   /** Enable sorting for this column (default: true) */
   enableSorting?: boolean;
+  /** Sorting function name used by the table */
+  sortFn?: ColumnDef<SortableTableFeatures, TData>["sortFn"];
 }
 
 export interface SortableTableProps<TData extends RowData> {
