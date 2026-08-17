@@ -16,6 +16,9 @@ export enum LeaderboardMetric {
   GameWins = "GAME_WINS",
   MedalPoints = "MEDAL_POINTS",
   MythicMedals = "MYTHIC_MEDALS",
+  ObjectiveTime = "OBJECTIVE_TIME",
+  ObjectiveTeamContribution = "OBJECTIVE_TEAM_CONTRIBUTION",
+  ObjectiveGameContribution = "OBJECTIVE_GAME_CONTRIBUTION",
   GamesWinRate = "GAMES_WIN_RATE",
   Kills = "KILLS",
   Deaths = "DEATHS",
@@ -64,6 +67,9 @@ export enum LeaderboardMetricFamily {
   GameWins = "GAME_WINS",
   MedalPoints = "MEDAL_POINTS",
   MythicMedals = "MYTHIC_MEDALS",
+  ObjectiveTime = "OBJECTIVE_TIME",
+  ObjectiveTeamContribution = "OBJECTIVE_TEAM_CONTRIBUTION",
+  ObjectiveGameContribution = "OBJECTIVE_GAME_CONTRIBUTION",
   GamesWinRate = "GAMES_WIN_RATE",
   PersonalScore = "PERSONAL_SCORE",
   Kills = "KILLS",
@@ -105,6 +111,9 @@ export const LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER: readonly LeaderboardM
   LeaderboardMetricFamily.GameWins,
   LeaderboardMetricFamily.MedalPoints,
   LeaderboardMetricFamily.MythicMedals,
+  LeaderboardMetricFamily.ObjectiveTime,
+  LeaderboardMetricFamily.ObjectiveTeamContribution,
+  LeaderboardMetricFamily.ObjectiveGameContribution,
 ];
 
 export enum LeaderboardMetricAggregation {
@@ -127,6 +136,15 @@ export function getLeaderboardMetricFamily(metric: LeaderboardMetric): Leaderboa
     }
     case LeaderboardMetric.MythicMedals: {
       return LeaderboardMetricFamily.MythicMedals;
+    }
+    case LeaderboardMetric.ObjectiveTime: {
+      return LeaderboardMetricFamily.ObjectiveTime;
+    }
+    case LeaderboardMetric.ObjectiveTeamContribution: {
+      return LeaderboardMetricFamily.ObjectiveTeamContribution;
+    }
+    case LeaderboardMetric.ObjectiveGameContribution: {
+      return LeaderboardMetricFamily.ObjectiveGameContribution;
     }
     case LeaderboardMetric.GamesPlayed: {
       return LeaderboardMetricFamily.GamesPlayed;
@@ -258,6 +276,11 @@ export function getLeaderboardFamilyAggregations(
     case LeaderboardMetricFamily.MythicMedals: {
       return [LeaderboardMetricAggregation.Total];
     }
+    case LeaderboardMetricFamily.ObjectiveTime:
+    case LeaderboardMetricFamily.ObjectiveTeamContribution:
+    case LeaderboardMetricFamily.ObjectiveGameContribution: {
+      return [LeaderboardMetricAggregation.OverallPerformance];
+    }
     case LeaderboardMetricFamily.SeriesWinRate:
     case LeaderboardMetricFamily.GamesWinRate:
     case LeaderboardMetricFamily.Kda:
@@ -386,6 +409,15 @@ export function resolveLeaderboardMetric(
     case LeaderboardMetricFamily.MythicMedals: {
       return LeaderboardMetric.MythicMedals;
     }
+    case LeaderboardMetricFamily.ObjectiveTime: {
+      return resolveOverallPerformanceMetric(resolvedAggregation, LeaderboardMetric.ObjectiveTime);
+    }
+    case LeaderboardMetricFamily.ObjectiveTeamContribution: {
+      return resolveOverallPerformanceMetric(resolvedAggregation, LeaderboardMetric.ObjectiveTeamContribution);
+    }
+    case LeaderboardMetricFamily.ObjectiveGameContribution: {
+      return resolveOverallPerformanceMetric(resolvedAggregation, LeaderboardMetric.ObjectiveGameContribution);
+    }
     case LeaderboardMetricFamily.PersonalScore: {
       return resolveAggregationMetric(
         resolvedAggregation,
@@ -504,6 +536,15 @@ export function getLeaderboardMetricFamilyLabel(family: LeaderboardMetricFamily)
     }
     case LeaderboardMetricFamily.MythicMedals: {
       return "Mythic medals";
+    }
+    case LeaderboardMetricFamily.ObjectiveTime: {
+      return "Objective time";
+    }
+    case LeaderboardMetricFamily.ObjectiveTeamContribution: {
+      return "Team objective contribution";
+    }
+    case LeaderboardMetricFamily.ObjectiveGameContribution: {
+      return "Game objective contribution";
     }
     case LeaderboardMetricFamily.GamesWinRate: {
       return "Games win rate";

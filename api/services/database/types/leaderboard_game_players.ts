@@ -27,6 +27,9 @@ export interface LeaderboardGamePlayersRow {
   MedalCount: number;
   MedalPoints: number;
   MythicMedalCount: number;
+  ObjectiveTimeSeconds: number | null;
+  ObjectiveTeamContribution: number | null;
+  ObjectiveGameContribution: number | null;
   ObjectiveStatsJson: string;
   MedalsJson: string;
   CreatedAt: number;

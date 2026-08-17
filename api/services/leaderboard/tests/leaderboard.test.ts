@@ -71,6 +71,8 @@ describe("LeaderboardService", () => {
       GamesPlayed: 5,
       GameWins: 4,
       MedalCount: 12,
+      ObjectiveGamesPlayed: 0,
+      ObjectiveTimeSeconds: 0,
       MetricValue: 1,
     },
     {
@@ -82,6 +84,8 @@ describe("LeaderboardService", () => {
       GamesPlayed: 2,
       GameWins: 1,
       MedalCount: 8,
+      ObjectiveGamesPlayed: 0,
+      ObjectiveTimeSeconds: 0,
       MetricValue: 0.5,
     },
   ];
@@ -96,6 +100,8 @@ describe("LeaderboardService", () => {
       GamesPlayed: 2,
       GameWins: 1,
       MedalCount: 4,
+      ObjectiveGamesPlayed: 0,
+      ObjectiveTimeSeconds: 0,
       MetricValue: 15,
     },
     {
@@ -107,6 +113,8 @@ describe("LeaderboardService", () => {
       GamesPlayed: 1,
       GameWins: 0,
       MedalCount: 2,
+      ObjectiveGamesPlayed: 0,
+      ObjectiveTimeSeconds: 0,
       MetricValue: 20,
     },
   ];
@@ -340,6 +348,8 @@ describe("LeaderboardService", () => {
         gamesPlayed: 2,
         gameWins: 1,
         medalCount: 4,
+        objectiveGamesPlayed: 0,
+        objectiveTimeSeconds: 0,
         metricValue: 15,
       },
     ]);
@@ -381,6 +391,8 @@ describe("LeaderboardService", () => {
           GamesPlayed: 1,
           GameWins: 0,
           MedalCount: 0,
+          ObjectiveGamesPlayed: 0,
+          ObjectiveTimeSeconds: 0,
           MetricValue: Number.POSITIVE_INFINITY,
         },
       ],
@@ -899,6 +911,36 @@ describe("LeaderboardService", () => {
     expect(gamePlayer.MedalPoints).toBe(470);
     expect(gamePlayer.MythicMedalCount).toBe(3);
     expect(JSON.parse(gamePlayer.MedalsJson)).toHaveLength(3);
+  });
+
+  it("persists objective time and contribution shares for CTF players", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+    const upsertSpy = vi.spyOn(databaseService, "upsertLeaderboardSeriesDataBatch");
+
+    await service.persistSeriesData({
+      request: {
+        action: "MATCH_COMPLETED",
+        guild: "guild-1",
+        channel: "channel-1",
+        queue: "ranked",
+        match_number: 42,
+        winning_team_index: 0,
+        teams: [],
+      },
+      neatQueueConfig: aFakeNeatQueueConfigRow(),
+      series: [match],
+      locale: "en-US",
+    });
+
+    const [payload] = Preconditions.checkExists(upsertSpy.mock.calls[0]);
+    const player = Preconditions.checkExists(payload.gamePlayers.find((row) => row.XboxXuid === "0100000000000000"));
+    expect(player.ObjectiveTimeSeconds).toBe(11.1);
+    expect(player.ObjectiveTeamContribution).toBeCloseTo(11.1 / 63.7);
+    expect(player.ObjectiveGameContribution).toBeCloseTo(11.1 / 172);
   });
 
   it("falls back to medal score totals when medal metadata is unavailable", async () => {

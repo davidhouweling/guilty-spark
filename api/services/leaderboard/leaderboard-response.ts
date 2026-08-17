@@ -17,6 +17,7 @@ import {
   getLeaderboardMetricFamily,
   getLeaderboardMetricFamilyLabel,
 } from "@guilty-spark/shared/halo/leaderboard";
+import { getDurationInIsoString, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import type { LeaderboardMetricFamily } from "@guilty-spark/shared/halo/leaderboard";
 import { EmbedColors } from "../../embeds/colors";
 
@@ -174,6 +175,15 @@ function getMetricLabel(metric: LeaderboardMetric): string {
     }
     case LeaderboardMetric.MythicMedals: {
       return "Mythic medals";
+    }
+    case LeaderboardMetric.ObjectiveTime: {
+      return "Objective time";
+    }
+    case LeaderboardMetric.ObjectiveTeamContribution: {
+      return "Team objective contribution";
+    }
+    case LeaderboardMetric.ObjectiveGameContribution: {
+      return "Game objective contribution";
     }
     case LeaderboardMetric.GamesWinRate: {
       return "Games win rate";
@@ -353,6 +363,16 @@ function formatMetricValue(
     case LeaderboardMetric.MythicMedals: {
       const mythicLabel = pluralRules.select(Math.abs(Math.round(metricValue))) === "one" ? "medal" : "medals";
       return formatCount(metricValue, "mythic medal", `mythic ${mythicLabel}`);
+    }
+    case LeaderboardMetric.ObjectiveTime: {
+      const average = getReadableDuration(getDurationInIsoString(metricValue), locale);
+      const total = getReadableDuration(getDurationInIsoString(row.objectiveTimeSeconds), locale);
+      return `${average} avg/game (${total} total, ${formatCount(row.objectiveGamesPlayed, "game", "games")})`;
+    }
+    case LeaderboardMetric.ObjectiveTeamContribution:
+    case LeaderboardMetric.ObjectiveGameContribution: {
+      const percentage = (metricValue * 100).toLocaleString(locale, { maximumFractionDigits: 1 });
+      return `${percentage}% avg/game (${formatCount(row.objectiveGamesPlayed, "game", "games")})`;
     }
     case LeaderboardMetric.Kills:
     case LeaderboardMetric.Deaths:

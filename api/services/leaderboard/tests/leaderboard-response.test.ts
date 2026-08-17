@@ -6,6 +6,57 @@ import { EmbedColors } from "../../../embeds/colors";
 import { createLeaderboardResponse } from "../leaderboard-response";
 
 describe("createLeaderboardResponse", () => {
+  it("formats objective metric averages with objective game context", () => {
+    const baseLeaderboard: LeaderboardResponse = {
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.ObjectiveTime,
+      minGamesPlayed: 3,
+      page: 1,
+      pageSize: 10,
+      total: 1,
+      rows: [
+        {
+          rank: 1,
+          xboxXuid: "xuid-1",
+          discordUserId: null,
+          gamertag: "Alpha",
+          seriesPlayed: 3,
+          seriesWins: 2,
+          gamesPlayed: 12,
+          gameWins: 6,
+          medalCount: 0,
+          objectiveGamesPlayed: 10,
+          objectiveTimeSeconds: 426,
+          metricValue: 42.6,
+        },
+      ],
+    };
+
+    const objectiveTimeResponse = createLeaderboardResponse("en-US", baseLeaderboard, "<t:1733483139:R>");
+    expect(objectiveTimeResponse.embeds?.[0]?.fields?.[2]).toEqual({
+      name: "Objective time",
+      value: "42s avg/game (7m 6s total, 10 games)",
+      inline: true,
+    });
+
+    const teamContributionResponse = createLeaderboardResponse(
+      "en-US",
+      {
+        ...baseLeaderboard,
+        metric: LeaderboardMetric.ObjectiveTeamContribution,
+        rows: baseLeaderboard.rows.map((row) => ({ ...row, metricValue: 0.314 })),
+      },
+      "<t:1733483139:R>",
+    );
+    expect(teamContributionResponse.embeds?.[0]?.fields?.[2]).toEqual({
+      name: "Team objective contribution",
+      value: "31.4% avg/game (10 games)",
+      inline: true,
+    });
+  });
+
   it("formats medal points with the supporting medal count", () => {
     const leaderboard: LeaderboardResponse = {
       guildId: "guild-123",
@@ -27,6 +78,8 @@ describe("createLeaderboardResponse", () => {
           gamesPlayed: 9,
           gameWins: 6,
           medalCount: 20,
+          objectiveGamesPlayed: 0,
+          objectiveTimeSeconds: 0,
           metricValue: 12450,
         },
       ],
@@ -62,6 +115,8 @@ describe("createLeaderboardResponse", () => {
           gamesPlayed: 9,
           gameWins: 6,
           medalCount: 1,
+          objectiveGamesPlayed: 0,
+          objectiveTimeSeconds: 0,
           metricValue: 1,
         },
       ],
@@ -107,6 +162,8 @@ describe("createLeaderboardResponse", () => {
           gamesPlayed: 9,
           gameWins: 6,
           medalCount: 12,
+          objectiveGamesPlayed: 0,
+          objectiveTimeSeconds: 0,
           metricValue: 44,
         },
       ],
@@ -180,6 +237,8 @@ describe("createLeaderboardResponse", () => {
             gamesPlayed: 9,
             gameWins: 6,
             medalCount: 12,
+            objectiveGamesPlayed: 0,
+            objectiveTimeSeconds: 0,
             metricValue: 13.2,
           },
         ],
@@ -214,6 +273,8 @@ describe("createLeaderboardResponse", () => {
           gamesPlayed: 9,
           gameWins: 6,
           medalCount: 12,
+          objectiveGamesPlayed: 0,
+          objectiveTimeSeconds: 0,
           metricValue: 44,
         },
       ],
@@ -269,6 +330,8 @@ describe("createLeaderboardResponse", () => {
           gamesPlayed: 9,
           gameWins: 6,
           medalCount: 0,
+          objectiveGamesPlayed: 0,
+          objectiveTimeSeconds: 0,
           metricValue: Number.MAX_VALUE,
         },
       ],
@@ -304,6 +367,8 @@ describe("createLeaderboardResponse", () => {
           gamesPlayed: 9,
           gameWins: 6,
           medalCount: 0,
+          objectiveGamesPlayed: 0,
+          objectiveTimeSeconds: 0,
           metricValue: 1.44,
         },
       ],
