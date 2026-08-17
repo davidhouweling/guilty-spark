@@ -17,7 +17,7 @@ export const ObjectiveGameVariantCategory = {
   Oddball: GameVariantCategory.MultiplayerOddball,
 } as const;
 
-const OBJECTIVE_TIME_SOURCES = new Map<number, ObjectiveTimeSource>([
+const OBJECTIVE_TIME_SOURCES = new Map<GameVariantCategory, ObjectiveTimeSource>([
   [ObjectiveGameVariantCategory.CaptureTheFlag, ObjectiveTimeSource.FlagCarrier],
   [ObjectiveGameVariantCategory.Strongholds, ObjectiveTimeSource.ZoneOccupation],
   [ObjectiveGameVariantCategory.KingOfTheHill, ObjectiveTimeSource.ZoneOccupation],
