@@ -152,10 +152,13 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
         return field;
       }
 
-      const [label, value] = field.split(": ", 2);
-      if (value == null) {
+      const labelSeparatorIndex = field.indexOf(": ");
+      if (labelSeparatorIndex < 0) {
         return field;
       }
+
+      const label = field.slice(0, labelSeparatorIndex);
+      const value = field.slice(labelSeparatorIndex + 2);
 
       const separatorIndex = value.indexOf(":");
       if (separatorIndex < 0) {

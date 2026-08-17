@@ -1,4 +1,4 @@
-import type { Row, RowData, TableFeatures } from "@tanstack/react-table";
+import type { Row, RowData } from "@tanstack/react-table";
 import type { MedalEntry } from "@guilty-spark/shared/halo/medals";
 import type { MatchStatsData, MatchStatsPlayerData } from "./types";
 
@@ -53,11 +53,7 @@ export function getPlayerMedalsMap(row: { player: MatchStatsPlayerData }): Map<n
  * @param columnId The column ID containing the medals data
  * @returns -1 if rowA < rowB, 1 if rowA > rowB, 0 if equal
  */
-export function sortByMedals<TFeatures extends TableFeatures, TData extends RowData>(
-  rowA: Row<TFeatures, TData>,
-  rowB: Row<TFeatures, TData>,
-  columnId: string,
-): -1 | 0 | 1 {
+export function sortByMedals<TData extends RowData>(rowA: Row<TData>, rowB: Row<TData>, columnId: string): -1 | 0 | 1 {
   const medalsA = rowA.getValue<Map<number, number>>(columnId);
   const medalsB = rowB.getValue<Map<number, number>>(columnId);
 
