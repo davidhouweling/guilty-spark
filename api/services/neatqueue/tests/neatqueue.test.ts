@@ -1299,6 +1299,7 @@ describe("NeatQueueService", () => {
           it("falls back to creating a message in post series channel if it fails to create thread", async () => {
             const error = new Error("Failed to create thread");
             const logServiceWarnSpy = vi.spyOn(logService, "warn");
+            const getGuildPreferredLocaleSpy = vi.spyOn(discordService, "getGuildPreferredLocale");
 
             discordServiceStartThreadFromMessageSpy
               .mockReset()
@@ -1325,6 +1326,10 @@ describe("NeatQueueService", () => {
             expect(discordServiceCreateMessageSpy.mock.calls[0]).toMatchSnapshot();
             expect(discordServiceCreateMessageSpy).toHaveBeenNthCalledWith(2, "thread-id-2", expect.any(Object));
             expect(discordServiceCreateMessageSpy).toHaveBeenNthCalledWith(3, "thread-id-2", expect.any(Object));
+
+            // The locale resolved for the initial thread attempt is reused for the channel fallback,
+            // instead of being fetched again from Discord.
+            expect(getGuildPreferredLocaleSpy).toHaveBeenCalledOnce();
           });
         }
       });

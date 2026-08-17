@@ -605,6 +605,35 @@ describe("LiveTrackerDO", () => {
       expect(scoreArg).toBe("🦅 0:0 🐍");
       expect(forceArg).toBe(true);
     });
+
+    it("persists the resolved guild locale so it isn't refetched on the next alarm tick", async () => {
+      const startData = createMockStartData();
+      const request = new Request("http://do/start", {
+        method: "POST",
+        body: JSON.stringify(startData),
+      });
+
+      vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue(apiMessage);
+      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockImplementation((_matches, _locale, includeEmoji) =>
+        includeEmoji === true ? "🦅 0:0 🐍" : "0:0",
+      );
+      const getGuildPreferredLocaleSpy = vi
+        .spyOn(services.discordService, "getGuildPreferredLocale")
+        .mockResolvedValue(Locale.German);
+
+      const response = await liveTrackerDO.fetch(request);
+
+      expect(response.status).toBe(200);
+      const data: { success: boolean; state: LiveTrackerState } = await response.json();
+      expect(data.state.localeCache).toBe(Locale.German);
+      expect(getGuildPreferredLocaleSpy).toHaveBeenCalledOnce();
+
+      const persistedTrackerState = storagePutSpy.mock.calls.at(-1)?.[1];
+      expect(persistedTrackerState?.localeCache).toBe(Locale.German);
+    });
   });
 
   describe("handlePause()", () => {

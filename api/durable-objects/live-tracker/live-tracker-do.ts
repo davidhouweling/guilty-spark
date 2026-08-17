@@ -370,6 +370,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       );
     }
 
+    await this.setState(trackerState);
     await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
     return this.createStartSuccessResponse(trackerState);
   }

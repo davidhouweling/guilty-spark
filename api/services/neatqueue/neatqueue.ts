@@ -365,7 +365,7 @@ export class NeatQueueService {
         await discordService.updateDeferredReply(interaction.token, data);
       }
 
-      await this.cacheDiscordSeriesStats(guildId, queue, series);
+      await this.cacheDiscordSeriesStats(guildId, queue, series, locale);
 
       if (channel.type !== ChannelType.PublicThread && channel.type !== ChannelType.AnnouncementThread) {
         const thread = await discordService.startThreadFromMessage(
@@ -1488,13 +1488,15 @@ export class NeatQueueService {
       timeline: NeatQueueTimelineEvent[];
     },
   ): Promise<void> {
+    const locale = await this.discordService.getGuildPreferredLocale(opts.neatQueueConfig.GuildId);
+
     switch (mode) {
       case NeatQueuePostSeriesDisplayMode.THREAD:
-        await this.postSeriesDataByThread(opts);
+        await this.postSeriesDataByThread({ ...opts, locale });
         break;
       case NeatQueuePostSeriesDisplayMode.MESSAGE:
       case NeatQueuePostSeriesDisplayMode.CHANNEL:
-        await this.postSeriesDataByChannel(opts);
+        await this.postSeriesDataByChannel({ ...opts, locale });
         break;
       default:
         throw new UnreachableError(mode);
@@ -2094,11 +2096,13 @@ export class NeatQueueService {
     neatQueueConfig,
     series,
     timeline,
+    locale,
   }: {
     request: NeatQueueMatchCompletedRequest;
     neatQueueConfig: NeatQueueConfigRow;
     series: MatchStats[];
     timeline: NeatQueueTimelineEvent[];
+    locale: string;
   }): Promise<void> {
     const { discordService } = this;
     let foundResultsMessage = false;
@@ -2106,7 +2110,6 @@ export class NeatQueueService {
     let thread: RESTPostAPIChannelThreadsResult | undefined;
 
     try {
-      const locale = await discordService.getGuildPreferredLocale(neatQueueConfig.GuildId);
       const resultsMessage = await discordService.getTeamsFromQueueResult(
         neatQueueConfig.GuildId,
         neatQueueConfig.ResultsChannelId,
@@ -2140,7 +2143,7 @@ export class NeatQueueService {
       });
 
       await Promise.all([
-        this.cacheDiscordSeriesStats(request.guild, request.match_number, series),
+        this.cacheDiscordSeriesStats(request.guild, request.match_number, series, locale),
         this.leaderboardService.persistSeriesData({ request, neatQueueConfig, series, locale }),
         this.postSeriesDetailsToChannel(thread.id, request.guild, series, locale),
       ]);
@@ -2154,7 +2157,7 @@ export class NeatQueueService {
       if (useFallback) {
         this.logService.info("Attempting to post direct to channel");
 
-        await this.postSeriesDataByChannel({ request, neatQueueConfig, series, timeline });
+        await this.postSeriesDataByChannel({ request, neatQueueConfig, series, timeline, locale });
       } else if (thread != null) {
         this.logService.info("Attempting to post error to thread");
 
@@ -2218,17 +2221,18 @@ export class NeatQueueService {
     neatQueueConfig,
     series,
     timeline,
+    locale,
   }: {
     request: NeatQueueMatchCompletedRequest;
     neatQueueConfig: NeatQueueConfigRow;
     series: MatchStats[];
     timeline: NeatQueueTimelineEvent[];
+    locale: string;
   }): Promise<void> {
     const { discordService } = this;
     let channelId = neatQueueConfig.PostSeriesChannelId ?? neatQueueConfig.ResultsChannelId;
 
     try {
-      const locale = await discordService.getGuildPreferredLocale(neatQueueConfig.GuildId);
       const resultsMessage = await discordService.getTeamsFromQueueResult(
         neatQueueConfig.GuildId,
         neatQueueConfig.ResultsChannelId,
@@ -2261,7 +2265,7 @@ export class NeatQueueService {
 
       channelId = thread.id;
       await Promise.all([
-        this.cacheDiscordSeriesStats(request.guild, request.match_number, series),
+        this.cacheDiscordSeriesStats(request.guild, request.match_number, series, locale),
         this.leaderboardService.persistSeriesData({ request, neatQueueConfig, series, locale }),
         this.postSeriesDetailsToChannel(channelId, request.guild, series, locale),
       ]);
@@ -2433,7 +2437,12 @@ export class NeatQueueService {
     });
   }
 
-  private async cacheDiscordSeriesStats(guildId: string, queueNumber: number, series: MatchStats[]): Promise<void> {
+  private async cacheDiscordSeriesStats(
+    guildId: string,
+    queueNumber: number,
+    series: MatchStats[],
+    locale: string,
+  ): Promise<void> {
     const { discordService, haloService, logService } = this;
 
     try {
@@ -2444,6 +2453,7 @@ export class NeatQueueService {
         guildId,
         queueNumber,
         matches: series,
+        locale,
       });
 
       await discordService.cacheResolvedDiscordSeriesStats({

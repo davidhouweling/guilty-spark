@@ -354,7 +354,7 @@ export class StatsCommand extends BaseCommand {
         components: seriesEmbed.components,
       });
 
-      await this.cacheDiscordSeriesStats(guildId, queueData.queue, series);
+      await this.cacheDiscordSeriesStats(guildId, queueData.queue, series, locale);
 
       const message = await discordService.getMessageFromInteractionToken(interaction.token);
       const messageChannel = await discordService.getChannel(message.channel_id);
@@ -472,7 +472,7 @@ export class StatsCommand extends BaseCommand {
           components: seriesEmbed.components,
         });
 
-        await this.cacheDiscordSeriesStats(guildId, queueData.queue, series);
+        await this.cacheDiscordSeriesStats(guildId, queueData.queue, series, locale);
 
         await this.postSeriesEmbedsToThread(threadChannelId, series, guildConfig, locale);
         await this.postGameStatsOrButton(threadChannelId, series, guildConfig, locale);
@@ -776,7 +776,12 @@ export class StatsCommand extends BaseCommand {
     });
   }
 
-  private async cacheDiscordSeriesStats(guildId: string, queueNumber: number, series: MatchStats[]): Promise<void> {
+  private async cacheDiscordSeriesStats(
+    guildId: string,
+    queueNumber: number,
+    series: MatchStats[],
+    locale: string,
+  ): Promise<void> {
     const { discordService, haloService, logService } = this.services;
 
     try {
@@ -787,6 +792,7 @@ export class StatsCommand extends BaseCommand {
         guildId,
         queueNumber,
         matches: series,
+        locale,
       });
 
       await discordService.cacheResolvedDiscordSeriesStats({
@@ -1309,7 +1315,7 @@ export class StatsCommand extends BaseCommand {
       }
       await this.postSeriesEmbedsToThread(destinationThreadId, series, guildConfig, locale);
       await this.postGameStatsOrButton(destinationThreadId, series, guildConfig, locale);
-      await this.cacheDiscordSeriesStats(metadata.guildId, metadata.queueData.queue, series);
+      await this.cacheDiscordSeriesStats(metadata.guildId, metadata.queueData.queue, series, locale);
 
       await discordService.updateDeferredReply(interaction.token, {
         embeds: [this.createStatusEmbed("Series stats were amended successfully.")],

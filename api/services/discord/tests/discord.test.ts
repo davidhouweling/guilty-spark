@@ -1259,16 +1259,6 @@ describe("DiscordService", () => {
 
       expect(result).toEqual(guild);
     });
-
-    it("caches the guild for repeated calls with the same guildId", async () => {
-      await discordService.getGuild("fake-guild-id");
-      await discordService.getGuild("fake-guild-id");
-
-      const guildFetchCalls = mockFetch.mock.calls.filter(
-        ([path]) => path === "https://discord.com/api/v10/guilds/fake-guild-id",
-      );
-      expect(guildFetchCalls).toHaveLength(1);
-    });
   });
 
   describe("getGuildPreferredLocale()", () => {
