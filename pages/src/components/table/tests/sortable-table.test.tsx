@@ -30,20 +30,20 @@ describe("SortableTable", () => {
       id: "name",
       header: "Name",
       accessorFn: (row) => row.name,
-      sortingFn: "alphanumeric",
+      sortFn: "alphanumeric",
     },
     {
       id: "score",
       header: "Score",
       accessorFn: (row) => row.score,
-      sortingFn: "basic",
+      sortFn: "basic",
     },
     {
       id: "active",
       header: "Active",
       accessorFn: (row) => row.active,
       cell: (value: unknown) => (value === true ? "Yes" : "No"),
-      sortingFn: "basic",
+      sortFn: "basic",
     },
   ];
 

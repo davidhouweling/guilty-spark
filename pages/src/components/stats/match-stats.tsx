@@ -90,7 +90,7 @@ export function MatchStats({
         cell: (value: unknown): React.ReactNode => <TeamIcon teamId={value as number} size="small" />,
         headerClassName: undefined,
         cellClassName: tableStyles.labelCell,
-        sortingFn: "basic",
+        sortFn: "basic",
       },
       ...statColumns.map((stat) => ({
         id: stat.name,
@@ -110,7 +110,7 @@ export function MatchStats({
             [tableStyles.bestInMatch]: teamStat?.bestInMatch ?? false,
           });
         },
-        sortingFn: "basic" as const,
+        sortFn: "basic" as const,
       })),
       {
         id: "medals",
@@ -128,7 +128,7 @@ export function MatchStats({
         ),
         headerClassName: undefined,
         cellClassName: tableStyles.statCell,
-        sortingFn: sortByMedals,
+        sortFn: sortByMedals,
       },
     ];
   }, [data, hasTeamStats]);
@@ -144,7 +144,7 @@ export function MatchStats({
         cell: (value: unknown): React.ReactNode => <TeamIcon teamId={value as number} size="small" />,
         headerClassName: undefined,
         cellClassName: tableStyles.labelCell,
-        sortingFn: "basic",
+        sortFn: "basic",
       },
       {
         id: "gamertag",
@@ -152,7 +152,7 @@ export function MatchStats({
         accessorFn: (row: MatchStatsRow): string => row.player.name,
         headerClassName: undefined,
         cellClassName: tableStyles.labelCell,
-        sortingFn: "alphanumeric",
+        sortFn: "alphanumeric",
       },
       ...statColumns.map((stat) => ({
         id: stat.name,
@@ -173,7 +173,7 @@ export function MatchStats({
             [tableStyles.bestInMatch]: playerStat?.bestInMatch ?? false,
           });
         },
-        sortingFn: "basic" as const,
+        sortFn: "basic" as const,
       })),
       {
         id: "medals",
@@ -191,7 +191,7 @@ export function MatchStats({
         ),
         headerClassName: undefined,
         cellClassName: tableStyles.statCell,
-        sortingFn: sortByMedals,
+        sortFn: sortByMedals,
       },
     ];
   }, [data]);

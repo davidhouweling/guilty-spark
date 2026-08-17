@@ -130,7 +130,7 @@ export function KillMatrixTable({
         id: "xyHeader",
         header: renderXyHeader(false),
         accessorFn: (row: KillMatrixCrossTeamRow): string => row.playerGamertag,
-        sortingFn: "alphanumeric",
+        sortFn: "alphanumeric",
         cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
         cellStyle:
           teamColors != null
@@ -149,7 +149,7 @@ export function KillMatrixTable({
         headerClassName: styles.colHeader,
         headerStyle: teamColors != null ? colTeamStyle(colTeamId) : undefined,
         accessorFn: (row: KillMatrixCrossTeamRow): number => row.cells.get(gamertag)?.kills ?? 0,
-        sortingFn: "basic",
+        sortFn: "basic",
         cellClassName: styles.killCell,
         cellStyle:
           teamColors != null
@@ -194,7 +194,7 @@ export function KillMatrixTable({
         id: "xyHeader",
         header: renderXyHeader(),
         accessorFn: (row: KillMatrixPivotRow): string => row.killerGamertag,
-        sortingFn: "alphanumeric",
+        sortFn: "alphanumeric",
         cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
         cellStyle:
           teamColors != null
@@ -213,7 +213,7 @@ export function KillMatrixTable({
         headerClassName: styles.colHeader,
         headerStyle: teamColors != null ? colTeamStyle(colTeamId) : undefined,
         accessorFn: (row: KillMatrixPivotRow): number => row.kills.get(gamertag) ?? 0,
-        sortingFn: "basic",
+        sortFn: "basic",
         cellClassName: styles.killCell,
         cellStyle:
           teamColors != null
@@ -261,7 +261,7 @@ export function KillMatrixTable({
         id: "xyHeader",
         header: renderXyHeader(false),
         accessorFn: (row): number => row.index,
-        sortingFn: "alphanumeric",
+        sortFn: "alphanumeric",
         cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
         cellStyle:
           teamColors != null
@@ -339,7 +339,7 @@ export function KillMatrixTable({
         id: "xyHeader",
         header: renderXyHeader(),
         accessorFn: (row): number => row.index,
-        sortingFn: "alphanumeric",
+        sortFn: "alphanumeric",
         cellClassName: classNames(tableStyles.labelCell, styles.killerCell),
         cellStyle:
           teamColors != null
