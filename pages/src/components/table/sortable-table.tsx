@@ -1,10 +1,31 @@
 import React, { useMemo, useState } from "react";
-import { useReactTable, getCoreRowModel, getSortedRowModel, sortingFns, flexRender } from "@tanstack/react-table";
+import {
+  useTable,
+  tableFeatures,
+  rowSortingFeature,
+  columnVisibilityFeature,
+  createSortedRowModel,
+  sortFn_alphanumeric,
+  sortFn_basic,
+  flexRender,
+} from "@tanstack/react-table";
 import type { ColumnDef, SortingState, SortDirection, RowData } from "@tanstack/react-table";
 import classNames from "classnames";
 import styles from "./table.module.css";
 
-export interface SortableTableColumn<TData extends RowData> extends Omit<ColumnDef<TData>, "id" | "header" | "cell"> {
+const sortableTableFeatures = tableFeatures({
+  rowSortingFeature,
+  columnVisibilityFeature,
+  sortedRowModel: createSortedRowModel(),
+  sortFns: { alphanumeric: sortFn_alphanumeric, basic: sortFn_basic },
+});
+
+type SortableTableFeatures = typeof sortableTableFeatures;
+
+export interface SortableTableColumn<TData extends RowData> extends Omit<
+  ColumnDef<SortableTableFeatures, TData>,
+  "id" | "header" | "cell"
+> {
   /** Unique identifier for the column */
   id: string;
   /** Header label to display */
@@ -24,7 +45,7 @@ export interface SortableTableColumn<TData extends RowData> extends Omit<ColumnD
   /** Enable sorting for this column (default: true) */
   enableSorting?: boolean;
   /** Sorting function name used by the table */
-  sortFn?: ColumnDef<TData>["sortingFn"];
+  sortFn?: ColumnDef<SortableTableFeatures, TData>["sortFn"];
 }
 
 export interface SortableTableProps<TData extends RowData> {
@@ -74,7 +95,7 @@ export function SortableTable<TData extends RowData>({
   );
 
   // Convert our simplified column format to TanStack format
-  const tableColumns = useMemo<ColumnDef<TData>[]>(
+  const tableColumns = useMemo<ColumnDef<SortableTableFeatures, TData>[]>(
     () =>
       columns.map((col) => ({
         id: col.id,
@@ -98,18 +119,16 @@ export function SortableTable<TData extends RowData>({
     return [];
   });
 
-  const table = useReactTable({
-    data: [...data],
+  const table = useTable({
+    features: sortableTableFeatures,
+    data,
     columns: tableColumns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     state: {
       sorting,
     },
     onSortingChange: setSorting,
     enableSortingRemoval: true,
     enableMultiSort: true,
-    sortingFns,
   });
 
   return (
