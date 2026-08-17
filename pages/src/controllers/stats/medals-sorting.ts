@@ -1,4 +1,5 @@
-import type { Row, RowData, TableFeatures } from "@tanstack/react-table";
+import type { Row, RowData } from "@tanstack/react-table";
+import type { TableFeatures } from "@tanstack/table-core";
 import type { MedalEntry } from "@guilty-spark/shared/halo/medals";
 import type { MatchStatsData, MatchStatsPlayerData } from "./types";
 
