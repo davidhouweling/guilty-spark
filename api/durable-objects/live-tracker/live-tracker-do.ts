@@ -1271,7 +1271,14 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       const guild = await this.discordService.getGuild(trackerState.guildId);
       trackerState.localeCache = guild.preferred_locale;
       return trackerState.localeCache;
-    } catch {
+    } catch (error) {
+      this.logService.warn(
+        "LiveTracker: Failed to resolve guild locale, falling back to English",
+        new Map([
+          ["guildId", trackerState.guildId],
+          ["error", String(error)],
+        ]),
+      );
       // Don't cache the fallback: a transient failure here shouldn't permanently
       // lock the tracker into English for the rest of its (multi-hour) session.
       return Locale.EnglishUS;

@@ -2228,12 +2228,14 @@ describe("LiveTrackerDO", () => {
         };
         vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
         vi.spyOn(services.discordService, "updateChannel").mockResolvedValue(mockChannel);
-        vi.spyOn(services.discordService, "getGuild").mockRejectedValue(new Error("Discord unavailable"));
+        const discordUnavailableError = new Error("Discord unavailable");
+        vi.spyOn(services.discordService, "getGuild").mockRejectedValue(discordUnavailableError);
         vi.spyOn(services.discordService, "getGuildMember").mockResolvedValue(aGuildMemberWith({}));
         vi.spyOn(services.discordService, "hasPermissions").mockReturnValue({
           hasAll: true,
           missing: [],
         });
+        const warnSpy = vi.spyOn(services.logService, "warn").mockImplementation(() => undefined);
 
         const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
         vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
@@ -2256,6 +2258,13 @@ describe("LiveTrackerDO", () => {
 
         const persistedTrackerState = storagePutSpy.mock.calls.at(-1)?.[1];
         expect(persistedTrackerState?.localeCache).toBeUndefined();
+        expect(warnSpy).toHaveBeenCalledWith(
+          "LiveTracker: Failed to resolve guild locale, falling back to English",
+          new Map([
+            ["guildId", "test-guild-id"],
+            ["error", String(discordUnavailableError)],
+          ]),
+        );
       });
 
       it("removes existing series score before adding new one", async (): Promise<void> => {
