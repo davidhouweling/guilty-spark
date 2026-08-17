@@ -29,7 +29,8 @@ function getActivePlayerTeamStats(
 export function getPlayerObjectiveSummary(matches: MatchStats[], playerId: string): PlayerObjectiveSummary | null {
   let objectiveTimeSeconds = 0;
   let objectiveGamesPlayed = 0;
-  let objectiveTeamContributionTotal = 0;
+  let objectiveTeamContributionPlayerTimeTotal = 0;
+  let objectiveTeamContributionTeamTimeTotal = 0;
   let objectiveTeamContributionGamesPlayed = 0;
 
   for (const match of matches) {
@@ -59,7 +60,8 @@ export function getPlayerObjectiveSummary(matches: MatchStats[], playerId: strin
       continue;
     }
 
-    objectiveTeamContributionTotal += playerObjectiveTimeSeconds / teamObjectiveTimeSeconds;
+    objectiveTeamContributionPlayerTimeTotal += playerObjectiveTimeSeconds;
+    objectiveTeamContributionTeamTimeTotal += teamObjectiveTimeSeconds;
     objectiveTeamContributionGamesPlayed += 1;
   }
 
@@ -73,7 +75,7 @@ export function getPlayerObjectiveSummary(matches: MatchStats[], playerId: strin
     objectiveTeamContribution:
       objectiveTeamContributionGamesPlayed === 0
         ? null
-        : objectiveTeamContributionTotal / objectiveTeamContributionGamesPlayed,
+        : objectiveTeamContributionPlayerTimeTotal / objectiveTeamContributionTeamTimeTotal,
     objectiveTeamContributionGamesPlayed,
   };
 }

@@ -327,4 +327,130 @@ describe("getPlayerObjectiveSummary", () => {
     expect(result?.objectiveTeamContributionGamesPlayed).toBe(1);
     expect(result?.objectiveTeamContribution).toBe(0.5);
   });
+
+  it("calculates team objective contribution as weighted series share", () => {
+    const playerId = "xuid(1111)";
+
+    const firstCtfMatch = aFakeMatchStatsWith({
+      MatchInfo: {
+        ...aFakeMatchStatsWith().MatchInfo,
+        GameVariantCategory: GameVariantCategory.MultiplayerCtf,
+      },
+      Teams: [
+        aFakeTeamWith({
+          TeamId: 0,
+          Stats: {
+            CoreStats: aFakeCoreStatsWith(),
+            PvpStats: { Kills: 1, Deaths: 1, Assists: 1, KDA: 1 },
+            CaptureTheFlagStats: {
+              FlagCaptures: 0,
+              FlagCaptureAssists: 0,
+              FlagCarriersKilled: 0,
+              FlagGrabs: 0,
+              FlagReturnersKilled: 0,
+              FlagReturns: 0,
+              FlagSecures: 0,
+              FlagSteals: 0,
+              KillsAsFlagCarrier: 0,
+              KillsAsFlagReturner: 0,
+              TimeAsFlagCarrier: "PT1M0S",
+            },
+          },
+        }),
+      ],
+      Players: [
+        aFakePlayerWith({
+          PlayerId: playerId,
+          LastTeamId: 0,
+          PlayerTeamStats: [
+            {
+              TeamId: 0,
+              Stats: {
+                CoreStats: aFakeCoreStatsWith(),
+                PvpStats: { Kills: 1, Deaths: 1, Assists: 1, KDA: 1 },
+                CaptureTheFlagStats: {
+                  FlagCaptures: 0,
+                  FlagCaptureAssists: 0,
+                  FlagCarriersKilled: 0,
+                  FlagGrabs: 0,
+                  FlagReturnersKilled: 0,
+                  FlagReturns: 0,
+                  FlagSecures: 0,
+                  FlagSteals: 0,
+                  KillsAsFlagCarrier: 0,
+                  KillsAsFlagReturner: 0,
+                  TimeAsFlagCarrier: "PT30S",
+                },
+              },
+            },
+          ],
+        }),
+      ],
+    });
+
+    const secondCtfMatch = aFakeMatchStatsWith({
+      MatchInfo: {
+        ...aFakeMatchStatsWith().MatchInfo,
+        GameVariantCategory: GameVariantCategory.MultiplayerCtf,
+      },
+      Teams: [
+        aFakeTeamWith({
+          TeamId: 0,
+          Stats: {
+            CoreStats: aFakeCoreStatsWith(),
+            PvpStats: { Kills: 1, Deaths: 1, Assists: 1, KDA: 1 },
+            CaptureTheFlagStats: {
+              FlagCaptures: 0,
+              FlagCaptureAssists: 0,
+              FlagCarriersKilled: 0,
+              FlagGrabs: 0,
+              FlagReturnersKilled: 0,
+              FlagReturns: 0,
+              FlagSecures: 0,
+              FlagSteals: 0,
+              KillsAsFlagCarrier: 0,
+              KillsAsFlagReturner: 0,
+              TimeAsFlagCarrier: "PT2M0S",
+            },
+          },
+        }),
+      ],
+      Players: [
+        aFakePlayerWith({
+          PlayerId: playerId,
+          LastTeamId: 0,
+          PlayerTeamStats: [
+            {
+              TeamId: 0,
+              Stats: {
+                CoreStats: aFakeCoreStatsWith(),
+                PvpStats: { Kills: 1, Deaths: 1, Assists: 1, KDA: 1 },
+                CaptureTheFlagStats: {
+                  FlagCaptures: 0,
+                  FlagCaptureAssists: 0,
+                  FlagCarriersKilled: 0,
+                  FlagGrabs: 0,
+                  FlagReturnersKilled: 0,
+                  FlagReturns: 0,
+                  FlagSecures: 0,
+                  FlagSteals: 0,
+                  KillsAsFlagCarrier: 0,
+                  KillsAsFlagReturner: 0,
+                  TimeAsFlagCarrier: "PT30S",
+                },
+              },
+            },
+          ],
+        }),
+      ],
+    });
+
+    const result = getPlayerObjectiveSummary([firstCtfMatch, secondCtfMatch], playerId);
+
+    expect(result).not.toBeNull();
+    expect(result?.objectiveGamesPlayed).toBe(2);
+    expect(result?.objectiveTimeSeconds).toBe(60);
+    expect(result?.objectiveTeamContributionGamesPlayed).toBe(2);
+    expect(result?.objectiveTeamContribution).toBeCloseTo(1 / 3);
+  });
 });
