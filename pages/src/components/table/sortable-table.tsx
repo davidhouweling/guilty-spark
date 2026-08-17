@@ -106,7 +106,7 @@ export function SortableTable<TData extends RowData>({
           return col.cell != null ? col.cell(value, info.row.original) : (value as React.ReactNode);
         },
         enableSorting: col.enableSorting !== false,
-        sortingFn: col.sortFn ?? "auto",
+        sortFn: col.sortFn ?? "auto",
       })),
     [columns],
   );
