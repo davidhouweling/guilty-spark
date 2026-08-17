@@ -17,6 +17,7 @@ export enum LeaderboardMetric {
   MedalPoints = "MEDAL_POINTS",
   MythicMedals = "MYTHIC_MEDALS",
   ObjectiveTime = "OBJECTIVE_TIME",
+  AvgObjectiveTimePerGame = "AVG_OBJECTIVE_TIME_PER_GAME",
   ObjectiveTeamContribution = "OBJECTIVE_TEAM_CONTRIBUTION",
   ObjectiveGameContribution = "OBJECTIVE_GAME_CONTRIBUTION",
   GamesWinRate = "GAMES_WIN_RATE",
@@ -137,7 +138,8 @@ export function getLeaderboardMetricFamily(metric: LeaderboardMetric): Leaderboa
     case LeaderboardMetric.MythicMedals: {
       return LeaderboardMetricFamily.MythicMedals;
     }
-    case LeaderboardMetric.ObjectiveTime: {
+    case LeaderboardMetric.ObjectiveTime:
+    case LeaderboardMetric.AvgObjectiveTimePerGame: {
       return LeaderboardMetricFamily.ObjectiveTime;
     }
     case LeaderboardMetric.ObjectiveTeamContribution: {
@@ -276,7 +278,9 @@ export function getLeaderboardFamilyAggregations(
     case LeaderboardMetricFamily.MythicMedals: {
       return [LeaderboardMetricAggregation.Total];
     }
-    case LeaderboardMetricFamily.ObjectiveTime:
+    case LeaderboardMetricFamily.ObjectiveTime: {
+      return [LeaderboardMetricAggregation.AvgPerGame, LeaderboardMetricAggregation.Total];
+    }
     case LeaderboardMetricFamily.ObjectiveTeamContribution:
     case LeaderboardMetricFamily.ObjectiveGameContribution: {
       return [LeaderboardMetricAggregation.OverallPerformance];
@@ -410,7 +414,12 @@ export function resolveLeaderboardMetric(
       return LeaderboardMetric.MythicMedals;
     }
     case LeaderboardMetricFamily.ObjectiveTime: {
-      return resolveOverallPerformanceMetric(resolvedAggregation, LeaderboardMetric.ObjectiveTime);
+      return resolveAggregationMetric(
+        resolvedAggregation,
+        LeaderboardMetric.ObjectiveTime,
+        LeaderboardMetric.ObjectiveTime,
+        LeaderboardMetric.AvgObjectiveTimePerGame,
+      );
     }
     case LeaderboardMetricFamily.ObjectiveTeamContribution: {
       return resolveOverallPerformanceMetric(resolvedAggregation, LeaderboardMetric.ObjectiveTeamContribution);

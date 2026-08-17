@@ -179,6 +179,9 @@ function getMetricLabel(metric: LeaderboardMetric): string {
     case LeaderboardMetric.ObjectiveTime: {
       return "Objective time";
     }
+    case LeaderboardMetric.AvgObjectiveTimePerGame: {
+      return "Avg objective time per game";
+    }
     case LeaderboardMetric.ObjectiveTeamContribution: {
       return "Team objective contribution";
     }
@@ -365,6 +368,10 @@ function formatMetricValue(
       return formatCount(metricValue, "mythic medal", `mythic ${mythicLabel}`);
     }
     case LeaderboardMetric.ObjectiveTime: {
+      const total = getReadableDuration(getDurationInIsoString(row.objectiveTimeSeconds), locale);
+      return `${total} total (${formatCount(row.objectiveGamesPlayed, "game", "games")})`;
+    }
+    case LeaderboardMetric.AvgObjectiveTimePerGame: {
       const average = getReadableDuration(getDurationInIsoString(metricValue), locale);
       const total = getReadableDuration(getDurationInIsoString(row.objectiveTimeSeconds), locale);
       return `${average} avg/game (${total} total, ${formatCount(row.objectiveGamesPlayed, "game", "games")})`;

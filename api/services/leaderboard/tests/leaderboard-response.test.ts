@@ -6,7 +6,7 @@ import { EmbedColors } from "../../../embeds/colors";
 import { createLeaderboardResponse } from "../leaderboard-response";
 
 describe("createLeaderboardResponse", () => {
-  it("formats objective metric averages with objective game context", () => {
+  it("formats total and average objective time with objective game context", () => {
     const baseLeaderboard: LeaderboardResponse = {
       guildId: "guild-123",
       queueChannelId: null,
@@ -29,7 +29,7 @@ describe("createLeaderboardResponse", () => {
           medalCount: 0,
           objectiveGamesPlayed: 10,
           objectiveTimeSeconds: 426,
-          metricValue: 42.6,
+          metricValue: 426,
         },
       ],
     };
@@ -37,6 +37,21 @@ describe("createLeaderboardResponse", () => {
     const objectiveTimeResponse = createLeaderboardResponse("en-US", baseLeaderboard, "<t:1733483139:R>");
     expect(objectiveTimeResponse.embeds?.[0]?.fields?.[2]).toEqual({
       name: "Objective time",
+      value: "7m 6s total (10 games)",
+      inline: true,
+    });
+
+    const averageObjectiveTimeResponse = createLeaderboardResponse(
+      "en-US",
+      {
+        ...baseLeaderboard,
+        metric: LeaderboardMetric.AvgObjectiveTimePerGame,
+        rows: baseLeaderboard.rows.map((row) => ({ ...row, metricValue: 42.6 })),
+      },
+      "<t:1733483139:R>",
+    );
+    expect(averageObjectiveTimeResponse.embeds?.[0]?.fields?.[2]).toEqual({
+      name: "Avg objective time per game",
       value: "42s avg/game (7m 6s total, 10 games)",
       inline: true,
     });

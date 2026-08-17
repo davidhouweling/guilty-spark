@@ -44,6 +44,15 @@ describe("resolveLeaderboardMetric", () => {
     );
   });
 
+  it("resolves objective time as total or average per applicable game", () => {
+    expect(resolveLeaderboardMetric(LeaderboardMetricFamily.ObjectiveTime, LeaderboardMetricAggregation.Total)).toBe(
+      LeaderboardMetric.ObjectiveTime,
+    );
+    expect(resolveLeaderboardMetric(LeaderboardMetricFamily.ObjectiveTime, LeaderboardMetricAggregation.AvgPerGame)).toBe(
+      LeaderboardMetric.AvgObjectiveTimePerGame,
+    );
+  });
+
   it("defaults to Total when no aggregation is provided for a count/score family", () => {
     expect(resolveLeaderboardMetric(LeaderboardMetricFamily.DamageDealt, null)).toBe(LeaderboardMetric.DamageDealt);
   });

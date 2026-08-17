@@ -1017,6 +1017,12 @@ export class DatabaseService {
         break;
       }
       case LeaderboardMetric.ObjectiveTime: {
+        metricSql = "SUM(gp.ObjectiveTimeSeconds)";
+        metricGamesPlayedSql = "COUNT(gp.ObjectiveTimeSeconds)";
+        metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
+        break;
+      }
+      case LeaderboardMetric.AvgObjectiveTimePerGame: {
         metricSql = "AVG(gp.ObjectiveTimeSeconds)";
         metricGamesPlayedSql = "COUNT(gp.ObjectiveTimeSeconds)";
         metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
