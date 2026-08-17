@@ -5,6 +5,7 @@ import { sub } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
+import { getObjectiveTimeSeconds } from "@guilty-spark/shared/halo/objective-metrics";
 import { getSafeRatioValue } from "@guilty-spark/shared/halo/stat-formatting";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
@@ -466,6 +467,8 @@ export class LeaderboardService {
         gamesPlayed: row.GamesPlayed,
         gameWins: row.GameWins,
         medalCount: row.MedalCount,
+        objectiveGamesPlayed: row.ObjectiveGamesPlayed,
+        objectiveTimeSeconds: row.ObjectiveTimeSeconds,
         metricValue: this.toFiniteMetricValue(row.MetricValue),
       })),
     };
@@ -590,6 +593,16 @@ export class LeaderboardService {
       const endedAt = this.toEpochSeconds(match.MatchInfo.EndTime) ?? nowEpoch;
       const team0Score = match.Teams.find((team) => team.TeamId === 0)?.Stats.CoreStats.Score ?? null;
       const team1Score = match.Teams.find((team) => team.TeamId === 1)?.Stats.CoreStats.Score ?? null;
+      const objectiveTimeByTeamId = new Map(
+        match.Teams.map((team) => [
+          team.TeamId,
+          getObjectiveTimeSeconds(match.MatchInfo.GameVariantCategory, team.Stats),
+        ]),
+      );
+      const gameObjectiveTimeSeconds = Array.from(objectiveTimeByTeamId.values()).reduce<number>(
+        (total, objectiveTimeSeconds) => total + (objectiveTimeSeconds ?? 0),
+        0,
+      );
 
       gamesRows.push({
         MatchId: match.MatchId,
@@ -631,6 +644,10 @@ export class LeaderboardService {
         const coreStats = teamStats.Stats.CoreStats;
         const deaths = coreStats.Deaths;
         const medalAggregates = await this.getMedalAggregates(coreStats.Medals, medalMetadataById);
+        const objectiveTimeSeconds = getObjectiveTimeSeconds(match.MatchInfo.GameVariantCategory, teamStats.Stats);
+        const teamObjectiveTimeSeconds = objectiveTimeByTeamId.get(teamStats.TeamId) ?? null;
+        const objectiveTeamContribution = this.getObjectiveContribution(objectiveTimeSeconds, teamObjectiveTimeSeconds);
+        const objectiveGameContribution = this.getObjectiveContribution(objectiveTimeSeconds, gameObjectiveTimeSeconds);
 
         gamePlayerRows.push({
           MatchId: match.MatchId,
@@ -661,6 +678,9 @@ export class LeaderboardService {
           MedalCount: medalAggregates.count,
           MedalPoints: medalAggregates.points,
           MythicMedalCount: medalAggregates.mythicCount,
+          ObjectiveTimeSeconds: objectiveTimeSeconds,
+          ObjectiveTeamContribution: objectiveTeamContribution,
+          ObjectiveGameContribution: objectiveGameContribution,
           ObjectiveStatsJson: JSON.stringify(teamStats.Stats),
           MedalsJson: JSON.stringify(coreStats.Medals),
           CreatedAt: nowEpoch,
@@ -748,5 +768,13 @@ export class LeaderboardService {
     }
 
     return { count, points, mythicCount };
+  }
+
+  private getObjectiveContribution(objectiveTimeSeconds: number | null, denominator: number | null): number | null {
+    if (objectiveTimeSeconds == null || denominator == null || denominator === 0) {
+      return null;
+    }
+
+    return objectiveTimeSeconds / denominator;
   }
 }

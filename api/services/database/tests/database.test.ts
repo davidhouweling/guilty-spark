@@ -611,7 +611,7 @@ describe("Database Service", () => {
       const gamePlayersInsertQuery = prepareSpy.mock.calls[4]?.[0];
       const countBoundParameters = (sql: string): number => sql.split("?").length - 1;
       if (gamePlayersInsertQuery != null) {
-        expect(countBoundParameters(gamePlayersInsertQuery)).toBe(31);
+        expect(countBoundParameters(gamePlayersInsertQuery)).toBe(34);
       }
       expect(batchSpy).toHaveBeenNthCalledWith(1, [deleteSeriesPlayersStatement, insertSeriesPlayersStatement]);
       expect(batchSpy).toHaveBeenNthCalledWith(2, [deleteGamesStatement, upsertGamesStatement]);
@@ -625,7 +625,7 @@ describe("Database Service", () => {
           XboxXuid: `xuid-${index.toString()}`,
         }),
       );
-      const chunkStatements = Array.from({ length: 14 }, () => new FakePreparedStatement());
+      const chunkStatements = Array.from({ length: 20 }, () => new FakePreparedStatement());
       let prepareCallCount = 0;
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockImplementation(() => {
         const statement = chunkStatements[prepareCallCount];
@@ -637,7 +637,7 @@ describe("Database Service", () => {
 
       await databaseService.upsertLeaderboardGamePlayers(gamePlayers);
 
-      expect(prepareSpy).toHaveBeenCalledTimes(14);
+      expect(prepareSpy).toHaveBeenCalledTimes(20);
       for (const bindSpy of bindSpies) {
         expect(bindSpy).toHaveBeenCalledTimes(1);
       }
@@ -712,7 +712,7 @@ describe("Database Service", () => {
       );
       const countBoundParameters = (sql: string): number => sql.split("?").length - 1;
       expect(gamePlayerInsertQueries).toHaveLength(1);
-      expect(countBoundParameters(gamePlayerInsertQueries[0] ?? "")).toBe(31);
+      expect(countBoundParameters(gamePlayerInsertQueries[0] ?? "")).toBe(34);
       expect(batchSpy).toHaveBeenCalledTimes(1);
       expect(batchSpy).toHaveBeenCalledWith(batchedStatements);
     });
@@ -1077,6 +1077,10 @@ describe("Database Service", () => {
       [LeaderboardMetric.PersonalScore, "SUM(gp.PersonalScore)", "DESC"],
       [LeaderboardMetric.MedalPoints, "SUM(gp.MedalPoints)", "DESC"],
       [LeaderboardMetric.MythicMedals, "SUM(gp.MythicMedalCount)", "DESC"],
+      [LeaderboardMetric.ObjectiveTime, "SUM(gp.ObjectiveTimeSeconds)", "DESC"],
+      [LeaderboardMetric.AvgObjectiveTimePerGame, "AVG(gp.ObjectiveTimeSeconds)", "DESC"],
+      [LeaderboardMetric.ObjectiveTeamContribution, "AVG(gp.ObjectiveTeamContribution)", "DESC"],
+      [LeaderboardMetric.ObjectiveGameContribution, "AVG(gp.ObjectiveGameContribution)", "DESC"],
       [LeaderboardMetric.Kills, "SUM(gp.Kills)", "DESC"],
       [LeaderboardMetric.Deaths, "SUM(gp.Deaths)", "ASC"],
       [LeaderboardMetric.Assists, "SUM(gp.Assists)", "DESC"],
@@ -1129,6 +1133,108 @@ describe("Database Service", () => {
       const rankingQuery = queries.find((query) => query.includes("ORDER BY agg.MetricValue"));
       expect(rankingQuery).toContain(expectedSql);
       expect(rankingQuery).toContain(`ORDER BY agg.MetricValue ${direction}`);
+    });
+
+    it("counts only applicable objective games for objective metric eligibility", async () => {
+      const queries: string[] = [];
+      vi.spyOn(env.DB, "prepare").mockImplementation((query) => {
+        queries.push(query);
+        const statement = new FakePreparedStatement();
+        if (query.startsWith("SELECT COUNT(*)")) {
+          vi.spyOn(statement, "first").mockResolvedValue({ Total: 0 });
+        } else {
+          vi.spyOn(statement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+        }
+        return statement;
+      });
+
+      await databaseService.getLeaderboardStatMetricRankings({
+        guildId: "guild-1",
+        queueChannelId: null,
+        startEpochSeconds: 0,
+        minGamesPlayed: 5,
+        limit: 10,
+        offset: 0,
+        metric: LeaderboardMetric.ObjectiveTime,
+      });
+
+      const rankingQuery = queries.find((query) => query.includes("ORDER BY agg.MetricValue"));
+      expect(rankingQuery).toContain("COUNT(gp.ObjectiveTimeSeconds) AS ObjectiveGamesPlayed");
+      expect(rankingQuery).toContain("HAVING COUNT(gp.ObjectiveTimeSeconds) >= ?");
+    });
+
+    it("clamps objective metric minimum games to one when configured to zero", async () => {
+      const countStatement = new FakePreparedStatement<{ Total: number }>();
+      const rowsStatement = new FakePreparedStatement();
+      vi.spyOn(env.DB, "prepare").mockReturnValueOnce(countStatement).mockReturnValueOnce(rowsStatement);
+      const countBindSpy = vi.spyOn(countStatement, "bind").mockReturnThis();
+      vi.spyOn(rowsStatement, "bind").mockReturnThis();
+      vi.spyOn(countStatement, "first").mockResolvedValue({ Total: 0 });
+      vi.spyOn(rowsStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+
+      await databaseService.getLeaderboardStatMetricRankings({
+        guildId: "guild-1",
+        queueChannelId: null,
+        startEpochSeconds: 123_456,
+        minGamesPlayed: 0,
+        limit: 25,
+        offset: 5,
+        metric: LeaderboardMetric.ObjectiveTime,
+      });
+
+      const [countBindings] = countBindSpy.mock.calls;
+      expect(countBindings).toContain(1);
+    });
+
+    it("keeps non-objective metric minimum games unchanged", async () => {
+      const countStatement = new FakePreparedStatement<{ Total: number }>();
+      const rowsStatement = new FakePreparedStatement();
+      vi.spyOn(env.DB, "prepare").mockReturnValueOnce(countStatement).mockReturnValueOnce(rowsStatement);
+      const countBindSpy = vi.spyOn(countStatement, "bind").mockReturnThis();
+      vi.spyOn(rowsStatement, "bind").mockReturnThis();
+      vi.spyOn(countStatement, "first").mockResolvedValue({ Total: 0 });
+      vi.spyOn(rowsStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+
+      await databaseService.getLeaderboardStatMetricRankings({
+        guildId: "guild-1",
+        queueChannelId: null,
+        startEpochSeconds: 123_456,
+        minGamesPlayed: 0,
+        limit: 25,
+        offset: 5,
+        metric: LeaderboardMetric.Kills,
+      });
+
+      const [countBindings] = countBindSpy.mock.calls;
+      expect(countBindings).toContain(0);
+    });
+
+    it("uses valid contribution denominators for contribution game counts", async () => {
+      const queries: string[] = [];
+      vi.spyOn(env.DB, "prepare").mockImplementation((query) => {
+        queries.push(query);
+        const statement = new FakePreparedStatement();
+        if (query.startsWith("SELECT COUNT(*)")) {
+          vi.spyOn(statement, "first").mockResolvedValue({ Total: 0 });
+        } else {
+          vi.spyOn(statement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+        }
+        return statement;
+      });
+
+      await databaseService.getLeaderboardStatMetricRankings({
+        guildId: "guild-1",
+        queueChannelId: null,
+        startEpochSeconds: 0,
+        minGamesPlayed: 5,
+        limit: 10,
+        offset: 0,
+        metric: LeaderboardMetric.ObjectiveTeamContribution,
+      });
+
+      const rankingQuery = queries.find((query) => query.includes("ORDER BY agg.MetricValue"));
+      expect(rankingQuery).toContain("COUNT(gp.ObjectiveTeamContribution) AS ObjectiveGamesPlayed");
+      expect(rankingQuery).toContain("HAVING COUNT(gp.ObjectiveTeamContribution) >= ?");
     });
 
     it.each([

@@ -7,5 +7,7 @@ export interface LeaderboardRankingRow {
   GamesPlayed: number;
   GameWins: number;
   MedalCount: number;
+  ObjectiveGamesPlayed: number;
+  ObjectiveTimeSeconds: number;
   MetricValue: number;
 }

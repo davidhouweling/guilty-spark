@@ -48,6 +48,8 @@ export const leaderboardContract = defineContract(
         gamesPlayed: z.number().int().nonnegative(),
         gameWins: z.number().int().nonnegative(),
         medalCount: z.number().int().nonnegative(),
+        objectiveGamesPlayed: z.number().int().nonnegative(),
+        objectiveTimeSeconds: z.number().nonnegative(),
         metricValue: z.number(),
       }),
     ),

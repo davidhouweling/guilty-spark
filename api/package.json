@@ -27,7 +27,7 @@
     "date-fns": "^4.4.0",
     "discord-api-types": "^0.38.49",
     "discord-interactions": "^4.4.0",
-    "halo-infinite-api": "^14.3.1",
+    "halo-infinite-api": "^14.3.2",
     "itty-router": "^5.0.24",
     "luxon": "^3.7.2",
     "tinyduration": "^3.4.1",

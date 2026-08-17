@@ -523,7 +523,7 @@ export class DatabaseService {
       return;
     }
 
-    const variablesPerRow = 31;
+    const variablesPerRow = 34;
     const statementVariableLimit = Math.min(SQLITE_MAX_VARIABLES, D1_SAFE_MAX_VARIABLES_PER_STATEMENT);
     const maxRowsPerStatement = Math.max(1, Math.floor(statementVariableLimit / variablesPerRow));
     const statements: D1PreparedStatement[] = [];
@@ -533,9 +533,9 @@ export class DatabaseService {
       const rowPlaceholders = `(${Array.from({ length: variablesPerRow }, () => "?").join(", ")})`;
       const placeholders = chunk.map(() => rowPlaceholders).join(",");
       const query = `
-        INSERT INTO LeaderboardGamePlayers (MatchId, GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginning, GameWon, RankInMatch, PersonalScore, Kills, Deaths, Assists, HeadshotKills, Kda, Accuracy, ShotsHit, ShotsFired, DamageDealt, DamageTaken, DamageRatio, AvgLifeSeconds, AvgDamagePerLife, MedalCount, MedalPoints, MythicMedalCount, ObjectiveStatsJson, MedalsJson, CreatedAt)
+        INSERT INTO LeaderboardGamePlayers (MatchId, GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginning, GameWon, RankInMatch, PersonalScore, Kills, Deaths, Assists, HeadshotKills, Kda, Accuracy, ShotsHit, ShotsFired, DamageDealt, DamageTaken, DamageRatio, AvgLifeSeconds, AvgDamagePerLife, MedalCount, MedalPoints, MythicMedalCount, ObjectiveTimeSeconds, ObjectiveTeamContribution, ObjectiveGameContribution, ObjectiveStatsJson, MedalsJson, CreatedAt)
         VALUES ${placeholders}
-        ON CONFLICT(GuildId, QueueNumber, MatchId, XboxXuid) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginning=excluded.PresentAtBeginning, GameWon=excluded.GameWon, RankInMatch=excluded.RankInMatch, PersonalScore=excluded.PersonalScore, Kills=excluded.Kills, Deaths=excluded.Deaths, Assists=excluded.Assists, HeadshotKills=excluded.HeadshotKills, Kda=excluded.Kda, Accuracy=excluded.Accuracy, ShotsHit=excluded.ShotsHit, ShotsFired=excluded.ShotsFired, DamageDealt=excluded.DamageDealt, DamageTaken=excluded.DamageTaken, DamageRatio=excluded.DamageRatio, AvgLifeSeconds=excluded.AvgLifeSeconds, AvgDamagePerLife=excluded.AvgDamagePerLife, MedalCount=excluded.MedalCount, MedalPoints=excluded.MedalPoints, MythicMedalCount=excluded.MythicMedalCount, ObjectiveStatsJson=excluded.ObjectiveStatsJson, MedalsJson=excluded.MedalsJson
+        ON CONFLICT(GuildId, QueueNumber, MatchId, XboxXuid) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginning=excluded.PresentAtBeginning, GameWon=excluded.GameWon, RankInMatch=excluded.RankInMatch, PersonalScore=excluded.PersonalScore, Kills=excluded.Kills, Deaths=excluded.Deaths, Assists=excluded.Assists, HeadshotKills=excluded.HeadshotKills, Kda=excluded.Kda, Accuracy=excluded.Accuracy, ShotsHit=excluded.ShotsHit, ShotsFired=excluded.ShotsFired, DamageDealt=excluded.DamageDealt, DamageTaken=excluded.DamageTaken, DamageRatio=excluded.DamageRatio, AvgLifeSeconds=excluded.AvgLifeSeconds, AvgDamagePerLife=excluded.AvgDamagePerLife, MedalCount=excluded.MedalCount, MedalPoints=excluded.MedalPoints, MythicMedalCount=excluded.MythicMedalCount, ObjectiveTimeSeconds=excluded.ObjectiveTimeSeconds, ObjectiveTeamContribution=excluded.ObjectiveTeamContribution, ObjectiveGameContribution=excluded.ObjectiveGameContribution, ObjectiveStatsJson=excluded.ObjectiveStatsJson, MedalsJson=excluded.MedalsJson
       `;
       const values = chunk.flatMap((player) => [
         player.MatchId,
@@ -566,6 +566,9 @@ export class DatabaseService {
         player.MedalCount,
         player.MedalPoints,
         player.MythicMedalCount,
+        player.ObjectiveTimeSeconds,
+        player.ObjectiveTeamContribution,
+        player.ObjectiveGameContribution,
         player.ObjectiveStatsJson,
         player.MedalsJson,
         player.CreatedAt,
@@ -681,7 +684,7 @@ export class DatabaseService {
     }
 
     if (normalizedGamePlayers.length > 0) {
-      const variablesPerRow = 31;
+      const variablesPerRow = 34;
       const maxRowsPerStatement = Math.max(1, Math.floor(statementVariableLimit / variablesPerRow));
 
       for (let start = 0; start < normalizedGamePlayers.length; start += maxRowsPerStatement) {
@@ -690,9 +693,9 @@ export class DatabaseService {
         const placeholders = chunk.map(() => rowPlaceholders).join(",");
         const stmt = this.DB.prepare(
           `
-        INSERT INTO LeaderboardGamePlayers (MatchId, GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginning, GameWon, RankInMatch, PersonalScore, Kills, Deaths, Assists, HeadshotKills, Kda, Accuracy, ShotsHit, ShotsFired, DamageDealt, DamageTaken, DamageRatio, AvgLifeSeconds, AvgDamagePerLife, MedalCount, MedalPoints, MythicMedalCount, ObjectiveStatsJson, MedalsJson, CreatedAt)
+        INSERT INTO LeaderboardGamePlayers (MatchId, GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginning, GameWon, RankInMatch, PersonalScore, Kills, Deaths, Assists, HeadshotKills, Kda, Accuracy, ShotsHit, ShotsFired, DamageDealt, DamageTaken, DamageRatio, AvgLifeSeconds, AvgDamagePerLife, MedalCount, MedalPoints, MythicMedalCount, ObjectiveTimeSeconds, ObjectiveTeamContribution, ObjectiveGameContribution, ObjectiveStatsJson, MedalsJson, CreatedAt)
         VALUES ${placeholders}
-        ON CONFLICT(GuildId, QueueNumber, MatchId, XboxXuid) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginning=excluded.PresentAtBeginning, GameWon=excluded.GameWon, RankInMatch=excluded.RankInMatch, PersonalScore=excluded.PersonalScore, Kills=excluded.Kills, Deaths=excluded.Deaths, Assists=excluded.Assists, HeadshotKills=excluded.HeadshotKills, Kda=excluded.Kda, Accuracy=excluded.Accuracy, ShotsHit=excluded.ShotsHit, ShotsFired=excluded.ShotsFired, DamageDealt=excluded.DamageDealt, DamageTaken=excluded.DamageTaken, DamageRatio=excluded.DamageRatio, AvgLifeSeconds=excluded.AvgLifeSeconds, AvgDamagePerLife=excluded.AvgDamagePerLife, MedalCount=excluded.MedalCount, MedalPoints=excluded.MedalPoints, MythicMedalCount=excluded.MythicMedalCount, ObjectiveStatsJson=excluded.ObjectiveStatsJson, MedalsJson=excluded.MedalsJson
+        ON CONFLICT(GuildId, QueueNumber, MatchId, XboxXuid) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginning=excluded.PresentAtBeginning, GameWon=excluded.GameWon, RankInMatch=excluded.RankInMatch, PersonalScore=excluded.PersonalScore, Kills=excluded.Kills, Deaths=excluded.Deaths, Assists=excluded.Assists, HeadshotKills=excluded.HeadshotKills, Kda=excluded.Kda, Accuracy=excluded.Accuracy, ShotsHit=excluded.ShotsHit, ShotsFired=excluded.ShotsFired, DamageDealt=excluded.DamageDealt, DamageTaken=excluded.DamageTaken, DamageRatio=excluded.DamageRatio, AvgLifeSeconds=excluded.AvgLifeSeconds, AvgDamagePerLife=excluded.AvgDamagePerLife, MedalCount=excluded.MedalCount, MedalPoints=excluded.MedalPoints, MythicMedalCount=excluded.MythicMedalCount, ObjectiveTimeSeconds=excluded.ObjectiveTimeSeconds, ObjectiveTeamContribution=excluded.ObjectiveTeamContribution, ObjectiveGameContribution=excluded.ObjectiveGameContribution, ObjectiveStatsJson=excluded.ObjectiveStatsJson, MedalsJson=excluded.MedalsJson
       `,
         ).bind(
           ...chunk.flatMap((player) => [
@@ -724,6 +727,9 @@ export class DatabaseService {
             player.MedalCount,
             player.MedalPoints,
             player.MythicMedalCount,
+            player.ObjectiveTimeSeconds,
+            player.ObjectiveTeamContribution,
+            player.ObjectiveGameContribution,
             player.ObjectiveStatsJson,
             player.MedalsJson,
             player.CreatedAt,
@@ -941,6 +947,9 @@ export class DatabaseService {
   }> {
     let metricSql: string;
     let metricBindings: readonly (string | number | null)[] = [];
+    let metricGamesPlayedSql = "COUNT(*)";
+    let metricMinGamesPlayed = minGamesPlayed;
+    let objectiveGamesPlayedSql = "COUNT(gp.ObjectiveTimeSeconds)";
     switch (metric) {
       case LeaderboardMetric.Kills: {
         metricSql = "SUM(gp.Kills)";
@@ -1005,6 +1014,32 @@ export class DatabaseService {
       }
       case LeaderboardMetric.MythicMedals: {
         metricSql = "SUM(gp.MythicMedalCount)";
+        break;
+      }
+      case LeaderboardMetric.ObjectiveTime: {
+        metricSql = "SUM(gp.ObjectiveTimeSeconds)";
+        metricGamesPlayedSql = "COUNT(gp.ObjectiveTimeSeconds)";
+        metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
+        break;
+      }
+      case LeaderboardMetric.AvgObjectiveTimePerGame: {
+        metricSql = "AVG(gp.ObjectiveTimeSeconds)";
+        metricGamesPlayedSql = "COUNT(gp.ObjectiveTimeSeconds)";
+        metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
+        break;
+      }
+      case LeaderboardMetric.ObjectiveTeamContribution: {
+        metricSql = "AVG(gp.ObjectiveTeamContribution)";
+        metricGamesPlayedSql = "COUNT(gp.ObjectiveTeamContribution)";
+        objectiveGamesPlayedSql = "COUNT(gp.ObjectiveTeamContribution)";
+        metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
+        break;
+      }
+      case LeaderboardMetric.ObjectiveGameContribution: {
+        metricSql = "AVG(gp.ObjectiveGameContribution)";
+        metricGamesPlayedSql = "COUNT(gp.ObjectiveGameContribution)";
+        objectiveGamesPlayedSql = "COUNT(gp.ObjectiveGameContribution)";
+        metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
         break;
       }
       case LeaderboardMetric.AvgPersonalScorePerSeries: {
@@ -1103,6 +1138,8 @@ export class DatabaseService {
         stats.GamesPlayed AS GamesPlayed,
         stats.GameWins AS GameWins,
         stats.MedalCount AS MedalCount,
+        stats.ObjectiveGamesPlayed AS ObjectiveGamesPlayed,
+        stats.ObjectiveTimeSeconds AS ObjectiveTimeSeconds,
         stats.MetricValue AS MetricValue
       FROM (
         SELECT
@@ -1111,6 +1148,8 @@ export class DatabaseService {
           COUNT(*) AS GamesPlayed,
           SUM(gp.GameWon) AS GameWins,
           SUM(gp.MedalCount) AS MedalCount,
+          ${objectiveGamesPlayedSql} AS ObjectiveGamesPlayed,
+          SUM(COALESCE(gp.ObjectiveTimeSeconds, 0)) AS ObjectiveTimeSeconds,
           ${metricSql} AS MetricValue
         FROM LeaderboardGamePlayers gp
         INNER JOIN LeaderboardGames g
@@ -1121,7 +1160,7 @@ export class DatabaseService {
           AND g.EndedAt >= ?
           AND (? IS NULL OR gp.QueueChannelId = ?)
         GROUP BY gp.XboxXuid
-        HAVING COUNT(*) >= ?
+        HAVING ${metricGamesPlayedSql} >= ?
       ) stats
       LEFT JOIN (
         SELECT
@@ -1169,7 +1208,7 @@ export class DatabaseService {
       startEpochSeconds,
       queueChannelId,
       queueChannelId,
-      minGamesPlayed,
+      metricMinGamesPlayed,
       guildId,
       startEpochSeconds,
       queueChannelId,
@@ -1252,6 +1291,8 @@ export class DatabaseService {
         stats.GamesPlayed AS GamesPlayed,
         stats.GameWins AS GameWins,
         0 AS MedalCount,
+        0 AS ObjectiveGamesPlayed,
+        0 AS ObjectiveTimeSeconds,
         ${metricSql} AS MetricValue
       FROM (
         SELECT
