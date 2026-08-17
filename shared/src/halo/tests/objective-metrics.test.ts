@@ -10,9 +10,7 @@ describe("objective metrics", () => {
   it("maps carrier and occupation time sources for supported objective modes", () => {
     expect(getObjectiveTimeSource(ObjectiveGameVariantCategory.CaptureTheFlag)).toBe(ObjectiveTimeSource.FlagCarrier);
     expect(getObjectiveTimeSource(ObjectiveGameVariantCategory.Strongholds)).toBe(ObjectiveTimeSource.ZoneOccupation);
-    expect(getObjectiveTimeSource(ObjectiveGameVariantCategory.KingOfTheHill)).toBe(
-      ObjectiveTimeSource.ZoneOccupation,
-    );
+    expect(getObjectiveTimeSource(ObjectiveGameVariantCategory.KingOfTheHill)).toBe(ObjectiveTimeSource.ZoneOccupation);
     expect(getObjectiveTimeSource(ObjectiveGameVariantCategory.TotalControl)).toBe(ObjectiveTimeSource.ZoneOccupation);
     expect(getObjectiveTimeSource(ObjectiveGameVariantCategory.Oddball)).toBe(ObjectiveTimeSource.SkullCarrier);
   });

@@ -646,14 +646,8 @@ export class LeaderboardService {
         const medalAggregates = await this.getMedalAggregates(coreStats.Medals, medalMetadataById);
         const objectiveTimeSeconds = getObjectiveTimeSeconds(match.MatchInfo.GameVariantCategory, teamStats.Stats);
         const teamObjectiveTimeSeconds = objectiveTimeByTeamId.get(teamStats.TeamId) ?? null;
-        const objectiveTeamContribution = this.getObjectiveContribution(
-          objectiveTimeSeconds,
-          teamObjectiveTimeSeconds,
-        );
-        const objectiveGameContribution = this.getObjectiveContribution(
-          objectiveTimeSeconds,
-          gameObjectiveTimeSeconds,
-        );
+        const objectiveTeamContribution = this.getObjectiveContribution(objectiveTimeSeconds, teamObjectiveTimeSeconds);
+        const objectiveGameContribution = this.getObjectiveContribution(objectiveTimeSeconds, gameObjectiveTimeSeconds);
 
         gamePlayerRows.push({
           MatchId: match.MatchId,
