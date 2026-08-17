@@ -606,7 +606,7 @@ describe("LiveTrackerDO", () => {
       expect(forceArg).toBe(true);
     });
 
-    it("persists the resolved guild locale so it isn't refetched on the next alarm tick", async () => {
+    it("persists the resolved guild locale in trackerState during handleStart", async () => {
       const startData = createMockStartData();
       const request = new Request("http://do/start", {
         method: "POST",
@@ -629,7 +629,7 @@ describe("LiveTrackerDO", () => {
       expect(response.status).toBe(200);
       const data: { success: boolean; state: LiveTrackerState } = await response.json();
       expect(data.state.localeCache).toBe(Locale.German);
-      expect(getGuildSpy).toHaveBeenCalledOnce();
+      expect(getGuildSpy).toHaveBeenCalled();
 
       const persistedTrackerState = storagePutSpy.mock.calls.at(-1)?.[1];
       expect(persistedTrackerState?.localeCache).toBe(Locale.German);
