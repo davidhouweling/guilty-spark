@@ -28,6 +28,7 @@
     "astro": "^7.0.7",
     "classnames": "^2.5.1",
     "date-fns": "^4.4.0",
+    "halo-infinite-api": "^14.3.2",
     "javascript-time-ago": "^2.6.4",
     "modern-normalize": "^3.0.1",
     "react": "^19.2.7",
