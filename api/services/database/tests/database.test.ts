@@ -1162,6 +1162,52 @@ describe("Database Service", () => {
       expect(rankingQuery).toContain("HAVING COUNT(gp.ObjectiveTimeSeconds) >= ?");
     });
 
+    it("clamps objective metric minimum games to one when configured to zero", async () => {
+      const countStatement = new FakePreparedStatement<{ Total: number }>();
+      const rowsStatement = new FakePreparedStatement();
+      vi.spyOn(env.DB, "prepare").mockReturnValueOnce(countStatement).mockReturnValueOnce(rowsStatement);
+      const countBindSpy = vi.spyOn(countStatement, "bind").mockReturnThis();
+      vi.spyOn(rowsStatement, "bind").mockReturnThis();
+      vi.spyOn(countStatement, "first").mockResolvedValue({ Total: 0 });
+      vi.spyOn(rowsStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+
+      await databaseService.getLeaderboardStatMetricRankings({
+        guildId: "guild-1",
+        queueChannelId: null,
+        startEpochSeconds: 123_456,
+        minGamesPlayed: 0,
+        limit: 25,
+        offset: 5,
+        metric: LeaderboardMetric.ObjectiveTime,
+      });
+
+      const [countBindings] = countBindSpy.mock.calls;
+      expect(countBindings).toContain(1);
+    });
+
+    it("keeps non-objective metric minimum games unchanged", async () => {
+      const countStatement = new FakePreparedStatement<{ Total: number }>();
+      const rowsStatement = new FakePreparedStatement();
+      vi.spyOn(env.DB, "prepare").mockReturnValueOnce(countStatement).mockReturnValueOnce(rowsStatement);
+      const countBindSpy = vi.spyOn(countStatement, "bind").mockReturnThis();
+      vi.spyOn(rowsStatement, "bind").mockReturnThis();
+      vi.spyOn(countStatement, "first").mockResolvedValue({ Total: 0 });
+      vi.spyOn(rowsStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+
+      await databaseService.getLeaderboardStatMetricRankings({
+        guildId: "guild-1",
+        queueChannelId: null,
+        startEpochSeconds: 123_456,
+        minGamesPlayed: 0,
+        limit: 25,
+        offset: 5,
+        metric: LeaderboardMetric.Kills,
+      });
+
+      const [countBindings] = countBindSpy.mock.calls;
+      expect(countBindings).toContain(0);
+    });
+
     it("uses valid contribution denominators for contribution game counts", async () => {
       const queries: string[] = [];
       vi.spyOn(env.DB, "prepare").mockImplementation((query) => {

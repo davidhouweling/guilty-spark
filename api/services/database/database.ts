@@ -948,6 +948,7 @@ export class DatabaseService {
     let metricSql: string;
     let metricBindings: readonly (string | number | null)[] = [];
     let metricGamesPlayedSql = "COUNT(*)";
+    let metricMinGamesPlayed = minGamesPlayed;
     let objectiveGamesPlayedSql = "COUNT(gp.ObjectiveTimeSeconds)";
     switch (metric) {
       case LeaderboardMetric.Kills: {
@@ -1018,18 +1019,21 @@ export class DatabaseService {
       case LeaderboardMetric.ObjectiveTime: {
         metricSql = "AVG(gp.ObjectiveTimeSeconds)";
         metricGamesPlayedSql = "COUNT(gp.ObjectiveTimeSeconds)";
+        metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
         break;
       }
       case LeaderboardMetric.ObjectiveTeamContribution: {
         metricSql = "AVG(gp.ObjectiveTeamContribution)";
         metricGamesPlayedSql = "COUNT(gp.ObjectiveTeamContribution)";
         objectiveGamesPlayedSql = "COUNT(gp.ObjectiveTeamContribution)";
+        metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
         break;
       }
       case LeaderboardMetric.ObjectiveGameContribution: {
         metricSql = "AVG(gp.ObjectiveGameContribution)";
         metricGamesPlayedSql = "COUNT(gp.ObjectiveGameContribution)";
         objectiveGamesPlayedSql = "COUNT(gp.ObjectiveGameContribution)";
+        metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
         break;
       }
       case LeaderboardMetric.AvgPersonalScorePerSeries: {
@@ -1198,7 +1202,7 @@ export class DatabaseService {
       startEpochSeconds,
       queueChannelId,
       queueChannelId,
-      minGamesPlayed,
+      metricMinGamesPlayed,
       guildId,
       startEpochSeconds,
       queueChannelId,
