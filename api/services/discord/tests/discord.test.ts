@@ -117,6 +117,9 @@ describe("DiscordService", () => {
       if (path === `${prefix}/channels/fake-channel/messages/fake-message-delete`) {
         return Promise.resolve(new Response(null, { status: 204 }));
       }
+      if (path === `${prefix}/guilds/fake-guild-id`) {
+        return Promise.resolve(new Response(JSON.stringify(guild)));
+      }
 
       return Promise.reject(new Error(`Invalid path: ${path}`));
     });
@@ -1247,6 +1250,24 @@ describe("DiscordService", () => {
       const url = discordService.getGuildIconUrl("fake-guild-id", null);
 
       expect(url).toBeNull();
+    });
+  });
+
+  describe("getGuild()", () => {
+    it("fetches the guild from the Discord API", async () => {
+      const result = await discordService.getGuild("fake-guild-id");
+
+      expect(result).toEqual(guild);
+    });
+
+    it("caches the guild for repeated calls with the same guildId", async () => {
+      await discordService.getGuild("fake-guild-id");
+      await discordService.getGuild("fake-guild-id");
+
+      const guildFetchCalls = mockFetch.mock.calls.filter(
+        ([path]) => path === "https://discord.com/api/v10/guilds/fake-guild-id",
+      );
+      expect(guildFetchCalls).toHaveLength(1);
     });
   });
 

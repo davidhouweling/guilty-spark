@@ -203,6 +203,7 @@ export class DiscordService {
   private readonly verifyKey: typeof discordInteractionsVerifyKey;
   private commands: Map<string, BaseCommand> | undefined = undefined;
   private readonly guildMemberCache = new Map<string, APIGuildMember>();
+  private readonly guildCache = new Map<string, APIGuild>();
   private readonly rateLimitDebounceMap = new Map<string, { timeout: NodeJS.Timeout; data: string }>();
 
   constructor({ env, logService, fetch, verifyKey }: DiscordServiceOpts) {
@@ -982,10 +983,17 @@ export class DiscordService {
   }
 
   async getGuild(guildId: string): Promise<APIGuild> {
-    return this.fetch<APIGuild>(Routes.guild(guildId), {
-      method: "GET",
-      cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
-    });
+    if (!this.guildCache.has(guildId)) {
+      const guild = await this.fetch<APIGuild>(Routes.guild(guildId), {
+        method: "GET",
+        cf: {
+          cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
+        },
+      });
+      this.guildCache.set(guildId, guild);
+    }
+
+    return Preconditions.checkExists(this.guildCache.get(guildId));
   }
 
   async getGuildPreferredLocale(guildId: string): Promise<Locale> {

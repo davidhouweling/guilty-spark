@@ -334,7 +334,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         embedData,
       );
 
-      const initialChannelSeriesScore = this.haloService.getSeriesScore([], "en-US", trackerState.teams.length === 2);
+      const initialChannelSeriesScore = this.haloService.getSeriesScore(
+        [],
+        await this.getLocale(trackerState),
+        trackerState.teams.length === 2,
+      );
       await this.updateChannelName(trackerState, initialChannelSeriesScore, true);
       await this.discordService.editMessage(
         startRequest.channelId,
@@ -791,10 +795,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   ): Promise<{ seriesScore: string; seriesScoreWithEmoji: string }> {
     const rawMatches = await this.loadMatchesFromKV(trackerState.matchIds);
     const rawMatchesArray = Object.values(rawMatches);
-    const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+    const locale = await this.getLocale(trackerState);
+    const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, locale);
     trackerState.seriesScore = seriesScore;
 
-    return { seriesScore, seriesScoreWithEmoji: this.haloService.getSeriesScore(rawMatchesArray, "en-US", true) };
+    return { seriesScore, seriesScoreWithEmoji: this.haloService.getSeriesScore(rawMatchesArray, locale, true) };
   }
 
   /**
@@ -1105,6 +1110,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
   private async enrichAndMergeMatches(trackerState: LiveTrackerState, matches: MatchStats[]): Promise<void> {
     const trackingPlayers = trackerState.teams.flatMap((team) => team.playerIds);
+    const locale = await this.getLocale(trackerState);
 
     for (const match of matches) {
       if (trackerState.discoveredMatches[match.MatchId] != null) {
@@ -1138,8 +1144,8 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         );
       }
 
-      const duration = getReadableDuration(match.MatchInfo.Duration, "en-US");
-      const { gameScore, gameSubScore } = this.haloService.getMatchScore(match, "en-US");
+      const duration = getReadableDuration(match.MatchInfo.Duration, locale);
+      const { gameScore, gameSubScore } = this.haloService.getMatchScore(match, locale);
 
       let gameType = "*Unknown Game Type*";
       let gameMap = "*Unknown Map*";
@@ -1253,6 +1259,16 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
     trackerState.lastMessageState.matchCount = Object.keys(trackerState.discoveredMatches).length;
     trackerState.lastMessageState.substitutionCount = trackerState.substitutions.length;
+  }
+
+  private async getLocale(trackerState: LiveTrackerState): Promise<string> {
+    if (trackerState.localeCache != null) {
+      return trackerState.localeCache;
+    }
+
+    const locale = await this.discordService.getGuildPreferredLocale(trackerState.guildId);
+    trackerState.localeCache = locale;
+    return locale;
   }
 
   private async checkChannelManagePermission(trackerState: LiveTrackerState, channel: APIChannel): Promise<boolean> {

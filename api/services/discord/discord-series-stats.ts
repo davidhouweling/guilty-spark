@@ -150,9 +150,10 @@ export async function buildDiscordSeriesRenderDataFromMatches({
     left.MatchInfo.StartTime.localeCompare(right.MatchInfo.StartTime),
   );
 
-  const playerXuidToGametagMap = await haloService.getPlayerXuidsToGametags(sortedMatches, {
-    presentAtBeginningOnly: true,
-  });
+  const [playerXuidToGametagMap, locale] = await Promise.all([
+    haloService.getPlayerXuidsToGametags(sortedMatches, { presentAtBeginningOnly: true }),
+    discordService.getGuildPreferredLocale(guildId),
+  ]);
 
   const renderMatches = await Promise.all(
     sortedMatches.map(async (match) => {
@@ -161,7 +162,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
         haloService.getMapThumbnailUrl(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),
       ]);
       const { gameType, gameMap } = splitGameTypeAndMap(gameTypeAndMap);
-      const { gameScore, gameSubScore } = haloService.getMatchScore(match, "en-US");
+      const { gameScore, gameSubScore } = haloService.getMatchScore(match, locale);
 
       const playerXuidToGametag: Record<string, string> = {};
       for (const player of match.Players) {
@@ -180,7 +181,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
         gameType,
         gameMap,
         gameMapThumbnailUrl: mapThumbnailUrl ?? "data:,",
-        duration: getReadableDuration(match.MatchInfo.Duration, "en-US"),
+        duration: getReadableDuration(match.MatchInfo.Duration, locale),
         gameScore,
         gameSubScore,
         startTime: new Date(match.MatchInfo.StartTime).toISOString(),
@@ -209,7 +210,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
   return {
     title: `Queue #${queueNumber.toString()} Series Stats`,
     subtitle,
-    seriesScore: haloService.getSeriesScore(sortedMatches, "en-US"),
+    seriesScore: haloService.getSeriesScore(sortedMatches, locale),
     teams,
     matches: renderMatches,
   };

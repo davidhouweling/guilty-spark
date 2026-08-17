@@ -7,7 +7,7 @@ import type {
   APIEmbed,
   APIGuildMember,
 } from "discord-api-types/v10";
-import { ChannelType } from "discord-api-types/v10";
+import { ChannelType, Locale } from "discord-api-types/v10";
 import { sub } from "date-fns";
 import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
@@ -937,6 +937,21 @@ describe("NeatQueueService", () => {
           expect(resolvedPersistArg.neatQueueConfig.ResultsChannelId).toBe("results-channel-1");
           expect(resolvedPersistArg.locale).toBe("en-US");
           expect(Array.isArray(resolvedPersistArg.series)).toBe(true);
+        });
+
+        it("uses the guild's preferred locale instead of a hardcoded locale", async () => {
+          vi.spyOn(discordService, "getGuild").mockResolvedValue({ ...guild, preferred_locale: Locale.German });
+
+          const { jobToComplete } = neatQueueService.handleRequest(
+            getFakeNeatQueueData("matchCompleted"),
+            neatQueueConfig,
+          );
+
+          await jobToComplete?.();
+
+          expect(persistSeriesDataSpy).toHaveBeenCalledOnce();
+          const [persistArg] = persistSeriesDataSpy.mock.calls[0] ?? [];
+          expect(Preconditions.checkExists(persistArg).locale).toBe(Locale.German);
         });
 
         it("creates the thread/message and posts overviews and game stats, clears timeline", async () => {

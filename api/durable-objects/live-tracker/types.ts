@@ -49,6 +49,7 @@ export interface LiveTrackerState {
     substitutionCount: number;
   };
   channelManagePermissionCache?: boolean;
+  localeCache?: string;
   lastRefreshAttempt?: string;
   refreshInProgress?: boolean;
   refreshStartedAt?: string | undefined;

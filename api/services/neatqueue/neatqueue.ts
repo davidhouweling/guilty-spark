@@ -86,7 +86,6 @@ export class NeatQueueService {
   private readonly leaderboardService: LeaderboardService;
   private readonly liveTrackerService: LiveTrackerService;
   private readonly individualTrackerService: IndividualTrackerService;
-  private readonly locale = "en-US";
   private readonly queueStateCache = new Map<string, NeatQueueState>();
 
   constructor({
@@ -338,6 +337,8 @@ export class NeatQueueService {
         }
       }
 
+      const locale = await discordService.getGuildPreferredLocale(guildId);
+
       const seriesOverviewEmbed = await this.getSeriesOverviewEmbed({
         guildId,
         channelId: queueMessage.message.channel_id,
@@ -349,6 +350,7 @@ export class NeatQueueService {
           playerIds: team.players.map((player) => player.user.id),
         })),
         substitutions: substitutionsEmbed,
+        locale,
       });
 
       let threadId = channelId;
@@ -369,12 +371,12 @@ export class NeatQueueService {
         const thread = await discordService.startThreadFromMessage(
           channelId,
           messageId,
-          `Queue #${queue.toString()} series stats (${haloService.getSeriesScore(series, "en-US", true)})`,
+          `Queue #${queue.toString()} series stats (${haloService.getSeriesScore(series, locale, true)})`,
         );
         threadId = thread.id;
       }
 
-      await this.postSeriesDetailsToChannel(threadId, guildId, series);
+      await this.postSeriesDetailsToChannel(threadId, guildId, series, locale);
     } catch (error) {
       if (error instanceof EndUserError) {
         if (error.handled) {
@@ -2104,6 +2106,7 @@ export class NeatQueueService {
     let thread: RESTPostAPIChannelThreadsResult | undefined;
 
     try {
+      const locale = await discordService.getGuildPreferredLocale(neatQueueConfig.GuildId);
       const resultsMessage = await discordService.getTeamsFromQueueResult(
         neatQueueConfig.GuildId,
         neatQueueConfig.ResultsChannelId,
@@ -2115,7 +2118,7 @@ export class NeatQueueService {
       thread = await discordService.startThreadFromMessage(
         channelId,
         messageId,
-        `Queue #${request.match_number.toString()} series stats (${this.haloService.getSeriesScore(series, "en-US", true)})`,
+        `Queue #${request.match_number.toString()} series stats (${this.haloService.getSeriesScore(series, locale, true)})`,
       );
       useFallback = false;
 
@@ -2129,6 +2132,7 @@ export class NeatQueueService {
         series,
         finalTeams,
         substitutions,
+        locale,
       });
       await discordService.createMessage(thread.id, {
         embeds: seriesOverviewEmbed.embeds,
@@ -2137,8 +2141,8 @@ export class NeatQueueService {
 
       await Promise.all([
         this.cacheDiscordSeriesStats(request.guild, request.match_number, series),
-        this.leaderboardService.persistSeriesData({ request, neatQueueConfig, series, locale: this.locale }),
-        this.postSeriesDetailsToChannel(thread.id, request.guild, series),
+        this.leaderboardService.persistSeriesData({ request, neatQueueConfig, series, locale }),
+        this.postSeriesDetailsToChannel(thread.id, request.guild, series, locale),
       ]);
     } catch (error) {
       this.logService.warn(error, new Map([["reason", "Failed to post series data to thread"]]));
@@ -2224,6 +2228,7 @@ export class NeatQueueService {
     let channelId = neatQueueConfig.PostSeriesChannelId ?? neatQueueConfig.ResultsChannelId;
 
     try {
+      const locale = await discordService.getGuildPreferredLocale(neatQueueConfig.GuildId);
       const resultsMessage = await discordService.getTeamsFromQueueResult(
         neatQueueConfig.GuildId,
         neatQueueConfig.ResultsChannelId,
@@ -2240,6 +2245,7 @@ export class NeatQueueService {
         series: series,
         finalTeams,
         substitutions,
+        locale,
       });
 
       const createdMessage = await discordService.createMessage(channelId, {
@@ -2250,14 +2256,14 @@ export class NeatQueueService {
       const thread = await discordService.startThreadFromMessage(
         channelId,
         createdMessage.id,
-        `Queue #${request.match_number.toString()} series stats (${this.haloService.getSeriesScore(series, "en-US", true)})`,
+        `Queue #${request.match_number.toString()} series stats (${this.haloService.getSeriesScore(series, locale, true)})`,
       );
 
       channelId = thread.id;
       await Promise.all([
         this.cacheDiscordSeriesStats(request.guild, request.match_number, series),
-        this.leaderboardService.persistSeriesData({ request, neatQueueConfig, series, locale: this.locale }),
-        this.postSeriesDetailsToChannel(channelId, request.guild, series),
+        this.leaderboardService.persistSeriesData({ request, neatQueueConfig, series, locale }),
+        this.postSeriesDetailsToChannel(channelId, request.guild, series, locale),
       ]);
     } catch (error) {
       this.logService.error(error, new Map([["reason", "Failed to post series data direct to channel"]]));
@@ -2328,12 +2334,17 @@ export class NeatQueueService {
     }
   }
 
-  private async postSeriesDetailsToChannel(channelId: string, guildId: string, series: MatchStats[]): Promise<void> {
+  private async postSeriesDetailsToChannel(
+    channelId: string,
+    guildId: string,
+    series: MatchStats[],
+    locale: string,
+  ): Promise<void> {
     const { databaseService, discordService, haloService } = this;
 
     const guildConfig = await databaseService.getGuildConfig(guildId);
 
-    const seriesTeamsEmbed = new SeriesTeamsEmbed({ discordService, haloService, guildConfig, locale: this.locale });
+    const seriesTeamsEmbed = new SeriesTeamsEmbed({ discordService, haloService, guildConfig, locale });
     const seriesTeamsEmbedOutput = await seriesTeamsEmbed.getSeriesEmbed(series);
     await discordService.createMessage(channelId, {
       embeds: [seriesTeamsEmbedOutput],
@@ -2346,9 +2357,9 @@ export class NeatQueueService {
       discordService,
       haloService,
       guildConfig,
-      locale: this.locale,
+      locale,
     });
-    const seriesPlayersEmbedsOutput = await seriesPlayersEmbed.getSeriesEmbed(series, seriesPlayers, this.locale);
+    const seriesPlayersEmbedsOutput = await seriesPlayersEmbed.getSeriesEmbed(series, seriesPlayers, locale);
     for (const seriesPlayersEmbedOutput of seriesPlayersEmbedsOutput) {
       await discordService.createMessage(channelId, {
         embeds: [seriesPlayersEmbedOutput],
@@ -2379,7 +2390,7 @@ export class NeatQueueService {
         const players = await haloService.getPlayerXuidsToGametags(match, {
           presentAtBeginningOnly: true,
         });
-        const matchEmbed = this.getMatchEmbed(guildConfig, match, this.locale);
+        const matchEmbed = this.getMatchEmbed(guildConfig, match, locale);
         const embed = await matchEmbed.getEmbed(match, players);
 
         await discordService.createMessage(channelId, { embeds: [embed] });
@@ -2395,6 +2406,7 @@ export class NeatQueueService {
     series,
     finalTeams,
     substitutions,
+    locale,
   }: {
     guildId: string;
     channelId: string;
@@ -2403,6 +2415,7 @@ export class NeatQueueService {
     series: MatchStats[];
     finalTeams: TeamMapping[];
     substitutions: SeriesOverviewEmbedSubstitution[];
+    locale: string;
   }): Promise<SeriesOverviewEmbedOutput> {
     const { discordService, haloService } = this;
     const seriesOverviewEmbed = new SeriesOverviewEmbed({ discordService, haloService });
@@ -2411,7 +2424,7 @@ export class NeatQueueService {
       channelId,
       messageId,
       pagesUrl: this.env.PAGES_URL,
-      locale: this.locale,
+      locale,
       queue,
       series,
       finalTeams,
