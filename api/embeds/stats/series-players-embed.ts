@@ -4,6 +4,7 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getDurationInIsoString, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import { getPlayerObjectiveSummary } from "@guilty-spark/shared/halo/objective-summary";
+import { StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import {
   aggregatePlayerCoreStats,
@@ -22,7 +23,9 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
     const playersCoreStats = aggregatePlayerCoreStats(matches);
     const playersStats = new Map<string, EmbedPlayerStats>();
     for (const [playerId, stats] of playersCoreStats) {
-      playersStats.set(playerId, this.getPlayerSlayerStats({ CoreStats: stats }));
+      const slayerStats = this.getPlayerSlayerStats({ CoreStats: stats });
+      const objectiveStats = this.getObjectiveSummaryStats(playerMatches.get(playerId) ?? [], playerId);
+      playersStats.set(playerId, new Map([...slayerStats, ...objectiveStats]));
     }
 
     const seriesBestValues = this.getBestStatValues(playersStats);
@@ -51,13 +54,9 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
         const playerStats = Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId));
 
         const outputStats = this.playerStatsToFields(seriesBestValues, teamBestValues, playerStats);
-        const objectiveSummary = this.getObjectiveSummary(
-          playerMatches.get(teamPlayer.PlayerId) ?? [],
-          teamPlayer.PlayerId,
-        );
         const medals = this.guildConfig.Medals === "Y" ? await this.playerMedalsToFields(playerCoreStats) : "";
 
-        let output = `${outputStats.join("\n")}${objectiveSummary != null ? `\n${objectiveSummary}` : ""}${medals ? `\n${medals}` : ""}`;
+        let output = `${outputStats.join("\n")}${medals ? `\n${medals}` : ""}`;
         if (output.length > 950) {
           // truncate text back to the last whitespace
 
@@ -98,21 +97,47 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
     return embeds;
   }
 
-  private getObjectiveSummary(matches: MatchStats[], playerId: string): string | null {
+  private getObjectiveSummaryStats(matches: MatchStats[], playerId: string): EmbedPlayerStats {
     const summary = getPlayerObjectiveSummary(matches, playerId);
     if (summary == null) {
-      return null;
+      return new Map();
     }
 
     const objectiveTime = getReadableDuration(getDurationInIsoString(summary.objectiveTimeSeconds), this.locale);
     if (summary.objectiveTeamContribution == null) {
-      return `Objective time (team %): ${objectiveTime} (n/a)`;
+      return new Map([
+        [
+          "Objective time (team %)",
+          {
+            value: summary.objectiveTimeSeconds,
+            sortBy: StatsValueSortBy.DESC,
+            display: `${objectiveTime} (n/a)`,
+          },
+        ],
+      ]);
     }
 
     const teamContribution = `${(summary.objectiveTeamContribution * 100).toLocaleString(this.locale, {
       maximumFractionDigits: 1,
     })}%`;
 
-    return `Team objective contribution (time): ${teamContribution} (${objectiveTime})`;
+    return new Map([
+      [
+        "Team objective contribution (time)",
+        [
+          {
+            value: summary.objectiveTeamContribution,
+            sortBy: StatsValueSortBy.DESC,
+            display: teamContribution,
+          },
+          {
+            value: summary.objectiveTimeSeconds,
+            sortBy: StatsValueSortBy.DESC,
+            display: `(${objectiveTime})`,
+            prefix: " ",
+          },
+        ],
+      ],
+    ]);
   }
 }
