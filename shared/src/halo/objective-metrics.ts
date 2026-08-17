@@ -1,4 +1,5 @@
-import type { GameVariantCategory, Stats } from "halo-infinite-api";
+import { GameVariantCategory } from "halo-infinite-api";
+import type { Stats } from "halo-infinite-api";
 import { UnreachableError } from "../base/unreachable-error";
 import { getDurationInSeconds } from "./duration";
 
@@ -9,11 +10,11 @@ export enum ObjectiveTimeSource {
 }
 
 export const ObjectiveGameVariantCategory = {
-  Strongholds: 11,
-  KingOfTheHill: 12,
-  TotalControl: 14,
-  CaptureTheFlag: 15,
-  Oddball: 18,
+  Strongholds: GameVariantCategory.MultiplayerStrongholds,
+  KingOfTheHill: GameVariantCategory.MultiplayerKingOfTheHill,
+  TotalControl: GameVariantCategory.MultiplayerTotalControl,
+  CaptureTheFlag: GameVariantCategory.MultiplayerCtf,
+  Oddball: GameVariantCategory.MultiplayerOddball,
 } as const;
 
 const OBJECTIVE_TIME_SOURCES = new Map<number, ObjectiveTimeSource>([
