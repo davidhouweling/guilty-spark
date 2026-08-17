@@ -1,0 +1,68 @@
+import type { MatchStats } from "halo-infinite-api";
+import { getObjectiveTimeSeconds } from "./objective-metrics";
+
+export interface PlayerObjectiveSummary {
+  objectiveTimeSeconds: number;
+  objectiveGamesPlayed: number;
+  objectiveTeamContribution: number | null;
+  objectiveTeamContributionGamesPlayed: number;
+}
+
+export function getPlayerObjectiveSummary(matches: MatchStats[], playerId: string): PlayerObjectiveSummary | null {
+  let objectiveTimeSeconds = 0;
+  let objectiveGamesPlayed = 0;
+  let objectiveTeamContributionTotal = 0;
+  let objectiveTeamContributionGamesPlayed = 0;
+
+  for (const match of matches) {
+    const player = match.Players.find(
+      (matchPlayer) => matchPlayer.PlayerId === playerId && matchPlayer.ParticipationInfo.PresentAtBeginning,
+    );
+    if (player == null) {
+      continue;
+    }
+
+    const [playerTeamStats] = player.PlayerTeamStats;
+    if (playerTeamStats == null) {
+      continue;
+    }
+
+    const playerObjectiveTimeSeconds = getObjectiveTimeSeconds(
+      match.MatchInfo.GameVariantCategory,
+      playerTeamStats.Stats,
+    );
+    if (playerObjectiveTimeSeconds == null) {
+      continue;
+    }
+
+    objectiveGamesPlayed += 1;
+    objectiveTimeSeconds += playerObjectiveTimeSeconds;
+
+    const team = match.Teams.find((candidateTeam) => candidateTeam.TeamId === playerTeamStats.TeamId);
+    if (team == null) {
+      continue;
+    }
+
+    const teamObjectiveTimeSeconds = getObjectiveTimeSeconds(match.MatchInfo.GameVariantCategory, team.Stats);
+    if (teamObjectiveTimeSeconds == null || teamObjectiveTimeSeconds <= 0) {
+      continue;
+    }
+
+    objectiveTeamContributionTotal += playerObjectiveTimeSeconds / teamObjectiveTimeSeconds;
+    objectiveTeamContributionGamesPlayed += 1;
+  }
+
+  if (objectiveGamesPlayed === 0) {
+    return null;
+  }
+
+  return {
+    objectiveTimeSeconds,
+    objectiveGamesPlayed,
+    objectiveTeamContribution:
+      objectiveTeamContributionGamesPlayed === 0
+        ? null
+        : objectiveTeamContributionTotal / objectiveTeamContributionGamesPlayed,
+    objectiveTeamContributionGamesPlayed,
+  };
+}

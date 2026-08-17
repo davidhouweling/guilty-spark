@@ -1,7 +1,9 @@
 import type { MatchStats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { getDurationInIsoString, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import { getPlayerObjectiveSummary } from "@guilty-spark/shared/halo/objective-summary";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import {
   aggregatePlayerCoreStats,
@@ -49,9 +51,13 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
         const playerStats = Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId));
 
         const outputStats = this.playerStatsToFields(seriesBestValues, teamBestValues, playerStats);
+        const objectiveSummary = this.getObjectiveSummary(
+          playerMatches.get(teamPlayer.PlayerId) ?? [],
+          teamPlayer.PlayerId,
+        );
         const medals = this.guildConfig.Medals === "Y" ? await this.playerMedalsToFields(playerCoreStats) : "";
 
-        let output = `${outputStats.join("\n")}${medals ? `\n${medals}` : ""}`;
+        let output = `${outputStats.join("\n")}${objectiveSummary != null ? `\n${objectiveSummary}` : ""}${medals ? `\n${medals}` : ""}`;
         if (output.length > 950) {
           // truncate text back to the last whitespace
 
@@ -90,5 +96,20 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
     }
 
     return embeds;
+  }
+
+  private getObjectiveSummary(matches: MatchStats[], playerId: string): string | null {
+    const summary = getPlayerObjectiveSummary(matches, playerId);
+    if (summary == null) {
+      return null;
+    }
+
+    const objectiveTime = getReadableDuration(getDurationInIsoString(summary.objectiveTimeSeconds), this.locale);
+    const teamContribution =
+      summary.objectiveTeamContribution == null
+        ? "n/a"
+        : `${(summary.objectiveTeamContribution * 100).toLocaleString(this.locale, { maximumFractionDigits: 1 })}%`;
+
+    return `Objective time (team %): ${objectiveTime} (${teamContribution})`;
   }
 }

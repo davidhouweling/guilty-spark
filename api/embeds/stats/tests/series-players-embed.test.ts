@@ -42,6 +42,42 @@ describe("SeriesPlayersEmbed", () => {
       expect(result).toMatchSnapshot();
     });
 
+    it("renders a consolidated objective summary line for mixed objective/slayer series", async () => {
+      const result = await seriesPlayersEmbed.getSeriesEmbed(matches, getPlayerXuidsToGametags(), locale);
+      const allFieldValues = result.flatMap((embed) => embed.fields?.map((field) => field.value) ?? []);
+
+      expect(allFieldValues.some((value) => value.includes("Objective time (team %):"))).toBe(true);
+    });
+
+    it("renders n/a team contribution when objective-team denominator is unavailable", async () => {
+      const modifiedCtfMatch = structuredClone(ctfMatch);
+      const modifiedKothMatch = structuredClone(kothMatch);
+      const modifiedSlayerMatch = structuredClone(slayerMatch);
+
+      for (const team of modifiedCtfMatch.Teams) {
+        if ("CaptureTheFlagStats" in team.Stats) {
+          team.Stats.CaptureTheFlagStats.TimeAsFlagCarrier = "PT0S";
+        }
+      }
+
+      for (const team of modifiedKothMatch.Teams) {
+        if ("ZonesStats" in team.Stats) {
+          team.Stats.ZonesStats.StrongholdOccupationTime = "PT0S";
+        }
+      }
+
+      const result = await seriesPlayersEmbed.getSeriesEmbed(
+        [modifiedCtfMatch, modifiedKothMatch, modifiedSlayerMatch],
+        getPlayerXuidsToGametags(),
+        locale,
+      );
+
+      const allFieldValues = result.flatMap((embed) => embed.fields?.map((field) => field.value) ?? []);
+      expect(
+        allFieldValues.some((value) => value.includes("Objective time (team %):") && value.includes("(n/a)")),
+      ).toBe(true);
+    });
+
     it("excludes players not present at beginning", async () => {
       const modifiedCtfMatch = structuredClone(ctfMatch);
       const modifiedKothMatch = structuredClone(kothMatch);
