@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/cloudflare";
 import type { APIChannel, APIGuildMember } from "discord-api-types/v10";
-import { ChannelType, PermissionFlagsBits } from "discord-api-types/v10";
+import { ChannelType, Locale, PermissionFlagsBits } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import { addMilliseconds, addMinutes, differenceInMilliseconds, differenceInMinutes, max } from "date-fns";
 import type {
@@ -1267,9 +1267,15 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return trackerState.localeCache;
     }
 
-    const locale = await this.discordService.getGuildPreferredLocale(trackerState.guildId);
-    trackerState.localeCache = locale;
-    return locale;
+    try {
+      const guild = await this.discordService.getGuild(trackerState.guildId);
+      trackerState.localeCache = guild.preferred_locale;
+      return trackerState.localeCache;
+    } catch {
+      // Don't cache the fallback: a transient failure here shouldn't permanently
+      // lock the tracker into English for the rest of its (multi-hour) session.
+      return Locale.EnglishUS;
+    }
   }
 
   private async checkChannelManagePermission(trackerState: LiveTrackerState, channel: APIChannel): Promise<boolean> {

@@ -620,16 +620,16 @@ describe("LiveTrackerDO", () => {
       vi.spyOn(services.haloService, "getSeriesScore").mockImplementation((_matches, _locale, includeEmoji) =>
         includeEmoji === true ? "🦅 0:0 🐍" : "0:0",
       );
-      const getGuildPreferredLocaleSpy = vi
-        .spyOn(services.discordService, "getGuildPreferredLocale")
-        .mockResolvedValue(Locale.German);
+      const getGuildSpy = vi
+        .spyOn(services.discordService, "getGuild")
+        .mockResolvedValue({ ...guild, preferred_locale: Locale.German });
 
       const response = await liveTrackerDO.fetch(request);
 
       expect(response.status).toBe(200);
       const data: { success: boolean; state: LiveTrackerState } = await response.json();
       expect(data.state.localeCache).toBe(Locale.German);
-      expect(getGuildPreferredLocaleSpy).toHaveBeenCalledOnce();
+      expect(getGuildSpy).toHaveBeenCalledOnce();
 
       const persistedTrackerState = storagePutSpy.mock.calls.at(-1)?.[1];
       expect(persistedTrackerState?.localeCache).toBe(Locale.German);
@@ -2126,7 +2126,7 @@ describe("LiveTrackerDO", () => {
         });
       });
 
-      it("uses the guild's preferred locale and fetches it only once per alarm tick", async (): Promise<void> => {
+      it("uses the guild's preferred locale, resolving it only once for series score formatting", async (): Promise<void> => {
         const trackerState = aFakeStateWith({
           guildId: "test-guild-id",
           channelId: "test-channel-id",
@@ -2155,10 +2155,9 @@ describe("LiveTrackerDO", () => {
         vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
         vi.spyOn(services.discordService, "updateChannel").mockResolvedValue(mockChannel);
 
-        vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
-        const getGuildPreferredLocaleSpy = vi
-          .spyOn(services.discordService, "getGuildPreferredLocale")
-          .mockResolvedValue(Locale.German);
+        const getGuildSpy = vi
+          .spyOn(services.discordService, "getGuild")
+          .mockResolvedValue({ ...guild, preferred_locale: Locale.German });
         vi.spyOn(services.discordService, "getGuildMember").mockResolvedValue(aGuildMemberWith({}));
         vi.spyOn(services.discordService, "hasPermissions").mockReturnValue({
           hasAll: true,
@@ -2195,8 +2194,68 @@ describe("LiveTrackerDO", () => {
           Locale.German,
           true,
         );
-        expect(getGuildPreferredLocaleSpy).toHaveBeenCalledOnce();
-        expect(getGuildPreferredLocaleSpy).toHaveBeenCalledWith("test-guild-id");
+        expect(getGuildSpy).toHaveBeenCalledWith("test-guild-id");
+        // Called twice: once to resolve the locale (cached on trackerState for the rest of this
+        // tick), once independently by the channel-rename permission check.
+        expect(getGuildSpy).toHaveBeenCalledTimes(2);
+      });
+
+      it("does not permanently cache the locale fallback after a transient Discord failure", async (): Promise<void> => {
+        const trackerState = aFakeStateWith({
+          guildId: "test-guild-id",
+          channelId: "test-channel-id",
+          status: "active",
+          isPaused: false,
+          discoveredMatches: {
+            "9535b946-f30c-4a43-b852-000000slayer": aMatchSummaryWith({
+              matchId: "9535b946-f30c-4a43-b852-000000slayer",
+              gameTypeAndMap: "Slayer: Aquarius",
+              gameType: "Slayer",
+              gameMap: "Aquarius",
+              duration: "5m 00s",
+              gameScore: "50:49",
+              endTime: new Date("2024-01-01T10:00:00.000Z").toISOString(),
+            }),
+          },
+          matchIds: ["9535b946-f30c-4a43-b852-000000slayer"],
+        });
+        storageGetSpy.mockResolvedValue(trackerState);
+
+        const mockChannel = {
+          id: "test-channel-id",
+          name: "my-queue-channel",
+          type: 0,
+        };
+        vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
+        vi.spyOn(services.discordService, "updateChannel").mockResolvedValue(mockChannel);
+        vi.spyOn(services.discordService, "getGuild").mockRejectedValue(new Error("Discord unavailable"));
+        vi.spyOn(services.discordService, "getGuildMember").mockResolvedValue(aGuildMemberWith({}));
+        vi.spyOn(services.discordService, "hasPermissions").mockReturnValue({
+          hasAll: true,
+          missing: [],
+        });
+
+        const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"))];
+        vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
+        const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+        kvGetSpy.mockResolvedValue(mockMatches[0]);
+        vi.spyOn(services.haloService, "getSeriesScore").mockImplementation((_matches, _locale, includeEmoji) =>
+          includeEmoji === true ? "🦅 1:0 🐍" : "1:0",
+        );
+        vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Slayer on Aquarius");
+        vi.spyOn(haloDuration, "getReadableDuration").mockReturnValue("5:00");
+        vi.spyOn(services.haloService, "getMatchScore").mockReturnValue({ gameScore: "50:49", gameSubScore: null });
+        vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+        vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
+          ...apiMessage,
+          id: "new-message-id",
+        });
+        vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+
+        await liveTrackerDO.alarm();
+
+        const persistedTrackerState = storagePutSpy.mock.calls.at(-1)?.[1];
+        expect(persistedTrackerState?.localeCache).toBeUndefined();
       });
 
       it("removes existing series score before adding new one", async (): Promise<void> => {
