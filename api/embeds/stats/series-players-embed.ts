@@ -24,7 +24,7 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
     const playersStats = new Map<string, EmbedPlayerStats>();
     for (const [playerId, stats] of playersCoreStats) {
       const slayerStats = this.getPlayerSlayerStats({ CoreStats: stats });
-      const objectiveStats = this.getObjectiveSummaryStats(playerMatches.get(playerId) ?? [], playerId);
+      const objectiveStats = this.getObjectiveSummaryStats(playerMatches.get(playerId) ?? [], playerId, locale);
       playersStats.set(playerId, new Map([...slayerStats, ...objectiveStats]));
     }
 
@@ -53,9 +53,7 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
         const playerCoreStats = Preconditions.checkExists(playersCoreStats.get(teamPlayer.PlayerId));
         const playerStats = Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId));
 
-        const outputStats = this.formatObjectiveSummaryFields(
-          this.playerStatsToFields(seriesBestValues, teamBestValues, playerStats),
-        );
+        const outputStats = this.playerStatsToFields(seriesBestValues, teamBestValues, playerStats);
         const medals = this.guildConfig.Medals === "Y" ? await this.playerMedalsToFields(playerCoreStats) : "";
 
         let output = `${outputStats.join("\n")}${medals ? `\n${medals}` : ""}`;
@@ -99,13 +97,13 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
     return embeds;
   }
 
-  private getObjectiveSummaryStats(matches: MatchStats[], playerId: string): EmbedPlayerStats {
+  private getObjectiveSummaryStats(matches: MatchStats[], playerId: string, locale: string): EmbedPlayerStats {
     const summary = getPlayerObjectiveSummary(matches, playerId);
     if (summary == null) {
       return new Map();
     }
 
-    const objectiveTime = getReadableDuration(getDurationInIsoString(summary.objectiveTimeSeconds), this.locale);
+    const objectiveTime = getReadableDuration(getDurationInIsoString(summary.objectiveTimeSeconds), locale);
     if (summary.objectiveTeamContribution == null) {
       return new Map([
         [
@@ -113,13 +111,13 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
           {
             value: summary.objectiveTimeSeconds,
             sortBy: StatsValueSortBy.DESC,
-            display: objectiveTime,
+            display: `${objectiveTime} (n/a)`,
           },
         ],
       ]);
     }
 
-    const teamContribution = `${(summary.objectiveTeamContribution * 100).toLocaleString(this.locale, {
+    const teamContribution = `${(summary.objectiveTeamContribution * 100).toLocaleString(locale, {
       maximumFractionDigits: 1,
     })}%`;
 
@@ -135,39 +133,11 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
           {
             value: summary.objectiveTimeSeconds,
             sortBy: StatsValueSortBy.DESC,
-            display: objectiveTime,
+            display: `(${objectiveTime})`,
+            prefix: " ",
           },
         ],
       ],
     ]);
-  }
-
-  private formatObjectiveSummaryFields(fields: string[]): string[] {
-    return fields.map((field) => {
-      if (field.startsWith("Objective time (team %): ")) {
-        return `${field} (n/a)`;
-      }
-
-      if (!field.startsWith("Team objective contribution (time): ")) {
-        return field;
-      }
-
-      const labelSeparatorIndex = field.indexOf(": ");
-      if (labelSeparatorIndex < 0) {
-        return field;
-      }
-
-      const label = field.slice(0, labelSeparatorIndex);
-      const value = field.slice(labelSeparatorIndex + 2);
-
-      const separatorIndex = value.indexOf(":");
-      if (separatorIndex < 0) {
-        return field;
-      }
-
-      const primary = value.slice(0, separatorIndex);
-      const secondary = value.slice(separatorIndex + 1);
-      return `${label}: ${primary} (${secondary})`;
-    });
   }
 }
