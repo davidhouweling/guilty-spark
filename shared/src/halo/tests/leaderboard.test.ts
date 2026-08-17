@@ -48,9 +48,9 @@ describe("resolveLeaderboardMetric", () => {
     expect(resolveLeaderboardMetric(LeaderboardMetricFamily.ObjectiveTime, LeaderboardMetricAggregation.Total)).toBe(
       LeaderboardMetric.ObjectiveTime,
     );
-    expect(resolveLeaderboardMetric(LeaderboardMetricFamily.ObjectiveTime, LeaderboardMetricAggregation.AvgPerGame)).toBe(
-      LeaderboardMetric.AvgObjectiveTimePerGame,
-    );
+    expect(
+      resolveLeaderboardMetric(LeaderboardMetricFamily.ObjectiveTime, LeaderboardMetricAggregation.AvgPerGame),
+    ).toBe(LeaderboardMetric.AvgObjectiveTimePerGame);
   });
 
   it("defaults to Total when no aggregation is provided for a count/score family", () => {
