@@ -46,7 +46,7 @@ describe("SeriesPlayersEmbed", () => {
       const result = await seriesPlayersEmbed.getSeriesEmbed(matches, getPlayerXuidsToGametags(), locale);
       const allFieldValues = result.flatMap((embed) => embed.fields?.map((field) => field.value) ?? []);
 
-      expect(allFieldValues.some((value) => value.includes("Objective time (team %):"))).toBe(true);
+      expect(allFieldValues.some((value) => value.includes("Team objective contribution (time):"))).toBe(true);
     });
 
     it("renders n/a team contribution when objective-team denominator is unavailable", async () => {

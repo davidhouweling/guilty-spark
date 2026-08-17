@@ -105,11 +105,14 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
     }
 
     const objectiveTime = getReadableDuration(getDurationInIsoString(summary.objectiveTimeSeconds), this.locale);
-    const teamContribution =
-      summary.objectiveTeamContribution == null
-        ? "n/a"
-        : `${(summary.objectiveTeamContribution * 100).toLocaleString(this.locale, { maximumFractionDigits: 1 })}%`;
+    if (summary.objectiveTeamContribution == null) {
+      return `Objective time (team %): ${objectiveTime} (n/a)`;
+    }
 
-    return `Objective time (team %): ${objectiveTime} (${teamContribution})`;
+    const teamContribution = `${(summary.objectiveTeamContribution * 100).toLocaleString(this.locale, {
+      maximumFractionDigits: 1,
+    })}%`;
+
+    return `Team objective contribution (time): ${teamContribution} (${objectiveTime})`;
   }
 }
