@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { Row } from "@tanstack/react-table";
+import type { Row, RowData, TableFeatures } from "@tanstack/react-table";
 import type { MedalEntry } from "@guilty-spark/shared/halo/medals";
 import { medalsToWeightMap, getTeamMedalsMap, getPlayerMedalsMap, sortByMedals } from "../medals-sorting";
 import type { MatchStatsData, MatchStatsPlayerData } from "../types";
@@ -105,13 +105,15 @@ describe("getPlayerMedalsMap", () => {
 });
 
 describe("sortByMedals", () => {
-  function createMockRow<TData>(medals: Map<number, number>): Row<TData> {
+  function createMockRow<TFeatures extends TableFeatures, TData extends RowData>(
+    medals: Map<number, number>,
+  ): Row<TFeatures, TData> {
     return {
       getValue: (columnId: string) => {
         void columnId;
         return medals as unknown;
       },
-    } as Row<TData>;
+    } as Row<TFeatures, TData>;
   }
 
   it("sorts by highest weight first", () => {
