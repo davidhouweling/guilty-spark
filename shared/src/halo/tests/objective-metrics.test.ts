@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { GameVariantCategory } from "halo-infinite-api";
 import {
   getObjectiveTimeSeconds,
   getObjectiveTimeSource,
@@ -16,8 +17,8 @@ describe("objective metrics", () => {
   });
 
   it("returns null for modes without a cross-mode objective time mapping", () => {
-    expect(getObjectiveTimeSource(6)).toBeNull();
-    expect(getObjectiveTimeSeconds(6, {} as never)).toBeNull();
+    expect(getObjectiveTimeSource(GameVariantCategory.MultiplayerSlayer)).toBeNull();
+    expect(getObjectiveTimeSeconds(GameVariantCategory.MultiplayerSlayer, {} as never)).toBeNull();
   });
 
   it("reads Total Control occupation time", () => {
@@ -28,5 +29,15 @@ describe("objective metrics", () => {
     } as never;
 
     expect(getObjectiveTimeSeconds(ObjectiveGameVariantCategory.TotalControl, stats)).toBe(181.9);
+  });
+
+  it("reads Oddball skull carrier time", () => {
+    const stats = {
+      OddballStats: {
+        TimeAsSkullCarrier: "PT2M4.5S",
+      },
+    } as never;
+
+    expect(getObjectiveTimeSeconds(ObjectiveGameVariantCategory.Oddball, stats)).toBe(124.5);
   });
 });
