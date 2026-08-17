@@ -8,6 +8,24 @@ export interface PlayerObjectiveSummary {
   objectiveTeamContributionGamesPlayed: number;
 }
 
+function getActivePlayerTeamStats(
+  match: MatchStats,
+  playerId: string,
+): MatchStats["Players"][number]["PlayerTeamStats"][number] | null {
+  const player = match.Players.find(
+    (matchPlayer) => matchPlayer.PlayerId === playerId && matchPlayer.ParticipationInfo.PresentAtBeginning,
+  );
+  if (player == null) {
+    return null;
+  }
+
+  return (
+    player.PlayerTeamStats.find((teamStats) => teamStats.TeamId === player.LastTeamId) ??
+    player.PlayerTeamStats[0] ??
+    null
+  );
+}
+
 export function getPlayerObjectiveSummary(matches: MatchStats[], playerId: string): PlayerObjectiveSummary | null {
   let objectiveTimeSeconds = 0;
   let objectiveGamesPlayed = 0;
@@ -15,14 +33,7 @@ export function getPlayerObjectiveSummary(matches: MatchStats[], playerId: strin
   let objectiveTeamContributionGamesPlayed = 0;
 
   for (const match of matches) {
-    const player = match.Players.find(
-      (matchPlayer) => matchPlayer.PlayerId === playerId && matchPlayer.ParticipationInfo.PresentAtBeginning,
-    );
-    if (player == null) {
-      continue;
-    }
-
-    const [playerTeamStats] = player.PlayerTeamStats;
+    const playerTeamStats = getActivePlayerTeamStats(match, playerId);
     if (playerTeamStats == null) {
       continue;
     }
