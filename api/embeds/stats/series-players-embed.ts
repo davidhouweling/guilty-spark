@@ -53,7 +53,9 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
         const playerCoreStats = Preconditions.checkExists(playersCoreStats.get(teamPlayer.PlayerId));
         const playerStats = Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId));
 
-        const outputStats = this.playerStatsToFields(seriesBestValues, teamBestValues, playerStats);
+        const outputStats = this.formatObjectiveSummaryFields(
+          this.playerStatsToFields(seriesBestValues, teamBestValues, playerStats),
+        );
         const medals = this.guildConfig.Medals === "Y" ? await this.playerMedalsToFields(playerCoreStats) : "";
 
         let output = `${outputStats.join("\n")}${medals ? `\n${medals}` : ""}`;
@@ -111,7 +113,7 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
           {
             value: summary.objectiveTimeSeconds,
             sortBy: StatsValueSortBy.DESC,
-            display: `${objectiveTime} (n/a)`,
+            display: objectiveTime,
           },
         ],
       ]);
@@ -133,11 +135,36 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
           {
             value: summary.objectiveTimeSeconds,
             sortBy: StatsValueSortBy.DESC,
-            display: `(${objectiveTime})`,
-            prefix: " ",
+            display: objectiveTime,
           },
         ],
       ],
     ]);
+  }
+
+  private formatObjectiveSummaryFields(fields: string[]): string[] {
+    return fields.map((field) => {
+      if (field.startsWith("Objective time (team %): ")) {
+        return `${field} (n/a)`;
+      }
+
+      if (!field.startsWith("Team objective contribution (time): ")) {
+        return field;
+      }
+
+      const [label, value] = field.split(": ", 2);
+      if (value == null) {
+        return field;
+      }
+
+      const separatorIndex = value.indexOf(":");
+      if (separatorIndex < 0) {
+        return field;
+      }
+
+      const primary = value.slice(0, separatorIndex);
+      const secondary = value.slice(separatorIndex + 1);
+      return `${label}: ${primary} (${secondary})`;
+    });
   }
 }
