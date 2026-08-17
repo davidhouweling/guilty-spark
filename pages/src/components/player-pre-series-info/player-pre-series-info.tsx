@@ -110,7 +110,7 @@ export function PlayerPreSeriesInfo({
         cell: (value: unknown): React.ReactNode => <TeamIcon teamId={value as number} size="small" />,
         headerClassName: undefined,
         cellClassName: tableStyles.labelCell,
-        sortingFn: "basic",
+        sortFn: "basic",
       },
       {
         id: "discordName",
@@ -118,7 +118,7 @@ export function PlayerPreSeriesInfo({
         accessorFn: (row: PlayerRow): string => row.discordName,
         headerClassName: undefined,
         cellClassName: tableStyles.labelCell,
-        sortingFn: "alphanumeric",
+        sortFn: "alphanumeric",
       },
       {
         id: "gamertag",
@@ -130,7 +130,7 @@ export function PlayerPreSeriesInfo({
         },
         headerClassName: undefined,
         cellClassName: tableStyles.labelCell,
-        sortingFn: "alphanumeric",
+        sortFn: "alphanumeric",
       },
       {
         id: "currentRank",
@@ -147,7 +147,7 @@ export function PlayerPreSeriesInfo({
         ),
         headerClassName: undefined,
         cellClassName: tableStyles.statCell,
-        sortingFn: "basic",
+        sortFn: "basic",
       },
       {
         id: "peakRank",
@@ -170,7 +170,7 @@ export function PlayerPreSeriesInfo({
         },
         headerClassName: undefined,
         cellClassName: tableStyles.statCell,
-        sortingFn: "basic",
+        sortFn: "basic",
       },
       {
         id: "esra",
@@ -194,7 +194,7 @@ export function PlayerPreSeriesInfo({
         },
         headerClassName: undefined,
         cellClassName: tableStyles.statCell,
-        sortingFn: "basic",
+        sortFn: "basic",
       },
       {
         id: "lastRankedGamePlayed",
@@ -211,7 +211,7 @@ export function PlayerPreSeriesInfo({
         },
         headerClassName: undefined,
         cellClassName: tableStyles.statCell,
-        sortingFn: "basic",
+        sortFn: "basic",
       },
     ],
     [],

@@ -1,10 +1,31 @@
 import React, { useMemo, useState } from "react";
-import { useReactTable, getCoreRowModel, getSortedRowModel, flexRender } from "@tanstack/react-table";
-import type { ColumnDef, SortingState, SortDirection } from "@tanstack/react-table";
+import {
+  useTable,
+  tableFeatures,
+  rowSortingFeature,
+  columnVisibilityFeature,
+  createSortedRowModel,
+  sortFn_alphanumeric,
+  sortFn_basic,
+  flexRender,
+} from "@tanstack/react-table";
+import type { ColumnDef, SortingState, SortDirection, RowData } from "@tanstack/react-table";
 import classNames from "classnames";
 import styles from "./table.module.css";
 
-export interface SortableTableColumn<TData> extends Omit<ColumnDef<TData>, "id" | "header" | "cell"> {
+const sortableTableFeatures = tableFeatures({
+  rowSortingFeature,
+  columnVisibilityFeature,
+  sortedRowModel: createSortedRowModel(),
+  sortFns: { alphanumeric: sortFn_alphanumeric, basic: sortFn_basic },
+});
+
+type SortableTableFeatures = typeof sortableTableFeatures;
+
+export interface SortableTableColumn<TData extends RowData> extends Omit<
+  ColumnDef<SortableTableFeatures, TData>,
+  "id" | "header" | "cell"
+> {
   /** Unique identifier for the column */
   id: string;
   /** Header label to display */
@@ -25,7 +46,7 @@ export interface SortableTableColumn<TData> extends Omit<ColumnDef<TData>, "id" 
   enableSorting?: boolean;
 }
 
-export interface SortableTableProps<TData> {
+export interface SortableTableProps<TData extends RowData> {
   /** Array of data rows */
   data: readonly TData[];
   /** Column definitions */
@@ -57,7 +78,7 @@ function getSortIndicator(sortDirection: SortDirection | false): string | null {
  * Supports single and multi-column sorting (Shift+click for multi-sort).
  * Sort state persists across re-renders.
  */
-export function SortableTable<TData>({
+export function SortableTable<TData extends RowData>({
   data,
   columns,
   className,
@@ -72,7 +93,7 @@ export function SortableTable<TData>({
   );
 
   // Convert our simplified column format to TanStack format
-  const tableColumns = useMemo<ColumnDef<TData>[]>(
+  const tableColumns = useMemo<ColumnDef<SortableTableFeatures, TData>[]>(
     () =>
       columns.map((col) => ({
         id: col.id,
@@ -83,7 +104,7 @@ export function SortableTable<TData>({
           return col.cell != null ? col.cell(value, info.row.original) : (value as React.ReactNode);
         },
         enableSorting: col.enableSorting !== false,
-        sortingFn: col.sortingFn ?? "auto",
+        sortFn: col.sortFn ?? "auto",
       })),
     [columns],
   );
@@ -96,15 +117,14 @@ export function SortableTable<TData>({
     return [];
   });
 
-  const table = useReactTable({
-    data: data as TData[],
+  const table = useTable({
+    features: sortableTableFeatures,
+    data,
     columns: tableColumns,
     state: {
       sorting,
     },
     onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     enableSortingRemoval: true,
     enableMultiSort: true,
   });
