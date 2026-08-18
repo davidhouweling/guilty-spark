@@ -28,7 +28,7 @@ const SQLITE_MAX_VARIABLES = 999;
 const D1_SAFE_MAX_VARIABLES_PER_STATEMENT = 100;
 
 type StoredGuildConfigRow = Omit<GuildConfigRow, "NeatQueueInformerMapsPlaylist"> & {
-  NeatQueueInformerMapsPlaylist: MapsPlaylistType | "L";
+  NeatQueueInformerMapsPlaylist: GuildConfigRow["NeatQueueInformerMapsPlaylist"] | "L";
 };
 
 function normalizeGuildConfig(config: StoredGuildConfigRow): GuildConfigRow {

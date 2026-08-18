@@ -222,8 +222,9 @@ describe("Database Service", () => {
     });
 
     it("falls back to HCS Current for legacy Lucid Evo configuration", async () => {
+      const guildId = "guild-legacy-lucid";
       const legacyConfig = {
-        ...aFakeGuildConfigRow(),
+        ...aFakeGuildConfigRow({ GuildId: guildId }),
         NeatQueueInformerMapsPlaylist: "L" as const,
       };
       const fakePreparedStatement = new FakePreparedStatement();
@@ -231,7 +232,7 @@ describe("Database Service", () => {
       vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(legacyConfig);
 
-      const config = await databaseService.getGuildConfig("guild-legacy-lucid");
+      const config = await databaseService.getGuildConfig(guildId);
 
       expect(config.NeatQueueInformerMapsPlaylist).toBe(MapsPlaylistType.HCS_CURRENT);
     });
