@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/cloudflare";
 import type { APIChannel, APIGuildMember } from "discord-api-types/v10";
-import { ChannelType, PermissionFlagsBits } from "discord-api-types/v10";
+import { ChannelType, Locale, PermissionFlagsBits } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import { addMilliseconds, addMinutes, differenceInMilliseconds, differenceInMinutes, max } from "date-fns";
 import type {
@@ -334,7 +334,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         embedData,
       );
 
-      const initialChannelSeriesScore = this.haloService.getSeriesScore([], "en-US", trackerState.teams.length === 2);
+      const initialChannelSeriesScore = this.haloService.getSeriesScore(
+        [],
+        await this.getLocale(trackerState),
+        trackerState.teams.length === 2,
+      );
       await this.updateChannelName(trackerState, initialChannelSeriesScore, true);
       await this.discordService.editMessage(
         startRequest.channelId,
@@ -366,6 +370,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       );
     }
 
+    await this.setState(trackerState);
     await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
     return this.createStartSuccessResponse(trackerState);
   }
@@ -791,10 +796,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   ): Promise<{ seriesScore: string; seriesScoreWithEmoji: string }> {
     const rawMatches = await this.loadMatchesFromKV(trackerState.matchIds);
     const rawMatchesArray = Object.values(rawMatches);
-    const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, "en-US");
+    const locale = await this.getLocale(trackerState);
+    const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, locale);
     trackerState.seriesScore = seriesScore;
 
-    return { seriesScore, seriesScoreWithEmoji: this.haloService.getSeriesScore(rawMatchesArray, "en-US", true) };
+    return { seriesScore, seriesScoreWithEmoji: this.haloService.getSeriesScore(rawMatchesArray, locale, true) };
   }
 
   /**
@@ -1105,6 +1111,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
   private async enrichAndMergeMatches(trackerState: LiveTrackerState, matches: MatchStats[]): Promise<void> {
     const trackingPlayers = trackerState.teams.flatMap((team) => team.playerIds);
+    const locale = await this.getLocale(trackerState);
 
     for (const match of matches) {
       if (trackerState.discoveredMatches[match.MatchId] != null) {
@@ -1138,8 +1145,8 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         );
       }
 
-      const duration = getReadableDuration(match.MatchInfo.Duration, "en-US");
-      const { gameScore, gameSubScore } = this.haloService.getMatchScore(match, "en-US");
+      const duration = getReadableDuration(match.MatchInfo.Duration, locale);
+      const { gameScore, gameSubScore } = this.haloService.getMatchScore(match, locale);
 
       let gameType = "*Unknown Game Type*";
       let gameMap = "*Unknown Map*";
@@ -1253,6 +1260,29 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
     trackerState.lastMessageState.matchCount = Object.keys(trackerState.discoveredMatches).length;
     trackerState.lastMessageState.substitutionCount = trackerState.substitutions.length;
+  }
+
+  private async getLocale(trackerState: LiveTrackerState): Promise<string> {
+    if (trackerState.localeCache != null) {
+      return trackerState.localeCache;
+    }
+
+    try {
+      const guild = await this.discordService.getGuild(trackerState.guildId);
+      trackerState.localeCache = guild.preferred_locale;
+      return trackerState.localeCache;
+    } catch (error) {
+      this.logService.warn(
+        "LiveTracker: Failed to resolve guild locale, falling back to English",
+        new Map([
+          ["guildId", trackerState.guildId],
+          ["error", String(error)],
+        ]),
+      );
+      // Don't cache the fallback: a transient failure here shouldn't permanently
+      // lock the tracker into English for the rest of its (multi-hour) session.
+      return Locale.EnglishUS;
+    }
   }
 
   private async checkChannelManagePermission(trackerState: LiveTrackerState, channel: APIChannel): Promise<boolean> {

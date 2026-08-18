@@ -7,7 +7,7 @@ import type {
   APIEmbed,
   APIGuildMember,
 } from "discord-api-types/v10";
-import { ChannelType } from "discord-api-types/v10";
+import { ChannelType, Locale } from "discord-api-types/v10";
 import { sub } from "date-fns";
 import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
@@ -939,6 +939,21 @@ describe("NeatQueueService", () => {
           expect(Array.isArray(resolvedPersistArg.series)).toBe(true);
         });
 
+        it("uses the guild's preferred locale instead of a hardcoded locale", async () => {
+          vi.spyOn(discordService, "getGuild").mockResolvedValue({ ...guild, preferred_locale: Locale.German });
+
+          const { jobToComplete } = neatQueueService.handleRequest(
+            getFakeNeatQueueData("matchCompleted"),
+            neatQueueConfig,
+          );
+
+          await jobToComplete?.();
+
+          expect(persistSeriesDataSpy).toHaveBeenCalledOnce();
+          const [persistArg] = persistSeriesDataSpy.mock.calls[0] ?? [];
+          expect(Preconditions.checkExists(persistArg).locale).toBe(Locale.German);
+        });
+
         it("creates the thread/message and posts overviews and game stats, clears timeline", async () => {
           vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
             aFakeGuildConfigRow({
@@ -1284,6 +1299,7 @@ describe("NeatQueueService", () => {
           it("falls back to creating a message in post series channel if it fails to create thread", async () => {
             const error = new Error("Failed to create thread");
             const logServiceWarnSpy = vi.spyOn(logService, "warn");
+            const getGuildPreferredLocaleSpy = vi.spyOn(discordService, "getGuildPreferredLocale");
 
             discordServiceStartThreadFromMessageSpy
               .mockReset()
@@ -1310,6 +1326,10 @@ describe("NeatQueueService", () => {
             expect(discordServiceCreateMessageSpy.mock.calls[0]).toMatchSnapshot();
             expect(discordServiceCreateMessageSpy).toHaveBeenNthCalledWith(2, "thread-id-2", expect.any(Object));
             expect(discordServiceCreateMessageSpy).toHaveBeenNthCalledWith(3, "thread-id-2", expect.any(Object));
+
+            // The locale resolved for the initial thread attempt is reused for the channel fallback,
+            // instead of being fetched again from Discord.
+            expect(getGuildPreferredLocaleSpy).toHaveBeenCalledOnce();
           });
         }
       });

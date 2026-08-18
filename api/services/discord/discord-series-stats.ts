@@ -134,6 +134,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
   guildId,
   queueNumber,
   matches,
+  locale,
 }: {
   discordService: DiscordService;
   logService: LogService;
@@ -141,6 +142,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
   guildId: string;
   queueNumber: number;
   matches: MatchStats[];
+  locale?: string;
 }): Promise<DiscordSeriesStatsResolved["renderData"]> {
   if (matches.length === 0) {
     throw new Error("No Halo match details were found for discovered match IDs");
@@ -150,9 +152,10 @@ export async function buildDiscordSeriesRenderDataFromMatches({
     left.MatchInfo.StartTime.localeCompare(right.MatchInfo.StartTime),
   );
 
-  const playerXuidToGametagMap = await haloService.getPlayerXuidsToGametags(sortedMatches, {
-    presentAtBeginningOnly: true,
-  });
+  const [playerXuidToGametagMap, resolvedLocale] = await Promise.all([
+    haloService.getPlayerXuidsToGametags(sortedMatches, { presentAtBeginningOnly: true }),
+    locale ?? discordService.getGuildPreferredLocale(guildId),
+  ]);
 
   const renderMatches = await Promise.all(
     sortedMatches.map(async (match) => {
@@ -161,7 +164,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
         haloService.getMapThumbnailUrl(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),
       ]);
       const { gameType, gameMap } = splitGameTypeAndMap(gameTypeAndMap);
-      const { gameScore, gameSubScore } = haloService.getMatchScore(match, "en-US");
+      const { gameScore, gameSubScore } = haloService.getMatchScore(match, resolvedLocale);
 
       const playerXuidToGametag: Record<string, string> = {};
       for (const player of match.Players) {
@@ -180,7 +183,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
         gameType,
         gameMap,
         gameMapThumbnailUrl: mapThumbnailUrl ?? "data:,",
-        duration: getReadableDuration(match.MatchInfo.Duration, "en-US"),
+        duration: getReadableDuration(match.MatchInfo.Duration, resolvedLocale),
         gameScore,
         gameSubScore,
         startTime: new Date(match.MatchInfo.StartTime).toISOString(),
@@ -209,7 +212,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
   return {
     title: `Queue #${queueNumber.toString()} Series Stats`,
     subtitle,
-    seriesScore: haloService.getSeriesScore(sortedMatches, "en-US"),
+    seriesScore: haloService.getSeriesScore(sortedMatches, resolvedLocale),
     teams,
     matches: renderMatches,
   };

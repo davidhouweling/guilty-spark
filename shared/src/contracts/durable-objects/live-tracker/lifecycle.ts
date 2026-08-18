@@ -48,6 +48,7 @@ export const liveTrackerStateSchema = z.object({
     substitutionCount: z.number(),
   }),
   channelManagePermissionCache: z.boolean().optional(),
+  localeCache: z.string().optional(),
   lastRefreshAttempt: z.string().optional(),
   refreshInProgress: z.boolean().optional(),
   refreshStartedAt: z.string().optional(),
