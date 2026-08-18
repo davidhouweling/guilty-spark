@@ -4,6 +4,7 @@ import { ComponentLoader, ComponentLoaderStatus } from "../../components/compone
 import { ErrorState } from "../../components/error-state/error-state";
 import { LoadingState } from "../../components/loading-state/loading-state";
 import { createLiveTracker } from "../../components/live-tracker/create";
+import "../../services/time-ago";
 import type { Services } from "./services";
 import { installServices } from "./services";
 

@@ -4,6 +4,7 @@ import { ComponentLoader, ComponentLoaderStatus } from "../../components/compone
 import { ErrorState } from "../../components/error-state/error-state";
 import { LoadingState } from "../../components/loading-state/loading-state";
 import { createIndividualTrackerOverlayPage } from "../../components/individual-tracker/overlay/create";
+import "../../services/time-ago";
 import type { Services } from "../individual-tracker-viewer/services";
 import { installServices } from "../individual-tracker-viewer/services";
 
