@@ -1,16 +1,16 @@
-// HCS map/mode pool
+// LVT Pro League map/mode pool. HCS names are retained for compatibility.
 
-export const HCS_LAST_UPDATED = "16 February 2026";
+export const HCS_LAST_UPDATED = "18 August 2026";
 
 export type MapMode = "Slayer" | "Capture the Flag" | "Strongholds" | "Oddball" | "King of the Hill" | "Neutral Bomb";
 export type Format = "random" | "objective" | "slayer";
 
 export const CURRENT_HCS_MAPS: Record<MapMode, string[]> = {
-  Slayer: ["Live Fire", "Origin", "Recharge", "Solitude", "Streets", "Vacancy"],
+  Slayer: ["Solitude", "Live Fire", "Recharge", "Streets", "Origin"],
   "Capture the Flag": ["Aquarius", "Empyrean", "Origin"],
   Strongholds: ["Live Fire", "Recharge"],
-  Oddball: ["Lattice", "Live Fire", "Recharge"],
-  "King of the Hill": ["Lattice", "Live Fire", "Vacancy"],
+  Oddball: ["Live Fire", "Lattice", "Recharge", "Streets"],
+  "King of the Hill": ["Live Fire", "Lattice", "Recharge", "Streets"],
   "Neutral Bomb": [],
 };
 
@@ -36,15 +36,6 @@ export const HISTORICAL_HCS_MAPS: Record<MapMode, string[]> = {
   Oddball: ["Live Fire", "Recharge", "Streets", "Lattice"],
   "King of the Hill": ["Live Fire", "Recharge", "Streets", "Solitude", "Lattice", "Vacancy"],
   "Neutral Bomb": ["Aquarius", "Fortress"],
-};
-
-export const LUCID_EVO_MAPS: Record<MapMode, string[]> = {
-  Slayer: ["Aquarius", "Live Fire", "Recharge", "Solitude"],
-  "Capture the Flag": ["Aquarius", "Bazaar", "Catalyst", "Forbidden"],
-  Strongholds: ["Recharge", "Solitude", "Streets"],
-  Oddball: ["Live Fire", "Recharge", "Streets"],
-  "King of the Hill": ["Live Fire", "Recharge", "Solitude", "Streets"],
-  "Neutral Bomb": [],
 };
 
 export const ALL_MODES: MapMode[] = [

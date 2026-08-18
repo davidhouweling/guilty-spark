@@ -5,6 +5,7 @@ import { SESSION_COOKIE_MAX_AGE_SECONDS } from "../../auth/session-manager";
 import { DatabaseService } from "../database";
 import {
   aFakeDiscordAssociationsRow,
+  aFakeGuildConfigRow,
   aFakeNeatQueueConfigRow,
   aFakeUserSessionsRow,
   aFakeUserCredentialsRow,
@@ -218,6 +219,21 @@ describe("Database Service", () => {
 
       expect(runSpy).toHaveBeenCalled();
       expect(config.NeatQueueInformerPlayerConnections).toBe("Y");
+    });
+
+    it("falls back to HCS Current for legacy Lucid Evo configuration", async () => {
+      const legacyConfig = {
+        ...aFakeGuildConfigRow(),
+        NeatQueueInformerMapsPlaylist: "L" as const,
+      };
+      const fakePreparedStatement = new FakePreparedStatement();
+      vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(legacyConfig);
+
+      const config = await databaseService.getGuildConfig("guild-legacy-lucid");
+
+      expect(config.NeatQueueInformerMapsPlaylist).toBe(MapsPlaylistType.HCS_CURRENT);
     });
   });
 

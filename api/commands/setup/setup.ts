@@ -1880,17 +1880,12 @@ export class SetupCommand extends BaseCommand {
                   {
                     label: this.configMapPlaylistToString(MapsPlaylistType.HCS_CURRENT),
                     value: MapsPlaylistType.HCS_CURRENT,
-                    description: `The current maps and modes of HCS (as of ${HCS_LAST_UPDATED})`,
+                    description: `The current maps and modes of the LVT Pro League (as of ${HCS_LAST_UPDATED})`,
                   },
                   {
                     label: this.configMapPlaylistToString(MapsPlaylistType.HCS_HISTORICAL),
                     value: MapsPlaylistType.HCS_HISTORICAL,
-                    description: "All maps and modes that have been played at any HCS major event",
-                  },
-                  {
-                    label: this.configMapPlaylistToString(MapsPlaylistType.LUCID_EVO),
-                    value: MapsPlaylistType.LUCID_EVO,
-                    description: "The maps and modes available in the Halo Infinite Evo (Lucid Maps)",
+                    description: "All maps and modes that have been played at any HCS + LVT Pro League event",
                   },
                   {
                     label: this.configMapPlaylistToString(MapsPlaylistType.RANKED_ARENA),
@@ -2069,13 +2064,10 @@ export class SetupCommand extends BaseCommand {
   private configMapPlaylistToString(playlistType: MapsPlaylistType): string {
     switch (playlistType) {
       case MapsPlaylistType.HCS_CURRENT: {
-        return "HCS - Current";
+        return "LVT Pro League - Current";
       }
       case MapsPlaylistType.HCS_HISTORICAL: {
-        return "HCS - Historical";
-      }
-      case MapsPlaylistType.LUCID_EVO: {
-        return "Halo Infinite Evo (Lucid Maps)";
+        return "HCS + LVT Pro League - Historical";
       }
       case MapsPlaylistType.RANKED_ARENA: {
         return "Ranked Arena";

@@ -508,7 +508,7 @@ describe("MapsCommand", () => {
 
           const [channelId, data] = createMessageSpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
           expect(channelId).toBe(interaction.channel.id);
-          expect(data.embeds?.[0]?.title).toContain("Maps: HCS - Current");
+          expect(data.embeds?.[0]?.title).toContain("Maps: LVT Pro League - Current");
 
           const actionRow = getButtonRow(data.components);
           expect(actionRow.components).toHaveLength(4);
