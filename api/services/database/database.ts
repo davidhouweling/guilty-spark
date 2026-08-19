@@ -27,6 +27,20 @@ const SQLITE_MAX_VARIABLES = 999;
 // D1 accepts at most 100 bound parameters per statement, so batch upserts must chunk below this cap.
 const D1_SAFE_MAX_VARIABLES_PER_STATEMENT = 100;
 
+type StoredGuildConfigRow = Omit<GuildConfigRow, "NeatQueueInformerMapsPlaylist"> & {
+  NeatQueueInformerMapsPlaylist: GuildConfigRow["NeatQueueInformerMapsPlaylist"] | "L";
+};
+
+function normalizeGuildConfig(config: StoredGuildConfigRow): GuildConfigRow {
+  return {
+    ...config,
+    NeatQueueInformerMapsPlaylist:
+      config.NeatQueueInformerMapsPlaylist === "L"
+        ? MapsPlaylistType.HCS_CURRENT
+        : config.NeatQueueInformerMapsPlaylist,
+  };
+}
+
 function getPerSeriesAverageSql(column: string, outerAlias: string): string {
   return `(SELECT AVG(perSeries.MetricValue) FROM (
     SELECT SUM(gpSeries.${column}) AS MetricValue
@@ -132,11 +146,12 @@ export class DatabaseService {
 
     const query = "SELECT * FROM GuildConfig WHERE GuildId = ?";
     const stmt = this.DB.prepare(query).bind(guildId);
-    const result = await stmt.first<GuildConfigRow>();
+    const result = await stmt.first<StoredGuildConfigRow>();
 
     if (result) {
-      this.guildConfigCache.set(guildId, result);
-      return result;
+      const config = normalizeGuildConfig(result);
+      this.guildConfigCache.set(guildId, config);
+      return config;
     }
 
     const defaultConfig: GuildConfigRow = {

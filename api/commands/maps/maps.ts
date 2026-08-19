@@ -32,7 +32,7 @@ export class MapsCommand extends BaseCommand {
     {
       type: ApplicationCommandType.ChatInput,
       name: "maps",
-      description: "Generate a random set of Halo maps (default: HCS)",
+      description: "Generate a random set of Halo maps (default: LVT Pro League)",
       default_member_permissions: null,
       options: [
         {
@@ -50,17 +50,13 @@ export class MapsCommand extends BaseCommand {
         {
           type: ApplicationCommandOptionType.String,
           name: "playlist",
-          description: "Which playlist to use (default: HCS - Current)",
+          description: "Which playlist to use (default: LVT Pro League - Current)",
           required: false,
           choices: [
             { name: mapPlaylistLabels[MapsPlaylistType.HCS_CURRENT], value: MapsPlaylistType.HCS_CURRENT },
             {
               name: mapPlaylistLabels[MapsPlaylistType.HCS_HISTORICAL],
               value: MapsPlaylistType.HCS_HISTORICAL,
-            },
-            {
-              name: mapPlaylistLabels[MapsPlaylistType.LUCID_EVO],
-              value: MapsPlaylistType.LUCID_EVO,
             },
             { name: mapPlaylistLabels[MapsPlaylistType.RANKED_ARENA], value: MapsPlaylistType.RANKED_ARENA },
             { name: mapPlaylistLabels[MapsPlaylistType.RANKED_SLAYER], value: MapsPlaylistType.RANKED_SLAYER },

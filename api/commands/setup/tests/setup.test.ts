@@ -775,7 +775,9 @@ describe("SetupCommand", () => {
         const [, content] = updateDeferredReplySpy.mock.lastCall ?? [];
         const fieldValue = content?.embeds?.[0]?.fields?.[0]?.value;
         expect(fieldValue).toContain("**Player Connections on queue start:** Disabled");
-        expect(fieldValue).toContain("**Maps on queue start:** Off, HCS - Historical, Slayer only, 1 maps");
+        expect(fieldValue).toContain(
+          "**Maps on queue start:** Off, HCS + LVT Pro League - Historical, Slayer only, 1 map",
+        );
       });
 
       it("displays updated configuration in main menu", async () => {

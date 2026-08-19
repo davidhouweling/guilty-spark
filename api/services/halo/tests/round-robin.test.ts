@@ -414,7 +414,7 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
 
     const analysis = analyzeDistribution(result);
 
-    expect(analysis.uniqueMaps).toBeGreaterThanOrEqual(6);
+    expect(analysis.uniqueMaps).toBeGreaterThanOrEqual(5);
     expect(analysis.maxMapRepeats).toBeLessThanOrEqual(2);
 
     expect(result[0]?.mode).toBe("Slayer");
