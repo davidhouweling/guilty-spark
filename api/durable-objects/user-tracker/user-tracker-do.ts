@@ -285,11 +285,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       const refreshedStored = await this.loadStateForTickLog();
       const refreshedDirectory = refreshedStored.viewState?.directory;
       if (refreshedDirectory != null && !this.hasFollowableTrackers(refreshedDirectory)) {
-        this.closeTrackerSubscriptions();
-        this.closeTrackerSubscriptions = (): void => {
-          // reset after closing
-        };
-        this.trackerSubscriptionsInstalled = false;
+        this.resetTrackerSubscriptionsState();
       }
       await this.scheduleFollowAlarmIfNeeded(refreshedStored);
     });
@@ -524,11 +520,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     const stored = await this.loadStateForTickLog();
     const directory = stored.viewState?.directory;
     if (directory != null && !this.hasFollowableTrackers(directory)) {
-      this.closeTrackerSubscriptions();
-      this.closeTrackerSubscriptions = (): void => {
-        // reset after closing
-      };
-      this.trackerSubscriptionsInstalled = false;
+      this.resetTrackerSubscriptionsState();
     } else if (!this.trackerSubscriptionsInstalled) {
       this.trackerSubscriptionsInstalled = true;
       await this.installTrackerSubscriptionsAsync();
@@ -538,13 +530,17 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async stopUpdateLoop(): Promise<void> {
+    this.resetTrackerSubscriptionsState();
+    await this.state.storage.delete(USER_TRACKER_RECONCILE_DEADLINE_KEY);
+    await this.state.storage.deleteAlarm();
+  }
+
+  private resetTrackerSubscriptionsState(): void {
     this.closeTrackerSubscriptions();
     this.closeTrackerSubscriptions = (): void => {
       // reset after closing
     };
     this.trackerSubscriptionsInstalled = false;
-    await this.state.storage.delete(USER_TRACKER_RECONCILE_DEADLINE_KEY);
-    await this.state.storage.deleteAlarm();
   }
 
   private async installTrackerSubscriptionsAsync(): Promise<void> {
