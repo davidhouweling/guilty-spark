@@ -5,6 +5,7 @@
   "description": "Discord app to pull Halo stats from Halo Waypoint. Works in conjunction with NeatQueue.",
   "license": "MIT",
   "private": true,
+  "type": "module",
   "workspaces": [
     "api",
     "pages",
