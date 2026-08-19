@@ -24,8 +24,6 @@ import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeWebSocketHibernationAdapter } from "../../../base/fakes/websocket-hibernation-adapter.fake";
 import type { FakeWebSocketHibernationAdapter } from "../../../base/fakes/websocket-hibernation-adapter.fake";
 
-const RECONCILE_WINDOW_MS = 300000;
-
 interface PersistentStateHarness {
   state: DurableObjectState & { storage: DurableObjectStorage };
   persistedStorage: Map<string, unknown>;
@@ -1276,7 +1274,19 @@ describe("UserTrackerDO", () => {
       },
     });
     const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
-    const services = installFakeServicesWith({ env: localEnv });
+    const logService = aFakeLogServiceWith();
+    const debugSpy = vi.spyOn(logService, "debug");
+    const services = installFakeServicesWith({ env: localEnv, logService });
+    mockState.storage.get = (async (key: string | string[]) => {
+      if (typeof key === "string") {
+        return await Promise.resolve({
+          state: { userId: "user-1", lastUpdateTime: new Date().toISOString() },
+          viewState: null,
+        });
+      }
+
+      return await Promise.resolve(new Map());
+    }) as DurableObjectStorage["get"];
     vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
     vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
       .mockResolvedValueOnce([
@@ -1303,9 +1313,14 @@ describe("UserTrackerDO", () => {
     await localUserTrackerDO.alarm();
 
     expect(setAlarmMock).toHaveBeenCalledTimes(1);
+    const [message, context] = debugSpy.mock.calls.find(([currentMessage]) => currentMessage === "UserTracker follow tick") ?? [];
+    expect(message).toBe("UserTracker follow tick");
+    expect(context?.get("userId")).toBe("user-1");
+    expect(context?.get("tickType")).toBe("follow");
+    expect(context?.get("connectedClientCount")).toBe("1");
   });
 
-  it("reconciles through alarm when no websocket clients are connected but state exists", async () => {
+  it("refreshes clientless view-state requests on demand", async () => {
     const persistedStorage = new Map<string, unknown>();
     let alarmTime: number | null = null;
     const localSetAlarmMock = vi.fn<DurableObjectStorage["setAlarm"]>(async (scheduledTime) => {
@@ -1374,53 +1389,17 @@ describe("UserTrackerDO", () => {
     );
     const initialPayload = await userTrackerViewStateContract.fromResponse(initialResponse);
     expect(initialPayload.state?.directory.trackers).toHaveLength(1);
-    expect(localSetAlarmMock).toHaveBeenCalledOnce();
-
-    alarmTime = null;
-    await localUserTrackerDO.alarm();
 
     const reconciledResponse = await localUserTrackerDO.fetch(
       new Request("http://do/view-state?userId=user-1", { method: "GET" }),
     );
     const reconciledPayload = await userTrackerViewStateContract.fromResponse(reconciledResponse);
     expect(reconciledPayload.state?.directory.trackers).toHaveLength(0);
-    expect(localSetAlarmMock).toHaveBeenCalledTimes(2);
+    expect(localSetAlarmMock).not.toHaveBeenCalled();
     expect(localDeleteAlarmMock).not.toHaveBeenCalled();
   });
 
-  it("stops reconciling and clears the alarm once the clientless reconcile window elapses", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2025-01-01T00:00:00.000Z"));
-    const harness = aPersistentStateHarness();
-    const localEnv = aFakeEnvWith({
-      INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(
-        aFakeIndividualTrackerDOWith({ viewStateResponse: { state: null } }),
-      ),
-    });
-    const services = installFakeServicesWith({ env: localEnv });
-    vi.spyOn(harness.state, "getWebSockets").mockReturnValue([]);
-    const findTrackersSpy = vi
-      .spyOn(services.databaseService, "findIndividualTrackersByUserId")
-      .mockResolvedValue([aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Status: "active" })]);
-    const localUserTrackerDO = new UserTrackerDO(harness.state, localEnv, () => services, webSocketAdapter);
-
-    await localUserTrackerDO.fetch(new Request("http://do/view-state?userId=user-1", { method: "GET" }));
-    expect(harness.setAlarmMock).toHaveBeenCalledOnce();
-
-    vi.advanceTimersByTime(RECONCILE_WINDOW_MS + 1);
-    findTrackersSpy.mockClear();
-    await localUserTrackerDO.alarm();
-
-    expect(harness.deleteAlarmMock).toHaveBeenCalledOnce();
-    expect(harness.setAlarmMock).toHaveBeenCalledOnce();
-    expect(findTrackersSpy).not.toHaveBeenCalled();
-
-    await localUserTrackerDO.fetch(new Request("http://do/view-state?userId=user-1", { method: "GET" }));
-    expect(findTrackersSpy).toHaveBeenCalledOnce();
-    vi.useRealTimers();
-  });
-
-  it("stops reconciling when no reconcile deadline has been recorded", async () => {
+  it("clears an alarm when it fires without websocket clients", async () => {
     const harness = aPersistentStateHarness();
     harness.persistedStorage.set("userTrackerState", {
       state: { userId: "user-1", lastUpdateTime: new Date().toISOString() },
@@ -1443,35 +1422,7 @@ describe("UserTrackerDO", () => {
     expect(findTrackersSpy).not.toHaveBeenCalled();
   });
 
-  it("extends the reconcile window when view-state is requested again", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2025-01-01T00:00:00.000Z"));
-    const harness = aPersistentStateHarness();
-    const localEnv = aFakeEnvWith({
-      INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(
-        aFakeIndividualTrackerDOWith({ viewStateResponse: { state: null } }),
-      ),
-    });
-    const services = installFakeServicesWith({ env: localEnv });
-    vi.spyOn(harness.state, "getWebSockets").mockReturnValue([]);
-    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([
-      aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Status: "active" }),
-    ]);
-    const localUserTrackerDO = new UserTrackerDO(harness.state, localEnv, () => services, webSocketAdapter);
-
-    await localUserTrackerDO.fetch(new Request("http://do/view-state?userId=user-1", { method: "GET" }));
-    vi.advanceTimersByTime(RECONCILE_WINDOW_MS - 1000);
-    await localUserTrackerDO.fetch(new Request("http://do/view-state?userId=user-1", { method: "GET" }));
-
-    vi.advanceTimersByTime(2000);
-    await localUserTrackerDO.alarm();
-
-    expect(harness.deleteAlarmMock).not.toHaveBeenCalled();
-    expect(harness.setAlarmMock).toHaveBeenCalledTimes(2);
-    vi.useRealTimers();
-  });
-
-  it("re-arms reconcile alarm and logs directory refresh failures when rebuild fails transiently", async () => {
+  it("logs directory refresh failures from a connected-client alarm", async () => {
     const persistedStorage = new Map<string, unknown>();
     let alarmTime: number | null = null;
     const localSetAlarmMock = vi.fn<DurableObjectStorage["setAlarm"]>(async (scheduledTime) => {
@@ -1515,8 +1466,8 @@ describe("UserTrackerDO", () => {
     const logService = aFakeLogServiceWith();
     const errorSpy = vi.spyOn(logService, "error");
     const services = installFakeServicesWith({ env: localEnv, logService });
-    vi.spyOn(localState, "getWebSockets").mockReturnValue([]);
     const transientFailure = new Error("transient reconcile failure");
+    vi.spyOn(localState, "getWebSockets").mockReturnValue([{} as WebSocket]);
     vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
       .mockResolvedValueOnce([
         aFakeIndividualTrackersRow({
@@ -1534,12 +1485,9 @@ describe("UserTrackerDO", () => {
       new Request("http://do/view-state?userId=user-1", { method: "GET" }),
     );
     expect(initialResponse.status).toBe(200);
-    expect(localSetAlarmMock).toHaveBeenCalledOnce();
-
-    alarmTime = null;
     await localUserTrackerDO.alarm();
 
-    expect(localSetAlarmMock).toHaveBeenCalledTimes(2);
+    expect(localSetAlarmMock).toHaveBeenCalledOnce();
     expect(localDeleteAlarmMock).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalled();
     const [loggedError, loggedContext] = errorSpy.mock.calls.at(-1) ?? [];
@@ -1591,7 +1539,7 @@ describe("UserTrackerDO", () => {
     const logService = aFakeLogServiceWith();
     const errorSpy = vi.spyOn(logService, "error");
     const services = installFakeServicesWith({ env: localEnv, logService });
-    vi.spyOn(localState, "getWebSockets").mockReturnValue([]);
+    vi.spyOn(localState, "getWebSockets").mockReturnValue([{} as WebSocket]);
     vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([
       aFakeIndividualTrackersRow({
         TrackerId: "t1",
@@ -1620,7 +1568,7 @@ describe("UserTrackerDO", () => {
     expect(loggedError).toBe(alarmFailure);
     expect(loggedContext?.get("context")).toBe("UserTracker alarm error");
     expect(loggedContext?.get("userId")).toBe("user-1");
-    expect(loggedContext?.get("tickType")).toBe("reconcile");
+    expect(loggedContext?.get("tickType")).toBe("follow");
   });
 
   it("logs alarm errors with fallback context when state enrichment fails", async () => {
@@ -1721,7 +1669,7 @@ describe("UserTrackerDO", () => {
     const logService = aFakeLogServiceWith();
     const errorSpy = vi.spyOn(logService, "error");
     const services = installFakeServicesWith({ env: localEnv, logService });
-    vi.spyOn(localState, "getWebSockets").mockReturnValue([]);
+    vi.spyOn(localState, "getWebSockets").mockReturnValue([{} as WebSocket]);
     vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([
       aFakeIndividualTrackersRow({
         TrackerId: "t1",
@@ -1742,7 +1690,7 @@ describe("UserTrackerDO", () => {
     shouldFailNextPut = true;
     await localUserTrackerDO.alarm();
 
-    expect(localSetAlarmMock).toHaveBeenCalledTimes(2);
+    expect(localSetAlarmMock).toHaveBeenCalledOnce();
     expect(localDeleteAlarmMock).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalled();
     const [loggedError, loggedContext] = errorSpy.mock.calls.at(-1) ?? [];

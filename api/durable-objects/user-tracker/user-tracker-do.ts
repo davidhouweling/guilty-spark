@@ -35,8 +35,6 @@ const USER_TRACKER_STATE_KEY = "userTrackerState";
 const USER_TRACKER_MARKERS_KEY = "userTrackerMarkers";
 const USER_TRACKER_RECONCILE_DEADLINE_KEY = "userTrackerReconcileDeadline";
 const FOLLOW_WS_POLL_INTERVAL_MS = 3000;
-const USER_TRACKER_RECONCILE_INTERVAL_MS = 30000;
-const USER_TRACKER_RECONCILE_WINDOW_MS = 300000;
 const TRACKER_MARKER_LIMIT = 500;
 
 function isNonStopped(row: IndividualTrackersRow): boolean {
@@ -223,31 +221,21 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       Sentry.setTag("durableObject", "UserTrackerDO");
       Sentry.setTag("method", "alarm");
 
-      const hasConnectedClients = this.state.getWebSockets().length > 0;
+      const connectedClientCount = this.state.getWebSockets().length;
+      const hasConnectedClients = connectedClientCount > 0;
       if (!hasConnectedClients) {
-        const stored = await this.loadState();
-        await this.stopUpdateLoop({ scheduleReconcile: false, stored });
-
-        if (stored.state?.userId == null) {
-          return;
-        }
-
-        if (await this.hasReconcileWindowElapsed()) {
-          await this.stopReconciling(stored.state.userId);
-          return;
-        }
+        await this.state.storage.delete(USER_TRACKER_RECONCILE_DEADLINE_KEY);
+        await this.state.storage.deleteAlarm();
+        return;
       }
 
-      const tickType = hasConnectedClients ? "follow" : "reconcile";
-      this.logService.debug(
-        `UserTracker ${tickType} tick`,
-        new Map([["hasConnectedClients", hasConnectedClients.toString()]]),
-      );
+      let stored: UserTrackerInternalState | null = null;
+      const tickType = "follow";
 
       try {
         await this.queueDirectoryPush();
       } catch (error) {
-        const stored = await this.loadStateForErrorContext("UserTracker alarm error context load failed");
+        stored = await this.loadStateForErrorContext("UserTracker alarm error context load failed");
         this.logService.error(
           error,
           new Map([
@@ -255,13 +243,27 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
             ["userId", stored.state?.userId ?? "unknown"],
             ["tickType", tickType],
             ["hasConnectedClients", hasConnectedClients.toString()],
+            ["connectedClientCount", connectedClientCount.toString()],
           ]),
         );
         Sentry.captureException(error);
       }
 
+      if (stored == null) {
+        stored = await this.loadStateForTickLog();
+        this.logService.debug(
+          `UserTracker ${tickType} tick`,
+          new Map([
+            ["userId", stored.state?.userId ?? "unknown"],
+            ["tickType", tickType],
+            ["hasConnectedClients", hasConnectedClients.toString()],
+            ["connectedClientCount", connectedClientCount.toString()],
+          ]),
+        );
+      }
+
       await this.scheduleNextAlarm(
-        hasConnectedClients ? FOLLOW_WS_POLL_INTERVAL_MS : USER_TRACKER_RECONCILE_INTERVAL_MS,
+        FOLLOW_WS_POLL_INTERVAL_MS,
       );
     });
   }
@@ -288,6 +290,18 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     };
   }
 
+  private async loadStateForTickLog(): Promise<UserTrackerInternalState> {
+    try {
+      return await this.loadState();
+    } catch (error) {
+      this.logService.warn(error, new Map([["context", "UserTracker tick context load failed"]]));
+      return {
+        state: null,
+        viewState: null,
+      };
+    }
+  }
+
   private async handleStatus(): Promise<Response> {
     const stored = await this.loadState();
     const response: UserTrackerStatusResponse = {
@@ -298,9 +312,6 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
   private async handleViewState(request: Request): Promise<Response> {
     const stored = await this.getOrBuildState(request);
-    if (stored?.state?.userId != null && this.state.getWebSockets().length === 0) {
-      await this.scheduleReconcileAlarmIfNeeded();
-    }
 
     const response: UserTrackerViewStateResponse = {
       state: stored?.viewState ?? null,
@@ -359,7 +370,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return stored.viewState == null ? null : stored;
     }
 
-    if (stored.viewState != null && stored.state?.userId === userId) {
+    if (stored.viewState != null && stored.state?.userId === userId && this.state.getWebSockets().length > 0) {
       return stored;
     }
 
@@ -440,61 +451,12 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     void this.installTrackerSubscriptionsAsync();
   }
 
-  private async stopUpdateLoop(
-    options: { scheduleReconcile: boolean; stored?: UserTrackerInternalState } = { scheduleReconcile: true },
-  ): Promise<void> {
+  private async stopUpdateLoop(): Promise<void> {
     this.closeTrackerSubscriptions();
     this.closeTrackerSubscriptions = (): void => {
       // reset after closing
     };
     this.trackerSubscriptionsInstalled = false;
-
-    const stored = options.stored ?? (await this.loadState());
-    if (stored.state?.userId == null) {
-      await this.state.storage.delete(USER_TRACKER_RECONCILE_DEADLINE_KEY);
-      await this.state.storage.deleteAlarm();
-      return;
-    }
-
-    if (!options.scheduleReconcile) {
-      return;
-    }
-
-    await this.scheduleReconcileAlarmIfNeeded();
-  }
-
-  private async scheduleReconcileAlarmIfNeeded(): Promise<void> {
-    await this.state.storage.put(USER_TRACKER_RECONCILE_DEADLINE_KEY, Date.now() + USER_TRACKER_RECONCILE_WINDOW_MS);
-
-    const nextAlarmTime = await this.state.storage.getAlarm();
-    if (nextAlarmTime != null) {
-      return;
-    }
-
-    await this.scheduleNextAlarm(USER_TRACKER_RECONCILE_INTERVAL_MS);
-  }
-
-  private async hasReconcileWindowElapsed(): Promise<boolean> {
-    const deadline = await this.state.storage.get<number>(USER_TRACKER_RECONCILE_DEADLINE_KEY);
-    if (typeof deadline !== "number") {
-      // No deadline recorded — the alarm predates this key, so stop rather than reconcile forever.
-      return true;
-    }
-
-    return Date.now() >= deadline;
-  }
-
-  private async stopReconciling(userId: string): Promise<void> {
-    this.logService.debug("UserTracker reconcile window elapsed", new Map([["userId", userId]]));
-
-    const stored = await this.loadState();
-    if (stored.state?.userId === userId && stored.viewState != null) {
-      await this.state.storage.put(USER_TRACKER_STATE_KEY, {
-        ...stored,
-        viewState: null,
-      });
-    }
-
     await this.state.storage.delete(USER_TRACKER_RECONCILE_DEADLINE_KEY);
     await this.state.storage.deleteAlarm();
   }
