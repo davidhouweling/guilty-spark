@@ -154,6 +154,27 @@ const MATCH_F5A8_CONTROL_PERIODS: ObjectiveControlPeriod[] = [
   controlPeriod(627000, 679000, 1),
 ];
 
+// Real match 5bbe0481-3ab8-486a-b05c-0d53895beb7d (3:2 Cobra, ends on time). The first fully
+// blind-verified match: all six hills confirmed in theatre with no corrections. Cobra at 2:21,
+// Eagle at 5:23 (Cobra one tick short), Cobra at 7:29 and 8:52, Eagle at 10:43.
+const MATCH_5BBE_TICKS = new Map<number, readonly number[]>([
+  [
+    0,
+    [
+      88300, 98093, 184393, 196307, 232310, 243671, 248676, 282784, 288323, 295547, 298950, 323892, 357293, 380182,
+      385187, 406725, 411730, 416735, 545215, 569975, 574980, 579985, 595905, 635892, 640896, 643883,
+    ],
+  ],
+  [
+    1,
+    [
+      48493, 57636, 62641, 119698, 124703, 128641, 135997, 141003, 213191, 218196, 269488, 304222, 306841, 316452,
+      320839, 340693, 344329, 425643, 431700, 436705, 441710, 446715, 449651, 473526, 480800, 485804, 507426, 513382,
+      518387, 523393, 532519,
+    ],
+  ],
+]);
+
 describe("findBestKothCaptureAssignment", () => {
   it("returns the verified capture timestamps for match 5c39e8a4 (2:1, Cobra takes hill 3)", () => {
     const events = eventsFromTicks(MATCH_5C39_TICKS);
@@ -224,6 +245,19 @@ describe("findBestKothCaptureAssignment", () => {
       MATCH_F5A8_CONTROL_PERIODS,
     );
     expect(result).toEqual([243749, 328521, 474242, 596165, 649402]);
+  });
+
+  it("returns the verified capture timestamps for match 5bbe0481 (fully blind-verified)", () => {
+    const events = eventsFromTicks(MATCH_5BBE_TICKS);
+    const result = findBestKothCaptureAssignment(
+      events,
+      new Map([
+        [0, 2],
+        [1, 3],
+      ]),
+      [],
+    );
+    expect(result).toEqual([141003, 323892, 449651, 532519, 643883]);
   });
 
   it("never places a capture on a tick followed within the relocation gap by another tick", () => {
