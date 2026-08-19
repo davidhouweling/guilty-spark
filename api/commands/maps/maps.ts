@@ -73,7 +73,7 @@ export class MapsCommand extends BaseCommand {
         {
           type: ApplicationCommandOptionType.String,
           name: "format",
-          description: "Format of the map set (default: LVT Pro League)",
+          description: "Format of the map set (default: HCS)",
           required: false,
           choices: [
             { name: mapFormatLabels[MapsFormatType.HCS], value: MapsFormatType.HCS },

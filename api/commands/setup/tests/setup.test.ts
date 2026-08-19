@@ -776,7 +776,7 @@ describe("SetupCommand", () => {
         const fieldValue = content?.embeds?.[0]?.fields?.[0]?.value;
         expect(fieldValue).toContain("**Player Connections on queue start:** Disabled");
         expect(fieldValue).toContain(
-          "**Maps on queue start:** Off, HCS + LVT Pro League - Historical, Slayer only, 1 maps",
+          "**Maps on queue start:** Off, HCS + LVT Pro League - Historical, Slayer only, 1 map",
         );
       });
 

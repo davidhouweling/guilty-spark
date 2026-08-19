@@ -1641,10 +1641,11 @@ export class SetupCommand extends BaseCommand {
         '-# If Guilty Spark does not have permissions when it tries to interact with the queue channel, the settings will switch to "Disabled"',
       ].join("\n");
 
+      const mapCountLabel = this.getMapCountLabel(config.NeatQueueInformerMapsCount);
       const configDisplay = [
         `**Player Connections on queue start:** ${config.NeatQueueInformerPlayerConnections === "Y" ? "Enabled" : "Disabled"}`,
         `**Live Tracking:** ${config.NeatQueueInformerLiveTracking === "Y" ? `Enabled${config.NeatQueueInformerLiveTrackingChannelName === "Y" ? " (with channel name updates)" : ""}` : "Disabled"}`,
-        `**Maps on queue start:** ${this.configMapPostToString(config.NeatQueueInformerMapsPost)}, ${this.configMapPlaylistToString(config.NeatQueueInformerMapsPlaylist)}, ${this.configMapFormatToString(config.NeatQueueInformerMapsFormat)}, ${config.NeatQueueInformerMapsCount.toString()} maps`,
+        `**Maps on queue start:** ${this.configMapPostToString(config.NeatQueueInformerMapsPost)}, ${this.configMapPlaylistToString(config.NeatQueueInformerMapsPlaylist)}, ${this.configMapFormatToString(config.NeatQueueInformerMapsFormat)}, ${config.NeatQueueInformerMapsCount.toString()} ${mapCountLabel}`,
       ].join("\n");
 
       const setupNeatQueueInformerEmbed = new SetupNeatQueueInformerEmbed({ description, configDisplay });
@@ -2114,5 +2115,13 @@ export class SetupCommand extends BaseCommand {
         throw new UnreachableError(formatType);
       }
     }
+  }
+
+  private getMapCountLabel(mapCount: number): string {
+    if (mapCount === 1) {
+      return "map";
+    }
+
+    return "maps";
   }
 }
