@@ -1,11 +1,11 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { ObjectiveControlPeriod, ObjectiveControlProgressionEvent } from "./types";
 
-export const MIN_CAPTURE_TICKS = 5;
+const MIN_CAPTURE_TICKS = 5;
 // A capture relocates the hill, so no team can score for the travel time afterwards. Ticks arrive
 // on a ~5 000 ms cadence while a hill is occupied; the shortest post-capture quiet gap observed in
 // real matches is ~11 100 ms, so 8 000 ms separates same-hill ticking from a relocation.
-export const RELOCATION_GAP_MS = 8_000;
+const RELOCATION_GAP_MS = 8_000;
 // A capture needs the meter full: 40 seconds of scoring (HCS King of the Hill settings). Each
 // film tick represents ~5 seconds of scoring, and a gap larger than 1.5 cadences between the
 // capturer's own ticks can hide one dropped film tick (or paused-meter time), granting one
