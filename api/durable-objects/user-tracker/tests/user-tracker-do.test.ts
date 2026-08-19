@@ -1522,6 +1522,121 @@ describe("UserTrackerDO", () => {
     });
   });
 
+  it("reinstalls subscriptions after follow websocket start with an initially empty directory", async () => {
+    const trackerDo = aFakeIndividualTrackerDOWith({
+      viewStateResponse: {
+        state: aFakeIndividualTrackerViewStateWith({
+          trackerId: "t1",
+          gamertag: "KnownTag",
+          matches: [],
+        }),
+      },
+    });
+    const trackerFetchSpy = vi.spyOn(trackerDo, "fetch");
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const services = installFakeServicesWith({ env: localEnv });
+    const persistedStorage = new Map<string, unknown>();
+    mockState.storage.get = (async (key: string | string[]) => {
+      if (typeof key !== "string") {
+        return await Promise.resolve(new Map());
+      }
+
+      return await Promise.resolve(persistedStorage.get(key));
+    }) as DurableObjectStorage["get"];
+    mockState.storage.put = (async (key: string, value: unknown) => {
+      persistedStorage.set(key, value);
+      await Promise.resolve();
+    }) as DurableObjectStorage["put"];
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        aFakeIndividualTrackersRow({
+          TrackerId: "t1",
+          UserId: "user-1",
+          Gamertag: "KnownTag",
+          Status: "active",
+          IsLive: 1,
+        }),
+      ])
+      .mockResolvedValue([
+        aFakeIndividualTrackersRow({
+          TrackerId: "t1",
+          UserId: "user-1",
+          Gamertag: "KnownTag",
+          Status: "active",
+          IsLive: 1,
+        }),
+      ]);
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    const socketResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/websocket?userId=user-1", {
+        headers: { Upgrade: "websocket" },
+      }),
+    );
+    expect(socketResponse.status).toBe(200);
+    expect(trackerFetchSpy).toHaveBeenCalledTimes(0);
+
+    const nudgeResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/nudge", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: "user-1",
+          trackerId: "t1",
+          lastUpdateTime: "2026-07-05T00:01:00.000Z",
+        }),
+      }),
+    );
+    expect(nudgeResponse.status).toBe(200);
+
+    await vi.waitFor(() => {
+      expect(trackerFetchSpy).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("keeps subscription state when nudge cannot load directory state", async () => {
+    const localEnv = aFakeEnvWith();
+    const services = installFakeServicesWith({ env: localEnv });
+    const persistedStorage = new Map<string, unknown>();
+    const closeSubscriptions = vi.fn();
+    mockState.storage.get = (async (key: string | string[]) => {
+      if (typeof key !== "string") {
+        return await Promise.resolve(new Map());
+      }
+
+      return await Promise.resolve(persistedStorage.get(key));
+    }) as DurableObjectStorage["get"];
+    mockState.storage.put = (async (key: string, value: unknown) => {
+      persistedStorage.set(key, value);
+      await Promise.resolve();
+    }) as DurableObjectStorage["put"];
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([]);
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+    Object.assign(localUserTrackerDO, {
+      trackerSubscriptionsInstalled: true,
+      closeTrackerSubscriptions: closeSubscriptions,
+      loadStateForTickLog: vi.fn(async () => Promise.resolve({ state: { userId: "user-1" }, viewState: null })),
+    });
+
+    const nudgeResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/nudge", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: "user-1",
+          trackerId: "t1",
+          lastUpdateTime: "2026-07-05T00:01:00.000Z",
+        }),
+      }),
+    );
+    expect(nudgeResponse.status).toBe(200);
+
+    await vi.waitFor(() => {
+      expect(closeSubscriptions).not.toHaveBeenCalled();
+    });
+  });
+
   it("refreshes clientless view-state requests on demand", async () => {
     const persistedStorage = new Map<string, unknown>();
     let alarmTime: number | null = null;

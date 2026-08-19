@@ -470,6 +470,11 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private async ensureUpdateLoopStarted(stored: UserTrackerInternalState): Promise<void> {
     await this.scheduleFollowAlarmIfNeeded(stored);
 
+    if (!this.hasFollowableTrackers(stored.viewState?.directory)) {
+      this.trackerSubscriptionsInstalled = false;
+      return;
+    }
+
     if (this.trackerSubscriptionsInstalled) {
       return;
     }
@@ -509,7 +514,8 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     }
 
     const stored = await this.loadStateForTickLog();
-    if (!this.hasFollowableTrackers(stored.viewState?.directory)) {
+    const directory = stored.viewState?.directory;
+    if (directory != null && !this.hasFollowableTrackers(directory)) {
       this.closeTrackerSubscriptions();
       this.closeTrackerSubscriptions = (): void => {
         // reset after closing
