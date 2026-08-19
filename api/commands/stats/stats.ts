@@ -19,12 +19,12 @@ import {
   InteractionContextType,
   PermissionFlagsBits,
 } from "discord-api-types/v10";
-import { MatchOutcome, MatchType } from "halo-infinite-api";
+import { MatchType } from "halo-infinite-api";
 import type { MatchStats, GameVariantCategory } from "halo-infinite-api";
 import { formatDistanceToNowStrict, subHours } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import { collapseSequentialSeriesEntries } from "@guilty-spark/shared/halo/match-enrichment";
+import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
 import type { BaseInteraction, ExecuteResponse, ApplicationCommandData, CommandData } from "../base/base-command";
 import { BaseCommand } from "../base/base-command";
 import { NEAT_QUEUE_BOT_USER_ID } from "../../services/discord/discord";
@@ -1310,27 +1310,17 @@ export class StatsCommand extends BaseCommand {
   }
 
   private deriveFixSeriesOutcome(series: MatchStats[]): FixSeriesOutcome {
-    const winsByTeamId = new Map<number, number>();
     const entries = series.map((match) => ({
-      match,
       startTime: match.MatchInfo.StartTime,
       mapAssetId: match.MatchInfo.MapVariant.AssetId,
       mapVersionId: match.MatchInfo.MapVariant.VersionId,
       gameVariantCategory: match.MatchInfo.GameVariantCategory,
+      teamOutcomes: match.Teams.map((team) => team.Outcome),
     }));
+    const winsByTeam = computeSeriesTeamWins(entries);
+    const team0Wins = winsByTeam[0] ?? 0;
+    const team1Wins = winsByTeam[1] ?? 0;
 
-    for (const { match } of collapseSequentialSeriesEntries(entries)) {
-      for (const team of match.Teams) {
-        if (team.Outcome !== MatchOutcome.Win.valueOf()) {
-          continue;
-        }
-
-        winsByTeamId.set(team.TeamId, (winsByTeamId.get(team.TeamId) ?? 0) + 1);
-      }
-    }
-
-    const team0Wins = winsByTeamId.get(0) ?? 0;
-    const team1Wins = winsByTeamId.get(1) ?? 0;
     if (team0Wins === team1Wins) {
       return "TIE";
     }
