@@ -1,15 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
-import TimeAgo from "javascript-time-ago";
-import en from "javascript-time-ago/locale/en";
 import { ComponentLoader, ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import { ErrorState } from "../../components/error-state/error-state";
 import { LoadingState } from "../../components/loading-state/loading-state";
 import { createIndividualTrackerViewerPage } from "../../components/individual-tracker/viewer/create";
+import "../../services/time-ago";
 import type { Services } from "./services";
 import { installServices } from "./services";
-
-TimeAgo.addDefaultLocale(en);
 
 interface IndividualTrackerViewerAppProps {
   readonly apiHost: string;

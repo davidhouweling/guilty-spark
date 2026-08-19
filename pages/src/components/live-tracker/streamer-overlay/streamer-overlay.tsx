@@ -1,7 +1,6 @@
 import React, { useMemo, useCallback } from "react";
 import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
-import TimeAgo from "javascript-time-ago";
 import { differenceInHours } from "date-fns";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { TickerMatchGroup, TickerStatRow } from "../../information-ticker/information-ticker";
@@ -24,11 +23,9 @@ import { TopSection } from "../../streamer-overlay/top-section";
 import { TeamDetailsContent } from "../../streamer-overlay/team-details-content";
 import { createStreamerOverlaySection } from "../../streamer-overlay/create";
 import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
+import { timeAgo } from "../../../services/time-ago";
 import { StatsPanelContent } from "./stats-panel";
 import styles from "./streamer-overlay.module.css";
-import "javascript-time-ago/locale/en";
-
-const timeAgo = new TimeAgo("en");
 
 const DIFFICULTY_RANGE = new Map([
   [0, [0, 99]],
