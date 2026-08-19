@@ -1,9 +1,16 @@
-import { describe, it } from "vitest";
-import { expectTimeAgoLocaleRegistered } from "../../../services/tests/time-ago-test-helpers";
+import { beforeEach, describe, it, vi } from "vitest";
+import { expectTimeAgoLocaleRegistered, spyOnTimeAgoAddLocale } from "../../../services/tests/time-ago-test-helpers";
 
 describe("live-tracker app entry", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
   it("registers the time-ago en locale so react-time-ago can render without throwing", async () => {
+    const addLocaleSpy = spyOnTimeAgoAddLocale();
+
     await import("../create");
-    await expectTimeAgoLocaleRegistered();
+
+    expectTimeAgoLocaleRegistered(addLocaleSpy);
   });
 });
