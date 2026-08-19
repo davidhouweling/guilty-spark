@@ -1604,6 +1604,43 @@ describe("StatsCommand", () => {
   });
 
   describe("execute(): message component fix confirm", () => {
+    it("returns an error when selected series outcome is missing from fix-flow metadata", async () => {
+      const interaction: APIMessageComponentButtonInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: "btn_stats_fix_confirm",
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          id: "fix-flow-message-id",
+        },
+      };
+
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "fake-channel-id",
+        queueData: {
+          ...discordNeatQueueData,
+          message: {
+            ...discordNeatQueueData.message,
+            id: "queue-neatqueue-message-id",
+          },
+        },
+        selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
+      });
+
+      const { jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          message: "No final series result was selected. Please run /stats fix again.",
+        }),
+      );
+    });
+
     it("rebuilds stats in related thread and marks amendment", async () => {
       const interaction: APIMessageComponentButtonInteraction = {
         ...fakeButtonClickInteraction,
