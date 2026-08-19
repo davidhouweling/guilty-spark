@@ -1203,7 +1203,7 @@ export class StatsCommand extends BaseCommand {
       }
 
       const derivedSeriesOutcome = this.deriveFixSeriesOutcome(series);
-      const selectedSeriesOutcome = metadata.selectedSeriesOutcome ?? derivedSeriesOutcome;
+      const selectedSeriesOutcome = derivedSeriesOutcome;
 
       await this.setFixMetadata(interaction.message.id, {
         ...metadata,

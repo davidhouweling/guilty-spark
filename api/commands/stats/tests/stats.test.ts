@@ -1559,6 +1559,48 @@ describe("StatsCommand", () => {
         },
       ]);
     });
+
+    it("resets final outcome to the newly derived outcome when game selection changes", async () => {
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: "btn_stats_fix_games_select",
+          values: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          id: "fix-flow-message-id",
+        },
+      };
+
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "fake-channel-id",
+        queueData: discordNeatQueueData,
+        selectedSeriesOutcome: "TEAM_1",
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+        Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
+      ]);
+      const setInteractionMetadataSpy = vi.spyOn(services.discordService, "setInteractionMetadata").mockResolvedValue();
+
+      const { jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      expect(setInteractionMetadataSpy).toHaveBeenCalledWith(
+        "statsFix:fix-flow-message-id",
+        expect.objectContaining({
+          selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
+          selectedSeriesOutcome: "TIE",
+        }),
+      );
+      const updatePayload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+      const statusEmbed = Preconditions.checkExists(updatePayload.embeds?.[0]);
+      expect(statusEmbed.description).toContain("Derived result: Tie");
+      expect(statusEmbed.description).toContain("Final result: Tie");
+    });
   });
 
   describe("execute(): message component fix outcome select", () => {
