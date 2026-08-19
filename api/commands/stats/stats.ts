@@ -19,11 +19,12 @@ import {
   InteractionContextType,
   PermissionFlagsBits,
 } from "discord-api-types/v10";
-import { MatchType } from "halo-infinite-api";
+import { MatchOutcome, MatchType } from "halo-infinite-api";
 import type { MatchStats, GameVariantCategory } from "halo-infinite-api";
 import { formatDistanceToNowStrict, subHours } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
+import { collapseSequentialSeriesEntries } from "@guilty-spark/shared/halo/match-enrichment";
 import type { BaseInteraction, ExecuteResponse, ApplicationCommandData, CommandData } from "../base/base-command";
 import { BaseCommand } from "../base/base-command";
 import { NEAT_QUEUE_BOT_USER_ID } from "../../services/discord/discord";
@@ -50,7 +51,10 @@ interface FixFlowMetadata extends Record<string, unknown> {
   queueData: Omit<QueueData, "timestamp">;
   selectedPlayerId?: string;
   selectedMatchIds?: string[];
+  selectedSeriesOutcome?: FixSeriesOutcome;
 }
+
+type FixSeriesOutcome = "TEAM_0" | "TEAM_1" | "TIE";
 
 const FIX_METADATA_RETRY_BASE_DELAY_MS = 150;
 const FIX_METADATA_MAX_RETRIES = 3;
@@ -60,6 +64,7 @@ export enum InteractionButton {
   LoadGames = "btn_stats_load_games",
   FixPlayerSelect = "btn_stats_fix_player_select",
   FixGamesSelect = "btn_stats_fix_games_select",
+  FixOutcomeSelect = "btn_stats_fix_outcome_select",
   FixConfirm = "btn_stats_fix_confirm",
   FixCancel = "btn_stats_fix_cancel",
 }
@@ -165,6 +170,14 @@ export class StatsCommand extends BaseCommand {
       {
         type: InteractionType.MessageComponent,
         data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: InteractionButton.FixOutcomeSelect,
+          values: [],
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
           component_type: ComponentType.Button,
           custom_id: InteractionButton.FixConfirm,
         },
@@ -240,6 +253,15 @@ export class StatsCommand extends BaseCommand {
               },
               jobToComplete: async () =>
                 this.handleFixGamesSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
+            };
+          }
+          case InteractionButton.FixOutcomeSelect.toString(): {
+            return {
+              response: {
+                type: InteractionResponseType.DeferredMessageUpdate,
+              },
+              jobToComplete: async () =>
+                this.handleFixOutcomeSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
             };
           }
           case InteractionButton.FixConfirm.toString(): {
@@ -1180,46 +1202,190 @@ export class StatsCommand extends BaseCommand {
         throw new EndUserError("No match details found for the selected games.");
       }
 
-      const seriesEmbed = await this.createSeriesEmbed({
-        guildId: metadata.guildId,
-        channelId: metadata.channelId,
-        locale: interaction.guild_locale ?? interaction.locale,
-        queueData: metadata.queueData,
-        series,
-      });
+      const derivedSeriesOutcome = this.deriveFixSeriesOutcome(series);
+      const selectedSeriesOutcome = metadata.selectedSeriesOutcome ?? derivedSeriesOutcome;
 
       await this.setFixMetadata(interaction.message.id, {
         ...metadata,
         selectedMatchIds,
+        selectedSeriesOutcome,
       });
 
-      await discordService.updateDeferredReply(interaction.token, {
-        embeds: [
-          this.createStatusEmbed("Preview generated. Confirm to replace the previous series stats."),
-          ...seriesEmbed.embeds,
-        ],
-        components: [
-          {
-            type: ComponentType.ActionRow,
-            components: [
-              {
-                type: ComponentType.Button,
-                custom_id: InteractionButton.FixConfirm,
-                label: "Confirm",
-                style: 3,
-              },
-              {
-                type: ComponentType.Button,
-                custom_id: InteractionButton.FixCancel,
-                label: "Cancel",
-                style: 2,
-              },
-            ],
-          },
-        ],
-      });
+      await this.updateFixOutcomePreview(interaction, metadata, series, derivedSeriesOutcome, selectedSeriesOutcome);
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async handleFixOutcomeSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
+    const { discordService, haloService } = this.services;
+
+    try {
+      const selectedSeriesOutcome = this.parseFixSeriesOutcome(
+        Preconditions.checkExists(interaction.data.values[0], "No series outcome selected"),
+      );
+      const metadata = await this.getFixMetadataWithRetry(interaction.message.id);
+      if (metadata == null) {
+        throw new EndUserError("Could not find fix-flow state. Please run /stats fix again.");
+      }
+
+      const selectedMatchIds = metadata.selectedMatchIds ?? [];
+      if (selectedMatchIds.length === 0) {
+        throw new EndUserError("No games were selected. Please run /stats fix again.");
+      }
+
+      const series = await haloService.getMatchDetails(selectedMatchIds);
+      if (series.length === 0) {
+        throw new EndUserError("No match details found for the selected games.");
+      }
+
+      const derivedSeriesOutcome = this.deriveFixSeriesOutcome(series);
+      await this.setFixMetadata(interaction.message.id, { ...metadata, selectedSeriesOutcome });
+      await this.updateFixOutcomePreview(interaction, metadata, series, derivedSeriesOutcome, selectedSeriesOutcome);
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async updateFixOutcomePreview(
+    interaction: APIMessageComponentSelectMenuInteraction,
+    metadata: FixFlowMetadata,
+    series: MatchStats[],
+    derivedSeriesOutcome: FixSeriesOutcome,
+    selectedSeriesOutcome: FixSeriesOutcome,
+  ): Promise<void> {
+    const { discordService } = this.services;
+    const locale = interaction.guild_locale ?? interaction.locale;
+    const seriesEmbed = await this.createSeriesEmbed({
+      guildId: metadata.guildId,
+      channelId: metadata.channelId,
+      locale,
+      queueData: metadata.queueData,
+      series,
+    });
+    const derivedResultLabel = this.getFixSeriesOutcomeLabel(derivedSeriesOutcome, metadata.queueData);
+    const selectedResultLabel = this.getFixSeriesOutcomeLabel(selectedSeriesOutcome, metadata.queueData);
+
+    await discordService.updateDeferredReply(interaction.token, {
+      embeds: [
+        this.createStatusEmbed(
+          `Preview generated. Confirm to replace the previous series stats.\nDerived result: ${derivedResultLabel}\nFinal result: ${selectedResultLabel}`,
+        ),
+        ...seriesEmbed.embeds,
+      ],
+      components: [
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.StringSelect,
+              custom_id: InteractionButton.FixOutcomeSelect,
+              min_values: 1,
+              max_values: 1,
+              options: this.getFixSeriesOutcomeOptions(metadata.queueData, selectedSeriesOutcome),
+            },
+          ],
+        },
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.Button,
+              custom_id: InteractionButton.FixConfirm,
+              label: "Confirm",
+              style: 3,
+            },
+            {
+              type: ComponentType.Button,
+              custom_id: InteractionButton.FixCancel,
+              label: "Cancel",
+              style: 2,
+            },
+          ],
+        },
+      ],
+    });
+  }
+
+  private deriveFixSeriesOutcome(series: MatchStats[]): FixSeriesOutcome {
+    const winsByTeamId = new Map<number, number>();
+    const entries = series.map((match) => ({
+      match,
+      startTime: match.MatchInfo.StartTime,
+      mapAssetId: match.MatchInfo.MapVariant.AssetId,
+      mapVersionId: match.MatchInfo.MapVariant.VersionId,
+      gameVariantCategory: match.MatchInfo.GameVariantCategory,
+    }));
+
+    for (const { match } of collapseSequentialSeriesEntries(entries)) {
+      for (const team of match.Teams) {
+        if (team.Outcome !== MatchOutcome.Win.valueOf()) {
+          continue;
+        }
+
+        winsByTeamId.set(team.TeamId, (winsByTeamId.get(team.TeamId) ?? 0) + 1);
+      }
+    }
+
+    const team0Wins = winsByTeamId.get(0) ?? 0;
+    const team1Wins = winsByTeamId.get(1) ?? 0;
+    if (team0Wins === team1Wins) {
+      return "TIE";
+    }
+
+    return team0Wins > team1Wins ? "TEAM_0" : "TEAM_1";
+  }
+
+  private parseFixSeriesOutcome(value: string): FixSeriesOutcome {
+    switch (value) {
+      case "TEAM_0":
+      case "TEAM_1":
+      case "TIE": {
+        return value;
+      }
+      default: {
+        throw new EndUserError("Invalid series outcome selection. Please run /stats fix again.");
+      }
+    }
+  }
+
+  private getFixSeriesOutcomeOptions(
+    queueData: Omit<QueueData, "timestamp">,
+    selectedSeriesOutcome: FixSeriesOutcome,
+  ): APISelectMenuOption[] {
+    return [
+      {
+        label: `${Preconditions.checkExists(queueData.teams[0], "Expected first queue team").name} wins`,
+        value: "TEAM_0",
+        default: selectedSeriesOutcome === "TEAM_0",
+      },
+      {
+        label: `${Preconditions.checkExists(queueData.teams[1], "Expected second queue team").name} wins`,
+        value: "TEAM_1",
+        default: selectedSeriesOutcome === "TEAM_1",
+      },
+      {
+        label: "Tie",
+        value: "TIE",
+        default: selectedSeriesOutcome === "TIE",
+      },
+    ];
+  }
+
+  private getFixSeriesOutcomeLabel(seriesOutcome: FixSeriesOutcome, queueData: Omit<QueueData, "timestamp">): string {
+    switch (seriesOutcome) {
+      case "TEAM_0": {
+        return `${Preconditions.checkExists(queueData.teams[0], "Expected first queue team").name} wins`;
+      }
+      case "TEAM_1": {
+        return `${Preconditions.checkExists(queueData.teams[1], "Expected second queue team").name} wins`;
+      }
+      case "TIE": {
+        return "Tie";
+      }
+      default: {
+        throw new UnreachableError(seriesOutcome);
+      }
     }
   }
 
@@ -1235,6 +1401,9 @@ export class StatsCommand extends BaseCommand {
       const selectedMatchIds = metadata.selectedMatchIds ?? [];
       if (selectedMatchIds.length === 0) {
         throw new EndUserError("No games were selected. Please run /stats fix again.");
+      }
+      if (metadata.selectedSeriesOutcome == null) {
+        throw new EndUserError("No final series result was selected. Please run /stats fix again.");
       }
 
       const locale = interaction.guild_locale ?? interaction.locale;

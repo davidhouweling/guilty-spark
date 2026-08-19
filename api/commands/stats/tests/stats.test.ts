@@ -1537,12 +1537,19 @@ describe("StatsCommand", () => {
         "statsFix:fix-flow-message-id",
         expect.objectContaining({
           selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
+          selectedSeriesOutcome: "TIE",
         }),
       );
       const updatePayload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
       const statusEmbed = Preconditions.checkExists(updatePayload.embeds?.[0]);
-      expect(statusEmbed.description).toBe("Preview generated. Confirm to replace the previous series stats.");
+      expect(statusEmbed.description).toContain("Preview generated. Confirm to replace the previous series stats.");
+      expect(statusEmbed.description).toContain("Derived result:");
+      expect(statusEmbed.description).toContain("Final result:");
       expect(updatePayload.components).toEqual([
+        {
+          type: ComponentType.ActionRow,
+          components: [expect.objectContaining({ custom_id: "btn_stats_fix_outcome_select" })],
+        },
         {
           type: ComponentType.ActionRow,
           components: [
@@ -1551,6 +1558,48 @@ describe("StatsCommand", () => {
           ],
         },
       ]);
+    });
+  });
+
+  describe("execute(): message component fix outcome select", () => {
+    it("persists an explicit tie outcome and rerenders the preview", async () => {
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: "btn_stats_fix_outcome_select",
+          values: ["TIE"],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          id: "fix-flow-message-id",
+        },
+      };
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "fake-channel-id",
+        queueData: discordNeatQueueData,
+        selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
+        selectedSeriesOutcome: "TEAM_1",
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+        Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
+      ]);
+      const setInteractionMetadataSpy = vi.spyOn(services.discordService, "setInteractionMetadata").mockResolvedValue();
+
+      const { response, jobToComplete } = statsCommand.execute(interaction);
+      expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
+
+      await jobToComplete?.();
+
+      expect(setInteractionMetadataSpy).toHaveBeenCalledWith(
+        "statsFix:fix-flow-message-id",
+        expect.objectContaining({ selectedSeriesOutcome: "TIE" }),
+      );
+      const updatePayload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+      const statusEmbed = Preconditions.checkExists(updatePayload.embeds?.[0]);
+      expect(statusEmbed.description).toContain("Final result: Tie");
     });
   });
 
@@ -1579,6 +1628,7 @@ describe("StatsCommand", () => {
           },
         },
         selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
+        selectedSeriesOutcome: "TEAM_1",
       });
       vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
         Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
@@ -1683,6 +1733,7 @@ describe("StatsCommand", () => {
           },
         },
         selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
+        selectedSeriesOutcome: "TEAM_1",
       });
       vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
         Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
@@ -1741,6 +1792,7 @@ describe("StatsCommand", () => {
           },
         },
         selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
+        selectedSeriesOutcome: "TEAM_1",
       });
       vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
         Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
