@@ -135,32 +135,6 @@
     "production": {
       "name": "guilty-spark",
       "routes": ["api.guilty-spark.app/*"],
-      "migrations": [
-        {
-          "tag": "v1",
-          "new_classes": ["LiveTrackerDO"],
-        },
-        {
-          "tag": "v2",
-          "new_classes": ["LiveTrackerIndividualDO"],
-        },
-        {
-          "tag": "v3",
-          "deleted_classes": ["LiveTrackerIndividualDO"],
-        },
-        {
-          "tag": "v4",
-          "new_classes": ["IndividualTrackerDO"],
-        },
-        {
-          "tag": "v5",
-          "new_classes": ["UserTrackerDO"],
-        },
-        {
-          "tag": "v6",
-          "new_classes": ["IndividualTrackerDO", "UserTrackerDO"],
-        },
-      ],
       "kv_namespaces": [
         {
           "binding": "APP_DATA",
