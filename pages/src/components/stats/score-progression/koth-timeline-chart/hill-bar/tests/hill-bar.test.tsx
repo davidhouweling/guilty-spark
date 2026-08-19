@@ -3,7 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import { HillBar } from "../hill-bar";
-import { aFakeKothHillDataWith } from "../../../fakes/aFakeKothHillDataWith";
+import { aFakeKothHillDataWith } from "../../../fakes/koth-hill-data.fake";
 
 afterEach(() => {
   cleanup();

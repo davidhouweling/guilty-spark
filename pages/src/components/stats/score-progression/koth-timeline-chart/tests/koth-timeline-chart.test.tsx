@@ -4,7 +4,7 @@ import React, { cloneElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { KothTimelineChart } from "../koth-timeline-chart";
-import { aFakeKothHillDataWith } from "../../fakes/aFakeKothHillDataWith";
+import { aFakeKothHillDataWith } from "../../fakes/koth-hill-data.fake";
 import type { KothHillData, KothTimelineHillViewModel } from "../../types";
 
 afterEach(() => {

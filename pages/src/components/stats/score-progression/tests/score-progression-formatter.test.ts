@@ -1,7 +1,7 @@
 import { GameVariantCategory } from "halo-infinite-api";
 import { describe, expect, it } from "vitest";
 import { formatScoreProgression } from "../score-progression-formatter";
-import { aFakeScoreProgressionWith } from "../fakes/aFakeScoreProgressionWith";
+import { aFakeScoreProgressionWith } from "../fakes/score-progression.fake";
 
 const TEAM_COLORS = [
   { id: "eagle", hex: "#0000ff", name: "Eagle" },

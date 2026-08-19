@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ScoreProgressionPresenter } from "../score-progression-presenter";
 import { ScoreProgressionStore } from "../score-progression-store";
-import { aFakeKothHillDataWith } from "../fakes/aFakeKothHillDataWith";
+import { aFakeKothHillDataWith } from "../fakes/koth-hill-data.fake";
 import type { PlayerAdvantageData, ScoreDeltaData, ScoreProgressionTeamLine } from "../types";
 
 const aFakeScoreDeltaData = (): ScoreDeltaData => ({
