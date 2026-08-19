@@ -5,6 +5,7 @@ export interface StatsValue {
   sortBy: StatsValueSortBy;
   display?: string;
   prefix?: string;
+  isComparable?: boolean;
 }
 
 export type StatsCollection = Map<string, StatsValue>;

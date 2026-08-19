@@ -537,6 +537,7 @@ describe("getPlayerObjectiveStats", () => {
     expect(result.get("Team objective contribution")).toEqual({
       value: 1,
       sortBy: StatsValueSortBy.DESC,
+      isComparable: true,
       display: "100%",
     });
   });
@@ -603,6 +604,7 @@ describe("getPlayerObjectiveStats", () => {
     const result = getPlayerObjectiveStats([ctfMatch], playerId);
 
     expect(result.get("Objective time")?.display).toBe("25s");
+    expect(result.get("Team objective contribution")?.isComparable).toBe(false);
     expect(result.get("Team objective contribution")?.display).toBe("n/a");
   });
 });

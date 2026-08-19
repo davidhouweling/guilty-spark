@@ -1,6 +1,7 @@
 import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "../base/preconditions";
 import { StatsValueSortBy } from "./stat-formatting";
+import type { StatsValue } from "./types";
 
 const XUID_WRAPPED_RE = /^xuid\((\d+)\)$/;
 
@@ -50,15 +51,14 @@ export function getTeamPlayersFromMatches(matches: MatchStats[], team: MatchStat
     });
 }
 
-interface StatEntry {
-  value: number;
-  sortBy: StatsValueSortBy;
-}
-
-export function getBestStatValues(stats: Map<string | number, Map<string, StatEntry>>): Map<string, number> {
+export function getBestStatValues(stats: Map<string | number, Map<string, StatsValue>>): Map<string, number> {
   const bestValues = new Map<string, number>();
   for (const statsCollection of stats.values()) {
     for (const [key, entry] of statsCollection.entries()) {
+      if (entry.isComparable === false) {
+        continue;
+      }
+
       const previousBestValue = bestValues.get(key);
 
       if (previousBestValue == null) {
@@ -78,10 +78,10 @@ export function getBestStatValues(stats: Map<string | number, Map<string, StatEn
 }
 
 export function getBestTeamStatValues(
-  playersStats: Map<string, Map<string, StatEntry>>,
+  playersStats: Map<string, Map<string, StatsValue>>,
   teamPlayers: MatchStats["Players"],
 ): Map<string, number> {
-  const teamPlayersStats = new Map<string, Map<string, StatEntry>>();
+  const teamPlayersStats = new Map<string, Map<string, StatsValue>>();
   for (const teamPlayer of teamPlayers) {
     const playerStats = Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId));
     teamPlayersStats.set(teamPlayer.PlayerId, playerStats);

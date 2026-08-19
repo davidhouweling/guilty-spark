@@ -107,6 +107,7 @@ export function getPlayerObjectiveStats(matches: MatchStats[], playerId: string,
       {
         value: summary.objectiveTeamContribution ?? 0,
         sortBy: StatsValueSortBy.DESC,
+        isComparable: summary.objectiveTeamContribution != null,
         display:
           summary.objectiveTeamContribution == null
             ? "n/a"
