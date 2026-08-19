@@ -223,16 +223,27 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
       const connectedClientCount = this.state.getWebSockets().length;
       const hasConnectedClients = connectedClientCount > 0;
+      let stored = await this.loadStateForTickLog();
+      this.logService.debug(
+        "UserTracker alarm start",
+        new Map([
+          ["userId", stored.state?.userId ?? "unknown"],
+          ["hasConnectedClients", hasConnectedClients.toString()],
+          ["connectedClientCount", connectedClientCount.toString()],
+        ]),
+      );
+
       if (!hasConnectedClients) {
         await this.stopUpdateLoop();
         return;
       }
 
-      let stored: UserTrackerInternalState | null = null;
       const tickType = "follow";
+      let didRefresh = false;
 
       try {
         await this.queueDirectoryPush();
+        didRefresh = true;
       } catch (error) {
         stored = await this.loadStateForErrorContext("UserTracker alarm error context load failed");
         this.logService.error(
@@ -248,18 +259,20 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         Sentry.captureException(error);
       }
 
-      if (stored == null) {
-        stored = await this.loadStateForTickLog();
-        this.logService.debug(
-          `UserTracker ${tickType} tick`,
-          new Map([
-            ["userId", stored.state?.userId ?? "unknown"],
-            ["tickType", tickType],
-            ["hasConnectedClients", hasConnectedClients.toString()],
-            ["connectedClientCount", connectedClientCount.toString()],
-          ]),
-        );
+      if (!didRefresh) {
+        await this.scheduleNextAlarm(FOLLOW_WS_POLL_INTERVAL_MS);
+        return;
       }
+
+      this.logService.debug(
+        `UserTracker ${tickType} tick`,
+        new Map([
+          ["userId", stored.state?.userId ?? "unknown"],
+          ["tickType", tickType],
+          ["hasConnectedClients", hasConnectedClients.toString()],
+          ["connectedClientCount", connectedClientCount.toString()],
+        ]),
+      );
 
       const hasConnectedClientsAfterTick = this.state.getWebSockets().length > 0;
       if (!hasConnectedClientsAfterTick) {

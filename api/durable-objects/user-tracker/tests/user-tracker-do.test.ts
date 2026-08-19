@@ -1320,6 +1320,12 @@ describe("UserTrackerDO", () => {
     await localUserTrackerDO.alarm();
 
     expect(setAlarmMock).toHaveBeenCalledTimes(1);
+    const [startMessage, startContext] =
+      debugSpy.mock.calls.find(([currentMessage]) => currentMessage === "UserTracker alarm start") ?? [];
+    expect(startMessage).toBe("UserTracker alarm start");
+    expect(startContext?.get("userId")).toBe("user-1");
+    expect(startContext?.get("hasConnectedClients")).toBe("true");
+    expect(startContext?.get("connectedClientCount")).toBe("1");
     const [message, context] =
       debugSpy.mock.calls.find(([currentMessage]) => currentMessage === "UserTracker follow tick") ?? [];
     expect(message).toBe("UserTracker follow tick");
@@ -1418,7 +1424,9 @@ describe("UserTrackerDO", () => {
         aFakeIndividualTrackerDOWith({ viewStateResponse: { state: null } }),
       ),
     });
-    const services = installFakeServicesWith({ env: localEnv });
+    const logService = aFakeLogServiceWith();
+    const debugSpy = vi.spyOn(logService, "debug");
+    const services = installFakeServicesWith({ env: localEnv, logService });
     vi.spyOn(harness.state, "getWebSockets").mockReturnValue([]);
     const findTrackersSpy = vi.spyOn(services.databaseService, "findIndividualTrackersByUserId");
     const localUserTrackerDO = new UserTrackerDO(harness.state, localEnv, () => services, webSocketAdapter);
@@ -1428,6 +1436,12 @@ describe("UserTrackerDO", () => {
     expect(harness.deleteAlarmMock).toHaveBeenCalledOnce();
     expect(harness.setAlarmMock).not.toHaveBeenCalled();
     expect(findTrackersSpy).not.toHaveBeenCalled();
+    const [message, context] =
+      debugSpy.mock.calls.find(([currentMessage]) => currentMessage === "UserTracker alarm start") ?? [];
+    expect(message).toBe("UserTracker alarm start");
+    expect(context?.get("userId")).toBe("user-1");
+    expect(context?.get("hasConnectedClients")).toBe("false");
+    expect(context?.get("connectedClientCount")).toBe("0");
   });
 
   it("logs directory refresh failures from a connected-client alarm", async () => {
@@ -1728,10 +1742,10 @@ describe("UserTrackerDO", () => {
     const sharedStorage = aFakeDurableObjectStorageWith({
       get: (async (key: string | string[]) => {
         getCalls += 1;
-        if (getCalls === 1) {
+        if (getCalls === 2) {
           throw refreshFailure;
         }
-        if (getCalls === 2) {
+        if (getCalls === 3) {
           throw enrichFailure;
         }
         if (typeof key === "string") {
