@@ -2,7 +2,6 @@ import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
 import type { MatchStats } from "halo-infinite-api";
 import { differenceInHours } from "date-fns";
-import TimeAgo from "javascript-time-ago";
 import { createElement } from "react";
 import type { CSSProperties } from "react";
 import type { MedalEntry, MedalMetadata } from "@guilty-spark/shared/halo/medals";
@@ -33,6 +32,7 @@ import {
   MIN_PREVIOUS_GAMES_TO_SHOW,
 } from "../../live-tracker/settings/types";
 import haloTrophyIconPng from "../../../assets/halo-trophy-icon.png";
+import { timeAgo } from "../../../services/time-ago";
 import type {
   IndividualTrackerOverlayViewModel,
   OverlayDisplaySettings,
@@ -41,9 +41,6 @@ import type {
   OverlayTopSectionModel,
 } from "./types";
 import { getOverlayDisplaySettings, MATCHMAKING_SUMMARY_TAB_SERIES_ID } from "./types";
-import "javascript-time-ago/locale/en";
-
-const timeAgo = new TimeAgo("en");
 
 const DIFFICULTY_RANGE = new Map<number, readonly [number, number]>([
   [0, [0, 99]],
