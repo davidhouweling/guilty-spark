@@ -1,5 +1,6 @@
 import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { getPlayerObjectiveStats } from "@guilty-spark/shared/halo/objective-summary";
 import { resolveStatsValue } from "@guilty-spark/shared/halo/stat-formatting";
 import type { StatsCollection, StatsValue } from "@guilty-spark/shared/halo/types";
 import { aggregateTeamMedals as aggregateSharedTeamMedals, extractMedals } from "@guilty-spark/shared/halo/medals";
@@ -25,7 +26,9 @@ export class SeriesPlayerStatsFormatter {
     const playersCoreStats = aggregatePlayerCoreStats(matches);
     const playersStats = new Map<string, StatsCollection>();
     for (const [playerId, stats] of playersCoreStats) {
-      playersStats.set(playerId, getSharedPlayerSlayerStats(stats));
+      const slayerStats = getSharedPlayerSlayerStats(stats);
+      const objectiveStats = getPlayerObjectiveStats(playerMatches.get(playerId) ?? [], playerId);
+      playersStats.set(playerId, new Map([...slayerStats, ...objectiveStats]));
     }
 
     const seriesBestValues = getBestStatValues(playersStats);

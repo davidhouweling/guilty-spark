@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { GameVariantCategory } from "halo-infinite-api";
 import { SeriesPlayerStatsFormatter } from "../series-player-stats-formatter";
 import {
   aFakeMatchStatsWith,
@@ -432,6 +433,161 @@ describe("SeriesPlayerStatsFormatter", () => {
       const player = team?.players[0];
       const accuracy = player?.values.find((v) => v.name === "Accuracy");
       expect(accuracy?.value).toBe(55);
+    });
+  });
+
+  describe("objective stats", () => {
+    it("omits objective time and team contribution for slayer-only series", () => {
+      const match1 = aFakeMatchStatsWith({
+        Teams: [aFakeTeamWith({ TeamId: 0 })],
+        Players: [aFakePlayerWith({ PlayerId: "xuid(1111111111)", LastTeamId: 0 })],
+      });
+      const players = new Map([["1111111111", "Player1"]]);
+
+      const result = presenter.getSeriesData([match1], players);
+
+      const team = result.find((t) => t.teamId === 0);
+      const player = team?.players[0];
+      expect(player?.values.find((v) => v.name === "Objective time")).toBeUndefined();
+      expect(player?.values.find((v) => v.name === "Team objective contribution")).toBeUndefined();
+    });
+
+    it("includes objective time and team contribution for objective-mode series", () => {
+      const match1 = aFakeMatchStatsWith({
+        MatchInfo: {
+          ...aFakeMatchStatsWith().MatchInfo,
+          GameVariantCategory: GameVariantCategory.MultiplayerCtf,
+        },
+        Teams: [
+          aFakeTeamWith({
+            TeamId: 0,
+            Stats: {
+              CoreStats: aFakeCoreStatsWith(),
+              PvpStats: { Kills: 1, Deaths: 1, Assists: 1, KDA: 1 },
+              CaptureTheFlagStats: {
+                FlagCaptures: 0,
+                FlagCaptureAssists: 0,
+                FlagCarriersKilled: 0,
+                FlagGrabs: 0,
+                FlagReturnersKilled: 0,
+                FlagReturns: 0,
+                FlagSecures: 0,
+                FlagSteals: 0,
+                KillsAsFlagCarrier: 0,
+                KillsAsFlagReturner: 0,
+                TimeAsFlagCarrier: "PT1M0S",
+              },
+            },
+          }),
+        ],
+        Players: [
+          aFakePlayerWith({
+            PlayerId: "xuid(1111111111)",
+            LastTeamId: 0,
+            PlayerTeamStats: [
+              {
+                TeamId: 0,
+                Stats: {
+                  CoreStats: aFakeCoreStatsWith(),
+                  PvpStats: { Kills: 1, Deaths: 1, Assists: 1, KDA: 1 },
+                  CaptureTheFlagStats: {
+                    FlagCaptures: 0,
+                    FlagCaptureAssists: 0,
+                    FlagCarriersKilled: 0,
+                    FlagGrabs: 0,
+                    FlagReturnersKilled: 0,
+                    FlagReturns: 0,
+                    FlagSecures: 0,
+                    FlagSteals: 0,
+                    KillsAsFlagCarrier: 0,
+                    KillsAsFlagReturner: 0,
+                    TimeAsFlagCarrier: "PT1M0S",
+                  },
+                },
+              },
+            ],
+          }),
+        ],
+      });
+      const players = new Map([["1111111111", "Player1"]]);
+
+      const result = presenter.getSeriesData([match1], players);
+
+      const team = result.find((t) => t.teamId === 0);
+      const player = team?.players[0];
+      const objectiveTime = player?.values.find((v) => v.name === "Objective time");
+      const teamContribution = player?.values.find((v) => v.name === "Team objective contribution");
+      expect(objectiveTime?.display).toBe("1m");
+      expect(teamContribution?.display).toBe("100%");
+    });
+
+    it("shows n/a for team contribution when the team denominator is zero", () => {
+      const match1 = aFakeMatchStatsWith({
+        MatchInfo: {
+          ...aFakeMatchStatsWith().MatchInfo,
+          GameVariantCategory: GameVariantCategory.MultiplayerCtf,
+        },
+        Teams: [
+          aFakeTeamWith({
+            TeamId: 0,
+            Stats: {
+              CoreStats: aFakeCoreStatsWith(),
+              PvpStats: { Kills: 1, Deaths: 1, Assists: 1, KDA: 1 },
+              CaptureTheFlagStats: {
+                FlagCaptures: 0,
+                FlagCaptureAssists: 0,
+                FlagCarriersKilled: 0,
+                FlagGrabs: 0,
+                FlagReturnersKilled: 0,
+                FlagReturns: 0,
+                FlagSecures: 0,
+                FlagSteals: 0,
+                KillsAsFlagCarrier: 0,
+                KillsAsFlagReturner: 0,
+                TimeAsFlagCarrier: "PT0S",
+              },
+            },
+          }),
+        ],
+        Players: [
+          aFakePlayerWith({
+            PlayerId: "xuid(1111111111)",
+            LastTeamId: 0,
+            PlayerTeamStats: [
+              {
+                TeamId: 0,
+                Stats: {
+                  CoreStats: aFakeCoreStatsWith(),
+                  PvpStats: { Kills: 1, Deaths: 1, Assists: 1, KDA: 1 },
+                  CaptureTheFlagStats: {
+                    FlagCaptures: 0,
+                    FlagCaptureAssists: 0,
+                    FlagCarriersKilled: 0,
+                    FlagGrabs: 0,
+                    FlagReturnersKilled: 0,
+                    FlagReturns: 0,
+                    FlagSecures: 0,
+                    FlagSteals: 0,
+                    KillsAsFlagCarrier: 0,
+                    KillsAsFlagReturner: 0,
+                    TimeAsFlagCarrier: "PT25S",
+                  },
+                },
+              },
+            ],
+          }),
+        ],
+      });
+      const players = new Map([["1111111111", "Player1"]]);
+
+      const result = presenter.getSeriesData([match1], players);
+
+      const team = result.find((t) => t.teamId === 0);
+      const player = team?.players[0];
+      const objectiveTime = player?.values.find((v) => v.name === "Objective time");
+      const teamContribution = player?.values.find((v) => v.name === "Team objective contribution");
+      expect(objectiveTime?.display).toBe("25s");
+      expect(teamContribution?.display).toBe("n/a");
     });
   });
 });

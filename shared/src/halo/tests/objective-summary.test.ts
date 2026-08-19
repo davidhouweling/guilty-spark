@@ -1,7 +1,8 @@
 import { GameVariantCategory } from "halo-infinite-api";
 import { describe, expect, it } from "vitest";
 import { aFakeMatchStatsWith, aFakePlayerWith, aFakeTeamWith, aFakeCoreStatsWith } from "../fakes/data";
-import { getPlayerObjectiveSummary } from "../objective-summary";
+import { getPlayerObjectiveStats, getPlayerObjectiveSummary } from "../objective-summary";
+import { StatsValueSortBy } from "../stat-formatting";
 
 describe("getPlayerObjectiveSummary", () => {
   it("aggregates objective time from objective matches and excludes slayer matches", () => {
@@ -452,5 +453,156 @@ describe("getPlayerObjectiveSummary", () => {
     expect(result?.objectiveTimeSeconds).toBe(60);
     expect(result?.objectiveTeamContributionGamesPlayed).toBe(2);
     expect(result?.objectiveTeamContribution).toBeCloseTo(1 / 3);
+  });
+});
+
+describe("getPlayerObjectiveStats", () => {
+  it("returns an empty collection when the player has no objective games", () => {
+    const playerId = "xuid(1111)";
+    const slayerMatch = aFakeMatchStatsWith({
+      MatchInfo: {
+        ...aFakeMatchStatsWith().MatchInfo,
+        GameVariantCategory: GameVariantCategory.MultiplayerSlayer,
+      },
+      Players: [aFakePlayerWith({ PlayerId: playerId, LastTeamId: 0 })],
+    });
+
+    const result = getPlayerObjectiveStats([slayerMatch], playerId);
+
+    expect(result.size).toBe(0);
+  });
+
+  it("returns Objective time and Team objective contribution as separate stat values", () => {
+    const playerId = "xuid(1111)";
+    const ctfMatch = aFakeMatchStatsWith({
+      MatchInfo: {
+        ...aFakeMatchStatsWith().MatchInfo,
+        GameVariantCategory: GameVariantCategory.MultiplayerCtf,
+      },
+      Teams: [
+        aFakeTeamWith({
+          TeamId: 0,
+          Stats: {
+            CoreStats: aFakeCoreStatsWith(),
+            PvpStats: { Kills: 1, Deaths: 1, Assists: 1, KDA: 1 },
+            CaptureTheFlagStats: {
+              FlagCaptures: 0,
+              FlagCaptureAssists: 0,
+              FlagCarriersKilled: 0,
+              FlagGrabs: 0,
+              FlagReturnersKilled: 0,
+              FlagReturns: 0,
+              FlagSecures: 0,
+              FlagSteals: 0,
+              KillsAsFlagCarrier: 0,
+              KillsAsFlagReturner: 0,
+              TimeAsFlagCarrier: "PT1M0S",
+            },
+          },
+        }),
+      ],
+      Players: [
+        aFakePlayerWith({
+          PlayerId: playerId,
+          LastTeamId: 0,
+          PlayerTeamStats: [
+            {
+              TeamId: 0,
+              Stats: {
+                CoreStats: aFakeCoreStatsWith(),
+                PvpStats: { Kills: 1, Deaths: 1, Assists: 1, KDA: 1 },
+                CaptureTheFlagStats: {
+                  FlagCaptures: 0,
+                  FlagCaptureAssists: 0,
+                  FlagCarriersKilled: 0,
+                  FlagGrabs: 0,
+                  FlagReturnersKilled: 0,
+                  FlagReturns: 0,
+                  FlagSecures: 0,
+                  FlagSteals: 0,
+                  KillsAsFlagCarrier: 0,
+                  KillsAsFlagReturner: 0,
+                  TimeAsFlagCarrier: "PT1M0S",
+                },
+              },
+            },
+          ],
+        }),
+      ],
+    });
+
+    const result = getPlayerObjectiveStats([ctfMatch], playerId);
+
+    expect(result.get("Objective time")).toEqual({ value: 60, sortBy: StatsValueSortBy.DESC, display: "1m" });
+    expect(result.get("Team objective contribution")).toEqual({
+      value: 1,
+      sortBy: StatsValueSortBy.DESC,
+      display: "100%",
+    });
+  });
+
+  it("shows n/a for team contribution when the team denominator is unavailable", () => {
+    const playerId = "xuid(1111)";
+    const ctfMatch = aFakeMatchStatsWith({
+      MatchInfo: {
+        ...aFakeMatchStatsWith().MatchInfo,
+        GameVariantCategory: GameVariantCategory.MultiplayerCtf,
+      },
+      Teams: [
+        aFakeTeamWith({
+          TeamId: 0,
+          Stats: {
+            CoreStats: aFakeCoreStatsWith(),
+            PvpStats: { Kills: 1, Deaths: 1, Assists: 1, KDA: 1 },
+            CaptureTheFlagStats: {
+              FlagCaptures: 0,
+              FlagCaptureAssists: 0,
+              FlagCarriersKilled: 0,
+              FlagGrabs: 0,
+              FlagReturnersKilled: 0,
+              FlagReturns: 0,
+              FlagSecures: 0,
+              FlagSteals: 0,
+              KillsAsFlagCarrier: 0,
+              KillsAsFlagReturner: 0,
+              TimeAsFlagCarrier: "PT0S",
+            },
+          },
+        }),
+      ],
+      Players: [
+        aFakePlayerWith({
+          PlayerId: playerId,
+          LastTeamId: 0,
+          PlayerTeamStats: [
+            {
+              TeamId: 0,
+              Stats: {
+                CoreStats: aFakeCoreStatsWith(),
+                PvpStats: { Kills: 1, Deaths: 1, Assists: 1, KDA: 1 },
+                CaptureTheFlagStats: {
+                  FlagCaptures: 0,
+                  FlagCaptureAssists: 0,
+                  FlagCarriersKilled: 0,
+                  FlagGrabs: 0,
+                  FlagReturnersKilled: 0,
+                  FlagReturns: 0,
+                  FlagSecures: 0,
+                  FlagSteals: 0,
+                  KillsAsFlagCarrier: 0,
+                  KillsAsFlagReturner: 0,
+                  TimeAsFlagCarrier: "PT25S",
+                },
+              },
+            },
+          ],
+        }),
+      ],
+    });
+
+    const result = getPlayerObjectiveStats([ctfMatch], playerId);
+
+    expect(result.get("Objective time")?.display).toBe("25s");
+    expect(result.get("Team objective contribution")?.display).toBe("n/a");
   });
 });
