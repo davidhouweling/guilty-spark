@@ -87,7 +87,6 @@ export function KothTimelineChart({ durationMs, hills }: KothTimelineViewModel):
         data={chartData}
         margin={{ top: 8, right: WINNER_DOT_OFFSET + WINNER_DOT_RADIUS + 8, bottom: 8, left: 8 }}
       >
-        {/* rows are per-hill, not per-timestamp, so clear the shared helper's time dataKey */}
         <XAxis {...timeAxisProps(durationMs)} dataKey="value" />
         <YAxis type="category" dataKey="hillIndex" width={Y_AXIS_WIDTH} tick={hillTick} stroke={AXIS_STROKE} />
         <Tooltip content={<HillTooltip />} cursor={false} />
