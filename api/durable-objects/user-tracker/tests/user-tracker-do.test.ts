@@ -24,6 +24,8 @@ import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeWebSocketHibernationAdapter } from "../../../base/fakes/websocket-hibernation-adapter.fake";
 import type { FakeWebSocketHibernationAdapter } from "../../../base/fakes/websocket-hibernation-adapter.fake";
 
+const USER_TRACKER_STATE_KEY = "userTrackerState";
+
 interface PersistentStateHarness {
   state: DurableObjectState & { storage: DurableObjectStorage };
   persistedStorage: Map<string, unknown>;
@@ -1278,11 +1280,15 @@ describe("UserTrackerDO", () => {
     const debugSpy = vi.spyOn(logService, "debug");
     const services = installFakeServicesWith({ env: localEnv, logService });
     mockState.storage.get = (async (key: string | string[]) => {
-      if (typeof key === "string") {
+      if (key === USER_TRACKER_STATE_KEY) {
         return await Promise.resolve({
           state: { userId: "user-1", lastUpdateTime: new Date().toISOString() },
           viewState: null,
         });
+      }
+
+      if (typeof key === "string") {
+        await Promise.resolve(undefined); return;
       }
 
       return await Promise.resolve(new Map());

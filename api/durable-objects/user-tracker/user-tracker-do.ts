@@ -224,8 +224,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       const connectedClientCount = this.state.getWebSockets().length;
       const hasConnectedClients = connectedClientCount > 0;
       if (!hasConnectedClients) {
-        await this.state.storage.delete(USER_TRACKER_RECONCILE_DEADLINE_KEY);
-        await this.state.storage.deleteAlarm();
+        await this.stopUpdateLoop();
         return;
       }
 
@@ -264,8 +263,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
       const hasConnectedClientsAfterTick = this.state.getWebSockets().length > 0;
       if (!hasConnectedClientsAfterTick) {
-        await this.state.storage.delete(USER_TRACKER_RECONCILE_DEADLINE_KEY);
-        await this.state.storage.deleteAlarm();
+        await this.stopUpdateLoop();
         return;
       }
 
