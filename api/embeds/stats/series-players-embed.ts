@@ -104,7 +104,7 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
 
     const objectiveTimeDisplay = Preconditions.checkExists(objectiveTime.display, "Expected objective time display");
     const teamContribution = objectiveStats.get("Team objective contribution");
-    if (teamContribution == null || teamContribution.display === "n/a") {
+    if (teamContribution == null || teamContribution.isComparable === false || teamContribution.display == null) {
       return new Map([
         [
           "Objective time (team %)",

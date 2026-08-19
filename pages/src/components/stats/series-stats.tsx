@@ -156,13 +156,17 @@ export function SeriesStats({
       ...statColumns.map((stat) => ({
         id: stat.name,
         header: stat.name,
-        accessorFn: (row: MatchStatsRow): number => {
+        accessorFn: (row: MatchStatsRow): number | undefined => {
           const playerStat = row.player.values.find((s) => s.name === stat.name);
-          return playerStat?.value ?? 0;
+          return playerStat?.value;
         },
         cell: (value: unknown, row: MatchStatsRow): React.ReactNode => {
           const playerStat = row.player.values.find((s) => s.name === stat.name);
-          return playerStat?.display ?? String(value);
+          if (playerStat == null) {
+            return "—";
+          }
+
+          return playerStat.display;
         },
         headerClassName: undefined,
         cellClassName: (row: MatchStatsRow): string => {

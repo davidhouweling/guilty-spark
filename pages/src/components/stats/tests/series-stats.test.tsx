@@ -231,5 +231,6 @@ describe("SeriesStats", () => {
     );
 
     expect(screen.getByRole("button", { name: "Objective time" })).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
   });
 });
