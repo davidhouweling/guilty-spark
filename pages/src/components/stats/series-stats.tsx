@@ -156,9 +156,9 @@ export function SeriesStats({
       ...statColumns.map((stat) => ({
         id: stat.name,
         header: stat.name,
-        accessorFn: (row: MatchStatsRow): number | undefined => {
+        accessorFn: (row: MatchStatsRow): number => {
           const playerStat = row.player.values.find((s) => s.name === stat.name);
-          return playerStat?.value;
+          return playerStat?.value ?? 0;
         },
         cell: (value: unknown, row: MatchStatsRow): React.ReactNode => {
           const playerStat = row.player.values.find((s) => s.name === stat.name);
