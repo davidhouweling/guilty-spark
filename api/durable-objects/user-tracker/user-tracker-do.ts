@@ -509,6 +509,16 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     }
 
     const stored = await this.loadStateForTickLog();
+    if (!this.hasFollowableTrackers(stored.viewState?.directory)) {
+      this.closeTrackerSubscriptions();
+      this.closeTrackerSubscriptions = (): void => {
+        // reset after closing
+      };
+      this.trackerSubscriptionsInstalled = false;
+    } else if (!this.trackerSubscriptionsInstalled) {
+      await this.installTrackerSubscriptionsAsync();
+    }
+
     await this.scheduleFollowAlarmIfNeeded(stored);
   }
 
