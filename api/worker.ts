@@ -53,7 +53,7 @@ export default Sentry.withSentry(
           await cleanup.execute();
           break;
         }
-        case "0 0 * * 0": {
+        case "0 0 * * SUN": {
           const reaper = new LeaderboardPostReaper({ databaseService, discordService, logService });
           await reaper.execute();
           break;
