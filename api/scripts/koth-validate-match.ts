@@ -30,7 +30,7 @@ import { HaloService } from "../services/halo/halo";
 import { XboxService } from "../services/xbox/xbox";
 import { CustomSpartanTokenProvider } from "../services/halo/custom-spartan-token-provider";
 import { HaloFilmService } from "../services/halo/halo-film";
-import { AnalyticsService } from "../services/analytics/analytics.js";
+import { AnalyticsService } from "../services/analytics/analytics";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MATCH_ID = process.argv[2] ?? "72c3006a-82fc-48a2-8a2f-f862b675f984";
