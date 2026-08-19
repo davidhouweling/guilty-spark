@@ -262,9 +262,14 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         );
       }
 
-      await this.scheduleNextAlarm(
-        FOLLOW_WS_POLL_INTERVAL_MS,
-      );
+      const hasConnectedClientsAfterTick = this.state.getWebSockets().length > 0;
+      if (!hasConnectedClientsAfterTick) {
+        await this.state.storage.delete(USER_TRACKER_RECONCILE_DEADLINE_KEY);
+        await this.state.storage.deleteAlarm();
+        return;
+      }
+
+      await this.scheduleNextAlarm(FOLLOW_WS_POLL_INTERVAL_MS);
     });
   }
 

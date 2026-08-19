@@ -1313,7 +1313,8 @@ describe("UserTrackerDO", () => {
     await localUserTrackerDO.alarm();
 
     expect(setAlarmMock).toHaveBeenCalledTimes(1);
-    const [message, context] = debugSpy.mock.calls.find(([currentMessage]) => currentMessage === "UserTracker follow tick") ?? [];
+    const [message, context] =
+      debugSpy.mock.calls.find(([currentMessage]) => currentMessage === "UserTracker follow tick") ?? [];
     expect(message).toBe("UserTracker follow tick");
     expect(context?.get("userId")).toBe("user-1");
     expect(context?.get("tickType")).toBe("follow");
@@ -1768,6 +1769,17 @@ describe("UserTrackerDO", () => {
 
     await userTrackerDO.alarm();
 
+    expect(deleteAlarmMock).toHaveBeenCalledOnce();
+  });
+
+  it("does not re-arm follow alarm when the last websocket disconnects during a tick", async () => {
+    vi.spyOn(mockState, "getWebSockets")
+      .mockReturnValueOnce([{} as WebSocket])
+      .mockReturnValue([]);
+
+    await userTrackerDO.alarm();
+
+    expect(setAlarmMock).not.toHaveBeenCalled();
     expect(deleteAlarmMock).toHaveBeenCalledOnce();
   });
 
