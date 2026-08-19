@@ -1288,7 +1288,8 @@ describe("UserTrackerDO", () => {
       }
 
       if (typeof key === "string") {
-        await Promise.resolve(undefined); return;
+        await Promise.resolve(undefined);
+        return;
       }
 
       return await Promise.resolve(new Map());
