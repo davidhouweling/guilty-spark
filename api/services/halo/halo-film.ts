@@ -296,7 +296,7 @@ export class HaloFilmService {
     if (gameplayTransitions.length === 0) {
       return [];
     }
-    const boundaries = [0, ...gameplayTransitions.map((t) => t.timeMs), durationMs];
+    const boundaries = [...new Set([0, ...gameplayTransitions.map((t) => t.timeMs), durationMs])].sort((a, b) => a - b);
     const periods: ObjectiveControlPeriod[] = [];
     for (let i = 0; i < boundaries.length - 1; i++) {
       const startMs = boundaries[i] ?? 0;
