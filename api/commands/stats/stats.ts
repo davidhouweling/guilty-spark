@@ -1360,12 +1360,12 @@ export class StatsCommand extends BaseCommand {
 
     return [
       {
-        label: `${firstTeamName} wins`,
+        label: `${firstTeamName} wins`.slice(0, 100),
         value: "TEAM_0",
         default: selectedSeriesOutcome === "TEAM_0",
       },
       {
-        label: `${secondTeamName} wins`,
+        label: `${secondTeamName} wins`.slice(0, 100),
         value: "TEAM_1",
         default: selectedSeriesOutcome === "TEAM_1",
       },

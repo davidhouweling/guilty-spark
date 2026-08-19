@@ -1653,6 +1653,56 @@ describe("StatsCommand", () => {
         ]),
       );
     });
+
+    it("truncates outcome selector labels to Discord's 100 character limit", async () => {
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: "btn_stats_fix_games_select",
+          values: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          id: "fix-flow-message-id",
+        },
+      };
+
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "fake-channel-id",
+        queueData: {
+          ...discordNeatQueueData,
+          teams: [
+            { ...Preconditions.checkExists(discordNeatQueueData.teams[0]), name: "A".repeat(140) },
+            { ...Preconditions.checkExists(discordNeatQueueData.teams[1]), name: "B".repeat(160) },
+          ],
+        },
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+        Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
+      ]);
+      vi.spyOn(services.discordService, "setInteractionMetadata").mockResolvedValue();
+
+      const { jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      const updatePayload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+      const outcomeRow = Preconditions.checkExists(updatePayload.components?.[0]);
+      if (!("components" in outcomeRow)) {
+        throw new Error("Expected outcome action row");
+      }
+      const outcomeSelect = Preconditions.checkExists(outcomeRow.components[0]);
+      if (!("options" in outcomeSelect)) {
+        throw new Error("Expected outcome select");
+      }
+
+      const team0Option = Preconditions.checkExists(outcomeSelect.options.find((option) => option.value === "TEAM_0"));
+      const team1Option = Preconditions.checkExists(outcomeSelect.options.find((option) => option.value === "TEAM_1"));
+      expect(team0Option.label.length).toBe(100);
+      expect(team1Option.label.length).toBe(100);
+    });
   });
 
   describe("execute(): message component fix outcome select", () => {
