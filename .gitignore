@@ -60,6 +60,10 @@ jspm_packages/
 # don't save any of the json files that may have fetched in the scripts run
 api/scripts/*.json
 
+# binary film chunk dumps and per-chunk folders fetched by analysis scripts
+api/scripts/*.bin
+api/scripts/type2-chunks/
+
 # test output for vitest to use in publish to github action
 test-results
 
