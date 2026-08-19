@@ -294,15 +294,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async loadStateForTickLog(): Promise<UserTrackerInternalState> {
-    try {
-      return await this.loadState();
-    } catch (error) {
-      this.logService.warn(error, new Map([["context", "UserTracker tick context load failed"]]));
-      return {
-        state: null,
-        viewState: null,
-      };
-    }
+    return await this.loadStateForErrorContext("UserTracker tick context load failed");
   }
 
   private async handleStatus(): Promise<Response> {
