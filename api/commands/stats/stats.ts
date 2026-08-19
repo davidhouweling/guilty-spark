@@ -1221,9 +1221,11 @@ export class StatsCommand extends BaseCommand {
     const { discordService, haloService } = this.services;
 
     try {
-      const selectedSeriesOutcome = this.parseFixSeriesOutcome(
-        Preconditions.checkExists(interaction.data.values[0], "No series outcome selected"),
-      );
+      const [selectedSeriesOutcomeRaw] = interaction.data.values;
+      if (selectedSeriesOutcomeRaw == null) {
+        throw new EndUserError("No series outcome selected. Please run /stats fix again.");
+      }
+      const selectedSeriesOutcome = this.parseFixSeriesOutcome(selectedSeriesOutcomeRaw);
       const metadata = await this.getFixMetadataWithRetry(interaction.message.id);
       if (metadata == null) {
         throw new EndUserError("Could not find fix-flow state. Please run /stats fix again.");
@@ -1353,14 +1355,17 @@ export class StatsCommand extends BaseCommand {
     queueData: Omit<QueueData, "timestamp">,
     selectedSeriesOutcome: FixSeriesOutcome,
   ): APISelectMenuOption[] {
+    const firstTeamName = this.getFixSeriesOutcomeTeamName(queueData, 0);
+    const secondTeamName = this.getFixSeriesOutcomeTeamName(queueData, 1);
+
     return [
       {
-        label: `${Preconditions.checkExists(queueData.teams[0], "Expected first queue team").name} wins`,
+        label: `${firstTeamName} wins`,
         value: "TEAM_0",
         default: selectedSeriesOutcome === "TEAM_0",
       },
       {
-        label: `${Preconditions.checkExists(queueData.teams[1], "Expected second queue team").name} wins`,
+        label: `${secondTeamName} wins`,
         value: "TEAM_1",
         default: selectedSeriesOutcome === "TEAM_1",
       },
@@ -1375,10 +1380,10 @@ export class StatsCommand extends BaseCommand {
   private getFixSeriesOutcomeLabel(seriesOutcome: FixSeriesOutcome, queueData: Omit<QueueData, "timestamp">): string {
     switch (seriesOutcome) {
       case "TEAM_0": {
-        return `${Preconditions.checkExists(queueData.teams[0], "Expected first queue team").name} wins`;
+        return `${this.getFixSeriesOutcomeTeamName(queueData, 0)} wins`;
       }
       case "TEAM_1": {
-        return `${Preconditions.checkExists(queueData.teams[1], "Expected second queue team").name} wins`;
+        return `${this.getFixSeriesOutcomeTeamName(queueData, 1)} wins`;
       }
       case "TIE": {
         return "Tie";
@@ -1387,6 +1392,11 @@ export class StatsCommand extends BaseCommand {
         throw new UnreachableError(seriesOutcome);
       }
     }
+  }
+
+  private getFixSeriesOutcomeTeamName(queueData: Omit<QueueData, "timestamp">, teamIndex: 0 | 1): string {
+    const teamName = Preconditions.checkExists(queueData.teams[teamIndex], "Expected queue team").name;
+    return teamName.replaceAll(/[*_~`|]/g, "");
   }
 
   private async handleFixConfirmationJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {

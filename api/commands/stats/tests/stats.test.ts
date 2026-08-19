@@ -1601,6 +1601,58 @@ describe("StatsCommand", () => {
       expect(statusEmbed.description).toContain("Derived result: Tie");
       expect(statusEmbed.description).toContain("Final result: Tie");
     });
+
+    it("sanitizes markdown in team labels for outcome selector", async () => {
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: "btn_stats_fix_games_select",
+          values: ["d81554d7-ddfe-44da-a6cb-000000000ctf", "9535b946-f30c-4a43-b852-000000slayer"],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          id: "fix-flow-message-id",
+        },
+      };
+
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "fake-channel-id",
+        queueData: {
+          ...discordNeatQueueData,
+          teams: [
+            { ...Preconditions.checkExists(discordNeatQueueData.teams[0]), name: "__Cobra__" },
+            { ...Preconditions.checkExists(discordNeatQueueData.teams[1]), name: "**Viper**" },
+          ],
+        },
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+        Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
+      ]);
+      vi.spyOn(services.discordService, "setInteractionMetadata").mockResolvedValue();
+
+      const { jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      const updatePayload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+      const outcomeRow = Preconditions.checkExists(updatePayload.components?.[0]);
+      if (!("components" in outcomeRow)) {
+        throw new Error("Expected outcome action row");
+      }
+      const outcomeSelect = Preconditions.checkExists(outcomeRow.components[0]);
+      if (!("options" in outcomeSelect)) {
+        throw new Error("Expected outcome select");
+      }
+
+      expect(outcomeSelect.options).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ value: "TEAM_0", label: "Cobra wins" }),
+          expect.objectContaining({ value: "TEAM_1", label: "Viper wins" }),
+        ]),
+      );
+    });
   });
 
   describe("execute(): message component fix outcome select", () => {
@@ -1642,6 +1694,31 @@ describe("StatsCommand", () => {
       const updatePayload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
       const statusEmbed = Preconditions.checkExists(updatePayload.embeds?.[0]);
       expect(statusEmbed.description).toContain("Final result: Tie");
+    });
+
+    it("returns an error when no outcome value is selected", async () => {
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: "btn_stats_fix_outcome_select",
+          values: [],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          id: "fix-flow-message-id",
+        },
+      };
+
+      const { jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          message: "No series outcome selected. Please run /stats fix again.",
+        }),
+      );
     });
   });
 
