@@ -175,6 +175,17 @@ const MATCH_5BBE_TICKS = new Map<number, readonly number[]>([
   ],
 ]);
 
+// Simplified from the match's byte2 film data: reading hill 1 as ending at Cobra's 3:38 tick
+// instead of 2:21 would place the capture inside an Eagle-attributed window (205-259s).
+const MATCH_5BBE_CONTROL_PERIODS: ObjectiveControlPeriod[] = [
+  controlPeriod(123000, 171000, 1),
+  controlPeriod(205000, 259000, 0),
+  controlPeriod(297000, 324000, 1),
+  controlPeriod(419000, 463000, 1),
+  controlPeriod(530000, 562000, 1),
+  controlPeriod(641000, 644000, 0),
+];
+
 describe("findBestKothCaptureAssignment", () => {
   it("returns the verified capture timestamps for match 5c39e8a4 (2:1, Cobra takes hill 3)", () => {
     const events = eventsFromTicks(MATCH_5C39_TICKS);
@@ -255,7 +266,7 @@ describe("findBestKothCaptureAssignment", () => {
         [0, 2],
         [1, 3],
       ]),
-      [],
+      MATCH_5BBE_CONTROL_PERIODS,
     );
     expect(result).toEqual([141003, 323892, 449651, 532519, 643883]);
   });
