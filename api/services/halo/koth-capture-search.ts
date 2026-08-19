@@ -13,6 +13,7 @@ export const RELOCATION_GAP_MS = 8_000;
 const TICK_SCORING_MS = 5_000;
 const CAPTURE_METER_MS = 40_000;
 const HIDDEN_TICK_GAP_MS = 7_500;
+const FULL_METER_TICKS = CAPTURE_METER_MS / TICK_SCORING_MS;
 const MAX_SEARCH_NODES = 50_000;
 
 interface CaptureStep {
@@ -146,7 +147,6 @@ class KothCaptureSearch {
     hillBaseline: Record<string, number>,
     perHillTicks: number,
   ): number {
-    const fullMeterTicks = CAPTURE_METER_MS / TICK_SCORING_MS;
     let overtaken = 0;
     for (const [teamIdKey, cumulative] of Object.entries(event.runningScores)) {
       if (Number(teamIdKey) === event.teamId) {
@@ -156,7 +156,7 @@ class KothCaptureSearch {
       // Strictly greater: equal tick counts are common dedup jitter, not an implausibility.
       // A full meter's worth of opponent ticks is a violation regardless — that team's meter
       // would have completed first, so this hill cannot still be open for the capturer.
-      if (otherTeamTicks > perHillTicks || otherTeamTicks >= fullMeterTicks) {
+      if (otherTeamTicks > perHillTicks || otherTeamTicks >= FULL_METER_TICKS) {
         overtaken += 1;
       }
     }
@@ -226,12 +226,11 @@ class KothCaptureSearch {
     const violations =
       this.steps.reduce((acc, step) => acc + step.overtakenTeams + (step.insufficientMeter ? 1 : 0), 0) +
       this.countTrailingViolations(hillBaseline, perHillCounts);
-    const fullMeterTicks = CAPTURE_METER_MS / TICK_SCORING_MS;
     return {
       capturesPlaced: perHillCounts.length,
       violations,
       byte2Contradictions: this.steps.reduce((acc, step) => acc + (step.byte2Contradicted ? 1 : 0), 0),
-      underTickCost: perHillCounts.reduce((acc, count) => acc + Math.max(0, fullMeterTicks - count), 0),
+      underTickCost: perHillCounts.reduce((acc, count) => acc + Math.max(0, FULL_METER_TICKS - count), 0),
       variance: varianceOf(perHillCounts),
       windowMismatches: this.steps.reduce((acc, step) => acc + (step.windowMismatched ? 1 : 0), 0),
       totalTicks: perHillCounts.reduce((acc, count) => acc + count, 0),

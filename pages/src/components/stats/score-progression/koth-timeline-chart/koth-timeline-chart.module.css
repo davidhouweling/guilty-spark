@@ -1,9 +1,4 @@
 .tooltip {
-  background: var(--halo-bg-card);
-  border: 1px solid rgb(93 212 216 / 30%);
-  border-radius: var(--radius-base);
-  color: var(--halo-white);
-  font-size: 12px;
   padding: 8px 12px;
 }
 

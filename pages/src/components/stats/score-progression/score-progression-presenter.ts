@@ -3,6 +3,7 @@ import type { ScoreProgressionSnapshot, ScoreProgressionStore } from "./score-pr
 import type {
   ChartType,
   KothHillData,
+  KothTimelineHillViewModel,
   KothTimelineViewModel,
   PlayerAdvantageData,
   ScoreDeltaData,
@@ -71,7 +72,7 @@ export class ScoreProgressionPresenter {
 
     const kothTimelineViewModel: KothTimelineViewModel | null =
       input.kothHills != null && input.kothHills.length > 0
-        ? { durationMs: input.durationMs, hills: input.kothHills }
+        ? { durationMs: input.durationMs, hills: this.buildKothTimelineHills(input.kothHills) }
         : null;
 
     return {
@@ -95,6 +96,16 @@ export class ScoreProgressionPresenter {
       onChartTypeChange: this.onChartTypeChange,
       onPlayerAdvantageChange: this.onPlayerAdvantageChange,
     };
+  }
+
+  // Recharts vertical BarChart renders rows top-down, so hill 1 must be last to sit at the bottom
+  private buildKothTimelineHills(hills: readonly KothHillData[]): KothTimelineHillViewModel[] {
+    return hills
+      .map((hill) => ({
+        ...hill,
+        occupancyLabel: hill.teamOccupancies.map((o) => `${o.name} ${String(o.percentage)}%`).join(" · "),
+      }))
+      .reverse();
   }
 
   private synchronizeDeltaDomain(scoreDelta: ScoreDeltaData, advantage: PlayerAdvantageData | null): ScoreDeltaData {

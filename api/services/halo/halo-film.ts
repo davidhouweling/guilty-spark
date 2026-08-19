@@ -199,36 +199,43 @@ export class HaloFilmService {
 
   async getStateByte2Transitions(matchId: string): Promise<StateByte2Transition[]> {
     try {
-      let authPromise: Promise<{ spartanToken: string; clearanceToken: string }> | null = null;
-      const authResolver = async (): Promise<{ spartanToken: string; clearanceToken: string }> => {
-        authPromise ??= this.resolveAuthContext();
-        return authPromise;
-      };
+      const authResolver = this.createAuthResolver();
       const filmMetadata = await this.getOrFetchFilmMetadata(matchId, authResolver);
       const chunks = this.findReplicationChunksWithStartMs(filmMetadata);
       if (chunks.length === 0) {
         return [];
       }
-      const perChunkTransitions = await Promise.all(
-        chunks.map(async ({ chunk, startMs }) => {
-          const bytes = await this.fetchReplicationChunkBytes(
-            matchId,
-            chunk,
-            filmMetadata.BlobStoragePathPrefix,
-            authResolver,
-          );
-          try {
-            const chunkData = new Uint8Array(inflateSync(bytes));
-            return scanStateByte2Transitions(chunkData, startMs, chunk.DurationMilliseconds);
-          } catch {
-            return [] as StateByte2Transition[];
-          }
-        }),
+      const perChunkBytes = await Promise.all(
+        chunks.map(async ({ chunk }) =>
+          this.fetchReplicationChunkBytes(matchId, chunk, filmMetadata.BlobStoragePathPrefix, authResolver),
+        ),
       );
-      return perChunkTransitions.flat().sort((a, b) => a.timeMs - b.timeMs);
+      // Chunks are scanned in film order so the state byte carries across chunk boundaries —
+      // a transition landing exactly on a boundary is otherwise silently dropped.
+      const transitions: StateByte2Transition[] = [];
+      let carriedValue: number | null = null;
+      for (const [chunkIndex, { chunk, startMs }] of chunks.entries()) {
+        try {
+          const chunkData = new Uint8Array(inflateSync(Preconditions.checkExists(perChunkBytes[chunkIndex])));
+          const scanned = scanStateByte2Transitions(chunkData, startMs, chunk.DurationMilliseconds, carriedValue);
+          transitions.push(...scanned.transitions);
+          carriedValue = scanned.finalValue;
+        } catch {
+          // malformed chunk — keep scanning the rest with the carried state value
+        }
+      }
+      return transitions.sort((a, b) => a.timeMs - b.timeMs);
     } catch {
       return [];
     }
+  }
+
+  private createAuthResolver(): () => Promise<{ spartanToken: string; clearanceToken: string }> {
+    let authPromise: Promise<{ spartanToken: string; clearanceToken: string }> | null = null;
+    return async (): Promise<{ spartanToken: string; clearanceToken: string }> => {
+      authPromise ??= this.resolveAuthContext();
+      return authPromise;
+    };
   }
 
   private buildObjectiveControlProgressionFromData(
@@ -281,8 +288,10 @@ export class HaloFilmService {
     modeEvents: ParsedHighlightEvent[],
     durationMs: number,
   ): ObjectiveControlPeriod[] {
+    // Film-clock interpolation can land a transition past MatchInfo.Duration; such boundaries
+    // would produce an inverted final period, so they are clamped out.
     const gameplayTransitions = byte2Transitions.filter(
-      (t) => t.toValue >= GAMEPLAY_BYTE2_MIN && t.toValue < GAMEPLAY_BYTE2_MAX,
+      (t) => t.toValue >= GAMEPLAY_BYTE2_MIN && t.toValue < GAMEPLAY_BYTE2_MAX && t.timeMs < durationMs,
     );
     if (gameplayTransitions.length === 0) {
       return [];
@@ -297,6 +306,9 @@ export class HaloFilmService {
     return periods;
   }
 
+  // Raw (undeduped) mode events are intentional here: duplicate film emissions correlate with
+  // sustained control, and that density is load-bearing evidence for window attribution —
+  // switching to deduped events flips validated window teams on real matches.
   private findControllingTeamInWindow(
     modeEvents: ParsedHighlightEvent[],
     startMs: number,
@@ -363,11 +375,7 @@ export class HaloFilmService {
 
   private async tryBuildFilmAttributionData(matchStats: MatchStats): Promise<FilmAttributionData | null> {
     try {
-      let authPromise: Promise<{ spartanToken: string; clearanceToken: string }> | null = null;
-      const authResolver = async (): Promise<{ spartanToken: string; clearanceToken: string }> => {
-        authPromise ??= this.resolveAuthContext();
-        return authPromise;
-      };
+      const authResolver = this.createAuthResolver();
       const filmMetadata = await this.getOrFetchFilmMetadata(matchStats.MatchId, authResolver);
       const scanResult = await this.scanAllReplicationChunks(matchStats.MatchId, filmMetadata, authResolver);
       if (scanResult == null) {

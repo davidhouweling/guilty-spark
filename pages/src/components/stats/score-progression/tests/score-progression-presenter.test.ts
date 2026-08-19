@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { ScoreProgressionPresenter } from "../score-progression-presenter";
 import { ScoreProgressionStore } from "../score-progression-store";
-import type { KothHillData, PlayerAdvantageData, ScoreDeltaData, ScoreProgressionTeamLine } from "../types";
+import { aFakeKothHillDataWith } from "../fakes/aFakeKothHillDataWith";
+import type { PlayerAdvantageData, ScoreDeltaData, ScoreProgressionTeamLine } from "../types";
 
 const aFakeScoreDeltaData = (): ScoreDeltaData => ({
   points: [
@@ -288,24 +289,61 @@ describe("ScoreProgressionPresenter", () => {
   describe("kothTimelineViewModel", () => {
     it("builds kothTimelineViewModel from non-null kothHills", () => {
       const { store, presenter } = makePresenter();
-      const hills: KothHillData[] = [
-        {
-          hillIndex: 1,
-          startMs: 0,
-          endMs: 30000,
-          segments: [],
-          winnerTeamId: 0,
-          winnerColor: "#f00",
-          winnerName: "Eagle",
-          teamOccupancies: [],
-        },
-      ];
+      const hill = aFakeKothHillDataWith({ teamOccupancies: [] });
       const model = presenter.present(store.getSnapshot(), {
         ...BASE_INPUT,
         scoreDelta: null,
-        kothHills: hills,
+        kothHills: [hill],
       });
-      expect(model.kothTimelineViewModel).toEqual({ durationMs: 600000, hills });
+      expect(model.kothTimelineViewModel).toEqual({ durationMs: 600000, hills: [{ ...hill, occupancyLabel: "" }] });
+    });
+
+    it("reverses hills into display order with hill 1 last", () => {
+      const { store, presenter } = makePresenter();
+      const model = presenter.present(store.getSnapshot(), {
+        ...BASE_INPUT,
+        scoreDelta: null,
+        kothHills: [
+          aFakeKothHillDataWith({ hillIndex: 1 }),
+          aFakeKothHillDataWith({ hillIndex: 2 }),
+          aFakeKothHillDataWith({ hillIndex: 3 }),
+        ],
+      });
+      expect(model.kothTimelineViewModel?.hills.map((h) => h.hillIndex)).toEqual([3, 2, 1]);
+    });
+
+    it("does not mutate the input kothHills order", () => {
+      const { store, presenter } = makePresenter();
+      const hills = [aFakeKothHillDataWith({ hillIndex: 1 }), aFakeKothHillDataWith({ hillIndex: 2 })];
+      presenter.present(store.getSnapshot(), { ...BASE_INPUT, scoreDelta: null, kothHills: hills });
+      expect(hills.map((h) => h.hillIndex)).toEqual([1, 2]);
+    });
+
+    it("formats occupancyLabel from team occupancies joined with a middle dot", () => {
+      const { store, presenter } = makePresenter();
+      const model = presenter.present(store.getSnapshot(), {
+        ...BASE_INPUT,
+        scoreDelta: null,
+        kothHills: [
+          aFakeKothHillDataWith({
+            teamOccupancies: [
+              { teamId: 0, name: "Eagle", color: "#0000ff", percentage: 50 },
+              { teamId: 1, name: "Cobra", color: "#ff0000", percentage: 33 },
+            ],
+          }),
+        ],
+      });
+      expect(model.kothTimelineViewModel?.hills[0]?.occupancyLabel).toBe("Eagle 50% · Cobra 33%");
+    });
+
+    it("formats an empty occupancyLabel when teamOccupancies is empty", () => {
+      const { store, presenter } = makePresenter();
+      const model = presenter.present(store.getSnapshot(), {
+        ...BASE_INPUT,
+        scoreDelta: null,
+        kothHills: [aFakeKothHillDataWith({ teamOccupancies: [] })],
+      });
+      expect(model.kothTimelineViewModel?.hills[0]?.occupancyLabel).toBe("");
     });
 
     it("sets kothTimelineViewModel to null when kothHills is null", () => {

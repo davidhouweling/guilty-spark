@@ -47,9 +47,13 @@ export interface KothHillData {
   readonly teamOccupancies: readonly KothHillTeamOccupancy[];
 }
 
+export interface KothTimelineHillViewModel extends KothHillData {
+  readonly occupancyLabel: string;
+}
+
 export interface KothTimelineViewModel {
   readonly durationMs: number;
-  readonly hills: readonly KothHillData[];
+  readonly hills: readonly KothTimelineHillViewModel[];
 }
 
 export interface ScoreProgressionViewData {

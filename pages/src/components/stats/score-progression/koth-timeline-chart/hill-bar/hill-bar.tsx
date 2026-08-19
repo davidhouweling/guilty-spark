@@ -7,6 +7,10 @@ export const WINNER_DOT_OFFSET = 10;
 const UNOCCUPIED_FILL = "rgba(255,255,255,0.08)";
 const UNOCCUPIED_STROKE = "rgba(255,255,255,0.15)";
 
+function clampFraction(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
 export interface HillBarProps {
   y?: number;
   height?: number;
@@ -31,32 +35,23 @@ export function HillBar({
   return (
     <g>
       {hill.segments.map((segment: KothHillSegment) => {
-        const segKey = `${String(segment.startMs)}-${String(segment.endMs)}`;
-        const segX = bgX + (segment.startMs / durationMs) * bgWidth;
-        const segWidth = Math.max(1, ((segment.endMs - segment.startMs) / durationMs) * bgWidth);
-        if (segment.teamId != null) {
-          return (
-            <rect
-              key={segKey}
-              x={segX}
-              y={y}
-              width={segWidth}
-              height={height}
-              fill={segment.color ?? TICK_FILL}
-              opacity={0.8}
-            />
-          );
+        const startFraction = clampFraction(segment.startMs / durationMs);
+        const endFraction = clampFraction(segment.endMs / durationMs);
+        if (endFraction <= startFraction) {
+          return null;
         }
+        const isOccupied = segment.teamId != null;
         return (
           <rect
-            key={segKey}
-            x={segX}
+            key={`${String(segment.startMs)}-${String(segment.endMs)}`}
+            x={bgX + startFraction * bgWidth}
             y={y}
-            width={segWidth}
+            width={Math.max(1, (endFraction - startFraction) * bgWidth)}
             height={height}
-            fill={UNOCCUPIED_FILL}
-            stroke={UNOCCUPIED_STROKE}
-            strokeWidth={0.5}
+            fill={isOccupied ? (segment.color ?? TICK_FILL) : UNOCCUPIED_FILL}
+            opacity={isOccupied ? 0.8 : undefined}
+            stroke={isOccupied ? undefined : UNOCCUPIED_STROKE}
+            strokeWidth={isOccupied ? undefined : 0.5}
           />
         );
       })}

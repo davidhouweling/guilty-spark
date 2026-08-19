@@ -535,6 +535,27 @@ describe("formatScoreProgression", () => {
       expect(result?.kothHills?.[1]?.winnerTeamId).toBe(1);
     });
 
+    it("returns empty teamOccupancies for every hill when controlPeriods is empty", () => {
+      const data = aFakeScoreProgressionWith({
+        mode: KOTH_MODE,
+        durationMs: 60000,
+        timeline: {
+          type: "objective-control",
+          events: [
+            { timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+            { timestampMs: 30000, teamId: 0, runningScores: { "0": 2, "1": 0 } },
+            { timestampMs: 45000, teamId: 1, runningScores: { "0": 2, "1": 1 } },
+          ],
+          controlPeriods: [],
+          hillCaptureTimestamps: [30000],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.kothHills).toHaveLength(2);
+      expect(result?.kothHills?.every((hill) => hill.teamOccupancies.length === 0)).toBe(true);
+      expect(result?.kothHills?.[0]?.winnerTeamId).toBe(0);
+    });
+
     it("returns a single uncaptured hill when hillCaptureTimestamps is empty", () => {
       const data = aFakeScoreProgressionWith({
         mode: KOTH_MODE,

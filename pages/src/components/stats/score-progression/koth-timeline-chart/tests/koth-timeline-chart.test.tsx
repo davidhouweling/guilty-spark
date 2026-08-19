@@ -4,7 +4,8 @@ import React, { cloneElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { KothTimelineChart } from "../koth-timeline-chart";
-import type { KothHillData } from "../../types";
+import { aFakeKothHillDataWith } from "../../fakes/aFakeKothHillDataWith";
+import type { KothHillData, KothTimelineHillViewModel } from "../../types";
 
 afterEach(() => {
   cleanup();
@@ -18,42 +19,35 @@ vi.mock("recharts", () => ({
   YAxis: ({
     tick,
   }: {
-    tick: React.ReactElement<{ x?: number; y?: number; payload?: { value: number }; hills?: readonly KothHillData[] }>;
+    tick: React.ReactElement<{
+      x?: number;
+      y?: number;
+      payload?: { value: number };
+      hills?: readonly KothTimelineHillViewModel[];
+    }>;
   }): React.ReactElement => <div data-testid="y-axis">{cloneElement(tick, { x: 0, y: 0, payload: { value: 1 } })}</div>,
   Tooltip: (): null => null,
 }));
 
-function aFakeHill(overrides: Partial<KothHillData> = {}): KothHillData {
-  return {
-    hillIndex: 1,
-    startMs: 0,
-    endMs: 30000,
-    segments: [
-      { startMs: 0, endMs: 15000, teamId: 0, color: "#0000ff" },
-      { startMs: 15000, endMs: 25000, teamId: 1, color: "#ff0000" },
-      { startMs: 25000, endMs: 30000, teamId: null, color: null },
-    ],
-    winnerTeamId: 1,
-    winnerColor: "#ff0000",
-    winnerName: "Cobra",
-    teamOccupancies: [
-      { teamId: 0, name: "Eagle", color: "#0000ff", percentage: 50 },
-      { teamId: 1, name: "Cobra", color: "#ff0000", percentage: 33 },
-    ],
-    ...overrides,
-  };
+function aFakeTimelineHill(overrides: Partial<KothHillData> = {}, occupancyLabel = ""): KothTimelineHillViewModel {
+  return { ...aFakeKothHillDataWith(overrides), occupancyLabel };
 }
 
 describe("KothTimelineChart", () => {
   it("renders a Bar element", () => {
-    render(<KothTimelineChart durationMs={30000} hills={[aFakeHill()]} />);
+    render(<KothTimelineChart durationMs={30000} hills={[aFakeTimelineHill()]} />);
     expect(screen.getByTestId("bar")).toBeTruthy();
   });
 
-  it("renders a Y-axis tick with hill occupancy text", () => {
-    render(<KothTimelineChart durationMs={30000} hills={[aFakeHill()]} />);
+  it("renders a Y-axis tick with the display-ready occupancy label", () => {
+    render(<KothTimelineChart durationMs={30000} hills={[aFakeTimelineHill({}, "Eagle 50% · Cobra 33%")]} />);
     const yAxis = screen.getByTestId("y-axis");
-    expect(yAxis.textContent).toContain("Eagle 50%");
-    expect(yAxis.textContent).toContain("Cobra 33%");
+    expect(yAxis.textContent).toContain("Eagle 50% · Cobra 33%");
+  });
+
+  it("renders no occupancy text when the occupancy label is empty", () => {
+    render(<KothTimelineChart durationMs={30000} hills={[aFakeTimelineHill()]} />);
+    const yAxis = screen.getByTestId("y-axis");
+    expect(yAxis.textContent).toBe("Hill 1");
   });
 });

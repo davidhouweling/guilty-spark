@@ -210,14 +210,17 @@ export function scanStateByte2Transitions(
   data: Uint8Array,
   startMs: number,
   durationMs: number,
-): StateByte2Transition[] {
+  initialValue: number | null = null,
+): { transitions: StateByte2Transition[]; finalValue: number | null } {
   const frames = findFramePositions(data);
   if (frames.length === 0) {
-    return [];
+    return { transitions: [], finalValue: initialValue };
   }
   const msPerFrame = durationMs / frames.length;
   const transitions: StateByte2Transition[] = [];
-  let prevValue: number | null = null;
+  // Seeded from the previous chunk's final value so a state change landing exactly on a
+  // chunk boundary still emits a transition.
+  let prevValue: number | null = initialValue;
 
   for (const [i, framePos] of frames.entries()) {
     const byteOffset = framePos + FRAME_MARKER.length + STATE_BYTE_PAYLOAD_OFFSET;
@@ -235,7 +238,7 @@ export function scanStateByte2Transitions(
     prevValue = stateValue;
   }
 
-  return transitions;
+  return { transitions, finalValue: prevValue };
 }
 
 export class WeaponAttributor {

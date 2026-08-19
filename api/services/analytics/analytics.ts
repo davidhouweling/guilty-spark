@@ -1,4 +1,5 @@
 import { GameVariantCategory } from "halo-infinite-api";
+import type { MatchStats } from "halo-infinite-api";
 import type {
   AnalyticsModule,
   MatchAnalytics,
@@ -56,49 +57,56 @@ export class AnalyticsService {
 
   private async getMatchAnalytics(matchId: string, modules: AnalyticsModule[]): Promise<MatchAnalytics> {
     const matchStats = Preconditions.checkExists((await this.haloService.getMatchDetails([matchId]))[0]);
-    const killMatrixAnalytics = await this.haloFilmService.buildKillMatrixAnalytics(matchStats);
-
-    let scoreProgression: MatchAnalytics["scoreProgression"] = null;
-    if (modules.includes("scoreProgression")) {
-      const mode = matchStats.MatchInfo.GameVariantCategory;
-      const durationMs = Math.round(getDurationInSeconds(matchStats.MatchInfo.Duration) * 1000);
-      if (KILL_RACE_GAME_MODES.has(mode) && matchStats.Teams.length > 0) {
-        const progression = await this.haloFilmService.buildKillRaceProgression(matchStats);
-        scoreProgression = {
-          mode,
-          durationMs,
-          teamCount: progression.teamCount,
-          respawnDurationMs: KILL_RACE_RESPAWN_DURATION_MS[mode] ?? null,
-          timeline: { type: "kill-race", events: progression.events, deathTimeline: progression.deathTimeline },
-        };
-      } else if (OBJECTIVE_CONTROL_GAME_MODES.has(mode) && matchStats.Teams.length > 0) {
-        const progression = await this.haloFilmService.buildObjectiveControlProgression(matchStats, durationMs);
-        scoreProgression = {
-          mode,
-          durationMs,
-          teamCount: progression.teamCount,
-          respawnDurationMs: null,
-          timeline: {
-            type: "objective-control",
-            events: progression.events,
-            controlPeriods: progression.controlPeriods,
-            hillCaptureTimestamps: progression.hillCaptureTimestamps,
-          },
-        };
-      }
-    }
+    const [killMatrixAnalytics, scoreProgression] = await Promise.all([
+      this.haloFilmService.buildKillMatrixAnalytics(matchStats),
+      modules.includes("scoreProgression") ? this.buildScoreProgressionAnalytics(matchStats) : null,
+    ]);
 
     const requestedModules: AnalyticsModule[] = modules.includes("killMatrix") ? modules : ["killMatrix", ...modules];
 
     return {
       requestedModules,
       killMatrix: toContractKillMatrix(killMatrixAnalytics.entries),
+      scoreProgression,
       metadata: {
         pairingQuality: killMatrixAnalytics.pairingQuality,
         perfectCounts: killMatrixAnalytics.perfectCounts,
       },
-      scoreProgression,
     };
+  }
+
+  private async buildScoreProgressionAnalytics(matchStats: MatchStats): Promise<MatchAnalytics["scoreProgression"]> {
+    const mode = matchStats.MatchInfo.GameVariantCategory;
+    const durationMs = Math.round(getDurationInSeconds(matchStats.MatchInfo.Duration) * 1000);
+    if (matchStats.Teams.length === 0) {
+      return null;
+    }
+    if (KILL_RACE_GAME_MODES.has(mode)) {
+      const progression = await this.haloFilmService.buildKillRaceProgression(matchStats);
+      return {
+        mode,
+        durationMs,
+        teamCount: progression.teamCount,
+        respawnDurationMs: KILL_RACE_RESPAWN_DURATION_MS[mode] ?? null,
+        timeline: { type: "kill-race", events: progression.events, deathTimeline: progression.deathTimeline },
+      };
+    }
+    if (OBJECTIVE_CONTROL_GAME_MODES.has(mode)) {
+      const progression = await this.haloFilmService.buildObjectiveControlProgression(matchStats, durationMs);
+      return {
+        mode,
+        durationMs,
+        teamCount: progression.teamCount,
+        respawnDurationMs: null,
+        timeline: {
+          type: "objective-control",
+          events: progression.events,
+          controlPeriods: progression.controlPeriods,
+          hillCaptureTimestamps: progression.hillCaptureTimestamps,
+        },
+      };
+    }
+    return null;
   }
 
   async getBatchMatchAnalytics(

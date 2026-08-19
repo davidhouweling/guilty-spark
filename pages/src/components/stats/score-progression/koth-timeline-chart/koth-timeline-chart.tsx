@@ -1,7 +1,7 @@
 import React from "react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
-import { AXIS_STROKE, TICK_FILL, TICK_FONT_SIZE, TICK_STYLE, formatTime } from "../chart-constants";
-import type { KothHillData, KothTimelineViewModel } from "../types";
+import { AXIS_STROKE, TICK_FILL, TICK_FONT_SIZE, timeAxisProps, tooltipContentStyle } from "../chart-constants";
+import type { KothTimelineHillViewModel, KothTimelineViewModel } from "../types";
 import { HillBar, WINNER_DOT_RADIUS, WINNER_DOT_OFFSET } from "./hill-bar/hill-bar";
 import styles from "./koth-timeline-chart.module.css";
 
@@ -12,7 +12,7 @@ interface HillTickProps {
   x?: number;
   y?: number;
   payload?: { value: number };
-  hills?: readonly KothHillData[];
+  hills?: readonly KothTimelineHillViewModel[];
 }
 
 function HillTick({ x = 0, y = 0, payload, hills = [] }: HillTickProps): React.ReactElement | null {
@@ -23,22 +23,23 @@ function HillTick({ x = 0, y = 0, payload, hills = [] }: HillTickProps): React.R
   if (hill == null) {
     return null;
   }
-  const occupancyText = hill.teamOccupancies.map((o) => `${o.name} ${String(o.percentage)}%`).join(" · ");
 
   return (
     <g transform={`translate(${String(x)},${String(y)})`}>
       <text x={-8} y={-5} textAnchor="end" fontSize={TICK_FONT_SIZE} fill={TICK_FILL}>
         Hill {hill.hillIndex}
       </text>
-      <text x={-8} y={9} textAnchor="end" fontSize={10} fill={TICK_FILL} opacity={0.7}>
-        {occupancyText}
-      </text>
+      {hill.occupancyLabel !== "" && (
+        <text x={-8} y={9} textAnchor="end" fontSize={10} fill={TICK_FILL} opacity={0.7}>
+          {hill.occupancyLabel}
+        </text>
+      )}
     </g>
   );
 }
 
 interface HillTooltipPayloadEntry {
-  payload?: { hill: KothHillData };
+  payload?: { hill: KothTimelineHillViewModel };
 }
 
 interface HillTooltipProps {
@@ -56,7 +57,7 @@ function HillTooltip({ active, payload }: HillTooltipProps): React.ReactElement 
   }
 
   return (
-    <div className={styles.tooltip}>
+    <div className={styles.tooltip} style={tooltipContentStyle}>
       <div className={styles.tooltipHill}>Hill {hill.hillIndex}</div>
       {hill.teamOccupancies.map((o) =>
         o.percentage > 0 ? (
@@ -75,9 +76,7 @@ function HillTooltip({ active, payload }: HillTooltipProps): React.ReactElement 
 
 export function KothTimelineChart({ durationMs, hills }: KothTimelineViewModel): React.ReactElement {
   const chartHeight = hills.length * ROW_HEIGHT + 40;
-  const chartData = [...hills]
-    .reverse()
-    .map((hill) => ({ hillIndex: hill.hillIndex, value: durationMs, durationMs, hill }));
+  const chartData = hills.map((hill) => ({ hillIndex: hill.hillIndex, value: durationMs, hill }));
 
   const hillTick = <HillTick hills={hills} />;
 
@@ -88,14 +87,8 @@ export function KothTimelineChart({ durationMs, hills }: KothTimelineViewModel):
         data={chartData}
         margin={{ top: 8, right: WINNER_DOT_OFFSET + WINNER_DOT_RADIUS + 8, bottom: 8, left: 8 }}
       >
-        <XAxis
-          type="number"
-          domain={[0, durationMs]}
-          tickCount={6}
-          tickFormatter={formatTime}
-          stroke={AXIS_STROKE}
-          tick={TICK_STYLE}
-        />
+        {/* rows are per-hill, not per-timestamp, so clear the shared helper's time dataKey */}
+        <XAxis {...timeAxisProps(durationMs)} dataKey={undefined} />
         <YAxis type="category" dataKey="hillIndex" width={Y_AXIS_WIDTH} tick={hillTick} stroke={AXIS_STROKE} />
         <Tooltip content={<HillTooltip />} cursor={false} />
         <Bar dataKey="value" shape={<HillBar durationMs={durationMs} />} isAnimationActive={false} />

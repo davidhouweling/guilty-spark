@@ -1,6 +1,7 @@
 import { GameVariantCategory } from "halo-infinite-api";
 import type {
   KillRaceDeathEvent,
+  KillRaceEvent,
   MatchAnalytics,
   ObjectiveControlTimeline,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
@@ -19,17 +20,11 @@ import type {
   ScoreProgressionViewData,
 } from "./types";
 
-interface ProgressionEvent {
-  readonly timestampMs: number;
-  readonly teamId: number;
-  readonly runningScores: Record<string, number>;
-}
-
 const MIN_TRAILING_HILL_MS = 2_000;
 
 function buildScoreDelta(
   teamIds: readonly number[],
-  events: readonly ProgressionEvent[],
+  events: readonly KillRaceEvent[],
   durationMs: number,
 ): ScoreDeltaData | null {
   if (teamIds.length !== 2) {
@@ -197,6 +192,8 @@ function buildKothHills(
     hillPeriods.push({ startMs: hillStart, endMs: durationMs, isCaptured: false });
   }
 
+  const hasControlData = timeline.controlPeriods.length > 0;
+
   return hillPeriods.map((period, periodIndex) => {
     const segments = buildHillSegments(period.startMs, period.endMs, timeline, teamColorByTeamId);
 
@@ -215,12 +212,15 @@ function buildKothHills(
       }
     }
 
-    const teamOccupancies: KothHillTeamOccupancy[] = teamIds.map((teamId) => ({
-      teamId,
-      name: getTeamName(teamId),
-      color: teamColorByTeamId.get(teamId) ?? TICK_FILL,
-      percentage: hillDurationMs > 0 ? Math.round(((holdMs.get(teamId) ?? 0) / hillDurationMs) * 100) : 0,
-    }));
+    // without control data every occupancy would read 0% while winners still show — omit rather than contradict
+    const teamOccupancies: KothHillTeamOccupancy[] = hasControlData
+      ? teamIds.map((teamId) => ({
+          teamId,
+          name: getTeamName(teamId),
+          color: teamColorByTeamId.get(teamId) ?? TICK_FILL,
+          percentage: hillDurationMs > 0 ? Math.round(((holdMs.get(teamId) ?? 0) / hillDurationMs) * 100) : 0,
+        }))
+      : [];
 
     return {
       hillIndex: periodIndex + 1,
@@ -252,6 +252,23 @@ export function formatScoreProgression(
     .map(Number)
     .sort((a, b) => a - b);
 
+  const kothMode: number = GameVariantCategory.MultiplayerKingOfTheHill;
+  if (mode === kothMode && timeline.type === "objective-control") {
+    const teamColorByTeamId = new Map(
+      teamIds.map((teamId, slotIndex) => [
+        teamId,
+        teamColors[slotIndex]?.hex ?? getTeamColorOrDefault(undefined, slotIndex).hex,
+      ]),
+    );
+    return {
+      durationMs,
+      teamLines: [],
+      scoreDelta: null,
+      playerAdvantage: null,
+      kothHills: buildKothHills(timeline, teamIds, teamColorByTeamId, durationMs),
+    };
+  }
+
   const teamState = new Map(
     teamIds.map((teamId, slotIndex) => [
       teamId,
@@ -263,19 +280,6 @@ export function formatScoreProgression(
       },
     ]),
   );
-
-  const teamColorByTeamId = new Map([...teamState.entries()].map(([teamId, state]) => [teamId, state.color]));
-
-  const kothMode: number = GameVariantCategory.MultiplayerKingOfTheHill;
-  if (mode === kothMode && timeline.type === "objective-control") {
-    return {
-      durationMs,
-      teamLines: [],
-      scoreDelta: null,
-      playerAdvantage: null,
-      kothHills: buildKothHills(timeline, teamIds, teamColorByTeamId, durationMs),
-    };
-  }
 
   for (const event of events) {
     const newScore = event.runningScores[String(event.teamId)] ?? 0;

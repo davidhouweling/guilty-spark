@@ -1,10 +1,12 @@
 import { z } from "zod";
 
-const killRaceEventSchema = z.object({
+const progressionEventSchema = z.object({
   timestampMs: z.number().int().nonnegative(),
   teamId: z.number().int().nonnegative(),
   runningScores: z.record(z.string().regex(/^\d+$/), z.number().int().nonnegative()),
 });
+
+const killRaceEventSchema = progressionEventSchema;
 
 const killRaceDeathEventSchema = z.object({
   timestampMs: z.number().int().nonnegative(),
@@ -20,11 +22,7 @@ const killRaceTimelineSchema = z.object({
   deathTimeline: z.array(killRaceDeathEventSchema),
 });
 
-const objectiveControlEventSchema = z.object({
-  timestampMs: z.number().int().nonnegative(),
-  teamId: z.number().int().nonnegative(),
-  runningScores: z.record(z.string().regex(/^\d+$/), z.number().int().nonnegative()),
-});
+const objectiveControlEventSchema = progressionEventSchema;
 
 const objectiveControlPeriodSchema = z.object({
   startMs: z.number().int().nonnegative(),
