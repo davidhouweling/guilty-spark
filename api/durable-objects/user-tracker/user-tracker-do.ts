@@ -34,7 +34,8 @@ import type { UserTrackerInternalState } from "./types";
 const USER_TRACKER_STATE_KEY = "userTrackerState";
 const USER_TRACKER_MARKERS_KEY = "userTrackerMarkers";
 const USER_TRACKER_RECONCILE_DEADLINE_KEY = "userTrackerReconcileDeadline";
-const FOLLOW_WS_POLL_INTERVAL_MS = 3000;
+// Fallback poll only; primary updates arrive via tracker websocket messages and nudges.
+const FOLLOW_WS_POLL_INTERVAL_MS = 60000;
 const TRACKER_MARKER_LIMIT = 500;
 
 function isNonStopped(row: IndividualTrackersRow): boolean {
@@ -230,6 +231,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
           ["userId", stored.state?.userId ?? "unknown"],
           ["hasConnectedClients", hasConnectedClients.toString()],
           ["connectedClientCount", connectedClientCount.toString()],
+          ["trackerCount", (stored.viewState?.directory.trackers.length ?? 0).toString()],
         ]),
       );
 
@@ -280,7 +282,12 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         return;
       }
 
-      await this.scheduleNextAlarm(FOLLOW_WS_POLL_INTERVAL_MS);
+      const refreshedStored = await this.loadStateForTickLog();
+      const refreshedDirectory = refreshedStored.viewState?.directory;
+      if (refreshedDirectory != null && !this.hasFollowableTrackers(refreshedDirectory)) {
+        this.resetTrackerSubscriptionsState();
+      }
+      await this.scheduleFollowAlarmIfNeeded(refreshedStored);
     });
   }
 
@@ -360,12 +367,12 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return userTrackerNudgeContract.toResponse({ success: true }, { noStore: true });
     }
 
-    void this.queueDirectoryPush();
+    this.queueDirectoryPushAndSyncAlarm();
     return userTrackerNudgeContract.toResponse({ success: true }, { noStore: true });
   }
 
   private handleSettingsChanged(): Response {
-    void this.queueDirectoryPush();
+    this.queueDirectoryPushAndSyncAlarm();
     return new Response(null, { status: 204 });
   }
 
@@ -381,7 +388,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
     const directory = stored.viewState?.directory ?? emptyTrackerDirectory;
     const payload = this.serializeDirectory(directory);
-    await this.ensureUpdateLoopStarted();
+    await this.ensureUpdateLoopStarted(stored);
     const response = this.webSocketAdapter.upgrade(this.state, payload);
     return response;
   }
@@ -464,8 +471,13 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     return nextState;
   }
 
-  private async ensureUpdateLoopStarted(): Promise<void> {
-    await this.scheduleNextAlarm(FOLLOW_WS_POLL_INTERVAL_MS);
+  private async ensureUpdateLoopStarted(stored: UserTrackerInternalState): Promise<void> {
+    await this.scheduleFollowAlarmIfNeeded(stored);
+
+    if (!this.hasFollowableTrackers(stored.viewState?.directory)) {
+      this.trackerSubscriptionsInstalled = false;
+      return;
+    }
 
     if (this.trackerSubscriptionsInstalled) {
       return;
@@ -475,14 +487,60 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     void this.installTrackerSubscriptionsAsync();
   }
 
+  private hasFollowableTrackers(directory: TrackerDirectory | null | undefined): boolean {
+    return (directory?.trackers.length ?? 0) > 0;
+  }
+
+  // Only pauses the alarm on a confirmed empty directory; an unknown directory keeps polling.
+  private async scheduleFollowAlarmIfNeeded(stored: UserTrackerInternalState): Promise<void> {
+    const directory = stored.viewState?.directory;
+    if (directory == null || this.hasFollowableTrackers(directory)) {
+      await this.scheduleNextAlarm(FOLLOW_WS_POLL_INTERVAL_MS);
+      return;
+    }
+
+    this.logService.debug(
+      "UserTracker alarm loop paused - no active or paused trackers",
+      new Map([["userId", stored.state?.userId ?? "unknown"]]),
+    );
+    await this.state.storage.deleteAlarm();
+  }
+
+  private queueDirectoryPushAndSyncAlarm(): void {
+    void this.queueDirectoryPushAndSyncAlarmAsync();
+  }
+
+  private async queueDirectoryPushAndSyncAlarmAsync(): Promise<void> {
+    await this.queueDirectoryPush();
+
+    if (this.state.getWebSockets().length === 0) {
+      return;
+    }
+
+    const stored = await this.loadStateForTickLog();
+    const directory = stored.viewState?.directory;
+    if (directory != null && !this.hasFollowableTrackers(directory)) {
+      this.resetTrackerSubscriptionsState();
+    } else if (!this.trackerSubscriptionsInstalled) {
+      this.trackerSubscriptionsInstalled = true;
+      await this.installTrackerSubscriptionsAsync();
+    }
+
+    await this.scheduleFollowAlarmIfNeeded(stored);
+  }
+
   private async stopUpdateLoop(): Promise<void> {
+    this.resetTrackerSubscriptionsState();
+    await this.state.storage.delete(USER_TRACKER_RECONCILE_DEADLINE_KEY);
+    await this.state.storage.deleteAlarm();
+  }
+
+  private resetTrackerSubscriptionsState(): void {
     this.closeTrackerSubscriptions();
     this.closeTrackerSubscriptions = (): void => {
       // reset after closing
     };
     this.trackerSubscriptionsInstalled = false;
-    await this.state.storage.delete(USER_TRACKER_RECONCILE_DEADLINE_KEY);
-    await this.state.storage.deleteAlarm();
   }
 
   private async installTrackerSubscriptionsAsync(): Promise<void> {
@@ -533,7 +591,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
             socket.accept();
             socket.addEventListener("message", (): void => {
-              void this.queueDirectoryPush();
+              this.queueDirectoryPushAndSyncAlarm();
             });
             return socket;
           } catch (error) {

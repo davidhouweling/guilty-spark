@@ -1279,21 +1279,22 @@ describe("UserTrackerDO", () => {
     const logService = aFakeLogServiceWith();
     const debugSpy = vi.spyOn(logService, "debug");
     const services = installFakeServicesWith({ env: localEnv, logService });
+    const persistedStorage = new Map<string, unknown>();
+    persistedStorage.set(USER_TRACKER_STATE_KEY, {
+      state: { userId: "user-1", lastUpdateTime: new Date().toISOString() },
+      viewState: null,
+    });
     mockState.storage.get = (async (key: string | string[]) => {
-      if (key === USER_TRACKER_STATE_KEY) {
-        return await Promise.resolve({
-          state: { userId: "user-1", lastUpdateTime: new Date().toISOString() },
-          viewState: null,
-        });
+      if (typeof key !== "string") {
+        return await Promise.resolve(new Map());
       }
 
-      if (typeof key === "string") {
-        await Promise.resolve(undefined);
-        return;
-      }
-
-      return await Promise.resolve(new Map());
+      return await Promise.resolve(persistedStorage.get(key));
     }) as DurableObjectStorage["get"];
+    mockState.storage.put = (async (key: string, value: unknown) => {
+      persistedStorage.set(key, value);
+      await Promise.resolve();
+    }) as DurableObjectStorage["put"];
     vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
     vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
       .mockResolvedValueOnce([
@@ -1332,6 +1333,309 @@ describe("UserTrackerDO", () => {
     expect(context?.get("userId")).toBe("user-1");
     expect(context?.get("tickType")).toBe("follow");
     expect(context?.get("connectedClientCount")).toBe("1");
+  });
+
+  it("pauses the follow alarm once a connected client has no active or paused trackers", async () => {
+    const trackerDo = aFakeIndividualTrackerDOWith({
+      viewStateResponse: {
+        state: aFakeIndividualTrackerViewStateWith({
+          trackerId: "t1",
+          gamertag: "KnownTag",
+          matches: [],
+        }),
+      },
+    });
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const logService = aFakeLogServiceWith();
+    const debugSpy = vi.spyOn(logService, "debug");
+    const services = installFakeServicesWith({ env: localEnv, logService });
+    const persistedStorage = new Map<string, unknown>();
+    mockState.storage.get = (async (key: string | string[]) => {
+      if (typeof key !== "string") {
+        return await Promise.resolve(new Map());
+      }
+
+      return await Promise.resolve(persistedStorage.get(key));
+    }) as DurableObjectStorage["get"];
+    mockState.storage.put = (async (key: string, value: unknown) => {
+      persistedStorage.set(key, value);
+      await Promise.resolve();
+    }) as DurableObjectStorage["put"];
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
+      .mockResolvedValueOnce([
+        aFakeIndividualTrackersRow({
+          TrackerId: "t1",
+          UserId: "user-1",
+          Gamertag: "KnownTag",
+          Status: "active",
+          IsLive: 1,
+        }),
+      ])
+      .mockResolvedValueOnce([
+        aFakeIndividualTrackersRow({
+          TrackerId: "t1",
+          UserId: "user-1",
+          Gamertag: "KnownTag",
+          Status: "stopped",
+          IsLive: 0,
+        }),
+      ]);
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    await localUserTrackerDO.fetch(new Request("http://do/view-state?userId=user-1", { method: "GET" }));
+    await localUserTrackerDO.alarm();
+
+    expect(setAlarmMock).not.toHaveBeenCalled();
+    expect(deleteAlarmMock).toHaveBeenCalledOnce();
+    const [message, context] =
+      debugSpy.mock.calls.find(
+        ([currentMessage]) => currentMessage === "UserTracker alarm loop paused - no active or paused trackers",
+      ) ?? [];
+    expect(message).toBe("UserTracker alarm loop paused - no active or paused trackers");
+    expect(context?.get("userId")).toBe("user-1");
+  });
+
+  it("resumes the follow alarm when a nudge makes a tracker followable again", async () => {
+    const trackerDo = aFakeIndividualTrackerDOWith({
+      viewStateResponse: {
+        state: aFakeIndividualTrackerViewStateWith({
+          trackerId: "t1",
+          gamertag: "KnownTag",
+          matches: [],
+        }),
+      },
+    });
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const services = installFakeServicesWith({ env: localEnv });
+    const persistedStorage = new Map<string, unknown>();
+    mockState.storage.get = (async (key: string | string[]) => {
+      if (typeof key !== "string") {
+        return await Promise.resolve(new Map());
+      }
+
+      return await Promise.resolve(persistedStorage.get(key));
+    }) as DurableObjectStorage["get"];
+    mockState.storage.put = (async (key: string, value: unknown) => {
+      persistedStorage.set(key, value);
+      await Promise.resolve();
+    }) as DurableObjectStorage["put"];
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        aFakeIndividualTrackersRow({
+          TrackerId: "t1",
+          UserId: "user-1",
+          Gamertag: "KnownTag",
+          Status: "active",
+          IsLive: 1,
+        }),
+      ]);
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    await localUserTrackerDO.fetch(new Request("http://do/view-state?userId=user-1", { method: "GET" }));
+    expect(setAlarmMock).not.toHaveBeenCalled();
+
+    const nudgeResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/nudge", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: "user-1",
+          trackerId: "t1",
+          lastUpdateTime: "2026-07-05T00:01:00.000Z",
+        }),
+      }),
+    );
+    expect(nudgeResponse.status).toBe(200);
+
+    await vi.waitFor(() => {
+      expect(setAlarmMock).toHaveBeenCalledOnce();
+    });
+  });
+
+  it("reinstalls tracker subscriptions on nudge when followable trackers return", async () => {
+    const trackerDo = aFakeIndividualTrackerDOWith({
+      viewStateResponse: {
+        state: aFakeIndividualTrackerViewStateWith({
+          trackerId: "t1",
+          gamertag: "KnownTag",
+          matches: [],
+        }),
+      },
+    });
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const services = installFakeServicesWith({ env: localEnv });
+    const persistedStorage = new Map<string, unknown>();
+    mockState.storage.get = (async (key: string | string[]) => {
+      if (typeof key !== "string") {
+        return await Promise.resolve(new Map());
+      }
+
+      return await Promise.resolve(persistedStorage.get(key));
+    }) as DurableObjectStorage["get"];
+    mockState.storage.put = (async (key: string, value: unknown) => {
+      persistedStorage.set(key, value);
+      await Promise.resolve();
+    }) as DurableObjectStorage["put"];
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    const findByUserIdSpy = vi
+      .spyOn(services.databaseService, "findIndividualTrackersByUserId")
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        aFakeIndividualTrackersRow({
+          TrackerId: "t1",
+          UserId: "user-1",
+          Gamertag: "KnownTag",
+          Status: "active",
+          IsLive: 1,
+        }),
+      ])
+      .mockResolvedValue([
+        aFakeIndividualTrackersRow({
+          TrackerId: "t1",
+          UserId: "user-1",
+          Gamertag: "KnownTag",
+          Status: "active",
+          IsLive: 1,
+        }),
+      ]);
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    await localUserTrackerDO.fetch(new Request("http://do/view-state?userId=user-1", { method: "GET" }));
+    expect(findByUserIdSpy).toHaveBeenCalledTimes(1);
+
+    const nudgeResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/nudge", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: "user-1",
+          trackerId: "t1",
+          lastUpdateTime: "2026-07-05T00:01:00.000Z",
+        }),
+      }),
+    );
+    expect(nudgeResponse.status).toBe(200);
+
+    await vi.waitFor(() => {
+      expect(findByUserIdSpy).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  it("reinstalls subscriptions after follow websocket start with an initially empty directory", async () => {
+    const trackerDo = aFakeIndividualTrackerDOWith({
+      viewStateResponse: {
+        state: aFakeIndividualTrackerViewStateWith({
+          trackerId: "t1",
+          gamertag: "KnownTag",
+          matches: [],
+        }),
+      },
+    });
+    const trackerFetchSpy = vi.spyOn(trackerDo, "fetch");
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const services = installFakeServicesWith({ env: localEnv });
+    const persistedStorage = new Map<string, unknown>();
+    mockState.storage.get = (async (key: string | string[]) => {
+      if (typeof key !== "string") {
+        return await Promise.resolve(new Map());
+      }
+
+      return await Promise.resolve(persistedStorage.get(key));
+    }) as DurableObjectStorage["get"];
+    mockState.storage.put = (async (key: string, value: unknown) => {
+      persistedStorage.set(key, value);
+      await Promise.resolve();
+    }) as DurableObjectStorage["put"];
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        aFakeIndividualTrackersRow({
+          TrackerId: "t1",
+          UserId: "user-1",
+          Gamertag: "KnownTag",
+          Status: "active",
+          IsLive: 1,
+        }),
+      ])
+      .mockResolvedValue([
+        aFakeIndividualTrackersRow({
+          TrackerId: "t1",
+          UserId: "user-1",
+          Gamertag: "KnownTag",
+          Status: "active",
+          IsLive: 1,
+        }),
+      ]);
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    const socketResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/websocket?userId=user-1", {
+        headers: { Upgrade: "websocket" },
+      }),
+    );
+    expect(socketResponse.status).toBe(200);
+    expect(trackerFetchSpy).toHaveBeenCalledTimes(0);
+
+    const nudgeResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/nudge", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: "user-1",
+          trackerId: "t1",
+          lastUpdateTime: "2026-07-05T00:01:00.000Z",
+        }),
+      }),
+    );
+    expect(nudgeResponse.status).toBe(200);
+
+    await vi.waitFor(() => {
+      expect(trackerFetchSpy).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("keeps subscription state when nudge cannot load directory state", async () => {
+    const localEnv = aFakeEnvWith();
+    const services = installFakeServicesWith({ env: localEnv });
+    const persistedStorage = new Map<string, unknown>();
+    const closeSubscriptions = vi.fn();
+    mockState.storage.get = (async (key: string | string[]) => {
+      if (typeof key !== "string") {
+        return await Promise.resolve(new Map());
+      }
+
+      return await Promise.resolve(persistedStorage.get(key));
+    }) as DurableObjectStorage["get"];
+    mockState.storage.put = (async (key: string, value: unknown) => {
+      persistedStorage.set(key, value);
+      await Promise.resolve();
+    }) as DurableObjectStorage["put"];
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([]);
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+    Object.assign(localUserTrackerDO, {
+      trackerSubscriptionsInstalled: true,
+      closeTrackerSubscriptions: closeSubscriptions,
+      loadStateForTickLog: vi.fn(async () => Promise.resolve({ state: { userId: "user-1" }, viewState: null })),
+    });
+
+    const nudgeResponse = await localUserTrackerDO.fetch(
+      new Request("http://do/nudge", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: "user-1",
+          trackerId: "t1",
+          lastUpdateTime: "2026-07-05T00:01:00.000Z",
+        }),
+      }),
+    );
+    expect(nudgeResponse.status).toBe(200);
+
+    await vi.waitFor(() => {
+      expect(setAlarmMock).toHaveBeenCalledTimes(1);
+    });
+    expect(closeSubscriptions).not.toHaveBeenCalled();
   });
 
   it("refreshes clientless view-state requests on demand", async () => {
@@ -1801,6 +2105,64 @@ describe("UserTrackerDO", () => {
     await userTrackerDO.alarm();
 
     expect(setAlarmMock).not.toHaveBeenCalled();
+    expect(deleteAlarmMock).toHaveBeenCalledOnce();
+  });
+
+  it("resets tracker subscriptions when alarm refresh confirms an empty directory", async () => {
+    const trackerDo = aFakeIndividualTrackerDOWith({
+      viewStateResponse: {
+        state: aFakeIndividualTrackerViewStateWith({
+          trackerId: "t1",
+          gamertag: "KnownTag",
+          matches: [],
+        }),
+      },
+    });
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const services = installFakeServicesWith({ env: localEnv });
+    const persistedStorage = new Map<string, unknown>();
+    const closeSubscriptions = vi.fn();
+    mockState.storage.get = (async (key: string | string[]) => {
+      if (typeof key !== "string") {
+        return await Promise.resolve(new Map());
+      }
+
+      return await Promise.resolve(persistedStorage.get(key));
+    }) as DurableObjectStorage["get"];
+    mockState.storage.put = (async (key: string, value: unknown) => {
+      persistedStorage.set(key, value);
+      await Promise.resolve();
+    }) as DurableObjectStorage["put"];
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
+      .mockResolvedValueOnce([
+        aFakeIndividualTrackersRow({
+          TrackerId: "t1",
+          UserId: "user-1",
+          Gamertag: "KnownTag",
+          Status: "active",
+          IsLive: 1,
+        }),
+      ])
+      .mockResolvedValueOnce([
+        aFakeIndividualTrackersRow({
+          TrackerId: "t1",
+          UserId: "user-1",
+          Gamertag: "KnownTag",
+          Status: "stopped",
+          IsLive: 0,
+        }),
+      ]);
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+    Object.assign(localUserTrackerDO, {
+      trackerSubscriptionsInstalled: true,
+      closeTrackerSubscriptions: closeSubscriptions,
+    });
+
+    await localUserTrackerDO.fetch(new Request("http://do/view-state?userId=user-1", { method: "GET" }));
+    await localUserTrackerDO.alarm();
+
+    expect(closeSubscriptions).toHaveBeenCalledOnce();
     expect(deleteAlarmMock).toHaveBeenCalledOnce();
   });
 
