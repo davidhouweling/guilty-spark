@@ -1,5 +1,8 @@
 import type { MatchStats } from "halo-infinite-api";
+import { getDurationInIsoString, getReadableDuration } from "./duration";
 import { getObjectiveTimeSeconds } from "./objective-metrics";
+import { StatsValueSortBy } from "./stat-formatting";
+import type { StatsCollection } from "./types";
 
 export interface PlayerObjectiveSummary {
   objectiveTimeSeconds: number;
@@ -78,4 +81,38 @@ export function getPlayerObjectiveSummary(matches: MatchStats[], playerId: strin
         : objectiveTeamContributionPlayerTimeTotal / objectiveTeamContributionTeamTimeTotal,
     objectiveTeamContributionGamesPlayed,
   };
+}
+
+/**
+ * Shared "Objective time" / "Team objective contribution" stat values, consumed as-is by web
+ * consumers and recombined into a compact single line by Discord embeds.
+ */
+export function getPlayerObjectiveStats(matches: MatchStats[], playerId: string, locale?: string): StatsCollection {
+  const summary = getPlayerObjectiveSummary(matches, playerId);
+  if (summary == null) {
+    return new Map();
+  }
+
+  return new Map([
+    [
+      "Objective time",
+      {
+        value: summary.objectiveTimeSeconds,
+        sortBy: StatsValueSortBy.DESC,
+        display: getReadableDuration(getDurationInIsoString(summary.objectiveTimeSeconds), locale),
+      },
+    ],
+    [
+      "Team objective contribution",
+      {
+        value: summary.objectiveTeamContribution ?? 0,
+        sortBy: StatsValueSortBy.DESC,
+        isComparable: summary.objectiveTeamContribution != null,
+        display:
+          summary.objectiveTeamContribution == null
+            ? "n/a"
+            : `${(summary.objectiveTeamContribution * 100).toLocaleString(locale, { maximumFractionDigits: 1 })}%`,
+      },
+    ],
+  ]);
 }

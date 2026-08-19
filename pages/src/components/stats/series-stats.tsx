@@ -50,7 +50,7 @@ export function SeriesStats({
 }: SeriesStatsProps): React.ReactElement {
   const [activeTab, setActiveTab] = useState<"accumulated" | "kill-matrix">("accumulated");
   const hasTeamStats = teamData.length > 0 && teamData[0].teamStats.length > 0;
-  const hasPlayerStats = playerData.length > 0 && playerData[0].players.length > 0;
+  const hasPlayerStats = playerData.some((team) => team.players.length > 0);
 
   // Define team stats columns
   const teamColumns = useMemo<SortableTableColumn<MatchStatsData>[]>(() => {
@@ -116,7 +116,25 @@ export function SeriesStats({
       return [];
     }
 
-    const statColumns = playerData[0].players[0].values;
+    const statColumns: MatchStatsPlayerData["values"] = [];
+    const seenStatNames = new Set<string>();
+    for (const team of playerData) {
+      for (const player of team.players) {
+        for (const stat of player.values) {
+          if (seenStatNames.has(stat.name)) {
+            continue;
+          }
+
+          seenStatNames.add(stat.name);
+          statColumns.push(stat);
+        }
+      }
+    }
+
+    if (statColumns.length === 0) {
+      return [];
+    }
+
     return [
       {
         id: "team",
@@ -144,7 +162,11 @@ export function SeriesStats({
         },
         cell: (value: unknown, row: MatchStatsRow): React.ReactNode => {
           const playerStat = row.player.values.find((s) => s.name === stat.name);
-          return playerStat?.display ?? String(value);
+          if (playerStat == null) {
+            return "—";
+          }
+
+          return playerStat.display;
         },
         headerClassName: undefined,
         cellClassName: (row: MatchStatsRow): string => {

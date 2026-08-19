@@ -198,4 +198,39 @@ describe("SeriesStats", () => {
 
     expect(screen.getByText("Kill matrix data is not available for this series yet.")).toBeInTheDocument();
   });
+
+  it("renders the union of player stat columns across all players", () => {
+    const teamData = [aFakeMatchStatsDataWith({ teamId: 0 })];
+    const playerData = [
+      aFakeMatchStatsDataWith({
+        teamId: 0,
+        players: [
+          aFakeMatchStatsPlayerDataWith({
+            name: "Player1",
+            values: [{ name: "Kills", value: 10, bestInTeam: false, bestInMatch: false, display: "10" }],
+          }),
+          aFakeMatchStatsPlayerDataWith({
+            name: "Player2",
+            values: [
+              { name: "Kills", value: 8, bestInTeam: false, bestInMatch: false, display: "8" },
+              {
+                name: "Objective time",
+                value: 60,
+                bestInTeam: false,
+                bestInMatch: false,
+                display: "1m",
+              },
+            ],
+          }),
+        ],
+      }),
+    ];
+
+    render(
+      <SeriesStats teamData={teamData} playerData={playerData} title="Series Overview" metadata={seriesMetadata} />,
+    );
+
+    expect(screen.getByRole("button", { name: "Objective time" })).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
+  });
 });

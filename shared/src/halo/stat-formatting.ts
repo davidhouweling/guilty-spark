@@ -51,12 +51,13 @@ export function resolveStatsValue(
   locale?: string,
 ): ResolvedStatsValue {
   const { value: statValue, display } = value;
+  const isComparable = value.isComparable ?? true;
 
   return {
     name: key,
     value: statValue,
-    bestInTeam: teamBestValues.get(key) === statValue,
-    bestInMatch: matchBestValues.get(key) === statValue,
+    bestInTeam: isComparable && teamBestValues.get(key) === statValue,
+    bestInMatch: isComparable && matchBestValues.get(key) === statValue,
     display: display ?? formatStatValue(statValue, locale),
   };
 }

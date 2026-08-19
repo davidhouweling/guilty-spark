@@ -1,10 +1,8 @@
 import type { MatchStats } from "halo-infinite-api";
 import type { APIEmbed } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { getDurationInIsoString, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
-import { getPlayerObjectiveSummary } from "@guilty-spark/shared/halo/objective-summary";
-import { StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
+import { getPlayerObjectiveStats } from "@guilty-spark/shared/halo/objective-summary";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import {
   aggregatePlayerCoreStats,
@@ -98,42 +96,40 @@ export class SeriesPlayersEmbed extends BaseSeriesEmbed {
   }
 
   private getObjectiveSummaryStats(matches: MatchStats[], playerId: string, locale: string): EmbedPlayerStats {
-    const summary = getPlayerObjectiveSummary(matches, playerId);
-    if (summary == null) {
+    const objectiveStats = getPlayerObjectiveStats(matches, playerId, locale);
+    const objectiveTime = objectiveStats.get("Objective time");
+    if (objectiveTime == null) {
       return new Map();
     }
 
-    const objectiveTime = getReadableDuration(getDurationInIsoString(summary.objectiveTimeSeconds), locale);
-    if (summary.objectiveTeamContribution == null) {
+    const objectiveTimeDisplay = Preconditions.checkExists(objectiveTime.display, "Expected objective time display");
+    const teamContribution = objectiveStats.get("Team objective contribution");
+    if (teamContribution == null || teamContribution.isComparable === false || teamContribution.display == null) {
       return new Map([
         [
           "Objective time (team %)",
           {
-            value: summary.objectiveTimeSeconds,
-            sortBy: StatsValueSortBy.DESC,
-            display: `${objectiveTime} (n/a)`,
+            value: objectiveTime.value,
+            sortBy: objectiveTime.sortBy,
+            display: `${objectiveTimeDisplay} (n/a)`,
           },
         ],
       ]);
     }
-
-    const teamContribution = `${(summary.objectiveTeamContribution * 100).toLocaleString(locale, {
-      maximumFractionDigits: 1,
-    })}%`;
 
     return new Map([
       [
         "Team objective contribution (time)",
         [
           {
-            value: summary.objectiveTeamContribution,
-            sortBy: StatsValueSortBy.DESC,
-            display: teamContribution,
+            value: teamContribution.value,
+            sortBy: teamContribution.sortBy,
+            display: Preconditions.checkExists(teamContribution.display, "Expected team contribution display"),
           },
           {
-            value: summary.objectiveTimeSeconds,
-            sortBy: StatsValueSortBy.DESC,
-            display: `(${objectiveTime})`,
+            value: objectiveTime.value,
+            sortBy: objectiveTime.sortBy,
+            display: `(${objectiveTimeDisplay})`,
             prefix: " ",
           },
         ],
