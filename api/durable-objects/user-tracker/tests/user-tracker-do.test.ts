@@ -2108,6 +2108,64 @@ describe("UserTrackerDO", () => {
     expect(deleteAlarmMock).toHaveBeenCalledOnce();
   });
 
+  it("resets tracker subscriptions when alarm refresh confirms an empty directory", async () => {
+    const trackerDo = aFakeIndividualTrackerDOWith({
+      viewStateResponse: {
+        state: aFakeIndividualTrackerViewStateWith({
+          trackerId: "t1",
+          gamertag: "KnownTag",
+          matches: [],
+        }),
+      },
+    });
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const services = installFakeServicesWith({ env: localEnv });
+    const persistedStorage = new Map<string, unknown>();
+    const closeSubscriptions = vi.fn();
+    mockState.storage.get = (async (key: string | string[]) => {
+      if (typeof key !== "string") {
+        return await Promise.resolve(new Map());
+      }
+
+      return await Promise.resolve(persistedStorage.get(key));
+    }) as DurableObjectStorage["get"];
+    mockState.storage.put = (async (key: string, value: unknown) => {
+      persistedStorage.set(key, value);
+      await Promise.resolve();
+    }) as DurableObjectStorage["put"];
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
+      .mockResolvedValueOnce([
+        aFakeIndividualTrackersRow({
+          TrackerId: "t1",
+          UserId: "user-1",
+          Gamertag: "KnownTag",
+          Status: "active",
+          IsLive: 1,
+        }),
+      ])
+      .mockResolvedValueOnce([
+        aFakeIndividualTrackersRow({
+          TrackerId: "t1",
+          UserId: "user-1",
+          Gamertag: "KnownTag",
+          Status: "stopped",
+          IsLive: 0,
+        }),
+      ]);
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+    Object.assign(localUserTrackerDO, {
+      trackerSubscriptionsInstalled: true,
+      closeTrackerSubscriptions: closeSubscriptions,
+    });
+
+    await localUserTrackerDO.fetch(new Request("http://do/view-state?userId=user-1", { method: "GET" }));
+    await localUserTrackerDO.alarm();
+
+    expect(closeSubscriptions).toHaveBeenCalledOnce();
+    expect(deleteAlarmMock).toHaveBeenCalledOnce();
+  });
+
   it("retries tracker subscription setup after a transient installation failure", async () => {
     const localEnv = aFakeEnvWith();
     const services = installFakeServicesWith({ env: localEnv });

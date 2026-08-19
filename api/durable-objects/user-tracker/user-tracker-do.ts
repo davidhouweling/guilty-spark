@@ -283,6 +283,14 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       }
 
       const refreshedStored = await this.loadStateForTickLog();
+      const refreshedDirectory = refreshedStored.viewState?.directory;
+      if (refreshedDirectory != null && !this.hasFollowableTrackers(refreshedDirectory)) {
+        this.closeTrackerSubscriptions();
+        this.closeTrackerSubscriptions = (): void => {
+          // reset after closing
+        };
+        this.trackerSubscriptionsInstalled = false;
+      }
       await this.scheduleFollowAlarmIfNeeded(refreshedStored);
     });
   }
