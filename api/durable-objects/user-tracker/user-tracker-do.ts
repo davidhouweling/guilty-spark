@@ -522,6 +522,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       };
       this.trackerSubscriptionsInstalled = false;
     } else if (!this.trackerSubscriptionsInstalled) {
+      this.trackerSubscriptionsInstalled = true;
       await this.installTrackerSubscriptionsAsync();
     }
 

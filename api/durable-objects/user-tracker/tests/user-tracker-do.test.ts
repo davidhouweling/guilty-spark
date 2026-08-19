@@ -1633,8 +1633,9 @@ describe("UserTrackerDO", () => {
     expect(nudgeResponse.status).toBe(200);
 
     await vi.waitFor(() => {
-      expect(closeSubscriptions).not.toHaveBeenCalled();
+      expect(setAlarmMock).toHaveBeenCalledTimes(1);
     });
+    expect(closeSubscriptions).not.toHaveBeenCalled();
   });
 
   it("refreshes clientless view-state requests on demand", async () => {
