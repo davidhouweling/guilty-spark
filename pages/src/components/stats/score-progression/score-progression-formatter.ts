@@ -12,7 +12,7 @@ import { TICK_FILL } from "./chart-constants";
 import type {
   KothHillData,
   KothHillSegment,
-  KothHillTeamOccupancy,
+  KothHillTeamProgress,
   PlayerAdvantageData,
   ScoreDeltaData,
   ScoreProgressionPoint,
@@ -166,6 +166,29 @@ function buildHillSegments(
   return segments;
 }
 
+// The capture meter fills over 8 scoring ticks (~5s each, the 40s HCS meter) — mirrors the
+// constants in api/services/halo/koth-capture-search.ts. The winner's meter completed by
+// definition; a loser's meter is estimated from their scoring ticks inside the hill and capped
+// below 100 so it can never read as a capture.
+const METER_TICKS_PER_CAPTURE = 8;
+
+function buildCaptureMeterPercentage(
+  events: ObjectiveControlTimeline["events"],
+  teamId: number,
+  hillStartMs: number,
+  hillEndMs: number,
+  winnerTeamId: number | null,
+): number {
+  if (teamId === winnerTeamId) {
+    return 100;
+  }
+  const key = String(teamId);
+  const cumulativeAt = (timestampMs: number): number =>
+    events.findLast((event) => event.timestampMs <= timestampMs)?.runningScores[key] ?? 0;
+  const ticksInHill = cumulativeAt(hillEndMs) - cumulativeAt(hillStartMs);
+  return Math.min(99, Math.round((ticksInHill / METER_TICKS_PER_CAPTURE) * 100));
+}
+
 function buildKothHills(
   timeline: ObjectiveControlTimeline,
   teamIds: readonly number[],
@@ -192,8 +215,6 @@ function buildKothHills(
     hillPeriods.push({ startMs: hillStart, endMs: durationMs, isCaptured: false });
   }
 
-  const hasControlData = timeline.controlPeriods.length > 0;
-
   return hillPeriods.map((period, periodIndex) => {
     const segments = buildHillSegments(period.startMs, period.endMs, timeline, teamColorByTeamId);
 
@@ -204,23 +225,12 @@ function buildKothHills(
     const winnerColor = winnerTeamId != null ? (teamColorByTeamId.get(winnerTeamId) ?? null) : null;
     const winnerName = winnerTeamId != null ? getTeamName(winnerTeamId) : null;
 
-    const hillDurationMs = period.endMs - period.startMs;
-    const holdMs = new Map(teamIds.map((id) => [id, 0]));
-    for (const segment of segments) {
-      if (segment.teamId != null) {
-        holdMs.set(segment.teamId, (holdMs.get(segment.teamId) ?? 0) + (segment.endMs - segment.startMs));
-      }
-    }
-
-    // without control data every occupancy would read 0% while winners still show — omit rather than contradict
-    const teamOccupancies: KothHillTeamOccupancy[] = hasControlData
-      ? teamIds.map((teamId) => ({
-          teamId,
-          name: getTeamName(teamId),
-          color: teamColorByTeamId.get(teamId) ?? TICK_FILL,
-          percentage: hillDurationMs > 0 ? Math.round(((holdMs.get(teamId) ?? 0) / hillDurationMs) * 100) : 0,
-        }))
-      : [];
+    const teamCaptureProgress: KothHillTeamProgress[] = teamIds.map((teamId) => ({
+      teamId,
+      name: getTeamName(teamId),
+      color: teamColorByTeamId.get(teamId) ?? TICK_FILL,
+      percentage: buildCaptureMeterPercentage(timeline.events, teamId, period.startMs, period.endMs, winnerTeamId),
+    }));
 
     return {
       hillIndex: periodIndex + 1,
@@ -230,7 +240,7 @@ function buildKothHills(
       winnerTeamId,
       winnerColor,
       winnerName,
-      teamOccupancies,
+      teamCaptureProgress,
     };
   });
 }

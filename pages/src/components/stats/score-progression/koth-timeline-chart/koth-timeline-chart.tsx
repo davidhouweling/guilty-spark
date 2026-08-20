@@ -29,9 +29,9 @@ function HillTick({ x = 0, y = 0, payload, hills = [] }: HillTickProps): React.R
       <text x={-8} y={-5} textAnchor="end" fontSize={TICK_FONT_SIZE} fill={TICK_FILL}>
         Hill {hill.hillIndex}
       </text>
-      {hill.occupancyLabel !== "" && (
+      {hill.captureProgressLabel !== "" && (
         <text x={-8} y={9} textAnchor="end" fontSize={10} fill={TICK_FILL} opacity={0.7}>
-          {hill.occupancyLabel}
+          {hill.captureProgressLabel}
         </text>
       )}
     </g>
@@ -59,7 +59,7 @@ function HillTooltip({ active, payload }: HillTooltipProps): React.ReactElement 
   return (
     <div className={styles.tooltip} style={tooltipContentStyle}>
       <div className={styles.tooltipHill}>Hill {hill.hillIndex}</div>
-      {hill.teamOccupancies.map((o) =>
+      {hill.teamCaptureProgress.map((o) =>
         o.percentage > 0 ? (
           <div key={o.teamId} className={styles.tooltipTeam} style={{ "--team-color": o.color } as React.CSSProperties}>
             {o.name}: {o.percentage}%

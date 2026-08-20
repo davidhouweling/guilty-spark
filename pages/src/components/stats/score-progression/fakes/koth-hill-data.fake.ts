@@ -13,7 +13,7 @@ export function aFakeKothHillDataWith(overrides: Partial<KothHillData> = {}): Ko
     winnerTeamId: 1,
     winnerColor: "#ff0000",
     winnerName: "Cobra",
-    teamOccupancies: [
+    teamCaptureProgress: [
       { teamId: 0, name: "Eagle", color: "#0000ff", percentage: 50 },
       { teamId: 1, name: "Cobra", color: "#ff0000", percentage: 33 },
     ],

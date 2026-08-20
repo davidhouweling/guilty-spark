@@ -438,14 +438,14 @@ describe("formatScoreProgression", () => {
     it("produces team occupancy percentages for each hill", () => {
       const result = formatScoreProgression(KOTH_DATA, TEAM_COLORS);
       const hill1 = result?.kothHills?.[0];
-      expect(hill1?.teamOccupancies).toHaveLength(2);
-      expect(hill1?.teamOccupancies.every((o) => o.percentage >= 0 && o.percentage <= 100)).toBe(true);
+      expect(hill1?.teamCaptureProgress).toHaveLength(2);
+      expect(hill1?.teamCaptureProgress.every((o) => o.percentage >= 0 && o.percentage <= 100)).toBe(true);
     });
 
     it("sets 0% occupancy for a team that never held the hill", () => {
       const result = formatScoreProgression(KOTH_DATA, TEAM_COLORS);
       const hill2 = result?.kothHills?.[1];
-      const eagleOccupancy = hill2?.teamOccupancies.find((o) => o.teamId === 0);
+      const eagleOccupancy = hill2?.teamCaptureProgress.find((o) => o.teamId === 0);
       expect(eagleOccupancy?.percentage).toBe(0);
     });
 
@@ -535,7 +535,7 @@ describe("formatScoreProgression", () => {
       expect(result?.kothHills?.[1]?.winnerTeamId).toBe(1);
     });
 
-    it("returns empty teamOccupancies for every hill when controlPeriods is empty", () => {
+    it("computes capture progress from score ticks even when controlPeriods is empty", () => {
       const data = aFakeScoreProgressionWith({
         mode: KOTH_MODE,
         durationMs: 60000,
@@ -552,8 +552,20 @@ describe("formatScoreProgression", () => {
       });
       const result = formatScoreProgression(data, TEAM_COLORS);
       expect(result?.kothHills).toHaveLength(2);
-      expect(result?.kothHills?.every((hill) => hill.teamOccupancies.length === 0)).toBe(true);
       expect(result?.kothHills?.[0]?.winnerTeamId).toBe(0);
+      // hill 1 winner reads 100%; hill 2 has one Cobra tick of the 8-tick meter (13%)
+      expect(result?.kothHills?.[0]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([100, 0]);
+      expect(result?.kothHills?.[1]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([0, 13]);
+    });
+
+    it("pins the winner's capture progress at 100% and estimates the loser from their ticks", () => {
+      const result = formatScoreProgression(KOTH_DATA, TEAM_COLORS);
+      const hill1 = result?.kothHills?.[0];
+      // Team 0 captures hill 1 at 30000 → 100%; Team 1 had 1 of 8 meter ticks inside it → 13%
+      expect(hill1?.teamCaptureProgress.map((p) => p.percentage)).toEqual([100, 13]);
+      const hill2 = result?.kothHills?.[1];
+      // Team 1 captures hill 2 → 100%; Team 0 never scored inside it → 0%
+      expect(hill2?.teamCaptureProgress.map((p) => p.percentage)).toEqual([0, 100]);
     });
 
     it("returns a single uncaptured hill when hillCaptureTimestamps is empty", () => {

@@ -103,7 +103,7 @@ export class ScoreProgressionPresenter {
     return hills
       .map((hill) => ({
         ...hill,
-        occupancyLabel: hill.teamOccupancies.map((o) => `${o.name} ${String(o.percentage)}%`).join(" · "),
+        captureProgressLabel: hill.teamCaptureProgress.map((o) => `${o.name} ${String(o.percentage)}%`).join(" · "),
       }))
       .reverse();
   }

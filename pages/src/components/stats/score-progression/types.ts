@@ -29,7 +29,7 @@ export interface KothHillSegment {
   readonly color: string | null;
 }
 
-export interface KothHillTeamOccupancy {
+export interface KothHillTeamProgress {
   readonly teamId: number;
   readonly name: string;
   readonly color: string;
@@ -44,11 +44,11 @@ export interface KothHillData {
   readonly winnerTeamId: number | null;
   readonly winnerColor: string | null;
   readonly winnerName: string | null;
-  readonly teamOccupancies: readonly KothHillTeamOccupancy[];
+  readonly teamCaptureProgress: readonly KothHillTeamProgress[];
 }
 
 export interface KothTimelineHillViewModel extends KothHillData {
-  readonly occupancyLabel: string;
+  readonly captureProgressLabel: string;
 }
 
 export interface KothTimelineViewModel {

@@ -29,8 +29,11 @@ vi.mock("recharts", () => ({
   Tooltip: (): null => null,
 }));
 
-function aFakeTimelineHill(overrides: Partial<KothHillData> = {}, occupancyLabel = ""): KothTimelineHillViewModel {
-  return { ...aFakeKothHillDataWith(overrides), occupancyLabel };
+function aFakeTimelineHill(
+  overrides: Partial<KothHillData> = {},
+  captureProgressLabel = "",
+): KothTimelineHillViewModel {
+  return { ...aFakeKothHillDataWith(overrides), captureProgressLabel };
 }
 
 describe("KothTimelineChart", () => {

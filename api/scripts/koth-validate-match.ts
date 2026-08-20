@@ -153,31 +153,31 @@ for (const [i, period] of hillPeriods.entries()) {
   const winnerName =
     winnerTeamId != null ? (TEAM_COLORS.find((t) => t.teamId === winnerTeamId)?.name ?? "?") : "(none)";
 
-  const hillDurationMs = period.endMs - period.startMs;
-
-  // Compute occupancy from controlPeriods
-  const holdMs = new Map<number, number>();
-  for (const cp of controlPeriods) {
-    if (cp.controllingTeamId == null) {
-      continue;
-    }
-    const segStart = Math.max(cp.startMs, period.startMs);
-    const segEnd = Math.min(cp.endMs, period.endMs);
-    if (segEnd > segStart) {
-      holdMs.set(cp.controllingTeamId, (holdMs.get(cp.controllingTeamId) ?? 0) + (segEnd - segStart));
-    }
-  }
-
-  const occupancies = TEAM_COLORS.map((t) => ({
+  // Mirrors buildCaptureMeterPercentage in the pages formatter: 8 scoring ticks fill the meter,
+  // the winner reads 100%, and losers are estimated from their ticks inside the hill.
+  const METER_TICKS_PER_CAPTURE = 8;
+  const cumulativeAt = (teamId: number, timestampMs: number): number =>
+    events.findLast((e) => e.timestampMs <= timestampMs)?.runningScores[String(teamId)] ?? 0;
+  const meters = TEAM_COLORS.map((t) => ({
     name: t.name,
-    pct: hillDurationMs > 0 ? Math.round(((holdMs.get(t.teamId) ?? 0) / hillDurationMs) * 100) : 0,
+    pct:
+      t.teamId === winnerTeamId
+        ? 100
+        : Math.min(
+            99,
+            Math.round(
+              ((cumulativeAt(t.teamId, period.endMs) - cumulativeAt(t.teamId, period.startMs)) /
+                METER_TICKS_PER_CAPTURE) *
+                100,
+            ),
+          ),
   }));
 
-  const occupancyStr = occupancies.map((o) => `${o.name} ${String(o.pct)}%`).join(", ");
+  const meterStr = meters.map((o) => `${o.name} ${String(o.pct)}%`).join(", ");
 
   console.log(`\nHill ${String(hillIndex)} [${fmtMs(period.startMs)} → ${fmtMs(period.endMs)}]`);
   console.log(`  Winner: ${winnerName} (isCaptured=${String(period.isCaptured)})`);
-  console.log(`  Occupancy: ${occupancyStr}`);
+  console.log(`  Capture meters: ${meterStr}`);
 }
 
 const EXPECTED: Record<string, string[]> = {

@@ -289,13 +289,16 @@ describe("ScoreProgressionPresenter", () => {
   describe("kothTimelineViewModel", () => {
     it("builds kothTimelineViewModel from non-null kothHills", () => {
       const { store, presenter } = makePresenter();
-      const hill = aFakeKothHillDataWith({ teamOccupancies: [] });
+      const hill = aFakeKothHillDataWith({ teamCaptureProgress: [] });
       const model = presenter.present(store.getSnapshot(), {
         ...BASE_INPUT,
         scoreDelta: null,
         kothHills: [hill],
       });
-      expect(model.kothTimelineViewModel).toEqual({ durationMs: 600000, hills: [{ ...hill, occupancyLabel: "" }] });
+      expect(model.kothTimelineViewModel).toEqual({
+        durationMs: 600000,
+        hills: [{ ...hill, captureProgressLabel: "" }],
+      });
     });
 
     it("reverses hills into display order with hill 1 last", () => {
@@ -319,31 +322,31 @@ describe("ScoreProgressionPresenter", () => {
       expect(hills.map((h) => h.hillIndex)).toEqual([1, 2]);
     });
 
-    it("formats occupancyLabel from team occupancies joined with a middle dot", () => {
+    it("formats captureProgressLabel from team occupancies joined with a middle dot", () => {
       const { store, presenter } = makePresenter();
       const model = presenter.present(store.getSnapshot(), {
         ...BASE_INPUT,
         scoreDelta: null,
         kothHills: [
           aFakeKothHillDataWith({
-            teamOccupancies: [
+            teamCaptureProgress: [
               { teamId: 0, name: "Eagle", color: "#0000ff", percentage: 50 },
               { teamId: 1, name: "Cobra", color: "#ff0000", percentage: 33 },
             ],
           }),
         ],
       });
-      expect(model.kothTimelineViewModel?.hills[0]?.occupancyLabel).toBe("Eagle 50% · Cobra 33%");
+      expect(model.kothTimelineViewModel?.hills[0]?.captureProgressLabel).toBe("Eagle 50% · Cobra 33%");
     });
 
-    it("formats an empty occupancyLabel when teamOccupancies is empty", () => {
+    it("formats an empty captureProgressLabel when teamCaptureProgress is empty", () => {
       const { store, presenter } = makePresenter();
       const model = presenter.present(store.getSnapshot(), {
         ...BASE_INPUT,
         scoreDelta: null,
-        kothHills: [aFakeKothHillDataWith({ teamOccupancies: [] })],
+        kothHills: [aFakeKothHillDataWith({ teamCaptureProgress: [] })],
       });
-      expect(model.kothTimelineViewModel?.hills[0]?.occupancyLabel).toBe("");
+      expect(model.kothTimelineViewModel?.hills[0]?.captureProgressLabel).toBe("");
     });
 
     it("sets kothTimelineViewModel to null when kothHills is null", () => {
