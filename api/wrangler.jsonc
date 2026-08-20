@@ -68,6 +68,10 @@
       "tag": "v5",
       "new_classes": ["UserTrackerDO"],
     },
+    // No-op placeholder: keeps Cloudflare's last-applied-tag pointer resolvable without redeclaring classes.
+    {
+      "tag": "v6",
+    },
   ],
 
   // Development environment variables
