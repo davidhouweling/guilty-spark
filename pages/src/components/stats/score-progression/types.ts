@@ -22,12 +22,55 @@ export interface PlayerAdvantageData {
   readonly maxScore: number;
 }
 
-export interface ScoreProgressionViewData {
+export interface KothHillSegment {
+  readonly startMs: number;
+  readonly endMs: number;
+  readonly teamId: number | null;
+  readonly color: string | null;
+}
+
+export interface KothHillTeamProgress {
+  readonly teamId: number;
+  readonly name: string;
+  readonly color: string;
+  readonly percentage: number;
+}
+
+export interface KothHillData {
+  readonly hillIndex: number;
+  readonly startMs: number;
+  readonly endMs: number;
+  readonly segments: readonly KothHillSegment[];
+  readonly winnerTeamId: number | null;
+  readonly winnerColor: string | null;
+  readonly winnerName: string | null;
+  readonly teamCaptureProgress: readonly KothHillTeamProgress[];
+}
+
+export interface KothTimelineHillViewModel extends KothHillData {
+  readonly captureProgressLabel: string;
+}
+
+export interface KothTimelineViewModel {
+  readonly durationMs: number;
+  readonly hills: readonly KothTimelineHillViewModel[];
+}
+
+export interface ScoreLinesViewData {
+  readonly kind: "score-lines";
   readonly durationMs: number;
   readonly teamLines: readonly ScoreProgressionTeamLine[];
   readonly scoreDelta: ScoreDeltaData | null;
   readonly playerAdvantage: PlayerAdvantageData | null;
 }
+
+export interface KothViewData {
+  readonly kind: "koth";
+  readonly durationMs: number;
+  readonly hills: readonly KothHillData[];
+}
+
+export type ScoreProgressionViewData = ScoreLinesViewData | KothViewData;
 
 export type ChartType = "progression" | "delta";
 
@@ -53,7 +96,8 @@ export interface ScoreProgressionProgressionViewModel {
   ) => [string, string];
 }
 
-export interface ScoreProgressionViewModel {
+export interface ScoreLinesViewModel {
+  readonly kind: "score-lines";
   readonly ariaLabel: string;
   readonly effectiveChartType: ChartType;
   readonly hasDelta: boolean;
@@ -65,3 +109,11 @@ export interface ScoreProgressionViewModel {
   readonly onChartTypeChange: (value: string) => void;
   readonly onPlayerAdvantageChange: (checked: boolean) => void;
 }
+
+export interface KothViewModel {
+  readonly kind: "koth";
+  readonly ariaLabel: string;
+  readonly kothTimelineViewModel: KothTimelineViewModel;
+}
+
+export type ScoreProgressionViewModel = ScoreLinesViewModel | KothViewModel;

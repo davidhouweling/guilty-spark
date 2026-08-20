@@ -2019,6 +2019,62 @@ describe("HaloFilmService", () => {
     });
   });
 
+  describe("buildKothProgression", () => {
+    function modeEvent(xuid: string, timeMs: number): ParsedHighlightEvent {
+      return {
+        xuid,
+        gamertag: "player",
+        typeHint: 0,
+        isMedal: false,
+        eventType: "mode",
+        timeMs,
+        medalValue: 0,
+        teamId: null,
+      };
+    }
+
+    function tickBurst(xuid: string, startMs: number, count: number): ParsedHighlightEvent[] {
+      return Array.from({ length: count }, (_, tickIndex) => modeEvent(xuid, startMs + tickIndex * 5000));
+    }
+
+    it("derives hill capture timestamps from score events matching each team's capture count", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const match = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+      const team0Xuid = "0100000000000000";
+      const team1Xuid = "0400000000000000";
+
+      // 8 ticks × 5s cadence = the 40s capture meter; each burst captures and relocates the hill.
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        ...tickBurst(team0Xuid, 5000, 8), // Location A: Team 0 captures at 40000
+        ...tickBurst(team1Xuid, 70000, 8), // Location B: Team 1 captures at 105000
+        ...tickBurst(team0Xuid, 140000, 8), // Location C: Team 0 captures at 175000
+        ...tickBurst(team1Xuid, 220000, 8), // Location D: Team 1 captures at 255000
+        ...tickBurst(team0Xuid, 300000, 8), // Location E: Team 0 captures at 335000, ending the match
+      ]);
+      vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([
+        { timeMs: 40500, fromValue: 0x40, toValue: 0x41 }, // end of Location A control
+        { timeMs: 45000, fromValue: 0x41, toValue: 0x42 }, // start of Location B control
+        { timeMs: 105500, fromValue: 0x42, toValue: 0x43 }, // end of Location B control
+        { timeMs: 110000, fromValue: 0x43, toValue: 0x44 }, // start of Location C control
+        { timeMs: 175500, fromValue: 0x44, toValue: 0x45 }, // end of Location C control
+        { timeMs: 180000, fromValue: 0x45, toValue: 0x46 }, // start of Location D control
+        { timeMs: 255500, fromValue: 0x46, toValue: 0x47 }, // end of Location D control
+        { timeMs: 260000, fromValue: 0x47, toValue: 0x48 }, // start of Location E control
+      ]);
+
+      const durationMs = 732278;
+      const result = await service.buildKothProgression(match, durationMs);
+
+      expect(result.teamCount).toBe(2);
+      expect(result.hillCaptureTimestamps).toEqual([40000, 105000, 175000, 255000, 335000]);
+      expect(result.events).toHaveLength(40);
+      expect(result.controlPeriods).toHaveLength(9);
+    });
+  });
+
   describe("highlight events KV cache", () => {
     it("returns KV-cached events without hitting the network", async () => {
       const env = aFakeCacheBackedEnvWith();
