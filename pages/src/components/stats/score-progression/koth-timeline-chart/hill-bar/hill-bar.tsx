@@ -6,6 +6,8 @@ export const WINNER_DOT_RADIUS = 5;
 export const WINNER_DOT_OFFSET = 10;
 const UNOCCUPIED_FILL = "rgba(255,255,255,0.08)";
 const UNOCCUPIED_STROKE = "rgba(255,255,255,0.15)";
+// Sub-second byte2 control blips render as white slivers once outlined — hide gaps this narrow.
+const MIN_UNOCCUPIED_WIDTH_PX = 2;
 
 function clampFraction(value: number): number {
   return Math.min(1, Math.max(0, value));
@@ -41,12 +43,16 @@ export function HillBar({
           return null;
         }
         const isOccupied = segment.teamId != null;
+        const widthPx = (endFraction - startFraction) * bgWidth;
+        if (!isOccupied && widthPx < MIN_UNOCCUPIED_WIDTH_PX) {
+          return null;
+        }
         return (
           <rect
             key={`${String(segment.startMs)}-${String(segment.endMs)}`}
             x={bgX + startFraction * bgWidth}
             y={y}
-            width={Math.max(1, (endFraction - startFraction) * bgWidth)}
+            width={isOccupied ? Math.max(1, widthPx) : widthPx}
             height={height}
             fill={isOccupied ? (segment.color ?? TICK_FILL) : UNOCCUPIED_FILL}
             opacity={isOccupied ? 0.8 : undefined}

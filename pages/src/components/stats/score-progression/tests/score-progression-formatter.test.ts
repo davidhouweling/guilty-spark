@@ -581,7 +581,8 @@ describe("formatScoreProgression", () => {
       });
       const result = formatScoreProgression(data, TEAM_COLORS);
       const hill2Segments = result?.kothHills?.[1]?.segments ?? [];
-      const spillover = hill2Segments.find((s) => s.startMs === 30000 && s.endMs === 40000);
+      // the nulled spillover (30000-40000) merges with the adjacent gap into one unoccupied run
+      const spillover = hill2Segments.find((s) => s.startMs === 30000 && s.endMs === 45000);
       expect(spillover?.teamId).toBeNull();
       const corroborated = hill2Segments.find((s) => s.startMs === 45000 && s.endMs === 60000);
       expect(corroborated?.teamId).toBe(0);
