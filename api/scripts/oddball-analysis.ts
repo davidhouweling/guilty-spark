@@ -37,6 +37,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MATCH_ID = process.argv[2] ?? "3a8dab3d-63c0-46b1-9041-5a5b4ef9eeb4";
 const SHOW_EVENTS = process.argv.includes("--events");
 const SHOW_BYTE2 = process.argv.includes("--byte2");
+const SHOW_RAW = process.argv.includes("--raw");
 
 const fakeNamespace = await createFileBackedKVNamespace(path.join(__dirname, "app-data.json"));
 const env = aFakeEnvWith({
@@ -74,11 +75,15 @@ if (matchStats == null) {
 }
 
 const durationMs = Math.round(getDurationInSeconds(matchStats.MatchInfo.Duration) * 1000);
-console.log(`Mode: ${String(matchStats.MatchInfo.GameVariantCategory)}, durationMs: ${String(durationMs)} (${fmtMs(durationMs)})`);
+console.log(
+  `Mode: ${String(matchStats.MatchInfo.GameVariantCategory)}, durationMs: ${String(durationMs)} (${fmtMs(durationMs)})`,
+);
 
 console.log(`\nTeam stats (API):`);
 for (const team of matchStats.Teams) {
-  console.log(`  Team ${String(team.TeamId)}: Score=${String(team.Stats.CoreStats.Score)} RoundsWon=${String(team.Stats.CoreStats.RoundsWon)}`);
+  console.log(
+    `  Team ${String(team.TeamId)}: Score=${String(team.Stats.CoreStats.Score)} RoundsWon=${String(team.Stats.CoreStats.RoundsWon)}`,
+  );
   if ("OddballStats" in team.Stats) {
     const oddball = team.Stats.OddballStats;
     console.log(
@@ -147,7 +152,8 @@ for (const [teamId, times] of [...byTeam.entries()].sort((a, b) => a[0] - b[0]))
   const gaps = times.slice(1).map((t, i) => t - (times[i] ?? 0));
   const buckets = new Map<string, number>();
   for (const gap of gaps) {
-    const bucket = gap < 1500 ? "<1.5s" : gap < 3500 ? "1.5-3.5s" : gap < 7500 ? "3.5-7.5s" : gap < 15000 ? "7.5-15s" : ">=15s";
+    const bucket =
+      gap < 1500 ? "<1.5s" : gap < 3500 ? "1.5-3.5s" : gap < 7500 ? "3.5-7.5s" : gap < 15000 ? "7.5-15s" : ">=15s";
     buckets.set(bucket, (buckets.get(bucket) ?? 0) + 1);
   }
   const bucketStr = [...buckets.entries()].map(([k, v]) => `${k}:${String(v)}`).join(" ");
@@ -197,7 +203,21 @@ console.log(`  toValue counts: ${[...valueCounts.entries()].map(([k, v]) => `${k
 console.log(`  Non-gameplay transitions (toValue outside 0x40-0x9f):`);
 for (const t of byte2Transitions) {
   if (t.toValue < 0x40 || t.toValue >= 0xa0) {
-    console.log(`    ${fmtMs(t.timeMs)} (${String(t.timeMs)}ms) 0x${t.fromValue.toString(16)} -> 0x${t.toValue.toString(16)}`);
+    console.log(
+      `    ${fmtMs(t.timeMs)} (${String(t.timeMs)}ms) 0x${t.fromValue.toString(16)} -> 0x${t.toValue.toString(16)}`,
+    );
+  }
+}
+
+if (SHOW_RAW) {
+  console.log(`\nRaw events (all types, with xuid):`);
+  for (const event of events) {
+    if (event.eventType !== "medal") {
+      const teamId = xuidToTeamId.get(event.xuid);
+      console.log(
+        `  ${String(event.timeMs)}|${event.eventType}|T${String(teamId ?? -1)}|${event.xuid}|${event.gamertag}`,
+      );
+    }
   }
 }
 
