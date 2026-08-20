@@ -837,6 +837,28 @@ describe("LeaderboardService", () => {
     );
   });
 
+  it("persists reconciled ties with no winning team", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    const upsertSpy = vi.spyOn(databaseService, "upsertLeaderboardSeriesDataBatch");
+
+    await service.persistReconciledSeriesData({
+      guildId: "guild-1",
+      channelId: "channel-1",
+      queueNumber: 42,
+      neatQueueConfig: aFakeNeatQueueConfigRow(),
+      series: [Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"))],
+      winnerTeamIndex: -1,
+      locale: "en-US",
+    });
+
+    const [payload] = Preconditions.checkExists(upsertSpy.mock.calls[0]);
+    expect(payload.series.WinnerTeamIndex).toBe(-1);
+    expect(payload.seriesPlayers.every((player) => player.SeriesWon === 0)).toBe(true);
+  });
+
   it("persists average damage per life using total lives", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });

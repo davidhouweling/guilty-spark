@@ -68,10 +68,6 @@
       "tag": "v5",
       "new_classes": ["UserTrackerDO"],
     },
-    {
-      "tag": "v6",
-      "new_classes": ["IndividualTrackerDO", "UserTrackerDO"],
-    },
   ],
 
   // Development environment variables
