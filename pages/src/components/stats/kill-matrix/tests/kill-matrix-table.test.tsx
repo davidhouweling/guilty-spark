@@ -470,7 +470,7 @@ describe("KillMatrixTable", () => {
       expect(within(dialog).getByText("Kills")).toBeInTheDocument();
     });
 
-    it("shows perfects row when at least one player has a perfect", async () => {
+    it("shows perfects row only when at least one player has a perfect", async () => {
       const user = userEvent.setup();
       const pivotData = KillMatrixFormatter.pivot([baseRow]);
 
@@ -483,7 +483,7 @@ describe("KillMatrixTable", () => {
       expect(screen.getByText("Perfects")).toBeInTheDocument();
     });
 
-    it("shows perfects row even when both players have zero perfects against each other", async () => {
+    it("omits perfects row when both players have zero perfects against each other", async () => {
       const user = userEvent.setup();
       const pivotData = KillMatrixFormatter.pivot([{ ...baseRow, perfects: 0 }]);
 
@@ -493,7 +493,7 @@ describe("KillMatrixTable", () => {
       const cellButton = table.querySelector("tbody tr td:nth-child(2) button");
       await user.click(cellButton as HTMLElement);
 
-      expect(screen.getByText("Perfects")).toBeInTheDocument();
+      expect(screen.queryByText("Perfects")).not.toBeInTheDocument();
     });
 
     it("dialog closes when onClose fires", async () => {
