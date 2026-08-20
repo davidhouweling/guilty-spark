@@ -151,6 +151,21 @@ function isSegmentCorroborated(
   );
 }
 
+function mergeAdjacentSegments(segments: readonly KothHillSegment[]): KothHillSegment[] {
+  const merged: KothHillSegment[] = [];
+  for (const segment of segments) {
+    const previous = merged.pop();
+    if (previous == null) {
+      merged.push(segment);
+    } else if (previous.teamId === segment.teamId && previous.endMs === segment.startMs) {
+      merged.push({ ...previous, endMs: segment.endMs });
+    } else {
+      merged.push(previous, segment);
+    }
+  }
+  return merged;
+}
+
 function buildHillSegments(
   hillStart: number,
   hillEnd: number,
@@ -192,19 +207,6 @@ function buildHillSegments(
   }
 
   return mergeAdjacentSegments(segments);
-}
-
-function mergeAdjacentSegments(segments: readonly KothHillSegment[]): KothHillSegment[] {
-  const merged: KothHillSegment[] = [];
-  for (const segment of segments) {
-    const previous = merged.at(-1);
-    if (previous != null && previous.teamId === segment.teamId && previous.endMs === segment.startMs) {
-      merged[merged.length - 1] = { ...previous, endMs: segment.endMs };
-    } else {
-      merged.push(segment);
-    }
-  }
-  return merged;
 }
 
 // The capture meter fills over 8 scoring ticks (~5s each, the 40s HCS meter) — mirrors the
