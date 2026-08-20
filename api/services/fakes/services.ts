@@ -30,7 +30,7 @@ export function installFakeServicesWith(opts: Partial<Services & { env: Env }> =
     aFakeHaloFilmServiceWith({ env, spartanTokenProvider: new CustomSpartanTokenProvider({ env, xboxService }) });
   const userTokenProvider = opts.userTokenProvider ?? aFakeUserTokenProviderWith({ authService, xboxService });
   const analyticsService =
-    opts.analyticsService ?? aFakeAnalyticsServiceWith({ haloService, haloFilmService, logService });
+    opts.analyticsService ?? aFakeAnalyticsServiceWith({ databaseService, haloService, haloFilmService, logService });
   const liveTrackerService =
     opts.liveTrackerService ?? aFakeLiveTrackerServiceWith({ logService, discordService, env });
   const leaderboardService =
@@ -43,6 +43,7 @@ export function installFakeServicesWith(opts: Partial<Services & { env: Env }> =
       discordService,
       haloService,
       leaderboardService,
+      analyticsService,
       liveTrackerService,
     });
   const individualTrackerService =

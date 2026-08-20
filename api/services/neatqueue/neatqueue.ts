@@ -74,7 +74,7 @@ export interface NeatQueueServiceOpts {
   discordService: DiscordService;
   haloService: HaloService;
   leaderboardService: LeaderboardService;
-  analyticsService?: AnalyticsService;
+  analyticsService: AnalyticsService;
   liveTrackerService: LiveTrackerService;
   individualTrackerService: IndividualTrackerService;
 }
@@ -86,7 +86,7 @@ export class NeatQueueService {
   private readonly discordService: DiscordService;
   private readonly haloService: HaloService;
   private readonly leaderboardService: LeaderboardService;
-  private readonly analyticsService: AnalyticsService | undefined;
+  private readonly analyticsService: AnalyticsService;
   private readonly liveTrackerService: LiveTrackerService;
   private readonly individualTrackerService: IndividualTrackerService;
   private readonly queueStateCache = new Map<string, NeatQueueState>();
@@ -145,12 +145,8 @@ export class NeatQueueService {
   }
 
   private async persistFilmAnalyticsAtTail(series: MatchStats[]): Promise<void> {
-    if (this.analyticsService == null) {
-      return;
-    }
-
     const results = await Promise.allSettled(
-      series.map(async (match) => this.analyticsService?.persistMatchKillMatrix(match)),
+      series.map(async (match) => this.analyticsService.persistMatchKillMatrix(match)),
     );
     for (const result of results) {
       if (result.status === "rejected") {
