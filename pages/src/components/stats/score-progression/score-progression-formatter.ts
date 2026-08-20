@@ -128,6 +128,29 @@ function buildPlayerAdvantage(
   return { points, minScore, maxScore };
 }
 
+// One scoring-tick cadence: how far outside a control window a team's score event may sit while
+// still counting as evidence the team really held the hill during that window.
+const SEGMENT_EVENT_TOLERANCE_MS = 5_000;
+
+// A control window straddling a capture boundary drags the previous hill's team into the new
+// hill's bar (the hill has relocated — nobody is holding the old one). Only paint a segment in a
+// team's colour when that team actually scored near it after this hill started.
+function isSegmentCorroborated(
+  events: ObjectiveControlTimeline["events"],
+  teamId: number,
+  hillStart: number,
+  segmentStartMs: number,
+  segmentEndMs: number,
+): boolean {
+  return events.some(
+    (event) =>
+      event.teamId === teamId &&
+      event.timestampMs > hillStart &&
+      event.timestampMs > segmentStartMs - SEGMENT_EVENT_TOLERANCE_MS &&
+      event.timestampMs < segmentEndMs + SEGMENT_EVENT_TOLERANCE_MS,
+  );
+}
+
 function buildHillSegments(
   hillStart: number,
   hillEnd: number,
@@ -136,11 +159,16 @@ function buildHillSegments(
 ): KothHillSegment[] {
   const overlapping = timeline.controlPeriods
     .filter((cp) => cp.endMs > hillStart && cp.startMs < hillEnd)
-    .map((cp) => ({
-      startMs: Math.max(cp.startMs, hillStart),
-      endMs: Math.min(cp.endMs, hillEnd),
-      controllingTeamId: cp.controllingTeamId,
-    }))
+    .map((cp) => {
+      const startMs = Math.max(cp.startMs, hillStart);
+      const endMs = Math.min(cp.endMs, hillEnd);
+      const controllingTeamId =
+        cp.controllingTeamId != null &&
+        isSegmentCorroborated(timeline.events, cp.controllingTeamId, hillStart, startMs, endMs)
+          ? cp.controllingTeamId
+          : null;
+      return { startMs, endMs, controllingTeamId };
+    })
     .sort((a, b) => a.startMs - b.startMs);
 
   const segments: KothHillSegment[] = [];

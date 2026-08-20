@@ -558,6 +558,35 @@ describe("formatScoreProgression", () => {
       expect(result?.kothHills?.[1]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([0, 13]);
     });
 
+    it("renders a control window straddling a capture boundary as unoccupied in the next hill", () => {
+      // Team 1 captures hill 1 at 30000 inside a control window running to 40000; team 1 never
+      // scores in hill 2, so the window's spillover into hill 2 must not paint team 1's colour.
+      const data = aFakeScoreProgressionWith({
+        mode: KOTH_MODE,
+        durationMs: 90000,
+        timeline: {
+          type: "objective-control",
+          events: [
+            { timestampMs: 25000, teamId: 1, runningScores: { "0": 0, "1": 1 } },
+            { timestampMs: 30000, teamId: 1, runningScores: { "0": 0, "1": 2 } },
+            { timestampMs: 50000, teamId: 0, runningScores: { "0": 1, "1": 2 } },
+            { timestampMs: 55000, teamId: 0, runningScores: { "0": 2, "1": 2 } },
+          ],
+          controlPeriods: [
+            { startMs: 0, endMs: 40000, controllingTeamId: 1 },
+            { startMs: 45000, endMs: 60000, controllingTeamId: 0 },
+          ],
+          hillCaptureTimestamps: [30000],
+        },
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      const hill2Segments = result?.kothHills?.[1]?.segments ?? [];
+      const spillover = hill2Segments.find((s) => s.startMs === 30000 && s.endMs === 40000);
+      expect(spillover?.teamId).toBeNull();
+      const corroborated = hill2Segments.find((s) => s.startMs === 45000 && s.endMs === 60000);
+      expect(corroborated?.teamId).toBe(0);
+    });
+
     it("pins the winner's capture progress at 100% and estimates the loser from their ticks", () => {
       const result = formatScoreProgression(KOTH_DATA, TEAM_COLORS);
       const hill1 = result?.kothHills?.[0];
