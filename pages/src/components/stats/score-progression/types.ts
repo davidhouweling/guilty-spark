@@ -56,13 +56,21 @@ export interface KothTimelineViewModel {
   readonly hills: readonly KothTimelineHillViewModel[];
 }
 
-export interface ScoreProgressionViewData {
+export interface ScoreLinesViewData {
+  readonly kind: "score-lines";
   readonly durationMs: number;
   readonly teamLines: readonly ScoreProgressionTeamLine[];
   readonly scoreDelta: ScoreDeltaData | null;
   readonly playerAdvantage: PlayerAdvantageData | null;
-  readonly kothHills: readonly KothHillData[] | null;
 }
+
+export interface KothViewData {
+  readonly kind: "koth";
+  readonly durationMs: number;
+  readonly hills: readonly KothHillData[];
+}
+
+export type ScoreProgressionViewData = ScoreLinesViewData | KothViewData;
 
 export type ChartType = "progression" | "delta";
 
@@ -88,7 +96,8 @@ export interface ScoreProgressionProgressionViewModel {
   ) => [string, string];
 }
 
-export interface ScoreProgressionViewModel {
+export interface ScoreLinesViewModel {
+  readonly kind: "score-lines";
   readonly ariaLabel: string;
   readonly effectiveChartType: ChartType;
   readonly hasDelta: boolean;
@@ -97,7 +106,14 @@ export interface ScoreProgressionViewModel {
   readonly showToolbar: boolean;
   readonly deltaViewModel: ScoreProgressionDeltaViewModel | null;
   readonly progressionViewModel: ScoreProgressionProgressionViewModel;
-  readonly kothTimelineViewModel: KothTimelineViewModel | null;
   readonly onChartTypeChange: (value: string) => void;
   readonly onPlayerAdvantageChange: (checked: boolean) => void;
 }
+
+export interface KothViewModel {
+  readonly kind: "koth";
+  readonly ariaLabel: string;
+  readonly kothTimelineViewModel: KothTimelineViewModel;
+}
+
+export type ScoreProgressionViewModel = ScoreLinesViewModel | KothViewModel;

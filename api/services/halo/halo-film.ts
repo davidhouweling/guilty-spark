@@ -29,9 +29,9 @@ import type {
   KillRaceDeathEvent,
   KillRaceProgression,
   KillRaceProgressionEvent,
-  ObjectiveControlProgression,
-  ObjectiveControlProgressionEvent,
-  ObjectiveControlPeriod,
+  KothProgression,
+  KothProgressionEvent,
+  KothControlPeriod,
   StateByte2Transition,
   HaloFilmServiceOpts,
 } from "./types";
@@ -165,17 +165,14 @@ export class HaloFilmService {
     return timeline;
   }
 
-  async buildObjectiveControlProgression(
-    matchStats: MatchStats,
-    durationMs: number,
-  ): Promise<ObjectiveControlProgression> {
+  async buildKothProgression(matchStats: MatchStats, durationMs: number): Promise<KothProgression> {
     const [events, byte2Transitions] = await Promise.all([
       this.loadEnrichedEventsForMatch(matchStats),
       this.getStateByte2Transitions(matchStats.MatchId),
     ]);
     const modeEvents = events.filter((e) => e.eventType === "mode");
     const knownTeamIds = new Set<number>(matchStats.Teams.map((team) => team.TeamId));
-    return this.buildObjectiveControlProgressionFromData(
+    return this.buildKothProgressionFromData(
       modeEvents,
       byte2Transitions,
       knownTeamIds,
@@ -238,15 +235,15 @@ export class HaloFilmService {
     };
   }
 
-  private buildObjectiveControlProgressionFromData(
+  private buildKothProgressionFromData(
     modeEvents: ParsedHighlightEvent[],
     byte2Transitions: StateByte2Transition[],
     knownTeamIds: ReadonlySet<number>,
     targetCapturesByTeam: ReadonlyMap<number, number>,
     durationMs: number,
-  ): ObjectiveControlProgression {
-    const events = this.buildObjectiveScoreEvents(modeEvents, knownTeamIds);
-    const controlPeriods = this.buildObjectiveControlPeriods(byte2Transitions, modeEvents, durationMs);
+  ): KothProgression {
+    const events = this.buildKothScoreEvents(modeEvents, knownTeamIds);
+    const controlPeriods = this.buildKothControlPeriods(byte2Transitions, modeEvents, durationMs);
     return {
       events,
       controlPeriods,
@@ -255,12 +252,12 @@ export class HaloFilmService {
     };
   }
 
-  private buildObjectiveScoreEvents(
+  private buildKothScoreEvents(
     modeEvents: ParsedHighlightEvent[],
     knownTeamIds: ReadonlySet<number>,
-  ): ObjectiveControlProgressionEvent[] {
+  ): KothProgressionEvent[] {
     const runningScores = new Map<number, number>([...knownTeamIds].map((id) => [id, 0]));
-    const events: ObjectiveControlProgressionEvent[] = [];
+    const events: KothProgressionEvent[] = [];
     const lastEventTimeByTeam = new Map<number, number>();
 
     for (const event of modeEvents) {
@@ -283,11 +280,11 @@ export class HaloFilmService {
     return events;
   }
 
-  private buildObjectiveControlPeriods(
+  private buildKothControlPeriods(
     byte2Transitions: StateByte2Transition[],
     modeEvents: ParsedHighlightEvent[],
     durationMs: number,
-  ): ObjectiveControlPeriod[] {
+  ): KothControlPeriod[] {
     // Film-clock interpolation can land a transition past MatchInfo.Duration; such boundaries
     // would produce an inverted final period, so they are clamped out.
     const gameplayTransitions = byte2Transitions.filter(
@@ -297,7 +294,7 @@ export class HaloFilmService {
       return [];
     }
     const boundaries = [...new Set([0, ...gameplayTransitions.map((t) => t.timeMs), durationMs])].sort((a, b) => a - b);
-    const periods: ObjectiveControlPeriod[] = [];
+    const periods: KothControlPeriod[] = [];
     for (let i = 0; i < boundaries.length - 1; i++) {
       const startMs = boundaries[i] ?? 0;
       const endMs = boundaries[i + 1] ?? durationMs;

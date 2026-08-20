@@ -93,8 +93,8 @@ console.log(
   `\nMode: ${String(progression.mode)}, durationMs: ${String(progression.durationMs)} (${fmtMs(progression.durationMs)})`,
 );
 
-if (progression.timeline.type !== "objective-control") {
-  console.log(`\nERROR: Expected objective-control timeline, got: ${progression.timeline.type}`);
+if (progression.timeline.type !== "koth") {
+  console.log(`\nERROR: Expected koth timeline, got: ${progression.timeline.type}`);
   process.exit(1);
 }
 

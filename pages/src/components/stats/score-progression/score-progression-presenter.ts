@@ -1,14 +1,18 @@
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { TICK_FILL } from "./chart-constants";
 import type { ScoreProgressionSnapshot, ScoreProgressionStore } from "./score-progression-store";
 import type {
   ChartType,
   KothHillData,
   KothTimelineHillViewModel,
-  KothTimelineViewModel,
+  KothViewData,
+  KothViewModel,
   PlayerAdvantageData,
   ScoreDeltaData,
+  ScoreLinesViewData,
+  ScoreLinesViewModel,
   ScoreProgressionDeltaViewModel,
-  ScoreProgressionTeamLine,
+  ScoreProgressionViewData,
   ScoreProgressionViewModel,
 } from "./types";
 
@@ -17,11 +21,7 @@ export interface ScoreProgressionPresenterConfig {
 }
 
 export interface ScoreProgressionInput {
-  readonly durationMs: number;
-  readonly teamLines: readonly ScoreProgressionTeamLine[];
-  readonly scoreDelta: ScoreDeltaData | null;
-  readonly playerAdvantage: PlayerAdvantageData | null;
-  readonly kothHills: readonly KothHillData[] | null;
+  readonly viewData: ScoreProgressionViewData;
   readonly ariaLabel: string;
 }
 
@@ -41,23 +41,43 @@ export class ScoreProgressionPresenter {
   }
 
   present(snapshot: ScoreProgressionSnapshot, input: ScoreProgressionInput): ScoreProgressionViewModel {
-    const { chartType, showPlayerAdvantage } = snapshot;
-    const effectiveChartType: ChartType = chartType === "delta" && input.scoreDelta == null ? "progression" : chartType;
-    const effectivePlayerAdvantage = showPlayerAdvantage ? input.playerAdvantage : null;
+    const { viewData, ariaLabel } = input;
+    switch (viewData.kind) {
+      case "score-lines": {
+        return this.presentScoreLines(snapshot, viewData, ariaLabel);
+      }
+      case "koth": {
+        return this.presentKoth(viewData, ariaLabel);
+      }
+      default: {
+        throw new UnreachableError(viewData);
+      }
+    }
+  }
 
-    const team0Name = input.teamLines[0]?.name ?? "Team 1";
-    const team1Name = input.teamLines[1]?.name ?? "Team 2";
+  private presentScoreLines(
+    snapshot: ScoreProgressionSnapshot,
+    viewData: ScoreLinesViewData,
+    ariaLabel: string,
+  ): ScoreLinesViewModel {
+    const { chartType, showPlayerAdvantage } = snapshot;
+    const effectiveChartType: ChartType =
+      chartType === "delta" && viewData.scoreDelta == null ? "progression" : chartType;
+    const effectivePlayerAdvantage = showPlayerAdvantage ? viewData.playerAdvantage : null;
+
+    const team0Name = viewData.teamLines[0]?.name ?? "Team 1";
+    const team1Name = viewData.teamLines[1]?.name ?? "Team 2";
 
     const syncedScoreDelta =
-      input.scoreDelta != null ? this.synchronizeDeltaDomain(input.scoreDelta, effectivePlayerAdvantage) : null;
+      viewData.scoreDelta != null ? this.synchronizeDeltaDomain(viewData.scoreDelta, effectivePlayerAdvantage) : null;
 
     const deltaViewModel: ScoreProgressionDeltaViewModel | null =
       effectiveChartType === "delta" && syncedScoreDelta != null
         ? {
-            durationMs: input.durationMs,
+            durationMs: viewData.durationMs,
             scoreDelta: syncedScoreDelta,
-            team0Color: input.teamLines[0]?.color ?? TICK_FILL,
-            team1Color: input.teamLines[1]?.color ?? TICK_FILL,
+            team0Color: viewData.teamLines[0]?.color ?? TICK_FILL,
+            team1Color: viewData.teamLines[1]?.color ?? TICK_FILL,
             playerAdvantage: effectivePlayerAdvantage,
             tooltipFormatter: (value: number | string | readonly (number | string)[] | undefined): [string, string] =>
               this.formatDeltaTooltip(value, team0Name, team1Name),
@@ -67,16 +87,12 @@ export class ScoreProgressionPresenter {
           }
         : null;
 
-    const hasDelta = input.scoreDelta != null;
-    const hasPlayerAdvantage = input.playerAdvantage != null;
-
-    const kothTimelineViewModel: KothTimelineViewModel | null =
-      input.kothHills != null && input.kothHills.length > 0
-        ? { durationMs: input.durationMs, hills: this.buildKothTimelineHills(input.kothHills) }
-        : null;
+    const hasDelta = viewData.scoreDelta != null;
+    const hasPlayerAdvantage = viewData.playerAdvantage != null;
 
     return {
-      ariaLabel: input.ariaLabel,
+      kind: "score-lines",
+      ariaLabel,
       effectiveChartType,
       hasDelta,
       hasPlayerAdvantage,
@@ -84,17 +100,27 @@ export class ScoreProgressionPresenter {
       showToolbar: hasDelta || hasPlayerAdvantage,
       deltaViewModel,
       progressionViewModel: {
-        durationMs: input.durationMs,
-        teamLines: input.teamLines,
+        durationMs: viewData.durationMs,
+        teamLines: viewData.teamLines,
         playerAdvantage: effectivePlayerAdvantage,
         tooltipFormatter: (
           value: number | string | readonly (number | string)[] | undefined,
           name: string | number | undefined,
         ): [string, string] => this.formatProgressionTooltip(value, name, team0Name, team1Name),
       },
-      kothTimelineViewModel,
       onChartTypeChange: this.onChartTypeChange,
       onPlayerAdvantageChange: this.onPlayerAdvantageChange,
+    };
+  }
+
+  private presentKoth(viewData: KothViewData, ariaLabel: string): KothViewModel {
+    return {
+      kind: "koth",
+      ariaLabel,
+      kothTimelineViewModel: {
+        durationMs: viewData.durationMs,
+        hills: this.buildKothTimelineHills(viewData.hills),
+      },
     };
   }
 

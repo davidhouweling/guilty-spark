@@ -2019,7 +2019,7 @@ describe("HaloFilmService", () => {
     });
   });
 
-  describe("buildObjectiveControlProgression", () => {
+  describe("buildKothProgression", () => {
     function modeEvent(xuid: string, timeMs: number): ParsedHighlightEvent {
       return {
         xuid,
@@ -2066,7 +2066,7 @@ describe("HaloFilmService", () => {
       ]);
 
       const durationMs = 732278;
-      const result = await service.buildObjectiveControlProgression(match, durationMs);
+      const result = await service.buildKothProgression(match, durationMs);
 
       expect(result.teamCount).toBe(2);
       expect(result.hillCaptureTimestamps).toEqual([40000, 105000, 175000, 255000, 335000]);
@@ -2104,7 +2104,7 @@ describe("HaloFilmService", () => {
         { timeMs: 260000, fromValue: 0x47, toValue: 0x48 },
       ]);
 
-      const result = await service.buildObjectiveControlProgression(match, 732278);
+      const result = await service.buildKothProgression(match, 732278);
 
       expect(result.hillCaptureTimestamps).toEqual([40000, 105000, 175000, 255000, 345000]);
     });
@@ -2123,7 +2123,7 @@ describe("HaloFilmService", () => {
       ]);
       vi.spyOn(service, "getStateByte2Transitions").mockResolvedValue([]);
 
-      const result = await service.buildObjectiveControlProgression(match, 300000);
+      const result = await service.buildKothProgression(match, 300000);
 
       expect(result.hillCaptureTimestamps).toEqual([]);
       expect(result.controlPeriods).toEqual([]);
@@ -2153,7 +2153,7 @@ describe("HaloFilmService", () => {
         { timeMs: 25000, fromValue: 0x41, toValue: 0x42 },
       ]);
 
-      const result = await service.buildObjectiveControlProgression(match, 300000);
+      const result = await service.buildKothProgression(match, 300000);
 
       expect(result.events).toHaveLength(5);
       expect(result.events[0]).toMatchObject({ timestampMs: 5000, teamId: 0 });
@@ -2193,7 +2193,7 @@ describe("HaloFilmService", () => {
         { timeMs: 340000, fromValue: 0x49, toValue: 0x4a },
       ]);
 
-      const result = await service.buildObjectiveControlProgression(match, 732278);
+      const result = await service.buildKothProgression(match, 732278);
 
       // All 5 captures fit the 8-tick pattern — the 2 trailing ticks on Location F
       // are not a capture, so matchEndEvent (400000) must NOT appear.
@@ -2221,7 +2221,7 @@ describe("HaloFilmService", () => {
         { timeMs: 30000, fromValue: 0x41, toValue: 0x42 },
       ]);
 
-      const result = await service.buildObjectiveControlProgression(match, 300000);
+      const result = await service.buildKothProgression(match, 300000);
 
       expect(result.hillCaptureTimestamps).toEqual([25000]);
     });
@@ -2289,7 +2289,7 @@ describe("HaloFilmService", () => {
         { timeMs: 295000, fromValue: 0x49, toValue: 0x4a },
       ]);
 
-      const result = await service.buildObjectiveControlProgression(match, 732278);
+      const result = await service.buildKothProgression(match, 732278);
 
       // hillCaptureTimestamps[0] must be 49000ms (Team 0's capture) not 36500ms (Team 1's last
       // tick) — only Team 0 capturing hill 1 allows all five captures in the match score to fit.
@@ -2308,7 +2308,7 @@ describe("HaloFilmService", () => {
         { timeMs: 100000, fromValue: 0x40, toValue: 0x41 },
       ]);
 
-      const result = await service.buildObjectiveControlProgression(match, 300000);
+      const result = await service.buildKothProgression(match, 300000);
 
       expect(result.hillCaptureTimestamps).toEqual([]);
       expect(result.events).toHaveLength(0);

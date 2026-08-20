@@ -20,26 +20,27 @@ const killRaceTimelineSchema = z.object({
   type: z.literal("kill-race"),
   events: z.array(killRaceEventSchema),
   deathTimeline: z.array(killRaceDeathEventSchema),
+  respawnDurationMs: z.number().int().positive().nullable(),
 });
 
-const objectiveControlEventSchema = progressionEventSchema;
+const kothEventSchema = progressionEventSchema;
 
-const objectiveControlPeriodSchema = z.object({
+const kothControlPeriodSchema = z.object({
   startMs: z.number().int().nonnegative(),
   endMs: z.number().int().nonnegative(),
   controllingTeamId: z.number().int().nonnegative().nullable(),
 });
 
-const objectiveControlTimelineSchema = z.object({
-  type: z.literal("objective-control"),
-  events: z.array(objectiveControlEventSchema),
-  controlPeriods: z.array(objectiveControlPeriodSchema),
+const kothTimelineSchema = z.object({
+  type: z.literal("koth"),
+  events: z.array(kothEventSchema),
+  controlPeriods: z.array(kothControlPeriodSchema),
   hillCaptureTimestamps: z.array(z.number().int().nonnegative()),
 });
 
-export type ObjectiveControlEvent = z.infer<typeof objectiveControlEventSchema>;
-export type ObjectiveControlPeriod = z.infer<typeof objectiveControlPeriodSchema>;
-export type ObjectiveControlTimeline = z.infer<typeof objectiveControlTimelineSchema>;
+export type KothEvent = z.infer<typeof kothEventSchema>;
+export type KothControlPeriod = z.infer<typeof kothControlPeriodSchema>;
+export type KothTimeline = z.infer<typeof kothTimelineSchema>;
 
 export const killMatrixEntrySchema = z.object({
   count: z.number().int().nonnegative().describe("Total kills for this killer/victim pair"),
@@ -99,8 +100,7 @@ export const matchAnalyticsSchema = z.object({
       mode: z.number().int().nonnegative(),
       durationMs: z.number().int().nonnegative(),
       teamCount: z.number().int().positive(),
-      respawnDurationMs: z.number().int().positive().nullable(),
-      timeline: z.discriminatedUnion("type", [killRaceTimelineSchema, objectiveControlTimelineSchema]),
+      timeline: z.discriminatedUnion("type", [killRaceTimelineSchema, kothTimelineSchema]),
     })
     .nullable(),
 });

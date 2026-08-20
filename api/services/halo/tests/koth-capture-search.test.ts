@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { ObjectiveControlPeriod, ObjectiveControlProgressionEvent } from "../types";
+import type { KothControlPeriod, KothProgressionEvent } from "../types";
 import { findBestKothCaptureAssignment } from "../koth-capture-search";
 
-function eventsFromTicks(ticksByTeam: ReadonlyMap<number, readonly number[]>): ObjectiveControlProgressionEvent[] {
+function eventsFromTicks(ticksByTeam: ReadonlyMap<number, readonly number[]>): KothProgressionEvent[] {
   const merged: { timestampMs: number; teamId: number }[] = [];
   for (const [teamId, ticks] of ticksByTeam) {
     for (const timestampMs of ticks) {
@@ -18,7 +18,7 @@ function eventsFromTicks(ticksByTeam: ReadonlyMap<number, readonly number[]>): O
   });
 }
 
-function controlPeriod(startMs: number, endMs: number, controllingTeamId: number | null): ObjectiveControlPeriod {
+function controlPeriod(startMs: number, endMs: number, controllingTeamId: number | null): KothControlPeriod {
   return { startMs, endMs, controllingTeamId };
 }
 
@@ -56,7 +56,7 @@ const MATCH_72C3_TICKS = new Map<number, readonly number[]>([
 
 // Simplified from the match's byte2 film data: the Cobra scoring run at 2:51–3:30 means an
 // Eagle capture read at 3:29 (209993) would sit inside an opponent-controlled window.
-const MATCH_72C3_CONTROL_PERIODS: ObjectiveControlPeriod[] = [
+const MATCH_72C3_CONTROL_PERIODS: KothControlPeriod[] = [
   controlPeriod(156000, 158000, 0),
   controlPeriod(171000, 210000, 1),
   controlPeriod(227000, 297000, 0),
@@ -86,7 +86,7 @@ const MATCH_3A1D_TICKS = new Map<number, readonly number[]>([
 
 // Simplified from the match's byte2 film data: Cobra dominated 2:34–3:44, so an Eagle capture
 // read at 3:07 (187728) would sit inside an opponent-controlled window.
-const MATCH_3A1D_CONTROL_PERIODS: ObjectiveControlPeriod[] = [
+const MATCH_3A1D_CONTROL_PERIODS: KothControlPeriod[] = [
   controlPeriod(154000, 224000, 1),
   controlPeriod(224000, 278000, 0),
   controlPeriod(281000, 288000, 0),
@@ -145,7 +145,7 @@ const MATCH_F5A8_TICKS = new Map<number, readonly number[]>([
 
 // Simplified from the match's byte2 film data: the hill-3 boundary candidates fall in an
 // Eagle window (456-480s, the true 7:54 capture) and a Cobra window (480-522s, the false 8:37).
-const MATCH_F5A8_CONTROL_PERIODS: ObjectiveControlPeriod[] = [
+const MATCH_F5A8_CONTROL_PERIODS: KothControlPeriod[] = [
   controlPeriod(227000, 257000, 1),
   controlPeriod(317000, 372000, 0),
   controlPeriod(456000, 480000, 0),
@@ -177,7 +177,7 @@ const MATCH_5BBE_TICKS = new Map<number, readonly number[]>([
 
 // Simplified from the match's byte2 film data: reading hill 1 as ending at Cobra's 3:38 tick
 // instead of 2:21 would place the capture inside an Eagle-attributed window (205-259s).
-const MATCH_5BBE_CONTROL_PERIODS: ObjectiveControlPeriod[] = [
+const MATCH_5BBE_CONTROL_PERIODS: KothControlPeriod[] = [
   controlPeriod(123000, 171000, 1),
   controlPeriod(205000, 259000, 0),
   controlPeriod(297000, 324000, 1),

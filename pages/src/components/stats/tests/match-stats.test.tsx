@@ -222,11 +222,11 @@ describe("MatchStats", () => {
   it("falls back to Players tab when Timeline is active and scoreProgressionViewData becomes null", () => {
     const data = [aFakeMatchStatsDataWith({ teamId: 0 })];
     const scoreProgressionViewData: ScoreProgressionViewData = {
+      kind: "score-lines",
       durationMs: 600000,
       teamLines: [],
       scoreDelta: null,
       playerAdvantage: null,
-      kothHills: null,
     };
     const baseProps = {
       data,

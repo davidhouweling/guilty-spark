@@ -223,21 +223,21 @@ export interface StateByte2Transition {
   toValue: number;
 }
 
-export interface ObjectiveControlProgressionEvent {
+export interface KothProgressionEvent {
   timestampMs: number;
   teamId: number;
   runningScores: Record<string, number>;
 }
 
-export interface ObjectiveControlPeriod {
+export interface KothControlPeriod {
   startMs: number;
   endMs: number;
   controllingTeamId: number | null;
 }
 
-export interface ObjectiveControlProgression {
-  events: ObjectiveControlProgressionEvent[];
-  controlPeriods: ObjectiveControlPeriod[];
+export interface KothProgression {
+  events: KothProgressionEvent[];
+  controlPeriods: KothControlPeriod[];
   hillCaptureTimestamps: number[];
   teamCount: number;
 }

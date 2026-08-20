@@ -1,5 +1,5 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import type { ObjectiveControlPeriod, ObjectiveControlProgressionEvent } from "./types";
+import type { KothControlPeriod, KothProgressionEvent } from "./types";
 
 const MIN_CAPTURE_TICKS = 5;
 // A capture relocates the hill, so no team can score for the travel time afterwards. Ticks arrive
@@ -76,17 +76,17 @@ function varianceOf(counts: readonly number[]): number {
 }
 
 class KothCaptureSearch {
-  private readonly events: readonly ObjectiveControlProgressionEvent[];
-  private readonly controlPeriods: readonly ObjectiveControlPeriod[];
+  private readonly events: readonly KothProgressionEvent[];
+  private readonly controlPeriods: readonly KothControlPeriod[];
   private readonly remainingCaptures: Map<number, number>;
   private readonly steps: CaptureStep[] = [];
   private visitedNodes = 0;
   private best: { timestamps: number[]; score: AssignmentScore } | null = null;
 
   constructor(
-    events: readonly ObjectiveControlProgressionEvent[],
+    events: readonly KothProgressionEvent[],
     targetCapturesByTeam: ReadonlyMap<number, number>,
-    controlPeriods: readonly ObjectiveControlPeriod[],
+    controlPeriods: readonly KothControlPeriod[],
   ) {
     this.events = events;
     this.remainingCaptures = new Map(targetCapturesByTeam);
@@ -143,7 +143,7 @@ class KothCaptureSearch {
   }
 
   private countOvertakenTeams(
-    event: ObjectiveControlProgressionEvent,
+    event: KothProgressionEvent,
     hillBaseline: Record<string, number>,
     perHillTicks: number,
   ): number {
@@ -187,7 +187,7 @@ class KothCaptureSearch {
   // relocate there — the boundary was read into the middle of that team's run. A capture merely
   // sitting late in an opponent-attributed window is fine (their run ended, then the capturer
   // finished the meter).
-  private isContradictedByControlPeriods(event: ObjectiveControlProgressionEvent): boolean {
+  private isContradictedByControlPeriods(event: KothProgressionEvent): boolean {
     const containing = this.findContainingControlPeriod(event);
     if (containing?.controllingTeamId == null || containing.controllingTeamId === event.teamId) {
       return false;
@@ -200,12 +200,12 @@ class KothCaptureSearch {
     );
   }
 
-  private isInAnotherTeamsWindow(event: ObjectiveControlProgressionEvent): boolean {
+  private isInAnotherTeamsWindow(event: KothProgressionEvent): boolean {
     const containing = this.findContainingControlPeriod(event);
     return containing?.controllingTeamId != null && containing.controllingTeamId !== event.teamId;
   }
 
-  private findContainingControlPeriod(event: ObjectiveControlProgressionEvent): ObjectiveControlPeriod | undefined {
+  private findContainingControlPeriod(event: KothProgressionEvent): KothControlPeriod | undefined {
     return this.controlPeriods.find(
       (period) => period.startMs <= event.timestampMs && event.timestampMs < period.endMs,
     );
@@ -268,9 +268,9 @@ class KothCaptureSearch {
  * fixed rate).
  */
 export function findBestKothCaptureAssignment(
-  events: readonly ObjectiveControlProgressionEvent[],
+  events: readonly KothProgressionEvent[],
   targetCapturesByTeam: ReadonlyMap<number, number>,
-  controlPeriods: readonly ObjectiveControlPeriod[],
+  controlPeriods: readonly KothControlPeriod[],
 ): number[] {
   return new KothCaptureSearch(events, targetCapturesByTeam, controlPeriods).run();
 }

@@ -99,10 +99,10 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     expect(results["match-1"]?.scoreProgression?.mode).toBe(GameVariantCategory.MultiplayerSlayer);
     expect(results["match-1"]?.scoreProgression?.durationMs).toBe(525500);
     expect(results["match-1"]?.scoreProgression?.teamCount).toBe(2);
-    expect(results["match-1"]?.scoreProgression?.respawnDurationMs).toBe(8000);
     const timeline = results["match-1"]?.scoreProgression?.timeline;
     expect(timeline?.type).toBe("kill-race");
     expect(timeline?.events).toHaveLength(1);
+    expect(timeline?.type === "kill-race" ? timeline.respawnDurationMs : undefined).toBe(8000);
     expect(timeline?.type === "kill-race" ? timeline.deathTimeline : undefined).toEqual([
       { timestampMs: 5100, teamId: 1 },
     ]);
@@ -185,7 +185,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     expect(buildKillRaceProgressionSpy).not.toHaveBeenCalled();
   });
 
-  it("returns scoreProgression with objective-control timeline for KOTH when scoreProgression is requested", async () => {
+  it("returns scoreProgression with koth timeline for KOTH when scoreProgression is requested", async () => {
     const env = aFakeEnvWith();
     const haloService = aFakeHaloServiceWith({ env });
     const haloFilmService = aFakeHaloFilmServiceWith({ env });
@@ -198,7 +198,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
       perfectCounts: { total: 0, byXuid: {} },
     });
-    vi.spyOn(haloFilmService, "buildObjectiveControlProgression").mockResolvedValue({
+    vi.spyOn(haloFilmService, "buildKothProgression").mockResolvedValue({
       events: [{ timestampMs: 100000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
       controlPeriods: [{ startMs: 0, endMs: 732278, controllingTeamId: 0 }],
       hillCaptureTimestamps: [100000],
@@ -209,10 +209,9 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
 
     expect(results["match-1"]?.scoreProgression).not.toBeNull();
-    expect(results["match-1"]?.scoreProgression?.respawnDurationMs).toBeNull();
     const timeline = results["match-1"]?.scoreProgression?.timeline;
-    expect(timeline?.type).toBe("objective-control");
-    expect(timeline?.type === "objective-control" ? timeline.hillCaptureTimestamps : undefined).toEqual([100000]);
+    expect(timeline?.type).toBe("koth");
+    expect(timeline?.type === "koth" ? timeline.hillCaptureTimestamps : undefined).toEqual([100000]);
   });
 
   it("returns scoreProgression null for unsupported game modes when scoreProgression is requested", async () => {

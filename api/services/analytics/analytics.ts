@@ -25,8 +25,6 @@ const KILL_RACE_GAME_MODES = new Set([
   GameVariantCategory.MultiplayerAttrition,
 ]);
 
-const OBJECTIVE_CONTROL_GAME_MODES = new Set([GameVariantCategory.MultiplayerKingOfTheHill]);
-
 function toContractKillMatrix(
   entries: Awaited<ReturnType<HaloFilmService["buildKillMatrixAnalytics"]>>["entries"],
 ): Record<string, ContractKillMatrixEntry> {
@@ -90,19 +88,23 @@ export class AnalyticsService {
         mode,
         durationMs,
         teamCount: progression.teamCount,
-        respawnDurationMs: KILL_RACE_RESPAWN_DURATION_MS[mode] ?? null,
-        timeline: { type: "kill-race", events: progression.events, deathTimeline: progression.deathTimeline },
+        timeline: {
+          type: "kill-race",
+          events: progression.events,
+          deathTimeline: progression.deathTimeline,
+          respawnDurationMs: KILL_RACE_RESPAWN_DURATION_MS[mode] ?? null,
+        },
       };
     }
-    if (OBJECTIVE_CONTROL_GAME_MODES.has(mode)) {
-      const progression = await this.haloFilmService.buildObjectiveControlProgression(matchStats, durationMs);
+    // Each objective mode gets its own timeline variant and builder; new modes add a branch here.
+    if (mode === GameVariantCategory.MultiplayerKingOfTheHill) {
+      const progression = await this.haloFilmService.buildKothProgression(matchStats, durationMs);
       return {
         mode,
         durationMs,
         teamCount: progression.teamCount,
-        respawnDurationMs: null,
         timeline: {
-          type: "objective-control",
+          type: "koth",
           events: progression.events,
           controlPeriods: progression.controlPeriods,
           hillCaptureTimestamps: progression.hillCaptureTimestamps,
