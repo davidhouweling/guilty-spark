@@ -1390,7 +1390,7 @@ export class StatsCommand extends BaseCommand {
   }
 
   private async handleFixConfirmationJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
-    const { databaseService, discordService, haloService } = this.services;
+    const { databaseService, discordService, haloService, leaderboardService } = this.services;
 
     try {
       const metadata = await this.getFixMetadataWithRetry(interaction.message.id);
@@ -1485,6 +1485,17 @@ export class StatsCommand extends BaseCommand {
       await this.postSeriesEmbedsToThread(destinationThreadId, series, guildConfig, locale);
       await this.postGameStatsOrButton(destinationThreadId, series, guildConfig, locale);
       await this.cacheDiscordSeriesStats(metadata.guildId, metadata.queueData.queue, series, locale);
+      const neatQueueConfig = await databaseService.getNeatQueueConfig(metadata.guildId, metadata.channelId);
+      await leaderboardService.persistReconciledSeriesData({
+        guildId: metadata.guildId,
+        channelId: metadata.channelId,
+        queueNumber: metadata.queueData.queue,
+        neatQueueConfig,
+        series,
+        winnerTeamIndex:
+          metadata.selectedSeriesOutcome === "TEAM_0" ? 0 : metadata.selectedSeriesOutcome === "TEAM_1" ? 1 : -1,
+        locale,
+      });
 
       await discordService.updateDeferredReply(interaction.token, {
         embeds: [this.createStatusEmbed("Series stats were amended successfully.")],

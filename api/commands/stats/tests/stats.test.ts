@@ -39,7 +39,11 @@ import {
 import { aFakeMatchHistoryEntryWith, getMatchStats, getPlayerXuidsToGametags } from "../../../services/halo/fakes/data";
 import { StatsReturnType } from "../../../services/database/types/guild_config";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
-import { aFakeDiscordAssociationsRow, aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake";
+import {
+  aFakeDiscordAssociationsRow,
+  aFakeGuildConfigRow,
+  aFakeNeatQueueConfigRow,
+} from "../../../services/database/fakes/database.fake";
 import { EndUserError } from "../../../base/end-user-error";
 import type { MatchPlayer } from "../../../services/halo/types";
 import {
@@ -1843,6 +1847,10 @@ describe("StatsCommand", () => {
       vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
         aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
       );
+      vi.spyOn(services.databaseService, "getNeatQueueConfig").mockResolvedValue(aFakeNeatQueueConfigRow());
+      const persistReconciledSeriesDataSpy = vi
+        .spyOn(services.leaderboardService, "persistReconciledSeriesData")
+        .mockResolvedValue();
       const findExistingSeriesStatsThreadLocationSpy = vi
         .spyOn(services.discordService, "findExistingSeriesStatsThreadLocation")
         .mockResolvedValue({ threadId: "existing-thread-id", parentOverviewMessageId: "original-overview-message-id" });
@@ -1909,6 +1917,9 @@ describe("StatsCommand", () => {
       const amendedByField = firstEmbed.fields?.find((field) => field.name === "Amended by");
       expect(amendedByField).toBeDefined();
       expect(Preconditions.checkExists(amendedByField).value.length).toBeGreaterThan(0);
+      expect(persistReconciledSeriesDataSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ winnerTeamIndex: 1, queueNumber: 777 }),
+      );
       expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
         embeds: [expect.objectContaining({ description: "Series stats were amended successfully." })],
         components: [],
@@ -1948,6 +1959,7 @@ describe("StatsCommand", () => {
       vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
         aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
       );
+      vi.spyOn(services.databaseService, "getNeatQueueConfig").mockResolvedValue(aFakeNeatQueueConfigRow());
       vi.spyOn(services.discordService, "findExistingSeriesStatsThreadLocation").mockResolvedValue(undefined);
       const createMessageSpy = vi
         .spyOn(services.discordService, "createMessage")
@@ -2007,6 +2019,7 @@ describe("StatsCommand", () => {
       vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
         aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
       );
+      vi.spyOn(services.databaseService, "getNeatQueueConfig").mockResolvedValue(aFakeNeatQueueConfigRow());
       vi.spyOn(services.discordService, "findExistingSeriesStatsThreadLocation").mockResolvedValue({
         threadId: "existing-thread-id",
       });

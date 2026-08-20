@@ -56,16 +56,52 @@ export class LeaderboardService {
     this.logService = logService;
   }
 
+  async persistReconciledSeriesData({
+    guildId,
+    channelId,
+    queueNumber,
+    neatQueueConfig,
+    series,
+    winnerTeamIndex,
+    locale,
+  }: {
+    guildId: string;
+    channelId: string;
+    queueNumber: number;
+    neatQueueConfig: NeatQueueConfigRow;
+    series: MatchStats[];
+    winnerTeamIndex: number;
+    locale: string;
+  }): Promise<void> {
+    await this.persistSeriesData({
+      request: {
+        action: "MATCH_COMPLETED",
+        guild: guildId,
+        channel: channelId,
+        queue: queueNumber.toString(),
+        match_number: queueNumber,
+        winning_team_index: winnerTeamIndex,
+        teams: [],
+      },
+      neatQueueConfig,
+      series,
+      locale,
+      allowTie: true,
+    });
+  }
+
   async persistSeriesData({
     request,
     neatQueueConfig,
     series,
     locale,
+    allowTie = false,
   }: {
     request: NeatQueueMatchCompletedRequest;
     neatQueueConfig: NeatQueueConfigRow;
     series: MatchStats[];
     locale: string;
+    allowTie?: boolean;
   }): Promise<void> {
     if (series.length === 0) {
       this.logService.info(
@@ -79,7 +115,7 @@ export class LeaderboardService {
       return;
     }
 
-    if (request.winning_team_index === -1) {
+    if (request.winning_team_index === -1 && !allowTie) {
       this.logService.info(
         "Leaderboard persistence skipped because winning team index is unresolved",
         new Map([
