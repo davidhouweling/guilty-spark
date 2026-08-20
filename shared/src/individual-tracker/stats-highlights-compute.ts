@@ -61,7 +61,9 @@ export function accumulateMatchStatsForPlayer(
     return undefined;
   }
 
-  const playerStats = player.PlayerTeamStats[0]?.Stats.CoreStats;
+  const playerTeamStats =
+    player.PlayerTeamStats.find((teamStats) => teamStats.TeamId === player.LastTeamId) ?? player.PlayerTeamStats[0];
+  const playerStats = playerTeamStats?.Stats.CoreStats;
   if (playerStats == null) {
     return undefined;
   }

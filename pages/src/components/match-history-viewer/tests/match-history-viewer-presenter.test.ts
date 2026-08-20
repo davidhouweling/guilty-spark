@@ -182,6 +182,38 @@ describe("MatchHistoryViewerPresenter", () => {
     expect(getMatchHistorySpy).toHaveBeenCalledTimes(2);
   });
 
+  it("does not flash an empty loaded state when ESRA resolves before the first page of matches", async () => {
+    const { presenter, viewerStore, individualTrackerService } = aPresenterSetup();
+    vi.spyOn(individualTrackerService, "searchGamertag").mockResolvedValue(aFakeTrackerSearchResultWith());
+    const getSearchEsraSpy = vi
+      .spyOn(individualTrackerService, "getSearchEsra")
+      .mockResolvedValue({ esra: null, lastRankedGamePlayed: null });
+    let resolveMatchHistory: (() => void) | undefined;
+    const matchHistoryPromise = new Promise<{
+      matches: ReturnType<typeof aFakeMatchHistoryEntryWith>[];
+      suggestedGroupings: never[];
+    }>((resolve) => {
+      resolveMatchHistory = (): void => {
+        resolve({ matches: [aFakeMatchHistoryEntryWith({ matchId: "m-1" })], suggestedGroupings: [] });
+      };
+    });
+    vi.spyOn(individualTrackerService, "getMatchHistory").mockReturnValueOnce(matchHistoryPromise);
+
+    presenter.search("Fake Spartan");
+    await vi.waitFor(() => {
+      expect(getSearchEsraSpy).toHaveBeenCalled();
+    });
+
+    expect(viewerStore.getSnapshot().status).toBe(ComponentLoaderStatus.LOADING);
+
+    resolveMatchHistory?.();
+    await vi.waitFor(() => {
+      expect(viewerStore.getSnapshot().status).toBe(ComponentLoaderStatus.LOADED);
+    });
+
+    expect(viewerStore.getSnapshot().view?.matches).toHaveLength(1);
+  });
+
   it("updates the current-rank stats highlight once ESRA resolves after the initial page load", async () => {
     const { presenter, viewerStore, individualTrackerService } = aPresenterSetup({
       visibleSections: { statsHighlightSlots: ["esra"] },

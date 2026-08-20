@@ -237,6 +237,25 @@ describe("accumulateMatchStatsForPlayer", () => {
     expect(totals?.totalLifeSeconds).toBe(180);
   });
 
+  it("uses the PlayerTeamStats entry matching LastTeamId rather than always the first entry", () => {
+    const matchStats = aFakeMatchStatsWith({
+      Players: [
+        aFakePlayerWith({
+          PlayerId: `xuid(${trackedXuid})`,
+          LastTeamId: 1,
+          PlayerTeamStats: [
+            { TeamId: 0, Stats: { CoreStats: aFakeCoreStatsWith({ Kills: 999 }) } },
+            { TeamId: 1, Stats: { CoreStats: aFakeCoreStatsWith({ Kills: 7 }) } },
+          ],
+        }),
+      ],
+    });
+
+    const totals = accumulateMatchStatsForPlayer(undefined, matchStats, trackedXuid);
+
+    expect(totals?.kills).toBe(7);
+  });
+
   it("keeps totalSpawns but skips totalLifeSpawns for a malformed AverageLifeDuration", () => {
     const matchStats = aFakeMatchStatsWith({
       Players: [

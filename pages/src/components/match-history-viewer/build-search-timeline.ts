@@ -13,10 +13,10 @@ import type { TrackedPlayerSummaryStats } from "@guilty-spark/shared/halo/match-
 import {
   buildSeriesGroupKey,
   getDefaultSeriesGroupSubtitle,
+  getDefaultSeriesGroupTitle,
 } from "@guilty-spark/shared/individual-tracker/series-grouping";
 import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
 
-const SEARCH_SERIES_TITLE = "Series";
 const UNKNOWN_TRACKED_PLAYER_STATS: TrackedPlayerSummaryStats = {
   killsDeathsAssistsKda: UNKNOWN_KDA_DISPLAY,
   damageDealtTakenRatio: UNKNOWN_DAMAGE_RATIO_DISPLAY,
@@ -105,7 +105,7 @@ function toTrackerSeriesGroup(
     score: `${wins.toString()}:${losses.toString()}`,
     killsDeathsAssistsKda: seriesStats.killsDeathsAssistsKda,
     damageDealtTakenRatio: seriesStats.damageDealtTakenRatio,
-    title: SEARCH_SERIES_TITLE,
+    title: getDefaultSeriesGroupTitle(),
     subtitle: getDefaultSeriesGroupSubtitle(
       memberSummaries.map((summary) => ({
         startTime: summary.startTime,

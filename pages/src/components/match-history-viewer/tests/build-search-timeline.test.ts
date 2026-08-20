@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { MatchStats } from "halo-infinite-api";
 import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakePlayerWith } from "@guilty-spark/shared/halo/fakes/data";
-import { buildSeriesGroupKey } from "@guilty-spark/shared/individual-tracker/series-grouping";
+import {
+  buildSeriesGroupKey,
+  getDefaultSeriesGroupTitle,
+} from "@guilty-spark/shared/individual-tracker/series-grouping";
 import { aFakeMatchHistoryEntryWith } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
 import { buildSearchTimelineData } from "../build-search-timeline";
 
@@ -97,7 +100,7 @@ describe("buildSearchTimelineData", () => {
     expect(series).toHaveLength(1);
     expect(series[0]?.matchIds).toEqual(["m-2", "m-1"]);
     expect(series[0]?.id).toBe(`series:${buildSeriesGroupKey(["m-1", "m-2"])}`);
-    expect(series[0]?.title).toBe("Series");
+    expect(series[0]?.title).toBe(getDefaultSeriesGroupTitle());
   });
 
   it("keeps the series id stable across pagination even though the member array order can shift", () => {

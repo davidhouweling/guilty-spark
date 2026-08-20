@@ -43,6 +43,7 @@ export class MatchHistoryViewerPresenter {
   private searchResult: TrackerSearchResult | null = null;
   private esra: SearchEsra | null = null;
   private settings: StreamerViewSettings | undefined;
+  private initialPageLoaded = false;
 
   public constructor(config: Config) {
     this.config = config;
@@ -70,6 +71,7 @@ export class MatchHistoryViewerPresenter {
     this.xuid = null;
     this.searchResult = null;
     this.esra = null;
+    this.initialPageLoaded = false;
     this.config.viewerStore.setLoading();
     this.config.viewerStore.setPagination({ hasMore: false, loadingMore: false, loadMoreError: null });
     void this.searchAsync(trimmed, modeVersion);
@@ -132,7 +134,12 @@ export class MatchHistoryViewerPresenter {
         return;
       }
       this.esra = esra;
-      this.refreshView();
+      // The initial page load's own refreshView() already reads this.esra once it completes, so
+      // skip refreshing here if it hasn't yet — otherwise an ESRA response that resolves faster
+      // than the (much heavier) match history fetch would flash an empty "no matches" view.
+      if (this.initialPageLoaded) {
+        this.refreshView();
+      }
     } catch {
       // ESRA is a best-effort highlight — leave it absent on failure.
     }
@@ -159,6 +166,7 @@ export class MatchHistoryViewerPresenter {
       }
 
       this.entries = isInitialPage ? response.matches : [...this.entries, ...response.matches];
+      this.initialPageLoaded = true;
       this.config.viewerStore.setPagination({
         hasMore: response.matches.length >= MATCH_PAGE_SIZE,
         loadingMore: false,
