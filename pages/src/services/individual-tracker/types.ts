@@ -149,7 +149,7 @@ export interface IndividualTrackerService {
   selectActive(trackerId: string): Promise<TrackerResponse>;
   getTrackerStatus(trackerId: string): Promise<TrackerResponse>;
   searchGamertag(query: string): Promise<TrackerSearchResult | null>;
-  getSearchEsra(gamertag: string): Promise<SearchEsra>;
+  getSearchEsra(xuid: string): Promise<SearchEsra>;
   getMatchHistory(
     xuid: string,
     start: number,

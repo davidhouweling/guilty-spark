@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MatchStats } from "halo-infinite-api";
 import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakePlayerWith } from "@guilty-spark/shared/halo/fakes/data";
+import { buildSeriesGroupKey } from "@guilty-spark/shared/individual-tracker/series-grouping";
 import { aFakeMatchHistoryEntryWith } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
 import { buildSearchTimelineData } from "../build-search-timeline";
 
@@ -70,7 +71,7 @@ describe("buildSearchTimelineData", () => {
     expect(matches.map((match) => match.matchId)).toEqual(["m-older", "m-newer"]);
   });
 
-  it("groups consecutive custom matches sharing a roster signature into a series, oldest match as anchor", () => {
+  it("groups consecutive custom matches sharing a roster signature into a series with a stable, member-set-derived id", () => {
     // aRawMatchStatsWith always builds a single-player roster (the tracked xuid on team 0), so
     // any two matches built this way share the same buildTeamRosterSignature() output.
     const matchA = aRawMatchStatsWith("m-1", { Kills: 10, Deaths: 5 });
@@ -95,8 +96,52 @@ describe("buildSearchTimelineData", () => {
 
     expect(series).toHaveLength(1);
     expect(series[0]?.matchIds).toEqual(["m-2", "m-1"]);
-    expect(series[0]?.id).toBe("m-2");
+    expect(series[0]?.id).toBe(`series:${buildSeriesGroupKey(["m-1", "m-2"])}`);
     expect(series[0]?.title).toBe("Series");
+  });
+
+  it("keeps the series id stable across pagination even though the member array order can shift", () => {
+    // buildSeriesGroupKey normalizes/sorts the member ids, so the id doesn't depend on which
+    // match happens to sort first — unlike using matchIds[0] as the id, which would change
+    // whenever a newly-loaded older page inserts a match ahead of the existing anchor.
+    const matchA = aRawMatchStatsWith("m-1");
+    const matchB = aRawMatchStatsWith("m-2");
+    const firstPageOrder = buildSearchTimelineData(
+      [
+        aFakeMatchHistoryEntryWith({
+          matchId: "m-1",
+          isMatchmaking: false,
+          startTimeIso: "2026-01-01T00:20:00.000Z",
+          rawMatchStats: matchA,
+        }),
+        aFakeMatchHistoryEntryWith({
+          matchId: "m-2",
+          isMatchmaking: false,
+          startTimeIso: "2026-01-01T00:00:00.000Z",
+          rawMatchStats: matchB,
+        }),
+      ],
+      TRACKED_XUID,
+    );
+    const reorderedAfterLoadMore = buildSearchTimelineData(
+      [
+        aFakeMatchHistoryEntryWith({
+          matchId: "m-2",
+          isMatchmaking: false,
+          startTimeIso: "2026-01-01T00:00:00.000Z",
+          rawMatchStats: matchB,
+        }),
+        aFakeMatchHistoryEntryWith({
+          matchId: "m-1",
+          isMatchmaking: false,
+          startTimeIso: "2026-01-01T00:20:00.000Z",
+          rawMatchStats: matchA,
+        }),
+      ],
+      TRACKED_XUID,
+    );
+
+    expect(firstPageOrder.series[0]?.id).toBe(reorderedAfterLoadMore.series[0]?.id);
   });
 
   it("does not group matchmaking matches into a series even with matching rosters", () => {

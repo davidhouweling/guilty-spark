@@ -10,7 +10,10 @@ import {
   UNKNOWN_KDA_DISPLAY,
 } from "@guilty-spark/shared/halo/match-enrichment";
 import type { TrackedPlayerSummaryStats } from "@guilty-spark/shared/halo/match-enrichment";
-import { getDefaultSeriesGroupSubtitle } from "@guilty-spark/shared/individual-tracker/series-grouping";
+import {
+  buildSeriesGroupKey,
+  getDefaultSeriesGroupSubtitle,
+} from "@guilty-spark/shared/individual-tracker/series-grouping";
 import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
 
 const SEARCH_SERIES_TITLE = "Series";
@@ -75,7 +78,6 @@ function toTrackerSeriesGroup(
   memberSummaries: readonly TrackerMatchSummary[],
   statsByMatchId: ReadonlyMap<string, TrackedPlayerSummaryStats | null>,
 ): TrackerSeriesGroup {
-  const [anchor] = memberEntries;
   const wins = memberEntries.filter((entry) => entry.outcome === "Win").length;
   const losses = memberEntries.filter((entry) => entry.outcome === "Loss").length;
   const seriesStats = computeSeriesSummaryStats(
@@ -91,9 +93,14 @@ function toTrackerSeriesGroup(
     }),
   );
 
+  const matchIds = memberEntries.map((entry) => entry.matchId);
+
   return {
-    id: anchor.matchId,
-    matchIds: memberEntries.map((entry) => entry.matchId),
+    // A stable identity derived from the full member set (matching the tracker DO's own series id
+    // scheme) rather than the first matchId, so pagination re-sorting the accumulated match list
+    // doesn't orphan an already-expanded series under a new key purely because array order shifted.
+    id: `series:${buildSeriesGroupKey(matchIds)}`,
+    matchIds,
     matchBackgroundUrls: memberEntries.map((entry) => entry.mapThumbnailUrl),
     score: `${wins.toString()}:${losses.toString()}`,
     killsDeathsAssistsKda: seriesStats.killsDeathsAssistsKda,

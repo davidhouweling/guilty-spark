@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { defineContract } from "../base";
 
-export const searchEsraParamsSchema = z.object({ gamertag: z.string().min(1) });
+export const searchEsraParamsSchema = z.object({ xuid: z.string().min(1) });
 export type SearchEsraParams = z.infer<typeof searchEsraParamsSchema>;
 
 export const searchEsraSchema = z.object({

@@ -24,11 +24,6 @@ import { computeSearchStatsHighlights } from "./compute-search-highlights";
 
 const MATCH_PAGE_SIZE = 25;
 
-export interface MatchHistoryPagination {
-  readonly hasMore: boolean;
-  readonly loadingMore: boolean;
-}
-
 interface Config {
   readonly individualTrackerService: IndividualTrackerService;
   readonly individualTrackerSettingsService: IndividualTrackerSettingsService;
@@ -36,7 +31,6 @@ interface Config {
   readonly seriesMatchesService: SeriesMatchesService;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly viewerStore: IndividualTrackerViewerStore;
-  readonly onPaginationChange: (pagination: MatchHistoryPagination) => void;
 }
 
 export class MatchHistoryViewerPresenter {
@@ -49,8 +43,6 @@ export class MatchHistoryViewerPresenter {
   private searchResult: TrackerSearchResult | null = null;
   private esra: SearchEsra | null = null;
   private settings: StreamerViewSettings | undefined;
-  private hasMore = false;
-  private loadingMore = false;
 
   public constructor(config: Config) {
     this.config = config;
@@ -79,7 +71,7 @@ export class MatchHistoryViewerPresenter {
     this.searchResult = null;
     this.esra = null;
     this.config.viewerStore.setLoading();
-    this.emitPagination({ hasMore: false, loadingMore: false });
+    this.config.viewerStore.setPagination({ hasMore: false, loadingMore: false, loadMoreError: null });
     void this.searchAsync(trimmed, modeVersion);
   }
 
@@ -94,12 +86,6 @@ export class MatchHistoryViewerPresenter {
 
   private isStale(modeVersion: number): boolean {
     return this.isDisposed || modeVersion !== this.modeVersion;
-  }
-
-  private emitPagination(pagination: Partial<MatchHistoryPagination>): void {
-    this.hasMore = pagination.hasMore ?? this.hasMore;
-    this.loadingMore = pagination.loadingMore ?? this.loadingMore;
-    this.config.onPaginationChange({ hasMore: this.hasMore, loadingMore: this.loadingMore });
   }
 
   private async searchAsync(gamertag: string, modeVersion: number): Promise<void> {
@@ -121,7 +107,7 @@ export class MatchHistoryViewerPresenter {
       this.xuid = result.xuid;
       this.settings = settings;
 
-      void this.loadEsraAsync(result.gamertag, modeVersion);
+      void this.loadEsraAsync(result.xuid, modeVersion);
       await this.loadPage(0, modeVersion, true);
     } catch (error) {
       if (this.isStale(modeVersion)) {
@@ -139,9 +125,9 @@ export class MatchHistoryViewerPresenter {
     }
   }
 
-  private async loadEsraAsync(gamertag: string, modeVersion: number): Promise<void> {
+  private async loadEsraAsync(xuid: string, modeVersion: number): Promise<void> {
     try {
-      const esra = await this.config.individualTrackerService.getSearchEsra(gamertag);
+      const esra = await this.config.individualTrackerService.getSearchEsra(xuid);
       if (this.isStale(modeVersion)) {
         return;
       }
@@ -153,11 +139,11 @@ export class MatchHistoryViewerPresenter {
   }
 
   private async loadMoreAsync(): Promise<void> {
-    if (this.xuid == null) {
+    if (this.xuid == null || this.config.viewerStore.getSnapshot().loadingMore) {
       return;
     }
     const { modeVersion } = this;
-    this.emitPagination({ loadingMore: true });
+    this.config.viewerStore.setPagination({ loadingMore: true, loadMoreError: null });
     await this.loadPage(this.entries.length, modeVersion, false);
   }
 
@@ -173,19 +159,22 @@ export class MatchHistoryViewerPresenter {
       }
 
       this.entries = isInitialPage ? response.matches : [...this.entries, ...response.matches];
-      this.emitPagination({
+      this.config.viewerStore.setPagination({
         hasMore: response.matches.length >= MATCH_PAGE_SIZE,
         loadingMore: false,
+        loadMoreError: null,
       });
       this.refreshView();
     } catch (error) {
       if (this.isStale(modeVersion)) {
         return;
       }
-      this.emitPagination({ loadingMore: false });
+      const message = error instanceof Error ? error.message : "Failed to load match history.";
       if (isInitialPage) {
-        this.config.viewerStore.setError(error instanceof Error ? error.message : "Failed to load match history.");
+        this.config.viewerStore.setError(message);
+        return;
       }
+      this.config.viewerStore.setPagination({ loadingMore: false, loadMoreError: message });
     }
   }
 

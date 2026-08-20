@@ -389,7 +389,7 @@ function formatStatsHighlightOption(option: IndividualStatsHighlightOption, ctx:
       return `${lifeDisplay} (${dmgPerLife})`;
     }
     default: {
-      return null;
+      throw new UnreachableError(option);
     }
   }
 }

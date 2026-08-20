@@ -10,18 +10,7 @@ import type { HaloService } from "../../services/halo/halo";
 import { requireSession } from "../base/require-session";
 import type { RoutesRegisterHandler } from "../base/types";
 
-async function resolveSearchEsra(
-  haloService: HaloService,
-  logService: LogService,
-  gamertag: string,
-): Promise<SearchEsra> {
-  let xuid: string;
-  try {
-    ({ xuid } = await haloService.getUserByGamertag(gamertag));
-  } catch {
-    return { esra: null, lastRankedGamePlayed: null };
-  }
-
+async function resolveSearchEsra(haloService: HaloService, logService: LogService, xuid: string): Promise<SearchEsra> {
   try {
     const esraData = await haloService.getPlayerEsra(xuid);
     return { esra: esraData.esra, lastRankedGamePlayed: esraData.lastRankedGamePlayed };
@@ -38,7 +27,7 @@ async function resolveSearchEsra(
 }
 
 export const trackerSearchRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
-  router.get("/api/individual-tracker/search/:gamertag/esra", async (request, env: Env) => {
+  router.get("/api/individual-tracker/search/:xuid/esra", async (request, env: Env) => {
     const services = installServices({ env });
     const { authService, haloService, logService } = services;
 
@@ -48,12 +37,12 @@ export const trackerSearchRoutesRegisterHandler: RoutesRegisterHandler = (router
         return sessionResult.response;
       }
 
-      const parsedParams = parsePathParams(request.params, searchEsraParamsSchema, "Invalid gamertag");
+      const parsedParams = parsePathParams(request.params, searchEsraParamsSchema, "Invalid xuid");
       if (!parsedParams.success) {
         return parsedParams.response;
       }
 
-      const esra = await resolveSearchEsra(haloService, logService, parsedParams.data.gamertag);
+      const esra = await resolveSearchEsra(haloService, logService, parsedParams.data.xuid);
       return searchEsraContract.toResponse({ esra }, { noStore: true });
     } catch (error) {
       logService.error(error, new Map([["context", "Individual tracker search ESRA error"]]));

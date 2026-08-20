@@ -322,8 +322,8 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     };
   }
 
-  public async getSearchEsra(gamertag: string): Promise<SearchEsra> {
-    const response = await fetch(this.buildUrl(`/api/individual-tracker/search/${encodeURIComponent(gamertag)}/esra`), {
+  public async getSearchEsra(xuid: string): Promise<SearchEsra> {
+    const response = await fetch(this.buildUrl(`/api/individual-tracker/search/${encodeURIComponent(xuid)}/esra`), {
       credentials: "include",
     });
 

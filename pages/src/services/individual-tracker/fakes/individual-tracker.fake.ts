@@ -226,7 +226,7 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public async getSearchEsra(_gamertag: string): Promise<SearchEsra> {
+  public async getSearchEsra(_xuid: string): Promise<SearchEsra> {
     await Promise.resolve();
     return this.searchEsra;
   }

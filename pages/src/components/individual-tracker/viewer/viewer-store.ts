@@ -36,6 +36,11 @@ export interface IndividualTrackerViewerSnapshot {
   readonly refreshPending: boolean;
   readonly expandedEntryKeys: ReadonlySet<string>;
   readonly entryStates: ReadonlyMap<string, ViewerEntryState>;
+  // Only ever set by the match-history search page's presenter — the live tracker page has no
+  // pagination and leaves these at their defaults.
+  readonly hasMore: boolean;
+  readonly loadingMore: boolean;
+  readonly loadMoreError: string | null;
 }
 
 export class IndividualTrackerViewerStore {
@@ -51,6 +56,9 @@ export class IndividualTrackerViewerStore {
       refreshPending: false,
       expandedEntryKeys: new Set<string>(),
       entryStates: new Map<string, ViewerEntryState>(),
+      hasMore: false,
+      loadingMore: false,
+      loadMoreError: null,
     };
   }
 
@@ -98,6 +106,12 @@ export class IndividualTrackerViewerStore {
 
   public setRefreshState(refreshPending: boolean): void {
     this.update({ refreshPending });
+  }
+
+  public setPagination(
+    pagination: Partial<Pick<IndividualTrackerViewerSnapshot, "hasMore" | "loadingMore" | "loadMoreError">>,
+  ): void {
+    this.update(pagination);
   }
 
   public setEntryExpanded(key: string, expanded: boolean): void {

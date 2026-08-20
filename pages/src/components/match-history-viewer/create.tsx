@@ -9,6 +9,7 @@ import type { MatchAnalyticsService } from "../../services/stats/match-analytics
 import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
 import { IndividualTrackerViewer } from "../individual-tracker/viewer/individual-tracker-viewer";
 import { GamertagSearchBox } from "./gamertag-search-box";
+import styles from "./match-history-viewer.module.css";
 import { useMatchHistoryViewer } from "./use-match-history-viewer";
 
 export interface CreateMatchHistoryViewerPageConfig {
@@ -28,7 +29,7 @@ interface MatchHistoryViewerPageInternalProps extends MatchHistoryViewerPageProp
 }
 
 function MatchHistoryViewerPageInternal({ config, gamertag }: MatchHistoryViewerPageInternalProps): React.ReactElement {
-  const { snapshot, model, pagination, onToggleEntry, onLoadMore } = useMatchHistoryViewer({ ...config, gamertag });
+  const { snapshot, model, onToggleEntry, onLoadMore } = useMatchHistoryViewer({ ...config, gamertag });
 
   useEffect(() => {
     const resolvedGamertag = model.renderModel?.gamertag ?? gamertag;
@@ -46,23 +47,26 @@ function MatchHistoryViewerPageInternal({ config, gamertag }: MatchHistoryViewer
           error={<ErrorState message={snapshot.errorMessage ?? "Failed to load match history"} />}
           loaded={
             model.renderModel != null ? (
-              <IndividualTrackerViewer
-                renderModel={model.renderModel}
-                connectionStatus={model.connectionStatus}
-                expandedEntryKeys={model.expandedEntryKeys}
-                entryStates={model.entryStates}
-                canManage={false}
-                refreshPending={false}
-                titleSuffix="Match History"
-                showStatusBadge={false}
-                disableNewEntryTracking={true}
-                hasMore={pagination.hasMore}
-                loadingMore={pagination.loadingMore}
-                onToggleEntry={onToggleEntry}
-                onBackToManage={(): void => undefined}
-                onRefresh={(): void => undefined}
-                onLoadMore={onLoadMore}
-              />
+              <>
+                <IndividualTrackerViewer
+                  renderModel={model.renderModel}
+                  connectionStatus={model.connectionStatus}
+                  expandedEntryKeys={model.expandedEntryKeys}
+                  entryStates={model.entryStates}
+                  canManage={false}
+                  refreshPending={false}
+                  titleSuffix="Match History"
+                  showStatusBadge={false}
+                  disableNewEntryTracking={true}
+                  hasMore={snapshot.hasMore}
+                  loadingMore={snapshot.loadingMore}
+                  onToggleEntry={onToggleEntry}
+                  onBackToManage={(): void => undefined}
+                  onRefresh={(): void => undefined}
+                  onLoadMore={onLoadMore}
+                />
+                {snapshot.loadMoreError != null && <p className={styles.loadMoreError}>{snapshot.loadMoreError}</p>}
+              </>
             ) : (
               <LoadingState />
             )
