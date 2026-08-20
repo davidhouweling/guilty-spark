@@ -4,6 +4,8 @@ import type {
   UpdateTrackerProfileRequest,
 } from "@guilty-spark/shared/contracts/individual-tracker/profile";
 import { trackerProfileContract } from "@guilty-spark/shared/contracts/individual-tracker/profile";
+import { searchEsraContract } from "@guilty-spark/shared/contracts/individual-tracker/search-esra";
+import type { SearchEsra } from "@guilty-spark/shared/contracts/individual-tracker/search-esra";
 import type {
   StartTrackerRequest,
   TrackerResponse,
@@ -311,6 +313,19 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     };
   }
 
+  public async getSearchEsra(gamertag: string): Promise<SearchEsra> {
+    const response = await fetch(this.buildUrl(`/api/individual-tracker/search/${encodeURIComponent(gamertag)}/esra`), {
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      throw await this.readError(response);
+    }
+
+    const { esra } = await searchEsraContract.fromResponse(response);
+    return esra;
+  }
+
   public async getMatchHistory(
     xuid: string,
     start: number,
@@ -381,6 +396,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
           ...(matchmakingPlaylist != null ? { matchmakingPlaylist } : {}),
           category: matchCategory,
           teams: buildTeams(matchStats, xuidToGamertag),
+          rawMatchStats: matchStats,
           mapThumbnailUrl: mapDetails.thumbnailUrl,
         } satisfies TrackerMatchHistoryEntry;
       }),

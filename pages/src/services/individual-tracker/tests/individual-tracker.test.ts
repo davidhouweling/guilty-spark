@@ -3,6 +3,7 @@ import type { Tracker } from "@guilty-spark/shared/contracts/individual-tracker/
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import type { HaloInfiniteClient, PlaylistCsr, PlaylistCsrContainer, ResultContainer } from "halo-infinite-api";
+import { aFakeMatchStatsWith } from "@guilty-spark/shared/halo/fakes/data";
 import { RealIndividualTrackerService } from "../individual-tracker";
 
 function jsonResponse(payload: object, status = 200): Response {
@@ -68,6 +69,10 @@ describe("RealIndividualTrackerService", () => {
       getUser: vi.fn(),
       getPlaylistCsr: vi.fn(),
       getPlayerMatchCount: vi.fn(),
+      getPlayerMatches: vi.fn(),
+      getMatchStats: vi.fn(),
+      getUsers: vi.fn(),
+      getSpecificAssetVersion: vi.fn(),
     } as unknown as HaloInfiniteClient;
     service = new RealIndividualTrackerService({
       apiHost: "https://api.example.com",
@@ -276,6 +281,35 @@ describe("RealIndividualTrackerService", () => {
       expect(result?.rankLabel).toBe("Gold 5");
       expect(result?.matchmadeMatchCount).toBeNull();
       expect(result?.customMatchCount).toBeNull();
+    });
+  });
+
+  describe("getMatchHistory", () => {
+    it("includes the raw match stats on each returned entry", async () => {
+      const matchStats = aFakeMatchStatsWith({ MatchId: "match-1" });
+      const asset = {
+        PublicName: "Test Asset",
+        Files: { Prefix: "https://cdn.example.com/", FileRelativePaths: ["thumbnail.png"] },
+      } as unknown as Awaited<ReturnType<HaloInfiniteClient["getSpecificAssetVersion"]>>;
+
+      vi.mocked(haloInfiniteClient.getPlayerMatches).mockResolvedValueOnce([
+        {
+          MatchId: matchStats.MatchId,
+          LastTeamId: 0,
+          Outcome: 2,
+          Rank: 1,
+          PresentAtEndOfMatch: true,
+          MatchInfo: matchStats.MatchInfo,
+        },
+      ]);
+      vi.mocked(haloInfiniteClient.getMatchStats).mockResolvedValueOnce(matchStats);
+      vi.mocked(haloInfiniteClient.getUsers).mockResolvedValue([]);
+      vi.mocked(haloInfiniteClient.getSpecificAssetVersion).mockResolvedValue(asset);
+
+      const result = await service.getMatchHistory("2533274800000001", 0, 25);
+
+      expect(result.matches).toHaveLength(1);
+      expect(result.matches[0]?.rawMatchStats).toEqual(matchStats);
     });
   });
 

@@ -10,6 +10,7 @@ import type {
   TrackersResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { TrackerLiveView } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import type { SearchEsra } from "@guilty-spark/shared/contracts/individual-tracker/search-esra";
 import type { GameVariantCategory, MatchStats } from "halo-infinite-api";
 
 export interface TrackerSearchResult {
@@ -145,6 +146,7 @@ export interface IndividualTrackerService {
   selectActive(trackerId: string): Promise<TrackerResponse>;
   getTrackerStatus(trackerId: string): Promise<TrackerResponse>;
   searchGamertag(query: string): Promise<TrackerSearchResult | null>;
+  getSearchEsra(gamertag: string): Promise<SearchEsra>;
   getMatchHistory(
     xuid: string,
     start: number,

@@ -40,10 +40,13 @@ import {
   analyzeMatchGroupings,
   buildMatchScore,
   buildTeamRosterSignature,
+  computeSeriesSummaryStats,
+  computeTrackedPlayerSummaryStats,
   getMatchOutcomeLabel,
+  UNKNOWN_DAMAGE_RATIO_DISPLAY,
+  UNKNOWN_KDA_DISPLAY,
 } from "@guilty-spark/shared/halo/match-enrichment";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
-import { formatDamageRatio, formatStatValue } from "@guilty-spark/shared/halo/stat-formatting";
 import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
 import {
   buildSeriesGroupKey,
@@ -146,96 +149,6 @@ const DEFAULT_WEBSOCKET_STATS_HIGHLIGHT_SLOTS = DEFAULT_INDIVIDUAL_STATS_HIGHLIG
   0,
   INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
 );
-
-const UNKNOWN_KDA_DISPLAY = "-:-:- (-)";
-const UNKNOWN_DAMAGE_RATIO_DISPLAY = "-:- (-)";
-const UNKNOWN_SERIES_SUMMARY_DISPLAY = "N/A";
-const STATS_DISPLAY_LOCALE = "en-US";
-
-function computeTrackedPlayerSummaryStats(
-  matchStats: MatchStats,
-  trackedXuid: string,
-): {
-  killsDeathsAssistsKda: string;
-  damageDealtTakenRatio: string;
-  kills?: number;
-  deaths?: number;
-  assists?: number;
-  damageDealt?: number;
-  damageTaken?: number;
-} {
-  const player = matchStats.Players.find((candidate) => getPlayerXuid(candidate) === trackedXuid);
-  const playerTeamStats =
-    player?.PlayerTeamStats.find((teamStats) => teamStats.TeamId === player.LastTeamId) ?? player?.PlayerTeamStats[0];
-  const playerStats = playerTeamStats?.Stats.CoreStats;
-  if (playerStats == null) {
-    return {
-      killsDeathsAssistsKda: UNKNOWN_KDA_DISPLAY,
-      damageDealtTakenRatio: UNKNOWN_DAMAGE_RATIO_DISPLAY,
-    };
-  }
-
-  const kdaValue =
-    playerStats.Deaths === 0
-      ? playerStats.Kills + playerStats.Assists / 3
-      : (playerStats.Kills + playerStats.Assists / 3) / playerStats.Deaths;
-
-  return {
-    killsDeathsAssistsKda: `${formatStatValue(playerStats.Kills, STATS_DISPLAY_LOCALE)}:${formatStatValue(playerStats.Deaths, STATS_DISPLAY_LOCALE)}:${formatStatValue(playerStats.Assists, STATS_DISPLAY_LOCALE)} (${formatStatValue(kdaValue, STATS_DISPLAY_LOCALE)})`,
-    damageDealtTakenRatio: `${formatStatValue(playerStats.DamageDealt, STATS_DISPLAY_LOCALE)}:${formatStatValue(playerStats.DamageTaken, STATS_DISPLAY_LOCALE)} (${formatDamageRatio(playerStats.DamageDealt, playerStats.DamageTaken, STATS_DISPLAY_LOCALE)})`,
-    kills: playerStats.Kills,
-    deaths: playerStats.Deaths,
-    assists: playerStats.Assists,
-    damageDealt: playerStats.DamageDealt,
-    damageTaken: playerStats.DamageTaken,
-  };
-}
-
-function computeSeriesSummaryStats(summaries: readonly IndividualTrackerMatchSummary[]): {
-  killsDeathsAssistsKda: string;
-  damageDealtTakenRatio: string;
-} {
-  if (summaries.length === 0) {
-    return {
-      killsDeathsAssistsKda: UNKNOWN_SERIES_SUMMARY_DISPLAY,
-      damageDealtTakenRatio: UNKNOWN_SERIES_SUMMARY_DISPLAY,
-    };
-  }
-
-  let kills = 0;
-  let deaths = 0;
-  let assists = 0;
-  let damageDealt = 0;
-  let damageTaken = 0;
-
-  for (const summary of summaries) {
-    if (
-      summary.kills == null ||
-      summary.deaths == null ||
-      summary.assists == null ||
-      summary.damageDealt == null ||
-      summary.damageTaken == null
-    ) {
-      return {
-        killsDeathsAssistsKda: UNKNOWN_SERIES_SUMMARY_DISPLAY,
-        damageDealtTakenRatio: UNKNOWN_SERIES_SUMMARY_DISPLAY,
-      };
-    }
-
-    kills += summary.kills;
-    deaths += summary.deaths;
-    assists += summary.assists;
-    damageDealt += summary.damageDealt;
-    damageTaken += summary.damageTaken;
-  }
-
-  const kdaValue = deaths === 0 ? kills + assists / 3 : (kills + assists / 3) / deaths;
-
-  return {
-    killsDeathsAssistsKda: `${formatStatValue(kills, STATS_DISPLAY_LOCALE)}:${formatStatValue(deaths, STATS_DISPLAY_LOCALE)}:${formatStatValue(assists, STATS_DISPLAY_LOCALE)} (${formatStatValue(kdaValue, STATS_DISPLAY_LOCALE)})`,
-    damageDealtTakenRatio: `${formatStatValue(damageDealt, STATS_DISPLAY_LOCALE)}:${formatStatValue(damageTaken, STATS_DISPLAY_LOCALE)} (${formatDamageRatio(damageDealt, damageTaken, STATS_DISPLAY_LOCALE)})`,
-  };
-}
 
 function shouldEnrichSummary(summary: IndividualTrackerMatchSummary): boolean {
   return (
