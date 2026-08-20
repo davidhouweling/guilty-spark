@@ -26,7 +26,7 @@ export function aFakeMatchAnalyticsWith(overrides: Partial<MatchAnalytics> = {})
 }
 
 export function aFakeAnalyticsServiceWith(opts: Partial<AnalyticsServiceOpts> = {}): AnalyticsService {
-  const {databaseService} = opts;
+  const { databaseService } = opts;
   const haloService = opts.haloService ?? aFakeHaloServiceWith();
   const haloFilmService = opts.haloFilmService ?? aFakeHaloFilmServiceWith();
   const logService = opts.logService ?? aFakeLogServiceWith();
