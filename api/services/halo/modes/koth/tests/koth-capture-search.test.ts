@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { KothControlPeriod, KothProgressionEvent } from "../types";
+import type { KothControlPeriod, KothProgressionEvent } from "../../../types";
 import { findBestKothCaptureAssignment } from "../koth-capture-search";
 
 function eventsFromTicks(ticksByTeam: ReadonlyMap<number, readonly number[]>): KothProgressionEvent[] {

@@ -1,5 +1,5 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import type { KothControlPeriod, KothProgressionEvent } from "./types";
+import type { KothControlPeriod, KothProgressionEvent } from "../../types";
 
 const MIN_CAPTURE_TICKS = 5;
 // A capture relocates the hill, so no team can score for the travel time afterwards. Ticks arrive
