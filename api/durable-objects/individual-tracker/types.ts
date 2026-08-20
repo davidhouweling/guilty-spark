@@ -1,5 +1,9 @@
 import type { NormalizedMatchOutcome } from "@guilty-spark/shared/halo/match-enrichment";
 import type { IndividualStatsHighlightOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type {
+  StatsHighlightAccumulatedTotals,
+  StatsHighlightItem as SharedStatsHighlightItem,
+} from "@guilty-spark/shared/individual-tracker/stats-highlights-compute";
 import type { IndividualTrackerStatus } from "../../services/database/types/individual_trackers";
 
 export interface IndividualTrackerState {
@@ -105,30 +109,9 @@ export interface IndividualTrackerSeriesGroup {
   teams?: SeriesTeam[];
 }
 
-export interface AccumulatedPlayerTotals {
-  kills: number;
-  deaths: number;
-  assists: number;
-  headshotKills: number;
-  shotsFired: number;
-  shotsHit: number;
-  damageDealt: number;
-  damageTaken: number;
-  totalLifeSeconds: number;
-  totalSpawns: number;
-  totalLifeSpawns?: number;
-}
+export type AccumulatedPlayerTotals = StatsHighlightAccumulatedTotals;
 
-export interface StatsHighlightItem {
-  label: string;
-  value: string;
-  rankIcon?: {
-    rankTier: string | null;
-    subTier: number | null;
-    measurementMatchesRemaining: number | null;
-    initialMeasurementMatches: number | null;
-  };
-}
+export type StatsHighlightItem = SharedStatsHighlightItem;
 
 export interface PreSeriesPlayerInfo {
   currentRank: number | null;

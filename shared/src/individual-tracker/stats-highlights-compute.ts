@@ -2,6 +2,7 @@ import { compareAsc } from "date-fns";
 import type { PlaylistCsrContainer } from "halo-infinite-api";
 import { getDurationInIsoString, getReadableDuration } from "../halo/duration";
 import { analyzeMatchGroupings } from "../halo/match-enrichment";
+import type { NormalizedMatchOutcome } from "../halo/match-enrichment";
 import { getRankTierFromCsr } from "../halo/rank";
 import { formatDamageRatio, formatStatValue } from "../halo/stat-formatting";
 import { UnreachableError } from "../base/unreachable-error";
@@ -39,7 +40,7 @@ export interface StatsHighlightMatchSummary {
   readonly matchId: string;
   readonly isMatchmaking: boolean;
   readonly teamRosterSignature: string | null;
-  readonly outcome: string;
+  readonly outcome: NormalizedMatchOutcome;
   readonly startTime: string;
 }
 
