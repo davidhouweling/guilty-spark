@@ -89,6 +89,41 @@ describe("ProfileMenu", () => {
     });
   });
 
+  it("links Match History to the user's own gamertag when known", async () => {
+    installWithSession({
+      authenticated: true,
+      userId: "user-123",
+      expiresAt: 4102444800000,
+      xboxGamertag: "Spartan117",
+    });
+
+    const user = userEvent.setup();
+    render(<ProfileMenu apiHost="https://api.example.com" />);
+
+    const trigger = await screen.findByRole("button", { name: "Profile menu" });
+    await user.click(trigger);
+
+    const matchHistoryLink = await screen.findByRole("link", { name: "Match History" });
+    expect(matchHistoryLink).toHaveAttribute("href", "/matches/Spartan117");
+  });
+
+  it("links Match History to the blank search page when no gamertag is linked", async () => {
+    installWithSession({
+      authenticated: true,
+      userId: "user-123",
+      expiresAt: 4102444800000,
+    });
+
+    const user = userEvent.setup();
+    render(<ProfileMenu apiHost="https://api.example.com" />);
+
+    const trigger = await screen.findByRole("button", { name: "Profile menu" });
+    await user.click(trigger);
+
+    const matchHistoryLink = await screen.findByRole("link", { name: "Match History" });
+    expect(matchHistoryLink).toHaveAttribute("href", "/matches");
+  });
+
   it("shows the generic avatar after avatar image load failure", async () => {
     installWithSession({
       authenticated: true,

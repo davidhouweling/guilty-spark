@@ -37,13 +37,14 @@ interface IndividualTrackerViewerProps {
   readonly entryStates: ReadonlyMap<string, ViewerEntryState>;
   readonly canManage: boolean;
   readonly refreshPending: boolean;
+  readonly titleSuffix?: string;
   readonly showStatusBadge?: boolean;
   readonly hasMore?: boolean;
   readonly loadingMore?: boolean;
   readonly onToggleEntry: (item: ViewerTimelineItem) => void;
   readonly onBackToManage: () => void;
   readonly onRefresh: () => void;
-  readonly onLoadMore?: () => Promise<void>;
+  readonly onLoadMore?: () => void;
 }
 
 function entryKey(item: ViewerTimelineItem): string {
@@ -207,6 +208,7 @@ export function IndividualTrackerViewer({
   entryStates,
   canManage,
   refreshPending,
+  titleSuffix = "Tracker",
   showStatusBadge = true,
   hasMore,
   loadingMore,
@@ -300,7 +302,7 @@ export function IndividualTrackerViewer({
       <Container>
         <div className={styles.header}>
           <Heading tagName="h1" styleAs="h3" variant="display">
-            {renderModel.gamertag} Tracker
+            {renderModel.gamertag} {titleSuffix}
           </Heading>
           {showStatusBadge && (
             <div className={styles.badges}>
@@ -538,7 +540,7 @@ export function IndividualTrackerViewer({
               loading={loadingMore}
               disabled={loadingMore}
               onClick={() => {
-                void onLoadMore?.();
+                onLoadMore?.();
               }}
             >
               Load more

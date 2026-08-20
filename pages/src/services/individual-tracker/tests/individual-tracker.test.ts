@@ -230,7 +230,8 @@ describe("RealIndividualTrackerService", () => {
         gamertag: "Master Chief",
         xuid: "2533274800000001",
       } as unknown as Awaited<ReturnType<HaloInfiniteClient["getUser"]>>);
-      vi.mocked(haloInfiniteClient.getPlaylistCsr).mockResolvedValueOnce(aFakeCsrResult(aFakePlaylistCsrContainer()));
+      const csrContainer = aFakePlaylistCsrContainer();
+      vi.mocked(haloInfiniteClient.getPlaylistCsr).mockResolvedValueOnce(aFakeCsrResult(csrContainer));
       vi.mocked(haloInfiniteClient.getPlayerMatchCount).mockResolvedValueOnce({
         MatchmadeMatchesPlayedCount: 50,
         CustomMatchesPlayedCount: 5,
@@ -245,6 +246,7 @@ describe("RealIndividualTrackerService", () => {
       expect(result?.csrLabel).toBe("1200");
       expect(result?.matchmadeMatchCount).toBe(50);
       expect(result?.customMatchCount).toBe(5);
+      expect(result?.rawCsrContainer).toEqual(csrContainer);
     });
 
     it("returns result with null rank fields when CSR call fails", async () => {

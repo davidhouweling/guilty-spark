@@ -503,6 +503,28 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.queryByRole("button", { name: "Refresh" })).not.toBeInTheDocument();
   });
 
+  it("renders a custom title suffix instead of Tracker when provided", () => {
+    const view = aFakeTrackerViewStateWith({ gamertag: "Spartan One" });
+
+    render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage={false}
+        refreshPending={false}
+        titleSuffix="Match History"
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("Spartan One Match History")).toBeInTheDocument();
+    expect(screen.queryByText("Spartan One Tracker")).not.toBeInTheDocument();
+  });
+
   it("hides the status/live badges when showStatusBadge is false", () => {
     const view = aFakeTrackerViewStateWith({ gamertag: "Spartan One", isLive: true });
 
@@ -529,7 +551,7 @@ describe("IndividualTrackerViewer", () => {
     const view = aFakeTrackerViewStateWith({
       matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })],
     });
-    const onLoadMore = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const onLoadMore = vi.fn<() => void>();
     const user = userEvent.setup();
 
     render(

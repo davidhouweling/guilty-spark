@@ -1,0 +1,13 @@
+.searchRow {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: 1fr;
+  margin-bottom: var(--space-4);
+}
+
+@media (--tablet-viewport) {
+  .searchRow {
+    align-items: end;
+    grid-template-columns: minmax(0, 20rem) auto;
+  }
+}

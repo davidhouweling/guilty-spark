@@ -25,7 +25,13 @@ import {
 } from "@guilty-spark/shared/halo/match-enrichment";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
-import type { HaloInfiniteClient, MapAsset, MatchStats, UgcGameVariantAsset } from "halo-infinite-api";
+import type {
+  HaloInfiniteClient,
+  MapAsset,
+  MatchStats,
+  PlaylistCsrContainer,
+  UgcGameVariantAsset,
+} from "halo-infinite-api";
 import { AssetKind, MatchType } from "halo-infinite-api";
 import {
   buildMatchResultString,
@@ -260,6 +266,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     let seasonPeakRankSubTier: number | null = null;
     let matchmadeMatchCount: number | null = null;
     let customMatchCount: number | null = null;
+    let rawCsrContainer: PlaylistCsrContainer | null = null;
 
     const [rankedArenaCsrs, matchCounts] = await Promise.allSettled([
       this.haloInfiniteClient.getPlaylistCsr(RANKED_ARENA_PLAYLIST_ID, [userResult.xuid]),
@@ -268,6 +275,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
 
     if (rankedArenaCsrs.status === "fulfilled") {
       const [{ Result }] = rankedArenaCsrs.value;
+      rawCsrContainer = Result;
       const labels = getRankAndCsrLabels(Result);
       const current = Result.Current;
       const allTimeMax = Result.AllTimeMax;
@@ -310,6 +318,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
       seasonPeakRankSubTier,
       matchmadeMatchCount,
       customMatchCount,
+      rawCsrContainer,
     };
   }
 
