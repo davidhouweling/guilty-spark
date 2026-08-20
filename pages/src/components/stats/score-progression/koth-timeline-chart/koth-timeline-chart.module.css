@@ -1,0 +1,16 @@
+.tooltip {
+  padding: 8px 12px;
+}
+
+.tooltipHill {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.tooltipTeam {
+  color: var(--team-color);
+}
+
+.tooltipUnoccupied {
+  color: rgb(255 255 255 / 40%);
+}

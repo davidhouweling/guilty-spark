@@ -1,3 +1,4 @@
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type {
   KillRaceDeathEvent,
   KillRaceEvent,
@@ -6,6 +7,7 @@ import type {
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
+import { buildKothHills } from "./modes/koth/koth-view-model";
 import type {
   PlayerAdvantageData,
   ScoreDeltaData,
@@ -120,29 +122,18 @@ function buildPlayerAdvantage(
   return { points, minScore, maxScore };
 }
 
-export function formatScoreProgression(
-  scoreProgression: MatchAnalytics["scoreProgression"],
-  teamColors: readonly TeamColor[],
-  teamSize: number | null = null,
-): ScoreProgressionViewData | null {
-  if (scoreProgression === null || scoreProgression.timeline.events.length === 0) {
-    return null;
-  }
-
-  const { durationMs, timeline, respawnDurationMs } = scoreProgression;
-  const { events } = timeline;
-
-  const [firstEvent] = events;
-  const teamIds = Object.keys(firstEvent.runningScores)
-    .map(Number)
-    .sort((a, b) => a - b);
-
+function buildTeamLines(
+  events: readonly KillRaceEvent[],
+  teamIds: readonly number[],
+  teamColorByTeamId: Map<number, string>,
+  durationMs: number,
+): ScoreProgressionTeamLine[] {
   const teamState = new Map(
     teamIds.map((teamId, slotIndex) => [
       teamId,
       {
         name: getTeamName(teamId),
-        color: teamColors[slotIndex]?.hex ?? getTeamColorOrDefault(undefined, slotIndex).hex,
+        color: teamColorByTeamId.get(teamId) ?? getTeamColorOrDefault(undefined, slotIndex).hex,
         prevScore: 0,
         points: [{ timestampMs: 0, score: 0 }] as ScoreProgressionPoint[],
       },
@@ -168,16 +159,56 @@ export function formatScoreProgression(
     state.points.push({ timestampMs: durationMs, score: state.prevScore });
     teamLines.push({ teamId, name: state.name, color: state.color, points: state.points });
   }
+  return teamLines;
+}
 
-  const playerAdvantage =
-    respawnDurationMs != null
-      ? buildPlayerAdvantage(teamIds, timeline.deathTimeline, respawnDurationMs, durationMs, teamSize)
-      : null;
+export function formatScoreProgression(
+  scoreProgression: MatchAnalytics["scoreProgression"],
+  teamColors: readonly TeamColor[],
+  teamSize: number | null = null,
+): ScoreProgressionViewData | null {
+  if (scoreProgression === null || scoreProgression.timeline.events.length === 0) {
+    return null;
+  }
 
-  return {
-    durationMs,
-    teamLines,
-    scoreDelta: buildScoreDelta(teamIds, events, durationMs),
-    playerAdvantage,
-  };
+  const { durationMs, timeline } = scoreProgression;
+  const { events } = timeline;
+
+  const [firstEvent] = events;
+  const teamIds = Object.keys(firstEvent.runningScores)
+    .map(Number)
+    .sort((a, b) => a - b);
+
+  const teamColorByTeamId = new Map(
+    teamIds.map((teamId, slotIndex) => [
+      teamId,
+      teamColors[slotIndex]?.hex ?? getTeamColorOrDefault(undefined, slotIndex).hex,
+    ]),
+  );
+
+  switch (timeline.type) {
+    case "kill-race": {
+      const playerAdvantage =
+        timeline.respawnDurationMs != null
+          ? buildPlayerAdvantage(teamIds, timeline.deathTimeline, timeline.respawnDurationMs, durationMs, teamSize)
+          : null;
+      return {
+        kind: "score-lines",
+        durationMs,
+        teamLines: buildTeamLines(events, teamIds, teamColorByTeamId, durationMs),
+        scoreDelta: buildScoreDelta(teamIds, events, durationMs),
+        playerAdvantage,
+      };
+    }
+    case "koth": {
+      return {
+        kind: "koth",
+        durationMs,
+        hills: buildKothHills(timeline, teamIds, teamColorByTeamId, durationMs),
+      };
+    }
+    default: {
+      throw new UnreachableError(timeline);
+    }
+  }
 }

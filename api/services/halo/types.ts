@@ -217,6 +217,31 @@ export interface KillRaceProgression {
   teamCount: number;
 }
 
+export interface StateByte2Transition {
+  timeMs: number;
+  fromValue: number;
+  toValue: number;
+}
+
+export interface KothProgressionEvent {
+  timestampMs: number;
+  teamId: number;
+  runningScores: Record<string, number>;
+}
+
+export interface KothControlPeriod {
+  startMs: number;
+  endMs: number;
+  controllingTeamId: number | null;
+}
+
+export interface KothProgression {
+  events: KothProgressionEvent[];
+  controlPeriods: KothControlPeriod[];
+  hillCaptureTimestamps: number[];
+  teamCount: number;
+}
+
 export interface HaloFilmServiceOpts {
   env: Env;
   spartanTokenProvider: SpartanTokenProvider;

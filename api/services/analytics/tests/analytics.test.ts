@@ -105,10 +105,13 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     expect(results["match-1"]?.scoreProgression?.mode).toBe(GameVariantCategory.MultiplayerSlayer);
     expect(results["match-1"]?.scoreProgression?.durationMs).toBe(525500);
     expect(results["match-1"]?.scoreProgression?.teamCount).toBe(2);
-    expect(results["match-1"]?.scoreProgression?.respawnDurationMs).toBe(8000);
-    expect(results["match-1"]?.scoreProgression?.timeline.type).toBe("kill-race");
-    expect(results["match-1"]?.scoreProgression?.timeline.events).toHaveLength(1);
-    expect(results["match-1"]?.scoreProgression?.timeline.deathTimeline).toEqual([{ timestampMs: 5100, teamId: 1 }]);
+    const timeline = results["match-1"]?.scoreProgression?.timeline;
+    expect(timeline?.type).toBe("kill-race");
+    expect(timeline?.events).toHaveLength(1);
+    expect(timeline?.type === "kill-race" ? timeline.respawnDurationMs : undefined).toBe(8000);
+    expect(timeline?.type === "kill-race" ? timeline.deathTimeline : undefined).toEqual([
+      { timestampMs: 5100, teamId: 1 },
+    ]);
   });
 
   it("returns scoreProgression null when scoreProgression module is requested but match has no teams", async () => {
@@ -186,6 +189,35 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
 
     expect(results["match-1"]?.scoreProgression).toBeNull();
     expect(buildKillRaceProgressionSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns scoreProgression with koth timeline for KOTH when scoreProgression is requested", async () => {
+    const env = aFakeEnvWith();
+    const haloService = aFakeHaloServiceWith({ env });
+    const haloFilmService = aFakeHaloFilmServiceWith({ env });
+    const logService = aFakeLogServiceWith();
+    const matchStats = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([matchStats]);
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+    vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
+      entries: [],
+      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+      perfectCounts: { total: 0, byXuid: {} },
+    });
+    vi.spyOn(haloFilmService, "buildKothProgression").mockResolvedValue({
+      events: [{ timestampMs: 100000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+      controlPeriods: [{ startMs: 0, endMs: 732278, controllingTeamId: 0 }],
+      hillCaptureTimestamps: [100000],
+      teamCount: 2,
+    });
+
+    const service = new AnalyticsService({ haloService, haloFilmService, logService });
+    const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
+
+    expect(results["match-1"]?.scoreProgression).not.toBeNull();
+    const timeline = results["match-1"]?.scoreProgression?.timeline;
+    expect(timeline?.type).toBe("koth");
+    expect(timeline?.type === "koth" ? timeline.hillCaptureTimestamps : undefined).toEqual([100000]);
   });
 
   it("returns scoreProgression null for unsupported game modes when scoreProgression is requested", async () => {

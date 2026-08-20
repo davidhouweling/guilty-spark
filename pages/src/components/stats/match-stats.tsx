@@ -286,10 +286,7 @@ export function MatchStats({
                   content:
                     scoreProgressionViewData != null ? (
                       <ScoreProgressionComponent
-                        durationMs={scoreProgressionViewData.durationMs}
-                        teamLines={scoreProgressionViewData.teamLines}
-                        scoreDelta={scoreProgressionViewData.scoreDelta}
-                        playerAdvantage={scoreProgressionViewData.playerAdvantage}
+                        viewData={scoreProgressionViewData}
                         ariaLabel="Match score progression timeline"
                       />
                     ) : (

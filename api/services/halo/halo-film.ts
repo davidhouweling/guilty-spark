@@ -3,7 +3,7 @@ import type { MatchStats, SpartanTokenProvider } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { wrapXuid, unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { FireEvent } from "./halo-film-type2";
-import { scanFireEvents, scanFormulaAEvents, WeaponAttributor } from "./halo-film-type2";
+import { scanFireEvents, scanFormulaAEvents, scanStateByte2Transitions, WeaponAttributor } from "./halo-film-type2";
 import { weaponIdToHex } from "./weapon-ids";
 import {
   HALO_PC_USER_AGENT,
@@ -20,6 +20,7 @@ import {
   PERFECT_MEDAL_NAME_ID,
   PERFECT_MEDAL_PAIRING_MAX_DELTA_MS,
 } from "./constants";
+import { buildKothProgression } from "./modes/koth/koth-progression";
 import type {
   FilmMetadataResponse,
   ParsedHighlightEvent,
@@ -28,6 +29,8 @@ import type {
   KillRaceDeathEvent,
   KillRaceProgression,
   KillRaceProgressionEvent,
+  KothProgression,
+  StateByte2Transition,
   HaloFilmServiceOpts,
 } from "./types";
 
@@ -151,6 +154,56 @@ export class HaloFilmService {
     return timeline;
   }
 
+  async buildKothProgression(matchStats: MatchStats, durationMs: number): Promise<KothProgression> {
+    const [events, byte2Transitions] = await Promise.all([
+      this.loadEnrichedEventsForMatch(matchStats),
+      this.getStateByte2Transitions(matchStats.MatchId),
+    ]);
+    const modeEvents = events.filter((e) => e.eventType === "mode");
+    return buildKothProgression(modeEvents, byte2Transitions, matchStats, durationMs);
+  }
+
+  async getStateByte2Transitions(matchId: string): Promise<StateByte2Transition[]> {
+    try {
+      const authResolver = this.createAuthResolver();
+      const filmMetadata = await this.getOrFetchFilmMetadata(matchId, authResolver);
+      const chunks = this.findReplicationChunksWithStartMs(filmMetadata);
+      if (chunks.length === 0) {
+        return [];
+      }
+      const perChunkBytes = await Promise.all(
+        chunks.map(async ({ chunk }) =>
+          this.fetchReplicationChunkBytes(matchId, chunk, filmMetadata.BlobStoragePathPrefix, authResolver),
+        ),
+      );
+      // Chunks are scanned in film order so the state byte carries across chunk boundaries —
+      // a transition landing exactly on a boundary is otherwise silently dropped.
+      const transitions: StateByte2Transition[] = [];
+      let carriedValue: number | null = null;
+      for (const [chunkIndex, { chunk, startMs }] of chunks.entries()) {
+        try {
+          const chunkData = new Uint8Array(inflateSync(Preconditions.checkExists(perChunkBytes[chunkIndex])));
+          const scanned = scanStateByte2Transitions(chunkData, startMs, chunk.DurationMilliseconds, carriedValue);
+          transitions.push(...scanned.transitions);
+          carriedValue = scanned.finalValue;
+        } catch {
+          // malformed chunk — keep scanning the rest with the carried state value
+        }
+      }
+      return transitions.sort((a, b) => a.timeMs - b.timeMs);
+    } catch {
+      return [];
+    }
+  }
+
+  private createAuthResolver(): () => Promise<{ spartanToken: string; clearanceToken: string }> {
+    let authPromise: Promise<{ spartanToken: string; clearanceToken: string }> | null = null;
+    return async (): Promise<{ spartanToken: string; clearanceToken: string }> => {
+      authPromise ??= this.resolveAuthContext();
+      return authPromise;
+    };
+  }
+
   async buildKillMatrixAnalytics(matchStats: MatchStats): Promise<KillMatrixAnalytics> {
     const events = await this.loadEnrichedEventsForMatch(matchStats);
 
@@ -194,11 +247,7 @@ export class HaloFilmService {
 
   private async tryBuildFilmAttributionData(matchStats: MatchStats): Promise<FilmAttributionData | null> {
     try {
-      let authPromise: Promise<{ spartanToken: string; clearanceToken: string }> | null = null;
-      const authResolver = async (): Promise<{ spartanToken: string; clearanceToken: string }> => {
-        authPromise ??= this.resolveAuthContext();
-        return authPromise;
-      };
+      const authResolver = this.createAuthResolver();
       const filmMetadata = await this.getOrFetchFilmMetadata(matchStats.MatchId, authResolver);
       const scanResult = await this.scanAllReplicationChunks(matchStats.MatchId, filmMetadata, authResolver);
       if (scanResult == null) {

@@ -1,4 +1,5 @@
 import { GameVariantCategory } from "halo-infinite-api";
+import type { MatchStats } from "halo-infinite-api";
 import type {
   AnalyticsModule,
   MatchAnalytics,
@@ -62,32 +63,23 @@ export class AnalyticsService {
     const matchStats = Preconditions.checkExists((await this.haloService.getMatchDetails([matchId]))[0]);
     const killMatrixAnalytics = await this.buildKillMatrixAnalyticsWithRetries(matchStats);
     await this.persistKillMatrixEntries(matchStats.MatchId, killMatrixAnalytics.entries);
-
-    let scoreProgression: MatchAnalytics["scoreProgression"] = null;
-    if (modules.includes("scoreProgression")) {
-      const mode = matchStats.MatchInfo.GameVariantCategory;
-      if (KILL_RACE_GAME_MODES.has(mode) && matchStats.Teams.length > 0) {
-        const progression = await this.haloFilmService.buildKillRaceProgression(matchStats);
-        scoreProgression = {
-          mode,
-          durationMs: Math.round(getDurationInSeconds(matchStats.MatchInfo.Duration) * 1000),
-          teamCount: progression.teamCount,
-          respawnDurationMs: KILL_RACE_RESPAWN_DURATION_MS[mode] ?? null,
-          timeline: { type: "kill-race", events: progression.events, deathTimeline: progression.deathTimeline },
-        };
-      }
-    }
+    // Sequential on purpose: the kill-matrix pass warms the film metadata/chunk caches that the
+    // score-progression pass reads — running them concurrently duplicates the film fetch and
+    // inflate work on a cold cache instead of sharing it.
+    const scoreProgression = modules.includes("scoreProgression")
+      ? await this.buildScoreProgressionAnalytics(matchStats)
+      : null;
 
     const requestedModules: AnalyticsModule[] = modules.includes("killMatrix") ? modules : ["killMatrix", ...modules];
 
     return {
       requestedModules,
       killMatrix: toContractKillMatrix(killMatrixAnalytics.entries),
+      scoreProgression,
       metadata: {
         pairingQuality: killMatrixAnalytics.pairingQuality,
         perfectCounts: killMatrixAnalytics.perfectCounts,
       },
-      scoreProgression,
     };
   }
 
@@ -150,6 +142,44 @@ export class AnalyticsService {
         ]),
       );
     }
+  }
+
+  private async buildScoreProgressionAnalytics(matchStats: MatchStats): Promise<MatchAnalytics["scoreProgression"]> {
+    const mode = matchStats.MatchInfo.GameVariantCategory;
+    const durationMs = Math.round(getDurationInSeconds(matchStats.MatchInfo.Duration) * 1000);
+    if (matchStats.Teams.length === 0) {
+      return null;
+    }
+    if (KILL_RACE_GAME_MODES.has(mode)) {
+      const progression = await this.haloFilmService.buildKillRaceProgression(matchStats);
+      return {
+        mode,
+        durationMs,
+        teamCount: progression.teamCount,
+        timeline: {
+          type: "kill-race",
+          events: progression.events,
+          deathTimeline: progression.deathTimeline,
+          respawnDurationMs: KILL_RACE_RESPAWN_DURATION_MS[mode] ?? null,
+        },
+      };
+    }
+    // Each objective mode gets its own timeline variant and builder; new modes add a branch here.
+    if (mode === GameVariantCategory.MultiplayerKingOfTheHill) {
+      const progression = await this.haloFilmService.buildKothProgression(matchStats, durationMs);
+      return {
+        mode,
+        durationMs,
+        teamCount: progression.teamCount,
+        timeline: {
+          type: "koth",
+          events: progression.events,
+          controlPeriods: progression.controlPeriods,
+          hillCaptureTimestamps: progression.hillCaptureTimestamps,
+        },
+      };
+    }
+    return null;
   }
 
   async getBatchMatchAnalytics(
