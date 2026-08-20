@@ -7,11 +7,13 @@ import { getMatchStats } from "../../halo/fakes/data";
 import { aFakeHaloFilmServiceWith } from "../../halo/fakes/halo-film.fake";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
+import { aFakeDatabaseServiceWith } from "../../database/fakes/database.fake";
 import { AnalyticsService } from "../analytics";
 
 describe("AnalyticsService.getBatchMatchAnalytics", () => {
   it("resolves auth once then returns results keyed by matchId", async () => {
     const env = aFakeEnvWith();
+    const databaseService = aFakeDatabaseServiceWith({ env });
     const haloService = aFakeHaloServiceWith({ env });
     const haloFilmService = aFakeHaloFilmServiceWith({ env });
     const logService = aFakeLogServiceWith();
@@ -19,17 +21,21 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([matchStats]);
     vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
-      entries: [],
+      entries: [{ killerXuid: "killer", victimXuid: "victim", count: 2, headshotKills: 0, perfects: 1, weapons: [] }],
       pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
       perfectCounts: { total: 0, byXuid: {} },
     });
 
-    const service = new AnalyticsService({ haloService, haloFilmService, logService });
+    const replaceMatchKillMatrixSpy = vi.spyOn(databaseService, "replaceMatchKillMatrix").mockResolvedValue();
+    const service = new AnalyticsService({ databaseService, haloService, haloFilmService, logService });
     const results = await service.getBatchMatchAnalytics(["match-1", "match-2"], ["killMatrix"]);
 
     expect(warmAuthCacheSpy).toHaveBeenCalledOnce();
     expect(results["match-1"]).not.toBeNull();
     expect(results["match-2"]).not.toBeNull();
+    expect(replaceMatchKillMatrixSpy).toHaveBeenCalledWith("9535b946-f30c-4a43-b852-000000slayer", [
+      expect.objectContaining({ MatchId: "9535b946-f30c-4a43-b852-000000slayer", Count: 2, Perfects: 1 }),
+    ]);
   });
 
   it("returns null for failed matches without affecting successful ones", async () => {

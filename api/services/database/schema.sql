@@ -274,3 +274,19 @@ CREATE INDEX IF NOT EXISTS IdxLeaderboardGamePlayersGuildQueueXuid
     ON LeaderboardGamePlayers (GuildId, QueueChannelId, XboxXuid);
 CREATE INDEX IF NOT EXISTS IdxLeaderboardGamePlayersGuildQueueDiscord
     ON LeaderboardGamePlayers (GuildId, QueueChannelId, DiscordUserId);
+
+CREATE TABLE IF NOT EXISTS MatchKillMatrix (
+    MatchId TEXT NOT NULL,
+    KillerXuid TEXT NOT NULL,
+    VictimXuid TEXT NOT NULL,
+    Count INTEGER NOT NULL CHECK (Count >= 0),
+    Perfects INTEGER NOT NULL DEFAULT 0 CHECK (Perfects >= 0),
+    CreatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
+    PRIMARY KEY (MatchId, KillerXuid, VictimXuid)
+);
+
+CREATE INDEX IF NOT EXISTS IdxMatchKillMatrixKillerXuid
+    ON MatchKillMatrix (KillerXuid);
+CREATE INDEX IF NOT EXISTS IdxMatchKillMatrixVictimXuid
+    ON MatchKillMatrix (VictimXuid);

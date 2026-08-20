@@ -10,11 +10,14 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { HaloService } from "../halo/halo";
 import type { HaloFilmService } from "../halo/halo-film";
 import type { LogService } from "../log/types";
+import type { DatabaseService } from "../database/database";
+import type { MatchKillMatrixRow } from "../database/types/match_kill_matrix";
 
 export interface AnalyticsServiceOpts {
   haloService: HaloService;
   haloFilmService: HaloFilmService;
   logService: LogService;
+  databaseService?: DatabaseService;
 }
 
 // Escalation excluded: only active-weapon kills score, but film events carry no weapon field
@@ -23,6 +26,7 @@ const KILL_RACE_GAME_MODES = new Set([
   GameVariantCategory.MultiplayerFiesta,
   GameVariantCategory.MultiplayerAttrition,
 ]);
+const FILM_EXTRACTION_MAX_ATTEMPTS = 3;
 
 function toContractKillMatrix(
   entries: Awaited<ReturnType<HaloFilmService["buildKillMatrixAnalytics"]>>["entries"],
@@ -45,16 +49,19 @@ export class AnalyticsService {
   private readonly haloService: HaloService;
   private readonly haloFilmService: HaloFilmService;
   private readonly logService: LogService;
+  private readonly databaseService: DatabaseService | undefined;
 
-  constructor({ haloService, haloFilmService, logService }: AnalyticsServiceOpts) {
+  constructor({ haloService, haloFilmService, logService, databaseService }: AnalyticsServiceOpts) {
     this.haloService = haloService;
     this.haloFilmService = haloFilmService;
     this.logService = logService;
+    this.databaseService = databaseService;
   }
 
   private async getMatchAnalytics(matchId: string, modules: AnalyticsModule[]): Promise<MatchAnalytics> {
     const matchStats = Preconditions.checkExists((await this.haloService.getMatchDetails([matchId]))[0]);
-    const killMatrixAnalytics = await this.haloFilmService.buildKillMatrixAnalytics(matchStats);
+    const killMatrixAnalytics = await this.buildKillMatrixAnalyticsWithRetries(matchStats);
+    await this.persistKillMatrixEntries(matchStats.MatchId, killMatrixAnalytics.entries);
 
     let scoreProgression: MatchAnalytics["scoreProgression"] = null;
     if (modules.includes("scoreProgression")) {
@@ -82,6 +89,67 @@ export class AnalyticsService {
       },
       scoreProgression,
     };
+  }
+
+  async persistMatchKillMatrix(matchStats: Parameters<HaloFilmService["buildKillMatrixAnalytics"]>[0]): Promise<void> {
+    const killMatrixAnalytics = await this.buildKillMatrixAnalyticsWithRetries(matchStats);
+    await this.persistKillMatrixEntries(matchStats.MatchId, killMatrixAnalytics.entries);
+  }
+
+  private async buildKillMatrixAnalyticsWithRetries(
+    matchStats: Parameters<HaloFilmService["buildKillMatrixAnalytics"]>[0],
+  ): Promise<Awaited<ReturnType<HaloFilmService["buildKillMatrixAnalytics"]>>> {
+    let lastError: unknown = new Error("Film extraction failed");
+    for (let attempt = 1; attempt <= FILM_EXTRACTION_MAX_ATTEMPTS; attempt += 1) {
+      try {
+        return await this.haloFilmService.buildKillMatrixAnalytics(matchStats);
+      } catch (error) {
+        lastError = error;
+        this.logService.warn(
+          error,
+          new Map([
+            ["matchId", matchStats.MatchId],
+            ["filmAttempt", attempt.toString()],
+          ]),
+        );
+      }
+    }
+
+    throw lastError;
+  }
+
+  private async persistKillMatrixEntries(
+    matchId: string,
+    entries: Awaited<ReturnType<HaloFilmService["buildKillMatrixAnalytics"]>>["entries"],
+  ): Promise<void> {
+    if (this.databaseService == null) {
+      return;
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const rows: MatchKillMatrixRow[] = entries
+      .filter((entry) => entry.killerXuid.length > 0 && entry.victimXuid.length > 0)
+      .map((entry) => ({
+        MatchId: matchId,
+        KillerXuid: entry.killerXuid,
+        VictimXuid: entry.victimXuid,
+        Count: entry.count,
+        Perfects: entry.perfects,
+        CreatedAt: now,
+        UpdatedAt: now,
+      }));
+
+    try {
+      await this.databaseService.replaceMatchKillMatrix(matchId, rows);
+    } catch (error) {
+      this.logService.warn(
+        error,
+        new Map([
+          ["matchId", matchId],
+          ["context", "persist match kill matrix"],
+        ]),
+      );
+    }
   }
 
   async getBatchMatchAnalytics(
