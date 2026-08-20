@@ -55,6 +55,7 @@ function MatchHistoryViewerPageInternal({ config, gamertag }: MatchHistoryViewer
                 refreshPending={false}
                 titleSuffix="Match History"
                 showStatusBadge={false}
+                disableNewEntryTracking={true}
                 hasMore={pagination.hasMore}
                 loadingMore={pagination.loadingMore}
                 onToggleEntry={onToggleEntry}

@@ -58,12 +58,25 @@ describe("buildSearchTimelineData", () => {
     expect(matches[0]?.teamCount).toBe(0);
   });
 
-  it("groups consecutive custom matches sharing a roster signature into a series", () => {
+  it("sorts matches oldest-first regardless of input order, matching the tracker DO's contract", () => {
+    // getMatchHistory() returns newest-first; buildViewerRenderModel expects oldest-first.
+    const entries = [
+      aFakeMatchHistoryEntryWith({ matchId: "m-newer", startTimeIso: "2026-01-01T00:20:00.000Z" }),
+      aFakeMatchHistoryEntryWith({ matchId: "m-older", startTimeIso: "2026-01-01T00:00:00.000Z" }),
+    ];
+
+    const { matches } = buildSearchTimelineData(entries, TRACKED_XUID);
+
+    expect(matches.map((match) => match.matchId)).toEqual(["m-older", "m-newer"]);
+  });
+
+  it("groups consecutive custom matches sharing a roster signature into a series, oldest match as anchor", () => {
     // aRawMatchStatsWith always builds a single-player roster (the tracked xuid on team 0), so
     // any two matches built this way share the same buildTeamRosterSignature() output.
     const matchA = aRawMatchStatsWith("m-1", { Kills: 10, Deaths: 5 });
     const matchB = aRawMatchStatsWith("m-2", { Kills: 8, Deaths: 6 });
     const entries = [
+      // Listed newest-first (as getMatchHistory returns), to prove the function re-sorts.
       aFakeMatchHistoryEntryWith({
         matchId: "m-1",
         isMatchmaking: false,
@@ -81,8 +94,8 @@ describe("buildSearchTimelineData", () => {
     const { series } = buildSearchTimelineData(entries, TRACKED_XUID);
 
     expect(series).toHaveLength(1);
-    expect(series[0]?.matchIds).toEqual(["m-1", "m-2"]);
-    expect(series[0]?.id).toBe("m-1");
+    expect(series[0]?.matchIds).toEqual(["m-2", "m-1"]);
+    expect(series[0]?.id).toBe("m-2");
     expect(series[0]?.title).toBe("Series");
   });
 

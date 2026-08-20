@@ -2,7 +2,7 @@ import type { NormalizedMatchOutcome } from "@guilty-spark/shared/halo/match-enr
 import type { IndividualStatsHighlightOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type {
   StatsHighlightAccumulatedTotals,
-  StatsHighlightItem as SharedStatsHighlightItem,
+  StatsHighlightItem,
 } from "@guilty-spark/shared/individual-tracker/stats-highlights-compute";
 import type { IndividualTrackerStatus } from "../../services/database/types/individual_trackers";
 
@@ -109,10 +109,6 @@ export interface IndividualTrackerSeriesGroup {
   teams?: SeriesTeam[];
 }
 
-export type AccumulatedPlayerTotals = StatsHighlightAccumulatedTotals;
-
-export type StatsHighlightItem = SharedStatsHighlightItem;
-
 export interface PreSeriesPlayerInfo {
   currentRank: number | null;
   currentRankTier: string | null;
@@ -133,7 +129,7 @@ export interface IndividualTrackerInternalState extends IndividualTrackerState {
   matchIds: string[];
   discoveredMatches: Record<string, IndividualTrackerMatchSummary>;
   selectedMatchIds: string[];
-  accumulatedPlayerTotals?: AccumulatedPlayerTotals;
+  accumulatedPlayerTotals?: StatsHighlightAccumulatedTotals;
   accumulatedMatchIds?: string[];
   preSeriesPlayerInfo?: PreSeriesPlayerInfo;
   preSeriesPlayerInfoLatestMatchId?: string | null;

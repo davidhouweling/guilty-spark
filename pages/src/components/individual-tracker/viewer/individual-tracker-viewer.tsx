@@ -39,6 +39,7 @@ interface IndividualTrackerViewerProps {
   readonly refreshPending: boolean;
   readonly titleSuffix?: string;
   readonly showStatusBadge?: boolean;
+  readonly disableNewEntryTracking?: boolean;
   readonly hasMore?: boolean;
   readonly loadingMore?: boolean;
   readonly onToggleEntry: (item: ViewerTimelineItem) => void;
@@ -210,6 +211,7 @@ export function IndividualTrackerViewer({
   refreshPending,
   titleSuffix = "Tracker",
   showStatusBadge = true,
+  disableNewEntryTracking = false,
   hasMore,
   loadingMore,
   onToggleEntry,
@@ -256,7 +258,10 @@ export function IndividualTrackerViewer({
   useEffect(() => {
     const previousLength = lastTimelineLengthRef.current;
     const nextLength = timeline.length;
-    if (nextLength > previousLength) {
+    // Growth here normally means a new match was discovered by the live tracker. On pages that
+    // reuse this component without a live tracker (e.g. paginated match history), any growth is
+    // user-initiated (search, "Load more") and should not trigger the new-entry scroll/banner.
+    if (nextLength > previousLength && !disableNewEntryTracking) {
       const delta = nextLength - previousLength;
       if (nearLatestRef.current) {
         scrollToLatest();
@@ -265,7 +270,7 @@ export function IndividualTrackerViewer({
       }
     }
     lastTimelineLengthRef.current = nextLength;
-  }, [timeline.length, scrollToLatest]);
+  }, [timeline.length, scrollToLatest, disableNewEntryTracking]);
 
   const statusBadge = getViewerStatusBadge(renderModel.status, connectionStatus);
   const canRefresh = statusBadge.tone === "active";

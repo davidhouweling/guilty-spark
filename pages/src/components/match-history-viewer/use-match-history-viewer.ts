@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
@@ -8,9 +8,10 @@ import { IndividualTrackerViewerPresenter } from "../individual-tracker/viewer/v
 import { IndividualTrackerViewerStore } from "../individual-tracker/viewer/viewer-store";
 import type { IndividualTrackerViewerSnapshot } from "../individual-tracker/viewer/viewer-store";
 import type { IndividualTrackerViewerViewModel, ViewerTimelineItem } from "../individual-tracker/viewer/types";
-import { MatchHistoryPaginationStore } from "./match-history-pagination-store";
-import type { MatchHistoryPaginationSnapshot } from "./match-history-pagination-store";
+import type { MatchHistoryPagination } from "./match-history-viewer-presenter";
 import { MatchHistoryViewerPresenter } from "./match-history-viewer-presenter";
+
+const INITIAL_PAGINATION: MatchHistoryPagination = { hasMore: false, loadingMore: false };
 
 interface UseMatchHistoryViewerOpts {
   readonly individualTrackerService: IndividualTrackerService;
@@ -24,7 +25,7 @@ interface UseMatchHistoryViewerOpts {
 export interface MatchHistoryViewerHookResult {
   readonly snapshot: IndividualTrackerViewerSnapshot;
   readonly model: IndividualTrackerViewerViewModel;
-  readonly pagination: MatchHistoryPaginationSnapshot;
+  readonly pagination: MatchHistoryPagination;
   readonly onToggleEntry: (item: ViewerTimelineItem) => void;
   readonly onLoadMore: () => void;
 }
@@ -38,7 +39,7 @@ export function useMatchHistoryViewer({
   gamertag,
 }: UseMatchHistoryViewerOpts): MatchHistoryViewerHookResult {
   const viewerStore = useMemo(() => new IndividualTrackerViewerStore(), []);
-  const paginationStore = useMemo(() => new MatchHistoryPaginationStore(), []);
+  const [pagination, setPagination] = useState<MatchHistoryPagination>(INITIAL_PAGINATION);
 
   const presenter = useMemo(
     () =>
@@ -49,7 +50,7 @@ export function useMatchHistoryViewer({
         seriesMatchesService,
         medalMetadataResolver,
         viewerStore,
-        paginationStore,
+        onPaginationChange: setPagination,
       }),
     [
       individualTrackerService,
@@ -58,7 +59,6 @@ export function useMatchHistoryViewer({
       seriesMatchesService,
       medalMetadataResolver,
       viewerStore,
-      paginationStore,
     ],
   );
 
@@ -80,11 +80,6 @@ export function useMatchHistoryViewer({
     (listener) => viewerStore.subscribe(listener),
     () => viewerStore.getSnapshot(),
     () => viewerStore.getSnapshot(),
-  );
-  const pagination = useSyncExternalStore(
-    (listener) => paginationStore.subscribe(listener),
-    () => paginationStore.getSnapshot(),
-    () => paginationStore.getSnapshot(),
   );
 
   const model = useMemo(() => IndividualTrackerViewerPresenter.present(viewerSnapshot), [viewerSnapshot]);

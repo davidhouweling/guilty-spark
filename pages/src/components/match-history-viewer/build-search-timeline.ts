@@ -1,3 +1,4 @@
+import { compareAsc } from "date-fns";
 import type { TrackerMatchSummary, TrackerSeriesGroup } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import {
   analyzeMatchGroupings,
@@ -8,22 +9,46 @@ import {
   UNKNOWN_DAMAGE_RATIO_DISPLAY,
   UNKNOWN_KDA_DISPLAY,
 } from "@guilty-spark/shared/halo/match-enrichment";
+import type { TrackedPlayerSummaryStats } from "@guilty-spark/shared/halo/match-enrichment";
 import { getDefaultSeriesGroupSubtitle } from "@guilty-spark/shared/individual-tracker/series-grouping";
 import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
 
 const SEARCH_SERIES_TITLE = "Series";
+const UNKNOWN_TRACKED_PLAYER_STATS: TrackedPlayerSummaryStats = {
+  killsDeathsAssistsKda: UNKNOWN_KDA_DISPLAY,
+  damageDealtTakenRatio: UNKNOWN_DAMAGE_RATIO_DISPLAY,
+};
 
 export interface SearchTimelineData {
   readonly matches: readonly TrackerMatchSummary[];
   readonly series: readonly TrackerSeriesGroup[];
 }
 
-function toTrackerMatchSummary(entry: TrackerMatchHistoryEntry, xuid: string): TrackerMatchSummary {
+function matchEntryStartTime(entry: TrackerMatchHistoryEntry): string {
+  return entry.startTimeIso ?? entry.startTime;
+}
+
+// computeTrackedPlayerSummaryStats scans every player in a match's raw stats blob, so it's
+// computed once per match here and threaded through to both the per-match summary and the
+// series aggregate below, instead of being recomputed for each place that needs it.
+function computeStatsByMatchId(
+  entries: readonly TrackerMatchHistoryEntry[],
+  xuid: string,
+): ReadonlyMap<string, TrackedPlayerSummaryStats | null> {
+  return new Map(
+    entries.map((entry) => [
+      entry.matchId,
+      entry.rawMatchStats != null ? computeTrackedPlayerSummaryStats(entry.rawMatchStats, xuid) : null,
+    ]),
+  );
+}
+
+function toTrackerMatchSummary(
+  entry: TrackerMatchHistoryEntry,
+  stats: TrackedPlayerSummaryStats | null,
+): TrackerMatchSummary {
   const { rawMatchStats } = entry;
-  const summaryStats =
-    rawMatchStats != null
-      ? computeTrackedPlayerSummaryStats(rawMatchStats, xuid)
-      : { killsDeathsAssistsKda: UNKNOWN_KDA_DISPLAY, damageDealtTakenRatio: UNKNOWN_DAMAGE_RATIO_DISPLAY };
+  const summaryStats = stats ?? UNKNOWN_TRACKED_PLAYER_STATS;
 
   return {
     matchId: entry.matchId,
@@ -48,14 +73,14 @@ function toTrackerMatchSummary(entry: TrackerMatchHistoryEntry, xuid: string): T
 function toTrackerSeriesGroup(
   memberEntries: readonly TrackerMatchHistoryEntry[],
   memberSummaries: readonly TrackerMatchSummary[],
-  xuid: string,
+  statsByMatchId: ReadonlyMap<string, TrackedPlayerSummaryStats | null>,
 ): TrackerSeriesGroup {
   const [anchor] = memberEntries;
   const wins = memberEntries.filter((entry) => entry.outcome === "Win").length;
   const losses = memberEntries.filter((entry) => entry.outcome === "Loss").length;
   const seriesStats = computeSeriesSummaryStats(
     memberEntries.map((entry) => {
-      const stats = entry.rawMatchStats != null ? computeTrackedPlayerSummaryStats(entry.rawMatchStats, xuid) : null;
+      const stats = statsByMatchId.get(entry.matchId);
       return {
         kills: stats?.kills,
         deaths: stats?.deaths,
@@ -90,10 +115,17 @@ function toTrackerSeriesGroup(
 // produces, but from a plain, newest-first list of search-result match history entries — so the
 // result can be fed into the existing buildViewerRenderModel/IndividualTrackerViewer unchanged.
 export function buildSearchTimelineData(
-  entries: readonly TrackerMatchHistoryEntry[],
+  rawEntries: readonly TrackerMatchHistoryEntry[],
   xuid: string,
 ): SearchTimelineData {
-  const matches = entries.map((entry) => toTrackerMatchSummary(entry, xuid));
+  // getMatchHistory() returns matches newest-first, but the tracker DO (and therefore
+  // buildViewerRenderModel, which this feeds) expects matches/series oldest-first — it anchors
+  // each series on its first matchId and walks the timeline in that same order.
+  const entries = [...rawEntries].sort((a, b) =>
+    compareAsc(new Date(matchEntryStartTime(a)), new Date(matchEntryStartTime(b))),
+  );
+  const statsByMatchId = computeStatsByMatchId(entries, xuid);
+  const matches = entries.map((entry) => toTrackerMatchSummary(entry, statsByMatchId.get(entry.matchId) ?? null));
 
   const groupings = analyzeMatchGroupings(
     entries.map((entry) => ({
@@ -113,7 +145,7 @@ export function buildSearchTimelineData(
     const memberSummaries = matchIds
       .map((matchId) => summariesByMatchId.get(matchId))
       .filter((summary): summary is TrackerMatchSummary => summary != null);
-    return toTrackerSeriesGroup(memberEntries, memberSummaries, xuid);
+    return toTrackerSeriesGroup(memberEntries, memberSummaries, statsByMatchId);
   });
 
   return { matches, series };

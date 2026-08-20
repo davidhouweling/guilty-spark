@@ -76,6 +76,12 @@ export const INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTION_DEFINITIONS: readonly Indiv
 export const INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS: readonly IndividualStatsHighlightOption[] =
   INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTION_DEFINITIONS.map((d) => d.value);
 
+const individualStatsHighlightOptionSet = new Set<string>(INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS);
+
+export function isIndividualStatsHighlightOption(value: string): value is IndividualStatsHighlightOption {
+  return individualStatsHighlightOptionSet.has(value);
+}
+
 export const DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS: readonly IndividualStatsHighlightOption[] = [
   "matches-win-loss",
   "series-win-loss",

@@ -525,6 +525,90 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.queryByText("Spartan One Tracker")).not.toBeInTheDocument();
   });
 
+  it("does not show a 'new entries' banner for timeline growth when disableNewEntryTracking is set", () => {
+    const view = aFakeTrackerViewStateWith({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] });
+
+    const { rerender } = render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage={false}
+        refreshPending={false}
+        disableNewEntryTracking={true}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    Object.defineProperty(window, "scrollY", { value: 300, configurable: true });
+    window.dispatchEvent(new Event("scroll"));
+
+    const grownView = aFakeTrackerViewStateWith({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
+    });
+
+    rerender(
+      <IndividualTrackerViewer
+        renderModel={aModel(grownView)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage={false}
+        refreshPending={false}
+        disableNewEntryTracking={true}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByText(/new\)/)).not.toBeInTheDocument();
+  });
+
+  it("shows a 'new entries' banner for timeline growth by default (live tracker behavior)", () => {
+    const view = aFakeTrackerViewStateWith({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] });
+
+    const { rerender } = render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage={true}
+        refreshPending={false}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    Object.defineProperty(window, "scrollY", { value: 300, configurable: true });
+    window.dispatchEvent(new Event("scroll"));
+
+    const grownView = aFakeTrackerViewStateWith({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
+    });
+
+    rerender(
+      <IndividualTrackerViewer
+        renderModel={aModel(grownView)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage={true}
+        refreshPending={false}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText(/new\)/)).toBeInTheDocument();
+  });
+
   it("hides the status/live badges when showStatusBadge is false", () => {
     const view = aFakeTrackerViewStateWith({ gamertag: "Spartan One", isLive: true });
 

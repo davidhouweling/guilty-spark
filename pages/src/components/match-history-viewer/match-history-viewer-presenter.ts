@@ -1,13 +1,10 @@
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { SearchEsra } from "@guilty-spark/shared/contracts/individual-tracker/search-esra";
-import type {
-  IndividualStatsHighlightOption,
-  StreamerViewSettings,
-} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import {
   DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS,
   INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
-  INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS,
+  isIndividualStatsHighlightOption,
   withStreamerViewSettingsDefaults,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
@@ -24,14 +21,12 @@ import type { IndividualTrackerViewerStore } from "../individual-tracker/viewer/
 import type { ViewerTimelineItem } from "../individual-tracker/viewer/types";
 import { buildSearchTimelineData } from "./build-search-timeline";
 import { computeSearchStatsHighlights } from "./compute-search-highlights";
-import type { MatchHistoryPaginationStore } from "./match-history-pagination-store";
 
 const MATCH_PAGE_SIZE = 25;
 
-const individualStatsHighlightOptionSet = new Set<string>(INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS);
-
-function isIndividualStatsHighlightOption(value: string): value is IndividualStatsHighlightOption {
-  return individualStatsHighlightOptionSet.has(value);
+export interface MatchHistoryPagination {
+  readonly hasMore: boolean;
+  readonly loadingMore: boolean;
 }
 
 interface Config {
@@ -41,7 +36,7 @@ interface Config {
   readonly seriesMatchesService: SeriesMatchesService;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly viewerStore: IndividualTrackerViewerStore;
-  readonly paginationStore: MatchHistoryPaginationStore;
+  readonly onPaginationChange: (pagination: MatchHistoryPagination) => void;
 }
 
 export class MatchHistoryViewerPresenter {
@@ -54,6 +49,8 @@ export class MatchHistoryViewerPresenter {
   private searchResult: TrackerSearchResult | null = null;
   private esra: SearchEsra | null = null;
   private settings: StreamerViewSettings | undefined;
+  private hasMore = false;
+  private loadingMore = false;
 
   public constructor(config: Config) {
     this.config = config;
@@ -82,8 +79,8 @@ export class MatchHistoryViewerPresenter {
     this.searchResult = null;
     this.esra = null;
     this.config.viewerStore.setLoading();
-    this.config.paginationStore.update({ hasMore: false, loadingMore: false });
-    void this.runSearch(trimmed, modeVersion);
+    this.emitPagination({ hasMore: false, loadingMore: false });
+    void this.searchAsync(trimmed, modeVersion);
   }
 
   public loadMore(): void {
@@ -99,7 +96,13 @@ export class MatchHistoryViewerPresenter {
     return this.isDisposed || modeVersion !== this.modeVersion;
   }
 
-  private async runSearch(gamertag: string, modeVersion: number): Promise<void> {
+  private emitPagination(pagination: Partial<MatchHistoryPagination>): void {
+    this.hasMore = pagination.hasMore ?? this.hasMore;
+    this.loadingMore = pagination.loadingMore ?? this.loadingMore;
+    this.config.onPaginationChange({ hasMore: this.hasMore, loadingMore: this.loadingMore });
+  }
+
+  private async searchAsync(gamertag: string, modeVersion: number): Promise<void> {
     try {
       const [result, settings] = await Promise.all([
         this.config.individualTrackerService.searchGamertag(gamertag),
@@ -154,7 +157,7 @@ export class MatchHistoryViewerPresenter {
       return;
     }
     const { modeVersion } = this;
-    this.config.paginationStore.update({ loadingMore: true });
+    this.emitPagination({ loadingMore: true });
     await this.loadPage(this.entries.length, modeVersion, false);
   }
 
@@ -170,7 +173,7 @@ export class MatchHistoryViewerPresenter {
       }
 
       this.entries = isInitialPage ? response.matches : [...this.entries, ...response.matches];
-      this.config.paginationStore.update({
+      this.emitPagination({
         hasMore: response.matches.length >= MATCH_PAGE_SIZE,
         loadingMore: false,
       });
@@ -179,7 +182,7 @@ export class MatchHistoryViewerPresenter {
       if (this.isStale(modeVersion)) {
         return;
       }
-      this.config.paginationStore.update({ loadingMore: false });
+      this.emitPagination({ loadingMore: false });
       if (isInitialPage) {
         this.config.viewerStore.setError(error instanceof Error ? error.message : "Failed to load match history.");
       }

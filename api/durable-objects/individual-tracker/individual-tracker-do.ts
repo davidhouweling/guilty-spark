@@ -61,9 +61,10 @@ import {
   DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS,
   INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
   INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT,
-  INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS,
+  isIndividualStatsHighlightOption,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualStatsHighlightOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { StatsHighlightItem } from "@guilty-spark/shared/individual-tracker/stats-highlights-compute";
 import type { HaloService } from "../../services/halo/halo";
 import type { PlayerEsraData } from "../../services/halo/types";
 import type { JsonAny, LogService } from "../../services/log/types";
@@ -81,7 +82,6 @@ import type {
   ActiveSeries,
   SeriesPlayer,
   SeriesTeam,
-  StatsHighlightItem,
 } from "./types";
 import { accumulatePlayerStats, computeStatsHighlights, getActiveMatchIds } from "./stats-highlights";
 
@@ -99,12 +99,6 @@ const PLAYER_MATCHES_PAGE_SIZE = 25;
 const MAX_MATCHES_TO_FETCH = 100;
 
 const STATE_STORAGE_KEY = "individualTrackerState";
-
-const individualStatsHighlightOptionSet = new Set<string>(INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS);
-
-function isIndividualStatsHighlightOption(value: string): value is IndividualStatsHighlightOption {
-  return individualStatsHighlightOptionSet.has(value);
-}
 
 const statsHighlightSlotsQuerySchema = z.object({
   statsHighlightSlots: z.string().optional(),

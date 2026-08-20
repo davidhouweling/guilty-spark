@@ -3,9 +3,10 @@ import {
   accumulateMatchStatsForPlayer,
   computeStatsHighlightItems,
 } from "@guilty-spark/shared/individual-tracker/stats-highlights-compute";
+import type { StatsHighlightItem } from "@guilty-spark/shared/individual-tracker/stats-highlights-compute";
 import type { IndividualStatsHighlightOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { PlayerEsraData } from "../../services/halo/types";
-import type { IndividualTrackerInternalState, IndividualTrackerMatchSummary, StatsHighlightItem } from "./types";
+import type { IndividualTrackerInternalState, IndividualTrackerMatchSummary } from "./types";
 
 export function getActiveMatchIds(state: IndividualTrackerInternalState): Set<string> {
   return new Set(state.selectedMatchIds);
