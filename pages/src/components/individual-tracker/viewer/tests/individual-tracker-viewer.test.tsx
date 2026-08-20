@@ -2,6 +2,7 @@ import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import {
   aFakeTrackerMatchSummaryWith,
   aFakeTrackerSeriesGroupWith,
@@ -500,5 +501,64 @@ describe("IndividualTrackerViewer", () => {
 
     expect(screen.queryByRole("button", { name: "Back to manager" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Refresh" })).not.toBeInTheDocument();
+  });
+
+  it("hides the status/live badges when showStatusBadge is false", () => {
+    const view = aFakeTrackerViewStateWith({ gamertag: "Spartan One", isLive: true });
+
+    render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage={false}
+        refreshPending={false}
+        showStatusBadge={false}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByText("Active")).not.toBeInTheDocument();
+    expect(screen.queryByText("Live")).not.toBeInTheDocument();
+  });
+
+  it("renders a Load more button when hasMore is true and calls onLoadMore on click", async () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })],
+    });
+    const onLoadMore = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const user = userEvent.setup();
+
+    render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage={false}
+        refreshPending={false}
+        hasMore={true}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    const loadMoreButton = screen.getByRole("button", { name: "Load more" });
+    await user.click(loadMoreButton);
+
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not render a Load more button when hasMore is not set", () => {
+    const view = aFakeTrackerViewStateWith({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] });
+
+    renderViewer(view);
+
+    expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
   });
 });

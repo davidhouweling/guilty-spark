@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PlaylistCsrContainer } from "halo-infinite-api";
-import { computeStatsHighlightItems } from "../stats-highlights-compute";
+import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakePlayerWith } from "../../halo/fakes/data";
+import { accumulateMatchStatsForPlayer, computeStatsHighlightItems } from "../stats-highlights-compute";
 import type { StatsHighlightMatchSummary } from "../stats-highlights-compute";
 
 function aMatchSummaryWith(overrides: Partial<StatsHighlightMatchSummary>): StatsHighlightMatchSummary {
@@ -141,5 +142,120 @@ describe("computeStatsHighlightItems", () => {
         },
       },
     ]);
+  });
+});
+
+describe("accumulateMatchStatsForPlayer", () => {
+  const trackedXuid = "1234567890";
+
+  it("returns undefined when the player did not take part in the match", () => {
+    const matchStats = aFakeMatchStatsWith({ Players: [aFakePlayerWith({ PlayerId: "xuid(9999999999)" })] });
+
+    expect(accumulateMatchStatsForPlayer(undefined, matchStats, trackedXuid)).toBeUndefined();
+  });
+
+  it("accumulates core stats for the tracked player starting from no prior totals", () => {
+    const matchStats = aFakeMatchStatsWith({
+      Players: [
+        aFakePlayerWith({
+          PlayerId: `xuid(${trackedXuid})`,
+          PlayerTeamStats: [
+            {
+              TeamId: 1,
+              Stats: {
+                CoreStats: aFakeCoreStatsWith({
+                  Kills: 10,
+                  Deaths: 5,
+                  Assists: 3,
+                  HeadshotKills: 4,
+                  ShotsFired: 100,
+                  ShotsHit: 52,
+                  DamageDealt: 5000,
+                  DamageTaken: 3000,
+                  Spawns: 5,
+                  AverageLifeDuration: "PT30S",
+                }),
+              },
+            },
+          ],
+        }),
+      ],
+    });
+
+    const totals = accumulateMatchStatsForPlayer(undefined, matchStats, trackedXuid);
+
+    expect(totals).toEqual({
+      kills: 10,
+      deaths: 5,
+      assists: 3,
+      headshotKills: 4,
+      shotsFired: 100,
+      shotsHit: 52,
+      damageDealt: 5000,
+      damageTaken: 3000,
+      totalLifeSeconds: 150,
+      totalSpawns: 5,
+      totalLifeSpawns: 5,
+    });
+  });
+
+  it("adds onto existing totals across multiple matches", () => {
+    const matchStats = aFakeMatchStatsWith({
+      Players: [
+        aFakePlayerWith({
+          PlayerId: `xuid(${trackedXuid})`,
+          PlayerTeamStats: [
+            {
+              TeamId: 1,
+              Stats: {
+                CoreStats: aFakeCoreStatsWith({ Kills: 5, Deaths: 2, Spawns: 3, AverageLifeDuration: "PT10S" }),
+              },
+            },
+          ],
+        }),
+      ],
+    });
+    const priorTotals = {
+      kills: 10,
+      deaths: 5,
+      assists: 3,
+      headshotKills: 4,
+      shotsFired: 100,
+      shotsHit: 52,
+      damageDealt: 5000,
+      damageTaken: 3000,
+      totalLifeSeconds: 150,
+      totalSpawns: 5,
+      totalLifeSpawns: 5,
+    };
+
+    const totals = accumulateMatchStatsForPlayer(priorTotals, matchStats, trackedXuid);
+
+    expect(totals?.kills).toBe(15);
+    expect(totals?.deaths).toBe(7);
+    expect(totals?.totalSpawns).toBe(8);
+    expect(totals?.totalLifeSeconds).toBe(180);
+  });
+
+  it("keeps totalSpawns but skips totalLifeSpawns for a malformed AverageLifeDuration", () => {
+    const matchStats = aFakeMatchStatsWith({
+      Players: [
+        aFakePlayerWith({
+          PlayerId: `xuid(${trackedXuid})`,
+          PlayerTeamStats: [
+            {
+              TeamId: 1,
+              Stats: { CoreStats: aFakeCoreStatsWith({ Spawns: 5, AverageLifeDuration: "NOT_VALID" }) },
+            },
+          ],
+        }),
+      ],
+    });
+
+    const totals = accumulateMatchStatsForPlayer(undefined, matchStats, trackedXuid);
+
+    expect(totals?.totalSpawns).toBe(5);
+    expect(totals?.totalLifeSpawns).toBe(0);
+    expect(totals?.totalLifeSeconds).toBe(0);
   });
 });

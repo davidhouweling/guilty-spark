@@ -108,6 +108,12 @@
   gap: var(--space-3);
 }
 
+.loadMoreRow {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--space-4);
+}
+
 .entry {
   border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
   border-radius: var(--radius-md);

@@ -1,8 +1,9 @@
 import { compareAsc } from "date-fns";
-import type { PlaylistCsrContainer } from "halo-infinite-api";
-import { getDurationInIsoString, getReadableDuration } from "../halo/duration";
+import type { MatchStats, PlaylistCsrContainer } from "halo-infinite-api";
+import { getDurationInIsoString, getDurationInSeconds, getReadableDuration } from "../halo/duration";
 import { analyzeMatchGroupings } from "../halo/match-enrichment";
 import type { NormalizedMatchOutcome } from "../halo/match-enrichment";
+import { getPlayerXuid } from "../halo/match-stats";
 import { getRankTierFromCsr } from "../halo/rank";
 import { formatDamageRatio, formatStatValue } from "../halo/stat-formatting";
 import { UnreachableError } from "../base/unreachable-error";
@@ -46,6 +47,57 @@ export interface StatsHighlightMatchSummary {
 
 export interface StatsHighlightEsraLike {
   readonly esra?: number | null;
+}
+
+// Accumulates one match's core stats for the given player onto a running totals object.
+// Returns undefined when the player didn't take part in this match (nothing to accumulate).
+export function accumulateMatchStatsForPlayer(
+  totals: StatsHighlightAccumulatedTotals | undefined,
+  matchStats: MatchStats,
+  xuid: string,
+): StatsHighlightAccumulatedTotals | undefined {
+  const player = matchStats.Players.find((p) => getPlayerXuid(p) === xuid);
+  if (player == null) {
+    return undefined;
+  }
+
+  const playerStats = player.PlayerTeamStats[0]?.Stats.CoreStats;
+  if (playerStats == null) {
+    return undefined;
+  }
+
+  const next = {
+    kills: 0,
+    deaths: 0,
+    assists: 0,
+    headshotKills: 0,
+    shotsFired: 0,
+    shotsHit: 0,
+    damageDealt: 0,
+    damageTaken: 0,
+    totalLifeSeconds: 0,
+    totalSpawns: 0,
+    totalLifeSpawns: 0,
+    ...totals,
+  };
+
+  next.kills += playerStats.Kills;
+  next.deaths += playerStats.Deaths;
+  next.assists += playerStats.Assists;
+  next.headshotKills += playerStats.HeadshotKills;
+  next.shotsFired += playerStats.ShotsFired;
+  next.shotsHit += playerStats.ShotsHit;
+  next.damageDealt += playerStats.DamageDealt;
+  next.damageTaken += playerStats.DamageTaken;
+  next.totalSpawns += playerStats.Spawns;
+  try {
+    next.totalLifeSeconds += getDurationInSeconds(playerStats.AverageLifeDuration) * playerStats.Spawns;
+    next.totalLifeSpawns += playerStats.Spawns;
+  } catch {
+    // malformed AverageLifeDuration — skip life-seconds for this match
+  }
+
+  return next;
 }
 
 const optionLabelByValue = new Map<IndividualStatsHighlightOption, string>(

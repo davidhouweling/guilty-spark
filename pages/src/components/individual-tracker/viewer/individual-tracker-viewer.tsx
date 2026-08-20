@@ -37,9 +37,13 @@ interface IndividualTrackerViewerProps {
   readonly entryStates: ReadonlyMap<string, ViewerEntryState>;
   readonly canManage: boolean;
   readonly refreshPending: boolean;
+  readonly showStatusBadge?: boolean;
+  readonly hasMore?: boolean;
+  readonly loadingMore?: boolean;
   readonly onToggleEntry: (item: ViewerTimelineItem) => void;
   readonly onBackToManage: () => void;
   readonly onRefresh: () => void;
+  readonly onLoadMore?: () => Promise<void>;
 }
 
 function entryKey(item: ViewerTimelineItem): string {
@@ -203,9 +207,13 @@ export function IndividualTrackerViewer({
   entryStates,
   canManage,
   refreshPending,
+  showStatusBadge = true,
+  hasMore,
+  loadingMore,
   onToggleEntry,
   onBackToManage,
   onRefresh,
+  onLoadMore,
 }: IndividualTrackerViewerProps): React.ReactElement {
   const latestEntryRef = useRef<HTMLDivElement | null>(null);
   const lastTimelineLengthRef = useRef<number>(renderModel.timeline.length);
@@ -294,20 +302,22 @@ export function IndividualTrackerViewer({
           <Heading tagName="h1" styleAs="h3" variant="display">
             {renderModel.gamertag} Tracker
           </Heading>
-          <div className={styles.badges}>
-            <span
-              className={classNames(styles.statusBadge, {
-                [styles.statusActive]: statusBadge.tone === "active",
-                [styles.statusPaused]: statusBadge.tone === "paused",
-                [styles.statusStopped]: statusBadge.tone === "stopped",
-                [styles.statusSyncing]: statusBadge.tone === "syncing",
-                [styles.statusDegraded]: statusBadge.tone === "degraded",
-              })}
-            >
-              {statusBadge.label}
-            </span>
-            {renderModel.isLive && <span className={styles.liveBadge}>Live</span>}
-          </div>
+          {showStatusBadge && (
+            <div className={styles.badges}>
+              <span
+                className={classNames(styles.statusBadge, {
+                  [styles.statusActive]: statusBadge.tone === "active",
+                  [styles.statusPaused]: statusBadge.tone === "paused",
+                  [styles.statusStopped]: statusBadge.tone === "stopped",
+                  [styles.statusSyncing]: statusBadge.tone === "syncing",
+                  [styles.statusDegraded]: statusBadge.tone === "degraded",
+                })}
+              >
+                {statusBadge.label}
+              </span>
+              {renderModel.isLive && <span className={styles.liveBadge}>Live</span>}
+            </div>
+          )}
         </div>
       </Container>
       <section className={styles.matchesSection}>
@@ -519,6 +529,20 @@ export function IndividualTrackerViewer({
                 </div>
               );
             })}
+          </Container>
+        )}
+        {hasMore === true && (
+          <Container mobileDown="0" className={styles.loadMoreRow}>
+            <Button
+              variant="secondary"
+              loading={loadingMore}
+              disabled={loadingMore}
+              onClick={() => {
+                void onLoadMore?.();
+              }}
+            >
+              Load more
+            </Button>
           </Container>
         )}
       </section>
