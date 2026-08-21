@@ -3,6 +3,7 @@ import { installServices } from "./services/install";
 import { createApiRouter } from "./base/router";
 import { Server } from "./server";
 import { StaleNeatQueueConfigCleanup } from "./services/neatqueue/stale-config-cleanup";
+import { LeaderboardDataReaper } from "./services/leaderboard/leaderboard-data-reaper";
 import { LeaderboardPostReaper } from "./services/leaderboard/leaderboard-post-reaper";
 
 // Export Durable Object classes
@@ -54,8 +55,10 @@ export default Sentry.withSentry(
           break;
         }
         case "0 0 * * SUN": {
-          const reaper = new LeaderboardPostReaper({ databaseService, discordService, logService });
-          await reaper.execute();
+          const dataReaper = new LeaderboardDataReaper({ databaseService, logService });
+          const postReaper = new LeaderboardPostReaper({ databaseService, discordService, logService });
+          await dataReaper.execute();
+          await postReaper.execute();
           break;
         }
         default: {
