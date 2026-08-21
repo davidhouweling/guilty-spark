@@ -91,8 +91,14 @@ export class AnalyticsService {
     if (opts.persistKillMatrix === true) {
       try {
         await this.persistKillMatrixEntries(matchStats.MatchId, killMatrixAnalytics.entries);
-      } catch {
-        // Persistence is best-effort in this read path.
+      } catch (error) {
+        this.logService.warn(
+          toError(error),
+          new Map([
+            ["matchId", matchStats.MatchId],
+            ["context", "best-effort kill matrix persistence"],
+          ]),
+        );
       }
     }
     // Sequential on purpose: the kill-matrix pass warms the film metadata/chunk caches that the
