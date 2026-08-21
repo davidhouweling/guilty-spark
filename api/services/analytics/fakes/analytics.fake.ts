@@ -4,6 +4,7 @@ import { aFakeHaloFilmServiceWith } from "../../halo/fakes/halo-film.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import type { AnalyticsServiceOpts } from "../analytics";
 import { AnalyticsService } from "../analytics";
+import { aFakeDatabaseServiceWith } from "../../database/fakes/database.fake";
 
 export function aFakeMatchAnalyticsWith(overrides: Partial<MatchAnalytics> = {}): MatchAnalytics {
   return {
@@ -26,13 +27,13 @@ export function aFakeMatchAnalyticsWith(overrides: Partial<MatchAnalytics> = {})
 }
 
 export function aFakeAnalyticsServiceWith(opts: Partial<AnalyticsServiceOpts> = {}): AnalyticsService {
-  const { databaseService } = opts;
+  const databaseService = opts.databaseService ?? aFakeDatabaseServiceWith();
   const haloService = opts.haloService ?? aFakeHaloServiceWith();
   const haloFilmService = opts.haloFilmService ?? aFakeHaloFilmServiceWith();
   const logService = opts.logService ?? aFakeLogServiceWith();
 
   return new AnalyticsService({
-    ...(databaseService != null ? { databaseService } : {}),
+    databaseService,
     haloService,
     haloFilmService,
     logService,

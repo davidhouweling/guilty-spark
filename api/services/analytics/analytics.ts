@@ -15,10 +15,10 @@ import type { DatabaseService } from "../database/database";
 import type { MatchKillMatrixRow } from "../database/types/match_kill_matrix";
 
 export interface AnalyticsServiceOpts {
+  databaseService: DatabaseService;
   haloService: HaloService;
   haloFilmService: HaloFilmService;
   logService: LogService;
-  databaseService?: DatabaseService;
 }
 
 // Escalation excluded: only active-weapon kills score, but film events carry no weapon field
@@ -47,16 +47,16 @@ function toContractKillMatrix(
 }
 
 export class AnalyticsService {
+  private readonly databaseService: DatabaseService;
   private readonly haloService: HaloService;
   private readonly haloFilmService: HaloFilmService;
   private readonly logService: LogService;
-  private readonly databaseService: DatabaseService | undefined;
 
-  constructor({ haloService, haloFilmService, logService, databaseService }: AnalyticsServiceOpts) {
+  constructor({ databaseService, haloService, haloFilmService, logService }: AnalyticsServiceOpts) {
+    this.databaseService = databaseService;
     this.haloService = haloService;
     this.haloFilmService = haloFilmService;
     this.logService = logService;
-    this.databaseService = databaseService;
   }
 
   private async getMatchAnalytics(matchId: string, modules: AnalyticsModule[]): Promise<MatchAnalytics> {
@@ -114,10 +114,6 @@ export class AnalyticsService {
     matchId: string,
     entries: Awaited<ReturnType<HaloFilmService["buildKillMatrixAnalytics"]>>["entries"],
   ): Promise<void> {
-    if (this.databaseService == null) {
-      return;
-    }
-
     const now = Math.floor(Date.now() / 1000);
     const rows: MatchKillMatrixRow[] = entries
       .filter((entry) => entry.killerXuid.length > 0 && entry.victimXuid.length > 0)

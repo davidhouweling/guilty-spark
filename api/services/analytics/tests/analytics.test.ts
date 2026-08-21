@@ -1,6 +1,6 @@
 import { GameVariantCategory } from "halo-infinite-api";
 import type { MockInstance } from "vitest";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { getMatchStats } from "../../halo/fakes/data";
@@ -8,15 +8,29 @@ import { aFakeHaloFilmServiceWith } from "../../halo/fakes/halo-film.fake";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import { aFakeDatabaseServiceWith } from "../../database/fakes/database.fake";
+import type { DatabaseService } from "../../database/database";
+import type { HaloService } from "../../halo/halo";
+import type { HaloFilmService } from "../../halo/halo-film";
+import type { LogService } from "../../log/types";
 import { AnalyticsService } from "../analytics";
 
 describe("AnalyticsService.getBatchMatchAnalytics", () => {
-  it("resolves auth once then returns results keyed by matchId", async () => {
+  let databaseService: DatabaseService;
+  let haloService: HaloService;
+  let haloFilmService: HaloFilmService;
+  let logService: LogService;
+  let service: AnalyticsService;
+
+  beforeEach(() => {
     const env = aFakeEnvWith();
-    const databaseService = aFakeDatabaseServiceWith({ env });
-    const haloService = aFakeHaloServiceWith({ env });
-    const haloFilmService = aFakeHaloFilmServiceWith({ env });
-    const logService = aFakeLogServiceWith();
+    databaseService = aFakeDatabaseServiceWith({ env });
+    haloService = aFakeHaloServiceWith({ env });
+    haloFilmService = aFakeHaloFilmServiceWith({ env });
+    logService = aFakeLogServiceWith();
+    service = new AnalyticsService({ databaseService, haloService, haloFilmService, logService });
+  });
+
+  it("resolves auth once then returns results keyed by matchId", async () => {
     const warmAuthCacheSpy = vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([matchStats]);
@@ -27,7 +41,6 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     });
 
     const replaceMatchKillMatrixSpy = vi.spyOn(databaseService, "replaceMatchKillMatrix").mockResolvedValue();
-    const service = new AnalyticsService({ databaseService, haloService, haloFilmService, logService });
     const results = await service.getBatchMatchAnalytics(["match-1", "match-2"], ["killMatrix"]);
 
     expect(warmAuthCacheSpy).toHaveBeenCalledOnce();
@@ -39,10 +52,6 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
   });
 
   it("returns null for failed matches without affecting successful ones", async () => {
-    const env = aFakeEnvWith();
-    const haloService = aFakeHaloServiceWith({ env });
-    const haloFilmService = aFakeHaloFilmServiceWith({ env });
-    const logService = aFakeLogServiceWith();
     vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     vi.spyOn(haloService, "getMatchDetails")
@@ -54,7 +63,6 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       perfectCounts: { total: 0, byXuid: {} },
     });
 
-    const service = new AnalyticsService({ haloService, haloFilmService, logService });
     const results = await service.getBatchMatchAnalytics(["match-ok", "match-fail"], ["killMatrix"]);
 
     expect(results["match-ok"]).not.toBeNull();
@@ -62,15 +70,10 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
   });
 
   it("logs a warning and returns null for all matches when auth pre-warm fails", async () => {
-    const env = aFakeEnvWith();
-    const haloService = aFakeHaloServiceWith({ env });
-    const haloFilmService = aFakeHaloFilmServiceWith({ env });
-    const logService = aFakeLogServiceWith();
     const logWarnSpy = vi.spyOn(logService, "warn");
     vi.spyOn(haloFilmService, "warmAuthCache").mockRejectedValue(new Error("auth down"));
     const getMatchDetailsSpy = vi.spyOn(haloService, "getMatchDetails").mockRejectedValue(new Error("auth down"));
 
-    const service = new AnalyticsService({ haloService, haloFilmService, logService });
     const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix"]);
 
     expect(logWarnSpy).toHaveBeenCalledOnce();
@@ -79,10 +82,6 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
   });
 
   it("returns scoreProgression timeline when scoreProgression module is requested for a kill-race mode", async () => {
-    const env = aFakeEnvWith();
-    const haloService = aFakeHaloServiceWith({ env });
-    const haloFilmService = aFakeHaloFilmServiceWith({ env });
-    const logService = aFakeLogServiceWith();
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([matchStats]);
     vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
@@ -97,7 +96,6 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       teamCount: 2,
     });
 
-    const service = new AnalyticsService({ haloService, haloFilmService, logService });
     const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
 
     expect(results["match-1"]?.requestedModules).toContain("killMatrix");
@@ -115,10 +113,6 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
   });
 
   it("returns scoreProgression null when scoreProgression module is requested but match has no teams", async () => {
-    const env = aFakeEnvWith();
-    const haloService = aFakeHaloServiceWith({ env });
-    const haloFilmService = aFakeHaloFilmServiceWith({ env });
-    const logService = aFakeLogServiceWith();
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     const noTeamsMatchStats = { ...matchStats, Teams: [] };
     vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([noTeamsMatchStats]);
@@ -133,7 +127,6 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       "buildKillRaceProgression",
     );
 
-    const service = new AnalyticsService({ haloService, haloFilmService, logService });
     const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
 
     expect(results["match-1"]?.scoreProgression).toBeNull();
@@ -141,10 +134,6 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
   });
 
   it("normalizes requestedModules to always include killMatrix when only scoreProgression is requested", async () => {
-    const env = aFakeEnvWith();
-    const haloService = aFakeHaloServiceWith({ env });
-    const haloFilmService = aFakeHaloFilmServiceWith({ env });
-    const logService = aFakeLogServiceWith();
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([matchStats]);
     vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
@@ -159,7 +148,6 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       teamCount: 2,
     });
 
-    const service = new AnalyticsService({ haloService, haloFilmService, logService });
     const results = await service.getBatchMatchAnalytics(["match-1"], ["scoreProgression"]);
 
     expect(results["match-1"]?.requestedModules).toContain("killMatrix");
@@ -167,10 +155,6 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
   });
 
   it("returns scoreProgression null when scoreProgression module is not requested", async () => {
-    const env = aFakeEnvWith();
-    const haloService = aFakeHaloServiceWith({ env });
-    const haloFilmService = aFakeHaloFilmServiceWith({ env });
-    const logService = aFakeLogServiceWith();
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([matchStats]);
     vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
@@ -184,7 +168,6 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       "buildKillRaceProgression",
     );
 
-    const service = new AnalyticsService({ haloService, haloFilmService, logService });
     const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix"]);
 
     expect(results["match-1"]?.scoreProgression).toBeNull();
@@ -192,10 +175,6 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
   });
 
   it("returns scoreProgression with koth timeline for KOTH when scoreProgression is requested", async () => {
-    const env = aFakeEnvWith();
-    const haloService = aFakeHaloServiceWith({ env });
-    const haloFilmService = aFakeHaloFilmServiceWith({ env });
-    const logService = aFakeLogServiceWith();
     const matchStats = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
     vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([matchStats]);
     vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
@@ -211,7 +190,6 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       teamCount: 2,
     });
 
-    const service = new AnalyticsService({ haloService, haloFilmService, logService });
     const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
 
     expect(results["match-1"]?.scoreProgression).not.toBeNull();
@@ -221,10 +199,6 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
   });
 
   it("returns scoreProgression null for unsupported game modes when scoreProgression is requested", async () => {
-    const env = aFakeEnvWith();
-    const haloService = aFakeHaloServiceWith({ env });
-    const haloFilmService = aFakeHaloFilmServiceWith({ env });
-    const logService = aFakeLogServiceWith();
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     const ctfMatchStats = {
       ...matchStats,
@@ -242,7 +216,6 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       "buildKillRaceProgression",
     );
 
-    const service = new AnalyticsService({ haloService, haloFilmService, logService });
     const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
 
     expect(results["match-1"]?.scoreProgression).toBeNull();
