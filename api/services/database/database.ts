@@ -141,8 +141,37 @@ export class DatabaseService {
   }
 
   async replaceMatchKillMatrix(matchId: string, rows: MatchKillMatrixRow[]): Promise<void> {
-    await this.DB.batch([this.DB.prepare("DELETE FROM MatchKillMatrix WHERE MatchId = ?").bind(matchId)]);
-    await this.upsertMatchKillMatrix(rows);
+    const deleteStmt = this.DB.prepare("DELETE FROM MatchKillMatrix WHERE MatchId = ?").bind(matchId);
+    if (rows.length === 0) {
+      await deleteStmt.run();
+      return;
+    }
+
+    const variablesPerRow = 7;
+    const maxRowsPerStatement = Math.max(1, Math.floor(D1_SAFE_MAX_VARIABLES_PER_STATEMENT / variablesPerRow));
+    const statements: D1PreparedStatement[] = [deleteStmt];
+
+    for (let start = 0; start < rows.length; start += maxRowsPerStatement) {
+      const chunk = rows.slice(start, start + maxRowsPerStatement);
+      const placeholders = chunk.map(() => "(?, ?, ?, ?, ?, ?, ?)").join(",");
+      const query = `
+      INSERT INTO MatchKillMatrix (MatchId, KillerXuid, VictimXuid, Count, Perfects, CreatedAt, UpdatedAt)
+      VALUES ${placeholders}
+      ON CONFLICT(MatchId, KillerXuid, VictimXuid) DO UPDATE SET Count=excluded.Count, Perfects=excluded.Perfects, UpdatedAt=excluded.UpdatedAt
+    `;
+      const values = chunk.flatMap((row) => [
+        matchId,
+        row.KillerXuid,
+        row.VictimXuid,
+        row.Count,
+        row.Perfects,
+        row.CreatedAt,
+        row.UpdatedAt,
+      ]);
+      statements.push(this.DB.prepare(query).bind(...values));
+    }
+
+    await this.DB.batch(statements);
   }
 
   async getMatchKillMatrix(matchId: string): Promise<MatchKillMatrixRow[]> {

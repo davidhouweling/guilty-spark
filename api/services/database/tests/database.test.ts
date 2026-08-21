@@ -20,6 +20,7 @@ import {
   aFakeLeaderboardGamesRow,
   aFakeLeaderboardGamePlayersRow,
   aFakeLeaderboardPostRow,
+  aFakeMatchKillMatrixRow,
 } from "../fakes/database.fake";
 import type { GuildConfigRow } from "../types/guild_config";
 import { StatsReturnType, MapsPostType, MapsPlaylistType, MapsFormatType } from "../types/guild_config";
@@ -1790,6 +1791,49 @@ describe("Database Service", () => {
         game.UpdatedAt,
       );
       expect(batchSpy).toHaveBeenCalledWith([deleteStatement, insertStatement]);
+    });
+
+    describe("replaceMatchKillMatrix()", () => {
+      it("replaces rows atomically using one batch", async () => {
+        const row = aFakeMatchKillMatrixRow();
+        const deleteStatement = new FakePreparedStatement();
+        const insertStatement = new FakePreparedStatement();
+        const prepareSpy = vi.spyOn(env.DB, "prepare");
+        prepareSpy.mockReturnValueOnce(deleteStatement).mockReturnValueOnce(insertStatement);
+        const deleteBindSpy = vi.spyOn(deleteStatement, "bind");
+        const insertBindSpy = vi.spyOn(insertStatement, "bind");
+        const batchSpy = vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
+
+        await databaseService.replaceMatchKillMatrix("match-123", [row]);
+
+        expect(prepareSpy).toHaveBeenNthCalledWith(1, "DELETE FROM MatchKillMatrix WHERE MatchId = ?");
+        expect(prepareSpy).toHaveBeenNthCalledWith(2, expect.stringContaining("INSERT INTO MatchKillMatrix"));
+        expect(deleteBindSpy).toHaveBeenCalledWith("match-123");
+        expect(insertBindSpy).toHaveBeenCalledWith(
+          "match-123",
+          row.KillerXuid,
+          row.VictimXuid,
+          row.Count,
+          row.Perfects,
+          row.CreatedAt,
+          row.UpdatedAt,
+        );
+        expect(batchSpy).toHaveBeenCalledWith([deleteStatement, insertStatement]);
+      });
+
+      it("only deletes rows when replacement list is empty", async () => {
+        const deleteStatement = new FakePreparedStatement();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(deleteStatement);
+        const runSpy = vi.spyOn(deleteStatement, "run");
+        const batchSpy = vi.spyOn(env.DB, "batch");
+
+        await databaseService.replaceMatchKillMatrix("match-123", []);
+
+        expect(prepareSpy).toHaveBeenCalledTimes(1);
+        expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM MatchKillMatrix WHERE MatchId = ?");
+        expect(runSpy).toHaveBeenCalled();
+        expect(batchSpy).not.toHaveBeenCalled();
+      });
     });
 
     it("uses the method profile id for inserted rows", async () => {
