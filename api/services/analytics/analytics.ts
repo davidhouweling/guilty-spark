@@ -122,6 +122,7 @@ export class AnalyticsService {
         this.logService.warn(
           normalizedError,
           new Map([
+            ["context", "build kill matrix analytics"],
             ["matchId", matchStats.MatchId],
             ["filmAttempt", attempt.toString()],
           ]),

@@ -268,4 +268,28 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
 
     await expect(service.persistMatchKillMatrix(matchStats)).rejects.toBeInstanceOf(Error);
   });
+
+  it("logs retry warnings with stable context during film extraction retries", async () => {
+    const logWarnSpy = vi.spyOn(logService, "warn");
+    const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+    vi.spyOn(haloFilmService, "buildKillMatrixAnalytics")
+      .mockRejectedValueOnce(new Error("transient-failure"))
+      .mockResolvedValueOnce({
+        entries: [],
+        pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+        perfectCounts: { total: 0, byXuid: {} },
+      });
+    vi.spyOn(databaseService, "replaceMatchKillMatrix").mockResolvedValue();
+
+    await service.persistMatchKillMatrix(matchStats);
+
+    expect(logWarnSpy).toHaveBeenCalledWith(
+      expect.any(Error),
+      new Map([
+        ["context", "build kill matrix analytics"],
+        ["matchId", "9535b946-f30c-4a43-b852-000000slayer"],
+        ["filmAttempt", "1"],
+      ]),
+    );
+  });
 });
