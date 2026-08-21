@@ -936,7 +936,8 @@ export class DatabaseService {
          INNER JOIN LeaderboardSeries AS series
            ON series.GuildId = games.GuildId
            AND series.QueueNumber = games.QueueNumber
-         WHERE series.CompletedAt < ?
+         GROUP BY games.MatchId
+         HAVING MAX(series.CompletedAt) < ?
        )`,
     ).bind(leaderboardRetentionBoundary);
     const deleteExpiredLeaderboardSeriesStmt = this.DB.prepare(

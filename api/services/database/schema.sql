@@ -290,3 +290,5 @@ CREATE INDEX IF NOT EXISTS IdxMatchKillMatrixKillerXuid
     ON MatchKillMatrix (KillerXuid);
 CREATE INDEX IF NOT EXISTS IdxMatchKillMatrixVictimXuid
     ON MatchKillMatrix (VictimXuid);
+CREATE INDEX IF NOT EXISTS IdxMatchKillMatrixCreatedAt
+    ON MatchKillMatrix (CreatedAt);

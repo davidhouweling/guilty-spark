@@ -937,6 +937,8 @@ describe("Database Service", () => {
       });
 
       expect(prepareSpy).toHaveBeenNthCalledWith(1, expect.stringContaining("DELETE FROM MatchKillMatrix"));
+      expect(prepareSpy).toHaveBeenNthCalledWith(1, expect.stringContaining("GROUP BY games.MatchId"));
+      expect(prepareSpy).toHaveBeenNthCalledWith(1, expect.stringContaining("HAVING MAX(series.CompletedAt) < ?"));
       expect(prepareSpy).toHaveBeenNthCalledWith(2, "DELETE FROM LeaderboardSeries WHERE CompletedAt < ?");
       expect(prepareSpy).toHaveBeenNthCalledWith(3, expect.stringContaining("NOT EXISTS"));
       expect(bindSpy).toHaveBeenNthCalledWith(1, 1_000);
