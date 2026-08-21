@@ -925,6 +925,28 @@ describe("Database Service", () => {
       expect(runSpy).toHaveBeenCalledTimes(2);
     });
 
+    it("deletes expired leaderboard data and unlinked kill matrices in one batch", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const batchSpy = vi.spyOn(env.DB, "batch");
+
+      await databaseService.deleteExpiredLeaderboardData({
+        leaderboardRetentionBoundary: 1_000,
+        orphanedKillMatrixRetentionBoundary: 2_000,
+      });
+
+      expect(prepareSpy).toHaveBeenNthCalledWith(1, expect.stringContaining("DELETE FROM MatchKillMatrix"));
+      expect(prepareSpy).toHaveBeenNthCalledWith(1, expect.stringContaining("GROUP BY games.MatchId"));
+      expect(prepareSpy).toHaveBeenNthCalledWith(1, expect.stringContaining("HAVING MAX(series.CompletedAt) < ?"));
+      expect(prepareSpy).toHaveBeenNthCalledWith(2, "DELETE FROM LeaderboardSeries WHERE CompletedAt < ?");
+      expect(prepareSpy).toHaveBeenNthCalledWith(3, expect.stringContaining("NOT EXISTS"));
+      expect(bindSpy).toHaveBeenNthCalledWith(1, 1_000);
+      expect(bindSpy).toHaveBeenNthCalledWith(2, 1_000);
+      expect(bindSpy).toHaveBeenNthCalledWith(3, 2_000);
+      expect(batchSpy).toHaveBeenCalledOnce();
+    });
+
     it("upserts a leaderboard post registration", async () => {
       const post = aFakeLeaderboardPostRow();
       const fakePreparedStatement = new FakePreparedStatement();

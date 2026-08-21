@@ -229,6 +229,8 @@ CREATE TABLE IF NOT EXISTS LeaderboardGames (
 
 CREATE INDEX IF NOT EXISTS IdxLeaderboardGamesGuildQueueStartedAt
     ON LeaderboardGames (GuildId, QueueChannelId, StartedAt DESC);
+CREATE INDEX IF NOT EXISTS IdxLeaderboardGamesMatchId
+    ON LeaderboardGames (MatchId);
 
 CREATE TABLE IF NOT EXISTS LeaderboardGamePlayers (
     MatchId TEXT NOT NULL,
@@ -290,3 +292,5 @@ CREATE INDEX IF NOT EXISTS IdxMatchKillMatrixKillerXuid
     ON MatchKillMatrix (KillerXuid);
 CREATE INDEX IF NOT EXISTS IdxMatchKillMatrixVictimXuid
     ON MatchKillMatrix (VictimXuid);
+CREATE INDEX IF NOT EXISTS IdxMatchKillMatrixCreatedAt
+    ON MatchKillMatrix (CreatedAt);

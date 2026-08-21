@@ -77,6 +77,11 @@ interface LeaderboardRankingsQuery {
 
 export type MatchKillMatrixReplaceRow = Omit<MatchKillMatrixRow, "MatchId">;
 
+export interface LeaderboardDataRetentionOpts {
+  leaderboardRetentionBoundary: number;
+  orphanedKillMatrixRetentionBoundary: number;
+}
+
 export interface DatabaseServiceOpts {
   env: Env;
 }
@@ -917,6 +922,42 @@ export class DatabaseService {
     const query = "DELETE FROM LeaderboardSeries WHERE GuildId = ? AND QueueNumber = ?";
     const stmt = this.DB.prepare(query).bind(guildId, queueNumber);
     await stmt.run();
+  }
+
+  async deleteExpiredLeaderboardData({
+    leaderboardRetentionBoundary,
+    orphanedKillMatrixRetentionBoundary,
+  }: LeaderboardDataRetentionOpts): Promise<void> {
+    const deleteExpiredKillMatricesStmt = this.DB.prepare(
+      `DELETE FROM MatchKillMatrix
+       WHERE MatchId IN (
+         SELECT games.MatchId
+         FROM LeaderboardGames AS games
+         INNER JOIN LeaderboardSeries AS series
+           ON series.GuildId = games.GuildId
+           AND series.QueueNumber = games.QueueNumber
+         GROUP BY games.MatchId
+         HAVING MAX(series.CompletedAt) < ?
+       )`,
+    ).bind(leaderboardRetentionBoundary);
+    const deleteExpiredLeaderboardSeriesStmt = this.DB.prepare(
+      "DELETE FROM LeaderboardSeries WHERE CompletedAt < ?",
+    ).bind(leaderboardRetentionBoundary);
+    const deleteExpiredOrphanedKillMatricesStmt = this.DB.prepare(
+      `DELETE FROM MatchKillMatrix
+       WHERE CreatedAt < ?
+         AND NOT EXISTS (
+           SELECT 1
+           FROM LeaderboardGames
+           WHERE LeaderboardGames.MatchId = MatchKillMatrix.MatchId
+         )`,
+    ).bind(orphanedKillMatrixRetentionBoundary);
+
+    await this.DB.batch([
+      deleteExpiredKillMatricesStmt,
+      deleteExpiredLeaderboardSeriesStmt,
+      deleteExpiredOrphanedKillMatricesStmt,
+    ]);
   }
 
   async getLeaderboardSeriesByQueueNumber(guildId: string, queueNumber: number): Promise<LeaderboardSeriesRow | null> {

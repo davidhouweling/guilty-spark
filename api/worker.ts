@@ -3,6 +3,7 @@ import { installServices } from "./services/install";
 import { createApiRouter } from "./base/router";
 import { Server } from "./server";
 import { StaleNeatQueueConfigCleanup } from "./services/neatqueue/stale-config-cleanup";
+import { LeaderboardDataReaper } from "./services/leaderboard/leaderboard-data-reaper";
 import { LeaderboardPostReaper } from "./services/leaderboard/leaderboard-post-reaper";
 
 // Export Durable Object classes
@@ -14,6 +15,31 @@ const server = new Server({
   router: createApiRouter(),
   installServices,
 });
+
+async function runLeaderboardDataReaper(
+  databaseService: ReturnType<typeof installServices>["databaseService"],
+  logService: ReturnType<typeof installServices>["logService"],
+): Promise<void> {
+  const dataReaper = new LeaderboardDataReaper({ databaseService, logService });
+  try {
+    await dataReaper.execute();
+  } catch (error) {
+    logService.error(error, new Map([["context", "leaderboard data reaper"]]));
+  }
+}
+
+async function runLeaderboardPostReaper(
+  databaseService: ReturnType<typeof installServices>["databaseService"],
+  discordService: ReturnType<typeof installServices>["discordService"],
+  logService: ReturnType<typeof installServices>["logService"],
+): Promise<void> {
+  const postReaper = new LeaderboardPostReaper({ databaseService, discordService, logService });
+  try {
+    await postReaper.execute();
+  } catch (error) {
+    logService.error(error, new Map([["context", "leaderboard post reaper"]]));
+  }
+}
 
 export default Sentry.withSentry(
   (env: Env) => ({
@@ -54,8 +80,8 @@ export default Sentry.withSentry(
           break;
         }
         case "0 0 * * SUN": {
-          const reaper = new LeaderboardPostReaper({ databaseService, discordService, logService });
-          await reaper.execute();
+          await runLeaderboardDataReaper(databaseService, logService);
+          await runLeaderboardPostReaper(databaseService, discordService, logService);
           break;
         }
         default: {
