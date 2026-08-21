@@ -29,6 +29,7 @@ import type { HaloService } from "../../halo/halo";
 import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
 import { aFakeLeaderboardServiceWith } from "../../leaderboard/fakes/leaderboard.fake";
+import { aFakeAnalyticsServiceWith } from "../../analytics/fakes/analytics.fake";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeLiveTrackerServiceWith } from "../../live-tracker/fakes/live-tracker.fake";
 import { aFakeLiveTrackerStateWith } from "../../../durable-objects/live-tracker/fakes/live-tracker-do.fake";
@@ -74,6 +75,7 @@ describe("NeatQueueService", () => {
   let discordService: DiscordService;
   let haloService: HaloService;
   let leaderboardService: ReturnType<typeof aFakeLeaderboardServiceWith>;
+  let analyticsService: ReturnType<typeof aFakeAnalyticsServiceWith>;
   let liveTrackerService: LiveTrackerService;
   let individualTrackerService: IndividualTrackerService;
   let neatQueueService: NeatQueueService;
@@ -88,6 +90,7 @@ describe("NeatQueueService", () => {
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
     leaderboardService = aFakeLeaderboardServiceWith({ databaseService, haloService, logService });
+    analyticsService = aFakeAnalyticsServiceWith({ databaseService, haloService, logService });
     liveTrackerService = aFakeLiveTrackerServiceWith({ logService, discordService, env });
     individualTrackerService = aFakeIndividualTrackerServiceWith();
     neatQueueService = new NeatQueueService({
@@ -97,6 +100,7 @@ describe("NeatQueueService", () => {
       discordService,
       haloService,
       leaderboardService,
+      analyticsService,
       liveTrackerService,
       individualTrackerService,
     });
@@ -652,6 +656,7 @@ describe("NeatQueueService", () => {
       let discordServiceCreateMessageSpy: MockInstance<typeof discordService.createMessage>;
       let cacheResolvedDiscordSeriesStatsSpy: MockInstance<typeof discordService.cacheResolvedDiscordSeriesStats>;
       let persistSeriesDataSpy: MockInstance<typeof leaderboardService.persistSeriesData>;
+      let persistMatchKillMatrixSpy: MockInstance<typeof analyticsService.persistMatchKillMatrix>;
 
       beforeEach(() => {
         appDataGetSpy = vi.spyOn(env.APP_DATA, "get");
@@ -694,6 +699,7 @@ describe("NeatQueueService", () => {
           .mockResolvedValue(startThread);
         discordServiceCreateMessageSpy = vi.spyOn(discordService, "createMessage").mockResolvedValue(apiMessage);
         persistSeriesDataSpy = vi.spyOn(leaderboardService, "persistSeriesData").mockResolvedValue();
+        persistMatchKillMatrixSpy = vi.spyOn(analyticsService, "persistMatchKillMatrix").mockResolvedValue();
         vi.spyOn(discordService, "getUsers").mockResolvedValue([
           aGuildMemberWith({
             user: {
@@ -839,6 +845,51 @@ describe("NeatQueueService", () => {
             ],
           },
           false,
+        );
+      });
+
+      it("persists tail-end film analytics for each match in the resolved series", async () => {
+        const { jobToComplete } = neatQueueService.handleRequest(
+          getFakeNeatQueueData("matchCompleted"),
+          neatQueueConfig,
+        );
+        await jobToComplete?.();
+
+        expect(persistMatchKillMatrixSpy).toHaveBeenCalledTimes(2);
+        expect(persistMatchKillMatrixSpy).toHaveBeenNthCalledWith(
+          1,
+          expect.objectContaining({ MatchId: "d81554d7-ddfe-44da-a6cb-000000000ctf" }),
+        );
+        expect(persistMatchKillMatrixSpy).toHaveBeenNthCalledWith(
+          2,
+          expect.objectContaining({ MatchId: "e20900f9-4c6c-4003-a175-00000000koth" }),
+        );
+      });
+
+      it("continues processing when tail-end film analytics persistence fails", async () => {
+        const logWarnSpy = vi.spyOn(logService, "warn");
+        persistMatchKillMatrixSpy.mockRejectedValue(new Error("persist failed"));
+
+        const { jobToComplete } = neatQueueService.handleRequest(
+          getFakeNeatQueueData("matchCompleted"),
+          neatQueueConfig,
+        );
+        await expect(jobToComplete?.()).resolves.toBeUndefined();
+
+        expect(persistMatchKillMatrixSpy).toHaveBeenCalledTimes(2);
+        expect(logWarnSpy).not.toHaveBeenCalledWith(
+          expect.any(Error),
+          new Map([
+            ["context", "persist tail-end film analytics"],
+            ["matchId", "d81554d7-ddfe-44da-a6cb-000000000ctf"],
+          ]),
+        );
+        expect(logWarnSpy).not.toHaveBeenCalledWith(
+          expect.any(Error),
+          new Map([
+            ["context", "persist tail-end film analytics"],
+            ["matchId", "e20900f9-4c6c-4003-a175-00000000koth"],
+          ]),
         );
       });
 

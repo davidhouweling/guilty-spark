@@ -49,6 +49,7 @@ export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installS
                 }),
               });
               resolvedAnalyticsService = new AnalyticsService({
+                databaseService,
                 haloService: userHaloService,
                 haloFilmService: userFilmService,
                 logService,

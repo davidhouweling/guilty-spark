@@ -21,6 +21,7 @@ import type { LeaderboardSeriesPlayersRow } from "../types/leaderboard_series_pl
 import type { LeaderboardGamesRow } from "../types/leaderboard_games";
 import type { LeaderboardGamePlayersRow } from "../types/leaderboard_game_players";
 import type { LeaderboardPostRow } from "../types/leaderboard_post";
+import type { MatchKillMatrixRow } from "../types/match_kill_matrix";
 
 export function aFakeDiscordAssociationsRow(opts: Partial<DiscordAssociationsRow> = {}): DiscordAssociationsRow {
   const defaultOpts: DiscordAssociationsRow = {
@@ -345,6 +346,24 @@ export function aFakeLeaderboardGamePlayersRow(
     ObjectiveStatsJson: "{}",
     MedalsJson: "[]",
     CreatedAt: Math.floor(Date.now() / 1000),
+  };
+
+  return {
+    ...defaultOpts,
+    ...opts,
+  };
+}
+
+export function aFakeMatchKillMatrixRow(opts: Partial<MatchKillMatrixRow> = {}): MatchKillMatrixRow {
+  const nowEpoch = Math.floor(Date.now() / 1000);
+  const defaultOpts: MatchKillMatrixRow = {
+    MatchId: "match-1",
+    KillerXuid: "2533274000000001",
+    VictimXuid: "2533274000000002",
+    Count: 2,
+    Perfects: 1,
+    CreatedAt: nowEpoch,
+    UpdatedAt: nowEpoch,
   };
 
   return {

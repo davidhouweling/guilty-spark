@@ -58,7 +58,7 @@ const haloService = new HaloService({
   playerMatchesRateLimiter: aFakePlayerMatchesRateLimiterWith(),
 });
 const haloFilmService = new HaloFilmService({ env, spartanTokenProvider });
-const analyticsService = new AnalyticsService({ haloService, haloFilmService, logService });
+const analyticsService = new AnalyticsService({ databaseService, haloService, haloFilmService, logService });
 
 function fmtMs(ms: number): string {
   const s = Math.floor(ms / 1000);

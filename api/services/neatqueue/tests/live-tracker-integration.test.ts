@@ -28,6 +28,7 @@ import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake";
 import { guild, textChannel, guildMember } from "../../discord/fakes/data";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
 import { aFakeLeaderboardServiceWith } from "../../leaderboard/fakes/leaderboard.fake";
+import { aFakeAnalyticsServiceWith } from "../../analytics/fakes/analytics.fake";
 import { getMatchStats } from "../../halo/fakes/data";
 import { aFakeLiveTrackerServiceWith } from "../../live-tracker/fakes/live-tracker.fake";
 import type { LiveTrackerService } from "../../live-tracker/live-tracker";
@@ -68,6 +69,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
     discordService = aFakeDiscordServiceWith();
     haloService = aFakeHaloServiceWith();
     leaderboardService = aFakeLeaderboardServiceWith({ databaseService, haloService, logService });
+    const analyticsService = aFakeAnalyticsServiceWith({ databaseService, haloService, logService });
     liveTrackerService = aFakeLiveTrackerServiceWith({ logService, discordService, env });
 
     neatQueueService = new NeatQueueService({
@@ -77,6 +79,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
       discordService,
       haloService,
       leaderboardService,
+      analyticsService,
       liveTrackerService,
       individualTrackerService: aFakeIndividualTrackerServiceWith(),
     });

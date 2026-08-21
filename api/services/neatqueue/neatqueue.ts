@@ -27,6 +27,7 @@ import type { HaloService } from "../halo/halo";
 import type { MatchPlayer, UserInfo, PlayerEsraData } from "../halo/types";
 import type { LiveTrackerService } from "../live-tracker/live-tracker";
 import type { LeaderboardService } from "../leaderboard/leaderboard";
+import type { AnalyticsService } from "../analytics/analytics";
 import type {
   SeriesOverviewEmbedSubstitution,
   SeriesOverviewEmbedOutput,
@@ -73,6 +74,7 @@ export interface NeatQueueServiceOpts {
   discordService: DiscordService;
   haloService: HaloService;
   leaderboardService: LeaderboardService;
+  analyticsService: AnalyticsService;
   liveTrackerService: LiveTrackerService;
   individualTrackerService: IndividualTrackerService;
 }
@@ -84,6 +86,7 @@ export class NeatQueueService {
   private readonly discordService: DiscordService;
   private readonly haloService: HaloService;
   private readonly leaderboardService: LeaderboardService;
+  private readonly analyticsService: AnalyticsService;
   private readonly liveTrackerService: LiveTrackerService;
   private readonly individualTrackerService: IndividualTrackerService;
   private readonly queueStateCache = new Map<string, NeatQueueState>();
@@ -95,6 +98,7 @@ export class NeatQueueService {
     discordService,
     haloService,
     leaderboardService,
+    analyticsService,
     liveTrackerService,
     individualTrackerService,
   }: NeatQueueServiceOpts) {
@@ -104,6 +108,7 @@ export class NeatQueueService {
     this.discordService = discordService;
     this.haloService = haloService;
     this.leaderboardService = leaderboardService;
+    this.analyticsService = analyticsService;
     this.liveTrackerService = liveTrackerService;
     this.individualTrackerService = individualTrackerService;
   }
@@ -136,6 +141,16 @@ export class NeatQueueService {
       this.logService.error(error);
 
       return { isValid: false, rawBody, error: "Invalid JSON" };
+    }
+  }
+
+  private async persistFilmAnalyticsAtTail(series: MatchStats[]): Promise<void> {
+    for (const match of series) {
+      try {
+        await this.analyticsService.persistMatchKillMatrix(match);
+      } catch {
+        // AnalyticsService already logs extraction/persistence failures with match context.
+      }
     }
   }
 
@@ -2147,6 +2162,7 @@ export class NeatQueueService {
         this.leaderboardService.persistSeriesData({ request, neatQueueConfig, series, locale }),
         this.postSeriesDetailsToChannel(thread.id, request.guild, series, locale),
       ]);
+      await this.persistFilmAnalyticsAtTail(series);
     } catch (error) {
       this.logService.warn(error, new Map([["reason", "Failed to post series data to thread"]]));
 
