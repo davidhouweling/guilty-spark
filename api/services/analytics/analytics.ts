@@ -11,14 +11,17 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { HaloService } from "../halo/halo";
 import type { HaloFilmService } from "../halo/halo-film";
 import type { LogService } from "../log/types";
-import type { DatabaseService } from "../database/database";
-import type { MatchKillMatrixRow } from "../database/types/match_kill_matrix";
+import type { DatabaseService, MatchKillMatrixReplaceRow } from "../database/database";
 
 export interface AnalyticsServiceOpts {
   databaseService: DatabaseService;
   haloService: HaloService;
   haloFilmService: HaloFilmService;
   logService: LogService;
+}
+
+interface GetBatchMatchAnalyticsOpts {
+  persistKillMatrix?: boolean;
 }
 
 // Escalation excluded: only active-weapon kills score, but film events carry no weapon field
@@ -59,10 +62,16 @@ export class AnalyticsService {
     this.logService = logService;
   }
 
-  private async getMatchAnalytics(matchId: string, modules: AnalyticsModule[]): Promise<MatchAnalytics> {
+  private async getMatchAnalytics(
+    matchId: string,
+    modules: AnalyticsModule[],
+    opts: GetBatchMatchAnalyticsOpts,
+  ): Promise<MatchAnalytics> {
     const matchStats = Preconditions.checkExists((await this.haloService.getMatchDetails([matchId]))[0]);
     const killMatrixAnalytics = await this.buildKillMatrixAnalyticsWithRetries(matchStats);
-    await this.persistKillMatrixEntries(matchStats.MatchId, killMatrixAnalytics.entries);
+    if (opts.persistKillMatrix === true) {
+      await this.persistKillMatrixEntries(matchStats.MatchId, killMatrixAnalytics.entries);
+    }
     // Sequential on purpose: the kill-matrix pass warms the film metadata/chunk caches that the
     // score-progression pass reads — running them concurrently duplicates the film fetch and
     // inflate work on a cold cache instead of sharing it.
@@ -115,10 +124,9 @@ export class AnalyticsService {
     entries: Awaited<ReturnType<HaloFilmService["buildKillMatrixAnalytics"]>>["entries"],
   ): Promise<void> {
     const now = Math.floor(Date.now() / 1000);
-    const rows: MatchKillMatrixRow[] = entries
+    const rows: MatchKillMatrixReplaceRow[] = entries
       .filter((entry) => entry.killerXuid.length > 0 && entry.victimXuid.length > 0)
       .map((entry) => ({
-        MatchId: matchId,
         KillerXuid: entry.killerXuid,
         VictimXuid: entry.victimXuid,
         Count: entry.count,
@@ -181,6 +189,7 @@ export class AnalyticsService {
   async getBatchMatchAnalytics(
     matchIds: string[],
     modules: AnalyticsModule[],
+    opts: GetBatchMatchAnalyticsOpts = {},
   ): Promise<Record<string, MatchAnalytics | null>> {
     try {
       await this.haloFilmService.warmAuthCache();
@@ -188,7 +197,9 @@ export class AnalyticsService {
       this.logService.warn(error, new Map([["context", "warmAuthCache pre-warm"]]));
     }
 
-    const settled = await Promise.allSettled(matchIds.map(async (matchId) => this.getMatchAnalytics(matchId, modules)));
+    const settled = await Promise.allSettled(
+      matchIds.map(async (matchId) => this.getMatchAnalytics(matchId, modules, opts)),
+    );
 
     const results: Record<string, MatchAnalytics | null> = {};
     for (const [index, matchId] of matchIds.entries()) {

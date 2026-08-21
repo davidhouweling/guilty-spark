@@ -75,6 +75,8 @@ interface LeaderboardRankingsQuery {
   offset: number;
 }
 
+export type MatchKillMatrixReplaceRow = Omit<MatchKillMatrixRow, "MatchId">;
+
 export interface DatabaseServiceOpts {
   env: Env;
 }
@@ -140,7 +142,7 @@ export class DatabaseService {
     }
   }
 
-  async replaceMatchKillMatrix(matchId: string, rows: MatchKillMatrixRow[]): Promise<void> {
+  async replaceMatchKillMatrix(matchId: string, rows: MatchKillMatrixReplaceRow[]): Promise<void> {
     const deleteStmt = this.DB.prepare("DELETE FROM MatchKillMatrix WHERE MatchId = ?").bind(matchId);
     if (rows.length === 0) {
       await deleteStmt.run();

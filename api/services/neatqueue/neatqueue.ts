@@ -148,9 +148,16 @@ export class NeatQueueService {
     const results = await Promise.allSettled(
       series.map(async (match) => this.analyticsService.persistMatchKillMatrix(match)),
     );
-    for (const result of results) {
+    for (const [index, result] of results.entries()) {
       if (result.status === "rejected") {
-        this.logService.warn(result.reason, new Map([["context", "persist tail-end film analytics"]]));
+        const match = Preconditions.checkExists(series[index]);
+        this.logService.warn(
+          result.reason,
+          new Map([
+            ["context", "persist tail-end film analytics"],
+            ["matchId", match.MatchId],
+          ]),
+        );
       }
     }
   }
