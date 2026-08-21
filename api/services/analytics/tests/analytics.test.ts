@@ -30,7 +30,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     service = new AnalyticsService({ databaseService, haloService, haloFilmService, logService });
   });
 
-  it("resolves auth once then returns results keyed by matchId", async () => {
+  it("persists extracted results while returning analytics keyed by matchId", async () => {
     const warmAuthCacheSpy = vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([matchStats]);
@@ -46,10 +46,58 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     expect(warmAuthCacheSpy).toHaveBeenCalledOnce();
     expect(results["match-1"]).not.toBeNull();
     expect(results["match-2"]).not.toBeNull();
+    expect(replaceMatchKillMatrixSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns non-empty cached kill matrix rows without accessing Halo", async () => {
+    vi.spyOn(databaseService, "getMatchKillMatrix").mockResolvedValue([
+      {
+        MatchId: "match-1",
+        KillerXuid: "killer",
+        VictimXuid: "victim",
+        Count: 2,
+        Perfects: 1,
+        CreatedAt: 0,
+        UpdatedAt: 0,
+      },
+    ]);
+    const warmAuthCacheSpy = vi.spyOn(haloFilmService, "warmAuthCache");
+    const getMatchDetailsSpy = vi.spyOn(haloService, "getMatchDetails");
+    const buildKillMatrixAnalyticsSpy = vi.spyOn(haloFilmService, "buildKillMatrixAnalytics");
+    const replaceMatchKillMatrixSpy = vi.spyOn(databaseService, "replaceMatchKillMatrix");
+
+    const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix"]);
+
+    expect(results["match-1"]?.killMatrix).toEqual({
+      "killer:victim": { count: 2, perfects: 1 },
+    });
+    expect(warmAuthCacheSpy).not.toHaveBeenCalled();
+    expect(getMatchDetailsSpy).not.toHaveBeenCalled();
+    expect(buildKillMatrixAnalyticsSpy).not.toHaveBeenCalled();
     expect(replaceMatchKillMatrixSpy).not.toHaveBeenCalled();
   });
 
-  it("persists kill matrix rows when explicitly requested", async () => {
+  it("retries film extraction when the cached kill matrix is empty", async () => {
+    vi.spyOn(databaseService, "getMatchKillMatrix").mockResolvedValue([]);
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+    const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([matchStats]);
+    const buildKillMatrixAnalyticsSpy = vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
+      entries: [{ killerXuid: "killer", victimXuid: "victim", count: 2, headshotKills: 0, perfects: 1, weapons: [] }],
+      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+      perfectCounts: { total: 0, byXuid: {} },
+    });
+    const replaceMatchKillMatrixSpy = vi.spyOn(databaseService, "replaceMatchKillMatrix").mockResolvedValue();
+
+    await service.getBatchMatchAnalytics(["match-1"], ["killMatrix"]);
+
+    expect(buildKillMatrixAnalyticsSpy).toHaveBeenCalledOnce();
+    expect(replaceMatchKillMatrixSpy).toHaveBeenCalledWith("9535b946-f30c-4a43-b852-000000slayer", [
+      expect.objectContaining({ Count: 2, Perfects: 1 }),
+    ]);
+  });
+
+  it("persists kill matrix rows after extraction", async () => {
     vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([matchStats]);
@@ -60,14 +108,14 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     });
 
     const replaceMatchKillMatrixSpy = vi.spyOn(databaseService, "replaceMatchKillMatrix").mockResolvedValue();
-    await service.getBatchMatchAnalytics(["match-1"], ["killMatrix"], { persistKillMatrix: true });
+    await service.getBatchMatchAnalytics(["match-1"], ["killMatrix"]);
 
     expect(replaceMatchKillMatrixSpy).toHaveBeenCalledWith("9535b946-f30c-4a43-b852-000000slayer", [
       expect.objectContaining({ Count: 2, Perfects: 1 }),
     ]);
   });
 
-  it("continues returning analytics when optional persistence fails", async () => {
+  it("continues returning analytics when lazy persistence fails", async () => {
     const logWarnSpy = vi.spyOn(logService, "warn");
     vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
@@ -79,7 +127,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     });
     vi.spyOn(databaseService, "replaceMatchKillMatrix").mockRejectedValue(new Error("db down"));
 
-    const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix"], { persistKillMatrix: true });
+    const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix"]);
 
     expect(results["match-1"]).not.toBeNull();
     expect(logWarnSpy).toHaveBeenCalledWith(

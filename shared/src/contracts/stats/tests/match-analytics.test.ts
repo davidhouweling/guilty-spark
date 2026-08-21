@@ -8,14 +8,8 @@ function aValidAnalytics(): MatchAnalytics {
     killMatrix: {
       "2533274844642438:2533274881185517": {
         count: 8,
-        headshotKills: 3,
         perfects: 2,
-        weapons: [{ weaponId: "3009000042C9679F", name: "BR75", count: 5 }],
       },
-    },
-    metadata: {
-      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 1 },
-      perfectCounts: { total: 0, byXuid: {} },
     },
     scoreProgression: null,
   };
@@ -78,19 +72,7 @@ describe("matchAnalyticsSchema", () => {
     expect(
       matchAnalyticsSchema.safeParse({
         ...aValidAnalytics(),
-        killMatrix: { "not-a-valid-key": { count: 1, headshotKills: 0, perfects: 0, weapons: [] } },
-      }).success,
-    ).toBe(false);
-  });
-
-  it("rejects negative pairingQuality values", () => {
-    expect(
-      matchAnalyticsSchema.safeParse({
-        ...aValidAnalytics(),
-        metadata: {
-          pairingQuality: { unpairedDeathCount: -1, maxTimeDeltaMs: 1 },
-          perfectCounts: { total: 0, byXuid: {} },
-        },
+        killMatrix: { "not-a-valid-key": { count: 1, perfects: 0 } },
       }).success,
     ).toBe(false);
   });

@@ -9,19 +9,7 @@ function aFakeAnalyticsResponseWith(overrides: Partial<MatchAnalytics> = {}): Ma
     killMatrix: {
       "2533274844642438:2533274881185517": {
         count: 2,
-        headshotKills: 1,
         perfects: 0,
-        weapons: [],
-      },
-    },
-    metadata: {
-      pairingQuality: {
-        unpairedDeathCount: 0,
-        maxTimeDeltaMs: 1,
-      },
-      perfectCounts: {
-        total: 0,
-        byXuid: {},
       },
     },
     scoreProgression: null,
