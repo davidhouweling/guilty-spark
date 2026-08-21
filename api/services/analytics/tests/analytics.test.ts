@@ -50,7 +50,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
   });
 
   it("returns non-empty cached kill matrix rows without accessing Halo", async () => {
-    vi.spyOn(databaseService, "getMatchKillMatrix").mockResolvedValue([
+    vi.spyOn(databaseService, "getMatchKillMatrices").mockResolvedValue([
       {
         MatchId: "match-1",
         KillerXuid: "killer",
@@ -78,7 +78,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
   });
 
   it("retries film extraction when the cached kill matrix is empty", async () => {
-    vi.spyOn(databaseService, "getMatchKillMatrix").mockResolvedValue([]);
+    vi.spyOn(databaseService, "getMatchKillMatrices").mockResolvedValue([]);
     vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([matchStats]);
@@ -95,6 +95,23 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     expect(replaceMatchKillMatrixSpy).toHaveBeenCalledWith("9535b946-f30c-4a43-b852-000000slayer", [
       expect.objectContaining({ Count: 2, Perfects: 1 }),
     ]);
+  });
+
+  it("loads cached kill matrices for all requested matches in one database query", async () => {
+    const getMatchKillMatricesSpy = vi.spyOn(databaseService, "getMatchKillMatrices").mockResolvedValue([]);
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+    const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([matchStats]);
+    vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
+      entries: [],
+      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+      perfectCounts: { total: 0, byXuid: {} },
+    });
+
+    await service.getBatchMatchAnalytics(["match-1", "match-2"], ["killMatrix"]);
+
+    expect(getMatchKillMatricesSpy).toHaveBeenCalledOnce();
+    expect(getMatchKillMatricesSpy).toHaveBeenCalledWith(["match-1", "match-2"]);
   });
 
   it("persists kill matrix rows after extraction", async () => {

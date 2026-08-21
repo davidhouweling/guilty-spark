@@ -76,6 +76,17 @@ function toContractKillMatrixFromRows(rows: MatchKillMatrixRow[]): Record<string
   return killMatrix;
 }
 
+function getRowsByMatchId(rows: MatchKillMatrixRow[]): Map<string, MatchKillMatrixRow[]> {
+  const rowsByMatchId = new Map<string, MatchKillMatrixRow[]>();
+  for (const row of rows) {
+    const existingRows = rowsByMatchId.get(row.MatchId) ?? [];
+    existingRows.push(row);
+    rowsByMatchId.set(row.MatchId, existingRows);
+  }
+
+  return rowsByMatchId;
+}
+
 export class AnalyticsService {
   private readonly databaseService: DatabaseService;
   private readonly haloService: HaloService;
@@ -143,20 +154,34 @@ export class AnalyticsService {
     return toContractKillMatrix(killMatrixAnalytics.entries);
   }
 
-  private async getCachedKillMatrix(matchId: string): Promise<Record<string, ContractKillMatrixEntry> | null> {
+  private async getCachedKillMatrices(
+    matchIds: string[],
+  ): Promise<Map<string, Record<string, ContractKillMatrixEntry> | null>> {
+    const cachedKillMatrices = new Map<string, Record<string, ContractKillMatrixEntry> | null>();
+    for (const matchId of matchIds) {
+      cachedKillMatrices.set(matchId, null);
+    }
+
     try {
-      const rows = await this.databaseService.getMatchKillMatrix(matchId);
-      return rows.length > 0 ? toContractKillMatrixFromRows(rows) : null;
+      const rows = await this.databaseService.getMatchKillMatrices(matchIds);
+      const rowsByMatchId = getRowsByMatchId(rows);
+      for (const matchId of matchIds) {
+        const rowsForMatch = rowsByMatchId.get(matchId) ?? [];
+        if (rowsForMatch.length > 0) {
+          cachedKillMatrices.set(matchId, toContractKillMatrixFromRows(rowsForMatch));
+        }
+      }
     } catch (error) {
       this.logService.warn(
         toError(error),
         new Map([
-          ["matchId", matchId],
-          ["context", "read cached kill matrix"],
+          ["context", "read cached kill matrices"],
+          ["matchIdCount", matchIds.length.toString()],
         ]),
       );
-      return null;
     }
+
+    return cachedKillMatrices;
   }
 
   private async buildKillMatrixAnalyticsWithRetries(
@@ -256,10 +281,10 @@ export class AnalyticsService {
     matchIds: string[],
     modules: AnalyticsModule[],
   ): Promise<Record<string, MatchAnalytics | null>> {
-    const cachedKillMatrices = await Promise.all(matchIds.map(async (matchId) => this.getCachedKillMatrix(matchId)));
-    const needsFilmAccess = cachedKillMatrices.some(
-      (killMatrix) => killMatrix == null || modules.includes("scoreProgression"),
-    );
+    const includesScoreProgression = modules.includes("scoreProgression");
+    const cachedKillMatrices = await this.getCachedKillMatrices(matchIds);
+    const needsFilmAccess =
+      includesScoreProgression || matchIds.some((matchId) => cachedKillMatrices.get(matchId) == null);
     if (needsFilmAccess) {
       try {
         await this.haloFilmService.warmAuthCache();
@@ -269,8 +294,8 @@ export class AnalyticsService {
     }
 
     const settled = await Promise.allSettled(
-      matchIds.map(async (matchId, index) =>
-        this.getMatchAnalytics(matchId, modules, cachedKillMatrices[index] ?? null),
+      matchIds.map(async (matchId) =>
+        this.getMatchAnalytics(matchId, modules, cachedKillMatrices.get(matchId) ?? null),
       ),
     );
 
