@@ -183,6 +183,42 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     expect(results["match-1"]?.killMatrix).toEqual({ "1:2": { count: 2, perfects: 1 } });
   });
 
+  it("treats mixed valid and malformed cached kill matrix rows as a cache miss", async () => {
+    vi.spyOn(databaseService, "getMatchKillMatrices").mockResolvedValue([
+      {
+        MatchId: "match-1",
+        KillerXuid: "1",
+        VictimXuid: "2",
+        Count: 5,
+        Perfects: 2,
+        CreatedAt: 0,
+        UpdatedAt: 0,
+      },
+      {
+        MatchId: "match-1",
+        KillerXuid: "bad",
+        VictimXuid: "3",
+        Count: 1,
+        Perfects: 0,
+        CreatedAt: 0,
+        UpdatedAt: 0,
+      },
+    ]);
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+    const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([matchStats]);
+    const buildKillMatrixAnalyticsSpy = vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
+      entries: [{ killerXuid: "1", victimXuid: "2", count: 2, headshotKills: 0, perfects: 1, weapons: [] }],
+      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+      perfectCounts: { total: 0, byXuid: {} },
+    });
+
+    const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix"]);
+
+    expect(buildKillMatrixAnalyticsSpy).toHaveBeenCalledOnce();
+    expect(results["match-1"]?.killMatrix).toEqual({ "1:2": { count: 2, perfects: 1 } });
+  });
+
   it("returns null for failed matches without affecting successful ones", async () => {
     vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));

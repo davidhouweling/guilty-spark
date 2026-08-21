@@ -94,6 +94,10 @@ function getRowsByMatchId(rows: MatchKillMatrixRow[]): Map<string, MatchKillMatr
   return rowsByMatchId;
 }
 
+function hasMalformedKillMatrixRows(rows: MatchKillMatrixRow[]): boolean {
+  return rows.some((row) => !NUMERIC_XUID_REGEX.test(row.KillerXuid) || !NUMERIC_XUID_REGEX.test(row.VictimXuid));
+}
+
 export class AnalyticsService {
   private readonly databaseService: DatabaseService;
   private readonly haloService: HaloService;
@@ -175,6 +179,9 @@ export class AnalyticsService {
       for (const matchId of matchIds) {
         const rowsForMatch = rowsByMatchId.get(matchId) ?? [];
         if (rowsForMatch.length > 0) {
+          if (hasMalformedKillMatrixRows(rowsForMatch)) {
+            continue;
+          }
           const killMatrix = toContractKillMatrixFromRows(rowsForMatch);
           if (Object.keys(killMatrix).length > 0) {
             cachedKillMatrices.set(matchId, killMatrix);
@@ -224,7 +231,7 @@ export class AnalyticsService {
   ): Promise<void> {
     const now = Math.floor(Date.now() / 1000);
     const rows: MatchKillMatrixReplaceRow[] = entries
-      .filter((entry) => entry.killerXuid.length > 0 && entry.victimXuid.length > 0)
+      .filter((entry) => NUMERIC_XUID_REGEX.test(entry.killerXuid) && NUMERIC_XUID_REGEX.test(entry.victimXuid))
       .map((entry) => ({
         KillerXuid: entry.killerXuid,
         VictimXuid: entry.victimXuid,
