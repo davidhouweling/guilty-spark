@@ -31,6 +31,7 @@ import type { LinkedIdentitiesRow } from "../types/linked_identities";
 import type { IndividualTrackerProfilesRow } from "../types/individual_tracker_profiles";
 import type { IndividualTrackerGamesRow } from "../types/individual_tracker_games";
 import type { StreamerViewSettingsRow } from "../types/streamer_view_settings";
+import type { MatchKillMatrixRow } from "../types/match_kill_matrix";
 
 describe("Database Service", () => {
   let env: Env;
@@ -1833,6 +1834,71 @@ describe("Database Service", () => {
         expect(prepareSpy).toHaveBeenCalledWith("DELETE FROM MatchKillMatrix WHERE MatchId = ?");
         expect(runSpy).toHaveBeenCalled();
         expect(batchSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("upsertMatchKillMatrix()", () => {
+      it("upserts rows with the expected sql and bindings", async () => {
+        const row = aFakeMatchKillMatrixRow();
+        const preparedStatement = new FakePreparedStatement();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(preparedStatement);
+        const bindSpy = vi.spyOn(preparedStatement, "bind");
+        const runSpy = vi.spyOn(preparedStatement, "run");
+
+        await databaseService.upsertMatchKillMatrix([row]);
+
+        expect(prepareSpy).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO MatchKillMatrix"));
+        expect(bindSpy).toHaveBeenCalledWith(
+          row.MatchId,
+          row.KillerXuid,
+          row.VictimXuid,
+          row.Count,
+          row.Perfects,
+          row.CreatedAt,
+          row.UpdatedAt,
+        );
+        expect(runSpy).toHaveBeenCalledOnce();
+      });
+
+      it("chunks inserts when row count exceeds D1 variable limits", async () => {
+        const rows = Array.from({ length: 15 }, (_value, index) =>
+          aFakeMatchKillMatrixRow({
+            MatchId: `match-${index.toString()}`,
+            KillerXuid: `killer-${index.toString()}`,
+            VictimXuid: `victim-${index.toString()}`,
+          }),
+        );
+        const preparedStatement = new FakePreparedStatement();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(preparedStatement);
+        const bindSpy = vi.spyOn(preparedStatement, "bind");
+        const runSpy = vi.spyOn(preparedStatement, "run");
+
+        await databaseService.upsertMatchKillMatrix(rows);
+
+        expect(prepareSpy).toHaveBeenCalledTimes(2);
+        expect(bindSpy).toHaveBeenCalledTimes(2);
+        expect(runSpy).toHaveBeenCalledTimes(2);
+
+        const [firstBindArgs, secondBindArgs] = bindSpy.mock.calls;
+        expect(firstBindArgs).toHaveLength(98);
+        expect(secondBindArgs).toHaveLength(7);
+      });
+    });
+
+    describe("getMatchKillMatrix()", () => {
+      it("queries match kill matrix rows by match id", async () => {
+        const row = aFakeMatchKillMatrixRow();
+        const preparedStatement = new FakePreparedStatement<MatchKillMatrixRow>();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(preparedStatement);
+        const bindSpy = vi.spyOn(preparedStatement, "bind").mockReturnThis();
+        const allSpy = vi.spyOn(preparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [row] });
+
+        const result = await databaseService.getMatchKillMatrix("match-123");
+
+        expect(prepareSpy).toHaveBeenCalledWith("SELECT * FROM MatchKillMatrix WHERE MatchId = ?");
+        expect(bindSpy).toHaveBeenCalledWith("match-123");
+        expect(allSpy).toHaveBeenCalledOnce();
+        expect(result).toEqual([row]);
       });
     });
 
