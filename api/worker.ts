@@ -16,6 +16,31 @@ const server = new Server({
   installServices,
 });
 
+async function runLeaderboardDataReaper(
+  databaseService: ReturnType<typeof installServices>["databaseService"],
+  logService: ReturnType<typeof installServices>["logService"],
+): Promise<void> {
+  const dataReaper = new LeaderboardDataReaper({ databaseService, logService });
+  try {
+    await dataReaper.execute();
+  } catch (error) {
+    logService.error(error, new Map([["context", "leaderboard data reaper"]]));
+  }
+}
+
+async function runLeaderboardPostReaper(
+  databaseService: ReturnType<typeof installServices>["databaseService"],
+  discordService: ReturnType<typeof installServices>["discordService"],
+  logService: ReturnType<typeof installServices>["logService"],
+): Promise<void> {
+  const postReaper = new LeaderboardPostReaper({ databaseService, discordService, logService });
+  try {
+    await postReaper.execute();
+  } catch (error) {
+    logService.error(error, new Map([["context", "leaderboard post reaper"]]));
+  }
+}
+
 export default Sentry.withSentry(
   (env: Env) => ({
     dsn: "https://76d3531a8ad7eb47ae6e8574e5fd9f9d@o4509134330462208.ingest.us.sentry.io/4509134352285696",
@@ -55,10 +80,8 @@ export default Sentry.withSentry(
           break;
         }
         case "0 0 * * SUN": {
-          const dataReaper = new LeaderboardDataReaper({ databaseService, logService });
-          const postReaper = new LeaderboardPostReaper({ databaseService, discordService, logService });
-          await dataReaper.execute();
-          await postReaper.execute();
+          await runLeaderboardDataReaper(databaseService, logService);
+          await runLeaderboardPostReaper(databaseService, discordService, logService);
           break;
         }
         default: {
