@@ -148,14 +148,8 @@ export class NeatQueueService {
     for (const match of series) {
       try {
         await this.analyticsService.persistMatchKillMatrix(match);
-      } catch (error) {
-        this.logService.warn(
-          error,
-          new Map([
-            ["context", "persist tail-end film analytics"],
-            ["matchId", match.MatchId],
-          ]),
-        );
+      } catch {
+        // AnalyticsService already logs extraction/persistence failures with match context.
       }
     }
   }

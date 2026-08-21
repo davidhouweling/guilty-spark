@@ -37,7 +37,18 @@ function toError(error: unknown): Error {
     return error;
   }
 
-  return new Error("Film extraction failed with a non-Error value");
+  const errorDetail = ((): string => {
+    if (typeof error === "string") {
+      return error;
+    }
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  })();
+
+  return new Error(`Non-Error value thrown: ${errorDetail}`);
 }
 
 function toContractKillMatrix(

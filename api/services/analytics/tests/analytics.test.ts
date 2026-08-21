@@ -266,7 +266,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockRejectedValue("transient-failure");
 
-    await expect(service.persistMatchKillMatrix(matchStats)).rejects.toBeInstanceOf(Error);
+    await expect(service.persistMatchKillMatrix(matchStats)).rejects.toThrow(/transient-failure/);
   });
 
   it("logs retry warnings with stable context during film extraction retries", async () => {

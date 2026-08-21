@@ -877,22 +877,18 @@ describe("NeatQueueService", () => {
         await expect(jobToComplete?.()).resolves.toBeUndefined();
 
         expect(persistMatchKillMatrixSpy).toHaveBeenCalledTimes(2);
-        expect(logWarnSpy.mock.calls).toEqual(
-          expect.arrayContaining([
-            [
-              expect.any(Error),
-              new Map([
-                ["context", "persist tail-end film analytics"],
-                ["matchId", "d81554d7-ddfe-44da-a6cb-000000000ctf"],
-              ]),
-            ],
-            [
-              expect.any(Error),
-              new Map([
-                ["context", "persist tail-end film analytics"],
-                ["matchId", "e20900f9-4c6c-4003-a175-00000000koth"],
-              ]),
-            ],
+        expect(logWarnSpy).not.toHaveBeenCalledWith(
+          expect.any(Error),
+          new Map([
+            ["context", "persist tail-end film analytics"],
+            ["matchId", "d81554d7-ddfe-44da-a6cb-000000000ctf"],
+          ]),
+        );
+        expect(logWarnSpy).not.toHaveBeenCalledWith(
+          expect.any(Error),
+          new Map([
+            ["context", "persist tail-end film analytics"],
+            ["matchId", "e20900f9-4c6c-4003-a175-00000000koth"],
           ]),
         );
       });
