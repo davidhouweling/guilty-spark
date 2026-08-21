@@ -115,12 +115,8 @@ describe("DiscordSeriesStatsPresenter.present", () => {
     const analytics: MatchAnalytics = {
       requestedModules: ["killMatrix"],
       killMatrix: {
-        "3333333333:1111111111": { count: 2, headshotKills: 0, perfects: 0, weapons: [] },
-        "1111111111:3333333333": { count: 1, headshotKills: 0, perfects: 0, weapons: [] },
-      },
-      metadata: {
-        pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 1 },
-        perfectCounts: { total: 0, byXuid: {} },
+        "3333333333:1111111111": { count: 2, perfects: 0 },
+        "1111111111:3333333333": { count: 1, perfects: 0 },
       },
       scoreProgression: null,
     };

@@ -74,7 +74,6 @@ export interface KillMatrixViewRow {
   readonly killer: KillMatrixPlayer;
   readonly victim: KillMatrixPlayer;
   readonly count: number;
-  readonly headshotKills: number;
   readonly perfects: number;
   readonly classification: KillMatrixClassification;
 }

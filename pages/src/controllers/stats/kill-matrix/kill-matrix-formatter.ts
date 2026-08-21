@@ -41,7 +41,6 @@ export class KillMatrixFormatter {
         killer,
         victim,
         count: value.count,
-        headshotKills: value.headshotKills,
         perfects: value.perfects,
         classification: this.classify(killer, victim),
       });
@@ -272,7 +271,6 @@ export class KillMatrixFormatter {
         merged.set(row.key, {
           ...existing,
           count: existing.count + row.count,
-          headshotKills: existing.headshotKills + row.headshotKills,
           perfects: existing.perfects + row.perfects,
         });
       }

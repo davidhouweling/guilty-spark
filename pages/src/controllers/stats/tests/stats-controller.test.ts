@@ -124,7 +124,7 @@ describe("StatsController", () => {
       ]);
       const analytics = aFakeMatchAnalyticsWith({
         killMatrix: {
-          "1111111111:2222222222": { count: 2, headshotKills: 1, perfects: 0, weapons: [] },
+          "1111111111:2222222222": { count: 2, perfects: 0 },
         },
       });
       controller.loadAnalytics(analytics, analyticsPlayerMap);

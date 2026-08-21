@@ -188,6 +188,18 @@ export class DatabaseService {
     return response.results;
   }
 
+  async getMatchKillMatrices(matchIds: string[]): Promise<MatchKillMatrixRow[]> {
+    if (matchIds.length === 0) {
+      return [];
+    }
+
+    const placeholders = matchIds.map(() => "?").join(",");
+    const response = await this.DB.prepare(`SELECT * FROM MatchKillMatrix WHERE MatchId IN (${placeholders})`)
+      .bind(...matchIds)
+      .all<MatchKillMatrixRow>();
+    return response.results;
+  }
+
   async upsertDiscordAssociations(associations: DiscordAssociationsRow[]): Promise<void> {
     if (associations.length === 0) {
       return;

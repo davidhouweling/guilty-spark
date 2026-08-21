@@ -18,7 +18,6 @@ describe("KillMatrixStore", () => {
         victim: { xuid: "222", gamertag: "Bravo", teamId: 1 },
         classification: "enemy-kill",
         count: 3,
-        headshotKills: 1,
         perfects: 0,
       },
     ] satisfies readonly KillMatrixViewRow[]);
