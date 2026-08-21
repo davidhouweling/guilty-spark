@@ -32,6 +32,14 @@ const KILL_RACE_GAME_MODES = new Set([
 ]);
 const FILM_EXTRACTION_MAX_ATTEMPTS = 3;
 
+function toError(error: unknown): Error {
+  if (error instanceof Error) {
+    return error;
+  }
+
+  return new Error("Film extraction failed with a non-Error value");
+}
+
 function toContractKillMatrix(
   entries: Awaited<ReturnType<HaloFilmService["buildKillMatrixAnalytics"]>>["entries"],
 ): Record<string, ContractKillMatrixEntry> {
@@ -100,14 +108,15 @@ export class AnalyticsService {
   private async buildKillMatrixAnalyticsWithRetries(
     matchStats: Parameters<HaloFilmService["buildKillMatrixAnalytics"]>[0],
   ): Promise<Awaited<ReturnType<HaloFilmService["buildKillMatrixAnalytics"]>>> {
-    let lastError: unknown = new Error("Film extraction failed");
+    let lastError: Error = new Error("Film extraction failed");
     for (let attempt = 1; attempt <= FILM_EXTRACTION_MAX_ATTEMPTS; attempt += 1) {
       try {
         return await this.haloFilmService.buildKillMatrixAnalytics(matchStats);
       } catch (error) {
-        lastError = error;
+        const normalizedError = toError(error);
+        lastError = normalizedError;
         this.logService.warn(
-          error,
+          normalizedError,
           new Map([
             ["matchId", matchStats.MatchId],
             ["filmAttempt", attempt.toString()],

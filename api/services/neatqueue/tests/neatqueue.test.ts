@@ -656,6 +656,7 @@ describe("NeatQueueService", () => {
       let discordServiceCreateMessageSpy: MockInstance<typeof discordService.createMessage>;
       let cacheResolvedDiscordSeriesStatsSpy: MockInstance<typeof discordService.cacheResolvedDiscordSeriesStats>;
       let persistSeriesDataSpy: MockInstance<typeof leaderboardService.persistSeriesData>;
+      let persistMatchKillMatrixSpy: MockInstance<typeof analyticsService.persistMatchKillMatrix>;
 
       beforeEach(() => {
         appDataGetSpy = vi.spyOn(env.APP_DATA, "get");
@@ -698,6 +699,7 @@ describe("NeatQueueService", () => {
           .mockResolvedValue(startThread);
         discordServiceCreateMessageSpy = vi.spyOn(discordService, "createMessage").mockResolvedValue(apiMessage);
         persistSeriesDataSpy = vi.spyOn(leaderboardService, "persistSeriesData").mockResolvedValue();
+        persistMatchKillMatrixSpy = vi.spyOn(analyticsService, "persistMatchKillMatrix").mockResolvedValue();
         vi.spyOn(discordService, "getUsers").mockResolvedValue([
           aGuildMemberWith({
             user: {
@@ -843,6 +845,55 @@ describe("NeatQueueService", () => {
             ],
           },
           false,
+        );
+      });
+
+      it("persists tail-end film analytics for each match in the resolved series", async () => {
+        const { jobToComplete } = neatQueueService.handleRequest(
+          getFakeNeatQueueData("matchCompleted"),
+          neatQueueConfig,
+        );
+        await jobToComplete?.();
+
+        expect(persistMatchKillMatrixSpy).toHaveBeenCalledTimes(2);
+        expect(persistMatchKillMatrixSpy).toHaveBeenNthCalledWith(
+          1,
+          expect.objectContaining({ MatchId: "d81554d7-ddfe-44da-a6cb-000000000ctf" }),
+        );
+        expect(persistMatchKillMatrixSpy).toHaveBeenNthCalledWith(
+          2,
+          expect.objectContaining({ MatchId: "e20900f9-4c6c-4003-a175-00000000koth" }),
+        );
+      });
+
+      it("continues processing when tail-end film analytics persistence fails", async () => {
+        const logWarnSpy = vi.spyOn(logService, "warn");
+        persistMatchKillMatrixSpy.mockRejectedValue(new Error("persist failed"));
+
+        const { jobToComplete } = neatQueueService.handleRequest(
+          getFakeNeatQueueData("matchCompleted"),
+          neatQueueConfig,
+        );
+        await expect(jobToComplete?.()).resolves.toBeUndefined();
+
+        expect(persistMatchKillMatrixSpy).toHaveBeenCalledTimes(2);
+        expect(logWarnSpy.mock.calls).toEqual(
+          expect.arrayContaining([
+            [
+              expect.any(Error),
+              new Map([
+                ["context", "persist tail-end film analytics"],
+                ["matchId", "d81554d7-ddfe-44da-a6cb-000000000ctf"],
+              ]),
+            ],
+            [
+              expect.any(Error),
+              new Map([
+                ["context", "persist tail-end film analytics"],
+                ["matchId", "e20900f9-4c6c-4003-a175-00000000koth"],
+              ]),
+            ],
+          ]),
         );
       });
 

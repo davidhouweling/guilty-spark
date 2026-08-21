@@ -237,4 +237,11 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     expect(results["match-1"]?.scoreProgression).toBeNull();
     expect(buildKillRaceProgressionSpy).not.toHaveBeenCalled();
   });
+
+  it("rejects with an Error when film extraction throws a non-Error value", async () => {
+    const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+    vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockRejectedValue("transient-failure");
+
+    await expect(service.persistMatchKillMatrix(matchStats)).rejects.toBeInstanceOf(Error);
+  });
 });
