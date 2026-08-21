@@ -32,23 +32,23 @@ const KILL_RACE_GAME_MODES = new Set([
 ]);
 const FILM_EXTRACTION_MAX_ATTEMPTS = 3;
 
+function getErrorDetail(error: unknown): string {
+  if (typeof error === "string") {
+    return error;
+  }
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
 function toError(error: unknown): Error {
   if (error instanceof Error) {
     return error;
   }
 
-  const errorDetail = ((): string => {
-    if (typeof error === "string") {
-      return error;
-    }
-    try {
-      return JSON.stringify(error);
-    } catch {
-      return String(error);
-    }
-  })();
-
-  return new Error(`Non-Error value thrown: ${errorDetail}`);
+  return new Error(`Non-Error value thrown: ${getErrorDetail(error)}`);
 }
 
 function toContractKillMatrix(
