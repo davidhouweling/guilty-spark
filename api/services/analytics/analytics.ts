@@ -104,8 +104,7 @@ export class AnalyticsService {
     }
 
     const matchStats = Preconditions.checkExists((await this.haloService.getMatchDetails([matchId]))[0]);
-    const killMatrix =
-      cachedKillMatrix ?? (await this.buildAndPersistKillMatrixAnalytics(matchStats));
+    const killMatrix = cachedKillMatrix ?? (await this.buildAndPersistKillMatrixAnalytics(matchStats));
     // Sequential on purpose: the kill-matrix pass warms the film metadata/chunk caches that the
     // score-progression pass reads — running them concurrently duplicates the film fetch and
     // inflate work on a cold cache instead of sharing it.
