@@ -127,9 +127,9 @@ export class AnalyticsService {
 
     const matchStats = Preconditions.checkExists((await this.haloService.getMatchDetails([matchId]))[0]);
     const killMatrix = cachedKillMatrix ?? (await this.buildAndPersistKillMatrixAnalytics(matchStats));
-    // Sequential on purpose: the kill-matrix pass warms the film metadata/chunk caches that the
-    // score-progression pass reads — running them concurrently duplicates the film fetch and
-    // inflate work on a cold cache instead of sharing it.
+    // Sequential on purpose: when kill-matrix extraction runs it warms film metadata/chunk caches
+    // that score-progression reads; running both concurrently on a cold cache can duplicate film
+    // fetch work instead of sharing it.
     const scoreProgression = modules.includes("scoreProgression")
       ? await this.buildScoreProgressionAnalytics(matchStats)
       : null;
