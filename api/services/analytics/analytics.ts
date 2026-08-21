@@ -28,6 +28,7 @@ const KILL_RACE_GAME_MODES = new Set([
   GameVariantCategory.MultiplayerAttrition,
 ]);
 const FILM_EXTRACTION_MAX_ATTEMPTS = 3;
+const NUMERIC_XUID_REGEX = /^\d+$/;
 
 function getErrorDetail(error: unknown): string {
   if (typeof error === "string") {
@@ -53,6 +54,9 @@ function toContractKillMatrix(
 ): Record<string, ContractKillMatrixEntry> {
   const killMatrix: Record<string, ContractKillMatrixEntry> = {};
   for (const entry of entries) {
+    if (!NUMERIC_XUID_REGEX.test(entry.killerXuid) || !NUMERIC_XUID_REGEX.test(entry.victimXuid)) {
+      continue;
+    }
     const key = `${entry.killerXuid}:${entry.victimXuid}`;
     killMatrix[key] = {
       count: entry.count,
@@ -66,6 +70,9 @@ function toContractKillMatrix(
 function toContractKillMatrixFromRows(rows: MatchKillMatrixRow[]): Record<string, ContractKillMatrixEntry> {
   const killMatrix: Record<string, ContractKillMatrixEntry> = {};
   for (const row of rows) {
+    if (!NUMERIC_XUID_REGEX.test(row.KillerXuid) || !NUMERIC_XUID_REGEX.test(row.VictimXuid)) {
+      continue;
+    }
     const key = `${row.KillerXuid}:${row.VictimXuid}`;
     killMatrix[key] = {
       count: row.Count,
@@ -168,7 +175,10 @@ export class AnalyticsService {
       for (const matchId of matchIds) {
         const rowsForMatch = rowsByMatchId.get(matchId) ?? [];
         if (rowsForMatch.length > 0) {
-          cachedKillMatrices.set(matchId, toContractKillMatrixFromRows(rowsForMatch));
+          const killMatrix = toContractKillMatrixFromRows(rowsForMatch);
+          if (Object.keys(killMatrix).length > 0) {
+            cachedKillMatrices.set(matchId, killMatrix);
+          }
         }
       }
     } catch (error) {
