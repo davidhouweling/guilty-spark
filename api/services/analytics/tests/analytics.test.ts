@@ -67,6 +67,30 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     ]);
   });
 
+  it("continues returning analytics when optional persistence fails", async () => {
+    const logWarnSpy = vi.spyOn(logService, "warn");
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+    const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([matchStats]);
+    vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
+      entries: [{ killerXuid: "killer", victimXuid: "victim", count: 2, headshotKills: 0, perfects: 1, weapons: [] }],
+      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+      perfectCounts: { total: 0, byXuid: {} },
+    });
+    vi.spyOn(databaseService, "replaceMatchKillMatrix").mockRejectedValue(new Error("db down"));
+
+    const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix"], { persistKillMatrix: true });
+
+    expect(results["match-1"]).not.toBeNull();
+    expect(logWarnSpy).toHaveBeenCalledWith(
+      expect.any(Error),
+      new Map([
+        ["matchId", "9535b946-f30c-4a43-b852-000000slayer"],
+        ["context", "persist match kill matrix"],
+      ]),
+    );
+  });
+
   it("returns null for failed matches without affecting successful ones", async () => {
     vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));

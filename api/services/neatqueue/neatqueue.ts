@@ -2170,7 +2170,7 @@ export class NeatQueueService {
         this.leaderboardService.persistSeriesData({ request, neatQueueConfig, series, locale }),
         this.postSeriesDetailsToChannel(thread.id, request.guild, series, locale),
       ]);
-      void this.persistFilmAnalyticsAtTail(series);
+      await this.persistFilmAnalyticsAtTail(series);
     } catch (error) {
       this.logService.warn(error, new Map([["reason", "Failed to post series data to thread"]]));
 

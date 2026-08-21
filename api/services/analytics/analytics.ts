@@ -78,7 +78,11 @@ export class AnalyticsService {
     const matchStats = Preconditions.checkExists((await this.haloService.getMatchDetails([matchId]))[0]);
     const killMatrixAnalytics = await this.buildKillMatrixAnalyticsWithRetries(matchStats);
     if (opts.persistKillMatrix === true) {
-      await this.persistKillMatrixEntries(matchStats.MatchId, killMatrixAnalytics.entries);
+      try {
+        await this.persistKillMatrixEntries(matchStats.MatchId, killMatrixAnalytics.entries);
+      } catch {
+        // Persistence is best-effort in this read path.
+      }
     }
     // Sequential on purpose: the kill-matrix pass warms the film metadata/chunk caches that the
     // score-progression pass reads — running them concurrently duplicates the film fetch and
@@ -147,13 +151,15 @@ export class AnalyticsService {
     try {
       await this.databaseService.replaceMatchKillMatrix(matchId, rows);
     } catch (error) {
+      const normalizedError = toError(error);
       this.logService.warn(
-        error,
+        normalizedError,
         new Map([
           ["matchId", matchId],
           ["context", "persist match kill matrix"],
         ]),
       );
+      throw normalizedError;
     }
   }
 
