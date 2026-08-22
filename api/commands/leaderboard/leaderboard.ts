@@ -978,6 +978,11 @@ export class LeaderboardCommand extends BaseCommand {
       );
     }
 
+    const renderedState = this.getStateFromRenderedMessage(interaction);
+    if (renderedState != null) {
+      return this.validateInteractionState(interaction, renderedState);
+    }
+
     const stateUrl = this.getStateUrlFromComponents(components);
     const params = this.getStateQueryParams(stateUrl);
     const parsedWindow = this.parseWindowOption(params.get("window") ?? undefined);
@@ -1001,6 +1006,108 @@ export class LeaderboardCommand extends BaseCommand {
       minGamesPlayed: Number.isNaN(parsedMinGamesPlayed) ? 0 : Math.max(0, parsedMinGamesPlayed),
       locked: false,
     });
+  }
+
+  private getStateFromRenderedMessage(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+  ): ResolvedLeaderboardViewState | null {
+    const { components, embeds } = interaction.message;
+    if (components == null) {
+      return null;
+    }
+
+    const selectedWindow = this.parseWindowOption(
+      this.getSelectedStringSelectValue(components, LEADERBOARD_WINDOW_SELECT_CONTROL_ID),
+    );
+    const selectedMetric = this.getSelectedMetricFromRenderedComponents(components);
+    const pageState = this.getPageStateFromRenderedEmbeds(embeds);
+
+    if (selectedWindow == null || selectedMetric == null || pageState == null) {
+      return null;
+    }
+
+    return {
+      guildId: interaction.guild_id ?? "",
+      queueChannelId: this.getQueueChannelIdFromRenderedEmbeds(embeds),
+      window: selectedWindow,
+      metric: selectedMetric,
+      page: pageState.page,
+      minGamesPlayed: pageState.minGamesPlayed,
+      locked: false,
+    };
+  }
+
+  private getSelectedMetricFromRenderedComponents(
+    components: APIMessageTopLevelComponent[],
+  ): LeaderboardMetric | null {
+    const legacyMetric = this.parseMetricOption(
+      this.getSelectedStringSelectValue(components, LEGACY_LEADERBOARD_METRIC_SELECT_CONTROL_ID),
+    );
+    if (legacyMetric != null) {
+      return legacyMetric;
+    }
+
+    const selectedFamily = this.parseMetricFamilyOption(
+      this.getSelectedStringSelectValue(components, LEADERBOARD_METRIC_FAMILY_SELECT_CONTROL_ID),
+    );
+    const selectedAggregation = this.parseMetricAggregationOption(
+      this.getSelectedStringSelectValue(components, LEADERBOARD_METRIC_AGGREGATION_SELECT_CONTROL_ID),
+    );
+    if (selectedFamily == null || selectedAggregation == null) {
+      return null;
+    }
+
+    return resolveLeaderboardMetric(selectedFamily, selectedAggregation);
+  }
+
+  private getSelectedStringSelectValue(components: APIMessageTopLevelComponent[], customId: string): string | undefined {
+    for (const actionRow of components) {
+      if (actionRow.type !== ComponentType.ActionRow) {
+        continue;
+      }
+
+      for (const component of actionRow.components) {
+        if (
+          component.type !== ComponentType.StringSelect ||
+          this.getLeaderboardControlId(component.custom_id) !== customId
+        ) {
+          continue;
+        }
+
+        return component.options.find((option) => option.default === true)?.value;
+      }
+    }
+
+    return undefined;
+  }
+
+  private getQueueChannelIdFromRenderedEmbeds(embeds: NonNullable<APIMessage["embeds"]>): string | null {
+    const title = embeds[0]?.title;
+    const queueChannelMatch = title?.match(/^Leaderboard - Queue <#([^>]+)>$/u);
+    return queueChannelMatch?.[1] ?? null;
+  }
+
+  private getPageStateFromRenderedEmbeds(
+    embeds: NonNullable<APIMessage["embeds"]>,
+  ): { page: number; minGamesPlayed: number } | null {
+    const footerText = embeds[0]?.footer?.text;
+    const pageMatch = footerText?.match(/^Page (\d+) of \d+ \| Min games: (\d+) \| Total players: \d+$/u);
+    if (pageMatch == null) {
+      return null;
+    }
+
+    const [, rawPage, rawMinGamesPlayed] = pageMatch;
+    if (rawPage == null || rawMinGamesPlayed == null) {
+      return null;
+    }
+
+    const page = Number.parseInt(rawPage, 10);
+    const minGamesPlayed = Number.parseInt(rawMinGamesPlayed, 10);
+    if (Number.isNaN(page) || Number.isNaN(minGamesPlayed)) {
+      return null;
+    }
+
+    return { page: Math.max(1, page), minGamesPlayed: Math.max(0, minGamesPlayed) };
   }
 
   private validateInteractionState(
