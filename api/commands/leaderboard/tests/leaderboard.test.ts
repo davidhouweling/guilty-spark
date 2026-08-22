@@ -17,7 +17,12 @@ import {
   PermissionFlagsBits,
 } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { LeaderboardMetric, LeaderboardMetricFamily, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import {
+  LeaderboardMetric,
+  LeaderboardMetricAggregation,
+  LeaderboardMetricFamily,
+  LeaderboardWindow,
+} from "@guilty-spark/shared/halo/leaderboard";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeLeaderboardSeriesRow } from "../../../services/database/fakes/database.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
@@ -34,6 +39,7 @@ const INTERACTION_FIRST_PAGE = "btn_leaderboard_first";
 const INTERACTION_REFRESH = "btn_leaderboard_refresh";
 const INTERACTION_LAST_PAGE = "btn_leaderboard_last";
 const INTERACTION_METRIC_SELECT = "select_leaderboard_metric_family";
+const INTERACTION_METRIC_AGGREGATION_SELECT = "select_leaderboard_metric_aggregation";
 const INTERACTION_LEGACY_METRIC_SELECT = "select_leaderboard_metric";
 const INTERACTION_WINDOW_SELECT = "select_leaderboard_window";
 
@@ -1354,6 +1360,111 @@ describe("LeaderboardCommand", () => {
       page: 1,
       pageSize: 10,
       minGamesPlayed: 0,
+    });
+  });
+
+  it("switches aggregation from short custom-id interaction using rendered message state", async () => {
+    const interaction: APIMessageComponentSelectMenuInteraction = {
+      ...aWizardStringSelectWith({
+        customId: INTERACTION_METRIC_AGGREGATION_SELECT,
+        value: LeaderboardMetricAggregation.AvgPerSeries,
+      }),
+      guild_id: "guild-123",
+      guild: {
+        ...Preconditions.checkExists(
+          aWizardStringSelectWith({
+            customId: INTERACTION_METRIC_AGGREGATION_SELECT,
+            value: LeaderboardMetricAggregation.AvgPerSeries,
+          }).guild,
+        ),
+        id: "guild-123",
+      },
+      message: {
+        ...aWizardStringSelectWith({
+          customId: INTERACTION_METRIC_AGGREGATION_SELECT,
+          value: LeaderboardMetricAggregation.AvgPerSeries,
+        }).message,
+        embeds: [
+          {
+            title: "Leaderboard - Queue <#queue-123>",
+            footer: { text: "Page 2 of 4 | Min games: 10 | Total players: 34" },
+          },
+        ],
+        components: [
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.StringSelect,
+                custom_id: INTERACTION_METRIC_AGGREGATION_SELECT,
+                min_values: 1,
+                max_values: 1,
+                options: [
+                  {
+                    label: "Overall performance",
+                    value: LeaderboardMetricAggregation.OverallPerformance,
+                    default: true,
+                  },
+                  { label: "Avg per series", value: LeaderboardMetricAggregation.AvgPerSeries },
+                ],
+              },
+            ],
+          },
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.StringSelect,
+                custom_id: INTERACTION_METRIC_SELECT,
+                min_values: 1,
+                max_values: 1,
+                options: [{ label: "Series win rate", value: LeaderboardMetricFamily.SeriesWinRate, default: true }],
+              },
+            ],
+          },
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.StringSelect,
+                custom_id: INTERACTION_WINDOW_SELECT,
+                min_values: 1,
+                max_values: 1,
+                options: [{ label: "3 months", value: LeaderboardWindow.ThreeMonths, default: true }],
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    const getLeaderboardSpy = vi.spyOn(services.leaderboardService, "getLeaderboard").mockResolvedValue({
+      guildId: "guild-123",
+      queueChannelId: "queue-123",
+      window: LeaderboardWindow.ThreeMonths,
+      metric: LeaderboardMetric.AvgPersonalScorePerSeries,
+      minGamesPlayed: 10,
+      page: 1,
+      pageSize: 10,
+      total: 34,
+      rows: [],
+    });
+    vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      ...Preconditions.checkExists(interaction.message),
+      type: MessageType.Default,
+    });
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(getLeaderboardSpy).toHaveBeenCalledWith({
+      guildId: "guild-123",
+      queueChannelId: "queue-123",
+      window: LeaderboardWindow.ThreeMonths,
+      metric: LeaderboardMetric.AvgPersonalScorePerSeries,
+      page: 1,
+      pageSize: 10,
+      minGamesPlayed: 10,
     });
   });
 
