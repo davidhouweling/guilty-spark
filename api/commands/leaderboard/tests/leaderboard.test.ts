@@ -521,40 +521,50 @@ describe("LeaderboardCommand", () => {
         {
           type: ComponentType.Button,
           style: ButtonStyle.Secondary,
-          custom_id: `${INTERACTION_FIRST_PAGE}:guild-123:queue-123:1M:KILLS:2:3`,
+          custom_id: INTERACTION_FIRST_PAGE,
           emoji: { name: "⏮️" },
           disabled: false,
         },
         {
           type: ComponentType.Button,
           style: ButtonStyle.Secondary,
-          custom_id: `${INTERACTION_PREV_PAGE}:guild-123:queue-123:1M:KILLS:2:3`,
+          custom_id: INTERACTION_PREV_PAGE,
           emoji: { name: "◀️" },
           disabled: false,
         },
         {
           type: ComponentType.Button,
           style: ButtonStyle.Secondary,
-          custom_id: `${INTERACTION_REFRESH}:guild-123:queue-123:1M:KILLS:2:3`,
+          custom_id: INTERACTION_REFRESH,
           emoji: { name: "🔄" },
           disabled: false,
         },
         {
           type: ComponentType.Button,
           style: ButtonStyle.Secondary,
-          custom_id: `${INTERACTION_NEXT_PAGE}:guild-123:queue-123:1M:KILLS:2:3`,
+          custom_id: INTERACTION_NEXT_PAGE,
           emoji: { name: "▶️" },
           disabled: false,
         },
         {
           type: ComponentType.Button,
           style: ButtonStyle.Secondary,
-          custom_id: `${INTERACTION_LAST_PAGE}:guild-123:queue-123:1M:KILLS:2:3`,
+          custom_id: INTERACTION_LAST_PAGE,
           emoji: { name: "⏭️" },
           disabled: false,
         },
       ],
     });
+    for (const row of payload.components ?? []) {
+      if (row.type !== ComponentType.ActionRow) {
+        continue;
+      }
+      for (const component of row.components) {
+        if ("custom_id" in component) {
+          expect(component.custom_id.length).toBeLessThanOrEqual(100);
+        }
+      }
+    }
     expect(getBrowserUrlFromComponents(payload.components)).toBeNull();
   });
 

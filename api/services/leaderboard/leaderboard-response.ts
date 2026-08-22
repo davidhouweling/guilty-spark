@@ -33,19 +33,6 @@ export const LEADERBOARD_METRIC_FAMILY_SELECT_CONTROL_ID = "select_leaderboard_m
 export const LEADERBOARD_METRIC_AGGREGATION_SELECT_CONTROL_ID = "select_leaderboard_metric_aggregation";
 export const LEADERBOARD_WINDOW_SELECT_CONTROL_ID = "select_leaderboard_window";
 
-function createLeaderboardControlId(controlId: string, leaderboard: LeaderboardResponse): string {
-  const queueChannelId = leaderboard.queueChannelId ?? "-";
-  return [
-    controlId,
-    leaderboard.guildId,
-    queueChannelId,
-    leaderboard.window,
-    leaderboard.metric,
-    leaderboard.page.toString(36),
-    leaderboard.minGamesPlayed.toString(36),
-  ].join(":");
-}
-
 function formatRank(rank: number): string {
   switch (rank) {
     case 1: {
@@ -446,7 +433,7 @@ function createComponents(leaderboard: LeaderboardResponse): APIMessageTopLevelC
       components: controls.map(([controlId, emoji, disabled]) => ({
         type: ComponentType.Button,
         style: ButtonStyle.Secondary,
-        custom_id: createLeaderboardControlId(controlId, leaderboard),
+        custom_id: controlId,
         emoji: { name: emoji },
         disabled,
       })),
@@ -456,7 +443,7 @@ function createComponents(leaderboard: LeaderboardResponse): APIMessageTopLevelC
       components: [
         {
           type: ComponentType.StringSelect,
-          custom_id: createLeaderboardControlId(LEADERBOARD_METRIC_AGGREGATION_SELECT_CONTROL_ID, leaderboard),
+          custom_id: LEADERBOARD_METRIC_AGGREGATION_SELECT_CONTROL_ID,
           placeholder: "Select type",
           min_values: 1,
           max_values: 1,
@@ -469,7 +456,7 @@ function createComponents(leaderboard: LeaderboardResponse): APIMessageTopLevelC
       components: [
         {
           type: ComponentType.StringSelect,
-          custom_id: createLeaderboardControlId(LEADERBOARD_METRIC_FAMILY_SELECT_CONTROL_ID, leaderboard),
+          custom_id: LEADERBOARD_METRIC_FAMILY_SELECT_CONTROL_ID,
           placeholder: "Select stat",
           min_values: 1,
           max_values: 1,
@@ -484,7 +471,7 @@ function createComponents(leaderboard: LeaderboardResponse): APIMessageTopLevelC
     components: [
       {
         type: ComponentType.StringSelect,
-        custom_id: createLeaderboardControlId(LEADERBOARD_WINDOW_SELECT_CONTROL_ID, leaderboard),
+        custom_id: LEADERBOARD_WINDOW_SELECT_CONTROL_ID,
         placeholder: "Select window",
         min_values: 1,
         max_values: 1,
