@@ -1037,9 +1037,7 @@ export class LeaderboardCommand extends BaseCommand {
     };
   }
 
-  private getSelectedMetricFromRenderedComponents(
-    components: APIMessageTopLevelComponent[],
-  ): LeaderboardMetric | null {
+  private getSelectedMetricFromRenderedComponents(components: APIMessageTopLevelComponent[]): LeaderboardMetric | null {
     const legacyMetric = this.parseMetricOption(
       this.getSelectedStringSelectValue(components, LEGACY_LEADERBOARD_METRIC_SELECT_CONTROL_ID),
     );
@@ -1060,7 +1058,10 @@ export class LeaderboardCommand extends BaseCommand {
     return resolveLeaderboardMetric(selectedFamily, selectedAggregation);
   }
 
-  private getSelectedStringSelectValue(components: APIMessageTopLevelComponent[], customId: string): string | undefined {
+  private getSelectedStringSelectValue(
+    components: APIMessageTopLevelComponent[],
+    customId: string,
+  ): string | undefined {
     for (const actionRow of components) {
       if (actionRow.type !== ComponentType.ActionRow) {
         continue;

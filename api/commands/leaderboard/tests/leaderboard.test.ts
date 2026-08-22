@@ -1400,7 +1400,11 @@ describe("LeaderboardCommand", () => {
                 min_values: 1,
                 max_values: 1,
                 options: [
-                  { label: "Overall performance", value: LeaderboardMetricAggregation.OverallPerformance, default: true },
+                  {
+                    label: "Overall performance",
+                    value: LeaderboardMetricAggregation.OverallPerformance,
+                    default: true,
+                  },
                   { label: "Avg per series", value: LeaderboardMetricAggregation.AvgPerSeries },
                 ],
               },
