@@ -28,8 +28,9 @@ const TOUCH_TICKS = 2.5;
 // mostly invisible to the film, so held seconds convert to scored ticks at a roughly fixed
 // rate (calibrated against theatre-verified rounds: 108/139 and 145/167).
 const HELD_TO_TICKS_RATIO = 0.85;
-// A capped round ends while the winner is holding: their last carry event sits at the round's
-// final activity. A timed-out round ends with the timer, leaving a gap after the last carry.
+// A capped round ends while the winner is riding the meter to 100: their last carry event sits
+// at the round's final activity AND is a clock crossing (a buzzer-scramble touch at the end of
+// a timed-out round is near the final activity too, but is a touch, not a crossing).
 const CAP_END_PROXIMITY_MS = 6_000;
 
 export interface OddballScorePoint {
@@ -243,17 +244,129 @@ function buildRoundPoints(
   return points;
 }
 
+// Nobody can exceed the cap in any round (and only a capped round's winner reaches it exactly);
+// excess moves to the team's other rounds so per-team match totals stay intact.
+function clampScoresToCap(solved: SolvedRound[], teamIds: readonly number[]): void {
+  for (const teamId of teamIds) {
+    for (const round of solved) {
+      const limit = round.endedByCap && round.winnerTeamId === teamId ? CAP_SCORE : CAP_SCORE - 1;
+      const excess = (round.scores.get(teamId) ?? 0) - limit;
+      if (excess <= 0) {
+        continue;
+      }
+      round.scores.set(teamId, limit);
+      const [target] = solved
+        .filter((other) => other !== round && !(other.endedByCap && other.winnerTeamId === teamId))
+        .sort((a, b) => (a.scores.get(teamId) ?? 0) - (b.scores.get(teamId) ?? 0));
+      if (target != null) {
+        target.scores.set(teamId, (target.scores.get(teamId) ?? 0) + excess);
+      }
+    }
+  }
+}
+
+function enumerateWinnerAssignments(
+  solved: readonly SolvedRound[],
+  teamIds: readonly number[],
+  roundsWonByTeam: ReadonlyMap<number, number>,
+): number[][] {
+  const build = (index: number, remaining: Map<number, number>): number[][] => {
+    if (index === solved.length) {
+      return [...remaining.values()].every((count) => count === 0) ? [[]] : [];
+    }
+    const round = Preconditions.checkExists(solved[index]);
+    const candidates = round.endedByCap && round.winnerTeamId != null ? [round.winnerTeamId] : teamIds;
+    const results: number[][] = [];
+    for (const teamId of candidates) {
+      if ((remaining.get(teamId) ?? 0) <= 0) {
+        continue;
+      }
+      remaining.set(teamId, (remaining.get(teamId) ?? 0) - 1);
+      for (const rest of build(index + 1, remaining)) {
+        results.push([teamId, ...rest]);
+      }
+      remaining.set(teamId, (remaining.get(teamId) ?? 0) + 1);
+    }
+    return results;
+  };
+  return build(0, new Map(roundsWonByTeam));
+}
+
+function enforceWinnerMargins(solved: SolvedRound[], teamIds: readonly number[]): void {
+  for (const round of solved) {
+    const winner = round.winnerTeamId;
+    if (winner == null) {
+      continue;
+    }
+    const runnerUp = Math.max(...teamIds.filter((id) => id !== winner).map((id) => round.scores.get(id) ?? 0));
+    const shortfall = runnerUp + 1 - (round.scores.get(winner) ?? 0);
+    if (shortfall <= 0) {
+      continue;
+    }
+    // pull the shortfall from the winner's score in the sibling round with the most headroom
+    const [donor] = solved
+      .filter((other) => other !== round && !(other.endedByCap && other.winnerTeamId === winner))
+      .sort((a, b) => (b.scores.get(winner) ?? 0) - (a.scores.get(winner) ?? 0));
+    if (donor == null) {
+      continue;
+    }
+    const donorScore = donor.scores.get(winner) ?? 0;
+    const donorFloor =
+      donor.winnerTeamId === winner
+        ? Math.max(...teamIds.filter((id) => id !== winner).map((id) => donor.scores.get(id) ?? 0)) + 1
+        : 0;
+    const winnerLimit = round.endedByCap ? CAP_SCORE : CAP_SCORE - 1;
+    const headroom = winnerLimit - (round.scores.get(winner) ?? 0);
+    const transferable = Math.min(shortfall, Math.max(donorScore - donorFloor, 0), Math.max(headroom, 0));
+    round.scores.set(winner, (round.scores.get(winner) ?? 0) + transferable);
+    donor.scores.set(winner, donorScore - transferable);
+  }
+}
+
+// The API records how many rounds each team won; the per-round winner assignment must respect
+// those counts (and capped rounds are won by the team that capped). Among valid assignments,
+// pick the one that best agrees with the solved score margins, then nudge scores so every
+// winner actually leads their round — moving points between a team's own rounds so per-team
+// match totals stay intact.
+function assignWinnersFromRoundsWon(
+  solved: SolvedRound[],
+  teamIds: readonly number[],
+  roundsWonByTeam: ReadonlyMap<number, number>,
+): void {
+  const assignments = enumerateWinnerAssignments(solved, teamIds, roundsWonByTeam);
+  if (assignments.length === 0) {
+    return;
+  }
+  const margin = (round: SolvedRound, winner: number): number => {
+    const winnerScore = round.scores.get(winner) ?? 0;
+    const best = Math.max(...teamIds.filter((id) => id !== winner).map((id) => round.scores.get(id) ?? 0));
+    return winnerScore - best;
+  };
+  const best = Preconditions.checkExists(
+    [...assignments].sort(
+      (a, b) =>
+        b.reduce((acc, winner, i) => acc + margin(Preconditions.checkExists(solved[i]), winner), 0) -
+        a.reduce((acc, winner, i) => acc + margin(Preconditions.checkExists(solved[i]), winner), 0),
+    )[0],
+  );
+  for (const [index, winner] of best.entries()) {
+    Preconditions.checkExists(solved[index]).winnerTeamId = winner;
+  }
+  enforceWinnerMargins(solved, teamIds);
+}
+
 function solveRoundScores(
   windows: readonly RoundWindow[],
   estimated: readonly EstimatedEvent[],
   teamIds: readonly number[],
   matchTotals: ReadonlyMap<number, number>,
+  roundsWonByTeam: ReadonlyMap<number, number>,
 ): SolvedRound[] {
   const lastCarryByRound = windows.map((window) => {
-    const last = new Map<number, number>();
+    const last = new Map<number, EstimatedEvent>();
     for (const event of estimated) {
       if (window.startMs <= event.timestampMs && event.timestampMs <= window.endMs) {
-        last.set(event.teamId, event.timestampMs);
+        last.set(event.teamId, event);
       }
     }
     return last;
@@ -280,8 +393,9 @@ function solveRoundScores(
     const impliedTicks = Math.round((impliedHeldMs * HELD_TO_TICKS_RATIO) / 1000);
 
     const leaderTeamId = [...sums.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
-    const leaderLastCarryMs = Preconditions.checkExists(lastCarryByRound[roundIndex]).get(leaderTeamId ?? -1) ?? 0;
-    const endedByCap = window.endMs - leaderLastCarryMs <= CAP_END_PROXIMITY_MS;
+    const leaderLast = Preconditions.checkExists(lastCarryByRound[roundIndex]).get(leaderTeamId ?? -1);
+    const endedByCap =
+      leaderLast != null && window.endMs - leaderLast.timestampMs <= CAP_END_PROXIMITY_MS && !leaderLast.isTouch;
     const scores = new Map<number, number>();
     if (endedByCap && leaderTeamId != null) {
       // winner capped at exactly CAP_SCORE; scale the rest by the estimator's ratio to the winner
@@ -305,6 +419,30 @@ function solveRoundScores(
   });
 
   reconcileToMatchTotals(solved, teamIds, matchTotals);
+  // A timed-out round can never reach the cap — any round solving at or above it must have
+  // been capped (the film can miss the winner's final crossing). Reclassify and re-solve.
+  for (const _pass of windows) {
+    void _pass;
+    const [round] = solved
+      .filter((candidate) => !candidate.endedByCap && Math.max(...candidate.scores.values()) >= CAP_SCORE)
+      .sort((a, b) => Math.max(...b.scores.values()) - Math.max(...a.scores.values()));
+    if (round == null) {
+      break;
+    }
+    round.endedByCap = true;
+    const leader = [...round.scores.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    round.winnerTeamId = leader;
+    if (leader != null) {
+      const leaderRaw = round.scores.get(leader) ?? 1;
+      for (const teamId of teamIds) {
+        const value = teamId === leader ? CAP_SCORE : ((round.scores.get(teamId) ?? 0) / leaderRaw) * CAP_SCORE;
+        round.scores.set(teamId, value);
+      }
+    }
+    reconcileToMatchTotals(solved, teamIds, matchTotals);
+  }
+  clampScoresToCap(solved, teamIds);
+  assignWinnersFromRoundsWon(solved, teamIds, roundsWonByTeam);
   return solved;
 }
 
@@ -332,7 +470,8 @@ export function buildOddballProgression(
   const windows = findRoundWindows(activityTimes, roundCount, durationMs);
   const estimated = classifyEvents(carryEvents, windows);
 
-  const roundScores = solveRoundScores(windows, estimated, teamIds, matchTotals);
+  const roundsWonByTeam = new Map(matchStats.Teams.map((team) => [team.TeamId, team.Stats.CoreStats.RoundsWon]));
+  const roundScores = solveRoundScores(windows, estimated, teamIds, matchTotals, roundsWonByTeam);
 
   const rounds: OddballRound[] = windows.map((window, roundIndex) => {
     const solved = Preconditions.checkExists(roundScores[roundIndex]);

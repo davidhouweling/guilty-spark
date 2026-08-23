@@ -4,6 +4,7 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getMatchStats } from "../../../fakes/data";
 import { buildOddballProgression } from "../oddball-progression";
 import { ODDBALL_3A8D_DURATION_MS, oddball3a8dEvents } from "../fakes/oddball-match-3a8d.fake";
+import { ODDBALL_F206_DURATION_MS, oddballF206Events } from "../fakes/oddball-match-f206.fake";
 
 // The koth fixture carries two teams; only TeamId/Score/RoundsWon are read by the builder, so
 // clone it into the oddball calibration match's shape.
@@ -83,6 +84,69 @@ describe("buildOddballProgression (calibration match 3a8dab3d)", () => {
       const estEagle = latest?.runningScores["0"] ?? 0;
       const estCobra = latest?.runningScores["1"] ?? 0;
       return Math.abs(estEagle - eagle) + Math.abs(estCobra - cobra);
+    });
+    const mae = errors.reduce((a, b) => a + b, 0) / (errors.length * 2);
+    expect(mae).toBeLessThanOrEqual(8);
+  });
+});
+
+describe("buildOddballProgression (blind-validated match f2061e40)", () => {
+  function aF206MatchStats(): MatchStats {
+    const base = structuredClone(Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth")));
+    const team0 = Preconditions.checkExists(base.Teams[0]);
+    const team1 = Preconditions.checkExists(base.Teams[1]);
+    team0.Stats.CoreStats.Score = 140;
+    team0.Stats.CoreStats.RoundsWon = 2;
+    team1.Stats.CoreStats.Score = 95;
+    team1.Stats.CoreStats.RoundsWon = 0;
+    return base;
+  }
+
+  const progression = buildOddballProgression(oddballF206Events(), aF206MatchStats(), ODDBALL_F206_DURATION_MS);
+
+  it("classifies both rounds as timed out with Eagle winning each", () => {
+    expect(progression.rounds).toHaveLength(2);
+    expect(progression.rounds.map((r) => r.endedByCap)).toEqual([false, false]);
+    expect(progression.rounds.map((r) => r.winnerTeamId)).toEqual([0, 0]);
+  });
+
+  it("does not misread the buzzer-scramble touch at round 1's end as a cap", () => {
+    // Eagle's final round-1 event lands within seconds of the round end, but it is a touch,
+    // not a meter-riding crossing — the round timed out at 64:28.
+    expect(progression.rounds[0]?.endedByCap).toBe(false);
+  });
+
+  it("estimates round-end scores within tolerance of theatre truth", () => {
+    const truth = [
+      { eagle: 64, cobra: 28 },
+      { eagle: 76, cobra: 67 },
+    ];
+    expect.assertions(4);
+    for (const [index, round] of progression.rounds.entries()) {
+      const expected = Preconditions.checkExists(truth[index]);
+      expect(Math.abs((round.scores["0"] ?? 0) - expected.eagle)).toBeLessThanOrEqual(12);
+      expect(Math.abs((round.scores["1"] ?? 0) - expected.cobra)).toBeLessThanOrEqual(12);
+    }
+  });
+
+  it("tracks minute-interval waypoints within tolerance", () => {
+    const waypoints = [
+      { round: 0, atMs: minute(4), eagle: 5, cobra: 16 },
+      { round: 0, atMs: minute(5), eagle: 28, cobra: 16 },
+      { round: 0, atMs: minute(6), eagle: 46, cobra: 17 },
+      { round: 0, atMs: minute(7), eagle: 64, cobra: 17 },
+      { round: 1, atMs: minute(9), eagle: 19, cobra: 1 },
+      { round: 1, atMs: minute(10), eagle: 28, cobra: 11 },
+      { round: 1, atMs: minute(11), eagle: 47, cobra: 13 },
+      { round: 1, atMs: minute(12), eagle: 47, cobra: 24 },
+      { round: 1, atMs: minute(13), eagle: 61, cobra: 33 },
+      { round: 1, atMs: minute(14), eagle: 73, cobra: 41 },
+      { round: 1, atMs: minute(15), eagle: 76, cobra: 67 },
+    ];
+    const errors = waypoints.map(({ round, atMs, eagle, cobra }) => {
+      const { points } = Preconditions.checkExists(progression.rounds[round]);
+      const latest = [...points].reverse().find((p) => p.timestampMs <= atMs);
+      return Math.abs((latest?.runningScores["0"] ?? 0) - eagle) + Math.abs((latest?.runningScores["1"] ?? 0) - cobra);
     });
     const mae = errors.reduce((a, b) => a + b, 0) / (errors.length * 2);
     expect(mae).toBeLessThanOrEqual(8);
