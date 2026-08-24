@@ -6,7 +6,7 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { getObjectiveTimeSeconds } from "@guilty-spark/shared/halo/objective-metrics";
-import { getSafeRatioValue } from "@guilty-spark/shared/halo/stat-formatting";
+import { clampRatioForStorage, getSafeRatioValue } from "@guilty-spark/shared/halo/stat-formatting";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
@@ -709,7 +709,7 @@ export class LeaderboardService {
           ShotsFired: coreStats.ShotsFired,
           DamageDealt: coreStats.DamageDealt,
           DamageTaken: coreStats.DamageTaken,
-          DamageRatio: getSafeRatioValue(coreStats.DamageDealt, coreStats.DamageTaken),
+          DamageRatio: clampRatioForStorage(getSafeRatioValue(coreStats.DamageDealt, coreStats.DamageTaken)),
           AvgLifeSeconds: this.getAverageLifeSeconds(coreStats.AverageLifeDuration),
           AvgDamagePerLife: getSafeRatioValue(coreStats.DamageDealt, deaths + 1),
           MedalCount: medalAggregates.count,

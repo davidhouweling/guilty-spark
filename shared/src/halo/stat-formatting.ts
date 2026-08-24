@@ -31,6 +31,11 @@ export function getSafeRatioValue(numerator: number, denominator: number): numbe
   return numerator / denominator;
 }
 
+// Non-finite ratios (e.g. a flawless game with zero damage taken) can't be stored in a NOT NULL REAL column.
+export function clampRatioForStorage(value: number): number {
+  return Number.isFinite(value) ? value : Number.MAX_SAFE_INTEGER;
+}
+
 export function formatDamageRatio(damageDealt: number, damageTaken: number, locale?: string): string {
   if (damageDealt === 0) {
     return "0";
