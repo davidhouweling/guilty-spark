@@ -965,6 +965,36 @@ describe("LeaderboardService", () => {
     expect(player.ObjectiveGameContribution).toBeCloseTo(11.1 / 172);
   });
 
+  it("persists only objective stats in ObjectiveStatsJson", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+    const upsertSpy = vi.spyOn(databaseService, "upsertLeaderboardSeriesDataBatch");
+
+    await service.persistSeriesData({
+      request: {
+        action: "MATCH_COMPLETED",
+        guild: "guild-1",
+        channel: "channel-1",
+        queue: "ranked",
+        match_number: 42,
+        winning_team_index: 0,
+        teams: [],
+      },
+      neatQueueConfig: aFakeNeatQueueConfigRow(),
+      series: [match],
+      locale: "en-US",
+    });
+
+    const [payload] = Preconditions.checkExists(upsertSpy.mock.calls[0]);
+    const player = Preconditions.checkExists(payload.gamePlayers[0]);
+    const objectiveStats = JSON.parse(player.ObjectiveStatsJson) as Record<string, unknown>;
+    expect(objectiveStats).not.toHaveProperty("CoreStats");
+    expect(objectiveStats).toHaveProperty("CaptureTheFlagStats");
+  });
+
   it("falls back to medal score totals when medal metadata is unavailable", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });

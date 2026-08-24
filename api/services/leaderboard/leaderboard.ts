@@ -25,6 +25,7 @@ import type { LogService } from "../log/types";
 import type { NeatQueueMatchCompletedRequest } from "../neatqueue/types";
 import { getLeaderboardMessageState } from "./leaderboard-message";
 import { createLeaderboardResponse, LEADERBOARD_TEMPORARY_ERROR_FOOTER } from "./leaderboard-response";
+import { serializeObjectiveStats } from "./objective-stats";
 
 export interface LeaderboardServiceOpts {
   databaseService: DatabaseService;
@@ -717,7 +718,7 @@ export class LeaderboardService {
           ObjectiveTimeSeconds: objectiveTimeSeconds,
           ObjectiveTeamContribution: objectiveTeamContribution,
           ObjectiveGameContribution: objectiveGameContribution,
-          ObjectiveStatsJson: JSON.stringify(teamStats.Stats),
+          ObjectiveStatsJson: serializeObjectiveStats(teamStats.Stats),
           MedalsJson: JSON.stringify(coreStats.Medals),
           CreatedAt: nowEpoch,
         });
