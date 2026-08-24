@@ -989,7 +989,7 @@ describe("LeaderboardService", () => {
     });
 
     const [payload] = Preconditions.checkExists(upsertSpy.mock.calls[0]);
-    const player = Preconditions.checkExists(payload.gamePlayers[0]);
+    const player = Preconditions.checkExists(payload.gamePlayers.find((row) => row.XboxXuid === "0100000000000000"));
     const objectiveStats = JSON.parse(player.ObjectiveStatsJson) as Record<string, unknown>;
     expect(objectiveStats).not.toHaveProperty("CoreStats");
     expect(objectiveStats).toHaveProperty("CaptureTheFlagStats");
