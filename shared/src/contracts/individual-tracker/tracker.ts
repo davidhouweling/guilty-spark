@@ -37,6 +37,12 @@ export const startTrackerRequestSchema = z.object({
 });
 export type StartTrackerRequest = z.infer<typeof startTrackerRequestSchema>;
 
+export const startSeriesTrackerRequestSchema = z.object({
+  guildId: z.string().min(1),
+  queueNumber: z.number().int().min(0),
+});
+export type StartSeriesTrackerRequest = z.infer<typeof startSeriesTrackerRequestSchema>;
+
 export const selectActiveTrackerRequestSchema = z.object({
   trackerId: z.string().min(1),
 });

@@ -3,6 +3,7 @@ import type { LiveTrackerService } from "../services/live-tracker/live-tracker";
 import type { LogService } from "../services/log/types";
 import type { NeatQueueService } from "../services/neatqueue/neatqueue";
 import type { ActiveSeriesForPlayer } from "../services/neatqueue/types";
+import { resolveLiveTrackerMatchIds } from "./live-tracker-match-ids";
 
 export interface ResolveSeriesSeedOpts {
   neatQueueService: NeatQueueService;
@@ -19,12 +20,7 @@ async function resolveSeriesMatchIds(
   const { liveTrackerService, logService } = opts;
 
   try {
-    const status = await liveTrackerService.getTrackerStatusByQueue(activeSeries.guildId, activeSeries.queueNumber);
-    if (status == null || status.state.status === "stopped") {
-      return [];
-    }
-
-    return [...status.state.matchIds];
+    return await resolveLiveTrackerMatchIds(liveTrackerService, activeSeries.guildId, activeSeries.queueNumber);
   } catch (error) {
     logService.warn(
       "resolveSeriesSeed: failed to fetch live tracker matches, seeding series without matches",
