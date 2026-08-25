@@ -7,7 +7,7 @@ import type { IndividualTrackerProfilesRow } from "../database/types/individual_
 import type { IndividualTrackerStatus, IndividualTrackersRow } from "../database/types/individual_trackers";
 import type { LogService } from "../log/types";
 import { IdentityNotOwnedError, ProfileNotFoundError, TrackerLimitReachedError, TrackerNotFoundError } from "./errors";
-import type { CreateTrackerOptions, UpdateProfileOptions } from "./types";
+import type { CreateSeriesTrackerOptions, CreateTrackerOptions, UpdateProfileOptions } from "./types";
 
 export const MAX_TRACKERS_PER_USER = 5;
 
@@ -80,8 +80,9 @@ export class IndividualTrackerService {
   async createTracker(options: CreateTrackerOptions): Promise<IndividualTrackersRow> {
     const existing = await this.databaseService.findIndividualTrackersByUserId(options.userId);
     const alreadyTracked = existing.find((tracker) => tracker.Xuid === options.xuid);
+    const personalTrackerCount = existing.filter((tracker) => tracker.TrackerType === "personal").length;
 
-    if (alreadyTracked == null && existing.length >= MAX_TRACKERS_PER_USER) {
+    if (alreadyTracked == null && personalTrackerCount >= MAX_TRACKERS_PER_USER) {
       throw new TrackerLimitReachedError();
     }
 
@@ -94,6 +95,42 @@ export class IndividualTrackerService {
       Xuid: options.xuid,
       Status: "active",
       IsLive: alreadyTracked?.IsLive ?? 0,
+      TrackerType: "personal",
+      SourceGuildId: null,
+      SourceQueueNumber: null,
+      CreatedAt: alreadyTracked?.CreatedAt ?? nowEpoch,
+      UpdatedAt: nowEpoch,
+    };
+    await this.databaseService.upsertIndividualTracker(tracker);
+    return tracker;
+  }
+
+  async createSeriesTracker(options: CreateSeriesTrackerOptions): Promise<IndividualTrackersRow> {
+    const existing = await this.databaseService.findIndividualTrackersByUserId(options.userId);
+    const alreadyTracked = existing.find(
+      (tracker) =>
+        tracker.TrackerType === "series" &&
+        tracker.SourceGuildId === options.guildId &&
+        tracker.SourceQueueNumber === options.queueNumber,
+    );
+    const seriesTrackerCount = existing.filter((tracker) => tracker.TrackerType === "series").length;
+
+    if (alreadyTracked == null && seriesTrackerCount >= MAX_TRACKERS_PER_USER) {
+      throw new TrackerLimitReachedError();
+    }
+
+    const nowEpoch = Math.floor(Date.now() / 1000);
+    const trackerId = alreadyTracked?.TrackerId ?? crypto.randomUUID();
+    const tracker: IndividualTrackersRow = {
+      TrackerId: trackerId,
+      UserId: options.userId,
+      Gamertag: "",
+      Xuid: "",
+      Status: "active",
+      IsLive: alreadyTracked?.IsLive ?? 0,
+      TrackerType: "series",
+      SourceGuildId: options.guildId,
+      SourceQueueNumber: options.queueNumber,
       CreatedAt: alreadyTracked?.CreatedAt ?? nowEpoch,
       UpdatedAt: nowEpoch,
     };

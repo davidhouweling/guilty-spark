@@ -29,6 +29,11 @@ export const individualTrackerStartRequestSchema = z.object({
   searchStartTime: z.string(),
   idleTimeoutHours: z.number(),
   seriesSeed: individualTrackerSeriesSeedSchema.optional(),
+  // "series" trackers have no personal gamertag/xuid (both are "") and never poll Halo -- see
+  // sourceGuildId/sourceQueueNumber, which identify the NeatQueue queue they track instead.
+  trackerKind: z.enum(["personal", "series"]).default("personal"),
+  sourceGuildId: z.string().optional(),
+  sourceQueueNumber: z.number().optional(),
 });
 export type IndividualTrackerStartRequest = z.infer<typeof individualTrackerStartRequestSchema>;
 

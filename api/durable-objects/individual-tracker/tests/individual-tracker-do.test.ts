@@ -34,6 +34,7 @@ import {
 import { aFakeWebSocketHibernationAdapter } from "../../../base/fakes/websocket-hibernation-adapter.fake";
 import type { FakeWebSocketHibernationAdapter } from "../../../base/fakes/websocket-hibernation-adapter.fake";
 import { aFakeUserTrackerDOWith } from "../../user-tracker/fakes/user-tracker-do.fake";
+import { aFakeLiveTrackerStateWith } from "../../live-tracker/fakes/live-tracker-do.fake";
 import type {
   IndividualTrackerInternalState,
   IndividualTrackerStartResponse,
@@ -76,6 +77,7 @@ const createMockStartRequest = (
   gamertag: "TestGamertag",
   searchStartTime: new Date().toISOString(),
   idleTimeoutHours: 6,
+  trackerKind: "personal",
   ...overrides,
 });
 
@@ -454,6 +456,34 @@ describe("IndividualTrackerDO", () => {
           "userId",
           "xuid",
         ].sort(),
+      );
+    });
+
+    it("starts a series tracker without scheduling Halo polling, at the series alarm interval", async () => {
+      const request = new Request("http://do/start", {
+        method: "POST",
+        body: JSON.stringify(
+          createMockStartRequest({
+            xuid: "",
+            gamertag: "",
+            trackerKind: "series",
+            sourceGuildId: "guild-1",
+            sourceQueueNumber: 5,
+          }),
+        ),
+      });
+
+      const response = await individualTrackerDO.fetch(request);
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.trackerKind).toBe("series");
+      expect(persisted.sourceGuildId).toBe("guild-1");
+      expect(persisted.sourceQueueNumber).toBe(5);
+      expect(persisted.activeSeries).toBeUndefined();
+      const NORMAL_INTERVAL_MS = 3 * 60 * 1000 - 8 * 1000;
+      expect(storageSetAlarmSpy).toHaveBeenCalledWith(
+        new Date("2024-11-26T12:00:00.000Z").getTime() + NORMAL_INTERVAL_MS,
       );
     });
   });
@@ -936,6 +966,35 @@ describe("IndividualTrackerDO", () => {
       const body: IndividualTrackerViewStateResponse = await response.json();
 
       expect(body.state?.series).toEqual([]);
+    });
+
+    it("never calls getUserHaloService for a series tracker's preSeriesPlayerInfo", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ trackerKind: "series", xuid: "", gamertag: "" }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(getClientForUser).not.toHaveBeenCalled();
+      expect(body.state?.preSeriesPlayerInfo).toBeUndefined();
+    });
+
+    it("never calls getUserHaloService for a series tracker's rank-based statsHighlights", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({ trackerKind: "series", xuid: "", gamertag: "" }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request(
+          `http://do/view-state?statsHighlightSlots=${encodeURIComponent(JSON.stringify(["current-rank", "esra"]))}`,
+          { method: "GET" },
+        ),
+      );
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(getClientForUser).not.toHaveBeenCalled();
+      expect(body.state?.statsHighlights).toHaveLength(2);
     });
   });
 
@@ -3142,6 +3201,127 @@ describe("IndividualTrackerDO", () => {
       expect(storageSetAlarmSpy).not.toHaveBeenCalled();
       expect(getClientForUser).not.toHaveBeenCalled();
     });
+
+    describe("series tracker", () => {
+      const seriesState = (overrides: Partial<IndividualTrackerInternalState> = {}): IndividualTrackerInternalState =>
+        aFakeIndividualTrackerInternalStateWith({
+          trackerKind: "series",
+          xuid: "",
+          gamertag: "",
+          sourceGuildId: "guild-1",
+          sourceQueueNumber: 5,
+          startTime: now.toISOString(),
+          activeSeries: {
+            title: "Test Server",
+            subtitle: "Queue #5",
+            guildIconUrl: null,
+            teams: [],
+            matchIds: ["match-1"],
+            startedAt: now.toISOString(),
+            isActive: true,
+          },
+          ...overrides,
+        });
+
+      it("never polls Halo for a series tracker", async () => {
+        storageGetSpy.mockResolvedValue(seriesState());
+
+        await individualTrackerDO.alarm();
+
+        expect(getClientForUser).not.toHaveBeenCalled();
+        expect(ownerClient.getPlayerMatches).not.toHaveBeenCalled();
+      });
+
+      it("updates activeSeries.matchIds and lastMatchDiscoveredAt when the live tracker reports more matches", async () => {
+        vi.spyOn(services.neatQueueService, "getActiveSeriesByQueue").mockResolvedValue({
+          guildId: "guild-1",
+          queueNumber: 5,
+          seriesContext: {
+            type: "started",
+            title: "Test Server",
+            subtitle: "Queue #5",
+            guildIconUrl: null,
+            teams: [],
+          },
+        });
+        vi.spyOn(services.liveTrackerService, "getTrackerStatusByQueue").mockResolvedValue({
+          state: aFakeLiveTrackerStateWith({ status: "active", matchIds: ["match-1", "match-2"] }),
+        });
+        storageGetSpy.mockResolvedValue(seriesState());
+
+        await individualTrackerDO.alarm();
+
+        const persisted = lastPersistedState(storagePutSpy);
+        expect(persisted.activeSeries?.matchIds).toEqual(["match-1", "match-2"]);
+        expect(persisted.lastMatchDiscoveredAt).toBe(now.toISOString());
+        expect(storageSetAlarmSpy).toHaveBeenCalledWith(now.getTime() + NORMAL_INTERVAL_MS);
+      });
+
+      it("retires the active series into completedSeries when the NeatQueue state is gone", async () => {
+        vi.spyOn(services.neatQueueService, "getActiveSeriesByQueue").mockResolvedValue(null);
+        storageGetSpy.mockResolvedValue(seriesState());
+
+        await individualTrackerDO.alarm();
+
+        const persisted = lastPersistedState(storagePutSpy);
+        expect(persisted.activeSeries).toBeUndefined();
+        expect(persisted.completedSeries).toHaveLength(1);
+        expect(persisted.completedSeries?.[0]).toMatchObject({ title: "Test Server", isActive: false });
+        expect(storageSetAlarmSpy).toHaveBeenCalledWith(now.getTime() + NORMAL_INTERVAL_MS);
+      });
+
+      it("bumps lastMatchDiscoveredAt whenever NeatQueue still reports the queue active, even with no new matches (avoids idle timeout on a series stuck mid-game)", async () => {
+        vi.spyOn(services.neatQueueService, "getActiveSeriesByQueue").mockResolvedValue({
+          guildId: "guild-1",
+          queueNumber: 5,
+          seriesContext: {
+            type: "started",
+            title: "Test Server",
+            subtitle: "Queue #5",
+            guildIconUrl: null,
+            teams: [],
+          },
+        });
+        vi.spyOn(services.liveTrackerService, "getTrackerStatusByQueue").mockResolvedValue({
+          state: aFakeLiveTrackerStateWith({ status: "active", matchIds: ["match-1"] }),
+        });
+        // matchIds already at 1 (no growth this tick) and lastMatchDiscoveredAt unset -- without the
+        // fix, this tick would leave lastMatchDiscoveredAt untouched, letting a later tick's idle
+        // check measure elapsed time from the stale startTime instead of "still confirmed active".
+        storageGetSpy.mockResolvedValue(
+          seriesState({
+            startTime: now.toISOString(),
+            lastMatchDiscoveredAt: undefined,
+            activeSeries: {
+              title: "Test Server",
+              subtitle: "Queue #5",
+              guildIconUrl: null,
+              teams: [],
+              matchIds: ["match-1"],
+              startedAt: now.toISOString(),
+              isActive: true,
+            },
+          }),
+        );
+
+        await individualTrackerDO.alarm();
+
+        const persisted = lastPersistedState(storagePutSpy);
+        expect(persisted.lastMatchDiscoveredAt).toBe(now.toISOString());
+        expect(persisted.status).toBe("active");
+        expect(storageDeleteSpy).not.toHaveBeenCalledWith("individualTrackerState");
+      });
+
+      it("still enforces idleTimeoutHours for a series tracker (stops and wipes state)", async () => {
+        storageGetSpy.mockResolvedValue(seriesState({ idleTimeoutHours: 1, startTime: "2024-11-26T10:00:00.000Z" }));
+
+        await individualTrackerDO.alarm();
+
+        expect(storageDeleteAlarmSpy).toHaveBeenCalled();
+        expect(storageDeleteSpy).toHaveBeenCalledWith("individualTrackerState");
+        expect(getClientForUser).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe("websocket", () => {
@@ -3479,6 +3659,37 @@ describe("IndividualTrackerDO", () => {
       const parsed = trackerViewMessageContract.parse(Preconditions.checkExists(webSocketAdapter.broadcasts[0]));
       expect(parsed.type).toBe("view");
       expect(parsed.view.matches).toHaveLength(0);
+    });
+
+    it("refreshes a series tracker via the series self-poll instead of Halo", async () => {
+      vi.spyOn(services.neatQueueService, "getActiveSeriesByQueue").mockResolvedValue({
+        guildId: "guild-1",
+        queueNumber: 5,
+        seriesContext: {
+          type: "started",
+          title: "Test Server",
+          subtitle: "Queue #5",
+          guildIconUrl: null,
+          teams: [],
+        },
+      });
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          trackerKind: "series",
+          xuid: "",
+          gamertag: "",
+          sourceGuildId: "guild-1",
+          sourceQueueNumber: 5,
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+
+      expect(response.status).toBe(200);
+      expect(getClientForUser).not.toHaveBeenCalled();
+      expect(ownerClient.getPlayerMatches).not.toHaveBeenCalled();
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.lastMatchDiscoveredAt).toBe("2024-11-26T12:00:00.000Z");
     });
 
     it("does not broadcast on a steady-state poll where an already-enriched match is unchanged", async () => {

@@ -142,6 +142,12 @@ export interface PreSeriesPlayerInfo {
 }
 
 export interface IndividualTrackerInternalState extends IndividualTrackerState {
+  // Absent/"personal" trackers poll Halo by xuid as usual; "series" trackers have no personal
+  // gamertag/xuid (both are "") and instead self-poll the NeatQueue queue identified by
+  // sourceGuildId/sourceQueueNumber -- see runAlarm's trackerKind branch.
+  trackerKind?: "personal" | "series";
+  sourceGuildId?: string;
+  sourceQueueNumber?: number;
   searchStartTime: string;
   lastMatchDiscoveredAt: string | undefined;
   lastSuccessfulFetch?: string;
