@@ -135,6 +135,23 @@ describe("RealIndividualTrackerService", () => {
     expect(result).toEqual({ tracker: FAKE_TRACKER });
   });
 
+  it("starts a series tracker with a JSON body", async () => {
+    const seriesTracker: Tracker = { ...FAKE_TRACKER, gamertag: "", xuid: "", isLive: false };
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ tracker: seriesTracker }));
+
+    const result = await service.startSeriesTracker({ guildId: "guild-1", queueNumber: 5 });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "https://api.example.com/api/individual-tracker/manage/start-series-tracker",
+      expect.objectContaining({
+        credentials: "include",
+        method: "POST",
+        body: JSON.stringify({ guildId: "guild-1", queueNumber: 5 }),
+      }),
+    );
+    expect(result).toEqual({ tracker: seriesTracker });
+  });
+
   it("stops a tracker and returns void", async () => {
     fetchSpy.mockResolvedValueOnce(jsonResponse({ success: true }));
 

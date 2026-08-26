@@ -769,16 +769,8 @@ export class NeatQueueService {
 
   async listActiveSeries(): Promise<ActiveSeriesForPlayer[]> {
     const stateKeys = await this.listQueueStateKeys();
-    const candidates: ActiveSeriesForPlayer[] = [];
-
-    for (const stateKey of stateKeys) {
-      const candidate = await this.getActiveSeriesFromKey(stateKey);
-      if (candidate != null) {
-        candidates.push(candidate);
-      }
-    }
-
-    return candidates;
+    const candidates = await Promise.all(stateKeys.map(async (stateKey) => this.getActiveSeriesFromKey(stateKey)));
+    return candidates.filter((candidate): candidate is ActiveSeriesForPlayer => candidate != null);
   }
 
   async getActiveSeriesByQueue(guildId: string, queueNumber: number): Promise<ActiveSeriesForPlayer | null> {

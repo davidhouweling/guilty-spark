@@ -4,7 +4,11 @@ import { parseStreamerViewSettings } from "@guilty-spark/shared/individual-track
 import type { NudgePayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import type { DatabaseService } from "../database/database";
 import type { IndividualTrackerProfilesRow } from "../database/types/individual_tracker_profiles";
-import type { IndividualTrackerStatus, IndividualTrackersRow } from "../database/types/individual_trackers";
+import type {
+  IndividualTrackerStatus,
+  IndividualTrackersRow,
+  IndividualTrackerType,
+} from "../database/types/individual_trackers";
 import type { LogService } from "../log/types";
 import { IdentityNotOwnedError, ProfileNotFoundError, TrackerLimitReachedError, TrackerNotFoundError } from "./errors";
 import type { CreateSeriesTrackerOptions, CreateTrackerOptions, UpdateProfileOptions } from "./types";
@@ -79,60 +83,63 @@ export class IndividualTrackerService {
 
   async createTracker(options: CreateTrackerOptions): Promise<IndividualTrackersRow> {
     const existing = await this.databaseService.findIndividualTrackersByUserId(options.userId);
-    const alreadyTracked = existing.find((tracker) => tracker.Xuid === options.xuid);
-    const personalTrackerCount = existing.filter((tracker) => tracker.TrackerType === "personal").length;
+    const alreadyTracked = existing.find((tracker) => tracker.Xuid === options.xuid) ?? null;
+    this.assertUnderTrackerLimit(existing, "personal", alreadyTracked);
 
-    if (alreadyTracked == null && personalTrackerCount >= MAX_TRACKERS_PER_USER) {
-      throw new TrackerLimitReachedError();
-    }
-
-    const nowEpoch = Math.floor(Date.now() / 1000);
-    const trackerId = alreadyTracked?.TrackerId ?? crypto.randomUUID();
-    const tracker: IndividualTrackersRow = {
-      TrackerId: trackerId,
-      UserId: options.userId,
+    return await this.upsertTrackerRow(options.userId, alreadyTracked, {
       Gamertag: options.gamertag,
       Xuid: options.xuid,
-      Status: "active",
-      IsLive: alreadyTracked?.IsLive ?? 0,
       TrackerType: "personal",
       SourceGuildId: null,
       SourceQueueNumber: null,
-      CreatedAt: alreadyTracked?.CreatedAt ?? nowEpoch,
-      UpdatedAt: nowEpoch,
-    };
-    await this.databaseService.upsertIndividualTracker(tracker);
-    return tracker;
+    });
   }
 
   async createSeriesTracker(options: CreateSeriesTrackerOptions): Promise<IndividualTrackersRow> {
     const existing = await this.databaseService.findIndividualTrackersByUserId(options.userId);
-    const alreadyTracked = existing.find(
-      (tracker) =>
-        tracker.TrackerType === "series" &&
-        tracker.SourceGuildId === options.guildId &&
-        tracker.SourceQueueNumber === options.queueNumber,
-    );
-    const seriesTrackerCount = existing.filter((tracker) => tracker.TrackerType === "series").length;
+    const alreadyTracked =
+      existing.find(
+        (tracker) =>
+          tracker.TrackerType === "series" &&
+          tracker.SourceGuildId === options.guildId &&
+          tracker.SourceQueueNumber === options.queueNumber,
+      ) ?? null;
+    this.assertUnderTrackerLimit(existing, "series", alreadyTracked);
 
-    if (alreadyTracked == null && seriesTrackerCount >= MAX_TRACKERS_PER_USER) {
-      throw new TrackerLimitReachedError();
-    }
-
-    const nowEpoch = Math.floor(Date.now() / 1000);
-    const trackerId = alreadyTracked?.TrackerId ?? crypto.randomUUID();
-    const tracker: IndividualTrackersRow = {
-      TrackerId: trackerId,
-      UserId: options.userId,
+    return await this.upsertTrackerRow(options.userId, alreadyTracked, {
       Gamertag: "",
       Xuid: "",
-      Status: "active",
-      IsLive: alreadyTracked?.IsLive ?? 0,
       TrackerType: "series",
       SourceGuildId: options.guildId,
       SourceQueueNumber: options.queueNumber,
+    });
+  }
+
+  private assertUnderTrackerLimit(
+    existing: readonly IndividualTrackersRow[],
+    trackerType: IndividualTrackerType,
+    alreadyTracked: IndividualTrackersRow | null,
+  ): void {
+    const countOfType = existing.filter((tracker) => tracker.TrackerType === trackerType).length;
+    if (alreadyTracked == null && countOfType >= MAX_TRACKERS_PER_USER) {
+      throw new TrackerLimitReachedError();
+    }
+  }
+
+  private async upsertTrackerRow(
+    userId: string,
+    alreadyTracked: IndividualTrackersRow | null,
+    fields: Pick<IndividualTrackersRow, "Gamertag" | "Xuid" | "TrackerType" | "SourceGuildId" | "SourceQueueNumber">,
+  ): Promise<IndividualTrackersRow> {
+    const nowEpoch = Math.floor(Date.now() / 1000);
+    const tracker: IndividualTrackersRow = {
+      TrackerId: alreadyTracked?.TrackerId ?? crypto.randomUUID(),
+      UserId: userId,
+      Status: "active",
+      IsLive: alreadyTracked?.IsLive ?? 0,
       CreatedAt: alreadyTracked?.CreatedAt ?? nowEpoch,
       UpdatedAt: nowEpoch,
+      ...fields,
     };
     await this.databaseService.upsertIndividualTracker(tracker);
     return tracker;

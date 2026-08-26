@@ -19,6 +19,9 @@ export interface ManualSeriesDialogSectionProps {
   readonly onSeriesStarted: () => void;
   readonly initialData?: SeriesInitialData;
   readonly onSeriesEdited?: () => void;
+  // Forces "start" even when initialData is provided -- used to prefill a fresh series
+  // (e.g. from a picked NeatQueue series) without treating it as editing an existing one.
+  readonly mode?: "start" | "edit";
 }
 
 interface ManualSeriesDialogSectionInternalProps extends ManualSeriesDialogSectionProps {
@@ -34,6 +37,7 @@ function ManualSeriesDialogSectionInternal({
   onSeriesStarted,
   initialData,
   onSeriesEdited,
+  mode,
 }: ManualSeriesDialogSectionInternalProps): React.ReactElement | null {
   const onSeriesStartedRef = useRef(onSeriesStarted);
   onSeriesStartedRef.current = onSeriesStarted;
@@ -42,7 +46,7 @@ function ManualSeriesDialogSectionInternal({
 
   const { individualTrackerService, individualTrackerViewService } = config;
 
-  const store = useMemo(() => new ManualSeriesDialogStore(initialData), []);
+  const store = useMemo(() => new ManualSeriesDialogStore(initialData, mode), []);
   const presenter = useMemo(
     () =>
       new ManualSeriesDialogPresenter({
@@ -61,8 +65,8 @@ function ManualSeriesDialogSectionInternal({
   );
 
   useEffect(() => {
-    store.reset(initialData);
-  }, [isOpen, store, initialData]);
+    store.reset(initialData, mode);
+  }, [isOpen, store, initialData, mode]);
 
   useEffect(() => {
     return (): void => {

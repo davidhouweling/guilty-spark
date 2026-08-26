@@ -23,6 +23,7 @@ export function IndividualTrackerManagerApp({ apiHost }: IndividualTrackerManage
             individualTrackerService: services.individualTrackerService,
             settingsService: services.settingsService,
             individualTrackerViewService: services.individualTrackerViewService,
+            neatQueueService: services.neatQueueService,
           }),
     [services],
   );

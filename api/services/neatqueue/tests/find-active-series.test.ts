@@ -1,24 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
-import type { SeriesStartedPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import type { NeatQueueService } from "../neatqueue";
 import { aFakeNeatQueueServiceWith } from "../fakes/neatqueue.fake";
-import { aFakeNeatQueueStateWith, aFakePlayerAssociationDataWith } from "../fakes/data";
+import { aFakeNeatQueueStateWith, aFakePlayerAssociationDataWith, aFakeSeriesStartedPayloadWith } from "../fakes/data";
 import type { NeatQueueState } from "../types";
-
-function aSeriesContextWith(overrides: Partial<SeriesStartedPayload> = {}): SeriesStartedPayload {
-  return {
-    type: "started",
-    title: "Test Server",
-    subtitle: "Queue #5",
-    guildIconUrl: null,
-    startedAt: "2026-08-01T10:00:00.000Z",
-    searchStartTime: "2026-08-01T09:30:00.000Z",
-    teams: [],
-    ...overrides,
-  };
-}
 
 describe("NeatQueueService.findActiveSeriesForPlayer()", () => {
   let env: Env;
@@ -58,7 +44,7 @@ describe("NeatQueueService.findActiveSeriesForPlayer()", () => {
   it("finds the active series when the player xuid is in the association data", async () => {
     listSpy.mockResolvedValue(listResultWith(["neatqueue:state:guild-1:5"]));
     const state: NeatQueueState = aFakeNeatQueueStateWith({
-      seriesContext: aSeriesContextWith(),
+      seriesContext: aFakeSeriesStartedPayloadWith(),
       playersAssociationData: {
         "discord-1": aFakePlayerAssociationDataWith({ discordId: "discord-1", xboxId: "xuid-1" }),
       },
@@ -78,7 +64,7 @@ describe("NeatQueueService.findActiveSeriesForPlayer()", () => {
     listSpy.mockResolvedValue(listResultWith(["neatqueue:state:guild-1:5"]));
     getSpy.mockResolvedValue(
       aFakeNeatQueueStateWith({
-        seriesContext: aSeriesContextWith(),
+        seriesContext: aFakeSeriesStartedPayloadWith(),
         playersAssociationData: {
           "discord-1": aFakePlayerAssociationDataWith({ discordId: "discord-1", xboxId: null, gamertag: "CHIEF" }),
         },
@@ -94,7 +80,7 @@ describe("NeatQueueService.findActiveSeriesForPlayer()", () => {
     listSpy.mockResolvedValue(listResultWith(["neatqueue:state:guild-1:5"]));
     getSpy.mockResolvedValue(
       aFakeNeatQueueStateWith({
-        seriesContext: aSeriesContextWith(),
+        seriesContext: aFakeSeriesStartedPayloadWith(),
         playersAssociationData: {
           "discord-1": aFakePlayerAssociationDataWith({ discordId: "discord-1", xboxId: "other-xuid" }),
         },
@@ -124,7 +110,10 @@ describe("NeatQueueService.findActiveSeriesForPlayer()", () => {
     getSpy.mockImplementation(async (key: string) => {
       if (key === "neatqueue:state:guild-2:9") {
         return Promise.resolve(
-          aFakeNeatQueueStateWith({ seriesContext: aSeriesContextWith(), playersAssociationData: association }),
+          aFakeNeatQueueStateWith({
+            seriesContext: aFakeSeriesStartedPayloadWith(),
+            playersAssociationData: association,
+          }),
         );
       }
       return Promise.resolve(aFakeNeatQueueStateWith());
@@ -155,14 +144,14 @@ describe("NeatQueueService.findActiveSeriesForPlayer()", () => {
       if (key === "neatqueue:state:guild-1:5") {
         return Promise.resolve(
           aFakeNeatQueueStateWith({
-            seriesContext: aSeriesContextWith({ startedAt: "2026-08-01T08:00:00.000Z" }),
+            seriesContext: aFakeSeriesStartedPayloadWith({ startedAt: "2026-08-01T08:00:00.000Z" }),
             playersAssociationData: association,
           }),
         );
       }
       return Promise.resolve(
         aFakeNeatQueueStateWith({
-          seriesContext: aSeriesContextWith({ startedAt: "2026-08-01T11:00:00.000Z" }),
+          seriesContext: aFakeSeriesStartedPayloadWith({ startedAt: "2026-08-01T11:00:00.000Z" }),
           playersAssociationData: association,
         }),
       );

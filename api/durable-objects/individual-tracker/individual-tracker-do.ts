@@ -636,11 +636,19 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private async pollSeriesTrackerAndPersist(trackerState: IndividualTrackerInternalState): Promise<void> {
     const guildId = trackerState.sourceGuildId;
     const queueNumber = trackerState.sourceQueueNumber;
-    if (guildId == null || queueNumber == null) {
-      await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
-      return;
+
+    if (guildId != null && queueNumber != null) {
+      await this.refreshSeriesTrackerState(trackerState, guildId, queueNumber);
     }
 
+    await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
+  }
+
+  private async refreshSeriesTrackerState(
+    trackerState: IndividualTrackerInternalState,
+    guildId: string,
+    queueNumber: number,
+  ): Promise<void> {
     try {
       const activeSeries = await this.services.neatQueueService.getActiveSeriesByQueue(guildId, queueNumber);
 
@@ -652,9 +660,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         // genuinely still in progress (e.g. its first game hasn't finished).
         trackerState.lastMatchDiscoveredAt = new Date().toISOString();
 
-        const matchIds = await resolveLiveTrackerMatchIds(this.services.liveTrackerService, guildId, queueNumber);
-        if (trackerState.activeSeries != null && matchIds.length > trackerState.activeSeries.matchIds.length) {
-          trackerState.activeSeries = { ...trackerState.activeSeries, matchIds };
+        if (trackerState.activeSeries != null) {
+          const matchIds = await resolveLiveTrackerMatchIds(this.services.liveTrackerService, guildId, queueNumber);
+          if (matchIds.join(",") !== trackerState.activeSeries.matchIds.join(",")) {
+            trackerState.activeSeries = { ...trackerState.activeSeries, matchIds };
+          }
         }
       }
 
@@ -672,8 +682,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         ]),
       );
     }
-
-    await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
   }
 
   private async pollAndPersist(

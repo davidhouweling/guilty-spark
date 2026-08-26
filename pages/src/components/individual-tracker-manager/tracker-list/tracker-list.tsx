@@ -9,6 +9,12 @@ import styles from "./tracker-list.module.css";
 
 export type TrackerDisplayStatus = "active" | "paused" | "stopped" | "not-started";
 
+// A series tracker (started from a picked NeatQueue series, see live-neatqueue-series) has no
+// personal gamertag -- fall back to a generic label rather than rendering blank.
+export function trackerDisplayName(gamertag: string): string {
+  return gamertag !== "" ? gamertag : "NeatQueue Series";
+}
+
 export interface TrackerListItem {
   readonly trackerId: string | null;
   readonly gamertag: string;
@@ -89,12 +95,13 @@ function TrackerRow({ item, actions }: TrackerRowProps): React.ReactElement {
   const primaryActions = actions.filter((action) => action.primary === true);
   const primaryAction = primaryActions.at(0);
   const secondaryActions = actions.filter((action) => action.primary !== true || action !== primaryAction);
+  const displayName = trackerDisplayName(item.gamertag);
 
   return (
     <div className={styles.row} data-testid="tracker-row">
       <div className={styles.rowMain}>
         <span className={styles.rowGamertag}>
-          {item.gamertag}
+          {displayName}
           {item.isPinned && <span className={styles.pinnedLabel}>(your account)</span>}
         </span>
 
@@ -120,7 +127,7 @@ function TrackerRow({ item, actions }: TrackerRowProps): React.ReactElement {
         {secondaryActions.length > 0 && (
           <Dropdown
             trigger={<EllipsisIcon />}
-            ariaLabel={`Options for ${item.gamertag}`}
+            ariaLabel={`Options for ${displayName}`}
             dropdownWidth={200}
             dropdownHeight={220}
           >

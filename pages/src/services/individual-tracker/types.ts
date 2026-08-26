@@ -3,6 +3,7 @@ import type {
   UpdateTrackerProfileRequest,
 } from "@guilty-spark/shared/contracts/individual-tracker/profile";
 import type {
+  StartSeriesTrackerRequest,
   StartTrackerRequest,
   TrackerResponse,
   TrackerState,
@@ -139,6 +140,7 @@ export interface IndividualTrackerService {
   updateProfile(req: UpdateTrackerProfileRequest): Promise<TrackerProfileResponse>;
   listTrackers(): Promise<TrackersResponse>;
   startTracker(req: StartTrackerRequest): Promise<TrackerResponse>;
+  startSeriesTracker(req: StartSeriesTrackerRequest): Promise<TrackerResponse>;
   stopTracker(trackerId: string): Promise<void>;
   pauseTracker(trackerId: string): Promise<TrackerResponse>;
   resumeTracker(trackerId: string): Promise<TrackerResponse>;

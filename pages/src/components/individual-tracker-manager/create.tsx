@@ -3,9 +3,11 @@ import type { AuthService } from "../../services/auth/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
+import type { NeatQueueClientService } from "../../services/neatqueue/types";
 import { IndividualTrackerPresenter } from "./individual-tracker-presenter";
 import { IndividualTrackerStore } from "./individual-tracker-store";
 import { IndividualTrackerShell } from "./individual-tracker";
+import { createLiveNeatQueueSeriesSection } from "./live-neatqueue-series/create";
 import { createLiveTrackersSection } from "./live-trackers/create";
 import { createStatsHighlightsSection } from "./stats-highlights/create";
 import { StreamerSettingsPresenter } from "./streamer-settings/streamer-settings-presenter";
@@ -17,6 +19,7 @@ export interface CreateIndividualTrackerManagerPageConfig {
   readonly individualTrackerService: IndividualTrackerService;
   readonly settingsService: IndividualTrackerSettingsService;
   readonly individualTrackerViewService: IndividualTrackerViewService;
+  readonly neatQueueService: NeatQueueClientService;
 }
 
 interface IndividualTrackerManagerPageInternalProps {
@@ -24,6 +27,7 @@ interface IndividualTrackerManagerPageInternalProps {
   readonly settingsPresenter: StreamerSettingsPresenter;
   readonly settingsStore: StreamerSettingsStore;
   readonly LiveTrackersComponent: () => React.ReactElement;
+  readonly LiveNeatQueueSeriesComponent: () => React.ReactElement;
   readonly StatsHighlightsSection: ReturnType<typeof createStatsHighlightsSection>;
 }
 
@@ -32,6 +36,7 @@ function IndividualTrackerManagerPageInternal({
   settingsPresenter,
   settingsStore,
   LiveTrackersComponent,
+  LiveNeatQueueSeriesComponent,
   StatsHighlightsSection,
 }: IndividualTrackerManagerPageInternalProps): React.ReactElement {
   useEffect(() => {
@@ -81,7 +86,12 @@ function IndividualTrackerManagerPageInternal({
       onSectionChange={(id): void => {
         presenter.setActiveSection(id);
       }}
-      liveTrackersContent={<LiveTrackersComponent />}
+      liveTrackersContent={
+        <>
+          <LiveTrackersComponent />
+          <LiveNeatQueueSeriesComponent />
+        </>
+      }
       statsHighlightsContent={
         <StatsHighlightsSection
           statsHighlightSlots={settingsSnapshot.statsHighlightSlots}
@@ -188,6 +198,19 @@ export function createIndividualTrackerManagerPage(
       [],
     );
 
+    const LiveNeatQueueSeriesComponent = useMemo(
+      () =>
+        createLiveNeatQueueSeriesSection({
+          neatQueueService: config.neatQueueService,
+          individualTrackerService: config.individualTrackerService,
+          individualTrackerViewService: config.individualTrackerViewService,
+          onTrackerCreated: (): void => {
+            void liveTrackersController.refresh();
+          },
+        }),
+      [liveTrackersController],
+    );
+
     const settingsPresenter = useMemo(
       () => new StreamerSettingsPresenter({ settingsService: config.settingsService, store: settingsStore }),
       [settingsStore],
@@ -209,6 +232,7 @@ export function createIndividualTrackerManagerPage(
         settingsPresenter={settingsPresenter}
         settingsStore={settingsStore}
         LiveTrackersComponent={LiveTrackersComponent}
+        LiveNeatQueueSeriesComponent={LiveNeatQueueSeriesComponent}
         StatsHighlightsSection={StatsHighlightsSection}
       />
     );

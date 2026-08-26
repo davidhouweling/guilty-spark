@@ -4,6 +4,7 @@ import type {
   UpdateTrackerProfileRequest,
 } from "@guilty-spark/shared/contracts/individual-tracker/profile";
 import type {
+  StartSeriesTrackerRequest,
   StartTrackerRequest,
   Tracker,
   TrackerResponse,
@@ -180,6 +181,18 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
   public async startTracker(req: StartTrackerRequest): Promise<TrackerResponse> {
     await Promise.resolve();
     const tracker = aFakeTrackerWith({ gamertag: req.gamertag, isLive: false });
+    this.trackers = [...this.trackers, tracker];
+    return { tracker };
+  }
+
+  public async startSeriesTracker(req: StartSeriesTrackerRequest): Promise<TrackerResponse> {
+    await Promise.resolve();
+    const tracker = aFakeTrackerWith({
+      trackerId: `series-${req.guildId}-${req.queueNumber.toString()}`,
+      gamertag: "",
+      xuid: "",
+      isLive: false,
+    });
     this.trackers = [...this.trackers, tracker];
     return { tracker };
   }

@@ -8,8 +8,10 @@ import type {
 } from "../../../services/individual-tracker/types";
 import { buildIndividualTrackerTrackerViewPath } from "../../individual-tracker/routes";
 import type { MatchSelectionDialogState, ManualSeriesDialogState } from "../types";
+import { toManualSeriesTeams } from "../../individual-tracker/manual-series-dialog/manual-series-dialog-store";
 import type { SeriesInitialData } from "../../individual-tracker/manual-series-dialog/manual-series-dialog-store";
 import { getDefaultSeriesGroupSubtitle } from "../../individual-tracker/series-group-metadata";
+import { trackerDisplayName } from "../tracker-list/tracker-list";
 import type { TrackerDisplayStatus, TrackerListItem, TrackerRowAction } from "../tracker-list/tracker-list";
 import type { LiveTrackersStore } from "./live-trackers-store";
 import type { LiveTrackersSnapshot } from "./types";
@@ -732,7 +734,7 @@ export class LiveTrackersPresenter {
     const matchById = new Map((liveView?.matches ?? []).map((match) => [match.matchId, match]));
     const dialogState: MatchSelectionDialogState = {
       trackerId: item.trackerId,
-      trackerLabel: item.gamertag,
+      trackerLabel: trackerDisplayName(item.gamertag),
       xuid: trackerState.xuid,
       initialSelectedMatchIds: liveView?.matches.map((m) => m.matchId) ?? [],
       initialGroupings: liveView?.series.map((s) => s.matchIds) ?? [],
@@ -781,15 +783,12 @@ export class LiveTrackersPresenter {
         ? {
             title: activeSeriesContext.title,
             subtitle: activeSeriesContext.subtitle ?? "",
-            teams: activeSeriesContext.teams.map((t) => ({
-              name: t.name,
-              members: t.players.map((p) => p.gamertag ?? ""),
-            })),
+            teams: toManualSeriesTeams(activeSeriesContext.teams),
           }
         : undefined;
     const dialogState: ManualSeriesDialogState = {
       trackerId: item.trackerId,
-      trackerLabel: item.gamertag,
+      trackerLabel: trackerDisplayName(item.gamertag),
       initialData,
     };
     this.updateSnapshot((s) => ({ ...s, manualSeriesDialogState: dialogState }));

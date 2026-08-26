@@ -4,13 +4,39 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { TrackerListItem, TrackerRowAction } from "../tracker-list";
-import { TrackerList } from "../tracker-list";
+import { TrackerList, trackerDisplayName } from "../tracker-list";
 
 afterEach(() => {
   cleanup();
 });
 
+describe("trackerDisplayName", () => {
+  it("returns the gamertag as-is when non-empty", () => {
+    expect(trackerDisplayName("Chief")).toBe("Chief");
+  });
+
+  it("falls back to a generic label for a series tracker's empty gamertag", () => {
+    expect(trackerDisplayName("")).toBe("NeatQueue Series");
+  });
+});
+
 describe("TrackerList", () => {
+  it("renders a fallback label instead of a blank row for a series tracker (empty gamertag)", () => {
+    const item: TrackerListItem = {
+      trackerId: "series-tracker-1",
+      gamertag: "",
+      xuid: null,
+      status: "active",
+      isLive: false,
+      isPinned: false,
+      hasActiveSeries: true,
+    };
+
+    render(<TrackerList items={[item]} getActions={() => []} />);
+
+    expect(screen.getByText("NeatQueue Series")).toBeInTheDocument();
+  });
+
   it("renders empty state when no items are present", () => {
     render(<TrackerList items={[]} getActions={() => []} />);
 
