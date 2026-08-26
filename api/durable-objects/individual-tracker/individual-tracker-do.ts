@@ -68,6 +68,7 @@ import { installServices as installServicesImpl } from "../../services/install";
 import type { Services } from "../../services/install";
 import { CloudflareWebSocketHibernationAdapter } from "../../base/websocket-hibernation-adapter";
 import type { WebSocketHibernationAdapter } from "../../base/websocket-hibernation-adapter";
+import { resolveLiveTrackerMatchIds } from "../../individual-tracker/live-tracker-match-ids";
 import type {
   IndividualTrackerInternalState,
   IndividualTrackerMatchSummary,
@@ -623,8 +624,56 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         return;
       }
 
+      if (trackerState.trackerKind === "series") {
+        await this.pollSeriesTrackerAndPersist(trackerState);
+        return;
+      }
+
       await this.pollAndPersist(trackerState, false, "IndividualTracker alarm poll failed");
     });
+  }
+
+  private async pollSeriesTrackerAndPersist(trackerState: IndividualTrackerInternalState): Promise<void> {
+    const guildId = trackerState.sourceGuildId;
+    const queueNumber = trackerState.sourceQueueNumber;
+    if (guildId == null || queueNumber == null) {
+      await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
+      return;
+    }
+
+    try {
+      const activeSeries = await this.services.neatQueueService.getActiveSeriesByQueue(guildId, queueNumber);
+
+      if (activeSeries == null) {
+        this.retireActiveSeries(trackerState);
+      } else {
+        // NeatQueue still reports this queue as live -- count that as activity regardless of
+        // whether a new match completed yet, so idleTimeoutHours doesn't stop a series that's
+        // genuinely still in progress (e.g. its first game hasn't finished).
+        trackerState.lastMatchDiscoveredAt = new Date().toISOString();
+
+        const matchIds = await resolveLiveTrackerMatchIds(this.services.liveTrackerService, guildId, queueNumber);
+        if (trackerState.activeSeries != null && matchIds.length > trackerState.activeSeries.matchIds.length) {
+          trackerState.activeSeries = { ...trackerState.activeSeries, matchIds };
+        }
+      }
+
+      trackerState.lastUpdateTime = new Date().toISOString();
+      await this.setState(trackerState);
+      await this.broadcastViewState(trackerState);
+    } catch (error) {
+      this.logService.warn(
+        error,
+        new Map([
+          ["reason", "IndividualTracker: series tracker self-poll failed"],
+          ["trackerId", trackerState.trackerId],
+          ["sourceGuildId", guildId],
+          ["sourceQueueNumber", queueNumber.toString()],
+        ]),
+      );
+    }
+
+    await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
   }
 
   private async pollAndPersist(
@@ -1267,6 +1316,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       discoveredMatches: {},
       selectedMatchIds: [],
       idleTimeoutHours: body.idleTimeoutHours,
+      trackerKind: body.trackerKind,
+      ...(body.sourceGuildId != null ? { sourceGuildId: body.sourceGuildId } : {}),
+      ...(body.sourceQueueNumber != null ? { sourceQueueNumber: body.sourceQueueNumber } : {}),
       errorState: {
         consecutiveErrors: 0,
         backoffMinutes: NORMAL_INTERVAL_MINUTES,
@@ -1278,11 +1330,20 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     if (body.seriesSeed != null) {
       await this.applySeriesSeed(trackerState, body.seriesSeed);
     }
+    // A "series" tracker starts with no activeSeries -- its title/subtitle/teams are populated by
+    // a separate, immediately-following start-series call (see manage.ts's start-series-tracker
+    // route), reusing the same manual-series flow personal trackers use. Until that call lands,
+    // pollSeriesTrackerAndPersist still keeps the tracker alive (bumping lastMatchDiscoveredAt)
+    // as long as NeatQueue reports the source queue as active.
 
     await this.setState(trackerState);
     this.notifyUserTracker(trackerState);
-    const firstAlarmDelayMs = body.seriesSeed != null ? 0 : ALARM_INTERVAL_MS;
-    await this.state.storage.setAlarm(addMilliseconds(new Date(), firstAlarmDelayMs).getTime());
+    if (body.trackerKind === "series") {
+      await this.state.storage.setAlarm(addMilliseconds(new Date(), ALARM_INTERVAL_MS).getTime());
+    } else {
+      const firstAlarmDelayMs = body.seriesSeed != null ? 0 : ALARM_INTERVAL_MS;
+      await this.state.storage.setAlarm(addMilliseconds(new Date(), firstAlarmDelayMs).getTime());
+    }
 
     this.logService.info(
       "IndividualTracker: tracker started",
@@ -1290,6 +1351,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         ["userId", body.userId],
         ["trackerId", body.trackerId],
         ["gamertag", body.gamertag],
+        ["trackerKind", body.trackerKind],
         ["searchStartTime", trackerState.searchStartTime],
         ["seededSeries", String(body.seriesSeed != null)],
         ["seededMatchCount", (body.seriesSeed?.matchIds.length ?? 0).toString()],
@@ -2376,7 +2438,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       );
     }
 
-    await this.pollAndPersist(trackerState, true, "IndividualTracker manual refresh failed");
+    if (trackerState.trackerKind === "series") {
+      await this.pollSeriesTrackerAndPersist(trackerState);
+    } else {
+      await this.pollAndPersist(trackerState, true, "IndividualTracker manual refresh failed");
+    }
 
     return individualTrackerRefreshContract.toResponse({ success: true });
   }
@@ -2476,6 +2542,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   private async buildPreSeriesPlayerInfo(
     state: IndividualTrackerInternalState,
   ): Promise<PreSeriesPlayerInfo | undefined> {
+    if (state.xuid === "") {
+      return undefined;
+    }
+
     try {
       await this.getUserHaloService(state.userId);
     } catch (err: unknown) {
@@ -2549,6 +2619,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       this.statsHighlightsCacheKey = cacheKey;
       this.cachedStatsHighlights = stats;
       return stats;
+    }
+
+    if (state.xuid === "") {
+      return computeStatsHighlights(state, statsHighlightSlots, null, null);
     }
 
     try {

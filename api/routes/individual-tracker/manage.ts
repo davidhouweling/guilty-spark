@@ -11,6 +11,7 @@ import {
   selectActiveTrackerRequestSchema,
   startSeriesContract,
   startSeriesRequestSchema,
+  startSeriesTrackerRequestSchema,
   startTrackerRequestSchema,
   stopTrackerContract,
   trackerContract,
@@ -318,6 +319,7 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
         gamertag: tracker.Gamertag,
         searchStartTime: parsed.data.searchStartTime ?? new Date().toISOString(),
         idleTimeoutHours: parsed.data.idleTimeoutHours ?? DEFAULT_IDLE_TIMEOUT_HOURS,
+        trackerKind: "personal",
         ...(seriesSeed != null ? { seriesSeed } : {}),
       };
 
@@ -336,6 +338,81 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
     } catch (error) {
       logService.error(error, new Map([["context", "Individual tracker start error"]]));
       return errorContract.toResponse({ error: "Failed to start tracker" }, { status: 500, noStore: true });
+    }
+  });
+
+  router.post("/api/individual-tracker/manage/start-series-tracker", async (request, env: Env) => {
+    const services = installServices({ env });
+    const { authService, individualTrackerService, neatQueueService, logService } = services;
+
+    try {
+      const auth = await requireSession(request, authService);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      const parsed = await parseJsonBody(
+        request,
+        startSeriesTrackerRequestSchema,
+        "Invalid start series tracker request",
+      );
+      if (!parsed.success) {
+        return parsed.response;
+      }
+
+      const activeSeries = await neatQueueService.getActiveSeriesByQueue(parsed.data.guildId, parsed.data.queueNumber);
+      if (activeSeries == null) {
+        return errorContract.toResponse(
+          { error: "No active NeatQueue series found for that guild/queue" },
+          { status: 404, noStore: true },
+        );
+      }
+
+      let tracker: IndividualTrackersRow;
+      try {
+        tracker = await individualTrackerService.createSeriesTracker({
+          userId: auth.session.userId,
+          guildId: parsed.data.guildId,
+          queueNumber: parsed.data.queueNumber,
+        });
+      } catch (error) {
+        if (error instanceof TrackerLimitReachedError) {
+          return errorContract.toResponse(
+            { error: "Tracker limit reached (maximum 5 tracked series)" },
+            { status: 429, noStore: true },
+          );
+        }
+        throw error;
+      }
+
+      const startRequest: IndividualTrackerStartRequest = {
+        userId: auth.session.userId,
+        trackerId: tracker.TrackerId,
+        xuid: "",
+        gamertag: "",
+        searchStartTime: new Date().toISOString(),
+        idleTimeoutHours: DEFAULT_IDLE_TIMEOUT_HOURS,
+        trackerKind: "series",
+        sourceGuildId: parsed.data.guildId,
+        sourceQueueNumber: parsed.data.queueNumber,
+      };
+
+      const state = await startTrackerDo(env, startRequest);
+
+      logService.info(
+        "Individual series tracker started",
+        new Map([
+          ["trackerId", tracker.TrackerId],
+          ["sourceGuildId", parsed.data.guildId],
+          ["sourceQueueNumber", parsed.data.queueNumber.toString()],
+          ["userId", auth.session.userId],
+        ]),
+      );
+
+      return trackerContract.toResponse({ tracker: toTracker(tracker, state) }, { noStore: true });
+    } catch (error) {
+      logService.error(error, new Map([["context", "Individual series tracker start error"]]));
+      return errorContract.toResponse({ error: "Failed to start series tracker" }, { status: 500, noStore: true });
     }
   });
 

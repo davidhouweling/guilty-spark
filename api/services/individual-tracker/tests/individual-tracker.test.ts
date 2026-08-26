@@ -206,6 +206,105 @@ describe("IndividualTrackerService", () => {
 
       expect(tracker.TrackerId).toBe("t1");
     });
+
+    it("is not blocked by the user being at the series-tracker limit", async () => {
+      const existingSeries = Array.from({ length: MAX_TRACKERS_PER_USER }, (_value, index) =>
+        aFakeIndividualTrackersRow({
+          TrackerId: `s${index.toString()}`,
+          UserId: "user-1",
+          TrackerType: "series",
+          SourceGuildId: `guild-${index.toString()}`,
+          SourceQueueNumber: index,
+        }),
+      );
+      vi.spyOn(databaseService, "findIndividualTrackersByUserId").mockResolvedValue(existingSeries);
+      const upsertSpy: MockInstance<DatabaseService["upsertIndividualTracker"]> = vi
+        .spyOn(databaseService, "upsertIndividualTracker")
+        .mockResolvedValue();
+
+      const tracker = await service.createTracker({ userId: "user-1", gamertag: "Foo", xuid: "xuid-1" });
+
+      expect(tracker.TrackerType).toBe("personal");
+      expect(upsertSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("createSeriesTracker", () => {
+    it("creates a new active series tracker row with empty gamertag/xuid and upserts it", async () => {
+      vi.spyOn(databaseService, "findIndividualTrackersByUserId").mockResolvedValue([]);
+      const upsertSpy: MockInstance<DatabaseService["upsertIndividualTracker"]> = vi
+        .spyOn(databaseService, "upsertIndividualTracker")
+        .mockResolvedValue();
+
+      const tracker = await service.createSeriesTracker({ userId: "user-1", guildId: "guild-1", queueNumber: 5 });
+
+      expect(tracker.UserId).toBe("user-1");
+      expect(tracker.Gamertag).toBe("");
+      expect(tracker.Xuid).toBe("");
+      expect(tracker.TrackerType).toBe("series");
+      expect(tracker.SourceGuildId).toBe("guild-1");
+      expect(tracker.SourceQueueNumber).toBe(5);
+      expect(tracker.Status).toBe("active");
+      expect(upsertSpy).toHaveBeenCalledWith(expect.objectContaining({ TrackerType: "series", Status: "active" }));
+    });
+
+    it("re-uses the existing tracker id when the same guild/queue is already tracked", async () => {
+      const existing = [
+        aFakeIndividualTrackersRow({
+          TrackerId: "s1",
+          UserId: "user-1",
+          TrackerType: "series",
+          SourceGuildId: "guild-1",
+          SourceQueueNumber: 5,
+        }),
+      ];
+      vi.spyOn(databaseService, "findIndividualTrackersByUserId").mockResolvedValue(existing);
+      vi.spyOn(databaseService, "upsertIndividualTracker").mockResolvedValue();
+
+      const tracker = await service.createSeriesTracker({ userId: "user-1", guildId: "guild-1", queueNumber: 5 });
+
+      expect(tracker.TrackerId).toBe("s1");
+    });
+
+    it("throws TrackerLimitReachedError when the user is at the series-tracker limit with a new guild/queue", async () => {
+      const existing = Array.from({ length: MAX_TRACKERS_PER_USER }, (_value, index) =>
+        aFakeIndividualTrackersRow({
+          TrackerId: `s${index.toString()}`,
+          UserId: "user-1",
+          TrackerType: "series",
+          SourceGuildId: `guild-${index.toString()}`,
+          SourceQueueNumber: index,
+        }),
+      );
+      vi.spyOn(databaseService, "findIndividualTrackersByUserId").mockResolvedValue(existing);
+      const upsertSpy: MockInstance<DatabaseService["upsertIndividualTracker"]> = vi
+        .spyOn(databaseService, "upsertIndividualTracker")
+        .mockResolvedValue();
+
+      await expect(
+        service.createSeriesTracker({ userId: "user-1", guildId: "guild-new", queueNumber: 99 }),
+      ).rejects.toThrow(TrackerLimitReachedError);
+      expect(upsertSpy).not.toHaveBeenCalled();
+    });
+
+    it("is not blocked by the user being at the personal-tracker limit", async () => {
+      const existingPersonal = Array.from({ length: MAX_TRACKERS_PER_USER }, (_value, index) =>
+        aFakeIndividualTrackersRow({
+          TrackerId: `t${index.toString()}`,
+          UserId: "user-1",
+          Xuid: `xuid-${index.toString()}`,
+        }),
+      );
+      vi.spyOn(databaseService, "findIndividualTrackersByUserId").mockResolvedValue(existingPersonal);
+      const upsertSpy: MockInstance<DatabaseService["upsertIndividualTracker"]> = vi
+        .spyOn(databaseService, "upsertIndividualTracker")
+        .mockResolvedValue();
+
+      const tracker = await service.createSeriesTracker({ userId: "user-1", guildId: "guild-1", queueNumber: 5 });
+
+      expect(tracker.TrackerType).toBe("series");
+      expect(upsertSpy).toHaveBeenCalled();
+    });
   });
 
   describe("getOwnedTracker", () => {

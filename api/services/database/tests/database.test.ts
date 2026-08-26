@@ -2109,6 +2109,9 @@ describe("Database Service", () => {
         tracker.Xuid,
         tracker.Status,
         tracker.IsLive,
+        tracker.TrackerType,
+        tracker.SourceGuildId,
+        tracker.SourceQueueNumber,
         tracker.CreatedAt,
         tracker.UpdatedAt,
       );

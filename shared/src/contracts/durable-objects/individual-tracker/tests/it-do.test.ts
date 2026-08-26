@@ -51,6 +51,7 @@ describe("individualTrackerStartRequestSchema", () => {
     gamertag: "MyTag",
     searchStartTime: "2024-11-26T11:00:00.000Z",
     idleTimeoutHours: 2,
+    trackerKind: "personal",
   };
 
   it("parses a valid start request", () => {
@@ -67,6 +68,30 @@ describe("individualTrackerStartRequestSchema", () => {
         idleTimeoutHours: 2,
       }).success,
     ).toBe(false);
+  });
+
+  it("defaults trackerKind to personal when omitted", () => {
+    const withoutKind = {
+      userId: validRequest.userId,
+      trackerId: validRequest.trackerId,
+      xuid: validRequest.xuid,
+      gamertag: validRequest.gamertag,
+      searchStartTime: validRequest.searchStartTime,
+      idleTimeoutHours: validRequest.idleTimeoutHours,
+    };
+    expect(individualTrackerStartRequestSchema.parse(withoutKind)).toMatchObject({ trackerKind: "personal" });
+  });
+
+  it("accepts a series tracker request with empty gamertag/xuid and a source guild/queue", () => {
+    const seriesRequest = {
+      ...validRequest,
+      xuid: "",
+      gamertag: "",
+      trackerKind: "series" as const,
+      sourceGuildId: "guild-1",
+      sourceQueueNumber: 5,
+    };
+    expect(individualTrackerStartRequestSchema.parse(seriesRequest)).toEqual(seriesRequest);
   });
 });
 

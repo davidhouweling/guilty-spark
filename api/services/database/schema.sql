@@ -117,6 +117,9 @@ CREATE TABLE IF NOT EXISTS StreamerViewSettings (
     FOREIGN KEY (ProfileId) REFERENCES IndividualTrackerProfiles(ProfileId) ON DELETE CASCADE
 );
 
+-- TrackerType='series' rows track a NeatQueue live series rather than a personal gamertag: Gamertag/Xuid
+-- are stored as '' (not null -- SQLite can't relax an existing NOT NULL without a full table rebuild)
+-- and SourceGuildId/SourceQueueNumber identify the NeatQueue queue they were created from.
 CREATE TABLE IF NOT EXISTS IndividualTrackers (
     TrackerId TEXT PRIMARY KEY NOT NULL,
     UserId TEXT NOT NULL,
@@ -124,6 +127,9 @@ CREATE TABLE IF NOT EXISTS IndividualTrackers (
     Xuid TEXT NOT NULL,
     Status TEXT NOT NULL DEFAULT 'stopped' CHECK (Status IN ('active', 'paused', 'stopped')),
     IsLive INTEGER NOT NULL DEFAULT 0 CHECK (IsLive IN (0, 1)),
+    TrackerType TEXT NOT NULL DEFAULT 'personal' CHECK (TrackerType IN ('personal', 'series')),
+    SourceGuildId TEXT,
+    SourceQueueNumber INTEGER,
     CreatedAt INTEGER NOT NULL DEFAULT (unixepoch()),
     UpdatedAt INTEGER NOT NULL DEFAULT (unixepoch())
 );
@@ -133,6 +139,12 @@ CREATE INDEX IF NOT EXISTS IdxIndividualTrackersXuid ON IndividualTrackers (Xuid
 CREATE INDEX IF NOT EXISTS IdxIndividualTrackersUserIdCreatedAt
     ON IndividualTrackers (UserId, CreatedAt ASC);
 CREATE UNIQUE INDEX IF NOT EXISTS UqIndividualTrackersLivePerUser ON IndividualTrackers (UserId) WHERE IsLive = 1;
+
+-- One-time migration for pre-existing databases (schema.sql's CREATE TABLE IF NOT EXISTS above
+-- won't retroactively alter an already-created IndividualTrackers table):
+--   ALTER TABLE IndividualTrackers ADD COLUMN TrackerType TEXT NOT NULL DEFAULT 'personal' CHECK (TrackerType IN ('personal', 'series'));
+--   ALTER TABLE IndividualTrackers ADD COLUMN SourceGuildId TEXT;
+--   ALTER TABLE IndividualTrackers ADD COLUMN SourceQueueNumber INTEGER;
 
 CREATE TABLE IF NOT EXISTS LeaderboardConfig (
     GuildId TEXT PRIMARY KEY NOT NULL,

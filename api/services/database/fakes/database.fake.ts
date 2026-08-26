@@ -209,6 +209,9 @@ export function aFakeIndividualTrackersRow(opts: Partial<IndividualTrackersRow> 
     Xuid: "2533274000000001",
     Status: "stopped",
     IsLive: 0,
+    TrackerType: "personal",
+    SourceGuildId: null,
+    SourceQueueNumber: null,
     CreatedAt: nowEpoch,
     UpdatedAt: nowEpoch,
   };

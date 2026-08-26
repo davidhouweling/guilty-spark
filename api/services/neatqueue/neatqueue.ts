@@ -781,6 +781,10 @@ export class NeatQueueService {
     return candidates;
   }
 
+  async getActiveSeriesByQueue(guildId: string, queueNumber: number): Promise<ActiveSeriesForPlayer | null> {
+    return await this.getActiveSeriesFromKey(`neatqueue:state:${guildId}:${queueNumber.toString()}`);
+  }
+
   private async listQueueStateKeys(): Promise<string[]> {
     const names: string[] = [];
     let cursor: string | undefined;

@@ -1762,8 +1762,8 @@ export class DatabaseService {
 
   async upsertIndividualTracker(tracker: IndividualTrackersRow): Promise<void> {
     const query = `
-      INSERT INTO IndividualTrackers (TrackerId, UserId, Gamertag, Xuid, Status, IsLive, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(TrackerId) DO UPDATE SET Gamertag=excluded.Gamertag, Xuid=excluded.Xuid, Status=excluded.Status, IsLive=excluded.IsLive, UpdatedAt=excluded.UpdatedAt
+      INSERT INTO IndividualTrackers (TrackerId, UserId, Gamertag, Xuid, Status, IsLive, TrackerType, SourceGuildId, SourceQueueNumber, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(TrackerId) DO UPDATE SET Gamertag=excluded.Gamertag, Xuid=excluded.Xuid, Status=excluded.Status, IsLive=excluded.IsLive, TrackerType=excluded.TrackerType, SourceGuildId=excluded.SourceGuildId, SourceQueueNumber=excluded.SourceQueueNumber, UpdatedAt=excluded.UpdatedAt
     `;
     const stmt = this.DB.prepare(query).bind(
       tracker.TrackerId,
@@ -1772,6 +1772,9 @@ export class DatabaseService {
       tracker.Xuid,
       tracker.Status,
       tracker.IsLive,
+      tracker.TrackerType,
+      tracker.SourceGuildId,
+      tracker.SourceQueueNumber,
       tracker.CreatedAt,
       tracker.UpdatedAt,
     );
