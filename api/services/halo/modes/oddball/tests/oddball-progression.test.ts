@@ -5,6 +5,8 @@ import { getMatchStats } from "../../../fakes/data";
 import { buildOddballProgression } from "../oddball-progression";
 import { ODDBALL_3A8D_DURATION_MS, oddball3a8dEvents } from "../fakes/oddball-match-3a8d.fake";
 import { ODDBALL_F206_DURATION_MS, oddballF206Events } from "../fakes/oddball-match-f206.fake";
+import { ODDBALL_E0F9_DURATION_MS, oddballE0f9Events } from "../fakes/oddball-match-e0f9.fake";
+import { ODDBALL_FF1A_DURATION_MS, oddballFf1aEvents } from "../fakes/oddball-match-ff1a.fake";
 
 // The koth fixture carries two teams; only TeamId/Score/RoundsWon are read by the builder, so
 // clone it into the oddball calibration match's shape.
@@ -150,5 +152,70 @@ describe("buildOddballProgression (blind-validated match f2061e40)", () => {
     });
     const mae = errors.reduce((a, b) => a + b, 0) / (errors.length * 2);
     expect(mae).toBeLessThanOrEqual(8);
+  });
+});
+
+describe("buildOddballProgression (blind-validated single-round series matches)", () => {
+  function aSingleRoundMatchStats(eagleScore: number): MatchStats {
+    const base = structuredClone(Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth")));
+    const team0 = Preconditions.checkExists(base.Teams[0]);
+    const team1 = Preconditions.checkExists(base.Teams[1]);
+    team0.Stats.CoreStats.Score = eagleScore;
+    team0.Stats.CoreStats.RoundsWon = 0;
+    team1.Stats.CoreStats.Score = 100;
+    team1.Stats.CoreStats.RoundsWon = 1;
+    return base;
+  }
+
+  it("reconstructs e0f9e7c0: one capped round, Cobra 100 over Eagle 47", () => {
+    const progression = buildOddballProgression(
+      oddballE0f9Events(),
+      aSingleRoundMatchStats(47),
+      ODDBALL_E0F9_DURATION_MS,
+    );
+    expect(progression.rounds).toHaveLength(1);
+    const round = Preconditions.checkExists(progression.rounds[0]);
+    expect(round.endedByCap).toBe(true);
+    expect(round.winnerTeamId).toBe(1);
+    expect(round.scores).toEqual({ "0": 47, "1": 100 });
+    const waypoints = [
+      { atMs: minute(2), eagle: 0, cobra: 38 },
+      { atMs: minute(3), eagle: 8, cobra: 42 },
+      { atMs: minute(4), eagle: 10, cobra: 59 },
+      { atMs: minute(5), eagle: 25, cobra: 59 },
+      { atMs: minute(6), eagle: 41, cobra: 75 },
+      { atMs: minute(7), eagle: 47, cobra: 95 },
+    ];
+    const errors = waypoints.map(({ atMs, eagle, cobra }) => {
+      const latest = [...round.points].reverse().find((p) => p.timestampMs <= atMs);
+      return Math.abs((latest?.runningScores["0"] ?? 0) - eagle) + Math.abs((latest?.runningScores["1"] ?? 0) - cobra);
+    });
+    expect(errors.reduce((a, b) => a + b, 0) / (errors.length * 2)).toBeLessThanOrEqual(8);
+  });
+
+  it("reconstructs ff1ab79d: one capped round, Cobra 100 over Eagle 71", () => {
+    const progression = buildOddballProgression(
+      oddballFf1aEvents(),
+      aSingleRoundMatchStats(71),
+      ODDBALL_FF1A_DURATION_MS,
+    );
+    expect(progression.rounds).toHaveLength(1);
+    const round = Preconditions.checkExists(progression.rounds[0]);
+    expect(round.endedByCap).toBe(true);
+    expect(round.winnerTeamId).toBe(1);
+    expect(round.scores).toEqual({ "0": 71, "1": 100 });
+    const waypoints = [
+      { atMs: minute(2), eagle: 4, cobra: 1 },
+      { atMs: minute(3), eagle: 4, cobra: 25 },
+      { atMs: minute(4), eagle: 34, cobra: 34 },
+      { atMs: minute(5), eagle: 64, cobra: 38 },
+      { atMs: minute(6), eagle: 64, cobra: 54 },
+      { atMs: minute(7), eagle: 69, cobra: 63 },
+    ];
+    const errors = waypoints.map(({ atMs, eagle, cobra }) => {
+      const latest = [...round.points].reverse().find((p) => p.timestampMs <= atMs);
+      return Math.abs((latest?.runningScores["0"] ?? 0) - eagle) + Math.abs((latest?.runningScores["1"] ?? 0) - cobra);
+    });
+    expect(errors.reduce((a, b) => a + b, 0) / (errors.length * 2)).toBeLessThanOrEqual(5);
   });
 });

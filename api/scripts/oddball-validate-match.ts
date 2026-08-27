@@ -108,6 +108,19 @@ for (const round of progression.rounds) {
 }
 
 const EXPECTED: Record<string, string[]> = {
+  "e0f9e7c0-b176-4d47-a3c6-45fd31b7bcaf": [
+    "Single round (series part 1, film ended after): Cobra CAPS 100 at 7:04, final 47:100",
+    "Waypoints: 2:00 0:38, 3:00 8:42, 4:00 10:59, 5:00 25:59, 6:00 41:75, 7:00 47:95",
+  ],
+  "ff1ab79d-89eb-4fc3-aa26-54ad3c9f99ed": [
+    "Single round (series part 2; Cobra carried 1 pre-awarded round in-game, API records only",
+    "this match): Cobra CAPS 100 at 7:47, final 71:100",
+    "Waypoints: 2:00 4:1, 3:00 4:25, 4:00 34:34, 5:00 64:38, 6:00 64:54, 7:00 69:63",
+  ],
+  "f2061e40-00dc-4243-82b3-bc06827e16e7": [
+    "R1 TIME-OUT ends 7:25, Eagle 64:28; R2 7:35-15:16 TIME-OUT, Eagle 76:67 (Eagle 2-0, 140:95)",
+    "R2 waypoints: 9:00 19:1, 10:00 28:11, 11:00 47:13, 12:00 47:24, 13:00 61:33, 14:00 73:41",
+  ],
   "3a8dab3d-63c0-46b1-9041-5a5b4ef9eeb4": [
     "R1: ends 7:31 TIME-OUT, Eagle wins 61:47",
     "R2: 7:43-14:32 CAP, Cobra wins 23:100",
