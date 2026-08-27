@@ -28,6 +28,21 @@ export interface SeriesInitialData {
   readonly teams: readonly ManualSeriesTeamSnapshot[];
 }
 
+interface SeriesTeamWithGamertagPlayers {
+  readonly name: string;
+  readonly players: readonly { readonly gamertag: string | null }[];
+}
+
+// Shared by any presenter that seeds this dialog from a roster of named teams (e.g. a
+// NeatQueue-sourced ActiveSeriesContext/ActiveSeriesSummary) -- maps each player down to just
+// its display gamertag, falling back to "" for a player with none.
+export function toManualSeriesTeams(teams: readonly SeriesTeamWithGamertagPlayers[]): ManualSeriesTeamSnapshot[] {
+  return teams.map((team) => ({
+    name: team.name,
+    members: team.players.map((player) => player.gamertag ?? ""),
+  }));
+}
+
 const INITIAL_TEAM_MEMBERS: readonly string[] = ["", "", "", ""];
 
 function buildDefaultTeams(): readonly ManualSeriesTeamSnapshot[] {
@@ -47,16 +62,20 @@ function normaliseTeams(data: SeriesInitialData): readonly ManualSeriesTeamSnaps
   }));
 }
 
+function resolveMode(data: SeriesInitialData | undefined, mode: "start" | "edit" | undefined): "start" | "edit" {
+  return mode ?? (data != null ? "edit" : "start");
+}
+
 export class ManualSeriesDialogStore {
   private snapshot: ManualSeriesDialogSnapshot;
   private readonly subscribers = new Set<() => void>();
   private readonly initialData: SeriesInitialData | undefined;
+  private readonly forcedMode: "start" | "edit" | undefined;
 
-  public constructor(initialData?: SeriesInitialData) {
-    const mode: "start" | "edit" = initialData != null ? "edit" : "start";
+  public constructor(initialData?: SeriesInitialData, mode?: "start" | "edit") {
     const teams = initialData != null ? normaliseTeams(initialData) : buildDefaultTeams();
     this.snapshot = {
-      mode,
+      mode: resolveMode(initialData, mode),
       titleOverride: initialData?.title ?? "",
       subtitleOverride: initialData?.subtitle ?? "",
       teams,
@@ -70,6 +89,7 @@ export class ManualSeriesDialogStore {
       submitError: null,
     };
     this.initialData = initialData;
+    this.forcedMode = mode;
   }
 
   public subscribe(listener: () => void): () => void {
@@ -83,11 +103,12 @@ export class ManualSeriesDialogStore {
     return this.snapshot;
   }
 
-  public reset(initialData?: SeriesInitialData): void {
+  public reset(initialData?: SeriesInitialData, mode?: "start" | "edit"): void {
     const data = initialData ?? this.initialData;
+    const resolvedMode = mode ?? this.forcedMode;
     const teams = data != null ? normaliseTeams(data) : buildDefaultTeams();
     this.update({
-      mode: data != null ? "edit" : "start",
+      mode: resolveMode(data, resolvedMode),
       titleOverride: data?.title ?? "",
       subtitleOverride: data?.subtitle ?? "",
       teams,

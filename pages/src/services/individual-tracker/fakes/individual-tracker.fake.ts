@@ -4,24 +4,45 @@ import type {
   UpdateTrackerProfileRequest,
 } from "@guilty-spark/shared/contracts/individual-tracker/profile";
 import type {
+  StartSeriesTrackerRequest,
   StartTrackerRequest,
   Tracker,
   TrackerResponse,
   TrackersResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type {
+  TrackerActiveSeriesContext,
+  TrackerSeriesTeam,
+} from "@guilty-spark/shared/contracts/individual-tracker/view";
+import type {
   EditSeriesRequest,
   IndividualTrackerConnection,
   IndividualTrackerService,
+  IndividualTrackerSubscription,
+  ManualSeriesTeamForm,
   StartSeriesRequest,
   StartSeriesResponse,
   TrackerListResponse,
+  TrackerLiveView,
   TrackerMatchHistoryEntry,
   TrackerMatchHistoryResponse,
   TrackerSearchResult,
   TrackerStatusResponse,
   TrackerSyncMatchesRequest,
 } from "../types";
+
+function toTrackerSeriesTeams(teams: readonly ManualSeriesTeamForm[]): TrackerSeriesTeam[] {
+  return teams.map((team, index) => ({
+    id: index,
+    name: team.name,
+    players: team.members.map((member) => ({
+      discordId: null,
+      discordName: null,
+      gamertag: member,
+      xboxId: null,
+    })),
+  }));
+}
 
 interface FakeTrackerOverrides {
   readonly trackerId?: string;
@@ -147,6 +168,8 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
   private readonly matchHistory: TrackerMatchHistoryResponse;
   private readonly searchResults: readonly TrackerSearchResult[] | null;
   private readonly matchHistoryEntries: readonly TrackerMatchHistoryEntry[] | null;
+  private readonly activeSeriesByTracker = new Map<string, TrackerActiveSeriesContext>();
+  private readonly connectionListeners = new Map<string, Set<(view: TrackerLiveView) => void>>();
 
   public constructor(options?: Partial<FakeIndividualTrackerServiceOptions>) {
     this.profile = options?.profile ?? aFakeTrackerProfileWith();
@@ -184,9 +207,22 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
     return { tracker };
   }
 
+  public async startSeriesTracker(req: StartSeriesTrackerRequest): Promise<TrackerResponse> {
+    await Promise.resolve();
+    const tracker = aFakeTrackerWith({
+      trackerId: `series-${req.guildId}-${req.queueNumber.toString()}`,
+      gamertag: "",
+      xuid: "",
+      isLive: false,
+    });
+    this.trackers = [...this.trackers, tracker];
+    return { tracker };
+  }
+
   public async stopTracker(trackerId: string): Promise<void> {
     await Promise.resolve();
     this.trackers = this.trackers.filter((tracker) => tracker.trackerId !== trackerId);
+    this.activeSeriesByTracker.delete(trackerId);
   }
 
   public async pauseTracker(trackerId: string): Promise<TrackerResponse> {
@@ -240,9 +276,16 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
     await Promise.resolve();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public async startSeries(_request: StartSeriesRequest): Promise<StartSeriesResponse> {
+  public async startSeries(request: StartSeriesRequest): Promise<StartSeriesResponse> {
     await Promise.resolve();
+    const existing = this.trackers.find((tracker) => tracker.trackerId === request.trackerId);
+    this.activeSeriesByTracker.set(request.trackerId, {
+      title: request.titleOverride ?? existing?.gamertag ?? "Series",
+      subtitle: request.subtitleOverride,
+      teams: toTrackerSeriesTeams(request.teams),
+    });
+    this.setTrackerHasActiveSeries(request.trackerId, true);
+    this.emitLiveView(request.trackerId);
     return { success: true };
   }
 
@@ -264,16 +307,26 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
   public async deleteTracker(trackerId: string): Promise<void> {
     await Promise.resolve();
     this.trackers = this.trackers.filter((t) => t.trackerId !== trackerId);
+    this.activeSeriesByTracker.delete(trackerId);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public async endSeries(_trackerId: string): Promise<void> {
+  public async endSeries(trackerId: string): Promise<void> {
     await Promise.resolve();
+    this.activeSeriesByTracker.delete(trackerId);
+    this.setTrackerHasActiveSeries(trackerId, false);
+    this.emitLiveView(trackerId);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public async editSeries(_trackerId: string, _request: EditSeriesRequest): Promise<void> {
+  public async editSeries(trackerId: string, request: EditSeriesRequest): Promise<void> {
     await Promise.resolve();
+    const current = this.activeSeriesByTracker.get(trackerId);
+    this.activeSeriesByTracker.set(trackerId, {
+      title: request.titleOverride ?? current?.title ?? "Series",
+      subtitle: request.subtitleOverride !== undefined ? request.subtitleOverride : (current?.subtitle ?? null),
+      teams: request.teams != null ? toTrackerSeriesTeams(request.teams) : (current?.teams ?? []),
+    });
+    this.setTrackerHasActiveSeries(trackerId, true);
+    this.emitLiveView(trackerId);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -286,14 +339,21 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
     await Promise.resolve();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public connectToTracker(_userId: string, _trackerId: string): IndividualTrackerConnection {
+  public connectToTracker(_userId: string, trackerId: string): IndividualTrackerConnection {
     return {
-      subscribe: () => ({
-        unsubscribe: (): void => {
-          return;
-        },
-      }),
+      subscribe: (listener): IndividualTrackerSubscription => {
+        const listeners = this.connectionListeners.get(trackerId) ?? new Set();
+        listeners.add(listener);
+        this.connectionListeners.set(trackerId, listeners);
+        queueMicrotask(() => {
+          listener(this.buildLiveView(trackerId));
+        });
+        return {
+          unsubscribe: (): void => {
+            this.connectionListeners.get(trackerId)?.delete(listener);
+          },
+        };
+      },
       subscribeStatus: () => ({
         unsubscribe: (): void => {
           return;
@@ -317,9 +377,42 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
       xuid: existing?.xuid ?? "2533274800000001",
       isLive: existing?.isLive ?? false,
       status,
+      state: existing?.state == null ? undefined : { ...existing.state, status, isPaused: status === "paused" },
     });
     this.trackers = this.trackers.map((tracker) => (tracker.trackerId === trackerId ? updated : tracker));
     return updated;
+  }
+
+  private setTrackerHasActiveSeries(trackerId: string, hasActiveSeries: boolean): void {
+    this.trackers = this.trackers.map((tracker) =>
+      tracker.trackerId === trackerId && tracker.state != null
+        ? { ...tracker, state: { ...tracker.state, hasActiveSeries } }
+        : tracker,
+    );
+  }
+
+  private buildLiveView(trackerId: string): TrackerLiveView {
+    const tracker = this.findTracker(trackerId);
+    const activeSeriesContext = this.activeSeriesByTracker.get(trackerId);
+    return {
+      trackerId,
+      gamertag: tracker.gamertag,
+      status: tracker.status,
+      matches: [],
+      series: [],
+      lastUpdateTime: new Date().toISOString(),
+      lastMatchDiscoveredAt: null,
+      hasActiveSeries: activeSeriesContext != null,
+      hasRecentCompletedSeries: false,
+      ...(activeSeriesContext != null ? { activeSeriesContext } : {}),
+    };
+  }
+
+  private emitLiveView(trackerId: string): void {
+    const view = this.buildLiveView(trackerId);
+    for (const listener of this.connectionListeners.get(trackerId) ?? []) {
+      listener(view);
+    }
   }
 }
 

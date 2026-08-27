@@ -5,6 +5,7 @@ import type {
 } from "@guilty-spark/shared/contracts/individual-tracker/profile";
 import { trackerProfileContract } from "@guilty-spark/shared/contracts/individual-tracker/profile";
 import type {
+  StartSeriesTrackerRequest,
   StartTrackerRequest,
   TrackerResponse,
   TrackersResponse,
@@ -191,6 +192,23 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
       headers: {
         "Content-Type": "application/json",
       },
+    });
+
+    if (!response.ok) {
+      throw await this.readError(response);
+    }
+
+    return trackerContract.fromResponse(response);
+  }
+
+  public async startSeriesTracker(req: StartSeriesTrackerRequest): Promise<TrackerResponse> {
+    const response = await fetch(this.buildUrl("/api/individual-tracker/manage/start-series-tracker"), {
+      credentials: "include",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(req),
     });
 
     if (!response.ok) {

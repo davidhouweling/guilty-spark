@@ -3232,6 +3232,37 @@ describe("IndividualTrackerDO", () => {
         expect(ownerClient.getPlayerMatches).not.toHaveBeenCalled();
       });
 
+      it("does not query the live tracker for matchIds when there is no activeSeries to update yet", async () => {
+        vi.spyOn(services.neatQueueService, "getActiveSeriesByQueue").mockResolvedValue({
+          guildId: "guild-1",
+          queueNumber: 5,
+          seriesContext: {
+            type: "started",
+            title: "Test Server",
+            subtitle: "Queue #5",
+            guildIconUrl: null,
+            teams: [],
+          },
+        });
+        const getTrackerStatusSpy = vi.spyOn(services.liveTrackerService, "getTrackerStatusByQueue");
+        storageGetSpy.mockResolvedValue(
+          aFakeIndividualTrackerInternalStateWith({
+            trackerKind: "series",
+            xuid: "",
+            gamertag: "",
+            sourceGuildId: "guild-1",
+            sourceQueueNumber: 5,
+            startTime: now.toISOString(),
+          }),
+        );
+
+        await individualTrackerDO.alarm();
+
+        expect(getTrackerStatusSpy).not.toHaveBeenCalled();
+        const persisted = lastPersistedState(storagePutSpy);
+        expect(persisted.lastMatchDiscoveredAt).toBe("2024-11-26T12:00:00.000Z");
+      });
+
       it("updates activeSeries.matchIds and lastMatchDiscoveredAt when the live tracker reports more matches", async () => {
         vi.spyOn(services.neatQueueService, "getActiveSeriesByQueue").mockResolvedValue({
           guildId: "guild-1",

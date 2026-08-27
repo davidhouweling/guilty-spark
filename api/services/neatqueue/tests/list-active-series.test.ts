@@ -1,24 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
-import type { SeriesStartedPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import type { NeatQueueService } from "../neatqueue";
 import { aFakeNeatQueueServiceWith } from "../fakes/neatqueue.fake";
-import { aFakeNeatQueueStateWith, aFakePlayerAssociationDataWith } from "../fakes/data";
+import { aFakeNeatQueueStateWith, aFakePlayerAssociationDataWith, aFakeSeriesStartedPayloadWith } from "../fakes/data";
 import type { NeatQueueState } from "../types";
-
-function aSeriesContextWith(overrides: Partial<SeriesStartedPayload> = {}): SeriesStartedPayload {
-  return {
-    type: "started",
-    title: "Test Server",
-    subtitle: "Queue #5",
-    guildIconUrl: null,
-    startedAt: "2026-08-01T10:00:00.000Z",
-    searchStartTime: "2026-08-01T09:30:00.000Z",
-    teams: [],
-    ...overrides,
-  };
-}
 
 describe("NeatQueueService.listActiveSeries()", () => {
   let env: Env;
@@ -57,8 +43,8 @@ describe("NeatQueueService.listActiveSeries()", () => {
 
   it("returns every active series regardless of whether a specific player is in it", async () => {
     listSpy.mockResolvedValue(listResultWith(["neatqueue:state:guild-1:5", "neatqueue:state:guild-2:9"]));
-    const seriesOne = aSeriesContextWith({ title: "Guild One" });
-    const seriesTwo = aSeriesContextWith({ title: "Guild Two", startedAt: "2026-08-01T11:00:00.000Z" });
+    const seriesOne = aFakeSeriesStartedPayloadWith({ title: "Guild One" });
+    const seriesTwo = aFakeSeriesStartedPayloadWith({ title: "Guild Two", startedAt: "2026-08-01T11:00:00.000Z" });
     getSpy.mockImplementation(async (key: string) => {
       if (key === "neatqueue:state:guild-1:5") {
         return Promise.resolve(
@@ -95,7 +81,7 @@ describe("NeatQueueService.listActiveSeries()", () => {
     });
     getSpy.mockImplementation(async (key: string) => {
       if (key === "neatqueue:state:guild-2:9") {
-        return Promise.resolve(aFakeNeatQueueStateWith({ seriesContext: aSeriesContextWith() }));
+        return Promise.resolve(aFakeNeatQueueStateWith({ seriesContext: aFakeSeriesStartedPayloadWith() }));
       }
       return Promise.resolve(aFakeNeatQueueStateWith());
     });

@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { aFakePlayerAssociationDataWith } from "@guilty-spark/shared/live-tracker/fakes/data";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
+import type { SeriesStartedPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import type {
   NeatQueueJoinQueueRequest,
   NeatQueueLeaveQueueRequest,
@@ -79,6 +80,19 @@ export function aFakeNeatQueueStateWith(overrides: Partial<NeatQueueState> = {})
     timeline: [],
     playersMessageId: null,
     playersAssociationData: {},
+    ...overrides,
+  };
+}
+
+export function aFakeSeriesStartedPayloadWith(overrides: Partial<SeriesStartedPayload> = {}): SeriesStartedPayload {
+  return {
+    type: "started",
+    title: "Test Server",
+    subtitle: "Queue #5",
+    guildIconUrl: null,
+    startedAt: "2026-08-01T10:00:00.000Z",
+    searchStartTime: "2026-08-01T09:30:00.000Z",
+    teams: [],
     ...overrides,
   };
 }

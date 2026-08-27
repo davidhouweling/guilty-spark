@@ -9,23 +9,28 @@ import {
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
+import { installNeatQueueClientService } from "../../services/neatqueue/install";
+import type { NeatQueueClientService } from "../../services/neatqueue/types";
 
 export interface Services {
   readonly authService: AuthService;
   readonly individualTrackerService: IndividualTrackerService;
   readonly settingsService: IndividualTrackerSettingsService;
   readonly individualTrackerViewService: IndividualTrackerViewService;
+  readonly neatQueueService: NeatQueueClientService;
 }
 
 export async function installServices(apiHost: string): Promise<Services> {
   const haloInfiniteClient = createHaloInfiniteClientProxy({ proxyBaseUrl: apiHost, credentials: "include" });
 
-  const [authService, individualTrackerService, settingsService, individualTrackerViewService] = await Promise.all([
-    installAuthService(apiHost),
-    installIndividualTrackerService(apiHost, haloInfiniteClient),
-    installIndividualTrackerSettingsService(apiHost),
-    installIndividualTrackerViewService(apiHost),
-  ]);
+  const [authService, individualTrackerService, settingsService, individualTrackerViewService, neatQueueService] =
+    await Promise.all([
+      installAuthService(apiHost),
+      installIndividualTrackerService(apiHost, haloInfiniteClient),
+      installIndividualTrackerSettingsService(apiHost),
+      installIndividualTrackerViewService(apiHost),
+      installNeatQueueClientService(apiHost),
+    ]);
 
-  return { authService, individualTrackerService, settingsService, individualTrackerViewService };
+  return { authService, individualTrackerService, settingsService, individualTrackerViewService, neatQueueService };
 }

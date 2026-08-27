@@ -1,24 +1,12 @@
 import type { AutoRouterType } from "itty-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ActiveSeriesListResponse } from "@guilty-spark/shared/contracts/neatqueue/active-series";
-import type { SeriesStartedPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeAuthSessionWith } from "../../../services/auth/fakes/data";
+import { aFakeSeriesStartedPayloadWith } from "../../../services/neatqueue/fakes/data";
 import { neatQueueRoutesRegisterHandler } from "../active-series";
-
-function aSeriesContextWith(overrides: Partial<SeriesStartedPayload> = {}): SeriesStartedPayload {
-  return {
-    type: "started",
-    title: "Test Server",
-    subtitle: "Queue #5",
-    guildIconUrl: null,
-    startedAt: "2026-08-01T10:00:00.000Z",
-    teams: [],
-    ...overrides,
-  };
-}
 
 describe("GET /api/neatqueue/active-series", () => {
   let env: Env;
@@ -51,7 +39,7 @@ describe("GET /api/neatqueue/active-series", () => {
         {
           guildId: "guild-1",
           queueNumber: 5,
-          seriesContext: aSeriesContextWith({
+          seriesContext: aFakeSeriesStartedPayloadWith({
             teams: [
               {
                 id: 0,

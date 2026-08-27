@@ -1,0 +1,92 @@
+.listContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  margin-top: var(--space-6);
+}
+
+.listHeader {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.listTitle {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-2xl);
+  margin: 0;
+}
+
+.list {
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
+  border-radius: var(--radius-md);
+}
+
+.emptyList {
+  border: 1px dashed color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  text-align: center;
+}
+
+.row {
+  align-items: center;
+  background: var(--halo-bg-secondary);
+  border-bottom: 1px solid color-mix(in srgb, var(--halo-teal-primary) 18%, transparent);
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.rowMain {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.guildIcon {
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  height: 32px;
+  width: 32px;
+}
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rowTitle {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  font-size: var(--text-base);
+}
+
+.rowSubtitle {
+  color: var(--halo-gray);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+}
+
+.rowTeams {
+  color: var(--halo-gray);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+}
+
+.rowActions {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-2);
+}
