@@ -1154,8 +1154,26 @@ export class DatabaseService {
         metricSql = "SUM(gp.MedalPoints)";
         break;
       }
+      case LeaderboardMetric.AvgMedalPointsPerSeries: {
+        metricSql = getPerSeriesAverageSql("MedalPoints", "gp");
+        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+        break;
+      }
+      case LeaderboardMetric.AvgMedalPointsPerGame: {
+        metricSql = "AVG(gp.MedalPoints)";
+        break;
+      }
       case LeaderboardMetric.MythicMedals: {
         metricSql = "SUM(gp.MythicMedalCount)";
+        break;
+      }
+      case LeaderboardMetric.AvgMythicMedalsPerSeries: {
+        metricSql = getPerSeriesAverageSql("MythicMedalCount", "gp");
+        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+        break;
+      }
+      case LeaderboardMetric.AvgMythicMedalsPerGame: {
+        metricSql = "AVG(gp.MythicMedalCount)";
         break;
       }
       case LeaderboardMetric.ObjectiveTime: {

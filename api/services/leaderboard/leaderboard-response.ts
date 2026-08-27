@@ -160,8 +160,20 @@ function getMetricLabel(metric: LeaderboardMetric): string {
     case LeaderboardMetric.MedalPoints: {
       return "Medals by points";
     }
+    case LeaderboardMetric.AvgMedalPointsPerSeries: {
+      return "Avg medal points per series";
+    }
+    case LeaderboardMetric.AvgMedalPointsPerGame: {
+      return "Avg medal points per game";
+    }
     case LeaderboardMetric.MythicMedals: {
       return "Mythic medals";
+    }
+    case LeaderboardMetric.AvgMythicMedalsPerSeries: {
+      return "Avg mythic medals per series";
+    }
+    case LeaderboardMetric.AvgMythicMedalsPerGame: {
+      return "Avg mythic medals per game";
     }
     case LeaderboardMetric.ObjectiveTime: {
       return "Objective time";
@@ -350,9 +362,17 @@ function formatMetricValue(
     case LeaderboardMetric.MedalPoints: {
       return `${formatCount(metricValue, "point", "points")} (${formatCount(row.medalCount, "medal", "medals")})`;
     }
+    case LeaderboardMetric.AvgMedalPointsPerSeries:
+    case LeaderboardMetric.AvgMedalPointsPerGame: {
+      return `${metricValue.toLocaleString(locale, { maximumFractionDigits: 2 })} points`;
+    }
     case LeaderboardMetric.MythicMedals: {
       const mythicLabel = pluralRules.select(Math.abs(Math.round(metricValue))) === "one" ? "medal" : "medals";
       return formatCount(metricValue, "mythic medal", `mythic ${mythicLabel}`);
+    }
+    case LeaderboardMetric.AvgMythicMedalsPerSeries:
+    case LeaderboardMetric.AvgMythicMedalsPerGame: {
+      return `${metricValue.toLocaleString(locale, { maximumFractionDigits: 2 })} mythic medals`;
     }
     case LeaderboardMetric.ObjectiveTime: {
       const total = getReadableDuration(getDurationInIsoString(row.objectiveTimeSeconds), locale);

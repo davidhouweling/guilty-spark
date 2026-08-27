@@ -55,7 +55,6 @@ const LEADERBOARD_RESET_CONFIRM_CONTROL_ID = "btn_leaderboard_reset_confirm";
 const LEADERBOARD_RESET_CANCEL_CONTROL_ID = "btn_leaderboard_reset_cancel";
 
 const METRIC_AGGREGATIONS_IN_OPTION_ORDER: readonly LeaderboardMetricAggregation[] = [
-  LeaderboardMetricAggregation.OverallPerformance,
   LeaderboardMetricAggregation.AvgPerSeries,
   LeaderboardMetricAggregation.AvgPerGame,
   LeaderboardMetricAggregation.Total,

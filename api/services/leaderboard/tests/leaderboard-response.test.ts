@@ -310,16 +310,18 @@ describe("createLeaderboardResponse", () => {
 
     const optionLabels = metricSelect.options.map((option) => option.label);
     expect(optionLabels.slice(0, 6)).toEqual([
+      "Series played",
+      "Series wins",
+      "Games played",
+      "Game wins",
       "Personal score",
       "Kills",
-      "Deaths",
-      "Assists",
-      "Headshot kills",
-      "Shots hit",
     ]);
     expect(optionLabels).toContain("Headshot kills");
     expect(optionLabels).toContain("Shots hit");
     expect(optionLabels).toContain("Shots fired");
+    expect(optionLabels).toContain("Medals by points");
+    expect(optionLabels).toContain("Mythic medals");
     expect(optionLabels).not.toContain("Avg life time");
     expect(optionLabels).not.toContain("Avg damage per life");
   });
@@ -361,7 +363,7 @@ describe("createLeaderboardResponse", () => {
     });
   });
 
-  it("renders Overall performance aggregation for inherent-form metrics", () => {
+  it("renders Avg per game aggregation for per-game-only metrics", () => {
     const leaderboard: LeaderboardResponse = {
       guildId: "guild-123",
       queueChannelId: "queue-123",
@@ -401,7 +403,7 @@ describe("createLeaderboardResponse", () => {
     if (aggregationSelect?.type !== ComponentType.StringSelect) {
       throw new Error("Expected aggregation select control to be a string select");
     }
-    expect(aggregationSelect.options[0]?.label).toBe("Overall performance");
+    expect(aggregationSelect.options[0]?.label).toBe("Avg per series");
 
     const windowSelectRow = response.components?.[3];
     expect(windowSelectRow?.type).toBe(ComponentType.ActionRow);
@@ -473,11 +475,11 @@ describe("createLeaderboardResponse", () => {
     }
 
     expect(familySelect.options.map((option) => option.label).slice(0, 3)).toEqual([
+      "Win percentage",
       "Personal score",
       "Kills",
-      "Deaths",
     ]);
-    expect(familySelect.options.map((option) => option.label)).not.toContain("Series win rate");
+    expect(familySelect.options.map((option) => option.label)).not.toContain("Games played");
   });
 
   it("omits components for a locked leaderboard", () => {

@@ -27,12 +27,13 @@ describe("getLeaderboardFamilyAggregations / getDefaultLeaderboardAggregation", 
     expect(getDefaultLeaderboardAggregation(LeaderboardMetricFamily.Kills)).toBe(LeaderboardMetricAggregation.Total);
   });
 
-  it("exposes Overall performance for inherent-form families", () => {
-    expect(getLeaderboardFamilyAggregations(LeaderboardMetricFamily.SeriesWinRate)).toEqual([
-      LeaderboardMetricAggregation.OverallPerformance,
+  it("exposes series and game averages for Win percentage", () => {
+    expect(getLeaderboardFamilyAggregations(LeaderboardMetricFamily.WinPercentage)).toEqual([
+      LeaderboardMetricAggregation.AvgPerSeries,
+      LeaderboardMetricAggregation.AvgPerGame,
     ]);
-    expect(getDefaultLeaderboardAggregation(LeaderboardMetricFamily.SeriesWinRate)).toBe(
-      LeaderboardMetricAggregation.OverallPerformance,
+    expect(getDefaultLeaderboardAggregation(LeaderboardMetricFamily.WinPercentage)).toBe(
+      LeaderboardMetricAggregation.AvgPerGame,
     );
   });
 });
@@ -57,26 +58,45 @@ describe("resolveLeaderboardMetric", () => {
     expect(resolveLeaderboardMetric(LeaderboardMetricFamily.DamageDealt, null)).toBe(LeaderboardMetric.DamageDealt);
   });
 
-  it("resolves a rate/ratio/lifetime family with Overall performance (explicit or defaulted)", () => {
-    expect(resolveLeaderboardMetric(LeaderboardMetricFamily.Kda, LeaderboardMetricAggregation.OverallPerformance)).toBe(
+  it("resolves KDA with Avg per game", () => {
+    expect(resolveLeaderboardMetric(LeaderboardMetricFamily.Kda, LeaderboardMetricAggregation.AvgPerGame)).toBe(
       LeaderboardMetric.Kda,
     );
-    expect(resolveLeaderboardMetric(LeaderboardMetricFamily.SeriesWinRate, null)).toBe(LeaderboardMetric.SeriesWinRate);
+    expect(
+      resolveLeaderboardMetric(LeaderboardMetricFamily.WinPercentage, LeaderboardMetricAggregation.AvgPerSeries),
+    ).toBe(LeaderboardMetric.SeriesWinRate);
   });
 
-  it("throws when an unsupported aggregation is passed for a rate/ratio/lifetime family", () => {
+  it("throws when an unsupported aggregation is passed for a per-game-only family", () => {
     expect(() => resolveLeaderboardMetric(LeaderboardMetricFamily.Kda, LeaderboardMetricAggregation.Total)).toThrow();
+  });
+
+  it("resolves medal averages and totals", () => {
+    expect(
+      resolveLeaderboardMetric(LeaderboardMetricFamily.MedalPoints, LeaderboardMetricAggregation.AvgPerSeries),
+    ).toBe(LeaderboardMetric.AvgMedalPointsPerSeries);
+    expect(
+      resolveLeaderboardMetric(LeaderboardMetricFamily.MythicMedals, LeaderboardMetricAggregation.AvgPerGame),
+    ).toBe(LeaderboardMetric.AvgMythicMedalsPerGame);
+    expect(resolveLeaderboardMetric(LeaderboardMetricFamily.MedalPoints, LeaderboardMetricAggregation.Total)).toBe(
+      LeaderboardMetric.MedalPoints,
+    );
   });
 
   it("round-trips every LeaderboardMetric through its family and default aggregation", () => {
     for (const metric of Object.values(LeaderboardMetric)) {
       const family = getLeaderboardMetricFamily(metric);
       const defaultAggregation = getDefaultLeaderboardAggregation(family);
-      const aggregation = metric.includes("_PER_SERIES")
-        ? LeaderboardMetricAggregation.AvgPerSeries
-        : metric.includes("_PER_GAME")
-          ? LeaderboardMetricAggregation.AvgPerGame
-          : defaultAggregation;
+      const aggregation =
+        metric === LeaderboardMetric.SeriesWinRate
+          ? LeaderboardMetricAggregation.AvgPerSeries
+          : metric === LeaderboardMetric.GamesWinRate
+            ? LeaderboardMetricAggregation.AvgPerGame
+            : metric.includes("_PER_SERIES")
+              ? LeaderboardMetricAggregation.AvgPerSeries
+              : metric.includes("_PER_GAME")
+                ? LeaderboardMetricAggregation.AvgPerGame
+                : defaultAggregation;
       expect(resolveLeaderboardMetric(family, aggregation)).toBe(metric);
     }
   });

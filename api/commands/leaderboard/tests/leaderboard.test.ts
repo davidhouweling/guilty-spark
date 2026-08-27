@@ -1323,11 +1323,14 @@ describe("LeaderboardCommand", () => {
 
   it("switches metric from string-select interaction and resets to page 1", async () => {
     const stateUrl =
-      "https://guilty-spark.app/leaderboard?guildId=test-guild-id&window=1M&metric=SERIES_WIN_RATE&page=6&minGamesPlayed=0";
+      "https://guilty-spark.app/leaderboard?guildId=test-guild-id&window=1M&metric=KDA&page=6&minGamesPlayed=0";
     const interaction: APIMessageComponentSelectMenuInteraction = {
-      ...aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetricFamily.Kda }),
+      ...aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetricFamily.WinPercentage }),
       message: {
-        ...aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetricFamily.Kda }).message,
+        ...aWizardStringSelectWith({
+          customId: INTERACTION_METRIC_SELECT,
+          value: LeaderboardMetricFamily.WinPercentage,
+        }).message,
         components: aStateComponentsWith(stateUrl),
       },
     };
@@ -1336,7 +1339,7 @@ describe("LeaderboardCommand", () => {
       guildId: "test-guild-id",
       queueChannelId: null,
       window: LeaderboardWindow.OneMonth,
-      metric: LeaderboardMetric.Kda,
+      metric: LeaderboardMetric.GamesWinRate,
       minGamesPlayed: 0,
       page: 1,
       pageSize: 10,
@@ -1356,7 +1359,7 @@ describe("LeaderboardCommand", () => {
     expect(getLeaderboardSpy).toHaveBeenCalledWith({
       guildId: "test-guild-id",
       window: LeaderboardWindow.OneMonth,
-      metric: LeaderboardMetric.Kda,
+      metric: LeaderboardMetric.GamesWinRate,
       page: 1,
       pageSize: 10,
       minGamesPlayed: 0,
@@ -1399,14 +1402,7 @@ describe("LeaderboardCommand", () => {
                 custom_id: INTERACTION_METRIC_AGGREGATION_SELECT,
                 min_values: 1,
                 max_values: 1,
-                options: [
-                  {
-                    label: "Overall performance",
-                    value: LeaderboardMetricAggregation.OverallPerformance,
-                    default: true,
-                  },
-                  { label: "Avg per series", value: LeaderboardMetricAggregation.AvgPerSeries },
-                ],
+                options: [{ label: "Avg per series", value: LeaderboardMetricAggregation.AvgPerSeries, default: true }],
               },
             ],
           },
@@ -1418,7 +1414,7 @@ describe("LeaderboardCommand", () => {
                 custom_id: INTERACTION_METRIC_SELECT,
                 min_values: 1,
                 max_values: 1,
-                options: [{ label: "Series win rate", value: LeaderboardMetricFamily.SeriesWinRate, default: true }],
+                options: [{ label: "Personal score", value: LeaderboardMetricFamily.PersonalScore, default: true }],
               },
             ],
           },
@@ -1470,19 +1466,19 @@ describe("LeaderboardCommand", () => {
 
   it("switches metric while the reset window is active", async () => {
     const interaction: APIMessageComponentSelectMenuInteraction = {
-      ...aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetricFamily.GamesWinRate }),
+      ...aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetricFamily.WinPercentage }),
       guild_id: "guild-123",
       guild: {
         ...Preconditions.checkExists(
-          aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetricFamily.GamesWinRate })
+          aWizardStringSelectWith({ customId: INTERACTION_METRIC_SELECT, value: LeaderboardMetricFamily.WinPercentage })
             .guild,
         ),
         id: "guild-123",
       },
       data: {
         component_type: ComponentType.StringSelect,
-        custom_id: `${INTERACTION_METRIC_SELECT}:guild-123:-:RESET:SERIES_WIN_RATE:1:0`,
-        values: [LeaderboardMetricFamily.GamesWinRate],
+        custom_id: `${INTERACTION_METRIC_SELECT}:guild-123:-:RESET:GAMES_WIN_RATE:1:0`,
+        values: [LeaderboardMetricFamily.WinPercentage],
       },
     };
     vi.spyOn(services.databaseService, "getLeaderboardResetMarker").mockResolvedValue({
