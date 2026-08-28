@@ -195,7 +195,7 @@ function timerStartMs(roundIndex: number, windows: readonly RoundWindow[]): numb
 // held seconds recoverable from the wall duration of a timed-out round (see header comment)
 function timedOutHeldMs(roundIndex: number, windows: readonly RoundWindow[]): number {
   const window = Preconditions.checkExists(windows[roundIndex]);
-  return window.endMs - timerStartMs(roundIndex, windows) - ROUND_TIMER_MS;
+  return Math.max(window.endMs - timerStartMs(roundIndex, windows) - ROUND_TIMER_MS, 0);
 }
 
 // Nudge non-cap-winner scores proportionally so each team's round scores sum to the API total,
