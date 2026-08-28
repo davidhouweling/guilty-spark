@@ -1,0 +1,41 @@
+.searchRow {
+  align-items: end;
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  max-width: 24rem;
+}
+
+.searchRow > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.searchButton {
+  flex: 0 0 auto;
+  padding-left: var(--space-3);
+  padding-right: var(--space-3);
+}
+
+.searchIcon {
+  display: block;
+  fill: none;
+  height: 1rem;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  width: 1rem;
+}
+
+.srOnly {
+  border: 0;
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}

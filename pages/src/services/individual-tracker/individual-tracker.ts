@@ -4,6 +4,8 @@ import type {
   UpdateTrackerProfileRequest,
 } from "@guilty-spark/shared/contracts/individual-tracker/profile";
 import { trackerProfileContract } from "@guilty-spark/shared/contracts/individual-tracker/profile";
+import { searchEsraContract } from "@guilty-spark/shared/contracts/individual-tracker/search-esra";
+import type { SearchEsra } from "@guilty-spark/shared/contracts/individual-tracker/search-esra";
 import type {
   StartTrackerRequest,
   TrackerResponse,
@@ -23,7 +25,13 @@ import {
 } from "@guilty-spark/shared/halo/match-enrichment";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
-import type { HaloInfiniteClient, MapAsset, MatchStats, UgcGameVariantAsset } from "halo-infinite-api";
+import type {
+  HaloInfiniteClient,
+  MapAsset,
+  MatchStats,
+  PlaylistCsrContainer,
+  UgcGameVariantAsset,
+} from "halo-infinite-api";
 import { AssetKind, MatchType } from "halo-infinite-api";
 import {
   buildMatchResultString,
@@ -258,6 +266,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     let seasonPeakRankSubTier: number | null = null;
     let matchmadeMatchCount: number | null = null;
     let customMatchCount: number | null = null;
+    let rawCsrContainer: PlaylistCsrContainer | null = null;
 
     const [rankedArenaCsrs, matchCounts] = await Promise.allSettled([
       this.haloInfiniteClient.getPlaylistCsr(RANKED_ARENA_PLAYLIST_ID, [userResult.xuid]),
@@ -266,6 +275,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
 
     if (rankedArenaCsrs.status === "fulfilled") {
       const [{ Result }] = rankedArenaCsrs.value;
+      rawCsrContainer = Result;
       const labels = getRankAndCsrLabels(Result);
       const current = Result.Current;
       const allTimeMax = Result.AllTimeMax;
@@ -308,7 +318,21 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
       seasonPeakRankSubTier,
       matchmadeMatchCount,
       customMatchCount,
+      rawCsrContainer,
     };
+  }
+
+  public async getSearchEsra(xuid: string): Promise<SearchEsra> {
+    const response = await fetch(this.buildUrl(`/api/individual-tracker/search/${encodeURIComponent(xuid)}/esra`), {
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      throw await this.readError(response);
+    }
+
+    const { esra } = await searchEsraContract.fromResponse(response);
+    return esra;
   }
 
   public async getMatchHistory(
@@ -381,6 +405,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
           ...(matchmakingPlaylist != null ? { matchmakingPlaylist } : {}),
           category: matchCategory,
           teams: buildTeams(matchStats, xuidToGamertag),
+          rawMatchStats: matchStats,
           mapThumbnailUrl: mapDetails.thumbnailUrl,
         } satisfies TrackerMatchHistoryEntry;
       }),

@@ -3,6 +3,30 @@ import { GameVariantCategory } from "halo-infinite-api";
 import { compareAsc } from "date-fns";
 import { UnreachableError } from "../base/unreachable-error";
 import { getPlayerXuid } from "./match-stats";
+import { formatDamageRatio, formatStatValue } from "./stat-formatting";
+
+export const UNKNOWN_KDA_DISPLAY = "-:-:- (-)";
+export const UNKNOWN_DAMAGE_RATIO_DISPLAY = "-:- (-)";
+export const UNKNOWN_SERIES_SUMMARY_DISPLAY = "N/A";
+export const STATS_DISPLAY_LOCALE = "en-US";
+
+export interface TrackedPlayerSummaryStats {
+  readonly killsDeathsAssistsKda: string;
+  readonly damageDealtTakenRatio: string;
+  readonly kills?: number;
+  readonly deaths?: number;
+  readonly assists?: number;
+  readonly damageDealt?: number;
+  readonly damageTaken?: number;
+}
+
+export interface SeriesSummaryStatsSource {
+  readonly kills?: number | null;
+  readonly deaths?: number | null;
+  readonly assists?: number | null;
+  readonly damageDealt?: number | null;
+  readonly damageTaken?: number | null;
+}
 
 export type NormalizedMatchOutcome = "Win" | "Loss" | "Tie" | "DNF" | "Unknown";
 
@@ -123,6 +147,83 @@ export function buildMatchScore(matchStats: MatchStats, locale?: string): string
   }
 
   return scoreString;
+}
+
+export function computeTrackedPlayerSummaryStats(
+  matchStats: MatchStats,
+  trackedXuid: string,
+): TrackedPlayerSummaryStats {
+  const player = matchStats.Players.find((candidate) => getPlayerXuid(candidate) === trackedXuid);
+  const playerTeamStats =
+    player?.PlayerTeamStats.find((teamStats) => teamStats.TeamId === player.LastTeamId) ?? player?.PlayerTeamStats[0];
+  const playerStats = playerTeamStats?.Stats.CoreStats;
+  if (playerStats == null) {
+    return {
+      killsDeathsAssistsKda: UNKNOWN_KDA_DISPLAY,
+      damageDealtTakenRatio: UNKNOWN_DAMAGE_RATIO_DISPLAY,
+    };
+  }
+
+  const kdaValue =
+    playerStats.Deaths === 0
+      ? playerStats.Kills + playerStats.Assists / 3
+      : (playerStats.Kills + playerStats.Assists / 3) / playerStats.Deaths;
+
+  return {
+    killsDeathsAssistsKda: `${formatStatValue(playerStats.Kills, STATS_DISPLAY_LOCALE)}:${formatStatValue(playerStats.Deaths, STATS_DISPLAY_LOCALE)}:${formatStatValue(playerStats.Assists, STATS_DISPLAY_LOCALE)} (${formatStatValue(kdaValue, STATS_DISPLAY_LOCALE)})`,
+    damageDealtTakenRatio: `${formatStatValue(playerStats.DamageDealt, STATS_DISPLAY_LOCALE)}:${formatStatValue(playerStats.DamageTaken, STATS_DISPLAY_LOCALE)} (${formatDamageRatio(playerStats.DamageDealt, playerStats.DamageTaken, STATS_DISPLAY_LOCALE)})`,
+    kills: playerStats.Kills,
+    deaths: playerStats.Deaths,
+    assists: playerStats.Assists,
+    damageDealt: playerStats.DamageDealt,
+    damageTaken: playerStats.DamageTaken,
+  };
+}
+
+export function computeSeriesSummaryStats(summaries: readonly SeriesSummaryStatsSource[]): {
+  killsDeathsAssistsKda: string;
+  damageDealtTakenRatio: string;
+} {
+  if (summaries.length === 0) {
+    return {
+      killsDeathsAssistsKda: UNKNOWN_SERIES_SUMMARY_DISPLAY,
+      damageDealtTakenRatio: UNKNOWN_SERIES_SUMMARY_DISPLAY,
+    };
+  }
+
+  let kills = 0;
+  let deaths = 0;
+  let assists = 0;
+  let damageDealt = 0;
+  let damageTaken = 0;
+
+  for (const summary of summaries) {
+    if (
+      summary.kills == null ||
+      summary.deaths == null ||
+      summary.assists == null ||
+      summary.damageDealt == null ||
+      summary.damageTaken == null
+    ) {
+      return {
+        killsDeathsAssistsKda: UNKNOWN_SERIES_SUMMARY_DISPLAY,
+        damageDealtTakenRatio: UNKNOWN_SERIES_SUMMARY_DISPLAY,
+      };
+    }
+
+    kills += summary.kills;
+    deaths += summary.deaths;
+    assists += summary.assists;
+    damageDealt += summary.damageDealt;
+    damageTaken += summary.damageTaken;
+  }
+
+  const kdaValue = deaths === 0 ? kills + assists / 3 : (kills + assists / 3) / deaths;
+
+  return {
+    killsDeathsAssistsKda: `${formatStatValue(kills, STATS_DISPLAY_LOCALE)}:${formatStatValue(deaths, STATS_DISPLAY_LOCALE)}:${formatStatValue(assists, STATS_DISPLAY_LOCALE)} (${formatStatValue(kdaValue, STATS_DISPLAY_LOCALE)})`,
+    damageDealtTakenRatio: `${formatStatValue(damageDealt, STATS_DISPLAY_LOCALE)}:${formatStatValue(damageTaken, STATS_DISPLAY_LOCALE)} (${formatDamageRatio(damageDealt, damageTaken, STATS_DISPLAY_LOCALE)})`,
+  };
 }
 
 export function buildTeamRosterSignature(matchStats: MatchStats): string | null {
