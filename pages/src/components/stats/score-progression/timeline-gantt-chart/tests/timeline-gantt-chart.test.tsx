@@ -3,9 +3,9 @@ import "@testing-library/jest-dom/vitest";
 import React, { cloneElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import { KothTimelineChart } from "../koth-timeline-chart";
-import { aFakeKothHillDataWith } from "../../fakes/koth-hill-data.fake";
-import type { KothHillData, KothTimelineHillViewModel } from "../../types";
+import { TimelineGanttChart } from "../timeline-gantt-chart";
+import { aFakeTimelineGanttRowWith } from "../../fakes/timeline-gantt-row.fake";
+import type { TimelineGanttRowViewModel } from "../../types";
 
 afterEach(() => {
   cleanup();
@@ -23,33 +23,28 @@ vi.mock("recharts", () => ({
       x?: number;
       y?: number;
       payload?: { value: number };
-      hills?: readonly KothTimelineHillViewModel[];
+      rows?: readonly TimelineGanttRowViewModel[];
     }>;
   }): React.ReactElement => <div data-testid="y-axis">{cloneElement(tick, { x: 0, y: 0, payload: { value: 1 } })}</div>,
   Tooltip: (): null => null,
 }));
 
-function aFakeTimelineHill(
-  overrides: Partial<KothHillData> = {},
-  captureProgressLabel = "",
-): KothTimelineHillViewModel {
-  return { ...aFakeKothHillDataWith(overrides), captureProgressLabel };
-}
-
-describe("KothTimelineChart", () => {
+describe("TimelineGanttChart", () => {
   it("renders a Bar element", () => {
-    render(<KothTimelineChart durationMs={30000} hills={[aFakeTimelineHill()]} />);
+    render(<TimelineGanttChart durationMs={30000} rows={[aFakeTimelineGanttRowWith()]} />);
     expect(screen.getByTestId("bar")).toBeTruthy();
   });
 
-  it("renders a Y-axis tick with the display-ready occupancy label", () => {
-    render(<KothTimelineChart durationMs={30000} hills={[aFakeTimelineHill({}, "Eagle 50% · Cobra 33%")]} />);
+  it("renders a Y-axis tick with the display-ready sub-label", () => {
+    render(
+      <TimelineGanttChart durationMs={30000} rows={[aFakeTimelineGanttRowWith({ subLabel: "Eagle 64 · Cobra 28" })]} />,
+    );
     const yAxis = screen.getByTestId("y-axis");
-    expect(yAxis.textContent).toContain("Eagle 50% · Cobra 33%");
+    expect(yAxis.textContent).toContain("Eagle 64 · Cobra 28");
   });
 
-  it("renders no occupancy text when the occupancy label is empty", () => {
-    render(<KothTimelineChart durationMs={30000} hills={[aFakeTimelineHill()]} />);
+  it("renders no sub-label text when the sub-label is empty", () => {
+    render(<TimelineGanttChart durationMs={30000} rows={[aFakeTimelineGanttRowWith({ subLabel: "" })]} />);
     const yAxis = screen.getByTestId("y-axis");
     expect(yAxis.textContent).toBe("Hill 1");
   });

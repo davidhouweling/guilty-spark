@@ -42,6 +42,27 @@ export type KothEvent = z.infer<typeof kothEventSchema>;
 export type KothControlPeriod = z.infer<typeof kothControlPeriodSchema>;
 export type KothTimeline = z.infer<typeof kothTimelineSchema>;
 
+const oddballEventSchema = progressionEventSchema;
+
+const oddballRoundSchema = z.object({
+  roundIndex: z.number().int().nonnegative(),
+  startMs: z.number().int().nonnegative(),
+  endMs: z.number().int().nonnegative(),
+  endedByCap: z.boolean(),
+  winnerTeamId: z.number().int().nonnegative().nullable(),
+  scores: z.record(z.string().regex(/^\d+$/), z.number().int().nonnegative()),
+  events: z.array(oddballEventSchema),
+});
+
+const oddballTimelineSchema = z.object({
+  type: z.literal("oddball"),
+  rounds: z.array(oddballRoundSchema),
+});
+
+export type OddballEvent = z.infer<typeof oddballEventSchema>;
+export type OddballRound = z.infer<typeof oddballRoundSchema>;
+export type OddballTimeline = z.infer<typeof oddballTimelineSchema>;
+
 export const killMatrixEntrySchema = z.object({
   count: z.number().int().nonnegative().describe("Total kills for this killer/victim pair"),
   perfects: z.number().int().nonnegative().describe("Perfect medal kill count for this killer/victim pair"),
@@ -82,7 +103,7 @@ export const matchAnalyticsSchema = z.object({
       mode: z.number().int().nonnegative(),
       durationMs: z.number().int().nonnegative(),
       teamCount: z.number().int().positive(),
-      timeline: z.discriminatedUnion("type", [killRaceTimelineSchema, kothTimelineSchema]),
+      timeline: z.discriminatedUnion("type", [killRaceTimelineSchema, kothTimelineSchema, oddballTimelineSchema]),
     })
     .nullable(),
 });

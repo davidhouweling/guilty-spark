@@ -4,9 +4,9 @@ import type { ScoreProgressionSnapshot, ScoreProgressionStore } from "./score-pr
 import type {
   ChartType,
   KothHillData,
-  KothTimelineHillViewModel,
   KothViewData,
-  KothViewModel,
+  OddballRoundData,
+  OddballViewData,
   PlayerAdvantageData,
   ScoreDeltaData,
   ScoreLinesViewData,
@@ -14,6 +14,8 @@ import type {
   ScoreProgressionDeltaViewModel,
   ScoreProgressionViewData,
   ScoreProgressionViewModel,
+  TimelineGanttChartViewModel,
+  TimelineGanttRowViewModel,
 } from "./types";
 
 export interface ScoreProgressionPresenterConfig {
@@ -48,6 +50,9 @@ export class ScoreProgressionPresenter {
       }
       case "koth": {
         return this.presentKoth(viewData, ariaLabel);
+      }
+      case "oddball": {
+        return this.presentOddball(viewData, ariaLabel);
       }
       default: {
         throw new UnreachableError(viewData);
@@ -113,25 +118,67 @@ export class ScoreProgressionPresenter {
     };
   }
 
-  private presentKoth(viewData: KothViewData, ariaLabel: string): KothViewModel {
+  private presentKoth(viewData: KothViewData, ariaLabel: string): TimelineGanttChartViewModel {
     return {
-      kind: "koth",
+      kind: "timeline-gantt",
       ariaLabel,
-      kothTimelineViewModel: {
+      timeline: {
         durationMs: viewData.durationMs,
-        hills: this.buildKothTimelineHills(viewData.hills),
+        rows: this.orderRowsForVerticalChart(viewData.hills.map((hill) => this.buildKothRow(hill))),
       },
     };
   }
 
-  // Recharts vertical BarChart renders rows top-down, so hill 1 must be last to sit at the bottom
-  private buildKothTimelineHills(hills: readonly KothHillData[]): KothTimelineHillViewModel[] {
-    return hills
-      .map((hill) => ({
-        ...hill,
-        captureProgressLabel: hill.teamCaptureProgress.map((o) => `${o.name} ${String(o.percentage)}%`).join(" · "),
-      }))
-      .reverse();
+  private presentOddball(viewData: OddballViewData, ariaLabel: string): TimelineGanttChartViewModel {
+    return {
+      kind: "timeline-gantt",
+      ariaLabel,
+      timeline: {
+        durationMs: viewData.durationMs,
+        rows: this.orderRowsForVerticalChart(viewData.rounds.map((round) => this.buildOddballRow(round))),
+      },
+    };
+  }
+
+  // Recharts vertical BarChart renders rows top-down, so row 1 must be last to sit at the bottom
+  private orderRowsForVerticalChart(rows: readonly TimelineGanttRowViewModel[]): TimelineGanttRowViewModel[] {
+    return [...rows].reverse();
+  }
+
+  private buildKothRow(hill: KothHillData): TimelineGanttRowViewModel {
+    return {
+      rowIndex: hill.hillIndex,
+      label: `Hill ${String(hill.hillIndex)}`,
+      subLabel: hill.teamCaptureProgress.map((o) => `${o.name} ${String(o.percentage)}%`).join(" · "),
+      segments: hill.segments,
+      winnerColor: hill.winnerColor,
+      tooltipTitle: `Hill ${String(hill.hillIndex)}`,
+      tooltipEntries: hill.teamCaptureProgress.map((o) => ({
+        key: String(o.teamId),
+        color: o.percentage > 0 ? o.color : null,
+        text: `${o.name}: ${String(o.percentage)}%`,
+      })),
+    };
+  }
+
+  private buildOddballRow(round: OddballRoundData): TimelineGanttRowViewModel {
+    const ending = round.endedByCap ? "Capped" : "Timed out";
+    return {
+      rowIndex: round.roundIndex,
+      label: `Round ${String(round.roundIndex)}`,
+      subLabel: round.teamScores.map((o) => `${o.name} ${String(o.score)}`).join(" · "),
+      segments: round.segments,
+      winnerColor: round.winnerColor,
+      tooltipTitle:
+        round.winnerName != null
+          ? `Round ${String(round.roundIndex)} — ${ending}, ${round.winnerName} wins`
+          : `Round ${String(round.roundIndex)} — ${ending}`,
+      tooltipEntries: round.teamScores.map((o) => ({
+        key: String(o.teamId),
+        color: o.score > 0 ? o.color : null,
+        text: `${o.name}: ${String(o.score)}`,
+      })),
+    };
   }
 
   private synchronizeDeltaDomain(scoreDelta: ScoreDeltaData, advantage: PlayerAdvantageData | null): ScoreDeltaData {

@@ -1,7 +1,7 @@
 import type { KothTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { TICK_FILL } from "../../chart-constants";
-import type { KothHillData, KothHillSegment, KothHillTeamProgress } from "../../types";
+import type { KothHillData, KothHillTeamProgress, TimelineGanttSegment } from "../../types";
 
 const MIN_TRAILING_HILL_MS = 2_000;
 
@@ -28,8 +28,8 @@ function isSegmentCorroborated(
   );
 }
 
-function mergeAdjacentSegments(segments: readonly KothHillSegment[]): KothHillSegment[] {
-  const merged: KothHillSegment[] = [];
+function mergeAdjacentSegments(segments: readonly TimelineGanttSegment[]): TimelineGanttSegment[] {
+  const merged: TimelineGanttSegment[] = [];
   for (const segment of segments) {
     const previous = merged.pop();
     if (previous == null) {
@@ -48,7 +48,7 @@ function buildHillSegments(
   hillEnd: number,
   timeline: KothTimeline,
   teamColorByTeamId: Map<number, string>,
-): KothHillSegment[] {
+): TimelineGanttSegment[] {
   const overlapping = timeline.controlPeriods
     .filter((cp) => cp.endMs > hillStart && cp.startMs < hillEnd)
     .map((cp) => {
@@ -63,7 +63,7 @@ function buildHillSegments(
     })
     .sort((a, b) => a.startMs - b.startMs);
 
-  const segments: KothHillSegment[] = [];
+  const segments: TimelineGanttSegment[] = [];
   let cursor = hillStart;
 
   for (const cp of overlapping) {

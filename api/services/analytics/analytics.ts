@@ -291,6 +291,26 @@ export class AnalyticsService {
         },
       };
     }
+    if (mode === GameVariantCategory.MultiplayerOddball) {
+      const progression = await this.haloFilmService.buildOddballProgression(matchStats, durationMs);
+      return {
+        mode,
+        durationMs,
+        teamCount: progression.teamCount,
+        timeline: {
+          type: "oddball",
+          rounds: progression.rounds.map((round) => ({
+            roundIndex: round.roundIndex,
+            startMs: round.startMs,
+            endMs: round.endMs,
+            endedByCap: round.endedByCap,
+            winnerTeamId: round.winnerTeamId,
+            scores: round.scores,
+            events: round.points,
+          })),
+        },
+      };
+    }
     return null;
   }
 
