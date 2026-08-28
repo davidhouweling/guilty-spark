@@ -6,7 +6,7 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { getObjectiveTimeSeconds } from "@guilty-spark/shared/halo/objective-metrics";
-import { getSafeRatioValue } from "@guilty-spark/shared/halo/stat-formatting";
+import { clampRatioForStorage, getSafeRatioValue } from "@guilty-spark/shared/halo/stat-formatting";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
@@ -17,6 +17,7 @@ import type { LeaderboardSeriesRow } from "../database/types/leaderboard_series"
 import type { LeaderboardSeriesPlayersRow } from "../database/types/leaderboard_series_players";
 import type { LeaderboardGamesRow } from "../database/types/leaderboard_games";
 import type { LeaderboardGamePlayersRow } from "../database/types/leaderboard_game_players";
+import type { LeaderboardConfigRow } from "../database/types/leaderboard_config";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
 import type { LeaderboardPostRow } from "../database/types/leaderboard_post";
 import type { HaloService } from "../halo/halo";
@@ -25,6 +26,7 @@ import type { LogService } from "../log/types";
 import type { NeatQueueMatchCompletedRequest } from "../neatqueue/types";
 import { getLeaderboardMessageState } from "./leaderboard-message";
 import { createLeaderboardResponse, LEADERBOARD_TEMPORARY_ERROR_FOOTER } from "./leaderboard-response";
+import { serializeObjectiveStats } from "./objective-stats";
 
 export interface LeaderboardServiceOpts {
   databaseService: DatabaseService;
@@ -35,6 +37,7 @@ export interface LeaderboardServiceOpts {
 
 interface GetLeaderboardOpts {
   guildId: string;
+  config?: LeaderboardConfigRow | undefined;
   queueChannelId?: string | undefined;
   window?: LeaderboardWindow | undefined;
   metric?: LeaderboardMetric | undefined;
@@ -394,6 +397,7 @@ export class LeaderboardService {
 
   async getLeaderboardWithResolvedPage({
     guildId,
+    config,
     queueChannelId,
     window,
     metric,
@@ -403,6 +407,7 @@ export class LeaderboardService {
   }: GetLeaderboardOpts): Promise<LeaderboardResponse> {
     const opts: GetLeaderboardOpts = {
       guildId,
+      config,
       queueChannelId,
       window,
       metric,
@@ -424,6 +429,7 @@ export class LeaderboardService {
 
   async getLeaderboard({
     guildId,
+    config,
     queueChannelId,
     window,
     metric,
@@ -431,7 +437,7 @@ export class LeaderboardService {
     pageSize,
     minGamesPlayed,
   }: GetLeaderboardOpts): Promise<LeaderboardResponse> {
-    const config = await this.databaseService.getLeaderboardConfig(guildId, true);
+    const resolvedConfig = config ?? (await this.databaseService.getLeaderboardConfig(guildId, true));
     const queueResetMarker = await this.databaseService.getLeaderboardResetMarker(guildId, queueChannelId ?? null);
     const serverResetMarker =
       queueChannelId != null && queueResetMarker == null
@@ -440,15 +446,15 @@ export class LeaderboardService {
     const resetMarker = queueResetMarker ?? serverResetMarker;
     const resetMarkerResetAt = resetMarker?.ResetAt ?? null;
     const resolvedWindowCandidate =
-      window ?? (resetMarker == null ? config.DefaultWindow : LeaderboardWindow.LastReset);
+      window ?? (resetMarker == null ? resolvedConfig.DefaultWindow : LeaderboardWindow.LastReset);
     const resolvedWindow =
       resolvedWindowCandidate === LeaderboardWindow.LastReset && resetMarkerResetAt == null
-        ? config.DefaultWindow
+        ? resolvedConfig.DefaultWindow
         : resolvedWindowCandidate;
     const resolvedResetAt =
       resolvedWindow === LeaderboardWindow.LastReset ? Preconditions.checkExists(resetMarkerResetAt) : null;
-    const resolvedMetric = metric ?? config.DefaultMetric;
-    const resolvedMinGamesPlayed = minGamesPlayed ?? config.MinGamesPlayed;
+    const resolvedMetric = metric ?? resolvedConfig.DefaultMetric;
+    const resolvedMinGamesPlayed = minGamesPlayed ?? resolvedConfig.MinGamesPlayed;
     const resolvedPage = Math.max(1, page ?? 1);
     const resolvedPageSize = Math.min(100, Math.max(1, pageSize ?? 25));
     const offset = (resolvedPage - 1) * resolvedPageSize;
@@ -708,7 +714,7 @@ export class LeaderboardService {
           ShotsFired: coreStats.ShotsFired,
           DamageDealt: coreStats.DamageDealt,
           DamageTaken: coreStats.DamageTaken,
-          DamageRatio: getSafeRatioValue(coreStats.DamageDealt, coreStats.DamageTaken),
+          DamageRatio: clampRatioForStorage(getSafeRatioValue(coreStats.DamageDealt, coreStats.DamageTaken)),
           AvgLifeSeconds: this.getAverageLifeSeconds(coreStats.AverageLifeDuration),
           AvgDamagePerLife: getSafeRatioValue(coreStats.DamageDealt, deaths + 1),
           MedalCount: medalAggregates.count,
@@ -717,7 +723,7 @@ export class LeaderboardService {
           ObjectiveTimeSeconds: objectiveTimeSeconds,
           ObjectiveTeamContribution: objectiveTeamContribution,
           ObjectiveGameContribution: objectiveGameContribution,
-          ObjectiveStatsJson: JSON.stringify(teamStats.Stats),
+          ObjectiveStatsJson: serializeObjectiveStats(teamStats.Stats),
           MedalsJson: JSON.stringify(coreStats.Medals),
           CreatedAt: nowEpoch,
         });
