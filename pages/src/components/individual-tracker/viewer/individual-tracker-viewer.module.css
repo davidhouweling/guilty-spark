@@ -123,6 +123,7 @@
 .seriesEntry {
   background: color-mix(in srgb, var(--halo-teal-primary) 6%, var(--halo-bg-card));
   border-color: color-mix(in srgb, var(--halo-teal-primary) 45%, transparent);
+  border-width: 2px;
 }
 
 .seriesEntry > .entryHeaderButton {
