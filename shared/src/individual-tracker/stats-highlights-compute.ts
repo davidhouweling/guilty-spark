@@ -1,7 +1,7 @@
 import { compareAsc } from "date-fns";
 import type { MatchStats, PlaylistCsrContainer } from "halo-infinite-api";
 import { getDurationInIsoString, getDurationInSeconds, getReadableDuration } from "../halo/duration";
-import { analyzeMatchGroupings } from "../halo/match-enrichment";
+import { analyzeMatchGroupings, STATS_DISPLAY_LOCALE } from "../halo/match-enrichment";
 import type { NormalizedMatchOutcome } from "../halo/match-enrichment";
 import { getPlayerXuid } from "../halo/match-stats";
 import { getRankTierFromCsr } from "../halo/rank";
@@ -286,58 +286,58 @@ function formatStatsHighlightOption(option: IndividualStatsHighlightOption, ctx:
     }
     case "current-rank": {
       const value = csrContainer?.Current.Value;
-      return value != null && value > 0 ? formatStatValue(value) : "-";
+      return value != null && value > 0 ? formatStatValue(value, STATS_DISPLAY_LOCALE) : "-";
     }
     case "season-peak": {
       const value = csrContainer?.SeasonMax.Value;
-      return value != null && value > 0 ? formatStatValue(value) : "-";
+      return value != null && value > 0 ? formatStatValue(value, STATS_DISPLAY_LOCALE) : "-";
     }
     case "all-time-peak": {
       const value = csrContainer?.AllTimeMax.Value;
-      return value != null && value > 0 ? formatStatValue(value) : "-";
+      return value != null && value > 0 ? formatStatValue(value, STATS_DISPLAY_LOCALE) : "-";
     }
     case "esra": {
       const esra = esraData?.esra;
-      return esra != null && esra >= 0 ? formatStatValue(Math.round(esra)) : "-";
+      return esra != null && esra >= 0 ? formatStatValue(Math.round(esra), STATS_DISPLAY_LOCALE) : "-";
     }
     case "kills": {
-      return totals != null ? formatStatValue(totals.kills) : null;
+      return totals != null ? formatStatValue(totals.kills, STATS_DISPLAY_LOCALE) : null;
     }
     case "deaths": {
-      return totals != null ? formatStatValue(totals.deaths) : null;
+      return totals != null ? formatStatValue(totals.deaths, STATS_DISPLAY_LOCALE) : null;
     }
     case "assists": {
-      return totals != null ? formatStatValue(totals.assists) : null;
+      return totals != null ? formatStatValue(totals.assists, STATS_DISPLAY_LOCALE) : null;
     }
     case "kda": {
       if (totals == null) {
         return null;
       }
-      return formatStatValue(computeKdaValue(totals));
+      return formatStatValue(computeKdaValue(totals), STATS_DISPLAY_LOCALE);
     }
     case "headshot-kills": {
-      return totals != null ? formatStatValue(totals.headshotKills) : null;
+      return totals != null ? formatStatValue(totals.headshotKills, STATS_DISPLAY_LOCALE) : null;
     }
     case "shots-hit": {
-      return totals != null ? formatStatValue(totals.shotsHit) : null;
+      return totals != null ? formatStatValue(totals.shotsHit, STATS_DISPLAY_LOCALE) : null;
     }
     case "shots-fired": {
-      return totals != null ? formatStatValue(totals.shotsFired) : null;
+      return totals != null ? formatStatValue(totals.shotsFired, STATS_DISPLAY_LOCALE) : null;
     }
     case "accuracy": {
       if (totals == null || totals.shotsFired === 0) {
         return null;
       }
-      return `${formatStatValue((totals.shotsHit / totals.shotsFired) * 100)}%`;
+      return `${formatStatValue((totals.shotsHit / totals.shotsFired) * 100, STATS_DISPLAY_LOCALE)}%`;
     }
     case "damage-dealt": {
-      return totals != null ? formatStatValue(totals.damageDealt) : null;
+      return totals != null ? formatStatValue(totals.damageDealt, STATS_DISPLAY_LOCALE) : null;
     }
     case "damage-taken": {
-      return totals != null ? formatStatValue(totals.damageTaken) : null;
+      return totals != null ? formatStatValue(totals.damageTaken, STATS_DISPLAY_LOCALE) : null;
     }
     case "damage-ratio": {
-      return totals != null ? formatDamageRatio(totals.damageDealt, totals.damageTaken) : null;
+      return totals != null ? formatDamageRatio(totals.damageDealt, totals.damageTaken, STATS_DISPLAY_LOCALE) : null;
     }
     case "avg-life-time": {
       const lifeSpawns = totals?.totalLifeSpawns ?? 0;
@@ -352,33 +352,33 @@ function formatStatsHighlightOption(option: IndividualStatsHighlightOption, ctx:
       if (totals == null || lifeSpawns === 0) {
         return null;
       }
-      return formatDamageRatio(totals.damageDealt, lifeSpawns);
+      return formatDamageRatio(totals.damageDealt, lifeSpawns, STATS_DISPLAY_LOCALE);
     }
     case "kills-deaths-kd": {
       if (totals == null) {
         return null;
       }
       const kdRatio = totals.deaths === 0 ? totals.kills : totals.kills / totals.deaths;
-      return `${formatStatValue(totals.kills)}:${formatStatValue(totals.deaths)} (${formatStatValue(kdRatio)})`;
+      return `${formatStatValue(totals.kills, STATS_DISPLAY_LOCALE)}:${formatStatValue(totals.deaths, STATS_DISPLAY_LOCALE)} (${formatStatValue(kdRatio, STATS_DISPLAY_LOCALE)})`;
     }
     case "kills-deaths-assists-kda": {
       if (totals == null) {
         return null;
       }
-      return `${formatStatValue(totals.kills)}:${formatStatValue(totals.deaths)}:${formatStatValue(totals.assists)} (${formatStatValue(computeKdaValue(totals))})`;
+      return `${formatStatValue(totals.kills, STATS_DISPLAY_LOCALE)}:${formatStatValue(totals.deaths, STATS_DISPLAY_LOCALE)}:${formatStatValue(totals.assists, STATS_DISPLAY_LOCALE)} (${formatStatValue(computeKdaValue(totals), STATS_DISPLAY_LOCALE)})`;
     }
     case "shots-hit-fired-accuracy": {
       if (totals == null || totals.shotsFired === 0) {
         return null;
       }
       const acc = (totals.shotsHit / totals.shotsFired) * 100;
-      return `${formatStatValue(totals.shotsHit)}:${formatStatValue(totals.shotsFired)} (${formatStatValue(acc)}%)`;
+      return `${formatStatValue(totals.shotsHit, STATS_DISPLAY_LOCALE)}:${formatStatValue(totals.shotsFired, STATS_DISPLAY_LOCALE)} (${formatStatValue(acc, STATS_DISPLAY_LOCALE)}%)`;
     }
     case "damage-dealt-taken-ratio": {
       if (totals == null) {
         return null;
       }
-      return `${formatStatValue(totals.damageDealt)}:${formatStatValue(totals.damageTaken)} (${formatDamageRatio(totals.damageDealt, totals.damageTaken)})`;
+      return `${formatStatValue(totals.damageDealt, STATS_DISPLAY_LOCALE)}:${formatStatValue(totals.damageTaken, STATS_DISPLAY_LOCALE)} (${formatDamageRatio(totals.damageDealt, totals.damageTaken, STATS_DISPLAY_LOCALE)})`;
     }
     case "avg-life-damage-per-life": {
       const lifeSpawns = totals?.totalLifeSpawns ?? 0;
@@ -387,7 +387,7 @@ function formatStatsHighlightOption(option: IndividualStatsHighlightOption, ctx:
       }
       const avgSeconds = totals.totalLifeSeconds / lifeSpawns;
       const lifeDisplay = getReadableDuration(getDurationInIsoString(avgSeconds));
-      const dmgPerLife = formatDamageRatio(totals.damageDealt, lifeSpawns);
+      const dmgPerLife = formatDamageRatio(totals.damageDealt, lifeSpawns, STATS_DISPLAY_LOCALE);
       return `${lifeDisplay} (${dmgPerLife})`;
     }
     default: {
