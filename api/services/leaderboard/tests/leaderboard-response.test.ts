@@ -310,16 +310,18 @@ describe("createLeaderboardResponse", () => {
 
     const optionLabels = metricSelect.options.map((option) => option.label);
     expect(optionLabels.slice(0, 6)).toEqual([
+      "Series played",
+      "Series wins",
+      "Games played",
+      "Game wins",
       "Personal score",
       "Kills",
-      "Deaths",
-      "Assists",
-      "Headshot kills",
-      "Shots hit",
     ]);
     expect(optionLabels).toContain("Headshot kills");
     expect(optionLabels).toContain("Shots hit");
     expect(optionLabels).toContain("Shots fired");
+    expect(optionLabels).toContain("Medals by points");
+    expect(optionLabels).toContain("Mythic medals");
     expect(optionLabels).not.toContain("Avg life time");
     expect(optionLabels).not.toContain("Avg damage per life");
   });
@@ -361,7 +363,7 @@ describe("createLeaderboardResponse", () => {
     });
   });
 
-  it("renders Overall performance aggregation for inherent-form metrics", () => {
+  it("renders Avg per game aggregation for per-game-only metrics", () => {
     const leaderboard: LeaderboardResponse = {
       guildId: "guild-123",
       queueChannelId: "queue-123",
@@ -401,7 +403,7 @@ describe("createLeaderboardResponse", () => {
     if (aggregationSelect?.type !== ComponentType.StringSelect) {
       throw new Error("Expected aggregation select control to be a string select");
     }
-    expect(aggregationSelect.options[0]?.label).toBe("Overall performance");
+    expect(aggregationSelect.options.find((option) => option.default === true)?.label).toBe("Avg per game");
 
     const windowSelectRow = response.components?.[3];
     expect(windowSelectRow?.type).toBe(ComponentType.ActionRow);
@@ -415,6 +417,72 @@ describe("createLeaderboardResponse", () => {
       throw new Error("Expected window select control to be a string select");
     }
     expect(windowSelect.placeholder).toBe("Select window");
+  });
+
+  it("uses singular units for one objective", () => {
+    const leaderboard: LeaderboardResponse = {
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.FlagCaptures,
+      minGamesPlayed: 0,
+      page: 1,
+      pageSize: 10,
+      total: 1,
+      rows: [
+        {
+          rank: 1,
+          xboxXuid: "xuid-1",
+          discordUserId: "discord-1",
+          gamertag: "Alpha",
+          seriesPlayed: 1,
+          seriesWins: 1,
+          gamesPlayed: 1,
+          gameWins: 1,
+          medalCount: 0,
+          objectiveGamesPlayed: 1,
+          objectiveTimeSeconds: 0,
+          metricValue: 1,
+        },
+      ],
+    };
+
+    const response = createLeaderboardResponse("en-US", leaderboard, "<t:1733483139:R>");
+
+    expect(response.embeds?.[0]?.fields?.[2]?.value).toContain("1 capture");
+  });
+
+  it("uses singular labels for average values of one", () => {
+    const leaderboard: LeaderboardResponse = {
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.AvgMedalPointsPerGame,
+      minGamesPlayed: 0,
+      page: 1,
+      pageSize: 10,
+      total: 1,
+      rows: [
+        {
+          rank: 1,
+          xboxXuid: "xuid-1",
+          discordUserId: "discord-1",
+          gamertag: "Alpha",
+          seriesPlayed: 1,
+          seriesWins: 1,
+          gamesPlayed: 1,
+          gameWins: 1,
+          medalCount: 1,
+          objectiveGamesPlayed: 0,
+          objectiveTimeSeconds: 0,
+          metricValue: 1,
+        },
+      ],
+    };
+
+    const response = createLeaderboardResponse("en-US", leaderboard, "<t:1733483139:R>");
+
+    expect(response.embeds?.[0]?.fields?.[2]?.value).toContain("1 point");
   });
 
   it("prepends the reset window when a reset marker exists", () => {
@@ -473,11 +541,11 @@ describe("createLeaderboardResponse", () => {
     }
 
     expect(familySelect.options.map((option) => option.label).slice(0, 3)).toEqual([
+      "Win percentage",
       "Personal score",
       "Kills",
-      "Deaths",
     ]);
-    expect(familySelect.options.map((option) => option.label)).not.toContain("Series win rate");
+    expect(familySelect.options.map((option) => option.label)).not.toContain("Games played");
   });
 
   it("omits components for a locked leaderboard", () => {

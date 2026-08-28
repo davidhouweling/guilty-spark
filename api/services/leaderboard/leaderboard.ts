@@ -17,6 +17,7 @@ import type { LeaderboardSeriesRow } from "../database/types/leaderboard_series"
 import type { LeaderboardSeriesPlayersRow } from "../database/types/leaderboard_series_players";
 import type { LeaderboardGamesRow } from "../database/types/leaderboard_games";
 import type { LeaderboardGamePlayersRow } from "../database/types/leaderboard_game_players";
+import type { LeaderboardConfigRow } from "../database/types/leaderboard_config";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
 import type { LeaderboardPostRow } from "../database/types/leaderboard_post";
 import type { HaloService } from "../halo/halo";
@@ -34,8 +35,16 @@ export interface LeaderboardServiceOpts {
   logService: LogService;
 }
 
+export interface LeaderboardPostRefreshSummary {
+  total: number;
+  refreshed: number;
+  missing: number;
+  failed: number;
+}
+
 interface GetLeaderboardOpts {
   guildId: string;
+  config?: LeaderboardConfigRow | undefined;
   queueChannelId?: string | undefined;
   window?: LeaderboardWindow | undefined;
   metric?: LeaderboardMetric | undefined;
@@ -276,6 +285,83 @@ export class LeaderboardService {
     }
   }
 
+  async refreshAllPostsToDefaults(): Promise<LeaderboardPostRefreshSummary> {
+    const discordService = Preconditions.checkExists(this.discordService, "Discord service is required");
+    const posts = await this.databaseService.getAllLeaderboardPosts();
+    const locales = new Map<string, string>();
+    const configs = new Map<string, LeaderboardConfigRow>();
+    const summary: LeaderboardPostRefreshSummary = { total: posts.length, refreshed: 0, missing: 0, failed: 0 };
+
+    for (const post of posts) {
+      try {
+        const locale = locales.get(post.GuildId) ?? (await discordService.getGuildPreferredLocale(post.GuildId));
+        locales.set(post.GuildId, locale);
+        const config = configs.get(post.GuildId) ?? (await this.databaseService.getLeaderboardConfig(post.GuildId));
+        configs.set(post.GuildId, config);
+        const leaderboard = await this.getLeaderboardWithResolvedPage({
+          guildId: post.GuildId,
+          config,
+          ...(post.QueueChannelId != null ? { queueChannelId: post.QueueChannelId } : {}),
+          window: config.DefaultWindow,
+          metric: config.DefaultMetric,
+          page: 1,
+          pageSize: 10,
+          minGamesPlayed: config.MinGamesPlayed,
+        });
+        await discordService.editMessage(
+          post.ChannelId,
+          post.MessageId,
+          createLeaderboardResponse(
+            locale,
+            leaderboard,
+            discordService.getTimestamp(new Date().toISOString(), "R"),
+            false,
+            leaderboard.resetAt == null
+              ? null
+              : discordService.getTimestamp(new Date(leaderboard.resetAt * 1000).toISOString(), "f"),
+          ),
+        );
+        summary.refreshed += 1;
+      } catch (error) {
+        if (
+          error instanceof DiscordError &&
+          error.httpStatus === 404 &&
+          (error.restError.code === 10003 || error.restError.code === 10008)
+        ) {
+          try {
+            await this.databaseService.deleteLeaderboardPost(post.ChannelId, post.MessageId);
+            summary.missing += 1;
+          } catch (deleteError) {
+            summary.failed += 1;
+            this.logService.warn(
+              deleteError,
+              new Map([
+                ["guildId", post.GuildId],
+                ["channelId", post.ChannelId],
+                ["messageId", post.MessageId],
+                ["reason", "Failed to delete missing leaderboard post registration"],
+              ]),
+            );
+          }
+          continue;
+        }
+
+        summary.failed += 1;
+        this.logService.warn(
+          error,
+          new Map([
+            ["guildId", post.GuildId],
+            ["channelId", post.ChannelId],
+            ["messageId", post.MessageId],
+            ["reason", "Failed one-off leaderboard default refresh"],
+          ]),
+        );
+      }
+    }
+
+    return summary;
+  }
+
   private async refreshLeaderboardPosts(posts: LeaderboardPostRow[], guildId: string): Promise<void> {
     const { discordService } = this;
     if (discordService == null || posts.length === 0) {
@@ -395,6 +481,7 @@ export class LeaderboardService {
 
   async getLeaderboardWithResolvedPage({
     guildId,
+    config,
     queueChannelId,
     window,
     metric,
@@ -404,6 +491,7 @@ export class LeaderboardService {
   }: GetLeaderboardOpts): Promise<LeaderboardResponse> {
     const opts: GetLeaderboardOpts = {
       guildId,
+      config,
       queueChannelId,
       window,
       metric,
@@ -425,6 +513,7 @@ export class LeaderboardService {
 
   async getLeaderboard({
     guildId,
+    config,
     queueChannelId,
     window,
     metric,
@@ -432,7 +521,7 @@ export class LeaderboardService {
     pageSize,
     minGamesPlayed,
   }: GetLeaderboardOpts): Promise<LeaderboardResponse> {
-    const config = await this.databaseService.getLeaderboardConfig(guildId, true);
+    const resolvedConfig = config ?? (await this.databaseService.getLeaderboardConfig(guildId, true));
     const queueResetMarker = await this.databaseService.getLeaderboardResetMarker(guildId, queueChannelId ?? null);
     const serverResetMarker =
       queueChannelId != null && queueResetMarker == null
@@ -441,15 +530,15 @@ export class LeaderboardService {
     const resetMarker = queueResetMarker ?? serverResetMarker;
     const resetMarkerResetAt = resetMarker?.ResetAt ?? null;
     const resolvedWindowCandidate =
-      window ?? (resetMarker == null ? config.DefaultWindow : LeaderboardWindow.LastReset);
+      window ?? (resetMarker == null ? resolvedConfig.DefaultWindow : LeaderboardWindow.LastReset);
     const resolvedWindow =
       resolvedWindowCandidate === LeaderboardWindow.LastReset && resetMarkerResetAt == null
-        ? config.DefaultWindow
+        ? resolvedConfig.DefaultWindow
         : resolvedWindowCandidate;
     const resolvedResetAt =
       resolvedWindow === LeaderboardWindow.LastReset ? Preconditions.checkExists(resetMarkerResetAt) : null;
-    const resolvedMetric = metric ?? config.DefaultMetric;
-    const resolvedMinGamesPlayed = minGamesPlayed ?? config.MinGamesPlayed;
+    const resolvedMetric = metric ?? resolvedConfig.DefaultMetric;
+    const resolvedMinGamesPlayed = minGamesPlayed ?? resolvedConfig.MinGamesPlayed;
     const resolvedPage = Math.max(1, page ?? 1);
     const resolvedPageSize = Math.min(100, Math.max(1, pageSize ?? 25));
     const offset = (resolvedPage - 1) * resolvedPageSize;
