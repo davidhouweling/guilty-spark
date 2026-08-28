@@ -432,12 +432,14 @@ function solveRoundScores(
         scores.set(teamId, value);
       }
     } else {
-      // timed-out: both teams' ticks sum to the implied total; split by estimator ratio
-      const total = Math.max(impliedTicks, 1);
+      // timed-out: both teams' ticks sum to the implied total; a quiet stretch before the
+      // buzzer undershoots the wall-implied value (even below zero), in which case the
+      // estimator's own total is the more credible round sum
       const rawTotal = Math.max(
         [...sums.values()].reduce((a, b) => a + b, 0),
         1,
       );
+      const total = impliedTicks >= rawTotal * 0.5 ? impliedTicks : Math.round(rawTotal);
       for (const teamId of teamIds) {
         scores.set(teamId, ((sums.get(teamId) ?? 0) / rawTotal) * total);
       }
