@@ -1113,9 +1113,9 @@ describe("LeaderboardService", () => {
     const failedPost = aFakeLeaderboardPostRow({ ChannelId: "channel-3", MessageId: "message-3" });
     vi.spyOn(databaseService, "getAllLeaderboardPosts").mockResolvedValue([refreshedPost, missingPost, failedPost]);
     vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue(Locale.EnglishUS);
-    vi.spyOn(databaseService, "getLeaderboardConfig").mockResolvedValue(
-      aFakeLeaderboardConfigRow({ GuildId: "guild-1", MinGamesPlayed: 0 }),
-    );
+    const getConfigSpy = vi
+      .spyOn(databaseService, "getLeaderboardConfig")
+      .mockResolvedValue(aFakeLeaderboardConfigRow({ GuildId: "guild-1", MinGamesPlayed: 0 }));
     vi.spyOn(databaseService, "getLeaderboardStatMetricRankings").mockResolvedValue({
       total: 1,
       rows: killsRankingRows.slice(0, 1),
@@ -1130,6 +1130,7 @@ describe("LeaderboardService", () => {
 
     expect(result).toEqual({ total: 3, refreshed: 1, missing: 1, failed: 1 });
     expect(deleteSpy).toHaveBeenCalledWith(missingPost.ChannelId, missingPost.MessageId);
+    expect(getConfigSpy).toHaveBeenCalledOnce();
   });
 
   it("continues refreshing when deleting a missing post fails", async () => {
