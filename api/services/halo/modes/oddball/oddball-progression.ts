@@ -121,7 +121,8 @@ function chooseRoundBreaks(
       return ordered;
     }
   }
-  return [...gaps].slice(0, neededBreaks).sort((a, b) => a.startMs - b.startMs);
+  // no combination yields plausible round lengths — fall back to the LARGEST silences
+  return bySize.slice(0, neededBreaks).sort((a, b) => a.startMs - b.startMs);
 }
 
 function collectActivityGaps(
