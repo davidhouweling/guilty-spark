@@ -178,6 +178,9 @@ function resolveTeams(
   const teamIds = Object.keys(scoresByTeamId)
     .map(Number)
     .sort((a, b) => a - b);
+  if (teamIds.length === 0) {
+    return null;
+  }
   const teamColorByTeamId = new Map(
     teamIds.map((teamId, slotIndex) => [
       teamId,

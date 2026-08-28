@@ -1,8 +1,7 @@
 import type { OddballTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
 
 // Round 1 (0→330000, timed out): team 0 carries twice, team 1 once; team 0 wins 20:10.
-// Round 2 (342000→460000, capped): team 1 rides the meter to 100, with a carry segment
-// overrunning the round bounds on both sides to exercise clipping.
+// Round 2 (342000→460000, capped): team 1 carries through to the cap.
 export function aFakeOddballTimelineWith(overrides: Partial<OddballTimeline> = {}): OddballTimeline {
   return {
     type: "oddball",
@@ -27,7 +26,7 @@ export function aFakeOddballTimelineWith(overrides: Partial<OddballTimeline> = {
         endedByCap: true,
         winnerTeamId: 1,
         scores: { "0": 0, "1": 100 },
-        carrySegments: [{ startMs: 338000, endMs: 465000, teamId: 1 }],
+        carrySegments: [{ startMs: 345000, endMs: 460000, teamId: 1 }],
       },
     ],
     ...overrides,

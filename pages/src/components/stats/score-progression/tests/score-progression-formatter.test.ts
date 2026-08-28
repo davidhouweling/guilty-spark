@@ -422,6 +422,15 @@ describe("formatScoreProgression", () => {
       expect(formatScoreProgression(data, TEAM_COLORS)).toBeNull();
     });
 
+    it("returns null when the first round has an empty scores record", () => {
+      const timeline = aFakeOddballTimelineWith();
+      const [firstRound] = timeline.rounds;
+      const data = aFakeScoreProgressionWith({
+        timeline: aFakeOddballTimelineWith({ rounds: [{ ...firstRound, scores: {} }] }),
+      });
+      expect(formatScoreProgression(data, TEAM_COLORS)).toBeNull();
+    });
+
     it("builds one round per timeline round with team ids derived from round scores", () => {
       const data = aFakeScoreProgressionWith({ durationMs: 460000, timeline: aFakeOddballTimelineWith() });
       const result = asOddball(formatScoreProgression(data, TEAM_COLORS));

@@ -1,19 +1,8 @@
-import type { OddballRound, OddballTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { OddballTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { TICK_FILL } from "../../chart-constants";
 import { tileSegments } from "../../timeline-segments";
-import type { OddballRoundData, OddballRoundTeamScore, TimelineGanttSegment } from "../../types";
-
-function buildRoundSegments(round: OddballRound, teamColorByTeamId: Map<number, string>): TimelineGanttSegment[] {
-  const clipped = round.carrySegments
-    .map((segment) => ({
-      startMs: Math.max(segment.startMs, round.startMs),
-      endMs: Math.min(segment.endMs, round.endMs),
-      teamId: segment.teamId,
-    }))
-    .filter((segment) => segment.endMs > segment.startMs);
-  return tileSegments(round.startMs, round.endMs, clipped, teamColorByTeamId);
-}
+import type { OddballRoundData, OddballRoundTeamScore } from "../../types";
 
 export function buildOddballRounds(
   timeline: OddballTimeline,
@@ -31,7 +20,7 @@ export function buildOddballRounds(
     return {
       roundIndex: round.roundIndex + 1,
       endedByCap: round.endedByCap,
-      segments: buildRoundSegments(round, teamColorByTeamId),
+      segments: tileSegments(round.startMs, round.endMs, round.carrySegments, teamColorByTeamId),
       winnerColor: round.winnerTeamId != null ? (teamColorByTeamId.get(round.winnerTeamId) ?? null) : null,
       winnerName: round.winnerTeamId != null ? getTeamName(round.winnerTeamId) : null,
       teamScores,

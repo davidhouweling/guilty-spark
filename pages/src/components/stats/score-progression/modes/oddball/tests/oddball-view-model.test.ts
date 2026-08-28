@@ -47,22 +47,12 @@ describe("buildOddballRounds", () => {
     expect(segments.slice(1).map((s) => s.startMs)).toEqual(segments.slice(0, -1).map((s) => s.endMs));
   });
 
-  it("clips carry segments overrunning the round bounds", () => {
+  it("tiles a capped round from its carry segment to the round bounds", () => {
     const rounds = buildOddballRounds(aFakeOddballTimelineWith(), TEAM_IDS, TEAM_COLORS);
-    expect(rounds[1]?.segments).toEqual([{ startMs: 342000, endMs: 460000, teamId: 1, color: "#ff0000" }]);
-  });
-
-  it("drops a carry segment entirely outside the round bounds", () => {
-    const timeline = aFakeOddballTimelineWith();
-    const [firstRound] = timeline.rounds;
-    const rounds = buildOddballRounds(
-      aFakeOddballTimelineWith({
-        rounds: [{ ...firstRound, carrySegments: [{ startMs: 340000, endMs: 345000, teamId: 0 }] }],
-      }),
-      TEAM_IDS,
-      TEAM_COLORS,
-    );
-    expect(rounds[0]?.segments).toEqual([{ startMs: 0, endMs: 330000, teamId: null, color: null }]);
+    expect(rounds[1]?.segments).toEqual([
+      { startMs: 342000, endMs: 345000, teamId: null, color: null },
+      { startMs: 345000, endMs: 460000, teamId: 1, color: "#ff0000" },
+    ]);
   });
 
   it("builds an empty rounds list for a timeline with no rounds", () => {

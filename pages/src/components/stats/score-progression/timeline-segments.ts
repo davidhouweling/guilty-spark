@@ -21,8 +21,6 @@ function mergeAdjacentSegments(segments: readonly TimelineGanttSegment[]): Timel
   return merged;
 }
 
-// Tiles a row from its occupied intervals: gaps become unoccupied segments so the segments
-// cover [startMs, endMs] without gaps or overlaps, then adjacent same-team segments merge.
 export function tileSegments(
   startMs: number,
   endMs: number,
@@ -34,16 +32,22 @@ export function tileSegments(
   let cursor = startMs;
 
   for (const interval of ordered) {
-    if (interval.startMs > cursor) {
-      segments.push({ startMs: cursor, endMs: interval.startMs, teamId: null, color: null });
+    // overlapping or out-of-bounds intervals clamp to the untiled remainder of the row
+    const intervalStart = Math.max(interval.startMs, cursor);
+    const intervalEnd = Math.min(interval.endMs, endMs);
+    if (intervalEnd <= intervalStart) {
+      continue;
+    }
+    if (intervalStart > cursor) {
+      segments.push({ startMs: cursor, endMs: intervalStart, teamId: null, color: null });
     }
     segments.push({
-      startMs: interval.startMs,
-      endMs: interval.endMs,
+      startMs: intervalStart,
+      endMs: intervalEnd,
       teamId: interval.teamId,
       color: interval.teamId != null ? (teamColorByTeamId.get(interval.teamId) ?? null) : null,
     });
-    cursor = interval.endMs;
+    cursor = intervalEnd;
   }
 
   if (cursor < endMs) {
