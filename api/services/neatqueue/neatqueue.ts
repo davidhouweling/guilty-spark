@@ -41,6 +41,7 @@ import { InteractionButton as StatsInteractionButton } from "../../commands/stat
 import type { BaseMatchEmbed } from "../../embeds/stats/base-match-embed";
 import type { LogService } from "../log/types";
 import { EndUserError } from "../../base/end-user-error";
+import { applyRosterSubstitution } from "../../base/roster-substitution";
 import { create } from "../../embeds/stats/create";
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations";
 import { DiscordError } from "../discord/discord-error";
@@ -954,25 +955,20 @@ export class NeatQueueService {
     try {
       const subInAssoc = state.playersAssociationData[request.player_subbed_in.id];
 
-      // Find the team where substitution occurred
-      let teamId = -1;
-      const updatedTeams = state.seriesContext.teams.map((team, teamIndex) => {
-        const normalizedTeamId = teamIndex;
-        const hasSubbedOutPlayer = team.players.some((p) => p.discordId === request.player_subbed_out.id);
-        if (hasSubbedOutPlayer) {
-          teamId = normalizedTeamId;
-        }
-
-        return {
-          ...team,
-          id: normalizedTeamId,
-          players: team.players.map((player) =>
-            player.discordId === request.player_subbed_out.id
-              ? this.buildSeriesPlayer(subInAssoc, request.player_subbed_in.id, request.player_subbed_in.name)
-              : player,
-          ),
-        };
+      const rosters = state.seriesContext.teams.map((team) => [...team.players]);
+      const { teamIndex: teamId } = applyRosterSubstitution(rosters, {
+        playerOutId: request.player_subbed_out.id,
+        playerInId: request.player_subbed_in.id,
+        getId: (player) => player.discordId,
+        createPlayerIn: () =>
+          this.buildSeriesPlayer(subInAssoc, request.player_subbed_in.id, request.player_subbed_in.name),
       });
+
+      const updatedTeams = state.seriesContext.teams.map((team, teamIndex) => ({
+        ...team,
+        id: teamIndex,
+        players: rosters[teamIndex] ?? team.players,
+      }));
 
       const playerOut = this.buildSeriesPlayer(
         state.playersAssociationData[request.player_subbed_out.id],
@@ -1757,11 +1753,14 @@ export class NeatQueueService {
         continue;
       }
 
-      const playerOutIndex = currentPlayers.findIndex((p) => p.id === event.player_subbed_out.id);
+      const { teamIndex } = applyRosterSubstitution([currentPlayers], {
+        playerOutId: event.player_subbed_out.id,
+        playerInId: event.player_subbed_in.id,
+        getId: (player) => player.id,
+        createPlayerIn: () => event.player_subbed_in,
+      });
 
-      if (playerOutIndex !== -1) {
-        currentPlayers[playerOutIndex] = event.player_subbed_in;
-      } else {
+      if (teamIndex === -1) {
         this.logService.warn(
           "Player to substitute out not found in current players list",
           new Map([
@@ -2003,13 +2002,12 @@ export class NeatQueueService {
           }
 
           const { player_subbed_out, player_subbed_in } = event;
-          for (const team of seriesTeams) {
-            const playerIndex = team.findIndex((player) => player.id === player_subbed_out.id);
-            if (playerIndex !== -1) {
-              team[playerIndex] = player_subbed_in;
-              break;
-            }
-          }
+          applyRosterSubstitution(seriesTeams, {
+            playerOutId: player_subbed_out.id,
+            playerInId: player_subbed_in.id,
+            getId: (player) => player.id,
+            createPlayerIn: () => player_subbed_in,
+          });
 
           startDateTime = new Date(timestamp);
           break;

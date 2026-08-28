@@ -43,6 +43,7 @@ import type { WebSocketHibernationAdapter } from "../../base/websocket-hibernati
 import { LiveTrackerEmbed } from "../../embeds/live-tracker-embed";
 import { LiveTrackerLoadingEmbed } from "../../embeds/live-tracker-loading-embed";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
+import { applyRosterSubstitution } from "../../base/roster-substitution";
 import { DiscordError } from "../../services/discord/discord-error";
 import type { SeriesData } from "../../services/halo/types";
 import type { LiveTrackerState } from "./types";
@@ -598,19 +599,15 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       // sync any matches that just completed prior to the substitution
       await this.fetchAndMergeSeriesData(trackerState);
 
-      let teamIndex = -1;
-      let playerIndex = -1;
+      const rosters = trackerState.teams.map((team) => team.playerIds);
+      const { teamIndex, isSwap } = applyRosterSubstitution(rosters, {
+        playerOutId,
+        playerInId,
+        getId: (id) => id,
+        createPlayerIn: () => playerInId,
+      });
 
-      for (const [tIndex, team] of trackerState.teams.entries()) {
-        const pIndex = team.playerIds.findIndex((id) => id === playerOutId);
-        if (pIndex !== -1) {
-          teamIndex = tIndex;
-          playerIndex = pIndex;
-          break;
-        }
-      }
-
-      if (teamIndex === -1 || playerIndex === -1) {
+      if (teamIndex === -1) {
         this.logService.warn(
           `LiveTracker: Substitution player not found in teams`,
           new Map([
@@ -622,17 +619,19 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         return new Response("Player not found in teams", { status: 400 });
       }
 
-      const newPlayerMember = await this.discordService.getGuildMember(trackerState.guildId, playerInId);
       const targetTeam = trackerState.teams[teamIndex];
       if (!targetTeam) {
         return new Response("Team not found", { status: 400 });
       }
-      targetTeam.playerIds[playerIndex] = playerInId;
-      trackerState.players[playerInId] = newPlayerMember;
-      trackerState.playersAssociationData = {
-        ...trackerState.playersAssociationData,
-        [playerInId]: playerAssociationData as unknown as PlayerAssociationData,
-      };
+
+      if (!isSwap) {
+        trackerState.players[playerInId] = await this.discordService.getGuildMember(trackerState.guildId, playerInId);
+        trackerState.playersAssociationData = {
+          ...trackerState.playersAssociationData,
+          [playerInId]: playerAssociationData as unknown as PlayerAssociationData,
+        };
+      }
+
       const now = new Date().toISOString();
       trackerState.searchStartTime = now;
 

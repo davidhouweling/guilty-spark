@@ -2678,6 +2678,34 @@ describe("LiveTrackerDO", () => {
       );
     });
 
+    it("swaps teams when the subbed in player is already on another team", async () => {
+      const trackerState = createTrackerStateWithPlayer("player1");
+      storageGetSpy.mockResolvedValue(trackerState);
+
+      const getGuildMemberSpy = vi.spyOn(services.discordService, "getGuildMember");
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+
+      const response = await liveTrackerDO.fetch(createSubstitutionRequest("player1", "player2"));
+
+      expect(response.status).toBe(200);
+      expect(getGuildMemberSpy).not.toHaveBeenCalled();
+      expect(storagePutSpy).toHaveBeenCalledWith(
+        "trackerState",
+        expect.objectContaining({
+          teams: [
+            {
+              name: "Team Alpha",
+              playerIds: ["player2"],
+            },
+            {
+              name: "Team Beta",
+              playerIds: ["player1"],
+            },
+          ],
+        }),
+      );
+    });
+
     it("resets searchStartTime to current time on substitution", async () => {
       const trackerState = createTrackerStateWithPlayer("player1");
       const pastTime = new Date(Date.now() - 300000).toISOString(); // 5 minutes ago
