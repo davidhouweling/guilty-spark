@@ -2117,6 +2117,50 @@ describe("NeatQueueService", () => {
       expect(messageString).not.toContain(substitution1.player_subbed_out.id);
     });
 
+    it("swaps teams without duplicating players when both substitution players are already in the match", async () => {
+      const matchStartedRequest = getFakeNeatQueueData("matchStarted");
+      const [firstPlayer, secondPlayer] = matchStartedRequest.players;
+      const substitutionBase = getFakeNeatQueueData("substitution");
+      const swap = {
+        ...substitutionBase,
+        player_subbed_out: { ...Preconditions.checkExists(firstPlayer), team_num: 0 },
+        player_subbed_in: { ...Preconditions.checkExists(secondPlayer), team_num: 1 },
+      };
+
+      getGuildConfigSpy.mockResolvedValue(
+        aFakeGuildConfigRow({
+          NeatQueueInformerPlayerConnections: "Y",
+        }),
+      );
+
+      appDataGetSpy.mockResolvedValue(
+        aFakeNeatQueueStateWith({
+          timeline: [
+            { timestamp: new Date().toISOString(), event: matchStartedRequest },
+            { timestamp: new Date(Date.now() + 1000).toISOString(), event: swap },
+          ],
+          playersMessageId: "old-message-123",
+        }),
+      );
+      appDataPutSpy.mockResolvedValue(undefined);
+      createMessageSpy.mockResolvedValue({ ...apiMessage, id: "new-message-456" });
+
+      const { jobToComplete } = neatQueueService.handleRequest(swap, neatQueueConfig);
+      await jobToComplete?.();
+
+      expect(createMessageSpy).toHaveBeenCalledOnce();
+
+      const [, messageData] = createMessageSpy.mock.calls[0] as [
+        string,
+        { embeds: { fields: { name: string; value: string }[] }[] },
+      ];
+      const playerField = Preconditions.checkExists(
+        messageData.embeds[0]?.fields.find((field) => field.name === "Player"),
+      );
+
+      expect(playerField.value.split("\n").toSorted()).toEqual(["<@discord_user_01>", "<@discord_user_02>"]);
+    });
+
     it("disables feature when Discord returns missing access error", async () => {
       const substitutionRequest = getFakeNeatQueueData("substitution");
       const matchStartedRequest = getFakeNeatQueueData("matchStarted");
