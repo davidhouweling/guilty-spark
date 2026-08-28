@@ -1,3 +1,4 @@
+import { GameVariantCategory } from "halo-infinite-api";
 import { UnreachableError } from "../base/unreachable-error";
 
 export enum LeaderboardWindow {
@@ -57,6 +58,48 @@ export enum LeaderboardMetric {
   AvgShotsFiredPerGame = "AVG_SHOTS_FIRED_PER_GAME",
   AvgDamageDealtPerGame = "AVG_DAMAGE_DEALT_PER_GAME",
   AvgDamageTakenPerGame = "AVG_DAMAGE_TAKEN_PER_GAME",
+  FlagCaptures = "FLAG_CAPTURES_TOTAL",
+  AvgFlagCapturesPerObjective = "AVG_FLAG_CAPTURES_PER_OBJECTIVE",
+  FlagCaptureAssists = "FLAG_CAPTURE_ASSISTS_TOTAL",
+  AvgFlagCaptureAssistsPerObjective = "AVG_FLAG_CAPTURE_ASSISTS_PER_OBJECTIVE",
+  FlagGrabs = "FLAG_GRABS_TOTAL",
+  AvgFlagGrabsPerObjective = "AVG_FLAG_GRABS_PER_OBJECTIVE",
+  FlagReturns = "FLAG_RETURNS_TOTAL",
+  AvgFlagReturnsPerObjective = "AVG_FLAG_RETURNS_PER_OBJECTIVE",
+  FlagSecures = "FLAG_SECURES_TOTAL",
+  AvgFlagSecuresPerObjective = "AVG_FLAG_SECURES_PER_OBJECTIVE",
+  FlagSteals = "FLAG_STEALS_TOTAL",
+  AvgFlagStealsPerObjective = "AVG_FLAG_STEALS_PER_OBJECTIVE",
+  FlagCarriersKilled = "FLAG_CARRIERS_KILLED_TOTAL",
+  AvgFlagCarriersKilledPerObjective = "AVG_FLAG_CARRIERS_KILLED_PER_OBJECTIVE",
+  FlagReturnersKilled = "FLAG_RETURNERS_KILLED_TOTAL",
+  AvgFlagReturnersKilledPerObjective = "AVG_FLAG_RETURNERS_KILLED_PER_OBJECTIVE",
+  FlagCarrierKills = "FLAG_CARRIER_KILLS_TOTAL",
+  AvgFlagCarrierKillsPerObjective = "AVG_FLAG_CARRIER_KILLS_PER_OBJECTIVE",
+  FlagReturnerKills = "FLAG_RETURNER_KILLS_TOTAL",
+  AvgFlagReturnerKillsPerObjective = "AVG_FLAG_RETURNER_KILLS_PER_OBJECTIVE",
+  StrongholdCaptures = "STRONGHOLD_CAPTURES_TOTAL",
+  AvgStrongholdCapturesPerObjective = "AVG_STRONGHOLD_CAPTURES_PER_OBJECTIVE",
+  StrongholdSecures = "STRONGHOLD_SECURES_TOTAL",
+  AvgStrongholdSecuresPerObjective = "AVG_STRONGHOLD_SECURES_PER_OBJECTIVE",
+  StrongholdOffensiveKills = "STRONGHOLD_OFFENSIVE_KILLS_TOTAL",
+  AvgStrongholdOffensiveKillsPerObjective = "AVG_STRONGHOLD_OFFENSIVE_KILLS_PER_OBJECTIVE",
+  StrongholdDefensiveKills = "STRONGHOLD_DEFENSIVE_KILLS_TOTAL",
+  AvgStrongholdDefensiveKillsPerObjective = "AVG_STRONGHOLD_DEFENSIVE_KILLS_PER_OBJECTIVE",
+  HillScoringTicks = "HILL_SCORING_TICKS_TOTAL",
+  AvgHillScoringTicksPerObjective = "AVG_HILL_SCORING_TICKS_PER_OBJECTIVE",
+  HillOffensiveKills = "HILL_OFFENSIVE_KILLS_TOTAL",
+  AvgHillOffensiveKillsPerObjective = "AVG_HILL_OFFENSIVE_KILLS_PER_OBJECTIVE",
+  HillDefensiveKills = "HILL_DEFENSIVE_KILLS_TOTAL",
+  AvgHillDefensiveKillsPerObjective = "AVG_HILL_DEFENSIVE_KILLS_PER_OBJECTIVE",
+  BallScoringTicks = "BALL_SCORING_TICKS_TOTAL",
+  AvgBallScoringTicksPerObjective = "AVG_BALL_SCORING_TICKS_PER_OBJECTIVE",
+  BallGrabs = "BALL_GRABS_TOTAL",
+  AvgBallGrabsPerObjective = "AVG_BALL_GRABS_PER_OBJECTIVE",
+  BallCarriersKilled = "BALL_CARRIERS_KILLED_TOTAL",
+  AvgBallCarriersKilledPerObjective = "AVG_BALL_CARRIERS_KILLED_PER_OBJECTIVE",
+  BallCarrierKills = "BALL_CARRIER_KILLS_TOTAL",
+  AvgBallCarrierKillsPerObjective = "AVG_BALL_CARRIER_KILLS_PER_OBJECTIVE",
 }
 
 /**
@@ -90,6 +133,27 @@ export enum LeaderboardMetricFamily {
   DamageRatio = "DAMAGE_RATIO",
   AvgLifeSeconds = "AVG_LIFE_SECONDS",
   AvgDamagePerLife = "AVG_DAMAGE_PER_LIFE",
+  FlagCaptures = "FLAG_CAPTURES",
+  FlagCaptureAssists = "FLAG_CAPTURE_ASSISTS",
+  FlagGrabs = "FLAG_GRABS",
+  FlagReturns = "FLAG_RETURNS",
+  FlagSecures = "FLAG_SECURES",
+  FlagSteals = "FLAG_STEALS",
+  FlagCarriersKilled = "FLAG_CARRIERS_KILLED",
+  FlagReturnersKilled = "FLAG_RETURNERS_KILLED",
+  FlagCarrierKills = "FLAG_CARRIER_KILLS",
+  FlagReturnerKills = "FLAG_RETURNER_KILLS",
+  StrongholdCaptures = "STRONGHOLD_CAPTURES",
+  StrongholdSecures = "STRONGHOLD_SECURES",
+  StrongholdOffensiveKills = "STRONGHOLD_OFFENSIVE_KILLS",
+  StrongholdDefensiveKills = "STRONGHOLD_DEFENSIVE_KILLS",
+  HillScoringTicks = "HILL_SCORING_TICKS",
+  HillOffensiveKills = "HILL_OFFENSIVE_KILLS",
+  HillDefensiveKills = "HILL_DEFENSIVE_KILLS",
+  BallScoringTicks = "BALL_SCORING_TICKS",
+  BallGrabs = "BALL_GRABS",
+  BallCarriersKilled = "BALL_CARRIERS_KILLED",
+  BallCarrierKills = "BALL_CARRIER_KILLS",
 }
 
 export const LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER: readonly LeaderboardMetricFamily[] = [
@@ -116,15 +180,360 @@ export const LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER: readonly LeaderboardM
   LeaderboardMetricFamily.ObjectiveTeamContribution,
   LeaderboardMetricFamily.MedalPoints,
   LeaderboardMetricFamily.MythicMedals,
+  LeaderboardMetricFamily.FlagCaptures,
+  LeaderboardMetricFamily.FlagCaptureAssists,
+  LeaderboardMetricFamily.FlagGrabs,
+  LeaderboardMetricFamily.FlagReturns,
+  LeaderboardMetricFamily.FlagSecures,
+  LeaderboardMetricFamily.FlagSteals,
+  LeaderboardMetricFamily.FlagCarriersKilled,
+  LeaderboardMetricFamily.FlagReturnersKilled,
+  LeaderboardMetricFamily.FlagCarrierKills,
+  LeaderboardMetricFamily.FlagReturnerKills,
+  LeaderboardMetricFamily.StrongholdCaptures,
+  LeaderboardMetricFamily.StrongholdSecures,
+  LeaderboardMetricFamily.StrongholdOffensiveKills,
+  LeaderboardMetricFamily.StrongholdDefensiveKills,
+  LeaderboardMetricFamily.HillScoringTicks,
+  LeaderboardMetricFamily.HillOffensiveKills,
+  LeaderboardMetricFamily.HillDefensiveKills,
+  LeaderboardMetricFamily.BallScoringTicks,
+  LeaderboardMetricFamily.BallGrabs,
+  LeaderboardMetricFamily.BallCarriersKilled,
+  LeaderboardMetricFamily.BallCarrierKills,
 ];
 
 export enum LeaderboardMetricAggregation {
   AvgPerSeries = "AVG_PER_SERIES",
   AvgPerGame = "AVG_PER_GAME",
   Total = "TOTAL",
+  AvgPerObjective = "AVG_PER_OBJECTIVE",
+  TotalObjective = "TOTAL_OBJECTIVE",
+}
+
+export interface LeaderboardObjectiveMetricDescriptor {
+  readonly family: LeaderboardMetricFamily;
+  readonly totalMetric: LeaderboardMetric;
+  readonly averageMetric: LeaderboardMetric;
+  readonly category: GameVariantCategory;
+  /** Key path within the persisted `ObjectiveStatsJson` payload, excluding the leading `$.`. */
+  readonly statsPath: string;
+  readonly label: string;
+  readonly unit: string;
+}
+
+/**
+ * Objective metrics rank players within a single game mode, so both aggregations divide by games of
+ * that mode rather than by every game played. Only integer counters are modelled here; objective
+ * durations are stored as ISO-8601 strings and remain covered by the `ObjectiveTime` family.
+ */
+export const LEADERBOARD_OBJECTIVE_METRIC_DESCRIPTORS: readonly LeaderboardObjectiveMetricDescriptor[] = [
+  {
+    family: LeaderboardMetricFamily.FlagCaptures,
+    totalMetric: LeaderboardMetric.FlagCaptures,
+    averageMetric: LeaderboardMetric.AvgFlagCapturesPerObjective,
+    category: GameVariantCategory.MultiplayerCtf,
+    statsPath: "CaptureTheFlagStats.FlagCaptures",
+    label: "Flag - Captures",
+    unit: "captures",
+  },
+  {
+    family: LeaderboardMetricFamily.FlagCaptureAssists,
+    totalMetric: LeaderboardMetric.FlagCaptureAssists,
+    averageMetric: LeaderboardMetric.AvgFlagCaptureAssistsPerObjective,
+    category: GameVariantCategory.MultiplayerCtf,
+    statsPath: "CaptureTheFlagStats.FlagCaptureAssists",
+    label: "Flag - Capture assists",
+    unit: "assists",
+  },
+  {
+    family: LeaderboardMetricFamily.FlagGrabs,
+    totalMetric: LeaderboardMetric.FlagGrabs,
+    averageMetric: LeaderboardMetric.AvgFlagGrabsPerObjective,
+    category: GameVariantCategory.MultiplayerCtf,
+    statsPath: "CaptureTheFlagStats.FlagGrabs",
+    label: "Flag - Grabs",
+    unit: "grabs",
+  },
+  {
+    family: LeaderboardMetricFamily.FlagReturns,
+    totalMetric: LeaderboardMetric.FlagReturns,
+    averageMetric: LeaderboardMetric.AvgFlagReturnsPerObjective,
+    category: GameVariantCategory.MultiplayerCtf,
+    statsPath: "CaptureTheFlagStats.FlagReturns",
+    label: "Flag - Returns",
+    unit: "returns",
+  },
+  {
+    family: LeaderboardMetricFamily.FlagSecures,
+    totalMetric: LeaderboardMetric.FlagSecures,
+    averageMetric: LeaderboardMetric.AvgFlagSecuresPerObjective,
+    category: GameVariantCategory.MultiplayerCtf,
+    statsPath: "CaptureTheFlagStats.FlagSecures",
+    label: "Flag - Secures",
+    unit: "secures",
+  },
+  {
+    family: LeaderboardMetricFamily.FlagSteals,
+    totalMetric: LeaderboardMetric.FlagSteals,
+    averageMetric: LeaderboardMetric.AvgFlagStealsPerObjective,
+    category: GameVariantCategory.MultiplayerCtf,
+    statsPath: "CaptureTheFlagStats.FlagSteals",
+    label: "Flag - Steals",
+    unit: "steals",
+  },
+  {
+    family: LeaderboardMetricFamily.FlagCarriersKilled,
+    totalMetric: LeaderboardMetric.FlagCarriersKilled,
+    averageMetric: LeaderboardMetric.AvgFlagCarriersKilledPerObjective,
+    category: GameVariantCategory.MultiplayerCtf,
+    statsPath: "CaptureTheFlagStats.FlagCarriersKilled",
+    label: "Flag - Carriers killed",
+    unit: "kills",
+  },
+  {
+    family: LeaderboardMetricFamily.FlagReturnersKilled,
+    totalMetric: LeaderboardMetric.FlagReturnersKilled,
+    averageMetric: LeaderboardMetric.AvgFlagReturnersKilledPerObjective,
+    category: GameVariantCategory.MultiplayerCtf,
+    statsPath: "CaptureTheFlagStats.FlagReturnersKilled",
+    label: "Flag - Returners killed",
+    unit: "kills",
+  },
+  {
+    family: LeaderboardMetricFamily.FlagCarrierKills,
+    totalMetric: LeaderboardMetric.FlagCarrierKills,
+    averageMetric: LeaderboardMetric.AvgFlagCarrierKillsPerObjective,
+    category: GameVariantCategory.MultiplayerCtf,
+    statsPath: "CaptureTheFlagStats.KillsAsFlagCarrier",
+    label: "Flag - Kills as carrier",
+    unit: "kills",
+  },
+  {
+    family: LeaderboardMetricFamily.FlagReturnerKills,
+    totalMetric: LeaderboardMetric.FlagReturnerKills,
+    averageMetric: LeaderboardMetric.AvgFlagReturnerKillsPerObjective,
+    category: GameVariantCategory.MultiplayerCtf,
+    statsPath: "CaptureTheFlagStats.KillsAsFlagReturner",
+    label: "Flag - Kills as returner",
+    unit: "kills",
+  },
+  {
+    family: LeaderboardMetricFamily.StrongholdCaptures,
+    totalMetric: LeaderboardMetric.StrongholdCaptures,
+    averageMetric: LeaderboardMetric.AvgStrongholdCapturesPerObjective,
+    category: GameVariantCategory.MultiplayerStrongholds,
+    statsPath: "ZonesStats.StrongholdCaptures",
+    label: "Strongholds - Captures",
+    unit: "captures",
+  },
+  {
+    family: LeaderboardMetricFamily.StrongholdSecures,
+    totalMetric: LeaderboardMetric.StrongholdSecures,
+    averageMetric: LeaderboardMetric.AvgStrongholdSecuresPerObjective,
+    category: GameVariantCategory.MultiplayerStrongholds,
+    statsPath: "ZonesStats.StrongholdSecures",
+    label: "Strongholds - Secures",
+    unit: "secures",
+  },
+  {
+    family: LeaderboardMetricFamily.StrongholdOffensiveKills,
+    totalMetric: LeaderboardMetric.StrongholdOffensiveKills,
+    averageMetric: LeaderboardMetric.AvgStrongholdOffensiveKillsPerObjective,
+    category: GameVariantCategory.MultiplayerStrongholds,
+    statsPath: "ZonesStats.StrongholdOffensiveKills",
+    label: "Strongholds - Offensive kills",
+    unit: "kills",
+  },
+  {
+    family: LeaderboardMetricFamily.StrongholdDefensiveKills,
+    totalMetric: LeaderboardMetric.StrongholdDefensiveKills,
+    averageMetric: LeaderboardMetric.AvgStrongholdDefensiveKillsPerObjective,
+    category: GameVariantCategory.MultiplayerStrongholds,
+    statsPath: "ZonesStats.StrongholdDefensiveKills",
+    label: "Strongholds - Defensive kills",
+    unit: "kills",
+  },
+  {
+    family: LeaderboardMetricFamily.HillScoringTicks,
+    totalMetric: LeaderboardMetric.HillScoringTicks,
+    averageMetric: LeaderboardMetric.AvgHillScoringTicksPerObjective,
+    category: GameVariantCategory.MultiplayerKingOfTheHill,
+    statsPath: "ZonesStats.StrongholdScoringTicks",
+    label: "KOTH - Scoring ticks",
+    unit: "ticks",
+  },
+  {
+    family: LeaderboardMetricFamily.HillOffensiveKills,
+    totalMetric: LeaderboardMetric.HillOffensiveKills,
+    averageMetric: LeaderboardMetric.AvgHillOffensiveKillsPerObjective,
+    category: GameVariantCategory.MultiplayerKingOfTheHill,
+    statsPath: "ZonesStats.StrongholdOffensiveKills",
+    label: "KOTH - Offensive kills",
+    unit: "kills",
+  },
+  {
+    family: LeaderboardMetricFamily.HillDefensiveKills,
+    totalMetric: LeaderboardMetric.HillDefensiveKills,
+    averageMetric: LeaderboardMetric.AvgHillDefensiveKillsPerObjective,
+    category: GameVariantCategory.MultiplayerKingOfTheHill,
+    statsPath: "ZonesStats.StrongholdDefensiveKills",
+    label: "KOTH - Defensive kills",
+    unit: "kills",
+  },
+  {
+    family: LeaderboardMetricFamily.BallScoringTicks,
+    totalMetric: LeaderboardMetric.BallScoringTicks,
+    averageMetric: LeaderboardMetric.AvgBallScoringTicksPerObjective,
+    category: GameVariantCategory.MultiplayerOddball,
+    statsPath: "OddballStats.SkullScoringTicks",
+    label: "Oddball - Scoring ticks",
+    unit: "ticks",
+  },
+  {
+    family: LeaderboardMetricFamily.BallGrabs,
+    totalMetric: LeaderboardMetric.BallGrabs,
+    averageMetric: LeaderboardMetric.AvgBallGrabsPerObjective,
+    category: GameVariantCategory.MultiplayerOddball,
+    statsPath: "OddballStats.SkullGrabs",
+    label: "Oddball - Grabs",
+    unit: "grabs",
+  },
+  {
+    family: LeaderboardMetricFamily.BallCarriersKilled,
+    totalMetric: LeaderboardMetric.BallCarriersKilled,
+    averageMetric: LeaderboardMetric.AvgBallCarriersKilledPerObjective,
+    category: GameVariantCategory.MultiplayerOddball,
+    statsPath: "OddballStats.SkullCarriersKilled",
+    label: "Oddball - Carriers killed",
+    unit: "kills",
+  },
+  {
+    family: LeaderboardMetricFamily.BallCarrierKills,
+    totalMetric: LeaderboardMetric.BallCarrierKills,
+    averageMetric: LeaderboardMetric.AvgBallCarrierKillsPerObjective,
+    category: GameVariantCategory.MultiplayerOddball,
+    statsPath: "OddballStats.KillsAsSkullCarrier",
+    label: "Oddball - Kills as carrier",
+    unit: "kills",
+  },
+];
+
+const OBJECTIVE_DESCRIPTORS_BY_FAMILY = new Map<LeaderboardMetricFamily, LeaderboardObjectiveMetricDescriptor>(
+  LEADERBOARD_OBJECTIVE_METRIC_DESCRIPTORS.map((descriptor) => [descriptor.family, descriptor]),
+);
+
+const OBJECTIVE_DESCRIPTORS_BY_METRIC = new Map<LeaderboardMetric, LeaderboardObjectiveMetricDescriptor>(
+  LEADERBOARD_OBJECTIVE_METRIC_DESCRIPTORS.flatMap((descriptor) => [
+    [descriptor.totalMetric, descriptor] as const,
+    [descriptor.averageMetric, descriptor] as const,
+  ]),
+);
+
+export type LeaderboardObjectiveMetricFamily =
+  | LeaderboardMetricFamily.FlagCaptures
+  | LeaderboardMetricFamily.FlagCaptureAssists
+  | LeaderboardMetricFamily.FlagGrabs
+  | LeaderboardMetricFamily.FlagReturns
+  | LeaderboardMetricFamily.FlagSecures
+  | LeaderboardMetricFamily.FlagSteals
+  | LeaderboardMetricFamily.FlagCarriersKilled
+  | LeaderboardMetricFamily.FlagReturnersKilled
+  | LeaderboardMetricFamily.FlagCarrierKills
+  | LeaderboardMetricFamily.FlagReturnerKills
+  | LeaderboardMetricFamily.StrongholdCaptures
+  | LeaderboardMetricFamily.StrongholdSecures
+  | LeaderboardMetricFamily.StrongholdOffensiveKills
+  | LeaderboardMetricFamily.StrongholdDefensiveKills
+  | LeaderboardMetricFamily.HillScoringTicks
+  | LeaderboardMetricFamily.HillOffensiveKills
+  | LeaderboardMetricFamily.HillDefensiveKills
+  | LeaderboardMetricFamily.BallScoringTicks
+  | LeaderboardMetricFamily.BallGrabs
+  | LeaderboardMetricFamily.BallCarriersKilled
+  | LeaderboardMetricFamily.BallCarrierKills;
+
+export type LeaderboardObjectiveMetric =
+  | LeaderboardMetric.FlagCaptures
+  | LeaderboardMetric.AvgFlagCapturesPerObjective
+  | LeaderboardMetric.FlagCaptureAssists
+  | LeaderboardMetric.AvgFlagCaptureAssistsPerObjective
+  | LeaderboardMetric.FlagGrabs
+  | LeaderboardMetric.AvgFlagGrabsPerObjective
+  | LeaderboardMetric.FlagReturns
+  | LeaderboardMetric.AvgFlagReturnsPerObjective
+  | LeaderboardMetric.FlagSecures
+  | LeaderboardMetric.AvgFlagSecuresPerObjective
+  | LeaderboardMetric.FlagSteals
+  | LeaderboardMetric.AvgFlagStealsPerObjective
+  | LeaderboardMetric.FlagCarriersKilled
+  | LeaderboardMetric.AvgFlagCarriersKilledPerObjective
+  | LeaderboardMetric.FlagReturnersKilled
+  | LeaderboardMetric.AvgFlagReturnersKilledPerObjective
+  | LeaderboardMetric.FlagCarrierKills
+  | LeaderboardMetric.AvgFlagCarrierKillsPerObjective
+  | LeaderboardMetric.FlagReturnerKills
+  | LeaderboardMetric.AvgFlagReturnerKillsPerObjective
+  | LeaderboardMetric.StrongholdCaptures
+  | LeaderboardMetric.AvgStrongholdCapturesPerObjective
+  | LeaderboardMetric.StrongholdSecures
+  | LeaderboardMetric.AvgStrongholdSecuresPerObjective
+  | LeaderboardMetric.StrongholdOffensiveKills
+  | LeaderboardMetric.AvgStrongholdOffensiveKillsPerObjective
+  | LeaderboardMetric.StrongholdDefensiveKills
+  | LeaderboardMetric.AvgStrongholdDefensiveKillsPerObjective
+  | LeaderboardMetric.HillScoringTicks
+  | LeaderboardMetric.AvgHillScoringTicksPerObjective
+  | LeaderboardMetric.HillOffensiveKills
+  | LeaderboardMetric.AvgHillOffensiveKillsPerObjective
+  | LeaderboardMetric.HillDefensiveKills
+  | LeaderboardMetric.AvgHillDefensiveKillsPerObjective
+  | LeaderboardMetric.BallScoringTicks
+  | LeaderboardMetric.AvgBallScoringTicksPerObjective
+  | LeaderboardMetric.BallGrabs
+  | LeaderboardMetric.AvgBallGrabsPerObjective
+  | LeaderboardMetric.BallCarriersKilled
+  | LeaderboardMetric.AvgBallCarriersKilledPerObjective
+  | LeaderboardMetric.BallCarrierKills
+  | LeaderboardMetric.AvgBallCarrierKillsPerObjective;
+
+export function isObjectiveLeaderboardFamily(
+  family: LeaderboardMetricFamily,
+): family is LeaderboardObjectiveMetricFamily {
+  return OBJECTIVE_DESCRIPTORS_BY_FAMILY.has(family);
+}
+
+export function isObjectiveLeaderboardMetric(metric: LeaderboardMetric): metric is LeaderboardObjectiveMetric {
+  return OBJECTIVE_DESCRIPTORS_BY_METRIC.has(metric);
+}
+
+export function getLeaderboardObjectiveDescriptorByFamily(
+  family: LeaderboardObjectiveMetricFamily,
+): LeaderboardObjectiveMetricDescriptor {
+  const descriptor = OBJECTIVE_DESCRIPTORS_BY_FAMILY.get(family);
+  if (descriptor == null) {
+    throw new Error(`Missing objective descriptor for family "${family}"`);
+  }
+
+  return descriptor;
+}
+
+export function getLeaderboardObjectiveDescriptorByMetric(
+  metric: LeaderboardObjectiveMetric,
+): LeaderboardObjectiveMetricDescriptor {
+  const descriptor = OBJECTIVE_DESCRIPTORS_BY_METRIC.get(metric);
+  if (descriptor == null) {
+    throw new Error(`Missing objective descriptor for metric "${metric}"`);
+  }
+
+  return descriptor;
 }
 
 export function getLeaderboardMetricFamily(metric: LeaderboardMetric): LeaderboardMetricFamily {
+  if (isObjectiveLeaderboardMetric(metric)) {
+    return getLeaderboardObjectiveDescriptorByMetric(metric).family;
+  }
+
   switch (metric) {
     case LeaderboardMetric.SeriesPlayed: {
       return LeaderboardMetricFamily.SeriesPlayed;
@@ -253,6 +662,10 @@ export function getLeaderboardMetricFamily(metric: LeaderboardMetric): Leaderboa
 export function getLeaderboardFamilyAggregations(
   family: LeaderboardMetricFamily,
 ): readonly LeaderboardMetricAggregation[] {
+  if (isObjectiveLeaderboardFamily(family)) {
+    return [LeaderboardMetricAggregation.AvgPerObjective, LeaderboardMetricAggregation.TotalObjective];
+  }
+
   switch (family) {
     case LeaderboardMetricFamily.PersonalScore:
     case LeaderboardMetricFamily.Kills:
@@ -310,6 +723,13 @@ export function getDefaultLeaderboardAggregation(family: LeaderboardMetricFamily
 }
 
 export function getLeaderboardMetricAggregation(metric: LeaderboardMetric): LeaderboardMetricAggregation {
+  if (isObjectiveLeaderboardMetric(metric)) {
+    const descriptor = getLeaderboardObjectiveDescriptorByMetric(metric);
+    return metric === descriptor.averageMetric
+      ? LeaderboardMetricAggregation.AvgPerObjective
+      : LeaderboardMetricAggregation.TotalObjective;
+  }
+
   const family = getLeaderboardMetricFamily(metric);
   const aggregations = getLeaderboardFamilyAggregations(family);
 
@@ -365,6 +785,10 @@ function resolveAggregationMetric(
     case LeaderboardMetricAggregation.Total: {
       return totalMetric;
     }
+    case LeaderboardMetricAggregation.AvgPerObjective:
+    case LeaderboardMetricAggregation.TotalObjective: {
+      throw new Error("Objective aggregations are not valid for this metric family");
+    }
     default: {
       throw new UnreachableError(aggregation);
     }
@@ -384,6 +808,13 @@ export function resolveLeaderboardMetric(
       : aggregation != null;
   if (isUnsupportedAggregation) {
     throw new Error(`Unsupported leaderboard aggregation for family "${family}"`);
+  }
+
+  if (isObjectiveLeaderboardFamily(family)) {
+    const descriptor = getLeaderboardObjectiveDescriptorByFamily(family);
+    return resolvedAggregation === LeaderboardMetricAggregation.AvgPerObjective
+      ? descriptor.averageMetric
+      : descriptor.totalMetric;
   }
 
   switch (family) {
@@ -566,6 +997,10 @@ export function resolveLeaderboardMetric(
 }
 
 export function getLeaderboardMetricFamilyLabel(family: LeaderboardMetricFamily): string {
+  if (isObjectiveLeaderboardFamily(family)) {
+    return getLeaderboardObjectiveDescriptorByFamily(family).label;
+  }
+
   switch (family) {
     case LeaderboardMetricFamily.SeriesPlayed: {
       return "Series played";
@@ -649,7 +1084,9 @@ export function getLeaderboardMetricAggregationLabel(aggregation: LeaderboardMet
   const labelsByAggregation: Record<LeaderboardMetricAggregation, string> = {
     [LeaderboardMetricAggregation.AvgPerSeries]: "Avg per series",
     [LeaderboardMetricAggregation.AvgPerGame]: "Avg per game",
+    [LeaderboardMetricAggregation.AvgPerObjective]: "Avg per objective game",
     [LeaderboardMetricAggregation.Total]: "Total",
+    [LeaderboardMetricAggregation.TotalObjective]: "Total objective",
   };
 
   return labelsByAggregation[aggregation];

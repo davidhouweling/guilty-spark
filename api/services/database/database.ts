@@ -1,6 +1,13 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import { LeaderboardWindow, LeaderboardMetric } from "@guilty-spark/shared/halo/leaderboard";
+import {
+  LeaderboardWindow,
+  LeaderboardMetric,
+  getLeaderboardObjectiveDescriptorByMetric,
+  isObjectiveLeaderboardMetric,
+} from "@guilty-spark/shared/halo/leaderboard";
+import type { LeaderboardObjectiveMetricDescriptor } from "@guilty-spark/shared/halo/leaderboard";
+import type { GameVariantCategory } from "halo-infinite-api";
 import { SESSION_COOKIE_MAX_AGE_SECONDS } from "../auth/session-manager";
 import type { DiscordAssociationsRow } from "./types/discord_associations";
 import type { GuildConfigRow } from "./types/guild_config";
@@ -56,6 +63,17 @@ function getPerSeriesAverageSql(column: string, outerAlias: string): string {
       AND (? IS NULL OR gpSeries.QueueChannelId = ?)
     GROUP BY gpSeries.QueueNumber
   ) perSeries)`;
+}
+
+function getObjectiveCategoryGamesSql(category: GameVariantCategory): string {
+  return `SUM(CASE WHEN g.GameVariantCategory = ${category.toString()} THEN 1 ELSE 0 END)`;
+}
+
+// Objective counters live inside ObjectiveStatsJson, so they are extracted per row and scoped to the
+// game mode that produces them; games from other modes must not dilute the average.
+function getObjectiveStatValueSql(descriptor: LeaderboardObjectiveMetricDescriptor): string {
+  const jsonPath = `$.${descriptor.statsPath}`;
+  return `CASE WHEN g.GameVariantCategory = ${descriptor.category.toString()} THEN COALESCE(CAST(json_extract(gp.ObjectiveStatsJson, '${jsonPath}') AS REAL), 0) ELSE 0 END`;
 }
 
 function isAscendingMetric(metric: LeaderboardMetric): boolean {
@@ -1092,199 +1110,214 @@ export class DatabaseService {
     let metricGamesPlayedSql = "COUNT(*)";
     let metricMinGamesPlayed = minGamesPlayed;
     let objectiveGamesPlayedSql = "COUNT(gp.ObjectiveTimeSeconds)";
-    switch (metric) {
-      case LeaderboardMetric.Kills: {
-        metricSql = "SUM(gp.Kills)";
-        break;
-      }
-      case LeaderboardMetric.Deaths: {
-        metricSql = "SUM(gp.Deaths)";
-        break;
-      }
-      case LeaderboardMetric.Assists: {
-        metricSql = "SUM(gp.Assists)";
-        break;
-      }
-      case LeaderboardMetric.HeadshotKills: {
-        metricSql = "SUM(gp.HeadshotKills)";
-        break;
-      }
-      case LeaderboardMetric.ShotsHit: {
-        metricSql = "SUM(gp.ShotsHit)";
-        break;
-      }
-      case LeaderboardMetric.ShotsFired: {
-        metricSql = "SUM(gp.ShotsFired)";
-        break;
-      }
-      case LeaderboardMetric.Kda: {
-        metricSql = "AVG(gp.Kda)";
-        break;
-      }
-      case LeaderboardMetric.Accuracy: {
-        metricSql = "AVG(gp.Accuracy)";
-        break;
-      }
-      case LeaderboardMetric.DamageDealt: {
-        metricSql = "SUM(gp.DamageDealt)";
-        break;
-      }
-      case LeaderboardMetric.DamageTaken: {
-        metricSql = "SUM(gp.DamageTaken)";
-        break;
-      }
-      case LeaderboardMetric.DamageRatio: {
-        metricSql =
-          "CASE WHEN SUM(gp.DamageTaken) = 0 THEN CASE WHEN SUM(gp.DamageDealt) = 0 THEN 0 ELSE 1.7976931348623157e308 END ELSE CAST(SUM(gp.DamageDealt) AS REAL) / SUM(gp.DamageTaken) END";
-        break;
-      }
-      case LeaderboardMetric.AvgLifeSeconds: {
-        metricSql = "AVG(gp.AvgLifeSeconds)";
-        break;
-      }
-      case LeaderboardMetric.AvgDamagePerLife: {
-        metricSql = "AVG(gp.AvgDamagePerLife)";
-        break;
-      }
-      case LeaderboardMetric.PersonalScore: {
-        metricSql = "SUM(gp.PersonalScore)";
-        break;
-      }
-      case LeaderboardMetric.MedalPoints: {
-        metricSql = "SUM(gp.MedalPoints)";
-        break;
-      }
-      case LeaderboardMetric.AvgMedalPointsPerSeries: {
-        metricSql = getPerSeriesAverageSql("MedalPoints", "gp");
-        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
-        break;
-      }
-      case LeaderboardMetric.AvgMedalPointsPerGame: {
-        metricSql = "AVG(gp.MedalPoints)";
-        break;
-      }
-      case LeaderboardMetric.MythicMedals: {
-        metricSql = "SUM(gp.MythicMedalCount)";
-        break;
-      }
-      case LeaderboardMetric.AvgMythicMedalsPerSeries: {
-        metricSql = getPerSeriesAverageSql("MythicMedalCount", "gp");
-        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
-        break;
-      }
-      case LeaderboardMetric.AvgMythicMedalsPerGame: {
-        metricSql = "AVG(gp.MythicMedalCount)";
-        break;
-      }
-      case LeaderboardMetric.ObjectiveTime: {
-        metricSql = "SUM(gp.ObjectiveTimeSeconds)";
-        metricGamesPlayedSql = "COUNT(gp.ObjectiveTimeSeconds)";
-        metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
-        break;
-      }
-      case LeaderboardMetric.AvgObjectiveTimePerGame: {
-        metricSql = "AVG(gp.ObjectiveTimeSeconds)";
-        metricGamesPlayedSql = "COUNT(gp.ObjectiveTimeSeconds)";
-        metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
-        break;
-      }
-      case LeaderboardMetric.ObjectiveTeamContribution: {
-        metricSql = "AVG(gp.ObjectiveTeamContribution)";
-        metricGamesPlayedSql = "COUNT(gp.ObjectiveTeamContribution)";
-        objectiveGamesPlayedSql = "COUNT(gp.ObjectiveTeamContribution)";
-        metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
-        break;
-      }
-      case LeaderboardMetric.ObjectiveGameContribution: {
-        metricSql = "AVG(gp.ObjectiveGameContribution)";
-        metricGamesPlayedSql = "COUNT(gp.ObjectiveGameContribution)";
-        objectiveGamesPlayedSql = "COUNT(gp.ObjectiveGameContribution)";
-        metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
-        break;
-      }
-      case LeaderboardMetric.AvgPersonalScorePerSeries: {
-        metricSql = getPerSeriesAverageSql("PersonalScore", "gp");
-        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
-        break;
-      }
-      case LeaderboardMetric.AvgPersonalScorePerGame: {
-        metricSql = "AVG(gp.PersonalScore)";
-        break;
-      }
-      case LeaderboardMetric.AvgKillsPerSeries: {
-        metricSql = getPerSeriesAverageSql("Kills", "gp");
-        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
-        break;
-      }
-      case LeaderboardMetric.AvgKillsPerGame: {
-        metricSql = "AVG(gp.Kills)";
-        break;
-      }
-      case LeaderboardMetric.AvgDeathsPerSeries: {
-        metricSql = getPerSeriesAverageSql("Deaths", "gp");
-        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
-        break;
-      }
-      case LeaderboardMetric.AvgDeathsPerGame: {
-        metricSql = "AVG(gp.Deaths)";
-        break;
-      }
-      case LeaderboardMetric.AvgAssistsPerSeries: {
-        metricSql = getPerSeriesAverageSql("Assists", "gp");
-        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
-        break;
-      }
-      case LeaderboardMetric.AvgAssistsPerGame: {
-        metricSql = "AVG(gp.Assists)";
-        break;
-      }
-      case LeaderboardMetric.AvgHeadshotKillsPerSeries: {
-        metricSql = getPerSeriesAverageSql("HeadshotKills", "gp");
-        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
-        break;
-      }
-      case LeaderboardMetric.AvgHeadshotKillsPerGame: {
-        metricSql = "AVG(gp.HeadshotKills)";
-        break;
-      }
-      case LeaderboardMetric.AvgShotsHitPerSeries: {
-        metricSql = getPerSeriesAverageSql("ShotsHit", "gp");
-        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
-        break;
-      }
-      case LeaderboardMetric.AvgShotsHitPerGame: {
-        metricSql = "AVG(gp.ShotsHit)";
-        break;
-      }
-      case LeaderboardMetric.AvgShotsFiredPerSeries: {
-        metricSql = getPerSeriesAverageSql("ShotsFired", "gp");
-        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
-        break;
-      }
-      case LeaderboardMetric.AvgShotsFiredPerGame: {
-        metricSql = "AVG(gp.ShotsFired)";
-        break;
-      }
-      case LeaderboardMetric.AvgDamageDealtPerSeries: {
-        metricSql = getPerSeriesAverageSql("DamageDealt", "gp");
-        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
-        break;
-      }
-      case LeaderboardMetric.AvgDamageDealtPerGame: {
-        metricSql = "AVG(gp.DamageDealt)";
-        break;
-      }
-      case LeaderboardMetric.AvgDamageTakenPerSeries: {
-        metricSql = getPerSeriesAverageSql("DamageTaken", "gp");
-        metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
-        break;
-      }
-      case LeaderboardMetric.AvgDamageTakenPerGame: {
-        metricSql = "AVG(gp.DamageTaken)";
-        break;
-      }
-      default: {
-        throw new UnreachableError(metric);
+
+    if (isObjectiveLeaderboardMetric(metric)) {
+      const descriptor = getLeaderboardObjectiveDescriptorByMetric(metric);
+      const categoryGamesSql = getObjectiveCategoryGamesSql(descriptor.category);
+      const statValueSql = getObjectiveStatValueSql(descriptor);
+
+      metricSql =
+        metric === descriptor.averageMetric
+          ? `CASE WHEN ${categoryGamesSql} = 0 THEN 0 ELSE CAST(SUM(${statValueSql}) AS REAL) / ${categoryGamesSql} END`
+          : `SUM(${statValueSql})`;
+      metricGamesPlayedSql = categoryGamesSql;
+      objectiveGamesPlayedSql = categoryGamesSql;
+      metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
+    } else {
+      switch (metric) {
+        case LeaderboardMetric.Kills: {
+          metricSql = "SUM(gp.Kills)";
+          break;
+        }
+        case LeaderboardMetric.Deaths: {
+          metricSql = "SUM(gp.Deaths)";
+          break;
+        }
+        case LeaderboardMetric.Assists: {
+          metricSql = "SUM(gp.Assists)";
+          break;
+        }
+        case LeaderboardMetric.HeadshotKills: {
+          metricSql = "SUM(gp.HeadshotKills)";
+          break;
+        }
+        case LeaderboardMetric.ShotsHit: {
+          metricSql = "SUM(gp.ShotsHit)";
+          break;
+        }
+        case LeaderboardMetric.ShotsFired: {
+          metricSql = "SUM(gp.ShotsFired)";
+          break;
+        }
+        case LeaderboardMetric.Kda: {
+          metricSql = "AVG(gp.Kda)";
+          break;
+        }
+        case LeaderboardMetric.Accuracy: {
+          metricSql = "AVG(gp.Accuracy)";
+          break;
+        }
+        case LeaderboardMetric.DamageDealt: {
+          metricSql = "SUM(gp.DamageDealt)";
+          break;
+        }
+        case LeaderboardMetric.DamageTaken: {
+          metricSql = "SUM(gp.DamageTaken)";
+          break;
+        }
+        case LeaderboardMetric.DamageRatio: {
+          metricSql =
+            "CASE WHEN SUM(gp.DamageTaken) = 0 THEN CASE WHEN SUM(gp.DamageDealt) = 0 THEN 0 ELSE 1.7976931348623157e308 END ELSE CAST(SUM(gp.DamageDealt) AS REAL) / SUM(gp.DamageTaken) END";
+          break;
+        }
+        case LeaderboardMetric.AvgLifeSeconds: {
+          metricSql = "AVG(gp.AvgLifeSeconds)";
+          break;
+        }
+        case LeaderboardMetric.AvgDamagePerLife: {
+          metricSql = "AVG(gp.AvgDamagePerLife)";
+          break;
+        }
+        case LeaderboardMetric.PersonalScore: {
+          metricSql = "SUM(gp.PersonalScore)";
+          break;
+        }
+        case LeaderboardMetric.MedalPoints: {
+          metricSql = "SUM(gp.MedalPoints)";
+          break;
+        }
+        case LeaderboardMetric.AvgMedalPointsPerSeries: {
+          metricSql = getPerSeriesAverageSql("MedalPoints", "gp");
+          metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+          break;
+        }
+        case LeaderboardMetric.AvgMedalPointsPerGame: {
+          metricSql = "AVG(gp.MedalPoints)";
+          break;
+        }
+        case LeaderboardMetric.MythicMedals: {
+          metricSql = "SUM(gp.MythicMedalCount)";
+          break;
+        }
+        case LeaderboardMetric.AvgMythicMedalsPerSeries: {
+          metricSql = getPerSeriesAverageSql("MythicMedalCount", "gp");
+          metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+          break;
+        }
+        case LeaderboardMetric.AvgMythicMedalsPerGame: {
+          metricSql = "AVG(gp.MythicMedalCount)";
+          break;
+        }
+        case LeaderboardMetric.ObjectiveTime: {
+          metricSql = "SUM(gp.ObjectiveTimeSeconds)";
+          metricGamesPlayedSql = "COUNT(gp.ObjectiveTimeSeconds)";
+          metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
+          break;
+        }
+        case LeaderboardMetric.AvgObjectiveTimePerGame: {
+          metricSql = "AVG(gp.ObjectiveTimeSeconds)";
+          metricGamesPlayedSql = "COUNT(gp.ObjectiveTimeSeconds)";
+          metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
+          break;
+        }
+        case LeaderboardMetric.ObjectiveTeamContribution: {
+          metricSql = "AVG(gp.ObjectiveTeamContribution)";
+          metricGamesPlayedSql = "COUNT(gp.ObjectiveTeamContribution)";
+          objectiveGamesPlayedSql = "COUNT(gp.ObjectiveTeamContribution)";
+          metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
+          break;
+        }
+        case LeaderboardMetric.ObjectiveGameContribution: {
+          metricSql = "AVG(gp.ObjectiveGameContribution)";
+          metricGamesPlayedSql = "COUNT(gp.ObjectiveGameContribution)";
+          objectiveGamesPlayedSql = "COUNT(gp.ObjectiveGameContribution)";
+          metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
+          break;
+        }
+        case LeaderboardMetric.AvgPersonalScorePerSeries: {
+          metricSql = getPerSeriesAverageSql("PersonalScore", "gp");
+          metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+          break;
+        }
+        case LeaderboardMetric.AvgPersonalScorePerGame: {
+          metricSql = "AVG(gp.PersonalScore)";
+          break;
+        }
+        case LeaderboardMetric.AvgKillsPerSeries: {
+          metricSql = getPerSeriesAverageSql("Kills", "gp");
+          metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+          break;
+        }
+        case LeaderboardMetric.AvgKillsPerGame: {
+          metricSql = "AVG(gp.Kills)";
+          break;
+        }
+        case LeaderboardMetric.AvgDeathsPerSeries: {
+          metricSql = getPerSeriesAverageSql("Deaths", "gp");
+          metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+          break;
+        }
+        case LeaderboardMetric.AvgDeathsPerGame: {
+          metricSql = "AVG(gp.Deaths)";
+          break;
+        }
+        case LeaderboardMetric.AvgAssistsPerSeries: {
+          metricSql = getPerSeriesAverageSql("Assists", "gp");
+          metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+          break;
+        }
+        case LeaderboardMetric.AvgAssistsPerGame: {
+          metricSql = "AVG(gp.Assists)";
+          break;
+        }
+        case LeaderboardMetric.AvgHeadshotKillsPerSeries: {
+          metricSql = getPerSeriesAverageSql("HeadshotKills", "gp");
+          metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+          break;
+        }
+        case LeaderboardMetric.AvgHeadshotKillsPerGame: {
+          metricSql = "AVG(gp.HeadshotKills)";
+          break;
+        }
+        case LeaderboardMetric.AvgShotsHitPerSeries: {
+          metricSql = getPerSeriesAverageSql("ShotsHit", "gp");
+          metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+          break;
+        }
+        case LeaderboardMetric.AvgShotsHitPerGame: {
+          metricSql = "AVG(gp.ShotsHit)";
+          break;
+        }
+        case LeaderboardMetric.AvgShotsFiredPerSeries: {
+          metricSql = getPerSeriesAverageSql("ShotsFired", "gp");
+          metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+          break;
+        }
+        case LeaderboardMetric.AvgShotsFiredPerGame: {
+          metricSql = "AVG(gp.ShotsFired)";
+          break;
+        }
+        case LeaderboardMetric.AvgDamageDealtPerSeries: {
+          metricSql = getPerSeriesAverageSql("DamageDealt", "gp");
+          metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+          break;
+        }
+        case LeaderboardMetric.AvgDamageDealtPerGame: {
+          metricSql = "AVG(gp.DamageDealt)";
+          break;
+        }
+        case LeaderboardMetric.AvgDamageTakenPerSeries: {
+          metricSql = getPerSeriesAverageSql("DamageTaken", "gp");
+          metricBindings = [startEpochSeconds, queueChannelId, queueChannelId];
+          break;
+        }
+        case LeaderboardMetric.AvgDamageTakenPerGame: {
+          metricSql = "AVG(gp.DamageTaken)";
+          break;
+        }
+        default: {
+          throw new UnreachableError(metric);
+        }
       }
     }
 

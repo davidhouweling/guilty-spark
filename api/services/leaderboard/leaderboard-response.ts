@@ -16,6 +16,8 @@ import {
   getLeaderboardMetricAggregationLabel,
   getLeaderboardMetricFamily,
   getLeaderboardMetricFamilyLabel,
+  getLeaderboardObjectiveDescriptorByMetric,
+  isObjectiveLeaderboardMetric,
 } from "@guilty-spark/shared/halo/leaderboard";
 import { getDurationInIsoString, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import type { LeaderboardMetricFamily } from "@guilty-spark/shared/halo/leaderboard";
@@ -141,6 +143,11 @@ function getWindowLabel(window: LeaderboardWindow, resetTimestamp: string | null
 }
 
 function getMetricLabel(metric: LeaderboardMetric): string {
+  if (isObjectiveLeaderboardMetric(metric)) {
+    const descriptor = getLeaderboardObjectiveDescriptorByMetric(metric);
+    return metric === descriptor.averageMetric ? `${descriptor.label} (avg)` : descriptor.label;
+  }
+
   switch (metric) {
     case LeaderboardMetric.SeriesPlayed: {
       return "Series played";
@@ -304,6 +311,17 @@ function formatMetricValue(
     const label = pluralRules.select(Math.abs(roundedValue)) === "one" ? singularLabel : pluralLabel;
     return `${roundedValue.toLocaleString(locale)} ${label}`;
   };
+
+  if (isObjectiveLeaderboardMetric(metric)) {
+    const descriptor = getLeaderboardObjectiveDescriptorByMetric(metric);
+    const games = formatCount(row.objectiveGamesPlayed, "game", "games");
+    if (metric === descriptor.averageMetric) {
+      const average = metricValue.toLocaleString(locale, { maximumFractionDigits: 2 });
+      return `${average} avg/game (${games})`;
+    }
+
+    return `${Math.round(metricValue).toLocaleString(locale)} ${descriptor.unit} (${games})`;
+  }
 
   switch (metric) {
     case LeaderboardMetric.SeriesWinRate: {
