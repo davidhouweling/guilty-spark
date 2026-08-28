@@ -257,6 +257,16 @@ function buildRoundPoints(
       ),
     });
   }
+  // a team can end with a solved score its carry events never reach (e.g. no attributable
+  // events in the round) — close the curve so it always lands on the round's final scores
+  const mismatchedTeamId = teamIds.find((id) => Math.round(running.get(id) ?? 0) !== (solvedScores.get(id) ?? 0));
+  if (mismatchedTeamId != null) {
+    points.push({
+      timestampMs: window.endMs,
+      teamId: mismatchedTeamId,
+      runningScores: Object.fromEntries(teamIds.map((id) => [String(id), solvedScores.get(id) ?? 0])),
+    });
+  }
   return points;
 }
 
