@@ -1,7 +1,8 @@
 import type { KothTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { TICK_FILL } from "../../chart-constants";
-import type { KothHillData, KothHillSegment, KothHillTeamProgress } from "../../types";
+import { tileSegments } from "../../timeline-segments";
+import type { KothHillData, KothHillTeamProgress, TimelineGanttSegment } from "../../types";
 
 const MIN_TRAILING_HILL_MS = 2_000;
 
@@ -28,62 +29,26 @@ function isSegmentCorroborated(
   );
 }
 
-function mergeAdjacentSegments(segments: readonly KothHillSegment[]): KothHillSegment[] {
-  const merged: KothHillSegment[] = [];
-  for (const segment of segments) {
-    const previous = merged.pop();
-    if (previous == null) {
-      merged.push(segment);
-    } else if (previous.teamId === segment.teamId && previous.endMs === segment.startMs) {
-      merged.push({ ...previous, endMs: segment.endMs });
-    } else {
-      merged.push(previous, segment);
-    }
-  }
-  return merged;
-}
-
 function buildHillSegments(
   hillStart: number,
   hillEnd: number,
   timeline: KothTimeline,
   teamColorByTeamId: Map<number, string>,
-): KothHillSegment[] {
+): TimelineGanttSegment[] {
   const overlapping = timeline.controlPeriods
     .filter((cp) => cp.endMs > hillStart && cp.startMs < hillEnd)
     .map((cp) => {
       const startMs = Math.max(cp.startMs, hillStart);
       const endMs = Math.min(cp.endMs, hillEnd);
-      const controllingTeamId =
+      const teamId =
         cp.controllingTeamId != null &&
         isSegmentCorroborated(timeline.events, cp.controllingTeamId, hillStart, startMs, endMs)
           ? cp.controllingTeamId
           : null;
-      return { startMs, endMs, controllingTeamId };
-    })
-    .sort((a, b) => a.startMs - b.startMs);
-
-  const segments: KothHillSegment[] = [];
-  let cursor = hillStart;
-
-  for (const cp of overlapping) {
-    if (cp.startMs > cursor) {
-      segments.push({ startMs: cursor, endMs: cp.startMs, teamId: null, color: null });
-    }
-    segments.push({
-      startMs: cp.startMs,
-      endMs: cp.endMs,
-      teamId: cp.controllingTeamId,
-      color: cp.controllingTeamId != null ? (teamColorByTeamId.get(cp.controllingTeamId) ?? null) : null,
+      return { startMs, endMs, teamId };
     });
-    cursor = cp.endMs;
-  }
 
-  if (cursor < hillEnd) {
-    segments.push({ startMs: cursor, endMs: hillEnd, teamId: null, color: null });
-  }
-
-  return mergeAdjacentSegments(segments);
+  return tileSegments(hillStart, hillEnd, overlapping, teamColorByTeamId);
 }
 
 // The capture meter fills over 8 scoring ticks (~5s each, the 40s HCS meter) — mirrors the

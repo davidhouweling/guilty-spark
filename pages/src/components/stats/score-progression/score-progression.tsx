@@ -3,8 +3,8 @@ import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Checkbox } from "../../checkbox/checkbox";
 import { Select } from "../../select/select";
 import { DeltaChart } from "./delta-chart/delta-chart";
-import { KothTimelineChart } from "./koth-timeline-chart/koth-timeline-chart";
 import { ProgressionChart } from "./progression-chart/progression-chart";
+import { TimelineGanttChart } from "./timeline-gantt-chart/timeline-gantt-chart";
 import type { ScoreLinesViewModel, ScoreProgressionViewModel } from "./types";
 import styles from "./score-progression.module.css";
 
@@ -68,11 +68,11 @@ export function ScoreProgression(props: ScoreProgressionViewModel): React.ReactE
     case "score-lines": {
       return <ScoreLinesCharts {...props} />;
     }
-    case "koth": {
+    case "timeline-gantt": {
       return (
         <div className={styles.container}>
           <div role="img" aria-label={props.ariaLabel}>
-            <KothTimelineChart {...props.kothTimelineViewModel} />
+            <TimelineGanttChart {...props.timeline} />
           </div>
         </div>
       );

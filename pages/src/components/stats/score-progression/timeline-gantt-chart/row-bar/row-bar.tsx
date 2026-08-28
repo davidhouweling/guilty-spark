@@ -1,42 +1,36 @@
 import React from "react";
 import { TICK_FILL } from "../../chart-constants";
-import type { KothHillData, KothHillSegment } from "../../types";
+import type { TimelineGanttRowViewModel, TimelineGanttSegment } from "../../types";
 
 export const WINNER_DOT_RADIUS = 5;
 export const WINNER_DOT_OFFSET = 10;
 const UNOCCUPIED_FILL = "rgba(255,255,255,0.08)";
 const UNOCCUPIED_STROKE = "rgba(255,255,255,0.15)";
-// Sub-second byte2 control blips render as white slivers once outlined — hide gaps this narrow.
+// Sub-second control blips render as white slivers once outlined — hide gaps this narrow.
 const MIN_UNOCCUPIED_WIDTH_PX = 2;
 
 function clampFraction(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
-export interface HillBarProps {
+export interface RowBarProps {
   y?: number;
   height?: number;
   // Recharts passes the full bar-background rect so segments are positioned relative to it
   background?: { x: number; y: number; width: number; height: number };
   durationMs?: number;
-  hill?: KothHillData;
+  row?: TimelineGanttRowViewModel;
 }
 
-export function HillBar({
-  y = 0,
-  height = 0,
-  background,
-  durationMs = 1,
-  hill,
-}: HillBarProps): React.ReactElement | null {
-  if (background == null || hill == null) {
+export function RowBar({ y = 0, height = 0, background, durationMs = 1, row }: RowBarProps): React.ReactElement | null {
+  if (background == null || row == null) {
     return null;
   }
   const { x: bgX, width: bgWidth } = background;
 
   return (
     <g>
-      {hill.segments.map((segment: KothHillSegment) => {
+      {row.segments.map((segment: TimelineGanttSegment) => {
         const startFraction = clampFraction(segment.startMs / durationMs);
         const endFraction = clampFraction(segment.endMs / durationMs);
         if (endFraction <= startFraction) {
@@ -61,12 +55,12 @@ export function HillBar({
           />
         );
       })}
-      {hill.winnerColor != null && (
+      {row.winnerColor != null && (
         <circle
           cx={bgX + bgWidth + WINNER_DOT_OFFSET}
           cy={y + height / 2}
           r={WINNER_DOT_RADIUS}
-          fill={hill.winnerColor}
+          fill={row.winnerColor}
         />
       )}
     </g>

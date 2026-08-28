@@ -21,6 +21,8 @@ import {
   PERFECT_MEDAL_PAIRING_MAX_DELTA_MS,
 } from "./constants";
 import { buildKothProgression } from "./modes/koth/koth-progression";
+import { buildOddballProgression } from "./modes/oddball/oddball-progression";
+import type { OddballProgression } from "./modes/oddball/oddball-progression";
 import type {
   FilmMetadataResponse,
   ParsedHighlightEvent,
@@ -161,6 +163,11 @@ export class HaloFilmService {
     ]);
     const modeEvents = events.filter((e) => e.eventType === "mode");
     return buildKothProgression(modeEvents, byte2Transitions, matchStats, durationMs);
+  }
+
+  async buildOddballProgression(matchStats: MatchStats, durationMs: number): Promise<OddballProgression> {
+    const events = await this.loadEnrichedEventsForMatch(matchStats);
+    return buildOddballProgression(events, matchStats, durationMs);
   }
 
   async getStateByte2Transitions(matchId: string): Promise<StateByte2Transition[]> {

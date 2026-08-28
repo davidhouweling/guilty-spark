@@ -4,9 +4,7 @@ import type { ScoreProgressionSnapshot, ScoreProgressionStore } from "./score-pr
 import type {
   ChartType,
   KothHillData,
-  KothTimelineHillViewModel,
-  KothViewData,
-  KothViewModel,
+  OddballRoundData,
   PlayerAdvantageData,
   ScoreDeltaData,
   ScoreLinesViewData,
@@ -14,6 +12,9 @@ import type {
   ScoreProgressionDeltaViewModel,
   ScoreProgressionViewData,
   ScoreProgressionViewModel,
+  TimelineGanttChartViewModel,
+  TimelineGanttRowViewModel,
+  TimelineGanttTooltipEntry,
 } from "./types";
 
 export interface ScoreProgressionPresenterConfig {
@@ -47,7 +48,18 @@ export class ScoreProgressionPresenter {
         return this.presentScoreLines(snapshot, viewData, ariaLabel);
       }
       case "koth": {
-        return this.presentKoth(viewData, ariaLabel);
+        return this.presentTimelineGantt(
+          ariaLabel,
+          viewData.durationMs,
+          viewData.hills.map((hill) => this.buildKothRow(hill)),
+        );
+      }
+      case "oddball": {
+        return this.presentTimelineGantt(
+          ariaLabel,
+          viewData.durationMs,
+          viewData.rounds.map((round) => this.buildOddballRow(round)),
+        );
       }
       default: {
         throw new UnreachableError(viewData);
@@ -113,25 +125,61 @@ export class ScoreProgressionPresenter {
     };
   }
 
-  private presentKoth(viewData: KothViewData, ariaLabel: string): KothViewModel {
+  private presentTimelineGantt(
+    ariaLabel: string,
+    durationMs: number,
+    rows: readonly TimelineGanttRowViewModel[],
+  ): TimelineGanttChartViewModel {
     return {
-      kind: "koth",
+      kind: "timeline-gantt",
       ariaLabel,
-      kothTimelineViewModel: {
-        durationMs: viewData.durationMs,
-        hills: this.buildKothTimelineHills(viewData.hills),
+      timeline: {
+        durationMs,
+        rows: this.orderRowsForVerticalChart(rows),
       },
     };
   }
 
-  // Recharts vertical BarChart renders rows top-down, so hill 1 must be last to sit at the bottom
-  private buildKothTimelineHills(hills: readonly KothHillData[]): KothTimelineHillViewModel[] {
-    return hills
-      .map((hill) => ({
-        ...hill,
-        captureProgressLabel: hill.teamCaptureProgress.map((o) => `${o.name} ${String(o.percentage)}%`).join(" · "),
-      }))
-      .reverse();
+  // Recharts vertical BarChart renders rows top-down, so row 1 must be last to sit at the bottom
+  private orderRowsForVerticalChart(rows: readonly TimelineGanttRowViewModel[]): TimelineGanttRowViewModel[] {
+    return [...rows].reverse();
+  }
+
+  private buildKothRow(hill: KothHillData): TimelineGanttRowViewModel {
+    return {
+      rowIndex: hill.hillIndex,
+      label: `Hill ${String(hill.hillIndex)}`,
+      subLabel: hill.teamCaptureProgress.map((o) => `${o.name} ${String(o.percentage)}%`).join(" · "),
+      segments: hill.segments,
+      winnerColor: hill.winnerColor,
+      tooltipTitle: `Hill ${String(hill.hillIndex)}`,
+      tooltipEntries: hill.teamCaptureProgress.map((o) =>
+        this.buildTooltipEntry(o.teamId, o.color, o.percentage, `${o.name}: ${String(o.percentage)}%`),
+      ),
+    };
+  }
+
+  private buildOddballRow(round: OddballRoundData): TimelineGanttRowViewModel {
+    const ending = round.endedByCap ? "Capped" : "Timed out";
+    return {
+      rowIndex: round.roundIndex,
+      label: `Round ${String(round.roundIndex)}`,
+      subLabel: round.teamScores.map((o) => `${o.name} ${String(o.score)}`).join(" · "),
+      segments: round.segments,
+      winnerColor: round.winnerColor,
+      tooltipTitle:
+        round.winnerName != null
+          ? `Round ${String(round.roundIndex)} — ${ending}, ${round.winnerName} wins`
+          : `Round ${String(round.roundIndex)} — ${ending}`,
+      tooltipEntries: round.teamScores.map((o) =>
+        this.buildTooltipEntry(o.teamId, o.color, o.score, `${o.name}: ${String(o.score)}`),
+      ),
+    };
+  }
+
+  // teams that never scored render muted in the tooltip
+  private buildTooltipEntry(teamId: number, color: string, value: number, text: string): TimelineGanttTooltipEntry {
+    return { key: String(teamId), color: value > 0 ? color : null, text };
   }
 
   private synchronizeDeltaDomain(scoreDelta: ScoreDeltaData, advantage: PlayerAdvantageData | null): ScoreDeltaData {

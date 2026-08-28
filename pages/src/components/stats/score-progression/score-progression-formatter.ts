@@ -8,6 +8,7 @@ import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import { buildKothHills } from "./modes/koth/koth-view-model";
+import { buildOddballRounds } from "./modes/oddball/oddball-view-model";
 import type {
   PlayerAdvantageData,
   ScoreDeltaData,
@@ -162,49 +163,88 @@ function buildTeamLines(
   return teamLines;
 }
 
-export function formatScoreProgression(
-  scoreProgression: MatchAnalytics["scoreProgression"],
+interface ResolvedTeams {
+  readonly teamIds: number[];
+  readonly teamColorByTeamId: Map<number, string>;
+}
+
+function resolveTeams(
+  scoresByTeamId: Record<string, number> | undefined,
   teamColors: readonly TeamColor[],
-  teamSize: number | null = null,
-): ScoreProgressionViewData | null {
-  if (scoreProgression === null || scoreProgression.timeline.events.length === 0) {
+): ResolvedTeams | null {
+  if (scoresByTeamId == null) {
     return null;
   }
-
-  const { durationMs, timeline } = scoreProgression;
-  const { events } = timeline;
-
-  const [firstEvent] = events;
-  const teamIds = Object.keys(firstEvent.runningScores)
+  const teamIds = Object.keys(scoresByTeamId)
     .map(Number)
     .sort((a, b) => a - b);
-
+  if (teamIds.length === 0) {
+    return null;
+  }
   const teamColorByTeamId = new Map(
     teamIds.map((teamId, slotIndex) => [
       teamId,
       teamColors[slotIndex]?.hex ?? getTeamColorOrDefault(undefined, slotIndex).hex,
     ]),
   );
+  return { teamIds, teamColorByTeamId };
+}
+
+export function formatScoreProgression(
+  scoreProgression: MatchAnalytics["scoreProgression"],
+  teamColors: readonly TeamColor[],
+  teamSize: number | null = null,
+): ScoreProgressionViewData | null {
+  if (scoreProgression === null) {
+    return null;
+  }
+
+  const { durationMs, timeline } = scoreProgression;
 
   switch (timeline.type) {
     case "kill-race": {
+      const teams = resolveTeams(timeline.events.at(0)?.runningScores, teamColors);
+      if (teams == null) {
+        return null;
+      }
       const playerAdvantage =
         timeline.respawnDurationMs != null
-          ? buildPlayerAdvantage(teamIds, timeline.deathTimeline, timeline.respawnDurationMs, durationMs, teamSize)
+          ? buildPlayerAdvantage(
+              teams.teamIds,
+              timeline.deathTimeline,
+              timeline.respawnDurationMs,
+              durationMs,
+              teamSize,
+            )
           : null;
       return {
         kind: "score-lines",
         durationMs,
-        teamLines: buildTeamLines(events, teamIds, teamColorByTeamId, durationMs),
-        scoreDelta: buildScoreDelta(teamIds, events, durationMs),
+        teamLines: buildTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs),
+        scoreDelta: buildScoreDelta(teams.teamIds, timeline.events, durationMs),
         playerAdvantage,
       };
     }
     case "koth": {
+      const teams = resolveTeams(timeline.events.at(0)?.runningScores, teamColors);
+      if (teams == null) {
+        return null;
+      }
       return {
         kind: "koth",
         durationMs,
-        hills: buildKothHills(timeline, teamIds, teamColorByTeamId, durationMs),
+        hills: buildKothHills(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs),
+      };
+    }
+    case "oddball": {
+      const teams = resolveTeams(timeline.rounds.at(0)?.scores, teamColors);
+      if (teams == null) {
+        return null;
+      }
+      return {
+        kind: "oddball",
+        durationMs,
+        rounds: buildOddballRounds(timeline, teams.teamIds, teams.teamColorByTeamId),
       };
     }
     default: {

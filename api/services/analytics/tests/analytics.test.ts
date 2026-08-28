@@ -273,7 +273,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     expect(results["match-1"]?.scoreProgression?.teamCount).toBe(2);
     const timeline = results["match-1"]?.scoreProgression?.timeline;
     expect(timeline?.type).toBe("kill-race");
-    expect(timeline?.events).toHaveLength(1);
+    expect(timeline?.type === "kill-race" ? timeline.events : undefined).toHaveLength(1);
     expect(timeline?.type === "kill-race" ? timeline.respawnDurationMs : undefined).toBe(8000);
     expect(timeline?.type === "kill-race" ? timeline.deathTimeline : undefined).toEqual([
       { timestampMs: 5100, teamId: 1 },
@@ -364,6 +364,53 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     const timeline = results["match-1"]?.scoreProgression?.timeline;
     expect(timeline?.type).toBe("koth");
     expect(timeline?.type === "koth" ? timeline.hillCaptureTimestamps : undefined).toEqual([100000]);
+  });
+
+  it("returns scoreProgression with oddball timeline for Oddball when scoreProgression is requested", async () => {
+    const matchStats = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+    const oddballMatchStats = {
+      ...matchStats,
+      MatchInfo: { ...matchStats.MatchInfo, GameVariantCategory: GameVariantCategory.MultiplayerOddball },
+    };
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([oddballMatchStats]);
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+    vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
+      entries: [],
+      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+      perfectCounts: { total: 0, byXuid: {} },
+    });
+    vi.spyOn(haloFilmService, "buildOddballProgression").mockResolvedValue({
+      rounds: [
+        {
+          roundIndex: 0,
+          startMs: 0,
+          endMs: 424000,
+          endedByCap: true,
+          winnerTeamId: 1,
+          scores: { "0": 47, "1": 100 },
+          points: [{ timestampMs: 100000, teamId: 1, runningScores: { "0": 0, "1": 25 } }],
+          carrySegments: [{ startMs: 95000, endMs: 100000, teamId: 1 }],
+        },
+      ],
+      teamCount: 2,
+    });
+
+    const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
+
+    expect(results["match-1"]?.scoreProgression).not.toBeNull();
+    const timeline = results["match-1"]?.scoreProgression?.timeline;
+    expect(timeline?.type).toBe("oddball");
+    const rounds = timeline?.type === "oddball" ? timeline.rounds : undefined;
+    expect(rounds).toHaveLength(1);
+    expect(rounds?.[0]).toEqual({
+      roundIndex: 0,
+      startMs: 0,
+      endMs: 424000,
+      endedByCap: true,
+      winnerTeamId: 1,
+      scores: { "0": 47, "1": 100 },
+      carrySegments: [{ startMs: 95000, endMs: 100000, teamId: 1 }],
+    });
   });
 
   it("returns scoreProgression null for unsupported game modes when scoreProgression is requested", async () => {

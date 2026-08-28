@@ -2019,24 +2019,24 @@ describe("HaloFilmService", () => {
     });
   });
 
+  function modeEvent(xuid: string, timeMs: number): ParsedHighlightEvent {
+    return {
+      xuid,
+      gamertag: "player",
+      typeHint: 0,
+      isMedal: false,
+      eventType: "mode",
+      timeMs,
+      medalValue: 0,
+      teamId: null,
+    };
+  }
+
+  function tickBurst(xuid: string, startMs: number, count: number): ParsedHighlightEvent[] {
+    return Array.from({ length: count }, (_, tickIndex) => modeEvent(xuid, startMs + tickIndex * 5000));
+  }
+
   describe("buildKothProgression", () => {
-    function modeEvent(xuid: string, timeMs: number): ParsedHighlightEvent {
-      return {
-        xuid,
-        gamertag: "player",
-        typeHint: 0,
-        isMedal: false,
-        eventType: "mode",
-        timeMs,
-        medalValue: 0,
-        teamId: null,
-      };
-    }
-
-    function tickBurst(xuid: string, startMs: number, count: number): ParsedHighlightEvent[] {
-      return Array.from({ length: count }, (_, tickIndex) => modeEvent(xuid, startMs + tickIndex * 5000));
-    }
-
     it("derives hill capture timestamps from score events matching each team's capture count", async () => {
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
@@ -2072,6 +2072,47 @@ describe("HaloFilmService", () => {
       expect(result.hillCaptureTimestamps).toEqual([40000, 105000, 175000, 255000, 335000]);
       expect(result.events).toHaveLength(40);
       expect(result.controlPeriods).toHaveLength(9);
+    });
+  });
+
+  describe("buildOddballProgression", () => {
+    it("reconstructs a single timed-out round with scores reconciled to the API totals", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const baseMatch = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+      const match = {
+        ...baseMatch,
+        Teams: baseMatch.Teams.map((team) => ({
+          ...team,
+          Stats: {
+            ...team.Stats,
+            CoreStats: {
+              ...team.Stats.CoreStats,
+              Score: team.TeamId === 0 ? 60 : 25,
+              RoundsWon: team.TeamId === 0 ? 1 : 0,
+            },
+          },
+        })),
+      };
+      const team0Xuid = "0100000000000000";
+      const team1Xuid = "0400000000000000";
+
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        ...tickBurst(team0Xuid, 20000, 10),
+        ...tickBurst(team1Xuid, 100000, 5),
+      ]);
+
+      const durationMs = 400000;
+      const result = await service.buildOddballProgression(match, durationMs);
+
+      expect(result.teamCount).toBe(2);
+      expect(result.rounds).toHaveLength(1);
+      const [round] = result.rounds;
+      expect(round?.endedByCap).toBe(false);
+      expect(round?.winnerTeamId).toBe(0);
+      expect(round?.scores).toEqual({ "0": 60, "1": 25 });
     });
   });
 

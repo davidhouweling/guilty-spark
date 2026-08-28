@@ -3,15 +3,17 @@ import { ScoreProgressionPresenter } from "../score-progression-presenter";
 import type { ScoreProgressionInput } from "../score-progression-presenter";
 import { ScoreProgressionStore } from "../score-progression-store";
 import { aFakeKothHillDataWith } from "../fakes/koth-hill-data.fake";
+import { aFakeOddballRoundDataWith } from "../fakes/oddball-round-data.fake";
 import type {
   KothHillData,
-  KothViewModel,
+  OddballRoundData,
   PlayerAdvantageData,
   ScoreDeltaData,
   ScoreLinesViewData,
   ScoreLinesViewModel,
   ScoreProgressionTeamLine,
   ScoreProgressionViewModel,
+  TimelineGanttChartViewModel,
 } from "../types";
 
 const aFakeScoreDeltaData = (): ScoreDeltaData => ({
@@ -68,6 +70,13 @@ function aKothInput(hills: readonly KothHillData[]): ScoreProgressionInput {
   };
 }
 
+function anOddballInput(rounds: readonly OddballRoundData[]): ScoreProgressionInput {
+  return {
+    viewData: { kind: "oddball", durationMs: 600000, rounds },
+    ariaLabel: "test chart",
+  };
+}
+
 function asScoreLines(model: ScoreProgressionViewModel): ScoreLinesViewModel {
   if (model.kind !== "score-lines") {
     throw new Error("expected score-lines view model");
@@ -75,9 +84,9 @@ function asScoreLines(model: ScoreProgressionViewModel): ScoreLinesViewModel {
   return model;
 }
 
-function asKoth(model: ScoreProgressionViewModel): KothViewModel {
-  if (model.kind !== "koth") {
-    throw new Error("expected koth view model");
+function asTimelineGantt(model: ScoreProgressionViewModel): TimelineGanttChartViewModel {
+  if (model.kind !== "timeline-gantt") {
+    throw new Error("expected timeline-gantt view model");
   }
   return model;
 }
@@ -356,20 +365,30 @@ describe("ScoreProgressionPresenter", () => {
   });
 
   describe("koth view model", () => {
-    it("builds a koth view model with kothTimelineViewModel from koth view data", () => {
+    it("builds a timeline-gantt view model from koth view data", () => {
       const { store, presenter } = makePresenter();
       const hill = aFakeKothHillDataWith({ teamCaptureProgress: [] });
-      const model = asKoth(presenter.present(store.getSnapshot(), aKothInput([hill])));
+      const model = asTimelineGantt(presenter.present(store.getSnapshot(), aKothInput([hill])));
       expect(model.ariaLabel).toBe("test chart");
-      expect(model.kothTimelineViewModel).toEqual({
+      expect(model.timeline).toEqual({
         durationMs: 600000,
-        hills: [{ ...hill, captureProgressLabel: "" }],
+        rows: [
+          {
+            rowIndex: 1,
+            label: "Hill 1",
+            subLabel: "",
+            segments: hill.segments,
+            winnerColor: hill.winnerColor,
+            tooltipTitle: "Hill 1",
+            tooltipEntries: [],
+          },
+        ],
       });
     });
 
     it("reverses hills into display order with hill 1 last", () => {
       const { store, presenter } = makePresenter();
-      const model = asKoth(
+      const model = asTimelineGantt(
         presenter.present(
           store.getSnapshot(),
           aKothInput([
@@ -379,7 +398,7 @@ describe("ScoreProgressionPresenter", () => {
           ]),
         ),
       );
-      expect(model.kothTimelineViewModel.hills.map((h) => h.hillIndex)).toEqual([3, 2, 1]);
+      expect(model.timeline.rows.map((r) => r.rowIndex)).toEqual([3, 2, 1]);
     });
 
     it("does not mutate the input hills order", () => {
@@ -389,9 +408,9 @@ describe("ScoreProgressionPresenter", () => {
       expect(hills.map((h) => h.hillIndex)).toEqual([1, 2]);
     });
 
-    it("formats captureProgressLabel from team occupancies joined with a middle dot", () => {
+    it("formats the sub-label from team occupancies joined with a middle dot", () => {
       const { store, presenter } = makePresenter();
-      const model = asKoth(
+      const model = asTimelineGantt(
         presenter.present(
           store.getSnapshot(),
           aKothInput([
@@ -404,27 +423,124 @@ describe("ScoreProgressionPresenter", () => {
           ]),
         ),
       );
-      expect(model.kothTimelineViewModel.hills[0]?.captureProgressLabel).toBe("Eagle 50% · Cobra 33%");
+      expect(model.timeline.rows[0]?.subLabel).toBe("Eagle 50% · Cobra 33%");
     });
 
-    it("formats an empty captureProgressLabel when teamCaptureProgress is empty", () => {
+    it("builds tooltip entries with a null color for teams at zero percent", () => {
       const { store, presenter } = makePresenter();
-      const model = asKoth(
-        presenter.present(store.getSnapshot(), aKothInput([aFakeKothHillDataWith({ teamCaptureProgress: [] })])),
+      const model = asTimelineGantt(
+        presenter.present(
+          store.getSnapshot(),
+          aKothInput([
+            aFakeKothHillDataWith({
+              teamCaptureProgress: [
+                { teamId: 0, name: "Eagle", color: "#0000ff", percentage: 50 },
+                { teamId: 1, name: "Cobra", color: "#ff0000", percentage: 0 },
+              ],
+            }),
+          ]),
+        ),
       );
-      expect(model.kothTimelineViewModel.hills[0]?.captureProgressLabel).toBe("");
+      expect(model.timeline.rows[0]?.tooltipEntries).toEqual([
+        { key: "0", color: "#0000ff", text: "Eagle: 50%" },
+        { key: "1", color: null, text: "Cobra: 0%" },
+      ]);
     });
 
-    it("builds an empty hills list when koth view data has no hills", () => {
+    it("builds an empty rows list when koth view data has no hills", () => {
       const { store, presenter } = makePresenter();
-      const model = asKoth(presenter.present(store.getSnapshot(), aKothInput([])));
-      expect(model.kothTimelineViewModel.hills).toEqual([]);
+      const model = asTimelineGantt(presenter.present(store.getSnapshot(), aKothInput([])));
+      expect(model.timeline.rows).toEqual([]);
     });
 
     it("returns a score-lines view model for score-lines view data", () => {
       const { store, presenter } = makePresenter();
       const model = presenter.present(store.getSnapshot(), aScoreLinesInput());
       expect(model.kind).toBe("score-lines");
+    });
+  });
+
+  describe("oddball view model", () => {
+    it("builds a timeline-gantt view model from oddball view data", () => {
+      const { store, presenter } = makePresenter();
+      const round = aFakeOddballRoundDataWith();
+      const model = asTimelineGantt(presenter.present(store.getSnapshot(), anOddballInput([round])));
+      expect(model.ariaLabel).toBe("test chart");
+      expect(model.timeline).toEqual({
+        durationMs: 600000,
+        rows: [
+          {
+            rowIndex: 1,
+            label: "Round 1",
+            subLabel: "Eagle 64 · Cobra 28",
+            segments: round.segments,
+            winnerColor: "#0000ff",
+            tooltipTitle: "Round 1 — Timed out, Eagle wins",
+            tooltipEntries: [
+              { key: "0", color: "#0000ff", text: "Eagle: 64" },
+              { key: "1", color: "#ff0000", text: "Cobra: 28" },
+            ],
+          },
+        ],
+      });
+    });
+
+    it("reverses rounds into display order with round 1 last", () => {
+      const { store, presenter } = makePresenter();
+      const model = asTimelineGantt(
+        presenter.present(
+          store.getSnapshot(),
+          anOddballInput([
+            aFakeOddballRoundDataWith({ roundIndex: 1 }),
+            aFakeOddballRoundDataWith({ roundIndex: 2 }),
+            aFakeOddballRoundDataWith({ roundIndex: 3 }),
+          ]),
+        ),
+      );
+      expect(model.timeline.rows.map((r) => r.rowIndex)).toEqual([3, 2, 1]);
+    });
+
+    it("labels a capped round as capped in the tooltip title", () => {
+      const { store, presenter } = makePresenter();
+      const model = asTimelineGantt(
+        presenter.present(
+          store.getSnapshot(),
+          anOddballInput([aFakeOddballRoundDataWith({ endedByCap: true, winnerName: "Cobra" })]),
+        ),
+      );
+      expect(model.timeline.rows[0]?.tooltipTitle).toBe("Round 1 — Capped, Cobra wins");
+    });
+
+    it("omits the winner from the tooltip title when the round has no winner", () => {
+      const { store, presenter } = makePresenter();
+      const model = asTimelineGantt(
+        presenter.present(
+          store.getSnapshot(),
+          anOddballInput([aFakeOddballRoundDataWith({ winnerColor: null, winnerName: null })]),
+        ),
+      );
+      expect(model.timeline.rows[0]?.tooltipTitle).toBe("Round 1 — Timed out");
+    });
+
+    it("builds tooltip entries with a null color for teams at zero score", () => {
+      const { store, presenter } = makePresenter();
+      const model = asTimelineGantt(
+        presenter.present(
+          store.getSnapshot(),
+          anOddballInput([
+            aFakeOddballRoundDataWith({
+              teamScores: [
+                { teamId: 0, name: "Eagle", color: "#0000ff", score: 47 },
+                { teamId: 1, name: "Cobra", color: "#ff0000", score: 0 },
+              ],
+            }),
+          ]),
+        ),
+      );
+      expect(model.timeline.rows[0]?.tooltipEntries).toEqual([
+        { key: "0", color: "#0000ff", text: "Eagle: 47" },
+        { key: "1", color: null, text: "Cobra: 0" },
+      ]);
     });
   });
 });

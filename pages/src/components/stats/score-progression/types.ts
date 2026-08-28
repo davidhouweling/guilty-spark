@@ -22,7 +22,7 @@ export interface PlayerAdvantageData {
   readonly maxScore: number;
 }
 
-export interface KothHillSegment {
+export interface TimelineGanttSegment {
   readonly startMs: number;
   readonly endMs: number;
   readonly teamId: number | null;
@@ -40,20 +40,48 @@ export interface KothHillData {
   readonly hillIndex: number;
   readonly startMs: number;
   readonly endMs: number;
-  readonly segments: readonly KothHillSegment[];
+  readonly segments: readonly TimelineGanttSegment[];
   readonly winnerTeamId: number | null;
   readonly winnerColor: string | null;
   readonly winnerName: string | null;
   readonly teamCaptureProgress: readonly KothHillTeamProgress[];
 }
 
-export interface KothTimelineHillViewModel extends KothHillData {
-  readonly captureProgressLabel: string;
+export interface OddballRoundTeamScore {
+  readonly teamId: number;
+  readonly name: string;
+  readonly color: string;
+  readonly score: number;
 }
 
-export interface KothTimelineViewModel {
+export interface OddballRoundData {
+  readonly roundIndex: number;
+  readonly endedByCap: boolean;
+  readonly segments: readonly TimelineGanttSegment[];
+  readonly winnerColor: string | null;
+  readonly winnerName: string | null;
+  readonly teamScores: readonly OddballRoundTeamScore[];
+}
+
+export interface TimelineGanttTooltipEntry {
+  readonly key: string;
+  readonly color: string | null;
+  readonly text: string;
+}
+
+export interface TimelineGanttRowViewModel {
+  readonly rowIndex: number;
+  readonly label: string;
+  readonly subLabel: string;
+  readonly segments: readonly TimelineGanttSegment[];
+  readonly winnerColor: string | null;
+  readonly tooltipTitle: string;
+  readonly tooltipEntries: readonly TimelineGanttTooltipEntry[];
+}
+
+export interface TimelineGanttViewModel {
   readonly durationMs: number;
-  readonly hills: readonly KothTimelineHillViewModel[];
+  readonly rows: readonly TimelineGanttRowViewModel[];
 }
 
 export interface ScoreLinesViewData {
@@ -70,7 +98,13 @@ export interface KothViewData {
   readonly hills: readonly KothHillData[];
 }
 
-export type ScoreProgressionViewData = ScoreLinesViewData | KothViewData;
+export interface OddballViewData {
+  readonly kind: "oddball";
+  readonly durationMs: number;
+  readonly rounds: readonly OddballRoundData[];
+}
+
+export type ScoreProgressionViewData = ScoreLinesViewData | KothViewData | OddballViewData;
 
 export type ChartType = "progression" | "delta";
 
@@ -110,10 +144,10 @@ export interface ScoreLinesViewModel {
   readonly onPlayerAdvantageChange: (checked: boolean) => void;
 }
 
-export interface KothViewModel {
-  readonly kind: "koth";
+export interface TimelineGanttChartViewModel {
+  readonly kind: "timeline-gantt";
   readonly ariaLabel: string;
-  readonly kothTimelineViewModel: KothTimelineViewModel;
+  readonly timeline: TimelineGanttViewModel;
 }
 
-export type ScoreProgressionViewModel = ScoreLinesViewModel | KothViewModel;
+export type ScoreProgressionViewModel = ScoreLinesViewModel | TimelineGanttChartViewModel;

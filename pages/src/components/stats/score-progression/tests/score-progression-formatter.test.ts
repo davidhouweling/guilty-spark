@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { formatScoreProgression } from "../score-progression-formatter";
 import { aFakeScoreProgressionWith } from "../fakes/score-progression.fake";
 import { aFakeKothTimelineWith } from "../modes/koth/fakes/koth-timeline.fake";
-import type { KothViewData, ScoreLinesViewData, ScoreProgressionViewData } from "../types";
+import { aFakeOddballTimelineWith } from "../modes/oddball/fakes/oddball-timeline.fake";
+import type { KothViewData, OddballViewData, ScoreLinesViewData, ScoreProgressionViewData } from "../types";
 
 const TEAM_COLORS = [
   { id: "eagle", hex: "#0000ff", name: "Eagle" },
@@ -19,6 +20,13 @@ function asScoreLines(result: ScoreProgressionViewData | null): ScoreLinesViewDa
 function asKoth(result: ScoreProgressionViewData | null): KothViewData {
   if (result?.kind !== "koth") {
     throw new Error("expected koth view data");
+  }
+  return result;
+}
+
+function asOddball(result: ScoreProgressionViewData | null): OddballViewData {
+  if (result?.kind !== "oddball") {
+    throw new Error("expected oddball view data");
   }
   return result;
 }
@@ -399,6 +407,43 @@ describe("formatScoreProgression", () => {
       const result = asKoth(formatScoreProgression(data, []));
       expect(result.hills[0]?.winnerColor).toBe("#FE3939");
       expect(result.hills[1]?.winnerColor).toBe("#3B9DFF");
+    });
+  });
+
+  describe("oddball dispatch", () => {
+    it("returns oddball view data for an oddball timeline", () => {
+      const data = aFakeScoreProgressionWith({ durationMs: 460000, timeline: aFakeOddballTimelineWith() });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.kind).toBe("oddball");
+    });
+
+    it("returns null when an oddball timeline has no rounds", () => {
+      const data = aFakeScoreProgressionWith({ timeline: aFakeOddballTimelineWith({ rounds: [] }) });
+      expect(formatScoreProgression(data, TEAM_COLORS)).toBeNull();
+    });
+
+    it("returns null when the first round has an empty scores record", () => {
+      const timeline = aFakeOddballTimelineWith();
+      const [firstRound] = timeline.rounds;
+      const data = aFakeScoreProgressionWith({
+        timeline: aFakeOddballTimelineWith({ rounds: [{ ...firstRound, scores: {} }] }),
+      });
+      expect(formatScoreProgression(data, TEAM_COLORS)).toBeNull();
+    });
+
+    it("builds one round per timeline round with team ids derived from round scores", () => {
+      const data = aFakeScoreProgressionWith({ durationMs: 460000, timeline: aFakeOddballTimelineWith() });
+      const result = asOddball(formatScoreProgression(data, TEAM_COLORS));
+      expect(result.rounds).toHaveLength(2);
+      expect(result.durationMs).toBe(460000);
+      expect(result.rounds[0]?.teamScores.map((o) => o.teamId)).toEqual([0, 1]);
+    });
+
+    it("maps team colors onto rounds by slot index order", () => {
+      const data = aFakeScoreProgressionWith({ durationMs: 460000, timeline: aFakeOddballTimelineWith() });
+      const result = asOddball(formatScoreProgression(data, TEAM_COLORS));
+      expect(result.rounds[0]?.winnerColor).toBe("#0000ff");
+      expect(result.rounds[1]?.winnerColor).toBe("#ff0000");
     });
   });
 });

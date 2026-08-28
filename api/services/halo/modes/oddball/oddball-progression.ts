@@ -40,6 +40,12 @@ export interface OddballScorePoint {
   runningScores: Record<string, number>;
 }
 
+export interface OddballCarrySegment {
+  startMs: number;
+  endMs: number;
+  teamId: number;
+}
+
 export interface OddballRound {
   roundIndex: number;
   startMs: number;
@@ -48,6 +54,7 @@ export interface OddballRound {
   winnerTeamId: number | null;
   scores: Record<string, number>;
   points: OddballScorePoint[];
+  carrySegments: OddballCarrySegment[];
 }
 
 export interface OddballProgression {
@@ -161,10 +168,14 @@ function findRoundWindows(activityTimes: readonly number[], roundCount: number, 
   return windows;
 }
 
+function eventsInWindow<T extends { timestampMs: number }>(window: RoundWindow, events: readonly T[]): T[] {
+  return events.filter((e) => window.startMs <= e.timestampMs && e.timestampMs <= window.endMs);
+}
+
 function classifyEvents(carryEvents: readonly CarryEvent[], windows: readonly RoundWindow[]): EstimatedEvent[] {
   const estimated: EstimatedEvent[] = [];
   for (const window of windows) {
-    const inRound = carryEvents.filter((e) => window.startMs <= e.timestampMs && e.timestampMs <= window.endMs);
+    const inRound = eventsInWindow(window, carryEvents);
     const previousByTeam = new Map<number, number>();
     for (const event of inRound) {
       const previous = previousByTeam.get(event.teamId);
@@ -226,13 +237,37 @@ function reconcileToMatchTotals(
   }
 }
 
+// Each carry event evidences the preceding stretch of possession: a crossing covers one full
+// clock interval, a touch roughly half. Same-team events within one crossing gap chain into a
+// single segment, but never across another team's event (even one too brief to render — only
+// one player can hold the ball); the synthetic curve-closing point never reaches here.
+function buildCarrySegments(window: RoundWindow, inRound: readonly EstimatedEvent[]): OddballCarrySegment[] {
+  const segments: OddballCarrySegment[] = [];
+  let previousEventTeamId: number | null = null;
+  for (const event of inRound) {
+    const current = segments.at(-1);
+    if (previousEventTeamId === event.teamId && current != null) {
+      if (current.teamId === event.teamId && event.timestampMs - current.endMs <= CROSSING_GAP_MAX_MS) {
+        current.endMs = event.timestampMs;
+        continue;
+      }
+    }
+    previousEventTeamId = event.teamId;
+    const leadMs = event.isTouch ? TOUCH_TICKS * 1000 : CROSSING_TICKS * 1000;
+    const startMs = Math.max(event.timestampMs - leadMs, current?.endMs ?? window.startMs);
+    if (event.timestampMs > startMs) {
+      segments.push({ startMs, endMs: event.timestampMs, teamId: event.teamId });
+    }
+  }
+  return segments;
+}
+
 function buildRoundPoints(
   window: RoundWindow,
-  estimated: readonly EstimatedEvent[],
+  inRound: readonly EstimatedEvent[],
   teamIds: readonly number[],
   solvedScores: ReadonlyMap<number, number>,
 ): OddballScorePoint[] {
-  const inRound = estimated.filter((e) => window.startMs <= e.timestampMs && e.timestampMs <= window.endMs);
   const rawTotals = new Map<number, number>(teamIds.map((id) => [id, 0]));
   for (const event of inRound) {
     rawTotals.set(event.teamId, (rawTotals.get(event.teamId) ?? 0) + event.weight);
@@ -401,10 +436,8 @@ function solveRoundScores(
 ): SolvedRound[] {
   const lastCarryByRound = windows.map((window) => {
     const last = new Map<number, EstimatedEvent>();
-    for (const event of estimated) {
-      if (window.startMs <= event.timestampMs && event.timestampMs <= window.endMs) {
-        last.set(event.teamId, event);
-      }
+    for (const event of eventsInWindow(window, estimated)) {
+      last.set(event.teamId, event);
     }
     return last;
   });
@@ -412,10 +445,8 @@ function solveRoundScores(
   // raw estimator sums per round per team
   const raw = windows.map((window) => {
     const sums = new Map<number, number>(teamIds.map((id) => [id, 0]));
-    for (const event of estimated) {
-      if (window.startMs <= event.timestampMs && event.timestampMs <= window.endMs) {
-        sums.set(event.teamId, (sums.get(event.teamId) ?? 0) + event.weight);
-      }
+    for (const event of eventsInWindow(window, estimated)) {
+      sums.set(event.teamId, (sums.get(event.teamId) ?? 0) + event.weight);
     }
     return { sums };
   });
@@ -503,8 +534,9 @@ export function buildOddballProgression(
     .filter((e) => e.eventType === "kill" || e.eventType === "death" || e.eventType === "mode")
     .map((e) => e.timeMs)
     .sort((a, b) => a - b);
+  const knownTeamIds = new Set(teamIds);
   const carryEvents: CarryEvent[] = events
-    .filter((e) => e.eventType === "mode" && e.teamId != null)
+    .filter((e) => e.eventType === "mode" && e.teamId != null && knownTeamIds.has(e.teamId))
     .map((e) => ({ timestampMs: e.timeMs, teamId: Preconditions.checkExists(e.teamId) }))
     .sort((a, b) => a.timestampMs - b.timestampMs);
 
@@ -516,7 +548,8 @@ export function buildOddballProgression(
 
   const rounds: OddballRound[] = windows.map((window, roundIndex) => {
     const solved = Preconditions.checkExists(roundScores[roundIndex]);
-    const points = buildRoundPoints(window, estimated, teamIds, solved.scores);
+    const inRound = eventsInWindow(window, estimated);
+    const points = buildRoundPoints(window, inRound, teamIds, solved.scores);
     return {
       roundIndex,
       startMs: window.startMs,
@@ -525,6 +558,7 @@ export function buildOddballProgression(
       winnerTeamId: solved.winnerTeamId,
       scores: Object.fromEntries([...solved.scores.entries()].map(([teamId, score]) => [String(teamId), score])),
       points,
+      carrySegments: buildCarrySegments(window, inRound),
     };
   });
 
