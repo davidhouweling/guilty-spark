@@ -1,0 +1,13 @@
+---
+export const prerender = false;
+
+import Layout from "../../layouts/layout.astro";
+import { API_HOST } from "../../constants";
+import { MatchHistoryViewerApp } from "../../apps/match-history-viewer/create";
+
+const { gamertag } = Astro.params;
+---
+
+<Layout title="Match History - Guilty Spark" description="Search a gamertag's Halo Infinite match history">
+  <MatchHistoryViewerApp client:only="react" apiHost={API_HOST} gamertag={gamertag ?? ""} />
+</Layout>

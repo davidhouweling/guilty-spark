@@ -5,7 +5,7 @@ import type {
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import {
   INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT,
-  INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS,
+  isIndividualStatsHighlightOption,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerSettingsService } from "../../../services/individual-tracker/settings-types";
 import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../live-tracker/settings/types";
@@ -16,12 +16,6 @@ const DEBOUNCE_MS = 450;
 interface Config {
   readonly settingsService: IndividualTrackerSettingsService;
   readonly store: StreamerSettingsStore;
-}
-
-const individualStatsHighlightOptionSet = new Set<string>(INDIVIDUAL_STATS_HIGHLIGHTS_STAT_OPTIONS);
-
-function isIndividualStatsHighlightOption(value: string): value is IndividualStatsHighlightOption {
-  return individualStatsHighlightOptionSet.has(value);
 }
 
 function normalizeStatsHighlightSlots(

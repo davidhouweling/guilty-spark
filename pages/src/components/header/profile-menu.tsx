@@ -102,6 +102,12 @@ export function ProfileMenu({ apiHost, iconLinkClassName, signInLinkClassName }:
             <a href="/individual-tracker" className={styles.profileMenuItem}>
               Individual Tracker
             </a>
+            <a
+              href={gamertag != null && gamertag !== "" ? `/matches/${encodeURIComponent(gamertag)}` : "/matches"}
+              className={styles.profileMenuItem}
+            >
+              Match History
+            </a>
             <button type="button" className={styles.profileMenuItem} onClick={handleLogout}>
               Sign out
             </button>

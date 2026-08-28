@@ -1,0 +1,9 @@
+.page {
+  padding-top: var(--space-6);
+}
+
+.loadMoreError {
+  color: var(--color-error);
+  padding-top: var(--space-2);
+  text-align: center;
+}

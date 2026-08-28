@@ -10,7 +10,8 @@ import type {
   TrackersResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { TrackerLiveView } from "@guilty-spark/shared/contracts/individual-tracker/view";
-import type { GameVariantCategory, MatchStats } from "halo-infinite-api";
+import type { SearchEsra } from "@guilty-spark/shared/contracts/individual-tracker/search-esra";
+import type { GameVariantCategory, MatchStats, PlaylistCsrContainer } from "halo-infinite-api";
 
 export interface TrackerSearchResult {
   readonly gamertag: string;
@@ -30,6 +31,9 @@ export interface TrackerSearchResult {
   readonly seasonPeakRankSubTier: number | null;
   readonly matchmadeMatchCount: number | null;
   readonly customMatchCount: number | null;
+  // Raw CSR container behind the labels above — reused directly by computeStatsHighlightItems
+  // (rank-based highlight slots) so callers don't need to re-fetch or reparse the labels.
+  readonly rawCsrContainer?: PlaylistCsrContainer | null;
 }
 
 export interface TrackerMatchHistoryEntry {
@@ -145,6 +149,7 @@ export interface IndividualTrackerService {
   selectActive(trackerId: string): Promise<TrackerResponse>;
   getTrackerStatus(trackerId: string): Promise<TrackerResponse>;
   searchGamertag(query: string): Promise<TrackerSearchResult | null>;
+  getSearchEsra(xuid: string): Promise<SearchEsra>;
   getMatchHistory(
     xuid: string,
     start: number,

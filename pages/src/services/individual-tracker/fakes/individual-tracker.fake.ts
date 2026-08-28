@@ -3,6 +3,7 @@ import type {
   TrackerProfileResponse,
   UpdateTrackerProfileRequest,
 } from "@guilty-spark/shared/contracts/individual-tracker/profile";
+import type { SearchEsra } from "@guilty-spark/shared/contracts/individual-tracker/search-esra";
 import type {
   StartTrackerRequest,
   Tracker,
@@ -129,6 +130,7 @@ interface FakeIndividualTrackerServiceOptions {
   readonly matchHistory: TrackerMatchHistoryResponse;
   readonly searchResults: readonly TrackerSearchResult[];
   readonly matchHistoryEntries: readonly TrackerMatchHistoryEntry[];
+  readonly searchEsra: SearchEsra;
 }
 
 export interface FakeIndividualTrackerServiceFactoryOpts {
@@ -138,6 +140,7 @@ export interface FakeIndividualTrackerServiceFactoryOpts {
   readonly matchHistory?: TrackerMatchHistoryResponse;
   readonly searchResults?: readonly TrackerSearchResult[];
   readonly matchHistoryEntries?: readonly TrackerMatchHistoryEntry[];
+  readonly searchEsra?: SearchEsra;
 }
 
 export class FakeIndividualTrackerService implements IndividualTrackerService {
@@ -147,6 +150,7 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
   private readonly matchHistory: TrackerMatchHistoryResponse;
   private readonly searchResults: readonly TrackerSearchResult[] | null;
   private readonly matchHistoryEntries: readonly TrackerMatchHistoryEntry[] | null;
+  private readonly searchEsra: SearchEsra;
 
   public constructor(options?: Partial<FakeIndividualTrackerServiceOptions>) {
     this.profile = options?.profile ?? aFakeTrackerProfileWith();
@@ -155,6 +159,7 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
     this.matchHistory = options?.matchHistory ?? { matches: [], suggestedGroupings: [] };
     this.searchResults = options?.searchResults ?? null;
     this.matchHistoryEntries = options?.matchHistoryEntries ?? null;
+    this.searchEsra = options?.searchEsra ?? { esra: null, lastRankedGamePlayed: null };
   }
 
   public async getProfile(): Promise<TrackerProfileResponse> {
@@ -218,6 +223,12 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
       return result ?? null;
     }
     return this.searchResult;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public async getSearchEsra(_xuid: string): Promise<SearchEsra> {
+    await Promise.resolve();
+    return this.searchEsra;
   }
 
   /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -333,5 +344,6 @@ export function aFakeIndividualTrackerServiceWith(
     ...(opts.matchHistory !== undefined ? { matchHistory: opts.matchHistory } : {}),
     ...(opts.searchResults !== undefined ? { searchResults: opts.searchResults } : {}),
     ...(opts.matchHistoryEntries !== undefined ? { matchHistoryEntries: opts.matchHistoryEntries } : {}),
+    ...(opts.searchEsra !== undefined ? { searchEsra: opts.searchEsra } : {}),
   });
 }

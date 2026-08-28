@@ -2,6 +2,7 @@ import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import {
   aFakeTrackerMatchSummaryWith,
   aFakeTrackerSeriesGroupWith,
@@ -500,5 +501,221 @@ describe("IndividualTrackerViewer", () => {
 
     expect(screen.queryByRole("button", { name: "Back to manager" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Refresh" })).not.toBeInTheDocument();
+  });
+
+  it("renders a custom title suffix instead of Tracker when provided", () => {
+    const view = aFakeTrackerViewStateWith({ gamertag: "Spartan One" });
+
+    render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage={false}
+        refreshPending={false}
+        titleSuffix="Match History"
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("Spartan One Match History")).toBeInTheDocument();
+    expect(screen.queryByText("Spartan One Tracker")).not.toBeInTheDocument();
+  });
+
+  it("renders the title as an h1 by default", () => {
+    const view = aFakeTrackerViewStateWith({ gamertag: "Spartan One" });
+
+    renderViewer(view, "connected", true);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Spartan One Tracker" })).toBeInTheDocument();
+  });
+
+  it("renders the title as an h2 when titleTagName is set, for pages with their own page-level h1", () => {
+    const view = aFakeTrackerViewStateWith({ gamertag: "Spartan One" });
+
+    render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage={false}
+        refreshPending={false}
+        titleTagName="h2"
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { level: 2, name: "Spartan One Tracker" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument();
+  });
+
+  it("does not show a 'new entries' banner for timeline growth when disableNewEntryTracking is set", () => {
+    const view = aFakeTrackerViewStateWith({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] });
+
+    const { rerender } = render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage={false}
+        refreshPending={false}
+        disableNewEntryTracking={true}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    Object.defineProperty(window, "scrollY", { value: 300, configurable: true });
+    window.dispatchEvent(new Event("scroll"));
+
+    const grownView = aFakeTrackerViewStateWith({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
+    });
+
+    rerender(
+      <IndividualTrackerViewer
+        renderModel={aModel(grownView)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage={false}
+        refreshPending={false}
+        disableNewEntryTracking={true}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByText(/new\)/)).not.toBeInTheDocument();
+  });
+
+  it("shows a 'new entries' banner for timeline growth by default (live tracker behavior)", () => {
+    const view = aFakeTrackerViewStateWith({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] });
+
+    const { rerender } = render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage={true}
+        refreshPending={false}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    Object.defineProperty(window, "scrollY", { value: 300, configurable: true });
+    window.dispatchEvent(new Event("scroll"));
+
+    const grownView = aFakeTrackerViewStateWith({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" }), aFakeTrackerMatchSummaryWith({ matchId: "m-2" })],
+    });
+
+    rerender(
+      <IndividualTrackerViewer
+        renderModel={aModel(grownView)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage={true}
+        refreshPending={false}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText(/new\)/)).toBeInTheDocument();
+  });
+
+  it("hides the status/live badges when showStatusBadge is false", () => {
+    const view = aFakeTrackerViewStateWith({ gamertag: "Spartan One", isLive: true });
+
+    render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage={false}
+        refreshPending={false}
+        showStatusBadge={false}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByText("Active")).not.toBeInTheDocument();
+    expect(screen.queryByText("Live")).not.toBeInTheDocument();
+  });
+
+  it("renders a Load more button when hasMore is true and calls onLoadMore on click", async () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })],
+    });
+    const onLoadMore = vi.fn<() => void>();
+    const user = userEvent.setup();
+
+    render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage={false}
+        refreshPending={false}
+        hasMore={true}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    const loadMoreButton = screen.getByRole("button", { name: "Load more" });
+    await user.click(loadMoreButton);
+
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not render a Load more button when hasMore is not set", () => {
+    const view = aFakeTrackerViewStateWith({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] });
+
+    renderViewer(view);
+
+    expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
+  });
+
+  it("does not render a Load more button when hasMore is true but onLoadMore is not provided", () => {
+    const view = aFakeTrackerViewStateWith({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] });
+
+    render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage={false}
+        refreshPending={false}
+        hasMore={true}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
   });
 });
