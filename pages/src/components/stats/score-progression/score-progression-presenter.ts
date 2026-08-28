@@ -14,6 +14,7 @@ import type {
   ScoreProgressionViewModel,
   TimelineGanttChartViewModel,
   TimelineGanttRowViewModel,
+  TimelineGanttTooltipEntry,
 } from "./types";
 
 export interface ScoreProgressionPresenterConfig {
@@ -152,11 +153,9 @@ export class ScoreProgressionPresenter {
       segments: hill.segments,
       winnerColor: hill.winnerColor,
       tooltipTitle: `Hill ${String(hill.hillIndex)}`,
-      tooltipEntries: hill.teamCaptureProgress.map((o) => ({
-        key: String(o.teamId),
-        color: o.percentage > 0 ? o.color : null,
-        text: `${o.name}: ${String(o.percentage)}%`,
-      })),
+      tooltipEntries: hill.teamCaptureProgress.map((o) =>
+        this.buildTooltipEntry(o.teamId, o.color, o.percentage, `${o.name}: ${String(o.percentage)}%`),
+      ),
     };
   }
 
@@ -172,12 +171,15 @@ export class ScoreProgressionPresenter {
         round.winnerName != null
           ? `Round ${String(round.roundIndex)} — ${ending}, ${round.winnerName} wins`
           : `Round ${String(round.roundIndex)} — ${ending}`,
-      tooltipEntries: round.teamScores.map((o) => ({
-        key: String(o.teamId),
-        color: o.score > 0 ? o.color : null,
-        text: `${o.name}: ${String(o.score)}`,
-      })),
+      tooltipEntries: round.teamScores.map((o) =>
+        this.buildTooltipEntry(o.teamId, o.color, o.score, `${o.name}: ${String(o.score)}`),
+      ),
     };
+  }
+
+  // teams that never scored render muted in the tooltip
+  private buildTooltipEntry(teamId: number, color: string, value: number, text: string): TimelineGanttTooltipEntry {
+    return { key: String(teamId), color: value > 0 ? color : null, text };
   }
 
   private synchronizeDeltaDomain(scoreDelta: ScoreDeltaData, advantage: PlayerAdvantageData | null): ScoreDeltaData {
