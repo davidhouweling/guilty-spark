@@ -540,16 +540,9 @@ export function IndividualTrackerViewer({
             })}
           </Container>
         )}
-        {hasMore === true && (
+        {hasMore === true && onLoadMore != null && (
           <Container mobileDown="0" className={styles.loadMoreRow}>
-            <Button
-              variant="secondary"
-              loading={loadingMore}
-              disabled={loadingMore}
-              onClick={() => {
-                onLoadMore?.();
-              }}
-            >
+            <Button variant="secondary" loading={loadingMore} disabled={loadingMore} onClick={onLoadMore}>
               Load more
             </Button>
           </Container>

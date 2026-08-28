@@ -697,4 +697,25 @@ describe("IndividualTrackerViewer", () => {
 
     expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
   });
+
+  it("does not render a Load more button when hasMore is true but onLoadMore is not provided", () => {
+    const view = aFakeTrackerViewStateWith({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] });
+
+    render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage={false}
+        refreshPending={false}
+        hasMore={true}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
+  });
 });
