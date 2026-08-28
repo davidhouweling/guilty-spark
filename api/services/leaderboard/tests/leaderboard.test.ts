@@ -1101,4 +1101,34 @@ describe("LeaderboardService", () => {
       "Failed to refresh leaderboard posts after series persistence",
     );
   });
+
+  it("refreshes all registered posts and counts missing and failed posts", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const discordService = aFakeDiscordServiceWith();
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, discordService, haloService, logService });
+    const refreshedPost = aFakeLeaderboardPostRow();
+    const missingPost = aFakeLeaderboardPostRow({ ChannelId: "channel-2", MessageId: "message-2" });
+    const failedPost = aFakeLeaderboardPostRow({ ChannelId: "channel-3", MessageId: "message-3" });
+    vi.spyOn(databaseService, "getAllLeaderboardPosts").mockResolvedValue([refreshedPost, missingPost, failedPost]);
+    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue(Locale.EnglishUS);
+    vi.spyOn(databaseService, "getLeaderboardConfig").mockResolvedValue(
+      aFakeLeaderboardConfigRow({ GuildId: "guild-1", MinGamesPlayed: 0 }),
+    );
+    vi.spyOn(databaseService, "getLeaderboardStatMetricRankings").mockResolvedValue({
+      total: 1,
+      rows: killsRankingRows.slice(0, 1),
+    });
+    vi.spyOn(discordService, "editMessage")
+      .mockResolvedValueOnce(apiMessage)
+      .mockRejectedValueOnce(new DiscordError(404, { code: 10008, message: "Unknown Message" }))
+      .mockRejectedValueOnce(new Error("temporary failure"));
+    const deleteSpy = vi.spyOn(databaseService, "deleteLeaderboardPost").mockResolvedValue(undefined);
+
+    const result = await service.refreshAllPostsToDefaults();
+
+    expect(result).toEqual({ total: 3, refreshed: 1, missing: 1, failed: 1 });
+    expect(deleteSpy).toHaveBeenCalledWith(missingPost.ChannelId, missingPost.MessageId);
+  });
 });

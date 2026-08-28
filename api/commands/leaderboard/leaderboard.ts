@@ -28,7 +28,6 @@ import {
   getLeaderboardMetricFamiliesForAggregation,
   getLeaderboardMetricAggregationLabel,
   getLeaderboardMetricFamily,
-  getLeaderboardMetricFamilyLabel,
   resolveLeaderboardMetric,
 } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardMetricFamily } from "@guilty-spark/shared/halo/leaderboard";
@@ -58,7 +57,9 @@ const LEADERBOARD_DEFAULT_REFRESH_OWNER_ID = "237222473500852224";
 const METRIC_AGGREGATIONS_IN_OPTION_ORDER: readonly LeaderboardMetricAggregation[] = [
   LeaderboardMetricAggregation.AvgPerSeries,
   LeaderboardMetricAggregation.AvgPerGame,
+  LeaderboardMetricAggregation.AvgPerObjective,
   LeaderboardMetricAggregation.Total,
+  LeaderboardMetricAggregation.TotalObjective,
 ];
 
 const WINDOW_OPTIONS_BY_VALUE = new Map<string, LeaderboardWindow>([
@@ -135,12 +136,6 @@ export class LeaderboardCommand extends BaseCommand {
               description: "Stat family to rank players by",
               type: ApplicationCommandOptionType.String,
               required: false,
-              choices: [
-                ...LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER.map((family) => ({
-                  name: getLeaderboardMetricFamilyLabel(family),
-                  value: family,
-                })),
-              ],
             },
             {
               name: "aggregation",

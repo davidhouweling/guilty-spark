@@ -320,7 +320,10 @@ function formatMetricValue(
       return `${average} avg/game (${games})`;
     }
 
-    return `${Math.round(metricValue).toLocaleString(locale)} ${descriptor.unit} (${games})`;
+    const value = Math.round(metricValue);
+    const unit =
+      new Intl.PluralRules(locale).select(Math.abs(value)) === "one" ? descriptor.unit.slice(0, -1) : descriptor.unit;
+    return `${value.toLocaleString(locale)} ${unit} (${games})`;
   }
 
   switch (metric) {

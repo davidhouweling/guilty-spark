@@ -108,6 +108,65 @@ describe("LeaderboardCommand", () => {
     expect(subcommands?.[2]?.name).toBe("refresh-posts");
   });
 
+  it("rejects refresh-posts for non-owner users", async () => {
+    vi.spyOn(services.discordService, "getDiscordUserId").mockReturnValue("not-the-owner");
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "refresh-posts",
+      options: [],
+      mappedOptions: new Map<string, string | number | boolean>(),
+    });
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [{ type: ApplicationCommandOptionType.Subcommand, name: "refresh-posts", options: [] }],
+      },
+    };
+
+    const result = command.execute(interaction);
+    await expect(result.jobToComplete?.()).rejects.toThrow("This temporary operation is restricted to the bot owner.");
+  });
+
+  it("refreshes all posts for the owner and reports the summary", async () => {
+    vi.spyOn(services.discordService, "getDiscordUserId").mockReturnValue("237222473500852224");
+    vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+      name: "refresh-posts",
+      options: [],
+      mappedOptions: new Map<string, string | number | boolean>(),
+    });
+    vi.spyOn(services.leaderboardService, "refreshAllPostsToDefaults").mockResolvedValue({
+      total: 4,
+      refreshed: 2,
+      missing: 1,
+      failed: 1,
+    });
+    const updateSpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
+      ...fakeButtonClickInteraction.message,
+      type: MessageType.Default,
+    });
+
+    const interaction: APIApplicationCommandInteraction = {
+      ...fakeBaseAPIApplicationCommandInteraction,
+      type: InteractionType.ApplicationCommand,
+      data: {
+        id: "fake-command-id",
+        name: "leaderboard",
+        type: ApplicationCommandType.ChatInput,
+        options: [{ type: ApplicationCommandOptionType.Subcommand, name: "refresh-posts", options: [] }],
+      },
+    };
+
+    const result = command.execute(interaction);
+    await result.jobToComplete?.();
+
+    expect(updateSpy).toHaveBeenCalledWith(interaction.token, {
+      content: "Leaderboard refresh complete: 2 refreshed, 1 missing, 1 failed (of 4).",
+    });
+  });
+
   it("previews a queue completion time before saving the reset marker", async () => {
     const mappedOptions = new Map<string, string | number | boolean>([
       ["queue_channel", "queue-123"],

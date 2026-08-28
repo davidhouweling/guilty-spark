@@ -1924,6 +1924,32 @@ describe("Database Service", () => {
       });
     });
 
+    describe("getMatchKillMatrices()", () => {
+      it("queries match kill matrix rows by match ids", async () => {
+        const row = aFakeMatchKillMatrixRow({ MatchId: "match-1" });
+        const preparedStatement = new FakePreparedStatement<MatchKillMatrixRow>();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(preparedStatement);
+        const bindSpy = vi.spyOn(preparedStatement, "bind").mockReturnThis();
+        const allSpy = vi.spyOn(preparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [row] });
+
+        const result = await databaseService.getMatchKillMatrices(["match-1", "match-2"]);
+
+        expect(prepareSpy).toHaveBeenCalledWith("SELECT * FROM MatchKillMatrix WHERE MatchId IN (?,?)");
+        expect(bindSpy).toHaveBeenCalledWith("match-1", "match-2");
+        expect(allSpy).toHaveBeenCalledOnce();
+        expect(result).toEqual([row]);
+      });
+
+      it("returns empty rows when no match ids are provided", async () => {
+        const prepareSpy = vi.spyOn(env.DB, "prepare");
+
+        const result = await databaseService.getMatchKillMatrices([]);
+
+        expect(prepareSpy).not.toHaveBeenCalled();
+        expect(result).toEqual([]);
+      });
+    });
+
     it("uses the method profile id for inserted rows", async () => {
       const game = aFakeIndividualTrackerGamesRow({ ProfileId: "other-profile" });
       const deleteStatement = new FakePreparedStatement();

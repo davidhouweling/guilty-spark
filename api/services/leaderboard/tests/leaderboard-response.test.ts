@@ -403,7 +403,7 @@ describe("createLeaderboardResponse", () => {
     if (aggregationSelect?.type !== ComponentType.StringSelect) {
       throw new Error("Expected aggregation select control to be a string select");
     }
-    expect(aggregationSelect.options[0]?.label).toBe("Avg per series");
+    expect(aggregationSelect.options.find((option) => option.default === true)?.label).toBe("Avg per game");
 
     const windowSelectRow = response.components?.[3];
     expect(windowSelectRow?.type).toBe(ComponentType.ActionRow);
@@ -417,6 +417,39 @@ describe("createLeaderboardResponse", () => {
       throw new Error("Expected window select control to be a string select");
     }
     expect(windowSelect.placeholder).toBe("Select window");
+  });
+
+  it("uses singular units for one objective", () => {
+    const leaderboard: LeaderboardResponse = {
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.FlagCaptures,
+      minGamesPlayed: 0,
+      page: 1,
+      pageSize: 10,
+      total: 1,
+      rows: [
+        {
+          rank: 1,
+          xboxXuid: "xuid-1",
+          discordUserId: "discord-1",
+          gamertag: "Alpha",
+          seriesPlayed: 1,
+          seriesWins: 1,
+          gamesPlayed: 1,
+          gameWins: 1,
+          medalCount: 0,
+          objectiveGamesPlayed: 1,
+          objectiveTimeSeconds: 0,
+          metricValue: 1,
+        },
+      ],
+    };
+
+    const response = createLeaderboardResponse("en-US", leaderboard, "<t:1733483139:R>");
+
+    expect(response.embeds?.[0]?.fields?.[2]?.value).toContain("1 capture");
   });
 
   it("prepends the reset window when a reset marker exists", () => {
