@@ -201,9 +201,12 @@ describe("resolveLeaderboardMetric", () => {
   });
 
   describe.each(metricResolutionCases)("$aggregation", ({ aggregation, cases }) => {
-    it.each(cases)("resolves %s to %s", (family, metric) => {
-      expect(resolveLeaderboardMetric(family, aggregation)).toBe(metric);
-    });
+    it.each(cases.map(([family, metric]) => ({ family, metric })))(
+      "resolves $family to $metric",
+      ({ family, metric }) => {
+        expect(resolveLeaderboardMetric(family, aggregation)).toBe(metric);
+      },
+    );
   });
 });
 

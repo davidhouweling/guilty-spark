@@ -53,6 +53,7 @@ const DEFAULT_PAGE_SIZE = 10;
 const LEGACY_LEADERBOARD_METRIC_SELECT_CONTROL_ID = "select_leaderboard_metric";
 const LEADERBOARD_RESET_CONFIRM_CONTROL_ID = "btn_leaderboard_reset_confirm";
 const LEADERBOARD_RESET_CANCEL_CONTROL_ID = "btn_leaderboard_reset_cancel";
+const LEADERBOARD_DEFAULT_REFRESH_OWNER_ID = "237222473500852224";
 
 const METRIC_AGGREGATIONS_IN_OPTION_ORDER: readonly LeaderboardMetricAggregation[] = [
   LeaderboardMetricAggregation.AvgPerSeries,
@@ -202,6 +203,11 @@ export class LeaderboardCommand extends BaseCommand {
             },
           ],
         },
+        {
+          type: ApplicationCommandOptionType.Subcommand,
+          name: "refresh-posts",
+          description: "Temporarily refresh all registered leaderboard posts to their defaults",
+        },
       ],
     },
   ];
@@ -306,6 +312,9 @@ export class LeaderboardCommand extends BaseCommand {
           case "reset": {
             return this.deferReply(async () => this.resetLeaderboard(interaction, subcommand.mappedOptions), true);
           }
+          case "refresh-posts": {
+            return this.deferReply(async () => this.refreshAllLeaderboardPosts(interaction), true);
+          }
           default: {
             throw new Error("Unknown subcommand");
           }
@@ -358,6 +367,21 @@ export class LeaderboardCommand extends BaseCommand {
         throw new UnreachableError(type);
       }
     }
+  }
+
+  private async refreshAllLeaderboardPosts(interaction: APIApplicationCommandInteraction): Promise<void> {
+    const userId = this.services.discordService.getDiscordUserId(interaction);
+    if (userId !== LEADERBOARD_DEFAULT_REFRESH_OWNER_ID) {
+      throw new EndUserError("This temporary operation is restricted to the bot owner.", {
+        handled: true,
+        errorType: EndUserErrorType.WARNING,
+      });
+    }
+
+    const summary = await this.services.leaderboardService.refreshAllPostsToDefaults();
+    await this.services.discordService.updateDeferredReply(interaction.token, {
+      content: `Leaderboard refresh complete: ${summary.refreshed.toString()} refreshed, ${summary.missing.toString()} missing, ${summary.failed.toString()} failed (of ${summary.total.toString()}).`,
+    });
   }
 
   private async showLeaderboard(

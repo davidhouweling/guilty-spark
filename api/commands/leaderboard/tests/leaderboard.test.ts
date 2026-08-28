@@ -102,9 +102,10 @@ describe("LeaderboardCommand", () => {
     expect(slashCommand?.name).toBe("leaderboard");
 
     const subcommands = slashCommand?.options;
-    expect(subcommands).toHaveLength(2);
+    expect(subcommands).toHaveLength(3);
     expect(subcommands?.[0]?.name).toBe("show");
     expect(subcommands?.[1]?.name).toBe("reset");
+    expect(subcommands?.[2]?.name).toBe("refresh-posts");
   });
 
   it("previews a queue completion time before saving the reset marker", async () => {

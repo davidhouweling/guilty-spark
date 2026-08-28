@@ -34,6 +34,13 @@ export interface LeaderboardServiceOpts {
   logService: LogService;
 }
 
+export interface LeaderboardPostRefreshSummary {
+  total: number;
+  refreshed: number;
+  missing: number;
+  failed: number;
+}
+
 interface GetLeaderboardOpts {
   guildId: string;
   queueChannelId?: string | undefined;
@@ -274,6 +281,67 @@ export class LeaderboardService {
         ]),
       );
     }
+  }
+
+  async refreshAllPostsToDefaults(): Promise<LeaderboardPostRefreshSummary> {
+    const discordService = Preconditions.checkExists(this.discordService, "Discord service is required");
+    const posts = await this.databaseService.getAllLeaderboardPosts();
+    const locales = new Map<string, string>();
+    const summary: LeaderboardPostRefreshSummary = { total: posts.length, refreshed: 0, missing: 0, failed: 0 };
+
+    for (const post of posts) {
+      try {
+        const locale = locales.get(post.GuildId) ?? (await discordService.getGuildPreferredLocale(post.GuildId));
+        locales.set(post.GuildId, locale);
+        const config = await this.databaseService.getLeaderboardConfig(post.GuildId);
+        const leaderboard = await this.getLeaderboardWithResolvedPage({
+          guildId: post.GuildId,
+          ...(post.QueueChannelId != null ? { queueChannelId: post.QueueChannelId } : {}),
+          window: config.DefaultWindow,
+          metric: config.DefaultMetric,
+          page: 1,
+          pageSize: 10,
+          minGamesPlayed: config.MinGamesPlayed,
+        });
+        await discordService.editMessage(
+          post.ChannelId,
+          post.MessageId,
+          createLeaderboardResponse(
+            locale,
+            leaderboard,
+            discordService.getTimestamp(new Date().toISOString(), "R"),
+            false,
+            leaderboard.resetAt == null
+              ? null
+              : discordService.getTimestamp(new Date(leaderboard.resetAt * 1000).toISOString(), "f"),
+          ),
+        );
+        summary.refreshed += 1;
+      } catch (error) {
+        if (
+          error instanceof DiscordError &&
+          error.httpStatus === 404 &&
+          (error.restError.code === 10003 || error.restError.code === 10008)
+        ) {
+          await this.databaseService.deleteLeaderboardPost(post.ChannelId, post.MessageId);
+          summary.missing += 1;
+          continue;
+        }
+
+        summary.failed += 1;
+        this.logService.warn(
+          error,
+          new Map([
+            ["guildId", post.GuildId],
+            ["channelId", post.ChannelId],
+            ["messageId", post.MessageId],
+            ["reason", "Failed one-off leaderboard default refresh"],
+          ]),
+        );
+      }
+    }
+
+    return summary;
   }
 
   private async refreshLeaderboardPosts(posts: LeaderboardPostRow[], guildId: string): Promise<void> {
