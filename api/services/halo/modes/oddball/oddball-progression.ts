@@ -16,6 +16,7 @@ const FIRST_ROUND_INTRO_MS = 11_000;
 // A round break shows as total silence (no kills, deaths or carry events) for at least this long.
 const ROUND_BREAK_GAP_MS = 15_000;
 const MIN_ROUND_DURATION_MS = 120_000;
+const MAX_BREAK_CANDIDATES = 12;
 // The film emits a carry event at every ~5s crossing of a team's carry clock (which persists
 // across drops within a round), plus an event on many pickups. A same-team gap inside this
 // window is a clock crossing worth ~5 ticks; anything else is a touch worth ~1 tick.
@@ -101,7 +102,8 @@ function chooseRoundBreaks(
   if (neededBreaks <= 0) {
     return [];
   }
-  const bySize = [...gaps].sort((a, b) => b.endMs - b.startMs - (a.endMs - a.startMs));
+  // bound the enumeration: breaks are always among the largest silences
+  const bySize = [...gaps].sort((a, b) => b.endMs - b.startMs - (a.endMs - a.startMs)).slice(0, MAX_BREAK_CANDIDATES);
   const combos = enumerateCombinations(bySize, neededBreaks);
   for (const combo of combos) {
     const ordered = [...combo].sort((a, b) => a.startMs - b.startMs);
@@ -122,18 +124,31 @@ function chooseRoundBreaks(
   return [...gaps].slice(0, neededBreaks).sort((a, b) => a.startMs - b.startMs);
 }
 
-function findRoundWindows(activityTimes: readonly number[], roundCount: number, durationMs: number): RoundWindow[] {
+function collectActivityGaps(
+  activityTimes: readonly number[],
+  thresholdMs: number,
+): { startMs: number; endMs: number }[] {
   const gaps: { startMs: number; endMs: number }[] = [];
   for (let i = 1; i < activityTimes.length; i++) {
     const prev = Preconditions.checkExists(activityTimes[i - 1]);
     const curr = Preconditions.checkExists(activityTimes[i]);
-    if (curr - prev >= ROUND_BREAK_GAP_MS) {
+    if (curr - prev >= thresholdMs) {
       gaps.push({ startMs: prev, endMs: curr });
     }
   }
+  return gaps;
+}
 
+function findRoundWindows(activityTimes: readonly number[], roundCount: number, durationMs: number): RoundWindow[] {
   const neededBreaks = roundCount - 1;
-  const chosen = chooseRoundBreaks(gaps, neededBreaks, durationMs);
+  // a very quiet break can fall just short of the usual threshold; relax before giving up
+  let chosen: { startMs: number; endMs: number }[] = [];
+  for (const thresholdMs of [ROUND_BREAK_GAP_MS, 12_000, 10_000]) {
+    chosen = chooseRoundBreaks(collectActivityGaps(activityTimes, thresholdMs), neededBreaks, durationMs);
+    if (chosen.length === neededBreaks) {
+      break;
+    }
+  }
 
   const windows: RoundWindow[] = [];
   let cursor = 0;
@@ -248,18 +263,29 @@ function buildRoundPoints(
 // excess moves to the team's other rounds so per-team match totals stay intact.
 function clampScoresToCap(solved: SolvedRound[], teamIds: readonly number[]): void {
   for (const teamId of teamIds) {
+    const limitFor = (round: SolvedRound): number =>
+      round.endedByCap && round.winnerTeamId === teamId ? CAP_SCORE : CAP_SCORE - 1;
+    let excess = 0;
     for (const round of solved) {
-      const limit = round.endedByCap && round.winnerTeamId === teamId ? CAP_SCORE : CAP_SCORE - 1;
-      const excess = (round.scores.get(teamId) ?? 0) - limit;
-      if (excess <= 0) {
-        continue;
+      const over = (round.scores.get(teamId) ?? 0) - limitFor(round);
+      if (over > 0) {
+        round.scores.set(teamId, limitFor(round));
+        excess += over;
       }
-      round.scores.set(teamId, limit);
-      const [target] = solved
-        .filter((other) => other !== round && !(other.endedByCap && other.winnerTeamId === teamId))
-        .sort((a, b) => (a.scores.get(teamId) ?? 0) - (b.scores.get(teamId) ?? 0));
-      if (target != null) {
-        target.scores.set(teamId, (target.scores.get(teamId) ?? 0) + excess);
+    }
+    // refill into headroom, never past any round's own limit
+    const byHeadroom = [...solved].sort(
+      (a, b) => limitFor(b) - (b.scores.get(teamId) ?? 0) - (limitFor(a) - (a.scores.get(teamId) ?? 0)),
+    );
+    for (const round of byHeadroom) {
+      if (excess <= 0) {
+        break;
+      }
+      const headroom = limitFor(round) - (round.scores.get(teamId) ?? 0);
+      const add = Math.min(headroom, excess);
+      if (add > 0) {
+        round.scores.set(teamId, (round.scores.get(teamId) ?? 0) + add);
+        excess -= add;
       }
     }
   }
@@ -458,8 +484,10 @@ export function buildOddballProgression(
     return { rounds: [], teamCount: teamIds.length };
   }
 
+  // team attribution is not needed to prove the round is live — an unattributed kill still
+  // breaks a silence, and requiring it could fabricate round-break gaps
   const activityTimes = events
-    .filter((e) => (e.eventType === "kill" || e.eventType === "death" || e.eventType === "mode") && e.teamId != null)
+    .filter((e) => e.eventType === "kill" || e.eventType === "death" || e.eventType === "mode")
     .map((e) => e.timeMs)
     .sort((a, b) => a - b);
   const carryEvents: CarryEvent[] = events

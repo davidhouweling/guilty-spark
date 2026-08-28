@@ -219,3 +219,44 @@ describe("buildOddballProgression (blind-validated single-round series matches)"
     expect(errors.reduce((a, b) => a + b, 0) / (errors.length * 2)).toBeLessThanOrEqual(5);
   });
 });
+
+describe("buildOddballProgression cap invariants", () => {
+  function aF206StatsForInvariants(): MatchStats {
+    const base = structuredClone(Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth")));
+    const team0 = Preconditions.checkExists(base.Teams[0]);
+    const team1 = Preconditions.checkExists(base.Teams[1]);
+    team0.Stats.CoreStats.Score = 140;
+    team0.Stats.CoreStats.RoundsWon = 2;
+    team1.Stats.CoreStats.Score = 95;
+    team1.Stats.CoreStats.RoundsWon = 0;
+    return base;
+  }
+  function aSingleRoundStatsForInvariants(eagleScore: number): MatchStats {
+    const base = structuredClone(Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth")));
+    const team0 = Preconditions.checkExists(base.Teams[0]);
+    const team1 = Preconditions.checkExists(base.Teams[1]);
+    team0.Stats.CoreStats.Score = eagleScore;
+    team0.Stats.CoreStats.RoundsWon = 0;
+    team1.Stats.CoreStats.Score = 100;
+    team1.Stats.CoreStats.RoundsWon = 1;
+    return base;
+  }
+
+  it("never emits a round score above the cap, and only cap winners reach it", () => {
+    const progressions = [
+      buildOddballProgression(oddball3a8dEvents(), aCalibrationMatchStats(), ODDBALL_3A8D_DURATION_MS),
+      buildOddballProgression(oddballF206Events(), aF206StatsForInvariants(), ODDBALL_F206_DURATION_MS),
+      buildOddballProgression(oddballE0f9Events(), aSingleRoundStatsForInvariants(47), ODDBALL_E0F9_DURATION_MS),
+      buildOddballProgression(oddballFf1aEvents(), aSingleRoundStatsForInvariants(71), ODDBALL_FF1A_DURATION_MS),
+    ];
+    expect.assertions(progressions.reduce((acc, p) => acc + p.rounds.length * 2, 0));
+    for (const progression of progressions) {
+      for (const round of progression.rounds) {
+        for (const [teamIdKey, score] of Object.entries(round.scores)) {
+          const isCapWinner = round.endedByCap && String(round.winnerTeamId) === teamIdKey;
+          expect(score).toBeLessThanOrEqual(isCapWinner ? 100 : 99);
+        }
+      }
+    }
+  });
+});
