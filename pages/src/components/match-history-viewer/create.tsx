@@ -40,7 +40,7 @@ function MatchHistoryViewerPageInternal({ config, gamertag }: MatchHistoryViewer
   }, [model.renderModel?.gamertag, gamertag]);
 
   return (
-    <>
+    <div className={styles.page}>
       <Container>
         <Heading tagName="h1" styleAs="h2" variant="display" spacing={4}>
           Match History
@@ -81,7 +81,7 @@ function MatchHistoryViewerPageInternal({ config, gamertag }: MatchHistoryViewer
           }
         />
       )}
-    </>
+    </div>
   );
 }
 
