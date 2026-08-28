@@ -321,8 +321,7 @@ function formatMetricValue(
     }
 
     const value = Math.round(metricValue);
-    const unit =
-      new Intl.PluralRules(locale).select(Math.abs(value)) === "one" ? descriptor.unit.slice(0, -1) : descriptor.unit;
+    const unit = pluralRules.select(Math.abs(value)) === "one" ? descriptor.unit.slice(0, -1) : descriptor.unit;
     return `${value.toLocaleString(locale)} ${unit} (${games})`;
   }
 
