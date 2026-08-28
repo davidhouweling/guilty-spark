@@ -62,16 +62,27 @@ describe("buildSearchTimelineData", () => {
     expect(matches[0]?.teamCount).toBe(0);
   });
 
-  it("sorts matches oldest-first regardless of input order, matching the tracker DO's contract", () => {
-    // getMatchHistory() returns newest-first; buildViewerRenderModel expects oldest-first.
+  it("sorts matches newest-first regardless of input order", () => {
     const entries = [
-      aFakeMatchHistoryEntryWith({ matchId: "m-newer", startTimeIso: "2026-01-01T00:20:00.000Z" }),
       aFakeMatchHistoryEntryWith({ matchId: "m-older", startTimeIso: "2026-01-01T00:00:00.000Z" }),
+      aFakeMatchHistoryEntryWith({ matchId: "m-newer", startTimeIso: "2026-01-01T00:20:00.000Z" }),
     ];
 
     const { matches } = buildSearchTimelineData(entries, TRACKED_XUID);
 
-    expect(matches.map((match) => match.matchId)).toEqual(["m-older", "m-newer"]);
+    expect(matches.map((match) => match.matchId)).toEqual(["m-newer", "m-older"]);
+  });
+
+  it("appends an older 'Load more' page to the end of the newest-first list, next to the button that fetched it", () => {
+    const firstPage = [aFakeMatchHistoryEntryWith({ matchId: "m-newest", startTimeIso: "2026-01-01T00:20:00.000Z" })];
+    const afterLoadMore = [
+      ...firstPage,
+      aFakeMatchHistoryEntryWith({ matchId: "m-oldest", startTimeIso: "2026-01-01T00:00:00.000Z" }),
+    ];
+
+    const { matches } = buildSearchTimelineData(afterLoadMore, TRACKED_XUID);
+
+    expect(matches.map((match) => match.matchId)).toEqual(["m-newest", "m-oldest"]);
   });
 
   it("groups consecutive custom matches sharing a roster signature into a series with a stable, member-set-derived id", () => {

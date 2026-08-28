@@ -125,9 +125,10 @@ export function buildSearchTimelineData(
   rawEntries: readonly TrackerMatchHistoryEntry[],
   xuid: string,
 ): SearchTimelineData {
-  // getMatchHistory() returns matches newest-first, but the tracker DO (and therefore
-  // buildViewerRenderModel, which this feeds) expects matches/series oldest-first — it anchors
-  // each series on its first matchId and walks the timeline in that same order.
+  // Grouping/scoring is computed oldest-first (matching the tracker DO's own convention, so
+  // computeSeriesSummaryStats/analyzeMatchGroupings/getDefaultSeriesGroupSubtitle behave
+  // identically, and each series' own matchIds stay oldest-to-newest for correct in-series game
+  // numbering) before the final result is reversed back to newest-first below.
   const entries = [...rawEntries].sort((a, b) =>
     compareAsc(new Date(matchEntryStartTime(a)), new Date(matchEntryStartTime(b))),
   );
@@ -155,5 +156,10 @@ export function buildSearchTimelineData(
     return toTrackerSeriesGroup(memberEntries, memberSummaries, statsByMatchId);
   });
 
-  return { matches, series };
+  // buildViewerRenderModel only cares that each series' anchor matchId (still its oldest member)
+  // appears somewhere in `matches` — reversing the outer order here doesn't affect where a series
+  // renders, since its members are always contiguous. Newest-first means "Load more" appends older
+  // matches to the END of the list, right next to the button that fetched them, instead of
+  // prepending them above the user's current scroll position where they'd go unnoticed.
+  return { matches: [...matches].reverse(), series: [...series].reverse() };
 }
