@@ -1,6 +1,8 @@
 import React, { useEffect } from "react";
 import { ComponentLoader } from "../component-loader/component-loader";
+import { Container } from "../container/container";
 import { ErrorState } from "../error-state/error-state";
+import { Heading } from "../heading/heading";
 import { LoadingState } from "../loading-state/loading-state";
 import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
@@ -39,6 +41,11 @@ function MatchHistoryViewerPageInternal({ config, gamertag }: MatchHistoryViewer
 
   return (
     <>
+      <Container>
+        <Heading tagName="h1" styleAs="h2" variant="display" spacing={4}>
+          Match History
+        </Heading>
+      </Container>
       <GamertagSearchBox initialGamertag={gamertag} />
       {gamertag !== "" && (
         <ComponentLoader
@@ -56,6 +63,7 @@ function MatchHistoryViewerPageInternal({ config, gamertag }: MatchHistoryViewer
                   canManage={false}
                   refreshPending={false}
                   titleSuffix="Match History"
+                  titleTagName="h2"
                   showStatusBadge={false}
                   disableNewEntryTracking={true}
                   hasMore={snapshot.hasMore}

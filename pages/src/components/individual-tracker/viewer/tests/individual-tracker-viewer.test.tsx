@@ -525,6 +525,36 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.queryByText("Spartan One Tracker")).not.toBeInTheDocument();
   });
 
+  it("renders the title as an h1 by default", () => {
+    const view = aFakeTrackerViewStateWith({ gamertag: "Spartan One" });
+
+    renderViewer(view, "connected", true);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Spartan One Tracker" })).toBeInTheDocument();
+  });
+
+  it("renders the title as an h2 when titleTagName is set, for pages with their own page-level h1", () => {
+    const view = aFakeTrackerViewStateWith({ gamertag: "Spartan One" });
+
+    render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage={false}
+        refreshPending={false}
+        titleTagName="h2"
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { level: 2, name: "Spartan One Tracker" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument();
+  });
+
   it("does not show a 'new entries' banner for timeline growth when disableNewEntryTracking is set", () => {
     const view = aFakeTrackerViewStateWith({ matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })] });
 

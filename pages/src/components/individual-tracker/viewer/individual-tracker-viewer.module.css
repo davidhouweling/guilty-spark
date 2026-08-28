@@ -120,6 +120,15 @@
   overflow: hidden;
 }
 
+.seriesEntry {
+  background: color-mix(in srgb, var(--halo-teal-primary) 6%, var(--halo-bg-card));
+  border-color: color-mix(in srgb, var(--halo-teal-primary) 45%, transparent);
+}
+
+.seriesEntry > .entryHeaderButton {
+  background: color-mix(in srgb, var(--halo-teal-primary) 18%, transparent);
+}
+
 .entryHeaderButton {
   background: transparent;
   border: none;

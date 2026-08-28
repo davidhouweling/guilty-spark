@@ -30,14 +30,26 @@ export function GamertagSearchBox({ initialGamertag }: GamertagSearchBoxProps): 
       >
         <Input
           label="Gamertag"
+          labelClassName={styles.srOnly}
           value={query}
-          placeholder="Search gamertag"
+          placeholder="Search a gamertag..."
           onChange={(event): void => {
             setQuery(event.currentTarget.value);
           }}
         />
-        <Button type="submit" disabled={query.trim() === ""}>
-          Search
+        <Button
+          type="submit"
+          size="small"
+          className={styles.searchButton}
+          disabled={query.trim() === ""}
+          icon={
+            <svg viewBox="0 0 16 16" focusable="false" aria-hidden="true" className={styles.searchIcon}>
+              <circle cx="7" cy="7" r="5" />
+              <path d="M11 11 15 15" />
+            </svg>
+          }
+        >
+          <span className={styles.srOnly}>Search</span>
         </Button>
       </form>
     </Container>

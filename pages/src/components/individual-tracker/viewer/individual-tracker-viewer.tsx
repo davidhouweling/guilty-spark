@@ -38,6 +38,7 @@ interface IndividualTrackerViewerProps {
   readonly canManage: boolean;
   readonly refreshPending: boolean;
   readonly titleSuffix?: string;
+  readonly titleTagName?: "h1" | "h2";
   readonly showStatusBadge?: boolean;
   readonly disableNewEntryTracking?: boolean;
   readonly hasMore?: boolean;
@@ -210,6 +211,7 @@ export function IndividualTrackerViewer({
   canManage,
   refreshPending,
   titleSuffix = "Tracker",
+  titleTagName = "h1",
   showStatusBadge = true,
   disableNewEntryTracking = false,
   hasMore,
@@ -306,7 +308,7 @@ export function IndividualTrackerViewer({
       )}
       <Container>
         <div className={styles.header}>
-          <Heading tagName="h1" styleAs="h3" variant="display">
+          <Heading tagName={titleTagName} styleAs="h3" variant="display">
             {renderModel.gamertag} {titleSuffix}
           </Heading>
           {showStatusBadge && (
@@ -446,7 +448,7 @@ export function IndividualTrackerViewer({
                 : undefined;
 
               return (
-                <div key={key} className={styles.entry} ref={entryRef}>
+                <div key={key} className={classNames(styles.entry, styles.seriesEntry)} ref={entryRef}>
                   <div
                     role="button"
                     tabIndex={0}
