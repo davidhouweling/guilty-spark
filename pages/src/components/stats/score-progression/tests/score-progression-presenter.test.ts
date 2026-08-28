@@ -516,7 +516,7 @@ describe("ScoreProgressionPresenter", () => {
       const model = asTimelineGantt(
         presenter.present(
           store.getSnapshot(),
-          anOddballInput([aFakeOddballRoundDataWith({ winnerTeamId: null, winnerColor: null, winnerName: null })]),
+          anOddballInput([aFakeOddballRoundDataWith({ winnerColor: null, winnerName: null })]),
         ),
       );
       expect(model.timeline.rows[0]?.tooltipTitle).toBe("Round 1 — Timed out");

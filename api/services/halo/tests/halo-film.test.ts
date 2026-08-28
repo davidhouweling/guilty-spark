@@ -2019,24 +2019,24 @@ describe("HaloFilmService", () => {
     });
   });
 
+  function modeEvent(xuid: string, timeMs: number): ParsedHighlightEvent {
+    return {
+      xuid,
+      gamertag: "player",
+      typeHint: 0,
+      isMedal: false,
+      eventType: "mode",
+      timeMs,
+      medalValue: 0,
+      teamId: null,
+    };
+  }
+
+  function tickBurst(xuid: string, startMs: number, count: number): ParsedHighlightEvent[] {
+    return Array.from({ length: count }, (_, tickIndex) => modeEvent(xuid, startMs + tickIndex * 5000));
+  }
+
   describe("buildKothProgression", () => {
-    function modeEvent(xuid: string, timeMs: number): ParsedHighlightEvent {
-      return {
-        xuid,
-        gamertag: "player",
-        typeHint: 0,
-        isMedal: false,
-        eventType: "mode",
-        timeMs,
-        medalValue: 0,
-        teamId: null,
-      };
-    }
-
-    function tickBurst(xuid: string, startMs: number, count: number): ParsedHighlightEvent[] {
-      return Array.from({ length: count }, (_, tickIndex) => modeEvent(xuid, startMs + tickIndex * 5000));
-    }
-
     it("derives hill capture timestamps from score events matching each team's capture count", async () => {
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
@@ -2076,23 +2076,6 @@ describe("HaloFilmService", () => {
   });
 
   describe("buildOddballProgression", () => {
-    function carryEvent(xuid: string, timeMs: number): ParsedHighlightEvent {
-      return {
-        xuid,
-        gamertag: "player",
-        typeHint: 0,
-        isMedal: false,
-        eventType: "mode",
-        timeMs,
-        medalValue: 0,
-        teamId: null,
-      };
-    }
-
-    function carryBurst(xuid: string, startMs: number, count: number): ParsedHighlightEvent[] {
-      return Array.from({ length: count }, (_, tickIndex) => carryEvent(xuid, startMs + tickIndex * 5000));
-    }
-
     it("reconstructs a single timed-out round with scores reconciled to the API totals", async () => {
       const env = aFakeCacheBackedEnvWith();
       const xboxService = aFakeXboxServiceWith({ env });
@@ -2117,8 +2100,8 @@ describe("HaloFilmService", () => {
       const team1Xuid = "0400000000000000";
 
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
-        ...carryBurst(team0Xuid, 20000, 10),
-        ...carryBurst(team1Xuid, 100000, 5),
+        ...tickBurst(team0Xuid, 20000, 10),
+        ...tickBurst(team1Xuid, 100000, 5),
       ]);
 
       const durationMs = 400000;

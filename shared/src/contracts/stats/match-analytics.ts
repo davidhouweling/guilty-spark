@@ -42,7 +42,11 @@ export type KothEvent = z.infer<typeof kothEventSchema>;
 export type KothControlPeriod = z.infer<typeof kothControlPeriodSchema>;
 export type KothTimeline = z.infer<typeof kothTimelineSchema>;
 
-const oddballEventSchema = progressionEventSchema;
+const oddballCarrySegmentSchema = z.object({
+  startMs: z.number().int().nonnegative(),
+  endMs: z.number().int().nonnegative(),
+  teamId: z.number().int().nonnegative(),
+});
 
 const oddballRoundSchema = z.object({
   roundIndex: z.number().int().nonnegative(),
@@ -51,7 +55,7 @@ const oddballRoundSchema = z.object({
   endedByCap: z.boolean(),
   winnerTeamId: z.number().int().nonnegative().nullable(),
   scores: z.record(z.string().regex(/^\d+$/), z.number().int().nonnegative()),
-  events: z.array(oddballEventSchema),
+  carrySegments: z.array(oddballCarrySegmentSchema),
 });
 
 const oddballTimelineSchema = z.object({
@@ -59,7 +63,7 @@ const oddballTimelineSchema = z.object({
   rounds: z.array(oddballRoundSchema),
 });
 
-export type OddballEvent = z.infer<typeof oddballEventSchema>;
+export type OddballCarrySegment = z.infer<typeof oddballCarrySegmentSchema>;
 export type OddballRound = z.infer<typeof oddballRoundSchema>;
 export type OddballTimeline = z.infer<typeof oddballTimelineSchema>;
 

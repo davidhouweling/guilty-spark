@@ -389,6 +389,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
           winnerTeamId: 1,
           scores: { "0": 47, "1": 100 },
           points: [{ timestampMs: 100000, teamId: 1, runningScores: { "0": 0, "1": 25 } }],
+          carrySegments: [{ startMs: 95000, endMs: 100000, teamId: 1 }],
         },
       ],
       teamCount: 2,
@@ -408,7 +409,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       endedByCap: true,
       winnerTeamId: 1,
       scores: { "0": 47, "1": 100 },
-      events: [{ timestampMs: 100000, teamId: 1, runningScores: { "0": 0, "1": 25 } }],
+      carrySegments: [{ startMs: 95000, endMs: 100000, teamId: 1 }],
     });
   });
 

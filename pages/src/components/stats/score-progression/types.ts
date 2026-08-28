@@ -56,11 +56,8 @@ export interface OddballRoundTeamScore {
 
 export interface OddballRoundData {
   readonly roundIndex: number;
-  readonly startMs: number;
-  readonly endMs: number;
   readonly endedByCap: boolean;
   readonly segments: readonly TimelineGanttSegment[];
-  readonly winnerTeamId: number | null;
   readonly winnerColor: string | null;
   readonly winnerName: string | null;
   readonly teamScores: readonly OddballRoundTeamScore[];

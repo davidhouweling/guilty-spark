@@ -306,7 +306,7 @@ export class AnalyticsService {
             endedByCap: round.endedByCap,
             winnerTeamId: round.winnerTeamId,
             scores: round.scores,
-            events: round.points,
+            carrySegments: round.carrySegments,
           })),
         },
       };

@@ -14,24 +14,10 @@ describe("buildOddballRounds", () => {
     expect(rounds.map((r) => r.roundIndex)).toEqual([1, 2]);
   });
 
-  it("maps round bounds, ending, and winner onto the round data", () => {
+  it("maps ending and winner onto the round data", () => {
     const rounds = buildOddballRounds(aFakeOddballTimelineWith(), TEAM_IDS, TEAM_COLORS);
-    expect(rounds[0]).toMatchObject({
-      startMs: 0,
-      endMs: 330000,
-      endedByCap: false,
-      winnerTeamId: 0,
-      winnerColor: "#0000ff",
-      winnerName: "Eagle",
-    });
-    expect(rounds[1]).toMatchObject({
-      startMs: 342000,
-      endMs: 460000,
-      endedByCap: true,
-      winnerTeamId: 1,
-      winnerColor: "#ff0000",
-      winnerName: "Cobra",
-    });
+    expect(rounds[0]).toMatchObject({ endedByCap: false, winnerColor: "#0000ff", winnerName: "Eagle" });
+    expect(rounds[1]).toMatchObject({ endedByCap: true, winnerColor: "#ff0000", winnerName: "Cobra" });
   });
 
   it("maps team scores in team-id order with names and colors", () => {
@@ -42,40 +28,41 @@ describe("buildOddballRounds", () => {
     ]);
   });
 
-  it("groups consecutive same-team carry events within one crossing gap into a single segment", () => {
+  it("colors carry segments by team and fills gaps and round bounds with unoccupied segments", () => {
     const rounds = buildOddballRounds(aFakeOddballTimelineWith(), TEAM_IDS, TEAM_COLORS);
-    const team0Segments = rounds[0]?.segments.filter((s) => s.teamId === 0) ?? [];
-    // events at 10000..20000 chain (gaps 5000); the 20000→30000 gap exceeds one crossing,
-    // so the last event starts its own burst
-    expect(team0Segments).toEqual([
+    expect(rounds[0]?.segments).toEqual([
+      { startMs: 0, endMs: 5000, teamId: null, color: null },
       { startMs: 5000, endMs: 20000, teamId: 0, color: "#0000ff" },
+      { startMs: 20000, endMs: 25000, teamId: null, color: null },
       { startMs: 25000, endMs: 30000, teamId: 0, color: "#0000ff" },
+      { startMs: 30000, endMs: 40000, teamId: null, color: null },
+      { startMs: 40000, endMs: 50000, teamId: 1, color: "#ff0000" },
+      { startMs: 50000, endMs: 330000, teamId: null, color: null },
     ]);
   });
 
-  it("splits bursts when possession changes team", () => {
-    const rounds = buildOddballRounds(aFakeOddballTimelineWith(), TEAM_IDS, TEAM_COLORS);
-    const occupiedTeamIds = rounds[0]?.segments.filter((s) => s.teamId != null).map((s) => s.teamId) ?? [];
-    expect(occupiedTeamIds).toEqual([0, 0, 1]);
-  });
-
-  it("fills gaps between bursts and round bounds with unoccupied segments", () => {
+  it("segments tile each round without gaps or overlaps", () => {
     const rounds = buildOddballRounds(aFakeOddballTimelineWith(), TEAM_IDS, TEAM_COLORS);
     const segments = rounds[0]?.segments ?? [];
-    expect(segments[0]).toEqual({ startMs: 0, endMs: 5000, teamId: null, color: null });
-    expect(segments.at(-1)).toEqual({ startMs: 50000, endMs: 330000, teamId: null, color: null });
-    // segments tile the round without gaps or overlaps
-    for (let i = 1; i < segments.length; i++) {
-      expect(segments[i]?.startMs).toBe(segments[i - 1]?.endMs);
-    }
+    expect(segments.slice(1).map((s) => s.startMs)).toEqual(segments.slice(0, -1).map((s) => s.endMs));
   });
 
-  it("clamps the first burst's lead-in to the round start", () => {
-    const [, cappedRound] = aFakeOddballTimelineWith().rounds;
-    const rounds = buildOddballRounds(aFakeOddballTimelineWith({ rounds: [cappedRound] }), TEAM_IDS, TEAM_COLORS);
-    const [firstSegment] = rounds[0]?.segments ?? [];
-    expect(firstSegment.teamId).toBeNull();
-    expect(firstSegment.startMs).toBe(342000);
+  it("clips carry segments overrunning the round bounds", () => {
+    const rounds = buildOddballRounds(aFakeOddballTimelineWith(), TEAM_IDS, TEAM_COLORS);
+    expect(rounds[1]?.segments).toEqual([{ startMs: 342000, endMs: 460000, teamId: 1, color: "#ff0000" }]);
+  });
+
+  it("drops a carry segment entirely outside the round bounds", () => {
+    const timeline = aFakeOddballTimelineWith();
+    const [firstRound] = timeline.rounds;
+    const rounds = buildOddballRounds(
+      aFakeOddballTimelineWith({
+        rounds: [{ ...firstRound, carrySegments: [{ startMs: 340000, endMs: 345000, teamId: 0 }] }],
+      }),
+      TEAM_IDS,
+      TEAM_COLORS,
+    );
+    expect(rounds[0]?.segments).toEqual([{ startMs: 0, endMs: 330000, teamId: null, color: null }]);
   });
 
   it("builds an empty rounds list for a timeline with no rounds", () => {

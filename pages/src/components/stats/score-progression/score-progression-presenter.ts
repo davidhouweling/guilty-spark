@@ -4,9 +4,7 @@ import type { ScoreProgressionSnapshot, ScoreProgressionStore } from "./score-pr
 import type {
   ChartType,
   KothHillData,
-  KothViewData,
   OddballRoundData,
-  OddballViewData,
   PlayerAdvantageData,
   ScoreDeltaData,
   ScoreLinesViewData,
@@ -49,10 +47,18 @@ export class ScoreProgressionPresenter {
         return this.presentScoreLines(snapshot, viewData, ariaLabel);
       }
       case "koth": {
-        return this.presentKoth(viewData, ariaLabel);
+        return this.presentTimelineGantt(
+          ariaLabel,
+          viewData.durationMs,
+          viewData.hills.map((hill) => this.buildKothRow(hill)),
+        );
       }
       case "oddball": {
-        return this.presentOddball(viewData, ariaLabel);
+        return this.presentTimelineGantt(
+          ariaLabel,
+          viewData.durationMs,
+          viewData.rounds.map((round) => this.buildOddballRow(round)),
+        );
       }
       default: {
         throw new UnreachableError(viewData);
@@ -118,24 +124,17 @@ export class ScoreProgressionPresenter {
     };
   }
 
-  private presentKoth(viewData: KothViewData, ariaLabel: string): TimelineGanttChartViewModel {
+  private presentTimelineGantt(
+    ariaLabel: string,
+    durationMs: number,
+    rows: readonly TimelineGanttRowViewModel[],
+  ): TimelineGanttChartViewModel {
     return {
       kind: "timeline-gantt",
       ariaLabel,
       timeline: {
-        durationMs: viewData.durationMs,
-        rows: this.orderRowsForVerticalChart(viewData.hills.map((hill) => this.buildKothRow(hill))),
-      },
-    };
-  }
-
-  private presentOddball(viewData: OddballViewData, ariaLabel: string): TimelineGanttChartViewModel {
-    return {
-      kind: "timeline-gantt",
-      ariaLabel,
-      timeline: {
-        durationMs: viewData.durationMs,
-        rows: this.orderRowsForVerticalChart(viewData.rounds.map((round) => this.buildOddballRow(round))),
+        durationMs,
+        rows: this.orderRowsForVerticalChart(rows),
       },
     };
   }

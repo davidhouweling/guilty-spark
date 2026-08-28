@@ -40,6 +40,12 @@ export interface OddballScorePoint {
   runningScores: Record<string, number>;
 }
 
+export interface OddballCarrySegment {
+  startMs: number;
+  endMs: number;
+  teamId: number;
+}
+
 export interface OddballRound {
   roundIndex: number;
   startMs: number;
@@ -48,6 +54,7 @@ export interface OddballRound {
   winnerTeamId: number | null;
   scores: Record<string, number>;
   points: OddballScorePoint[];
+  carrySegments: OddballCarrySegment[];
 }
 
 export interface OddballProgression {
@@ -224,6 +231,30 @@ function reconcileToMatchTotals(
       allocated += Math.max(value, 0);
     }
   }
+}
+
+// Each carry event evidences the preceding stretch of possession: a crossing covers one full
+// clock interval, a touch roughly half. Same-team events within one crossing gap chain into a
+// single segment; the synthetic curve-closing point never reaches here (segments are built from
+// classified film events only).
+function buildCarrySegments(window: RoundWindow, estimated: readonly EstimatedEvent[]): OddballCarrySegment[] {
+  const inRound = estimated.filter((e) => window.startMs <= e.timestampMs && e.timestampMs <= window.endMs);
+  const segments: OddballCarrySegment[] = [];
+  for (const event of inRound) {
+    const current = segments.at(-1);
+    if (current != null) {
+      if (current.teamId === event.teamId && event.timestampMs - current.endMs <= CROSSING_GAP_MAX_MS) {
+        current.endMs = event.timestampMs;
+        continue;
+      }
+    }
+    const leadMs = event.isTouch ? TOUCH_TICKS * 1000 : CROSSING_TICKS * 1000;
+    const startMs = Math.max(event.timestampMs - leadMs, current?.endMs ?? window.startMs);
+    if (event.timestampMs > startMs) {
+      segments.push({ startMs, endMs: event.timestampMs, teamId: event.teamId });
+    }
+  }
+  return segments;
 }
 
 function buildRoundPoints(
@@ -525,6 +556,7 @@ export function buildOddballProgression(
       winnerTeamId: solved.winnerTeamId,
       scores: Object.fromEntries([...solved.scores.entries()].map(([teamId, score]) => [String(teamId), score])),
       points,
+      carrySegments: buildCarrySegments(window, estimated),
     };
   });
 
