@@ -19,7 +19,7 @@ const MIN_ROUND_DURATION_MS = 120_000;
 const MAX_BREAK_CANDIDATES = 12;
 // The film emits a carry event at every ~5s crossing of a team's carry clock (which persists
 // across drops within a round), plus an event on many pickups. A same-team gap inside this
-// window is a clock crossing worth ~5 ticks; anything else is a touch worth ~1 tick.
+// window is a clock crossing worth ~5 ticks; anything else is a touch worth TOUCH_TICKS.
 const CROSSING_TICKS = 5;
 const CROSSING_GAP_MIN_MS = 4000;
 const CROSSING_GAP_MAX_MS = 7500;
@@ -409,9 +409,9 @@ function solveRoundScores(
     return { sums };
   });
 
-  // classify cap vs timed-out: a timed-out round's wall duration implies its held seconds; a
-  // capped round ends early, making that implied value inconsistent (usually far below the
-  // estimator's held time, or negative).
+  // classify cap vs timed-out: a capped round ends while its winner is riding the meter, so
+  // their final carry event is a clock crossing at the round's last activity (see
+  // CAP_END_PROXIMITY_MS); rounds later solving at or above the cap are also reclassified.
   const solved: SolvedRound[] = windows.map((_window, roundIndex) => {
     const { sums } = Preconditions.checkExists(raw[roundIndex]);
     const window = Preconditions.checkExists(windows[roundIndex]);

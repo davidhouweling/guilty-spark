@@ -1,7 +1,7 @@
 /**
  * Exploratory analysis of Oddball film data for a given match.
  *
- * Run: DOTENV_CONFIG_PATH=api/.dev.vars npx tsx api/scripts/oddball-analysis.ts <matchId> [--events]
+ * Run: DOTENV_CONFIG_PATH=api/.dev.vars npx tsx api/scripts/oddball-analysis.ts <matchId> [--events] [--byte2] [--raw]
  */
 import "dotenv/config";
 import path from "node:path";
