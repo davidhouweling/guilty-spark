@@ -385,7 +385,8 @@ function formatMetricValue(
     }
     case LeaderboardMetric.AvgMedalPointsPerSeries:
     case LeaderboardMetric.AvgMedalPointsPerGame: {
-      return `${metricValue.toLocaleString(locale, { maximumFractionDigits: 2 })} points`;
+      const label = pluralRules.select(Math.abs(metricValue)) === "one" ? "point" : "points";
+      return `${metricValue.toLocaleString(locale, { maximumFractionDigits: 2 })} ${label}`;
     }
     case LeaderboardMetric.MythicMedals: {
       const mythicLabel = pluralRules.select(Math.abs(Math.round(metricValue))) === "one" ? "medal" : "medals";
@@ -393,7 +394,8 @@ function formatMetricValue(
     }
     case LeaderboardMetric.AvgMythicMedalsPerSeries:
     case LeaderboardMetric.AvgMythicMedalsPerGame: {
-      return `${metricValue.toLocaleString(locale, { maximumFractionDigits: 2 })} mythic medals`;
+      const label = pluralRules.select(Math.abs(metricValue)) === "one" ? "mythic medal" : "mythic medals";
+      return `${metricValue.toLocaleString(locale, { maximumFractionDigits: 2 })} ${label}`;
     }
     case LeaderboardMetric.ObjectiveTime: {
       const total = getReadableDuration(getDurationInIsoString(row.objectiveTimeSeconds), locale);

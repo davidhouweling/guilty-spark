@@ -323,8 +323,21 @@ export class LeaderboardService {
           error.httpStatus === 404 &&
           (error.restError.code === 10003 || error.restError.code === 10008)
         ) {
-          await this.databaseService.deleteLeaderboardPost(post.ChannelId, post.MessageId);
-          summary.missing += 1;
+          try {
+            await this.databaseService.deleteLeaderboardPost(post.ChannelId, post.MessageId);
+            summary.missing += 1;
+          } catch (deleteError) {
+            summary.failed += 1;
+            this.logService.warn(
+              deleteError,
+              new Map([
+                ["guildId", post.GuildId],
+                ["channelId", post.ChannelId],
+                ["messageId", post.MessageId],
+                ["reason", "Failed to delete missing leaderboard post registration"],
+              ]),
+            );
+          }
           continue;
         }
 

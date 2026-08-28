@@ -452,6 +452,39 @@ describe("createLeaderboardResponse", () => {
     expect(response.embeds?.[0]?.fields?.[2]?.value).toContain("1 capture");
   });
 
+  it("uses singular labels for average values of one", () => {
+    const leaderboard: LeaderboardResponse = {
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.AvgMedalPointsPerGame,
+      minGamesPlayed: 0,
+      page: 1,
+      pageSize: 10,
+      total: 1,
+      rows: [
+        {
+          rank: 1,
+          xboxXuid: "xuid-1",
+          discordUserId: "discord-1",
+          gamertag: "Alpha",
+          seriesPlayed: 1,
+          seriesWins: 1,
+          gamesPlayed: 1,
+          gameWins: 1,
+          medalCount: 1,
+          objectiveGamesPlayed: 0,
+          objectiveTimeSeconds: 0,
+          metricValue: 1,
+        },
+      ],
+    };
+
+    const response = createLeaderboardResponse("en-US", leaderboard, "<t:1733483139:R>");
+
+    expect(response.embeds?.[0]?.fields?.[2]?.value).toContain("1 point");
+  });
+
   it("prepends the reset window when a reset marker exists", () => {
     const leaderboard: LeaderboardResponse = {
       guildId: "guild-123",

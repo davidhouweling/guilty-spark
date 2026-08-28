@@ -1131,4 +1131,31 @@ describe("LeaderboardService", () => {
     expect(result).toEqual({ total: 3, refreshed: 1, missing: 1, failed: 1 });
     expect(deleteSpy).toHaveBeenCalledWith(missingPost.ChannelId, missingPost.MessageId);
   });
+
+  it("continues refreshing when deleting a missing post fails", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const discordService = aFakeDiscordServiceWith();
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, discordService, haloService, logService });
+    const missingPost = aFakeLeaderboardPostRow();
+    const refreshedPost = aFakeLeaderboardPostRow({ ChannelId: "channel-2", MessageId: "message-2" });
+    vi.spyOn(databaseService, "getAllLeaderboardPosts").mockResolvedValue([missingPost, refreshedPost]);
+    vi.spyOn(discordService, "getGuildPreferredLocale").mockResolvedValue(Locale.EnglishUS);
+    vi.spyOn(databaseService, "getLeaderboardConfig").mockResolvedValue(aFakeLeaderboardConfigRow());
+    vi.spyOn(databaseService, "getLeaderboardStatMetricRankings").mockResolvedValue({
+      total: 1,
+      rows: killsRankingRows.slice(0, 1),
+    });
+    vi.spyOn(discordService, "editMessage")
+      .mockRejectedValueOnce(new DiscordError(404, { code: 10008, message: "Unknown Message" }))
+      .mockResolvedValueOnce(apiMessage);
+    vi.spyOn(databaseService, "deleteLeaderboardPost").mockRejectedValue(new Error("D1 temporarily unavailable"));
+    const warnSpy = vi.spyOn(logService, "warn");
+
+    const result = await service.refreshAllPostsToDefaults();
+
+    expect(result).toEqual({ total: 2, refreshed: 1, missing: 0, failed: 1 });
+    expect(warnSpy).toHaveBeenCalledWith(expect.any(Error), expect.any(Map));
+  });
 });
