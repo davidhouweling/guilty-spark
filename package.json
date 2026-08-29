@@ -59,11 +59,11 @@
     "@eslint/js": "^10.0.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.1",
+    "@testing-library/user-event": "^14.6.6",
     "@tsconfig/node24": "^24.0.4",
     "@types/node": "^24.10.1",
-    "@typescript-eslint/parser": "^8.63.0",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@typescript-eslint/parser": "^8.68.0",
+    "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^10.8.1",
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-astro": "^3.1.0",
@@ -74,7 +74,7 @@
     "prettier-plugin-astro": "^0.14.1",
     "tsx": "^4.23.0",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.63.0",
+    "typescript-eslint": "^8.68.0",
     "vitest": "^4.0.6",
     "vitest-mock-extended": "^4.0.0"
   }
