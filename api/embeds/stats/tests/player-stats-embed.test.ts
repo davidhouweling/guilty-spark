@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { ComponentType } from "discord-api-types/v10";
-import { LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
-import { PLAYER_STATS_QUEUE_SELECT_CONTROL_ID, createPlayerStatsRelationshipEmbeds } from "../player-stats-embed";
-import { aFakeLeaderboardPlayerRelationshipRow } from "../../../services/database/fakes/database.fake";
+import { LeaderboardMetricAggregation, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import {
+  PLAYER_STATS_QUEUE_SELECT_CONTROL_ID,
+  createPlayerStatsEmbeds,
+  createPlayerStatsRelationshipEmbeds,
+} from "../player-stats-embed";
+import {
+  aFakeLeaderboardPlayerRelationshipRow,
+  aFakeLeaderboardPlayerStatsRow,
+} from "../../../services/database/fakes/database.fake";
 import { LeaderboardPlayerRelationshipMetric } from "../../../services/database/types/leaderboard_player_relationship";
 
 describe("createPlayerStatsRelationshipEmbeds()", () => {
@@ -71,5 +78,31 @@ describe("createPlayerStatsRelationshipEmbeds()", () => {
         component.components[0].custom_id === PLAYER_STATS_QUEUE_SELECT_CONTROL_ID,
     );
     expect(queueSelectRow).toBeDefined();
+  });
+});
+
+describe("createPlayerStatsEmbeds()", () => {
+  it("renders all avg-per-game metrics, including objective game contribution, without throwing", () => {
+    const stats = aFakeLeaderboardPlayerStatsRow({ ObjectiveGameContribution: 0.42 });
+
+    const response = createPlayerStatsEmbeds({
+      stats,
+      ranks: new Map(),
+      state: {
+        aggregation: LeaderboardMetricAggregation.AvgPerGame,
+        relationshipMetric: null,
+        xboxXuid: "2533274000000001",
+        queueChannelId: null,
+        window: LeaderboardWindow.ThreeMonths,
+      },
+      locale: "en-US",
+      queueLabel: "all configured queues",
+      queueOptions: [],
+      resetAt: null,
+      minGamesPlayed: 1,
+    });
+
+    const rowValues = response.embeds.flatMap((embed) => embed.fields ?? []).flatMap((field) => field.value);
+    expect(rowValues.join("\n")).toContain("42% avg/game");
   });
 });

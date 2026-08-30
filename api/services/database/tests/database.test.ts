@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import {
+  LeaderboardMetric,
+  LeaderboardMetricAggregation,
+  LeaderboardWindow,
+} from "@guilty-spark/shared/halo/leaderboard";
 import { LeaderboardPlayerRelationshipMetric } from "../types/leaderboard_player_relationship";
+import { getPlayerStatsMetricsForAggregation } from "../../../embeds/stats/player-stats-embed";
+import type { LeaderboardPlayerMetricRank } from "../types/leaderboard_player_metric_rank";
 import { aFakeEnvWith, fakeD1Response, FakePreparedStatement } from "../../../base/fakes/env.fake";
 import { SESSION_COOKIE_MAX_AGE_SECONDS } from "../../auth/session-manager";
 import { DatabaseService } from "../database";
@@ -1498,6 +1504,34 @@ describe("Database Service", () => {
           "queue-1",
           "queue-2",
         ]);
+      });
+    });
+
+    describe("getLeaderboardPlayerMetricRank()", () => {
+      it.each(
+        Array.from(
+          new Set(
+            Object.values(LeaderboardMetricAggregation).flatMap((aggregation) =>
+              getPlayerStatsMetricsForAggregation(aggregation),
+            ),
+          ),
+        ),
+      )("builds a rank query for every player-stats metric without throwing (%s)", async (metric) => {
+        const fakePreparedStatement = new FakePreparedStatement<LeaderboardPlayerMetricRank | null>();
+        vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+        vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+        vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+
+        const result = await databaseService.getLeaderboardPlayerMetricRank({
+          guildId: "guild-1",
+          queueChannelId: null,
+          startEpochSeconds: 0,
+          minGamesPlayed: 1,
+          metric,
+          xboxXuid: "2533274000000001",
+        });
+
+        expect(result).toBeNull();
       });
     });
 

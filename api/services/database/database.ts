@@ -158,6 +158,7 @@ const PLAYER_STAT_RANK_SQL_BY_METRIC = new Map<LeaderboardMetric, string>([
   [LeaderboardMetric.ObjectiveTime, "SUM(gp.ObjectiveTimeSeconds)"],
   [LeaderboardMetric.AvgObjectiveTimePerGame, "AVG(gp.ObjectiveTimeSeconds)"],
   [LeaderboardMetric.ObjectiveTeamContribution, "AVG(gp.ObjectiveTeamContribution)"],
+  [LeaderboardMetric.ObjectiveGameContribution, "AVG(gp.ObjectiveGameContribution)"],
 ]);
 
 const PLAYER_OUTCOME_RANK_SQL_BY_METRIC = new Map<LeaderboardMetric, string>([
@@ -2146,6 +2147,11 @@ export class DatabaseService {
 
       if (metric === LeaderboardMetric.ObjectiveTeamContribution) {
         metricGamesPlayedSql = "COUNT(gp.ObjectiveTeamContribution)";
+        metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
+      }
+
+      if (metric === LeaderboardMetric.ObjectiveGameContribution) {
+        metricGamesPlayedSql = "COUNT(gp.ObjectiveGameContribution)";
         metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
       }
     }

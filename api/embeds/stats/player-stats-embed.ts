@@ -145,6 +145,7 @@ const PLAYER_METRIC_VALUE_GETTERS = new Map<LeaderboardMetric, (stats: Leaderboa
   [LeaderboardMetric.ObjectiveTime, (stats): number => stats.ObjectiveTimeSeconds],
   [LeaderboardMetric.AvgObjectiveTimePerGame, (stats): number => stats.AvgObjectiveTimeSeconds],
   [LeaderboardMetric.ObjectiveTeamContribution, (stats): number => stats.ObjectiveTeamContribution],
+  [LeaderboardMetric.ObjectiveGameContribution, (stats): number => stats.ObjectiveGameContribution],
   [LeaderboardMetric.FlagCaptures, (stats): number => stats.FlagCaptures],
   [LeaderboardMetric.AvgFlagCapturesPerObjective, (stats): number => average(stats.FlagCaptures, stats.CtfGamesPlayed)],
   [LeaderboardMetric.FlagCaptureAssists, (stats): number => stats.FlagCaptureAssists],

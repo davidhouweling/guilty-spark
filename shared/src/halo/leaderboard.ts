@@ -178,6 +178,7 @@ export const LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER: readonly LeaderboardM
   LeaderboardMetricFamily.AvgLifeSeconds,
   LeaderboardMetricFamily.AvgDamagePerLife,
   LeaderboardMetricFamily.ObjectiveTeamContribution,
+  LeaderboardMetricFamily.ObjectiveGameContribution,
   LeaderboardMetricFamily.MedalPoints,
   LeaderboardMetricFamily.MythicMedals,
   LeaderboardMetricFamily.FlagCaptures,
