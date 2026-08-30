@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { ComponentType } from "discord-api-types/v10";
 import { LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
-import { createPlayerStatsRelationshipEmbeds } from "../player-stats-embed";
+import { PLAYER_STATS_QUEUE_SELECT_CONTROL_ID, createPlayerStatsRelationshipEmbeds } from "../player-stats-embed";
 import { aFakeLeaderboardPlayerRelationshipRow } from "../../../services/database/fakes/database.fake";
 import { LeaderboardPlayerRelationshipMetric } from "../../../services/database/types/leaderboard_player_relationship";
 
@@ -62,5 +63,13 @@ describe("createPlayerStatsRelationshipEmbeds()", () => {
     expect(embed?.description).toBe("No relationship data found for 1M in the selected queue scope.");
     expect(embed?.fields).toEqual([]);
     expect(embed?.footer).toEqual({ text: "Min shared games: 5" });
+
+    const queueSelectRow = response.components.find(
+      (component) =>
+        component.type === ComponentType.ActionRow &&
+        component.components[0]?.type === ComponentType.StringSelect &&
+        component.components[0].custom_id === PLAYER_STATS_QUEUE_SELECT_CONTROL_ID,
+    );
+    expect(queueSelectRow).toBeDefined();
   });
 });

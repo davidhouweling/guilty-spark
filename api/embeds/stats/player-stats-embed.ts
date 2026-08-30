@@ -286,6 +286,14 @@ function createWindowSelectOptions(selectedWindow: LeaderboardWindow, resetAt: n
   }));
 }
 
+function shouldShowQueueSelect(state: PlayerStatsViewState, queueOptions: readonly PlayerStatsQueueOption[]): boolean {
+  // Showing the select only when there's a real choice would hide it for single-queue players,
+  // dropping their explicit queue selection on later interactions (the select's absence is read as
+  // queueChannelId: null in getPlayerStatsStateFromMessage). Keep it visible whenever a specific
+  // queue is selected so that state round-trips correctly.
+  return queueOptions.length > 1 || state.queueChannelId != null;
+}
+
 function createViewControls(
   state: PlayerStatsViewState,
   queueOptions: readonly PlayerStatsQueueOption[],
@@ -293,7 +301,7 @@ function createViewControls(
 ): APIMessageTopLevelComponent[] {
   const controls: APIMessageTopLevelComponent[] = [];
 
-  if (queueOptions.length > 2) {
+  if (shouldShowQueueSelect(state, queueOptions)) {
     controls.push({
       type: ComponentType.ActionRow,
       components: [
@@ -789,7 +797,8 @@ export function getPlayerStatsStateFromMessage(message: APIMessage): PlayerStats
 
   const state = {
     xboxXuid,
-    // Absent when the queue selector is hidden (player has played in at most one configured queue).
+    // Absent when the queue selector is hidden (player has played at most one configured queue and
+    // the view was scoped to "all queues").
     queueChannelId: queueValue == null || queueValue === ALL_QUEUES_VALUE ? null : queueValue,
     window,
   };
