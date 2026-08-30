@@ -1910,8 +1910,8 @@ export class DatabaseService {
           COUNT(gp.ObjectiveTimeSeconds) AS ObjectiveGamesPlayed,
           SUM(COALESCE(gp.ObjectiveTimeSeconds, 0)) AS ObjectiveTimeSeconds,
           COALESCE(AVG(gp.ObjectiveTimeSeconds), 0) AS AvgObjectiveTimeSeconds,
-          AVG(gp.ObjectiveTeamContribution) AS ObjectiveTeamContribution,
-          AVG(gp.ObjectiveGameContribution) AS ObjectiveGameContribution,
+          COALESCE(AVG(gp.ObjectiveTeamContribution), 0) AS ObjectiveTeamContribution,
+          COALESCE(AVG(gp.ObjectiveGameContribution), 0) AS ObjectiveGameContribution,
           SUM(CASE WHEN g.GameVariantCategory = ${ctf.toString()} THEN 1 ELSE 0 END) AS CtfGamesPlayed,
           SUM(CASE WHEN g.GameVariantCategory = ${strongholds.toString()} THEN 1 ELSE 0 END) AS StrongholdGamesPlayed,
           SUM(CASE WHEN g.GameVariantCategory = ${koth.toString()} THEN 1 ELSE 0 END) AS HillGamesPlayed,
@@ -2027,7 +2027,7 @@ export class DatabaseService {
 
     const query = `
       WITH ranked AS (
-        SELECT agg.*, RANK() OVER (ORDER BY agg.MetricValue ${sortDirection}, agg.GamesPlayed DESC) AS Rank, COUNT(*) OVER () AS Total
+        SELECT agg.*, ROW_NUMBER() OVER (ORDER BY agg.MetricValue ${sortDirection}, agg.GamesPlayed DESC, agg.Gamertag ASC) AS Rank, COUNT(*) OVER () AS Total
         FROM (${aggregateSql}) agg
       )
       SELECT Rank, Total FROM ranked WHERE XboxXuid = ?
@@ -2152,12 +2152,28 @@ export class DatabaseService {
 
     const queueFilterSql = getQueueFilterSql("gp", queueChannelIds);
     const queueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
+    const identityQueueFilterSql = getQueueFilterSql("identityGp", queueChannelIds);
+    const identityGamertagSql = `
+      SELECT identityGp.GamertagSnapshot
+      FROM LeaderboardGamePlayers identityGp
+      INNER JOIN LeaderboardGames identityGame
+        ON identityGame.GuildId = identityGp.GuildId
+        AND identityGame.QueueNumber = identityGp.QueueNumber
+        AND identityGame.MatchId = identityGp.MatchId
+      WHERE identityGp.GuildId = gp.GuildId
+        AND identityGp.XboxXuid = gp.XboxXuid
+        AND identityGame.EndedAt >= ?
+        AND ${identityQueueFilterSql}
+      ORDER BY identityGame.EndedAt DESC, identityGp.CreatedAt DESC
+      LIMIT 1
+    `;
 
     const aggregateSql = `
       SELECT
         gp.XboxXuid AS XboxXuid,
         COUNT(*) AS GamesPlayed,
-        ${metricSql} AS MetricValue
+        ${metricSql} AS MetricValue,
+        (${identityGamertagSql}) AS Gamertag
       FROM LeaderboardGamePlayers gp
       INNER JOIN LeaderboardGames g
         ON g.GuildId = gp.GuildId
@@ -2172,7 +2188,14 @@ export class DatabaseService {
 
     return {
       aggregateSql,
-      bindings: [guildId, startEpochSeconds, ...queueFilterBindings, metricMinGamesPlayed],
+      bindings: [
+        startEpochSeconds,
+        ...queueFilterBindings,
+        guildId,
+        startEpochSeconds,
+        ...queueFilterBindings,
+        metricMinGamesPlayed,
+      ],
       sortDirection: isAscendingMetric(metric) ? "ASC" : "DESC",
     };
   }
@@ -2201,12 +2224,28 @@ export class DatabaseService {
     const gamesQueueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
     const seriesQueueFilterSql = getQueueFilterSql("s", queueChannelIds);
     const seriesQueueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
+    const identityQueueFilterSql = getQueueFilterSql("identityGp", queueChannelIds);
+    const identityGamertagSql = `
+      SELECT identityGp.GamertagSnapshot
+      FROM LeaderboardGamePlayers identityGp
+      INNER JOIN LeaderboardGames identityGame
+        ON identityGame.GuildId = identityGp.GuildId
+        AND identityGame.QueueNumber = identityGp.QueueNumber
+        AND identityGame.MatchId = identityGp.MatchId
+      WHERE identityGp.GuildId = sp.GuildId
+        AND identityGp.XboxXuid = sp.XboxXuid
+        AND identityGame.EndedAt >= ?
+        AND ${identityQueueFilterSql}
+      ORDER BY identityGame.EndedAt DESC, identityGp.CreatedAt DESC
+      LIMIT 1
+    `;
 
     const aggregateSql = `
       SELECT
         sp.XboxXuid AS XboxXuid,
         SUM(sp.GamesPlayedCount) AS GamesPlayed,
-        ${metricSql} AS MetricValue
+        ${metricSql} AS MetricValue,
+        (${identityGamertagSql}) AS Gamertag
       FROM LeaderboardSeriesPlayers sp
       INNER JOIN LeaderboardSeries s
         ON s.GuildId = sp.GuildId AND s.QueueNumber = sp.QueueNumber
@@ -2231,6 +2270,8 @@ export class DatabaseService {
     return {
       aggregateSql,
       bindings: [
+        startEpochSeconds,
+        ...getQueueFilterBindings(queueChannelId, queueChannelIds),
         guildId,
         startEpochSeconds,
         ...gamesQueueFilterBindings,
