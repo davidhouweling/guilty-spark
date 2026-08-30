@@ -30,6 +30,7 @@ import {
   LeaderboardMetricAggregation,
   LeaderboardWindow,
 } from "@guilty-spark/shared/halo/leaderboard";
+import type { LeaderboardPlayerRelationshipMetric } from "../../services/database/types/leaderboard_player_relationship";
 import type { BaseInteraction, ExecuteResponse, ApplicationCommandData, CommandData } from "../base/base-command";
 import { BaseCommand } from "../base/base-command";
 import { NEAT_QUEUE_BOT_USER_ID } from "../../services/discord/discord";
@@ -56,8 +57,10 @@ import {
   PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
   createPlayerStatsEmbeds,
   createPlayerStatsNoQualifyingGamesResponse,
+  createPlayerStatsRelationshipEmbeds,
   getPlayerStatsMetricsForAggregation,
   getPlayerStatsStateFromMessage,
+  parsePlayerStatsRelationshipMetric,
 } from "../../embeds/stats/player-stats-embed";
 import type { PlayerStatsQueueOption, PlayerStatsViewState } from "../../embeds/stats/player-stats-embed";
 
@@ -451,6 +454,7 @@ export class StatsCommand extends BaseCommand {
         queueChannelId,
         configuredQueues,
         aggregation: null,
+        relationshipMetric: null,
         window,
         locale: interaction.guild_locale ?? interaction.locale,
       });
@@ -507,12 +511,21 @@ export class StatsCommand extends BaseCommand {
       jobToComplete: async (): Promise<void> => {
         await this.executePlayerStatsStateInteraction(interaction, (state) => {
           const [selectedValue] = interaction.data.values;
-          const aggregation = selectedValue == null ? null : parsePlayerStatsAggregation(selectedValue);
+          if (selectedValue == null) {
+            throw new EndUserError("A stats type must be selected.");
+          }
+
+          const relationshipMetric = parsePlayerStatsRelationshipMetric(selectedValue);
+          if (relationshipMetric != null) {
+            return { ...state, aggregation: null, relationshipMetric };
+          }
+
+          const aggregation = parsePlayerStatsAggregation(selectedValue);
           if (aggregation == null) {
             throw new EndUserError("The selected stats type is invalid.");
           }
 
-          return { ...state, aggregation };
+          return { ...state, aggregation, relationshipMetric: null };
         });
       },
     };
@@ -553,6 +566,7 @@ export class StatsCommand extends BaseCommand {
         queueChannelId: state.queueChannelId,
         configuredQueues,
         aggregation: state.aggregation,
+        relationshipMetric: state.relationshipMetric,
         window: state.window,
         locale: interaction.guild_locale ?? interaction.locale,
       });
@@ -580,6 +594,7 @@ export class StatsCommand extends BaseCommand {
     queueChannelId,
     configuredQueues,
     aggregation,
+    relationshipMetric,
     window,
     locale,
   }: {
@@ -588,10 +603,47 @@ export class StatsCommand extends BaseCommand {
     queueChannelId: string | null;
     configuredQueues: NeatQueueConfigRow[];
     aggregation: LeaderboardMetricAggregation | null;
+    relationshipMetric: LeaderboardPlayerRelationshipMetric | null;
     window: LeaderboardWindow | undefined;
     locale: string;
   }): Promise<ReturnType<typeof createPlayerStatsEmbeds> | null> {
     const configuredQueueChannelIds = configuredQueues.map((queue) => queue.ChannelId);
+    if (relationshipMetric != null) {
+      const relationshipResult = await this.services.leaderboardService.getLeaderboardPlayerRelationships({
+        guildId,
+        xboxXuid,
+        queueChannelId,
+        ...(queueChannelId == null ? { queueChannelIds: configuredQueueChannelIds } : {}),
+        ...(window == null ? {} : { window }),
+        metric: relationshipMetric,
+      });
+      if (relationshipResult == null) {
+        return null;
+      }
+
+      const queueOptions = await this.getPlayerStatsQueueOptions({
+        guildId,
+        xboxXuid,
+        configuredQueues,
+        window: relationshipResult.window,
+      });
+      return createPlayerStatsRelationshipEmbeds({
+        targetGamertag: relationshipResult.stats.Gamertag,
+        rows: relationshipResult.rows,
+        state: {
+          aggregation: null,
+          relationshipMetric,
+          xboxXuid: relationshipResult.stats.XboxXuid,
+          queueChannelId,
+          window: relationshipResult.window,
+        },
+        locale,
+        queueLabel: this.getPlayerStatsQueueLabel(queueChannelId, queueOptions),
+        queueOptions,
+        resetAt: relationshipResult.resetAt,
+      });
+    }
+
     const result = await this.services.leaderboardService.getLeaderboardPlayerStats({
       guildId,
       xboxXuid,
@@ -629,6 +681,7 @@ export class StatsCommand extends BaseCommand {
       ranks,
       state: {
         aggregation: selectedAggregation,
+        relationshipMetric: null,
         xboxXuid: result.stats.XboxXuid,
         queueChannelId,
         window: result.window,

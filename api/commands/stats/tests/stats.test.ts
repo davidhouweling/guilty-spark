@@ -25,6 +25,7 @@ import {
 } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { LeaderboardMetricAggregation, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import { LeaderboardPlayerRelationshipMetric } from "../../../services/database/types/leaderboard_player_relationship";
 import { StatsCommand } from "../stats";
 import type { Services } from "../../../services/install";
 import { installFakeServicesWith } from "../../../services/fakes/services";
@@ -43,6 +44,7 @@ import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import {
   aFakeDiscordAssociationsRow,
   aFakeGuildConfigRow,
+  aFakeLeaderboardPlayerStatsRow,
   aFakeNeatQueueConfigRow,
 } from "../../../services/database/fakes/database.fake";
 import { EndUserError } from "../../../base/end-user-error";
@@ -2676,6 +2678,73 @@ describe("StatsCommand", () => {
   });
 
   describe("execute(): message component player stats select", () => {
+    it("renders the selected relationship view with pair eligibility context", async () => {
+      const playerStats = aFakeLeaderboardPlayerStatsRow();
+      vi.spyOn(services.leaderboardService, "getLeaderboardPlayerRelationships").mockResolvedValue({
+        stats: playerStats,
+        rows: [
+          {
+            XboxXuid: "2533274000000002",
+            DiscordUserId: "discord-user-2",
+            Gamertag: "teammate01",
+            MetricValue: 0.75,
+            SharedCount: 4,
+            Wins: 3,
+            Perfects: 0,
+          },
+        ],
+        window: LeaderboardWindow.ThreeMonths,
+        resetAt: null,
+        metric: LeaderboardPlayerRelationshipMetric.SeriesWinRateWith,
+      });
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
+          values: [LeaderboardPlayerRelationshipMetric.SeriesWinRateWith],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          components: [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
+                  options: [{ label: "Total", value: LeaderboardMetricAggregation.Total, default: true }],
+                },
+              ],
+            },
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+                  options: [{ label: "3 months", value: LeaderboardWindow.ThreeMonths, default: true }],
+                },
+              ],
+            },
+          ],
+          embeds: [{ url: "https://guilty-spark.app/stats/player/2533274000000001" }],
+        },
+      };
+
+      const { jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+      const response = updateDeferredReplySpy.mock.calls[0]?.[1];
+      const [embed] = response?.embeds ?? [];
+      expect(embed?.title).toBe("gamertag01 - Highest series win rate with");
+      expect(embed?.footer).toEqual({ text: "Min shared series: 3" });
+      expect(embed?.fields).toContainEqual({ name: "Player", value: "teammate01", inline: true });
+      expect(embed?.fields).toContainEqual({ name: "Rank", value: "🥇", inline: true });
+      expect(embed?.fields).toContainEqual({ name: "Value", value: "75% (3/4 shared series)", inline: true });
+    });
+
     it("shows an empty state when no games were played in the selected window", async () => {
       const interaction: APIMessageComponentSelectMenuInteraction = {
         ...fakeButtonClickInteraction,

@@ -31,6 +31,8 @@ import type { LeaderboardConfigRow } from "./types/leaderboard_config";
 import type { LeaderboardPostRow } from "./types/leaderboard_post";
 import type { LeaderboardResetMarkerRow } from "./types/leaderboard_reset_marker";
 import type { MatchKillMatrixRow } from "./types/match_kill_matrix";
+import { LeaderboardPlayerRelationshipMetric } from "./types/leaderboard_player_relationship";
+import type { LeaderboardPlayerRelationshipRow } from "./types/leaderboard_player_relationship";
 
 const DEFAULT_LEADERBOARD_ENABLED_WINDOWS_JSON = '["1W","1M","3M","6M","12M"]';
 const SQLITE_MAX_VARIABLES = 999;
@@ -183,6 +185,255 @@ function isAscendingMetric(metric: LeaderboardMetric): boolean {
     metric === LeaderboardMetric.AvgDeathsPerSeries ||
     metric === LeaderboardMetric.AvgDeathsPerGame
   );
+}
+
+type PairRelationship = "with" | "against";
+type PairScope = "game" | "series";
+type PairValue = "count" | "win-rate";
+
+interface PairRelationshipMetricConfig {
+  relationship: PairRelationship;
+  scope: PairScope;
+  value: PairValue;
+}
+
+interface HeadToHeadMetricConfig {
+  direction: "kills" | "deaths";
+  value: "average" | "total";
+}
+
+function getPairRelationshipMetricConfig(
+  metric: LeaderboardPlayerRelationshipMetric,
+): PairRelationshipMetricConfig | null {
+  switch (metric) {
+    case LeaderboardPlayerRelationshipMetric.SeriesPlayedWith: {
+      return { relationship: "with", scope: "series", value: "count" };
+    }
+    case LeaderboardPlayerRelationshipMetric.SeriesPlayedAgainst: {
+      return { relationship: "against", scope: "series", value: "count" };
+    }
+    case LeaderboardPlayerRelationshipMetric.SeriesWinRateWith: {
+      return { relationship: "with", scope: "series", value: "win-rate" };
+    }
+    case LeaderboardPlayerRelationshipMetric.SeriesWinRateAgainst: {
+      return { relationship: "against", scope: "series", value: "win-rate" };
+    }
+    case LeaderboardPlayerRelationshipMetric.GamesPlayedWith: {
+      return { relationship: "with", scope: "game", value: "count" };
+    }
+    case LeaderboardPlayerRelationshipMetric.GamesPlayedAgainst: {
+      return { relationship: "against", scope: "game", value: "count" };
+    }
+    case LeaderboardPlayerRelationshipMetric.GamesWinRateWith: {
+      return { relationship: "with", scope: "game", value: "win-rate" };
+    }
+    case LeaderboardPlayerRelationshipMetric.GamesWinRateAgainst: {
+      return { relationship: "against", scope: "game", value: "win-rate" };
+    }
+    case LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills:
+    case LeaderboardPlayerRelationshipMetric.AvgHeadToHeadDeaths:
+    case LeaderboardPlayerRelationshipMetric.TotalHeadToHeadKills:
+    case LeaderboardPlayerRelationshipMetric.TotalHeadToHeadDeaths: {
+      return null;
+    }
+    default: {
+      throw new UnreachableError(metric);
+    }
+  }
+}
+
+function getHeadToHeadMetricConfig(metric: LeaderboardPlayerRelationshipMetric): HeadToHeadMetricConfig | null {
+  switch (metric) {
+    case LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills: {
+      return { direction: "kills", value: "average" };
+    }
+    case LeaderboardPlayerRelationshipMetric.AvgHeadToHeadDeaths: {
+      return { direction: "deaths", value: "average" };
+    }
+    case LeaderboardPlayerRelationshipMetric.TotalHeadToHeadKills: {
+      return { direction: "kills", value: "total" };
+    }
+    case LeaderboardPlayerRelationshipMetric.TotalHeadToHeadDeaths: {
+      return { direction: "deaths", value: "total" };
+    }
+    case LeaderboardPlayerRelationshipMetric.SeriesPlayedWith:
+    case LeaderboardPlayerRelationshipMetric.SeriesPlayedAgainst:
+    case LeaderboardPlayerRelationshipMetric.SeriesWinRateWith:
+    case LeaderboardPlayerRelationshipMetric.SeriesWinRateAgainst:
+    case LeaderboardPlayerRelationshipMetric.GamesPlayedWith:
+    case LeaderboardPlayerRelationshipMetric.GamesPlayedAgainst:
+    case LeaderboardPlayerRelationshipMetric.GamesWinRateWith:
+    case LeaderboardPlayerRelationshipMetric.GamesWinRateAgainst: {
+      return null;
+    }
+    default: {
+      throw new UnreachableError(metric);
+    }
+  }
+}
+
+function getHeadToHeadRelationshipAggregateSql({
+  guildId,
+  xboxXuid,
+  queueChannelId,
+  queueChannelIds,
+  startEpochSeconds,
+  config,
+}: {
+  guildId: string;
+  xboxXuid: string;
+  queueChannelId: string | null;
+  queueChannelIds: string[] | undefined;
+  startEpochSeconds: number;
+  config: HeadToHeadMetricConfig;
+}): { sql: string; bindings: readonly (string | number | null)[] } {
+  const queueFilterSql = getQueueFilterSql("player", queueChannelIds);
+  const queueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
+  const killerXuidSql = config.direction === "kills" ? "player.XboxXuid" : "related.XboxXuid";
+  const victimXuidSql = config.direction === "kills" ? "related.XboxXuid" : "player.XboxXuid";
+  const killsSql = "SUM(COALESCE(matrix.Count, 0))";
+  const metricValueSql =
+    config.value === "total" ? killsSql : `CASE WHEN COUNT(*) = 0 THEN 0 ELSE CAST(${killsSql} AS REAL) / COUNT(*) END`;
+
+  return {
+    sql: `
+      SELECT
+        related.XboxXuid AS XboxXuid,
+        related.DiscordUserId AS DiscordUserId,
+        related.GamertagSnapshot AS Gamertag,
+        ${metricValueSql} AS MetricValue,
+        COUNT(*) AS SharedCount,
+        0 AS Wins,
+        SUM(COALESCE(matrix.Perfects, 0)) AS Perfects
+      FROM LeaderboardGamePlayers player
+      INNER JOIN LeaderboardGames game
+        ON game.GuildId = player.GuildId
+        AND game.QueueNumber = player.QueueNumber
+        AND game.MatchId = player.MatchId
+      INNER JOIN LeaderboardGamePlayers related
+        ON related.GuildId = player.GuildId
+        AND related.QueueNumber = player.QueueNumber
+        AND related.MatchId = player.MatchId
+        AND related.XboxXuid != player.XboxXuid
+        AND related.TeamId != player.TeamId
+      LEFT JOIN MatchKillMatrix matrix
+        ON matrix.MatchId = game.MatchId
+        AND matrix.KillerXuid = ${killerXuidSql}
+        AND matrix.VictimXuid = ${victimXuidSql}
+      WHERE player.GuildId = ?
+        AND player.XboxXuid = ?
+        AND game.EndedAt >= ?
+        AND ${queueFilterSql}
+      GROUP BY related.XboxXuid, related.DiscordUserId, related.GamertagSnapshot
+    `,
+    bindings: [guildId, xboxXuid, startEpochSeconds, ...queueFilterBindings],
+  };
+}
+
+function getSeriesRelationshipAggregateSql({
+  guildId,
+  xboxXuid,
+  queueChannelId,
+  queueChannelIds,
+  startEpochSeconds,
+  config,
+}: {
+  guildId: string;
+  xboxXuid: string;
+  queueChannelId: string | null;
+  queueChannelIds: string[] | undefined;
+  startEpochSeconds: number;
+  config: PairRelationshipMetricConfig;
+}): { sql: string; bindings: readonly (string | number | null)[] } {
+  const queueFilterSql = getQueueFilterSql("player", queueChannelIds);
+  const queueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
+  const teamComparisonSql = config.relationship === "with" ? "=" : "!=";
+  const metricValueSql =
+    config.value === "count"
+      ? "COUNT(*)"
+      : "CASE WHEN COUNT(*) = 0 THEN 0 ELSE CAST(SUM(player.SeriesWon) AS REAL) / COUNT(*) END";
+
+  return {
+    sql: `
+      SELECT
+        related.XboxXuid AS XboxXuid,
+        related.DiscordUserId AS DiscordUserId,
+        related.GamertagSnapshot AS Gamertag,
+        ${metricValueSql} AS MetricValue,
+        COUNT(*) AS SharedCount,
+        SUM(player.SeriesWon) AS Wins,
+        0 AS Perfects
+      FROM LeaderboardSeriesPlayers player
+      INNER JOIN LeaderboardSeries series
+        ON series.GuildId = player.GuildId
+        AND series.QueueNumber = player.QueueNumber
+      INNER JOIN LeaderboardSeriesPlayers related
+        ON related.GuildId = player.GuildId
+        AND related.QueueNumber = player.QueueNumber
+        AND related.XboxXuid != player.XboxXuid
+        AND related.TeamId ${teamComparisonSql} player.TeamId
+      WHERE player.GuildId = ?
+        AND player.XboxXuid = ?
+        AND series.CompletedAt >= ?
+        AND ${queueFilterSql}
+      GROUP BY related.XboxXuid, related.DiscordUserId, related.GamertagSnapshot
+    `,
+    bindings: [guildId, xboxXuid, startEpochSeconds, ...queueFilterBindings],
+  };
+}
+
+function getGameRelationshipAggregateSql({
+  guildId,
+  xboxXuid,
+  queueChannelId,
+  queueChannelIds,
+  startEpochSeconds,
+  config,
+}: {
+  guildId: string;
+  xboxXuid: string;
+  queueChannelId: string | null;
+  queueChannelIds: string[] | undefined;
+  startEpochSeconds: number;
+  config: PairRelationshipMetricConfig;
+}): { sql: string; bindings: readonly (string | number | null)[] } {
+  const queueFilterSql = getQueueFilterSql("player", queueChannelIds);
+  const queueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
+  const teamComparisonSql = config.relationship === "with" ? "=" : "!=";
+  const metricValueSql =
+    config.value === "count"
+      ? "COUNT(*)"
+      : "CASE WHEN COUNT(*) = 0 THEN 0 ELSE CAST(SUM(player.GameWon) AS REAL) / COUNT(*) END";
+
+  return {
+    sql: `
+      SELECT
+        related.XboxXuid AS XboxXuid,
+        related.DiscordUserId AS DiscordUserId,
+        related.GamertagSnapshot AS Gamertag,
+        ${metricValueSql} AS MetricValue,
+        COUNT(*) AS SharedCount,
+        SUM(player.GameWon) AS Wins,
+        0 AS Perfects
+      FROM LeaderboardGamePlayers player
+      INNER JOIN LeaderboardGames game
+        ON game.GuildId = player.GuildId
+        AND game.QueueNumber = player.QueueNumber
+        AND game.MatchId = player.MatchId
+      INNER JOIN LeaderboardGamePlayers related
+        ON related.GuildId = player.GuildId
+        AND related.QueueNumber = player.QueueNumber
+        AND related.MatchId = player.MatchId
+        AND related.XboxXuid != player.XboxXuid
+        AND related.TeamId ${teamComparisonSql} player.TeamId
+      WHERE player.GuildId = ?
+        AND player.XboxXuid = ?
+        AND game.EndedAt >= ?
+        AND ${queueFilterSql}
+      GROUP BY related.XboxXuid, related.DiscordUserId, related.GamertagSnapshot
+    `,
+    bindings: [guildId, xboxXuid, startEpochSeconds, ...queueFilterBindings],
+  };
 }
 
 interface LeaderboardRankingsQuery {
@@ -1723,6 +1974,72 @@ export class DatabaseService {
     const row = await stmt.first<{ Rank: number; Total: number }>();
 
     return row == null ? null : { rank: row.Rank, total: row.Total };
+  }
+
+  async getLeaderboardPlayerRelationships({
+    guildId,
+    xboxXuid,
+    queueChannelId,
+    queueChannelIds,
+    startEpochSeconds,
+    metric,
+  }: {
+    guildId: string;
+    xboxXuid: string;
+    queueChannelId: string | null;
+    queueChannelIds?: string[];
+    startEpochSeconds: number;
+    metric: LeaderboardPlayerRelationshipMetric;
+  }): Promise<LeaderboardPlayerRelationshipRow[]> {
+    if (queueChannelIds?.length === 0) {
+      return [];
+    }
+
+    const headToHeadConfig = getHeadToHeadMetricConfig(metric);
+    const pairConfig = getPairRelationshipMetricConfig(metric);
+    const aggregate =
+      headToHeadConfig != null
+        ? getHeadToHeadRelationshipAggregateSql({
+            guildId,
+            xboxXuid,
+            queueChannelId,
+            queueChannelIds,
+            startEpochSeconds,
+            config: headToHeadConfig,
+          })
+        : pairConfig?.scope === "series"
+          ? getSeriesRelationshipAggregateSql({
+              guildId,
+              xboxXuid,
+              queueChannelId,
+              queueChannelIds,
+              startEpochSeconds,
+              config: pairConfig,
+            })
+          : pairConfig?.scope === "game"
+            ? getGameRelationshipAggregateSql({
+                guildId,
+                xboxXuid,
+                queueChannelId,
+                queueChannelIds,
+                startEpochSeconds,
+                config: pairConfig,
+              })
+            : ((): never => {
+                throw new Error(`Unsupported player relationship metric: ${metric}`);
+              })();
+    const minimumSharedCount = pairConfig?.value === "win-rate" ? (pairConfig.scope === "series" ? 3 : 5) : 1;
+    const query = `
+      SELECT XboxXuid, DiscordUserId, Gamertag, MetricValue, SharedCount, Wins, Perfects
+      FROM (${aggregate.sql}) relationship
+      WHERE SharedCount >= ?
+      ORDER BY MetricValue DESC, SharedCount DESC, Gamertag COLLATE NOCASE ASC, XboxXuid ASC
+      LIMIT 10
+    `;
+    const response = await this.DB.prepare(query)
+      .bind(...aggregate.bindings, minimumSharedCount)
+      .all<LeaderboardPlayerRelationshipRow>();
+    return response.results;
   }
 
   private buildStatMetricRankAggregate({

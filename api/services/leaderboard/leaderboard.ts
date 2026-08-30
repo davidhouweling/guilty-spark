@@ -27,6 +27,10 @@ import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
 import type { LeaderboardPostRow } from "../database/types/leaderboard_post";
 import type { LeaderboardPlayerStatsRow } from "../database/types/leaderboard_player_stats";
 import type { LeaderboardPlayerMetricRank } from "../database/types/leaderboard_player_metric_rank";
+import type {
+  LeaderboardPlayerRelationshipMetric,
+  LeaderboardPlayerRelationshipRow,
+} from "../database/types/leaderboard_player_relationship";
 import type { HaloService } from "../halo/halo";
 import type { Medal } from "../halo/types";
 import type { LogService } from "../log/types";
@@ -78,6 +82,18 @@ export interface GetLeaderboardPlayerMetricRanksOpts {
   startEpochSeconds: number;
   minGamesPlayed: number;
   metrics: readonly LeaderboardMetric[];
+}
+
+export interface GetLeaderboardPlayerRelationshipsOpts extends GetLeaderboardPlayerStatsOpts {
+  metric: LeaderboardPlayerRelationshipMetric;
+}
+
+export interface LeaderboardPlayerRelationshipsResponse {
+  stats: LeaderboardPlayerStatsRow;
+  rows: LeaderboardPlayerRelationshipRow[];
+  window: LeaderboardWindow;
+  resetAt: number | null;
+  metric: LeaderboardPlayerRelationshipMetric;
 }
 
 export class LeaderboardService {
@@ -161,6 +177,43 @@ export class LeaderboardService {
     }
 
     return ranks;
+  }
+
+  async getLeaderboardPlayerRelationships({
+    guildId,
+    xboxXuid,
+    queueChannelId,
+    queueChannelIds,
+    window,
+    metric,
+  }: GetLeaderboardPlayerRelationshipsOpts): Promise<LeaderboardPlayerRelationshipsResponse | null> {
+    const playerStats = await this.getLeaderboardPlayerStats({
+      guildId,
+      xboxXuid,
+      queueChannelId,
+      ...(queueChannelIds == null ? {} : { queueChannelIds }),
+      ...(window == null ? {} : { window }),
+    });
+    if (playerStats == null) {
+      return null;
+    }
+
+    const rows = await this.databaseService.getLeaderboardPlayerRelationships({
+      guildId,
+      xboxXuid,
+      queueChannelId,
+      ...(queueChannelIds == null ? {} : { queueChannelIds }),
+      startEpochSeconds: playerStats.startEpochSeconds,
+      metric,
+    });
+
+    return {
+      stats: playerStats.stats,
+      rows,
+      window: playerStats.window,
+      resetAt: playerStats.resetAt,
+      metric,
+    };
   }
 
   async persistReconciledSeriesData({

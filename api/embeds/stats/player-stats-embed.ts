@@ -20,6 +20,8 @@ import {
 } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardPlayerStatsRow } from "../../services/database/types/leaderboard_player_stats";
 import type { LeaderboardPlayerMetricRank } from "../../services/database/types/leaderboard_player_metric_rank";
+import { LeaderboardPlayerRelationshipMetric } from "../../services/database/types/leaderboard_player_relationship";
+import type { LeaderboardPlayerRelationshipRow } from "../../services/database/types/leaderboard_player_relationship";
 import { formatMetricValue, formatRank, getMetricLabel } from "../../services/leaderboard/leaderboard-response";
 
 export const PLAYER_STATS_QUEUE_SELECT_CONTROL_ID = "stats_player_queue";
@@ -36,12 +38,23 @@ export interface PlayerStatsQueueOption {
   value: string | null;
 }
 
-export interface PlayerStatsViewState {
-  aggregation: LeaderboardMetricAggregation;
+interface PlayerStatsViewStateBase {
   xboxXuid: string;
   queueChannelId: string | null;
   window: LeaderboardWindow;
 }
+
+export interface PlayerStatsAggregateViewState extends PlayerStatsViewStateBase {
+  aggregation: LeaderboardMetricAggregation;
+  relationshipMetric: null;
+}
+
+export interface PlayerStatsRelationshipViewState extends PlayerStatsViewStateBase {
+  aggregation: null;
+  relationshipMetric: LeaderboardPlayerRelationshipMetric;
+}
+
+export type PlayerStatsViewState = PlayerStatsAggregateViewState | PlayerStatsRelationshipViewState;
 
 interface PlayerStatTableRow {
   label: string;
@@ -55,6 +68,23 @@ const LEADERBOARD_WINDOW_BY_VALUE = new Map<string, LeaderboardWindow>(
 const LEADERBOARD_AGGREGATION_BY_VALUE = new Map<string, LeaderboardMetricAggregation>(
   Object.values(LeaderboardMetricAggregation).map((aggregation) => [aggregation, aggregation]),
 );
+const PLAYER_RELATIONSHIP_METRIC_BY_VALUE = new Map<string, LeaderboardPlayerRelationshipMetric>(
+  Object.values(LeaderboardPlayerRelationshipMetric).map((metric) => [metric, metric]),
+);
+const PLAYER_RELATIONSHIP_METRIC_LABELS = new Map<LeaderboardPlayerRelationshipMetric, string>([
+  [LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills, "Avg head to head - Killed most"],
+  [LeaderboardPlayerRelationshipMetric.AvgHeadToHeadDeaths, "Avg head to head - Killed most by"],
+  [LeaderboardPlayerRelationshipMetric.TotalHeadToHeadKills, "Total head to head - Killed most"],
+  [LeaderboardPlayerRelationshipMetric.TotalHeadToHeadDeaths, "Total head to head - Killed most by"],
+  [LeaderboardPlayerRelationshipMetric.SeriesPlayedWith, "Series played most with"],
+  [LeaderboardPlayerRelationshipMetric.SeriesPlayedAgainst, "Series played most against"],
+  [LeaderboardPlayerRelationshipMetric.SeriesWinRateWith, "Highest series win rate with"],
+  [LeaderboardPlayerRelationshipMetric.SeriesWinRateAgainst, "Highest series win rate against"],
+  [LeaderboardPlayerRelationshipMetric.GamesPlayedWith, "Games played most with"],
+  [LeaderboardPlayerRelationshipMetric.GamesPlayedAgainst, "Games played most against"],
+  [LeaderboardPlayerRelationshipMetric.GamesWinRateWith, "Highest game win rate with"],
+  [LeaderboardPlayerRelationshipMetric.GamesWinRateAgainst, "Highest game win rate against"],
+]);
 
 const OBJECTIVE_GAMES_PLAYED_BY_CATEGORY = new Map<GameVariantCategory, (stats: LeaderboardPlayerStatsRow) => number>([
   [GameVariantCategory.MultiplayerStrongholds, (stats): number => stats.StrongholdGamesPlayed],
@@ -223,12 +253,19 @@ function createQueueSelectOptions(
   }));
 }
 
-function createAggregationSelectOptions(selectedAggregation: LeaderboardMetricAggregation): APISelectMenuOption[] {
-  return Object.values(LeaderboardMetricAggregation).map((aggregation) => ({
+function createStatsViewSelectOptions(state: PlayerStatsViewState): APISelectMenuOption[] {
+  const aggregationOptions = Object.values(LeaderboardMetricAggregation).map((aggregation) => ({
     label: getLeaderboardMetricAggregationLabel(aggregation),
     value: aggregation,
-    default: aggregation === selectedAggregation,
+    default: state.relationshipMetric == null && aggregation === state.aggregation,
   }));
+  const relationshipOptions = Array.from(PLAYER_RELATIONSHIP_METRIC_LABELS, ([metric, label]) => ({
+    label,
+    value: metric,
+    default: state.relationshipMetric === metric,
+  }));
+
+  return [...aggregationOptions, ...relationshipOptions];
 }
 
 function createWindowSelectOptions(selectedWindow: LeaderboardWindow, resetAt: number | null): APISelectMenuOption[] {
@@ -282,7 +319,7 @@ function createViewControls(
           placeholder: "Select type",
           min_values: 1,
           max_values: 1,
-          options: createAggregationSelectOptions(state.aggregation),
+          options: createStatsViewSelectOptions(state),
         },
       ],
     },
@@ -331,6 +368,19 @@ function parseLeaderboardWindow(value: string): LeaderboardWindow | null {
 
 function parseLeaderboardAggregation(value: string): LeaderboardMetricAggregation | null {
   return LEADERBOARD_AGGREGATION_BY_VALUE.get(value) ?? null;
+}
+
+export function parsePlayerStatsRelationshipMetric(value: string): LeaderboardPlayerRelationshipMetric | null {
+  return PLAYER_RELATIONSHIP_METRIC_BY_VALUE.get(value) ?? null;
+}
+
+export function getPlayerStatsRelationshipMetricLabel(metric: LeaderboardPlayerRelationshipMetric): string {
+  const label = PLAYER_RELATIONSHIP_METRIC_LABELS.get(metric);
+  if (label == null) {
+    throw new Error(`Unsupported player relationship metric: ${metric}`);
+  }
+
+  return label;
 }
 
 // Objective counters are tracked per game mode; the games-played denominator must match the mode
@@ -431,7 +481,7 @@ function getSelectedValueForState(controlId: string, state: PlayerStatsViewState
       return state.queueChannelId ?? ALL_QUEUES_VALUE;
     }
     case PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID: {
-      return state.aggregation;
+      return state.relationshipMetric ?? state.aggregation;
     }
     case PLAYER_STATS_WINDOW_SELECT_CONTROL_ID: {
       return state.window;
@@ -535,6 +585,128 @@ function createTableFields(rows: readonly PlayerStatTableRow[]): APIEmbedField[]
   return fieldGroups;
 }
 
+function getRelationshipRankText(index: number): string {
+  return formatRank(index + 1);
+}
+
+function formatRelationshipValue(
+  row: LeaderboardPlayerRelationshipRow,
+  metric: LeaderboardPlayerRelationshipMetric,
+  locale: string,
+): string {
+  switch (metric) {
+    case LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills: {
+      return `${row.MetricValue.toLocaleString(locale, { maximumFractionDigits: 1 })} kills/game (${row.Perfects.toLocaleString(locale)} perfects)`;
+    }
+    case LeaderboardPlayerRelationshipMetric.AvgHeadToHeadDeaths: {
+      return `${row.MetricValue.toLocaleString(locale, { maximumFractionDigits: 1 })} deaths/game (${row.Perfects.toLocaleString(locale)} perfects)`;
+    }
+    case LeaderboardPlayerRelationshipMetric.TotalHeadToHeadKills: {
+      return `${row.MetricValue.toLocaleString(locale)} kills (${row.Perfects.toLocaleString(locale)} perfects)`;
+    }
+    case LeaderboardPlayerRelationshipMetric.TotalHeadToHeadDeaths: {
+      return `${row.MetricValue.toLocaleString(locale)} deaths (${row.Perfects.toLocaleString(locale)} perfects)`;
+    }
+    case LeaderboardPlayerRelationshipMetric.SeriesPlayedWith:
+    case LeaderboardPlayerRelationshipMetric.SeriesPlayedAgainst: {
+      return `${row.SharedCount.toLocaleString(locale)} series`;
+    }
+    case LeaderboardPlayerRelationshipMetric.GamesPlayedWith:
+    case LeaderboardPlayerRelationshipMetric.GamesPlayedAgainst: {
+      return `${row.SharedCount.toLocaleString(locale)} games`;
+    }
+    case LeaderboardPlayerRelationshipMetric.SeriesWinRateWith:
+    case LeaderboardPlayerRelationshipMetric.SeriesWinRateAgainst: {
+      return `${(row.MetricValue * 100).toLocaleString(locale, { maximumFractionDigits: 1 })}% (${row.Wins.toLocaleString(locale)}/${row.SharedCount.toLocaleString(locale)} shared series)`;
+    }
+    case LeaderboardPlayerRelationshipMetric.GamesWinRateWith:
+    case LeaderboardPlayerRelationshipMetric.GamesWinRateAgainst: {
+      return `${(row.MetricValue * 100).toLocaleString(locale, { maximumFractionDigits: 1 })}% (${row.Wins.toLocaleString(locale)}/${row.SharedCount.toLocaleString(locale)} shared games)`;
+    }
+    default: {
+      throw new Error("Unsupported player relationship metric");
+    }
+  }
+}
+
+function getRelationshipFooter(metric: LeaderboardPlayerRelationshipMetric): string | undefined {
+  switch (metric) {
+    case LeaderboardPlayerRelationshipMetric.SeriesWinRateWith:
+    case LeaderboardPlayerRelationshipMetric.SeriesWinRateAgainst: {
+      return "Min shared series: 3";
+    }
+    case LeaderboardPlayerRelationshipMetric.GamesWinRateWith:
+    case LeaderboardPlayerRelationshipMetric.GamesWinRateAgainst: {
+      return "Min shared games: 5";
+    }
+    case LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills:
+    case LeaderboardPlayerRelationshipMetric.AvgHeadToHeadDeaths:
+    case LeaderboardPlayerRelationshipMetric.TotalHeadToHeadKills:
+    case LeaderboardPlayerRelationshipMetric.TotalHeadToHeadDeaths:
+    case LeaderboardPlayerRelationshipMetric.SeriesPlayedWith:
+    case LeaderboardPlayerRelationshipMetric.SeriesPlayedAgainst:
+    case LeaderboardPlayerRelationshipMetric.GamesPlayedWith:
+    case LeaderboardPlayerRelationshipMetric.GamesPlayedAgainst: {
+      return undefined;
+    }
+    default: {
+      throw new Error("Unsupported player relationship metric");
+    }
+  }
+}
+
+export function createPlayerStatsRelationshipEmbeds({
+  targetGamertag,
+  rows,
+  state,
+  locale,
+  queueLabel,
+  queueOptions,
+  resetAt,
+}: {
+  targetGamertag: string;
+  rows: readonly LeaderboardPlayerRelationshipRow[];
+  state: PlayerStatsRelationshipViewState;
+  locale: string;
+  queueLabel: string;
+  queueOptions: readonly PlayerStatsQueueOption[];
+  resetAt: number | null;
+}): { embeds: APIEmbed[]; components: APIMessageTopLevelComponent[] } {
+  const windowLabel = state.window === LeaderboardWindow.LastReset ? "Last reset" : state.window;
+  const metricLabel = getPlayerStatsRelationshipMetricLabel(state.relationshipMetric);
+  const footerText = getRelationshipFooter(state.relationshipMetric);
+  const fields: APIEmbedField[] =
+    rows.length === 0
+      ? []
+      : [
+          { name: "Player", value: rows.map((row) => row.Gamertag).join("\n"), inline: true },
+          { name: "Rank", value: rows.map((_row, index) => getRelationshipRankText(index)).join("\n"), inline: true },
+          {
+            name: "Value",
+            value: rows.map((row) => formatRelationshipValue(row, state.relationshipMetric, locale)).join("\n"),
+            inline: true,
+          },
+        ];
+  const embeds: APIEmbed[] = [
+    {
+      color: 0xf5b642,
+      description:
+        rows.length === 0
+          ? `No relationship data found for ${windowLabel} in the selected queue scope.`
+          : `Relationship stats for ${windowLabel} (${queueLabel})`,
+      fields,
+      ...(footerText == null ? {} : { footer: { text: footerText } }),
+      title: `${targetGamertag} - ${metricLabel}`,
+      url: `${PLAYER_STATS_STATE_URL_PREFIX}${state.xboxXuid}`,
+    },
+  ];
+
+  return {
+    embeds,
+    components: createViewControls(state, queueOptions, resetAt),
+  };
+}
+
 export function createPlayerStatsEmbeds({
   stats,
   ranks,
@@ -547,7 +719,7 @@ export function createPlayerStatsEmbeds({
 }: {
   stats: LeaderboardPlayerStatsRow;
   ranks: Map<LeaderboardMetric, LeaderboardPlayerMetricRank | null>;
-  state: PlayerStatsViewState;
+  state: PlayerStatsAggregateViewState;
   locale: string;
   queueLabel: string;
   queueOptions: readonly PlayerStatsQueueOption[];
@@ -604,15 +776,24 @@ export function getPlayerStatsStateFromMessage(message: APIMessage): PlayerStats
 
   const window = windowValue == null ? null : parseLeaderboardWindow(windowValue);
   const aggregation = aggregationValue == null ? null : parseLeaderboardAggregation(aggregationValue);
-  if (window == null || aggregation == null || xboxXuid == null) {
+  const relationshipMetric = aggregationValue == null ? null : parsePlayerStatsRelationshipMetric(aggregationValue);
+  if (window == null || (aggregation == null && relationshipMetric == null) || xboxXuid == null) {
     return null;
   }
 
-  return {
-    aggregation,
+  const state = {
     xboxXuid,
     // Absent when the queue selector is hidden (player has played in at most one configured queue).
     queueChannelId: queueValue == null || queueValue === ALL_QUEUES_VALUE ? null : queueValue,
     window,
   };
+  if (aggregation != null) {
+    return { ...state, aggregation, relationshipMetric: null };
+  }
+
+  if (relationshipMetric != null) {
+    return { ...state, aggregation: null, relationshipMetric };
+  }
+
+  return null;
 }

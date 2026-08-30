@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import { LeaderboardPlayerRelationshipMetric } from "../types/leaderboard_player_relationship";
 import { aFakeEnvWith, fakeD1Response, FakePreparedStatement } from "../../../base/fakes/env.fake";
 import { SESSION_COOKIE_MAX_AGE_SECONDS } from "../../auth/session-manager";
 import { DatabaseService } from "../database";
@@ -1497,6 +1498,88 @@ describe("Database Service", () => {
           "queue-1",
           "queue-2",
         ]);
+      });
+    });
+
+    describe("getLeaderboardPlayerRelationships()", () => {
+      it("uses directional kill matrix facts for total head-to-head kills", async () => {
+        const fakePreparedStatement = new FakePreparedStatement();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+        const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+
+        await databaseService.getLeaderboardPlayerRelationships({
+          guildId: "guild-1",
+          xboxXuid: "player-1",
+          queueChannelId: null,
+          queueChannelIds: ["queue-1"],
+          startEpochSeconds: 123,
+          metric: LeaderboardPlayerRelationshipMetric.TotalHeadToHeadKills,
+        });
+
+        const query = prepareSpy.mock.calls[0]?.[0];
+        expect(query).toContain("matrix.KillerXuid = player.XboxXuid");
+        expect(query).toContain("matrix.VictimXuid = related.XboxXuid");
+        expect(query).toContain("related.TeamId != player.TeamId");
+        expect(query).toContain("SUM(COALESCE(matrix.Perfects, 0)) AS Perfects");
+        expect(query).toContain("LIMIT 10");
+        expect(bindSpy).toHaveBeenCalledWith("guild-1", "player-1", 123, "queue-1", 1);
+      });
+
+      it("reverses kill matrix direction and averages over shared games for head-to-head deaths", async () => {
+        const fakePreparedStatement = new FakePreparedStatement();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+        vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+
+        await databaseService.getLeaderboardPlayerRelationships({
+          guildId: "guild-1",
+          xboxXuid: "player-1",
+          queueChannelId: "queue-1",
+          startEpochSeconds: 123,
+          metric: LeaderboardPlayerRelationshipMetric.AvgHeadToHeadDeaths,
+        });
+
+        const query = prepareSpy.mock.calls[0]?.[0];
+        expect(query).toContain("matrix.KillerXuid = related.XboxXuid");
+        expect(query).toContain("matrix.VictimXuid = player.XboxXuid");
+        expect(query).toContain("CAST(SUM(COALESCE(matrix.Count, 0)) AS REAL) / COUNT(*)");
+      });
+
+      it("filters series win rate relationships to three shared series", async () => {
+        const fakePreparedStatement = new FakePreparedStatement();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+        const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+
+        await databaseService.getLeaderboardPlayerRelationships({
+          guildId: "guild-1",
+          xboxXuid: "player-1",
+          queueChannelId: "queue-1",
+          startEpochSeconds: 123,
+          metric: LeaderboardPlayerRelationshipMetric.SeriesWinRateWith,
+        });
+
+        const query = prepareSpy.mock.calls[0]?.[0];
+        expect(query).toContain("related.TeamId = player.TeamId");
+        expect(query).toContain("SUM(player.SeriesWon)");
+        expect(bindSpy).toHaveBeenCalledWith("guild-1", "player-1", 123, "queue-1", "queue-1", 3);
+      });
+
+      it("filters game win rate relationships to five shared games against opponents", async () => {
+        const fakePreparedStatement = new FakePreparedStatement();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+        const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+
+        await databaseService.getLeaderboardPlayerRelationships({
+          guildId: "guild-1",
+          xboxXuid: "player-1",
+          queueChannelId: "queue-1",
+          startEpochSeconds: 123,
+          metric: LeaderboardPlayerRelationshipMetric.GamesWinRateAgainst,
+        });
+
+        const query = prepareSpy.mock.calls[0]?.[0];
+        expect(query).toContain("related.TeamId != player.TeamId");
+        expect(query).toContain("SUM(player.GameWon)");
+        expect(bindSpy).toHaveBeenCalledWith("guild-1", "player-1", 123, "queue-1", "queue-1", 5);
       });
     });
   });
