@@ -145,7 +145,7 @@ function getWindowLabel(window: LeaderboardWindow, resetTimestamp: string | null
 export function getMetricLabel(metric: LeaderboardMetric): string {
   if (isObjectiveLeaderboardMetric(metric)) {
     const descriptor = getLeaderboardObjectiveDescriptorByMetric(metric);
-    return descriptor.label;
+    return metric === descriptor.averageMetric ? `${descriptor.label} (avg)` : descriptor.label;
   }
 
   switch (metric) {

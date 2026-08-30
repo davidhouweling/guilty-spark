@@ -705,9 +705,14 @@ export class StatsCommand extends BaseCommand {
     configuredQueues: NeatQueueConfigRow[];
     window: LeaderboardWindow;
   }): Promise<PlayerStatsQueueOption[]> {
+    const maxPlayedQueueOptions = 24;
     const playedQueues: PlayerStatsQueueOption[] = [];
 
     for (const queue of configuredQueues) {
+      if (playedQueues.length >= maxPlayedQueueOptions) {
+        break;
+      }
+
       const result = await this.services.leaderboardService.getLeaderboardPlayerStats({
         guildId,
         xboxXuid,
@@ -723,7 +728,7 @@ export class StatsCommand extends BaseCommand {
       return playedQueues;
     }
 
-    return [{ label: "All configured queues", value: null }, ...playedQueues.slice(0, 24)];
+    return [{ label: "All configured queues", value: null }, ...playedQueues.slice(0, maxPlayedQueueOptions)];
   }
 
   private getPlayerStatsQueueLabel(

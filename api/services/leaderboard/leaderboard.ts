@@ -161,22 +161,25 @@ export class LeaderboardService {
     minGamesPlayed,
     metrics,
   }: GetLeaderboardPlayerMetricRanksOpts): Promise<Map<LeaderboardMetric, LeaderboardPlayerMetricRank | null>> {
-    const ranks = new Map<LeaderboardMetric, LeaderboardPlayerMetricRank | null>();
+    const results = await Promise.all(
+      metrics.map(
+        async (metric) =>
+          [
+            metric,
+            await this.databaseService.getLeaderboardPlayerMetricRank({
+              guildId,
+              xboxXuid,
+              queueChannelId,
+              ...(queueChannelIds == null ? {} : { queueChannelIds }),
+              startEpochSeconds,
+              minGamesPlayed,
+              metric,
+            }),
+          ] as const,
+      ),
+    );
 
-    for (const metric of metrics) {
-      const rank = await this.databaseService.getLeaderboardPlayerMetricRank({
-        guildId,
-        xboxXuid,
-        queueChannelId,
-        ...(queueChannelIds == null ? {} : { queueChannelIds }),
-        startEpochSeconds,
-        minGamesPlayed,
-        metric,
-      });
-      ranks.set(metric, rank);
-    }
-
-    return ranks;
+    return new Map(results);
   }
 
   async getLeaderboardPlayerRelationships({
