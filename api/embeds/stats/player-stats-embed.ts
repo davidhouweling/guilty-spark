@@ -29,7 +29,7 @@ export const PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID = "stats_player_aggregat
 export const PLAYER_STATS_WINDOW_SELECT_CONTROL_ID = "stats_player_window";
 export const PLAYER_STATS_TEMPORARY_ERROR_FOOTER = "Temporary player stats error";
 
-const ALL_QUEUES_VALUE = "-";
+export const ALL_QUEUES_VALUE = "-";
 const DISCORD_EMBED_FIELD_VALUE_LIMIT = 1024;
 const PLAYER_STATS_STATE_URL_PREFIX = "https://guilty-spark.app/stats/player/";
 
@@ -415,7 +415,7 @@ function hasObjectiveSpecificPopulation(metric: LeaderboardMetric): boolean {
 function getRankText(
   metric: LeaderboardMetric,
   rank: LeaderboardPlayerMetricRank | null,
-  overallTotalPlayers: number,
+  overallTotalPlayers: number | null,
 ): string {
   if (rank == null) {
     return "Unranked";
@@ -431,7 +431,7 @@ function buildStatTableRow(
   stats: LeaderboardPlayerStatsRow,
   metric: LeaderboardMetric,
   rank: LeaderboardPlayerMetricRank | null,
-  overallTotalPlayers: number,
+  overallTotalPlayers: number | null,
   locale: string,
 ): PlayerStatTableRow {
   const metricValue = getStatsMetricValue(stats, metric);
@@ -457,8 +457,9 @@ function buildStatTableRow(
   };
 }
 
-function createFooterText(minGamesPlayed: number, totalPlayers: number, locale: string): string {
-  return `Min games: ${minGamesPlayed.toString()} | Total players: ${totalPlayers.toLocaleString(locale)}`;
+function createFooterText(minGamesPlayed: number, totalPlayers: number | null, locale: string): string {
+  const totalPlayersText = totalPlayers == null ? "Unknown" : totalPlayers.toLocaleString(locale);
+  return `Min games: ${minGamesPlayed.toString()} | Total players: ${totalPlayersText}`;
 }
 
 function getXboxXuidFromEmbedUrl(embeds: readonly APIEmbed[]): string | null {
@@ -733,7 +734,7 @@ export function createPlayerStatsEmbeds({
 }): { embeds: APIEmbed[]; components: APIMessageTopLevelComponent[] } {
   const windowLabel = state.window === LeaderboardWindow.LastReset ? "Last reset" : state.window;
   const metrics = getPlayerStatsMetricsForAggregation(state.aggregation);
-  const overallTotalPlayers = ranks.get(LeaderboardMetric.GamesPlayed)?.total ?? 0;
+  const overallTotalPlayers = ranks.get(LeaderboardMetric.GamesPlayed)?.total ?? null;
   const rows = metrics.map((metric) =>
     buildStatTableRow(stats, metric, ranks.get(metric) ?? null, overallTotalPlayers, locale),
   );

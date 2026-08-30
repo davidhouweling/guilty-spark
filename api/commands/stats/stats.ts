@@ -51,6 +51,7 @@ import { EmbedColors } from "../../embeds/colors";
 import { EndUserError } from "../../base/end-user-error";
 import { create } from "../../embeds/stats/create";
 import {
+  ALL_QUEUES_VALUE,
   PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
   PLAYER_STATS_QUEUE_SELECT_CONTROL_ID,
   PLAYER_STATS_TEMPORARY_ERROR_FOOTER,
@@ -499,7 +500,7 @@ export class StatsCommand extends BaseCommand {
             throw new EndUserError("A queue must be selected.");
           }
 
-          return { ...state, queueChannelId: selectedValue === "-" ? null : selectedValue };
+          return { ...state, queueChannelId: selectedValue === ALL_QUEUES_VALUE ? null : selectedValue };
         });
       },
     };

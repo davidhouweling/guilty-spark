@@ -1872,14 +1872,8 @@ export class DatabaseService {
     const strongholds = GameVariantCategory.MultiplayerStrongholds;
     const koth = GameVariantCategory.MultiplayerKingOfTheHill;
     const oddball = GameVariantCategory.MultiplayerOddball;
-    const queueFilter =
-      queueChannelIds == null
-        ? "(? IS NULL OR gp.QueueChannelId = ?)"
-        : `gp.QueueChannelId IN (${queueChannelIds.map(() => "?").join(",")})`;
-    const seriesQueueFilter =
-      queueChannelIds == null
-        ? "(? IS NULL OR sp.QueueChannelId = ?)"
-        : `sp.QueueChannelId IN (${queueChannelIds.map(() => "?").join(",")})`;
+    const queueFilter = getQueueFilterSql("gp", queueChannelIds);
+    const seriesQueueFilter = getQueueFilterSql("sp", queueChannelIds);
     const identityQueueFilter = queueFilter;
     const query = `
       WITH gameStats AS (
@@ -1972,7 +1966,7 @@ export class DatabaseService {
       CROSS JOIN seriesStats
       INNER JOIN gameStats ON gameStats.XboxXuid = identity.XboxXuid
     `;
-    const queueBindings = queueChannelIds ?? [queueChannelId, queueChannelId];
+    const queueBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
     const bindings = [
       guildId,
       xboxXuid,
