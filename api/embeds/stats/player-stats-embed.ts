@@ -426,8 +426,18 @@ function getStatsMetricValue(stats: LeaderboardPlayerStatsRow, metric: Leaderboa
   return getValue(stats);
 }
 
+// Metrics whose rank population in getLeaderboardPlayerMetricRank() is narrowed to players with
+// qualifying objective data (COUNT of an objective column), rather than the overall GamesPlayed
+// population — must mirror the metricGamesPlayedSql overrides in buildStatMetricRankAggregate().
+const OBJECTIVE_SPECIFIC_POPULATION_METRICS: ReadonlySet<LeaderboardMetric> = new Set([
+  LeaderboardMetric.ObjectiveTime,
+  LeaderboardMetric.AvgObjectiveTimePerGame,
+  LeaderboardMetric.ObjectiveTeamContribution,
+  LeaderboardMetric.ObjectiveGameContribution,
+]);
+
 function hasObjectiveSpecificPopulation(metric: LeaderboardMetric): boolean {
-  return isObjectiveLeaderboardMetric(metric);
+  return isObjectiveLeaderboardMetric(metric) || OBJECTIVE_SPECIFIC_POPULATION_METRICS.has(metric);
 }
 
 function getRankText(

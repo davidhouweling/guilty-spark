@@ -1505,6 +1505,26 @@ describe("Database Service", () => {
           "queue-2",
         ]);
       });
+
+      it("computes DamageRatio as a ratio-of-sums, matching the DamageRatio rank aggregation", async () => {
+        const fakePreparedStatement = new FakePreparedStatement<LeaderboardPlayerStatsRow | null>();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+        vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+        vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+
+        await databaseService.getLeaderboardPlayerStats({
+          guildId: "guild-1",
+          xboxXuid: "2533274000000001",
+          queueChannelId: null,
+          startEpochSeconds: 0,
+        });
+
+        const query = prepareSpy.mock.calls[0]?.[0];
+        expect(query).toContain(
+          "CASE WHEN SUM(gp.DamageTaken) = 0 THEN CASE WHEN SUM(gp.DamageDealt) = 0 THEN 0 ELSE 1.7976931348623157e308 END ELSE CAST(SUM(gp.DamageDealt) AS REAL) / SUM(gp.DamageTaken) END AS DamageRatio",
+        );
+        expect(query).not.toContain("AVG(gp.DamageRatio)");
+      });
     });
 
     describe("getLeaderboardPlayerMetricRank()", () => {
@@ -1533,6 +1553,33 @@ describe("Database Service", () => {
 
         expect(result).toBeNull();
       });
+
+      it.each([
+        [LeaderboardMetric.ObjectiveTime, "COUNT(gp.ObjectiveTimeSeconds)"],
+        [LeaderboardMetric.AvgObjectiveTimePerGame, "COUNT(gp.ObjectiveTimeSeconds)"],
+        [LeaderboardMetric.ObjectiveTeamContribution, "COUNT(gp.ObjectiveTeamContribution)"],
+        [LeaderboardMetric.ObjectiveGameContribution, "COUNT(gp.ObjectiveGameContribution)"],
+      ] as const)(
+        "scopes the %s rank population to players with qualifying objective games, not overall games played",
+        async (metric, expectedGamesPlayedSql) => {
+          const fakePreparedStatement = new FakePreparedStatement<LeaderboardPlayerMetricRank | null>();
+          const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+          vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+          vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+
+          await databaseService.getLeaderboardPlayerMetricRank({
+            guildId: "guild-1",
+            queueChannelId: null,
+            startEpochSeconds: 0,
+            minGamesPlayed: 1,
+            metric,
+            xboxXuid: "2533274000000001",
+          });
+
+          const query = prepareSpy.mock.calls[0]?.[0];
+          expect(query).toContain(`HAVING ${expectedGamesPlayedSql} >= ?`);
+        },
+      );
     });
 
     describe("getLeaderboardPlayerRelationships()", () => {

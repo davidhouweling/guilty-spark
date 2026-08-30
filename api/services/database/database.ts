@@ -110,6 +110,11 @@ function isOutcomeLeaderboardMetric(metric: LeaderboardMetric): boolean {
   return OUTCOME_LEADERBOARD_METRICS.has(metric);
 }
 
+// Ratio-of-sums DamageRatio expression shared by player-stat rank aggregation, guild-wide leaderboard
+// rank aggregation, and the displayed player-stats value — keeps all three consistent with each other.
+const DAMAGE_RATIO_SQL =
+  "CASE WHEN SUM(gp.DamageTaken) = 0 THEN CASE WHEN SUM(gp.DamageDealt) = 0 THEN 0 ELSE 1.7976931348623157e308 END ELSE CAST(SUM(gp.DamageDealt) AS REAL) / SUM(gp.DamageTaken) END";
+
 const PLAYER_STAT_RANK_SQL_BY_METRIC = new Map<LeaderboardMetric, string>([
   [LeaderboardMetric.PersonalScore, "SUM(gp.PersonalScore)"],
   [LeaderboardMetric.AvgPersonalScorePerSeries, "CAST(SUM(gp.PersonalScore) AS REAL) / COUNT(DISTINCT gp.QueueNumber)"],
@@ -140,10 +145,7 @@ const PLAYER_STAT_RANK_SQL_BY_METRIC = new Map<LeaderboardMetric, string>([
   [LeaderboardMetric.AvgDamageTakenPerGame, "AVG(gp.DamageTaken)"],
   [LeaderboardMetric.Kda, "AVG(gp.Kda)"],
   [LeaderboardMetric.Accuracy, "AVG(gp.Accuracy)"],
-  [
-    LeaderboardMetric.DamageRatio,
-    "CASE WHEN SUM(gp.DamageTaken) = 0 THEN CASE WHEN SUM(gp.DamageDealt) = 0 THEN 0 ELSE 1.7976931348623157e308 END ELSE CAST(SUM(gp.DamageDealt) AS REAL) / SUM(gp.DamageTaken) END",
-  ],
+  [LeaderboardMetric.DamageRatio, DAMAGE_RATIO_SQL],
   [LeaderboardMetric.AvgLifeSeconds, "AVG(gp.AvgLifeSeconds)"],
   [LeaderboardMetric.AvgDamagePerLife, "AVG(gp.AvgDamagePerLife)"],
   [LeaderboardMetric.MedalPoints, "SUM(gp.MedalPoints)"],
@@ -1587,8 +1589,7 @@ export class DatabaseService {
           break;
         }
         case LeaderboardMetric.DamageRatio: {
-          metricSql =
-            "CASE WHEN SUM(gp.DamageTaken) = 0 THEN CASE WHEN SUM(gp.DamageDealt) = 0 THEN 0 ELSE 1.7976931348623157e308 END ELSE CAST(SUM(gp.DamageDealt) AS REAL) / SUM(gp.DamageTaken) END";
+          metricSql = DAMAGE_RATIO_SQL;
           break;
         }
         case LeaderboardMetric.AvgLifeSeconds: {
@@ -1902,7 +1903,7 @@ export class DatabaseService {
           AVG(gp.DamageTaken) AS AvgDamageTakenPerGame,
           AVG(gp.Kda) AS Kda,
           AVG(gp.Accuracy) AS Accuracy,
-          AVG(gp.DamageRatio) AS DamageRatio,
+          ${DAMAGE_RATIO_SQL} AS DamageRatio,
           AVG(gp.AvgLifeSeconds) AS AvgLifeSeconds,
           AVG(gp.AvgDamagePerLife) AS AvgDamagePerLife,
           SUM(gp.MedalCount) AS MedalCount,
@@ -2142,7 +2143,7 @@ export class DatabaseService {
 
       metricSql = configuredMetricSql;
 
-      if (metric === LeaderboardMetric.ObjectiveTime) {
+      if (metric === LeaderboardMetric.ObjectiveTime || metric === LeaderboardMetric.AvgObjectiveTimePerGame) {
         metricGamesPlayedSql = "COUNT(gp.ObjectiveTimeSeconds)";
         metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
       }

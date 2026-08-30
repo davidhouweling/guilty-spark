@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { ComponentType } from "discord-api-types/v10";
-import { LeaderboardMetricAggregation, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import {
+  LeaderboardMetric,
+  LeaderboardMetricAggregation,
+  LeaderboardWindow,
+} from "@guilty-spark/shared/halo/leaderboard";
 import {
   PLAYER_STATS_QUEUE_SELECT_CONTROL_ID,
   createPlayerStatsEmbeds,
@@ -137,4 +141,40 @@ describe("createPlayerStatsEmbeds()", () => {
     expect(combined).toContain("25% avg/game (18 games)");
     expect(combined).toContain("42% avg/game (12 games)");
   });
+
+  it.each([
+    ["ObjectiveTime", LeaderboardMetric.ObjectiveTime, LeaderboardMetricAggregation.Total],
+    ["AvgObjectiveTimePerGame", LeaderboardMetric.AvgObjectiveTimePerGame, LeaderboardMetricAggregation.AvgPerGame],
+    ["ObjectiveTeamContribution", LeaderboardMetric.ObjectiveTeamContribution, LeaderboardMetricAggregation.AvgPerGame],
+    ["ObjectiveGameContribution", LeaderboardMetric.ObjectiveGameContribution, LeaderboardMetricAggregation.AvgPerGame],
+  ] as const)(
+    "shows the metric-specific rank population suffix for %s when it differs from the overall total",
+    (_name, metric, aggregation) => {
+      const stats = aFakeLeaderboardPlayerStatsRow({});
+      const ranks = new Map([
+        [LeaderboardMetric.GamesPlayed, { rank: 3, total: 100 }],
+        [metric, { rank: 5, total: 12 }],
+      ]);
+
+      const response = createPlayerStatsEmbeds({
+        stats,
+        ranks,
+        state: {
+          aggregation,
+          relationshipMetric: null,
+          xboxXuid: "2533274000000001",
+          queueChannelId: null,
+          window: LeaderboardWindow.ThreeMonths,
+        },
+        locale: "en-US",
+        queueLabel: "all configured queues",
+        queueOptions: [],
+        resetAt: null,
+        minGamesPlayed: 1,
+      });
+
+      const rowValues = response.embeds.flatMap((embed) => embed.fields ?? []).flatMap((field) => field.value);
+      expect(rowValues.join("\n")).toContain("#5 / 12");
+    },
+  );
 });
