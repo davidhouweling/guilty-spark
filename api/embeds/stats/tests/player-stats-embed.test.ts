@@ -105,4 +105,36 @@ describe("createPlayerStatsEmbeds()", () => {
     const rowValues = response.embeds.flatMap((embed) => embed.fields ?? []).flatMap((field) => field.value);
     expect(rowValues.join("\n")).toContain("42% avg/game");
   });
+
+  it("shows each objective contribution metric's own games-played population, not the overall objective games count", () => {
+    const stats = aFakeLeaderboardPlayerStatsRow({
+      ObjectiveGamesPlayed: 30,
+      ObjectiveTeamContribution: 0.25,
+      ObjectiveTeamContributionGamesPlayed: 18,
+      ObjectiveGameContribution: 0.42,
+      ObjectiveGameContributionGamesPlayed: 12,
+    });
+
+    const response = createPlayerStatsEmbeds({
+      stats,
+      ranks: new Map(),
+      state: {
+        aggregation: LeaderboardMetricAggregation.AvgPerGame,
+        relationshipMetric: null,
+        xboxXuid: "2533274000000001",
+        queueChannelId: null,
+        window: LeaderboardWindow.ThreeMonths,
+      },
+      locale: "en-US",
+      queueLabel: "all configured queues",
+      queueOptions: [],
+      resetAt: null,
+      minGamesPlayed: 1,
+    });
+
+    const rowValues = response.embeds.flatMap((embed) => embed.fields ?? []).flatMap((field) => field.value);
+    const combined = rowValues.join("\n");
+    expect(combined).toContain("25% avg/game (18 games)");
+    expect(combined).toContain("42% avg/game (12 games)");
+  });
 });

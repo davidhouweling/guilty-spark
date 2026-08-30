@@ -2699,6 +2699,19 @@ describe("StatsCommand", () => {
         }),
       );
     });
+
+    it("does not offer 'Last reset' as a static window choice, since it silently falls back to the default window without a reset marker", () => {
+      const [statsCommandData] = statsCommand.commands;
+      const playerSubCommand = statsCommandData?.options?.find((option) => option.name === "player");
+      const windowOption =
+        playerSubCommand?.type === ApplicationCommandOptionType.Subcommand
+          ? playerSubCommand.options?.find((option) => option.name === "window")
+          : undefined;
+
+      expect(windowOption?.type === ApplicationCommandOptionType.String ? windowOption.choices : undefined).toEqual(
+        expect.not.arrayContaining([expect.objectContaining({ value: LeaderboardWindow.LastReset })]),
+      );
+    });
   });
 
   describe("execute(): message component player stats select", () => {

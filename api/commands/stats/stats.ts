@@ -190,7 +190,6 @@ export class StatsCommand extends BaseCommand {
                 { name: "3 months", value: LeaderboardWindow.ThreeMonths },
                 { name: "6 months", value: LeaderboardWindow.SixMonths },
                 { name: "12 months", value: LeaderboardWindow.TwelveMonths },
-                { name: "Last reset", value: LeaderboardWindow.LastReset },
               ],
               required: false,
             },

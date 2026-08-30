@@ -392,9 +392,18 @@ export function getPlayerStatsRelationshipMetricLabel(metric: LeaderboardPlayerR
   return label;
 }
 
-// Objective counters are tracked per game mode; the games-played denominator must match the mode
-// the metric belongs to, not the player's overall objective-game count.
+// Objective counters are tracked per game mode (or per contribution column); the games-played
+// denominator must match the population the metric was aggregated over, not the player's overall
+// objective-game count (ObjectiveTimeSeconds' population), which can differ from these subsets.
 function getObjectiveGamesPlayedForMetric(stats: LeaderboardPlayerStatsRow, metric: LeaderboardMetric): number {
+  if (metric === LeaderboardMetric.ObjectiveTeamContribution) {
+    return stats.ObjectiveTeamContributionGamesPlayed;
+  }
+
+  if (metric === LeaderboardMetric.ObjectiveGameContribution) {
+    return stats.ObjectiveGameContributionGamesPlayed;
+  }
+
   if (!isObjectiveLeaderboardMetric(metric)) {
     return stats.ObjectiveGamesPlayed;
   }
@@ -572,10 +581,25 @@ function createTableFields(rows: readonly PlayerStatTableRow[]): APIEmbedField[]
 
   while (rowIndex < rows.length) {
     const fieldValues: [string, string, string] = ["", "", ""];
+    const groupStartIndex = rowIndex;
 
     while (rowIndex < rows.length) {
       const row = rows[rowIndex];
-      if (row == null || !canAppendRow(fieldValues, row)) {
+      if (row == null) {
+        break;
+      }
+
+      // A row whose own values exceed the field limit can never fit alongside prior rows; force it
+      // into its own (truncated) group so rowIndex always advances and the outer loop terminates.
+      if (!canAppendRow(fieldValues, row) && rowIndex === groupStartIndex) {
+        fieldValues[0] = row.label.slice(0, DISCORD_EMBED_FIELD_VALUE_LIMIT);
+        fieldValues[1] = row.rankText.slice(0, DISCORD_EMBED_FIELD_VALUE_LIMIT);
+        fieldValues[2] = row.valueText.slice(0, DISCORD_EMBED_FIELD_VALUE_LIMIT);
+        rowIndex += 1;
+        break;
+      }
+
+      if (!canAppendRow(fieldValues, row)) {
         break;
       }
 
