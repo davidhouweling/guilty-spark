@@ -2677,6 +2677,30 @@ describe("StatsCommand", () => {
     });
   });
 
+  describe("execute(): subcommand player", () => {
+    beforeEach(() => {
+      vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+        name: "player",
+        mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>(),
+        options: [],
+      });
+    });
+
+    it("returns a clear error when the guild has no configured NeatQueue channels", async () => {
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([]);
+
+      const { jobToComplete } = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          message: "This server has no configured NeatQueue channels. Set one up before using this command.",
+        }),
+      );
+    });
+  });
+
   describe("execute(): message component player stats select", () => {
     it("renders the selected relationship view with pair eligibility context", async () => {
       const playerStats = aFakeLeaderboardPlayerStatsRow();

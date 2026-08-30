@@ -434,6 +434,12 @@ export class StatsCommand extends BaseCommand {
 
     try {
       const configuredQueues = await this.services.databaseService.findNeatQueueConfig({ GuildId: guildId });
+      if (configuredQueues.length === 0) {
+        throw new EndUserError(
+          "This server has no configured NeatQueue channels. Set one up before using this command.",
+        );
+      }
+
       const requestedQueue = options.get("queue");
       const queueChannelId = typeof requestedQueue === "string" ? requestedQueue : null;
       if (queueChannelId != null && !configuredQueues.some((queue) => queue.ChannelId === queueChannelId)) {

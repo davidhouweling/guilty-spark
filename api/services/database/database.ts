@@ -2027,7 +2027,7 @@ export class DatabaseService {
 
     const query = `
       WITH ranked AS (
-        SELECT agg.*, ROW_NUMBER() OVER (ORDER BY agg.MetricValue ${sortDirection}, agg.GamesPlayed DESC, agg.Gamertag ASC) AS Rank, COUNT(*) OVER () AS Total
+        SELECT agg.*, ROW_NUMBER() OVER (ORDER BY agg.MetricValue ${sortDirection}, agg.GamesPlayed DESC, agg.Gamertag ASC, agg.XboxXuid ASC) AS Rank, COUNT(*) OVER () AS Total
         FROM (${aggregateSql}) agg
       )
       SELECT Rank, Total FROM ranked WHERE XboxXuid = ?
