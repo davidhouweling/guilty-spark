@@ -9,7 +9,12 @@ import { getObjectiveTimeSeconds } from "@guilty-spark/shared/halo/objective-met
 import { clampRatioForStorage, getSafeRatioValue } from "@guilty-spark/shared/halo/stat-formatting";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
-import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import {
+  LeaderboardMetric,
+  LeaderboardWindow,
+  getLeaderboardMetricAggregation,
+} from "@guilty-spark/shared/halo/leaderboard";
+import type { LeaderboardMetricAggregation } from "@guilty-spark/shared/halo/leaderboard";
 import type { DatabaseService } from "../database/database";
 import type { DiscordService } from "../discord/discord";
 import { DiscordError } from "../discord/discord-error";
@@ -20,6 +25,8 @@ import type { LeaderboardGamePlayersRow } from "../database/types/leaderboard_ga
 import type { LeaderboardConfigRow } from "../database/types/leaderboard_config";
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
 import type { LeaderboardPostRow } from "../database/types/leaderboard_post";
+import type { LeaderboardPlayerStatsRow } from "../database/types/leaderboard_player_stats";
+import type { LeaderboardPlayerMetricRank } from "../database/types/leaderboard_player_metric_rank";
 import type { HaloService } from "../halo/halo";
 import type { Medal } from "../halo/types";
 import type { LogService } from "../log/types";
@@ -46,6 +53,33 @@ interface GetLeaderboardOpts {
   minGamesPlayed?: number | undefined;
 }
 
+export interface GetLeaderboardPlayerStatsOpts {
+  guildId: string;
+  xboxXuid: string;
+  queueChannelId: string | null;
+  queueChannelIds?: string[];
+  window?: LeaderboardWindow;
+}
+
+export interface LeaderboardPlayerStatsResponse {
+  stats: LeaderboardPlayerStatsRow;
+  window: LeaderboardWindow;
+  resetAt: number | null;
+  startEpochSeconds: number;
+  minGamesPlayed: number;
+  defaultAggregation: LeaderboardMetricAggregation;
+}
+
+export interface GetLeaderboardPlayerMetricRanksOpts {
+  guildId: string;
+  xboxXuid: string;
+  queueChannelId: string | null;
+  queueChannelIds?: string[];
+  startEpochSeconds: number;
+  minGamesPlayed: number;
+  metrics: readonly LeaderboardMetric[];
+}
+
 export class LeaderboardService {
   private readonly databaseService: DatabaseService;
   private readonly discordService: DiscordService | undefined;
@@ -57,6 +91,76 @@ export class LeaderboardService {
     this.discordService = discordService;
     this.haloService = haloService;
     this.logService = logService;
+  }
+
+  async getLeaderboardPlayerStats({
+    guildId,
+    xboxXuid,
+    queueChannelId,
+    queueChannelIds,
+    window,
+  }: GetLeaderboardPlayerStatsOpts): Promise<LeaderboardPlayerStatsResponse | null> {
+    const config = await this.databaseService.getLeaderboardConfig(guildId, true);
+    const queueResetMarker = await this.databaseService.getLeaderboardResetMarker(guildId, queueChannelId);
+    const serverResetMarker =
+      queueChannelId != null && queueResetMarker == null
+        ? await this.databaseService.getLeaderboardResetMarker(guildId, null)
+        : null;
+    const resetMarker = queueResetMarker ?? serverResetMarker;
+    const requestedWindow = window ?? (resetMarker == null ? config.DefaultWindow : LeaderboardWindow.LastReset);
+    const resolvedWindow =
+      requestedWindow === LeaderboardWindow.LastReset && resetMarker == null ? config.DefaultWindow : requestedWindow;
+    const resetAt =
+      resolvedWindow === LeaderboardWindow.LastReset ? Preconditions.checkExists(resetMarker?.ResetAt) : null;
+    const startEpochSeconds =
+      resolvedWindow === LeaderboardWindow.LastReset
+        ? Preconditions.checkExists(resetAt)
+        : this.getWindowStartEpochSeconds(resolvedWindow);
+    const stats = await this.databaseService.getLeaderboardPlayerStats({
+      guildId,
+      xboxXuid,
+      queueChannelId,
+      ...(queueChannelIds == null ? {} : { queueChannelIds }),
+      startEpochSeconds,
+    });
+
+    return stats == null
+      ? null
+      : {
+          stats,
+          window: resolvedWindow,
+          resetAt,
+          startEpochSeconds,
+          minGamesPlayed: config.MinGamesPlayed,
+          defaultAggregation: getLeaderboardMetricAggregation(config.DefaultMetric),
+        };
+  }
+
+  async getLeaderboardPlayerMetricRanks({
+    guildId,
+    xboxXuid,
+    queueChannelId,
+    queueChannelIds,
+    startEpochSeconds,
+    minGamesPlayed,
+    metrics,
+  }: GetLeaderboardPlayerMetricRanksOpts): Promise<Map<LeaderboardMetric, LeaderboardPlayerMetricRank | null>> {
+    const ranks = new Map<LeaderboardMetric, LeaderboardPlayerMetricRank | null>();
+
+    for (const metric of metrics) {
+      const rank = await this.databaseService.getLeaderboardPlayerMetricRank({
+        guildId,
+        xboxXuid,
+        queueChannelId,
+        ...(queueChannelIds == null ? {} : { queueChannelIds }),
+        startEpochSeconds,
+        minGamesPlayed,
+        metric,
+      });
+      ranks.set(metric, rank);
+    }
+
+    return ranks;
   }
 
   async persistReconciledSeriesData({

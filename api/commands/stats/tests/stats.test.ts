@@ -24,6 +24,7 @@ import {
   MessageType,
 } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { LeaderboardMetricAggregation, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import { StatsCommand } from "../stats";
 import type { Services } from "../../../services/install";
 import { installFakeServicesWith } from "../../../services/fakes/services";
@@ -45,6 +46,10 @@ import {
   aFakeNeatQueueConfigRow,
 } from "../../../services/database/fakes/database.fake";
 import { EndUserError } from "../../../base/end-user-error";
+import {
+  PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
+  PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+} from "../../../embeds/stats/player-stats-embed";
 import type { MatchPlayer } from "../../../services/halo/types";
 import {
   DISCORD_SERIES_STATS_RESOLVED_CACHE_TTL_SECONDS,
@@ -2667,6 +2672,66 @@ describe("StatsCommand", () => {
       );
       expect(getMatchDetailsSpy).not.toHaveBeenCalled();
       expect(createMessageSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("execute(): message component player stats select", () => {
+    it("shows an empty state when no games were played in the selected window", async () => {
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+          values: [LeaderboardWindow.ThreeMonths],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          components: [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
+                  options: [{ label: "Total", value: LeaderboardMetricAggregation.Total, default: true }],
+                },
+              ],
+            },
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+                  options: [{ label: "1 month", value: LeaderboardWindow.OneMonth, default: true }],
+                },
+              ],
+            },
+          ],
+          embeds: [
+            {
+              footer: { text: "Min games: 5 | Total players: 10" },
+              url: "https://guilty-spark.app/stats/player/2533274000000001",
+            },
+          ],
+        },
+      };
+
+      const { jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+      expect(updateDeferredReplySpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          embeds: [
+            expect.objectContaining({
+              description: "No games played in 3M for the selected queue scope.",
+              footer: { text: "No games played" },
+            }),
+          ],
+        }),
+      );
     });
   });
 });

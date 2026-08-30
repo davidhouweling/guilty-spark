@@ -52,7 +52,7 @@ describe("createLeaderboardResponse", () => {
     );
     expect(averageObjectiveTimeResponse.embeds?.[0]?.fields?.[2]).toEqual({
       name: "Avg objective time per game",
-      value: "42s avg/game (7m 6s total, 10 games)",
+      value: "42s avg/game (10 games)",
       inline: true,
     });
 

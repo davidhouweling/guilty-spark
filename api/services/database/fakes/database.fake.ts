@@ -21,6 +21,7 @@ import type { LeaderboardSeriesPlayersRow } from "../types/leaderboard_series_pl
 import type { LeaderboardGamesRow } from "../types/leaderboard_games";
 import type { LeaderboardGamePlayersRow } from "../types/leaderboard_game_players";
 import type { LeaderboardPostRow } from "../types/leaderboard_post";
+import type { LeaderboardPlayerStatsRow } from "../types/leaderboard_player_stats";
 import type { MatchKillMatrixRow } from "../types/match_kill_matrix";
 
 export function aFakeDiscordAssociationsRow(opts: Partial<DiscordAssociationsRow> = {}): DiscordAssociationsRow {
@@ -364,6 +365,81 @@ export function aFakeMatchKillMatrixRow(opts: Partial<MatchKillMatrixRow> = {}):
     Perfects: 1,
     CreatedAt: nowEpoch,
     UpdatedAt: nowEpoch,
+  };
+
+  return {
+    ...defaultOpts,
+    ...opts,
+  };
+}
+
+export function aFakeLeaderboardPlayerStatsRow(
+  opts: Partial<LeaderboardPlayerStatsRow> = {},
+): LeaderboardPlayerStatsRow {
+  const defaultOpts: LeaderboardPlayerStatsRow = {
+    XboxXuid: "2533274000000001",
+    DiscordUserId: "discord-user-1",
+    Gamertag: "gamertag01",
+    SeriesPlayed: 10,
+    SeriesWins: 6,
+    GamesPlayed: 40,
+    GameWins: 22,
+    PersonalScore: 40_000,
+    AvgPersonalScorePerGame: 1000,
+    Kills: 600,
+    AvgKillsPerGame: 15,
+    Deaths: 480,
+    AvgDeathsPerGame: 12,
+    Assists: 200,
+    AvgAssistsPerGame: 5,
+    HeadshotKills: 180,
+    AvgHeadshotKillsPerGame: 4.5,
+    ShotsHit: 4000,
+    AvgShotsHitPerGame: 100,
+    ShotsFired: 8000,
+    AvgShotsFiredPerGame: 200,
+    DamageDealt: 60_000,
+    AvgDamageDealtPerGame: 1500,
+    DamageTaken: 55_000,
+    AvgDamageTakenPerGame: 1375,
+    Kda: 1.4,
+    Accuracy: 0.5,
+    DamageRatio: 1.1,
+    AvgLifeSeconds: 45,
+    AvgDamagePerLife: 130,
+    MedalCount: 300,
+    MedalPoints: 5000,
+    MythicMedalCount: 4,
+    ObjectiveGamesPlayed: 30,
+    ObjectiveTimeSeconds: 1200,
+    AvgObjectiveTimeSeconds: 40,
+    ObjectiveTeamContribution: 0.25,
+    ObjectiveGameContribution: 0.12,
+    CtfGamesPlayed: 8,
+    StrongholdGamesPlayed: 7,
+    HillGamesPlayed: 8,
+    BallGamesPlayed: 7,
+    FlagCaptures: 5,
+    FlagCaptureAssists: 3,
+    FlagGrabs: 9,
+    FlagReturns: 6,
+    FlagSecures: 4,
+    FlagSteals: 2,
+    FlagCarriersKilled: 7,
+    FlagReturnersKilled: 3,
+    FlagCarrierKills: 2,
+    FlagReturnerKills: 1,
+    StrongholdCaptures: 12,
+    StrongholdSecures: 9,
+    StrongholdOffensiveKills: 14,
+    StrongholdDefensiveKills: 11,
+    HillScoringTicks: 60,
+    HillOffensiveKills: 13,
+    HillDefensiveKills: 10,
+    BallScoringTicks: 75,
+    BallGrabs: 8,
+    BallCarriersKilled: 6,
+    BallCarrierKills: 4,
   };
 
   return {

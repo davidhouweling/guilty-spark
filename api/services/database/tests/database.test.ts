@@ -20,6 +20,7 @@ import {
   aFakeLeaderboardGamesRow,
   aFakeLeaderboardGamePlayersRow,
   aFakeLeaderboardPostRow,
+  aFakeLeaderboardPlayerStatsRow,
   aFakeMatchKillMatrixRow,
 } from "../fakes/database.fake";
 import type { GuildConfigRow } from "../types/guild_config";
@@ -32,6 +33,7 @@ import type { IndividualTrackerProfilesRow } from "../types/individual_tracker_p
 import type { IndividualTrackerGamesRow } from "../types/individual_tracker_games";
 import type { StreamerViewSettingsRow } from "../types/streamer_view_settings";
 import type { MatchKillMatrixRow } from "../types/match_kill_matrix";
+import type { LeaderboardPlayerStatsRow } from "../types/leaderboard_player_stats";
 
 describe("Database Service", () => {
   let env: Env;
@@ -1423,6 +1425,79 @@ describe("Database Service", () => {
       expect(bindSpy).toHaveBeenCalledWith("guild-123", 789);
       expect(firstSpy).toHaveBeenCalledTimes(1);
       expect(result).toEqual(series);
+    });
+
+    describe("getLeaderboardPlayerStats()", () => {
+      // The D1 result is an unchecked generic cast, so drift between the query and the row type
+      // only surfaces at render time as an undefined column.
+      it.each(Object.keys(aFakeLeaderboardPlayerStatsRow()))("selects the %s column", async (column) => {
+        const fakePreparedStatement = new FakePreparedStatement<LeaderboardPlayerStatsRow | null>();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+        vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+        vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+
+        await databaseService.getLeaderboardPlayerStats({
+          guildId: "guild-1",
+          xboxXuid: "2533274000000001",
+          queueChannelId: null,
+          startEpochSeconds: 0,
+        });
+
+        const query = prepareSpy.mock.calls[0]?.[0];
+        expect(query).toMatch(new RegExp(`(?:AS\\s+|\\.)${column}\\b`));
+      });
+
+      it("returns null without querying when no queue channels are configured", async () => {
+        const prepareSpy = vi.spyOn(env.DB, "prepare");
+
+        const result = await databaseService.getLeaderboardPlayerStats({
+          guildId: "guild-1",
+          xboxXuid: "2533274000000001",
+          queueChannelId: null,
+          queueChannelIds: [],
+          startEpochSeconds: 0,
+        });
+
+        expect(result).toBeNull();
+        expect(prepareSpy).not.toHaveBeenCalled();
+      });
+
+      it("scopes the query to the supplied configured queue channels", async () => {
+        const fakePreparedStatement = new FakePreparedStatement<LeaderboardPlayerStatsRow | null>();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+        const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+        vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+
+        await databaseService.getLeaderboardPlayerStats({
+          guildId: "guild-1",
+          xboxXuid: "2533274000000001",
+          queueChannelId: null,
+          queueChannelIds: ["queue-1", "queue-2"],
+          startEpochSeconds: 123,
+        });
+
+        const query = prepareSpy.mock.calls[0]?.[0];
+        expect(query).toContain("gp.QueueChannelId IN (?,?)");
+        expect(query).toContain("sp.QueueChannelId IN (?,?)");
+        const [bindings] = bindSpy.mock.calls;
+        expect(bindings).toEqual([
+          "guild-1",
+          "2533274000000001",
+          123,
+          "queue-1",
+          "queue-2",
+          "guild-1",
+          "2533274000000001",
+          123,
+          "queue-1",
+          "queue-2",
+          "guild-1",
+          "2533274000000001",
+          123,
+          "queue-1",
+          "queue-2",
+        ]);
+      });
     });
   });
 

@@ -25,6 +25,11 @@ import { formatDistanceToNowStrict, subHours } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
+import {
+  LeaderboardMetric,
+  LeaderboardMetricAggregation,
+  LeaderboardWindow,
+} from "@guilty-spark/shared/halo/leaderboard";
 import type { BaseInteraction, ExecuteResponse, ApplicationCommandData, CommandData } from "../base/base-command";
 import { BaseCommand } from "../base/base-command";
 import { NEAT_QUEUE_BOT_USER_ID } from "../../services/discord/discord";
@@ -40,9 +45,21 @@ import {
 } from "../../services/discord/discord-series-stats";
 import type { GuildConfigRow } from "../../services/database/types/guild_config";
 import { StatsReturnType } from "../../services/database/types/guild_config";
+import type { NeatQueueConfigRow } from "../../services/database/types/neat_queue_config";
 import { EmbedColors } from "../../embeds/colors";
 import { EndUserError } from "../../base/end-user-error";
 import { create } from "../../embeds/stats/create";
+import {
+  PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
+  PLAYER_STATS_QUEUE_SELECT_CONTROL_ID,
+  PLAYER_STATS_TEMPORARY_ERROR_FOOTER,
+  PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+  createPlayerStatsEmbeds,
+  createPlayerStatsNoQualifyingGamesResponse,
+  getPlayerStatsMetricsForAggregation,
+  getPlayerStatsStateFromMessage,
+} from "../../embeds/stats/player-stats-embed";
+import type { PlayerStatsQueueOption, PlayerStatsViewState } from "../../embeds/stats/player-stats-embed";
 
 interface FixFlowMetadata extends Record<string, unknown> {
   guildId: string;
@@ -58,6 +75,18 @@ type FixSeriesOutcome = "TEAM_0" | "TEAM_1" | "TIE";
 
 const FIX_METADATA_RETRY_BASE_DELAY_MS = 150;
 const FIX_METADATA_MAX_RETRIES = 3;
+const PLAYER_WINDOW_VALUES = new Set<string>(Object.values(LeaderboardWindow));
+const PLAYER_AGGREGATION_VALUES = new Map<string, LeaderboardMetricAggregation>(
+  Object.values(LeaderboardMetricAggregation).map((aggregation) => [aggregation, aggregation]),
+);
+
+function isLeaderboardWindow(value: string): value is LeaderboardWindow {
+  return PLAYER_WINDOW_VALUES.has(value);
+}
+
+function parsePlayerStatsAggregation(value: string): LeaderboardMetricAggregation | null {
+  return PLAYER_AGGREGATION_VALUES.get(value) ?? null;
+}
 
 export enum InteractionButton {
   Retry = "btn_stats_retry",
@@ -129,6 +158,46 @@ export class StatsCommand extends BaseCommand {
             },
           ],
         },
+        {
+          type: ApplicationCommandOptionType.Subcommand,
+          name: "player",
+          description: "Pulls accumulated leaderboard stats for a player",
+          options: [
+            {
+              type: ApplicationCommandOptionType.User,
+              name: "user",
+              description: "The player to show (defaults to you)",
+              required: false,
+            },
+            {
+              type: ApplicationCommandOptionType.Channel,
+              name: "queue",
+              description: "Configured NeatQueue channel (defaults to all configured queues)",
+              channel_types: [ChannelType.GuildText, ChannelType.GuildAnnouncement],
+              required: false,
+            },
+            {
+              type: ApplicationCommandOptionType.String,
+              name: "window",
+              description: "Leaderboard window (defaults to 3 months)",
+              choices: [
+                { name: "1 week", value: LeaderboardWindow.OneWeek },
+                { name: "1 month", value: LeaderboardWindow.OneMonth },
+                { name: "3 months", value: LeaderboardWindow.ThreeMonths },
+                { name: "6 months", value: LeaderboardWindow.SixMonths },
+                { name: "12 months", value: LeaderboardWindow.TwelveMonths },
+                { name: "Last reset", value: LeaderboardWindow.LastReset },
+              ],
+              required: false,
+            },
+            {
+              type: ApplicationCommandOptionType.Boolean,
+              name: "private",
+              description: "Only show the response to you",
+              required: false,
+            },
+          ],
+        },
       ],
     },
   ];
@@ -149,6 +218,30 @@ export class StatsCommand extends BaseCommand {
         data: {
           component_type: ComponentType.Button,
           custom_id: InteractionButton.LoadGames,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_STATS_QUEUE_SELECT_CONTROL_ID,
+          values: [],
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
+          values: [],
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+          values: [],
         },
       },
       {
@@ -209,6 +302,9 @@ export class StatsCommand extends BaseCommand {
           case "fix": {
             return this.handleFixSubCommand(interaction, subcommand.mappedOptions);
           }
+          case "player": {
+            return this.handlePlayerSubCommand(interaction, subcommand.mappedOptions);
+          }
           default: {
             throw new Error("Unknown subcommand");
           }
@@ -217,6 +313,15 @@ export class StatsCommand extends BaseCommand {
       case InteractionType.MessageComponent: {
         const { custom_id } = interaction.data;
         switch (custom_id) {
+          case PLAYER_STATS_QUEUE_SELECT_CONTROL_ID: {
+            return this.handlePlayerStatsQueueSelect(interaction as APIMessageComponentSelectMenuInteraction);
+          }
+          case PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID: {
+            return this.handlePlayerStatsAggregationSelect(interaction as APIMessageComponentSelectMenuInteraction);
+          }
+          case PLAYER_STATS_WINDOW_SELECT_CONTROL_ID: {
+            return this.handlePlayerStatsWindowSelect(interaction as APIMessageComponentSelectMenuInteraction);
+          }
           case InteractionButton.Retry.toString(): {
             return {
               response: {
@@ -293,6 +398,291 @@ export class StatsCommand extends BaseCommand {
         throw new UnreachableError(type);
       }
     }
+  }
+
+  private handlePlayerSubCommand(
+    interaction: APIApplicationCommandInteraction,
+    options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
+  ): ExecuteResponse {
+    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = {};
+    if (options.get("private") === true) {
+      data.flags = MessageFlags.Ephemeral;
+    }
+
+    return {
+      response: { type: InteractionResponseType.DeferredChannelMessageWithSource, data },
+      jobToComplete: async () => this.playerStatsSubCommandJob(interaction, options),
+    };
+  }
+
+  private async playerStatsSubCommandJob(
+    interaction: APIApplicationCommandInteraction,
+    options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
+  ): Promise<void> {
+    const guildId = interaction.guild_id;
+    if (guildId == null) {
+      await this.services.discordService.updateDeferredReplyWithError(
+        interaction.token,
+        new EndUserError("This command can only be used inside a server."),
+      );
+      return;
+    }
+
+    try {
+      const configuredQueues = await this.services.databaseService.findNeatQueueConfig({ GuildId: guildId });
+      const requestedQueue = options.get("queue");
+      const queueChannelId = typeof requestedQueue === "string" ? requestedQueue : null;
+      if (queueChannelId != null && !configuredQueues.some((queue) => queue.ChannelId === queueChannelId)) {
+        throw new EndUserError("The selected channel is not a configured NeatQueue channel.");
+      }
+
+      const targetUserId = this.getPlayerTargetUserId(interaction, options);
+      const associations = await this.services.databaseService.getDiscordAssociations([targetUserId]);
+      const [association] = associations;
+      if (association == null) {
+        throw new EndUserError("That Discord user is not linked to a Halo account.");
+      }
+
+      const requestedWindow = options.get("window");
+      const window = typeof requestedWindow === "string" ? this.parsePlayerWindow(requestedWindow) : undefined;
+      const response = await this.createPlayerStatsResponse({
+        guildId,
+        xboxXuid: association.XboxId,
+        queueChannelId,
+        configuredQueues,
+        aggregation: null,
+        window,
+        locale: interaction.guild_locale ?? interaction.locale,
+      });
+
+      if (response == null) {
+        throw new EndUserError("No games played in the selected window and queue scope.");
+      }
+
+      await this.services.discordService.updateDeferredReply(interaction.token, response);
+    } catch (error) {
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private getPlayerTargetUserId(
+    interaction: APIApplicationCommandInteraction,
+    options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
+  ): string {
+    const requestedUser = options.get("user");
+    if (typeof requestedUser === "string") {
+      return requestedUser;
+    }
+
+    return this.services.discordService.getDiscordUserId(interaction);
+  }
+
+  private parsePlayerWindow(value: string): LeaderboardWindow {
+    if (isLeaderboardWindow(value)) {
+      return value;
+    }
+
+    throw new EndUserError("The selected leaderboard window is invalid.");
+  }
+
+  private handlePlayerStatsQueueSelect(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
+    return {
+      response: { type: InteractionResponseType.DeferredMessageUpdate },
+      jobToComplete: async (): Promise<void> => {
+        await this.executePlayerStatsStateInteraction(interaction, (state) => {
+          const [selectedValue] = interaction.data.values;
+          if (selectedValue == null) {
+            throw new EndUserError("A queue must be selected.");
+          }
+
+          return { ...state, queueChannelId: selectedValue === "-" ? null : selectedValue };
+        });
+      },
+    };
+  }
+
+  private handlePlayerStatsAggregationSelect(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
+    return {
+      response: { type: InteractionResponseType.DeferredMessageUpdate },
+      jobToComplete: async (): Promise<void> => {
+        await this.executePlayerStatsStateInteraction(interaction, (state) => {
+          const [selectedValue] = interaction.data.values;
+          const aggregation = selectedValue == null ? null : parsePlayerStatsAggregation(selectedValue);
+          if (aggregation == null) {
+            throw new EndUserError("The selected stats type is invalid.");
+          }
+
+          return { ...state, aggregation };
+        });
+      },
+    };
+  }
+
+  private handlePlayerStatsWindowSelect(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
+    return {
+      response: { type: InteractionResponseType.DeferredMessageUpdate },
+      jobToComplete: async (): Promise<void> => {
+        await this.executePlayerStatsStateInteraction(interaction, (state) => {
+          const [selectedValue] = interaction.data.values;
+          if (selectedValue == null) {
+            throw new EndUserError("A window must be selected.");
+          }
+
+          return { ...state, window: this.parsePlayerWindow(selectedValue) };
+        });
+      },
+    };
+  }
+
+  private async executePlayerStatsStateInteraction(
+    interaction: APIMessageComponentSelectMenuInteraction,
+    stateUpdater: (state: PlayerStatsViewState) => PlayerStatsViewState,
+  ): Promise<void> {
+    try {
+      const currentState = getPlayerStatsStateFromMessage(interaction.message);
+      if (currentState == null) {
+        throw new EndUserError("This stats view has expired. Run /stats player again.");
+      }
+
+      const state = stateUpdater(currentState);
+      const guildId = Preconditions.checkExists(interaction.guild_id, "No guild ID found in interaction");
+      const configuredQueues = await this.services.databaseService.findNeatQueueConfig({ GuildId: guildId });
+      const response = await this.createPlayerStatsResponse({
+        guildId,
+        xboxXuid: state.xboxXuid,
+        queueChannelId: state.queueChannelId,
+        configuredQueues,
+        aggregation: state.aggregation,
+        window: state.window,
+        locale: interaction.guild_locale ?? interaction.locale,
+      });
+
+      if (response == null) {
+        await this.services.discordService.updateDeferredReply(
+          interaction.token,
+          createPlayerStatsNoQualifyingGamesResponse(interaction.message, state),
+        );
+        return;
+      }
+
+      await this.services.discordService.updateDeferredReply(interaction.token, response);
+    } catch (error) {
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error, {
+        preserveMessage: interaction.message,
+        errorEmbedFooter: PLAYER_STATS_TEMPORARY_ERROR_FOOTER,
+      });
+    }
+  }
+
+  private async createPlayerStatsResponse({
+    guildId,
+    xboxXuid,
+    queueChannelId,
+    configuredQueues,
+    aggregation,
+    window,
+    locale,
+  }: {
+    guildId: string;
+    xboxXuid: string;
+    queueChannelId: string | null;
+    configuredQueues: NeatQueueConfigRow[];
+    aggregation: LeaderboardMetricAggregation | null;
+    window: LeaderboardWindow | undefined;
+    locale: string;
+  }): Promise<ReturnType<typeof createPlayerStatsEmbeds> | null> {
+    const configuredQueueChannelIds = configuredQueues.map((queue) => queue.ChannelId);
+    const result = await this.services.leaderboardService.getLeaderboardPlayerStats({
+      guildId,
+      xboxXuid,
+      queueChannelId,
+      ...(queueChannelId == null ? { queueChannelIds: configuredQueueChannelIds } : {}),
+      ...(window == null ? {} : { window }),
+    });
+    if (result == null) {
+      return null;
+    }
+
+    const selectedAggregation = aggregation ?? result.defaultAggregation;
+    const metrics = getPlayerStatsMetricsForAggregation(selectedAggregation);
+    const rankMetrics = metrics.includes(LeaderboardMetric.GamesPlayed)
+      ? metrics
+      : [LeaderboardMetric.GamesPlayed, ...metrics];
+    const ranks = await this.services.leaderboardService.getLeaderboardPlayerMetricRanks({
+      guildId,
+      xboxXuid,
+      queueChannelId,
+      ...(queueChannelId == null ? { queueChannelIds: configuredQueueChannelIds } : {}),
+      startEpochSeconds: result.startEpochSeconds,
+      minGamesPlayed: result.minGamesPlayed,
+      metrics: rankMetrics,
+    });
+    const queueOptions = await this.getPlayerStatsQueueOptions({
+      guildId,
+      xboxXuid,
+      configuredQueues,
+      window: result.window,
+    });
+
+    return createPlayerStatsEmbeds({
+      stats: result.stats,
+      ranks,
+      state: {
+        aggregation: selectedAggregation,
+        xboxXuid: result.stats.XboxXuid,
+        queueChannelId,
+        window: result.window,
+      },
+      locale,
+      queueLabel: this.getPlayerStatsQueueLabel(queueChannelId, queueOptions),
+      queueOptions,
+      resetAt: result.resetAt,
+      minGamesPlayed: result.minGamesPlayed,
+    });
+  }
+
+  private async getPlayerStatsQueueOptions({
+    guildId,
+    xboxXuid,
+    configuredQueues,
+    window,
+  }: {
+    guildId: string;
+    xboxXuid: string;
+    configuredQueues: NeatQueueConfigRow[];
+    window: LeaderboardWindow;
+  }): Promise<PlayerStatsQueueOption[]> {
+    const playedQueues: PlayerStatsQueueOption[] = [];
+
+    for (const queue of configuredQueues) {
+      const result = await this.services.leaderboardService.getLeaderboardPlayerStats({
+        guildId,
+        xboxXuid,
+        queueChannelId: queue.ChannelId,
+        window,
+      });
+      if (result != null) {
+        playedQueues.push({ label: `Queue ${queue.ChannelId}`, value: queue.ChannelId });
+      }
+    }
+
+    if (playedQueues.length <= 1) {
+      return playedQueues;
+    }
+
+    return [{ label: "All configured queues", value: null }, ...playedQueues.slice(0, 24)];
+  }
+
+  private getPlayerStatsQueueLabel(
+    queueChannelId: string | null,
+    queueOptions: readonly PlayerStatsQueueOption[],
+  ): string {
+    if (queueChannelId == null) {
+      return "all configured queues";
+    }
+
+    const queueOption = queueOptions.find((option) => option.value === queueChannelId);
+    return queueOption?.label ?? `<#${queueChannelId}>`;
   }
 
   private handleNeatQueueSubCommand(
