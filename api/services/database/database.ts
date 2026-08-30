@@ -1403,7 +1403,6 @@ export class DatabaseService {
            WHERE LeaderboardGames.MatchId = MatchKillMatrix.MatchId
          )`,
     ).bind(orphanedKillMatrixRetentionBoundary);
-
     await this.DB.batch([
       deleteExpiredKillMatricesStmt,
       deleteExpiredLeaderboardSeriesStmt,

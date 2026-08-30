@@ -1,0 +1,66 @@
+import { describe, expect, it } from "vitest";
+import { LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import { createPlayerStatsRelationshipEmbeds } from "../player-stats-embed";
+import { aFakeLeaderboardPlayerRelationshipRow } from "../../../services/database/fakes/database.fake";
+import { LeaderboardPlayerRelationshipMetric } from "../../../services/database/types/leaderboard_player_relationship";
+
+describe("createPlayerStatsRelationshipEmbeds()", () => {
+  it("renders head-to-head rows with medals and perfect counts", () => {
+    const response = createPlayerStatsRelationshipEmbeds({
+      targetGamertag: "target-player",
+      rows: [
+        aFakeLeaderboardPlayerRelationshipRow({ Gamertag: "first-player", MetricValue: 12, Perfects: 2 }),
+        aFakeLeaderboardPlayerRelationshipRow({ Gamertag: "second-player", MetricValue: 8, Perfects: 1 }),
+        aFakeLeaderboardPlayerRelationshipRow({ Gamertag: "third-player", MetricValue: 7, Perfects: 0 }),
+        aFakeLeaderboardPlayerRelationshipRow({ Gamertag: "fourth-player", MetricValue: 4, Perfects: 0 }),
+      ],
+      state: {
+        aggregation: null,
+        relationshipMetric: LeaderboardPlayerRelationshipMetric.TotalHeadToHeadKills,
+        xboxXuid: "2533274000000001",
+        queueChannelId: null,
+        window: LeaderboardWindow.ThreeMonths,
+      },
+      locale: "en-US",
+      queueLabel: "all configured queues",
+      queueOptions: [],
+      resetAt: null,
+    });
+
+    const [embed] = response.embeds;
+    expect(embed?.title).toBe("target-player - Total head to head - Killed most");
+    expect(embed?.fields).toEqual([
+      { name: "Player", value: "first-player\nsecond-player\nthird-player\nfourth-player", inline: true },
+      { name: "Rank", value: "🥇\n🥈\n🥉\n#4", inline: true },
+      {
+        name: "Value",
+        value: "12 kills (2 perfects)\n8 kills (1 perfect)\n7 kills (0 perfects)\n4 kills (0 perfects)",
+        inline: true,
+      },
+    ]);
+    expect(embed?.footer).toBeUndefined();
+  });
+
+  it("renders win-rate eligibility context and no-data state", () => {
+    const response = createPlayerStatsRelationshipEmbeds({
+      targetGamertag: "target-player",
+      rows: [],
+      state: {
+        aggregation: null,
+        relationshipMetric: LeaderboardPlayerRelationshipMetric.GamesWinRateAgainst,
+        xboxXuid: "2533274000000001",
+        queueChannelId: "queue-1",
+        window: LeaderboardWindow.OneMonth,
+      },
+      locale: "en-US",
+      queueLabel: "Queue queue-1",
+      queueOptions: [{ label: "Queue queue-1", value: "queue-1" }],
+      resetAt: null,
+    });
+
+    const [embed] = response.embeds;
+    expect(embed?.description).toBe("No relationship data found for 1M in the selected queue scope.");
+    expect(embed?.fields).toEqual([]);
+    expect(embed?.footer).toEqual({ text: "Min shared games: 5" });
+  });
+});

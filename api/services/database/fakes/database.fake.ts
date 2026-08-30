@@ -23,6 +23,7 @@ import type { LeaderboardGamePlayersRow } from "../types/leaderboard_game_player
 import type { LeaderboardPostRow } from "../types/leaderboard_post";
 import type { LeaderboardPlayerStatsRow } from "../types/leaderboard_player_stats";
 import type { MatchKillMatrixRow } from "../types/match_kill_matrix";
+import type { LeaderboardPlayerRelationshipRow } from "../types/leaderboard_player_relationship";
 
 export function aFakeDiscordAssociationsRow(opts: Partial<DiscordAssociationsRow> = {}): DiscordAssociationsRow {
   const defaultOpts: DiscordAssociationsRow = {
@@ -369,6 +370,21 @@ export function aFakeMatchKillMatrixRow(opts: Partial<MatchKillMatrixRow> = {}):
 
   return {
     ...defaultOpts,
+    ...opts,
+  };
+}
+
+export function aFakeLeaderboardPlayerRelationshipRow(
+  opts: Partial<LeaderboardPlayerRelationshipRow> = {},
+): LeaderboardPlayerRelationshipRow {
+  return {
+    XboxXuid: "2533274000000002",
+    DiscordUserId: "discord-user-2",
+    Gamertag: "gamertag02",
+    MetricValue: 2,
+    SharedCount: 5,
+    Wins: 3,
+    Perfects: 1,
     ...opts,
   };
 }

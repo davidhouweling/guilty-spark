@@ -589,6 +589,11 @@ function getRelationshipRankText(index: number): string {
   return formatRank(index + 1);
 }
 
+function formatPerfects(perfects: number, locale: string): string {
+  const pluralCategory = new Intl.PluralRules(locale).select(perfects);
+  return `${perfects.toLocaleString(locale)} ${pluralCategory === "one" ? "perfect" : "perfects"}`;
+}
+
 function formatRelationshipValue(
   row: LeaderboardPlayerRelationshipRow,
   metric: LeaderboardPlayerRelationshipMetric,
@@ -596,16 +601,16 @@ function formatRelationshipValue(
 ): string {
   switch (metric) {
     case LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills: {
-      return `${row.MetricValue.toLocaleString(locale, { maximumFractionDigits: 1 })} kills/game (${row.Perfects.toLocaleString(locale)} perfects)`;
+      return `${row.MetricValue.toLocaleString(locale, { maximumFractionDigits: 1 })} kills/game (${formatPerfects(row.Perfects, locale)})`;
     }
     case LeaderboardPlayerRelationshipMetric.AvgHeadToHeadDeaths: {
-      return `${row.MetricValue.toLocaleString(locale, { maximumFractionDigits: 1 })} deaths/game (${row.Perfects.toLocaleString(locale)} perfects)`;
+      return `${row.MetricValue.toLocaleString(locale, { maximumFractionDigits: 1 })} deaths/game (${formatPerfects(row.Perfects, locale)})`;
     }
     case LeaderboardPlayerRelationshipMetric.TotalHeadToHeadKills: {
-      return `${row.MetricValue.toLocaleString(locale)} kills (${row.Perfects.toLocaleString(locale)} perfects)`;
+      return `${row.MetricValue.toLocaleString(locale)} kills (${formatPerfects(row.Perfects, locale)})`;
     }
     case LeaderboardPlayerRelationshipMetric.TotalHeadToHeadDeaths: {
-      return `${row.MetricValue.toLocaleString(locale)} deaths (${row.Perfects.toLocaleString(locale)} perfects)`;
+      return `${row.MetricValue.toLocaleString(locale)} deaths (${formatPerfects(row.Perfects, locale)})`;
     }
     case LeaderboardPlayerRelationshipMetric.SeriesPlayedWith:
     case LeaderboardPlayerRelationshipMetric.SeriesPlayedAgainst: {
