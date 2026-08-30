@@ -1521,8 +1521,14 @@ describe("Database Service", () => {
         expect(query).toContain("matrix.VictimXuid = related.XboxXuid");
         expect(query).toContain("related.TeamId != player.TeamId");
         expect(query).toContain("SUM(COALESCE(matrix.Perfects, 0)) AS Perfects");
+        expect(query).toContain(
+          "EXISTS (SELECT 1 FROM MatchKillMatrix matrixStatus WHERE matrixStatus.MatchId = game.MatchId)",
+        );
+        expect(query).toContain("GROUP BY related.XboxXuid");
+        expect(query).not.toContain("GROUP BY related.XboxXuid, related.DiscordUserId");
+        expect(query).toContain("ORDER BY identityGame.EndedAt DESC, relatedIdentity.CreatedAt DESC");
         expect(query).toContain("LIMIT 10");
-        expect(bindSpy).toHaveBeenCalledWith("guild-1", "player-1", 123, "queue-1", 1);
+        expect(bindSpy).toHaveBeenCalledWith(123, "queue-1", 123, "queue-1", "guild-1", "player-1", 123, "queue-1", 1);
       });
 
       it("reverses kill matrix direction and averages over shared games for head-to-head deaths", async () => {
@@ -1560,7 +1566,22 @@ describe("Database Service", () => {
         const query = prepareSpy.mock.calls[0]?.[0];
         expect(query).toContain("related.TeamId = player.TeamId");
         expect(query).toContain("SUM(player.SeriesWon)");
-        expect(bindSpy).toHaveBeenCalledWith("guild-1", "player-1", 123, "queue-1", "queue-1", 3);
+        expect(query).toContain("GROUP BY related.XboxXuid");
+        expect(query).toContain("ORDER BY identitySeries.CompletedAt DESC, relatedIdentity.CreatedAt DESC");
+        expect(bindSpy).toHaveBeenCalledWith(
+          123,
+          "queue-1",
+          "queue-1",
+          123,
+          "queue-1",
+          "queue-1",
+          "guild-1",
+          "player-1",
+          123,
+          "queue-1",
+          "queue-1",
+          3,
+        );
       });
 
       it("filters game win rate relationships to five shared games against opponents", async () => {
@@ -1579,7 +1600,22 @@ describe("Database Service", () => {
         const query = prepareSpy.mock.calls[0]?.[0];
         expect(query).toContain("related.TeamId != player.TeamId");
         expect(query).toContain("SUM(player.GameWon)");
-        expect(bindSpy).toHaveBeenCalledWith("guild-1", "player-1", 123, "queue-1", "queue-1", 5);
+        expect(query).toContain("GROUP BY related.XboxXuid");
+        expect(query).toContain("ORDER BY identityGame.EndedAt DESC, relatedIdentity.CreatedAt DESC");
+        expect(bindSpy).toHaveBeenCalledWith(
+          123,
+          "queue-1",
+          "queue-1",
+          123,
+          "queue-1",
+          "queue-1",
+          "guild-1",
+          "player-1",
+          123,
+          "queue-1",
+          "queue-1",
+          5,
+        );
       });
     });
   });
