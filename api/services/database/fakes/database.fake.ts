@@ -419,7 +419,7 @@ export function aFakeLeaderboardPlayerStatsRow(
     DamageTaken: 55_000,
     AvgDamageTakenPerGame: 1375,
     Kda: 1.4,
-    Accuracy: 0.5,
+    Accuracy: 55.5,
     DamageRatio: 1.1,
     AvgLifeSeconds: 45,
     AvgDamagePerLife: 130,
