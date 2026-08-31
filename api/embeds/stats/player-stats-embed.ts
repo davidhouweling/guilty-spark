@@ -13,6 +13,8 @@ import {
   LeaderboardMetric,
   LeaderboardMetricAggregation,
   LeaderboardWindow,
+  getLeaderboardMetricFamily,
+  getLeaderboardMetricFamilyLabel,
   getLeaderboardMetricAggregationLabel,
   getLeaderboardMetricFamiliesForAggregation,
   getLeaderboardObjectiveDescriptorByMetric,
@@ -23,7 +25,7 @@ import type { LeaderboardPlayerStatsRow } from "../../services/database/types/le
 import type { LeaderboardPlayerMetricRank } from "../../services/database/types/leaderboard_player_metric_rank";
 import { LeaderboardPlayerRelationshipMetric } from "../../services/database/types/leaderboard_player_relationship";
 import type { LeaderboardPlayerRelationshipRow } from "../../services/database/types/leaderboard_player_relationship";
-import { formatMetricValue, formatRank, getMetricLabel } from "../../services/leaderboard/leaderboard-response";
+import { formatMetricValue, formatRank } from "../../services/leaderboard/leaderboard-response";
 
 export const PLAYER_STATS_QUEUE_SELECT_CONTROL_ID = "stats_player_queue";
 export const PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID = "stats_player_aggregation";
@@ -480,7 +482,7 @@ function buildStatTableRow(
   };
 
   return {
-    label: getMetricLabel(metric),
+    label: getLeaderboardMetricFamilyLabel(getLeaderboardMetricFamily(metric)),
     rankText: getRankText(metric, rank, overallTotalPlayers),
     valueText: formatMetricValue(metricValue, metric, formatRow, locale),
   };
