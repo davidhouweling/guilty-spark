@@ -1454,6 +1454,25 @@ describe("Database Service", () => {
         expect(query).toMatch(new RegExp(`(?:AS\\s+|\\.)${column}\\b`));
       });
 
+      it("does not select XboxXuid from both identity and gameStats, avoiding a duplicate column", async () => {
+        const fakePreparedStatement = new FakePreparedStatement<LeaderboardPlayerStatsRow | null>();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+        vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+        vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+
+        await databaseService.getLeaderboardPlayerStats({
+          guildId: "guild-1",
+          xboxXuid: "2533274000000001",
+          queueChannelId: null,
+          startEpochSeconds: 0,
+        });
+
+        const query = prepareSpy.mock.calls[0]?.[0] ?? "";
+        const finalSelect = query.slice(query.lastIndexOf("SELECT identity."), query.indexOf("FROM identity"));
+        expect(finalSelect).not.toContain("identity.XboxXuid");
+        expect((finalSelect.match(/XboxXuid/g) ?? []).length).toBe(0);
+      });
+
       it("returns null without querying when no queue channels are configured", async () => {
         const prepareSpy = vi.spyOn(env.DB, "prepare");
 

@@ -1963,7 +1963,7 @@ export class DatabaseService {
         ORDER BY g.EndedAt DESC, gp.CreatedAt DESC
         LIMIT 1
       )
-      SELECT identity.XboxXuid, identity.DiscordUserId, identity.Gamertag,
+      SELECT identity.DiscordUserId, identity.Gamertag,
         seriesStats.SeriesPlayed, seriesStats.SeriesWins,
         gameStats.*
       FROM identity

@@ -712,23 +712,25 @@ export class StatsCommand extends BaseCommand {
     window: LeaderboardWindow;
   }): Promise<PlayerStatsQueueOption[]> {
     const maxPlayedQueueOptions = 24;
-    const playedQueues: PlayerStatsQueueOption[] = [];
 
-    for (const queue of configuredQueues) {
-      if (playedQueues.length >= maxPlayedQueueOptions) {
-        break;
-      }
-
-      const result = await this.services.leaderboardService.getLeaderboardPlayerStats({
-        guildId,
-        xboxXuid,
-        queueChannelId: queue.ChannelId,
-        window,
-      });
-      if (result != null) {
-        playedQueues.push({ label: `Queue ${queue.ChannelId}`, value: queue.ChannelId });
-      }
-    }
+    // Reset markers (for LeaderboardWindow.LastReset) can differ per queue, so each queue's
+    // eligibility must be resolved independently — but running them concurrently instead of one
+    // at a time avoids a full round-trip's latency per configured queue.
+    const results = await Promise.all(
+      configuredQueues.map(async (queue) => ({
+        queue,
+        result: await this.services.leaderboardService.getLeaderboardPlayerStats({
+          guildId,
+          xboxXuid,
+          queueChannelId: queue.ChannelId,
+          window,
+        }),
+      })),
+    );
+    const playedQueues: PlayerStatsQueueOption[] = results
+      .filter(({ result }) => result != null)
+      .slice(0, maxPlayedQueueOptions)
+      .map(({ queue }) => ({ label: `Queue ${queue.ChannelId}`, value: queue.ChannelId }));
 
     if (playedQueues.length <= 1) {
       return playedQueues;
