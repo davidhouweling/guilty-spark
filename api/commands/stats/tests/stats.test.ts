@@ -2757,6 +2757,43 @@ describe("StatsCommand", () => {
   });
 
   describe("execute(): message component player stats select", () => {
+    it("returns an ephemeral response when a different user selects a player stats filter", () => {
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        member: {
+          ...Preconditions.checkExists(fakeButtonClickInteraction.member),
+          user: {
+            ...Preconditions.checkExists(fakeButtonClickInteraction.member?.user),
+            id: "different-discord-user",
+          },
+        },
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+          values: [LeaderboardWindow.OneMonth],
+        },
+      };
+
+      const response = statsCommand.execute(interaction);
+
+      expect(response).toEqual({
+        response: {
+          type: InteractionResponseType.ChannelMessageWithSource,
+          data: {
+            embeds: [
+              expect.objectContaining({
+                title: "Stats embed locked",
+                description: "Only the person who called the command can use this stats embed.",
+                color: 0xffa500,
+              }),
+            ],
+            flags: MessageFlags.Ephemeral,
+          },
+        },
+      });
+      expect(updateDeferredReplySpy).not.toHaveBeenCalled();
+    });
+
     it("renders the selected relationship view with pair eligibility context", async () => {
       const playerStats = aFakeLeaderboardPlayerStatsRow();
       vi.spyOn(services.leaderboardService, "getLeaderboardPlayerRelationships").mockResolvedValue({

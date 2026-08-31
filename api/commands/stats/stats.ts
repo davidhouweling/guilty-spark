@@ -48,7 +48,7 @@ import type { GuildConfigRow } from "../../services/database/types/guild_config"
 import { StatsReturnType } from "../../services/database/types/guild_config";
 import type { NeatQueueConfigRow } from "../../services/database/types/neat_queue_config";
 import { EmbedColors } from "../../embeds/colors";
-import { EndUserError } from "../../base/end-user-error";
+import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import { create } from "../../embeds/stats/create";
 import {
   ALL_QUEUES_VALUE,
@@ -317,13 +317,13 @@ export class StatsCommand extends BaseCommand {
         const { custom_id } = interaction.data;
         switch (custom_id) {
           case PLAYER_STATS_QUEUE_SELECT_CONTROL_ID: {
-            return this.handlePlayerStatsQueueSelect(interaction as APIMessageComponentSelectMenuInteraction);
+            return this.handlePlayerStatsSelect(interaction as APIMessageComponentSelectMenuInteraction);
           }
           case PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID: {
-            return this.handlePlayerStatsAggregationSelect(interaction as APIMessageComponentSelectMenuInteraction);
+            return this.handlePlayerStatsSelect(interaction as APIMessageComponentSelectMenuInteraction);
           }
           case PLAYER_STATS_WINDOW_SELECT_CONTROL_ID: {
-            return this.handlePlayerStatsWindowSelect(interaction as APIMessageComponentSelectMenuInteraction);
+            return this.handlePlayerStatsSelect(interaction as APIMessageComponentSelectMenuInteraction);
           }
           case InteractionButton.Retry.toString(): {
             return {
@@ -493,6 +493,48 @@ export class StatsCommand extends BaseCommand {
     }
 
     throw new EndUserError("The selected leaderboard window is invalid.");
+  }
+
+  private handlePlayerStatsSelect(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
+    if (!this.isPlayerStatsCommandInvoker(interaction)) {
+      const warning = new EndUserError("Only the person who called the command can use this stats embed.", {
+        title: "Stats embed locked",
+        errorType: EndUserErrorType.WARNING,
+      });
+      return {
+        response: {
+          type: InteractionResponseType.ChannelMessageWithSource,
+          data: {
+            embeds: [warning.discordEmbed],
+            flags: MessageFlags.Ephemeral,
+          },
+        },
+      };
+    }
+
+    switch (interaction.data.custom_id) {
+      case PLAYER_STATS_QUEUE_SELECT_CONTROL_ID: {
+        return this.handlePlayerStatsQueueSelect(interaction);
+      }
+      case PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID: {
+        return this.handlePlayerStatsAggregationSelect(interaction);
+      }
+      case PLAYER_STATS_WINDOW_SELECT_CONTROL_ID: {
+        return this.handlePlayerStatsWindowSelect(interaction);
+      }
+      default: {
+        throw new Error(`Unexpected player stats control: ${interaction.data.custom_id}`);
+      }
+    }
+  }
+
+  private isPlayerStatsCommandInvoker(interaction: APIMessageComponentSelectMenuInteraction): boolean {
+    const commandInvokerId = interaction.message.interaction_metadata?.user.id;
+    if (commandInvokerId == null) {
+      return false;
+    }
+
+    return this.services.discordService.getDiscordUserId(interaction) === commandInvokerId;
   }
 
   private handlePlayerStatsQueueSelect(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
