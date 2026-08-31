@@ -2700,6 +2700,48 @@ describe("StatsCommand", () => {
       );
     });
 
+    it("stops probing configured queues for played-queue options once 24 have been found", async () => {
+      const configuredQueues = Array.from({ length: 40 }, (_unused, index) =>
+        aFakeNeatQueueConfigRow({ ChannelId: `queue-${index.toString()}` }),
+      );
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue(configuredQueues);
+      vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([
+        aFakeDiscordAssociationsRow({ DiscordId: "discord-user-1", XboxId: "2533274000000001" }),
+      ]);
+
+      const statsResponse = {
+        stats: aFakeLeaderboardPlayerStatsRow(),
+        window: LeaderboardWindow.ThreeMonths,
+        resetAt: null,
+        startEpochSeconds: 0,
+        minGamesPlayed: 1,
+        defaultAggregation: LeaderboardMetricAggregation.AvgPerGame,
+      };
+      const getLeaderboardPlayerStatsSpy = vi
+        .spyOn(services.leaderboardService, "getLeaderboardPlayerStats")
+        .mockImplementation(async ({ queueChannelId }) =>
+          // The overall-stats lookup (queueChannelId: null) always succeeds; every configured
+          // queue also has qualifying games, so the probe should stop as soon as it has found the
+          // first 24 played queues rather than probing all 40 configured queues.
+          Promise.resolve(
+            queueChannelId == null || configuredQueues.some((queue) => queue.ChannelId === queueChannelId)
+              ? statsResponse
+              : null,
+          ),
+        );
+      vi.spyOn(services.leaderboardService, "getLeaderboardPlayerMetricRanks").mockResolvedValue(new Map());
+
+      const { jobToComplete } = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+      const queueProbeCalls = getLeaderboardPlayerStatsSpy.mock.calls.filter(
+        ([{ queueChannelId }]) => queueChannelId != null,
+      );
+      expect(queueProbeCalls.length).toBeLessThan(configuredQueues.length);
+      expect(queueProbeCalls.length).toBeGreaterThanOrEqual(24);
+    });
+
     it("does not offer 'Last reset' as a static window choice, since it silently falls back to the default window without a reset marker", () => {
       const [statsCommandData] = statsCommand.commands;
       const playerSubCommand = statsCommandData?.options?.find((option) => option.name === "player");

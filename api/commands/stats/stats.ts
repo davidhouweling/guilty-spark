@@ -712,25 +712,37 @@ export class StatsCommand extends BaseCommand {
     window: LeaderboardWindow;
   }): Promise<PlayerStatsQueueOption[]> {
     const maxPlayedQueueOptions = 24;
+    const queueProbeBatchSize = 8;
+    const playedQueues: PlayerStatsQueueOption[] = [];
 
     // Reset markers (for LeaderboardWindow.LastReset) can differ per queue, so each queue's
-    // eligibility must be resolved independently — but running them concurrently instead of one
-    // at a time avoids a full round-trip's latency per configured queue.
-    const results = await Promise.all(
-      configuredQueues.map(async (queue) => ({
-        queue,
-        result: await this.services.leaderboardService.getLeaderboardPlayerStats({
-          guildId,
-          xboxXuid,
-          queueChannelId: queue.ChannelId,
-          window,
-        }),
-      })),
-    );
-    const playedQueues: PlayerStatsQueueOption[] = results
-      .filter(({ result }) => result != null)
-      .slice(0, maxPlayedQueueOptions)
-      .map(({ queue }) => ({ label: `Queue ${queue.ChannelId}`, value: queue.ChannelId }));
+    // eligibility must be resolved independently. Probing in small concurrent batches avoids both
+    // a full round-trip's latency per configured queue and an unbounded burst across all queues,
+    // and still exits early once enough played queues have been found.
+    for (let batchStart = 0; batchStart < configuredQueues.length; batchStart += queueProbeBatchSize) {
+      if (playedQueues.length >= maxPlayedQueueOptions) {
+        break;
+      }
+
+      const batch = configuredQueues.slice(batchStart, batchStart + queueProbeBatchSize);
+      const batchResults = await Promise.all(
+        batch.map(async (queue) => ({
+          queue,
+          result: await this.services.leaderboardService.getLeaderboardPlayerStats({
+            guildId,
+            xboxXuid,
+            queueChannelId: queue.ChannelId,
+            window,
+          }),
+        })),
+      );
+
+      for (const { queue, result } of batchResults) {
+        if (result != null && playedQueues.length < maxPlayedQueueOptions) {
+          playedQueues.push({ label: `Queue ${queue.ChannelId}`, value: queue.ChannelId });
+        }
+      }
+    }
 
     if (playedQueues.length <= 1) {
       return playedQueues;
