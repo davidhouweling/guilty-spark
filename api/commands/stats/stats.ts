@@ -441,9 +441,9 @@ export class StatsCommand extends BaseCommand {
     interaction: APIApplicationCommandInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
   ): ExecuteResponse {
-    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = {
-      flags: this.isPlayerStatsPrivate(options) ? MessageFlags.Ephemeral : undefined,
-    };
+    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = this.isPlayerStatsPrivate(options)
+      ? { flags: MessageFlags.Ephemeral }
+      : {};
 
     return {
       response: { type: InteractionResponseType.DeferredChannelMessageWithSource, data },
