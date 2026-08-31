@@ -528,6 +528,50 @@ export interface DatabaseServiceOpts {
   env: Env;
 }
 
+function getRelationshipAggregateSql(
+  metric: LeaderboardPlayerRelationshipMetric,
+  params: {
+    guildId: string;
+    xboxXuid: string;
+    queueChannelId: string | null;
+    queueChannelIds: string[] | undefined;
+    startEpochSeconds: number;
+  },
+): { sql: string; bindings: readonly (string | number | null)[] } {
+  switch (metric) {
+    case LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills:
+    case LeaderboardPlayerRelationshipMetric.AvgHeadToHeadDeaths:
+    case LeaderboardPlayerRelationshipMetric.TotalHeadToHeadKills:
+    case LeaderboardPlayerRelationshipMetric.TotalHeadToHeadDeaths: {
+      return getHeadToHeadRelationshipAggregateSql({
+        ...params,
+        config: Preconditions.checkExists(getHeadToHeadMetricConfig(metric), `No head-to-head config for ${metric}`),
+      });
+    }
+    case LeaderboardPlayerRelationshipMetric.SeriesPlayedWith:
+    case LeaderboardPlayerRelationshipMetric.SeriesPlayedAgainst:
+    case LeaderboardPlayerRelationshipMetric.SeriesWinRateWith:
+    case LeaderboardPlayerRelationshipMetric.SeriesWinRateAgainst: {
+      return getSeriesRelationshipAggregateSql({
+        ...params,
+        config: Preconditions.checkExists(getPairRelationshipMetricConfig(metric), `No pair config for ${metric}`),
+      });
+    }
+    case LeaderboardPlayerRelationshipMetric.GamesPlayedWith:
+    case LeaderboardPlayerRelationshipMetric.GamesPlayedAgainst:
+    case LeaderboardPlayerRelationshipMetric.GamesWinRateWith:
+    case LeaderboardPlayerRelationshipMetric.GamesWinRateAgainst: {
+      return getGameRelationshipAggregateSql({
+        ...params,
+        config: Preconditions.checkExists(getPairRelationshipMetricConfig(metric), `No pair config for ${metric}`),
+      });
+    }
+    default: {
+      throw new UnreachableError(metric);
+    }
+  }
+}
+
 export class DatabaseService {
   private readonly DB: D1Database;
   private readonly guildConfigCache = new Map<string, GuildConfigRow>();
@@ -2061,39 +2105,14 @@ export class DatabaseService {
       return [];
     }
 
-    const headToHeadConfig = getHeadToHeadMetricConfig(metric);
     const pairConfig = getPairRelationshipMetricConfig(metric);
-    const aggregate =
-      headToHeadConfig != null
-        ? getHeadToHeadRelationshipAggregateSql({
-            guildId,
-            xboxXuid,
-            queueChannelId,
-            queueChannelIds,
-            startEpochSeconds,
-            config: headToHeadConfig,
-          })
-        : pairConfig?.scope === "series"
-          ? getSeriesRelationshipAggregateSql({
-              guildId,
-              xboxXuid,
-              queueChannelId,
-              queueChannelIds,
-              startEpochSeconds,
-              config: pairConfig,
-            })
-          : pairConfig?.scope === "game"
-            ? getGameRelationshipAggregateSql({
-                guildId,
-                xboxXuid,
-                queueChannelId,
-                queueChannelIds,
-                startEpochSeconds,
-                config: pairConfig,
-              })
-            : ((): never => {
-                throw new Error(`Unsupported player relationship metric: ${metric}`);
-              })();
+    const aggregate = getRelationshipAggregateSql(metric, {
+      guildId,
+      xboxXuid,
+      queueChannelId,
+      queueChannelIds,
+      startEpochSeconds,
+    });
     const minimumSharedCount = pairConfig?.value === "win-rate" ? (pairConfig.scope === "series" ? 3 : 5) : 1;
     const query = `
       SELECT XboxXuid, DiscordUserId, Gamertag, MetricValue, SharedCount, Wins, Perfects

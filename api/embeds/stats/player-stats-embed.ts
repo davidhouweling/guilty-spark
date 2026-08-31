@@ -7,6 +7,7 @@ import type {
 } from "discord-api-types/v10";
 import { ComponentType } from "discord-api-types/v10";
 import { GameVariantCategory } from "halo-infinite-api";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
 import {
   LeaderboardMetric,
@@ -673,7 +674,7 @@ function formatRelationshipValue(
       return `${(row.MetricValue * 100).toLocaleString(locale, { maximumFractionDigits: 1 })}% (${row.Wins.toLocaleString(locale)}/${row.SharedCount.toLocaleString(locale)} shared games)`;
     }
     default: {
-      throw new Error("Unsupported player relationship metric");
+      throw new UnreachableError(metric);
     }
   }
 }
@@ -699,7 +700,7 @@ function getRelationshipFooter(metric: LeaderboardPlayerRelationshipMetric): str
       return undefined;
     }
     default: {
-      throw new Error("Unsupported player relationship metric");
+      throw new UnreachableError(metric);
     }
   }
 }
