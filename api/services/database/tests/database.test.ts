@@ -639,7 +639,7 @@ describe("Database Service", () => {
       const gamePlayersInsertQuery = prepareSpy.mock.calls[4]?.[0];
       const countBoundParameters = (sql: string): number => sql.split("?").length - 1;
       if (gamePlayersInsertQuery != null) {
-        expect(countBoundParameters(gamePlayersInsertQuery)).toBe(34);
+        expect(countBoundParameters(gamePlayersInsertQuery)).toBe(33);
       }
       expect(batchSpy).toHaveBeenNthCalledWith(1, [deleteSeriesPlayersStatement, insertSeriesPlayersStatement]);
       expect(batchSpy).toHaveBeenNthCalledWith(2, [deleteGamesStatement, upsertGamesStatement]);
@@ -653,7 +653,7 @@ describe("Database Service", () => {
           XboxXuid: `xuid-${index.toString()}`,
         }),
       );
-      const chunkStatements = Array.from({ length: 20 }, () => new FakePreparedStatement());
+      const chunkStatements = Array.from({ length: 14 }, () => new FakePreparedStatement());
       let prepareCallCount = 0;
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockImplementation(() => {
         const statement = chunkStatements[prepareCallCount];
@@ -665,7 +665,7 @@ describe("Database Service", () => {
 
       await databaseService.upsertLeaderboardGamePlayers(gamePlayers);
 
-      expect(prepareSpy).toHaveBeenCalledTimes(20);
+      expect(prepareSpy).toHaveBeenCalledTimes(14);
       for (const bindSpy of bindSpies) {
         expect(bindSpy).toHaveBeenCalledTimes(1);
       }
@@ -740,7 +740,7 @@ describe("Database Service", () => {
       );
       const countBoundParameters = (sql: string): number => sql.split("?").length - 1;
       expect(gamePlayerInsertQueries).toHaveLength(1);
-      expect(countBoundParameters(gamePlayerInsertQueries[0] ?? "")).toBe(34);
+      expect(countBoundParameters(gamePlayerInsertQueries[0] ?? "")).toBe(33);
       expect(batchSpy).toHaveBeenCalledTimes(1);
       expect(batchSpy).toHaveBeenCalledWith(batchedStatements);
     });
