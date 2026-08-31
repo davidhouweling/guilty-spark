@@ -9,6 +9,7 @@ import type {
   APIMessageComponentButtonInteraction,
   APIMessageComponentSelectMenuInteraction,
   RESTPostAPIChannelThreadsResult,
+  APIUserApplicationCommandGuildInteraction,
 } from "discord-api-types/v10";
 import {
   ApplicationCommandOptionType,
@@ -19,6 +20,7 @@ import {
   PermissionFlagsBits,
   InteractionResponseType,
   InteractionType,
+  InteractionContextType,
   Locale,
   MessageFlags,
   MessageType,
@@ -128,6 +130,25 @@ const applicationCommandInteractionStatsMatch: APIApplicationCommandInteraction 
       },
     ],
     type: ApplicationCommandType.ChatInput,
+  },
+};
+
+const userContextMenuInteractionPlayerStats: APIUserApplicationCommandGuildInteraction = {
+  ...fakeBaseAPIApplicationCommandInteraction,
+  type: InteractionType.ApplicationCommand,
+  member: Preconditions.checkExists(fakeButtonClickInteraction.member),
+  guild: {
+    features: [],
+    id: "fake-guild-id",
+    locale: Locale.EnglishUS,
+  },
+  guild_id: "fake-guild-id",
+  data: {
+    id: "fake-command-id",
+    name: "Player stats",
+    target_id: "target-user-123",
+    type: ApplicationCommandType.User,
+    resolved: { users: {} },
   },
 };
 
@@ -2700,6 +2721,49 @@ describe("StatsCommand", () => {
       );
     });
 
+    it("returns a private response by default and accepts a public visibility override", () => {
+      const privateResponse = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+
+      expect(privateResponse.response).toEqual({
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data: { flags: MessageFlags.Ephemeral },
+      });
+
+      vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+        name: "player",
+        mappedOptions: new Map([["visible", "public"]]),
+        options: [],
+      });
+      const publicResponse = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+
+      expect(publicResponse.response).toEqual({
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data: {},
+      });
+    });
+
+    it("uses a public or private visibility option instead of the previous boolean", () => {
+      const statsCommandData = statsCommand.commands.find(
+        (command) => command.type === ApplicationCommandType.ChatInput,
+      );
+      const playerSubCommand = statsCommandData?.options?.find((option) => option.name === "player");
+      const visibilityOption =
+        playerSubCommand?.type === ApplicationCommandOptionType.Subcommand
+          ? playerSubCommand.options?.find((option) => option.name === "visible")
+          : undefined;
+
+      expect(visibilityOption).toEqual({
+        type: ApplicationCommandOptionType.String,
+        name: "visible",
+        description: "Who can see the response (defaults to private)",
+        choices: [
+          { name: "Public", value: "public" },
+          { name: "Private", value: "private" },
+        ],
+        required: false,
+      });
+    });
+
     it("stops probing configured queues for played-queue options once 24 have been found", async () => {
       const configuredQueues = Array.from({ length: 40 }, (_unused, index) =>
         aFakeNeatQueueConfigRow({ ChannelId: `queue-${index.toString()}` }),
@@ -2743,7 +2807,9 @@ describe("StatsCommand", () => {
     });
 
     it("does not offer 'Last reset' as a static window choice, since it silently falls back to the default window without a reset marker", () => {
-      const [statsCommandData] = statsCommand.commands;
+      const statsCommandData = statsCommand.commands.find(
+        (command) => command.type === ApplicationCommandType.ChatInput,
+      );
       const playerSubCommand = statsCommandData?.options?.find((option) => option.name === "player");
       const windowOption =
         playerSubCommand?.type === ApplicationCommandOptionType.Subcommand
@@ -2756,7 +2822,99 @@ describe("StatsCommand", () => {
     });
   });
 
+  describe("execute(): Player stats user command", () => {
+    it("registers a guild-only user context command", () => {
+      const userCommand = statsCommand.commands.find((command) => command.type === ApplicationCommandType.User);
+
+      expect(userCommand).toEqual({
+        type: ApplicationCommandType.User,
+        name: "Player stats",
+        description: "",
+        contexts: [InteractionContextType.Guild],
+        default_member_permissions: null,
+      });
+    });
+
+    it("resolves the context menu target as the player to display", async () => {
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+        aFakeNeatQueueConfigRow({ GuildId: "fake-guild-id" }),
+      ]);
+      const getDiscordAssociationsSpy = vi
+        .spyOn(services.databaseService, "getDiscordAssociations")
+        .mockResolvedValue([aFakeDiscordAssociationsRow({ DiscordId: "target-user-123" })]);
+      vi.spyOn(services.leaderboardService, "getLeaderboardPlayerStats").mockResolvedValue(null);
+
+      const { response, jobToComplete } = statsCommand.execute(userContextMenuInteractionPlayerStats);
+      await jobToComplete?.();
+
+      expect(response).toEqual({
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data: { flags: MessageFlags.Ephemeral },
+      });
+      expect(getDiscordAssociationsSpy).toHaveBeenCalledWith(["target-user-123"]);
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({ message: "No games played in the selected window and queue scope." }),
+      );
+    });
+  });
+
   describe("execute(): message component player stats select", () => {
+    it("returns an ephemeral response when a different user selects a player stats filter", () => {
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        member: {
+          ...Preconditions.checkExists(fakeButtonClickInteraction.member),
+          user: {
+            ...Preconditions.checkExists(fakeButtonClickInteraction.member?.user),
+            id: "different-discord-user",
+          },
+        },
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+          values: [LeaderboardWindow.OneMonth],
+        },
+      };
+
+      const response = statsCommand.execute(interaction);
+
+      expect(response).toEqual({
+        response: {
+          type: InteractionResponseType.ChannelMessageWithSource,
+          data: {
+            embeds: [
+              expect.objectContaining({
+                title: "Stats embed locked",
+                description: "Only the person who called the command can use this stats embed.",
+                color: 0xffa500,
+              }),
+            ],
+            flags: MessageFlags.Ephemeral,
+          },
+        },
+      });
+      expect(updateDeferredReplySpy).not.toHaveBeenCalled();
+    });
+
+    it("recognizes the command invoker via message.interaction when interaction_metadata is absent", () => {
+      const { interaction_metadata, ...messageWithoutMetadata }: APIMessage = fakeButtonClickInteraction.message;
+      void interaction_metadata;
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+          values: [LeaderboardWindow.OneMonth],
+        },
+        message: messageWithoutMetadata,
+      };
+
+      const response = statsCommand.execute(interaction);
+
+      expect(response.response.type).toBe(InteractionResponseType.DeferredMessageUpdate);
+    });
+
     it("renders the selected relationship view with pair eligibility context", async () => {
       const playerStats = aFakeLeaderboardPlayerStatsRow();
       vi.spyOn(services.leaderboardService, "getLeaderboardPlayerRelationships").mockResolvedValue({

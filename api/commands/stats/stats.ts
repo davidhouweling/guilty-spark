@@ -6,6 +6,7 @@ import type {
   APIMessageComponentButtonInteraction,
   APIMessageComponentSelectMenuInteraction,
   APISelectMenuOption,
+  APIUserApplicationCommandGuildInteraction,
 } from "discord-api-types/v10";
 import {
   EmbedType,
@@ -48,7 +49,7 @@ import type { GuildConfigRow } from "../../services/database/types/guild_config"
 import { StatsReturnType } from "../../services/database/types/guild_config";
 import type { NeatQueueConfigRow } from "../../services/database/types/neat_queue_config";
 import { EmbedColors } from "../../embeds/colors";
-import { EndUserError } from "../../base/end-user-error";
+import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import { create } from "../../embeds/stats/create";
 import {
   ALL_QUEUES_VALUE,
@@ -83,6 +84,9 @@ const PLAYER_WINDOW_VALUES = new Set<string>(Object.values(LeaderboardWindow));
 const PLAYER_AGGREGATION_VALUES = new Map<string, LeaderboardMetricAggregation>(
   Object.values(LeaderboardMetricAggregation).map((aggregation) => [aggregation, aggregation]),
 );
+const PLAYER_STATS_VISIBILITY_VALUES = new Set(["public", "private"]);
+
+type PlayerStatsVisibility = "public" | "private";
 
 function isLeaderboardWindow(value: string): value is LeaderboardWindow {
   return PLAYER_WINDOW_VALUES.has(value);
@@ -90,6 +94,21 @@ function isLeaderboardWindow(value: string): value is LeaderboardWindow {
 
 function parsePlayerStatsAggregation(value: string): LeaderboardMetricAggregation | null {
   return PLAYER_AGGREGATION_VALUES.get(value) ?? null;
+}
+
+function isPlayerStatsVisibility(value: string): value is PlayerStatsVisibility {
+  return PLAYER_STATS_VISIBILITY_VALUES.has(value);
+}
+
+function isPlayerStatsUserCommand(
+  interaction: BaseInteraction,
+): interaction is APIUserApplicationCommandGuildInteraction {
+  return (
+    interaction.type === InteractionType.ApplicationCommand &&
+    interaction.data.type === ApplicationCommandType.User &&
+    "guild_id" in interaction &&
+    "member" in interaction
+  );
 }
 
 export enum InteractionButton {
@@ -104,6 +123,13 @@ export enum InteractionButton {
 
 export class StatsCommand extends BaseCommand {
   readonly commands: ApplicationCommandData[] = [
+    {
+      type: ApplicationCommandType.User,
+      name: "Player stats",
+      description: "",
+      contexts: [InteractionContextType.Guild],
+      default_member_permissions: null,
+    },
     {
       type: ApplicationCommandType.ChatInput,
       name: "stats",
@@ -194,9 +220,13 @@ export class StatsCommand extends BaseCommand {
               required: false,
             },
             {
-              type: ApplicationCommandOptionType.Boolean,
-              name: "private",
-              description: "Only show the response to you",
+              type: ApplicationCommandOptionType.String,
+              name: "visible",
+              description: "Who can see the response (defaults to private)",
+              choices: [
+                { name: "Public", value: "public" },
+                { name: "Private", value: "private" },
+              ],
               required: false,
             },
           ],
@@ -293,6 +323,10 @@ export class StatsCommand extends BaseCommand {
 
     switch (type) {
       case InteractionType.ApplicationCommand: {
+        if (isPlayerStatsUserCommand(interaction)) {
+          return this.handlePlayerStatsUserCommand(interaction);
+        }
+
         const subcommand = this.services.discordService.extractSubcommand(interaction, "stats");
 
         switch (subcommand.name) {
@@ -317,13 +351,13 @@ export class StatsCommand extends BaseCommand {
         const { custom_id } = interaction.data;
         switch (custom_id) {
           case PLAYER_STATS_QUEUE_SELECT_CONTROL_ID: {
-            return this.handlePlayerStatsQueueSelect(interaction as APIMessageComponentSelectMenuInteraction);
+            return this.handlePlayerStatsSelect(interaction as APIMessageComponentSelectMenuInteraction);
           }
           case PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID: {
-            return this.handlePlayerStatsAggregationSelect(interaction as APIMessageComponentSelectMenuInteraction);
+            return this.handlePlayerStatsSelect(interaction as APIMessageComponentSelectMenuInteraction);
           }
           case PLAYER_STATS_WINDOW_SELECT_CONTROL_ID: {
-            return this.handlePlayerStatsWindowSelect(interaction as APIMessageComponentSelectMenuInteraction);
+            return this.handlePlayerStatsSelect(interaction as APIMessageComponentSelectMenuInteraction);
           }
           case InteractionButton.Retry.toString(): {
             return {
@@ -407,10 +441,9 @@ export class StatsCommand extends BaseCommand {
     interaction: APIApplicationCommandInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
   ): ExecuteResponse {
-    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = {};
-    if (options.get("private") === true) {
-      data.flags = MessageFlags.Ephemeral;
-    }
+    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = this.isPlayerStatsPrivate(options)
+      ? { flags: MessageFlags.Ephemeral }
+      : {};
 
     return {
       response: { type: InteractionResponseType.DeferredChannelMessageWithSource, data },
@@ -418,9 +451,34 @@ export class StatsCommand extends BaseCommand {
     };
   }
 
-  private async playerStatsSubCommandJob(
-    interaction: APIApplicationCommandInteraction,
+  private handlePlayerStatsUserCommand(interaction: APIUserApplicationCommandGuildInteraction): ExecuteResponse {
+    return {
+      response: {
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data: { flags: MessageFlags.Ephemeral },
+      },
+      jobToComplete: async () => this.playerStatsSubCommandJob(interaction, new Map(), interaction.data.target_id),
+    };
+  }
+
+  private isPlayerStatsPrivate(
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
+  ): boolean {
+    const visibility = options.get("visible");
+    if (visibility == null) {
+      return true;
+    }
+    if (typeof visibility !== "string" || !isPlayerStatsVisibility(visibility)) {
+      throw new EndUserError("The selected player stats visibility is invalid.");
+    }
+
+    return visibility === "private";
+  }
+
+  private async playerStatsSubCommandJob(
+    interaction: APIApplicationCommandInteraction | APIUserApplicationCommandGuildInteraction,
+    options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
+    targetUserIdOverride?: string,
   ): Promise<void> {
     const guildId = interaction.guild_id;
     if (guildId == null) {
@@ -445,7 +503,7 @@ export class StatsCommand extends BaseCommand {
         throw new EndUserError("The selected channel is not a configured NeatQueue channel.");
       }
 
-      const targetUserId = this.getPlayerTargetUserId(interaction, options);
+      const targetUserId = targetUserIdOverride ?? this.getPlayerTargetUserId(interaction, options);
       const associations = await this.services.databaseService.getDiscordAssociations([targetUserId]);
       const [association] = associations;
       if (association == null) {
@@ -493,6 +551,52 @@ export class StatsCommand extends BaseCommand {
     }
 
     throw new EndUserError("The selected leaderboard window is invalid.");
+  }
+
+  private handlePlayerStatsSelect(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
+    if (!this.isPlayerStatsCommandInvoker(interaction)) {
+      const warning = new EndUserError("Only the person who called the command can use this stats embed.", {
+        title: "Stats embed locked",
+        errorType: EndUserErrorType.WARNING,
+      });
+      return {
+        response: {
+          type: InteractionResponseType.ChannelMessageWithSource,
+          data: {
+            embeds: [warning.discordEmbed],
+            flags: MessageFlags.Ephemeral,
+          },
+        },
+      };
+    }
+
+    switch (interaction.data.custom_id) {
+      case PLAYER_STATS_QUEUE_SELECT_CONTROL_ID: {
+        return this.handlePlayerStatsQueueSelect(interaction);
+      }
+      case PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID: {
+        return this.handlePlayerStatsAggregationSelect(interaction);
+      }
+      case PLAYER_STATS_WINDOW_SELECT_CONTROL_ID: {
+        return this.handlePlayerStatsWindowSelect(interaction);
+      }
+      default: {
+        throw new Error(`Unexpected player stats control: ${interaction.data.custom_id}`);
+      }
+    }
+  }
+
+  private isPlayerStatsCommandInvoker(interaction: APIMessageComponentSelectMenuInteraction): boolean {
+    // Discord's deprecated `interaction` field is still populated on older messages where
+    // `interaction_metadata` may be absent, so fall back to it to avoid locking the invoker out.
+    const commandInvokerId =
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
+      interaction.message.interaction_metadata?.user.id ?? interaction.message.interaction?.user.id;
+    if (commandInvokerId == null) {
+      return false;
+    }
+
+    return this.services.discordService.getDiscordUserId(interaction) === commandInvokerId;
   }
 
   private handlePlayerStatsQueueSelect(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
