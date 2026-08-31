@@ -6,6 +6,7 @@ import type {
   APIMessageComponentButtonInteraction,
   APIMessageComponentSelectMenuInteraction,
   APISelectMenuOption,
+  APIUserApplicationCommandGuildInteraction,
 } from "discord-api-types/v10";
 import {
   EmbedType,
@@ -92,6 +93,17 @@ function parsePlayerStatsAggregation(value: string): LeaderboardMetricAggregatio
   return PLAYER_AGGREGATION_VALUES.get(value) ?? null;
 }
 
+function isPlayerStatsUserCommand(
+  interaction: BaseInteraction,
+): interaction is APIUserApplicationCommandGuildInteraction {
+  return (
+    interaction.type === InteractionType.ApplicationCommand &&
+    interaction.data.type === ApplicationCommandType.User &&
+    "guild_id" in interaction &&
+    "member" in interaction
+  );
+}
+
 export enum InteractionButton {
   Retry = "btn_stats_retry",
   LoadGames = "btn_stats_load_games",
@@ -104,6 +116,13 @@ export enum InteractionButton {
 
 export class StatsCommand extends BaseCommand {
   readonly commands: ApplicationCommandData[] = [
+    {
+      type: ApplicationCommandType.User,
+      name: "Player stats",
+      description: "",
+      contexts: [InteractionContextType.Guild],
+      default_member_permissions: null,
+    },
     {
       type: ApplicationCommandType.ChatInput,
       name: "stats",
@@ -293,6 +312,10 @@ export class StatsCommand extends BaseCommand {
 
     switch (type) {
       case InteractionType.ApplicationCommand: {
+        if (isPlayerStatsUserCommand(interaction)) {
+          return this.handlePlayerStatsUserCommand(interaction);
+        }
+
         const subcommand = this.services.discordService.extractSubcommand(interaction, "stats");
 
         switch (subcommand.name) {
@@ -418,9 +441,17 @@ export class StatsCommand extends BaseCommand {
     };
   }
 
+  private handlePlayerStatsUserCommand(interaction: APIUserApplicationCommandGuildInteraction): ExecuteResponse {
+    return {
+      response: { type: InteractionResponseType.DeferredChannelMessageWithSource },
+      jobToComplete: async () => this.playerStatsSubCommandJob(interaction, new Map(), interaction.data.target_id),
+    };
+  }
+
   private async playerStatsSubCommandJob(
-    interaction: APIApplicationCommandInteraction,
+    interaction: APIApplicationCommandInteraction | APIUserApplicationCommandGuildInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
+    targetUserIdOverride?: string,
   ): Promise<void> {
     const guildId = interaction.guild_id;
     if (guildId == null) {
@@ -445,7 +476,7 @@ export class StatsCommand extends BaseCommand {
         throw new EndUserError("The selected channel is not a configured NeatQueue channel.");
       }
 
-      const targetUserId = this.getPlayerTargetUserId(interaction, options);
+      const targetUserId = targetUserIdOverride ?? this.getPlayerTargetUserId(interaction, options);
       const associations = await this.services.databaseService.getDiscordAssociations([targetUserId]);
       const [association] = associations;
       if (association == null) {
