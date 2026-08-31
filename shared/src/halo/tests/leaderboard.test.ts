@@ -46,7 +46,6 @@ const metricResolutionCases = [
       [LeaderboardMetricFamily.MythicMedals, LeaderboardMetric.AvgMythicMedalsPerGame],
       [LeaderboardMetricFamily.ObjectiveTime, LeaderboardMetric.AvgObjectiveTimePerGame],
       [LeaderboardMetricFamily.ObjectiveTeamContribution, LeaderboardMetric.ObjectiveTeamContribution],
-      [LeaderboardMetricFamily.ObjectiveGameContribution, LeaderboardMetric.ObjectiveGameContribution],
       [LeaderboardMetricFamily.Kda, LeaderboardMetric.Kda],
       [LeaderboardMetricFamily.Accuracy, LeaderboardMetric.Accuracy],
       [LeaderboardMetricFamily.DamageRatio, LeaderboardMetric.DamageRatio],

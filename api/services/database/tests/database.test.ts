@@ -1130,7 +1130,6 @@ describe("Database Service", () => {
       [LeaderboardMetric.ObjectiveTime, "SUM(gp.ObjectiveTimeSeconds)", "DESC"],
       [LeaderboardMetric.AvgObjectiveTimePerGame, "AVG(gp.ObjectiveTimeSeconds)", "DESC"],
       [LeaderboardMetric.ObjectiveTeamContribution, "AVG(gp.ObjectiveTeamContribution)", "DESC"],
-      [LeaderboardMetric.ObjectiveGameContribution, "AVG(gp.ObjectiveGameContribution)", "DESC"],
       [LeaderboardMetric.Kills, "SUM(gp.Kills)", "DESC"],
       [LeaderboardMetric.Deaths, "SUM(gp.Deaths)", "ASC"],
       [LeaderboardMetric.Assists, "SUM(gp.Assists)", "DESC"],
@@ -1577,7 +1576,6 @@ describe("Database Service", () => {
         [LeaderboardMetric.ObjectiveTime, "COUNT(gp.ObjectiveTimeSeconds)"],
         [LeaderboardMetric.AvgObjectiveTimePerGame, "COUNT(gp.ObjectiveTimeSeconds)"],
         [LeaderboardMetric.ObjectiveTeamContribution, "COUNT(gp.ObjectiveTeamContribution)"],
-        [LeaderboardMetric.ObjectiveGameContribution, "COUNT(gp.ObjectiveGameContribution)"],
       ] as const)(
         "scopes the %s rank population to players with qualifying objective games, not overall games played",
         async (metric, expectedGamesPlayedSql) => {

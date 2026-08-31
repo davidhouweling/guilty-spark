@@ -801,10 +801,6 @@ export class LeaderboardService {
           getObjectiveTimeSeconds(match.MatchInfo.GameVariantCategory, team.Stats),
         ]),
       );
-      const gameObjectiveTimeSeconds = Array.from(objectiveTimeByTeamId.values()).reduce<number>(
-        (total, objectiveTimeSeconds) => total + (objectiveTimeSeconds ?? 0),
-        0,
-      );
 
       gamesRows.push({
         MatchId: match.MatchId,
@@ -849,7 +845,6 @@ export class LeaderboardService {
         const objectiveTimeSeconds = getObjectiveTimeSeconds(match.MatchInfo.GameVariantCategory, teamStats.Stats);
         const teamObjectiveTimeSeconds = objectiveTimeByTeamId.get(teamStats.TeamId) ?? null;
         const objectiveTeamContribution = this.getObjectiveContribution(objectiveTimeSeconds, teamObjectiveTimeSeconds);
-        const objectiveGameContribution = this.getObjectiveContribution(objectiveTimeSeconds, gameObjectiveTimeSeconds);
 
         gamePlayerRows.push({
           MatchId: match.MatchId,
@@ -882,7 +877,6 @@ export class LeaderboardService {
           MythicMedalCount: medalAggregates.mythicCount,
           ObjectiveTimeSeconds: objectiveTimeSeconds,
           ObjectiveTeamContribution: objectiveTeamContribution,
-          ObjectiveGameContribution: objectiveGameContribution,
           ObjectiveStatsJson: serializeObjectiveStats(teamStats.Stats),
           MedalsJson: JSON.stringify(coreStats.Medals),
           CreatedAt: nowEpoch,

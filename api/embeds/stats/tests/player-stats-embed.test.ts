@@ -86,8 +86,8 @@ describe("createPlayerStatsRelationshipEmbeds()", () => {
 });
 
 describe("createPlayerStatsEmbeds()", () => {
-  it("renders all avg-per-game metrics, including objective game contribution, without throwing", () => {
-    const stats = aFakeLeaderboardPlayerStatsRow({ ObjectiveGameContribution: 0.42 });
+  it("renders all avg-per-game metrics, including team objective contribution, without throwing", () => {
+    const stats = aFakeLeaderboardPlayerStatsRow({ ObjectiveTeamContribution: 0.42 });
 
     const response = createPlayerStatsEmbeds({
       stats,
@@ -110,13 +110,11 @@ describe("createPlayerStatsEmbeds()", () => {
     expect(rowValues.join("\n")).toContain("42% avg/game");
   });
 
-  it("shows each objective contribution metric's own games-played population, not the overall objective games count", () => {
+  it("shows team objective contribution's own games-played population, not the overall objective games count", () => {
     const stats = aFakeLeaderboardPlayerStatsRow({
       ObjectiveGamesPlayed: 30,
       ObjectiveTeamContribution: 0.25,
       ObjectiveTeamContributionGamesPlayed: 18,
-      ObjectiveGameContribution: 0.42,
-      ObjectiveGameContributionGamesPlayed: 12,
     });
 
     const response = createPlayerStatsEmbeds({
@@ -139,14 +137,12 @@ describe("createPlayerStatsEmbeds()", () => {
     const rowValues = response.embeds.flatMap((embed) => embed.fields ?? []).flatMap((field) => field.value);
     const combined = rowValues.join("\n");
     expect(combined).toContain("25% avg/game (18 games)");
-    expect(combined).toContain("42% avg/game (12 games)");
   });
 
   it.each([
     ["ObjectiveTime", LeaderboardMetric.ObjectiveTime, LeaderboardMetricAggregation.Total],
     ["AvgObjectiveTimePerGame", LeaderboardMetric.AvgObjectiveTimePerGame, LeaderboardMetricAggregation.AvgPerGame],
     ["ObjectiveTeamContribution", LeaderboardMetric.ObjectiveTeamContribution, LeaderboardMetricAggregation.AvgPerGame],
-    ["ObjectiveGameContribution", LeaderboardMetric.ObjectiveGameContribution, LeaderboardMetricAggregation.AvgPerGame],
   ] as const)(
     "shows the metric-specific rank population suffix for %s when it differs from the overall total",
     (_name, metric, aggregation) => {

@@ -37,8 +37,6 @@ export interface LeaderboardPlayerStatsRow {
   AvgObjectiveTimeSeconds: number;
   ObjectiveTeamContribution: number;
   ObjectiveTeamContributionGamesPlayed: number;
-  ObjectiveGameContribution: number;
-  ObjectiveGameContributionGamesPlayed: number;
   CtfGamesPlayed: number;
   StrongholdGamesPlayed: number;
   HillGamesPlayed: number;

@@ -148,7 +148,6 @@ const PLAYER_METRIC_VALUE_GETTERS = new Map<LeaderboardMetric, (stats: Leaderboa
   [LeaderboardMetric.ObjectiveTime, (stats): number => stats.ObjectiveTimeSeconds],
   [LeaderboardMetric.AvgObjectiveTimePerGame, (stats): number => stats.AvgObjectiveTimeSeconds],
   [LeaderboardMetric.ObjectiveTeamContribution, (stats): number => stats.ObjectiveTeamContribution],
-  [LeaderboardMetric.ObjectiveGameContribution, (stats): number => stats.ObjectiveGameContribution],
   [LeaderboardMetric.FlagCaptures, (stats): number => stats.FlagCaptures],
   [LeaderboardMetric.AvgFlagCapturesPerObjective, (stats): number => average(stats.FlagCaptures, stats.CtfGamesPlayed)],
   [LeaderboardMetric.FlagCaptureAssists, (stats): number => stats.FlagCaptureAssists],
@@ -403,10 +402,6 @@ function getObjectiveGamesPlayedForMetric(stats: LeaderboardPlayerStatsRow, metr
     return stats.ObjectiveTeamContributionGamesPlayed;
   }
 
-  if (metric === LeaderboardMetric.ObjectiveGameContribution) {
-    return stats.ObjectiveGameContributionGamesPlayed;
-  }
-
   if (!isObjectiveLeaderboardMetric(metric)) {
     return stats.ObjectiveGamesPlayed;
   }
@@ -436,7 +431,6 @@ const OBJECTIVE_SPECIFIC_POPULATION_METRICS: ReadonlySet<LeaderboardMetric> = ne
   LeaderboardMetric.ObjectiveTime,
   LeaderboardMetric.AvgObjectiveTimePerGame,
   LeaderboardMetric.ObjectiveTeamContribution,
-  LeaderboardMetric.ObjectiveGameContribution,
 ]);
 
 function hasObjectiveSpecificPopulation(metric: LeaderboardMetric): boolean {

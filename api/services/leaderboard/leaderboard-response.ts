@@ -191,9 +191,6 @@ export function getMetricLabel(metric: LeaderboardMetric): string {
     case LeaderboardMetric.ObjectiveTeamContribution: {
       return "Team objective contribution";
     }
-    case LeaderboardMetric.ObjectiveGameContribution: {
-      return "Game objective contribution";
-    }
     case LeaderboardMetric.GamesWinRate: {
       return "Games win rate";
     }
@@ -404,8 +401,7 @@ export function formatMetricValue(
       const average = getReadableDuration(getDurationInIsoString(metricValue), locale);
       return `${average} avg/game (${formatCount(row.objectiveGamesPlayed, "game", "games")})`;
     }
-    case LeaderboardMetric.ObjectiveTeamContribution:
-    case LeaderboardMetric.ObjectiveGameContribution: {
+    case LeaderboardMetric.ObjectiveTeamContribution: {
       const percentage = (metricValue * 100).toLocaleString(locale, { maximumFractionDigits: 1 });
       return `${percentage}% avg/game (${formatCount(row.objectiveGamesPlayed, "game", "games")})`;
     }

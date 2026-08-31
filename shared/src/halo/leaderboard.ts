@@ -24,7 +24,6 @@ export enum LeaderboardMetric {
   ObjectiveTime = "OBJECTIVE_TIME",
   AvgObjectiveTimePerGame = "AVG_OBJECTIVE_TIME_PER_GAME",
   ObjectiveTeamContribution = "OBJECTIVE_TEAM_CONTRIBUTION",
-  ObjectiveGameContribution = "OBJECTIVE_GAME_CONTRIBUTION",
   GamesWinRate = "GAMES_WIN_RATE",
   Kills = "KILLS",
   Deaths = "DEATHS",
@@ -117,7 +116,6 @@ export enum LeaderboardMetricFamily {
   MythicMedals = "MYTHIC_MEDALS",
   ObjectiveTime = "OBJECTIVE_TIME",
   ObjectiveTeamContribution = "OBJECTIVE_TEAM_CONTRIBUTION",
-  ObjectiveGameContribution = "OBJECTIVE_GAME_CONTRIBUTION",
   WinPercentage = "WIN_PERCENTAGE",
   PersonalScore = "PERSONAL_SCORE",
   Kills = "KILLS",
@@ -178,7 +176,6 @@ export const LEADERBOARD_METRIC_FAMILIES_IN_DISPLAY_ORDER: readonly LeaderboardM
   LeaderboardMetricFamily.AvgDamagePerLife,
   LeaderboardMetricFamily.ObjectiveTime,
   LeaderboardMetricFamily.ObjectiveTeamContribution,
-  LeaderboardMetricFamily.ObjectiveGameContribution,
   LeaderboardMetricFamily.MedalPoints,
   LeaderboardMetricFamily.MythicMedals,
   LeaderboardMetricFamily.FlagCaptures,
@@ -559,9 +556,6 @@ export function getLeaderboardMetricFamily(metric: LeaderboardMetric): Leaderboa
     case LeaderboardMetric.ObjectiveTeamContribution: {
       return LeaderboardMetricFamily.ObjectiveTeamContribution;
     }
-    case LeaderboardMetric.ObjectiveGameContribution: {
-      return LeaderboardMetricFamily.ObjectiveGameContribution;
-    }
     case LeaderboardMetric.GamesPlayed: {
       return LeaderboardMetricFamily.GamesPlayed;
     }
@@ -701,7 +695,6 @@ export function getLeaderboardFamilyAggregations(
       return [LeaderboardMetricAggregation.AvgPerGame, LeaderboardMetricAggregation.Total];
     }
     case LeaderboardMetricFamily.ObjectiveTeamContribution:
-    case LeaderboardMetricFamily.ObjectiveGameContribution:
     case LeaderboardMetricFamily.Kda:
     case LeaderboardMetricFamily.Accuracy:
     case LeaderboardMetricFamily.DamageRatio:
@@ -863,14 +856,6 @@ export function resolveLeaderboardMetric(
         LeaderboardMetric.ObjectiveTeamContribution,
       );
     }
-    case LeaderboardMetricFamily.ObjectiveGameContribution: {
-      return resolveAggregationMetric(
-        resolvedAggregation,
-        LeaderboardMetric.ObjectiveGameContribution,
-        LeaderboardMetric.ObjectiveGameContribution,
-        LeaderboardMetric.ObjectiveGameContribution,
-      );
-    }
     case LeaderboardMetricFamily.PersonalScore: {
       return resolveAggregationMetric(
         resolvedAggregation,
@@ -1026,9 +1011,6 @@ export function getLeaderboardMetricFamilyLabel(family: LeaderboardMetricFamily)
     }
     case LeaderboardMetricFamily.ObjectiveTeamContribution: {
       return "Team objective contribution";
-    }
-    case LeaderboardMetricFamily.ObjectiveGameContribution: {
-      return "Game objective contribution";
     }
     case LeaderboardMetricFamily.WinPercentage: {
       return "Win percentage";
