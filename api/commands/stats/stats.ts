@@ -84,6 +84,9 @@ const PLAYER_WINDOW_VALUES = new Set<string>(Object.values(LeaderboardWindow));
 const PLAYER_AGGREGATION_VALUES = new Map<string, LeaderboardMetricAggregation>(
   Object.values(LeaderboardMetricAggregation).map((aggregation) => [aggregation, aggregation]),
 );
+const PLAYER_STATS_VISIBILITY_VALUES = new Set(["public", "private"]);
+
+type PlayerStatsVisibility = "public" | "private";
 
 function isLeaderboardWindow(value: string): value is LeaderboardWindow {
   return PLAYER_WINDOW_VALUES.has(value);
@@ -91,6 +94,10 @@ function isLeaderboardWindow(value: string): value is LeaderboardWindow {
 
 function parsePlayerStatsAggregation(value: string): LeaderboardMetricAggregation | null {
   return PLAYER_AGGREGATION_VALUES.get(value) ?? null;
+}
+
+function isPlayerStatsVisibility(value: string): value is PlayerStatsVisibility {
+  return PLAYER_STATS_VISIBILITY_VALUES.has(value);
 }
 
 function isPlayerStatsUserCommand(
@@ -213,9 +220,13 @@ export class StatsCommand extends BaseCommand {
               required: false,
             },
             {
-              type: ApplicationCommandOptionType.Boolean,
-              name: "private",
-              description: "Only show the response to you",
+              type: ApplicationCommandOptionType.String,
+              name: "visible",
+              description: "Who can see the response (defaults to private)",
+              choices: [
+                { name: "Public", value: "public" },
+                { name: "Private", value: "private" },
+              ],
               required: false,
             },
           ],
@@ -430,10 +441,9 @@ export class StatsCommand extends BaseCommand {
     interaction: APIApplicationCommandInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
   ): ExecuteResponse {
-    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = {};
-    if (options.get("private") === true) {
-      data.flags = MessageFlags.Ephemeral;
-    }
+    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = {
+      flags: this.isPlayerStatsPrivate(options) ? MessageFlags.Ephemeral : undefined,
+    };
 
     return {
       response: { type: InteractionResponseType.DeferredChannelMessageWithSource, data },
@@ -443,9 +453,26 @@ export class StatsCommand extends BaseCommand {
 
   private handlePlayerStatsUserCommand(interaction: APIUserApplicationCommandGuildInteraction): ExecuteResponse {
     return {
-      response: { type: InteractionResponseType.DeferredChannelMessageWithSource },
+      response: {
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data: { flags: MessageFlags.Ephemeral },
+      },
       jobToComplete: async () => this.playerStatsSubCommandJob(interaction, new Map(), interaction.data.target_id),
     };
+  }
+
+  private isPlayerStatsPrivate(
+    options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
+  ): boolean {
+    const visibility = options.get("visible");
+    if (visibility == null) {
+      return true;
+    }
+    if (typeof visibility !== "string" || !isPlayerStatsVisibility(visibility)) {
+      throw new EndUserError("The selected player stats visibility is invalid.");
+    }
+
+    return visibility === "private";
   }
 
   private async playerStatsSubCommandJob(

@@ -2721,6 +2721,49 @@ describe("StatsCommand", () => {
       );
     });
 
+    it("returns a private response by default and accepts a public visibility override", () => {
+      const privateResponse = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+
+      expect(privateResponse.response).toEqual({
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data: { flags: MessageFlags.Ephemeral },
+      });
+
+      vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+        name: "player",
+        mappedOptions: new Map([["visible", "public"]]),
+        options: [],
+      });
+      const publicResponse = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+
+      expect(publicResponse.response).toEqual({
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data: {},
+      });
+    });
+
+    it("uses a public or private visibility option instead of the previous boolean", () => {
+      const statsCommandData = statsCommand.commands.find(
+        (command) => command.type === ApplicationCommandType.ChatInput,
+      );
+      const playerSubCommand = statsCommandData?.options?.find((option) => option.name === "player");
+      const visibilityOption =
+        playerSubCommand?.type === ApplicationCommandOptionType.Subcommand
+          ? playerSubCommand.options?.find((option) => option.name === "visible")
+          : undefined;
+
+      expect(visibilityOption).toEqual({
+        type: ApplicationCommandOptionType.String,
+        name: "visible",
+        description: "Who can see the response (defaults to private)",
+        choices: [
+          { name: "Public", value: "public" },
+          { name: "Private", value: "private" },
+        ],
+        required: false,
+      });
+    });
+
     it("stops probing configured queues for played-queue options once 24 have been found", async () => {
       const configuredQueues = Array.from({ length: 40 }, (_unused, index) =>
         aFakeNeatQueueConfigRow({ ChannelId: `queue-${index.toString()}` }),
@@ -2764,7 +2807,9 @@ describe("StatsCommand", () => {
     });
 
     it("does not offer 'Last reset' as a static window choice, since it silently falls back to the default window without a reset marker", () => {
-      const [statsCommandData] = statsCommand.commands;
+      const statsCommandData = statsCommand.commands.find(
+        (command) => command.type === ApplicationCommandType.ChatInput,
+      );
       const playerSubCommand = statsCommandData?.options?.find((option) => option.name === "player");
       const windowOption =
         playerSubCommand?.type === ApplicationCommandOptionType.Subcommand
@@ -2802,7 +2847,10 @@ describe("StatsCommand", () => {
       const { response, jobToComplete } = statsCommand.execute(userContextMenuInteractionPlayerStats);
       await jobToComplete?.();
 
-      expect(response).toEqual({ type: InteractionResponseType.DeferredChannelMessageWithSource });
+      expect(response).toEqual({
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data: { flags: MessageFlags.Ephemeral },
+      });
       expect(getDiscordAssociationsSpy).toHaveBeenCalledWith(["target-user-123"]);
       expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
         "fake-token",
