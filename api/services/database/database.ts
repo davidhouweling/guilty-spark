@@ -7,7 +7,7 @@ import {
   isObjectiveLeaderboardMetric,
 } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardObjectiveMetricDescriptor } from "@guilty-spark/shared/halo/leaderboard";
-import type { GameVariantCategory } from "halo-infinite-api";
+import { GameVariantCategory } from "halo-infinite-api";
 import { SESSION_COOKIE_MAX_AGE_SECONDS } from "../auth/session-manager";
 import type { DiscordAssociationsRow } from "./types/discord_associations";
 import type { GuildConfigRow } from "./types/guild_config";
@@ -25,10 +25,14 @@ import type { LeaderboardSeriesPlayersRow } from "./types/leaderboard_series_pla
 import type { LeaderboardGamesRow } from "./types/leaderboard_games";
 import type { LeaderboardGamePlayersRow } from "./types/leaderboard_game_players";
 import type { LeaderboardRankingRow } from "./types/leaderboard_ranking_row";
+import type { LeaderboardPlayerStatsRow } from "./types/leaderboard_player_stats";
+import type { LeaderboardPlayerMetricRank } from "./types/leaderboard_player_metric_rank";
 import type { LeaderboardConfigRow } from "./types/leaderboard_config";
 import type { LeaderboardPostRow } from "./types/leaderboard_post";
 import type { LeaderboardResetMarkerRow } from "./types/leaderboard_reset_marker";
 import type { MatchKillMatrixRow } from "./types/match_kill_matrix";
+import { LeaderboardPlayerRelationshipMetric } from "./types/leaderboard_player_relationship";
+import type { LeaderboardPlayerRelationshipRow } from "./types/leaderboard_player_relationship";
 
 const DEFAULT_LEADERBOARD_ENABLED_WINDOWS_JSON = '["1W","1M","3M","6M","12M"]';
 const SQLITE_MAX_VARIABLES = 999;
@@ -76,12 +80,431 @@ function getObjectiveStatValueSql(descriptor: LeaderboardObjectiveMetricDescript
   return `CASE WHEN g.GameVariantCategory = ${descriptor.category.toString()} THEN COALESCE(CAST(json_extract(gp.ObjectiveStatsJson, '${jsonPath}') AS REAL), 0) ELSE 0 END`;
 }
 
+// A single queue scopes to one channel (or every channel when null); a player-stats query without an
+// explicit queue instead scopes to a specific set of configured channels, so the filter shape differs.
+function getQueueFilterSql(alias: string, queueChannelIds: string[] | undefined): string {
+  if (queueChannelIds == null) {
+    return `(? IS NULL OR ${alias}.QueueChannelId = ?)`;
+  }
+
+  return `${alias}.QueueChannelId IN (${queueChannelIds.map(() => "?").join(",")})`;
+}
+
+function getQueueFilterBindings(
+  queueChannelId: string | null,
+  queueChannelIds: string[] | undefined,
+): readonly (string | null)[] {
+  return queueChannelIds ?? [queueChannelId, queueChannelId];
+}
+
+const OUTCOME_LEADERBOARD_METRICS = new Set<LeaderboardMetric>([
+  LeaderboardMetric.SeriesPlayed,
+  LeaderboardMetric.SeriesWins,
+  LeaderboardMetric.SeriesWinRate,
+  LeaderboardMetric.GamesPlayed,
+  LeaderboardMetric.GameWins,
+  LeaderboardMetric.GamesWinRate,
+]);
+
+function isOutcomeLeaderboardMetric(metric: LeaderboardMetric): boolean {
+  return OUTCOME_LEADERBOARD_METRICS.has(metric);
+}
+
+// Ratio-of-sums DamageRatio expression shared by player-stat rank aggregation, guild-wide leaderboard
+// rank aggregation, and the displayed player-stats value — keeps all three consistent with each other.
+const DAMAGE_RATIO_SQL =
+  "CASE WHEN SUM(gp.DamageTaken) = 0 THEN CASE WHEN SUM(gp.DamageDealt) = 0 THEN 0 ELSE 1.7976931348623157e308 END ELSE CAST(SUM(gp.DamageDealt) AS REAL) / SUM(gp.DamageTaken) END";
+
+const PLAYER_STAT_RANK_SQL_BY_METRIC = new Map<LeaderboardMetric, string>([
+  [LeaderboardMetric.PersonalScore, "SUM(gp.PersonalScore)"],
+  [LeaderboardMetric.AvgPersonalScorePerSeries, "CAST(SUM(gp.PersonalScore) AS REAL) / COUNT(DISTINCT gp.QueueNumber)"],
+  [LeaderboardMetric.AvgPersonalScorePerGame, "AVG(gp.PersonalScore)"],
+  [LeaderboardMetric.Kills, "SUM(gp.Kills)"],
+  [LeaderboardMetric.AvgKillsPerSeries, "CAST(SUM(gp.Kills) AS REAL) / COUNT(DISTINCT gp.QueueNumber)"],
+  [LeaderboardMetric.AvgKillsPerGame, "AVG(gp.Kills)"],
+  [LeaderboardMetric.Deaths, "SUM(gp.Deaths)"],
+  [LeaderboardMetric.AvgDeathsPerSeries, "CAST(SUM(gp.Deaths) AS REAL) / COUNT(DISTINCT gp.QueueNumber)"],
+  [LeaderboardMetric.AvgDeathsPerGame, "AVG(gp.Deaths)"],
+  [LeaderboardMetric.Assists, "SUM(gp.Assists)"],
+  [LeaderboardMetric.AvgAssistsPerSeries, "CAST(SUM(gp.Assists) AS REAL) / COUNT(DISTINCT gp.QueueNumber)"],
+  [LeaderboardMetric.AvgAssistsPerGame, "AVG(gp.Assists)"],
+  [LeaderboardMetric.HeadshotKills, "SUM(gp.HeadshotKills)"],
+  [LeaderboardMetric.AvgHeadshotKillsPerSeries, "CAST(SUM(gp.HeadshotKills) AS REAL) / COUNT(DISTINCT gp.QueueNumber)"],
+  [LeaderboardMetric.AvgHeadshotKillsPerGame, "AVG(gp.HeadshotKills)"],
+  [LeaderboardMetric.ShotsHit, "SUM(gp.ShotsHit)"],
+  [LeaderboardMetric.AvgShotsHitPerSeries, "CAST(SUM(gp.ShotsHit) AS REAL) / COUNT(DISTINCT gp.QueueNumber)"],
+  [LeaderboardMetric.AvgShotsHitPerGame, "AVG(gp.ShotsHit)"],
+  [LeaderboardMetric.ShotsFired, "SUM(gp.ShotsFired)"],
+  [LeaderboardMetric.AvgShotsFiredPerSeries, "CAST(SUM(gp.ShotsFired) AS REAL) / COUNT(DISTINCT gp.QueueNumber)"],
+  [LeaderboardMetric.AvgShotsFiredPerGame, "AVG(gp.ShotsFired)"],
+  [LeaderboardMetric.DamageDealt, "SUM(gp.DamageDealt)"],
+  [LeaderboardMetric.AvgDamageDealtPerSeries, "CAST(SUM(gp.DamageDealt) AS REAL) / COUNT(DISTINCT gp.QueueNumber)"],
+  [LeaderboardMetric.AvgDamageDealtPerGame, "AVG(gp.DamageDealt)"],
+  [LeaderboardMetric.DamageTaken, "SUM(gp.DamageTaken)"],
+  [LeaderboardMetric.AvgDamageTakenPerSeries, "CAST(SUM(gp.DamageTaken) AS REAL) / COUNT(DISTINCT gp.QueueNumber)"],
+  [LeaderboardMetric.AvgDamageTakenPerGame, "AVG(gp.DamageTaken)"],
+  [LeaderboardMetric.Kda, "AVG(gp.Kda)"],
+  [LeaderboardMetric.Accuracy, "AVG(gp.Accuracy)"],
+  [LeaderboardMetric.DamageRatio, DAMAGE_RATIO_SQL],
+  [LeaderboardMetric.AvgLifeSeconds, "AVG(gp.AvgLifeSeconds)"],
+  [LeaderboardMetric.AvgDamagePerLife, "AVG(gp.AvgDamagePerLife)"],
+  [LeaderboardMetric.MedalPoints, "SUM(gp.MedalPoints)"],
+  [LeaderboardMetric.AvgMedalPointsPerSeries, "CAST(SUM(gp.MedalPoints) AS REAL) / COUNT(DISTINCT gp.QueueNumber)"],
+  [LeaderboardMetric.AvgMedalPointsPerGame, "AVG(gp.MedalPoints)"],
+  [LeaderboardMetric.MythicMedals, "SUM(gp.MythicMedalCount)"],
+  [
+    LeaderboardMetric.AvgMythicMedalsPerSeries,
+    "CAST(SUM(gp.MythicMedalCount) AS REAL) / COUNT(DISTINCT gp.QueueNumber)",
+  ],
+  [LeaderboardMetric.AvgMythicMedalsPerGame, "AVG(gp.MythicMedalCount)"],
+  [LeaderboardMetric.ObjectiveTime, "SUM(gp.ObjectiveTimeSeconds)"],
+  [LeaderboardMetric.AvgObjectiveTimePerGame, "AVG(gp.ObjectiveTimeSeconds)"],
+  [LeaderboardMetric.ObjectiveTeamContribution, "AVG(gp.ObjectiveTeamContribution)"],
+]);
+
+const PLAYER_OUTCOME_RANK_SQL_BY_METRIC = new Map<LeaderboardMetric, string>([
+  [LeaderboardMetric.SeriesPlayed, "COUNT(*)"],
+  [LeaderboardMetric.SeriesWins, "SUM(sp.SeriesWon)"],
+  [
+    LeaderboardMetric.SeriesWinRate,
+    "CASE WHEN COUNT(*) = 0 THEN 0 ELSE CAST(SUM(sp.SeriesWon) AS REAL) / COUNT(*) END",
+  ],
+  [LeaderboardMetric.GamesPlayed, "SUM(sp.GamesPlayedCount)"],
+  [LeaderboardMetric.GameWins, "COALESCE(MAX(gameStats.GameWins), 0)"],
+  [
+    LeaderboardMetric.GamesWinRate,
+    "CASE WHEN SUM(sp.GamesPlayedCount) = 0 THEN 0 ELSE CAST(COALESCE(MAX(gameStats.GameWins), 0) AS REAL) / SUM(sp.GamesPlayedCount) END",
+  ],
+]);
+
+function getPlayerObjectiveSumSql(category: GameVariantCategory, path: string): string {
+  return `SUM(CASE WHEN g.GameVariantCategory = ${category.toString()} THEN COALESCE(CAST(json_extract(gp.ObjectiveStatsJson, '$.${path}') AS REAL), 0) ELSE 0 END)`;
+}
+
 function isAscendingMetric(metric: LeaderboardMetric): boolean {
   return (
     metric === LeaderboardMetric.Deaths ||
     metric === LeaderboardMetric.AvgDeathsPerSeries ||
     metric === LeaderboardMetric.AvgDeathsPerGame
   );
+}
+
+type PairRelationship = "with" | "against";
+type PairScope = "game" | "series";
+type PairValue = "count" | "win-rate";
+
+interface PairRelationshipMetricConfig {
+  relationship: PairRelationship;
+  scope: PairScope;
+  value: PairValue;
+}
+
+interface HeadToHeadMetricConfig {
+  direction: "kills" | "deaths";
+  value: "average" | "total";
+}
+
+function getPairRelationshipMetricConfig(
+  metric: LeaderboardPlayerRelationshipMetric,
+): PairRelationshipMetricConfig | null {
+  switch (metric) {
+    case LeaderboardPlayerRelationshipMetric.SeriesPlayedWith: {
+      return { relationship: "with", scope: "series", value: "count" };
+    }
+    case LeaderboardPlayerRelationshipMetric.SeriesPlayedAgainst: {
+      return { relationship: "against", scope: "series", value: "count" };
+    }
+    case LeaderboardPlayerRelationshipMetric.SeriesWinRateWith: {
+      return { relationship: "with", scope: "series", value: "win-rate" };
+    }
+    case LeaderboardPlayerRelationshipMetric.SeriesWinRateAgainst: {
+      return { relationship: "against", scope: "series", value: "win-rate" };
+    }
+    case LeaderboardPlayerRelationshipMetric.GamesPlayedWith: {
+      return { relationship: "with", scope: "game", value: "count" };
+    }
+    case LeaderboardPlayerRelationshipMetric.GamesPlayedAgainst: {
+      return { relationship: "against", scope: "game", value: "count" };
+    }
+    case LeaderboardPlayerRelationshipMetric.GamesWinRateWith: {
+      return { relationship: "with", scope: "game", value: "win-rate" };
+    }
+    case LeaderboardPlayerRelationshipMetric.GamesWinRateAgainst: {
+      return { relationship: "against", scope: "game", value: "win-rate" };
+    }
+    case LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills:
+    case LeaderboardPlayerRelationshipMetric.AvgHeadToHeadDeaths:
+    case LeaderboardPlayerRelationshipMetric.TotalHeadToHeadKills:
+    case LeaderboardPlayerRelationshipMetric.TotalHeadToHeadDeaths: {
+      return null;
+    }
+    default: {
+      throw new UnreachableError(metric);
+    }
+  }
+}
+
+function getHeadToHeadMetricConfig(metric: LeaderboardPlayerRelationshipMetric): HeadToHeadMetricConfig | null {
+  switch (metric) {
+    case LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills: {
+      return { direction: "kills", value: "average" };
+    }
+    case LeaderboardPlayerRelationshipMetric.AvgHeadToHeadDeaths: {
+      return { direction: "deaths", value: "average" };
+    }
+    case LeaderboardPlayerRelationshipMetric.TotalHeadToHeadKills: {
+      return { direction: "kills", value: "total" };
+    }
+    case LeaderboardPlayerRelationshipMetric.TotalHeadToHeadDeaths: {
+      return { direction: "deaths", value: "total" };
+    }
+    case LeaderboardPlayerRelationshipMetric.SeriesPlayedWith:
+    case LeaderboardPlayerRelationshipMetric.SeriesPlayedAgainst:
+    case LeaderboardPlayerRelationshipMetric.SeriesWinRateWith:
+    case LeaderboardPlayerRelationshipMetric.SeriesWinRateAgainst:
+    case LeaderboardPlayerRelationshipMetric.GamesPlayedWith:
+    case LeaderboardPlayerRelationshipMetric.GamesPlayedAgainst:
+    case LeaderboardPlayerRelationshipMetric.GamesWinRateWith:
+    case LeaderboardPlayerRelationshipMetric.GamesWinRateAgainst: {
+      return null;
+    }
+    default: {
+      throw new UnreachableError(metric);
+    }
+  }
+}
+
+function getHeadToHeadRelationshipAggregateSql({
+  guildId,
+  xboxXuid,
+  queueChannelId,
+  queueChannelIds,
+  startEpochSeconds,
+  config,
+}: {
+  guildId: string;
+  xboxXuid: string;
+  queueChannelId: string | null;
+  queueChannelIds: string[] | undefined;
+  startEpochSeconds: number;
+  config: HeadToHeadMetricConfig;
+}): { sql: string; bindings: readonly (string | number | null)[] } {
+  const queueFilterSql = getQueueFilterSql("player", queueChannelIds);
+  const queueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
+  const killerXuidSql = config.direction === "kills" ? "player.XboxXuid" : "related.XboxXuid";
+  const victimXuidSql = config.direction === "kills" ? "related.XboxXuid" : "player.XboxXuid";
+  const killsSql = "SUM(COALESCE(matrix.Count, 0))";
+  const metricValueSql =
+    config.value === "total" ? killsSql : `CASE WHEN COUNT(*) = 0 THEN 0 ELSE CAST(${killsSql} AS REAL) / COUNT(*) END`;
+  const latestIdentitySql = (column: "DiscordUserId" | "GamertagSnapshot"): string => `
+    SELECT relatedIdentity.${column}
+    FROM LeaderboardGamePlayers relatedIdentity
+    INNER JOIN LeaderboardGames identityGame
+      ON identityGame.GuildId = relatedIdentity.GuildId
+      AND identityGame.QueueNumber = relatedIdentity.QueueNumber
+      AND identityGame.MatchId = relatedIdentity.MatchId
+    WHERE relatedIdentity.GuildId = player.GuildId
+      AND relatedIdentity.XboxXuid = related.XboxXuid
+      AND identityGame.EndedAt >= ?
+      AND ${getQueueFilterSql("relatedIdentity", queueChannelIds)}
+    ORDER BY identityGame.EndedAt DESC, relatedIdentity.CreatedAt DESC
+    LIMIT 1
+  `;
+
+  return {
+    sql: `
+      SELECT
+        related.XboxXuid AS XboxXuid,
+        (${latestIdentitySql("DiscordUserId")}) AS DiscordUserId,
+        (${latestIdentitySql("GamertagSnapshot")}) AS Gamertag,
+        ${metricValueSql} AS MetricValue,
+        COUNT(*) AS SharedCount,
+        0 AS Wins,
+        SUM(COALESCE(matrix.Perfects, 0)) AS Perfects
+      FROM LeaderboardGamePlayers player
+      INNER JOIN LeaderboardGames game
+        ON game.GuildId = player.GuildId
+        AND game.QueueNumber = player.QueueNumber
+        AND game.MatchId = player.MatchId
+      INNER JOIN LeaderboardGamePlayers related
+        ON related.GuildId = player.GuildId
+        AND related.QueueNumber = player.QueueNumber
+        AND related.MatchId = player.MatchId
+        AND related.XboxXuid != player.XboxXuid
+        AND related.TeamId != player.TeamId
+      LEFT JOIN MatchKillMatrix matrix
+        ON matrix.MatchId = game.MatchId
+        AND matrix.KillerXuid = ${killerXuidSql}
+        AND matrix.VictimXuid = ${victimXuidSql}
+      WHERE player.GuildId = ?
+        AND player.XboxXuid = ?
+        AND game.EndedAt >= ?
+        AND ${queueFilterSql}
+        AND EXISTS (SELECT 1 FROM MatchKillMatrix matrixStatus WHERE matrixStatus.MatchId = game.MatchId)
+      GROUP BY related.XboxXuid
+    `,
+    bindings: [
+      startEpochSeconds,
+      ...queueFilterBindings,
+      startEpochSeconds,
+      ...queueFilterBindings,
+      guildId,
+      xboxXuid,
+      startEpochSeconds,
+      ...queueFilterBindings,
+    ],
+  };
+}
+
+function getSeriesRelationshipAggregateSql({
+  guildId,
+  xboxXuid,
+  queueChannelId,
+  queueChannelIds,
+  startEpochSeconds,
+  config,
+}: {
+  guildId: string;
+  xboxXuid: string;
+  queueChannelId: string | null;
+  queueChannelIds: string[] | undefined;
+  startEpochSeconds: number;
+  config: PairRelationshipMetricConfig;
+}): { sql: string; bindings: readonly (string | number | null)[] } {
+  const queueFilterSql = getQueueFilterSql("player", queueChannelIds);
+  const queueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
+  const teamComparisonSql = config.relationship === "with" ? "=" : "!=";
+  const metricValueSql =
+    config.value === "count"
+      ? "COUNT(*)"
+      : "CASE WHEN COUNT(*) = 0 THEN 0 ELSE CAST(SUM(player.SeriesWon) AS REAL) / COUNT(*) END";
+  const latestIdentitySql = (column: "DiscordUserId" | "GamertagSnapshot"): string => `
+    SELECT relatedIdentity.${column}
+    FROM LeaderboardSeriesPlayers relatedIdentity
+    INNER JOIN LeaderboardSeries identitySeries
+      ON identitySeries.GuildId = relatedIdentity.GuildId
+      AND identitySeries.QueueNumber = relatedIdentity.QueueNumber
+    WHERE relatedIdentity.GuildId = player.GuildId
+      AND relatedIdentity.XboxXuid = related.XboxXuid
+      AND identitySeries.CompletedAt >= ?
+      AND ${getQueueFilterSql("relatedIdentity", queueChannelIds)}
+    ORDER BY identitySeries.CompletedAt DESC, relatedIdentity.CreatedAt DESC
+    LIMIT 1
+  `;
+
+  return {
+    sql: `
+      SELECT
+        related.XboxXuid AS XboxXuid,
+        (${latestIdentitySql("DiscordUserId")}) AS DiscordUserId,
+        (${latestIdentitySql("GamertagSnapshot")}) AS Gamertag,
+        ${metricValueSql} AS MetricValue,
+        COUNT(*) AS SharedCount,
+        SUM(player.SeriesWon) AS Wins,
+        0 AS Perfects
+      FROM LeaderboardSeriesPlayers player
+      INNER JOIN LeaderboardSeries series
+        ON series.GuildId = player.GuildId
+        AND series.QueueNumber = player.QueueNumber
+      INNER JOIN LeaderboardSeriesPlayers related
+        ON related.GuildId = player.GuildId
+        AND related.QueueNumber = player.QueueNumber
+        AND related.XboxXuid != player.XboxXuid
+        AND related.TeamId ${teamComparisonSql} player.TeamId
+      WHERE player.GuildId = ?
+        AND player.XboxXuid = ?
+        AND series.CompletedAt >= ?
+        AND ${queueFilterSql}
+      GROUP BY related.XboxXuid
+    `,
+    bindings: [
+      startEpochSeconds,
+      ...queueFilterBindings,
+      startEpochSeconds,
+      ...queueFilterBindings,
+      guildId,
+      xboxXuid,
+      startEpochSeconds,
+      ...queueFilterBindings,
+    ],
+  };
+}
+
+function getGameRelationshipAggregateSql({
+  guildId,
+  xboxXuid,
+  queueChannelId,
+  queueChannelIds,
+  startEpochSeconds,
+  config,
+}: {
+  guildId: string;
+  xboxXuid: string;
+  queueChannelId: string | null;
+  queueChannelIds: string[] | undefined;
+  startEpochSeconds: number;
+  config: PairRelationshipMetricConfig;
+}): { sql: string; bindings: readonly (string | number | null)[] } {
+  const queueFilterSql = getQueueFilterSql("player", queueChannelIds);
+  const queueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
+  const teamComparisonSql = config.relationship === "with" ? "=" : "!=";
+  const metricValueSql =
+    config.value === "count"
+      ? "COUNT(*)"
+      : "CASE WHEN COUNT(*) = 0 THEN 0 ELSE CAST(SUM(player.GameWon) AS REAL) / COUNT(*) END";
+  const latestIdentitySql = (column: "DiscordUserId" | "GamertagSnapshot"): string => `
+    SELECT relatedIdentity.${column}
+    FROM LeaderboardGamePlayers relatedIdentity
+    INNER JOIN LeaderboardGames identityGame
+      ON identityGame.GuildId = relatedIdentity.GuildId
+      AND identityGame.QueueNumber = relatedIdentity.QueueNumber
+      AND identityGame.MatchId = relatedIdentity.MatchId
+    WHERE relatedIdentity.GuildId = player.GuildId
+      AND relatedIdentity.XboxXuid = related.XboxXuid
+      AND identityGame.EndedAt >= ?
+      AND ${getQueueFilterSql("relatedIdentity", queueChannelIds)}
+    ORDER BY identityGame.EndedAt DESC, relatedIdentity.CreatedAt DESC
+    LIMIT 1
+  `;
+
+  return {
+    sql: `
+      SELECT
+        related.XboxXuid AS XboxXuid,
+        (${latestIdentitySql("DiscordUserId")}) AS DiscordUserId,
+        (${latestIdentitySql("GamertagSnapshot")}) AS Gamertag,
+        ${metricValueSql} AS MetricValue,
+        COUNT(*) AS SharedCount,
+        SUM(player.GameWon) AS Wins,
+        0 AS Perfects
+      FROM LeaderboardGamePlayers player
+      INNER JOIN LeaderboardGames game
+        ON game.GuildId = player.GuildId
+        AND game.QueueNumber = player.QueueNumber
+        AND game.MatchId = player.MatchId
+      INNER JOIN LeaderboardGamePlayers related
+        ON related.GuildId = player.GuildId
+        AND related.QueueNumber = player.QueueNumber
+        AND related.MatchId = player.MatchId
+        AND related.XboxXuid != player.XboxXuid
+        AND related.TeamId ${teamComparisonSql} player.TeamId
+      WHERE player.GuildId = ?
+        AND player.XboxXuid = ?
+        AND game.EndedAt >= ?
+        AND ${queueFilterSql}
+      GROUP BY related.XboxXuid
+    `,
+    bindings: [
+      startEpochSeconds,
+      ...queueFilterBindings,
+      startEpochSeconds,
+      ...queueFilterBindings,
+      guildId,
+      xboxXuid,
+      startEpochSeconds,
+      ...queueFilterBindings,
+    ],
+  };
 }
 
 interface LeaderboardRankingsQuery {
@@ -102,6 +525,50 @@ export interface LeaderboardDataRetentionOpts {
 
 export interface DatabaseServiceOpts {
   env: Env;
+}
+
+function getRelationshipAggregateSql(
+  metric: LeaderboardPlayerRelationshipMetric,
+  params: {
+    guildId: string;
+    xboxXuid: string;
+    queueChannelId: string | null;
+    queueChannelIds: string[] | undefined;
+    startEpochSeconds: number;
+  },
+): { sql: string; bindings: readonly (string | number | null)[] } {
+  switch (metric) {
+    case LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills:
+    case LeaderboardPlayerRelationshipMetric.AvgHeadToHeadDeaths:
+    case LeaderboardPlayerRelationshipMetric.TotalHeadToHeadKills:
+    case LeaderboardPlayerRelationshipMetric.TotalHeadToHeadDeaths: {
+      return getHeadToHeadRelationshipAggregateSql({
+        ...params,
+        config: Preconditions.checkExists(getHeadToHeadMetricConfig(metric), `No head-to-head config for ${metric}`),
+      });
+    }
+    case LeaderboardPlayerRelationshipMetric.SeriesPlayedWith:
+    case LeaderboardPlayerRelationshipMetric.SeriesPlayedAgainst:
+    case LeaderboardPlayerRelationshipMetric.SeriesWinRateWith:
+    case LeaderboardPlayerRelationshipMetric.SeriesWinRateAgainst: {
+      return getSeriesRelationshipAggregateSql({
+        ...params,
+        config: Preconditions.checkExists(getPairRelationshipMetricConfig(metric), `No pair config for ${metric}`),
+      });
+    }
+    case LeaderboardPlayerRelationshipMetric.GamesPlayedWith:
+    case LeaderboardPlayerRelationshipMetric.GamesPlayedAgainst:
+    case LeaderboardPlayerRelationshipMetric.GamesWinRateWith:
+    case LeaderboardPlayerRelationshipMetric.GamesWinRateAgainst: {
+      return getGameRelationshipAggregateSql({
+        ...params,
+        config: Preconditions.checkExists(getPairRelationshipMetricConfig(metric), `No pair config for ${metric}`),
+      });
+    }
+    default: {
+      throw new UnreachableError(metric);
+    }
+  }
 }
 
 export class DatabaseService {
@@ -647,7 +1114,7 @@ export class DatabaseService {
       return;
     }
 
-    const variablesPerRow = 34;
+    const variablesPerRow = 33;
     const statementVariableLimit = Math.min(SQLITE_MAX_VARIABLES, D1_SAFE_MAX_VARIABLES_PER_STATEMENT);
     const maxRowsPerStatement = Math.max(1, Math.floor(statementVariableLimit / variablesPerRow));
     const statements: D1PreparedStatement[] = [];
@@ -657,9 +1124,9 @@ export class DatabaseService {
       const rowPlaceholders = `(${Array.from({ length: variablesPerRow }, () => "?").join(", ")})`;
       const placeholders = chunk.map(() => rowPlaceholders).join(",");
       const query = `
-        INSERT INTO LeaderboardGamePlayers (MatchId, GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginning, GameWon, RankInMatch, PersonalScore, Kills, Deaths, Assists, HeadshotKills, Kda, Accuracy, ShotsHit, ShotsFired, DamageDealt, DamageTaken, DamageRatio, AvgLifeSeconds, AvgDamagePerLife, MedalCount, MedalPoints, MythicMedalCount, ObjectiveTimeSeconds, ObjectiveTeamContribution, ObjectiveGameContribution, ObjectiveStatsJson, MedalsJson, CreatedAt)
+        INSERT INTO LeaderboardGamePlayers (MatchId, GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginning, GameWon, RankInMatch, PersonalScore, Kills, Deaths, Assists, HeadshotKills, Kda, Accuracy, ShotsHit, ShotsFired, DamageDealt, DamageTaken, DamageRatio, AvgLifeSeconds, AvgDamagePerLife, MedalCount, MedalPoints, MythicMedalCount, ObjectiveTimeSeconds, ObjectiveTeamContribution, ObjectiveStatsJson, MedalsJson, CreatedAt)
         VALUES ${placeholders}
-        ON CONFLICT(GuildId, QueueNumber, MatchId, XboxXuid) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginning=excluded.PresentAtBeginning, GameWon=excluded.GameWon, RankInMatch=excluded.RankInMatch, PersonalScore=excluded.PersonalScore, Kills=excluded.Kills, Deaths=excluded.Deaths, Assists=excluded.Assists, HeadshotKills=excluded.HeadshotKills, Kda=excluded.Kda, Accuracy=excluded.Accuracy, ShotsHit=excluded.ShotsHit, ShotsFired=excluded.ShotsFired, DamageDealt=excluded.DamageDealt, DamageTaken=excluded.DamageTaken, DamageRatio=excluded.DamageRatio, AvgLifeSeconds=excluded.AvgLifeSeconds, AvgDamagePerLife=excluded.AvgDamagePerLife, MedalCount=excluded.MedalCount, MedalPoints=excluded.MedalPoints, MythicMedalCount=excluded.MythicMedalCount, ObjectiveTimeSeconds=excluded.ObjectiveTimeSeconds, ObjectiveTeamContribution=excluded.ObjectiveTeamContribution, ObjectiveGameContribution=excluded.ObjectiveGameContribution, ObjectiveStatsJson=excluded.ObjectiveStatsJson, MedalsJson=excluded.MedalsJson
+        ON CONFLICT(GuildId, QueueNumber, MatchId, XboxXuid) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginning=excluded.PresentAtBeginning, GameWon=excluded.GameWon, RankInMatch=excluded.RankInMatch, PersonalScore=excluded.PersonalScore, Kills=excluded.Kills, Deaths=excluded.Deaths, Assists=excluded.Assists, HeadshotKills=excluded.HeadshotKills, Kda=excluded.Kda, Accuracy=excluded.Accuracy, ShotsHit=excluded.ShotsHit, ShotsFired=excluded.ShotsFired, DamageDealt=excluded.DamageDealt, DamageTaken=excluded.DamageTaken, DamageRatio=excluded.DamageRatio, AvgLifeSeconds=excluded.AvgLifeSeconds, AvgDamagePerLife=excluded.AvgDamagePerLife, MedalCount=excluded.MedalCount, MedalPoints=excluded.MedalPoints, MythicMedalCount=excluded.MythicMedalCount, ObjectiveTimeSeconds=excluded.ObjectiveTimeSeconds, ObjectiveTeamContribution=excluded.ObjectiveTeamContribution, ObjectiveStatsJson=excluded.ObjectiveStatsJson, MedalsJson=excluded.MedalsJson
       `;
       const values = chunk.flatMap((player) => [
         player.MatchId,
@@ -692,7 +1159,6 @@ export class DatabaseService {
         player.MythicMedalCount,
         player.ObjectiveTimeSeconds,
         player.ObjectiveTeamContribution,
-        player.ObjectiveGameContribution,
         player.ObjectiveStatsJson,
         player.MedalsJson,
         player.CreatedAt,
@@ -808,7 +1274,7 @@ export class DatabaseService {
     }
 
     if (normalizedGamePlayers.length > 0) {
-      const variablesPerRow = 34;
+      const variablesPerRow = 33;
       const maxRowsPerStatement = Math.max(1, Math.floor(statementVariableLimit / variablesPerRow));
 
       for (let start = 0; start < normalizedGamePlayers.length; start += maxRowsPerStatement) {
@@ -817,9 +1283,9 @@ export class DatabaseService {
         const placeholders = chunk.map(() => rowPlaceholders).join(",");
         const stmt = this.DB.prepare(
           `
-        INSERT INTO LeaderboardGamePlayers (MatchId, GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginning, GameWon, RankInMatch, PersonalScore, Kills, Deaths, Assists, HeadshotKills, Kda, Accuracy, ShotsHit, ShotsFired, DamageDealt, DamageTaken, DamageRatio, AvgLifeSeconds, AvgDamagePerLife, MedalCount, MedalPoints, MythicMedalCount, ObjectiveTimeSeconds, ObjectiveTeamContribution, ObjectiveGameContribution, ObjectiveStatsJson, MedalsJson, CreatedAt)
+        INSERT INTO LeaderboardGamePlayers (MatchId, GuildId, QueueNumber, QueueChannelId, XboxXuid, DiscordUserId, GamertagSnapshot, TeamId, PresentAtBeginning, GameWon, RankInMatch, PersonalScore, Kills, Deaths, Assists, HeadshotKills, Kda, Accuracy, ShotsHit, ShotsFired, DamageDealt, DamageTaken, DamageRatio, AvgLifeSeconds, AvgDamagePerLife, MedalCount, MedalPoints, MythicMedalCount, ObjectiveTimeSeconds, ObjectiveTeamContribution, ObjectiveStatsJson, MedalsJson, CreatedAt)
         VALUES ${placeholders}
-        ON CONFLICT(GuildId, QueueNumber, MatchId, XboxXuid) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginning=excluded.PresentAtBeginning, GameWon=excluded.GameWon, RankInMatch=excluded.RankInMatch, PersonalScore=excluded.PersonalScore, Kills=excluded.Kills, Deaths=excluded.Deaths, Assists=excluded.Assists, HeadshotKills=excluded.HeadshotKills, Kda=excluded.Kda, Accuracy=excluded.Accuracy, ShotsHit=excluded.ShotsHit, ShotsFired=excluded.ShotsFired, DamageDealt=excluded.DamageDealt, DamageTaken=excluded.DamageTaken, DamageRatio=excluded.DamageRatio, AvgLifeSeconds=excluded.AvgLifeSeconds, AvgDamagePerLife=excluded.AvgDamagePerLife, MedalCount=excluded.MedalCount, MedalPoints=excluded.MedalPoints, MythicMedalCount=excluded.MythicMedalCount, ObjectiveTimeSeconds=excluded.ObjectiveTimeSeconds, ObjectiveTeamContribution=excluded.ObjectiveTeamContribution, ObjectiveGameContribution=excluded.ObjectiveGameContribution, ObjectiveStatsJson=excluded.ObjectiveStatsJson, MedalsJson=excluded.MedalsJson
+        ON CONFLICT(GuildId, QueueNumber, MatchId, XboxXuid) DO UPDATE SET QueueChannelId=excluded.QueueChannelId, DiscordUserId=excluded.DiscordUserId, GamertagSnapshot=excluded.GamertagSnapshot, TeamId=excluded.TeamId, PresentAtBeginning=excluded.PresentAtBeginning, GameWon=excluded.GameWon, RankInMatch=excluded.RankInMatch, PersonalScore=excluded.PersonalScore, Kills=excluded.Kills, Deaths=excluded.Deaths, Assists=excluded.Assists, HeadshotKills=excluded.HeadshotKills, Kda=excluded.Kda, Accuracy=excluded.Accuracy, ShotsHit=excluded.ShotsHit, ShotsFired=excluded.ShotsFired, DamageDealt=excluded.DamageDealt, DamageTaken=excluded.DamageTaken, DamageRatio=excluded.DamageRatio, AvgLifeSeconds=excluded.AvgLifeSeconds, AvgDamagePerLife=excluded.AvgDamagePerLife, MedalCount=excluded.MedalCount, MedalPoints=excluded.MedalPoints, MythicMedalCount=excluded.MythicMedalCount, ObjectiveTimeSeconds=excluded.ObjectiveTimeSeconds, ObjectiveTeamContribution=excluded.ObjectiveTeamContribution, ObjectiveStatsJson=excluded.ObjectiveStatsJson, MedalsJson=excluded.MedalsJson
       `,
         ).bind(
           ...chunk.flatMap((player) => [
@@ -853,7 +1319,6 @@ export class DatabaseService {
             player.MythicMedalCount,
             player.ObjectiveTimeSeconds,
             player.ObjectiveTeamContribution,
-            player.ObjectiveGameContribution,
             player.ObjectiveStatsJson,
             player.MedalsJson,
             player.CreatedAt,
@@ -982,7 +1447,6 @@ export class DatabaseService {
            WHERE LeaderboardGames.MatchId = MatchKillMatrix.MatchId
          )`,
     ).bind(orphanedKillMatrixRetentionBoundary);
-
     await this.DB.batch([
       deleteExpiredKillMatricesStmt,
       deleteExpiredLeaderboardSeriesStmt,
@@ -1166,8 +1630,7 @@ export class DatabaseService {
           break;
         }
         case LeaderboardMetric.DamageRatio: {
-          metricSql =
-            "CASE WHEN SUM(gp.DamageTaken) = 0 THEN CASE WHEN SUM(gp.DamageDealt) = 0 THEN 0 ELSE 1.7976931348623157e308 END ELSE CAST(SUM(gp.DamageDealt) AS REAL) / SUM(gp.DamageTaken) END";
+          metricSql = DAMAGE_RATIO_SQL;
           break;
         }
         case LeaderboardMetric.AvgLifeSeconds: {
@@ -1224,13 +1687,6 @@ export class DatabaseService {
           metricSql = "AVG(gp.ObjectiveTeamContribution)";
           metricGamesPlayedSql = "COUNT(gp.ObjectiveTeamContribution)";
           objectiveGamesPlayedSql = "COUNT(gp.ObjectiveTeamContribution)";
-          metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
-          break;
-        }
-        case LeaderboardMetric.ObjectiveGameContribution: {
-          metricSql = "AVG(gp.ObjectiveGameContribution)";
-          metricGamesPlayedSql = "COUNT(gp.ObjectiveGameContribution)";
-          objectiveGamesPlayedSql = "COUNT(gp.ObjectiveGameContribution)";
           metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
           break;
         }
@@ -1428,6 +1884,414 @@ export class DatabaseService {
     return {
       total: countRow?.Total ?? 0,
       rows: rowsResponse.results,
+    };
+  }
+
+  async getLeaderboardPlayerStats({
+    guildId,
+    xboxXuid,
+    queueChannelId,
+    queueChannelIds,
+    startEpochSeconds,
+  }: {
+    guildId: string;
+    xboxXuid: string;
+    queueChannelId: string | null;
+    queueChannelIds?: string[];
+    startEpochSeconds: number;
+  }): Promise<LeaderboardPlayerStatsRow | null> {
+    if (queueChannelIds?.length === 0) {
+      return null;
+    }
+
+    const ctf = GameVariantCategory.MultiplayerCtf;
+    const strongholds = GameVariantCategory.MultiplayerStrongholds;
+    const koth = GameVariantCategory.MultiplayerKingOfTheHill;
+    const oddball = GameVariantCategory.MultiplayerOddball;
+    const queueFilter = getQueueFilterSql("gp", queueChannelIds);
+    const seriesQueueFilter = getQueueFilterSql("sp", queueChannelIds);
+    const identityQueueFilter = queueFilter;
+    const query = `
+      WITH gameStats AS (
+        SELECT
+          gp.XboxXuid AS XboxXuid,
+          COUNT(*) AS GamesPlayed,
+          SUM(gp.GameWon) AS GameWins,
+          SUM(gp.PersonalScore) AS PersonalScore,
+          AVG(gp.PersonalScore) AS AvgPersonalScorePerGame,
+          SUM(gp.Kills) AS Kills,
+          AVG(gp.Kills) AS AvgKillsPerGame,
+          SUM(gp.Deaths) AS Deaths,
+          AVG(gp.Deaths) AS AvgDeathsPerGame,
+          SUM(gp.Assists) AS Assists,
+          AVG(gp.Assists) AS AvgAssistsPerGame,
+          SUM(gp.HeadshotKills) AS HeadshotKills,
+          AVG(gp.HeadshotKills) AS AvgHeadshotKillsPerGame,
+          SUM(gp.ShotsHit) AS ShotsHit,
+          AVG(gp.ShotsHit) AS AvgShotsHitPerGame,
+          SUM(gp.ShotsFired) AS ShotsFired,
+          AVG(gp.ShotsFired) AS AvgShotsFiredPerGame,
+          SUM(gp.DamageDealt) AS DamageDealt,
+          AVG(gp.DamageDealt) AS AvgDamageDealtPerGame,
+          SUM(gp.DamageTaken) AS DamageTaken,
+          AVG(gp.DamageTaken) AS AvgDamageTakenPerGame,
+          AVG(gp.Kda) AS Kda,
+          AVG(gp.Accuracy) AS Accuracy,
+          ${DAMAGE_RATIO_SQL} AS DamageRatio,
+          AVG(gp.AvgLifeSeconds) AS AvgLifeSeconds,
+          AVG(gp.AvgDamagePerLife) AS AvgDamagePerLife,
+          SUM(gp.MedalCount) AS MedalCount,
+          SUM(gp.MedalPoints) AS MedalPoints,
+          SUM(gp.MythicMedalCount) AS MythicMedalCount,
+          COUNT(gp.ObjectiveTimeSeconds) AS ObjectiveGamesPlayed,
+          SUM(COALESCE(gp.ObjectiveTimeSeconds, 0)) AS ObjectiveTimeSeconds,
+          COALESCE(AVG(gp.ObjectiveTimeSeconds), 0) AS AvgObjectiveTimeSeconds,
+          COALESCE(AVG(gp.ObjectiveTeamContribution), 0) AS ObjectiveTeamContribution,
+          COUNT(gp.ObjectiveTeamContribution) AS ObjectiveTeamContributionGamesPlayed,
+          SUM(CASE WHEN g.GameVariantCategory = ${ctf.toString()} THEN 1 ELSE 0 END) AS CtfGamesPlayed,
+          SUM(CASE WHEN g.GameVariantCategory = ${strongholds.toString()} THEN 1 ELSE 0 END) AS StrongholdGamesPlayed,
+          SUM(CASE WHEN g.GameVariantCategory = ${koth.toString()} THEN 1 ELSE 0 END) AS HillGamesPlayed,
+          SUM(CASE WHEN g.GameVariantCategory = ${oddball.toString()} THEN 1 ELSE 0 END) AS BallGamesPlayed,
+          ${getPlayerObjectiveSumSql(ctf, "CaptureTheFlagStats.FlagCaptures")} AS FlagCaptures,
+          ${getPlayerObjectiveSumSql(ctf, "CaptureTheFlagStats.FlagCaptureAssists")} AS FlagCaptureAssists,
+          ${getPlayerObjectiveSumSql(ctf, "CaptureTheFlagStats.FlagGrabs")} AS FlagGrabs,
+          ${getPlayerObjectiveSumSql(ctf, "CaptureTheFlagStats.FlagReturns")} AS FlagReturns,
+          ${getPlayerObjectiveSumSql(ctf, "CaptureTheFlagStats.FlagSecures")} AS FlagSecures,
+          ${getPlayerObjectiveSumSql(ctf, "CaptureTheFlagStats.FlagSteals")} AS FlagSteals,
+          ${getPlayerObjectiveSumSql(ctf, "CaptureTheFlagStats.FlagCarriersKilled")} AS FlagCarriersKilled,
+          ${getPlayerObjectiveSumSql(ctf, "CaptureTheFlagStats.FlagReturnersKilled")} AS FlagReturnersKilled,
+          ${getPlayerObjectiveSumSql(ctf, "CaptureTheFlagStats.KillsAsFlagCarrier")} AS FlagCarrierKills,
+          ${getPlayerObjectiveSumSql(ctf, "CaptureTheFlagStats.KillsAsFlagReturner")} AS FlagReturnerKills,
+          ${getPlayerObjectiveSumSql(strongholds, "ZonesStats.StrongholdCaptures")} AS StrongholdCaptures,
+          ${getPlayerObjectiveSumSql(strongholds, "ZonesStats.StrongholdSecures")} AS StrongholdSecures,
+          ${getPlayerObjectiveSumSql(strongholds, "ZonesStats.StrongholdOffensiveKills")} AS StrongholdOffensiveKills,
+          ${getPlayerObjectiveSumSql(strongholds, "ZonesStats.StrongholdDefensiveKills")} AS StrongholdDefensiveKills,
+          ${getPlayerObjectiveSumSql(koth, "ZonesStats.StrongholdScoringTicks")} AS HillScoringTicks,
+          ${getPlayerObjectiveSumSql(koth, "ZonesStats.StrongholdOffensiveKills")} AS HillOffensiveKills,
+          ${getPlayerObjectiveSumSql(koth, "ZonesStats.StrongholdDefensiveKills")} AS HillDefensiveKills,
+          ${getPlayerObjectiveSumSql(oddball, "OddballStats.SkullScoringTicks")} AS BallScoringTicks,
+          ${getPlayerObjectiveSumSql(oddball, "OddballStats.SkullGrabs")} AS BallGrabs,
+          ${getPlayerObjectiveSumSql(oddball, "OddballStats.SkullCarriersKilled")} AS BallCarriersKilled,
+          ${getPlayerObjectiveSumSql(oddball, "OddballStats.KillsAsSkullCarrier")} AS BallCarrierKills
+        FROM LeaderboardGamePlayers gp
+        INNER JOIN LeaderboardGames g
+          ON g.GuildId = gp.GuildId AND g.QueueNumber = gp.QueueNumber AND g.MatchId = gp.MatchId
+        WHERE gp.GuildId = ? AND gp.XboxXuid = ? AND g.EndedAt >= ?
+          AND ${queueFilter}
+        GROUP BY gp.XboxXuid
+      ), seriesStats AS (
+        SELECT COUNT(*) AS SeriesPlayed, COALESCE(SUM(sp.SeriesWon), 0) AS SeriesWins
+        FROM LeaderboardSeriesPlayers sp
+        INNER JOIN LeaderboardSeries s ON s.GuildId = sp.GuildId AND s.QueueNumber = sp.QueueNumber
+        WHERE sp.GuildId = ? AND sp.XboxXuid = ? AND s.CompletedAt >= ?
+          AND ${seriesQueueFilter}
+      ), identity AS (
+        SELECT gp.XboxXuid, gp.DiscordUserId, gp.GamertagSnapshot AS Gamertag
+        FROM LeaderboardGamePlayers gp
+        INNER JOIN LeaderboardGames g
+          ON g.GuildId = gp.GuildId AND g.QueueNumber = gp.QueueNumber AND g.MatchId = gp.MatchId
+        WHERE gp.GuildId = ? AND gp.XboxXuid = ? AND g.EndedAt >= ?
+          AND ${identityQueueFilter}
+        ORDER BY g.EndedAt DESC, gp.CreatedAt DESC
+        LIMIT 1
+      )
+      SELECT identity.DiscordUserId, identity.Gamertag,
+        seriesStats.SeriesPlayed, seriesStats.SeriesWins,
+        gameStats.*
+      FROM identity
+      CROSS JOIN seriesStats
+      INNER JOIN gameStats ON gameStats.XboxXuid = identity.XboxXuid
+    `;
+    const queueBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
+    const bindings = [
+      guildId,
+      xboxXuid,
+      startEpochSeconds,
+      ...queueBindings,
+      guildId,
+      xboxXuid,
+      startEpochSeconds,
+      ...queueBindings,
+      guildId,
+      xboxXuid,
+      startEpochSeconds,
+      ...queueBindings,
+    ] as const;
+    const stmt = this.DB.prepare(query).bind(...bindings);
+    return await stmt.first<LeaderboardPlayerStatsRow>();
+  }
+
+  /**
+   * Returns where a single player ranks for one leaderboard metric, using the same population and
+   * tie-break rules as the real leaderboard ranking queries. Returns null when the player does not
+   * meet that metric's eligibility threshold (mirrors real leaderboard visibility).
+   */
+  async getLeaderboardPlayerMetricRank({
+    guildId,
+    queueChannelId,
+    queueChannelIds,
+    startEpochSeconds,
+    minGamesPlayed,
+    metric,
+    xboxXuid,
+  }: {
+    guildId: string;
+    queueChannelId: string | null;
+    queueChannelIds?: string[];
+    startEpochSeconds: number;
+    minGamesPlayed: number;
+    metric: LeaderboardMetric;
+    xboxXuid: string;
+  }): Promise<LeaderboardPlayerMetricRank | null> {
+    const { aggregateSql, bindings, sortDirection } = isOutcomeLeaderboardMetric(metric)
+      ? this.buildOutcomeMetricRankAggregate({
+          guildId,
+          queueChannelId,
+          queueChannelIds,
+          startEpochSeconds,
+          minGamesPlayed,
+          metric,
+        })
+      : this.buildStatMetricRankAggregate({
+          guildId,
+          queueChannelId,
+          queueChannelIds,
+          startEpochSeconds,
+          minGamesPlayed,
+          metric,
+        });
+
+    const query = `
+      WITH ranked AS (
+        SELECT agg.*, ROW_NUMBER() OVER (ORDER BY agg.MetricValue ${sortDirection}, agg.GamesPlayed DESC, agg.Gamertag ASC, agg.XboxXuid ASC) AS Rank, COUNT(*) OVER () AS Total
+        FROM (${aggregateSql}) agg
+      )
+      SELECT Rank, Total FROM ranked WHERE XboxXuid = ?
+    `;
+    const stmt = this.DB.prepare(query).bind(...bindings, xboxXuid);
+    const row = await stmt.first<{ Rank: number; Total: number }>();
+
+    return row == null ? null : { rank: row.Rank, total: row.Total };
+  }
+
+  async getLeaderboardPlayerRelationships({
+    guildId,
+    xboxXuid,
+    queueChannelId,
+    queueChannelIds,
+    startEpochSeconds,
+    metric,
+  }: {
+    guildId: string;
+    xboxXuid: string;
+    queueChannelId: string | null;
+    queueChannelIds?: string[];
+    startEpochSeconds: number;
+    metric: LeaderboardPlayerRelationshipMetric;
+  }): Promise<LeaderboardPlayerRelationshipRow[]> {
+    if (queueChannelIds?.length === 0) {
+      return [];
+    }
+
+    const pairConfig = getPairRelationshipMetricConfig(metric);
+    const aggregate = getRelationshipAggregateSql(metric, {
+      guildId,
+      xboxXuid,
+      queueChannelId,
+      queueChannelIds,
+      startEpochSeconds,
+    });
+    const minimumSharedCount = pairConfig?.value === "win-rate" ? (pairConfig.scope === "series" ? 3 : 5) : 1;
+    const query = `
+      SELECT XboxXuid, DiscordUserId, Gamertag, MetricValue, SharedCount, Wins, Perfects
+      FROM (${aggregate.sql}) relationship
+      WHERE SharedCount >= ?
+      ORDER BY MetricValue DESC, SharedCount DESC, Gamertag COLLATE NOCASE ASC, XboxXuid ASC
+      LIMIT 10
+    `;
+    const response = await this.DB.prepare(query)
+      .bind(...aggregate.bindings, minimumSharedCount)
+      .all<LeaderboardPlayerRelationshipRow>();
+    return response.results;
+  }
+
+  private buildStatMetricRankAggregate({
+    guildId,
+    queueChannelId,
+    queueChannelIds,
+    startEpochSeconds,
+    minGamesPlayed,
+    metric,
+  }: {
+    guildId: string;
+    queueChannelId: string | null;
+    queueChannelIds?: string[] | undefined;
+    startEpochSeconds: number;
+    minGamesPlayed: number;
+    metric: LeaderboardMetric;
+  }): { aggregateSql: string; bindings: readonly (string | number | null)[]; sortDirection: "ASC" | "DESC" } {
+    let metricSql: string;
+    let metricGamesPlayedSql = "COUNT(*)";
+    let metricMinGamesPlayed = minGamesPlayed;
+
+    if (isObjectiveLeaderboardMetric(metric)) {
+      const descriptor = getLeaderboardObjectiveDescriptorByMetric(metric);
+      metricGamesPlayedSql = getObjectiveCategoryGamesSql(descriptor.category);
+      metricSql =
+        metric === descriptor.averageMetric
+          ? `CASE WHEN ${metricGamesPlayedSql} = 0 THEN 0 ELSE CAST(SUM(${getObjectiveStatValueSql(descriptor)}) AS REAL) / ${metricGamesPlayedSql} END`
+          : `SUM(${getObjectiveStatValueSql(descriptor)})`;
+      metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
+    } else {
+      const configuredMetricSql = PLAYER_STAT_RANK_SQL_BY_METRIC.get(metric);
+      if (configuredMetricSql == null) {
+        throw new Error(`Unsupported player-stats rank metric: ${metric}`);
+      }
+
+      metricSql = configuredMetricSql;
+
+      if (metric === LeaderboardMetric.ObjectiveTime || metric === LeaderboardMetric.AvgObjectiveTimePerGame) {
+        metricGamesPlayedSql = "COUNT(gp.ObjectiveTimeSeconds)";
+        metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
+      }
+
+      if (metric === LeaderboardMetric.ObjectiveTeamContribution) {
+        metricGamesPlayedSql = "COUNT(gp.ObjectiveTeamContribution)";
+        metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
+      }
+    }
+
+    const queueFilterSql = getQueueFilterSql("gp", queueChannelIds);
+    const queueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
+    const identityQueueFilterSql = getQueueFilterSql("identityGp", queueChannelIds);
+    const identityGamertagSql = `
+      SELECT identityGp.GamertagSnapshot
+      FROM LeaderboardGamePlayers identityGp
+      INNER JOIN LeaderboardGames identityGame
+        ON identityGame.GuildId = identityGp.GuildId
+        AND identityGame.QueueNumber = identityGp.QueueNumber
+        AND identityGame.MatchId = identityGp.MatchId
+      WHERE identityGp.GuildId = gp.GuildId
+        AND identityGp.XboxXuid = gp.XboxXuid
+        AND identityGame.EndedAt >= ?
+        AND ${identityQueueFilterSql}
+      ORDER BY identityGame.EndedAt DESC, identityGp.CreatedAt DESC
+      LIMIT 1
+    `;
+
+    const aggregateSql = `
+      SELECT
+        gp.XboxXuid AS XboxXuid,
+        COUNT(*) AS GamesPlayed,
+        ${metricSql} AS MetricValue,
+        (${identityGamertagSql}) AS Gamertag
+      FROM LeaderboardGamePlayers gp
+      INNER JOIN LeaderboardGames g
+        ON g.GuildId = gp.GuildId
+        AND g.QueueNumber = gp.QueueNumber
+        AND g.MatchId = gp.MatchId
+      WHERE gp.GuildId = ?
+        AND g.EndedAt >= ?
+        AND ${queueFilterSql}
+      GROUP BY gp.XboxXuid
+      HAVING ${metricGamesPlayedSql} >= ?
+    `;
+
+    return {
+      aggregateSql,
+      bindings: [
+        startEpochSeconds,
+        ...queueFilterBindings,
+        guildId,
+        startEpochSeconds,
+        ...queueFilterBindings,
+        metricMinGamesPlayed,
+      ],
+      sortDirection: isAscendingMetric(metric) ? "ASC" : "DESC",
+    };
+  }
+
+  private buildOutcomeMetricRankAggregate({
+    guildId,
+    queueChannelId,
+    queueChannelIds,
+    startEpochSeconds,
+    minGamesPlayed,
+    metric,
+  }: {
+    guildId: string;
+    queueChannelId: string | null;
+    queueChannelIds?: string[] | undefined;
+    startEpochSeconds: number;
+    minGamesPlayed: number;
+    metric: LeaderboardMetric;
+  }): { aggregateSql: string; bindings: readonly (string | number | null)[]; sortDirection: "ASC" | "DESC" } {
+    const metricSql = PLAYER_OUTCOME_RANK_SQL_BY_METRIC.get(metric);
+    if (metricSql == null) {
+      throw new Error(`Unsupported player-stats rank metric: ${metric}`);
+    }
+
+    const gamesQueueFilterSql = getQueueFilterSql("sGames", queueChannelIds);
+    const gamesQueueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
+    const seriesQueueFilterSql = getQueueFilterSql("s", queueChannelIds);
+    const seriesQueueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
+    const identityQueueFilterSql = getQueueFilterSql("identityGp", queueChannelIds);
+    const identityGamertagSql = `
+      SELECT identityGp.GamertagSnapshot
+      FROM LeaderboardGamePlayers identityGp
+      INNER JOIN LeaderboardGames identityGame
+        ON identityGame.GuildId = identityGp.GuildId
+        AND identityGame.QueueNumber = identityGp.QueueNumber
+        AND identityGame.MatchId = identityGp.MatchId
+      WHERE identityGp.GuildId = sp.GuildId
+        AND identityGp.XboxXuid = sp.XboxXuid
+        AND identityGame.EndedAt >= ?
+        AND ${identityQueueFilterSql}
+      ORDER BY identityGame.EndedAt DESC, identityGp.CreatedAt DESC
+      LIMIT 1
+    `;
+
+    const aggregateSql = `
+      SELECT
+        sp.XboxXuid AS XboxXuid,
+        SUM(sp.GamesPlayedCount) AS GamesPlayed,
+        ${metricSql} AS MetricValue,
+        (${identityGamertagSql}) AS Gamertag
+      FROM LeaderboardSeriesPlayers sp
+      INNER JOIN LeaderboardSeries s
+        ON s.GuildId = sp.GuildId AND s.QueueNumber = sp.QueueNumber
+      LEFT JOIN (
+        SELECT gp.XboxXuid, SUM(gp.GameWon) AS GameWins
+        FROM LeaderboardGamePlayers gp
+        INNER JOIN LeaderboardSeries sGames
+          ON sGames.GuildId = gp.GuildId AND sGames.QueueNumber = gp.QueueNumber
+        WHERE gp.GuildId = ?
+          AND sGames.CompletedAt >= ?
+          AND ${gamesQueueFilterSql}
+        GROUP BY gp.XboxXuid
+      ) gameStats
+        ON gameStats.XboxXuid = sp.XboxXuid
+      WHERE s.GuildId = ?
+        AND s.CompletedAt >= ?
+        AND ${seriesQueueFilterSql}
+      GROUP BY sp.XboxXuid
+      HAVING SUM(sp.GamesPlayedCount) >= ?
+    `;
+
+    return {
+      aggregateSql,
+      bindings: [
+        startEpochSeconds,
+        ...getQueueFilterBindings(queueChannelId, queueChannelIds),
+        guildId,
+        startEpochSeconds,
+        ...gamesQueueFilterBindings,
+        guildId,
+        startEpochSeconds,
+        ...seriesQueueFilterBindings,
+        minGamesPlayed,
+      ],
+      sortDirection: "DESC",
     };
   }
 

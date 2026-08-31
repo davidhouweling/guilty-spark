@@ -24,6 +24,8 @@ import {
   MessageType,
 } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { LeaderboardMetricAggregation, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import { LeaderboardPlayerRelationshipMetric } from "../../../services/database/types/leaderboard_player_relationship";
 import { StatsCommand } from "../stats";
 import type { Services } from "../../../services/install";
 import { installFakeServicesWith } from "../../../services/fakes/services";
@@ -42,9 +44,14 @@ import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import {
   aFakeDiscordAssociationsRow,
   aFakeGuildConfigRow,
+  aFakeLeaderboardPlayerStatsRow,
   aFakeNeatQueueConfigRow,
 } from "../../../services/database/fakes/database.fake";
 import { EndUserError } from "../../../base/end-user-error";
+import {
+  PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
+  PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+} from "../../../embeds/stats/player-stats-embed";
 import type { MatchPlayer } from "../../../services/halo/types";
 import {
   DISCORD_SERIES_STATS_RESOLVED_CACHE_TTL_SECONDS,
@@ -2667,6 +2674,212 @@ describe("StatsCommand", () => {
       );
       expect(getMatchDetailsSpy).not.toHaveBeenCalled();
       expect(createMessageSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("execute(): subcommand player", () => {
+    beforeEach(() => {
+      vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+        name: "player",
+        mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>(),
+        options: [],
+      });
+    });
+
+    it("returns a clear error when the guild has no configured NeatQueue channels", async () => {
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([]);
+
+      const { jobToComplete } = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          message: "This server has no configured NeatQueue channels. Set one up before using this command.",
+        }),
+      );
+    });
+
+    it("stops probing configured queues for played-queue options once 24 have been found", async () => {
+      const configuredQueues = Array.from({ length: 40 }, (_unused, index) =>
+        aFakeNeatQueueConfigRow({ ChannelId: `queue-${index.toString()}` }),
+      );
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue(configuredQueues);
+      vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([
+        aFakeDiscordAssociationsRow({ DiscordId: "discord-user-1", XboxId: "2533274000000001" }),
+      ]);
+
+      const statsResponse = {
+        stats: aFakeLeaderboardPlayerStatsRow(),
+        window: LeaderboardWindow.ThreeMonths,
+        resetAt: null,
+        startEpochSeconds: 0,
+        minGamesPlayed: 1,
+        defaultAggregation: LeaderboardMetricAggregation.AvgPerGame,
+      };
+      const getLeaderboardPlayerStatsSpy = vi
+        .spyOn(services.leaderboardService, "getLeaderboardPlayerStats")
+        .mockImplementation(async ({ queueChannelId }) =>
+          // The overall-stats lookup (queueChannelId: null) always succeeds; every configured
+          // queue also has qualifying games, so the probe should stop as soon as it has found the
+          // first 24 played queues rather than probing all 40 configured queues.
+          Promise.resolve(
+            queueChannelId == null || configuredQueues.some((queue) => queue.ChannelId === queueChannelId)
+              ? statsResponse
+              : null,
+          ),
+        );
+      vi.spyOn(services.leaderboardService, "getLeaderboardPlayerMetricRanks").mockResolvedValue(new Map());
+
+      const { jobToComplete } = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+      const queueProbeCalls = getLeaderboardPlayerStatsSpy.mock.calls.filter(
+        ([{ queueChannelId }]) => queueChannelId != null,
+      );
+      expect(queueProbeCalls.length).toBeLessThan(configuredQueues.length);
+      expect(queueProbeCalls.length).toBeGreaterThanOrEqual(24);
+    });
+
+    it("does not offer 'Last reset' as a static window choice, since it silently falls back to the default window without a reset marker", () => {
+      const [statsCommandData] = statsCommand.commands;
+      const playerSubCommand = statsCommandData?.options?.find((option) => option.name === "player");
+      const windowOption =
+        playerSubCommand?.type === ApplicationCommandOptionType.Subcommand
+          ? playerSubCommand.options?.find((option) => option.name === "window")
+          : undefined;
+
+      expect(windowOption?.type === ApplicationCommandOptionType.String ? windowOption.choices : undefined).toEqual(
+        expect.not.arrayContaining([expect.objectContaining({ value: LeaderboardWindow.LastReset })]),
+      );
+    });
+  });
+
+  describe("execute(): message component player stats select", () => {
+    it("renders the selected relationship view with pair eligibility context", async () => {
+      const playerStats = aFakeLeaderboardPlayerStatsRow();
+      vi.spyOn(services.leaderboardService, "getLeaderboardPlayerRelationships").mockResolvedValue({
+        stats: playerStats,
+        rows: [
+          {
+            XboxXuid: "2533274000000002",
+            DiscordUserId: "discord-user-2",
+            Gamertag: "teammate01",
+            MetricValue: 0.75,
+            SharedCount: 4,
+            Wins: 3,
+            Perfects: 0,
+          },
+        ],
+        window: LeaderboardWindow.ThreeMonths,
+        resetAt: null,
+        metric: LeaderboardPlayerRelationshipMetric.SeriesWinRateWith,
+      });
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
+          values: [LeaderboardPlayerRelationshipMetric.SeriesWinRateWith],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          components: [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
+                  options: [{ label: "Total", value: LeaderboardMetricAggregation.Total, default: true }],
+                },
+              ],
+            },
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+                  options: [{ label: "3 months", value: LeaderboardWindow.ThreeMonths, default: true }],
+                },
+              ],
+            },
+          ],
+          embeds: [{ url: "https://guilty-spark.app/stats/player/2533274000000001" }],
+        },
+      };
+
+      const { jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+      const response = updateDeferredReplySpy.mock.calls[0]?.[1];
+      const [embed] = response?.embeds ?? [];
+      expect(embed?.title).toBe("gamertag01 - Highest series win rate with");
+      expect(embed?.footer).toEqual({ text: "Min shared series: 3" });
+      expect(embed?.fields).toContainEqual({ name: "Player", value: "teammate01", inline: true });
+      expect(embed?.fields).toContainEqual({ name: "Rank", value: "🥇", inline: true });
+      expect(embed?.fields).toContainEqual({ name: "Value", value: "75% (3/4 shared series)", inline: true });
+    });
+
+    it("shows an empty state when no games were played in the selected window", async () => {
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+          values: [LeaderboardWindow.ThreeMonths],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          components: [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
+                  options: [{ label: "Total", value: LeaderboardMetricAggregation.Total, default: true }],
+                },
+              ],
+            },
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+                  options: [{ label: "1 month", value: LeaderboardWindow.OneMonth, default: true }],
+                },
+              ],
+            },
+          ],
+          embeds: [
+            {
+              footer: { text: "Min games: 5 | Total players: 10" },
+              url: "https://guilty-spark.app/stats/player/2533274000000001",
+            },
+          ],
+        },
+      };
+
+      const { jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+      expect(updateDeferredReplySpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          embeds: [
+            expect.objectContaining({
+              description: "No games played in 3M for the selected queue scope.",
+              footer: { text: "No games played" },
+            }),
+          ],
+        }),
+      );
     });
   });
 });

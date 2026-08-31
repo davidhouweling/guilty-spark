@@ -263,7 +263,6 @@ CREATE TABLE IF NOT EXISTS LeaderboardGamePlayers (
     MythicMedalCount INTEGER NOT NULL DEFAULT 0,
     ObjectiveTimeSeconds REAL,
     ObjectiveTeamContribution REAL,
-    ObjectiveGameContribution REAL,
     ObjectiveStatsJson TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(ObjectiveStatsJson)),
     MedalsJson TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(MedalsJson)),
     CreatedAt INTEGER NOT NULL DEFAULT (unixepoch()),

@@ -962,7 +962,6 @@ describe("LeaderboardService", () => {
     const player = Preconditions.checkExists(payload.gamePlayers.find((row) => row.XboxXuid === "0100000000000000"));
     expect(player.ObjectiveTimeSeconds).toBe(11.1);
     expect(player.ObjectiveTeamContribution).toBeCloseTo(11.1 / 63.7);
-    expect(player.ObjectiveGameContribution).toBeCloseTo(11.1 / 172);
   });
 
   it("persists only objective stats in ObjectiveStatsJson", async () => {

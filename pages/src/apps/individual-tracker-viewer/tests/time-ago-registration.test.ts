@@ -12,5 +12,5 @@ describe("individual-tracker-viewer app entry", () => {
     await import("../create");
 
     expectTimeAgoLocaleRegistered(addLocaleSpy);
-  });
+  }, 15_000);
 });

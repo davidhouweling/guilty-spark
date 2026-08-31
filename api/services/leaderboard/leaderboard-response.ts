@@ -35,7 +35,7 @@ export const LEADERBOARD_METRIC_FAMILY_SELECT_CONTROL_ID = "select_leaderboard_m
 export const LEADERBOARD_METRIC_AGGREGATION_SELECT_CONTROL_ID = "select_leaderboard_metric_aggregation";
 export const LEADERBOARD_WINDOW_SELECT_CONTROL_ID = "select_leaderboard_window";
 
-function formatRank(rank: number): string {
+export function formatRank(rank: number): string {
   switch (rank) {
     case 1: {
       return "🥇";
@@ -142,7 +142,7 @@ function getWindowLabel(window: LeaderboardWindow, resetTimestamp: string | null
   }
 }
 
-function getMetricLabel(metric: LeaderboardMetric): string {
+export function getMetricLabel(metric: LeaderboardMetric): string {
   if (isObjectiveLeaderboardMetric(metric)) {
     const descriptor = getLeaderboardObjectiveDescriptorByMetric(metric);
     return metric === descriptor.averageMetric ? `${descriptor.label} (avg)` : descriptor.label;
@@ -190,9 +190,6 @@ function getMetricLabel(metric: LeaderboardMetric): string {
     }
     case LeaderboardMetric.ObjectiveTeamContribution: {
       return "Team objective contribution";
-    }
-    case LeaderboardMetric.ObjectiveGameContribution: {
-      return "Game objective contribution";
     }
     case LeaderboardMetric.GamesWinRate: {
       return "Games win rate";
@@ -299,7 +296,7 @@ function getMetricLabel(metric: LeaderboardMetric): string {
   }
 }
 
-function formatMetricValue(
+export function formatMetricValue(
   metricValue: number,
   metric: LeaderboardMetric,
   row: LeaderboardResponse["rows"][number],
@@ -402,11 +399,9 @@ function formatMetricValue(
     }
     case LeaderboardMetric.AvgObjectiveTimePerGame: {
       const average = getReadableDuration(getDurationInIsoString(metricValue), locale);
-      const total = getReadableDuration(getDurationInIsoString(row.objectiveTimeSeconds), locale);
-      return `${average} avg/game (${total} total, ${formatCount(row.objectiveGamesPlayed, "game", "games")})`;
+      return `${average} avg/game (${formatCount(row.objectiveGamesPlayed, "game", "games")})`;
     }
-    case LeaderboardMetric.ObjectiveTeamContribution:
-    case LeaderboardMetric.ObjectiveGameContribution: {
+    case LeaderboardMetric.ObjectiveTeamContribution: {
       const percentage = (metricValue * 100).toLocaleString(locale, { maximumFractionDigits: 1 });
       return `${percentage}% avg/game (${formatCount(row.objectiveGamesPlayed, "game", "games")})`;
     }

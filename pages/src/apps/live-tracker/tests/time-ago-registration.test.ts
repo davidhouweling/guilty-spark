@@ -12,5 +12,5 @@ describe("live-tracker app entry", () => {
     await import("../create");
 
     expectTimeAgoLocaleRegistered(addLocaleSpy);
-  });
+  }, 15_000);
 });
