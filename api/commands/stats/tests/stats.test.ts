@@ -2897,6 +2897,24 @@ describe("StatsCommand", () => {
       expect(updateDeferredReplySpy).not.toHaveBeenCalled();
     });
 
+    it("recognizes the command invoker via message.interaction when interaction_metadata is absent", () => {
+      const { interaction_metadata, ...messageWithoutMetadata }: APIMessage = fakeButtonClickInteraction.message;
+      void interaction_metadata;
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+          values: [LeaderboardWindow.OneMonth],
+        },
+        message: messageWithoutMetadata,
+      };
+
+      const response = statsCommand.execute(interaction);
+
+      expect(response.response.type).toBe(InteractionResponseType.DeferredMessageUpdate);
+    });
+
     it("renders the selected relationship view with pair eligibility context", async () => {
       const playerStats = aFakeLeaderboardPlayerStatsRow();
       vi.spyOn(services.leaderboardService, "getLeaderboardPlayerRelationships").mockResolvedValue({

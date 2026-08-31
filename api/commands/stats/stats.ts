@@ -587,7 +587,11 @@ export class StatsCommand extends BaseCommand {
   }
 
   private isPlayerStatsCommandInvoker(interaction: APIMessageComponentSelectMenuInteraction): boolean {
-    const commandInvokerId = interaction.message.interaction_metadata?.user.id;
+    // Discord's deprecated `interaction` field is still populated on older messages where
+    // `interaction_metadata` may be absent, so fall back to it to avoid locking the invoker out.
+    const commandInvokerId =
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
+      interaction.message.interaction_metadata?.user.id ?? interaction.message.interaction?.user.id;
     if (commandInvokerId == null) {
       return false;
     }
