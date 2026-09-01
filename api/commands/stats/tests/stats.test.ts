@@ -2919,6 +2919,26 @@ describe("StatsCommand", () => {
       });
     });
 
+    it("names the compare command when its visibility option is invalid", () => {
+      vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+        name: "compare",
+        mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>([
+          ["visible", "invalid"],
+        ]),
+        options: [],
+      });
+
+      const response = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+
+      expect(response.response).toEqual({
+        type: InteractionResponseType.ChannelMessageWithSource,
+        data: {
+          content: "Error: The selected compare stats visibility is invalid.",
+          flags: MessageFlags.Ephemeral,
+        },
+      });
+    });
+
     it("resolves both players and renders the comparison table", async () => {
       vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([aFakeNeatQueueConfigRow()]);
       vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([

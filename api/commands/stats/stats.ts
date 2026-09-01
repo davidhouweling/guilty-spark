@@ -543,7 +543,7 @@ export class StatsCommand extends BaseCommand {
     interaction: APIApplicationCommandInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
   ): ExecuteResponse {
-    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = this.isPlayerStatsPrivate(options)
+    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = this.isStatsPrivate(options, "player")
       ? { flags: MessageFlags.Ephemeral }
       : {};
 
@@ -563,15 +563,16 @@ export class StatsCommand extends BaseCommand {
     };
   }
 
-  private isPlayerStatsPrivate(
+  private isStatsPrivate(
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
+    commandName: "player" | "compare",
   ): boolean {
     const visibility = options.get("visible");
     if (visibility == null) {
       return true;
     }
     if (typeof visibility !== "string" || !isPlayerStatsVisibility(visibility)) {
-      throw new EndUserError("The selected player stats visibility is invalid.");
+      throw new EndUserError(`The selected ${commandName} stats visibility is invalid.`);
     }
 
     return visibility === "private";
@@ -1007,7 +1008,7 @@ export class StatsCommand extends BaseCommand {
     interaction: APIApplicationCommandInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
   ): ExecuteResponse {
-    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = this.isPlayerStatsPrivate(options)
+    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = this.isStatsPrivate(options, "compare")
       ? { flags: MessageFlags.Ephemeral }
       : {};
     const player1Id = options.get("player1");
