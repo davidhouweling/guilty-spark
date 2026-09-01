@@ -1716,6 +1716,105 @@ describe("Database Service", () => {
         );
       });
     });
+
+    describe("getLeaderboardPlayerPairRelationship()", () => {
+      it("runs series, game, and head-to-head aggregates filtered to the related player", async () => {
+        const fakePreparedStatement = new FakePreparedStatement();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+        const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+        vi.spyOn(fakePreparedStatement, "first")
+          .mockResolvedValueOnce({
+            SeriesPlayedWith: 2,
+            Player1SeriesWinsWith: 1,
+            SeriesPlayedAgainst: 3,
+            Player1SeriesWinsAgainst: 1,
+            Player2SeriesWinsAgainst: 2,
+          })
+          .mockResolvedValueOnce({
+            GamesPlayedWith: 5,
+            Player1GameWinsWith: 3,
+            GamesPlayedAgainst: 7,
+            Player1GameWinsAgainst: 3,
+            Player2GameWinsAgainst: 4,
+          })
+          .mockResolvedValueOnce({
+            HeadToHeadGamesPlayed: 7,
+            Player1Kills: 20,
+            Player1Perfects: 1,
+            Player2Kills: 15,
+            Player2Perfects: 0,
+          });
+
+        const result = await databaseService.getLeaderboardPlayerPairRelationship({
+          guildId: "guild-1",
+          xboxXuid1: "player-1",
+          xboxXuid2: "player-2",
+          queueChannelId: "queue-1",
+          startEpochSeconds: 123,
+        });
+
+        expect(result).toEqual({
+          SeriesPlayedWith: 2,
+          Player1SeriesWinsWith: 1,
+          SeriesPlayedAgainst: 3,
+          Player1SeriesWinsAgainst: 1,
+          Player2SeriesWinsAgainst: 2,
+          GamesPlayedWith: 5,
+          Player1GameWinsWith: 3,
+          GamesPlayedAgainst: 7,
+          Player1GameWinsAgainst: 3,
+          Player2GameWinsAgainst: 4,
+          HeadToHeadGamesPlayed: 7,
+          Player1Kills: 20,
+          Player1Perfects: 1,
+          Player2Kills: 15,
+          Player2Perfects: 0,
+        });
+
+        const queries = prepareSpy.mock.calls.map((call) => call[0]);
+        expect(queries.some((query) => query.includes("SeriesPlayedWith"))).toBe(true);
+        expect(queries.some((query) => query.includes("GamesPlayedWith"))).toBe(true);
+        expect(
+          queries.some(
+            (query) =>
+              query.includes("player1Kills.KillerXuid = player.XboxXuid") && query.includes("HeadToHeadGamesPlayed"),
+          ),
+        ).toBe(true);
+        expect(bindSpy).toHaveBeenCalledWith("player-2", "guild-1", "player-1", 123, "queue-1", "queue-1");
+      });
+
+      it("returns a zeroed row without querying when queueChannelIds is empty", async () => {
+        const prepareSpy = vi.spyOn(env.DB, "prepare");
+
+        const result = await databaseService.getLeaderboardPlayerPairRelationship({
+          guildId: "guild-1",
+          xboxXuid1: "player-1",
+          xboxXuid2: "player-2",
+          queueChannelId: null,
+          queueChannelIds: [],
+          startEpochSeconds: 123,
+        });
+
+        expect(result).toEqual({
+          SeriesPlayedWith: 0,
+          Player1SeriesWinsWith: 0,
+          SeriesPlayedAgainst: 0,
+          Player1SeriesWinsAgainst: 0,
+          Player2SeriesWinsAgainst: 0,
+          GamesPlayedWith: 0,
+          Player1GameWinsWith: 0,
+          GamesPlayedAgainst: 0,
+          Player1GameWinsAgainst: 0,
+          Player2GameWinsAgainst: 0,
+          HeadToHeadGamesPlayed: 0,
+          Player1Kills: 0,
+          Player1Perfects: 0,
+          Player2Kills: 0,
+          Player2Perfects: 0,
+        });
+        expect(prepareSpy).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe("getUserSession()", () => {

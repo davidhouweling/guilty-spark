@@ -2919,26 +2919,6 @@ describe("StatsCommand", () => {
       });
     });
 
-    it("names the compare command when its visibility option is invalid", () => {
-      vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
-        name: "compare",
-        mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>([
-          ["visible", "invalid"],
-        ]),
-        options: [],
-      });
-
-      const response = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
-
-      expect(response.response).toEqual({
-        type: InteractionResponseType.ChannelMessageWithSource,
-        data: {
-          content: "Error: The selected compare stats visibility is invalid.",
-          flags: MessageFlags.Ephemeral,
-        },
-      });
-    });
-
     it("resolves both players and renders the comparison table", async () => {
       vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([aFakeNeatQueueConfigRow()]);
       vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([
@@ -3478,6 +3458,85 @@ describe("StatsCommand", () => {
       const response = updateDeferredReplySpy.mock.calls[0]?.[1];
       const [embed] = response?.embeds ?? [];
       expect(embed?.title).toBe("gamertag-xuid-1 vs gamertag-xuid-2 - Total");
+    });
+
+    it("renders the head-to-head page when the type select switches to head to head", async () => {
+      vi.spyOn(services.leaderboardService, "getLeaderboardPlayerStats").mockImplementation(async ({ xboxXuid }) =>
+        Promise.resolve({
+          stats: aFakeLeaderboardPlayerStatsRow({ XboxXuid: xboxXuid, Gamertag: `gamertag-${xboxXuid}` }),
+          window: LeaderboardWindow.ThreeMonths,
+          resetAt: null,
+          startEpochSeconds: 0,
+          minGamesPlayed: 1,
+          defaultAggregation: LeaderboardMetricAggregation.Total,
+        }),
+      );
+      const getPairRelationshipSpy = vi
+        .spyOn(services.databaseService, "getLeaderboardPlayerPairRelationship")
+        .mockResolvedValue({
+          SeriesPlayedWith: 1,
+          Player1SeriesWinsWith: 1,
+          SeriesPlayedAgainst: 2,
+          Player1SeriesWinsAgainst: 1,
+          Player2SeriesWinsAgainst: 1,
+          GamesPlayedWith: 2,
+          Player1GameWinsWith: 2,
+          GamesPlayedAgainst: 4,
+          Player1GameWinsAgainst: 2,
+          Player2GameWinsAgainst: 2,
+          HeadToHeadGamesPlayed: 4,
+          Player1Kills: 10,
+          Player1Perfects: 0,
+          Player2Kills: 8,
+          Player2Perfects: 1,
+        });
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID,
+          values: ["head-to-head"],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          components: [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID,
+                  options: [{ label: "Total", value: LeaderboardMetricAggregation.Total, default: true }],
+                },
+              ],
+            },
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
+                  options: [{ label: "3 months", value: LeaderboardWindow.ThreeMonths, default: true }],
+                },
+              ],
+            },
+          ],
+          embeds: [
+            { title: "player-one vs player-two - Total", url: "https://guilty-spark.app/stats/compare/xuid-1/xuid-2" },
+          ],
+        },
+      };
+
+      const { jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+      expect(getPairRelationshipSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ xboxXuid1: "xuid-1", xboxXuid2: "xuid-2" }),
+      );
+      const response = updateDeferredReplySpy.mock.calls[0]?.[1];
+      const [embed] = response?.embeds ?? [];
+      expect(embed?.title).toBe("gamertag-xuid-1 vs gamertag-xuid-2 - Head to head");
     });
   });
 });

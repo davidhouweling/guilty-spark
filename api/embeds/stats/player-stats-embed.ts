@@ -450,7 +450,7 @@ export function getRankText(
   }
 
   const rankText = formatRank(rank.rank);
-  return hasObjectiveSpecificPopulation(metric) && overallTotalPlayers != null && rank.total !== overallTotalPlayers
+  return hasObjectiveSpecificPopulation(metric) && rank.total !== overallTotalPlayers
     ? `${rankText} / ${rank.total.toString()}`
     : rankText;
 }
@@ -673,7 +673,7 @@ function getRelationshipRankText(index: number): string {
   return formatRank(index + 1);
 }
 
-function formatPerfects(perfects: number, locale: string): string {
+export function formatPerfects(perfects: number, locale: string): string {
   const pluralCategory = new Intl.PluralRules(locale).select(perfects);
   return `${perfects.toLocaleString(locale)} ${pluralCategory === "one" ? "perfect" : "perfects"}`;
 }

@@ -1,5 +1,6 @@
 import type { APIEmbed, APIEmbedField, APIMessage, APIMessageTopLevelComponent } from "discord-api-types/v10";
 import { ComponentType } from "discord-api-types/v10";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import {
   LeaderboardMetric,
   LeaderboardMetricAggregation,
@@ -10,12 +11,14 @@ import {
 } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardPlayerStatsRow } from "../../services/database/types/leaderboard_player_stats";
 import type { LeaderboardPlayerMetricRank } from "../../services/database/types/leaderboard_player_metric_rank";
+import type { LeaderboardPlayerPairRelationshipRow } from "../../services/database/types/leaderboard_player_pair_relationship";
 import { formatMetricValue } from "../../services/leaderboard/leaderboard-response";
 import type { PlayerStatsQueueOption } from "./player-stats-embed";
 import {
   ALL_QUEUES_VALUE,
   createQueueSelectOptions,
   createWindowSelectOptions,
+  formatPerfects,
   getPlayerStatsMetricsForAggregation,
   getPlayerStatsMetricValue,
   getRankText,
@@ -26,6 +29,7 @@ export const PLAYER_COMPARE_QUEUE_SELECT_CONTROL_ID = "stats_compare_queue";
 export const PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID = "stats_compare_aggregation";
 export const PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID = "stats_compare_window";
 export const PLAYER_COMPARE_TEMPORARY_ERROR_FOOTER = "Temporary player compare error";
+export const PLAYER_COMPARE_HEAD_TO_HEAD_VALUE = "head-to-head";
 
 const DISCORD_EMBED_FIELD_VALUE_LIMIT = 1024;
 const PLAYER_COMPARE_STATE_URL_PREFIX = "https://guilty-spark.app/stats/compare/";
@@ -37,13 +41,24 @@ const LEADERBOARD_WINDOW_BY_VALUE = new Map<string, LeaderboardWindow>(
   Object.values(LeaderboardWindow).map((window) => [window, window]),
 );
 
-export interface PlayerCompareViewState {
+interface PlayerCompareViewStateBase {
   xboxXuid1: string;
   xboxXuid2: string;
   queueChannelId: string | null;
   window: LeaderboardWindow;
-  aggregation: LeaderboardMetricAggregation;
 }
+
+export interface PlayerCompareAggregateViewState extends PlayerCompareViewStateBase {
+  aggregation: LeaderboardMetricAggregation;
+  headToHead: false;
+}
+
+export interface PlayerCompareHeadToHeadViewState extends PlayerCompareViewStateBase {
+  aggregation: null;
+  headToHead: true;
+}
+
+export type PlayerCompareViewState = PlayerCompareAggregateViewState | PlayerCompareHeadToHeadViewState;
 
 interface PlayerCompareTableRow {
   label: string;
@@ -149,16 +164,21 @@ function createCompareTableFields(
   return fieldGroups;
 }
 
-function createCompareAggregationSelectOptions(selectedAggregation: LeaderboardMetricAggregation): {
+function createCompareAggregationSelectOptions(state: PlayerCompareViewState): {
   label: string;
   value: string;
   default: boolean;
 }[] {
-  return Object.values(LeaderboardMetricAggregation).map((aggregation) => ({
+  const aggregationOptions = Object.values(LeaderboardMetricAggregation).map((aggregation) => ({
     label: getLeaderboardMetricAggregationLabel(aggregation),
     value: aggregation,
-    default: aggregation === selectedAggregation,
+    default: !state.headToHead && aggregation === state.aggregation,
   }));
+
+  return [
+    ...aggregationOptions,
+    { label: "Head to head", value: PLAYER_COMPARE_HEAD_TO_HEAD_VALUE, default: state.headToHead },
+  ];
 }
 
 function shouldShowCompareQueueSelect(
@@ -201,7 +221,7 @@ function createCompareViewControls(
           placeholder: "Select type",
           min_values: 1,
           max_values: 1,
-          options: createCompareAggregationSelectOptions(state.aggregation),
+          options: createCompareAggregationSelectOptions(state),
         },
       ],
     },
@@ -229,7 +249,7 @@ function getCompareSelectedValueForState(controlId: string, state: PlayerCompare
       return state.queueChannelId ?? ALL_QUEUES_VALUE;
     }
     case PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID: {
-      return state.aggregation;
+      return state.headToHead ? PLAYER_COMPARE_HEAD_TO_HEAD_VALUE : state.aggregation;
     }
     case PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID: {
       return state.window;
@@ -320,21 +340,25 @@ export function getPlayerCompareStateFromMessage(message: APIMessage): PlayerCom
   const xboxXuids = getXboxXuidsFromEmbedUrl(embeds);
 
   const window = windowValue == null ? null : (LEADERBOARD_WINDOW_BY_VALUE.get(windowValue) ?? null);
-  const aggregation = aggregationValue == null ? null : parsePlayerCompareAggregation(aggregationValue);
-  if (window == null || aggregation == null || xboxXuids == null) {
+  const isHeadToHead = aggregationValue === PLAYER_COMPARE_HEAD_TO_HEAD_VALUE;
+  const aggregation = aggregationValue == null || isHeadToHead ? null : parsePlayerCompareAggregation(aggregationValue);
+  if (window == null || xboxXuids == null || (!isHeadToHead && aggregation == null)) {
     return null;
   }
 
   const [xboxXuid1, xboxXuid2] = xboxXuids;
-  return {
+  const base = {
     xboxXuid1,
     xboxXuid2,
     // Absent when the queue selector is hidden (both players have played at most one configured
     // queue and the view was scoped to "all queues").
     queueChannelId: queueValue == null || queueValue === ALL_QUEUES_VALUE ? null : queueValue,
     window,
-    aggregation,
   };
+
+  return isHeadToHead
+    ? { ...base, aggregation: null, headToHead: true }
+    : { ...base, aggregation: Preconditions.checkExists(aggregation), headToHead: false };
 }
 
 export function createPlayerCompareEmbeds({
@@ -352,7 +376,7 @@ export function createPlayerCompareEmbeds({
   stats2: LeaderboardPlayerStatsRow;
   ranks1: ReadonlyMap<LeaderboardMetric, LeaderboardPlayerMetricRank | null>;
   ranks2: ReadonlyMap<LeaderboardMetric, LeaderboardPlayerMetricRank | null>;
-  state: PlayerCompareViewState;
+  state: PlayerCompareAggregateViewState;
   locale: string;
   queueLabel: string;
   queueOptions: readonly PlayerStatsQueueOption[];
@@ -360,8 +384,7 @@ export function createPlayerCompareEmbeds({
 }): { embeds: APIEmbed[]; components: APIMessageTopLevelComponent[] } {
   const windowLabel = state.window === LeaderboardWindow.LastReset ? "Last reset" : state.window;
   const metrics = getPlayerStatsMetricsForAggregation(state.aggregation);
-  const overallTotalPlayers =
-    ranks1.get(LeaderboardMetric.GamesPlayed)?.total ?? ranks2.get(LeaderboardMetric.GamesPlayed)?.total ?? null;
+  const overallTotalPlayers = ranks1.get(LeaderboardMetric.GamesPlayed)?.total ?? null;
   const rows = metrics.map((metric) =>
     buildCompareTableRow(stats1, stats2, ranks1, ranks2, overallTotalPlayers, metric, locale),
   );
@@ -377,6 +400,124 @@ export function createPlayerCompareEmbeds({
     if (index === 0) {
       embed.title = `${stats1.Gamertag} vs ${stats2.Gamertag} - ${aggregationLabel}`;
       embed.description = `Leaderboard stats for ${windowLabel} (${queueLabel})`;
+    }
+
+    return embed;
+  });
+
+  return {
+    embeds,
+    components: createCompareViewControls(state, queueOptions, resetAt),
+  };
+}
+
+function formatCompareCount(value: number, locale: string): string {
+  return value.toLocaleString(locale);
+}
+
+function formatCompareWinRate(wins: number, total: number, locale: string): string {
+  return total === 0
+    ? "n/a"
+    : `${((wins / total) * 100).toLocaleString(locale, { maximumFractionDigits: 1 })}% (${wins.toLocaleString(locale)}/${total.toLocaleString(locale)})`;
+}
+
+function formatSharedWinRate(wins: number, total: number, locale: string): string {
+  const winUnit = new Intl.PluralRules(locale).select(wins) === "one" ? "win" : "wins";
+
+  return total === 0
+    ? "n/a"
+    : `${wins.toLocaleString(locale)} ${winUnit} (${((wins / total) * 100).toLocaleString(locale, { maximumFractionDigits: 1 })}%)`;
+}
+
+function formatCompareHeadToHeadKills(kills: number, perfects: number, locale: string): string {
+  return `${kills.toLocaleString(locale)} (${formatPerfects(perfects, locale)})`;
+}
+
+function formatCompareAvgHeadToHeadKills(kills: number, games: number, perfects: number, locale: string): string {
+  return games === 0
+    ? "n/a"
+    : `${(kills / games).toLocaleString(locale, { maximumFractionDigits: 1 })} (${formatPerfects(perfects, locale)})`;
+}
+
+function buildHeadToHeadTableRows(pair: LeaderboardPlayerPairRelationshipRow, locale: string): PlayerCompareTableRow[] {
+  return [
+    {
+      label: "Series win % vs",
+      value1Text: formatCompareWinRate(pair.Player1SeriesWinsAgainst, pair.SeriesPlayedAgainst, locale),
+      value2Text: formatCompareWinRate(pair.Player2SeriesWinsAgainst, pair.SeriesPlayedAgainst, locale),
+    },
+    {
+      label: "Games win % vs",
+      value1Text: formatCompareWinRate(pair.Player1GameWinsAgainst, pair.GamesPlayedAgainst, locale),
+      value2Text: formatCompareWinRate(pair.Player2GameWinsAgainst, pair.GamesPlayedAgainst, locale),
+    },
+    {
+      label: "Kills vs",
+      value1Text: formatCompareHeadToHeadKills(pair.Player1Kills, pair.Player1Perfects, locale),
+      value2Text: formatCompareHeadToHeadKills(pair.Player2Kills, pair.Player2Perfects, locale),
+    },
+    {
+      label: "Avg kills/game vs",
+      value1Text: formatCompareAvgHeadToHeadKills(
+        pair.Player1Kills,
+        pair.HeadToHeadGamesPlayed,
+        pair.Player1Perfects,
+        locale,
+      ),
+      value2Text: formatCompareAvgHeadToHeadKills(
+        pair.Player2Kills,
+        pair.HeadToHeadGamesPlayed,
+        pair.Player2Perfects,
+        locale,
+      ),
+    },
+  ];
+}
+
+function createHeadToHeadMatchupField(pair: LeaderboardPlayerPairRelationshipRow, locale: string): APIEmbedField {
+  const seriesWinRate = formatSharedWinRate(pair.Player1SeriesWinsWith, pair.SeriesPlayedWith, locale);
+  const gamesWinRate = formatSharedWinRate(pair.Player1GameWinsWith, pair.GamesPlayedWith, locale);
+
+  return {
+    name: "Matchup",
+    value: `Together: ${formatCompareCount(pair.SeriesPlayedWith, locale)} series, ${seriesWinRate} | ${formatCompareCount(pair.GamesPlayedWith, locale)} games, ${gamesWinRate}`,
+    inline: false,
+  };
+}
+
+export function createPlayerCompareHeadToHeadEmbeds({
+  pair,
+  stats1,
+  stats2,
+  state,
+  queueLabel,
+  queueOptions,
+  resetAt,
+  locale,
+}: {
+  pair: LeaderboardPlayerPairRelationshipRow;
+  stats1: LeaderboardPlayerStatsRow;
+  stats2: LeaderboardPlayerStatsRow;
+  state: PlayerCompareHeadToHeadViewState;
+  queueLabel: string;
+  queueOptions: readonly PlayerStatsQueueOption[];
+  resetAt: number | null;
+  locale: string;
+}): { embeds: APIEmbed[]; components: APIMessageTopLevelComponent[] } {
+  const windowLabel = state.window === LeaderboardWindow.LastReset ? "Last reset" : state.window;
+  const rows = buildHeadToHeadTableRows(pair, locale);
+  const fieldGroups = createCompareTableFields(rows, stats1.Gamertag, stats2.Gamertag);
+  const embeds = fieldGroups.map((fields, index): APIEmbed => {
+    const isLastEmbed = index === fieldGroups.length - 1;
+    const embed: APIEmbed = {
+      color: 0xf5b642,
+      fields: isLastEmbed ? [...fields, createHeadToHeadMatchupField(pair, locale)] : fields,
+      url: `${PLAYER_COMPARE_STATE_URL_PREFIX}${state.xboxXuid1}/${state.xboxXuid2}`,
+    };
+
+    if (index === 0) {
+      embed.title = `${stats1.Gamertag} vs ${stats2.Gamertag} - Head to head`;
+      embed.description = `Head-to-head stats for ${windowLabel} (${queueLabel})`;
     }
 
     return embed;

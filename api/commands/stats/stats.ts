@@ -68,10 +68,12 @@ import {
 import type { PlayerStatsQueueOption, PlayerStatsViewState } from "../../embeds/stats/player-stats-embed";
 import {
   PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID,
+  PLAYER_COMPARE_HEAD_TO_HEAD_VALUE,
   PLAYER_COMPARE_QUEUE_SELECT_CONTROL_ID,
   PLAYER_COMPARE_TEMPORARY_ERROR_FOOTER,
   PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
   createPlayerCompareEmbeds,
+  createPlayerCompareHeadToHeadEmbeds,
   createPlayerCompareLoadingResponse,
   createPlayerCompareNoQualifyingGamesResponse,
   getPlayerCompareStateFromMessage,
@@ -543,7 +545,7 @@ export class StatsCommand extends BaseCommand {
     interaction: APIApplicationCommandInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
   ): ExecuteResponse {
-    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = this.isStatsPrivate(options, "player")
+    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = this.isPlayerStatsPrivate(options)
       ? { flags: MessageFlags.Ephemeral }
       : {};
 
@@ -563,16 +565,15 @@ export class StatsCommand extends BaseCommand {
     };
   }
 
-  private isStatsPrivate(
+  private isPlayerStatsPrivate(
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
-    commandName: "player" | "compare",
   ): boolean {
     const visibility = options.get("visible");
     if (visibility == null) {
       return true;
     }
     if (typeof visibility !== "string" || !isPlayerStatsVisibility(visibility)) {
-      throw new EndUserError(`The selected ${commandName} stats visibility is invalid.`);
+      throw new EndUserError("The selected player stats visibility is invalid.");
     }
 
     return visibility === "private";
@@ -1008,7 +1009,7 @@ export class StatsCommand extends BaseCommand {
     interaction: APIApplicationCommandInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
   ): ExecuteResponse {
-    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = this.isStatsPrivate(options, "compare")
+    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = this.isPlayerStatsPrivate(options)
       ? { flags: MessageFlags.Ephemeral }
       : {};
     const player1Id = options.get("player1");
@@ -1081,6 +1082,7 @@ export class StatsCommand extends BaseCommand {
         queueChannelId: null,
         configuredQueues,
         aggregation: null,
+        headToHead: false,
         window: undefined,
         locale: interaction.guild_locale ?? interaction.locale,
       });
@@ -1140,10 +1142,14 @@ export class StatsCommand extends BaseCommand {
   }
 
   private handleCompareAggregationSelect(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
-    return this.createCompareSelectResponse(interaction, (state) => {
+    return this.createCompareSelectResponse(interaction, (state): PlayerCompareViewState => {
       const [selectedValue] = interaction.data.values;
       if (selectedValue == null) {
         throw new EndUserError("A stats type must be selected.");
+      }
+
+      if (selectedValue === PLAYER_COMPARE_HEAD_TO_HEAD_VALUE) {
+        return { ...state, aggregation: null, headToHead: true };
       }
 
       const aggregation = parsePlayerCompareAggregation(selectedValue);
@@ -1151,7 +1157,7 @@ export class StatsCommand extends BaseCommand {
         throw new EndUserError("The selected stats type is invalid.");
       }
 
-      return { ...state, aggregation };
+      return { ...state, aggregation, headToHead: false };
     });
   }
 
@@ -1227,6 +1233,7 @@ export class StatsCommand extends BaseCommand {
         queueChannelId: state.queueChannelId,
         configuredQueues,
         aggregation: state.aggregation,
+        headToHead: state.headToHead,
         window: state.window,
         locale: interaction.guild_locale ?? interaction.locale,
       });
@@ -1255,6 +1262,7 @@ export class StatsCommand extends BaseCommand {
     queueChannelId,
     configuredQueues,
     aggregation,
+    headToHead,
     window,
     locale,
   }: {
@@ -1264,9 +1272,12 @@ export class StatsCommand extends BaseCommand {
     queueChannelId: string | null;
     configuredQueues: NeatQueueConfigRow[];
     aggregation: LeaderboardMetricAggregation | null;
+    headToHead: boolean;
     window: LeaderboardWindow | undefined;
     locale: string;
-  }): Promise<ReturnType<typeof createPlayerCompareEmbeds> | null> {
+  }): Promise<
+    ReturnType<typeof createPlayerCompareEmbeds> | ReturnType<typeof createPlayerCompareHeadToHeadEmbeds> | null
+  > {
     const configuredQueueChannelIds = configuredQueues.map((queue) => queue.ChannelId);
     const queueChannelIdsOpt = queueChannelId == null ? { queueChannelIds: configuredQueueChannelIds } : {};
 
@@ -1294,8 +1305,39 @@ export class StatsCommand extends BaseCommand {
       return null;
     }
 
-    const selectedAggregation = aggregation ?? result1.defaultAggregation;
     const queueOptions = this.getCompareQueueOptions(configuredQueues);
+    const queueLabel = this.getPlayerStatsQueueLabel(queueChannelId, queueOptions);
+
+    if (headToHead) {
+      const pair = await this.services.databaseService.getLeaderboardPlayerPairRelationship({
+        guildId,
+        xboxXuid1: result1.stats.XboxXuid,
+        xboxXuid2: result2.stats.XboxXuid,
+        queueChannelId,
+        ...queueChannelIdsOpt,
+        startEpochSeconds: result1.startEpochSeconds,
+      });
+
+      return createPlayerCompareHeadToHeadEmbeds({
+        pair,
+        stats1: result1.stats,
+        stats2: result2.stats,
+        state: {
+          xboxXuid1: result1.stats.XboxXuid,
+          xboxXuid2: result2.stats.XboxXuid,
+          queueChannelId,
+          window: result1.window,
+          aggregation: null,
+          headToHead: true,
+        },
+        queueLabel,
+        queueOptions,
+        resetAt: result1.resetAt,
+        locale,
+      });
+    }
+
+    const selectedAggregation = aggregation ?? result1.defaultAggregation;
     const metrics = getPlayerStatsMetricsForAggregation(selectedAggregation);
     const rankMetrics = metrics.includes(LeaderboardMetric.GamesPlayed)
       ? metrics
@@ -1332,9 +1374,10 @@ export class StatsCommand extends BaseCommand {
         queueChannelId,
         window: result1.window,
         aggregation: selectedAggregation,
+        headToHead: false,
       },
       locale,
-      queueLabel: this.getPlayerStatsQueueLabel(queueChannelId, queueOptions),
+      queueLabel,
       queueOptions,
       resetAt: result1.resetAt,
     });
