@@ -360,7 +360,8 @@ export function createPlayerCompareEmbeds({
 }): { embeds: APIEmbed[]; components: APIMessageTopLevelComponent[] } {
   const windowLabel = state.window === LeaderboardWindow.LastReset ? "Last reset" : state.window;
   const metrics = getPlayerStatsMetricsForAggregation(state.aggregation);
-  const overallTotalPlayers = ranks1.get(LeaderboardMetric.GamesPlayed)?.total ?? null;
+  const overallTotalPlayers =
+    ranks1.get(LeaderboardMetric.GamesPlayed)?.total ?? ranks2.get(LeaderboardMetric.GamesPlayed)?.total ?? null;
   const rows = metrics.map((metric) =>
     buildCompareTableRow(stats1, stats2, ranks1, ranks2, overallTotalPlayers, metric, locale),
   );

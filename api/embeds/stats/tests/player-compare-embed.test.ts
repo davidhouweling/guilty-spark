@@ -118,6 +118,40 @@ describe("createPlayerCompareEmbeds()", () => {
     expect(flagCapturesIndex).toBeGreaterThanOrEqual(0);
     expect(player2Field?.value.split("\n")[flagCapturesIndex ?? -1]).toBe("n/a");
   });
+
+  it("uses player two's overall population when player one is unranked", () => {
+    const stats1 = aFakeLeaderboardPlayerStatsRow({ Gamertag: "player-one", CtfGamesPlayed: 8, FlagCaptures: 5 });
+    const stats2 = aFakeLeaderboardPlayerStatsRow({ Gamertag: "player-two", CtfGamesPlayed: 8, FlagCaptures: 3 });
+
+    const response = createPlayerCompareEmbeds({
+      stats1,
+      stats2,
+      ranks1: new Map([[LeaderboardMetric.FlagCaptures, { rank: 5, total: 12 }]]),
+      ranks2: new Map([
+        [LeaderboardMetric.GamesPlayed, { rank: 3, total: 100 }],
+        [LeaderboardMetric.FlagCaptures, { rank: 8, total: 12 }],
+      ]),
+      state: {
+        xboxXuid1: "xuid-1",
+        xboxXuid2: "xuid-2",
+        queueChannelId: null,
+        window: LeaderboardWindow.ThreeMonths,
+        aggregation: LeaderboardMetricAggregation.TotalObjective,
+      },
+      locale: "en-US",
+      queueLabel: "all configured queues",
+      queueOptions: [],
+      resetAt: null,
+    });
+
+    const fields = response.embeds.flatMap((embed) => embed.fields ?? []);
+    const statField = fields.find((field) => field.name === "Stat");
+    const flagCapturesIndex = statField?.value.split("\n").findIndex((label) => label === "Flag - Captures");
+    const player1Field = fields.find((field) => field.name === "player-one");
+
+    expect(flagCapturesIndex).toBeGreaterThanOrEqual(0);
+    expect(player1Field?.value.split("\n")[flagCapturesIndex ?? -1]).toContain("#5 / 12");
+  });
 });
 
 describe("createPlayerCompareLoadingResponse()", () => {
