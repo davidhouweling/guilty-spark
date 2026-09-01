@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { ComponentType } from "discord-api-types/v10";
-import { LeaderboardMetricAggregation, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import {
+  LeaderboardMetric,
+  LeaderboardMetricAggregation,
+  LeaderboardWindow,
+} from "@guilty-spark/shared/halo/leaderboard";
 import {
   PLAYER_COMPARE_QUEUE_SELECT_CONTROL_ID,
   createPlayerCompareEmbeds,
@@ -19,6 +23,8 @@ describe("createPlayerCompareEmbeds()", () => {
     const response = createPlayerCompareEmbeds({
       stats1,
       stats2,
+      ranks1: new Map(),
+      ranks2: new Map(),
       state: {
         xboxXuid1: "xuid-1",
         xboxXuid2: "xuid-2",
@@ -44,6 +50,36 @@ describe("createPlayerCompareEmbeds()", () => {
     expect(player2Field?.value).toContain("450");
   });
 
+  it("shows each player's rank alongside their value in the same field", () => {
+    const stats1 = aFakeLeaderboardPlayerStatsRow({ XboxXuid: "xuid-1", Gamertag: "player-one", Kills: 600 });
+    const stats2 = aFakeLeaderboardPlayerStatsRow({ XboxXuid: "xuid-2", Gamertag: "player-two", Kills: 450 });
+
+    const response = createPlayerCompareEmbeds({
+      stats1,
+      stats2,
+      ranks1: new Map([[LeaderboardMetric.Kills, { rank: 1, total: 20 }]]),
+      ranks2: new Map([[LeaderboardMetric.Kills, { rank: 4, total: 20 }]]),
+      state: {
+        xboxXuid1: "xuid-1",
+        xboxXuid2: "xuid-2",
+        queueChannelId: null,
+        window: LeaderboardWindow.ThreeMonths,
+        aggregation: LeaderboardMetricAggregation.Total,
+      },
+      locale: "en-US",
+      queueLabel: "all configured queues",
+      queueOptions: [],
+      resetAt: null,
+    });
+
+    const [embed] = response.embeds;
+    const [statField, player1Field, player2Field] = embed?.fields ?? [];
+    const killsIndex = statField?.value.split("\n").indexOf("Kills");
+
+    expect(player1Field?.value.split("\n")[killsIndex ?? -1]).toBe("🥇 | 600");
+    expect(player2Field?.value.split("\n")[killsIndex ?? -1]).toBe("#4 | 450");
+  });
+
   it("shows n/a for a player who has not played the objective category, keeping the row", () => {
     const stats1 = aFakeLeaderboardPlayerStatsRow({
       Gamertag: "player-one",
@@ -59,6 +95,8 @@ describe("createPlayerCompareEmbeds()", () => {
     const response = createPlayerCompareEmbeds({
       stats1,
       stats2,
+      ranks1: new Map(),
+      ranks2: new Map(),
       state: {
         xboxXuid1: "xuid-1",
         xboxXuid2: "xuid-2",
@@ -148,6 +186,8 @@ describe("getPlayerCompareStateFromMessage()", () => {
     const message = createPlayerCompareEmbeds({
       stats1: aFakeLeaderboardPlayerStatsRow({ XboxXuid: "xuid-1", Gamertag: "player-one" }),
       stats2: aFakeLeaderboardPlayerStatsRow({ XboxXuid: "xuid-2", Gamertag: "player-two" }),
+      ranks1: new Map(),
+      ranks2: new Map(),
       state: {
         xboxXuid1: "xuid-1",
         xboxXuid2: "xuid-2",

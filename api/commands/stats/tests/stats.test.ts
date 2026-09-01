@@ -26,7 +26,7 @@ import {
   MessageType,
 } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { LeaderboardMetricAggregation, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import { LeaderboardMetric, LeaderboardMetricAggregation, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import { LeaderboardPlayerRelationshipMetric } from "../../../services/database/types/leaderboard_player_relationship";
 import { StatsCommand } from "../stats";
 import type { Services } from "../../../services/install";
@@ -2939,6 +2939,41 @@ describe("StatsCommand", () => {
       const response = updateDeferredReplySpy.mock.calls[0]?.[1];
       const [embed] = response?.embeds ?? [];
       expect(embed?.title).toBe("gamertag-xuid-1 vs gamertag-xuid-2 - Total");
+    });
+
+    it("shows each player's rank alongside their value", async () => {
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([aFakeNeatQueueConfigRow()]);
+      vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([
+        aFakeDiscordAssociationsRow({ DiscordId: "discord-user-1", XboxId: "xuid-1" }),
+        aFakeDiscordAssociationsRow({ DiscordId: "discord-user-2", XboxId: "xuid-2" }),
+      ]);
+      vi.spyOn(services.leaderboardService, "getLeaderboardPlayerStats").mockImplementation(async ({ xboxXuid }) =>
+        Promise.resolve({
+          stats: aFakeLeaderboardPlayerStatsRow({ XboxXuid: xboxXuid, Gamertag: `gamertag-${xboxXuid}`, Kills: 600 }),
+          window: LeaderboardWindow.ThreeMonths,
+          resetAt: null,
+          startEpochSeconds: 0,
+          minGamesPlayed: 1,
+          defaultAggregation: LeaderboardMetricAggregation.Total,
+        }),
+      );
+      const getRanksSpy = vi
+        .spyOn(services.leaderboardService, "getLeaderboardPlayerMetricRanks")
+        .mockImplementation(async ({ xboxXuid }) =>
+          Promise.resolve(new Map([[LeaderboardMetric.Kills, { rank: xboxXuid === "xuid-1" ? 1 : 4, total: 20 }]])),
+        );
+
+      const { jobToComplete } = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+      await jobToComplete?.();
+
+      expect(getRanksSpy).toHaveBeenCalledTimes(2);
+      const response = updateDeferredReplySpy.mock.calls[0]?.[1];
+      const [embed] = response?.embeds ?? [];
+      const [statField, player1Field, player2Field] = embed?.fields ?? [];
+      const killsIndex = statField?.value.split("\n").indexOf("Kills");
+
+      expect(player1Field?.value.split("\n")[killsIndex ?? -1]).toBe("🥇 | 600");
+      expect(player2Field?.value.split("\n")[killsIndex ?? -1]).toBe("#4 | 600");
     });
   });
 

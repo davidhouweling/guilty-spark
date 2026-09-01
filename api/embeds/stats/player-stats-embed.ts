@@ -440,7 +440,7 @@ export function hasObjectiveSpecificPopulation(metric: LeaderboardMetric): boole
   return isObjectiveLeaderboardMetric(metric) || OBJECTIVE_SPECIFIC_POPULATION_METRICS.has(metric);
 }
 
-function getRankText(
+export function getRankText(
   metric: LeaderboardMetric,
   rank: LeaderboardPlayerMetricRank | null,
   overallTotalPlayers: number | null,

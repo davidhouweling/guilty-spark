@@ -1,7 +1,7 @@
 import type { APIEmbed, APIEmbedField, APIMessage, APIMessageTopLevelComponent } from "discord-api-types/v10";
 import { ComponentType } from "discord-api-types/v10";
-import type { LeaderboardMetric } from "@guilty-spark/shared/halo/leaderboard";
 import {
+  LeaderboardMetric,
   LeaderboardMetricAggregation,
   LeaderboardWindow,
   getLeaderboardMetricAggregationLabel,
@@ -9,6 +9,7 @@ import {
   getLeaderboardMetricFamilyLabel,
 } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardPlayerStatsRow } from "../../services/database/types/leaderboard_player_stats";
+import type { LeaderboardPlayerMetricRank } from "../../services/database/types/leaderboard_player_metric_rank";
 import { formatMetricValue } from "../../services/leaderboard/leaderboard-response";
 import type { PlayerStatsQueueOption } from "./player-stats-embed";
 import {
@@ -17,6 +18,7 @@ import {
   createWindowSelectOptions,
   getPlayerStatsMetricsForAggregation,
   getPlayerStatsMetricValue,
+  getRankText,
   hasObjectiveSpecificPopulation,
 } from "./player-stats-embed";
 
@@ -53,25 +55,36 @@ export function parsePlayerCompareAggregation(value: string): LeaderboardMetricA
   return LEADERBOARD_AGGREGATION_BY_VALUE.get(value) ?? null;
 }
 
-function getCompareValueText(stats: LeaderboardPlayerStatsRow, metric: LeaderboardMetric, locale: string): string {
+function getCompareValueText(
+  stats: LeaderboardPlayerStatsRow,
+  metric: LeaderboardMetric,
+  rank: LeaderboardPlayerMetricRank | null,
+  overallTotalPlayers: number | null,
+  locale: string,
+): string {
   const { metricValue, formatRow } = getPlayerStatsMetricValue(stats, metric);
   if (hasObjectiveSpecificPopulation(metric) && formatRow.objectiveGamesPlayed === 0) {
     return "n/a";
   }
 
-  return formatMetricValue(metricValue, metric, formatRow, locale);
+  const rankText = getRankText(metric, rank, overallTotalPlayers);
+  const valueText = formatMetricValue(metricValue, metric, formatRow, locale);
+  return `${rankText} | ${valueText}`;
 }
 
 function buildCompareTableRow(
   stats1: LeaderboardPlayerStatsRow,
   stats2: LeaderboardPlayerStatsRow,
+  ranks1: ReadonlyMap<LeaderboardMetric, LeaderboardPlayerMetricRank | null>,
+  ranks2: ReadonlyMap<LeaderboardMetric, LeaderboardPlayerMetricRank | null>,
+  overallTotalPlayers: number | null,
   metric: LeaderboardMetric,
   locale: string,
 ): PlayerCompareTableRow {
   return {
     label: getLeaderboardMetricFamilyLabel(getLeaderboardMetricFamily(metric)),
-    value1Text: getCompareValueText(stats1, metric, locale),
-    value2Text: getCompareValueText(stats2, metric, locale),
+    value1Text: getCompareValueText(stats1, metric, ranks1.get(metric) ?? null, overallTotalPlayers, locale),
+    value2Text: getCompareValueText(stats2, metric, ranks2.get(metric) ?? null, overallTotalPlayers, locale),
   };
 }
 
@@ -327,6 +340,8 @@ export function getPlayerCompareStateFromMessage(message: APIMessage): PlayerCom
 export function createPlayerCompareEmbeds({
   stats1,
   stats2,
+  ranks1,
+  ranks2,
   state,
   locale,
   queueLabel,
@@ -335,6 +350,8 @@ export function createPlayerCompareEmbeds({
 }: {
   stats1: LeaderboardPlayerStatsRow;
   stats2: LeaderboardPlayerStatsRow;
+  ranks1: ReadonlyMap<LeaderboardMetric, LeaderboardPlayerMetricRank | null>;
+  ranks2: ReadonlyMap<LeaderboardMetric, LeaderboardPlayerMetricRank | null>;
   state: PlayerCompareViewState;
   locale: string;
   queueLabel: string;
@@ -343,7 +360,10 @@ export function createPlayerCompareEmbeds({
 }): { embeds: APIEmbed[]; components: APIMessageTopLevelComponent[] } {
   const windowLabel = state.window === LeaderboardWindow.LastReset ? "Last reset" : state.window;
   const metrics = getPlayerStatsMetricsForAggregation(state.aggregation);
-  const rows = metrics.map((metric) => buildCompareTableRow(stats1, stats2, metric, locale));
+  const overallTotalPlayers = ranks1.get(LeaderboardMetric.GamesPlayed)?.total ?? null;
+  const rows = metrics.map((metric) =>
+    buildCompareTableRow(stats1, stats2, ranks1, ranks2, overallTotalPlayers, metric, locale),
+  );
   const fieldGroups = createCompareTableFields(rows, stats1.Gamertag, stats2.Gamertag);
   const aggregationLabel = getLeaderboardMetricAggregationLabel(state.aggregation);
   const embeds = fieldGroups.map((fields, index): APIEmbed => {

@@ -1295,10 +1295,36 @@ export class StatsCommand extends BaseCommand {
 
     const selectedAggregation = aggregation ?? result1.defaultAggregation;
     const queueOptions = this.getCompareQueueOptions(configuredQueues);
+    const metrics = getPlayerStatsMetricsForAggregation(selectedAggregation);
+    const rankMetrics = metrics.includes(LeaderboardMetric.GamesPlayed)
+      ? metrics
+      : [LeaderboardMetric.GamesPlayed, ...metrics];
+    const [ranks1, ranks2] = await Promise.all([
+      this.services.leaderboardService.getLeaderboardPlayerMetricRanks({
+        guildId,
+        xboxXuid: xboxXuid1,
+        queueChannelId,
+        ...queueChannelIdsOpt,
+        startEpochSeconds: result1.startEpochSeconds,
+        minGamesPlayed: result1.minGamesPlayed,
+        metrics: rankMetrics,
+      }),
+      this.services.leaderboardService.getLeaderboardPlayerMetricRanks({
+        guildId,
+        xboxXuid: xboxXuid2,
+        queueChannelId,
+        ...queueChannelIdsOpt,
+        startEpochSeconds: result1.startEpochSeconds,
+        minGamesPlayed: result1.minGamesPlayed,
+        metrics: rankMetrics,
+      }),
+    ]);
 
     return createPlayerCompareEmbeds({
       stats1: result1.stats,
       stats2: result2.stats,
+      ranks1,
+      ranks2,
       state: {
         xboxXuid1: result1.stats.XboxXuid,
         xboxXuid2: result2.stats.XboxXuid,
