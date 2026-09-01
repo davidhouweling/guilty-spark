@@ -26,7 +26,11 @@ import {
   MessageType,
 } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { LeaderboardMetric, LeaderboardMetricAggregation, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import {
+  LeaderboardMetric,
+  LeaderboardMetricAggregation,
+  LeaderboardWindow,
+} from "@guilty-spark/shared/halo/leaderboard";
 import { LeaderboardPlayerRelationshipMetric } from "../../../services/database/types/leaderboard_player_relationship";
 import { StatsCommand } from "../stats";
 import type { Services } from "../../../services/install";
