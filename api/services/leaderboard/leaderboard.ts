@@ -31,6 +31,7 @@ import type {
   LeaderboardPlayerRelationshipMetric,
   LeaderboardPlayerRelationshipRow,
 } from "../database/types/leaderboard_player_relationship";
+import type { LeaderboardPlayerPairRelationshipRow } from "../database/types/leaderboard_player_pair_relationship";
 import type { HaloService } from "../halo/halo";
 import type { Medal } from "../halo/types";
 import type { LogService } from "../log/types";
@@ -94,6 +95,15 @@ export interface LeaderboardPlayerRelationshipsResponse {
   window: LeaderboardWindow;
   resetAt: number | null;
   metric: LeaderboardPlayerRelationshipMetric;
+}
+
+export interface GetLeaderboardPlayerPairRelationshipOpts {
+  guildId: string;
+  xboxXuid1: string;
+  xboxXuid2: string;
+  queueChannelId: string | null;
+  queueChannelIds?: string[];
+  startEpochSeconds: number;
 }
 
 export class LeaderboardService {
@@ -217,6 +227,24 @@ export class LeaderboardService {
       resetAt: playerStats.resetAt,
       metric,
     };
+  }
+
+  async getLeaderboardPlayerPairRelationship({
+    guildId,
+    xboxXuid1,
+    xboxXuid2,
+    queueChannelId,
+    queueChannelIds,
+    startEpochSeconds,
+  }: GetLeaderboardPlayerPairRelationshipOpts): Promise<LeaderboardPlayerPairRelationshipRow> {
+    return this.databaseService.getLeaderboardPlayerPairRelationship({
+      guildId,
+      xboxXuid1,
+      xboxXuid2,
+      queueChannelId,
+      ...(queueChannelIds == null ? {} : { queueChannelIds }),
+      startEpochSeconds,
+    });
   }
 
   async persistReconciledSeriesData({
