@@ -450,7 +450,7 @@ export function getRankText(
   }
 
   const rankText = formatRank(rank.rank);
-  return hasObjectiveSpecificPopulation(metric) && rank.total !== overallTotalPlayers
+  return hasObjectiveSpecificPopulation(metric) && overallTotalPlayers != null && rank.total !== overallTotalPlayers
     ? `${rankText} / ${rank.total.toString()}`
     : rankText;
 }
