@@ -2915,6 +2915,69 @@ describe("StatsCommand", () => {
       expect(response.response.type).toBe(InteractionResponseType.DeferredMessageUpdate);
     });
 
+    it("returns an immediate loading response with disabled controls when the current state can be resolved", () => {
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+          values: [LeaderboardWindow.OneMonth],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          components: [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
+                  options: [{ label: "Total", value: LeaderboardMetricAggregation.Total, default: true }],
+                },
+              ],
+            },
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+                  options: [{ label: "3 months", value: LeaderboardWindow.ThreeMonths, default: true }],
+                },
+              ],
+            },
+          ],
+          embeds: [{ title: "gamertag01 - Total", url: "https://guilty-spark.app/stats/player/2533274000000001" }],
+        },
+      };
+
+      const { response } = statsCommand.execute(interaction);
+
+      expect(response).toEqual({
+        type: InteractionResponseType.UpdateMessage,
+        data: {
+          embeds: [
+            expect.objectContaining({
+              title: "gamertag01 - Total",
+              description: "Updating stats...",
+            }),
+          ],
+          components: [
+            expect.objectContaining({
+              components: [
+                expect.objectContaining({ custom_id: PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID, disabled: true }),
+              ],
+            }),
+            expect.objectContaining({
+              components: [
+                expect.objectContaining({ custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID, disabled: true }),
+              ],
+            }),
+          ],
+        },
+      });
+    });
+
     it("renders the selected relationship view with pair eligibility context", async () => {
       const playerStats = aFakeLeaderboardPlayerStatsRow();
       vi.spyOn(services.leaderboardService, "getLeaderboardPlayerRelationships").mockResolvedValue({

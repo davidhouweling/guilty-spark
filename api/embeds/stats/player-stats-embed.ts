@@ -521,6 +521,7 @@ function getSelectedValueForState(controlId: string, state: PlayerStatsViewState
 function createComponentsForState(
   components: readonly APIMessageTopLevelComponent[],
   state: PlayerStatsViewState,
+  disabled = false,
 ): APIMessageTopLevelComponent[] {
   return components.map((actionRow) => {
     if (actionRow.type !== ComponentType.ActionRow) {
@@ -535,17 +536,42 @@ function createComponentsForState(
         }
 
         const selectedValue = getSelectedValueForState(component.custom_id, state);
-        if (selectedValue == null) {
-          return component;
-        }
 
         return {
           ...component,
-          options: component.options.map((option) => ({ ...option, default: option.value === selectedValue })),
+          disabled,
+          options:
+            selectedValue == null
+              ? component.options
+              : component.options.map((option) => ({ ...option, default: option.value === selectedValue })),
         };
       }),
     };
   });
+}
+
+/**
+ * Immediate acknowledgement shown while the selected filter change is recomputed, since some
+ * relationship views (e.g. head-to-head) can take noticeably longer than the aggregate pages.
+ */
+export function createPlayerStatsLoadingResponse(
+  message: APIMessage,
+  state: PlayerStatsViewState,
+): { embeds: APIEmbed[]; components: APIMessageTopLevelComponent[] } {
+  const [existingEmbed] = message.embeds;
+
+  return {
+    embeds: [
+      {
+        color: 0xf5b642,
+        title: existingEmbed?.title ?? "Player stats",
+        description: "Updating stats...",
+        footer: { text: "This may take a few seconds" },
+        url: `${PLAYER_STATS_STATE_URL_PREFIX}${state.xboxXuid}`,
+      },
+    ],
+    components: createComponentsForState(message.components ?? [], state, true),
+  };
 }
 
 export function createPlayerStatsNoQualifyingGamesResponse(
