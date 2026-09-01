@@ -66,6 +66,18 @@ import {
   parsePlayerStatsRelationshipMetric,
 } from "../../embeds/stats/player-stats-embed";
 import type { PlayerStatsQueueOption, PlayerStatsViewState } from "../../embeds/stats/player-stats-embed";
+import {
+  PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID,
+  PLAYER_COMPARE_QUEUE_SELECT_CONTROL_ID,
+  PLAYER_COMPARE_TEMPORARY_ERROR_FOOTER,
+  PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
+  createPlayerCompareEmbeds,
+  createPlayerCompareLoadingResponse,
+  createPlayerCompareNoQualifyingGamesResponse,
+  getPlayerCompareStateFromMessage,
+  parsePlayerCompareAggregation,
+} from "../../embeds/stats/player-compare-embed";
+import type { PlayerCompareViewState } from "../../embeds/stats/player-compare-embed";
 
 interface FixFlowMetadata extends Record<string, unknown> {
   guildId: string;
@@ -107,6 +119,19 @@ function isPlayerStatsUserCommand(
   return (
     interaction.type === InteractionType.ApplicationCommand &&
     interaction.data.type === ApplicationCommandType.User &&
+    interaction.data.name === "Player stats" &&
+    "guild_id" in interaction &&
+    "member" in interaction
+  );
+}
+
+function isCompareStatsUserCommand(
+  interaction: BaseInteraction,
+): interaction is APIUserApplicationCommandGuildInteraction {
+  return (
+    interaction.type === InteractionType.ApplicationCommand &&
+    interaction.data.type === ApplicationCommandType.User &&
+    interaction.data.name === "Compare stats" &&
     "guild_id" in interaction &&
     "member" in interaction
   );
@@ -127,6 +152,13 @@ export class StatsCommand extends BaseCommand {
     {
       type: ApplicationCommandType.User,
       name: "Player stats",
+      description: "",
+      contexts: [InteractionContextType.Guild],
+      default_member_permissions: null,
+    },
+    {
+      type: ApplicationCommandType.User,
+      name: "Compare stats",
       description: "",
       contexts: [InteractionContextType.Guild],
       default_member_permissions: null,
@@ -232,6 +264,35 @@ export class StatsCommand extends BaseCommand {
             },
           ],
         },
+        {
+          type: ApplicationCommandOptionType.Subcommand,
+          name: "compare",
+          description: "Compares accumulated leaderboard stats between two players",
+          options: [
+            {
+              type: ApplicationCommandOptionType.User,
+              name: "player1",
+              description: "The first player to compare",
+              required: true,
+            },
+            {
+              type: ApplicationCommandOptionType.User,
+              name: "player2",
+              description: "The second player to compare",
+              required: true,
+            },
+            {
+              type: ApplicationCommandOptionType.String,
+              name: "visible",
+              description: "Who can see the response (defaults to private)",
+              choices: [
+                { name: "Public", value: "public" },
+                { name: "Private", value: "private" },
+              ],
+              required: false,
+            },
+          ],
+        },
       ],
     },
   ];
@@ -275,6 +336,30 @@ export class StatsCommand extends BaseCommand {
         data: {
           component_type: ComponentType.StringSelect,
           custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+          values: [],
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_COMPARE_QUEUE_SELECT_CONTROL_ID,
+          values: [],
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID,
+          values: [],
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
           values: [],
         },
       },
@@ -328,6 +413,10 @@ export class StatsCommand extends BaseCommand {
           return this.handlePlayerStatsUserCommand(interaction);
         }
 
+        if (isCompareStatsUserCommand(interaction)) {
+          return this.handleCompareStatsUserCommand(interaction);
+        }
+
         const subcommand = this.services.discordService.extractSubcommand(interaction, "stats");
 
         switch (subcommand.name) {
@@ -342,6 +431,9 @@ export class StatsCommand extends BaseCommand {
           }
           case "player": {
             return this.handlePlayerSubCommand(interaction, subcommand.mappedOptions);
+          }
+          case "compare": {
+            return this.handleCompareSubCommand(interaction, subcommand.mappedOptions);
           }
           default: {
             throw new Error("Unknown subcommand");
@@ -359,6 +451,15 @@ export class StatsCommand extends BaseCommand {
           }
           case PLAYER_STATS_WINDOW_SELECT_CONTROL_ID: {
             return this.handlePlayerStatsSelect(interaction as APIMessageComponentSelectMenuInteraction);
+          }
+          case PLAYER_COMPARE_QUEUE_SELECT_CONTROL_ID: {
+            return this.handleCompareSelect(interaction as APIMessageComponentSelectMenuInteraction);
+          }
+          case PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID: {
+            return this.handleCompareSelect(interaction as APIMessageComponentSelectMenuInteraction);
+          }
+          case PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID: {
+            return this.handleCompareSelect(interaction as APIMessageComponentSelectMenuInteraction);
           }
           case InteractionButton.Retry.toString(): {
             return {
@@ -900,6 +1001,324 @@ export class StatsCommand extends BaseCommand {
 
     const queueOption = queueOptions.find((option) => option.value === queueChannelId);
     return queueOption?.label ?? `<#${queueChannelId}>`;
+  }
+
+  private handleCompareSubCommand(
+    interaction: APIApplicationCommandInteraction,
+    options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
+  ): ExecuteResponse {
+    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = this.isPlayerStatsPrivate(options)
+      ? { flags: MessageFlags.Ephemeral }
+      : {};
+    const player1Id = options.get("player1");
+    const player2Id = options.get("player2");
+
+    return {
+      response: { type: InteractionResponseType.DeferredChannelMessageWithSource, data },
+      jobToComplete: async () =>
+        this.compareSubCommandJob(interaction, {
+          player1Id: typeof player1Id === "string" ? player1Id : undefined,
+          player2Id: typeof player2Id === "string" ? player2Id : undefined,
+        }),
+    };
+  }
+
+  private handleCompareStatsUserCommand(interaction: APIUserApplicationCommandGuildInteraction): ExecuteResponse {
+    return {
+      response: {
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data: { flags: MessageFlags.Ephemeral },
+      },
+      jobToComplete: async () =>
+        this.compareSubCommandJob(interaction, {
+          player1Id: this.services.discordService.getDiscordUserId(interaction),
+          player2Id: interaction.data.target_id,
+        }),
+    };
+  }
+
+  private async compareSubCommandJob(
+    interaction: APIApplicationCommandInteraction | APIUserApplicationCommandGuildInteraction,
+    { player1Id, player2Id }: { player1Id: string | undefined; player2Id: string | undefined },
+  ): Promise<void> {
+    const guildId = interaction.guild_id;
+    if (guildId == null) {
+      await this.services.discordService.updateDeferredReplyWithError(
+        interaction.token,
+        new EndUserError("This command can only be used inside a server."),
+      );
+      return;
+    }
+
+    try {
+      if (player1Id == null || player2Id == null) {
+        throw new EndUserError("Both players must be selected.");
+      }
+
+      if (player1Id === player2Id) {
+        throw new EndUserError("Player 1 and Player 2 must be different players.");
+      }
+
+      const configuredQueues = await this.services.databaseService.findNeatQueueConfig({ GuildId: guildId });
+      if (configuredQueues.length === 0) {
+        throw new EndUserError(
+          "This server has no configured NeatQueue channels. Set one up before using this command.",
+        );
+      }
+
+      const associations = await this.services.databaseService.getDiscordAssociations([player1Id, player2Id]);
+      const association1 = associations.find((association) => association.DiscordId === player1Id);
+      const association2 = associations.find((association) => association.DiscordId === player2Id);
+      if (association1 == null || association2 == null) {
+        throw new EndUserError("Both Discord users must be linked to a Halo account.");
+      }
+
+      const response = await this.createPlayerCompareResponse({
+        guildId,
+        xboxXuid1: association1.XboxId,
+        xboxXuid2: association2.XboxId,
+        queueChannelId: null,
+        configuredQueues,
+        aggregation: null,
+        window: undefined,
+        locale: interaction.guild_locale ?? interaction.locale,
+      });
+
+      if (response == null) {
+        throw new EndUserError("No games played by one or both players in the selected window and queue scope.");
+      }
+
+      await this.services.discordService.updateDeferredReply(interaction.token, response);
+    } catch (error) {
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private handleCompareSelect(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
+    if (!this.isPlayerStatsCommandInvoker(interaction)) {
+      const warning = new EndUserError("Only the person who called the command can use this stats embed.", {
+        title: "Stats embed locked",
+        errorType: EndUserErrorType.WARNING,
+      });
+      return {
+        response: {
+          type: InteractionResponseType.ChannelMessageWithSource,
+          data: {
+            embeds: [warning.discordEmbed],
+            flags: MessageFlags.Ephemeral,
+          },
+        },
+      };
+    }
+
+    switch (interaction.data.custom_id) {
+      case PLAYER_COMPARE_QUEUE_SELECT_CONTROL_ID: {
+        return this.handleCompareQueueSelect(interaction);
+      }
+      case PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID: {
+        return this.handleCompareAggregationSelect(interaction);
+      }
+      case PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID: {
+        return this.handleCompareWindowSelect(interaction);
+      }
+      default: {
+        throw new Error(`Unexpected compare stats control: ${interaction.data.custom_id}`);
+      }
+    }
+  }
+
+  private handleCompareQueueSelect(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
+    return this.createCompareSelectResponse(interaction, (state) => {
+      const [selectedValue] = interaction.data.values;
+      if (selectedValue == null) {
+        throw new EndUserError("A queue must be selected.");
+      }
+
+      return { ...state, queueChannelId: selectedValue === ALL_QUEUES_VALUE ? null : selectedValue };
+    });
+  }
+
+  private handleCompareAggregationSelect(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
+    return this.createCompareSelectResponse(interaction, (state) => {
+      const [selectedValue] = interaction.data.values;
+      if (selectedValue == null) {
+        throw new EndUserError("A stats type must be selected.");
+      }
+
+      const aggregation = parsePlayerCompareAggregation(selectedValue);
+      if (aggregation == null) {
+        throw new EndUserError("The selected stats type is invalid.");
+      }
+
+      return { ...state, aggregation };
+    });
+  }
+
+  private handleCompareWindowSelect(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
+    return this.createCompareSelectResponse(interaction, (state) => {
+      const [selectedValue] = interaction.data.values;
+      if (selectedValue == null) {
+        throw new EndUserError("A window must be selected.");
+      }
+
+      return { ...state, window: this.parsePlayerWindow(selectedValue) };
+    });
+  }
+
+  private createCompareSelectResponse(
+    interaction: APIMessageComponentSelectMenuInteraction,
+    stateUpdater: (state: PlayerCompareViewState) => PlayerCompareViewState,
+  ): ExecuteResponse {
+    const pendingState = this.tryResolveComparePendingState(interaction, stateUpdater);
+
+    if (pendingState == null) {
+      return {
+        response: { type: InteractionResponseType.DeferredMessageUpdate },
+        jobToComplete: async (): Promise<void> => {
+          await this.executeCompareStateInteraction(interaction, () => {
+            const currentState = getPlayerCompareStateFromMessage(interaction.message);
+            if (currentState == null) {
+              throw new EndUserError("This stats view has expired. Run /stats compare again.");
+            }
+
+            return stateUpdater(currentState);
+          });
+        },
+      };
+    }
+
+    const resolvedState = pendingState;
+    return {
+      response: {
+        type: InteractionResponseType.UpdateMessage,
+        data: createPlayerCompareLoadingResponse(interaction.message, resolvedState),
+      },
+      jobToComplete: async (): Promise<void> => {
+        await this.executeCompareStateInteraction(interaction, () => resolvedState);
+      },
+    };
+  }
+
+  private tryResolveComparePendingState(
+    interaction: APIMessageComponentSelectMenuInteraction,
+    stateUpdater: (state: PlayerCompareViewState) => PlayerCompareViewState,
+  ): PlayerCompareViewState | null {
+    try {
+      const currentState = getPlayerCompareStateFromMessage(interaction.message);
+      return currentState == null ? null : stateUpdater(currentState);
+    } catch {
+      return null;
+    }
+  }
+
+  private async executeCompareStateInteraction(
+    interaction: APIMessageComponentSelectMenuInteraction,
+    resolveState: () => PlayerCompareViewState,
+  ): Promise<void> {
+    try {
+      const state = resolveState();
+      const guildId = Preconditions.checkExists(interaction.guild_id, "No guild ID found in interaction");
+      const configuredQueues = await this.services.databaseService.findNeatQueueConfig({ GuildId: guildId });
+      const response = await this.createPlayerCompareResponse({
+        guildId,
+        xboxXuid1: state.xboxXuid1,
+        xboxXuid2: state.xboxXuid2,
+        queueChannelId: state.queueChannelId,
+        configuredQueues,
+        aggregation: state.aggregation,
+        window: state.window,
+        locale: interaction.guild_locale ?? interaction.locale,
+      });
+
+      if (response == null) {
+        await this.services.discordService.updateDeferredReply(
+          interaction.token,
+          createPlayerCompareNoQualifyingGamesResponse(interaction.message, state),
+        );
+        return;
+      }
+
+      await this.services.discordService.updateDeferredReply(interaction.token, response);
+    } catch (error) {
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error, {
+        preserveMessage: interaction.message,
+        errorEmbedFooter: PLAYER_COMPARE_TEMPORARY_ERROR_FOOTER,
+      });
+    }
+  }
+
+  private async createPlayerCompareResponse({
+    guildId,
+    xboxXuid1,
+    xboxXuid2,
+    queueChannelId,
+    configuredQueues,
+    aggregation,
+    window,
+    locale,
+  }: {
+    guildId: string;
+    xboxXuid1: string;
+    xboxXuid2: string;
+    queueChannelId: string | null;
+    configuredQueues: NeatQueueConfigRow[];
+    aggregation: LeaderboardMetricAggregation | null;
+    window: LeaderboardWindow | undefined;
+    locale: string;
+  }): Promise<ReturnType<typeof createPlayerCompareEmbeds> | null> {
+    const configuredQueueChannelIds = configuredQueues.map((queue) => queue.ChannelId);
+    const queueChannelIdsOpt = queueChannelId == null ? { queueChannelIds: configuredQueueChannelIds } : {};
+
+    const result1 = await this.services.leaderboardService.getLeaderboardPlayerStats({
+      guildId,
+      xboxXuid: xboxXuid1,
+      queueChannelId,
+      ...queueChannelIdsOpt,
+      ...(window == null ? {} : { window }),
+    });
+    if (result1 == null) {
+      return null;
+    }
+
+    // Force the second lookup to resolve against the exact same window as the first so both
+    // players' stats are scoped identically, even when the window was left to resolve a default.
+    const result2 = await this.services.leaderboardService.getLeaderboardPlayerStats({
+      guildId,
+      xboxXuid: xboxXuid2,
+      queueChannelId,
+      ...queueChannelIdsOpt,
+      window: result1.window,
+    });
+    if (result2 == null) {
+      return null;
+    }
+
+    const selectedAggregation = aggregation ?? result1.defaultAggregation;
+    const queueOptions = this.getCompareQueueOptions(configuredQueues);
+
+    return createPlayerCompareEmbeds({
+      stats1: result1.stats,
+      stats2: result2.stats,
+      state: {
+        xboxXuid1: result1.stats.XboxXuid,
+        xboxXuid2: result2.stats.XboxXuid,
+        queueChannelId,
+        window: result1.window,
+        aggregation: selectedAggregation,
+      },
+      locale,
+      queueLabel: this.getPlayerStatsQueueLabel(queueChannelId, queueOptions),
+      queueOptions,
+      resetAt: result1.resetAt,
+    });
+  }
+
+  private getCompareQueueOptions(configuredQueues: readonly NeatQueueConfigRow[]): PlayerStatsQueueOption[] {
+    const queueOptions = configuredQueues.map((queue) => ({
+      label: `Queue ${queue.ChannelId}`,
+      value: queue.ChannelId,
+    }));
+    return queueOptions.length <= 1 ? queueOptions : [{ label: "All configured queues", value: null }, ...queueOptions];
   }
 
   private handleNeatQueueSubCommand(
