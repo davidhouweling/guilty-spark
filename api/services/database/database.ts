@@ -2572,6 +2572,7 @@ export class DatabaseService {
     const seriesQueueFilterSql = getQueueFilterSql("s", queueChannelIds);
     const seriesQueueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
     const identityQueueFilterSql = getQueueFilterSql("gp", queueChannelIds);
+    const identityQueueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
 
     const aggColumns = valueSqlByMetric.map((part) => `${part.valueSql} AS Value_${part.metric}`).join(",\n        ");
     const rankColumns = valueSqlByMetric
@@ -2646,7 +2647,7 @@ export class DatabaseService {
     const bindings = [
       guildId,
       startEpochSeconds,
-      ...gamesQueueFilterBindings,
+      ...identityQueueFilterBindings,
       guildId,
       startEpochSeconds,
       ...gamesQueueFilterBindings,
