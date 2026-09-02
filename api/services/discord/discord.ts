@@ -14,6 +14,7 @@ import type {
   APIInteractionResponseChannelMessageWithSource,
   APIMessage,
   APIMessageComponentButtonInteraction,
+  APIMessageTopLevelComponent,
   APIModalSubmitInteraction,
   RESTError,
   RESTGetAPIGuildMemberResult,
@@ -86,6 +87,15 @@ export interface ExistingSeriesStatsThreadLocation {
   parentOverviewMessageId?: string;
 }
 
+/**
+ * Content kept above an error embed when reporting a partial failure. An `APIMessage` satisfies this shape.
+ */
+export interface PreservedMessageContent {
+  id?: string;
+  embeds: APIMessage["embeds"];
+  components?: APIMessage["components"];
+}
+
 export interface DiscordServiceOpts {
   env: Env;
   logService: LogService;
@@ -123,6 +133,7 @@ const PENDING_CACHE_TTL_SECONDS = 60 * 5;
 const NOT_FOUND_CACHE_TTL_SECONDS = 60 * 5;
 const ACTIVE_QUEUE_LOOKUP_CACHE_TTL_SECONDS = 60 * 5;
 const ALL_PERMISSIONS_BITMASK = Object.values(PermissionFlagsBits).reduce((acc, bit) => acc | bit, 0n);
+const DISCORD_MAX_ACTION_ROWS = 5;
 const SEARCH_RESULT_PAGE_SIZE = 25;
 const MAX_SEARCH_RESULT_PAGES = 10;
 const SEARCH_INDEXING_MESSAGE =
@@ -914,7 +925,11 @@ export class DiscordService {
   async updateDeferredReplyWithError(
     interactionToken: string,
     error: unknown,
-    options?: { preserveMessage?: APIMessage; errorEmbedFooter?: string; suppressErrorLogging?: boolean },
+    options?: {
+      preserveMessage?: PreservedMessageContent | undefined;
+      errorEmbedFooter?: string;
+      suppressErrorLogging?: boolean;
+    },
   ): Promise<APIMessage | undefined> {
     try {
       const endUserError =
@@ -930,7 +945,7 @@ export class DiscordService {
 
       return await this.updateDeferredReply(interactionToken, {
         embeds: this.getEmbedsForErrorUpdate(preservedMessage, errorEmbed, errorEmbedFooter),
-        components: preservedMessage?.components ?? endUserError.discordActions,
+        components: this.getComponentsForErrorUpdate(preservedMessage, endUserError),
       });
     } catch (updateError) {
       this.logService.error(updateError, this.getErrorUpdateFailureContext(error, options?.preserveMessage));
@@ -942,7 +957,7 @@ export class DiscordService {
     channelId: string,
     messageId: string,
     error: unknown,
-    options?: { preserveMessage?: APIMessage; errorEmbedFooter?: string; suppressErrorLogging?: boolean },
+    options?: { preserveMessage?: PreservedMessageContent; errorEmbedFooter?: string; suppressErrorLogging?: boolean },
   ): Promise<APIMessage | undefined> {
     try {
       const endUserError =
@@ -979,7 +994,7 @@ export class DiscordService {
    */
   private getErrorUpdateFailureContext(
     originalError: unknown,
-    preserveMessage: APIMessage | undefined,
+    preserveMessage: PreservedMessageContent | undefined,
   ): Map<string, JsonAny> {
     return new Map<string, JsonAny>([
       ["reason", "Failed to deliver error embed, leaving the user without feedback"],
@@ -989,7 +1004,7 @@ export class DiscordService {
   }
 
   private getEmbedsForErrorUpdate(
-    preservedMessage: APIMessage | undefined,
+    preservedMessage: PreservedMessageContent | undefined,
     errorEmbed: APIMessage["embeds"][number],
     errorEmbedFooter: string | undefined,
   ): APIMessage["embeds"] {
@@ -1002,6 +1017,21 @@ export class DiscordService {
         ? preservedMessage.embeds
         : preservedMessage.embeds.filter((embed) => embed.footer?.text !== errorEmbedFooter);
     return [...preservedEmbeds.slice(-9), errorEmbed];
+  }
+
+  private getComponentsForErrorUpdate(
+    preservedMessage: PreservedMessageContent | undefined,
+    endUserError: EndUserError,
+  ): APIMessageTopLevelComponent[] {
+    const errorActions = endUserError.discordActions;
+    if (preservedMessage == null) {
+      return errorActions;
+    }
+
+    const preservedComponents = preservedMessage.components ?? [];
+    return errorActions.length === 0
+      ? [...preservedComponents]
+      : [...preservedComponents.slice(-(DISCORD_MAX_ACTION_ROWS - errorActions.length)), ...errorActions];
   }
 
   async getGuild(guildId: string): Promise<APIGuild> {

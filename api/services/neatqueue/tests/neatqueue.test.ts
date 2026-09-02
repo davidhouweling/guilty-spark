@@ -7,7 +7,7 @@ import type {
   APIEmbed,
   APIGuildMember,
 } from "discord-api-types/v10";
-import { ChannelType, Locale } from "discord-api-types/v10";
+import { ChannelType, ComponentType, Locale } from "discord-api-types/v10";
 import { sub } from "date-fns";
 import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
@@ -49,8 +49,10 @@ import { getRankedArenaCsrsData, getMatchStats } from "../../halo/fakes/data";
 import {
   aGuildMemberWith,
   apiMessage,
+  channelThreadsResult,
   discordNeatQueueData,
   fakeBaseAPIApplicationCommandInteraction,
+  fakeButtonClickInteraction,
   guild,
   guildMember,
   textChannel,
@@ -1671,6 +1673,48 @@ describe("NeatQueueService", () => {
       });
 
       expect(logWarnSpy).toHaveBeenCalledWith("Expected channel for retry", expect.any(Map));
+    });
+
+    it("reports the Create Public Threads permission and keeps the series overview when thread creation is forbidden", async () => {
+      const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      getSeriesFromDiscordQueueSpy.mockResolvedValue([match]);
+      vi.spyOn(discordService, "startThreadFromMessage").mockRejectedValue(
+        new DiscordError(403, { code: 50013, message: "Missing Permissions" }),
+      );
+
+      await neatQueueService.handleRetry({
+        errorEmbed: fakeErrorEmbed,
+        guildId: "guild-123",
+        message: fakeMessage,
+      });
+
+      expect(editMessageSpy).toHaveBeenCalledTimes(2);
+      const [, , failureUpdate] = Preconditions.checkExists(editMessageSpy.mock.lastCall);
+      expect(failureUpdate.embeds?.length).toBeGreaterThan(1);
+      expect(failureUpdate.embeds?.at(-1)?.description).toContain("**Create Public Threads**");
+      expect(failureUpdate.components?.at(-1)).toEqual(expect.objectContaining({ type: ComponentType.ActionRow }));
+    });
+
+    it("starts the stats thread from the clicked message when retrying from a button interaction", async () => {
+      const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      getSeriesFromDiscordQueueSpy.mockResolvedValue([match]);
+      vi.spyOn(discordService, "updateDeferredReply").mockResolvedValue(apiMessage);
+      vi.spyOn(discordService, "createMessage").mockResolvedValue(apiMessage);
+      const startThreadFromMessageSpy = vi
+        .spyOn(discordService, "startThreadFromMessage")
+        .mockResolvedValue(channelThreadsResult);
+
+      await neatQueueService.handleRetry({
+        errorEmbed: fakeErrorEmbed,
+        guildId: "guild-123",
+        interaction: fakeButtonClickInteraction,
+      });
+
+      expect(startThreadFromMessageSpy).toHaveBeenCalledWith(
+        fakeButtonClickInteraction.channel.id,
+        fakeButtonClickInteraction.message.id,
+        expect.any(String),
+      );
     });
 
     it("processes retry with interaction parameter instead of message", async () => {

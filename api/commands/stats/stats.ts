@@ -1,8 +1,10 @@
 import type {
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
+  APIChannel,
   APIEmbed,
   APIInteractionResponseDeferredChannelMessageWithSource,
+  APIMessage,
   APIMessageComponentButtonInteraction,
   APIMessageComponentSelectMenuInteraction,
   APIMessageTopLevelComponent,
@@ -36,7 +38,7 @@ import type { LeaderboardPlayerRelationshipMetric } from "../../services/databas
 import type { BaseInteraction, ExecuteResponse, ApplicationCommandData, CommandData } from "../base/base-command";
 import { BaseCommand } from "../base/base-command";
 import { NEAT_QUEUE_BOT_USER_ID } from "../../services/discord/discord";
-import type { QueueData } from "../../services/discord/discord";
+import type { PreservedMessageContent, QueueData } from "../../services/discord/discord";
 import type { BaseMatchEmbed } from "../../embeds/stats/base-match-embed";
 import { SeriesPlayersEmbed } from "../../embeds/stats/series-players-embed";
 import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed";
@@ -51,6 +53,7 @@ import { StatsReturnType } from "../../services/database/types/guild_config";
 import type { NeatQueueConfigRow } from "../../services/database/types/neat_queue_config";
 import { EmbedColors } from "../../embeds/colors";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
+import { toMissingPermissionsError } from "../../base/missing-permissions-error";
 import { create } from "../../embeds/stats/create";
 import {
   ALL_QUEUES_VALUE,
@@ -1515,6 +1518,7 @@ export class StatsCommand extends BaseCommand {
     const locale = interaction.guild_locale ?? interaction.locale;
     let computedQueue = queue;
     let endDateTime: Date | undefined;
+    let seriesOverviewContent: PreservedMessageContent | undefined;
 
     try {
       const guildId = Preconditions.checkExists(interaction.guild_id, "No guild ID found in interaction");
@@ -1550,23 +1554,14 @@ export class StatsCommand extends BaseCommand {
         embeds: seriesEmbed.embeds,
         components: seriesEmbed.components,
       });
+      seriesOverviewContent = seriesEmbed;
 
       await this.cacheDiscordSeriesStats(guildId, queueData.queue, series, locale);
 
-      const message = await discordService.getMessageFromInteractionToken(interaction.token);
-      const messageChannel = await discordService.getChannel(message.channel_id);
-      const thread = [ChannelType.PublicThread, ChannelType.PrivateThread, ChannelType.AnnouncementThread].includes(
-        messageChannel.type,
-      )
-        ? messageChannel
-        : await discordService.startThreadFromMessage(
-            message.channel_id,
-            message.id,
-            `Queue #${queueData.queue.toString()} series stats (${haloService.getSeriesScore(series, locale, true)})`,
-          );
+      const seriesOverviewMessage = await discordService.getMessageFromInteractionToken(interaction.token);
+      const thread = await this.resolveSeriesThread(seriesOverviewMessage, queueData.queue, series, locale);
 
-      await this.postSeriesEmbedsToThread(thread.id, series, guildConfig, locale);
-      await this.postGameStatsOrButton(thread.id, series, guildConfig, locale);
+      await this.postSeriesStatsToThread(thread.id, series, guildConfig, locale);
 
       await haloService.updateDiscordAssociations();
     } catch (error) {
@@ -1577,13 +1572,73 @@ export class StatsCommand extends BaseCommand {
           Completed: discordService.getTimestamp(endDateTime.toISOString()),
         });
       }
-      await discordService.updateDeferredReplyWithError(interaction.token, error);
+      await discordService.updateDeferredReplyWithError(interaction.token, error, {
+        preserveMessage: seriesOverviewContent,
+      });
+    }
+  }
+
+  private async resolveSeriesThread(
+    message: APIMessage,
+    queueNumber: number,
+    series: MatchStats[],
+    locale: string,
+  ): Promise<APIChannel> {
+    const { discordService, haloService } = this.services;
+    const messageChannel = await discordService.getChannel(message.channel_id);
+
+    if (
+      [ChannelType.PublicThread, ChannelType.PrivateThread, ChannelType.AnnouncementThread].includes(
+        messageChannel.type,
+      )
+    ) {
+      return messageChannel;
+    }
+
+    try {
+      return await discordService.startThreadFromMessage(
+        message.channel_id,
+        message.id,
+        `Queue #${queueNumber.toString()} series stats (${haloService.getSeriesScore(series, locale, true)})`,
+      );
+    } catch (error) {
+      throw (
+        toMissingPermissionsError(error, {
+          action: "create a thread for the series stats",
+          permissions: [discordService.permissionToString(PermissionFlagsBits.CreatePublicThreads)],
+        }) ?? error
+      );
+    }
+  }
+
+  private async postSeriesStatsToThread(
+    threadId: string,
+    series: MatchStats[],
+    guildConfig: GuildConfigRow,
+    locale: string,
+  ): Promise<void> {
+    const { discordService } = this.services;
+
+    try {
+      await this.postSeriesEmbedsToThread(threadId, series, guildConfig, locale);
+      await this.postGameStatsOrButton(threadId, series, guildConfig, locale);
+    } catch (error) {
+      throw (
+        toMissingPermissionsError(error, {
+          action: "post the series stats",
+          permissions: [
+            discordService.permissionToString(PermissionFlagsBits.SendMessages),
+            discordService.permissionToString(PermissionFlagsBits.SendMessagesInThreads),
+          ],
+        }) ?? error
+      );
     }
   }
 
   private async neatQueueSubCommandInThreadJob(interaction: APIApplicationCommandInteraction): Promise<void> {
     const { databaseService, discordService, haloService, logService, neatQueueService } = this.services;
     let previousEndUserError: EndUserError | undefined;
+    let seriesOverviewContent: PreservedMessageContent | undefined;
 
     try {
       const guildId = Preconditions.checkExists(interaction.guild_id, "No guild ID found in interaction");
@@ -1668,11 +1723,11 @@ export class StatsCommand extends BaseCommand {
           embeds: seriesEmbed.embeds,
           components: seriesEmbed.components,
         });
+        seriesOverviewContent = seriesEmbed;
 
         await this.cacheDiscordSeriesStats(guildId, queueData.queue, series, locale);
 
-        await this.postSeriesEmbedsToThread(threadChannelId, series, guildConfig, locale);
-        await this.postGameStatsOrButton(threadChannelId, series, guildConfig, locale);
+        await this.postSeriesStatsToThread(threadChannelId, series, guildConfig, locale);
 
         await haloService.updateDiscordAssociations();
       }
@@ -1680,7 +1735,9 @@ export class StatsCommand extends BaseCommand {
       if (error instanceof EndUserError) {
         error.appendData(previousEndUserError?.data ?? {});
       }
-      await discordService.updateDeferredReplyWithError(interaction.token, error);
+      await discordService.updateDeferredReplyWithError(interaction.token, error, {
+        preserveMessage: seriesOverviewContent,
+      });
     }
   }
 
@@ -1736,12 +1793,7 @@ export class StatsCommand extends BaseCommand {
   private async retryJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
     const { discordService } = this.services;
     try {
-      if (interaction.message.embeds[0] == null) {
-        throw new Error("No embed found in the message");
-      }
-
-      const [embed] = interaction.message.embeds;
-      const endUserError = EndUserError.fromDiscordEmbed(embed);
+      const endUserError = this.findEndUserError(interaction.message.embeds);
       if (endUserError == null) {
         throw new Error("No end user error found in the embed");
       }
@@ -1754,6 +1806,20 @@ export class StatsCommand extends BaseCommand {
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
+  }
+
+  /**
+   * The error embed is appended last, after any preserved embeds.
+   */
+  private findEndUserError(embeds: APIEmbed[]): EndUserError | undefined {
+    for (const embed of [...embeds].reverse()) {
+      const endUserError = EndUserError.fromDiscordEmbed(embed);
+      if (endUserError != null) {
+        return endUserError;
+      }
+    }
+
+    return undefined;
   }
 
   private async loadGamesJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
