@@ -6,7 +6,6 @@ import {
 } from "@guilty-spark/shared/halo/leaderboard";
 import { LeaderboardPlayerRelationshipMetric } from "../types/leaderboard_player_relationship";
 import { getPlayerStatsMetricsForAggregation } from "../../../embeds/stats/player-stats-embed";
-import type { LeaderboardPlayerMetricRank } from "../types/leaderboard_player_metric_rank";
 import { aFakeEnvWith, fakeD1Response, FakePreparedStatement } from "../../../base/fakes/env.fake";
 import { SESSION_COOKIE_MAX_AGE_SECONDS } from "../../auth/session-manager";
 import { DatabaseService } from "../database";
@@ -1545,31 +1544,86 @@ describe("Database Service", () => {
       });
     });
 
-    describe("getLeaderboardPlayerMetricRank()", () => {
-      it.each(
-        Array.from(
-          new Set(
-            Object.values(LeaderboardMetricAggregation).flatMap((aggregation) =>
-              getPlayerStatsMetricsForAggregation(aggregation),
-            ),
-          ),
-        ),
-      )("builds a rank query for every player-stats metric without throwing (%s)", async (metric) => {
-        const fakePreparedStatement = new FakePreparedStatement<LeaderboardPlayerMetricRank | null>();
-        vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+    describe("getLeaderboardPlayerMetricRanks()", () => {
+      it.each(Object.values(LeaderboardMetricAggregation))(
+        "builds rank queries for every player-stats metric of an aggregation without throwing (%s)",
+        async (aggregation) => {
+          const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
+          vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+          vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+          vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+
+          const metrics = getPlayerStatsMetricsForAggregation(aggregation);
+          const result = await databaseService.getLeaderboardPlayerMetricRanks({
+            guildId: "guild-1",
+            queueChannelId: null,
+            startEpochSeconds: 0,
+            minGamesPlayed: 1,
+            metrics,
+            xboxXuid: "2533274000000001",
+          });
+
+          for (const metric of metrics) {
+            expect(result.get(metric)).toBeNull();
+          }
+        },
+      );
+
+      it("issues one stat-metric query and one outcome-metric query, not one per metric", async () => {
+        const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
         vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
         vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
 
-        const result = await databaseService.getLeaderboardPlayerMetricRank({
+        await databaseService.getLeaderboardPlayerMetricRanks({
           guildId: "guild-1",
           queueChannelId: null,
           startEpochSeconds: 0,
           minGamesPlayed: 1,
-          metric,
+          metrics: [
+            LeaderboardMetric.SeriesWinRate,
+            LeaderboardMetric.Kills,
+            LeaderboardMetric.Deaths,
+            LeaderboardMetric.MedalPoints,
+          ],
           xboxXuid: "2533274000000001",
         });
 
-        expect(result).toBeNull();
+        expect(prepareSpy).toHaveBeenCalledTimes(2);
+      });
+
+      it("skips the outcome-metric query entirely when only stat metrics are requested", async () => {
+        const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+        vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+        vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+
+        await databaseService.getLeaderboardPlayerMetricRanks({
+          guildId: "guild-1",
+          queueChannelId: null,
+          startEpochSeconds: 0,
+          minGamesPlayed: 1,
+          metrics: [LeaderboardMetric.Kills, LeaderboardMetric.Deaths],
+          xboxXuid: "2533274000000001",
+        });
+
+        expect(prepareSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it("returns an empty result without querying when no metrics are requested", async () => {
+        const prepareSpy = vi.spyOn(env.DB, "prepare");
+
+        const result = await databaseService.getLeaderboardPlayerMetricRanks({
+          guildId: "guild-1",
+          queueChannelId: null,
+          startEpochSeconds: 0,
+          minGamesPlayed: 1,
+          metrics: [],
+          xboxXuid: "2533274000000001",
+        });
+
+        expect(result.size).toBe(0);
+        expect(prepareSpy).not.toHaveBeenCalled();
       });
 
       it.each([
@@ -1579,24 +1633,94 @@ describe("Database Service", () => {
       ] as const)(
         "scopes the %s rank population to players with qualifying objective games, not overall games played",
         async (metric, expectedGamesPlayedSql) => {
-          const fakePreparedStatement = new FakePreparedStatement<LeaderboardPlayerMetricRank | null>();
+          const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
           const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
           vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
           vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
 
-          await databaseService.getLeaderboardPlayerMetricRank({
+          await databaseService.getLeaderboardPlayerMetricRanks({
             guildId: "guild-1",
             queueChannelId: null,
             startEpochSeconds: 0,
             minGamesPlayed: 1,
-            metric,
+            metrics: [metric],
             xboxXuid: "2533274000000001",
           });
 
           const query = prepareSpy.mock.calls[0]?.[0];
-          expect(query).toContain(`HAVING ${expectedGamesPlayedSql} >= ?`);
+          expect(query).toContain(`${expectedGamesPlayedSql} AS Games_${metric}`);
         },
       );
+
+      it("does not resolve gamertag inside the rank query, since callers already have it", async () => {
+        const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+        vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+        vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+
+        await databaseService.getLeaderboardPlayerMetricRanks({
+          guildId: "guild-1",
+          queueChannelId: null,
+          startEpochSeconds: 0,
+          minGamesPlayed: 1,
+          metrics: [LeaderboardMetric.Kills, LeaderboardMetric.SeriesWinRate],
+          xboxXuid: "2533274000000001",
+        });
+
+        for (const call of prepareSpy.mock.calls) {
+          expect(call[0]).not.toContain("GamertagSnapshot");
+        }
+      });
+
+      it("maps each metric to null when ineligible, even when other requested metrics are eligible", async () => {
+        const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
+        vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+        vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+        vi.spyOn(fakePreparedStatement, "first").mockResolvedValue({
+          XboxXuid: "2533274000000001",
+          [`Rank_${LeaderboardMetric.Kills}`]: 3,
+          [`Total_${LeaderboardMetric.Kills}`]: 20,
+          [`Rank_${LeaderboardMetric.Deaths}`]: null,
+          [`Total_${LeaderboardMetric.Deaths}`]: 5,
+        });
+
+        const result = await databaseService.getLeaderboardPlayerMetricRanks({
+          guildId: "guild-1",
+          queueChannelId: null,
+          startEpochSeconds: 0,
+          minGamesPlayed: 1,
+          metrics: [LeaderboardMetric.Kills, LeaderboardMetric.Deaths],
+          xboxXuid: "2533274000000001",
+        });
+
+        expect(result.get(LeaderboardMetric.Kills)).toEqual({ rank: 3, total: 20 });
+        expect(result.get(LeaderboardMetric.Deaths)).toBeNull();
+      });
+
+      it("maps outcome metric ranks from a single shared query result", async () => {
+        const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
+        vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+        vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+        vi.spyOn(fakePreparedStatement, "first").mockResolvedValue({
+          XboxXuid: "2533274000000001",
+          [`Rank_${LeaderboardMetric.SeriesWinRate}`]: 1,
+          [`Total_${LeaderboardMetric.SeriesWinRate}`]: 12,
+          [`Rank_${LeaderboardMetric.GamesWinRate}`]: 2,
+          [`Total_${LeaderboardMetric.GamesWinRate}`]: 12,
+        });
+
+        const result = await databaseService.getLeaderboardPlayerMetricRanks({
+          guildId: "guild-1",
+          queueChannelId: null,
+          startEpochSeconds: 0,
+          minGamesPlayed: 1,
+          metrics: [LeaderboardMetric.SeriesWinRate, LeaderboardMetric.GamesWinRate],
+          xboxXuid: "2533274000000001",
+        });
+
+        expect(result.get(LeaderboardMetric.SeriesWinRate)).toEqual({ rank: 1, total: 12 });
+        expect(result.get(LeaderboardMetric.GamesWinRate)).toEqual({ rank: 2, total: 12 });
+      });
     });
 
     describe("getLeaderboardPlayerRelationships()", () => {

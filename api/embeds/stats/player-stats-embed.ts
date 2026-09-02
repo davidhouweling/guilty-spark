@@ -427,9 +427,9 @@ function getStatsMetricValue(stats: LeaderboardPlayerStatsRow, metric: Leaderboa
   return getValue(stats);
 }
 
-// Metrics whose rank population in getLeaderboardPlayerMetricRank() is narrowed to players with
+// Metrics whose rank population in getLeaderboardPlayerMetricRanks() is narrowed to players with
 // qualifying objective data (COUNT of an objective column), rather than the overall GamesPlayed
-// population — must mirror the metricGamesPlayedSql overrides in buildStatMetricRankAggregate().
+// population — must mirror the gamesPlayedSql overrides in getStatMetricRankSqlParts().
 const OBJECTIVE_SPECIFIC_POPULATION_METRICS: ReadonlySet<LeaderboardMetric> = new Set([
   LeaderboardMetric.ObjectiveTime,
   LeaderboardMetric.AvgObjectiveTimePerGame,
