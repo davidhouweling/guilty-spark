@@ -781,7 +781,14 @@ export class StatsCommand extends BaseCommand {
     return {
       response: { type: InteractionResponseType.DeferredMessageUpdate },
       jobToComplete: async (): Promise<void> => {
-        await this.showLoadingState(interaction, createPlayerStatsLoadingResponse(interaction.message, resolvedState));
+        await this.showLoadingState(
+          interaction,
+          createPlayerStatsLoadingResponse(
+            interaction.message,
+            resolvedState,
+            this.services.discordService.getLoadingEmoji(),
+          ),
+        );
         await this.executePlayerStatsStateInteraction(interaction, () => resolvedState);
       },
     };
@@ -1263,7 +1270,11 @@ export class StatsCommand extends BaseCommand {
       jobToComplete: async (): Promise<void> => {
         await this.showLoadingState(
           interaction,
-          createPlayerCompareLoadingResponse(interaction.message, resolvedState),
+          createPlayerCompareLoadingResponse(
+            interaction.message,
+            resolvedState,
+            this.services.discordService.getLoadingEmoji(),
+          ),
         );
         await this.executeCompareStateInteraction(interaction, () => resolvedState);
       },

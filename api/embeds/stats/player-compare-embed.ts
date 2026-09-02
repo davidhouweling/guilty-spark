@@ -16,6 +16,7 @@ import { formatMetricValue } from "../../services/leaderboard/leaderboard-respon
 import type { PlayerStatsQueueOption } from "./player-stats-embed";
 import {
   ALL_QUEUES_VALUE,
+  createLoadingFields,
   createQueueSelectOptions,
   createWindowSelectOptions,
   formatPerfects,
@@ -532,20 +533,28 @@ export function createPlayerCompareHeadToHeadEmbeds({
 export function createPlayerCompareLoadingResponse(
   message: APIMessage,
   state: PlayerCompareViewState,
+  loadingEmoji: string,
 ): { embeds: APIEmbed[]; components: APIMessageTopLevelComponent[] } {
-  const [existingEmbed] = message.embeds;
+  const embeds: APIEmbed[] =
+    message.embeds.length > 0
+      ? message.embeds.map((embed, index) => ({
+          ...embed,
+          fields: createLoadingFields(embed.fields, loadingEmoji),
+          ...(index === 0 ? { description: "Updating stats...", footer: { text: "This may take a few seconds" } } : {}),
+        }))
+      : [
+          {
+            color: 0xf5b642,
+            title: "Player compare",
+            description: "Updating stats...",
+            footer: { text: "This may take a few seconds" },
+            url: `${PLAYER_COMPARE_STATE_URL_PREFIX}${state.xboxXuid1}/${state.xboxXuid2}`,
+          },
+        ];
 
   return {
-    embeds: [
-      {
-        color: 0xf5b642,
-        title: existingEmbed?.title ?? "Player compare",
-        description: "Updating stats...",
-        footer: { text: "This may take a few seconds" },
-        url: `${PLAYER_COMPARE_STATE_URL_PREFIX}${state.xboxXuid1}/${state.xboxXuid2}`,
-      },
-    ],
-    components: createComponentsForCompareState(message.components ?? [], state, true),
+    embeds,
+    components: createComponentsForCompareState(message.components ?? [], state),
   };
 }
 

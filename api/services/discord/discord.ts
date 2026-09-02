@@ -59,7 +59,7 @@ import type { JsonAny, LogService } from "../log/types";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import { TimeInSeconds } from "../halo/types";
 import { JsonResponse } from "./json-response";
-import { AppEmojis } from "./emoji";
+import { AppEmojis, LOADING_EMOJI_ID } from "./emoji";
 import { DiscordError } from "./discord-error";
 import {
   DISCORD_SERIES_STATS_RESOLVED_CACHE_TTL_SECONDS,
@@ -1535,6 +1535,14 @@ export class DiscordService {
     const emojiId = Preconditions.checkExists(AppEmojis.get(appEmojiName), `Emoji not found: ${name}`);
 
     return `<:${appEmojiName}:${emojiId}>`;
+  }
+
+  /**
+   * Animated application emojis use Discord's `<a:name:id>` syntax, unlike `getEmojiFromName`'s
+   * static `<:name:id>` format.
+   */
+  getLoadingEmoji(): string {
+    return `<a:loading:${LOADING_EMOJI_ID}>`;
   }
 
   getRankEmoji({

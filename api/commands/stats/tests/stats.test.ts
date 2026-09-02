@@ -3273,11 +3273,13 @@ describe("StatsCommand", () => {
         components: [
           expect.objectContaining({
             components: [
-              expect.objectContaining({ custom_id: PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID, disabled: true }),
+              expect.objectContaining({ custom_id: PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID, disabled: false }),
             ],
           }),
           expect.objectContaining({
-            components: [expect.objectContaining({ custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID, disabled: true })],
+            components: [
+              expect.objectContaining({ custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID, disabled: false }),
+            ],
           }),
         ],
       });
@@ -3494,12 +3496,12 @@ describe("StatsCommand", () => {
         components: [
           expect.objectContaining({
             components: [
-              expect.objectContaining({ custom_id: PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID, disabled: true }),
+              expect.objectContaining({ custom_id: PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID, disabled: false }),
             ],
           }),
           expect.objectContaining({
             components: [
-              expect.objectContaining({ custom_id: PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID, disabled: true }),
+              expect.objectContaining({ custom_id: PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID, disabled: false }),
             ],
           }),
         ],
@@ -3606,7 +3608,15 @@ describe("StatsCommand", () => {
             },
           ],
           embeds: [
-            { title: "player-one vs player-two - Total", url: "https://guilty-spark.app/stats/compare/xuid-1/xuid-2" },
+            {
+              title: "player-one vs player-two - Total",
+              url: "https://guilty-spark.app/stats/compare/xuid-1/xuid-2",
+              fields: [
+                { name: "Stat", value: "Kills", inline: true },
+                { name: "player-one", value: "#1 | 600", inline: true },
+                { name: "player-two", value: "#4 | 450", inline: true },
+              ],
+            },
           ],
         },
       };
@@ -3620,6 +3630,18 @@ describe("StatsCommand", () => {
       const editedDescriptions = updateDeferredReplySpy.mock.calls.map((call) => call[1].embeds?.[0]?.description);
       expect(editedDescriptions[0]).toBe("Updating stats...");
       expect(editedDescriptions.at(-1)).not.toBe("Updating stats...");
+
+      // The loading edit shimmers the value columns with the animated emoji while leaving the
+      // "Stat" labels and select controls untouched/enabled, rather than blanking the whole table.
+      const loadingFields = updateDeferredReplySpy.mock.calls[0]?.[1].embeds?.[0]?.fields ?? [];
+      const [statField, player1Field] = loadingFields;
+      expect(statField).toEqual({ name: "Stat", value: "Kills", inline: true });
+      expect(player1Field?.value).toContain("<a:loading:");
+      const loadingComponents = updateDeferredReplySpy.mock.calls[0]?.[1].components ?? [];
+      const [actionRow] = loadingComponents;
+      expect(actionRow?.type === ComponentType.ActionRow && actionRow.components[0]).toMatchObject({
+        disabled: false,
+      });
     });
 
     it("renders the head-to-head page when the type select switches to head to head", async () => {

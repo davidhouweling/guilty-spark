@@ -535,6 +535,21 @@ function getSelectedValueForState(controlId: string, state: PlayerStatsViewState
   }
 }
 
+/**
+ * Replaces each value column's rows with the loading emoji, preserving row count so the table
+ * shape doesn't jump once real values land. The "Stat" label column is left untouched.
+ */
+export function createLoadingFields(fields: APIEmbedField[] | undefined, loadingEmoji: string): APIEmbedField[] {
+  return (fields ?? []).map((field) => {
+    if (field.name === "Stat") {
+      return field;
+    }
+
+    const lineCount = field.value.split("\n").length;
+    return { ...field, value: Array.from({ length: lineCount }, () => loadingEmoji).join("\n") };
+  });
+}
+
 function createComponentsForState(
   components: readonly APIMessageTopLevelComponent[],
   state: PlayerStatsViewState,
@@ -570,24 +585,34 @@ function createComponentsForState(
 /**
  * Immediate acknowledgement shown while the selected filter change is recomputed, since some
  * relationship views (e.g. head-to-head) can take noticeably longer than the aggregate pages.
+ * Reuses the existing rendered table and swaps each value cell for the loading emoji rather than
+ * disabling the controls, so a stalled update still leaves the user able to pick another option.
  */
 export function createPlayerStatsLoadingResponse(
   message: APIMessage,
   state: PlayerStatsViewState,
+  loadingEmoji: string,
 ): { embeds: APIEmbed[]; components: APIMessageTopLevelComponent[] } {
-  const [existingEmbed] = message.embeds;
+  const embeds: APIEmbed[] =
+    message.embeds.length > 0
+      ? message.embeds.map((embed, index) => ({
+          ...embed,
+          fields: createLoadingFields(embed.fields, loadingEmoji),
+          ...(index === 0 ? { description: "Updating stats...", footer: { text: "This may take a few seconds" } } : {}),
+        }))
+      : [
+          {
+            color: 0xf5b642,
+            title: "Player stats",
+            description: "Updating stats...",
+            footer: { text: "This may take a few seconds" },
+            url: `${PLAYER_STATS_STATE_URL_PREFIX}${state.xboxXuid}`,
+          },
+        ];
 
   return {
-    embeds: [
-      {
-        color: 0xf5b642,
-        title: existingEmbed?.title ?? "Player stats",
-        description: "Updating stats...",
-        footer: { text: "This may take a few seconds" },
-        url: `${PLAYER_STATS_STATE_URL_PREFIX}${state.xboxXuid}`,
-      },
-    ],
-    components: createComponentsForState(message.components ?? [], state, true),
+    embeds,
+    components: createComponentsForState(message.components ?? [], state),
   };
 }
 
