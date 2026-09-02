@@ -1309,7 +1309,7 @@ export class StatsCommand extends BaseCommand {
     const queueLabel = this.getPlayerStatsQueueLabel(queueChannelId, queueOptions);
 
     if (headToHead) {
-      const pair = await this.services.databaseService.getLeaderboardPlayerPairRelationship({
+      const pair = await this.services.leaderboardService.getLeaderboardPlayerPairRelationship({
         guildId,
         xboxXuid1: result1.stats.XboxXuid,
         xboxXuid2: result2.stats.XboxXuid,

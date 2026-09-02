@@ -3472,7 +3472,7 @@ describe("StatsCommand", () => {
         }),
       );
       const getPairRelationshipSpy = vi
-        .spyOn(services.databaseService, "getLeaderboardPlayerPairRelationship")
+        .spyOn(services.leaderboardService, "getLeaderboardPlayerPairRelationship")
         .mockResolvedValue({
           SeriesPlayedWith: 1,
           Player1SeriesWinsWith: 1,
