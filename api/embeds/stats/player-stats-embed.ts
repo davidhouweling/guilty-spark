@@ -245,7 +245,7 @@ export function getPlayerStatsMetricsForAggregation(
   );
 }
 
-function createQueueSelectOptions(
+export function createQueueSelectOptions(
   queueOptions: readonly PlayerStatsQueueOption[],
   selectedQueueChannelId: string | null,
 ): APISelectMenuOption[] {
@@ -271,7 +271,10 @@ function createStatsViewSelectOptions(state: PlayerStatsViewState): APISelectMen
   return [...aggregationOptions, ...relationshipOptions];
 }
 
-function createWindowSelectOptions(selectedWindow: LeaderboardWindow, resetAt: number | null): APISelectMenuOption[] {
+export function createWindowSelectOptions(
+  selectedWindow: LeaderboardWindow,
+  resetAt: number | null,
+): APISelectMenuOption[] {
   const windowOptions = [
     { label: "1 week", value: LeaderboardWindow.OneWeek },
     { label: "1 month", value: LeaderboardWindow.OneMonth },
@@ -433,11 +436,11 @@ const OBJECTIVE_SPECIFIC_POPULATION_METRICS: ReadonlySet<LeaderboardMetric> = ne
   LeaderboardMetric.ObjectiveTeamContribution,
 ]);
 
-function hasObjectiveSpecificPopulation(metric: LeaderboardMetric): boolean {
+export function hasObjectiveSpecificPopulation(metric: LeaderboardMetric): boolean {
   return isObjectiveLeaderboardMetric(metric) || OBJECTIVE_SPECIFIC_POPULATION_METRICS.has(metric);
 }
 
-function getRankText(
+export function getRankText(
   metric: LeaderboardMetric,
   rank: LeaderboardPlayerMetricRank | null,
   overallTotalPlayers: number | null,
@@ -447,21 +450,23 @@ function getRankText(
   }
 
   const rankText = formatRank(rank.rank);
-  return hasObjectiveSpecificPopulation(metric) && rank.total !== overallTotalPlayers
+  return hasObjectiveSpecificPopulation(metric) && overallTotalPlayers != null && rank.total !== overallTotalPlayers
     ? `${rankText} / ${rank.total.toString()}`
     : rankText;
 }
 
-function buildStatTableRow(
+/**
+ * Computes a metric's raw value for one player alongside the contextual row fields
+ * `formatMetricValue` needs (e.g. series/game win counts, objective games played). Shared by the
+ * single-player stats table and the two-player compare table so both format identically.
+ */
+export function getPlayerStatsMetricValue(
   stats: LeaderboardPlayerStatsRow,
   metric: LeaderboardMetric,
-  rank: LeaderboardPlayerMetricRank | null,
-  overallTotalPlayers: number | null,
-  locale: string,
-): PlayerStatTableRow {
+): { metricValue: number; formatRow: LeaderboardResponse["rows"][number] } {
   const metricValue = getStatsMetricValue(stats, metric);
   const formatRow: LeaderboardResponse["rows"][number] = {
-    rank: rank?.rank ?? 0,
+    rank: 0,
     xboxXuid: stats.XboxXuid,
     discordUserId: stats.DiscordUserId,
     gamertag: stats.Gamertag,
@@ -474,6 +479,18 @@ function buildStatTableRow(
     objectiveTimeSeconds: stats.ObjectiveTimeSeconds,
     metricValue,
   };
+
+  return { metricValue, formatRow };
+}
+
+function buildStatTableRow(
+  stats: LeaderboardPlayerStatsRow,
+  metric: LeaderboardMetric,
+  rank: LeaderboardPlayerMetricRank | null,
+  overallTotalPlayers: number | null,
+  locale: string,
+): PlayerStatTableRow {
+  const { metricValue, formatRow } = getPlayerStatsMetricValue(stats, metric);
 
   return {
     label: getLeaderboardMetricFamilyLabel(getLeaderboardMetricFamily(metric)),
@@ -656,7 +673,7 @@ function getRelationshipRankText(index: number): string {
   return formatRank(index + 1);
 }
 
-function formatPerfects(perfects: number, locale: string): string {
+export function formatPerfects(perfects: number, locale: string): string {
   const pluralCategory = new Intl.PluralRules(locale).select(perfects);
   return `${perfects.toLocaleString(locale)} ${pluralCategory === "one" ? "perfect" : "perfects"}`;
 }

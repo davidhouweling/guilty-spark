@@ -26,7 +26,11 @@ import {
   MessageType,
 } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { LeaderboardMetricAggregation, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import {
+  LeaderboardMetric,
+  LeaderboardMetricAggregation,
+  LeaderboardWindow,
+} from "@guilty-spark/shared/halo/leaderboard";
 import { LeaderboardPlayerRelationshipMetric } from "../../../services/database/types/leaderboard_player_relationship";
 import { StatsCommand } from "../stats";
 import type { Services } from "../../../services/install";
@@ -54,6 +58,10 @@ import {
   PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
   PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
 } from "../../../embeds/stats/player-stats-embed";
+import {
+  PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID,
+  PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
+} from "../../../embeds/stats/player-compare-embed";
 import type { MatchPlayer } from "../../../services/halo/types";
 import {
   DISCORD_SERIES_STATS_RESOLVED_CACHE_TTL_SECONDS,
@@ -146,6 +154,25 @@ const userContextMenuInteractionPlayerStats: APIUserApplicationCommandGuildInter
   data: {
     id: "fake-command-id",
     name: "Player stats",
+    target_id: "target-user-123",
+    type: ApplicationCommandType.User,
+    resolved: { users: {} },
+  },
+};
+
+const userContextMenuInteractionCompareStats: APIUserApplicationCommandGuildInteraction = {
+  ...fakeBaseAPIApplicationCommandInteraction,
+  type: InteractionType.ApplicationCommand,
+  member: Preconditions.checkExists(fakeButtonClickInteraction.member),
+  guild: {
+    features: [],
+    id: "fake-guild-id",
+    locale: Locale.EnglishUS,
+  },
+  guild_id: "fake-guild-id",
+  data: {
+    id: "fake-command-id",
+    name: "Compare stats",
     target_id: "target-user-123",
     type: ApplicationCommandType.User,
     resolved: { users: {} },
@@ -2822,6 +2849,138 @@ describe("StatsCommand", () => {
     });
   });
 
+  describe("execute(): subcommand compare", () => {
+    beforeEach(() => {
+      vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+        name: "compare",
+        mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>([
+          ["player1", "discord-user-1"],
+          ["player2", "discord-user-2"],
+        ]),
+        options: [],
+      });
+    });
+
+    it("returns a clear error when the guild has no configured NeatQueue channels", async () => {
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([]);
+
+      const { jobToComplete } = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          message: "This server has no configured NeatQueue channels. Set one up before using this command.",
+        }),
+      );
+    });
+
+    it("rejects when the same player is selected for both slots", async () => {
+      vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+        name: "compare",
+        mappedOptions: new Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>([
+          ["player1", "discord-user-1"],
+          ["player2", "discord-user-1"],
+        ]),
+        options: [],
+      });
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([aFakeNeatQueueConfigRow()]);
+
+      const { jobToComplete } = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({ message: "Player 1 and Player 2 must be different players." }),
+      );
+    });
+
+    it("errors when either player is not linked to a Halo account", async () => {
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([aFakeNeatQueueConfigRow()]);
+      vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([
+        aFakeDiscordAssociationsRow({ DiscordId: "discord-user-1", XboxId: "xuid-1" }),
+      ]);
+
+      const { jobToComplete } = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({ message: "Both Discord users must be linked to a Halo account." }),
+      );
+    });
+
+    it("returns a private response by default", () => {
+      const response = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+
+      expect(response.response).toEqual({
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data: { flags: MessageFlags.Ephemeral },
+      });
+    });
+
+    it("resolves both players and renders the comparison table", async () => {
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([aFakeNeatQueueConfigRow()]);
+      vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([
+        aFakeDiscordAssociationsRow({ DiscordId: "discord-user-1", XboxId: "xuid-1" }),
+        aFakeDiscordAssociationsRow({ DiscordId: "discord-user-2", XboxId: "xuid-2" }),
+      ]);
+      vi.spyOn(services.leaderboardService, "getLeaderboardPlayerStats").mockImplementation(async ({ xboxXuid }) =>
+        Promise.resolve({
+          stats: aFakeLeaderboardPlayerStatsRow({ XboxXuid: xboxXuid, Gamertag: `gamertag-${xboxXuid}` }),
+          window: LeaderboardWindow.ThreeMonths,
+          resetAt: null,
+          startEpochSeconds: 0,
+          minGamesPlayed: 1,
+          defaultAggregation: LeaderboardMetricAggregation.Total,
+        }),
+      );
+
+      const { jobToComplete } = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+      const response = updateDeferredReplySpy.mock.calls[0]?.[1];
+      const [embed] = response?.embeds ?? [];
+      expect(embed?.title).toBe("gamertag-xuid-1 vs gamertag-xuid-2 - Total");
+    });
+
+    it("shows each player's rank alongside their value", async () => {
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([aFakeNeatQueueConfigRow()]);
+      vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([
+        aFakeDiscordAssociationsRow({ DiscordId: "discord-user-1", XboxId: "xuid-1" }),
+        aFakeDiscordAssociationsRow({ DiscordId: "discord-user-2", XboxId: "xuid-2" }),
+      ]);
+      vi.spyOn(services.leaderboardService, "getLeaderboardPlayerStats").mockImplementation(async ({ xboxXuid }) =>
+        Promise.resolve({
+          stats: aFakeLeaderboardPlayerStatsRow({ XboxXuid: xboxXuid, Gamertag: `gamertag-${xboxXuid}`, Kills: 600 }),
+          window: LeaderboardWindow.ThreeMonths,
+          resetAt: null,
+          startEpochSeconds: 0,
+          minGamesPlayed: 1,
+          defaultAggregation: LeaderboardMetricAggregation.Total,
+        }),
+      );
+      const getRanksSpy = vi
+        .spyOn(services.leaderboardService, "getLeaderboardPlayerMetricRanks")
+        .mockImplementation(async ({ xboxXuid }) =>
+          Promise.resolve(new Map([[LeaderboardMetric.Kills, { rank: xboxXuid === "xuid-1" ? 1 : 4, total: 20 }]])),
+        );
+
+      const { jobToComplete } = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+      await jobToComplete?.();
+
+      expect(getRanksSpy).toHaveBeenCalledTimes(2);
+      const response = updateDeferredReplySpy.mock.calls[0]?.[1];
+      const [embed] = response?.embeds ?? [];
+      const [statField, player1Field, player2Field] = embed?.fields ?? [];
+      const killsIndex = statField?.value.split("\n").indexOf("Kills");
+
+      expect(player1Field?.value.split("\n")[killsIndex ?? -1]).toBe("🥇 | 600");
+      expect(player2Field?.value.split("\n")[killsIndex ?? -1]).toBe("#4 | 600");
+    });
+  });
+
   describe("execute(): Player stats user command", () => {
     it("registers a guild-only user context command", () => {
       const userCommand = statsCommand.commands.find((command) => command.type === ApplicationCommandType.User);
@@ -2855,6 +3014,48 @@ describe("StatsCommand", () => {
       expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
         "fake-token",
         expect.objectContaining({ message: "No games played in the selected window and queue scope." }),
+      );
+    });
+  });
+
+  describe("execute(): Compare stats user command", () => {
+    it("registers a guild-only user context command", () => {
+      const userCommands = statsCommand.commands.filter((command) => command.type === ApplicationCommandType.User);
+
+      expect(userCommands).toContainEqual({
+        type: ApplicationCommandType.User,
+        name: "Compare stats",
+        description: "",
+        contexts: [InteractionContextType.Guild],
+        default_member_permissions: null,
+      });
+    });
+
+    it("compares the invoking user against the right-clicked target", async () => {
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+        aFakeNeatQueueConfigRow({ GuildId: "fake-guild-id" }),
+      ]);
+      const getDiscordAssociationsSpy = vi
+        .spyOn(services.databaseService, "getDiscordAssociations")
+        .mockResolvedValue([
+          aFakeDiscordAssociationsRow({ DiscordId: "discord_user_01", XboxId: "xuid-invoker" }),
+          aFakeDiscordAssociationsRow({ DiscordId: "target-user-123", XboxId: "xuid-target" }),
+        ]);
+      vi.spyOn(services.leaderboardService, "getLeaderboardPlayerStats").mockResolvedValue(null);
+
+      const { response, jobToComplete } = statsCommand.execute(userContextMenuInteractionCompareStats);
+      await jobToComplete?.();
+
+      expect(response).toEqual({
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data: { flags: MessageFlags.Ephemeral },
+      });
+      expect(getDiscordAssociationsSpy).toHaveBeenCalledWith(["discord_user_01", "target-user-123"]);
+      expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+        "fake-token",
+        expect.objectContaining({
+          message: "No games played by one or both players in the selected window and queue scope.",
+        }),
       );
     });
   });
@@ -3101,6 +3302,241 @@ describe("StatsCommand", () => {
           ],
         }),
       );
+    });
+  });
+
+  describe("execute(): message component compare select", () => {
+    it("returns an ephemeral response when a different user selects a compare filter", () => {
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        member: {
+          ...Preconditions.checkExists(fakeButtonClickInteraction.member),
+          user: {
+            ...Preconditions.checkExists(fakeButtonClickInteraction.member?.user),
+            id: "different-discord-user",
+          },
+        },
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
+          values: [LeaderboardWindow.OneMonth],
+        },
+      };
+
+      const response = statsCommand.execute(interaction);
+
+      expect(response).toEqual({
+        response: {
+          type: InteractionResponseType.ChannelMessageWithSource,
+          data: {
+            embeds: [
+              expect.objectContaining({
+                title: "Stats embed locked",
+                description: "Only the person who called the command can use this stats embed.",
+                color: 0xffa500,
+              }),
+            ],
+            flags: MessageFlags.Ephemeral,
+          },
+        },
+      });
+      expect(updateDeferredReplySpy).not.toHaveBeenCalled();
+    });
+
+    it("returns an immediate loading response with disabled controls when the current state can be resolved", () => {
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
+          values: [LeaderboardWindow.OneMonth],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          components: [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID,
+                  options: [{ label: "Total", value: LeaderboardMetricAggregation.Total, default: true }],
+                },
+              ],
+            },
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
+                  options: [{ label: "3 months", value: LeaderboardWindow.ThreeMonths, default: true }],
+                },
+              ],
+            },
+          ],
+          embeds: [
+            { title: "player-one vs player-two - Total", url: "https://guilty-spark.app/stats/compare/xuid-1/xuid-2" },
+          ],
+        },
+      };
+
+      const { response } = statsCommand.execute(interaction);
+
+      expect(response).toEqual({
+        type: InteractionResponseType.UpdateMessage,
+        data: {
+          embeds: [expect.objectContaining({ description: "Updating stats..." })],
+          components: [
+            expect.objectContaining({
+              components: [
+                expect.objectContaining({ custom_id: PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID, disabled: true }),
+              ],
+            }),
+            expect.objectContaining({
+              components: [
+                expect.objectContaining({ custom_id: PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID, disabled: true }),
+              ],
+            }),
+          ],
+        },
+      });
+    });
+
+    it("renders the updated comparison table when the window changes", async () => {
+      vi.spyOn(services.leaderboardService, "getLeaderboardPlayerStats").mockImplementation(async ({ xboxXuid }) =>
+        Promise.resolve({
+          stats: aFakeLeaderboardPlayerStatsRow({ XboxXuid: xboxXuid, Gamertag: `gamertag-${xboxXuid}` }),
+          window: LeaderboardWindow.OneMonth,
+          resetAt: null,
+          startEpochSeconds: 0,
+          minGamesPlayed: 1,
+          defaultAggregation: LeaderboardMetricAggregation.Total,
+        }),
+      );
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
+          values: [LeaderboardWindow.OneMonth],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          components: [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID,
+                  options: [{ label: "Total", value: LeaderboardMetricAggregation.Total, default: true }],
+                },
+              ],
+            },
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
+                  options: [{ label: "3 months", value: LeaderboardWindow.ThreeMonths, default: true }],
+                },
+              ],
+            },
+          ],
+          embeds: [
+            { title: "player-one vs player-two - Total", url: "https://guilty-spark.app/stats/compare/xuid-1/xuid-2" },
+          ],
+        },
+      };
+
+      const { jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+      const response = updateDeferredReplySpy.mock.calls[0]?.[1];
+      const [embed] = response?.embeds ?? [];
+      expect(embed?.title).toBe("gamertag-xuid-1 vs gamertag-xuid-2 - Total");
+    });
+
+    it("renders the head-to-head page when the type select switches to head to head", async () => {
+      vi.spyOn(services.leaderboardService, "getLeaderboardPlayerStats").mockImplementation(async ({ xboxXuid }) =>
+        Promise.resolve({
+          stats: aFakeLeaderboardPlayerStatsRow({ XboxXuid: xboxXuid, Gamertag: `gamertag-${xboxXuid}` }),
+          window: LeaderboardWindow.ThreeMonths,
+          resetAt: null,
+          startEpochSeconds: 0,
+          minGamesPlayed: 1,
+          defaultAggregation: LeaderboardMetricAggregation.Total,
+        }),
+      );
+      const getPairRelationshipSpy = vi
+        .spyOn(services.databaseService, "getLeaderboardPlayerPairRelationship")
+        .mockResolvedValue({
+          SeriesPlayedWith: 1,
+          Player1SeriesWinsWith: 1,
+          SeriesPlayedAgainst: 2,
+          Player1SeriesWinsAgainst: 1,
+          Player2SeriesWinsAgainst: 1,
+          GamesPlayedWith: 2,
+          Player1GameWinsWith: 2,
+          GamesPlayedAgainst: 4,
+          Player1GameWinsAgainst: 2,
+          Player2GameWinsAgainst: 2,
+          HeadToHeadGamesPlayed: 4,
+          Player1Kills: 10,
+          Player1Perfects: 0,
+          Player2Kills: 8,
+          Player2Perfects: 1,
+        });
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID,
+          values: ["head-to-head"],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          components: [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID,
+                  options: [{ label: "Total", value: LeaderboardMetricAggregation.Total, default: true }],
+                },
+              ],
+            },
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
+                  options: [{ label: "3 months", value: LeaderboardWindow.ThreeMonths, default: true }],
+                },
+              ],
+            },
+          ],
+          embeds: [
+            { title: "player-one vs player-two - Total", url: "https://guilty-spark.app/stats/compare/xuid-1/xuid-2" },
+          ],
+        },
+      };
+
+      const { jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+      expect(getPairRelationshipSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ xboxXuid1: "xuid-1", xboxXuid2: "xuid-2" }),
+      );
+      const response = updateDeferredReplySpy.mock.calls[0]?.[1];
+      const [embed] = response?.embeds ?? [];
+      expect(embed?.title).toBe("gamertag-xuid-1 vs gamertag-xuid-2 - Head to head");
     });
   });
 });

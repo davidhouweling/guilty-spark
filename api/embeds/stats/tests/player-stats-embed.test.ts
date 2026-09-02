@@ -173,4 +173,30 @@ describe("createPlayerStatsEmbeds()", () => {
       expect(rowValues.join("\n")).toContain("#5 / 12");
     },
   );
+
+  it("omits the metric-specific rank population suffix when overall population is unknown", () => {
+    const stats = aFakeLeaderboardPlayerStatsRow({});
+    const ranks = new Map([[LeaderboardMetric.ObjectiveTime, { rank: 5, total: 12 }]]);
+
+    const response = createPlayerStatsEmbeds({
+      stats,
+      ranks,
+      state: {
+        aggregation: LeaderboardMetricAggregation.Total,
+        relationshipMetric: null,
+        xboxXuid: "2533274000000001",
+        queueChannelId: null,
+        window: LeaderboardWindow.ThreeMonths,
+      },
+      locale: "en-US",
+      queueLabel: "all configured queues",
+      queueOptions: [],
+      resetAt: null,
+      minGamesPlayed: 1,
+    });
+
+    const rowValues = response.embeds.flatMap((embed) => embed.fields ?? []).flatMap((field) => field.value);
+    expect(rowValues.join("\n")).toContain("#5");
+    expect(rowValues.join("\n")).not.toContain("#5 / 12");
+  });
 });

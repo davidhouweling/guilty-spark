@@ -33,6 +33,7 @@ import type { LeaderboardResetMarkerRow } from "./types/leaderboard_reset_marker
 import type { MatchKillMatrixRow } from "./types/match_kill_matrix";
 import { LeaderboardPlayerRelationshipMetric } from "./types/leaderboard_player_relationship";
 import type { LeaderboardPlayerRelationshipRow } from "./types/leaderboard_player_relationship";
+import type { LeaderboardPlayerPairRelationshipRow } from "./types/leaderboard_player_pair_relationship";
 
 const DEFAULT_LEADERBOARD_ENABLED_WINDOWS_JSON = '["1W","1M","3M","6M","12M"]';
 const SQLITE_MAX_VARIABLES = 999;
@@ -504,6 +505,149 @@ function getGameRelationshipAggregateSql({
       startEpochSeconds,
       ...queueFilterBindings,
     ],
+  };
+}
+
+function getPairSeriesRelationshipAggregateSql({
+  guildId,
+  xboxXuid1,
+  xboxXuid2,
+  queueChannelId,
+  queueChannelIds,
+  startEpochSeconds,
+}: {
+  guildId: string;
+  xboxXuid1: string;
+  xboxXuid2: string;
+  queueChannelId: string | null;
+  queueChannelIds: string[] | undefined;
+  startEpochSeconds: number;
+}): { sql: string; bindings: readonly (string | number | null)[] } {
+  const queueFilterSql = getQueueFilterSql("player", queueChannelIds);
+  const queueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
+
+  return {
+    sql: `
+      SELECT
+        SUM(CASE WHEN related.TeamId = player.TeamId THEN 1 ELSE 0 END) AS SeriesPlayedWith,
+        SUM(CASE WHEN related.TeamId = player.TeamId THEN player.SeriesWon ELSE 0 END) AS Player1SeriesWinsWith,
+        SUM(CASE WHEN related.TeamId != player.TeamId THEN 1 ELSE 0 END) AS SeriesPlayedAgainst,
+        SUM(CASE WHEN related.TeamId != player.TeamId THEN player.SeriesWon ELSE 0 END) AS Player1SeriesWinsAgainst,
+        SUM(CASE WHEN related.TeamId != player.TeamId THEN related.SeriesWon ELSE 0 END) AS Player2SeriesWinsAgainst
+      FROM LeaderboardSeriesPlayers player
+      INNER JOIN LeaderboardSeries series
+        ON series.GuildId = player.GuildId
+        AND series.QueueNumber = player.QueueNumber
+      INNER JOIN LeaderboardSeriesPlayers related
+        ON related.GuildId = player.GuildId
+        AND related.QueueNumber = player.QueueNumber
+        AND related.XboxXuid = ?
+      WHERE player.GuildId = ?
+        AND player.XboxXuid = ?
+        AND series.CompletedAt >= ?
+        AND ${queueFilterSql}
+    `,
+    bindings: [xboxXuid2, guildId, xboxXuid1, startEpochSeconds, ...queueFilterBindings],
+  };
+}
+
+function getPairGameRelationshipAggregateSql({
+  guildId,
+  xboxXuid1,
+  xboxXuid2,
+  queueChannelId,
+  queueChannelIds,
+  startEpochSeconds,
+}: {
+  guildId: string;
+  xboxXuid1: string;
+  xboxXuid2: string;
+  queueChannelId: string | null;
+  queueChannelIds: string[] | undefined;
+  startEpochSeconds: number;
+}): { sql: string; bindings: readonly (string | number | null)[] } {
+  const queueFilterSql = getQueueFilterSql("player", queueChannelIds);
+  const queueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
+
+  return {
+    sql: `
+      SELECT
+        SUM(CASE WHEN related.TeamId = player.TeamId THEN 1 ELSE 0 END) AS GamesPlayedWith,
+        SUM(CASE WHEN related.TeamId = player.TeamId THEN player.GameWon ELSE 0 END) AS Player1GameWinsWith,
+        SUM(CASE WHEN related.TeamId != player.TeamId THEN 1 ELSE 0 END) AS GamesPlayedAgainst,
+        SUM(CASE WHEN related.TeamId != player.TeamId THEN player.GameWon ELSE 0 END) AS Player1GameWinsAgainst,
+        SUM(CASE WHEN related.TeamId != player.TeamId THEN related.GameWon ELSE 0 END) AS Player2GameWinsAgainst
+      FROM LeaderboardGamePlayers player
+      INNER JOIN LeaderboardGames game
+        ON game.GuildId = player.GuildId
+        AND game.QueueNumber = player.QueueNumber
+        AND game.MatchId = player.MatchId
+      INNER JOIN LeaderboardGamePlayers related
+        ON related.GuildId = player.GuildId
+        AND related.QueueNumber = player.QueueNumber
+        AND related.MatchId = player.MatchId
+        AND related.XboxXuid = ?
+      WHERE player.GuildId = ?
+        AND player.XboxXuid = ?
+        AND game.EndedAt >= ?
+        AND ${queueFilterSql}
+    `,
+    bindings: [xboxXuid2, guildId, xboxXuid1, startEpochSeconds, ...queueFilterBindings],
+  };
+}
+
+function getPairHeadToHeadAggregateSql({
+  guildId,
+  xboxXuid1,
+  xboxXuid2,
+  queueChannelId,
+  queueChannelIds,
+  startEpochSeconds,
+}: {
+  guildId: string;
+  xboxXuid1: string;
+  xboxXuid2: string;
+  queueChannelId: string | null;
+  queueChannelIds: string[] | undefined;
+  startEpochSeconds: number;
+}): { sql: string; bindings: readonly (string | number | null)[] } {
+  const queueFilterSql = getQueueFilterSql("player", queueChannelIds);
+  const queueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
+
+  return {
+    sql: `
+      SELECT
+        COUNT(*) AS HeadToHeadGamesPlayed,
+        COALESCE(SUM(player1Kills.Count), 0) AS Player1Kills,
+        COALESCE(SUM(player1Kills.Perfects), 0) AS Player1Perfects,
+        COALESCE(SUM(player2Kills.Count), 0) AS Player2Kills,
+        COALESCE(SUM(player2Kills.Perfects), 0) AS Player2Perfects
+      FROM LeaderboardGamePlayers player
+      INNER JOIN LeaderboardGames game
+        ON game.GuildId = player.GuildId
+        AND game.QueueNumber = player.QueueNumber
+        AND game.MatchId = player.MatchId
+      INNER JOIN LeaderboardGamePlayers related
+        ON related.GuildId = player.GuildId
+        AND related.QueueNumber = player.QueueNumber
+        AND related.MatchId = player.MatchId
+        AND related.XboxXuid = ?
+        AND related.TeamId != player.TeamId
+      LEFT JOIN MatchKillMatrix player1Kills
+        ON player1Kills.MatchId = game.MatchId
+        AND player1Kills.KillerXuid = player.XboxXuid
+        AND player1Kills.VictimXuid = related.XboxXuid
+      LEFT JOIN MatchKillMatrix player2Kills
+        ON player2Kills.MatchId = game.MatchId
+        AND player2Kills.KillerXuid = related.XboxXuid
+        AND player2Kills.VictimXuid = player.XboxXuid
+      WHERE player.GuildId = ?
+        AND player.XboxXuid = ?
+        AND game.EndedAt >= ?
+        AND ${queueFilterSql}
+        AND EXISTS (SELECT 1 FROM MatchKillMatrix matrixStatus WHERE matrixStatus.MatchId = game.MatchId)
+    `,
+    bindings: [xboxXuid2, guildId, xboxXuid1, startEpochSeconds, ...queueFilterBindings],
   };
 }
 
@@ -2113,6 +2257,101 @@ export class DatabaseService {
       .bind(...aggregate.bindings, minimumSharedCount)
       .all<LeaderboardPlayerRelationshipRow>();
     return response.results;
+  }
+
+  async getLeaderboardPlayerPairRelationship({
+    guildId,
+    xboxXuid1,
+    xboxXuid2,
+    queueChannelId,
+    queueChannelIds,
+    startEpochSeconds,
+  }: {
+    guildId: string;
+    xboxXuid1: string;
+    xboxXuid2: string;
+    queueChannelId: string | null;
+    queueChannelIds?: string[];
+    startEpochSeconds: number;
+  }): Promise<LeaderboardPlayerPairRelationshipRow> {
+    const emptyRow: LeaderboardPlayerPairRelationshipRow = {
+      SeriesPlayedWith: 0,
+      Player1SeriesWinsWith: 0,
+      SeriesPlayedAgainst: 0,
+      Player1SeriesWinsAgainst: 0,
+      Player2SeriesWinsAgainst: 0,
+      GamesPlayedWith: 0,
+      Player1GameWinsWith: 0,
+      GamesPlayedAgainst: 0,
+      Player1GameWinsAgainst: 0,
+      Player2GameWinsAgainst: 0,
+      HeadToHeadGamesPlayed: 0,
+      Player1Kills: 0,
+      Player1Perfects: 0,
+      Player2Kills: 0,
+      Player2Perfects: 0,
+    };
+    if (queueChannelIds?.length === 0) {
+      return emptyRow;
+    }
+
+    const params = { guildId, xboxXuid1, xboxXuid2, queueChannelId, queueChannelIds, startEpochSeconds };
+    const seriesAggregate = getPairSeriesRelationshipAggregateSql(params);
+    const gameAggregate = getPairGameRelationshipAggregateSql(params);
+    const headToHeadAggregate = getPairHeadToHeadAggregateSql(params);
+
+    const [seriesRow, gameRow, headToHeadRow] = await Promise.all([
+      this.DB.prepare(seriesAggregate.sql)
+        .bind(...seriesAggregate.bindings)
+        .first<
+          Pick<
+            LeaderboardPlayerPairRelationshipRow,
+            | "SeriesPlayedWith"
+            | "Player1SeriesWinsWith"
+            | "SeriesPlayedAgainst"
+            | "Player1SeriesWinsAgainst"
+            | "Player2SeriesWinsAgainst"
+          >
+        >(),
+      this.DB.prepare(gameAggregate.sql)
+        .bind(...gameAggregate.bindings)
+        .first<
+          Pick<
+            LeaderboardPlayerPairRelationshipRow,
+            | "GamesPlayedWith"
+            | "Player1GameWinsWith"
+            | "GamesPlayedAgainst"
+            | "Player1GameWinsAgainst"
+            | "Player2GameWinsAgainst"
+          >
+        >(),
+      this.DB.prepare(headToHeadAggregate.sql)
+        .bind(...headToHeadAggregate.bindings)
+        .first<
+          Pick<
+            LeaderboardPlayerPairRelationshipRow,
+            "HeadToHeadGamesPlayed" | "Player1Kills" | "Player1Perfects" | "Player2Kills" | "Player2Perfects"
+          >
+        >(),
+    ]);
+
+    return {
+      SeriesPlayedWith: seriesRow?.SeriesPlayedWith ?? 0,
+      Player1SeriesWinsWith: seriesRow?.Player1SeriesWinsWith ?? 0,
+      SeriesPlayedAgainst: seriesRow?.SeriesPlayedAgainst ?? 0,
+      Player1SeriesWinsAgainst: seriesRow?.Player1SeriesWinsAgainst ?? 0,
+      Player2SeriesWinsAgainst: seriesRow?.Player2SeriesWinsAgainst ?? 0,
+      GamesPlayedWith: gameRow?.GamesPlayedWith ?? 0,
+      Player1GameWinsWith: gameRow?.Player1GameWinsWith ?? 0,
+      GamesPlayedAgainst: gameRow?.GamesPlayedAgainst ?? 0,
+      Player1GameWinsAgainst: gameRow?.Player1GameWinsAgainst ?? 0,
+      Player2GameWinsAgainst: gameRow?.Player2GameWinsAgainst ?? 0,
+      HeadToHeadGamesPlayed: headToHeadRow?.HeadToHeadGamesPlayed ?? 0,
+      Player1Kills: headToHeadRow?.Player1Kills ?? 0,
+      Player1Perfects: headToHeadRow?.Player1Perfects ?? 0,
+      Player2Kills: headToHeadRow?.Player2Kills ?? 0,
+      Player2Perfects: headToHeadRow?.Player2Perfects ?? 0,
+    };
   }
 
   private buildStatMetricRankAggregate({

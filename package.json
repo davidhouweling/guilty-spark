@@ -42,6 +42,7 @@
     "format:fix": "prettier . --write",
     "lint": "npm run lint:ts && npm run stylelint:pages",
     "lint:fix": "npm run lint:ts:fix && npm run stylelint:pages:fix",
+    "lint:changed:fix": "npm run lint:ts:changed:fix && npm run stylelint:pages:fix",
     "lint:ts": "node --max-old-space-size=4096 ./node_modules/eslint/bin/eslint.js .",
     "lint:ts:fix": "node --max-old-space-size=4096 ./node_modules/eslint/bin/eslint.js . --fix",
     "lint:ts:changed:fix": "node --max-old-space-size=4096 ./node_modules/eslint/bin/eslint.js --no-error-on-unmatched-pattern --no-warn-ignored --fix $(git diff --name-only main... | while IFS= read -r file; do [ -e \"$file\" ] && printf '%s\\n' \"$file\"; done) $(git diff --name-only HEAD | while IFS= read -r file; do [ -e \"$file\" ] && printf '%s\\n' \"$file\"; done)",
