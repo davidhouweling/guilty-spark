@@ -217,6 +217,6 @@ export const AppEmojis = new Map<string, string>([
   ["GameCoachGG", "1410461403663568926"],
 ]);
 
-// Animated application emoji for stats loading skeletons. Upload via the Discord Developer
-// Portal (Application > Emojis) and replace with the resulting snowflake ID.
-export const LOADING_EMOJI_ID = "REPLACE_WITH_UPLOADED_EMOJI_ID";
+// Animated application emoji for stats loading skeletons, uploaded via the Discord Developer
+// Portal (Application > Emojis).
+export const LOADING_EMOJI_ID = "1544574719183814676";
