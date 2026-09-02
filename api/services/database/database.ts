@@ -2229,14 +2229,9 @@ export class DatabaseService {
   }
 
   /**
-   * Returns where a single player ranks for one leaderboard metric, using the same population and
-   * tie-break rules as the real leaderboard ranking queries. Returns null when the player does not
-   * meet that metric's eligibility threshold (mirrors real leaderboard visibility).
-   */
-  /**
-   * Ranks every requested metric for one player from a single population scan per underlying data
-   * source (game facts vs. series/outcome facts) instead of one full scan per metric — see
-   * getStatMetricRankSqlParts()/queryStatMetricRanks()/queryOutcomeMetricRanks() for why.
+   * Returns ranks for every requested metric using the same population and tie-break rules as the
+   * corresponding leaderboard queries. A metric maps to null when the player does not meet that
+   * metric's eligibility threshold; otherwise it maps to its rank and eligible-player total.
    */
   async getLeaderboardPlayerMetricRanks({
     guildId,
@@ -2422,11 +2417,8 @@ export class DatabaseService {
    * Ranks every requested stat metric (game-fact based, e.g. Kills, DamageDealt, objective metrics)
    * against one shared population scan: the underlying join/GROUP BY runs once regardless of how
    * many metrics are requested, with each metric contributing its own value/eligibility columns that
-   * independent window functions then rank. Previously this ran the full scan (including a per-row
-   * correlated identity subquery) once per metric, which measured ~500ms/234k rows read per metric
-   * against production for a single mid-size queue — the dominant cost of /stats player and /stats
-   * compare. Gamertag is intentionally not resolved here: callers already have it from
-   * getLeaderboardPlayerStats, and re-deriving it per player group was ~60% of that per-metric cost.
+   * independent window functions then rank. The identity CTE keeps the leaderboard's Gamertag
+   * tie-break without repeating a correlated lookup for each aggregated player.
    */
   private async queryStatMetricRanks({
     guildId,
@@ -2462,14 +2454,36 @@ export class DatabaseService {
         return `
         CASE WHEN ${eligibleSql} THEN ROW_NUMBER() OVER (
           PARTITION BY ${eligibleSql}
-          ORDER BY agg.Value_${part.metric} ${part.sortDirection}, agg.GamesPlayed DESC, agg.XboxXuid ASC
+          ORDER BY agg.Value_${part.metric} ${part.sortDirection}, agg.GamesPlayed DESC, agg.Gamertag ASC, agg.XboxXuid ASC
         ) ELSE NULL END AS Rank_${part.metric},
         SUM(${eligibleSql}) OVER () AS Total_${part.metric}`;
       })
       .join(",\n        ");
 
     const query = `
-      WITH agg AS (
+      WITH identityRanked AS (
+        SELECT
+          gp.XboxXuid AS XboxXuid,
+          gp.GamertagSnapshot AS Gamertag,
+          ROW_NUMBER() OVER (
+            PARTITION BY gp.XboxXuid
+            ORDER BY g.EndedAt DESC, gp.CreatedAt DESC
+          ) AS RowNumber
+        FROM LeaderboardGamePlayers gp
+        INNER JOIN LeaderboardGames g
+          ON g.GuildId = gp.GuildId
+          AND g.QueueNumber = gp.QueueNumber
+          AND g.MatchId = gp.MatchId
+        WHERE gp.GuildId = ?
+          AND g.EndedAt >= ?
+          AND ${queueFilterSql}
+      ),
+      identity AS (
+        SELECT XboxXuid, Gamertag
+        FROM identityRanked
+        WHERE RowNumber = 1
+      ),
+      agg AS (
         SELECT
           gp.XboxXuid AS XboxXuid,
           COUNT(*) AS GamesPlayed,
@@ -2487,6 +2501,8 @@ export class DatabaseService {
       ranked AS (
         SELECT agg.XboxXuid, ${rankColumns}
         FROM agg
+        LEFT JOIN identity
+          ON identity.XboxXuid = agg.XboxXuid
       )
       SELECT * FROM ranked WHERE XboxXuid = ?
     `;
@@ -2494,16 +2510,25 @@ export class DatabaseService {
     // Each metric's eligibility CASE expression is repeated three times in rankColumns (the outer
     // CASE, PARTITION BY, and SUM), so its bound minGamesPlayed value must repeat three times too.
     const rankBindings = parts.flatMap((part) => [part.minGamesPlayed, part.minGamesPlayed, part.minGamesPlayed]);
-    const bindings = [guildId, startEpochSeconds, ...queueFilterBindings, ...rankBindings, xboxXuid];
+    const bindings = [
+      guildId,
+      startEpochSeconds,
+      ...queueFilterBindings,
+      guildId,
+      startEpochSeconds,
+      ...queueFilterBindings,
+      ...rankBindings,
+      xboxXuid,
+    ];
     const row = await this.DB.prepare(query)
       .bind(...bindings)
-      .first<Record<string, number | null>>();
+      .first<Record<string, number | string | null>>();
 
     return new Map(
       parts.map((part) => {
         const rank = row?.[`Rank_${part.metric}`] ?? null;
         const total = row?.[`Total_${part.metric}`] ?? null;
-        return [part.metric, rank == null || total == null ? null : { rank, total }];
+        return [part.metric, typeof rank !== "number" || typeof total !== "number" ? null : { rank, total }];
       }),
     );
   }
@@ -2554,14 +2579,36 @@ export class DatabaseService {
         return `
         CASE WHEN ${eligibleSql} THEN ROW_NUMBER() OVER (
           PARTITION BY ${eligibleSql}
-          ORDER BY agg.Value_${part.metric} DESC, agg.GamesPlayed DESC, agg.XboxXuid ASC
+          ORDER BY agg.Value_${part.metric} DESC, agg.GamesPlayed DESC, agg.Gamertag ASC, agg.XboxXuid ASC
         ) ELSE NULL END AS Rank_${part.metric},
         SUM(${eligibleSql}) OVER () AS Total_${part.metric}`;
       })
       .join(",\n        ");
 
     const query = `
-      WITH agg AS (
+      WITH identityRanked AS (
+        SELECT
+          gp.XboxXuid AS XboxXuid,
+          gp.GamertagSnapshot AS Gamertag,
+          ROW_NUMBER() OVER (
+            PARTITION BY gp.XboxXuid
+            ORDER BY g.EndedAt DESC, gp.CreatedAt DESC
+          ) AS RowNumber
+        FROM LeaderboardGamePlayers gp
+        INNER JOIN LeaderboardGames g
+          ON g.GuildId = gp.GuildId
+          AND g.QueueNumber = gp.QueueNumber
+          AND g.MatchId = gp.MatchId
+        WHERE gp.GuildId = ?
+          AND g.EndedAt >= ?
+          AND ${gamesQueueFilterSql}
+      ),
+      identity AS (
+        SELECT XboxXuid, Gamertag
+        FROM identityRanked
+        WHERE RowNumber = 1
+      ),
+      agg AS (
         SELECT
           sp.XboxXuid AS XboxXuid,
           SUM(sp.GamesPlayedCount) AS GamesPlayed,
@@ -2588,6 +2635,8 @@ export class DatabaseService {
       ranked AS (
         SELECT agg.XboxXuid, ${rankColumns}
         FROM agg
+        LEFT JOIN identity
+          ON identity.XboxXuid = agg.XboxXuid
       )
       SELECT * FROM ranked WHERE XboxXuid = ?
     `;
@@ -2599,19 +2648,22 @@ export class DatabaseService {
       ...gamesQueueFilterBindings,
       guildId,
       startEpochSeconds,
+      ...gamesQueueFilterBindings,
+      guildId,
+      startEpochSeconds,
       ...seriesQueueFilterBindings,
       ...rankBindings,
       xboxXuid,
     ];
     const row = await this.DB.prepare(query)
       .bind(...bindings)
-      .first<Record<string, number | null>>();
+      .first<Record<string, number | string | null>>();
 
     return new Map(
       valueSqlByMetric.map((part) => {
         const rank = row?.[`Rank_${part.metric}`] ?? null;
         const total = row?.[`Total_${part.metric}`] ?? null;
-        return [part.metric, rank == null || total == null ? null : { rank, total }];
+        return [part.metric, typeof rank !== "number" || typeof total !== "number" ? null : { rank, total }];
       }),
     );
   }

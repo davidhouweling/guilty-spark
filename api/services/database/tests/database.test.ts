@@ -1652,7 +1652,7 @@ describe("Database Service", () => {
         },
       );
 
-      it("does not resolve gamertag inside the rank query, since callers already have it", async () => {
+      it("uses the leaderboard Gamertag tie-break without correlated identity lookups", async () => {
         const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
         vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
@@ -1668,7 +1668,10 @@ describe("Database Service", () => {
         });
 
         for (const call of prepareSpy.mock.calls) {
-          expect(call[0]).not.toContain("GamertagSnapshot");
+          expect(call[0]).toContain("gp.GamertagSnapshot AS Gamertag");
+          expect(call[0]).toContain("ORDER BY g.EndedAt DESC, gp.CreatedAt DESC");
+          expect(call[0]).toContain("agg.GamesPlayed DESC, agg.Gamertag ASC, agg.XboxXuid ASC");
+          expect(call[0]).not.toContain("WHERE identityGp.GuildId =");
         }
       });
 
