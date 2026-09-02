@@ -103,12 +103,14 @@ function getLatestIdentityJoinSql({
   identityTableName,
   timeColumn,
   joinClause,
+  relatedAlias,
   queueChannelIds,
 }: {
   relatedTableName: "LeaderboardSeriesPlayers" | "LeaderboardGamePlayers";
   identityTableName: "LeaderboardSeries" | "LeaderboardGames";
   timeColumn: "CompletedAt" | "EndedAt";
-  joinClause: string;
+  joinClause: "" | "AND identityTable.MatchId = relatedIdentity.MatchId";
+  relatedAlias: "related";
   queueChannelIds: string[] | undefined;
 }): string {
   return `
@@ -135,8 +137,8 @@ function getLatestIdentityJoinSql({
       )
       WHERE IdentityRowNumber = 1
     ) latestIdentity
-      ON latestIdentity.GuildId = related.GuildId
-      AND latestIdentity.XboxXuid = related.XboxXuid
+      ON latestIdentity.GuildId = ${relatedAlias}.GuildId
+      AND latestIdentity.XboxXuid = ${relatedAlias}.XboxXuid
   `;
 }
 
@@ -428,6 +430,7 @@ function getHeadToHeadRelationshipAggregateSql({
         identityTableName: "LeaderboardGames",
         timeColumn: "EndedAt",
         joinClause: "AND identityTable.MatchId = relatedIdentity.MatchId",
+        relatedAlias: "related",
         queueChannelIds,
       })}
       LEFT JOIN MatchKillMatrix matrix
@@ -499,6 +502,7 @@ function getSeriesRelationshipAggregateSql({
         identityTableName: "LeaderboardSeries",
         timeColumn: "CompletedAt",
         joinClause: "",
+        relatedAlias: "related",
         queueChannelIds,
       })}
       WHERE player.GuildId = ?
@@ -567,6 +571,7 @@ function getGameRelationshipAggregateSql({
         identityTableName: "LeaderboardGames",
         timeColumn: "EndedAt",
         joinClause: "AND identityTable.MatchId = relatedIdentity.MatchId",
+        relatedAlias: "related",
         queueChannelIds,
       })}
       WHERE player.GuildId = ?
