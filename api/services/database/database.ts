@@ -39,6 +39,7 @@ const DEFAULT_LEADERBOARD_ENABLED_WINDOWS_JSON = '["1W","1M","3M","6M","12M"]';
 const SQLITE_MAX_VARIABLES = 999;
 // D1 accepts at most 100 bound parameters per statement, so batch upserts must chunk below this cap.
 const D1_SAFE_MAX_VARIABLES_PER_STATEMENT = 100;
+const MAX_RANK_METRICS_PER_QUERY = 4;
 
 type StoredGuildConfigRow = Omit<GuildConfigRow, "NeatQueueInformerMapsPlaylist"> & {
   NeatQueueInformerMapsPlaylist: GuildConfigRow["NeatQueueInformerMapsPlaylist"] | "L";
@@ -2436,10 +2437,10 @@ export class DatabaseService {
 
   /**
    * Ranks every requested stat metric (game-fact based, e.g. Kills, DamageDealt, objective metrics)
-   * against one shared population scan: the underlying join/GROUP BY runs once regardless of how
-   * many metrics are requested, with each metric contributing its own value/eligibility columns that
-   * independent window functions then rank. The identity CTE keeps the leaderboard's Gamertag
-   * tie-break without repeating a correlated lookup for each aggregated player.
+    * against bounded shared population scans. Each batch runs the underlying join/GROUP BY once,
+    * avoiding per-metric queries while keeping D1's generated expression tree below its maximum
+    * depth. The identity CTE keeps the leaderboard's Gamertag tie-break without repeating a
+    * correlated lookup for each aggregated player.
    */
   private async queryStatMetricRanks({
     guildId,
@@ -2461,6 +2462,53 @@ export class DatabaseService {
     if (metrics.length === 0) {
       return new Map();
     }
+
+    const batches: LeaderboardMetric[][] = [];
+    for (let start = 0; start < metrics.length; start += MAX_RANK_METRICS_PER_QUERY) {
+      batches.push(metrics.slice(start, start + MAX_RANK_METRICS_PER_QUERY));
+    }
+
+    const batchResults = await Promise.all(
+      batches.map(async (batch) => {
+        const batchRanks = await this.queryStatMetricRanksBatch({
+          guildId,
+          queueChannelId,
+          ...(queueChannelIds == null ? {} : { queueChannelIds }),
+          startEpochSeconds,
+          minGamesPlayed,
+          metrics: batch,
+          xboxXuid,
+        });
+        return batchRanks;
+      }),
+    );
+    const ranks = new Map<LeaderboardMetric, LeaderboardPlayerMetricRank | null>();
+    for (const batchRanks of batchResults) {
+      for (const [metric, rank] of batchRanks) {
+        ranks.set(metric, rank);
+      }
+    }
+
+    return ranks;
+  }
+
+  private async queryStatMetricRanksBatch({
+    guildId,
+    queueChannelId,
+    queueChannelIds,
+    startEpochSeconds,
+    minGamesPlayed,
+    metrics,
+    xboxXuid,
+  }: {
+    guildId: string;
+    queueChannelId: string | null;
+    queueChannelIds?: string[];
+    startEpochSeconds: number;
+    minGamesPlayed: number;
+    metrics: readonly LeaderboardMetric[];
+    xboxXuid: string;
+  }): Promise<Map<LeaderboardMetric, LeaderboardPlayerMetricRank | null>> {
 
     const parts = metrics.map((metric) => getStatMetricRankSqlParts(metric, minGamesPlayed));
     const queueFilterSql = getQueueFilterSql("gp", queueChannelIds);

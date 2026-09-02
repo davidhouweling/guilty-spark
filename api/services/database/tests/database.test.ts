@@ -1592,6 +1592,25 @@ describe("Database Service", () => {
         expect(prepareSpy).toHaveBeenCalledTimes(2);
       });
 
+      it("splits a large stat metric aggregation into bounded query batches", async () => {
+        const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+        vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+        vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+        const metrics = getPlayerStatsMetricsForAggregation(LeaderboardMetricAggregation.AvgPerObjective);
+
+        await databaseService.getLeaderboardPlayerMetricRanks({
+          guildId: "guild-1",
+          queueChannelId: null,
+          startEpochSeconds: 0,
+          minGamesPlayed: 1,
+          metrics,
+          xboxXuid: "2533274000000001",
+        });
+
+        expect(prepareSpy).toHaveBeenCalledTimes(Math.ceil(metrics.length / 4));
+      });
+
       it("skips the outcome-metric query entirely when only stat metrics are requested", async () => {
         const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
