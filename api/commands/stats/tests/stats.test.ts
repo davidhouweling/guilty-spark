@@ -3223,7 +3223,7 @@ describe("StatsCommand", () => {
       expect(response.response.type).toBe(InteractionResponseType.DeferredMessageUpdate);
     });
 
-    it("returns an immediate loading response with disabled controls when the current state can be resolved", () => {
+    it("defers the acknowledgement and renders the loading state before the resolved stats", async () => {
       const interaction: APIMessageComponentSelectMenuInteraction = {
         ...fakeButtonClickInteraction,
         data: {
@@ -3259,30 +3259,29 @@ describe("StatsCommand", () => {
         },
       };
 
-      const { response } = statsCommand.execute(interaction);
+      const { response, jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
 
-      expect(response).toEqual({
-        type: InteractionResponseType.UpdateMessage,
-        data: {
-          embeds: [
-            expect.objectContaining({
-              title: "gamertag01 - Total",
-              description: "Updating stats...",
-            }),
-          ],
-          components: [
-            expect.objectContaining({
-              components: [
-                expect.objectContaining({ custom_id: PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID, disabled: true }),
-              ],
-            }),
-            expect.objectContaining({
-              components: [
-                expect.objectContaining({ custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID, disabled: true }),
-              ],
-            }),
-          ],
-        },
+      expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
+      expect(updateDeferredReplySpy.mock.calls[0]?.[1]).toEqual({
+        embeds: [
+          expect.objectContaining({
+            title: "gamertag01 - Total",
+            description: "Updating stats...",
+          }),
+        ],
+        components: [
+          expect.objectContaining({
+            components: [
+              expect.objectContaining({ custom_id: PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID, disabled: false }),
+            ],
+          }),
+          expect.objectContaining({
+            components: [
+              expect.objectContaining({ custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID, disabled: false }),
+            ],
+          }),
+        ],
       });
     });
 
@@ -3344,7 +3343,7 @@ describe("StatsCommand", () => {
       await jobToComplete?.();
 
       expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
-      const response = updateDeferredReplySpy.mock.calls[0]?.[1];
+      const response = updateDeferredReplySpy.mock.calls.at(-1)?.[1];
       const [embed] = response?.embeds ?? [];
       expect(embed?.title).toBe("gamertag01 - Highest series win rate with");
       expect(embed?.footer).toEqual({ text: "Min shared series: 3" });
@@ -3450,7 +3449,7 @@ describe("StatsCommand", () => {
       expect(updateDeferredReplySpy).not.toHaveBeenCalled();
     });
 
-    it("returns an immediate loading response with disabled controls when the current state can be resolved", () => {
+    it("defers the acknowledgement and renders the loading state before the resolved stats", async () => {
       const interaction: APIMessageComponentSelectMenuInteraction = {
         ...fakeButtonClickInteraction,
         data: {
@@ -3488,25 +3487,24 @@ describe("StatsCommand", () => {
         },
       };
 
-      const { response } = statsCommand.execute(interaction);
+      const { response, jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
 
-      expect(response).toEqual({
-        type: InteractionResponseType.UpdateMessage,
-        data: {
-          embeds: [expect.objectContaining({ description: "Updating stats..." })],
-          components: [
-            expect.objectContaining({
-              components: [
-                expect.objectContaining({ custom_id: PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID, disabled: true }),
-              ],
-            }),
-            expect.objectContaining({
-              components: [
-                expect.objectContaining({ custom_id: PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID, disabled: true }),
-              ],
-            }),
-          ],
-        },
+      expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
+      expect(updateDeferredReplySpy.mock.calls[0]?.[1]).toEqual({
+        embeds: [expect.objectContaining({ description: "Updating stats..." })],
+        components: [
+          expect.objectContaining({
+            components: [
+              expect.objectContaining({ custom_id: PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID, disabled: false }),
+            ],
+          }),
+          expect.objectContaining({
+            components: [
+              expect.objectContaining({ custom_id: PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID, disabled: false }),
+            ],
+          }),
+        ],
       });
     });
 
@@ -3562,9 +3560,88 @@ describe("StatsCommand", () => {
       await jobToComplete?.();
 
       expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
-      const response = updateDeferredReplySpy.mock.calls[0]?.[1];
+      const response = updateDeferredReplySpy.mock.calls.at(-1)?.[1];
       const [embed] = response?.embeds ?? [];
       expect(embed?.title).toBe("gamertag-xuid-1 vs gamertag-xuid-2 - Total");
+    });
+
+    it("applies the resolved stats after the loading state so the loading embed cannot overwrite them", async () => {
+      vi.spyOn(services.leaderboardService, "getLeaderboardPlayerStats").mockImplementation(async ({ xboxXuid }) =>
+        Promise.resolve({
+          stats: aFakeLeaderboardPlayerStatsRow({ XboxXuid: xboxXuid, Gamertag: `gamertag-${xboxXuid}` }),
+          window: LeaderboardWindow.OneMonth,
+          resetAt: null,
+          startEpochSeconds: 0,
+          minGamesPlayed: 1,
+          defaultAggregation: LeaderboardMetricAggregation.Total,
+        }),
+      );
+      const interaction: APIMessageComponentSelectMenuInteraction = {
+        ...fakeButtonClickInteraction,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
+          values: [LeaderboardWindow.OneMonth],
+        },
+        message: {
+          ...fakeButtonClickInteraction.message,
+          components: [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID,
+                  options: [{ label: "Total", value: LeaderboardMetricAggregation.Total, default: true }],
+                },
+              ],
+            },
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.StringSelect,
+                  custom_id: PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
+                  options: [{ label: "3 months", value: LeaderboardWindow.ThreeMonths, default: true }],
+                },
+              ],
+            },
+          ],
+          embeds: [
+            {
+              title: "player-one vs player-two - Total",
+              url: "https://guilty-spark.app/stats/compare/xuid-1/xuid-2",
+              fields: [
+                { name: "Stat", value: "Kills", inline: true },
+                { name: "player-one", value: "#1 | 600", inline: true },
+                { name: "player-two", value: "#4 | 450", inline: true },
+              ],
+            },
+          ],
+        },
+      };
+
+      const { response, jobToComplete } = statsCommand.execute(interaction);
+      await jobToComplete?.();
+
+      // Responding with UpdateMessage lets Discord apply the loading embed after this job's edit,
+      // stranding the message on "Updating stats..." — the ack must stay deferred.
+      expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
+      const editedDescriptions = updateDeferredReplySpy.mock.calls.map((call) => call[1].embeds?.[0]?.description);
+      expect(editedDescriptions[0]).toBe("Updating stats...");
+      expect(editedDescriptions.at(-1)).not.toBe("Updating stats...");
+
+      // The loading edit shimmers the value columns with the animated emoji while leaving the
+      // "Stat" labels and select controls untouched/enabled, rather than blanking the whole table.
+      const loadingFields = updateDeferredReplySpy.mock.calls[0]?.[1].embeds?.[0]?.fields ?? [];
+      const [statField, player1Field] = loadingFields;
+      expect(statField).toEqual({ name: "Stat", value: "Kills", inline: true });
+      expect(player1Field?.value).toContain("<a:loading:");
+      const loadingComponents = updateDeferredReplySpy.mock.calls[0]?.[1].components ?? [];
+      const [actionRow] = loadingComponents;
+      expect(actionRow?.type === ComponentType.ActionRow && actionRow.components[0]).toMatchObject({
+        disabled: false,
+      });
     });
 
     it("renders the head-to-head page when the type select switches to head to head", async () => {
@@ -3641,7 +3718,7 @@ describe("StatsCommand", () => {
       expect(getPairRelationshipSpy).toHaveBeenCalledWith(
         expect.objectContaining({ xboxXuid1: "xuid-1", xboxXuid2: "xuid-2" }),
       );
-      const response = updateDeferredReplySpy.mock.calls[0]?.[1];
+      const response = updateDeferredReplySpy.mock.calls.at(-1)?.[1];
       const [embed] = response?.embeds ?? [];
       expect(embed?.title).toBe("gamertag-xuid-1 vs gamertag-xuid-2 - Head to head");
     });

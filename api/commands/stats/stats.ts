@@ -5,6 +5,7 @@ import type {
   APIInteractionResponseDeferredChannelMessageWithSource,
   APIMessageComponentButtonInteraction,
   APIMessageComponentSelectMenuInteraction,
+  APIMessageTopLevelComponent,
   APISelectMenuOption,
   APIUserApplicationCommandGuildInteraction,
 } from "discord-api-types/v10";
@@ -748,12 +749,11 @@ export class StatsCommand extends BaseCommand {
   }
 
   /**
-   * Builds the response for a player-stats filter select. When the requested state change can be
-   * resolved synchronously from the current message, the initial acknowledgement swaps in a loading
-   * embed (disabling the controls) so the user sees that their change is being processed — some
-   * relationship views (e.g. head-to-head) can take noticeably longer to compute than the aggregate
-   * pages. If the state can't be resolved up front (e.g. an expired view), falls back to the plain
-   * deferred update and lets the completion job surface the appropriate error.
+   * Builds the response for a player-stats filter select. The acknowledgement is always a deferred
+   * update so this worker stays the only writer to the message: responding with UpdateMessage lets
+   * Discord apply the loading embed after the completion job's edit has already landed, which
+   * permanently strands the message on "Updating stats...". The job therefore edits in order,
+   * showing the loading embed first so slower views (e.g. head-to-head) still report progress.
    */
   private createPlayerStatsSelectResponse(
     interaction: APIMessageComponentSelectMenuInteraction,
@@ -779,14 +779,39 @@ export class StatsCommand extends BaseCommand {
 
     const resolvedState = pendingState;
     return {
-      response: {
-        type: InteractionResponseType.UpdateMessage,
-        data: createPlayerStatsLoadingResponse(interaction.message, resolvedState),
-      },
+      response: { type: InteractionResponseType.DeferredMessageUpdate },
       jobToComplete: async (): Promise<void> => {
+        await this.showLoadingState(
+          interaction,
+          createPlayerStatsLoadingResponse(
+            interaction.message,
+            resolvedState,
+            this.services.discordService.getLoadingEmoji(),
+          ),
+        );
         await this.executePlayerStatsStateInteraction(interaction, () => resolvedState);
       },
     };
+  }
+
+  /**
+   * Progress feedback is best-effort: a failure here must not stop the real update from landing.
+   */
+  private async showLoadingState(
+    interaction: APIMessageComponentSelectMenuInteraction,
+    loadingResponse: { embeds: APIEmbed[]; components: APIMessageTopLevelComponent[] },
+  ): Promise<void> {
+    try {
+      await this.services.discordService.updateDeferredReply(interaction.token, loadingResponse);
+    } catch (error) {
+      this.services.logService.warn(
+        error,
+        new Map([
+          ["customId", interaction.data.custom_id],
+          ["reason", "Failed to render stats loading state"],
+        ]),
+      );
+    }
   }
 
   private tryResolvePlayerStatsPendingState(
@@ -1241,11 +1266,16 @@ export class StatsCommand extends BaseCommand {
 
     const resolvedState = pendingState;
     return {
-      response: {
-        type: InteractionResponseType.UpdateMessage,
-        data: createPlayerCompareLoadingResponse(interaction.message, resolvedState),
-      },
+      response: { type: InteractionResponseType.DeferredMessageUpdate },
       jobToComplete: async (): Promise<void> => {
+        await this.showLoadingState(
+          interaction,
+          createPlayerCompareLoadingResponse(
+            interaction.message,
+            resolvedState,
+            this.services.discordService.getLoadingEmoji(),
+          ),
+        );
         await this.executeCompareStateInteraction(interaction, () => resolvedState);
       },
     };

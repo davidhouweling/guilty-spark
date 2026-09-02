@@ -1144,6 +1144,27 @@ describe("DiscordService", () => {
         }),
       );
     });
+
+    it("logs why the error embed could not be delivered", async () => {
+      mockFetch.mockRejectedValue(new Error("Unknown Message"));
+      const errorSpy = vi.spyOn(logService, "error");
+
+      const result = await discordService.updateDeferredReplyWithError(
+        "fake-interaction-token",
+        new Error("Leaderboard unavailable"),
+        { preserveMessage: apiMessage },
+      );
+
+      expect(result).toBeUndefined();
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Unknown Message" }),
+        new Map([
+          ["reason", "Failed to deliver error embed, leaving the user without feedback"],
+          ["originalError", "Leaderboard unavailable"],
+          ["preservedMessageId", apiMessage.id],
+        ]),
+      );
+    });
   });
 
   describe("updateMessageWithError()", () => {
@@ -1236,6 +1257,29 @@ describe("DiscordService", () => {
       });
 
       expect(errorSpy).not.toHaveBeenCalled();
+    });
+
+    it("logs the target channel and message when the error embed could not be delivered", async () => {
+      mockFetch.mockRejectedValue(new Error("Missing Access"));
+      const errorSpy = vi.spyOn(logService, "error");
+
+      const result = await discordService.updateMessageWithError(
+        "fake-channel",
+        "fake-message",
+        new Error("Leaderboard unavailable"),
+      );
+
+      expect(result).toBeUndefined();
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Missing Access" }),
+        new Map([
+          ["reason", "Failed to deliver error embed, leaving the user without feedback"],
+          ["originalError", "Leaderboard unavailable"],
+          ["preservedMessageId", null],
+          ["channelId", "fake-channel"],
+          ["messageId", "fake-message"],
+        ]),
+      );
     });
   });
 

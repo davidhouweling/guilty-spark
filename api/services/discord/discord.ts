@@ -55,11 +55,11 @@ import type {
 import type { BaseCommand, BaseInteraction } from "../../commands/base/base-command";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations";
 import { AssociationReason } from "../database/types/discord_associations";
-import type { LogService } from "../log/types";
+import type { JsonAny, LogService } from "../log/types";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import { TimeInSeconds } from "../halo/types";
 import { JsonResponse } from "./json-response";
-import { AppEmojis } from "./emoji";
+import { AppEmojis, LOADING_EMOJI_ID } from "./emoji";
 import { DiscordError } from "./discord-error";
 import {
   DISCORD_SERIES_STATS_RESOLVED_CACHE_TTL_SECONDS,
@@ -932,7 +932,8 @@ export class DiscordService {
         embeds: this.getEmbedsForErrorUpdate(preservedMessage, errorEmbed, errorEmbedFooter),
         components: preservedMessage?.components ?? endUserError.discordActions,
       });
-    } catch {
+    } catch (updateError) {
+      this.logService.error(updateError, this.getErrorUpdateFailureContext(error, options?.preserveMessage));
       return undefined;
     }
   }
@@ -960,9 +961,31 @@ export class DiscordService {
           embeds: this.getEmbedsForErrorUpdate(preservedMessage, errorEmbed, errorEmbedFooter),
         }),
       });
-    } catch {
+    } catch (updateError) {
+      this.logService.error(
+        updateError,
+        new Map([
+          ...this.getErrorUpdateFailureContext(error, options?.preserveMessage),
+          ["channelId", channelId],
+          ["messageId", messageId],
+        ]),
+      );
       return undefined;
     }
+  }
+
+  /**
+   * The interaction token is deliberately omitted: it grants edit access to the message.
+   */
+  private getErrorUpdateFailureContext(
+    originalError: unknown,
+    preserveMessage: APIMessage | undefined,
+  ): Map<string, JsonAny> {
+    return new Map<string, JsonAny>([
+      ["reason", "Failed to deliver error embed, leaving the user without feedback"],
+      ["originalError", originalError instanceof Error ? originalError.message : String(originalError)],
+      ["preservedMessageId", preserveMessage?.id ?? null],
+    ]);
   }
 
   private getEmbedsForErrorUpdate(
@@ -1512,6 +1535,14 @@ export class DiscordService {
     const emojiId = Preconditions.checkExists(AppEmojis.get(appEmojiName), `Emoji not found: ${name}`);
 
     return `<:${appEmojiName}:${emojiId}>`;
+  }
+
+  /**
+   * Animated application emojis use Discord's `<a:name:id>` syntax, unlike `getEmojiFromName`'s
+   * static `<:name:id>` format.
+   */
+  getLoadingEmoji(): string {
+    return `<a:loading:${LOADING_EMOJI_ID}>`;
   }
 
   getRankEmoji({

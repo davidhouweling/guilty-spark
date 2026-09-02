@@ -241,7 +241,7 @@ describe("createPlayerCompareHeadToHeadEmbeds()", () => {
 });
 
 describe("createPlayerCompareLoadingResponse()", () => {
-  it("disables the select controls and preserves the compare state url", () => {
+  it("leaves the select controls enabled and preserves the compare state url", () => {
     const response = createPlayerCompareLoadingResponse(
       {
         ...apiMessage,
@@ -269,11 +269,50 @@ describe("createPlayerCompareLoadingResponse()", () => {
         aggregation: LeaderboardMetricAggregation.Total,
         headToHead: false,
       },
+      "<a:loading:123>",
     );
 
+    expect(response.embeds[0]?.title).toBe("player-one vs player-two - Total");
     expect(response.embeds[0]?.description).toBe("Updating stats...");
+    expect(response.embeds[0]?.url).toBe("https://guilty-spark.app/stats/compare/xuid-1/xuid-2");
     const [actionRow] = response.components;
-    expect(actionRow?.type === ComponentType.ActionRow && actionRow.components[0]).toMatchObject({ disabled: true });
+    expect(actionRow?.type === ComponentType.ActionRow && actionRow.components[0]).toMatchObject({
+      disabled: false,
+    });
+  });
+
+  it("shimmers the value columns while keeping the stat labels and row count", () => {
+    const response = createPlayerCompareLoadingResponse(
+      {
+        ...apiMessage,
+        embeds: [
+          {
+            title: "player-one vs player-two - Total",
+            url: "https://guilty-spark.app/stats/compare/xuid-1/xuid-2",
+            fields: [
+              { name: "Stat", value: "Kills\nDeaths", inline: true },
+              { name: "player-one", value: "#1 | 600\n#5 | 42", inline: true },
+              { name: "player-two", value: "#4 | 450\n#9 | 61", inline: true },
+            ],
+          },
+        ],
+        components: [],
+      },
+      {
+        xboxXuid1: "xuid-1",
+        xboxXuid2: "xuid-2",
+        queueChannelId: null,
+        window: LeaderboardWindow.ThreeMonths,
+        aggregation: LeaderboardMetricAggregation.Total,
+        headToHead: false,
+      },
+      "<a:loading:123>",
+    );
+
+    const [statField, player1Field, player2Field] = response.embeds[0]?.fields ?? [];
+    expect(statField?.value).toBe("Kills\nDeaths");
+    expect(player1Field?.value).toBe("<a:loading:123>\n<a:loading:123>");
+    expect(player2Field?.value).toBe("<a:loading:123>\n<a:loading:123>");
   });
 });
 
