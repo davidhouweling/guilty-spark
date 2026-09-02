@@ -2272,6 +2272,10 @@ export class DatabaseService {
     metrics: readonly LeaderboardMetric[];
     xboxXuid: string;
   }): Promise<Map<LeaderboardMetric, LeaderboardPlayerMetricRank | null>> {
+    if (queueChannelIds?.length === 0) {
+      return new Map(metrics.map((metric) => [metric, null]));
+    }
+
     const statMetrics = metrics.filter((metric) => !isOutcomeLeaderboardMetric(metric));
     const outcomeMetrics = metrics.filter((metric) => isOutcomeLeaderboardMetric(metric));
 

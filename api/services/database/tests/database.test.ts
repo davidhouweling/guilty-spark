@@ -41,6 +41,8 @@ import type { StreamerViewSettingsRow } from "../types/streamer_view_settings";
 import type { MatchKillMatrixRow } from "../types/match_kill_matrix";
 import type { LeaderboardPlayerStatsRow } from "../types/leaderboard_player_stats";
 
+const MAX_RANK_METRICS_PER_QUERY = 4;
+
 describe("Database Service", () => {
   let env: Env;
   let databaseService: DatabaseService;
@@ -1608,7 +1610,7 @@ describe("Database Service", () => {
           xboxXuid: "2533274000000001",
         });
 
-        expect(prepareSpy).toHaveBeenCalledTimes(Math.ceil(metrics.length / 4));
+        expect(prepareSpy).toHaveBeenCalledTimes(Math.ceil(metrics.length / MAX_RANK_METRICS_PER_QUERY));
       });
 
       it("skips the outcome-metric query entirely when only stat metrics are requested", async () => {
@@ -1642,6 +1644,24 @@ describe("Database Service", () => {
         });
 
         expect(result.size).toBe(0);
+        expect(prepareSpy).not.toHaveBeenCalled();
+      });
+
+      it("returns null ranks without querying when queueChannelIds is empty", async () => {
+        const prepareSpy = vi.spyOn(env.DB, "prepare");
+        const metrics = [LeaderboardMetric.Kills, LeaderboardMetric.SeriesWinRate];
+
+        const result = await databaseService.getLeaderboardPlayerMetricRanks({
+          guildId: "guild-1",
+          queueChannelId: null,
+          queueChannelIds: [],
+          startEpochSeconds: 0,
+          minGamesPlayed: 1,
+          metrics,
+          xboxXuid: "2533274000000001",
+        });
+
+        expect(result).toEqual(new Map(metrics.map((metric) => [metric, null])));
         expect(prepareSpy).not.toHaveBeenCalled();
       });
 
