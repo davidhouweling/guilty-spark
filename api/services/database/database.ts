@@ -39,7 +39,7 @@ const DEFAULT_LEADERBOARD_ENABLED_WINDOWS_JSON = '["1W","1M","3M","6M","12M"]';
 const SQLITE_MAX_VARIABLES = 999;
 // D1 accepts at most 100 bound parameters per statement, so batch upserts must chunk below this cap.
 const D1_SAFE_MAX_VARIABLES_PER_STATEMENT = 100;
-const MAX_RANK_METRICS_PER_QUERY = 4;
+export const MAX_RANK_METRICS_PER_QUERY = 4;
 
 type StoredGuildConfigRow = Omit<GuildConfigRow, "NeatQueueInformerMapsPlaylist"> & {
   NeatQueueInformerMapsPlaylist: GuildConfigRow["NeatQueueInformerMapsPlaylist"] | "L";

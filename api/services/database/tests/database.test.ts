@@ -8,7 +8,7 @@ import { LeaderboardPlayerRelationshipMetric } from "../types/leaderboard_player
 import { getPlayerStatsMetricsForAggregation } from "../../../embeds/stats/player-stats-embed";
 import { aFakeEnvWith, fakeD1Response, FakePreparedStatement } from "../../../base/fakes/env.fake";
 import { SESSION_COOKIE_MAX_AGE_SECONDS } from "../../auth/session-manager";
-import { DatabaseService } from "../database";
+import { DatabaseService, MAX_RANK_METRICS_PER_QUERY } from "../database";
 import {
   aFakeDiscordAssociationsRow,
   aFakeGuildConfigRow,
@@ -40,8 +40,6 @@ import type { IndividualTrackerGamesRow } from "../types/individual_tracker_game
 import type { StreamerViewSettingsRow } from "../types/streamer_view_settings";
 import type { MatchKillMatrixRow } from "../types/match_kill_matrix";
 import type { LeaderboardPlayerStatsRow } from "../types/leaderboard_player_stats";
-
-const MAX_RANK_METRICS_PER_QUERY = 4;
 
 describe("Database Service", () => {
   let env: Env;
