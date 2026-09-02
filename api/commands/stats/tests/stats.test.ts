@@ -2463,7 +2463,7 @@ describe("StatsCommand", () => {
       expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
         "fake-token",
         expect.objectContaining({
-          message: "No end user error found in the embed",
+          message: "No end user error found in the message embeds",
         }),
       );
     });
@@ -2491,7 +2491,7 @@ describe("StatsCommand", () => {
       expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
         "fake-token",
         expect.objectContaining({
-          message: "No end user error found in the embed",
+          message: "No end user error found in the message embeds",
         }),
       );
     });

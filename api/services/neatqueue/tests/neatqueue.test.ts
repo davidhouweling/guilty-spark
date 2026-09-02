@@ -1695,6 +1695,24 @@ describe("NeatQueueService", () => {
       expect(failureUpdate.components?.at(-1)).toEqual(expect.objectContaining({ type: ComponentType.ActionRow }));
     });
 
+    it("keeps the retry failure update within Discord's embed limit", async () => {
+      const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      getSeriesFromDiscordQueueSpy.mockResolvedValue(Array.from({ length: 100 }, () => match));
+      vi.spyOn(discordService, "startThreadFromMessage").mockRejectedValue(
+        new DiscordError(403, { code: 50013, message: "Missing Permissions" }),
+      );
+
+      await neatQueueService.handleRetry({
+        errorEmbed: fakeErrorEmbed,
+        guildId: "guild-123",
+        message: fakeMessage,
+      });
+
+      const [, , failureUpdate] = Preconditions.checkExists(editMessageSpy.mock.lastCall);
+      expect(failureUpdate.embeds).toHaveLength(10);
+      expect(failureUpdate.embeds?.at(-1)?.description).toContain("**Create Public Threads**");
+    });
+
     it("starts the stats thread from the clicked message when retrying from a button interaction", async () => {
       const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
       getSeriesFromDiscordQueueSpy.mockResolvedValue([match]);

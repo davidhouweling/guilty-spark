@@ -81,6 +81,8 @@ export interface NeatQueueServiceOpts {
   individualTrackerService: IndividualTrackerService;
 }
 
+const DISCORD_MAX_EMBEDS = 10;
+
 export class NeatQueueService {
   private readonly env: Env;
   private readonly logService: LogService;
@@ -433,7 +435,7 @@ export class NeatQueueService {
     seriesOverviewEmbed: SeriesOverviewEmbedOutput | undefined,
   ): RESTPostAPIChannelMessageJSONBody {
     return {
-      embeds: [...(seriesOverviewEmbed?.embeds ?? []), error.discordEmbed],
+      embeds: [...(seriesOverviewEmbed?.embeds ?? []).slice(-(DISCORD_MAX_EMBEDS - 1)), error.discordEmbed],
       components: [...(seriesOverviewEmbed?.components ?? []), ...error.discordActions],
     };
   }

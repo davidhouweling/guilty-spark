@@ -1795,7 +1795,7 @@ export class StatsCommand extends BaseCommand {
     try {
       const endUserError = this.findEndUserError(interaction.message.embeds);
       if (endUserError == null) {
-        throw new Error("No end user error found in the embed");
+        throw new Error("No end user error found in the message embeds");
       }
 
       await this.services.neatQueueService.handleRetry({
