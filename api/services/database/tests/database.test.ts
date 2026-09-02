@@ -8,7 +8,7 @@ import { LeaderboardPlayerRelationshipMetric } from "../types/leaderboard_player
 import { getPlayerStatsMetricsForAggregation } from "../../../embeds/stats/player-stats-embed";
 import { aFakeEnvWith, fakeD1Response, FakePreparedStatement } from "../../../base/fakes/env.fake";
 import { SESSION_COOKIE_MAX_AGE_SECONDS } from "../../auth/session-manager";
-import { DatabaseService } from "../database";
+import { DatabaseService, MAX_RANK_METRICS_PER_QUERY } from "../database";
 import {
   aFakeDiscordAssociationsRow,
   aFakeGuildConfigRow,
@@ -1592,6 +1592,25 @@ describe("Database Service", () => {
         expect(prepareSpy).toHaveBeenCalledTimes(2);
       });
 
+      it("splits a large stat metric aggregation into bounded query batches", async () => {
+        const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+        vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+        vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+        const metrics = getPlayerStatsMetricsForAggregation(LeaderboardMetricAggregation.AvgPerObjective);
+
+        await databaseService.getLeaderboardPlayerMetricRanks({
+          guildId: "guild-1",
+          queueChannelId: null,
+          startEpochSeconds: 0,
+          minGamesPlayed: 1,
+          metrics,
+          xboxXuid: "2533274000000001",
+        });
+
+        expect(prepareSpy).toHaveBeenCalledTimes(Math.ceil(metrics.length / MAX_RANK_METRICS_PER_QUERY));
+      });
+
       it("skips the outcome-metric query entirely when only stat metrics are requested", async () => {
         const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
@@ -1623,6 +1642,24 @@ describe("Database Service", () => {
         });
 
         expect(result.size).toBe(0);
+        expect(prepareSpy).not.toHaveBeenCalled();
+      });
+
+      it("returns null ranks without querying when queueChannelIds is empty", async () => {
+        const prepareSpy = vi.spyOn(env.DB, "prepare");
+        const metrics = [LeaderboardMetric.Kills, LeaderboardMetric.SeriesWinRate];
+
+        const result = await databaseService.getLeaderboardPlayerMetricRanks({
+          guildId: "guild-1",
+          queueChannelId: null,
+          queueChannelIds: [],
+          startEpochSeconds: 0,
+          minGamesPlayed: 1,
+          metrics,
+          xboxXuid: "2533274000000001",
+        });
+
+        expect(result).toEqual(new Map(metrics.map((metric) => [metric, null])));
         expect(prepareSpy).not.toHaveBeenCalled();
       });
 
