@@ -98,6 +98,48 @@ function getQueueFilterBindings(
   return queueChannelIds ?? [queueChannelId, queueChannelId];
 }
 
+function getLatestIdentityJoinSql({
+  relatedTableName,
+  identityTableName,
+  timeColumn,
+  joinClause,
+  queueChannelIds,
+}: {
+  relatedTableName: "LeaderboardSeriesPlayers" | "LeaderboardGamePlayers";
+  identityTableName: "LeaderboardSeries" | "LeaderboardGames";
+  timeColumn: "CompletedAt" | "EndedAt";
+  joinClause: string;
+  queueChannelIds: string[] | undefined;
+}): string {
+  return `
+    LEFT JOIN (
+      SELECT GuildId, XboxXuid, DiscordUserId, GamertagSnapshot
+      FROM (
+        SELECT
+          relatedIdentity.GuildId AS GuildId,
+          relatedIdentity.XboxXuid AS XboxXuid,
+          relatedIdentity.DiscordUserId AS DiscordUserId,
+          relatedIdentity.GamertagSnapshot AS GamertagSnapshot,
+          ROW_NUMBER() OVER (
+            PARTITION BY relatedIdentity.GuildId, relatedIdentity.XboxXuid
+            ORDER BY identityTable.${timeColumn} DESC, relatedIdentity.CreatedAt DESC
+          ) AS IdentityRowNumber
+        FROM ${relatedTableName} relatedIdentity
+        INNER JOIN ${identityTableName} identityTable
+          ON identityTable.GuildId = relatedIdentity.GuildId
+          AND identityTable.QueueNumber = relatedIdentity.QueueNumber
+          ${joinClause}
+        WHERE relatedIdentity.GuildId = ?
+          AND identityTable.${timeColumn} >= ?
+          AND ${getQueueFilterSql("relatedIdentity", queueChannelIds)}
+      )
+      WHERE IdentityRowNumber = 1
+    ) latestIdentity
+      ON latestIdentity.GuildId = related.GuildId
+      AND latestIdentity.XboxXuid = related.XboxXuid
+  `;
+}
+
 const OUTCOME_LEADERBOARD_METRICS = new Set<LeaderboardMetric>([
   LeaderboardMetric.SeriesPlayed,
   LeaderboardMetric.SeriesWins,
@@ -360,27 +402,12 @@ function getHeadToHeadRelationshipAggregateSql({
   const killsSql = "SUM(COALESCE(matrix.Count, 0))";
   const metricValueSql =
     config.value === "total" ? killsSql : `CASE WHEN COUNT(*) = 0 THEN 0 ELSE CAST(${killsSql} AS REAL) / COUNT(*) END`;
-  const latestIdentitySql = (column: "DiscordUserId" | "GamertagSnapshot"): string => `
-    SELECT relatedIdentity.${column}
-    FROM LeaderboardGamePlayers relatedIdentity
-    INNER JOIN LeaderboardGames identityGame
-      ON identityGame.GuildId = relatedIdentity.GuildId
-      AND identityGame.QueueNumber = relatedIdentity.QueueNumber
-      AND identityGame.MatchId = relatedIdentity.MatchId
-    WHERE relatedIdentity.GuildId = player.GuildId
-      AND relatedIdentity.XboxXuid = related.XboxXuid
-      AND identityGame.EndedAt >= ?
-      AND ${getQueueFilterSql("relatedIdentity", queueChannelIds)}
-    ORDER BY identityGame.EndedAt DESC, relatedIdentity.CreatedAt DESC
-    LIMIT 1
-  `;
-
   return {
     sql: `
       SELECT
         related.XboxXuid AS XboxXuid,
-        (${latestIdentitySql("DiscordUserId")}) AS DiscordUserId,
-        (${latestIdentitySql("GamertagSnapshot")}) AS Gamertag,
+        latestIdentity.DiscordUserId AS DiscordUserId,
+        latestIdentity.GamertagSnapshot AS Gamertag,
         ${metricValueSql} AS MetricValue,
         COUNT(*) AS SharedCount,
         0 AS Wins,
@@ -396,6 +423,13 @@ function getHeadToHeadRelationshipAggregateSql({
         AND related.MatchId = player.MatchId
         AND related.XboxXuid != player.XboxXuid
         AND related.TeamId != player.TeamId
+      ${getLatestIdentityJoinSql({
+        relatedTableName: "LeaderboardGamePlayers",
+        identityTableName: "LeaderboardGames",
+        timeColumn: "EndedAt",
+        joinClause: "AND identityTable.MatchId = relatedIdentity.MatchId",
+        queueChannelIds,
+      })}
       LEFT JOIN MatchKillMatrix matrix
         ON matrix.MatchId = game.MatchId
         AND matrix.KillerXuid = ${killerXuidSql}
@@ -408,8 +442,7 @@ function getHeadToHeadRelationshipAggregateSql({
       GROUP BY related.XboxXuid
     `,
     bindings: [
-      startEpochSeconds,
-      ...queueFilterBindings,
+      guildId,
       startEpochSeconds,
       ...queueFilterBindings,
       guildId,
@@ -442,26 +475,12 @@ function getSeriesRelationshipAggregateSql({
     config.value === "count"
       ? "COUNT(*)"
       : "CASE WHEN COUNT(*) = 0 THEN 0 ELSE CAST(SUM(player.SeriesWon) AS REAL) / COUNT(*) END";
-  const latestIdentitySql = (column: "DiscordUserId" | "GamertagSnapshot"): string => `
-    SELECT relatedIdentity.${column}
-    FROM LeaderboardSeriesPlayers relatedIdentity
-    INNER JOIN LeaderboardSeries identitySeries
-      ON identitySeries.GuildId = relatedIdentity.GuildId
-      AND identitySeries.QueueNumber = relatedIdentity.QueueNumber
-    WHERE relatedIdentity.GuildId = player.GuildId
-      AND relatedIdentity.XboxXuid = related.XboxXuid
-      AND identitySeries.CompletedAt >= ?
-      AND ${getQueueFilterSql("relatedIdentity", queueChannelIds)}
-    ORDER BY identitySeries.CompletedAt DESC, relatedIdentity.CreatedAt DESC
-    LIMIT 1
-  `;
-
   return {
     sql: `
       SELECT
         related.XboxXuid AS XboxXuid,
-        (${latestIdentitySql("DiscordUserId")}) AS DiscordUserId,
-        (${latestIdentitySql("GamertagSnapshot")}) AS Gamertag,
+        latestIdentity.DiscordUserId AS DiscordUserId,
+        latestIdentity.GamertagSnapshot AS Gamertag,
         ${metricValueSql} AS MetricValue,
         COUNT(*) AS SharedCount,
         SUM(player.SeriesWon) AS Wins,
@@ -475,6 +494,13 @@ function getSeriesRelationshipAggregateSql({
         AND related.QueueNumber = player.QueueNumber
         AND related.XboxXuid != player.XboxXuid
         AND related.TeamId ${teamComparisonSql} player.TeamId
+      ${getLatestIdentityJoinSql({
+        relatedTableName: "LeaderboardSeriesPlayers",
+        identityTableName: "LeaderboardSeries",
+        timeColumn: "CompletedAt",
+        joinClause: "",
+        queueChannelIds,
+      })}
       WHERE player.GuildId = ?
         AND player.XboxXuid = ?
         AND series.CompletedAt >= ?
@@ -482,8 +508,7 @@ function getSeriesRelationshipAggregateSql({
       GROUP BY related.XboxXuid
     `,
     bindings: [
-      startEpochSeconds,
-      ...queueFilterBindings,
+      guildId,
       startEpochSeconds,
       ...queueFilterBindings,
       guildId,
@@ -516,27 +541,12 @@ function getGameRelationshipAggregateSql({
     config.value === "count"
       ? "COUNT(*)"
       : "CASE WHEN COUNT(*) = 0 THEN 0 ELSE CAST(SUM(player.GameWon) AS REAL) / COUNT(*) END";
-  const latestIdentitySql = (column: "DiscordUserId" | "GamertagSnapshot"): string => `
-    SELECT relatedIdentity.${column}
-    FROM LeaderboardGamePlayers relatedIdentity
-    INNER JOIN LeaderboardGames identityGame
-      ON identityGame.GuildId = relatedIdentity.GuildId
-      AND identityGame.QueueNumber = relatedIdentity.QueueNumber
-      AND identityGame.MatchId = relatedIdentity.MatchId
-    WHERE relatedIdentity.GuildId = player.GuildId
-      AND relatedIdentity.XboxXuid = related.XboxXuid
-      AND identityGame.EndedAt >= ?
-      AND ${getQueueFilterSql("relatedIdentity", queueChannelIds)}
-    ORDER BY identityGame.EndedAt DESC, relatedIdentity.CreatedAt DESC
-    LIMIT 1
-  `;
-
   return {
     sql: `
       SELECT
         related.XboxXuid AS XboxXuid,
-        (${latestIdentitySql("DiscordUserId")}) AS DiscordUserId,
-        (${latestIdentitySql("GamertagSnapshot")}) AS Gamertag,
+        latestIdentity.DiscordUserId AS DiscordUserId,
+        latestIdentity.GamertagSnapshot AS Gamertag,
         ${metricValueSql} AS MetricValue,
         COUNT(*) AS SharedCount,
         SUM(player.GameWon) AS Wins,
@@ -552,6 +562,13 @@ function getGameRelationshipAggregateSql({
         AND related.MatchId = player.MatchId
         AND related.XboxXuid != player.XboxXuid
         AND related.TeamId ${teamComparisonSql} player.TeamId
+      ${getLatestIdentityJoinSql({
+        relatedTableName: "LeaderboardGamePlayers",
+        identityTableName: "LeaderboardGames",
+        timeColumn: "EndedAt",
+        joinClause: "AND identityTable.MatchId = relatedIdentity.MatchId",
+        queueChannelIds,
+      })}
       WHERE player.GuildId = ?
         AND player.XboxXuid = ?
         AND game.EndedAt >= ?
@@ -559,8 +576,7 @@ function getGameRelationshipAggregateSql({
       GROUP BY related.XboxXuid
     `,
     bindings: [
-      startEpochSeconds,
-      ...queueFilterBindings,
+      guildId,
       startEpochSeconds,
       ...queueFilterBindings,
       guildId,
