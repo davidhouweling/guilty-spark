@@ -54,6 +54,7 @@ import {
   aFakeNeatQueueConfigRow,
 } from "../../../services/database/fakes/database.fake";
 import { EndUserError } from "../../../base/end-user-error";
+import { DiscordError } from "../../../services/discord/discord-error";
 import {
   PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
   PLAYER_STATS_QUEUE_SELECT_CONTROL_ID,
@@ -344,7 +345,9 @@ describe("StatsCommand", () => {
         await jobToComplete?.();
 
         expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
-        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", expectedError);
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", expectedError, {
+          preserveMessage: undefined,
+        });
       });
 
       it('fetches series data from haloService using "getSeriesFromDiscordQueue" with expected data', async () => {
@@ -527,7 +530,51 @@ describe("StatsCommand", () => {
         await jobToComplete?.();
 
         expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
-        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", error);
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", error, {
+          preserveMessage: undefined,
+        });
+      });
+
+      it("reports the Create Public Threads permission and preserves the series overview when thread creation is forbidden", async () => {
+        startThreadFromMessageSpy
+          .mockReset()
+          .mockRejectedValue(new DiscordError(403, { code: 50013, message: "Missing Permissions" }));
+
+        await jobToComplete?.();
+
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
+        const [, error, options] = Preconditions.checkExists(updateDeferredReplyWithErrorSpy.mock.lastCall);
+        expect(error).toBeInstanceOf(EndUserError);
+        expect(Preconditions.checkExists(error as EndUserError).endUserMessage).toContain("**Create Public Threads**");
+        expect(Preconditions.checkExists(error as EndUserError).actions).toEqual(["retry"]);
+        expect(options?.preserveMessage?.embeds).toEqual(updateDeferredReplySpy.mock.calls[0]?.[1]?.embeds);
+      });
+
+      it("reports the message sending permissions when posting series stats is forbidden", async () => {
+        createMessageSpy
+          .mockReset()
+          .mockRejectedValue(new DiscordError(403, { code: 50013, message: "Missing Permissions" }));
+
+        await jobToComplete?.();
+
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
+        const [, error, options] = Preconditions.checkExists(updateDeferredReplyWithErrorSpy.mock.lastCall);
+        expect(error).toBeInstanceOf(EndUserError);
+        expect(Preconditions.checkExists(error as EndUserError).endUserMessage).toContain("**Send Messages**");
+        expect(Preconditions.checkExists(error as EndUserError).endUserMessage).toContain(
+          "**Send Messages in Threads**",
+        );
+        expect(options?.preserveMessage?.embeds).toEqual(updateDeferredReplySpy.mock.calls[0]?.[1]?.embeds);
+      });
+
+      it("does not rewrite non-permission Discord failures as a permissions error", async () => {
+        const discordError = new DiscordError(500, { code: 0, message: "Internal Server Error" });
+        createMessageSpy.mockReset().mockRejectedValue(discordError);
+
+        await jobToComplete?.();
+
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledOnce();
+        expect(updateDeferredReplyWithErrorSpy.mock.lastCall?.[1]).toBe(discordError);
       });
     });
 
@@ -2416,7 +2463,7 @@ describe("StatsCommand", () => {
       expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
         "fake-token",
         expect.objectContaining({
-          message: "No embed found in the message",
+          message: "No end user error found in the message embeds",
         }),
       );
     });
@@ -2444,7 +2491,7 @@ describe("StatsCommand", () => {
       expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
         "fake-token",
         expect.objectContaining({
-          message: "No end user error found in the embed",
+          message: "No end user error found in the message embeds",
         }),
       );
     });

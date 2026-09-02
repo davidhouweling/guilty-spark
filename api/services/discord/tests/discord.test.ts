@@ -9,10 +9,12 @@ import type {
   APIGuildMember,
   APIInteraction,
   APIMessage,
+  APIMessageTopLevelComponent,
 } from "discord-api-types/v10";
 import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
+  ButtonStyle,
   ChannelType,
   ComponentType,
   EmbedType,
@@ -1145,6 +1147,30 @@ describe("DiscordService", () => {
       );
     });
 
+    it("appends the error actions after the preserved components", async () => {
+      const preservedRow: APIMessageTopLevelComponent = {
+        type: ComponentType.ActionRow,
+        components: [
+          { type: ComponentType.Button, style: ButtonStyle.Link, label: "View", url: "https://example.com" },
+        ],
+      };
+      const message: APIMessage = { ...apiMessage, embeds: [{ title: "Series overview" }], components: [preservedRow] };
+      const error = new EndUserError("Missing permissions", { actions: ["retry"] });
+
+      await discordService.updateDeferredReplyWithError("fake-interaction-token", error, {
+        preserveMessage: message,
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "https://discord.com/api/v10/webhooks/DISCORD_APP_ID/fake-interaction-token/messages/@original",
+        expect.objectContaining({
+          body: JSON.stringify({
+            embeds: [{ title: "Series overview" }, error.discordEmbed],
+            components: [preservedRow, ...error.discordActions],
+          }),
+        }),
+      );
+    });
     it("logs why the error embed could not be delivered", async () => {
       mockFetch.mockRejectedValue(new Error("Unknown Message"));
       const errorSpy = vi.spyOn(logService, "error");

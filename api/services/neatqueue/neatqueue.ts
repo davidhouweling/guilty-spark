@@ -41,6 +41,7 @@ import { InteractionButton as StatsInteractionButton } from "../../commands/stat
 import type { BaseMatchEmbed } from "../../embeds/stats/base-match-embed";
 import type { LogService } from "../log/types";
 import { EndUserError } from "../../base/end-user-error";
+import { toMissingPermissionsError } from "../../base/missing-permissions-error";
 import { applyRosterSubstitution } from "../../base/roster-substitution";
 import { create } from "../../embeds/stats/create";
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations";
@@ -79,6 +80,8 @@ export interface NeatQueueServiceOpts {
   liveTrackerService: LiveTrackerService;
   individualTrackerService: IndividualTrackerService;
 }
+
+const DISCORD_MAX_EMBEDS = 10;
 
 export class NeatQueueService {
   private readonly env: Env;
@@ -238,7 +241,8 @@ export class NeatQueueService {
   )): Promise<void> {
     const { discordService, haloService, logService } = this;
     const channelId = message != null ? message.channel_id : interaction.channel.id;
-    const messageId = message != null ? message.id : interaction.id;
+    const messageId = message != null ? message.id : "message" in interaction ? interaction.message.id : interaction.id;
+    let postedSeriesOverviewEmbed: SeriesOverviewEmbedOutput | undefined;
 
     try {
       const channel = await discordService.getChannel(channelId);
@@ -368,6 +372,7 @@ export class NeatQueueService {
         substitutions: substitutionsEmbed,
         locale,
       });
+      postedSeriesOverviewEmbed = seriesOverviewEmbed;
 
       let threadId = channelId;
       const data: RESTPostAPIChannelMessageJSONBody = {
@@ -384,15 +389,10 @@ export class NeatQueueService {
       await this.cacheDiscordSeriesStats(guildId, queue, series, locale);
 
       if (channel.type !== ChannelType.PublicThread && channel.type !== ChannelType.AnnouncementThread) {
-        const thread = await discordService.startThreadFromMessage(
-          channelId,
-          messageId,
-          `Queue #${queue.toString()} series stats (${haloService.getSeriesScore(series, locale, true)})`,
-        );
-        threadId = thread.id;
+        threadId = await this.startSeriesStatsThread(channelId, messageId, queue, series, locale);
       }
 
-      await this.postSeriesDetailsToChannel(threadId, guildId, series, locale);
+      await this.postSeriesDetailsToChannelWithPermissionCheck(threadId, guildId, series, locale);
     } catch (error) {
       if (error instanceof EndUserError) {
         if (error.handled) {
@@ -404,10 +404,7 @@ export class NeatQueueService {
         error.appendData({
           ...errorEmbed.data,
         });
-        const data = {
-          embeds: [error.discordEmbed],
-          components: error.discordActions,
-        };
+        const data = this.getRetryFailureMessage(error, postedSeriesOverviewEmbed);
         if (message != null) {
           await discordService.editMessage(channelId, messageId, data);
         } else {
@@ -424,15 +421,71 @@ export class NeatQueueService {
         ...errorEmbed.data,
       });
 
-      const data = {
-        embeds: [endUserError.discordEmbed],
-        components: endUserError.discordActions,
-      };
+      const data = this.getRetryFailureMessage(endUserError, postedSeriesOverviewEmbed);
       if (message != null) {
         await discordService.editMessage(channelId, messageId, data);
       } else {
         await discordService.updateDeferredReply(interaction.token, data);
       }
+    }
+  }
+
+  private getRetryFailureMessage(
+    error: EndUserError,
+    seriesOverviewEmbed: SeriesOverviewEmbedOutput | undefined,
+  ): RESTPostAPIChannelMessageJSONBody {
+    return {
+      embeds: [...(seriesOverviewEmbed?.embeds ?? []).slice(-(DISCORD_MAX_EMBEDS - 1)), error.discordEmbed],
+      components: [...(seriesOverviewEmbed?.components ?? []), ...error.discordActions],
+    };
+  }
+
+  private async startSeriesStatsThread(
+    channelId: string,
+    messageId: string,
+    queue: number,
+    series: MatchStats[],
+    locale: string,
+  ): Promise<string> {
+    const { discordService, haloService } = this;
+
+    try {
+      const thread = await discordService.startThreadFromMessage(
+        channelId,
+        messageId,
+        `Queue #${queue.toString()} series stats (${haloService.getSeriesScore(series, locale, true)})`,
+      );
+      return thread.id;
+    } catch (error) {
+      throw (
+        toMissingPermissionsError(error, {
+          action: "create a thread for the series stats",
+          permissions: [discordService.permissionToString(PermissionFlagsBits.CreatePublicThreads)],
+        }) ?? error
+      );
+    }
+  }
+
+  private async postSeriesDetailsToChannelWithPermissionCheck(
+    channelId: string,
+    guildId: string,
+    series: MatchStats[],
+    locale: string,
+  ): Promise<void> {
+    const { discordService } = this;
+
+    try {
+      await this.postSeriesDetailsToChannel(channelId, guildId, series, locale);
+    } catch (error) {
+      throw (
+        toMissingPermissionsError(error, {
+          action: "post the series stats",
+          permissions: [
+            discordService.permissionToString(PermissionFlagsBits.SendMessages),
+            discordService.permissionToString(PermissionFlagsBits.SendMessagesInThreads),
+          ],
+        }) ?? error
+      );
     }
   }
 
