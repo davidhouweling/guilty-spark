@@ -2437,10 +2437,10 @@ export class DatabaseService {
 
   /**
    * Ranks every requested stat metric (game-fact based, e.g. Kills, DamageDealt, objective metrics)
-    * against bounded shared population scans. Each batch runs the underlying join/GROUP BY once,
-    * avoiding per-metric queries while keeping D1's generated expression tree below its maximum
-    * depth. The identity CTE keeps the leaderboard's Gamertag tie-break without repeating a
-    * correlated lookup for each aggregated player.
+   * against bounded shared population scans. Each batch runs the underlying join/GROUP BY once,
+   * avoiding per-metric queries while keeping D1's generated expression tree below its maximum
+   * depth. The identity CTE keeps the leaderboard's Gamertag tie-break without repeating a
+   * correlated lookup for each aggregated player.
    */
   private async queryStatMetricRanks({
     guildId,
@@ -2509,7 +2509,6 @@ export class DatabaseService {
     metrics: readonly LeaderboardMetric[];
     xboxXuid: string;
   }): Promise<Map<LeaderboardMetric, LeaderboardPlayerMetricRank | null>> {
-
     const parts = metrics.map((metric) => getStatMetricRankSqlParts(metric, minGamesPlayed));
     const queueFilterSql = getQueueFilterSql("gp", queueChannelIds);
     const queueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
