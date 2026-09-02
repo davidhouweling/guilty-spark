@@ -56,10 +56,12 @@ import {
 import { EndUserError } from "../../../base/end-user-error";
 import {
   PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
+  PLAYER_STATS_QUEUE_SELECT_CONTROL_ID,
   PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
 } from "../../../embeds/stats/player-stats-embed";
 import {
   PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID,
+  PLAYER_COMPARE_QUEUE_SELECT_CONTROL_ID,
   PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
 } from "../../../embeds/stats/player-compare-embed";
 import type { MatchPlayer } from "../../../services/halo/types";
@@ -231,6 +233,45 @@ describe("StatsCommand", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
+
+  function mockPlayedQueues(queueChannelIds: readonly string[]): void {
+    vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue(
+      queueChannelIds.map((channelId) => aFakeNeatQueueConfigRow({ ChannelId: channelId })),
+    );
+    vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([
+      aFakeDiscordAssociationsRow({ DiscordId: "discord-user-1", XboxId: "xuid-1" }),
+      aFakeDiscordAssociationsRow({ DiscordId: "discord-user-2", XboxId: "xuid-2" }),
+    ]);
+    vi.spyOn(services.leaderboardService, "getLeaderboardPlayerStats").mockImplementation(async ({ xboxXuid }) =>
+      Promise.resolve({
+        stats: aFakeLeaderboardPlayerStatsRow({ XboxXuid: xboxXuid, Gamertag: `gamertag-${xboxXuid}` }),
+        window: LeaderboardWindow.ThreeMonths,
+        resetAt: null,
+        startEpochSeconds: 0,
+        minGamesPlayed: 1,
+        defaultAggregation: LeaderboardMetricAggregation.Total,
+      }),
+    );
+    vi.spyOn(services.leaderboardService, "getLeaderboardPlayerMetricRanks").mockResolvedValue(new Map());
+  }
+
+  function getQueueSelectLabels(customId: string): string[] {
+    const components = updateDeferredReplySpy.mock.calls[0]?.[1]?.components ?? [];
+
+    for (const actionRow of components) {
+      if (actionRow.type !== ComponentType.ActionRow) {
+        continue;
+      }
+
+      for (const component of actionRow.components) {
+        if (component.type === ComponentType.StringSelect && component.custom_id === customId) {
+          return component.options.map((option) => option.label);
+        }
+      }
+    }
+
+    return [];
+  }
 
   describe("execute(): subcommand neatqueue", () => {
     beforeEach(() => {
@@ -2833,6 +2874,39 @@ describe("StatsCommand", () => {
       expect(queueProbeCalls.length).toBeGreaterThanOrEqual(24);
     });
 
+    it("labels played-queue options with their discord channel name", async () => {
+      mockPlayedQueues(["queue-1", "queue-2"]);
+      vi.spyOn(services.discordService, "getGuildChannels").mockResolvedValue([
+        { ...textChannel, id: "queue-1", name: "hcs-queue" },
+        { ...textChannel, id: "queue-2", name: "open-queue" },
+      ]);
+
+      const { jobToComplete } = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+      expect(getQueueSelectLabels(PLAYER_STATS_QUEUE_SELECT_CONTROL_ID)).toEqual([
+        "All configured queues",
+        "#hcs-queue",
+        "#open-queue",
+      ]);
+    });
+
+    it("falls back to the queue channel id when the channel name cannot be resolved", async () => {
+      mockPlayedQueues(["queue-1", "queue-2"]);
+      vi.spyOn(services.discordService, "getGuildChannels").mockRejectedValue(new Error("missing access"));
+
+      const { jobToComplete } = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+      expect(getQueueSelectLabels(PLAYER_STATS_QUEUE_SELECT_CONTROL_ID)).toEqual([
+        "All configured queues",
+        "Queue queue-1",
+        "Queue queue-2",
+      ]);
+    });
+
     it("does not offer 'Last reset' as a static window choice, since it silently falls back to the default window without a reset marker", () => {
       const statsCommandData = statsCommand.commands.find(
         (command) => command.type === ApplicationCommandType.ChatInput,
@@ -2978,6 +3052,39 @@ describe("StatsCommand", () => {
 
       expect(player1Field?.value.split("\n")[killsIndex ?? -1]).toBe("🥇 | 600");
       expect(player2Field?.value.split("\n")[killsIndex ?? -1]).toBe("#4 | 600");
+    });
+
+    it("labels queue options with their discord channel name", async () => {
+      mockPlayedQueues(["queue-1", "queue-2"]);
+      vi.spyOn(services.discordService, "getGuildChannels").mockResolvedValue([
+        { ...textChannel, id: "queue-1", name: "hcs-queue" },
+        { ...textChannel, id: "queue-2", name: "open-queue" },
+      ]);
+
+      const { jobToComplete } = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+      expect(getQueueSelectLabels(PLAYER_COMPARE_QUEUE_SELECT_CONTROL_ID)).toEqual([
+        "All configured queues",
+        "#hcs-queue",
+        "#open-queue",
+      ]);
+    });
+
+    it("falls back to the queue channel id when the channel name cannot be resolved", async () => {
+      mockPlayedQueues(["queue-1", "queue-2"]);
+      vi.spyOn(services.discordService, "getGuildChannels").mockRejectedValue(new Error("missing access"));
+
+      const { jobToComplete } = statsCommand.execute(applicationCommandInteractionStatsNeatQueue);
+      await jobToComplete?.();
+
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+      expect(getQueueSelectLabels(PLAYER_COMPARE_QUEUE_SELECT_CONTROL_ID)).toEqual([
+        "All configured queues",
+        "Queue queue-1",
+        "Queue queue-2",
+      ]);
     });
   });
 

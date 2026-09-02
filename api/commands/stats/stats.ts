@@ -95,6 +95,7 @@ type FixSeriesOutcome = "TEAM_0" | "TEAM_1" | "TIE";
 
 const FIX_METADATA_RETRY_BASE_DELAY_MS = 150;
 const FIX_METADATA_MAX_RETRIES = 3;
+const DISCORD_SELECT_OPTION_LABEL_LIMIT = 100;
 const PLAYER_WINDOW_VALUES = new Set<string>(Object.values(LeaderboardWindow));
 const PLAYER_AGGREGATION_VALUES = new Map<string, LeaderboardMetricAggregation>(
   Object.values(LeaderboardMetricAggregation).map((aggregation) => [aggregation, aggregation]),
@@ -956,6 +957,7 @@ export class StatsCommand extends BaseCommand {
     const maxPlayedQueueOptions = 24;
     const queueProbeBatchSize = 8;
     const playedQueues: PlayerStatsQueueOption[] = [];
+    const queueChannelNames = await this.getQueueChannelNames(guildId, configuredQueues);
 
     // Reset markers (for LeaderboardWindow.LastReset) can differ per queue, so each queue's
     // eligibility must be resolved independently. Probing in small concurrent batches avoids both
@@ -981,7 +983,10 @@ export class StatsCommand extends BaseCommand {
 
       for (const { queue, result } of batchResults) {
         if (result != null && playedQueues.length < maxPlayedQueueOptions) {
-          playedQueues.push({ label: `Queue ${queue.ChannelId}`, value: queue.ChannelId });
+          playedQueues.push({
+            label: this.getQueueOptionLabel(queue.ChannelId, queueChannelNames),
+            value: queue.ChannelId,
+          });
         }
       }
     }
@@ -991,6 +996,46 @@ export class StatsCommand extends BaseCommand {
     }
 
     return [{ label: "All configured queues", value: null }, ...playedQueues.slice(0, maxPlayedQueueOptions)];
+  }
+
+  /**
+   * One guild-channels request covers every configured queue, so the selector avoids a per-queue
+   * channel fetch. Unresolved channels keep the raw-id label rather than failing the response.
+   */
+  private async getQueueChannelNames(
+    guildId: string,
+    configuredQueues: readonly NeatQueueConfigRow[],
+  ): Promise<Map<string, string>> {
+    const queueChannelNames = new Map<string, string>();
+    if (configuredQueues.length === 0) {
+      return queueChannelNames;
+    }
+
+    try {
+      const channels = await this.services.discordService.getGuildChannels(guildId);
+      const namesByChannelId = new Map(channels.map((channel) => [channel.id, channel.name]));
+
+      for (const queue of configuredQueues) {
+        const name = namesByChannelId.get(queue.ChannelId);
+        if (name != null && name !== "") {
+          queueChannelNames.set(queue.ChannelId, `#${name}`.slice(0, DISCORD_SELECT_OPTION_LABEL_LIMIT));
+        }
+      }
+    } catch (error) {
+      this.services.logService.warn(
+        error,
+        new Map([
+          ["guildId", guildId],
+          ["reason", "Failed to resolve queue channel names"],
+        ]),
+      );
+    }
+
+    return queueChannelNames;
+  }
+
+  private getQueueOptionLabel(queueChannelId: string, queueChannelNames: ReadonlyMap<string, string>): string {
+    return queueChannelNames.get(queueChannelId) ?? `Queue ${queueChannelId}`;
   }
 
   private getPlayerStatsQueueLabel(
@@ -1305,7 +1350,7 @@ export class StatsCommand extends BaseCommand {
       return null;
     }
 
-    const queueOptions = this.getCompareQueueOptions(configuredQueues);
+    const queueOptions = await this.getCompareQueueOptions(guildId, configuredQueues);
     const queueLabel = this.getPlayerStatsQueueLabel(queueChannelId, queueOptions);
 
     if (headToHead) {
@@ -1383,9 +1428,13 @@ export class StatsCommand extends BaseCommand {
     });
   }
 
-  private getCompareQueueOptions(configuredQueues: readonly NeatQueueConfigRow[]): PlayerStatsQueueOption[] {
+  private async getCompareQueueOptions(
+    guildId: string,
+    configuredQueues: readonly NeatQueueConfigRow[],
+  ): Promise<PlayerStatsQueueOption[]> {
+    const queueChannelNames = await this.getQueueChannelNames(guildId, configuredQueues);
     const queueOptions = configuredQueues.map((queue) => ({
-      label: `Queue ${queue.ChannelId}`,
+      label: this.getQueueOptionLabel(queue.ChannelId, queueChannelNames),
       value: queue.ChannelId,
     }));
     return queueOptions.length <= 1 ? queueOptions : [{ label: "All configured queues", value: null }, ...queueOptions];

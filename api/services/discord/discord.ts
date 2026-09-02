@@ -1022,7 +1022,6 @@ export class DiscordService {
   async getGuildChannels(guildId: string): Promise<APIChannel[]> {
     return this.fetch<APIChannel[]>(Routes.guildChannels(guildId), {
       method: "GET",
-      queryParameters: { limit: 100 },
       cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_MINUTE"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 } },
     });
   }
