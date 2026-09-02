@@ -2454,7 +2454,7 @@ export class DatabaseService {
         return `
         CASE WHEN ${eligibleSql} THEN ROW_NUMBER() OVER (
           PARTITION BY ${eligibleSql}
-          ORDER BY agg.Value_${part.metric} ${part.sortDirection}, agg.GamesPlayed DESC, agg.Gamertag ASC, agg.XboxXuid ASC
+          ORDER BY agg.Value_${part.metric} ${part.sortDirection}, agg.GamesPlayed DESC, identity.Gamertag ASC, agg.XboxXuid ASC
         ) ELSE NULL END AS Rank_${part.metric},
         SUM(${eligibleSql}) OVER () AS Total_${part.metric}`;
       })
@@ -2571,6 +2571,7 @@ export class DatabaseService {
     const gamesQueueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
     const seriesQueueFilterSql = getQueueFilterSql("s", queueChannelIds);
     const seriesQueueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
+    const identityQueueFilterSql = getQueueFilterSql("gp", queueChannelIds);
 
     const aggColumns = valueSqlByMetric.map((part) => `${part.valueSql} AS Value_${part.metric}`).join(",\n        ");
     const rankColumns = valueSqlByMetric
@@ -2579,7 +2580,7 @@ export class DatabaseService {
         return `
         CASE WHEN ${eligibleSql} THEN ROW_NUMBER() OVER (
           PARTITION BY ${eligibleSql}
-          ORDER BY agg.Value_${part.metric} DESC, agg.GamesPlayed DESC, agg.Gamertag ASC, agg.XboxXuid ASC
+          ORDER BY agg.Value_${part.metric} DESC, agg.GamesPlayed DESC, identity.Gamertag ASC, agg.XboxXuid ASC
         ) ELSE NULL END AS Rank_${part.metric},
         SUM(${eligibleSql}) OVER () AS Total_${part.metric}`;
       })
@@ -2601,7 +2602,7 @@ export class DatabaseService {
           AND g.MatchId = gp.MatchId
         WHERE gp.GuildId = ?
           AND g.EndedAt >= ?
-          AND ${gamesQueueFilterSql}
+          AND ${identityQueueFilterSql}
       ),
       identity AS (
         SELECT XboxXuid, Gamertag

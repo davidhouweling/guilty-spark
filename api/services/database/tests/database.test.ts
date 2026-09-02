@@ -1670,7 +1670,7 @@ describe("Database Service", () => {
         for (const call of prepareSpy.mock.calls) {
           expect(call[0]).toContain("gp.GamertagSnapshot AS Gamertag");
           expect(call[0]).toContain("ORDER BY g.EndedAt DESC, gp.CreatedAt DESC");
-          expect(call[0]).toContain("agg.GamesPlayed DESC, agg.Gamertag ASC, agg.XboxXuid ASC");
+          expect(call[0]).toContain("agg.GamesPlayed DESC, identity.Gamertag ASC, agg.XboxXuid ASC");
           expect(call[0]).not.toContain("WHERE identityGp.GuildId =");
         }
       });
