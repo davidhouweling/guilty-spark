@@ -3,6 +3,7 @@ import type { installServices } from "./services/install";
 import { authRoutesRegisterHandler } from "./routes/auth/auth";
 import { discordInteractionsRoute } from "./routes/discord/interactions";
 import { individualTrackerRoutesRegisterHandler } from "./routes/individual-tracker/individual-tracker";
+import { neatQueueRoutesRegisterHandler } from "./routes/neatqueue/active-series";
 import { userTrackerRoutesRegisterHandler } from "./routes/user-tracker/user-tracker";
 import { haloProxyRoutesRegisterHandler } from "./routes/halo-proxy/halo-proxy";
 import { statsRoutesRegisterHandler } from "./routes/stats/stats";
@@ -35,6 +36,8 @@ export class Server {
     userTrackerRoutesRegisterHandler(this.router, this.installServices);
 
     individualTrackerRoutesRegisterHandler(this.router, this.installServices);
+
+    neatQueueRoutesRegisterHandler(this.router, this.installServices);
 
     haloProxyRoutesRegisterHandler(this.router, this.installServices);
 
