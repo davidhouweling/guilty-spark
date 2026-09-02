@@ -190,6 +190,69 @@ function isAscendingMetric(metric: LeaderboardMetric): boolean {
   );
 }
 
+interface StatMetricRankSqlParts {
+  metric: LeaderboardMetric;
+  valueSql: string;
+  gamesPlayedSql: string;
+  minGamesPlayed: number;
+  sortDirection: "ASC" | "DESC";
+}
+
+// Per-metric pieces used to rank many stat metrics from one shared population scan instead of one
+// full scan per metric. Eligibility (gamesPlayedSql/minGamesPlayed) legitimately varies per metric,
+// since objective metrics are only eligible for players with qualifying objective games.
+function getStatMetricRankSqlParts(metric: LeaderboardMetric, minGamesPlayed: number): StatMetricRankSqlParts {
+  if (isObjectiveLeaderboardMetric(metric)) {
+    const descriptor = getLeaderboardObjectiveDescriptorByMetric(metric);
+    const gamesPlayedSql = getObjectiveCategoryGamesSql(descriptor.category);
+    const valueSql =
+      metric === descriptor.averageMetric
+        ? `CASE WHEN ${gamesPlayedSql} = 0 THEN 0 ELSE CAST(SUM(${getObjectiveStatValueSql(descriptor)}) AS REAL) / ${gamesPlayedSql} END`
+        : `SUM(${getObjectiveStatValueSql(descriptor)})`;
+
+    return {
+      metric,
+      valueSql,
+      gamesPlayedSql,
+      minGamesPlayed: Math.max(minGamesPlayed, 1),
+      sortDirection: isAscendingMetric(metric) ? "ASC" : "DESC",
+    };
+  }
+
+  const valueSql = PLAYER_STAT_RANK_SQL_BY_METRIC.get(metric);
+  if (valueSql == null) {
+    throw new Error(`Unsupported player-stats rank metric: ${metric}`);
+  }
+
+  if (metric === LeaderboardMetric.ObjectiveTime || metric === LeaderboardMetric.AvgObjectiveTimePerGame) {
+    return {
+      metric,
+      valueSql,
+      gamesPlayedSql: "COUNT(gp.ObjectiveTimeSeconds)",
+      minGamesPlayed: Math.max(minGamesPlayed, 1),
+      sortDirection: isAscendingMetric(metric) ? "ASC" : "DESC",
+    };
+  }
+
+  if (metric === LeaderboardMetric.ObjectiveTeamContribution) {
+    return {
+      metric,
+      valueSql,
+      gamesPlayedSql: "COUNT(gp.ObjectiveTeamContribution)",
+      minGamesPlayed: Math.max(minGamesPlayed, 1),
+      sortDirection: isAscendingMetric(metric) ? "ASC" : "DESC",
+    };
+  }
+
+  return {
+    metric,
+    valueSql,
+    gamesPlayedSql: "COUNT(*)",
+    minGamesPlayed,
+    sortDirection: isAscendingMetric(metric) ? "ASC" : "DESC",
+  };
+}
+
 type PairRelationship = "with" | "against";
 type PairScope = "game" | "series";
 type PairValue = "count" | "win-rate";
@@ -2166,17 +2229,17 @@ export class DatabaseService {
   }
 
   /**
-   * Returns where a single player ranks for one leaderboard metric, using the same population and
-   * tie-break rules as the real leaderboard ranking queries. Returns null when the player does not
-   * meet that metric's eligibility threshold (mirrors real leaderboard visibility).
+   * Returns ranks for every requested metric using the same population and tie-break rules as the
+   * corresponding leaderboard queries. A metric maps to null when the player does not meet that
+   * metric's eligibility threshold; otherwise it maps to its rank and eligible-player total.
    */
-  async getLeaderboardPlayerMetricRank({
+  async getLeaderboardPlayerMetricRanks({
     guildId,
     queueChannelId,
     queueChannelIds,
     startEpochSeconds,
     minGamesPlayed,
-    metric,
+    metrics,
     xboxXuid,
   }: {
     guildId: string;
@@ -2184,38 +2247,34 @@ export class DatabaseService {
     queueChannelIds?: string[];
     startEpochSeconds: number;
     minGamesPlayed: number;
-    metric: LeaderboardMetric;
+    metrics: readonly LeaderboardMetric[];
     xboxXuid: string;
-  }): Promise<LeaderboardPlayerMetricRank | null> {
-    const { aggregateSql, bindings, sortDirection } = isOutcomeLeaderboardMetric(metric)
-      ? this.buildOutcomeMetricRankAggregate({
-          guildId,
-          queueChannelId,
-          queueChannelIds,
-          startEpochSeconds,
-          minGamesPlayed,
-          metric,
-        })
-      : this.buildStatMetricRankAggregate({
-          guildId,
-          queueChannelId,
-          queueChannelIds,
-          startEpochSeconds,
-          minGamesPlayed,
-          metric,
-        });
+  }): Promise<Map<LeaderboardMetric, LeaderboardPlayerMetricRank | null>> {
+    const statMetrics = metrics.filter((metric) => !isOutcomeLeaderboardMetric(metric));
+    const outcomeMetrics = metrics.filter((metric) => isOutcomeLeaderboardMetric(metric));
 
-    const query = `
-      WITH ranked AS (
-        SELECT agg.*, ROW_NUMBER() OVER (ORDER BY agg.MetricValue ${sortDirection}, agg.GamesPlayed DESC, agg.Gamertag ASC, agg.XboxXuid ASC) AS Rank, COUNT(*) OVER () AS Total
-        FROM (${aggregateSql}) agg
-      )
-      SELECT Rank, Total FROM ranked WHERE XboxXuid = ?
-    `;
-    const stmt = this.DB.prepare(query).bind(...bindings, xboxXuid);
-    const row = await stmt.first<{ Rank: number; Total: number }>();
+    const [statResults, outcomeResults] = await Promise.all([
+      this.queryStatMetricRanks({
+        guildId,
+        queueChannelId,
+        ...(queueChannelIds == null ? {} : { queueChannelIds }),
+        startEpochSeconds,
+        minGamesPlayed,
+        metrics: statMetrics,
+        xboxXuid,
+      }),
+      this.queryOutcomeMetricRanks({
+        guildId,
+        queueChannelId,
+        ...(queueChannelIds == null ? {} : { queueChannelIds }),
+        startEpochSeconds,
+        minGamesPlayed,
+        metrics: outcomeMetrics,
+        xboxXuid,
+      }),
+    ]);
 
-    return row == null ? null : { rank: row.Rank, total: row.Total };
+    return new Map(metrics.map((metric) => [metric, statResults.get(metric) ?? outcomeResults.get(metric) ?? null]));
   }
 
   async getLeaderboardPlayerRelationships({
@@ -2354,184 +2413,261 @@ export class DatabaseService {
     };
   }
 
-  private buildStatMetricRankAggregate({
+  /**
+   * Ranks every requested stat metric (game-fact based, e.g. Kills, DamageDealt, objective metrics)
+   * against one shared population scan: the underlying join/GROUP BY runs once regardless of how
+   * many metrics are requested, with each metric contributing its own value/eligibility columns that
+   * independent window functions then rank. The identity CTE keeps the leaderboard's Gamertag
+   * tie-break without repeating a correlated lookup for each aggregated player.
+   */
+  private async queryStatMetricRanks({
     guildId,
     queueChannelId,
     queueChannelIds,
     startEpochSeconds,
     minGamesPlayed,
-    metric,
+    metrics,
+    xboxXuid,
   }: {
     guildId: string;
     queueChannelId: string | null;
-    queueChannelIds?: string[] | undefined;
+    queueChannelIds?: string[];
     startEpochSeconds: number;
     minGamesPlayed: number;
-    metric: LeaderboardMetric;
-  }): { aggregateSql: string; bindings: readonly (string | number | null)[]; sortDirection: "ASC" | "DESC" } {
-    let metricSql: string;
-    let metricGamesPlayedSql = "COUNT(*)";
-    let metricMinGamesPlayed = minGamesPlayed;
-
-    if (isObjectiveLeaderboardMetric(metric)) {
-      const descriptor = getLeaderboardObjectiveDescriptorByMetric(metric);
-      metricGamesPlayedSql = getObjectiveCategoryGamesSql(descriptor.category);
-      metricSql =
-        metric === descriptor.averageMetric
-          ? `CASE WHEN ${metricGamesPlayedSql} = 0 THEN 0 ELSE CAST(SUM(${getObjectiveStatValueSql(descriptor)}) AS REAL) / ${metricGamesPlayedSql} END`
-          : `SUM(${getObjectiveStatValueSql(descriptor)})`;
-      metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
-    } else {
-      const configuredMetricSql = PLAYER_STAT_RANK_SQL_BY_METRIC.get(metric);
-      if (configuredMetricSql == null) {
-        throw new Error(`Unsupported player-stats rank metric: ${metric}`);
-      }
-
-      metricSql = configuredMetricSql;
-
-      if (metric === LeaderboardMetric.ObjectiveTime || metric === LeaderboardMetric.AvgObjectiveTimePerGame) {
-        metricGamesPlayedSql = "COUNT(gp.ObjectiveTimeSeconds)";
-        metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
-      }
-
-      if (metric === LeaderboardMetric.ObjectiveTeamContribution) {
-        metricGamesPlayedSql = "COUNT(gp.ObjectiveTeamContribution)";
-        metricMinGamesPlayed = Math.max(minGamesPlayed, 1);
-      }
+    metrics: readonly LeaderboardMetric[];
+    xboxXuid: string;
+  }): Promise<Map<LeaderboardMetric, LeaderboardPlayerMetricRank | null>> {
+    if (metrics.length === 0) {
+      return new Map();
     }
 
+    const parts = metrics.map((metric) => getStatMetricRankSqlParts(metric, minGamesPlayed));
     const queueFilterSql = getQueueFilterSql("gp", queueChannelIds);
     const queueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
-    const identityQueueFilterSql = getQueueFilterSql("identityGp", queueChannelIds);
-    const identityGamertagSql = `
-      SELECT identityGp.GamertagSnapshot
-      FROM LeaderboardGamePlayers identityGp
-      INNER JOIN LeaderboardGames identityGame
-        ON identityGame.GuildId = identityGp.GuildId
-        AND identityGame.QueueNumber = identityGp.QueueNumber
-        AND identityGame.MatchId = identityGp.MatchId
-      WHERE identityGp.GuildId = gp.GuildId
-        AND identityGp.XboxXuid = gp.XboxXuid
-        AND identityGame.EndedAt >= ?
-        AND ${identityQueueFilterSql}
-      ORDER BY identityGame.EndedAt DESC, identityGp.CreatedAt DESC
-      LIMIT 1
+
+    const aggColumns = parts
+      .map((part) => `${part.valueSql} AS Value_${part.metric}, ${part.gamesPlayedSql} AS Games_${part.metric}`)
+      .join(",\n        ");
+    const rankColumns = parts
+      .map((part) => {
+        const eligibleSql = `CASE WHEN agg.Games_${part.metric} >= ? THEN 1 ELSE 0 END`;
+        return `
+        CASE WHEN ${eligibleSql} THEN ROW_NUMBER() OVER (
+          PARTITION BY ${eligibleSql}
+          ORDER BY agg.Value_${part.metric} ${part.sortDirection}, agg.GamesPlayed DESC, identity.Gamertag ASC, agg.XboxXuid ASC
+        ) ELSE NULL END AS Rank_${part.metric},
+        SUM(${eligibleSql}) OVER () AS Total_${part.metric}`;
+      })
+      .join(",\n        ");
+
+    const query = `
+      WITH identityRanked AS (
+        SELECT
+          gp.XboxXuid AS XboxXuid,
+          gp.GamertagSnapshot AS Gamertag,
+          ROW_NUMBER() OVER (
+            PARTITION BY gp.XboxXuid
+            ORDER BY g.EndedAt DESC, gp.CreatedAt DESC
+          ) AS RowNumber
+        FROM LeaderboardGamePlayers gp
+        INNER JOIN LeaderboardGames g
+          ON g.GuildId = gp.GuildId
+          AND g.QueueNumber = gp.QueueNumber
+          AND g.MatchId = gp.MatchId
+        WHERE gp.GuildId = ?
+          AND g.EndedAt >= ?
+          AND ${queueFilterSql}
+      ),
+      identity AS (
+        SELECT XboxXuid, Gamertag
+        FROM identityRanked
+        WHERE RowNumber = 1
+      ),
+      agg AS (
+        SELECT
+          gp.XboxXuid AS XboxXuid,
+          COUNT(*) AS GamesPlayed,
+          ${aggColumns}
+        FROM LeaderboardGamePlayers gp
+        INNER JOIN LeaderboardGames g
+          ON g.GuildId = gp.GuildId
+          AND g.QueueNumber = gp.QueueNumber
+          AND g.MatchId = gp.MatchId
+        WHERE gp.GuildId = ?
+          AND g.EndedAt >= ?
+          AND ${queueFilterSql}
+        GROUP BY gp.XboxXuid
+      ),
+      ranked AS (
+        SELECT agg.XboxXuid, ${rankColumns}
+        FROM agg
+        LEFT JOIN identity
+          ON identity.XboxXuid = agg.XboxXuid
+      )
+      SELECT * FROM ranked WHERE XboxXuid = ?
     `;
 
-    const aggregateSql = `
-      SELECT
-        gp.XboxXuid AS XboxXuid,
-        COUNT(*) AS GamesPlayed,
-        ${metricSql} AS MetricValue,
-        (${identityGamertagSql}) AS Gamertag
-      FROM LeaderboardGamePlayers gp
-      INNER JOIN LeaderboardGames g
-        ON g.GuildId = gp.GuildId
-        AND g.QueueNumber = gp.QueueNumber
-        AND g.MatchId = gp.MatchId
-      WHERE gp.GuildId = ?
-        AND g.EndedAt >= ?
-        AND ${queueFilterSql}
-      GROUP BY gp.XboxXuid
-      HAVING ${metricGamesPlayedSql} >= ?
-    `;
+    // Each metric's eligibility CASE expression is repeated three times in rankColumns (the outer
+    // CASE, PARTITION BY, and SUM), so its bound minGamesPlayed value must repeat three times too.
+    const rankBindings = parts.flatMap((part) => [part.minGamesPlayed, part.minGamesPlayed, part.minGamesPlayed]);
+    const bindings = [
+      guildId,
+      startEpochSeconds,
+      ...queueFilterBindings,
+      guildId,
+      startEpochSeconds,
+      ...queueFilterBindings,
+      ...rankBindings,
+      xboxXuid,
+    ];
+    const row = await this.DB.prepare(query)
+      .bind(...bindings)
+      .first<Record<string, number | string | null>>();
 
-    return {
-      aggregateSql,
-      bindings: [
-        startEpochSeconds,
-        ...queueFilterBindings,
-        guildId,
-        startEpochSeconds,
-        ...queueFilterBindings,
-        metricMinGamesPlayed,
-      ],
-      sortDirection: isAscendingMetric(metric) ? "ASC" : "DESC",
-    };
+    return new Map(
+      parts.map((part) => {
+        const rank = row?.[`Rank_${part.metric}`] ?? null;
+        const total = row?.[`Total_${part.metric}`] ?? null;
+        return [part.metric, typeof rank !== "number" || typeof total !== "number" ? null : { rank, total }];
+      }),
+    );
   }
 
-  private buildOutcomeMetricRankAggregate({
+  /**
+   * Ranks every requested outcome metric (series/game win-loss facts) the same way
+   * queryStatMetricRanks() does for stat metrics: one shared population scan instead of one scan per
+   * metric, with per-metric window functions computing rank/total from it.
+   */
+  private async queryOutcomeMetricRanks({
     guildId,
     queueChannelId,
     queueChannelIds,
     startEpochSeconds,
     minGamesPlayed,
-    metric,
+    metrics,
+    xboxXuid,
   }: {
     guildId: string;
     queueChannelId: string | null;
-    queueChannelIds?: string[] | undefined;
+    queueChannelIds?: string[];
     startEpochSeconds: number;
     minGamesPlayed: number;
-    metric: LeaderboardMetric;
-  }): { aggregateSql: string; bindings: readonly (string | number | null)[]; sortDirection: "ASC" | "DESC" } {
-    const metricSql = PLAYER_OUTCOME_RANK_SQL_BY_METRIC.get(metric);
-    if (metricSql == null) {
-      throw new Error(`Unsupported player-stats rank metric: ${metric}`);
+    metrics: readonly LeaderboardMetric[];
+    xboxXuid: string;
+  }): Promise<Map<LeaderboardMetric, LeaderboardPlayerMetricRank | null>> {
+    if (metrics.length === 0) {
+      return new Map();
     }
+
+    const valueSqlByMetric = metrics.map((metric) => {
+      const valueSql = PLAYER_OUTCOME_RANK_SQL_BY_METRIC.get(metric);
+      if (valueSql == null) {
+        throw new Error(`Unsupported player-stats rank metric: ${metric}`);
+      }
+      return { metric, valueSql };
+    });
 
     const gamesQueueFilterSql = getQueueFilterSql("sGames", queueChannelIds);
     const gamesQueueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
     const seriesQueueFilterSql = getQueueFilterSql("s", queueChannelIds);
     const seriesQueueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
-    const identityQueueFilterSql = getQueueFilterSql("identityGp", queueChannelIds);
-    const identityGamertagSql = `
-      SELECT identityGp.GamertagSnapshot
-      FROM LeaderboardGamePlayers identityGp
-      INNER JOIN LeaderboardGames identityGame
-        ON identityGame.GuildId = identityGp.GuildId
-        AND identityGame.QueueNumber = identityGp.QueueNumber
-        AND identityGame.MatchId = identityGp.MatchId
-      WHERE identityGp.GuildId = sp.GuildId
-        AND identityGp.XboxXuid = sp.XboxXuid
-        AND identityGame.EndedAt >= ?
-        AND ${identityQueueFilterSql}
-      ORDER BY identityGame.EndedAt DESC, identityGp.CreatedAt DESC
-      LIMIT 1
-    `;
+    const identityQueueFilterSql = getQueueFilterSql("gp", queueChannelIds);
+    const identityQueueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
 
-    const aggregateSql = `
-      SELECT
-        sp.XboxXuid AS XboxXuid,
-        SUM(sp.GamesPlayedCount) AS GamesPlayed,
-        ${metricSql} AS MetricValue,
-        (${identityGamertagSql}) AS Gamertag
-      FROM LeaderboardSeriesPlayers sp
-      INNER JOIN LeaderboardSeries s
-        ON s.GuildId = sp.GuildId AND s.QueueNumber = sp.QueueNumber
-      LEFT JOIN (
-        SELECT gp.XboxXuid, SUM(gp.GameWon) AS GameWins
+    const aggColumns = valueSqlByMetric.map((part) => `${part.valueSql} AS Value_${part.metric}`).join(",\n        ");
+    const rankColumns = valueSqlByMetric
+      .map((part) => {
+        const eligibleSql = "CASE WHEN agg.GamesPlayed >= ? THEN 1 ELSE 0 END";
+        return `
+        CASE WHEN ${eligibleSql} THEN ROW_NUMBER() OVER (
+          PARTITION BY ${eligibleSql}
+          ORDER BY agg.Value_${part.metric} DESC, agg.GamesPlayed DESC, identity.Gamertag ASC, agg.XboxXuid ASC
+        ) ELSE NULL END AS Rank_${part.metric},
+        SUM(${eligibleSql}) OVER () AS Total_${part.metric}`;
+      })
+      .join(",\n        ");
+
+    const query = `
+      WITH identityRanked AS (
+        SELECT
+          gp.XboxXuid AS XboxXuid,
+          gp.GamertagSnapshot AS Gamertag,
+          ROW_NUMBER() OVER (
+            PARTITION BY gp.XboxXuid
+            ORDER BY g.EndedAt DESC, gp.CreatedAt DESC
+          ) AS RowNumber
         FROM LeaderboardGamePlayers gp
-        INNER JOIN LeaderboardSeries sGames
-          ON sGames.GuildId = gp.GuildId AND sGames.QueueNumber = gp.QueueNumber
+        INNER JOIN LeaderboardGames g
+          ON g.GuildId = gp.GuildId
+          AND g.QueueNumber = gp.QueueNumber
+          AND g.MatchId = gp.MatchId
         WHERE gp.GuildId = ?
-          AND sGames.CompletedAt >= ?
-          AND ${gamesQueueFilterSql}
-        GROUP BY gp.XboxXuid
-      ) gameStats
-        ON gameStats.XboxXuid = sp.XboxXuid
-      WHERE s.GuildId = ?
-        AND s.CompletedAt >= ?
-        AND ${seriesQueueFilterSql}
-      GROUP BY sp.XboxXuid
-      HAVING SUM(sp.GamesPlayedCount) >= ?
+          AND g.EndedAt >= ?
+          AND ${identityQueueFilterSql}
+      ),
+      identity AS (
+        SELECT XboxXuid, Gamertag
+        FROM identityRanked
+        WHERE RowNumber = 1
+      ),
+      agg AS (
+        SELECT
+          sp.XboxXuid AS XboxXuid,
+          SUM(sp.GamesPlayedCount) AS GamesPlayed,
+          ${aggColumns}
+        FROM LeaderboardSeriesPlayers sp
+        INNER JOIN LeaderboardSeries s
+          ON s.GuildId = sp.GuildId AND s.QueueNumber = sp.QueueNumber
+        LEFT JOIN (
+          SELECT gp.XboxXuid, SUM(gp.GameWon) AS GameWins
+          FROM LeaderboardGamePlayers gp
+          INNER JOIN LeaderboardSeries sGames
+            ON sGames.GuildId = gp.GuildId AND sGames.QueueNumber = gp.QueueNumber
+          WHERE gp.GuildId = ?
+            AND sGames.CompletedAt >= ?
+            AND ${gamesQueueFilterSql}
+          GROUP BY gp.XboxXuid
+        ) gameStats
+          ON gameStats.XboxXuid = sp.XboxXuid
+        WHERE s.GuildId = ?
+          AND s.CompletedAt >= ?
+          AND ${seriesQueueFilterSql}
+        GROUP BY sp.XboxXuid
+      ),
+      ranked AS (
+        SELECT agg.XboxXuid, ${rankColumns}
+        FROM agg
+        LEFT JOIN identity
+          ON identity.XboxXuid = agg.XboxXuid
+      )
+      SELECT * FROM ranked WHERE XboxXuid = ?
     `;
 
-    return {
-      aggregateSql,
-      bindings: [
-        startEpochSeconds,
-        ...getQueueFilterBindings(queueChannelId, queueChannelIds),
-        guildId,
-        startEpochSeconds,
-        ...gamesQueueFilterBindings,
-        guildId,
-        startEpochSeconds,
-        ...seriesQueueFilterBindings,
-        minGamesPlayed,
-      ],
-      sortDirection: "DESC",
-    };
+    const rankBindings = valueSqlByMetric.flatMap(() => [minGamesPlayed, minGamesPlayed, minGamesPlayed]);
+    const bindings = [
+      guildId,
+      startEpochSeconds,
+      ...identityQueueFilterBindings,
+      guildId,
+      startEpochSeconds,
+      ...gamesQueueFilterBindings,
+      guildId,
+      startEpochSeconds,
+      ...seriesQueueFilterBindings,
+      ...rankBindings,
+      xboxXuid,
+    ];
+    const row = await this.DB.prepare(query)
+      .bind(...bindings)
+      .first<Record<string, number | string | null>>();
+
+    return new Map(
+      valueSqlByMetric.map((part) => {
+        const rank = row?.[`Rank_${part.metric}`] ?? null;
+        const total = row?.[`Total_${part.metric}`] ?? null;
+        return [part.metric, typeof rank !== "number" || typeof total !== "number" ? null : { rank, total }];
+      }),
+    );
   }
 
   async getLeaderboardOutcomeMetricRankings({
