@@ -46,6 +46,7 @@ export interface LeaderboardServiceOpts {
   discordService?: DiscordService;
   haloService: HaloService;
   logService: LogService;
+  pagesUrl?: string;
 }
 
 interface GetLeaderboardOpts {
@@ -137,12 +138,14 @@ export class LeaderboardService {
   private readonly discordService: DiscordService | undefined;
   private readonly haloService: HaloService;
   private readonly logService: LogService;
+  private readonly pagesUrl: string | undefined;
 
-  constructor({ databaseService, discordService, haloService, logService }: LeaderboardServiceOpts) {
+  constructor({ databaseService, discordService, haloService, logService, pagesUrl }: LeaderboardServiceOpts) {
     this.databaseService = databaseService;
     this.discordService = discordService;
     this.haloService = haloService;
     this.logService = logService;
+    this.pagesUrl = pagesUrl;
   }
 
   private clampMinGamesPlayed(value: number | null | undefined, fallback = 5): number {
@@ -744,6 +747,7 @@ export class LeaderboardService {
           leaderboard.resetAt == null
             ? null
             : discordService.getTimestamp(new Date(leaderboard.resetAt * 1000).toISOString(), "f"),
+          this.pagesUrl ?? null,
         ),
       );
     } catch (error) {
