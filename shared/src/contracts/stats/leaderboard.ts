@@ -14,13 +14,17 @@ const nonNegativeIntString = z
   .transform((raw) => Number(raw))
   .pipe(z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER));
 
+// Discord's own paging always requests 10 rows per embed page; this ceiling only bounds the API
+// contract so the public web leaderboard can request a guild's full ranked list in one call.
+export const LEADERBOARD_MAX_PAGE_SIZE = 500;
+
 export const leaderboardQuerySchema = z.object({
   guildId: z.string().min(1),
   queueChannelId: z.string().min(1).optional(),
   window: z.enum(LeaderboardWindow).optional(),
   metric: z.enum(LeaderboardMetric).optional(),
   page: positiveIntString.optional(),
-  pageSize: positiveIntString.pipe(z.number().int().max(100)).optional(),
+  pageSize: positiveIntString.pipe(z.number().int().max(LEADERBOARD_MAX_PAGE_SIZE)).optional(),
   minGamesPlayed: nonNegativeIntString.optional(),
 });
 

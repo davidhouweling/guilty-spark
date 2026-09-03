@@ -3,6 +3,7 @@ import type { APIMessage, APIMessageTopLevelComponent } from "discord-api-types/
 import { ComponentType, Locale } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { LeaderboardMetric, LeaderboardMetricFamily, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import { LEADERBOARD_MAX_PAGE_SIZE } from "@guilty-spark/shared/contracts/stats/leaderboard";
 import type { LeaderboardRankingRow } from "../../database/types/leaderboard_ranking_row";
 import {
   aFakeDatabaseServiceWith,
@@ -363,6 +364,29 @@ describe("LeaderboardService", () => {
     expect(metricRankingArgs.limit).toBe(1);
     expect(metricRankingArgs.offset).toBe(1);
     expect(metricRankingArgs.metric).toBe(LeaderboardMetric.Kills);
+  });
+
+  it("clamps pageSize to the leaderboard max page size", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+
+    vi.spyOn(databaseService, "getLeaderboardConfig").mockResolvedValue(
+      aFakeLeaderboardConfigRow({ GuildId: "guild-1", MinGamesPlayed: 0 }),
+    );
+    const getMetricRankingsSpy = vi
+      .spyOn(databaseService, "getLeaderboardStatMetricRankings")
+      .mockResolvedValue({ total: 0, rows: [] });
+
+    await service.getLeaderboard({
+      guildId: "guild-1",
+      metric: LeaderboardMetric.Kills,
+      pageSize: 10_000,
+    });
+
+    const [metricRankingArgs] = Preconditions.checkExists(getMetricRankingsSpy.mock.calls[0]);
+    expect(metricRankingArgs.limit).toBe(LEADERBOARD_MAX_PAGE_SIZE);
   });
 
   it("clamps non-finite metric values to a JSON-safe maximum", async () => {
