@@ -1,7 +1,7 @@
 import { parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
-import { leaderboardContract, leaderboardQuerySchema } from "@guilty-spark/shared/contracts/stats/leaderboard";
-import { leaderboardQueuesContract } from "@guilty-spark/shared/contracts/stats/leaderboard-queues";
+import { leaderboardContract, leaderboardQuerySchema } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
+import { leaderboardQueuesContract } from "@guilty-spark/shared/contracts/leaderboard/leaderboard-queues";
 import type { RoutesRegisterHandler } from "../base/types";
 
 export const leaderboardRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
@@ -18,7 +18,10 @@ export const leaderboardRoutesRegisterHandler: RoutesRegisterHandler = (router, 
       return leaderboardQueuesContract.toResponse({ guildId, queueChannelIds }, { noStore: true });
     } catch (error) {
       services.logService.error(error, new Map([["context", "Failed to resolve leaderboard queues route"]]));
-      return errorContract.toResponse({ error: "Failed to resolve leaderboard queues" }, { status: 500, noStore: true });
+      return errorContract.toResponse(
+        { error: "Failed to resolve leaderboard queues" },
+        { status: 500, noStore: true },
+      );
     }
   });
 

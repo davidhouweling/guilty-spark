@@ -6,7 +6,7 @@ import type {
 } from "discord-api-types/v10";
 import { ButtonStyle, ComponentType } from "discord-api-types/v10";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
+import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
 import {
   LeaderboardMetricAggregation,
   LeaderboardMetric,

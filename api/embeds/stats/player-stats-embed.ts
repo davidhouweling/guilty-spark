@@ -8,7 +8,7 @@ import type {
 import { ComponentType } from "discord-api-types/v10";
 import { GameVariantCategory } from "halo-infinite-api";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
+import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
 import {
   LeaderboardMetric,
   LeaderboardMetricAggregation,

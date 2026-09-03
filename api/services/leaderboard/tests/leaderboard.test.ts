@@ -3,7 +3,7 @@ import type { APIMessage, APIMessageTopLevelComponent } from "discord-api-types/
 import { ComponentType, Locale } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { LeaderboardMetric, LeaderboardMetricFamily, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
-import { LEADERBOARD_MAX_PAGE_SIZE } from "@guilty-spark/shared/contracts/stats/leaderboard";
+import { LEADERBOARD_MAX_PAGE_SIZE } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
 import type { LeaderboardRankingRow } from "../../database/types/leaderboard_ranking_row";
 import {
   aFakeDatabaseServiceWith,
