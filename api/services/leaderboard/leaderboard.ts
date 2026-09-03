@@ -606,7 +606,10 @@ export class LeaderboardService {
       return {
         guildId,
         queueChannelId: queueChannelId ?? null,
-        window: window ?? resolvedConfig.DefaultWindow,
+        window:
+          window === LeaderboardWindow.LastReset
+            ? resolvedConfig.DefaultWindow
+            : (window ?? resolvedConfig.DefaultWindow),
         resetAt: null,
         metric: metric ?? resolvedConfig.DefaultMetric,
         minGamesPlayed: minGamesPlayed ?? resolvedConfig.MinGamesPlayed,
