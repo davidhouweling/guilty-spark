@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
+import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import { ComponentType } from "discord-api-types/v10";
 import { EmbedColors } from "../../../embeds/colors";

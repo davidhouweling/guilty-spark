@@ -8,8 +8,8 @@ import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { getObjectiveTimeSeconds } from "@guilty-spark/shared/halo/objective-metrics";
 import { clampRatioForStorage, getSafeRatioValue } from "@guilty-spark/shared/halo/stat-formatting";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
-import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
-import { LEADERBOARD_MAX_PAGE_SIZE } from "@guilty-spark/shared/contracts/stats/leaderboard";
+import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
+import { LEADERBOARD_MAX_PAGE_SIZE } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
 import {
   LeaderboardMetric,
   LeaderboardWindow,

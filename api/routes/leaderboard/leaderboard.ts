@@ -1,10 +1,31 @@
 import { parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
-import { leaderboardContract, leaderboardQuerySchema } from "@guilty-spark/shared/contracts/stats/leaderboard";
+import { leaderboardContract, leaderboardQuerySchema } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
+import { leaderboardQueuesContract } from "@guilty-spark/shared/contracts/leaderboard/leaderboard-queues";
 import type { RoutesRegisterHandler } from "../base/types";
 
-export const leaderboardRoute: RoutesRegisterHandler = (router, installServices) => {
-  router.get("/api/stats/leaderboard", async (request, env: Env) => {
+export const leaderboardRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
+  router.get("/api/leaderboard/queues", async (request, env: Env) => {
+    const services = installServices({ env });
+
+    try {
+      const guildId = new URL(request.url).searchParams.get("guildId");
+      if (guildId == null || guildId === "") {
+        return errorContract.toResponse({ error: "Invalid query parameters" }, { status: 400, noStore: true });
+      }
+
+      const queueChannelIds = await services.databaseService.getLeaderboardQueueChannelIds(guildId);
+      return leaderboardQueuesContract.toResponse({ guildId, queueChannelIds }, { noStore: true });
+    } catch (error) {
+      services.logService.error(error, new Map([["context", "Failed to resolve leaderboard queues route"]]));
+      return errorContract.toResponse(
+        { error: "Failed to resolve leaderboard queues" },
+        { status: 500, noStore: true },
+      );
+    }
+  });
+
+  router.get("/api/leaderboard", async (request, env: Env) => {
     const services = installServices({ env });
     const { leaderboardService, logService } = services;
 
