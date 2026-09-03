@@ -1,6 +1,6 @@
 import type { AutoRouterType } from "itty-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { leaderboardContract } from "@guilty-spark/shared/contracts/stats/leaderboard";
+import { LEADERBOARD_MAX_PAGE_SIZE, leaderboardContract } from "@guilty-spark/shared/contracts/stats/leaderboard";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
@@ -45,7 +45,9 @@ describe("/api/stats/leaderboard", () => {
     statsRoutesRegisterHandler(router, localInstallServices);
 
     const response = (await router.fetch(
-      new Request("http://localhost/api/stats/leaderboard?guildId=guild-1&pageSize=501"),
+      new Request(
+        `http://localhost/api/stats/leaderboard?guildId=guild-1&pageSize=${(LEADERBOARD_MAX_PAGE_SIZE + 1).toString()}`,
+      ),
       env,
     )) as Response;
 
