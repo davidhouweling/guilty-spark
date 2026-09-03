@@ -57,6 +57,7 @@ interface GetLeaderboardOpts {
   page?: number | undefined;
   pageSize?: number | undefined;
   minGamesPlayed?: number | undefined;
+  autoCreateConfig?: boolean | undefined;
 }
 
 export interface GetLeaderboardPlayerStatsOpts {
@@ -127,7 +128,7 @@ export class LeaderboardService {
     queueChannelIds,
     window,
   }: GetLeaderboardPlayerStatsOpts): Promise<LeaderboardPlayerStatsResponse | null> {
-    const config = await this.databaseService.getLeaderboardConfig(guildId, true);
+    const config = await this.databaseService.getLeaderboardConfig(guildId, false);
     const queueResetMarker = await this.databaseService.getLeaderboardResetMarker(guildId, queueChannelId);
     const serverResetMarker =
       queueChannelId != null && queueResetMarker == null
@@ -574,26 +575,7 @@ export class LeaderboardService {
     }
   }
 
-  async getLeaderboardWithResolvedPage({
-    guildId,
-    config,
-    queueChannelId,
-    window,
-    metric,
-    page,
-    pageSize,
-    minGamesPlayed,
-  }: GetLeaderboardOpts): Promise<LeaderboardResponse> {
-    const opts: GetLeaderboardOpts = {
-      guildId,
-      config,
-      queueChannelId,
-      window,
-      metric,
-      page,
-      pageSize,
-      minGamesPlayed,
-    };
+  async getLeaderboardWithResolvedPage(opts: GetLeaderboardOpts): Promise<LeaderboardResponse> {
     const leaderboard = await this.getLeaderboard(opts);
     const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
     if (leaderboard.page <= totalPages || leaderboard.total === 0) {
@@ -615,8 +597,29 @@ export class LeaderboardService {
     page,
     pageSize,
     minGamesPlayed,
+    autoCreateConfig,
   }: GetLeaderboardOpts): Promise<LeaderboardResponse> {
-    const resolvedConfig = config ?? (await this.databaseService.getLeaderboardConfig(guildId, true));
+    const resolvedConfig =
+      config ?? (await this.databaseService.getLeaderboardConfig(guildId, autoCreateConfig ?? false));
+    const hasLeaderboardData = await this.databaseService.hasLeaderboardData(guildId, queueChannelId ?? null);
+    if (autoCreateConfig === false && !hasLeaderboardData) {
+      return {
+        guildId,
+        queueChannelId: queueChannelId ?? null,
+        window:
+          window === LeaderboardWindow.LastReset
+            ? resolvedConfig.DefaultWindow
+            : (window ?? resolvedConfig.DefaultWindow),
+        resetAt: null,
+        metric: metric ?? resolvedConfig.DefaultMetric,
+        minGamesPlayed: minGamesPlayed ?? resolvedConfig.MinGamesPlayed,
+        page: Math.max(1, page ?? 1),
+        pageSize: Math.min(LEADERBOARD_MAX_PAGE_SIZE, Math.max(1, pageSize ?? 25)),
+        total: 0,
+        hasLeaderboardData: false,
+        rows: [],
+      };
+    }
     const queueResetMarker = await this.databaseService.getLeaderboardResetMarker(guildId, queueChannelId ?? null);
     const serverResetMarker =
       queueChannelId != null && queueResetMarker == null
@@ -678,6 +681,7 @@ export class LeaderboardService {
       page: resolvedPage,
       pageSize: resolvedPageSize,
       total: rankings.total,
+      hasLeaderboardData,
       rows: rankings.rows.map((row, index) => ({
         rank: offset + index + 1,
         xboxXuid: row.XboxXuid,

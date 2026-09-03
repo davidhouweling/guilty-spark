@@ -82,11 +82,11 @@ const METRIC_AGGREGATION_OPTIONS_BY_VALUE = new Map<string, LeaderboardMetricAgg
 interface LeaderboardViewState {
   guildId: string;
   queueChannelId: string | null;
-  window?: LeaderboardWindow;
-  metric?: LeaderboardMetric;
   page: number;
-  minGamesPlayed?: number;
-  locked?: boolean;
+  window?: LeaderboardWindow | undefined;
+  metric?: LeaderboardMetric | undefined;
+  minGamesPlayed?: number | undefined;
+  locked?: boolean | undefined;
 }
 
 interface ResolvedLeaderboardViewState extends LeaderboardViewState {
@@ -379,15 +379,21 @@ export class LeaderboardCommand extends BaseCommand {
       const locked = this.getOptionalBooleanOption(options, "locked") ?? false;
       const locale = this.getInteractionLocale(interaction);
 
-      await this.refreshLeaderboard(interaction.token, locale, {
-        guildId,
-        queueChannelId,
-        ...(window != null ? { window } : {}),
-        ...(metric != null ? { metric } : {}),
-        page,
-        ...(minGamesPlayed != null ? { minGamesPlayed } : {}),
-        locked,
-      });
+      await this.refreshLeaderboard(
+        interaction.token,
+        locale,
+        {
+          guildId,
+          queueChannelId,
+          window,
+          metric,
+          page,
+          minGamesPlayed,
+          locked,
+        },
+        undefined,
+        true,
+      );
     } catch (error) {
       await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
     }
@@ -888,6 +894,7 @@ export class LeaderboardCommand extends BaseCommand {
     locale: string,
     state: LeaderboardViewState,
     preservedMessage?: APIMessage,
+    autoCreateConfig = false,
   ): Promise<void> {
     try {
       const leaderboard = await this.services.leaderboardService.getLeaderboardWithResolvedPage({
@@ -898,6 +905,7 @@ export class LeaderboardCommand extends BaseCommand {
         page: state.page,
         pageSize: DEFAULT_PAGE_SIZE,
         ...(state.minGamesPlayed != null ? { minGamesPlayed: state.minGamesPlayed } : {}),
+        autoCreateConfig,
       });
 
       const response = createLeaderboardResponse(

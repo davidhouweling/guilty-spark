@@ -65,6 +65,7 @@ describe("/api/stats/leaderboard", () => {
       page: 2,
       pageSize: 10,
       total: 1,
+      hasLeaderboardData: true,
       rows: [
         {
           rank: 11,
@@ -103,6 +104,7 @@ describe("/api/stats/leaderboard", () => {
       page: 2,
       pageSize: 10,
       total: 1,
+      hasLeaderboardData: true,
       rows: [
         {
           rank: 11,
@@ -129,6 +131,32 @@ describe("/api/stats/leaderboard", () => {
       page: 2,
       pageSize: 10,
       minGamesPlayed: 3,
+      autoCreateConfig: false,
     });
+  });
+
+  it("returns 404 when the requested guild or queue has no leaderboard data", async () => {
+    const services = installFakeServicesWith({ env });
+    vi.spyOn(services.leaderboardService, "getLeaderboard").mockResolvedValue({
+      guildId: "guild-1",
+      queueChannelId: null,
+      window: LeaderboardWindow.ThreeMonths,
+      metric: LeaderboardMetric.SeriesWinRate,
+      minGamesPlayed: 5,
+      page: 1,
+      pageSize: 25,
+      total: 0,
+      hasLeaderboardData: false,
+      rows: [],
+    });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      new Request("http://localhost/api/stats/leaderboard?guildId=guild-1"),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(404);
   });
 });

@@ -129,6 +129,36 @@ describe("LeaderboardService", () => {
     vi.useRealTimers();
   });
 
+  it("skips ranking queries when read-only leaderboard data is missing", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    const getResetMarkerSpy = vi.spyOn(databaseService, "getLeaderboardResetMarker");
+    const getOutcomeRankingsSpy = vi.spyOn(databaseService, "getLeaderboardOutcomeMetricRankings");
+    const getStatRankingsSpy = vi.spyOn(databaseService, "getLeaderboardStatMetricRankings");
+
+    const result = await service.getLeaderboard({ guildId: "guild-1", autoCreateConfig: false });
+
+    expect(result.hasLeaderboardData).toBe(false);
+    expect(getResetMarkerSpy).not.toHaveBeenCalled();
+    expect(getOutcomeRankingsSpy).not.toHaveBeenCalled();
+    expect(getStatRankingsSpy).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the configured window when no data has a reset window", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+
+    const result = await service.getLeaderboard({ guildId: "guild-1", window: LeaderboardWindow.LastReset });
+
+    expect(result.window).toBe(LeaderboardWindow.ThreeMonths);
+    expect(result.resetAt).toBeNull();
+    expect(result.hasLeaderboardData).toBe(false);
+  });
+
   it("uses config defaults and ranks by series win rate", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });
