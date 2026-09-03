@@ -1690,6 +1690,13 @@ export class DatabaseService {
     return await stmt.first<LeaderboardSeriesRow>();
   }
 
+  async hasLeaderboardData(guildId: string, queueChannelId: string | null): Promise<boolean> {
+    const query = "SELECT 1 FROM LeaderboardSeries WHERE GuildId = ? AND (? IS NULL OR QueueChannelId = ?) LIMIT 1";
+    const stmt = this.DB.prepare(query).bind(guildId, queueChannelId, queueChannelId);
+    const row = await stmt.first<{ "1": number }>();
+    return row != null;
+  }
+
   async getLeaderboardSeriesWinRateRankings({
     guildId,
     queueChannelId,

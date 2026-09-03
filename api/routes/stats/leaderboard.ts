@@ -25,6 +25,10 @@ export const leaderboardRoute: RoutesRegisterHandler = (router, installServices)
         ...(pageSize != null ? { pageSize } : {}),
         ...(minGamesPlayed != null ? { minGamesPlayed } : {}),
       });
+      if (!response.hasData) {
+        return errorContract.toResponse({ error: "Leaderboard not found" }, { status: 404, noStore: true });
+      }
+
       return leaderboardContract.toResponse(response, { noStore: true });
     } catch (error) {
       logService.error(error, new Map([["context", "Failed to resolve leaderboard route"]]));

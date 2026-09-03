@@ -1432,6 +1432,32 @@ describe("Database Service", () => {
       expect(result).toEqual(series);
     });
 
+    it("checks whether leaderboard data exists for a guild and queue scope", async () => {
+      const fakePreparedStatement = new FakePreparedStatement<{ "1": number }>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      const firstSpy = vi.spyOn(fakePreparedStatement, "first").mockResolvedValue({ "1": 1 });
+
+      const result = await databaseService.hasLeaderboardData("guild-123", "queue-123");
+
+      expect(prepareSpy).toHaveBeenCalledWith(
+        "SELECT 1 FROM LeaderboardSeries WHERE GuildId = ? AND (? IS NULL OR QueueChannelId = ?) LIMIT 1",
+      );
+      expect(bindSpy).toHaveBeenCalledWith("guild-123", "queue-123", "queue-123");
+      expect(firstSpy).toHaveBeenCalledTimes(1);
+      expect(result).toBe(true);
+    });
+
+    it("returns false when no leaderboard data exists", async () => {
+      const fakePreparedStatement = new FakePreparedStatement<{ "1": number } | null>();
+      vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+
+      const result = await databaseService.hasLeaderboardData("guild-123", null);
+
+      expect(result).toBe(false);
+    });
+
     describe("getLeaderboardPlayerStats()", () => {
       // The D1 result is an unchecked generic cast, so drift between the query and the row type
       // only surfaces at render time as an undefined column.
