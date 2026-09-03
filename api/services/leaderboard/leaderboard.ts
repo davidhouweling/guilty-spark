@@ -9,6 +9,7 @@ import { getObjectiveTimeSeconds } from "@guilty-spark/shared/halo/objective-met
 import { clampRatioForStorage, getSafeRatioValue } from "@guilty-spark/shared/halo/stat-formatting";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/stats/leaderboard";
+import { LEADERBOARD_MAX_PAGE_SIZE } from "@guilty-spark/shared/contracts/stats/leaderboard";
 import {
   LeaderboardMetric,
   LeaderboardWindow,
@@ -634,7 +635,7 @@ export class LeaderboardService {
     const resolvedMetric = metric ?? resolvedConfig.DefaultMetric;
     const resolvedMinGamesPlayed = minGamesPlayed ?? resolvedConfig.MinGamesPlayed;
     const resolvedPage = Math.max(1, page ?? 1);
-    const resolvedPageSize = Math.min(100, Math.max(1, pageSize ?? 25));
+    const resolvedPageSize = Math.min(LEADERBOARD_MAX_PAGE_SIZE, Math.max(1, pageSize ?? 25));
     const offset = (resolvedPage - 1) * resolvedPageSize;
     const startEpochSeconds =
       resolvedWindow === LeaderboardWindow.LastReset

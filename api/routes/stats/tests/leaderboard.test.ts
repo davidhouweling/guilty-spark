@@ -45,7 +45,7 @@ describe("/api/stats/leaderboard", () => {
     statsRoutesRegisterHandler(router, localInstallServices);
 
     const response = (await router.fetch(
-      new Request("http://localhost/api/stats/leaderboard?guildId=guild-1&pageSize=101"),
+      new Request("http://localhost/api/stats/leaderboard?guildId=guild-1&pageSize=501"),
       env,
     )) as Response;
 
