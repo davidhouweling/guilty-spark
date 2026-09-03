@@ -25,7 +25,7 @@ export const leaderboardRoute: RoutesRegisterHandler = (router, installServices)
         ...(pageSize != null ? { pageSize } : {}),
         ...(minGamesPlayed != null ? { minGamesPlayed } : {}),
       });
-      if (!response.hasData) {
+      if (!response.hasLeaderboardData) {
         return errorContract.toResponse({ error: "Leaderboard not found" }, { status: 404, noStore: true });
       }
 

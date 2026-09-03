@@ -16,7 +16,7 @@ describe("createLeaderboardResponse", () => {
       page: 1,
       pageSize: 10,
       total: 1,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [
         {
           rank: 1,
@@ -83,7 +83,7 @@ describe("createLeaderboardResponse", () => {
       page: 1,
       pageSize: 10,
       total: 1,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [
         {
           rank: 1,
@@ -121,7 +121,7 @@ describe("createLeaderboardResponse", () => {
       page: 1,
       pageSize: 10,
       total: 1,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [
         {
           rank: 1,
@@ -169,7 +169,7 @@ describe("createLeaderboardResponse", () => {
       page: 2,
       pageSize: 10,
       total: 23,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [
         {
           rank: 11,
@@ -245,7 +245,7 @@ describe("createLeaderboardResponse", () => {
         page: 1,
         pageSize: 10,
         total: 1,
-        hasData: true,
+        hasLeaderboardData: true,
         rows: [
           {
             rank: 1,
@@ -282,7 +282,7 @@ describe("createLeaderboardResponse", () => {
       page: 1,
       pageSize: 10,
       total: 1,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [
         {
           rank: 1,
@@ -342,7 +342,7 @@ describe("createLeaderboardResponse", () => {
       page: 1,
       pageSize: 10,
       total: 1,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [
         {
           rank: 1,
@@ -380,7 +380,7 @@ describe("createLeaderboardResponse", () => {
       page: 1,
       pageSize: 10,
       total: 1,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [
         {
           rank: 1,
@@ -437,7 +437,7 @@ describe("createLeaderboardResponse", () => {
       page: 1,
       pageSize: 10,
       total: 1,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [
         {
           rank: 1,
@@ -471,7 +471,7 @@ describe("createLeaderboardResponse", () => {
       page: 1,
       pageSize: 10,
       total: 1,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [
         {
           rank: 1,
@@ -506,7 +506,7 @@ describe("createLeaderboardResponse", () => {
       page: 1,
       pageSize: 10,
       total: 0,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [],
     };
 
@@ -538,7 +538,7 @@ describe("createLeaderboardResponse", () => {
       page: 1,
       pageSize: 10,
       total: 0,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [],
     };
 
@@ -570,7 +570,7 @@ describe("createLeaderboardResponse", () => {
       page: 1,
       pageSize: 10,
       total: 0,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [],
     };
 

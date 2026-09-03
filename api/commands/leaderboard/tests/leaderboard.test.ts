@@ -435,7 +435,7 @@ describe("LeaderboardCommand", () => {
       page: 2,
       pageSize: 10,
       total: 23,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [
         {
           rank: 11,
@@ -594,7 +594,7 @@ describe("LeaderboardCommand", () => {
       page: 1,
       pageSize: 10,
       total: 0,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [],
     });
     const upsertLeaderboardPostSpy = vi
@@ -696,7 +696,7 @@ describe("LeaderboardCommand", () => {
       page: 1,
       pageSize: 10,
       total: 1,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [
         {
           rank: 1,
@@ -790,7 +790,7 @@ describe("LeaderboardCommand", () => {
       page: 1,
       pageSize: 10,
       total: 0,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [],
     });
     vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
@@ -850,7 +850,7 @@ describe("LeaderboardCommand", () => {
       page: 2,
       pageSize: 10,
       total: 23,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [],
     });
     vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
@@ -1026,7 +1026,7 @@ describe("LeaderboardCommand", () => {
       page: 1,
       pageSize: 10,
       total: 11,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [],
     });
     vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
@@ -1080,7 +1080,7 @@ describe("LeaderboardCommand", () => {
       page: 3,
       pageSize: 10,
       total: 30,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [],
     });
     vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
@@ -1136,7 +1136,7 @@ describe("LeaderboardCommand", () => {
         page: 1,
         pageSize: 10,
         total: 23,
-        hasData: true,
+        hasLeaderboardData: true,
         rows: [],
       })
       .mockResolvedValueOnce({
@@ -1148,7 +1148,7 @@ describe("LeaderboardCommand", () => {
         page: 3,
         pageSize: 10,
         total: 23,
-        hasData: true,
+        hasLeaderboardData: true,
         rows: [],
       });
     vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
@@ -1211,7 +1211,7 @@ describe("LeaderboardCommand", () => {
       page: 3,
       pageSize: 10,
       total: 0,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [],
     });
     vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
@@ -1361,7 +1361,7 @@ describe("LeaderboardCommand", () => {
       page: 1,
       pageSize: 10,
       total: 5,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [],
     });
     vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
@@ -1462,7 +1462,7 @@ describe("LeaderboardCommand", () => {
       page: 1,
       pageSize: 10,
       total: 34,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [],
     });
     vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
@@ -1519,7 +1519,7 @@ describe("LeaderboardCommand", () => {
       page: 1,
       pageSize: 10,
       total: 0,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [],
     });
     vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
@@ -1561,7 +1561,7 @@ describe("LeaderboardCommand", () => {
       page: 1,
       pageSize: 10,
       total: 5,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [],
     });
     vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
@@ -1605,7 +1605,7 @@ describe("LeaderboardCommand", () => {
       page: 1,
       pageSize: 10,
       total: 3,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [],
     });
     vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
@@ -1644,7 +1644,7 @@ describe("LeaderboardCommand", () => {
       page: 1,
       pageSize: 10,
       total: 0,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [],
     });
     const updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
@@ -1713,7 +1713,7 @@ describe("LeaderboardCommand", () => {
         page: 999,
         pageSize: 10,
         total: 12,
-        hasData: true,
+        hasLeaderboardData: true,
         rows: [],
       })
       .mockResolvedValueOnce({
@@ -1725,7 +1725,7 @@ describe("LeaderboardCommand", () => {
         page: 2,
         pageSize: 10,
         total: 12,
-        hasData: true,
+        hasLeaderboardData: true,
         rows: [
           {
             rank: 11,
@@ -1830,7 +1830,7 @@ describe("LeaderboardCommand", () => {
       page: 999,
       pageSize: 10,
       total: 0,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [],
     });
     const updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue({
@@ -2170,7 +2170,7 @@ describe("LeaderboardCommand", () => {
       page: 1,
       pageSize: 10,
       total: 1,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [
         {
           rank: 1,

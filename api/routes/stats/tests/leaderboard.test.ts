@@ -65,7 +65,7 @@ describe("/api/stats/leaderboard", () => {
       page: 2,
       pageSize: 10,
       total: 1,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [
         {
           rank: 11,
@@ -104,7 +104,7 @@ describe("/api/stats/leaderboard", () => {
       page: 2,
       pageSize: 10,
       total: 1,
-      hasData: true,
+      hasLeaderboardData: true,
       rows: [
         {
           rank: 11,
@@ -145,7 +145,7 @@ describe("/api/stats/leaderboard", () => {
       page: 1,
       pageSize: 25,
       total: 0,
-      hasData: false,
+      hasLeaderboardData: false,
       rows: [],
     });
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);

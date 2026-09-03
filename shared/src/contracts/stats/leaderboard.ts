@@ -41,7 +41,7 @@ export const leaderboardContract = defineContract(
     page: z.number().int().positive(),
     pageSize: z.number().int().positive(),
     total: z.number().int().nonnegative(),
-    hasData: z.boolean(),
+    hasLeaderboardData: z.boolean(),
     rows: z.array(
       z.object({
         rank: z.number().int().positive(),

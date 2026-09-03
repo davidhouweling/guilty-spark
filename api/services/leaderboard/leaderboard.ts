@@ -601,7 +601,7 @@ export class LeaderboardService {
   }: GetLeaderboardOpts): Promise<LeaderboardResponse> {
     const resolvedConfig =
       config ?? (await this.databaseService.getLeaderboardConfig(guildId, autoCreateConfig ?? false));
-    const hasData = await this.databaseService.hasLeaderboardData(guildId, queueChannelId ?? null);
+    const hasLeaderboardData = await this.databaseService.hasLeaderboardData(guildId, queueChannelId ?? null);
     const queueResetMarker = await this.databaseService.getLeaderboardResetMarker(guildId, queueChannelId ?? null);
     const serverResetMarker =
       queueChannelId != null && queueResetMarker == null
@@ -663,7 +663,7 @@ export class LeaderboardService {
       page: resolvedPage,
       pageSize: resolvedPageSize,
       total: rankings.total,
-      hasData,
+      hasLeaderboardData,
       rows: rankings.rows.map((row, index) => ({
         rank: offset + index + 1,
         xboxXuid: row.XboxXuid,

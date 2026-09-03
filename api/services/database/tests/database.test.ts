@@ -1441,9 +1441,9 @@ describe("Database Service", () => {
       const result = await databaseService.hasLeaderboardData("guild-123", "queue-123");
 
       expect(prepareSpy).toHaveBeenCalledWith(
-        "SELECT 1 FROM LeaderboardSeries WHERE GuildId = ? AND (? IS NULL OR QueueChannelId = ?) LIMIT 1",
+        "SELECT 1 FROM LeaderboardSeries WHERE GuildId = ? AND QueueChannelId = ? LIMIT 1",
       );
-      expect(bindSpy).toHaveBeenCalledWith("guild-123", "queue-123", "queue-123");
+      expect(bindSpy).toHaveBeenCalledWith("guild-123", "queue-123");
       expect(firstSpy).toHaveBeenCalledTimes(1);
       expect(result).toBe(true);
     });
