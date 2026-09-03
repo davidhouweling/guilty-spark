@@ -131,6 +131,7 @@ describe("/api/stats/leaderboard", () => {
       page: 2,
       pageSize: 10,
       minGamesPlayed: 3,
+      autoCreateConfig: false,
     });
   });
 

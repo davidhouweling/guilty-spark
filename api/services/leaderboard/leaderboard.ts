@@ -602,6 +602,21 @@ export class LeaderboardService {
     const resolvedConfig =
       config ?? (await this.databaseService.getLeaderboardConfig(guildId, autoCreateConfig ?? false));
     const hasLeaderboardData = await this.databaseService.hasLeaderboardData(guildId, queueChannelId ?? null);
+    if (autoCreateConfig === false && !hasLeaderboardData) {
+      return {
+        guildId,
+        queueChannelId: queueChannelId ?? null,
+        window: window ?? resolvedConfig.DefaultWindow,
+        resetAt: null,
+        metric: metric ?? resolvedConfig.DefaultMetric,
+        minGamesPlayed: minGamesPlayed ?? resolvedConfig.MinGamesPlayed,
+        page: Math.max(1, page ?? 1),
+        pageSize: Math.min(LEADERBOARD_MAX_PAGE_SIZE, Math.max(1, pageSize ?? 25)),
+        total: 0,
+        hasLeaderboardData: false,
+        rows: [],
+      };
+    }
     const queueResetMarker = await this.databaseService.getLeaderboardResetMarker(guildId, queueChannelId ?? null);
     const serverResetMarker =
       queueChannelId != null && queueResetMarker == null
