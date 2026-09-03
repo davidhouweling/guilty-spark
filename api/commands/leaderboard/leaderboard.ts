@@ -908,6 +908,7 @@ export class LeaderboardCommand extends BaseCommand {
         leaderboard.resetAt == null
           ? null
           : this.services.discordService.getTimestamp(new Date(leaderboard.resetAt * 1000).toISOString(), "f"),
+        this.env.PAGES_URL,
       );
       const message = await this.services.discordService.updateDeferredReply(token, response);
       if (state.locked !== true) {

@@ -571,7 +571,9 @@ describe("LeaderboardCommand", () => {
         }
       }
     }
-    expect(getBrowserUrlFromComponents(payload.components)).toBeNull();
+    expect(getBrowserUrlFromComponents(payload.components)).toBe(
+      "http://localhost:4321/leaderboard/guild-123/queue-123",
+    );
   });
 
   it("omits controls and skips post registration for locked leaderboard show", async () => {
@@ -651,7 +653,20 @@ describe("LeaderboardCommand", () => {
     });
     expect(upsertLeaderboardPostSpy).not.toHaveBeenCalled();
     const [, payload] = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]);
-    expect(payload.components).toBeUndefined();
+    expect(payload.components).toEqual([
+      {
+        type: ComponentType.ActionRow,
+        components: [
+          {
+            type: ComponentType.Button,
+            style: ButtonStyle.Link,
+            label: "View leaderboard",
+            emoji: { name: "🏆" },
+            url: "http://localhost:4321/leaderboard/guild-123",
+          },
+        ],
+      },
+    ]);
   });
 
   it("prefers guild locale over user locale for leaderboard formatting", async () => {
