@@ -1690,6 +1690,14 @@ export class DatabaseService {
     return await stmt.first<LeaderboardSeriesRow>();
   }
 
+  async getLeaderboardQueueChannelIds(guildId: string): Promise<string[]> {
+    const stmt = this.DB.prepare(
+      "SELECT DISTINCT QueueChannelId FROM LeaderboardSeries WHERE GuildId = ? AND QueueChannelId IS NOT NULL ORDER BY QueueChannelId ASC",
+    ).bind(guildId);
+    const response = await stmt.all<{ QueueChannelId: string }>();
+    return response.results.map((row) => row.QueueChannelId);
+  }
+
   async hasLeaderboardData(guildId: string, queueChannelId: string | null): Promise<boolean> {
     const query =
       queueChannelId == null

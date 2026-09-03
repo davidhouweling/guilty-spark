@@ -1432,6 +1432,34 @@ describe("Database Service", () => {
       expect(result).toEqual(series);
     });
 
+    it("gets distinct leaderboard queue channel IDs for a guild", async () => {
+      const fakePreparedStatement = new FakePreparedStatement<{ QueueChannelId: string }>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({
+        results: [{ QueueChannelId: "queue-1" }, { QueueChannelId: "queue-2" }],
+        success: true,
+        meta: {
+          duration: 0,
+          size_after: 0,
+          rows_read: 2,
+          rows_written: 0,
+          last_row_id: 0,
+          changes: 0,
+          last_insert_rowid: 0,
+          changed_db: false,
+        },
+      });
+
+      const result = await databaseService.getLeaderboardQueueChannelIds("guild-123");
+
+      expect(prepareSpy).toHaveBeenCalledWith(
+        "SELECT DISTINCT QueueChannelId FROM LeaderboardSeries WHERE GuildId = ? AND QueueChannelId IS NOT NULL ORDER BY QueueChannelId ASC",
+      );
+      expect(bindSpy).toHaveBeenCalledWith("guild-123");
+      expect(result).toEqual(["queue-1", "queue-2"]);
+    });
+
     it("checks whether leaderboard data exists for a guild and queue scope", async () => {
       const fakePreparedStatement = new FakePreparedStatement<{ "1": number }>();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);

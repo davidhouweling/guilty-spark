@@ -5,9 +5,9 @@ import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
-import { statsRoutesRegisterHandler } from "../stats";
+import { leaderboardRoutesRegisterHandler } from "../leaderboard";
 
-describe("/api/stats/leaderboard", () => {
+describe("/api/leaderboard", () => {
   let env: Env;
   let router: AutoRouterType;
 
@@ -19,9 +19,34 @@ describe("/api/stats/leaderboard", () => {
   it("returns 400 when required guildId is missing", async () => {
     const services = installFakeServicesWith({ env });
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
-    statsRoutesRegisterHandler(router, localInstallServices);
+    leaderboardRoutesRegisterHandler(router, localInstallServices);
 
-    const response = (await router.fetch(new Request("http://localhost/api/stats/leaderboard"), env)) as Response;
+    const response = (await router.fetch(new Request("http://localhost/api/leaderboard"), env)) as Response;
+
+    expect(response.status).toBe(400);
+  });
+
+  it("returns leaderboard queue channel IDs", async () => {
+    const services = installFakeServicesWith({ env });
+    vi.spyOn(services.databaseService, "getLeaderboardQueueChannelIds").mockResolvedValue(["queue-a", "queue-b"]);
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    leaderboardRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      new Request("http://localhost/api/leaderboard/queues?guildId=guild-1"),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ guildId: "guild-1", queueChannelIds: ["queue-a", "queue-b"] });
+  });
+
+  it("returns 400 when leaderboard queue guildId is missing", async () => {
+    const services = installFakeServicesWith({ env });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    leaderboardRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(new Request("http://localhost/api/leaderboard/queues"), env)) as Response;
 
     expect(response.status).toBe(400);
   });
@@ -29,10 +54,10 @@ describe("/api/stats/leaderboard", () => {
   it("returns 400 when numeric query params contain non-digit characters", async () => {
     const services = installFakeServicesWith({ env });
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
-    statsRoutesRegisterHandler(router, localInstallServices);
+    leaderboardRoutesRegisterHandler(router, localInstallServices);
 
     const response = (await router.fetch(
-      new Request("http://localhost/api/stats/leaderboard?guildId=guild-1&page=10abc"),
+      new Request("http://localhost/api/leaderboard?guildId=guild-1&page=10abc"),
       env,
     )) as Response;
 
@@ -42,11 +67,11 @@ describe("/api/stats/leaderboard", () => {
   it("returns 400 when pageSize exceeds the maximum", async () => {
     const services = installFakeServicesWith({ env });
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
-    statsRoutesRegisterHandler(router, localInstallServices);
+    leaderboardRoutesRegisterHandler(router, localInstallServices);
 
     const response = (await router.fetch(
       new Request(
-        `http://localhost/api/stats/leaderboard?guildId=guild-1&pageSize=${(LEADERBOARD_MAX_PAGE_SIZE + 1).toString()}`,
+        `http://localhost/api/leaderboard?guildId=guild-1&pageSize=${(LEADERBOARD_MAX_PAGE_SIZE + 1).toString()}`,
       ),
       env,
     )) as Response;
@@ -84,11 +109,11 @@ describe("/api/stats/leaderboard", () => {
       ],
     });
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
-    statsRoutesRegisterHandler(router, localInstallServices);
+    leaderboardRoutesRegisterHandler(router, localInstallServices);
 
     const response = (await router.fetch(
       new Request(
-        "http://localhost/api/stats/leaderboard?guildId=guild-1&queueChannelId=queue-a&window=1M&metric=KILLS&page=2&pageSize=10&minGamesPlayed=3",
+        "http://localhost/api/leaderboard?guildId=guild-1&queueChannelId=queue-a&window=1M&metric=KILLS&page=2&pageSize=10&minGamesPlayed=3",
       ),
       env,
     )) as Response;
@@ -150,10 +175,10 @@ describe("/api/stats/leaderboard", () => {
       rows: [],
     });
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
-    statsRoutesRegisterHandler(router, localInstallServices);
+    leaderboardRoutesRegisterHandler(router, localInstallServices);
 
     const response = (await router.fetch(
-      new Request("http://localhost/api/stats/leaderboard?guildId=guild-1"),
+      new Request("http://localhost/api/leaderboard?guildId=guild-1"),
       env,
     )) as Response;
 

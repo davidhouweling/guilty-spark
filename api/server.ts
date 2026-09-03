@@ -6,6 +6,7 @@ import { individualTrackerRoutesRegisterHandler } from "./routes/individual-trac
 import { userTrackerRoutesRegisterHandler } from "./routes/user-tracker/user-tracker";
 import { haloProxyRoutesRegisterHandler } from "./routes/halo-proxy/halo-proxy";
 import { statsRoutesRegisterHandler } from "./routes/stats/stats";
+import { leaderboardRoutesRegisterHandler } from "./routes/leaderboard/leaderboard";
 
 interface ServerOpts {
   router: AutoRouterType;
@@ -39,6 +40,8 @@ export class Server {
     haloProxyRoutesRegisterHandler(this.router, this.installServices);
 
     statsRoutesRegisterHandler(this.router, this.installServices);
+
+    leaderboardRoutesRegisterHandler(this.router, this.installServices);
 
     discordInteractionsRoute(this.router, this.installServices);
 
