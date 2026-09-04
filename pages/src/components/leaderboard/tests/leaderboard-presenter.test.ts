@@ -44,6 +44,7 @@ describe("LeaderboardPresenter", () => {
     expect(model.windowLabel).toBe("1M");
     expect(model.windowOptions.map((option) => option.value)).not.toContain(LeaderboardWindow.LastReset);
     expect(model.rows[0]?.value).toBe("42");
+    expect(model.rows[0]?.xboxXuid).toBe("xuid-1");
   });
 
   it("parses lowercase query parameters and serializes filter changes in lowercase", async () => {

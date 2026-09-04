@@ -16,6 +16,7 @@ export interface LeaderboardTableRow {
   readonly gamertag: string;
   readonly value: string;
   readonly gamesPlayed: number;
+  readonly xboxXuid: string;
 }
 
 export interface LeaderboardViewModel {

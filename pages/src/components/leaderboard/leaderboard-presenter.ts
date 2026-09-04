@@ -150,6 +150,7 @@ export class LeaderboardPresenter {
       response?.rows.map((row) => ({
         rank: row.rank,
         gamertag: row.gamertag,
+        xboxXuid: row.xboxXuid,
         value: getMetricValue(row.metricValue, metric),
         gamesPlayed: row.gamesPlayed,
       })) ?? [];

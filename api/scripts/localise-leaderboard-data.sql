@@ -35,7 +35,7 @@ VALUES (
     '["1W","1M","3M","6M","12M"]',
     '3M',
     'SERIES_WIN_RATE',
-    5,
+    1,
     unixepoch()
 );
 
@@ -66,9 +66,9 @@ INSERT INTO LeaderboardSeries (
     UpdatedAt
 )
 VALUES
-    ('1300001976334946326', 1001, '1352868353869352970', '1347857828341350480', 1710000000, 1710003600, 0, '2:1', 'neatqueue', unixepoch(), unixepoch()),
-    ('1300001976334946326', 1002, '1300001976334946329', '1347857828341350480', 1710007200, 1710010800, 1, '1:2', 'neatqueue', unixepoch(), unixepoch()),
-    ('1300001976334946326', 1003, '1381214814407491737', '1347857828341350480', 1710014400, 1710018000, 0, '3:0', 'neatqueue', unixepoch(), unixepoch());
+    ('1300001976334946326', 1001, '1352868353869352970', '1347857828341350480', unixepoch() - 86400, unixepoch() - 82800, 0, '2:1', 'neatqueue', unixepoch(), unixepoch()),
+    ('1300001976334946326', 1002, '1300001976334946329', '1347857828341350480', unixepoch() - 72000, unixepoch() - 68400, 1, '1:2', 'neatqueue', unixepoch(), unixepoch()),
+    ('1300001976334946326', 1003, '1381214814407491737', '1347857828341350480', unixepoch() - 57600, unixepoch() - 54000, 0, '3:0', 'neatqueue', unixepoch(), unixepoch());
 
 INSERT INTO LeaderboardSeriesPlayers (
     GuildId,
@@ -111,9 +111,9 @@ INSERT INTO LeaderboardGames (
     CreatedAt
 )
 VALUES
-    ('match-1001-1', '1300001976334946326', 1001, '1352868353869352970', 1, 0, 'Slayer', 'Argentite', NULL, NULL, 100, 88, 1710000000, 1710001800, unixepoch()),
-    ('match-1002-1', '1300001976334946326', 1002, '1300001976334946329', 1, 0, 'Strongholds', 'Recharge', NULL, NULL, 88, 100, 1710007200, 1710009000, unixepoch()),
-    ('match-1003-1', '1300001976334946326', 1003, '1381214814407491737', 1, 0, 'Oddball', 'Riptide', NULL, NULL, 100, 75, 1710014400, 1710016200, unixepoch());
+    ('match-1001-1', '1300001976334946326', 1001, '1352868353869352970', 1, 0, 'Slayer', 'Argentite', NULL, NULL, 100, 88, unixepoch() - 86400, unixepoch() - 84600, unixepoch()),
+    ('match-1002-1', '1300001976334946326', 1002, '1300001976334946329', 1, 0, 'Strongholds', 'Recharge', NULL, NULL, 88, 100, unixepoch() - 72000, unixepoch() - 70200, unixepoch()),
+    ('match-1003-1', '1300001976334946326', 1003, '1381214814407491737', 1, 0, 'Oddball', 'Riptide', NULL, NULL, 100, 75, unixepoch() - 57600, unixepoch() - 55800, unixepoch());
 
 INSERT INTO LeaderboardGamePlayers (
     MatchId,

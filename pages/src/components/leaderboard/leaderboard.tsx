@@ -140,7 +140,7 @@ export function Leaderboard({
         <SortableTable
           data={rows}
           columns={columns}
-          getRowKey={(row): string => row.gamertag}
+          getRowKey={(row): string => row.xboxXuid}
           ariaLabel="Leaderboard rankings"
           initialSort={{ columnId: "rank" }}
         />

@@ -78,6 +78,7 @@
   .page {
     padding-inline: var(--gutter-desktop);
   }
+
   .controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -87,6 +88,7 @@
   .controls {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
   .tableSection {
     padding: var(--space-4);
   }

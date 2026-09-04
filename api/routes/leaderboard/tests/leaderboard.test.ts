@@ -4,6 +4,7 @@ import { LEADERBOARD_MAX_PAGE_SIZE, leaderboardContract } from "@guilty-spark/sh
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
+import { guild } from "../../../services/discord/fakes/data";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { leaderboardRoutesRegisterHandler } from "../leaderboard";
 
@@ -51,6 +52,26 @@ describe("/api/leaderboard", () => {
         { channelId: "queue-b", label: "#beta-queue" },
       ],
     });
+  });
+
+  it("returns the Discord guild name when it can be resolved", async () => {
+    const services = installFakeServicesWith({ env });
+    vi.spyOn(services.databaseService, "getLeaderboardQueueChannelIds").mockResolvedValue([]);
+    vi.spyOn(services.discordService, "getGuild").mockResolvedValue({
+      ...guild,
+      id: "guild-1",
+      name: "  Test Server  ",
+    });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    leaderboardRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      new Request("http://localhost/api/leaderboard/queues?guildId=guild-1"),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ guildId: "guild-1", guildName: "Test Server", queueOptions: [] });
   });
 
   it("falls back to queue IDs when Discord channel names cannot be resolved", async () => {
