@@ -27,10 +27,10 @@ npm run test:coverage       # Coverage report
 npm run typecheck           # Both api + pages
 npm run typecheck:api       # API only (tsc --noEmit)
 npm run typecheck:pages     # Pages only (astro check)
-npm run lint                # ESLint + Stylelint
-npm run lint:fix            # Auto-fix lint issues
+npm run lint:changed:fix    # ESLint + Stylelint on changed files
+npm run lint:ts:changed:fix # Auto-fix TypeScript lint on changed files
 npm run format:fix          # Auto-format (Prettier)
-npm run done                # Full pipeline: format + typecheck + lint + test
+npm run done                # Full pipeline: format + typecheck + changed lint + test
 
 # Build & Deploy
 npm run build:api           # tsc build
@@ -38,6 +38,10 @@ npm run build:pages         # astro build
 npm run deploy:api          # wrangler deploy
 npm run deploy:pages        # astro build + wrangler deploy
 ```
+
+Due to repository memory constraints, do not run `lint`, `lint:fix`, `lint:ts`, or `lint:ts:fix`.
+Use `lint:changed:fix` or `lint:ts:changed:fix` instead. If running ESLint directly, always
+provide paths to specific files or folders; never run it across the whole repository.
 
 ## Architecture
 
@@ -158,6 +162,10 @@ switch (item.type) {
 **Dates**: `date-fns` for all date operations.
 
 **Imports**: Extensionless for internal modules. `import type` for type-only imports.
+
+**Optional properties**: When a property may be omitted or explicitly supplied as `undefined`,
+declare it as optional with an explicit `undefined` union (for example, `window?: Foo | undefined`).
+This allows callers to pass the property directly without conditional object spreads.
 
 **Props ordering**: In React component interfaces, declare props in this order: data props (required first, then optional), then callback props (required first, then optional). Align destructuring order with the declaration order.
 

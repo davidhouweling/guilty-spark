@@ -1,0 +1,75 @@
+---
+export const prerender = false;
+
+import { API_HOST } from "../../../constants";
+import Layout from "../../../layouts/layout.astro";
+import { LeaderboardApp } from "../../../apps/leaderboard/create";
+import ErrorState from "../../../components/error-state/error-state.astro";
+import { LEADERBOARD_MAX_PAGE_SIZE, leaderboardContract } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
+import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
+import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+
+const { guildId = "", queueId = "" } = Astro.params;
+const isValidGuildId = /^\d+$/.test(guildId);
+const isValidQueueId = /^\d+$/.test(queueId);
+let lookupStatus = isValidGuildId && isValidQueueId ? 500 : 404;
+let initialResponse: LeaderboardResponse | undefined;
+
+if (lookupStatus !== 404) {
+  try {
+    const url = new URL("/api/leaderboard", String(API_HOST));
+    url.searchParams.set("guildId", guildId);
+    url.searchParams.set("queueChannelId", queueId);
+    url.searchParams.set("pageSize", LEADERBOARD_MAX_PAGE_SIZE.toString());
+    const window = Object.values(LeaderboardWindow).find(
+      (candidate) => candidate.toLowerCase() === Astro.url.searchParams.get("window")?.toLowerCase(),
+    );
+    const metric = Object.values(LeaderboardMetric).find(
+      (candidate) => candidate.toLowerCase() === Astro.url.searchParams.get("metric")?.toLowerCase(),
+    );
+    if (window != null) {
+      url.searchParams.set("window", window);
+    }
+    if (metric != null) {
+      url.searchParams.set("metric", metric);
+    }
+    const response = await fetch(url);
+    lookupStatus = response.status;
+    if (response.ok) {
+      initialResponse = await leaderboardContract.fromResponse(response.clone());
+    }
+    Astro.response.status = lookupStatus;
+    if (lookupStatus >= 500) {
+      Astro.response.headers.set("Cache-Control", "no-store");
+    }
+  } catch {
+    Astro.response.status = 500;
+    Astro.response.headers.set("Cache-Control", "no-store");
+  }
+} else {
+  Astro.response.status = 404;
+}
+---
+
+<Layout title="Queue Leaderboard - Guilty Spark" description="Public Halo Infinite queue leaderboard">
+  {
+    lookupStatus === 200 ? (
+      <LeaderboardApp
+        client:only="react"
+        apiHost={API_HOST}
+        guildId={guildId}
+        queueChannelId={queueId}
+        initialResponse={initialResponse}
+      />
+    ) : (
+      <ErrorState
+        title={lookupStatus === 404 ? "Leaderboard not found" : "Unable to load leaderboard"}
+        message={
+          lookupStatus === 404
+            ? "No completed leaderboard data was found for this queue."
+            : "The leaderboard could not be validated right now."
+        }
+      />
+    )
+  }
+</Layout>
