@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
+import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
 import { ComponentLoader, ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import { ErrorState } from "../../components/error-state/error-state";
 import { LoadingState } from "../../components/loading-state/loading-state";
@@ -11,9 +12,15 @@ interface LeaderboardAppProps {
   readonly apiHost: string;
   readonly guildId: string;
   readonly queueChannelId: string | null;
+  readonly initialResponse?: LeaderboardResponse | undefined;
 }
 
-export function LeaderboardApp({ apiHost, guildId, queueChannelId }: LeaderboardAppProps): ReactElement {
+export function LeaderboardApp({
+  apiHost,
+  guildId,
+  queueChannelId,
+  initialResponse,
+}: LeaderboardAppProps): ReactElement {
   const [loadingServices, setLoadingServices] = useState(ComponentLoaderStatus.PENDING);
   const [service, setService] = useState<LeaderboardService | null>(null);
 
@@ -50,6 +57,7 @@ export function LeaderboardApp({ apiHost, guildId, queueChannelId }: Leaderboard
             service,
             guildId,
             initialQueueChannelId: queueChannelId,
+            initialResponse,
           }),
     [service, guildId, queueChannelId],
   );

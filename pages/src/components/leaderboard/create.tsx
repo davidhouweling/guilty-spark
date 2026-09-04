@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
+import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
 import type { LeaderboardService } from "../../services/leaderboard/leaderboard-types";
 import { LeaderboardPresenter } from "./leaderboard-presenter";
 import { LeaderboardStore } from "./leaderboard-store";
@@ -9,14 +10,20 @@ export interface CreateLeaderboardConfig {
   readonly service: LeaderboardService;
   readonly guildId: string;
   readonly initialQueueChannelId: string | null;
+  readonly initialResponse?: LeaderboardResponse | undefined;
 }
 
-function LeaderboardInternal({ service, guildId, initialQueueChannelId }: CreateLeaderboardConfig): ReactElement {
+function LeaderboardInternal({
+  service,
+  guildId,
+  initialQueueChannelId,
+  initialResponse,
+}: CreateLeaderboardConfig): ReactElement {
   const store = useMemo(() => new LeaderboardStore(), []);
 
   const presenter = useMemo(
-    () => new LeaderboardPresenter({ store, service, guildId, initialQueueChannelId }),
-    [guildId, initialQueueChannelId, service, store],
+    () => new LeaderboardPresenter({ store, service, guildId, initialQueueChannelId, initialResponse }),
+    [guildId, initialQueueChannelId, initialResponse, service, store],
   );
 
   useEffect(() => {

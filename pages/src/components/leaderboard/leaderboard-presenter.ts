@@ -9,6 +9,7 @@ import {
   LeaderboardMetricAggregation,
   LeaderboardWindow,
 } from "@guilty-spark/shared/halo/leaderboard";
+import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
 import type { LeaderboardQueueOptionsResponse, LeaderboardService } from "../../services/leaderboard/leaderboard-types";
 import type { LeaderboardSnapshot, LeaderboardStore } from "./leaderboard-store";
 import type { LeaderboardOptionGroup, LeaderboardTableRow, LeaderboardViewModel } from "./types";
@@ -18,6 +19,7 @@ interface LeaderboardPresenterOptions {
   readonly service: LeaderboardService;
   readonly guildId: string;
   readonly initialQueueChannelId: string | null;
+  readonly initialResponse?: LeaderboardResponse | undefined;
 }
 
 function findWindow(value: string | null): LeaderboardWindow | undefined {
@@ -70,17 +72,42 @@ export class LeaderboardPresenter {
   private isDisposed = false;
   private requestNumber = 0;
 
-  constructor({ store, service, guildId, initialQueueChannelId }: LeaderboardPresenterOptions) {
+  constructor({ store, service, guildId, initialQueueChannelId, initialResponse }: LeaderboardPresenterOptions) {
     this.store = store;
     this.service = service;
     this.guildId = guildId;
     this.currentQueueChannelId = initialQueueChannelId;
+    this.initialResponse = initialResponse;
     this.currentWindow = findWindow(new URLSearchParams(window.location.search).get("window"));
     this.currentMetric = findMetric(new URLSearchParams(window.location.search).get("metric"));
   }
 
+  private readonly initialResponse: LeaderboardResponse | undefined;
+
   start(): void {
-    this.load();
+    const {initialResponse} = this;
+    if (initialResponse == null) {
+      this.load();
+      return;
+    }
+    this.store.setLoading();
+    void this.loadInitialAsync(initialResponse);
+  }
+
+  private async loadInitialAsync(initialResponse: LeaderboardResponse): Promise<void> {
+    try {
+      const queueOptions = await this.getQueueOptionsAsync();
+      if (this.isDisposed) {
+        return;
+      }
+      this.currentWindow = initialResponse.window;
+      this.currentMetric = initialResponse.metric;
+      this.store.setLoaded(initialResponse, queueOptions);
+    } catch {
+      if (!this.isDisposed) {
+        this.store.setError("Unable to load leaderboard data.");
+      }
+    }
   }
 
   load(): void {
@@ -191,7 +218,9 @@ export class LeaderboardPresenter {
       { value: LeaderboardWindow.ThreeMonths, label: "3 months" },
       { value: LeaderboardWindow.SixMonths, label: "6 months" },
       { value: LeaderboardWindow.TwelveMonths, label: "12 months" },
-      ...(response?.resetAt == null ? [] : [{ value: LeaderboardWindow.LastReset, label: "Since last reset" }]),
+      ...(response?.resetAt == null && this.currentWindow !== LeaderboardWindow.LastReset
+        ? []
+        : [{ value: LeaderboardWindow.LastReset, label: "Since last reset" }]),
     ];
 
     return {
