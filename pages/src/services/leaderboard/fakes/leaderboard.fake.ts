@@ -1,5 +1,9 @@
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
-import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
+import {
+  LEADERBOARD_MAX_PAGE_SIZE
+  
+} from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
+import type {LeaderboardResponse} from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
 import type { LeaderboardService, LeaderboardRequest } from "../leaderboard-types";
 
 const defaultResponse: LeaderboardResponse = {
@@ -10,7 +14,7 @@ const defaultResponse: LeaderboardResponse = {
   metric: LeaderboardMetric.Kills,
   minGamesPlayed: 5,
   page: 1,
-  pageSize: 500,
+  pageSize: LEADERBOARD_MAX_PAGE_SIZE,
   total: 0,
   hasLeaderboardData: true,
   rows: [],

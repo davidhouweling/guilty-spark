@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Heading } from "../heading/heading";
 import { Select } from "../select/select";
 import { SortableTable } from "../table/sortable-table";
@@ -35,32 +35,35 @@ export function Leaderboard({
   onWindowChange,
   onMetricChange,
 }: LeaderboardViewModel): React.ReactElement {
-  const columns: readonly SortableTableColumn<LeaderboardTableRow>[] = [
-    {
-      id: "rank",
-      header: "Rank",
-      accessorFn: (row): number => row.rank,
-      cell: (value): React.ReactNode => `#${String(value)}`,
-      enableSorting: false,
-    },
-    {
-      id: "gamertag",
-      header: "Player",
-      accessorFn: (row): string => row.gamertag,
-    },
-    {
-      id: "value",
-      header: metricLabel,
-      accessorFn: (row): number => row.sortValue,
-      cell: (_value, row): React.ReactNode => row.value,
-    },
-    {
-      id: "gamesPlayed",
-      header: "Games",
-      accessorFn: (row): number => row.gamesPlayed,
-      cell: (value): React.ReactNode => Number(value).toLocaleString(),
-    },
-  ];
+  const columns = useMemo<readonly SortableTableColumn<LeaderboardTableRow>[]>(
+    () => [
+      {
+        id: "rank",
+        header: "Rank",
+        accessorFn: (row): number => row.rank,
+        cell: (value): React.ReactNode => `#${String(value)}`,
+        enableSorting: false,
+      },
+      {
+        id: "gamertag",
+        header: "Player",
+        accessorFn: (row): string => row.gamertag,
+      },
+      {
+        id: "value",
+        header: metricLabel,
+        accessorFn: (row): number => row.sortValue,
+        cell: (_value, row): React.ReactNode => row.value,
+      },
+      {
+        id: "gamesPlayed",
+        header: "Games",
+        accessorFn: (row): number => row.gamesPlayed,
+        cell: (value): React.ReactNode => Number(value).toLocaleString(),
+      },
+    ],
+    [metricLabel],
+  );
 
   if (state === "error") {
     return (

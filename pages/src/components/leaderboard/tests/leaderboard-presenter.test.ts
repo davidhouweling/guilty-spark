@@ -189,4 +189,35 @@ describe("LeaderboardPresenter", () => {
 
     expect(presenter.present(store.getSnapshot()).selectedQueueChannelId).toBeNull();
   });
+
+  it("formats accuracy percentages and infinite ratio values", async () => {
+    const store = new LeaderboardStore();
+    const service = aFakeLeaderboardServiceWith({
+      metric: LeaderboardMetric.Accuracy,
+      rows: [
+        {
+          rank: 1,
+          xboxXuid: "xuid-1",
+          discordUserId: null,
+          gamertag: "Alpha",
+          seriesPlayed: 1,
+          seriesWins: 1,
+          gamesPlayed: 1,
+          gameWins: 1,
+          medalCount: 0,
+          objectiveGamesPlayed: 0,
+          objectiveTimeSeconds: 0,
+          metricValue: 58.3,
+        },
+      ],
+    });
+    const presenter = new LeaderboardPresenter({ store, service, guildId: "guild-1", initialQueueChannelId: null });
+
+    presenter.start();
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().status).toBe("loaded");
+    });
+
+    expect(presenter.present(store.getSnapshot()).rows[0]?.value).toBe("58.3%");
+  });
 });

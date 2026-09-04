@@ -29,8 +29,14 @@ function findMetric(value: string | null): LeaderboardMetric | undefined {
 }
 
 function getMetricValue(value: number, metric: LeaderboardMetric): string {
+  if (!Number.isFinite(value) || value === Number.MAX_VALUE) {
+    return "∞";
+  }
   if (metric === LeaderboardMetric.SeriesWinRate || metric === LeaderboardMetric.GamesWinRate) {
     return `${(value * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+  }
+  if (metric === LeaderboardMetric.Accuracy) {
+    return `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
   }
   if (metric === LeaderboardMetric.ObjectiveTeamContribution) {
     return `${(value * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
