@@ -2,6 +2,7 @@ import { parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { leaderboardContract, leaderboardQuerySchema } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
 import { leaderboardQueuesContract } from "@guilty-spark/shared/contracts/leaderboard/leaderboard-queues";
+import type { APIChannel } from "discord-api-types/v10";
 import type { RoutesRegisterHandler } from "../base/types";
 
 export const leaderboardRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
@@ -15,7 +16,43 @@ export const leaderboardRoutesRegisterHandler: RoutesRegisterHandler = (router, 
       }
 
       const queueChannelIds = await services.databaseService.getLeaderboardQueueChannelIds(guildId);
-      return leaderboardQueuesContract.toResponse({ guildId, queueChannelIds }, { noStore: true });
+      let guildName = `Guild ${guildId}`;
+      try {
+        const guild = await services.discordService.getGuild(guildId);
+        if (guild.name.trim() !== "") {
+          guildName = guild.name.trim();
+        }
+      } catch (error) {
+        services.logService.warn(
+          error,
+          new Map([
+            ["guildId", guildId],
+            ["reason", "Failed to resolve leaderboard guild name"],
+          ]),
+        );
+      }
+
+      let channels: APIChannel[] = [];
+      try {
+        channels = await services.discordService.getGuildChannels(guildId);
+      } catch (error) {
+        services.logService.warn(
+          error,
+          new Map([
+            ["guildId", guildId],
+            ["reason", "Failed to resolve leaderboard queue names"],
+          ]),
+        );
+      }
+      const queueOptions = queueChannelIds.map((channelId) => {
+        const channel = channels.find((candidate) => candidate.id === channelId);
+        const label = channel?.name == null || channel.name === "" ? `Queue ${channelId}` : `#${channel.name}`;
+        return { channelId, label };
+      });
+      return leaderboardQueuesContract.toResponse(
+        { guildId, guildName, queueChannelIds, queueOptions },
+        { noStore: true },
+      );
     } catch (error) {
       services.logService.error(error, new Map([["context", "Failed to resolve leaderboard queues route"]]));
       return errorContract.toResponse(
