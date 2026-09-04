@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { Heading } from "../heading/heading";
+import { LoadingState } from "../loading-state/loading-state";
 import { Select } from "../select/select";
 import { SortableTable } from "../table/sortable-table";
 import type { SortableTableColumn } from "../table/sortable-table";
@@ -13,6 +14,17 @@ function ErrorContent({ message }: { readonly message: string }): React.ReactEle
         Leaderboard unavailable
       </Heading>
       <p>{message}</p>
+    </div>
+  );
+}
+
+function EmptyContent(): React.ReactElement {
+  return (
+    <div className={styles.empty}>
+      <Heading tagName="h2" variant="display">
+        No qualifying players
+      </Heading>
+      <p>No players match this leaderboard&apos;s selected queue, stat, and time window.</p>
     </div>
   );
 }
@@ -140,12 +152,18 @@ export function Leaderboard({
         </label>
       </div>
       <section className={styles.tableSection}>
-        <SortableTable
-          data={rows}
-          columns={columns}
-          getRowKey={(row): string => row.xboxXuid}
-          ariaLabel="Leaderboard rankings"
-        />
+        {state === "loading" ? (
+          <LoadingState text="Loading leaderboard..." />
+        ) : rows.length === 0 ? (
+          <EmptyContent />
+        ) : (
+          <SortableTable
+            data={rows}
+            columns={columns}
+            getRowKey={(row): string => row.xboxXuid}
+            ariaLabel="Leaderboard rankings"
+          />
+        )}
       </section>
     </div>
   );

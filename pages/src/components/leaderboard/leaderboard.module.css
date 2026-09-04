@@ -68,6 +68,16 @@
   color: var(--halo-gray);
 }
 
+.empty {
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+}
+
+.empty p {
+  color: var(--halo-gray);
+  margin-bottom: 0;
+}
+
 @keyframes pulse {
   50% {
     opacity: 0.45;
