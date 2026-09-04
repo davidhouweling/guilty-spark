@@ -59,7 +59,7 @@ export function LeaderboardApp({
             initialQueueChannelId: queueChannelId,
             initialResponse,
           }),
-    [service, guildId, queueChannelId],
+    [service, guildId, queueChannelId, initialResponse],
   );
 
   return (

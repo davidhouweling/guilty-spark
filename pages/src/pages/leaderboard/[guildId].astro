@@ -5,7 +5,7 @@ import { API_HOST } from "../../constants";
 import Layout from "../../layouts/layout.astro";
 import { LeaderboardApp } from "../../apps/leaderboard/create";
 import ErrorState from "../../components/error-state/error-state.astro";
-import { leaderboardContract } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
+import { LEADERBOARD_MAX_PAGE_SIZE, leaderboardContract } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
 import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
 
 const { guildId = "" } = Astro.params;
@@ -17,7 +17,7 @@ if (isValidGuildId) {
   try {
     const url = new URL("/api/leaderboard", String(API_HOST));
     url.searchParams.set("guildId", guildId);
-    url.searchParams.set("pageSize", "500");
+    url.searchParams.set("pageSize", LEADERBOARD_MAX_PAGE_SIZE.toString());
     for (const key of ["window", "metric"]) {
       const value = Astro.url.searchParams.get(key);
       if (value != null) {

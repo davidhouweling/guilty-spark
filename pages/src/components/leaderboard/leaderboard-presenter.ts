@@ -85,19 +85,21 @@ export class LeaderboardPresenter {
   private readonly initialResponse: LeaderboardResponse | undefined;
 
   start(): void {
-    const {initialResponse} = this;
+    const { initialResponse } = this;
     if (initialResponse == null) {
       this.load();
       return;
     }
+    this.requestNumber += 1;
+    const activeRequest = this.requestNumber;
     this.store.setLoading();
-    void this.loadInitialAsync(initialResponse);
+    void this.loadInitialAsync(initialResponse, activeRequest);
   }
 
-  private async loadInitialAsync(initialResponse: LeaderboardResponse): Promise<void> {
+  private async loadInitialAsync(initialResponse: LeaderboardResponse, activeRequest: number): Promise<void> {
     try {
       const queueOptions = await this.getQueueOptionsAsync();
-      if (this.isDisposed) {
+      if (this.isDisposed || activeRequest !== this.requestNumber) {
         return;
       }
       this.currentWindow = initialResponse.window;
