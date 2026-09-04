@@ -7,6 +7,7 @@ import { LeaderboardApp } from "../../apps/leaderboard/create";
 import ErrorState from "../../components/error-state/error-state.astro";
 import { LEADERBOARD_MAX_PAGE_SIZE, leaderboardContract } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
 import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
+import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 
 const { guildId = "" } = Astro.params;
 const isValidGuildId = /^\d+$/.test(guildId);
@@ -18,11 +19,17 @@ if (isValidGuildId) {
     const url = new URL("/api/leaderboard", String(API_HOST));
     url.searchParams.set("guildId", guildId);
     url.searchParams.set("pageSize", LEADERBOARD_MAX_PAGE_SIZE.toString());
-    for (const key of ["window", "metric"]) {
-      const value = Astro.url.searchParams.get(key);
-      if (value != null) {
-        url.searchParams.set(key, value);
-      }
+    const window = Object.values(LeaderboardWindow).find(
+      (candidate) => candidate.toLowerCase() === Astro.url.searchParams.get("window")?.toLowerCase(),
+    );
+    const metric = Object.values(LeaderboardMetric).find(
+      (candidate) => candidate.toLowerCase() === Astro.url.searchParams.get("metric")?.toLowerCase(),
+    );
+    if (window != null) {
+      url.searchParams.set("window", window);
+    }
+    if (metric != null) {
+      url.searchParams.set("metric", metric);
     }
     const response = await fetch(url);
     lookupStatus = response.status;
