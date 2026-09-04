@@ -15,18 +15,20 @@ export class RealLeaderboardService implements LeaderboardService {
   }
 
   async getLeaderboard({ guildId, queueChannelId, window, metric }: LeaderboardRequest): Promise<LeaderboardResponse> {
-    const query = new URLSearchParams({ guildId, pageSize: LEADERBOARD_MAX_PAGE_SIZE.toString() });
+    const url = new URL("/api/leaderboard", this.apiHost);
+    url.searchParams.set("guildId", guildId);
+    url.searchParams.set("pageSize", LEADERBOARD_MAX_PAGE_SIZE.toString());
     if (queueChannelId != null) {
-      query.set("queueChannelId", queueChannelId);
+      url.searchParams.set("queueChannelId", queueChannelId);
     }
     if (window != null) {
-      query.set("window", window);
+      url.searchParams.set("window", window);
     }
     if (metric != null) {
-      query.set("metric", metric);
+      url.searchParams.set("metric", metric);
     }
 
-    const response = await fetch(`${this.apiHost}/api/leaderboard?${query.toString()}`);
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Leaderboard request failed with status ${response.status.toString()}`);
     }
@@ -34,8 +36,9 @@ export class RealLeaderboardService implements LeaderboardService {
   }
 
   async getQueueOptions(guildId: string): Promise<LeaderboardQueueOptionsResponse> {
-    const query = new URLSearchParams({ guildId });
-    const response = await fetch(`${this.apiHost}/api/leaderboard/queues?${query.toString()}`);
+    const url = new URL("/api/leaderboard/queues", this.apiHost);
+    url.searchParams.set("guildId", guildId);
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Leaderboard queue request failed with status ${response.status.toString()}`);
     }
