@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
-import { ComponentType } from "discord-api-types/v10";
+import { ButtonStyle, ComponentType } from "discord-api-types/v10";
 import { EmbedColors } from "../../../embeds/colors";
 import { createLeaderboardResponse } from "../leaderboard-response";
 
@@ -577,5 +577,109 @@ describe("createLeaderboardResponse", () => {
     const response = createLeaderboardResponse("en-US", leaderboard, "<t:1733483139:R>", true);
 
     expect(response.components).toBeUndefined();
+  });
+
+  it("adds a guild-scoped View leaderboard link button as the final row when pagesUrl is provided", () => {
+    const leaderboard: LeaderboardResponse = {
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.Kills,
+      minGamesPlayed: 3,
+      page: 1,
+      pageSize: 10,
+      total: 0,
+      rows: [],
+    };
+
+    const response = createLeaderboardResponse(
+      "en-US",
+      leaderboard,
+      "<t:1733483139:R>",
+      false,
+      null,
+      "https://pages.example",
+    );
+
+    expect(response.components?.[4]).toEqual({
+      type: ComponentType.ActionRow,
+      components: [
+        {
+          type: ComponentType.Button,
+          style: ButtonStyle.Link,
+          label: "View leaderboard",
+          emoji: { name: "🏆" },
+          url: "https://pages.example/leaderboard/guild-123",
+        },
+      ],
+    });
+  });
+
+  it("links the View leaderboard button to the queue-scoped URL when a queue is selected", () => {
+    const leaderboard: LeaderboardResponse = {
+      guildId: "guild-123",
+      queueChannelId: "queue-456",
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.Kills,
+      minGamesPlayed: 3,
+      page: 1,
+      pageSize: 10,
+      total: 0,
+      rows: [],
+    };
+
+    const response = createLeaderboardResponse(
+      "en-US",
+      leaderboard,
+      "<t:1733483139:R>",
+      false,
+      null,
+      "https://pages.example",
+    );
+
+    const linkRow = response.components?.[4];
+    if (linkRow?.type !== ComponentType.ActionRow) {
+      throw new Error("Expected link button row to be an action row");
+    }
+    const [linkButton] = linkRow.components;
+    expect(linkButton).toMatchObject({ url: "https://pages.example/leaderboard/guild-123/queue-456" });
+  });
+
+  it("still includes only the View leaderboard link button for a locked leaderboard when pagesUrl is provided", () => {
+    const leaderboard: LeaderboardResponse = {
+      guildId: "guild-123",
+      queueChannelId: null,
+      window: LeaderboardWindow.OneMonth,
+      metric: LeaderboardMetric.Kills,
+      minGamesPlayed: 3,
+      page: 1,
+      pageSize: 10,
+      total: 0,
+      rows: [],
+    };
+
+    const response = createLeaderboardResponse(
+      "en-US",
+      leaderboard,
+      "<t:1733483139:R>",
+      true,
+      null,
+      "https://pages.example",
+    );
+
+    expect(response.components).toEqual([
+      {
+        type: ComponentType.ActionRow,
+        components: [
+          {
+            type: ComponentType.Button,
+            style: ButtonStyle.Link,
+            label: "View leaderboard",
+            emoji: { name: "🏆" },
+            url: "https://pages.example/leaderboard/guild-123",
+          },
+        ],
+      },
+    ]);
   });
 });

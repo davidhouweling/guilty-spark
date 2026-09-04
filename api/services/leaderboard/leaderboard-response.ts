@@ -449,7 +449,32 @@ function createRankingFields(
   ];
 }
 
-function createComponents(leaderboard: LeaderboardResponse): APIMessageTopLevelComponent[] {
+function getLeaderboardWebUrl(pagesUrl: string, guildId: string, queueChannelId: string | null): string {
+  return queueChannelId != null
+    ? `${pagesUrl}/leaderboard/${guildId}/${queueChannelId}`
+    : `${pagesUrl}/leaderboard/${guildId}`;
+}
+
+function createLeaderboardLinkButtonRow(
+  pagesUrl: string,
+  guildId: string,
+  queueChannelId: string | null,
+): APIMessageTopLevelComponent {
+  return {
+    type: ComponentType.ActionRow,
+    components: [
+      {
+        type: ComponentType.Button,
+        label: "View leaderboard",
+        style: ButtonStyle.Link,
+        emoji: { name: "🏆" },
+        url: getLeaderboardWebUrl(pagesUrl, guildId, queueChannelId),
+      },
+    ],
+  };
+}
+
+function createComponents(leaderboard: LeaderboardResponse, pagesUrl: string | null): APIMessageTopLevelComponent[] {
   const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
   const selectedFamily = getLeaderboardMetricFamily(leaderboard.metric);
   const selectedAggregation = getLeaderboardMetricAggregation(leaderboard.metric);
@@ -517,6 +542,10 @@ function createComponents(leaderboard: LeaderboardResponse): APIMessageTopLevelC
     ],
   });
 
+  if (pagesUrl != null) {
+    rows.push(createLeaderboardLinkButtonRow(pagesUrl, leaderboard.guildId, leaderboard.queueChannelId));
+  }
+
   return rows;
 }
 
@@ -526,6 +555,7 @@ export function createLeaderboardResponse(
   updatedTimestamp: string,
   locked = false,
   resetTimestamp: string | null = null,
+  pagesUrl: string | null = null,
 ): RESTPostAPIChannelMessageJSONBody {
   const rows = leaderboard.rows.slice(0, MAX_ROWS_IN_DISCORD_EMBED);
   const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
@@ -546,6 +576,14 @@ export function createLeaderboardResponse(
         },
       },
     ],
-    ...(locked ? {} : { components: createComponents(leaderboard) }),
+    ...(locked
+      ? {
+          ...(pagesUrl != null
+            ? {
+                components: [createLeaderboardLinkButtonRow(pagesUrl, leaderboard.guildId, leaderboard.queueChannelId)],
+              }
+            : {}),
+        }
+      : { components: createComponents(leaderboard, pagesUrl) }),
   };
 }
