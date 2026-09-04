@@ -181,7 +181,7 @@ export class LeaderboardPresenter {
       ],
       windowOptions,
       metricGroups,
-      selectedQueueChannelId: response?.queueChannelId ?? this.currentQueueChannelId,
+      selectedQueueChannelId: this.currentQueueChannelId,
       selectedWindow: this.currentWindow ?? response?.window ?? LeaderboardWindow.ThreeMonths,
       selectedMetric: metric,
       onQueueChange: (value): void => {

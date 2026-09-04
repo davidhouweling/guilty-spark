@@ -159,4 +159,34 @@ describe("LeaderboardPresenter", () => {
     expect(model.selectedWindow).toBe(LeaderboardWindow.SixMonths);
     expect(model.selectedMetric).toBe(LeaderboardMetric.SeriesWins);
   });
+
+  it("presents the all-queues selection while switching from a queue", () => {
+    const store = new LeaderboardStore();
+    const presenter = new LeaderboardPresenter({
+      store,
+      service: aFakeLeaderboardServiceWith({ queueChannelId: "queue-1" }),
+      guildId: "guild-1",
+      initialQueueChannelId: "queue-1",
+    });
+    store.setLoaded(
+      {
+        guildId: "guild-1",
+        queueChannelId: "queue-1",
+        window: LeaderboardWindow.ThreeMonths,
+        resetAt: null,
+        metric: LeaderboardMetric.Kills,
+        minGamesPlayed: 5,
+        page: 1,
+        pageSize: 500,
+        total: 0,
+        hasLeaderboardData: true,
+        rows: [],
+      },
+      { guildName: "Guild 1", options: [{ channelId: "queue-1", label: "#alpha-queue" }] },
+    );
+
+    presenter.changeQueue("all");
+
+    expect(presenter.present(store.getSnapshot()).selectedQueueChannelId).toBeNull();
+  });
 });
