@@ -33,16 +33,18 @@ export const leaderboardRoutesRegisterHandler: RoutesRegisterHandler = (router, 
       }
 
       let channels: APIChannel[] = [];
-      try {
-        channels = await services.discordService.getGuildChannels(guildId);
-      } catch (error) {
-        services.logService.warn(
-          error,
-          new Map([
-            ["guildId", guildId],
-            ["reason", "Failed to resolve leaderboard queue names"],
-          ]),
-        );
+      if (queueChannelIds.length > 0) {
+        try {
+          channels = await services.discordService.getGuildChannels(guildId);
+        } catch (error) {
+          services.logService.warn(
+            error,
+            new Map([
+              ["guildId", guildId],
+              ["reason", "Failed to resolve leaderboard queue names"],
+            ]),
+          );
+        }
       }
       const queueOptions = queueChannelIds.map((channelId) => {
         const channel = channels.find((candidate) => candidate.id === channelId);

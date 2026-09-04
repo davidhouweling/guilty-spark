@@ -1,4 +1,4 @@
-import { leaderboardContract } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
+import { LEADERBOARD_MAX_PAGE_SIZE, leaderboardContract } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
 import { leaderboardQueuesContract } from "@guilty-spark/shared/contracts/leaderboard/leaderboard-queues";
 import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
 import type { LeaderboardService, LeaderboardRequest, LeaderboardQueueOptionsResponse } from "./leaderboard-types";
@@ -15,7 +15,7 @@ export class RealLeaderboardService implements LeaderboardService {
   }
 
   async getLeaderboard({ guildId, queueChannelId, window, metric }: LeaderboardRequest): Promise<LeaderboardResponse> {
-    const query = new URLSearchParams({ guildId, pageSize: "500" });
+    const query = new URLSearchParams({ guildId, pageSize: LEADERBOARD_MAX_PAGE_SIZE.toString() });
     if (queueChannelId != null) {
       query.set("queueChannelId", queueChannelId);
     }

@@ -57,6 +57,7 @@ describe("/api/leaderboard", () => {
   it("returns the Discord guild name when it can be resolved", async () => {
     const services = installFakeServicesWith({ env });
     vi.spyOn(services.databaseService, "getLeaderboardQueueChannelIds").mockResolvedValue([]);
+    const getGuildChannelsSpy = vi.spyOn(services.discordService, "getGuildChannels");
     vi.spyOn(services.discordService, "getGuild").mockResolvedValue({
       ...guild,
       id: "guild-1",
@@ -72,6 +73,7 @@ describe("/api/leaderboard", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ guildId: "guild-1", guildName: "Test Server", queueOptions: [] });
+    expect(getGuildChannelsSpy).not.toHaveBeenCalled();
   });
 
   it("falls back to queue IDs when Discord channel names cannot be resolved", async () => {

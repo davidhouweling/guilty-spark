@@ -41,8 +41,11 @@ function getMetricValue(value: number, metric: LeaderboardMetric): string {
   return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
-function getScopeLabel(queueChannelId: string | null): string {
-  return queueChannelId == null ? "All configured queues" : `Queue ${queueChannelId}`;
+function getScopeLabel(queueChannelId: string | null, queueOptions: LeaderboardSnapshot["queueOptions"]): string {
+  if (queueChannelId == null) {
+    return "All configured queues";
+  }
+  return queueOptions.find((option) => option.channelId === queueChannelId)?.label ?? `Queue ${queueChannelId}`;
 }
 
 function getWindowLabel(window: LeaderboardWindow): string {
@@ -134,7 +137,7 @@ export class LeaderboardPresenter {
 
   present(snapshot: LeaderboardSnapshot): LeaderboardViewModel {
     const { response } = snapshot;
-    const metric = response?.metric ?? this.currentMetric ?? LeaderboardMetric.Kills;
+    const metric = this.currentMetric ?? response?.metric ?? LeaderboardMetric.Kills;
     const aggregation = getLeaderboardMetricAggregation(metric);
     const family = getLeaderboardMetricFamily(metric);
     const metricGroups: readonly LeaderboardOptionGroup[] = Object.values(LeaderboardMetricAggregation).map(
@@ -168,8 +171,8 @@ export class LeaderboardPresenter {
       state: snapshot.status,
       errorMessage: snapshot.errorMessage,
       title: "Leaderboard",
-      scopeLabel: `${snapshot.guildName || this.guildId} / ${getScopeLabel(response?.queueChannelId ?? this.currentQueueChannelId)}`,
-      windowLabel: getWindowLabel(response?.window ?? this.currentWindow ?? LeaderboardWindow.ThreeMonths),
+      scopeLabel: `${snapshot.guildName || this.guildId} / ${getScopeLabel(this.currentQueueChannelId, snapshot.queueOptions)}`,
+      windowLabel: getWindowLabel(this.currentWindow ?? response?.window ?? LeaderboardWindow.ThreeMonths),
       metricLabel: `${getLeaderboardMetricFamilyLabel(family)} (${getLeaderboardMetricAggregationLabel(aggregation).toLowerCase()})`,
       rows: tableRows,
       queueOptions: [
@@ -179,7 +182,7 @@ export class LeaderboardPresenter {
       windowOptions,
       metricGroups,
       selectedQueueChannelId: response?.queueChannelId ?? this.currentQueueChannelId,
-      selectedWindow: response?.window ?? LeaderboardWindow.ThreeMonths,
+      selectedWindow: this.currentWindow ?? response?.window ?? LeaderboardWindow.ThreeMonths,
       selectedMetric: metric,
       onQueueChange: (value): void => {
         this.changeQueue(value);

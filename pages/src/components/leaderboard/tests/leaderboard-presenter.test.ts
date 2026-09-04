@@ -123,4 +123,40 @@ describe("LeaderboardPresenter", () => {
     ]);
     expect(model.metricGroups[2]?.options).toContainEqual({ value: LeaderboardMetric.Kills, label: "Kills" });
   });
+
+  it("presents in-flight filter selections and queue labels while loading", () => {
+    const store = new LeaderboardStore();
+    const presenter = new LeaderboardPresenter({
+      store,
+      service: aFakeLeaderboardServiceWith(),
+      guildId: "guild-1",
+      initialQueueChannelId: null,
+    });
+    store.setLoaded(
+      {
+        guildId: "guild-1",
+        queueChannelId: null,
+        window: LeaderboardWindow.OneMonth,
+        resetAt: null,
+        metric: LeaderboardMetric.Kills,
+        minGamesPlayed: 5,
+        page: 1,
+        pageSize: 500,
+        total: 0,
+        hasLeaderboardData: true,
+        rows: [],
+      },
+      { guildName: "Guild 1", options: [{ channelId: "queue-1", label: "#alpha-queue" }] },
+    );
+
+    presenter.changeQueue("queue-1");
+    presenter.changeWindow(LeaderboardWindow.SixMonths);
+    presenter.changeMetric(LeaderboardMetric.SeriesWins);
+
+    const model = presenter.present(store.getSnapshot());
+    expect(model.scopeLabel).toBe("Guild 1 / #alpha-queue");
+    expect(model.windowLabel).toBe("6M");
+    expect(model.selectedWindow).toBe(LeaderboardWindow.SixMonths);
+    expect(model.selectedMetric).toBe(LeaderboardMetric.SeriesWins);
+  });
 });
