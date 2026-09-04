@@ -1,10 +1,7 @@
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
-import {
-  LEADERBOARD_MAX_PAGE_SIZE
-  
-} from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
-import type {LeaderboardResponse} from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
-import type { LeaderboardService, LeaderboardRequest } from "../leaderboard-types";
+import { LEADERBOARD_MAX_PAGE_SIZE } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
+import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
+import type { LeaderboardQueueOptionsResponse, LeaderboardRequest, LeaderboardService } from "../leaderboard-types";
 
 const defaultResponse: LeaderboardResponse = {
   guildId: "guild-1",
@@ -24,10 +21,14 @@ export function aFakeLeaderboardServiceWith(overrides: Partial<LeaderboardRespon
   const response = { ...defaultResponse, ...overrides };
   return {
     getLeaderboard: async (request: LeaderboardRequest): Promise<LeaderboardResponse> =>
-      await Promise.resolve({ ...response, guildId: request.guildId, queueChannelId: request.queueChannelId }),
-    getQueueOptions: async (): Promise<{
-      guildName: string;
-      options: readonly { channelId: string; label: string }[];
-    }> => await Promise.resolve({ guildName: "Guild 1", options: [] }),
+      Promise.resolve({
+        ...response,
+        guildId: request.guildId,
+        queueChannelId: request.queueChannelId,
+      }),
+    getQueueOptions: async (guildId: string): Promise<LeaderboardQueueOptionsResponse> => {
+      void guildId;
+      return Promise.resolve({ guildName: "Guild 1", options: [] });
+    },
   };
 }
