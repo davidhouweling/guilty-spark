@@ -9,7 +9,7 @@ import {
   LeaderboardMetricAggregation,
   LeaderboardWindow,
 } from "@guilty-spark/shared/halo/leaderboard";
-import type { LeaderboardService } from "../../services/leaderboard/leaderboard-types";
+import type { LeaderboardQueueOptionsResponse, LeaderboardService } from "../../services/leaderboard/leaderboard-types";
 import type { LeaderboardSnapshot, LeaderboardStore } from "./leaderboard-store";
 import type { LeaderboardOptionGroup, LeaderboardTableRow, LeaderboardViewModel } from "./types";
 
@@ -59,6 +59,8 @@ export class LeaderboardPresenter {
   private currentQueueChannelId: string | null;
   private currentWindow: LeaderboardWindow | undefined;
   private currentMetric: LeaderboardMetric | undefined;
+  private queueOptionsResponse: LeaderboardQueueOptionsResponse | null = null;
+  private queueOptionsPromise: Promise<LeaderboardQueueOptionsResponse> | null = null;
   private isDisposed = false;
   private requestNumber = 0;
 
@@ -90,19 +92,39 @@ export class LeaderboardPresenter {
           window: this.currentWindow,
           metric: this.currentMetric,
         }),
-        this.service.getQueueOptions(this.guildId),
+        this.getQueueOptionsAsync(),
       ]);
       if (this.isDisposed || activeRequest !== this.requestNumber) {
         return;
       }
       this.currentWindow = response.window;
       this.currentMetric = response.metric;
+      this.queueOptionsResponse = queueOptions;
       this.store.setLoaded(response, queueOptions);
     } catch {
       if (this.isDisposed || activeRequest !== this.requestNumber) {
         return;
       }
       this.store.setError("Unable to load leaderboard data.");
+    }
+  }
+
+  private async getQueueOptionsAsync(): Promise<LeaderboardQueueOptionsResponse> {
+    if (this.queueOptionsResponse != null) {
+      return Promise.resolve(this.queueOptionsResponse);
+    }
+    this.queueOptionsPromise ??= this.loadQueueOptionsAsync();
+    return this.queueOptionsPromise;
+  }
+
+  private async loadQueueOptionsAsync(): Promise<LeaderboardQueueOptionsResponse> {
+    try {
+      const response = await this.service.getQueueOptions(this.guildId);
+      this.queueOptionsResponse = response;
+      return response;
+    } catch (error) {
+      this.queueOptionsPromise = null;
+      throw error;
     }
   }
 
@@ -153,6 +175,7 @@ export class LeaderboardPresenter {
         gamertag: row.gamertag,
         xboxXuid: row.xboxXuid,
         value: getMetricValue(row.metricValue, metric),
+        sortValue: row.metricValue,
         gamesPlayed: row.gamesPlayed,
       })) ?? [];
 
@@ -207,6 +230,6 @@ export class LeaderboardPresenter {
       query.set("metric", this.currentMetric.toLowerCase());
     }
     const queryString = query.toString();
-    window.history.pushState({}, "", `${path}${queryString === "" ? "" : `?${queryString}`}`);
+    window.history.replaceState({}, "", `${path}${queryString === "" ? "" : `?${queryString}`}`);
   }
 }

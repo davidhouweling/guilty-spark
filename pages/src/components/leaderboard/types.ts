@@ -15,6 +15,7 @@ export interface LeaderboardTableRow {
   readonly rank: number;
   readonly gamertag: string;
   readonly value: string;
+  readonly sortValue: number;
   readonly gamesPlayed: number;
   readonly xboxXuid: string;
 }

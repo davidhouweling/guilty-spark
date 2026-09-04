@@ -51,8 +51,8 @@ export function Leaderboard({
     {
       id: "value",
       header: metricLabel,
-      accessorFn: (row): string => row.value,
-      cell: (value): React.ReactNode => String(value),
+      accessorFn: (row): number => row.sortValue,
+      cell: (_value, row): React.ReactNode => row.value,
     },
     {
       id: "gamesPlayed",

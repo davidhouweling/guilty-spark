@@ -46,8 +46,9 @@ export const leaderboardRoutesRegisterHandler: RoutesRegisterHandler = (router, 
           );
         }
       }
+      const channelsById = new Map(channels.map((channel) => [channel.id, channel]));
       const queueOptions = queueChannelIds.map((channelId) => {
-        const channel = channels.find((candidate) => candidate.id === channelId);
+        const channel = channelsById.get(channelId);
         const label = channel?.name == null || channel.name === "" ? `Queue ${channelId}` : `#${channel.name}`;
         return { channelId, label };
       });
