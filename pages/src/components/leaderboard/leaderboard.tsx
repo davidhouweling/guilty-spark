@@ -142,7 +142,6 @@ export function Leaderboard({
           columns={columns}
           getRowKey={(row): string => row.xboxXuid}
           ariaLabel="Leaderboard rankings"
-          initialSort={{ columnId: "rank" }}
         />
       </section>
     </div>

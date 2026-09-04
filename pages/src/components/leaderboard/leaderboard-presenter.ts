@@ -119,9 +119,7 @@ export class LeaderboardPresenter {
   }
 
   changeMetric(value: string): void {
-    const metric = Object.values(LeaderboardMetric).find(
-      (candidate) => candidate.toLowerCase() === value.toLowerCase(),
-    );
+    const metric = findMetric(value);
     if (metric == null) {
       return;
     }
