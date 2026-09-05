@@ -22,21 +22,21 @@
   },
   "dependencies": {
     "@guilty-spark/shared": "file:../shared",
-    "@sentry/cli": "^3.6.0",
-    "@sentry/cloudflare": "^10.71.0",
+    "@sentry/cli": "^3.7.0",
+    "@sentry/cloudflare": "^10.73.0",
     "@xboxreplay/xboxlive-auth": "^5.1.0",
     "date-fns": "^4.4.0",
-    "discord-api-types": "^0.38.49",
+    "discord-api-types": "^0.38.54",
     "discord-interactions": "^4.4.0",
     "halo-infinite-api": "^14.3.2",
     "itty-router": "^5.0.24",
     "luxon": "^3.7.2",
     "tinyduration": "^3.4.1",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/luxon": "^3.7.5",
     "dotenv": "^17.4.2",
-    "wrangler": "^4.126.0"
+    "wrangler": "^4.128.0"
   }
 }
