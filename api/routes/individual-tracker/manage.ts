@@ -25,7 +25,6 @@ import type {
 import {
   individualTrackerPauseContract,
   individualTrackerResumeContract,
-  individualTrackerStartContract,
   individualTrackerStopContract,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
 import type {
@@ -50,10 +49,14 @@ import type { LogService } from "../../services/log/types";
 import type { CreateTrackerOptions } from "../../services/individual-tracker/types";
 import { toTracker } from "../../individual-tracker/mapper";
 import { resolveSeriesSeed } from "../../individual-tracker/series-seed";
+import {
+  assertDoOk,
+  DEFAULT_IDLE_TIMEOUT_HOURS,
+  startTrackerDo,
+  trackerDoStub,
+} from "../../individual-tracker/start-tracker-do";
 import type { RoutesRegisterHandler } from "../base/types";
 import { requireSession } from "../base/require-session";
-
-const DEFAULT_IDLE_TIMEOUT_HOURS = 6;
 
 class SyncMatchesError extends Error {
   public constructor(message: string) {
@@ -69,35 +72,9 @@ class RefreshTrackerConflictError extends Error {
   }
 }
 
-function trackerDoStub(env: Env, userId: string, trackerId: string): DurableObjectStub {
-  const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${userId}:${trackerId}`);
-  return env.INDIVIDUAL_TRACKER_DO.get(doId);
-}
-
 function userTrackerDoStub(env: Env, userId: string): DurableObjectStub {
   const doId = env.USER_TRACKER_DO.idFromName(userId);
   return env.USER_TRACKER_DO.get(doId);
-}
-
-function assertDoOk(response: Response): void {
-  if (!response.ok) {
-    throw new Error(`DO request failed with status ${response.status.toString()}`);
-  }
-}
-
-async function startTrackerDo(
-  env: Env,
-  startRequest: IndividualTrackerStartRequest,
-): Promise<IndividualTrackerDoState> {
-  const stub = trackerDoStub(env, startRequest.userId, startRequest.trackerId);
-  const response = await stub.fetch("http://do/start", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(startRequest),
-  });
-  assertDoOk(response);
-  const result = await individualTrackerStartContract.fromResponse(response);
-  return result.state;
 }
 
 async function pauseTrackerDo(env: Env, userId: string, trackerId: string): Promise<IndividualTrackerDoState> {

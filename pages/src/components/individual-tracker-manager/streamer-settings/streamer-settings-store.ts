@@ -30,6 +30,7 @@ export interface StreamerSettingsSnapshot {
   readonly matchmakingShowStatsHighlights: boolean;
   readonly inSeriesMyStatsOnly: boolean;
   readonly matchmakingMyStatsOnly: boolean;
+  readonly autoStart: boolean;
   readonly fontSizeSettings: FontSizeSettings;
   readonly statsHighlightSlots: readonly IndividualStatsHighlightOption[];
   readonly saveStatus: SaveStatus;
@@ -95,6 +96,7 @@ export class StreamerSettingsStore {
       matchmakingShowStatsHighlights: DEFAULT_STYLE_FLAGS?.matchmakingShowStatsHighlights ?? true,
       inSeriesMyStatsOnly: DEFAULT_STYLE_FLAGS?.inSeriesMyStatsOnly ?? false,
       matchmakingMyStatsOnly: DEFAULT_STYLE_FLAGS?.matchmakingMyStatsOnly ?? false,
+      autoStart: DEFAULT_STYLE_FLAGS?.autoStart ?? true,
       fontSizeSettings: DEFAULT_FONT_SIZE_SETTINGS,
       statsHighlightSlots: DEFAULT_STATS_HIGHLIGHT_SLOTS,
       saveStatus: "idle",

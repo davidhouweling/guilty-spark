@@ -76,6 +76,7 @@ function aFakeProps(overrides?: Partial<StreamerSettingsSectionViewProps>): Stre
     matchmakingShowStatsHighlights: true,
     inSeriesMyStatsOnly: false,
     matchmakingMyStatsOnly: false,
+    autoStart: true,
     fontSizeSettings: DEFAULT_FONT_SIZE_SETTINGS,
     saveStatus: "idle",
     saveErrorMessage: null,
@@ -94,6 +95,7 @@ function aFakeProps(overrides?: Partial<StreamerSettingsSectionViewProps>): Stre
     onMatchmakingShowStatsHighlightsChange: (): void => undefined,
     onInSeriesMyStatsOnlyChange: (): void => undefined,
     onMatchmakingMyStatsOnlyChange: (): void => undefined,
+    onAutoStartChange: (): void => undefined,
     onFontSizesChange: (): void => undefined,
     ...overrides,
   };
@@ -294,6 +296,14 @@ describe("StreamerSettingsSectionView", () => {
       expect(screen.getByRole("checkbox", { name: /disable toggling to player names/i })).toBeInTheDocument();
     });
 
+    it("renders the auto-start toggle", () => {
+      render(<StreamerSettingsSectionView {...aFakeProps()} />);
+
+      expect(
+        screen.getByRole("checkbox", { name: /automatically start tracking when the overlay is used/i }),
+      ).toBeInTheDocument();
+    });
+
     it("renders font size sliders for all sections", () => {
       render(<StreamerSettingsSectionView {...aFakeProps()} />);
 
@@ -427,6 +437,19 @@ describe("StreamerSettingsSectionView", () => {
       render(<StreamerSettingsSectionView {...aFakeProps({ onDisableTeamPlayerNamesChange: onChange })} />);
 
       await user.click(screen.getByRole("checkbox", { name: /disable toggling to player names/i }));
+
+      expect(onChange).toHaveBeenCalledWith(true);
+    });
+
+    it("calls onAutoStartChange when the auto-start toggle is clicked", async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn<(enabled: boolean) => void>();
+
+      render(<StreamerSettingsSectionView {...aFakeProps({ autoStart: false, onAutoStartChange: onChange })} />);
+
+      await user.click(
+        screen.getByRole("checkbox", { name: /automatically start tracking when the overlay is used/i }),
+      );
 
       expect(onChange).toHaveBeenCalledWith(true);
     });

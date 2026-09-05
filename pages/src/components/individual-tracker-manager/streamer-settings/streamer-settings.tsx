@@ -68,6 +68,7 @@ export interface StreamerSettingsSectionViewProps {
   readonly matchmakingShowStatsHighlights: boolean;
   readonly inSeriesMyStatsOnly: boolean;
   readonly matchmakingMyStatsOnly: boolean;
+  readonly autoStart: boolean;
   readonly fontSizeSettings: FontSizeSettings;
   readonly saveStatus: SaveStatus;
   readonly saveErrorMessage: string | null;
@@ -86,6 +87,7 @@ export interface StreamerSettingsSectionViewProps {
   readonly onMatchmakingShowStatsHighlightsChange: (enabled: boolean) => void;
   readonly onInSeriesMyStatsOnlyChange: (enabled: boolean) => void;
   readonly onMatchmakingMyStatsOnlyChange: (enabled: boolean) => void;
+  readonly onAutoStartChange: (enabled: boolean) => void;
   readonly onFontSizesChange: (updates: Partial<FontSizeSettings>) => void;
 }
 
@@ -108,6 +110,7 @@ export function StreamerSettingsSectionView({
   matchmakingShowStatsHighlights,
   inSeriesMyStatsOnly,
   matchmakingMyStatsOnly,
+  autoStart,
   fontSizeSettings,
   saveStatus,
   saveErrorMessage,
@@ -126,6 +129,7 @@ export function StreamerSettingsSectionView({
   onMatchmakingShowStatsHighlightsChange,
   onInSeriesMyStatsOnlyChange,
   onMatchmakingMyStatsOnlyChange,
+  onAutoStartChange,
   onFontSizesChange,
 }: StreamerSettingsSectionViewProps): React.ReactElement {
   const [copyTarget, setCopyTarget] = useState<CopyTarget>("idle");
@@ -208,6 +212,17 @@ export function StreamerSettingsSectionView({
         Configure the stable public URLs for your active tracker viewer and OBS overlay. These routes follow whichever
         tracker is currently marked live.
       </p>
+
+      <div className={styles.card}>
+        <Checkbox
+          checked={autoStart}
+          onChange={(checked): void => {
+            onAutoStartChange(checked);
+          }}
+          label="Automatically start tracking when the overlay is used"
+          description="Start your individual tracker automatically the first time your viewer or overlay URL is opened, instead of needing to start it manually beforehand."
+        />
+      </div>
 
       {gamertag === null ? (
         <Alert variant="warning">

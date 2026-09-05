@@ -267,4 +267,49 @@ describe("/u/:gamertag follow routes", () => {
       expect(request.headers.get("Sec-WebSocket-Version")).toBe("13");
     });
   });
+
+  describe("auto-start identity forwarding", () => {
+    it("passes gamertag and xuid to UserTrackerDO so it can auto-start a tracker if needed", async () => {
+      const identity = aFakeLinkedIdentitiesRow({ UserId: "user-1", Gamertag: "KnownTag", ProviderUserId: "xuid-1" });
+      const userTrackerDo = aFakeUserTrackerDOWith();
+      const userTrackerFetchSpy = vi.spyOn(userTrackerDo, "fetch");
+      const localEnv = aFakeEnvWith({ USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(userTrackerDo) });
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env: localEnv });
+        vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(identity);
+        return services;
+      });
+      userTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      await router.fetch(getRequest("/u/KnownTag"), localEnv);
+
+      const rawUrl = getRawUrl(userTrackerFetchSpy.mock.calls[0]?.[0] ?? "http://do/view-state");
+      const parsedUrl = new URL(rawUrl);
+      expect(parsedUrl.searchParams.get("gamertag")).toBe("KnownTag");
+      expect(parsedUrl.searchParams.get("xuid")).toBe("xuid-1");
+    });
+
+    it("passes gamertag and xuid on the websocket route too", async () => {
+      const identity = aFakeLinkedIdentitiesRow({ UserId: "user-1", Gamertag: "WsTag", ProviderUserId: "xuid-2" });
+      const userTrackerDo = aFakeUserTrackerDOWith();
+      const userTrackerFetchSpy = vi.spyOn(userTrackerDo, "fetch");
+      const localEnv = aFakeEnvWith({ USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(userTrackerDo) });
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env: localEnv });
+        vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(identity);
+        return services;
+      });
+      userTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      await router.fetch(wsRequest("/u/WsTag/ws"), localEnv);
+
+      const call = userTrackerFetchSpy.mock.calls[0]?.[0];
+      const request = call as Request;
+      const parsedUrl = new URL(request.url);
+      expect(parsedUrl.searchParams.get("gamertag")).toBe("WsTag");
+      expect(parsedUrl.searchParams.get("xuid")).toBe("xuid-2");
+    });
+  });
 });

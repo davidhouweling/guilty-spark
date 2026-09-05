@@ -2198,4 +2198,65 @@ describe("UserTrackerDO", () => {
       expect(findTrackersSpy).toHaveBeenCalledTimes(2);
     });
   });
+
+  it("auto-starts a tracker when view-state is requested with gamertag and xuid and none is running", async () => {
+    const localEnv = aFakeEnvWith();
+    const services = installFakeServicesWith({ env: localEnv });
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([]);
+    const createTrackerSpy = vi
+      .spyOn(services.individualTrackerService, "createTracker")
+      .mockResolvedValue(aFakeIndividualTrackersRow({ UserId: "user-1", Gamertag: "KnownTag", Xuid: "xuid-1" }));
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    await localUserTrackerDO.fetch(
+      new Request("http://do/view-state?userId=user-1&gamertag=KnownTag&xuid=xuid-1", { method: "GET" }),
+    );
+
+    expect(createTrackerSpy).toHaveBeenCalledWith({ userId: "user-1", gamertag: "KnownTag", xuid: "xuid-1" });
+  });
+
+  it("does not attempt auto-start when gamertag or xuid are not provided", async () => {
+    const localEnv = aFakeEnvWith();
+    const services = installFakeServicesWith({ env: localEnv });
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([]);
+    const createTrackerSpy = vi.spyOn(services.individualTrackerService, "createTracker");
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    await localUserTrackerDO.fetch(new Request("http://do/view-state?userId=user-1", { method: "GET" }));
+
+    expect(createTrackerSpy).not.toHaveBeenCalled();
+  });
+
+  it("serializes concurrent view-state and websocket auto-start attempts so only one tracker is created for the xuid", async () => {
+    const localEnv = aFakeEnvWith();
+    const services = installFakeServicesWith({ env: localEnv });
+
+    let created = false;
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockImplementation(async () => {
+      await Promise.resolve();
+      return created ? [aFakeIndividualTrackersRow({ Xuid: "xuid-1", Status: "active" })] : [];
+    });
+    const createTrackerSpy = vi
+      .spyOn(services.individualTrackerService, "createTracker")
+      .mockImplementation(async () => {
+        await Promise.resolve();
+        created = true;
+        return aFakeIndividualTrackersRow({ UserId: "user-1", Gamertag: "KnownTag", Xuid: "xuid-1" });
+      });
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    const viewStateRequest = localUserTrackerDO.fetch(
+      new Request("http://do/view-state?userId=user-1&gamertag=KnownTag&xuid=xuid-1", { method: "GET" }),
+    );
+    const websocketRequest = localUserTrackerDO.fetch(
+      new Request("http://do/websocket?userId=user-1&gamertag=KnownTag&xuid=xuid-1", {
+        method: "GET",
+        headers: { Upgrade: "websocket" },
+      }),
+    );
+
+    await Promise.all([viewStateRequest, websocketRequest]);
+
+    expect(createTrackerSpy).toHaveBeenCalledTimes(1);
+  });
 });
