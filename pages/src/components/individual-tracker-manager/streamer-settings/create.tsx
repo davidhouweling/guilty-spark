@@ -63,6 +63,7 @@ function StreamerSettingsSectionInternal({
       matchmakingShowStatsHighlights={snapshot.matchmakingShowStatsHighlights}
       inSeriesMyStatsOnly={snapshot.inSeriesMyStatsOnly}
       matchmakingMyStatsOnly={snapshot.matchmakingMyStatsOnly}
+      autoStart={snapshot.autoStart}
       fontSizeSettings={snapshot.fontSizeSettings}
       saveStatus={snapshot.saveStatus}
       saveErrorMessage={snapshot.saveErrorMessage}
@@ -110,6 +111,9 @@ function StreamerSettingsSectionInternal({
       }}
       onMatchmakingMyStatsOnlyChange={(enabled): void => {
         presenter.setMatchmakingMyStatsOnly(enabled);
+      }}
+      onAutoStartChange={(enabled): void => {
+        presenter.setAutoStart(enabled);
       }}
       onFontSizesChange={(updates): void => {
         presenter.setFontSizes(updates);

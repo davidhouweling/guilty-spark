@@ -332,6 +332,25 @@ describe("StreamerSettingsPresenter", () => {
     });
   });
 
+  describe("setAutoStart", () => {
+    it("updates autoStart in the store and schedules a save", async () => {
+      const { store, presenter, settingsService } = aHarness();
+      const updateSpy: MockInstance<typeof settingsService.updateSettings> = vi.spyOn(
+        settingsService,
+        "updateSettings",
+      );
+
+      presenter.setAutoStart(false);
+
+      expect(store.getSnapshot().autoStart).toBe(false);
+
+      await vi.runAllTimersAsync();
+
+      const [[saved]] = updateSpy.mock.calls;
+      expect(saved.styleFlags?.autoStart).toBe(false);
+    });
+  });
+
   describe("setInSeriesMyStatsOnly", () => {
     it("updates inSeriesMyStatsOnly in the store and schedules a save", async () => {
       const { store, presenter, settingsService } = aHarness();
