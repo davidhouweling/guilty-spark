@@ -2,7 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { APIMessage, APIMessageTopLevelComponent } from "discord-api-types/v10";
 import { ComponentType, Locale } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { LeaderboardMetric, LeaderboardMetricFamily, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import {
+  LeaderboardMetric,
+  LeaderboardMetricAggregation,
+  LeaderboardMetricFamily,
+  LeaderboardWindow,
+} from "@guilty-spark/shared/halo/leaderboard";
 import { LEADERBOARD_MAX_PAGE_SIZE } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
 import type { LeaderboardRankingRow } from "../../database/types/leaderboard_ranking_row";
 import {
@@ -10,6 +15,7 @@ import {
   aFakeLeaderboardConfigRow,
   aFakeNeatQueueConfigRow,
   aFakeLeaderboardPostRow,
+  aFakeLeaderboardPlayerStatsRow,
 } from "../../database/fakes/database.fake";
 import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake";
 import { apiMessage } from "../../discord/fakes/data";
@@ -1153,5 +1159,55 @@ describe("LeaderboardService", () => {
     expect(Preconditions.checkExists(warnContext).get("reason")).toBe(
       "Failed to refresh leaderboard posts after series persistence",
     );
+  });
+
+  it("resolves player stats, ranks, and relationship pages in getLeaderboardPlayerStatsForGamertag", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+
+    vi.spyOn(haloService, "getUserByGamertag").mockResolvedValue({
+      xuid: "xuid-1",
+      gamertag: "Master Chief",
+    });
+    vi.spyOn(databaseService, "getLeaderboardPlayerGuildStats").mockResolvedValue([
+      { GuildId: "guild-1", GamesPlayed: 10 },
+    ]);
+    vi.spyOn(databaseService, "getLeaderboardQueueChannelIds").mockResolvedValue(["queue-1"]);
+    vi.spyOn(service, "getLeaderboardPlayerStats").mockResolvedValue({
+      stats: aFakeLeaderboardPlayerStatsRow({ XboxXuid: "xuid-1", Gamertag: "Master Chief" }),
+      window: LeaderboardWindow.ThreeMonths,
+      resetAt: null,
+      startEpochSeconds: 1000,
+      minGamesPlayed: 5,
+      defaultAggregation: LeaderboardMetricAggregation.Total,
+    });
+    vi.spyOn(service, "getLeaderboardPlayerMetricRanks").mockResolvedValue(
+      new Map([
+        [LeaderboardMetric.Kills, { rank: 1, total: 10 }],
+        [LeaderboardMetric.GamesPlayed, { rank: 2, total: 10 }],
+      ]),
+    );
+    vi.spyOn(databaseService, "getLeaderboardPlayerRelationships").mockResolvedValue([
+      {
+        XboxXuid: "xuid-2",
+        DiscordUserId: null,
+        Gamertag: "Opponent",
+        MetricValue: 8.5,
+        SharedCount: 4,
+        Wins: 3,
+        Perfects: 2,
+      },
+    ]);
+
+    const result = await service.getLeaderboardPlayerStatsForGamertag("Master Chief", "guild-1", undefined, undefined);
+
+    expect(result).not.toBeNull();
+    expect(result?.player).toEqual({ xboxXuid: "xuid-1", gamertag: "Master Chief" });
+    expect(result?.selectedGuildId).toBe("guild-1");
+    expect(result?.ranks[LeaderboardMetric.Kills]).toEqual({ rank: 1, total: 10 });
+    expect(result?.relationships["AVG_HEAD_TO_HEAD_KILLS"]).toHaveLength(1);
+    expect(result?.totalPlayers).toBe(10);
   });
 });

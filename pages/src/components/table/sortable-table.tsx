@@ -7,6 +7,8 @@ import {
   createSortedRowModel,
   sortFn_alphanumeric,
   sortFn_basic,
+  sortFn_text,
+  sortFn_datetime,
   flexRender,
 } from "@tanstack/react-table";
 import type { ColumnDef, SortingState, SortDirection, RowData } from "@tanstack/react-table";
@@ -17,7 +19,12 @@ const sortableTableFeatures = tableFeatures({
   rowSortingFeature,
   columnVisibilityFeature,
   sortedRowModel: createSortedRowModel(),
-  sortFns: { alphanumeric: sortFn_alphanumeric, basic: sortFn_basic },
+  sortFns: {
+    alphanumeric: sortFn_alphanumeric,
+    basic: sortFn_basic,
+    text: sortFn_text,
+    datetime: sortFn_datetime,
+  },
 });
 
 type SortableTableFeatures = typeof sortableTableFeatures;
@@ -46,6 +53,10 @@ export interface SortableTableColumn<TData extends RowData> extends Omit<
   enableSorting?: boolean;
   /** Sorting function name used by the table */
   sortFn?: ColumnDef<SortableTableFeatures, TData>["sortFn"];
+  /** Whether the first sort direction should be descending (default: auto) */
+  sortDescFirst?: boolean | undefined;
+  /** Behavior for sorting undefined values (default: "last") */
+  sortUndefined?: false | -1 | 1 | "first" | "last" | undefined;
 }
 
 export interface SortableTableProps<TData extends RowData> {
@@ -107,6 +118,8 @@ export function SortableTable<TData extends RowData>({
         },
         enableSorting: col.enableSorting !== false,
         sortFn: col.sortFn ?? "auto",
+        sortDescFirst: col.sortDescFirst,
+        sortUndefined: col.sortUndefined ?? "last",
       })),
     [columns],
   );

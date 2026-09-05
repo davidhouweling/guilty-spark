@@ -26,6 +26,7 @@ import type { LeaderboardGamesRow } from "./types/leaderboard_games";
 import type { LeaderboardGamePlayersRow } from "./types/leaderboard_game_players";
 import type { LeaderboardRankingRow } from "./types/leaderboard_ranking_row";
 import type { LeaderboardPlayerStatsRow } from "./types/leaderboard_player_stats";
+import type { LeaderboardPlayerGuildStatsRow } from "./types/leaderboard_player_guild_stats";
 import type { LeaderboardPlayerMetricRank } from "./types/leaderboard_player_metric_rank";
 import type { LeaderboardConfigRow } from "./types/leaderboard_config";
 import type { LeaderboardPostRow } from "./types/leaderboard_post";
@@ -1696,6 +1697,22 @@ export class DatabaseService {
     ).bind(guildId);
     const response = await stmt.all<{ QueueChannelId: string }>();
     return response.results.map((row) => row.QueueChannelId);
+  }
+
+  async getLeaderboardPlayerGuildStats(xboxXuid: string): Promise<LeaderboardPlayerGuildStatsRow[]> {
+    const stmt = this.DB.prepare(
+      `SELECT gamePlayers.GuildId, COUNT(*) AS GamesPlayed
+       FROM LeaderboardGamePlayers gamePlayers
+       INNER JOIN LeaderboardGames games
+         ON games.GuildId = gamePlayers.GuildId
+         AND games.QueueNumber = gamePlayers.QueueNumber
+         AND games.MatchId = gamePlayers.MatchId
+       WHERE gamePlayers.XboxXuid = ?
+       GROUP BY gamePlayers.GuildId
+       ORDER BY GamesPlayed DESC, gamePlayers.GuildId ASC`,
+    ).bind(xboxXuid);
+    const response = await stmt.all<LeaderboardPlayerGuildStatsRow>();
+    return response.results;
   }
 
   async hasLeaderboardData(guildId: string, queueChannelId: string | null): Promise<boolean> {

@@ -1,6 +1,6 @@
 import { MatchOutcome } from "halo-infinite-api";
 import type { MatchStats } from "halo-infinite-api";
-import type { APIMessage } from "discord-api-types/v10";
+import type { APIMessage, APIChannel } from "discord-api-types/v10";
 import { sub } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
@@ -16,6 +16,7 @@ import {
   getLeaderboardMetricAggregation,
 } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardMetricAggregation } from "@guilty-spark/shared/halo/leaderboard";
+import type { PlayerStatsResponse } from "@guilty-spark/shared/contracts/stats/player";
 import type { DatabaseService } from "../database/database";
 import type { DiscordService } from "../discord/discord";
 import { DiscordError } from "../discord/discord-error";
@@ -27,14 +28,13 @@ import type { LeaderboardConfigRow } from "../database/types/leaderboard_config"
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
 import type { LeaderboardPostRow } from "../database/types/leaderboard_post";
 import type { LeaderboardPlayerStatsRow } from "../database/types/leaderboard_player_stats";
+import type { LeaderboardPlayerGuildStatsRow } from "../database/types/leaderboard_player_guild_stats";
+import type { UserInfo, Medal } from "../halo/types";
 import type { LeaderboardPlayerMetricRank } from "../database/types/leaderboard_player_metric_rank";
-import type {
-  LeaderboardPlayerRelationshipMetric,
-  LeaderboardPlayerRelationshipRow,
-} from "../database/types/leaderboard_player_relationship";
+import { LeaderboardPlayerRelationshipMetric } from "../database/types/leaderboard_player_relationship";
+import type { LeaderboardPlayerRelationshipRow } from "../database/types/leaderboard_player_relationship";
 import type { LeaderboardPlayerPairRelationshipRow } from "../database/types/leaderboard_player_pair_relationship";
 import type { HaloService } from "../halo/halo";
-import type { Medal } from "../halo/types";
 import type { LogService } from "../log/types";
 import type { NeatQueueMatchCompletedRequest } from "../neatqueue/types";
 import { getLeaderboardMessageState } from "./leaderboard-message";
@@ -64,8 +64,8 @@ export interface GetLeaderboardPlayerStatsOpts {
   guildId: string;
   xboxXuid: string;
   queueChannelId: string | null;
-  queueChannelIds?: string[];
-  window?: LeaderboardWindow;
+  queueChannelIds?: string[] | undefined;
+  window?: LeaderboardWindow | undefined;
 }
 
 export interface LeaderboardPlayerStatsResponse {
@@ -75,6 +75,30 @@ export interface LeaderboardPlayerStatsResponse {
   startEpochSeconds: number;
   minGamesPlayed: number;
   defaultAggregation: LeaderboardMetricAggregation;
+}
+
+export interface LeaderboardPlayerServerOption {
+  guildId: string;
+  guildName: string;
+  gamesPlayed: number;
+  queueOptions: readonly { channelId: string; label: string }[];
+}
+
+export interface LeaderboardPlayerDiscoveryResponse {
+  player: { xboxXuid: string; gamertag: string };
+  servers: readonly LeaderboardPlayerServerOption[];
+  selectedGuildId: string;
+  selectedGuildName: string;
+  queueOptions: readonly { channelId: string; label: string }[];
+}
+
+export interface LeaderboardPlayerPageResponse {
+  guildId: string;
+  guildName: string;
+  queueChannelId: string | null;
+  queueLabel: string;
+  window: LeaderboardWindow;
+  stats: LeaderboardPlayerStatsRow | null;
 }
 
 export interface GetLeaderboardPlayerMetricRanksOpts {
@@ -119,6 +143,168 @@ export class LeaderboardService {
     this.discordService = discordService;
     this.haloService = haloService;
     this.logService = logService;
+  }
+
+  async getLeaderboardPlayerDiscovery(
+    gamertag: string,
+    requestedGuildId: string | undefined,
+  ): Promise<LeaderboardPlayerDiscoveryResponse | null> {
+    const player = await this.haloService.getUserByGamertag(gamertag);
+    return await this.getLeaderboardPlayerDiscoveryForPlayer(player, requestedGuildId);
+  }
+
+  private async getLeaderboardPlayerDiscoveryForPlayer(
+    player: UserInfo,
+    requestedGuildId: string | undefined,
+  ): Promise<LeaderboardPlayerDiscoveryResponse | null> {
+    const guildStats = await this.databaseService.getLeaderboardPlayerGuildStats(player.xuid);
+    if (guildStats.length === 0) {
+      return null;
+    }
+
+    const servers: LeaderboardPlayerServerOption[] = [];
+    for (const guildStat of guildStats) {
+      const server = await this.getPlayerServerOption(guildStat);
+      servers.push(server);
+    }
+
+    const selectedServer =
+      requestedGuildId == null ? servers[0] : servers.find((server) => server.guildId === requestedGuildId);
+    if (selectedServer == null) {
+      return null;
+    }
+
+    return {
+      player: { xboxXuid: player.xuid, gamertag: player.gamertag },
+      servers,
+      selectedGuildId: selectedServer.guildId,
+      selectedGuildName: selectedServer.guildName,
+      queueOptions: selectedServer.queueOptions,
+    };
+  }
+
+  async getLeaderboardPlayerStatsForGamertag(
+    gamertag: string,
+    requestedGuildId: string | undefined,
+    queueChannelId: string | undefined,
+    window: LeaderboardWindow | undefined,
+  ): Promise<PlayerStatsResponse | null> {
+    const player = await this.haloService.getUserByGamertag(gamertag);
+    const discovery = await this.getLeaderboardPlayerDiscoveryForPlayer(player, requestedGuildId);
+    if (discovery == null) {
+      return null;
+    }
+
+    const selectedStats = await this.getLeaderboardPlayerStats({
+      guildId: discovery.selectedGuildId,
+      xboxXuid: player.xuid,
+      queueChannelId: queueChannelId ?? null,
+      ...(window == null ? {} : { window }),
+    });
+
+    const resolvedWindow = selectedStats?.window ?? window ?? LeaderboardWindow.ThreeMonths;
+
+    let ranks: Record<string, { rank: number; total: number } | null> = {};
+    let relationships: Record<string, LeaderboardPlayerRelationshipRow[]> = {};
+    let totalPlayers: number | null = null;
+
+    if (selectedStats != null) {
+      const allMetrics = Object.values(LeaderboardMetric);
+      const metricRanks = await this.getLeaderboardPlayerMetricRanks({
+        guildId: discovery.selectedGuildId,
+        xboxXuid: player.xuid,
+        queueChannelId: queueChannelId ?? null,
+        startEpochSeconds: selectedStats.startEpochSeconds,
+        minGamesPlayed: selectedStats.minGamesPlayed,
+        metrics: allMetrics,
+      });
+
+      ranks = Object.fromEntries(
+        Array.from(metricRanks.entries()).map(([metric, rank]) => [
+          metric,
+          rank == null ? null : { rank: rank.rank, total: rank.total },
+        ]),
+      );
+      totalPlayers = metricRanks.get(LeaderboardMetric.GamesPlayed)?.total ?? null;
+
+      const relationshipMetrics = Object.values(LeaderboardPlayerRelationshipMetric);
+      const relationshipResults = await Promise.all(
+        relationshipMetrics.map(async (metric) => {
+          const rows = await this.databaseService.getLeaderboardPlayerRelationships({
+            guildId: discovery.selectedGuildId,
+            xboxXuid: player.xuid,
+            queueChannelId: queueChannelId ?? null,
+            startEpochSeconds: selectedStats.startEpochSeconds,
+            metric,
+          });
+          return [metric, rows] as const;
+        }),
+      );
+      relationships = Object.fromEntries(relationshipResults);
+    }
+
+    return {
+      player: discovery.player,
+      servers: discovery.servers.map((server) => ({ ...server, queueOptions: [...server.queueOptions] })),
+      selectedGuildId: discovery.selectedGuildId,
+      selectedGuildName: discovery.selectedGuildName,
+      queueOptions: [...discovery.queueOptions],
+      window: resolvedWindow,
+      resetAt: selectedStats?.resetAt ?? null,
+      stats: selectedStats?.stats ?? null,
+      ranks,
+      relationships,
+      minGamesPlayed: selectedStats?.minGamesPlayed ?? 5,
+      totalPlayers,
+    };
+  }
+
+  private async getPlayerServerOption(
+    guildStats: LeaderboardPlayerGuildStatsRow,
+  ): Promise<LeaderboardPlayerServerOption> {
+    let guildName = `Guild ${guildStats.GuildId}`;
+    if (this.discordService != null) {
+      try {
+        const guild = await this.discordService.getGuild(guildStats.GuildId);
+        if (guild.name.trim() !== "") {
+          guildName = guild.name.trim();
+        }
+      } catch (error) {
+        this.logService.warn(
+          error,
+          new Map([
+            ["guildId", guildStats.GuildId],
+            ["reason", "Failed to resolve player stats guild name"],
+          ]),
+        );
+      }
+    }
+
+    const queueChannelIds = await this.databaseService.getLeaderboardQueueChannelIds(guildStats.GuildId);
+    let channels: APIChannel[] = [];
+    if (queueChannelIds.length > 0 && this.discordService != null) {
+      try {
+        channels = await this.discordService.getGuildChannels(guildStats.GuildId);
+      } catch (error) {
+        this.logService.warn(
+          error,
+          new Map([
+            ["guildId", guildStats.GuildId],
+            ["reason", "Failed to resolve player stats queue names"],
+          ]),
+        );
+      }
+    }
+    const channelsById = new Map(channels.map((channel) => [channel.id, channel]));
+    const queueOptions = queueChannelIds.map((channelId) => {
+      const channel = channelsById.get(channelId);
+      return {
+        channelId,
+        label: channel?.name == null || channel.name === "" ? `Queue ${channelId}` : `#${channel.name}`,
+      };
+    });
+
+    return { guildId: guildStats.GuildId, guildName, gamesPlayed: guildStats.GamesPlayed, queueOptions };
   }
 
   async getLeaderboardPlayerStats({
