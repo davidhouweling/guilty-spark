@@ -338,8 +338,9 @@ describe("createPlayerCompareNoQualifyingGamesResponse()", () => {
 
 describe("getPlayerCompareStateFromMessage()", () => {
   it("returns null when the message has no components", () => {
-    const { components, ...messageWithoutComponents } = apiMessage;
-    void components;
+    const { components: _components, ...messageWithoutComponents } = apiMessage;
+    expect(_components).toEqual(apiMessage.components);
+    expect(messageWithoutComponents).not.toHaveProperty("components");
     expect(getPlayerCompareStateFromMessage(messageWithoutComponents)).toBeNull();
   });
 

@@ -21,7 +21,6 @@ import type {
   TrackerMatchHistoryResponse,
   TrackerSearchResult,
   TrackerStatusResponse,
-  TrackerSyncMatchesRequest,
 } from "../types";
 
 interface FakeTrackerOverrides {
@@ -246,8 +245,7 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
     return this.matchHistory;
   }
 
-  public async syncMatchesToTracker(request: TrackerSyncMatchesRequest): Promise<void> {
-    void request;
+  public async syncMatchesToTracker(): Promise<void> {
     await Promise.resolve();
   }
 

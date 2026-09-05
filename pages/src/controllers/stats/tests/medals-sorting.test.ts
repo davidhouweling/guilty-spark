@@ -110,9 +110,9 @@ describe("sortByMedals", () => {
     medals: Map<number, number>,
   ): Row<TFeatures, TData> {
     return {
-      getValue: (columnId: string) => {
-        void columnId;
-        return medals as unknown;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      getValue: (_columnId: string) => {
+        return medals;
       },
     } as Row<TFeatures, TData>;
   }

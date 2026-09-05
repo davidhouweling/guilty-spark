@@ -3253,8 +3253,10 @@ describe("StatsCommand", () => {
     });
 
     it("recognizes the command invoker via message.interaction when interaction_metadata is absent", () => {
-      const { interaction_metadata, ...messageWithoutMetadata }: APIMessage = fakeButtonClickInteraction.message;
-      void interaction_metadata;
+      const { interaction_metadata: _interaction_metadata, ...messageWithoutMetadata }: APIMessage =
+        fakeButtonClickInteraction.message;
+      expect(_interaction_metadata).toEqual(fakeButtonClickInteraction.message.interaction_metadata);
+      expect(messageWithoutMetadata).not.toHaveProperty("interaction_metadata");
       const interaction: APIMessageComponentSelectMenuInteraction = {
         ...fakeButtonClickInteraction,
         data: {
