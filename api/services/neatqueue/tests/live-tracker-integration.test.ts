@@ -771,7 +771,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
       refreshTrackerSpy.mockResolvedValue(mockRefreshResponse);
       stopTrackerSpy.mockResolvedValue({ success: true, state: mockStatusResponse.state });
 
-      const _getSeriesDataSpy = vi.spyOn(liveTrackerService, "getSeriesData").mockResolvedValue({
+      vi.spyOn(liveTrackerService, "getSeriesData").mockResolvedValue({
         seriesId: { guildId: mockMatchCompletedRequest.guild, queueNumber: mockMatchCompletedRequest.match_number },
         teams: [],
         seriesScore: "0:0",
@@ -783,8 +783,6 @@ describe("NeatQueueService Live Tracker Integration", () => {
         startTime: new Date().toISOString(),
         lastUpdateTime: new Date().toISOString(),
       });
-      void _getSeriesDataSpy;
-
       await callMatchCompletedJob(mockMatchCompletedRequest);
 
       expect(refreshTrackerSpy).toHaveBeenCalledWith(
@@ -828,7 +826,7 @@ describe("NeatQueueService Live Tracker Integration", () => {
       refreshTrackerSpy.mockResolvedValue(mockRefreshResponse);
       stopTrackerSpy.mockResolvedValue({ success: true, state: mockStatusResponse.state });
 
-      const _getSeriesDataSpy = vi.spyOn(liveTrackerService, "getSeriesData").mockResolvedValue({
+      vi.spyOn(liveTrackerService, "getSeriesData").mockResolvedValue({
         seriesId: { guildId: mockMatchCompletedRequest.guild, queueNumber: mockMatchCompletedRequest.match_number },
         teams: [],
         seriesScore: "0:0",
@@ -840,8 +838,6 @@ describe("NeatQueueService Live Tracker Integration", () => {
         startTime: new Date().toISOString(),
         lastUpdateTime: new Date().toISOString(),
       });
-      void _getSeriesDataSpy;
-
       // Mock the series data fetching to verify it wasn't called
       getSeriesFromDiscordQueueSpy.mockResolvedValue([]);
 

@@ -1,4 +1,4 @@
-import type { AnalyticsModule, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { MatchAnalyticsService } from "../match-analytics-types";
 
 function aFakeMatchAnalyticsWith(overrides: Partial<MatchAnalytics> = {}): MatchAnalytics {
@@ -29,13 +29,7 @@ export class FakeMatchAnalyticsService implements MatchAnalyticsService {
     this.failMatchIds = new Set(options.failMatchIds ?? []);
   }
 
-  async getBatchMatchAnalytics(
-    matchIds: readonly string[],
-    modules?: readonly AnalyticsModule[],
-    trackerId?: string,
-  ): Promise<Record<string, MatchAnalytics | null>> {
-    void modules;
-    void trackerId;
+  async getBatchMatchAnalytics(matchIds: readonly string[]): Promise<Record<string, MatchAnalytics | null>> {
     const resultsMap = new Map<string, MatchAnalytics | null>(
       matchIds.map((matchId) => [matchId, this.failMatchIds.has(matchId) ? null : this.analytics]),
     );

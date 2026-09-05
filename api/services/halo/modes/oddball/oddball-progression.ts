@@ -491,8 +491,9 @@ function solveRoundScores(
   reconcileToMatchTotals(solved, teamIds, matchTotals);
   // A timed-out round can never reach the cap — any round solving at or above it must have
   // been capped (the film can miss the winner's final crossing). Reclassify and re-solve.
-  for (const _pass of windows) {
-    void _pass;
+  let pass = 0;
+  while (pass < windows.length) {
+    pass += 1;
     const [round] = solved
       .filter((candidate) => !candidate.endedByCap && Math.max(...candidate.scores.values()) >= CAP_SCORE)
       .sort((a, b) => Math.max(...b.scores.values()) - Math.max(...a.scores.values()));

@@ -26,8 +26,7 @@ export function aFakeLeaderboardServiceWith(overrides: Partial<LeaderboardRespon
         guildId: request.guildId,
         queueChannelId: request.queueChannelId,
       }),
-    getQueueOptions: async (guildId: string): Promise<LeaderboardQueueOptionsResponse> => {
-      void guildId;
+    getQueueOptions: async (): Promise<LeaderboardQueueOptionsResponse> => {
       return Promise.resolve({ guildName: "Guild 1", options: [] });
     },
   };

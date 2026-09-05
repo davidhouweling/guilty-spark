@@ -75,15 +75,11 @@ export class FakeDiscordSeriesStatsService implements DiscordSeriesStatsService 
     this.lookupResult = options?.lookupResult ?? aFakeDiscordSeriesStatsLookupResultWith();
   }
 
-  async getStats(guildId: string, queueNumber: string): Promise<DiscordSeriesStatsResult> {
-    void guildId;
-    void queueNumber;
+  async getStats(): Promise<DiscordSeriesStatsResult> {
     return Promise.resolve(this.result);
   }
 
-  async getLookup(guildId: string, queueNumber: string): Promise<DiscordSeriesStatsLookupResult> {
-    void guildId;
-    void queueNumber;
+  async getLookup(): Promise<DiscordSeriesStatsLookupResult> {
     return Promise.resolve(this.lookupResult);
   }
 }
