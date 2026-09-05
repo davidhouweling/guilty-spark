@@ -286,7 +286,7 @@ export class PlayerStatsPresenter {
     const totalPlayersText = totalPlayers == null ? "Unknown" : totalPlayers.toLocaleString();
     const statsFooter =
       stats == null ? undefined : `Min games: ${minGames.toString()} | Total players: ${totalPlayersText}`;
-    const headToHeadFooter = "Showing top 25 opponents and teammates by match activity";
+    const headToHeadFooter = "Showing top 50 opponents and teammates by match activity";
 
     return {
       state: snapshot.status,

@@ -182,7 +182,7 @@ describe("PlayerStatsPresenter", () => {
             seriesAgainstWinRate: 50.0,
           },
         ]}
-        headToHeadFooter="Showing top 25 opponents and teammates by match activity"
+        headToHeadFooter="Showing top 50 opponents and teammates by match activity"
         onGuildChange={vi.fn()}
         onQueueChange={vi.fn()}
         onWindowChange={vi.fn()}

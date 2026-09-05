@@ -2485,7 +2485,7 @@ export class DatabaseService {
     queueChannelId,
     queueChannelIds,
     startEpochSeconds,
-    limit = 25,
+    limit = 50,
   }: {
     guildId: string;
     xboxXuid: string;

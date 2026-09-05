@@ -236,7 +236,7 @@ export class LeaderboardService {
           xboxXuid: player.xuid,
           queueChannelId: queueChannelId ?? null,
           startEpochSeconds: selectedStats.startEpochSeconds,
-          limit: 25,
+          limit: 50,
         }),
       ]);
 

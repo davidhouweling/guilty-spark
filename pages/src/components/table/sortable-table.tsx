@@ -40,7 +40,7 @@ export interface SortableTableColumn<TData extends RowData> extends Omit<
   /** Function to extract cell value from row data */
   accessorFn: (row: TData) => unknown;
   /** Function to render cell content (optional, defaults to displaying the value) */
-  cell?: (value: unknown, row: TData) => React.ReactNode;
+  cell?: (value: unknown, row: TData, rowIndex: number) => React.ReactNode;
   /** Optional CSS class for header cells */
   headerClassName?: string;
   /** Optional inline style for header cells */
@@ -114,7 +114,7 @@ export function SortableTable<TData extends RowData>({
         header: (): React.ReactNode => col.header,
         cell: (info): React.ReactNode => {
           const value = info.getValue();
-          return col.cell != null ? col.cell(value, info.row.original) : (value as React.ReactNode);
+          return col.cell != null ? col.cell(value, info.row.original, info.row.index) : (value as React.ReactNode);
         },
         enableSorting: col.enableSorting !== false,
         sortFn: col.sortFn ?? "auto",
