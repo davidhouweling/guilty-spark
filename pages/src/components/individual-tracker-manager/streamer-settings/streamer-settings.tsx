@@ -213,17 +213,6 @@ export function StreamerSettingsSectionView({
         tracker is currently marked live.
       </p>
 
-      <div className={styles.card}>
-        <Checkbox
-          checked={autoStart}
-          onChange={(checked): void => {
-            onAutoStartChange(checked);
-          }}
-          label="Automatically start tracking when the overlay is used"
-          description="Start your individual tracker automatically the first time your viewer or overlay URL is opened, instead of needing to start it manually beforehand."
-        />
-      </div>
-
       {gamertag === null ? (
         <Alert variant="warning">
           No active Xbox identity is linked. Link an Xbox account to generate shareable URLs.
@@ -289,6 +278,17 @@ export function StreamerSettingsSectionView({
                 {copyTarget === "overlay" ? "Copied!" : "Copy"}
               </Button>
             </div>
+
+            <hr className={styles.sectionDivider} />
+
+            <Checkbox
+              checked={autoStart}
+              onChange={(checked): void => {
+                onAutoStartChange(checked);
+              }}
+              label="Automatically start tracking when the overlay is used"
+              description="Start your individual tracker automatically the first time your viewer or overlay URL is opened, instead of needing to start it manually beforehand."
+            />
           </div>
         </div>
       )}

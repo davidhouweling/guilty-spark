@@ -2215,6 +2215,24 @@ describe("UserTrackerDO", () => {
     expect(createTrackerSpy).toHaveBeenCalledWith({ userId: "user-1", gamertag: "KnownTag", xuid: "xuid-1" });
   });
 
+  it("skips the auto-start check when a websocket client is already connected", async () => {
+    const localEnv = aFakeEnvWith();
+    const services = installFakeServicesWith({ env: localEnv });
+    const findTrackersSpy = vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([]);
+    const getSettingsForViewSpy = vi.spyOn(services.individualTrackerService, "getSettingsForView");
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    await localUserTrackerDO.fetch(
+      new Request("http://do/view-state?userId=user-1&gamertag=KnownTag&xuid=xuid-1", { method: "GET" }),
+    );
+
+    // buildDirectory() always reads settings/trackers once to render the response; both would be
+    // read a second time by the auto-start check if it weren't skipped for an already-connected client.
+    expect(getSettingsForViewSpy).toHaveBeenCalledTimes(1);
+    expect(findTrackersSpy).toHaveBeenCalledTimes(1);
+  });
+
   it("does not attempt auto-start when gamertag or xuid are not provided", async () => {
     const localEnv = aFakeEnvWith();
     const services = installFakeServicesWith({ env: localEnv });

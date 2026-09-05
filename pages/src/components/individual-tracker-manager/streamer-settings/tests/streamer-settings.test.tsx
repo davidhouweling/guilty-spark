@@ -124,6 +124,14 @@ describe("StreamerSettingsSectionView", () => {
       expect(screen.getByText(/No active Xbox identity is linked/)).toBeInTheDocument();
     });
 
+    it("does not render the auto-start toggle when gamertag is null", () => {
+      render(<StreamerSettingsSectionView {...aFakeProps({ gamertag: null })} />);
+
+      expect(
+        screen.queryByRole("checkbox", { name: /automatically start tracking when the overlay is used/i }),
+      ).not.toBeInTheDocument();
+    });
+
     it("calls the clipboard API when the view copy button is clicked", async () => {
       const user = userEvent.setup();
       const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined);

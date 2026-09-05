@@ -437,6 +437,12 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   // (keyed by userId) and can be requested concurrently on first page load, so without this lock
   // both could observe "no tracker yet" and each create/start a duplicate tracker for the xuid.
   private async ensureAutoStartedTracker(request: Request): Promise<void> {
+    if (this.state.getWebSockets().length > 0) {
+      // A connected client already means this DO instance ran this check when that connection
+      // was established; skip the extra settings/tracker DB reads on every cached poll.
+      return;
+    }
+
     const userId = this.getRequestedUserId(request);
     const gamertag = this.getRequestedQueryParam(request, "gamertag");
     const xuid = this.getRequestedQueryParam(request, "xuid");
