@@ -14,7 +14,7 @@ export class RealLeaderboardService implements LeaderboardService {
     this.apiHost = apiHost;
   }
 
-  async getLeaderboard({ guildId, queueChannelId, window, metric }: LeaderboardRequest): Promise<LeaderboardResponse> {
+  async getLeaderboard({ guildId, queueChannelId, window, metric, minGamesPlayed }: LeaderboardRequest): Promise<LeaderboardResponse> {
     const url = new URL("/api/leaderboard", this.apiHost);
     url.searchParams.set("guildId", guildId);
     url.searchParams.set("pageSize", LEADERBOARD_MAX_PAGE_SIZE.toString());
@@ -26,6 +26,9 @@ export class RealLeaderboardService implements LeaderboardService {
     }
     if (metric != null) {
       url.searchParams.set("metric", metric);
+    }
+    if (minGamesPlayed != null) {
+      url.searchParams.set("minGamesPlayed", minGamesPlayed.toString());
     }
 
     const response = await fetch(url);

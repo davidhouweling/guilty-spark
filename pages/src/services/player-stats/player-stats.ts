@@ -18,6 +18,7 @@ export class RealPlayerStatsService implements PlayerStatsService {
     guildId,
     queueChannelId,
     window,
+    minGamesPlayed,
   }: PlayerStatsRequest): Promise<PlayerStatsResponse> {
     const url = new URL(`/api/stats/player/${encodeURIComponent(gamertag)}`, this.apiHost);
     if (guildId != null) {
@@ -28,6 +29,9 @@ export class RealPlayerStatsService implements PlayerStatsService {
     }
     if (window != null) {
       url.searchParams.set("window", window);
+    }
+    if (minGamesPlayed != null) {
+      url.searchParams.set("minGamesPlayed", minGamesPlayed.toString());
     }
 
     const response = await fetch(url);

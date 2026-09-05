@@ -109,6 +109,8 @@ const ALL_PLAYER_STAT_METRICS: readonly LeaderboardMetric[] = [
   LeaderboardMetric.AvgBallCarrierKillsPerObjective,
 ];
 
+const MIN_GAMES_PLAYED_OPTIONS = Array.from({ length: 10 }, (_, index) => index + 1);
+
 function formatRecord(wins: number, losses: number, total: number): { text: string; rate: number } {
   if (total === 0) {
     return { text: "-", rate: -1 };
@@ -128,6 +130,7 @@ export class PlayerStatsPresenter {
   private currentGuildId: string | undefined;
   private currentQueueChannelId: string | undefined;
   private currentWindow: LeaderboardWindow | undefined;
+  private currentMinGamesPlayed: number | undefined;
   private requestNumber = 0;
   private isDisposed = false;
 
@@ -140,12 +143,14 @@ export class PlayerStatsPresenter {
     this.currentGuildId = url.searchParams.get("guildId") ?? initialResponse?.selectedGuildId;
     this.currentQueueChannelId = url.searchParams.get("queueChannelId") ?? undefined;
     this.currentWindow = this.findWindow(url.searchParams.get("window"));
+    this.currentMinGamesPlayed = this.findMinGamesPlayed(url.searchParams.get("minGamesPlayed"));
   }
 
   start(): void {
     if (this.initialResponse != null) {
       this.currentGuildId = this.initialResponse.selectedGuildId;
       this.currentWindow = this.initialResponse.window;
+      this.currentMinGamesPlayed = this.initialResponse.minGamesPlayed;
       this.store.setLoaded(this.initialResponse);
       return;
     }
@@ -165,12 +170,14 @@ export class PlayerStatsPresenter {
         guildId: this.currentGuildId,
         queueChannelId: this.currentQueueChannelId,
         window: this.currentWindow,
+        minGamesPlayed: this.currentMinGamesPlayed,
       });
       if (this.isDisposed || activeRequest !== this.requestNumber) {
         return;
       }
       this.currentGuildId = response.selectedGuildId;
       this.currentWindow = response.window;
+      this.currentMinGamesPlayed = response.minGamesPlayed;
       this.store.setLoaded(response);
     } catch {
       if (this.isDisposed || activeRequest !== this.requestNumber) {
@@ -195,6 +202,16 @@ export class PlayerStatsPresenter {
 
   changeWindow(value: string): void {
     this.currentWindow = this.findWindow(value);
+    this.updateUrl();
+    this.load();
+  }
+
+  changeMinGamesPlayed(value: string): void {
+    const minGamesPlayed = this.findMinGamesPlayed(value);
+    if (minGamesPlayed == null) {
+      return;
+    }
+    this.currentMinGamesPlayed = minGamesPlayed;
     this.updateUrl();
     this.load();
   }
@@ -309,6 +326,11 @@ export class PlayerStatsPresenter {
       selectedGuildId,
       selectedQueueChannelId: this.currentQueueChannelId ?? null,
       selectedWindow: response?.window ?? this.currentWindow ?? LeaderboardWindow.ThreeMonths,
+      selectedMinGamesPlayed: this.currentMinGamesPlayed ?? response?.minGamesPlayed ?? 5,
+      minGamesPlayedOptions: MIN_GAMES_PLAYED_OPTIONS.map((value) => ({
+        value: value.toString(),
+        label: value.toString(),
+      })),
       selectedTabId: tabId,
       statsRows,
       headToHeadRows,
@@ -323,6 +345,9 @@ export class PlayerStatsPresenter {
       onWindowChange: (value): void => {
         this.changeWindow(value);
       },
+      onMinGamesPlayedChange: (value): void => {
+        this.changeMinGamesPlayed(value);
+      },
       onTabChange: (tab): void => {
         this.changeTab(tab);
       },
@@ -331,6 +356,11 @@ export class PlayerStatsPresenter {
 
   private findWindow(value: string | null): LeaderboardWindow | undefined {
     return Object.values(LeaderboardWindow).find((candidate) => candidate.toLowerCase() === value?.toLowerCase());
+  }
+
+  private findMinGamesPlayed(value: string | null): number | undefined {
+    const parsedValue = value == null ? undefined : Number(value);
+    return parsedValue != null && MIN_GAMES_PLAYED_OPTIONS.includes(parsedValue) ? parsedValue : undefined;
   }
 
   private updateUrl(): void {
@@ -349,6 +379,11 @@ export class PlayerStatsPresenter {
       url.searchParams.delete("window");
     } else {
       url.searchParams.set("window", this.currentWindow);
+    }
+    if (this.currentMinGamesPlayed == null) {
+      url.searchParams.delete("minGamesPlayed");
+    } else {
+      url.searchParams.set("minGamesPlayed", this.currentMinGamesPlayed.toString());
     }
     window.history.pushState({}, "", url);
   }

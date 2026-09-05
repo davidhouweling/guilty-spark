@@ -46,6 +46,8 @@ export function PlayerStats({
   selectedGuildId,
   selectedQueueChannelId,
   selectedWindow,
+  selectedMinGamesPlayed,
+  minGamesPlayedOptions,
   selectedTabId,
   statsRows,
   headToHeadRows,
@@ -55,6 +57,7 @@ export function PlayerStats({
   onGuildChange,
   onQueueChange,
   onWindowChange,
+  onMinGamesPlayedChange,
   onTabChange,
 }: PlayerStatsViewModel): React.ReactElement {
   const statColumns = useMemo<readonly SortableTableColumn<PlayerLeaderboardStatRow>[]>(
@@ -248,6 +251,21 @@ export function PlayerStats({
             }}
           >
             {windowOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+        </label>
+        <label>
+          <span>Minimum games</span>
+          <Select
+            value={selectedMinGamesPlayed.toString()}
+            onChange={(event): void => {
+              onMinGamesPlayedChange(event.target.value);
+            }}
+          >
+            {minGamesPlayedOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>

@@ -134,6 +134,7 @@ export const playerStatsQuerySchema = z.object({
   guildId: z.string().min(1).optional(),
   queueChannelId: z.string().min(1).optional(),
   window: z.enum(LeaderboardWindow).optional(),
+  minGamesPlayed: z.coerce.number().int().min(1).max(10).optional(),
 });
 
 export const playerStatsContract = defineContract(

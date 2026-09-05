@@ -25,7 +25,7 @@ export const leaderboardQuerySchema = z.object({
   metric: z.enum(LeaderboardMetric).optional(),
   page: positiveIntString.optional(),
   pageSize: positiveIntString.pipe(z.number().int().max(LEADERBOARD_MAX_PAGE_SIZE)).optional(),
-  minGamesPlayed: nonNegativeIntString.optional(),
+  minGamesPlayed: nonNegativeIntString.pipe(z.number().int().min(1).max(10)).optional(),
 });
 
 export type LeaderboardQuery = z.infer<typeof leaderboardQuerySchema>;

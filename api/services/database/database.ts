@@ -2485,6 +2485,7 @@ export class DatabaseService {
     queueChannelId,
     queueChannelIds,
     startEpochSeconds,
+    minGamesPlayed,
     limit = 50,
   }: {
     guildId: string;
@@ -2492,6 +2493,7 @@ export class DatabaseService {
     queueChannelId: string | null;
     queueChannelIds?: string[];
     startEpochSeconds: number;
+    minGamesPlayed?: number;
     limit?: number;
   }): Promise<LeaderboardPlayerHeadToHeadSummaryRow[]> {
     if (queueChannelIds?.length === 0) {
@@ -2549,6 +2551,7 @@ export class DatabaseService {
         AND game.EndedAt >= ?
         AND ${queueFilterSql}
       GROUP BY related.XboxXuid
+      HAVING COUNT(DISTINCT game.MatchId) >= ?
     `;
 
     const seriesAggregateSql = `
@@ -2584,6 +2587,7 @@ export class DatabaseService {
           xboxXuid,
           startEpochSeconds,
           ...queueFilterBindings,
+          minGamesPlayed ?? 1,
         )
         .all<{
           XboxXuid: string;

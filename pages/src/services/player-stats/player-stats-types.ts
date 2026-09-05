@@ -6,6 +6,7 @@ export interface PlayerStatsRequest {
   readonly guildId?: string | undefined;
   readonly queueChannelId?: string | undefined;
   readonly window?: LeaderboardWindow | undefined;
+  readonly minGamesPlayed?: number | undefined;
 }
 
 export interface PlayerStatsService {

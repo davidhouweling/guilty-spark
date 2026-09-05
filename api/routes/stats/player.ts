@@ -31,6 +31,7 @@ export const statsPlayerRoute: RoutesRegisterHandler = (router, installServices)
         parsedQuery.data.guildId,
         parsedQuery.data.queueChannelId,
         parsedQuery.data.window,
+        parsedQuery.data.minGamesPlayed,
       );
       if (playerStats == null) {
         return errorContract.toResponse({ error: "Player leaderboard data not found" }, { status: 404, noStore: true });

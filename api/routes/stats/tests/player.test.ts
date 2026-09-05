@@ -54,7 +54,7 @@ describe("/api/stats/player/:gamertag", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(playerStats);
-    expect(discoverySpy).toHaveBeenCalledWith("Master Chief", undefined, undefined, undefined);
+    expect(discoverySpy).toHaveBeenCalledWith("Master Chief", undefined, undefined, undefined, undefined);
   });
 
   it("includes all available leaderboard ranks and relationships in a single response payload", async () => {

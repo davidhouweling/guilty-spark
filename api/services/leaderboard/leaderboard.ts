@@ -190,6 +190,7 @@ export class LeaderboardService {
     requestedGuildId: string | undefined,
     queueChannelId: string | undefined,
     window: LeaderboardWindow | undefined,
+    minGamesPlayed?: number | undefined,
   ): Promise<PlayerStatsResponse | null> {
     const player = await this.haloService.getUserByGamertag(gamertag);
     const discovery = await this.getLeaderboardPlayerDiscoveryForPlayer(player, requestedGuildId);
@@ -218,7 +219,7 @@ export class LeaderboardService {
         xboxXuid: player.xuid,
         queueChannelId: queueChannelId ?? null,
         startEpochSeconds: selectedStats.startEpochSeconds,
-        minGamesPlayed: selectedStats.minGamesPlayed,
+        minGamesPlayed: minGamesPlayed ?? selectedStats.minGamesPlayed,
         metrics: allMetrics,
       });
 
@@ -236,6 +237,7 @@ export class LeaderboardService {
           xboxXuid: player.xuid,
           queueChannelId: queueChannelId ?? null,
           startEpochSeconds: selectedStats.startEpochSeconds,
+          minGamesPlayed: minGamesPlayed ?? selectedStats.minGamesPlayed,
           limit: 50,
         }),
       ]);
@@ -274,7 +276,7 @@ export class LeaderboardService {
       ranks,
       relationships,
       headToHeadSummaries,
-      minGamesPlayed: selectedStats?.minGamesPlayed ?? 5,
+      minGamesPlayed: minGamesPlayed ?? selectedStats?.minGamesPlayed ?? 5,
       totalPlayers,
     };
   }

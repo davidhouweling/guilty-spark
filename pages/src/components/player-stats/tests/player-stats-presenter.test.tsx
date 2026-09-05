@@ -28,13 +28,14 @@ describe("PlayerStatsPresenter", () => {
 
     presenter.present(store.getSnapshot()).onGuildChange("guild-2");
 
-    expect(window.location.search).toBe("?guildId=guild-2&window=3M");
+    expect(window.location.search).toBe("?guildId=guild-2&window=3M&minGamesPlayed=5");
     await vi.waitFor(() => {
       expect(getPlayerStatsSpy).toHaveBeenLastCalledWith({
         gamertag: "Master Chief",
         guildId: "guild-2",
         queueChannelId: undefined,
         window: "3M",
+        minGamesPlayed: 5,
       });
     });
   });
@@ -119,6 +120,8 @@ describe("PlayerStatsPresenter", () => {
         selectedGuildId="guild-1"
         selectedQueueChannelId={null}
         selectedWindow={LeaderboardWindow.ThreeMonths}
+        selectedMinGamesPlayed={5}
+        minGamesPlayedOptions={[{ value: "5", label: "5" }]}
         selectedTabId="stats"
         statsRows={[
           { stat: "Series wins", rank: "🥇", value: "2", sortRank: 1, sortValue: 2 },
@@ -129,6 +132,7 @@ describe("PlayerStatsPresenter", () => {
         onGuildChange={vi.fn()}
         onQueueChange={vi.fn()}
         onWindowChange={vi.fn()}
+        onMinGamesPlayedChange={vi.fn()}
         onTabChange={vi.fn()}
       />,
     );
@@ -159,6 +163,8 @@ describe("PlayerStatsPresenter", () => {
         selectedGuildId="guild-1"
         selectedQueueChannelId={null}
         selectedWindow={LeaderboardWindow.ThreeMonths}
+        selectedMinGamesPlayed={5}
+        minGamesPlayedOptions={[{ value: "5", label: "5" }]}
         selectedTabId="head-to-head"
         statsRows={[]}
         headToHeadRows={[
@@ -186,6 +192,7 @@ describe("PlayerStatsPresenter", () => {
         onGuildChange={vi.fn()}
         onQueueChange={vi.fn()}
         onWindowChange={vi.fn()}
+        onMinGamesPlayedChange={vi.fn()}
         onTabChange={onTabChange}
       />,
     );
@@ -197,6 +204,31 @@ describe("PlayerStatsPresenter", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Leaderboard stats" }));
     expect(onTabChange).toHaveBeenCalledWith("stats");
+  });
+
+  it("renders minimum games options and requests the selected threshold", async () => {
+    const service = aFakePlayerStatsServiceWith();
+    const getPlayerStatsSpy = vi.spyOn(service, "getPlayerStats");
+    const store = new PlayerStatsStore();
+    const presenter = new PlayerStatsPresenter({ service, gamertag: "Master Chief", store });
+
+    presenter.start();
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().status).toBe("loaded");
+    });
+
+    const model = presenter.present(store.getSnapshot());
+    expect(model.minGamesPlayedOptions).toHaveLength(10);
+    expect(model.selectedMinGamesPlayed).toBe(5);
+
+    model.onMinGamesPlayedChange("8");
+
+    expect(window.location.search).toContain("minGamesPlayed=8");
+    await vi.waitFor(() => {
+      expect(getPlayerStatsSpy).toHaveBeenLastCalledWith(
+        expect.objectContaining({ minGamesPlayed: 8 }),
+      );
+    });
   });
 
   it("sorts player stats table by Rank ascending, descending, and unsorted on header clicks", () => {
@@ -211,6 +243,8 @@ describe("PlayerStatsPresenter", () => {
         selectedGuildId="guild-1"
         selectedQueueChannelId={null}
         selectedWindow={LeaderboardWindow.ThreeMonths}
+        selectedMinGamesPlayed={5}
+        minGamesPlayedOptions={[{ value: "5", label: "5" }]}
         selectedTabId="stats"
         statsRows={[
           { stat: "Series wins", rank: "#4", value: "2", sortRank: 4, sortValue: 2 },
@@ -221,6 +255,7 @@ describe("PlayerStatsPresenter", () => {
         onGuildChange={vi.fn()}
         onQueueChange={vi.fn()}
         onWindowChange={vi.fn()}
+        onMinGamesPlayedChange={vi.fn()}
         onTabChange={vi.fn()}
       />,
     );
@@ -261,6 +296,8 @@ describe("PlayerStatsPresenter", () => {
         selectedGuildId="guild-1"
         selectedQueueChannelId={null}
         selectedWindow={LeaderboardWindow.ThreeMonths}
+        selectedMinGamesPlayed={5}
+        minGamesPlayedOptions={[{ value: "5", label: "5" }]}
         selectedTabId="stats"
         statsRows={[
           { stat: "Series wins", rank: "#4", value: "2", sortRank: 4, sortValue: 2 },
@@ -271,6 +308,7 @@ describe("PlayerStatsPresenter", () => {
         onGuildChange={vi.fn()}
         onQueueChange={vi.fn()}
         onWindowChange={vi.fn()}
+        onMinGamesPlayedChange={vi.fn()}
         onTabChange={vi.fn()}
       />,
     );
@@ -311,6 +349,8 @@ describe("PlayerStatsPresenter", () => {
         selectedGuildId="guild-1"
         selectedQueueChannelId={null}
         selectedWindow={LeaderboardWindow.ThreeMonths}
+        selectedMinGamesPlayed={5}
+        minGamesPlayedOptions={[{ value: "5", label: "5" }]}
         selectedTabId="head-to-head"
         statsRows={[]}
         headToHeadRows={[
@@ -356,6 +396,7 @@ describe("PlayerStatsPresenter", () => {
         onGuildChange={vi.fn()}
         onQueueChange={vi.fn()}
         onWindowChange={vi.fn()}
+        onMinGamesPlayedChange={vi.fn()}
         onTabChange={vi.fn()}
       />,
     );

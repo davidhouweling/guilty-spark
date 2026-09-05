@@ -49,6 +49,8 @@ export interface PlayerStatsViewModel {
   readonly selectedGuildId: string;
   readonly selectedQueueChannelId: string | null;
   readonly selectedWindow: LeaderboardWindow;
+  readonly selectedMinGamesPlayed: number;
+  readonly minGamesPlayedOptions: readonly PlayerStatsOption[];
   readonly selectedTabId: PlayerStatsTabId;
   readonly statsRows: readonly PlayerLeaderboardStatRow[];
   readonly headToHeadRows: readonly PlayerHeadToHeadTableRow[];
@@ -57,6 +59,7 @@ export interface PlayerStatsViewModel {
   readonly onGuildChange: (value: string) => void;
   readonly onQueueChange: (value: string) => void;
   readonly onWindowChange: (value: string) => void;
+  readonly onMinGamesPlayedChange: (value: string) => void;
   readonly onTabChange: (tabId: PlayerStatsTabId) => void;
 }
 
