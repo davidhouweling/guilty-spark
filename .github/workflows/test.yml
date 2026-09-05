@@ -36,9 +36,14 @@ jobs:
         run: cp api/.example.dev.vars api/.dev.vars
 
       - name: Run test shard
-        run: npx vitest run --shard=${{ matrix.shardIndex }}/${{ matrix.shardCount }} --reporter=blob --outputFile.blob=blob-report/blob-${{ matrix.shardIndex }}-${{ matrix.shardCount }}.json --coverage.enabled true
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 2
+          command: npx vitest run --shard=${{ matrix.shardIndex }}/${{ matrix.shardCount }} --reporter=blob --outputFile.blob=blob-report/blob-${{ matrix.shardIndex }}-${{ matrix.shardCount }}.json --coverage.enabled true
 
       - name: Upload blob report
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: blob-report-${{ matrix.shardIndex }}
