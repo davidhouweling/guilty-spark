@@ -1,15 +1,10 @@
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import {
-  LeaderboardPlayerRelationshipMetric,
   formatMetricValue,
-  formatRank,
-  formatRelationshipValue,
   getPlayerMetricValue,
   getObjectiveGamesPlayedForMetric,
   getPlayerStatMetricLabel,
-  getPlayerStatsRelationshipMetricLabel,
   getRankText,
-  getRelationshipFooter,
 } from "@guilty-spark/shared/halo/leaderboard-formatting";
 import type { PlayerStatsResponse } from "@guilty-spark/shared/contracts/stats/player";
 import type { PlayerStatsService } from "../../services/player-stats/player-stats-types";
@@ -17,7 +12,7 @@ import type { PlayerStatsSnapshot, PlayerStatsStore } from "./player-stats-store
 import type {
   CreatePlayerStatsConfig,
   PlayerLeaderboardStatRow,
-  PlayerRelationshipRow,
+  PlayerHeadToHeadTableRow,
   PlayerStatsTabId,
   PlayerStatsViewModel,
 } from "./types";
@@ -114,10 +109,16 @@ const ALL_PLAYER_STAT_METRICS: readonly LeaderboardMetric[] = [
   LeaderboardMetric.AvgBallCarrierKillsPerObjective,
 ];
 
-const RELATIONSHIP_METRIC_OPTIONS = Object.values(LeaderboardPlayerRelationshipMetric).map((metric) => ({
-  value: metric,
-  label: getPlayerStatsRelationshipMetricLabel(metric),
-}));
+function formatRecord(wins: number, losses: number, total: number): { text: string; rate: number } {
+  if (total === 0) {
+    return { text: "-", rate: -1 };
+  }
+  const percentage = (wins / total) * 100;
+  return {
+    text: `${wins.toString()} - ${losses.toString()} (${percentage.toFixed(1)}%)`,
+    rate: percentage,
+  };
+}
 
 export class PlayerStatsPresenter {
   private readonly store: PlayerStatsStore;
@@ -202,22 +203,13 @@ export class PlayerStatsPresenter {
     this.store.setTab(tabId);
   }
 
-  changeRelationshipMetric(metricValue: string): void {
-    const metric = Object.values(LeaderboardPlayerRelationshipMetric).find(
-      (m: LeaderboardPlayerRelationshipMetric) => m.toString() === metricValue,
-    );
-    if (metric != null) {
-      this.store.setRelationshipMetric(metric);
-    }
-  }
-
   dispose(): void {
     this.isDisposed = true;
     this.requestNumber += 1;
   }
 
   present(snapshot: PlayerStatsSnapshot): PlayerStatsViewModel {
-    const { response, tabId, relationshipMetric } = snapshot;
+    const { response, tabId } = snapshot;
     const stats = response?.stats;
     const ranks = response?.ranks ?? {};
     const totalPlayers = response?.totalPlayers ?? null;
@@ -244,17 +236,42 @@ export class PlayerStatsPresenter {
             };
           });
 
-    const rawRelationshipRows = response?.relationships[relationshipMetric] ?? [];
-    const relationshipRows: readonly PlayerRelationshipRow[] = rawRelationshipRows.map((row, index) => ({
-      player: row.Gamertag,
-      rank: formatRank(index + 1),
-      value: formatRelationshipValue(row, relationshipMetric),
-      sortRank: index + 1,
-      sortValue: row.MetricValue,
-      sharedCount: row.SharedCount,
-      wins: row.Wins,
-      perfects: row.Perfects,
-    }));
+    const headToHeadRows: readonly PlayerHeadToHeadTableRow[] = (response?.headToHeadSummaries ?? []).map((summary) => {
+      const killsText = `${summary.kills.toLocaleString()} (${summary.killsPerfects.toLocaleString()} perfs)`;
+      const deathsText = `${summary.deaths.toLocaleString()} (${summary.deathsPerfects.toLocaleString()} perfs)`;
+
+      const gamesWithLosses = Math.max(0, summary.gamesWith - summary.gameWinsWith);
+      const gamesWithRecord = formatRecord(summary.gameWinsWith, gamesWithLosses, summary.gamesWith);
+
+      const seriesWithLosses = Math.max(0, summary.seriesWith - summary.seriesWinsWith);
+      const seriesWithRecord = formatRecord(summary.seriesWinsWith, seriesWithLosses, summary.seriesWith);
+
+      const gamesAgainstLosses = summary.opponentGameWins;
+      const gamesAgainstRecord = formatRecord(summary.gameWinsAgainst, gamesAgainstLosses, summary.gamesAgainst);
+
+      const seriesAgainstLosses = summary.opponentSeriesWins;
+      const seriesAgainstRecord = formatRecord(summary.seriesWinsAgainst, seriesAgainstLosses, summary.seriesAgainst);
+
+      return {
+        player: summary.gamertag,
+        kills: summary.kills,
+        killsText,
+        deaths: summary.deaths,
+        deathsText,
+        gamesWithTotal: summary.gamesWith,
+        gamesWithText: gamesWithRecord.text,
+        gamesWithWinRate: gamesWithRecord.rate,
+        seriesWithTotal: summary.seriesWith,
+        seriesWithText: seriesWithRecord.text,
+        seriesWithWinRate: seriesWithRecord.rate,
+        gamesAgainstTotal: summary.gamesAgainst,
+        gamesAgainstText: gamesAgainstRecord.text,
+        gamesAgainstWinRate: gamesAgainstRecord.rate,
+        seriesAgainstTotal: summary.seriesAgainst,
+        seriesAgainstText: seriesAgainstRecord.text,
+        seriesAgainstWinRate: seriesAgainstRecord.rate,
+      };
+    });
 
     const selectedGuildId = response?.selectedGuildId ?? this.currentGuildId ?? "";
     const selectedServer = response?.servers.find((server) => server.guildId === selectedGuildId);
@@ -269,7 +286,7 @@ export class PlayerStatsPresenter {
     const totalPlayersText = totalPlayers == null ? "Unknown" : totalPlayers.toLocaleString();
     const statsFooter =
       stats == null ? undefined : `Min games: ${minGames.toString()} | Total players: ${totalPlayersText}`;
-    const relationshipFooter = getRelationshipFooter(relationshipMetric);
+    const headToHeadFooter = "Showing top 25 opponents and teammates by match activity";
 
     return {
       state: snapshot.status,
@@ -289,16 +306,14 @@ export class PlayerStatsPresenter {
         { value: LeaderboardWindow.TwelveMonths, label: "12 months" },
         ...(response?.resetAt == null ? [] : [{ value: LeaderboardWindow.LastReset, label: "Since last reset" }]),
       ],
-      relationshipMetricOptions: RELATIONSHIP_METRIC_OPTIONS,
       selectedGuildId,
       selectedQueueChannelId: this.currentQueueChannelId ?? null,
       selectedWindow: response?.window ?? this.currentWindow ?? LeaderboardWindow.ThreeMonths,
       selectedTabId: tabId,
-      selectedRelationshipMetric: relationshipMetric,
       statsRows,
-      relationshipRows,
+      headToHeadRows,
       statsFooter,
-      relationshipFooter,
+      headToHeadFooter,
       onGuildChange: (value): void => {
         this.changeGuild(value);
       },
@@ -310,9 +325,6 @@ export class PlayerStatsPresenter {
       },
       onTabChange: (tab): void => {
         this.changeTab(tab);
-      },
-      onRelationshipMetricChange: (metric): void => {
-        this.changeRelationshipMetric(metric);
       },
     };
   }

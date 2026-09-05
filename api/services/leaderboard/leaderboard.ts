@@ -31,8 +31,10 @@ import type { LeaderboardPlayerStatsRow } from "../database/types/leaderboard_pl
 import type { LeaderboardPlayerGuildStatsRow } from "../database/types/leaderboard_player_guild_stats";
 import type { UserInfo, Medal } from "../halo/types";
 import type { LeaderboardPlayerMetricRank } from "../database/types/leaderboard_player_metric_rank";
-import { LeaderboardPlayerRelationshipMetric } from "../database/types/leaderboard_player_relationship";
-import type { LeaderboardPlayerRelationshipRow } from "../database/types/leaderboard_player_relationship";
+import type {
+  LeaderboardPlayerRelationshipMetric,
+  LeaderboardPlayerRelationshipRow,
+} from "../database/types/leaderboard_player_relationship";
 import type { LeaderboardPlayerPairRelationshipRow } from "../database/types/leaderboard_player_pair_relationship";
 import type { HaloService } from "../halo/halo";
 import type { LogService } from "../log/types";
@@ -205,7 +207,8 @@ export class LeaderboardService {
     const resolvedWindow = selectedStats?.window ?? window ?? LeaderboardWindow.ThreeMonths;
 
     let ranks: Record<string, { rank: number; total: number } | null> = {};
-    let relationships: Record<string, LeaderboardPlayerRelationshipRow[]> = {};
+    const relationships: Record<string, LeaderboardPlayerRelationshipRow[]> = {};
+    let headToHeadSummaries: PlayerStatsResponse["headToHeadSummaries"] = [];
     let totalPlayers: number | null = null;
 
     if (selectedStats != null) {
@@ -227,20 +230,36 @@ export class LeaderboardService {
       );
       totalPlayers = metricRanks.get(LeaderboardMetric.GamesPlayed)?.total ?? null;
 
-      const relationshipMetrics = Object.values(LeaderboardPlayerRelationshipMetric);
-      const relationshipResults = await Promise.all(
-        relationshipMetrics.map(async (metric) => {
-          const rows = await this.databaseService.getLeaderboardPlayerRelationships({
-            guildId: discovery.selectedGuildId,
-            xboxXuid: player.xuid,
-            queueChannelId: queueChannelId ?? null,
-            startEpochSeconds: selectedStats.startEpochSeconds,
-            metric,
-          });
-          return [metric, rows] as const;
+      const [h2hSummaries] = await Promise.all([
+        this.databaseService.getLeaderboardPlayerHeadToHeadSummaries({
+          guildId: discovery.selectedGuildId,
+          xboxXuid: player.xuid,
+          queueChannelId: queueChannelId ?? null,
+          startEpochSeconds: selectedStats.startEpochSeconds,
+          limit: 25,
         }),
-      );
-      relationships = Object.fromEntries(relationshipResults);
+      ]);
+
+      headToHeadSummaries = h2hSummaries.map((summary) => ({
+        xboxXuid: summary.XboxXuid,
+        discordUserId: summary.DiscordUserId,
+        gamertag: summary.Gamertag,
+        kills: summary.Kills,
+        killsPerfects: summary.KillsPerfects,
+        deaths: summary.Deaths,
+        deathsPerfects: summary.DeathsPerfects,
+        headToHeadGames: summary.HeadToHeadGames,
+        gamesWith: summary.GamesWith,
+        gameWinsWith: summary.GameWinsWith,
+        gamesAgainst: summary.GamesAgainst,
+        gameWinsAgainst: summary.GameWinsAgainst,
+        opponentGameWins: summary.OpponentGameWins,
+        seriesWith: summary.SeriesWith,
+        seriesWinsWith: summary.SeriesWinsWith,
+        seriesAgainst: summary.SeriesAgainst,
+        seriesWinsAgainst: summary.SeriesWinsAgainst,
+        opponentSeriesWins: summary.OpponentSeriesWins,
+      }));
     }
 
     return {
@@ -254,6 +273,7 @@ export class LeaderboardService {
       stats: selectedStats?.stats ?? null,
       ranks,
       relationships,
+      headToHeadSummaries,
       minGamesPlayed: selectedStats?.minGamesPlayed ?? 5,
       totalPlayers,
     };

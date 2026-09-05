@@ -1,5 +1,4 @@
 import type { LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
-import type { LeaderboardPlayerRelationshipMetric } from "@guilty-spark/shared/halo/leaderboard-formatting";
 import type { PlayerStatsResponse } from "@guilty-spark/shared/contracts/stats/player";
 import type { PlayerStatsService } from "../../services/player-stats/player-stats-types";
 import type { PlayerStatsSnapshot } from "./player-stats-store";
@@ -19,15 +18,24 @@ export interface PlayerLeaderboardStatRow {
   readonly sortValue: number;
 }
 
-export interface PlayerRelationshipRow {
+export interface PlayerHeadToHeadTableRow {
   readonly player: string;
-  readonly rank: string;
-  readonly value: string;
-  readonly sortRank: number;
-  readonly sortValue: number;
-  readonly sharedCount: number;
-  readonly wins: number;
-  readonly perfects: number;
+  readonly kills: number;
+  readonly killsText: string;
+  readonly deaths: number;
+  readonly deathsText: string;
+  readonly gamesWithTotal: number;
+  readonly gamesWithText: string;
+  readonly gamesWithWinRate: number;
+  readonly seriesWithTotal: number;
+  readonly seriesWithText: string;
+  readonly seriesWithWinRate: number;
+  readonly gamesAgainstTotal: number;
+  readonly gamesAgainstText: string;
+  readonly gamesAgainstWinRate: number;
+  readonly seriesAgainstTotal: number;
+  readonly seriesAgainstText: string;
+  readonly seriesAgainstWinRate: number;
 }
 
 export interface PlayerStatsViewModel {
@@ -38,21 +46,18 @@ export interface PlayerStatsViewModel {
   readonly servers: readonly PlayerStatsOption[];
   readonly queueOptions: readonly PlayerStatsOption[];
   readonly windowOptions: readonly PlayerStatsOption[];
-  readonly relationshipMetricOptions: readonly PlayerStatsOption[];
   readonly selectedGuildId: string;
   readonly selectedQueueChannelId: string | null;
   readonly selectedWindow: LeaderboardWindow;
   readonly selectedTabId: PlayerStatsTabId;
-  readonly selectedRelationshipMetric: LeaderboardPlayerRelationshipMetric;
   readonly statsRows: readonly PlayerLeaderboardStatRow[];
-  readonly relationshipRows: readonly PlayerRelationshipRow[];
+  readonly headToHeadRows: readonly PlayerHeadToHeadTableRow[];
   readonly statsFooter?: string | undefined;
-  readonly relationshipFooter?: string | undefined;
+  readonly headToHeadFooter?: string | undefined;
   readonly onGuildChange: (value: string) => void;
   readonly onQueueChange: (value: string) => void;
   readonly onWindowChange: (value: string) => void;
   readonly onTabChange: (tabId: PlayerStatsTabId) => void;
-  readonly onRelationshipMetricChange: (metric: string) => void;
 }
 
 export interface CreatePlayerStatsConfig {

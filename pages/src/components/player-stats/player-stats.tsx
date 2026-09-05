@@ -6,7 +6,12 @@ import { TabbedSection } from "../tabbed-section/tabbed-section";
 import type { TabbedSectionTab } from "../tabbed-section/types";
 import { SortableTable } from "../table/sortable-table";
 import type { SortableTableColumn } from "../table/sortable-table";
-import type { PlayerLeaderboardStatRow, PlayerRelationshipRow, PlayerStatsTabId, PlayerStatsViewModel } from "./types";
+import type {
+  PlayerLeaderboardStatRow,
+  PlayerHeadToHeadTableRow,
+  PlayerStatsTabId,
+  PlayerStatsViewModel,
+} from "./types";
 import styles from "./player-stats.module.css";
 
 function ErrorContent({ message }: { readonly message: string }): React.ReactElement {
@@ -38,22 +43,19 @@ export function PlayerStats({
   servers,
   queueOptions,
   windowOptions,
-  relationshipMetricOptions,
   selectedGuildId,
   selectedQueueChannelId,
   selectedWindow,
   selectedTabId,
-  selectedRelationshipMetric,
   statsRows,
-  relationshipRows,
+  headToHeadRows,
   errorMessage,
   statsFooter,
-  relationshipFooter,
+  headToHeadFooter,
   onGuildChange,
   onQueueChange,
   onWindowChange,
   onTabChange,
-  onRelationshipMetricChange,
 }: PlayerStatsViewModel): React.ReactElement {
   const statColumns = useMemo<readonly SortableTableColumn<PlayerLeaderboardStatRow>[]>(
     () => [
@@ -82,15 +84,8 @@ export function PlayerStats({
     [],
   );
 
-  const relationshipColumns = useMemo<readonly SortableTableColumn<PlayerRelationshipRow>[]>(
+  const headToHeadColumns = useMemo<readonly SortableTableColumn<PlayerHeadToHeadTableRow>[]>(
     () => [
-      {
-        id: "rank",
-        header: "Rank",
-        accessorFn: (row): number => row.sortRank,
-        cell: (_value, row): React.ReactNode => row.rank,
-        sortDescFirst: false,
-      },
       {
         id: "player",
         header: "Player",
@@ -98,10 +93,45 @@ export function PlayerStats({
         sortDescFirst: false,
       },
       {
-        id: "value",
-        header: "Value",
-        accessorFn: (row): number => row.sortValue,
-        cell: (_value, row): React.ReactNode => row.value,
+        id: "kills",
+        header: "H2H Kills",
+        accessorFn: (row): number => row.kills,
+        cell: (_value, row): React.ReactNode => row.killsText,
+        sortDescFirst: true,
+      },
+      {
+        id: "deaths",
+        header: "H2H Deaths",
+        accessorFn: (row): number => row.deaths,
+        cell: (_value, row): React.ReactNode => row.deathsText,
+        sortDescFirst: true,
+      },
+      {
+        id: "gamesWith",
+        header: "Games with",
+        accessorFn: (row): number => row.gamesWithWinRate,
+        cell: (_value, row): React.ReactNode => row.gamesWithText,
+        sortDescFirst: true,
+      },
+      {
+        id: "seriesWith",
+        header: "Series with",
+        accessorFn: (row): number => row.seriesWithWinRate,
+        cell: (_value, row): React.ReactNode => row.seriesWithText,
+        sortDescFirst: true,
+      },
+      {
+        id: "gamesAgainst",
+        header: "Games vs",
+        accessorFn: (row): number => row.gamesAgainstWinRate,
+        cell: (_value, row): React.ReactNode => row.gamesAgainstText,
+        sortDescFirst: true,
+      },
+      {
+        id: "seriesAgainst",
+        header: "Series vs",
+        accessorFn: (row): number => row.seriesAgainstWinRate,
+        cell: (_value, row): React.ReactNode => row.seriesAgainstText,
         sortDescFirst: true,
       },
     ],
@@ -136,51 +166,24 @@ export function PlayerStats({
         label: "Head to head",
         content: (
           <div className={styles.tabContent}>
-            <div className={styles.relationshipControls}>
-              <label>
-                <span>Relationship view</span>
-                <Select
-                  value={selectedRelationshipMetric}
-                  onChange={(event): void => {
-                    onRelationshipMetricChange(event.target.value);
-                  }}
-                >
-                  {relationshipMetricOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-            </div>
-            {relationshipRows.length === 0 ? (
+            {headToHeadRows.length === 0 ? (
               <EmptyContent message="No head to head data found for this period and queue." />
             ) : (
               <>
                 <SortableTable
-                  data={relationshipRows}
-                  columns={relationshipColumns}
+                  data={headToHeadRows}
+                  columns={headToHeadColumns}
                   getRowKey={(row, index): string => `${row.player}-${index.toString()}`}
                   ariaLabel="Player head to head table"
                 />
-                {relationshipFooter != null && <p className={styles.footer}>{relationshipFooter}</p>}
+                {headToHeadFooter != null && <p className={styles.footer}>{headToHeadFooter}</p>}
               </>
             )}
           </div>
         ),
       },
     ],
-    [
-      statsRows,
-      statColumns,
-      statsFooter,
-      relationshipRows,
-      relationshipColumns,
-      relationshipFooter,
-      selectedRelationshipMetric,
-      relationshipMetricOptions,
-      onRelationshipMetricChange,
-    ],
+    [statsRows, statColumns, statsFooter, headToHeadRows, headToHeadColumns, headToHeadFooter],
   );
 
   if (state === "error") {

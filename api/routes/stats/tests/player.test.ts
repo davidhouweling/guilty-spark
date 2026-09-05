@@ -37,6 +37,7 @@ describe("/api/stats/player/:gamertag", () => {
       stats: aFakeLeaderboardPlayerStatsRow({ XboxXuid: "xuid-1", Gamertag: "Master Chief" }),
       ranks: {},
       relationships: {},
+      headToHeadSummaries: [],
       minGamesPlayed: 5,
       totalPlayers: null,
     };
@@ -91,6 +92,28 @@ describe("/api/stats/player/:gamertag", () => {
           },
         ],
       },
+      headToHeadSummaries: [
+        {
+          xboxXuid: "xuid-2",
+          discordUserId: null,
+          gamertag: "Opponent",
+          kills: 10,
+          killsPerfects: 2,
+          deaths: 5,
+          deathsPerfects: 1,
+          headToHeadGames: 2,
+          gamesWith: 4,
+          gameWinsWith: 3,
+          gamesAgainst: 5,
+          gameWinsAgainst: 3,
+          opponentGameWins: 2,
+          seriesWith: 2,
+          seriesWinsWith: 2,
+          seriesAgainst: 2,
+          seriesWinsAgainst: 1,
+          opponentSeriesWins: 1,
+        },
+      ],
       minGamesPlayed: 5,
       totalPlayers: 10,
     };
@@ -108,6 +131,8 @@ describe("/api/stats/player/:gamertag", () => {
     expect(payload.ranks[LeaderboardMetric.Kills]).toEqual({ rank: 1, total: 10 });
     expect(payload.relationships["AvgHeadToHeadKills"]).toHaveLength(1);
     expect(payload.relationships["AvgHeadToHeadKills"]?.[0]?.Gamertag).toBe("Opponent");
+    expect(payload.headToHeadSummaries).toHaveLength(1);
+    expect(payload.headToHeadSummaries[0]?.gamertag).toBe("Opponent");
   });
 
   it.each([

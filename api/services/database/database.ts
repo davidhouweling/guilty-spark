@@ -34,6 +34,7 @@ import type { LeaderboardResetMarkerRow } from "./types/leaderboard_reset_marker
 import type { MatchKillMatrixRow } from "./types/match_kill_matrix";
 import { LeaderboardPlayerRelationshipMetric } from "./types/leaderboard_player_relationship";
 import type { LeaderboardPlayerRelationshipRow } from "./types/leaderboard_player_relationship";
+import type { LeaderboardPlayerHeadToHeadSummaryRow } from "./types/leaderboard_player_head_to_head_summary";
 import type { LeaderboardPlayerPairRelationshipRow } from "./types/leaderboard_player_pair_relationship";
 
 const DEFAULT_LEADERBOARD_ENABLED_WINDOWS_JSON = '["1W","1M","3M","6M","12M"]';
@@ -2476,6 +2477,182 @@ export class DatabaseService {
       Player2Kills: headToHeadRow?.Player2Kills ?? 0,
       Player2Perfects: headToHeadRow?.Player2Perfects ?? 0,
     };
+  }
+
+  async getLeaderboardPlayerHeadToHeadSummaries({
+    guildId,
+    xboxXuid,
+    queueChannelId,
+    queueChannelIds,
+    startEpochSeconds,
+    limit = 25,
+  }: {
+    guildId: string;
+    xboxXuid: string;
+    queueChannelId: string | null;
+    queueChannelIds?: string[];
+    startEpochSeconds: number;
+    limit?: number;
+  }): Promise<LeaderboardPlayerHeadToHeadSummaryRow[]> {
+    if (queueChannelIds?.length === 0) {
+      return [];
+    }
+
+    const queueFilterSql = getQueueFilterSql("player", queueChannelIds);
+    const queueFilterBindings = getQueueFilterBindings(queueChannelId, queueChannelIds);
+
+    const gameAggregateSql = `
+      SELECT
+        related.XboxXuid AS XboxXuid,
+        latestIdentity.DiscordUserId AS DiscordUserId,
+        latestIdentity.GamertagSnapshot AS Gamertag,
+        SUM(CASE WHEN related.TeamId = player.TeamId THEN 1 ELSE 0 END) AS GamesWith,
+        SUM(CASE WHEN related.TeamId = player.TeamId THEN player.GameWon ELSE 0 END) AS GameWinsWith,
+        SUM(CASE WHEN related.TeamId != player.TeamId THEN 1 ELSE 0 END) AS GamesAgainst,
+        SUM(CASE WHEN related.TeamId != player.TeamId THEN player.GameWon ELSE 0 END) AS GameWinsAgainst,
+        SUM(CASE WHEN related.TeamId != player.TeamId THEN related.GameWon ELSE 0 END) AS OpponentGameWins,
+        COUNT(DISTINCT CASE WHEN related.TeamId != player.TeamId AND matrix.MatchId IS NOT NULL THEN game.MatchId END) AS HeadToHeadGames,
+        COALESCE(SUM(CASE WHEN related.TeamId != player.TeamId THEN pKills.Count ELSE 0 END), 0) AS Kills,
+        COALESCE(SUM(CASE WHEN related.TeamId != player.TeamId THEN pKills.Perfects ELSE 0 END), 0) AS KillsPerfects,
+        COALESCE(SUM(CASE WHEN related.TeamId != player.TeamId THEN rKills.Count ELSE 0 END), 0) AS Deaths,
+        COALESCE(SUM(CASE WHEN related.TeamId != player.TeamId THEN rKills.Perfects ELSE 0 END), 0) AS DeathsPerfects
+      FROM LeaderboardGamePlayers player
+      INNER JOIN LeaderboardGames game
+        ON game.GuildId = player.GuildId
+        AND game.QueueNumber = player.QueueNumber
+        AND game.MatchId = player.MatchId
+      INNER JOIN LeaderboardGamePlayers related
+        ON related.GuildId = player.GuildId
+        AND related.QueueNumber = player.QueueNumber
+        AND related.MatchId = player.MatchId
+        AND related.XboxXuid != player.XboxXuid
+      ${getLatestIdentityJoinSql({
+        relatedTableName: "LeaderboardGamePlayers",
+        identityTableName: "LeaderboardGames",
+        timeColumn: "EndedAt",
+        joinClause: "AND identityTable.MatchId = relatedIdentity.MatchId",
+        relatedAlias: "related",
+        queueChannelIds,
+      })}
+      LEFT JOIN MatchKillMatrix matrix
+        ON matrix.MatchId = game.MatchId
+      LEFT JOIN MatchKillMatrix pKills
+        ON pKills.MatchId = game.MatchId
+        AND pKills.KillerXuid = player.XboxXuid
+        AND pKills.VictimXuid = related.XboxXuid
+      LEFT JOIN MatchKillMatrix rKills
+        ON rKills.MatchId = game.MatchId
+        AND rKills.KillerXuid = related.XboxXuid
+        AND rKills.VictimXuid = player.XboxXuid
+      WHERE player.GuildId = ?
+        AND player.XboxXuid = ?
+        AND game.EndedAt >= ?
+        AND ${queueFilterSql}
+      GROUP BY related.XboxXuid
+    `;
+
+    const seriesAggregateSql = `
+      SELECT
+        related.XboxXuid AS XboxXuid,
+        SUM(CASE WHEN related.TeamId = player.TeamId THEN 1 ELSE 0 END) AS SeriesWith,
+        SUM(CASE WHEN related.TeamId = player.TeamId THEN player.SeriesWon ELSE 0 END) AS SeriesWinsWith,
+        SUM(CASE WHEN related.TeamId != player.TeamId THEN 1 ELSE 0 END) AS SeriesAgainst,
+        SUM(CASE WHEN related.TeamId != player.TeamId THEN player.SeriesWon ELSE 0 END) AS SeriesWinsAgainst,
+        SUM(CASE WHEN related.TeamId != player.TeamId THEN related.SeriesWon ELSE 0 END) AS OpponentSeriesWins
+      FROM LeaderboardSeriesPlayers player
+      INNER JOIN LeaderboardSeries series
+        ON series.GuildId = player.GuildId
+        AND series.QueueNumber = player.QueueNumber
+      INNER JOIN LeaderboardSeriesPlayers related
+        ON related.GuildId = player.GuildId
+        AND related.QueueNumber = player.QueueNumber
+        AND related.XboxXuid != player.XboxXuid
+      WHERE player.GuildId = ?
+        AND player.XboxXuid = ?
+        AND series.CompletedAt >= ?
+        AND ${queueFilterSql}
+      GROUP BY related.XboxXuid
+    `;
+
+    const [gameResults, seriesResults] = await Promise.all([
+      this.DB.prepare(gameAggregateSql)
+        .bind(
+          guildId,
+          startEpochSeconds,
+          ...queueFilterBindings,
+          guildId,
+          xboxXuid,
+          startEpochSeconds,
+          ...queueFilterBindings,
+        )
+        .all<{
+          XboxXuid: string;
+          DiscordUserId: string | null;
+          Gamertag: string;
+          GamesWith: number;
+          GameWinsWith: number;
+          GamesAgainst: number;
+          GameWinsAgainst: number;
+          OpponentGameWins: number;
+          HeadToHeadGames: number;
+          Kills: number;
+          KillsPerfects: number;
+          Deaths: number;
+          DeathsPerfects: number;
+        }>(),
+      this.DB.prepare(seriesAggregateSql)
+        .bind(guildId, xboxXuid, startEpochSeconds, ...queueFilterBindings)
+        .all<{
+          XboxXuid: string;
+          SeriesWith: number;
+          SeriesWinsWith: number;
+          SeriesAgainst: number;
+          SeriesWinsAgainst: number;
+          OpponentSeriesWins: number;
+        }>(),
+    ]);
+
+    const seriesByXuid = new Map(seriesResults.results.map((row) => [row.XboxXuid, row]));
+
+    const summaries: LeaderboardPlayerHeadToHeadSummaryRow[] = gameResults.results.map((gameRow) => {
+      const seriesRow = seriesByXuid.get(gameRow.XboxXuid);
+      return {
+        XboxXuid: gameRow.XboxXuid,
+        DiscordUserId: gameRow.DiscordUserId,
+        Gamertag: gameRow.Gamertag,
+        Kills: gameRow.Kills,
+        KillsPerfects: gameRow.KillsPerfects,
+        Deaths: gameRow.Deaths,
+        DeathsPerfects: gameRow.DeathsPerfects,
+        HeadToHeadGames: gameRow.HeadToHeadGames,
+        GamesWith: gameRow.GamesWith,
+        GameWinsWith: gameRow.GameWinsWith,
+        GamesAgainst: gameRow.GamesAgainst,
+        GameWinsAgainst: gameRow.GameWinsAgainst,
+        OpponentGameWins: gameRow.OpponentGameWins,
+        SeriesWith: seriesRow?.SeriesWith ?? 0,
+        SeriesWinsWith: seriesRow?.SeriesWinsWith ?? 0,
+        SeriesAgainst: seriesRow?.SeriesAgainst ?? 0,
+        SeriesWinsAgainst: seriesRow?.SeriesWinsAgainst ?? 0,
+        OpponentSeriesWins: seriesRow?.OpponentSeriesWins ?? 0,
+      };
+    });
+
+    summaries.sort((a, b) => {
+      const totalEncounteredA = a.GamesWith + a.GamesAgainst;
+      const totalEncounteredB = b.GamesWith + b.GamesAgainst;
+      if (totalEncounteredA !== totalEncounteredB) {
+        return totalEncounteredB - totalEncounteredA;
+      }
+      const h2hCombatA = a.Kills + a.Deaths;
+      const h2hCombatB = b.Kills + b.Deaths;
+      if (h2hCombatA !== h2hCombatB) {
+        return h2hCombatB - h2hCombatA;
+      }
+      return a.Gamertag.localeCompare(b.Gamertag, undefined, { sensitivity: "base" });
+    });
+
+    return summaries.slice(0, limit);
   }
 
   /**

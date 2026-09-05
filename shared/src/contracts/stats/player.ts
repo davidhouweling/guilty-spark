@@ -95,6 +95,27 @@ const playerRelationshipRowSchema = z.object({
   Perfects: z.number(),
 });
 
+const playerHeadToHeadSummarySchema = z.object({
+  xboxXuid: z.string(),
+  discordUserId: z.string().nullable(),
+  gamertag: z.string(),
+  kills: z.number().int().nonnegative(),
+  killsPerfects: z.number().int().nonnegative(),
+  deaths: z.number().int().nonnegative(),
+  deathsPerfects: z.number().int().nonnegative(),
+  headToHeadGames: z.number().int().nonnegative(),
+  gamesWith: z.number().int().nonnegative(),
+  gameWinsWith: z.number().int().nonnegative(),
+  gamesAgainst: z.number().int().nonnegative(),
+  gameWinsAgainst: z.number().int().nonnegative(),
+  opponentGameWins: z.number().int().nonnegative(),
+  seriesWith: z.number().int().nonnegative(),
+  seriesWinsWith: z.number().int().nonnegative(),
+  seriesAgainst: z.number().int().nonnegative(),
+  seriesWinsAgainst: z.number().int().nonnegative(),
+  opponentSeriesWins: z.number().int().nonnegative(),
+});
+
 export const playerStatsParamsSchema = z.object({
   gamertag: z
     .string()
@@ -130,13 +151,15 @@ export const playerStatsContract = defineContract(
     stats: playerStatsSchema.nullable(),
     ranks: z.record(z.string(), playerMetricRankSchema.nullable()).default({}),
     relationships: z.record(z.string(), z.array(playerRelationshipRowSchema)).default({}),
+    headToHeadSummaries: z.array(playerHeadToHeadSummarySchema).default([]),
     minGamesPlayed: z.number().int().nonnegative().default(5),
     totalPlayers: z.number().int().nonnegative().nullable().default(null),
   }),
 );
 
+export type PlayerHeadToHeadSummary = z.infer<typeof playerHeadToHeadSummarySchema>;
 export type PlayerStatsResponse = z.infer<typeof playerStatsContract.schema>;
 export type PlayerStatsDiscoveryResponse = Omit<
   PlayerStatsResponse,
-  "window" | "resetAt" | "stats" | "ranks" | "relationships" | "minGamesPlayed" | "totalPlayers"
+  "window" | "resetAt" | "stats" | "ranks" | "relationships" | "headToHeadSummaries" | "minGamesPlayed" | "totalPlayers"
 >;

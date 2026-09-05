@@ -1,5 +1,4 @@
 import type { PlayerStatsResponse } from "@guilty-spark/shared/contracts/stats/player";
-import { LeaderboardPlayerRelationshipMetric } from "@guilty-spark/shared/halo/leaderboard-formatting";
 import type { PlayerStatsTabId } from "./types";
 
 export type PlayerStatsLoadStatus = "loading" | "loaded" | "error";
@@ -9,7 +8,6 @@ export interface PlayerStatsSnapshot {
   readonly response: PlayerStatsResponse | null;
   readonly errorMessage: string | null;
   readonly tabId: PlayerStatsTabId;
-  readonly relationshipMetric: LeaderboardPlayerRelationshipMetric;
 }
 
 export class PlayerStatsStore {
@@ -18,7 +16,6 @@ export class PlayerStatsStore {
     response: null,
     errorMessage: null,
     tabId: "stats",
-    relationshipMetric: LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills,
   };
   private readonly listeners = new Set<() => void>();
 
@@ -53,14 +50,6 @@ export class PlayerStatsStore {
       return;
     }
     this.snapshot = { ...this.snapshot, tabId };
-    this.emit();
-  }
-
-  setRelationshipMetric(relationshipMetric: LeaderboardPlayerRelationshipMetric): void {
-    if (this.snapshot.relationshipMetric === relationshipMetric) {
-      return;
-    }
-    this.snapshot = { ...this.snapshot, relationshipMetric };
     this.emit();
   }
 

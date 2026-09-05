@@ -1189,15 +1189,26 @@ describe("LeaderboardService", () => {
         [LeaderboardMetric.GamesPlayed, { rank: 2, total: 10 }],
       ]),
     );
-    vi.spyOn(databaseService, "getLeaderboardPlayerRelationships").mockResolvedValue([
+    vi.spyOn(databaseService, "getLeaderboardPlayerHeadToHeadSummaries").mockResolvedValue([
       {
         XboxXuid: "xuid-2",
         DiscordUserId: null,
         Gamertag: "Opponent",
-        MetricValue: 8.5,
-        SharedCount: 4,
-        Wins: 3,
-        Perfects: 2,
+        Kills: 8,
+        KillsPerfects: 2,
+        Deaths: 4,
+        DeathsPerfects: 1,
+        HeadToHeadGames: 2,
+        GamesWith: 4,
+        GameWinsWith: 3,
+        GamesAgainst: 5,
+        GameWinsAgainst: 3,
+        OpponentGameWins: 2,
+        SeriesWith: 2,
+        SeriesWinsWith: 2,
+        SeriesAgainst: 2,
+        SeriesWinsAgainst: 1,
+        OpponentSeriesWins: 1,
       },
     ]);
 
@@ -1207,7 +1218,8 @@ describe("LeaderboardService", () => {
     expect(result?.player).toEqual({ xboxXuid: "xuid-1", gamertag: "Master Chief" });
     expect(result?.selectedGuildId).toBe("guild-1");
     expect(result?.ranks[LeaderboardMetric.Kills]).toEqual({ rank: 1, total: 10 });
-    expect(result?.relationships["AVG_HEAD_TO_HEAD_KILLS"]).toHaveLength(1);
+    expect(result?.headToHeadSummaries).toHaveLength(1);
+    expect(result?.headToHeadSummaries[0]?.gamertag).toBe("Opponent");
     expect(result?.totalPlayers).toBe(10);
   });
 });

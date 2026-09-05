@@ -539,6 +539,7 @@ export function getPlayerStatMetricLabel(metric: LeaderboardMetric): string {
   const family = getLeaderboardMetricFamily(metric);
   const familyLabel = getLeaderboardMetricFamilyLabel(family);
 
+  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check
   switch (metric) {
     case LeaderboardMetric.SeriesWinRate: {
       return "Series win rate";

@@ -90,6 +90,7 @@ const defaultResponse: PlayerStatsResponse = {
   },
   ranks: {},
   relationships: {},
+  headToHeadSummaries: [],
   minGamesPlayed: 5,
   totalPlayers: 10,
 };

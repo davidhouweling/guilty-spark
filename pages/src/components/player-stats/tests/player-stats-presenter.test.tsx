@@ -1,7 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
-import { LeaderboardPlayerRelationshipMetric } from "@guilty-spark/shared/halo/leaderboard-formatting";
 import { PlayerStats } from "../player-stats";
 import { PlayerStatsPresenter } from "../player-stats-presenter";
 import { PlayerStatsStore } from "../player-stats-store";
@@ -46,19 +45,28 @@ describe("PlayerStatsPresenter", () => {
         [LeaderboardMetric.Kills]: { rank: 1, total: 10 },
         [LeaderboardMetric.SeriesWinRate]: { rank: 2, total: 10 },
       },
-      relationships: {
-        [LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills]: [
-          {
-            XboxXuid: "xuid-2",
-            DiscordUserId: null,
-            Gamertag: "OpponentOne",
-            MetricValue: 8.5,
-            SharedCount: 4,
-            Wins: 3,
-            Perfects: 2,
-          },
-        ],
-      },
+      headToHeadSummaries: [
+        {
+          xboxXuid: "xuid-2",
+          discordUserId: null,
+          gamertag: "OpponentOne",
+          kills: 8,
+          killsPerfects: 2,
+          deaths: 4,
+          deathsPerfects: 1,
+          headToHeadGames: 2,
+          gamesWith: 4,
+          gameWinsWith: 3,
+          gamesAgainst: 5,
+          gameWinsAgainst: 3,
+          opponentGameWins: 2,
+          seriesWith: 2,
+          seriesWinsWith: 2,
+          seriesAgainst: 2,
+          seriesWinsAgainst: 1,
+          opponentSeriesWins: 1,
+        },
+      ],
     });
     const store = new PlayerStatsStore();
     const presenter = new PlayerStatsPresenter({ service, gamertag: "Master Chief", store });
@@ -79,11 +87,17 @@ describe("PlayerStatsPresenter", () => {
     model.onTabChange("head-to-head");
     const h2hModel = presenter.present(store.getSnapshot());
     expect(h2hModel.selectedTabId).toBe("head-to-head");
-    expect(h2hModel.relationshipRows).toHaveLength(1);
-    expect(h2hModel.relationshipRows[0]).toMatchObject({
+    expect(h2hModel.headToHeadRows).toHaveLength(1);
+    expect(h2hModel.headToHeadRows[0]).toMatchObject({
       player: "OpponentOne",
-      rank: "🥇",
-      value: "8.5 kills/game (2 perfects)",
+      kills: 8,
+      killsText: "8 (2 perfs)",
+      deaths: 4,
+      deathsText: "4 (1 perfs)",
+      gamesWithText: "3 - 1 (75.0%)",
+      seriesWithText: "2 - 0 (100.0%)",
+      gamesAgainstText: "3 - 2 (60.0%)",
+      seriesAgainstText: "1 - 1 (50.0%)",
     });
   });
 
@@ -102,25 +116,20 @@ describe("PlayerStatsPresenter", () => {
           { value: LeaderboardWindow.OneWeek, label: "1 week" },
           { value: LeaderboardWindow.ThreeMonths, label: "3 months" },
         ]}
-        relationshipMetricOptions={[
-          { value: LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills, label: "Avg head to head - Killed most" },
-        ]}
         selectedGuildId="guild-1"
         selectedQueueChannelId={null}
         selectedWindow={LeaderboardWindow.ThreeMonths}
         selectedTabId="stats"
-        selectedRelationshipMetric={LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills}
         statsRows={[
           { stat: "Series wins", rank: "🥇", value: "2", sortRank: 1, sortValue: 2 },
           { stat: "Kills", rank: "#4", value: "100", sortRank: 4, sortValue: 100 },
         ]}
-        relationshipRows={[]}
+        headToHeadRows={[]}
         statsFooter="Min games: 5 | Total players: 10"
         onGuildChange={vi.fn()}
         onQueueChange={vi.fn()}
         onWindowChange={vi.fn()}
         onTabChange={vi.fn()}
-        onRelationshipMetricChange={vi.fn()}
       />,
     );
 
@@ -147,39 +156,44 @@ describe("PlayerStatsPresenter", () => {
           { value: "queue-1", label: "#arena" },
         ]}
         windowOptions={[{ value: LeaderboardWindow.ThreeMonths, label: "3 months" }]}
-        relationshipMetricOptions={[
-          { value: LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills, label: "Avg head to head - Killed most" },
-        ]}
         selectedGuildId="guild-1"
         selectedQueueChannelId={null}
         selectedWindow={LeaderboardWindow.ThreeMonths}
         selectedTabId="head-to-head"
-        selectedRelationshipMetric={LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills}
         statsRows={[]}
-        relationshipRows={[
+        headToHeadRows={[
           {
             player: "OpponentOne",
-            rank: "🥇",
-            value: "8.5 kills/game (2 perfects)",
-            sortRank: 1,
-            sortValue: 8.5,
-            sharedCount: 4,
-            wins: 3,
-            perfects: 2,
+            kills: 8,
+            killsText: "8 (2 perfs)",
+            deaths: 4,
+            deathsText: "4 (1 perfs)",
+            gamesWithTotal: 4,
+            gamesWithText: "3 - 1 (75.0%)",
+            gamesWithWinRate: 75.0,
+            seriesWithTotal: 2,
+            seriesWithText: "2 - 0 (100.0%)",
+            seriesWithWinRate: 100.0,
+            gamesAgainstTotal: 5,
+            gamesAgainstText: "3 - 2 (60.0%)",
+            gamesAgainstWinRate: 60.0,
+            seriesAgainstTotal: 2,
+            seriesAgainstText: "1 - 1 (50.0%)",
+            seriesAgainstWinRate: 50.0,
           },
         ]}
-        relationshipFooter={undefined}
+        headToHeadFooter="Showing top 25 opponents and teammates by match activity"
         onGuildChange={vi.fn()}
         onQueueChange={vi.fn()}
         onWindowChange={vi.fn()}
         onTabChange={onTabChange}
-        onRelationshipMetricChange={vi.fn()}
       />,
     );
 
     expect(screen.getByRole("table", { name: "Player head to head table" })).not.toBeNull();
     expect(screen.getByText("OpponentOne")).not.toBeNull();
-    expect(screen.getByText("8.5 kills/game (2 perfects)")).not.toBeNull();
+    expect(screen.getByText("8 (2 perfs)")).not.toBeNull();
+    expect(screen.getByText("3 - 1 (75.0%)")).not.toBeNull();
 
     fireEvent.click(screen.getByRole("tab", { name: "Leaderboard stats" }));
     expect(onTabChange).toHaveBeenCalledWith("stats");
@@ -194,23 +208,20 @@ describe("PlayerStatsPresenter", () => {
         servers={[{ value: "guild-1", label: "Test Server" }]}
         queueOptions={[{ value: "all", label: "All configured queues" }]}
         windowOptions={[{ value: LeaderboardWindow.ThreeMonths, label: "3 months" }]}
-        relationshipMetricOptions={[]}
         selectedGuildId="guild-1"
         selectedQueueChannelId={null}
         selectedWindow={LeaderboardWindow.ThreeMonths}
         selectedTabId="stats"
-        selectedRelationshipMetric={LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills}
         statsRows={[
           { stat: "Series wins", rank: "#4", value: "2", sortRank: 4, sortValue: 2 },
           { stat: "Kills", rank: "🥇", value: "100", sortRank: 1, sortValue: 100 },
           { stat: "Accuracy", rank: "Unranked", value: "50%", sortRank: undefined, sortValue: 50 },
         ]}
-        relationshipRows={[]}
+        headToHeadRows={[]}
         onGuildChange={vi.fn()}
         onQueueChange={vi.fn()}
         onWindowChange={vi.fn()}
         onTabChange={vi.fn()}
-        onRelationshipMetricChange={vi.fn()}
       />,
     );
 
@@ -247,23 +258,20 @@ describe("PlayerStatsPresenter", () => {
         servers={[{ value: "guild-1", label: "Test Server" }]}
         queueOptions={[{ value: "all", label: "All configured queues" }]}
         windowOptions={[{ value: LeaderboardWindow.ThreeMonths, label: "3 months" }]}
-        relationshipMetricOptions={[]}
         selectedGuildId="guild-1"
         selectedQueueChannelId={null}
         selectedWindow={LeaderboardWindow.ThreeMonths}
         selectedTabId="stats"
-        selectedRelationshipMetric={LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills}
         statsRows={[
           { stat: "Series wins", rank: "#4", value: "2", sortRank: 4, sortValue: 2 },
           { stat: "Kills", rank: "🥇", value: "100", sortRank: 1, sortValue: 100 },
           { stat: "Accuracy", rank: "Unranked", value: "50%", sortRank: undefined, sortValue: 50 },
         ]}
-        relationshipRows={[]}
+        headToHeadRows={[]}
         onGuildChange={vi.fn()}
         onQueueChange={vi.fn()}
         onWindowChange={vi.fn()}
         onTabChange={vi.fn()}
-        onRelationshipMetricChange={vi.fn()}
       />,
     );
 
@@ -291,7 +299,7 @@ describe("PlayerStatsPresenter", () => {
     expect(cells[6]?.textContent).toBe("Accuracy");
   });
 
-  it("sorts head to head table by Value descending, ascending, and unsorted", () => {
+  it("sorts head to head table by H2H Kills descending, ascending, and unsorted", () => {
     render(
       <PlayerStats
         state="loaded"
@@ -300,63 +308,76 @@ describe("PlayerStatsPresenter", () => {
         servers={[{ value: "guild-1", label: "Test Server" }]}
         queueOptions={[{ value: "all", label: "All configured queues" }]}
         windowOptions={[{ value: LeaderboardWindow.ThreeMonths, label: "3 months" }]}
-        relationshipMetricOptions={[
-          { value: LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills, label: "Avg head to head - Killed most" },
-        ]}
         selectedGuildId="guild-1"
         selectedQueueChannelId={null}
         selectedWindow={LeaderboardWindow.ThreeMonths}
         selectedTabId="head-to-head"
-        selectedRelationshipMetric={LeaderboardPlayerRelationshipMetric.AvgHeadToHeadKills}
         statsRows={[]}
-        relationshipRows={[
+        headToHeadRows={[
           {
             player: "PlayerLow",
-            rank: "🥉",
-            value: "4.0 kills/game (0 perfects)",
-            sortRank: 3,
-            sortValue: 4.0,
-            sharedCount: 4,
-            wins: 1,
-            perfects: 0,
+            kills: 4,
+            killsText: "4 (0 perfs)",
+            deaths: 6,
+            deathsText: "6 (0 perfs)",
+            gamesWithTotal: 4,
+            gamesWithText: "1 - 3 (25.0%)",
+            gamesWithWinRate: 25.0,
+            seriesWithTotal: 2,
+            seriesWithText: "0 - 2 (0.0%)",
+            seriesWithWinRate: 0.0,
+            gamesAgainstTotal: 4,
+            gamesAgainstText: "2 - 2 (50.0%)",
+            gamesAgainstWinRate: 50.0,
+            seriesAgainstTotal: 2,
+            seriesAgainstText: "1 - 1 (50.0%)",
+            seriesAgainstWinRate: 50.0,
           },
           {
             player: "PlayerHigh",
-            rank: "🥇",
-            value: "12.0 kills/game (3 perfects)",
-            sortRank: 1,
-            sortValue: 12.0,
-            sharedCount: 4,
-            wins: 3,
-            perfects: 3,
+            kills: 12,
+            killsText: "12 (3 perfs)",
+            deaths: 2,
+            deathsText: "2 (0 perfs)",
+            gamesWithTotal: 4,
+            gamesWithText: "3 - 1 (75.0%)",
+            gamesWithWinRate: 75.0,
+            seriesWithTotal: 2,
+            seriesWithText: "2 - 0 (100.0%)",
+            seriesWithWinRate: 100.0,
+            gamesAgainstTotal: 4,
+            gamesAgainstText: "3 - 1 (75.0%)",
+            gamesAgainstWinRate: 75.0,
+            seriesAgainstTotal: 2,
+            seriesAgainstText: "2 - 0 (100.0%)",
+            seriesAgainstWinRate: 100.0,
           },
         ]}
         onGuildChange={vi.fn()}
         onQueueChange={vi.fn()}
         onWindowChange={vi.fn()}
         onTabChange={vi.fn()}
-        onRelationshipMetricChange={vi.fn()}
       />,
     );
 
-    const valueHeader = screen.getByRole("button", { name: "Value" });
+    const killsHeader = screen.getByRole("button", { name: "H2H Kills" });
 
-    // Click 1: Descending -> 12.0 (PlayerHigh), then 4.0 (PlayerLow)
-    fireEvent.click(valueHeader);
+    // Click 1: Descending -> 12 (PlayerHigh), then 4 (PlayerLow)
+    fireEvent.click(killsHeader);
     let cells = screen.getAllByRole("cell");
-    expect(cells[1]?.textContent).toBe("PlayerHigh");
-    expect(cells[4]?.textContent).toBe("PlayerLow");
+    expect(cells[0]?.textContent).toBe("PlayerHigh");
+    expect(cells[7]?.textContent).toBe("PlayerLow");
 
-    // Click 2: Ascending -> 4.0 (PlayerLow), then 12.0 (PlayerHigh)
-    fireEvent.click(valueHeader);
+    // Click 2: Ascending -> 4 (PlayerLow), then 12 (PlayerHigh)
+    fireEvent.click(killsHeader);
     cells = screen.getAllByRole("cell");
-    expect(cells[1]?.textContent).toBe("PlayerLow");
-    expect(cells[4]?.textContent).toBe("PlayerHigh");
+    expect(cells[0]?.textContent).toBe("PlayerLow");
+    expect(cells[7]?.textContent).toBe("PlayerHigh");
 
     // Click 3: Unsorted -> original order (PlayerLow, PlayerHigh)
-    fireEvent.click(valueHeader);
+    fireEvent.click(killsHeader);
     cells = screen.getAllByRole("cell");
-    expect(cells[1]?.textContent).toBe("PlayerLow");
-    expect(cells[4]?.textContent).toBe("PlayerHigh");
+    expect(cells[0]?.textContent).toBe("PlayerLow");
+    expect(cells[7]?.textContent).toBe("PlayerHigh");
   });
 });
