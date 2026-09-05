@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { parsePathParams } from "@guilty-spark/shared/base/request-parsing";
 import { userTrackerViewStateContract } from "@guilty-spark/shared/contracts/durable-objects/user-tracker/management";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
@@ -51,7 +50,7 @@ export const userTrackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (ro
       const stub = getUserTrackerStub(env, identity.UserId);
       const url = new URL("http://do/view-state");
       url.searchParams.set("userId", identity.UserId);
-      url.searchParams.set("gamertag", Preconditions.checkExists(identity.Gamertag, "identity missing gamertag"));
+      url.searchParams.set("gamertag", identity.Gamertag ?? gamertag);
       url.searchParams.set("xuid", identity.ProviderUserId);
 
       const response = await stub.fetch(url.toString(), { method: "GET" });
@@ -90,7 +89,7 @@ export const userTrackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (ro
       const stub = getUserTrackerStub(env, identity.UserId);
       const url = new URL("http://do/websocket");
       url.searchParams.set("userId", identity.UserId);
-      url.searchParams.set("gamertag", Preconditions.checkExists(identity.Gamertag, "identity missing gamertag"));
+      url.searchParams.set("gamertag", identity.Gamertag ?? gamertag);
       url.searchParams.set("xuid", identity.ProviderUserId);
 
       const forwardedHeaders = new Headers(request.headers);
