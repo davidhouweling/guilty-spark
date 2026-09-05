@@ -311,5 +311,29 @@ describe("/u/:gamertag follow routes", () => {
       expect(parsedUrl.searchParams.get("gamertag")).toBe("WsTag");
       expect(parsedUrl.searchParams.get("xuid")).toBe("xuid-2");
     });
+
+    it("forwards the identity's canonical gamertag rather than the raw path param", async () => {
+      const identity = aFakeLinkedIdentitiesRow({
+        UserId: "user-1",
+        Gamertag: "CanonicalTag",
+        ProviderUserId: "xuid-1",
+      });
+      const userTrackerDo = aFakeUserTrackerDOWith();
+      const userTrackerFetchSpy = vi.spyOn(userTrackerDo, "fetch");
+      const localEnv = aFakeEnvWith({ USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(userTrackerDo) });
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env: localEnv });
+        vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(identity);
+        return services;
+      });
+      userTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      await router.fetch(getRequest("/u/RequestedTag"), localEnv);
+
+      const rawUrl = getRawUrl(userTrackerFetchSpy.mock.calls[0]?.[0] ?? "http://do/view-state");
+      const parsedUrl = new URL(rawUrl);
+      expect(parsedUrl.searchParams.get("gamertag")).toBe("CanonicalTag");
+    });
   });
 });
