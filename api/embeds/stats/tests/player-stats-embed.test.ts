@@ -5,6 +5,7 @@ import {
   LeaderboardMetricAggregation,
   LeaderboardWindow,
 } from "@guilty-spark/shared/halo/leaderboard";
+import { LeaderboardPlayerRelationshipMetric } from "@guilty-spark/shared/halo/leaderboard-formatting";
 import {
   PLAYER_STATS_QUEUE_SELECT_CONTROL_ID,
   createPlayerStatsEmbeds,
@@ -14,7 +15,6 @@ import {
   aFakeLeaderboardPlayerRelationshipRow,
   aFakeLeaderboardPlayerStatsRow,
 } from "../../../services/database/fakes/database.fake";
-import { LeaderboardPlayerRelationshipMetric } from "../../../services/database/types/leaderboard_player_relationship";
 
 describe("createPlayerStatsRelationshipEmbeds()", () => {
   it("renders head-to-head rows with medals and perfect counts", () => {

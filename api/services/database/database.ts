@@ -8,6 +8,7 @@ import {
 } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardObjectiveMetricDescriptor } from "@guilty-spark/shared/halo/leaderboard";
 import { GameVariantCategory } from "halo-infinite-api";
+import { LeaderboardPlayerRelationshipMetric } from "@guilty-spark/shared/halo/leaderboard-formatting";
 import { SESSION_COOKIE_MAX_AGE_SECONDS } from "../auth/session-manager";
 import type { DiscordAssociationsRow } from "./types/discord_associations";
 import type { GuildConfigRow } from "./types/guild_config";
@@ -32,7 +33,6 @@ import type { LeaderboardConfigRow } from "./types/leaderboard_config";
 import type { LeaderboardPostRow } from "./types/leaderboard_post";
 import type { LeaderboardResetMarkerRow } from "./types/leaderboard_reset_marker";
 import type { MatchKillMatrixRow } from "./types/match_kill_matrix";
-import { LeaderboardPlayerRelationshipMetric } from "./types/leaderboard_player_relationship";
 import type { LeaderboardPlayerRelationshipRow } from "./types/leaderboard_player_relationship";
 import type { LeaderboardPlayerHeadToHeadSummaryRow } from "./types/leaderboard_player_head_to_head_summary";
 import type { LeaderboardPlayerPairRelationshipRow } from "./types/leaderboard_player_pair_relationship";

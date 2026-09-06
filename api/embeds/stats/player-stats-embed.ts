@@ -21,9 +21,9 @@ import {
   resolveLeaderboardMetric,
   isObjectiveLeaderboardMetric,
 } from "@guilty-spark/shared/halo/leaderboard";
+import { LeaderboardPlayerRelationshipMetric } from "@guilty-spark/shared/halo/leaderboard-formatting";
 import type { LeaderboardPlayerStatsRow } from "../../services/database/types/leaderboard_player_stats";
 import type { LeaderboardPlayerMetricRank } from "../../services/database/types/leaderboard_player_metric_rank";
-import { LeaderboardPlayerRelationshipMetric } from "../../services/database/types/leaderboard_player_relationship";
 import type { LeaderboardPlayerRelationshipRow } from "../../services/database/types/leaderboard_player_relationship";
 import { formatMetricValue, formatRank } from "../../services/leaderboard/leaderboard-response";
 

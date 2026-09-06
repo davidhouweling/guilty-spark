@@ -17,6 +17,7 @@ import {
 } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardMetricAggregation } from "@guilty-spark/shared/halo/leaderboard";
 import type { PlayerStatsResponse } from "@guilty-spark/shared/contracts/stats/player";
+import type { LeaderboardPlayerRelationshipMetric } from "@guilty-spark/shared/halo/leaderboard-formatting";
 import type { DatabaseService } from "../database/database";
 import type { DiscordService } from "../discord/discord";
 import { DiscordError } from "../discord/discord-error";
@@ -31,10 +32,7 @@ import type { LeaderboardPlayerStatsRow } from "../database/types/leaderboard_pl
 import type { LeaderboardPlayerGuildStatsRow } from "../database/types/leaderboard_player_guild_stats";
 import type { UserInfo, Medal } from "../halo/types";
 import type { LeaderboardPlayerMetricRank } from "../database/types/leaderboard_player_metric_rank";
-import type {
-  LeaderboardPlayerRelationshipMetric,
-  LeaderboardPlayerRelationshipRow,
-} from "../database/types/leaderboard_player_relationship";
+import type { LeaderboardPlayerRelationshipRow } from "../database/types/leaderboard_player_relationship";
 import type { LeaderboardPlayerPairRelationshipRow } from "../database/types/leaderboard_player_pair_relationship";
 import type { HaloService } from "../halo/halo";
 import type { LogService } from "../log/types";

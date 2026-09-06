@@ -1,7 +1,3 @@
-import { LeaderboardPlayerRelationshipMetric } from "@guilty-spark/shared/halo/leaderboard-formatting";
-
-export { LeaderboardPlayerRelationshipMetric };
-
 export interface LeaderboardPlayerRelationshipRow {
   XboxXuid: string;
   DiscordUserId: string | null;
