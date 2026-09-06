@@ -153,7 +153,7 @@ export const playerStatsContract = defineContract(
     ranks: z.record(z.string(), playerMetricRankSchema.nullable()).default({}),
     relationships: z.record(z.string(), z.array(playerRelationshipRowSchema)).default({}),
     headToHeadSummaries: z.array(playerHeadToHeadSummarySchema).default([]),
-    minGamesPlayed: z.number().int().nonnegative().default(5),
+    minGamesPlayed: z.number().int().min(1).max(10).default(5),
     totalPlayers: z.number().int().nonnegative().nullable().default(null),
   }),
 );

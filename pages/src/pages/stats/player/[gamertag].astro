@@ -15,7 +15,7 @@ let initialResponse: PlayerStatsResponse | undefined;
 if (gamertag !== "") {
   try {
     const url = new URL(`/api/stats/player/${encodeURIComponent(gamertag)}`, String(API_HOST));
-    for (const parameter of ["guildId", "queueChannelId", "window"]) {
+    for (const parameter of ["guildId", "queueChannelId", "window", "minGamesPlayed"]) {
       const value = Astro.url.searchParams.get(parameter);
       if (value != null && value !== "") {
         url.searchParams.set(parameter, value);
