@@ -40,7 +40,8 @@ jobs:
         with:
           timeout_minutes: 10
           max_attempts: 2
-          command: npx vitest run --shard=${{ matrix.shardIndex }}/${{ matrix.shardCount }} --reporter=blob --outputFile.blob=blob-report/blob-${{ matrix.shardIndex }}-${{ matrix.shardCount }}.json --coverage.enabled true
+          retry_on: error
+          command: rm -rf blob-report && npx vitest run --shard=${{ matrix.shardIndex }}/${{ matrix.shardCount }} --reporter=blob --outputFile.blob=blob-report/blob-${{ matrix.shardIndex }}-${{ matrix.shardCount }}.json --coverage.enabled true
 
       - name: Upload blob report
         if: always()
