@@ -205,6 +205,25 @@ describe("LeaderboardService", () => {
     expect(seriesRankingArgs.offset).toBe(0);
   });
 
+  it("clamps legacy stored minGamesPlayed values to the supported range", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    vi.spyOn(databaseService, "getLeaderboardConfig").mockResolvedValue(
+      aFakeLeaderboardConfigRow({ GuildId: "guild-1", MinGamesPlayed: 0 }),
+    );
+    const rankingsSpy = vi.spyOn(databaseService, "getLeaderboardOutcomeMetricRankings").mockResolvedValue({
+      total: 0,
+      rows: [],
+    });
+
+    const result = await service.getLeaderboard({ guildId: "guild-1" });
+
+    expect(result.minGamesPlayed).toBe(1);
+    expect(rankingsSpy).toHaveBeenCalledWith(expect.objectContaining({ minGamesPlayed: 1 }));
+  });
+
   it("uses the scoped reset marker as the default leaderboard window", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });

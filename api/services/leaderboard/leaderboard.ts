@@ -145,6 +145,15 @@ export class LeaderboardService {
     this.logService = logService;
   }
 
+  private clampMinGamesPlayed(value: number | null | undefined, fallback = 5): number {
+    const candidate = value ?? fallback;
+    if (!Number.isFinite(candidate)) {
+      return fallback;
+    }
+
+    return Math.min(10, Math.max(1, Math.trunc(candidate)));
+  }
+
   async getLeaderboardPlayerDiscovery(
     gamertag: string,
     requestedGuildId: string | undefined,
@@ -204,6 +213,7 @@ export class LeaderboardService {
     });
 
     const resolvedWindow = selectedStats?.window ?? window ?? LeaderboardWindow.ThreeMonths;
+    const resolvedMinGamesPlayed = this.clampMinGamesPlayed(minGamesPlayed ?? selectedStats?.minGamesPlayed ?? 5);
 
     let ranks: Record<string, { rank: number; total: number } | null> = {};
     const relationships: Record<string, LeaderboardPlayerRelationshipRow[]> = {};
@@ -217,7 +227,7 @@ export class LeaderboardService {
         xboxXuid: player.xuid,
         queueChannelId: queueChannelId ?? null,
         startEpochSeconds: selectedStats.startEpochSeconds,
-        minGamesPlayed: minGamesPlayed ?? selectedStats.minGamesPlayed,
+        minGamesPlayed: resolvedMinGamesPlayed,
         metrics: allMetrics,
       });
 
@@ -235,7 +245,7 @@ export class LeaderboardService {
           xboxXuid: player.xuid,
           queueChannelId: queueChannelId ?? null,
           startEpochSeconds: selectedStats.startEpochSeconds,
-          minGamesPlayed: minGamesPlayed ?? selectedStats.minGamesPlayed,
+          minGamesPlayed: resolvedMinGamesPlayed,
           limit: 50,
         }),
       ]);
@@ -274,7 +284,7 @@ export class LeaderboardService {
       ranks,
       relationships,
       headToHeadSummaries,
-      minGamesPlayed: minGamesPlayed ?? selectedStats?.minGamesPlayed ?? 5,
+      minGamesPlayed: resolvedMinGamesPlayed,
       totalPlayers,
     };
   }
@@ -365,7 +375,7 @@ export class LeaderboardService {
           window: resolvedWindow,
           resetAt,
           startEpochSeconds,
-          minGamesPlayed: config.MinGamesPlayed,
+          minGamesPlayed: this.clampMinGamesPlayed(config.MinGamesPlayed),
           defaultAggregation: getLeaderboardMetricAggregation(config.DefaultMetric),
         };
   }
@@ -818,7 +828,7 @@ export class LeaderboardService {
             : (window ?? resolvedConfig.DefaultWindow),
         resetAt: null,
         metric: metric ?? resolvedConfig.DefaultMetric,
-        minGamesPlayed: minGamesPlayed ?? resolvedConfig.MinGamesPlayed,
+        minGamesPlayed: this.clampMinGamesPlayed(minGamesPlayed ?? resolvedConfig.MinGamesPlayed),
         page: Math.max(1, page ?? 1),
         pageSize: Math.min(LEADERBOARD_MAX_PAGE_SIZE, Math.max(1, pageSize ?? 25)),
         total: 0,
@@ -842,7 +852,7 @@ export class LeaderboardService {
     const resolvedResetAt =
       resolvedWindow === LeaderboardWindow.LastReset ? Preconditions.checkExists(resetMarkerResetAt) : null;
     const resolvedMetric = metric ?? resolvedConfig.DefaultMetric;
-    const resolvedMinGamesPlayed = minGamesPlayed ?? resolvedConfig.MinGamesPlayed;
+    const resolvedMinGamesPlayed = this.clampMinGamesPlayed(minGamesPlayed ?? resolvedConfig.MinGamesPlayed);
     const resolvedPage = Math.max(1, page ?? 1);
     const resolvedPageSize = Math.min(LEADERBOARD_MAX_PAGE_SIZE, Math.max(1, pageSize ?? 25));
     const offset = (resolvedPage - 1) * resolvedPageSize;
