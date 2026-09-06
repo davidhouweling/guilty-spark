@@ -165,6 +165,7 @@ export const streamerViewStyleFlagsSchema = z.object({
   matchmakingShowStatsHighlights: z.boolean().optional(),
   inSeriesMyStatsOnly: z.boolean().optional(),
   matchmakingMyStatsOnly: z.boolean().optional(),
+  autoStart: z.boolean().optional(),
 });
 export type StreamerViewStyleFlags = z.infer<typeof streamerViewStyleFlagsSchema>;
 
@@ -194,6 +195,7 @@ export const DEFAULT_STREAMER_VIEW_SETTINGS: StreamerViewSettings = {
     matchmakingShowStatsHighlights: true,
     inSeriesMyStatsOnly: false,
     matchmakingMyStatsOnly: false,
+    autoStart: true,
   },
   visibleSections: {
     showTeamDetails: true,

@@ -74,6 +74,7 @@ function settingsToSnapshot(
       styleFlags.matchmakingShowStatsHighlights ?? snapshot.matchmakingShowStatsHighlights,
     inSeriesMyStatsOnly: styleFlags.inSeriesMyStatsOnly ?? snapshot.inSeriesMyStatsOnly,
     matchmakingMyStatsOnly: styleFlags.matchmakingMyStatsOnly ?? snapshot.matchmakingMyStatsOnly,
+    autoStart: styleFlags.autoStart ?? snapshot.autoStart,
     fontSizeSettings: {
       queueInfo: fontSizes.queueInfo ?? snapshot.fontSizeSettings.queueInfo,
       score: fontSizes.score ?? snapshot.fontSizeSettings.score,
@@ -117,6 +118,7 @@ function snapshotToSettings(snapshot: StreamerSettingsSnapshot): StreamerViewSet
       matchmakingShowStatsHighlights: snapshot.matchmakingShowStatsHighlights,
       inSeriesMyStatsOnly: snapshot.inSeriesMyStatsOnly,
       matchmakingMyStatsOnly: snapshot.matchmakingMyStatsOnly,
+      autoStart: snapshot.autoStart,
     },
     visibleSections: {
       showTeamDetails: snapshot.displaySettings.showTeamDetails,
@@ -276,6 +278,15 @@ export class StreamerSettingsPresenter {
     }
 
     this.config.store.batchUpdate({ matchmakingMyStatsOnly: enabled });
+    this.scheduleSave();
+  }
+
+  public setAutoStart(enabled: boolean): void {
+    if (this.isDisposed) {
+      return;
+    }
+
+    this.config.store.batchUpdate({ autoStart: enabled });
     this.scheduleSave();
   }
 

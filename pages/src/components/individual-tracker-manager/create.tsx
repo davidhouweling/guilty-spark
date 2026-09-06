@@ -110,6 +110,7 @@ function IndividualTrackerManagerPageInternal({
           matchmakingShowStatsHighlights={settingsSnapshot.matchmakingShowStatsHighlights}
           inSeriesMyStatsOnly={settingsSnapshot.inSeriesMyStatsOnly}
           matchmakingMyStatsOnly={settingsSnapshot.matchmakingMyStatsOnly}
+          autoStart={settingsSnapshot.autoStart}
           fontSizeSettings={settingsSnapshot.fontSizeSettings}
           saveStatus={settingsSnapshot.saveStatus}
           saveErrorMessage={settingsSnapshot.saveErrorMessage}
@@ -157,6 +158,9 @@ function IndividualTrackerManagerPageInternal({
           }}
           onMatchmakingMyStatsOnlyChange={(enabled): void => {
             settingsPresenter.setMatchmakingMyStatsOnly(enabled);
+          }}
+          onAutoStartChange={(enabled): void => {
+            settingsPresenter.setAutoStart(enabled);
           }}
           onFontSizesChange={(updates): void => {
             settingsPresenter.setFontSizes(updates);

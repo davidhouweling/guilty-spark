@@ -22,12 +22,15 @@ import {
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { CloudflareWebSocketHibernationAdapter } from "../../base/websocket-hibernation-adapter";
 import type { WebSocketHibernationAdapter } from "../../base/websocket-hibernation-adapter";
+import { autoStartTrackerIfNeeded } from "../../individual-tracker/auto-start";
 import { fetchTrackerDoViewState, toTrackerView } from "../../individual-tracker/mapper";
 import type { DatabaseService } from "../../services/database/database";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
 import type { IndividualTrackerService } from "../../services/individual-tracker/individual-tracker";
 import { installServices as installServicesImpl } from "../../services/install";
+import type { LiveTrackerService } from "../../services/live-tracker/live-tracker";
 import type { LogService } from "../../services/log/types";
+import type { NeatQueueService } from "../../services/neatqueue/neatqueue";
 import { emptyTrackerDirectory } from "./types";
 import type { UserTrackerInternalState } from "./types";
 
@@ -97,6 +100,8 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private readonly logService: LogService;
   private readonly databaseService: DatabaseService;
   private readonly individualTrackerService: IndividualTrackerService;
+  private readonly liveTrackerService: LiveTrackerService;
+  private readonly neatQueueService: NeatQueueService;
   private readonly webSocketAdapter: WebSocketHibernationAdapter;
   private closeTrackerSubscriptions: () => void = () => {
     // replaced once tracker subscriptions are installed
@@ -111,6 +116,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private trackerUpdateMarkersHydrated = false;
   private trackerUpdateMarkersHydrationPromise: Promise<void> | null = null;
   private trackerMarkerPersistenceChain: Promise<void> = Promise.resolve();
+  private autoStartQueue: Promise<void> = Promise.resolve();
 
   constructor(
     state: DurableObjectState,
@@ -120,10 +126,13 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   ) {
     this.state = state;
     this.env = env;
-    const { logService, databaseService, individualTrackerService } = installServices({ env });
+    const { logService, databaseService, individualTrackerService, liveTrackerService, neatQueueService } =
+      installServices({ env });
     this.logService = logService;
     this.databaseService = databaseService;
     this.individualTrackerService = individualTrackerService;
+    this.liveTrackerService = liveTrackerService;
+    this.neatQueueService = neatQueueService;
     this.webSocketAdapter = webSocketAdapter;
   }
 
@@ -342,6 +351,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleViewState(request: Request): Promise<Response> {
+    await this.ensureAutoStartedTracker(request);
     const stored = await this.getOrBuildState(request);
 
     const response: UserTrackerViewStateResponse = {
@@ -381,6 +391,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return new Response("Expected WebSocket upgrade", { status: 426 });
     }
 
+    await this.ensureAutoStartedTracker(request);
     const stored = await this.getOrBuildState(request);
     if (stored?.state?.userId == null) {
       return new Response("Missing userId", { status: 400 });
@@ -409,13 +420,58 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private getRequestedUserId(request: Request): string | null {
-    const userId = new URL(request.url).searchParams.get("userId");
-    const normalizedUserId = userId?.trim();
-    if (normalizedUserId == null || normalizedUserId === "") {
+    return this.getRequestedQueryParam(request, "userId");
+  }
+
+  private getRequestedQueryParam(request: Request, name: string): string | null {
+    const value = new URL(request.url).searchParams.get(name);
+    const normalizedValue = value?.trim();
+    if (normalizedValue == null || normalizedValue === "") {
       return null;
     }
 
-    return normalizedUserId;
+    return normalizedValue;
+  }
+
+  // Guarded by autoStartQueue: /view-state and /websocket both route to this same DO instance
+  // (keyed by userId) and can be requested concurrently on first page load, so without this lock
+  // both could observe "no tracker yet" and each create/start a duplicate tracker for the xuid.
+  private async ensureAutoStartedTracker(request: Request): Promise<void> {
+    if (this.state.getWebSockets().length > 0) {
+      // A connected client already means this DO instance ran this check when that connection
+      // was established; skip the extra settings/tracker DB reads on every cached poll.
+      return;
+    }
+
+    const userId = this.getRequestedUserId(request);
+    const gamertag = this.getRequestedQueryParam(request, "gamertag");
+    const xuid = this.getRequestedQueryParam(request, "xuid");
+    if (userId == null || gamertag == null || xuid == null) {
+      return;
+    }
+
+    await this.withAutoStartLock(async () =>
+      autoStartTrackerIfNeeded(
+        this.env,
+        {
+          databaseService: this.databaseService,
+          individualTrackerService: this.individualTrackerService,
+          liveTrackerService: this.liveTrackerService,
+          neatQueueService: this.neatQueueService,
+          logService: this.logService,
+        },
+        { userId, gamertag, xuid },
+      ),
+    );
+  }
+
+  private async withAutoStartLock(fn: () => Promise<void>): Promise<void> {
+    const runAfterPrevious = this.autoStartQueue.then(fn, fn);
+    this.autoStartQueue = runAfterPrevious.then(
+      () => undefined,
+      () => undefined,
+    );
+    await runAfterPrevious;
   }
 
   private async rebuildDirectoryState(userId: string): Promise<UserTrackerInternalState> {
