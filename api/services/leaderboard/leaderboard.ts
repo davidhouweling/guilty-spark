@@ -171,11 +171,7 @@ export class LeaderboardService {
       return null;
     }
 
-    const servers: LeaderboardPlayerServerOption[] = [];
-    for (const guildStat of guildStats) {
-      const server = await this.getPlayerServerOption(guildStat);
-      servers.push(server);
-    }
+    const servers = await Promise.all(guildStats.map(async (guildStat) => this.getPlayerServerOption(guildStat)));
 
     const selectedServer =
       requestedGuildId == null ? servers[0] : servers.find((server) => server.guildId === requestedGuildId);

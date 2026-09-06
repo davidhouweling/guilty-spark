@@ -112,6 +112,11 @@ const ALL_PLAYER_STAT_METRICS: readonly LeaderboardMetric[] = [
 
 const MIN_GAMES_PLAYED_OPTIONS = Array.from({ length: 10 }, (_, index) => index + 1);
 
+function getOptionalQueryParam(url: URL, name: string): string | undefined {
+  const value = url.searchParams.get(name)?.trim();
+  return value === "" ? undefined : value;
+}
+
 function formatRecord(wins: number, losses: number, total: number): { text: string; rate: number } {
   if (total === 0) {
     return { text: "-", rate: -1 };
@@ -141,8 +146,8 @@ export class PlayerStatsPresenter {
     this.gamertag = gamertag;
     this.initialResponse = initialResponse;
     const url = new URL(window.location.href);
-    this.currentGuildId = url.searchParams.get("guildId") ?? initialResponse?.selectedGuildId;
-    this.currentQueueChannelId = url.searchParams.get("queueChannelId") ?? undefined;
+    this.currentGuildId = getOptionalQueryParam(url, "guildId") ?? initialResponse?.selectedGuildId;
+    this.currentQueueChannelId = getOptionalQueryParam(url, "queueChannelId");
     this.currentWindow = this.findWindow(url.searchParams.get("window"));
     this.currentMinGamesPlayed = this.findMinGamesPlayed(url.searchParams.get("minGamesPlayed"));
   }

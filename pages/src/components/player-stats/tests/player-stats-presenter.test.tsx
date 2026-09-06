@@ -40,6 +40,26 @@ describe("PlayerStatsPresenter", () => {
     });
   });
 
+  it("ignores blank server and queue query parameters", async () => {
+    window.history.replaceState({}, "", "/stats/player/Master%20Chief?guildId=&queueChannelId=");
+    const service = aFakePlayerStatsServiceWith();
+    const getPlayerStatsSpy = vi.spyOn(service, "getPlayerStats");
+    const store = new PlayerStatsStore();
+    const presenter = new PlayerStatsPresenter({ service, gamertag: "Master Chief", store });
+
+    presenter.start();
+
+    await vi.waitFor(() => {
+      expect(getPlayerStatsSpy).toHaveBeenCalledWith({
+        gamertag: "Master Chief",
+        guildId: undefined,
+        queueChannelId: undefined,
+        window: undefined,
+        minGamesPlayed: undefined,
+      });
+    });
+  });
+
   it("presents leaderboard stats and head-to-head tabs from a single response", async () => {
     const service = aFakePlayerStatsServiceWith({
       ranks: {
