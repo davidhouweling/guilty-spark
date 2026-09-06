@@ -1,9 +1,9 @@
-import type { AutoRouterType } from "itty-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { playerStatsContract } from "@guilty-spark/shared/contracts/stats/player";
 import type { PlayerStatsResponse } from "@guilty-spark/shared/contracts/stats/player";
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import { createApiRouter } from "../../../base/router";
+import type { ApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeLeaderboardPlayerStatsRow } from "../../../services/database/fakes/database.fake";
@@ -11,7 +11,7 @@ import { statsRoutesRegisterHandler } from "../stats";
 
 describe("/api/stats/player/:gamertag", () => {
   let env: Env;
-  let router: AutoRouterType;
+  let router: ApiRouter;
 
   beforeEach(() => {
     env = aFakeEnvWith();
@@ -48,10 +48,10 @@ describe("/api/stats/player/:gamertag", () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
     statsRoutesRegisterHandler(router, localInstallServices);
 
-    const response = (await router.fetch(
+    const response = await router.fetch(
       new Request("http://localhost/api/stats/player/Master%20Chief"),
       env,
-    )) as Response;
+    );
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(playerStats);
@@ -122,10 +122,10 @@ describe("/api/stats/player/:gamertag", () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
     statsRoutesRegisterHandler(router, localInstallServices);
 
-    const response = (await router.fetch(
+    const response = await router.fetch(
       new Request("http://localhost/api/stats/player/Master%20Chief"),
       env,
-    )) as Response;
+    );
 
     expect(response.status).toBe(200);
     const payload = await playerStatsContract.fromResponse(response);
@@ -142,10 +142,10 @@ describe("/api/stats/player/:gamertag", () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
     statsRoutesRegisterHandler(router, localInstallServices);
 
-    const response = (await router.fetch(
+    const response = await router.fetch(
       new Request("http://localhost/api/stats/player/Master%20Chief?minGamesPlayed=0"),
       env,
-    )) as Response;
+    );
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "Invalid player stats query parameters" });
@@ -161,10 +161,10 @@ describe("/api/stats/player/:gamertag", () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
     statsRoutesRegisterHandler(router, localInstallServices);
 
-    const response = (await router.fetch(
+    const response = await router.fetch(
       new Request("http://localhost/api/stats/player/Master%20Chief?guildId=guild-unknown"),
       env,
-    )) as Response;
+    );
 
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "Player leaderboard data not found" });

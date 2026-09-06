@@ -1,5 +1,7 @@
-import type { AutoRouterType } from "itty-router";
+import type { AutoRouterType, IRequest } from "itty-router";
 import { AutoRouter, cors } from "itty-router";
+
+export type ApiRouter = AutoRouterType<IRequest, [Env], Response>;
 
 const ALLOWED_ORIGINS = [
   "http://localhost:4321", // Development
@@ -17,8 +19,8 @@ const { preflight, corsify } = cors({
   maxAge: 86400, // 24 hours
 });
 
-export function createApiRouter(): AutoRouterType {
-  return AutoRouter({
+export function createApiRouter(): ApiRouter {
+  return AutoRouter<IRequest, [Env], Response>({
     before: [preflight],
     finally: [corsify],
   });
