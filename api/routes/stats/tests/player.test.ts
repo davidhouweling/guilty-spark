@@ -48,10 +48,7 @@ describe("/api/stats/player/:gamertag", () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
     statsRoutesRegisterHandler(router, localInstallServices);
 
-    const response = await router.fetch(
-      new Request("http://localhost/api/stats/player/Master%20Chief"),
-      env,
-    );
+    const response = await router.fetch(new Request("http://localhost/api/stats/player/Master%20Chief"), env);
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(playerStats);
@@ -122,10 +119,7 @@ describe("/api/stats/player/:gamertag", () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
     statsRoutesRegisterHandler(router, localInstallServices);
 
-    const response = await router.fetch(
-      new Request("http://localhost/api/stats/player/Master%20Chief"),
-      env,
-    );
+    const response = await router.fetch(new Request("http://localhost/api/stats/player/Master%20Chief"), env);
 
     expect(response.status).toBe(200);
     const payload = await playerStatsContract.fromResponse(response);
