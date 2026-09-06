@@ -92,9 +92,9 @@ describe("PlayerStatsPresenter", () => {
     expect(h2hModel.headToHeadRows[0]).toMatchObject({
       player: "OpponentOne",
       kills: 8,
-      killsText: "8 (2 perfs)",
+      killsText: "8 (2 perfects)",
       deaths: 4,
-      deathsText: "4 (1 perfs)",
+      deathsText: "4 (1 perfect)",
       gamesWithText: "3 - 1 (75.0%)",
       seriesWithText: "2 - 0 (100.0%)",
       gamesAgainstText: "3 - 2 (60.0%)",
@@ -171,9 +171,9 @@ describe("PlayerStatsPresenter", () => {
           {
             player: "OpponentOne",
             kills: 8,
-            killsText: "8 (2 perfs)",
+            killsText: "8 (2 perfects)",
             deaths: 4,
-            deathsText: "4 (1 perfs)",
+            deathsText: "4 (1 perfect)",
             gamesWithTotal: 4,
             gamesWithText: "3 - 1 (75.0%)",
             gamesWithWinRate: 75.0,
@@ -188,7 +188,7 @@ describe("PlayerStatsPresenter", () => {
             seriesAgainstWinRate: 50.0,
           },
         ]}
-        headToHeadFooter="Showing top 50 opponents and teammates by match activity"
+        headToHeadFooter="Showing top 50 players by total games played with or against them"
         onGuildChange={vi.fn()}
         onQueueChange={vi.fn()}
         onWindowChange={vi.fn()}
@@ -199,7 +199,7 @@ describe("PlayerStatsPresenter", () => {
 
     expect(screen.getByRole("table", { name: "Player head to head table" })).not.toBeNull();
     expect(screen.getByText("OpponentOne")).not.toBeNull();
-    expect(screen.getByText("8 (2 perfs)")).not.toBeNull();
+    expect(screen.getByText("8 (2 perfects)")).not.toBeNull();
     expect(screen.getByText("3 - 1 (75.0%)")).not.toBeNull();
 
     fireEvent.click(screen.getByRole("tab", { name: "Leaderboard stats" }));
@@ -225,9 +225,7 @@ describe("PlayerStatsPresenter", () => {
 
     expect(window.location.search).toContain("minGamesPlayed=8");
     await vi.waitFor(() => {
-      expect(getPlayerStatsSpy).toHaveBeenLastCalledWith(
-        expect.objectContaining({ minGamesPlayed: 8 }),
-      );
+      expect(getPlayerStatsSpy).toHaveBeenLastCalledWith(expect.objectContaining({ minGamesPlayed: 8 }));
     });
   });
 
@@ -357,9 +355,9 @@ describe("PlayerStatsPresenter", () => {
           {
             player: "PlayerLow",
             kills: 4,
-            killsText: "4 (0 perfs)",
+            killsText: "4 (0 perfects)",
             deaths: 6,
-            deathsText: "6 (0 perfs)",
+            deathsText: "6 (0 perfects)",
             gamesWithTotal: 4,
             gamesWithText: "1 - 3 (25.0%)",
             gamesWithWinRate: 25.0,
@@ -376,9 +374,9 @@ describe("PlayerStatsPresenter", () => {
           {
             player: "PlayerHigh",
             kills: 12,
-            killsText: "12 (3 perfs)",
+            killsText: "12 (3 perfects)",
             deaths: 2,
-            deathsText: "2 (0 perfs)",
+            deathsText: "2 (0 perfects)",
             gamesWithTotal: 4,
             gamesWithText: "3 - 1 (75.0%)",
             gamesWithWinRate: 75.0,

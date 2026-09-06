@@ -1,6 +1,7 @@
 import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import {
   formatMetricValue,
+  formatPerfects,
   getPlayerMetricValue,
   getObjectiveGamesPlayedForMetric,
   getPlayerStatMetricLabel,
@@ -254,8 +255,8 @@ export class PlayerStatsPresenter {
           });
 
     const headToHeadRows: readonly PlayerHeadToHeadTableRow[] = (response?.headToHeadSummaries ?? []).map((summary) => {
-      const killsText = `${summary.kills.toLocaleString()} (${summary.killsPerfects.toLocaleString()} perfs)`;
-      const deathsText = `${summary.deaths.toLocaleString()} (${summary.deathsPerfects.toLocaleString()} perfs)`;
+      const killsText = `${summary.kills.toLocaleString()} (${formatPerfects(summary.killsPerfects)})`;
+      const deathsText = `${summary.deaths.toLocaleString()} (${formatPerfects(summary.deathsPerfects)})`;
 
       const gamesWithLosses = Math.max(0, summary.gamesWith - summary.gameWinsWith);
       const gamesWithRecord = formatRecord(summary.gameWinsWith, gamesWithLosses, summary.gamesWith);
@@ -303,7 +304,7 @@ export class PlayerStatsPresenter {
     const totalPlayersText = totalPlayers == null ? "Unknown" : totalPlayers.toLocaleString();
     const statsFooter =
       stats == null ? undefined : `Min games: ${minGames.toString()} | Total players: ${totalPlayersText}`;
-    const headToHeadFooter = "Showing top 50 opponents and teammates by match activity";
+    const headToHeadFooter = "Showing top 50 players by total games played with and/or against them";
 
     return {
       state: snapshot.status,

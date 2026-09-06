@@ -190,7 +190,7 @@ export class LeaderboardService {
     requestedGuildId: string | undefined,
     queueChannelId: string | undefined,
     window: LeaderboardWindow | undefined,
-    minGamesPlayed?: number | undefined,
+    minGamesPlayed?: number,
   ): Promise<PlayerStatsResponse | null> {
     const player = await this.haloService.getUserByGamertag(gamertag);
     const discovery = await this.getLeaderboardPlayerDiscoveryForPlayer(player, requestedGuildId);

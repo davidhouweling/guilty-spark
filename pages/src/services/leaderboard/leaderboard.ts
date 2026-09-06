@@ -14,7 +14,13 @@ export class RealLeaderboardService implements LeaderboardService {
     this.apiHost = apiHost;
   }
 
-  async getLeaderboard({ guildId, queueChannelId, window, metric, minGamesPlayed }: LeaderboardRequest): Promise<LeaderboardResponse> {
+  async getLeaderboard({
+    guildId,
+    queueChannelId,
+    window,
+    metric,
+    minGamesPlayed,
+  }: LeaderboardRequest): Promise<LeaderboardResponse> {
     const url = new URL("/api/leaderboard", this.apiHost);
     url.searchParams.set("guildId", guildId);
     url.searchParams.set("pageSize", LEADERBOARD_MAX_PAGE_SIZE.toString());
