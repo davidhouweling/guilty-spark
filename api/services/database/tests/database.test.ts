@@ -4,7 +4,7 @@ import {
   LeaderboardMetricAggregation,
   LeaderboardWindow,
 } from "@guilty-spark/shared/halo/leaderboard";
-import { LeaderboardPlayerRelationshipMetric } from "../types/leaderboard_player_relationship";
+import { LeaderboardPlayerRelationshipMetric } from "@guilty-spark/shared/halo/leaderboard-formatting";
 import { getPlayerStatsMetricsForAggregation } from "../../../embeds/stats/player-stats-embed";
 import { aFakeEnvWith, fakeD1Response, FakePreparedStatement } from "../../../base/fakes/env.fake";
 import { SESSION_COOKIE_MAX_AGE_SECONDS } from "../../auth/session-manager";
@@ -40,6 +40,7 @@ import type { IndividualTrackerGamesRow } from "../types/individual_tracker_game
 import type { StreamerViewSettingsRow } from "../types/streamer_view_settings";
 import type { MatchKillMatrixRow } from "../types/match_kill_matrix";
 import type { LeaderboardPlayerStatsRow } from "../types/leaderboard_player_stats";
+import type { LeaderboardPlayerGuildStatsRow } from "../types/leaderboard_player_guild_stats";
 
 describe("Database Service", () => {
   let env: Env;
@@ -1474,6 +1475,38 @@ describe("Database Service", () => {
       expect(bindSpy).toHaveBeenCalledWith("guild-123", "queue-123");
       expect(firstSpy).toHaveBeenCalledTimes(1);
       expect(result).toBe(true);
+    });
+
+    it("gets leaderboard guilds for a player ordered by completed games", async () => {
+      const fakePreparedStatement = new FakePreparedStatement<LeaderboardPlayerGuildStatsRow>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({
+        results: [
+          { GuildId: "guild-2", GamesPlayed: 12 },
+          { GuildId: "guild-1", GamesPlayed: 4 },
+        ],
+        success: true,
+        meta: {
+          duration: 0,
+          size_after: 0,
+          rows_read: 2,
+          rows_written: 0,
+          last_row_id: 0,
+          changes: 0,
+          last_insert_rowid: 0,
+          changed_db: false,
+        },
+      });
+
+      const result = await databaseService.getLeaderboardPlayerGuildStats("xuid-1");
+
+      expect(prepareSpy).toHaveBeenCalledWith(expect.stringContaining("GROUP BY gamePlayers.GuildId"));
+      expect(bindSpy).toHaveBeenCalledWith("xuid-1");
+      expect(result).toEqual([
+        { GuildId: "guild-2", GamesPlayed: 12 },
+        { GuildId: "guild-1", GamesPlayed: 4 },
+      ]);
     });
 
     it("returns false when no leaderboard data exists", async () => {

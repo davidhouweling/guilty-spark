@@ -30,6 +30,13 @@ function findMetric(value: string | null): LeaderboardMetric | undefined {
   return Object.values(LeaderboardMetric).find((metric) => metric.toLowerCase() === value?.toLowerCase());
 }
 
+const MIN_GAMES_PLAYED_OPTIONS = Array.from({ length: 10 }, (_, index) => index + 1);
+
+function findMinGamesPlayed(value: string | null): number | undefined {
+  const parsedValue = value == null ? undefined : Number(value);
+  return parsedValue != null && MIN_GAMES_PLAYED_OPTIONS.includes(parsedValue) ? parsedValue : undefined;
+}
+
 function getMetricValue(value: number, metric: LeaderboardMetric): string {
   if (!Number.isFinite(value) || value === Number.MAX_VALUE) {
     return "∞";
@@ -67,6 +74,7 @@ export class LeaderboardPresenter {
   private currentQueueChannelId: string | null;
   private currentWindow: LeaderboardWindow | undefined;
   private currentMetric: LeaderboardMetric | undefined;
+  private currentMinGamesPlayed: number | undefined;
   private queueOptionsResponse: LeaderboardQueueOptionsResponse | null = null;
   private queueOptionsPromise: Promise<LeaderboardQueueOptionsResponse> | null = null;
   private isDisposed = false;
@@ -80,6 +88,7 @@ export class LeaderboardPresenter {
     this.initialResponse = initialResponse;
     this.currentWindow = findWindow(new URLSearchParams(window.location.search).get("window"));
     this.currentMetric = findMetric(new URLSearchParams(window.location.search).get("metric"));
+    this.currentMinGamesPlayed = findMinGamesPlayed(new URLSearchParams(window.location.search).get("minGamesPlayed"));
   }
 
   private readonly initialResponse: LeaderboardResponse | undefined;
@@ -104,6 +113,7 @@ export class LeaderboardPresenter {
       }
       this.currentWindow = initialResponse.window;
       this.currentMetric = initialResponse.metric;
+      this.currentMinGamesPlayed = initialResponse.minGamesPlayed;
       this.store.setLoaded(initialResponse, queueOptions);
     } catch {
       if (!this.isDisposed) {
@@ -126,6 +136,7 @@ export class LeaderboardPresenter {
           queueChannelId: this.currentQueueChannelId,
           window: this.currentWindow,
           metric: this.currentMetric,
+          minGamesPlayed: this.currentMinGamesPlayed,
         }),
         this.getQueueOptionsAsync(),
       ]);
@@ -134,6 +145,7 @@ export class LeaderboardPresenter {
       }
       this.currentWindow = response.window;
       this.currentMetric = response.metric;
+      this.currentMinGamesPlayed = response.minGamesPlayed;
       this.queueOptionsResponse = queueOptions;
       this.store.setLoaded(response, queueOptions);
     } catch {
@@ -181,6 +193,16 @@ export class LeaderboardPresenter {
       return;
     }
     this.currentMetric = metric;
+    this.updateUrl();
+    this.load();
+  }
+
+  changeMinGamesPlayed(value: string): void {
+    const minGamesPlayed = findMinGamesPlayed(value);
+    if (minGamesPlayed == null) {
+      return;
+    }
+    this.currentMinGamesPlayed = minGamesPlayed;
     this.updateUrl();
     this.load();
   }
@@ -242,6 +264,11 @@ export class LeaderboardPresenter {
       selectedQueueChannelId: this.currentQueueChannelId,
       selectedWindow: this.currentWindow ?? response?.window ?? LeaderboardWindow.ThreeMonths,
       selectedMetric: metric,
+      selectedMinGamesPlayed: this.currentMinGamesPlayed ?? response?.minGamesPlayed ?? 5,
+      minGamesPlayedOptions: MIN_GAMES_PLAYED_OPTIONS.map((value) => ({
+        value: value.toString(),
+        label: value.toString(),
+      })),
       onQueueChange: (value): void => {
         this.changeQueue(value);
       },
@@ -250,6 +277,9 @@ export class LeaderboardPresenter {
       },
       onMetricChange: (value): void => {
         this.changeMetric(value);
+      },
+      onMinGamesPlayedChange: (value): void => {
+        this.changeMinGamesPlayed(value);
       },
     };
   }
@@ -265,6 +295,9 @@ export class LeaderboardPresenter {
     }
     if (this.currentMetric != null) {
       query.set("metric", this.currentMetric.toLowerCase());
+    }
+    if (this.currentMinGamesPlayed != null) {
+      query.set("minGamesPlayed", this.currentMinGamesPlayed.toString());
     }
     const queryString = query.toString();
     window.history.replaceState({}, "", `${path}${queryString === "" ? "" : `?${queryString}`}`);

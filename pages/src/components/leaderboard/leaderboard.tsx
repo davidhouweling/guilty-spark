@@ -43,9 +43,12 @@ export function Leaderboard({
   selectedQueueChannelId,
   selectedWindow,
   selectedMetric,
+  selectedMinGamesPlayed,
+  minGamesPlayedOptions,
   onQueueChange,
   onWindowChange,
   onMetricChange,
+  onMinGamesPlayedChange,
 }: LeaderboardViewModel): React.ReactElement {
   const columns = useMemo<readonly SortableTableColumn<LeaderboardTableRow>[]>(
     () => [
@@ -144,6 +147,21 @@ export function Leaderboard({
             }}
           >
             {windowOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+        </label>
+        <label>
+          <span>Minimum games</span>
+          <Select
+            value={selectedMinGamesPlayed.toString()}
+            onChange={(event): void => {
+              onMinGamesPlayedChange(event.target.value);
+            }}
+          >
+            {minGamesPlayedOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>

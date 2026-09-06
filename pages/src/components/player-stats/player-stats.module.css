@@ -57,15 +57,20 @@
   padding: var(--space-3);
 }
 
-.error {
-  border-left: 3px solid var(--color-warning);
-  margin: var(--space-12) auto;
-  max-width: 38rem;
-  padding: var(--space-6);
+.tabContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
-.error p {
+.footer {
+  border-top: 1px solid color-mix(in srgb, var(--halo-teal-primary) 15%, transparent);
   color: var(--halo-gray);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-3);
+  text-align: right;
 }
 
 .empty {

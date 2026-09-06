@@ -38,7 +38,7 @@ describe("Server", () => {
   describe("GET /", () => {
     it("responds with a welcome message containing the DISCORD_APP_ID", async () => {
       const req = new Request("http://localhost/", { method: "GET" });
-      const res = (await server.router.fetch(req, env)) as Response;
+      const res = await server.router.fetch(req, env);
       const text = await res.text();
       expect(res.status).toBe(200);
       expect(text).toContain(env.DISCORD_APP_ID);
@@ -49,7 +49,7 @@ describe("Server", () => {
   describe("Unknown route", () => {
     it("responds with 404", async () => {
       const req = new Request("http://localhost/unknown", { method: "GET" });
-      const res = (await server.router.fetch(req, env)) as Response;
+      const res = await server.router.fetch(req, env);
       expect(res.status).toBe(404);
       const text = await res.text();
       expect(text).toBe("Not Found.");
@@ -64,7 +64,7 @@ describe("Server", () => {
           Origin: env.PAGES_URL,
         },
       });
-      const res = (await server.router.fetch(req, env)) as Response;
+      const res = await server.router.fetch(req, env);
 
       expect(res.status).toBe(204);
       expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
@@ -86,7 +86,7 @@ describe("Server", () => {
 
     it("returns 404 when the operation is not in the allowlist", async () => {
       const req = new Request("http://localhost/proxy/halo-infinite/notARealMethod", { method: "GET" });
-      const res = (await server.router.fetch(req, env)) as Response;
+      const res = await server.router.fetch(req, env);
       expect(res.status).toBe(404);
       const text = await res.text();
       expect(text).toContain("Operation not found");
@@ -98,7 +98,7 @@ describe("Server", () => {
         body: JSON.stringify({ args: ["discord_user_01"] }),
         headers: { "content-type": "application/json" },
       });
-      const res = (await server.router.fetch(req, env)) as Response;
+      const res = await server.router.fetch(req, env);
       expect(res.status).toBe(405);
       const text = await res.text();
       expect(text).toBe("Method not allowed");
@@ -109,7 +109,7 @@ describe("Server", () => {
       const req = new Request("http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22", {
         method: "GET",
       });
-      const res = (await server.router.fetch(req, env, ctx)) as Response;
+      const res = await server.router.fetch(req, env, ctx);
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body).toEqual({
@@ -130,7 +130,7 @@ describe("Server", () => {
       const req = new Request("http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22", {
         method: "GET",
       });
-      const res = (await server.router.fetch(req, env, ctx)) as Response;
+      const res = await server.router.fetch(req, env, ctx);
       expect(res.status).toBe(200);
       expect(res.headers.get("Cache-Control")).toBe("public, max-age=86400, stale-while-revalidate=3600");
     });
@@ -141,7 +141,7 @@ describe("Server", () => {
       const req = new Request(`http://localhost/proxy/halo-infinite/getUsers?arg=${arg}`, {
         method: "GET",
       });
-      const res = (await server.router.fetch(req, env, ctx)) as Response;
+      const res = await server.router.fetch(req, env, ctx);
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body).toEqual([
@@ -161,7 +161,7 @@ describe("Server", () => {
 
     it("returns 400 for a GET operation with non-JSON query arguments", async () => {
       const req = new Request("http://localhost/proxy/halo-infinite/getUser?arg=not-json", { method: "GET" });
-      const res = (await server.router.fetch(req, env)) as Response;
+      const res = await server.router.fetch(req, env);
       expect(res.status).toBe(400);
       const text = await res.text();
       expect(text).toBe("Invalid query arguments");
@@ -209,7 +209,7 @@ describe("Server", () => {
         method: "GET",
         headers: { cookie: "auth-session=valid-token", Origin: env.PAGES_URL },
       });
-      const res = (await server.router.fetch(req, env, ctx)) as Response;
+      const res = await server.router.fetch(req, env, ctx);
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body).toEqual({
@@ -280,7 +280,7 @@ describe("Server", () => {
         method: "GET",
         headers: { cookie: "auth-session=expired-token" },
       });
-      const res = (await server.router.fetch(req, env, ctx)) as Response;
+      const res = await server.router.fetch(req, env, ctx);
       expect(res.status).toBe(200);
       expect(res.headers.get("Set-Cookie")).toBeNull();
 
@@ -316,7 +316,7 @@ describe("Server", () => {
         method: "GET",
         headers: { cookie: "auth-session=expired-token" },
       });
-      const res = (await server.router.fetch(req, env)) as Response;
+      const res = await server.router.fetch(req, env);
       expect(res.status).toBe(401);
       const text = await res.text();
       expect(text).toBe("Unauthorized");
@@ -338,7 +338,7 @@ describe("Server", () => {
       const req = new Request("http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22", {
         method: "GET",
       });
-      const res = (await server.router.fetch(req, env, ctx)) as Response;
+      const res = await server.router.fetch(req, env, ctx);
       expect(res.status).toBe(500);
       const body = await res.json<{ error: string }>();
       expect(body).toEqual({ error: "Proxy request failed" });
@@ -349,7 +349,7 @@ describe("Server", () => {
       const url = "http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22";
 
       const firstReq = new Request(url, { method: "GET" });
-      const firstRes = (await server.router.fetch(firstReq, env, ctx)) as Response;
+      const firstRes = await server.router.fetch(firstReq, env, ctx);
       expect(firstRes.status).toBe(200);
       expect(firstRes.headers.get("Cache-Control")).toBe("public, max-age=86400, stale-while-revalidate=3600");
 
@@ -382,11 +382,11 @@ describe("Server", () => {
 
       const url = "http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22";
 
-      const firstRes = (await server.router.fetch(new Request(url, { method: "GET" }), env, ctx)) as Response;
+      const firstRes = await server.router.fetch(new Request(url, { method: "GET" }), env, ctx);
       expect(firstRes.status).toBe(200);
       expect(getUserSpy).toHaveBeenCalledTimes(1);
 
-      const secondRes = (await server.router.fetch(new Request(url, { method: "GET" }), env, ctx)) as Response;
+      const secondRes = await server.router.fetch(new Request(url, { method: "GET" }), env, ctx);
       expect(secondRes.status).toBe(200);
       expect(await secondRes.json()).toEqual({
         xuid: "0000000000001",
@@ -415,7 +415,7 @@ describe("Server", () => {
       });
 
       const url = "http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22";
-      const res = (await server.router.fetch(new Request(url, { method: "GET" }), env, ctx)) as Response;
+      const res = await server.router.fetch(new Request(url, { method: "GET" }), env, ctx);
       expect(res.status).toBe(500);
 
       const stored = await cache.match(new Request(url, { method: "GET" }));
@@ -444,7 +444,7 @@ describe("Server", () => {
           method: "GET",
         },
       );
-      const res = (await server.router.fetch(req, env, ctx)) as Response;
+      const res = await server.router.fetch(req, env, ctx);
       expect(res.status).toBe(200);
       const body = await res.json();
 
@@ -476,7 +476,7 @@ describe("Server", () => {
           method: "GET",
         },
       );
-      const res = (await server.router.fetch(req, env, ctx)) as Response;
+      const res = await server.router.fetch(req, env, ctx);
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body).toMatchObject({ xuid: "0000000000001", gamertag: "gamertag01" });
@@ -507,7 +507,7 @@ describe("Server", () => {
           method: "GET",
         },
       );
-      const res = (await server.router.fetch(req, env, ctx)) as Response;
+      const res = await server.router.fetch(req, env, ctx);
       expect(res.status).toBe(200);
       expect(botGetUserSpy).toHaveBeenCalledWith("discord_user_01");
     });
@@ -533,7 +533,7 @@ describe("Server", () => {
 
       // Populate the cache via a request that carries ?gamertag=.
       const ownerReq = new Request(`${baseUrl}&gamertag=OwnerTag`, { method: "GET" });
-      const ownerRes = (await server.router.fetch(ownerReq, env, ctx)) as Response;
+      const ownerRes = await server.router.fetch(ownerReq, env, ctx);
       expect(ownerRes.status).toBe(200);
       expect(ownerGetUserSpy).toHaveBeenCalledTimes(1);
 
@@ -544,13 +544,13 @@ describe("Server", () => {
       // A subsequent route request with a DIFFERENT gamertag is served from that shared entry
       // (the gamertag is stripped before keying), so the Halo client is not invoked again.
       const otherReq = new Request(`${baseUrl}&gamertag=SomeoneElse`, { method: "GET" });
-      const otherRes = (await server.router.fetch(otherReq, env, ctx)) as Response;
+      const otherRes = await server.router.fetch(otherReq, env, ctx);
       expect(otherRes.status).toBe(200);
       expect(ownerGetUserSpy).toHaveBeenCalledTimes(1);
 
       // And a plain request (no gamertag) is likewise served from the same shared entry.
       const plainReq = new Request(baseUrl, { method: "GET" });
-      const plainRes = (await server.router.fetch(plainReq, env, ctx)) as Response;
+      const plainRes = await server.router.fetch(plainReq, env, ctx);
       expect(plainRes.status).toBe(200);
       expect(ownerGetUserSpy).toHaveBeenCalledTimes(1);
     });
@@ -564,7 +564,7 @@ describe("Server", () => {
           Origin: env.PAGES_URL,
         },
       });
-      const res = (await server.router.fetch(req, env)) as Response;
+      const res = await server.router.fetch(req, env);
 
       expect(res.status).toBe(204);
       expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
@@ -602,7 +602,7 @@ describe("Server", () => {
         passThroughOnException: vi.fn(),
       };
 
-      const res = (await server.router.fetch(req, env, ctx as EventContext<Env, "", unknown>)) as Response;
+      const res = await server.router.fetch(req, env, ctx as EventContext<Env, "", unknown>);
       expect(res.status).toBe(401);
       const text = await res.text();
       expect(text).toBe("Bad request signature.");
@@ -634,7 +634,7 @@ describe("Server", () => {
         passThroughOnException: vi.fn(),
       };
 
-      const res = (await server.router.fetch(req, env, ctx as EventContext<Env, "", unknown>)) as Response;
+      const res = await server.router.fetch(req, env, ctx as EventContext<Env, "", unknown>);
       expect(res.status).toBe(500);
       const text = await res.text();
       expect(text).toBe("Internal error");
@@ -644,7 +644,7 @@ describe("Server", () => {
   describe("GET /tracker/:guildId/:queueNumber/status", () => {
     it("returns 400 when queueNumber is not a valid number", async () => {
       const req = new Request("http://localhost/tracker/guild123/notanumber/status", { method: "GET" });
-      const res = (await server.router.fetch(req, env)) as Response;
+      const res = await server.router.fetch(req, env);
       expect(res.status).toBe(400);
       const text = await res.text();
       expect(text).toBe("Invalid queue number");
@@ -652,7 +652,7 @@ describe("Server", () => {
 
     it("forwards the DO 200 response when the tracker exists", async () => {
       const req = new Request("http://localhost/tracker/guild123/42/status", { method: "GET" });
-      const res = (await server.router.fetch(req, env)) as Response;
+      const res = await server.router.fetch(req, env);
       expect(res.status).toBe(200);
     });
 
@@ -662,7 +662,7 @@ describe("Server", () => {
       vi.spyOn(stub, "fetch").mockResolvedValue(new Response("Not Found", { status: 404 }));
 
       const req = new Request("http://localhost/tracker/guild123/42/status", { method: "GET" });
-      const res = (await server.router.fetch(req, fakeEnv)) as Response;
+      const res = await server.router.fetch(req, fakeEnv);
       expect(res.status).toBe(404);
     });
   });
@@ -670,7 +670,7 @@ describe("Server", () => {
   describe("GET /ws/tracker/:guildId/:queueNumber", () => {
     it("returns 400 when queueNumber is not a valid number", async () => {
       const req = new Request("http://localhost/ws/tracker/guild123/notanumber", { method: "GET" });
-      const res = (await server.router.fetch(req, env)) as Response;
+      const res = await server.router.fetch(req, env);
       expect(res.status).toBe(400);
       const text = await res.text();
       expect(text).toBe("Invalid queue number");
@@ -684,7 +684,7 @@ describe("Server", () => {
       });
 
       const req = new Request("http://localhost/ws/tracker/guild123/42", { method: "GET" });
-      const res = (await server.router.fetch(req, fakeEnv)) as Response;
+      const res = await server.router.fetch(req, fakeEnv);
       expect(res.status).toBe(500);
       const text = await res.text();
       expect(text).toBe("Internal Server Error");

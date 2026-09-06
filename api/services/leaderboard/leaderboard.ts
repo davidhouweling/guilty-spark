@@ -1,6 +1,6 @@
 import { MatchOutcome } from "halo-infinite-api";
 import type { MatchStats } from "halo-infinite-api";
-import type { APIMessage } from "discord-api-types/v10";
+import type { APIMessage, APIChannel } from "discord-api-types/v10";
 import { sub } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
@@ -16,6 +16,8 @@ import {
   getLeaderboardMetricAggregation,
 } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardMetricAggregation } from "@guilty-spark/shared/halo/leaderboard";
+import type { PlayerStatsResponse } from "@guilty-spark/shared/contracts/stats/player";
+import type { LeaderboardPlayerRelationshipMetric } from "@guilty-spark/shared/halo/leaderboard-formatting";
 import type { DatabaseService } from "../database/database";
 import type { DiscordService } from "../discord/discord";
 import { DiscordError } from "../discord/discord-error";
@@ -27,14 +29,12 @@ import type { LeaderboardConfigRow } from "../database/types/leaderboard_config"
 import type { NeatQueueConfigRow } from "../database/types/neat_queue_config";
 import type { LeaderboardPostRow } from "../database/types/leaderboard_post";
 import type { LeaderboardPlayerStatsRow } from "../database/types/leaderboard_player_stats";
+import type { LeaderboardPlayerGuildStatsRow } from "../database/types/leaderboard_player_guild_stats";
+import type { UserInfo, Medal } from "../halo/types";
 import type { LeaderboardPlayerMetricRank } from "../database/types/leaderboard_player_metric_rank";
-import type {
-  LeaderboardPlayerRelationshipMetric,
-  LeaderboardPlayerRelationshipRow,
-} from "../database/types/leaderboard_player_relationship";
+import type { LeaderboardPlayerRelationshipRow } from "../database/types/leaderboard_player_relationship";
 import type { LeaderboardPlayerPairRelationshipRow } from "../database/types/leaderboard_player_pair_relationship";
 import type { HaloService } from "../halo/halo";
-import type { Medal } from "../halo/types";
 import type { LogService } from "../log/types";
 import type { NeatQueueMatchCompletedRequest } from "../neatqueue/types";
 import { getLeaderboardMessageState } from "./leaderboard-message";
@@ -64,8 +64,8 @@ export interface GetLeaderboardPlayerStatsOpts {
   guildId: string;
   xboxXuid: string;
   queueChannelId: string | null;
-  queueChannelIds?: string[];
-  window?: LeaderboardWindow;
+  queueChannelIds?: string[] | undefined;
+  window?: LeaderboardWindow | undefined;
 }
 
 export interface LeaderboardPlayerStatsResponse {
@@ -75,6 +75,30 @@ export interface LeaderboardPlayerStatsResponse {
   startEpochSeconds: number;
   minGamesPlayed: number;
   defaultAggregation: LeaderboardMetricAggregation;
+}
+
+export interface LeaderboardPlayerServerOption {
+  guildId: string;
+  guildName: string;
+  gamesPlayed: number;
+  queueOptions: readonly { channelId: string; label: string }[];
+}
+
+export interface LeaderboardPlayerDiscoveryResponse {
+  player: { xboxXuid: string; gamertag: string };
+  servers: readonly LeaderboardPlayerServerOption[];
+  selectedGuildId: string;
+  selectedGuildName: string;
+  queueOptions: readonly { channelId: string; label: string }[];
+}
+
+export interface LeaderboardPlayerPageResponse {
+  guildId: string;
+  guildName: string;
+  queueChannelId: string | null;
+  queueLabel: string;
+  window: LeaderboardWindow;
+  stats: LeaderboardPlayerStatsRow | null;
 }
 
 export interface GetLeaderboardPlayerMetricRanksOpts {
@@ -121,6 +145,199 @@ export class LeaderboardService {
     this.logService = logService;
   }
 
+  private clampMinGamesPlayed(value: number | null | undefined, fallback = 5): number {
+    const candidate = value ?? fallback;
+    if (!Number.isFinite(candidate)) {
+      return fallback;
+    }
+
+    return Math.min(10, Math.max(1, Math.trunc(candidate)));
+  }
+
+  async getLeaderboardPlayerDiscovery(
+    gamertag: string,
+    requestedGuildId: string | undefined,
+  ): Promise<LeaderboardPlayerDiscoveryResponse | null> {
+    const player = await this.haloService.getUserByGamertag(gamertag);
+    return await this.getLeaderboardPlayerDiscoveryForPlayer(player, requestedGuildId);
+  }
+
+  private async getLeaderboardPlayerDiscoveryForPlayer(
+    player: UserInfo,
+    requestedGuildId: string | undefined,
+  ): Promise<LeaderboardPlayerDiscoveryResponse | null> {
+    const guildStats = await this.databaseService.getLeaderboardPlayerGuildStats(player.xuid);
+    if (guildStats.length === 0) {
+      return null;
+    }
+
+    const servers = await Promise.all(guildStats.map(async (guildStat) => this.getPlayerServerOption(guildStat)));
+
+    const selectedServer =
+      requestedGuildId == null ? servers[0] : servers.find((server) => server.guildId === requestedGuildId);
+    if (selectedServer == null) {
+      return null;
+    }
+
+    return {
+      player: { xboxXuid: player.xuid, gamertag: player.gamertag },
+      servers,
+      selectedGuildId: selectedServer.guildId,
+      selectedGuildName: selectedServer.guildName,
+      queueOptions: selectedServer.queueOptions,
+    };
+  }
+
+  async getLeaderboardPlayerStatsForGamertag(
+    gamertag: string,
+    requestedGuildId: string | undefined,
+    queueChannelId: string | undefined,
+    window: LeaderboardWindow | undefined,
+    minGamesPlayed?: number,
+  ): Promise<PlayerStatsResponse | null> {
+    const player = await this.haloService.getUserByGamertag(gamertag);
+    const discovery = await this.getLeaderboardPlayerDiscoveryForPlayer(player, requestedGuildId);
+    if (discovery == null) {
+      return null;
+    }
+
+    const queueChannelIds =
+      queueChannelId == null ? discovery.queueOptions.map((queueOption) => queueOption.channelId) : undefined;
+    const selectedStats = await this.getLeaderboardPlayerStats({
+      guildId: discovery.selectedGuildId,
+      xboxXuid: player.xuid,
+      queueChannelId: queueChannelId ?? null,
+      ...(queueChannelIds == null ? {} : { queueChannelIds }),
+      ...(window == null ? {} : { window }),
+    });
+
+    const resolvedWindow = selectedStats?.window ?? window ?? LeaderboardWindow.ThreeMonths;
+    const resolvedMinGamesPlayed = this.clampMinGamesPlayed(minGamesPlayed ?? selectedStats?.minGamesPlayed ?? 5);
+
+    let ranks: Record<string, { rank: number; total: number } | null> = {};
+    const relationships: Record<string, LeaderboardPlayerRelationshipRow[]> = {};
+    let headToHeadSummaries: PlayerStatsResponse["headToHeadSummaries"] = [];
+    let totalPlayers: number | null = null;
+
+    if (selectedStats != null) {
+      const allMetrics = Object.values(LeaderboardMetric);
+      const metricRanks = await this.getLeaderboardPlayerMetricRanks({
+        guildId: discovery.selectedGuildId,
+        xboxXuid: player.xuid,
+        queueChannelId: queueChannelId ?? null,
+        ...(queueChannelIds == null ? {} : { queueChannelIds }),
+        startEpochSeconds: selectedStats.startEpochSeconds,
+        minGamesPlayed: resolvedMinGamesPlayed,
+        metrics: allMetrics,
+      });
+
+      ranks = Object.fromEntries(
+        Array.from(metricRanks.entries()).map(([metric, rank]) => [
+          metric,
+          rank == null ? null : { rank: rank.rank, total: rank.total },
+        ]),
+      );
+      totalPlayers = metricRanks.get(LeaderboardMetric.GamesPlayed)?.total ?? null;
+
+      const [h2hSummaries] = await Promise.all([
+        this.databaseService.getLeaderboardPlayerHeadToHeadSummaries({
+          guildId: discovery.selectedGuildId,
+          xboxXuid: player.xuid,
+          queueChannelId: queueChannelId ?? null,
+          ...(queueChannelIds == null ? {} : { queueChannelIds }),
+          startEpochSeconds: selectedStats.startEpochSeconds,
+          minGamesPlayed: resolvedMinGamesPlayed,
+          limit: 50,
+        }),
+      ]);
+
+      headToHeadSummaries = h2hSummaries.map((summary) => ({
+        xboxXuid: summary.XboxXuid,
+        discordUserId: summary.DiscordUserId,
+        gamertag: summary.Gamertag,
+        kills: summary.Kills,
+        killsPerfects: summary.KillsPerfects,
+        deaths: summary.Deaths,
+        deathsPerfects: summary.DeathsPerfects,
+        headToHeadGames: summary.HeadToHeadGames,
+        gamesWith: summary.GamesWith,
+        gameWinsWith: summary.GameWinsWith,
+        gamesAgainst: summary.GamesAgainst,
+        gameWinsAgainst: summary.GameWinsAgainst,
+        opponentGameWins: summary.OpponentGameWins,
+        seriesWith: summary.SeriesWith,
+        seriesWinsWith: summary.SeriesWinsWith,
+        seriesAgainst: summary.SeriesAgainst,
+        seriesWinsAgainst: summary.SeriesWinsAgainst,
+        opponentSeriesWins: summary.OpponentSeriesWins,
+      }));
+    }
+
+    return {
+      player: discovery.player,
+      servers: discovery.servers.map((server) => ({ ...server, queueOptions: [...server.queueOptions] })),
+      selectedGuildId: discovery.selectedGuildId,
+      selectedGuildName: discovery.selectedGuildName,
+      queueOptions: [...discovery.queueOptions],
+      window: resolvedWindow,
+      resetAt: selectedStats?.resetAt ?? null,
+      stats: selectedStats?.stats ?? null,
+      ranks,
+      relationships,
+      headToHeadSummaries,
+      minGamesPlayed: resolvedMinGamesPlayed,
+      totalPlayers,
+    };
+  }
+
+  private async getPlayerServerOption(
+    guildStats: LeaderboardPlayerGuildStatsRow,
+  ): Promise<LeaderboardPlayerServerOption> {
+    let guildName = `Guild ${guildStats.GuildId}`;
+    if (this.discordService != null) {
+      try {
+        const guild = await this.discordService.getGuild(guildStats.GuildId);
+        if (guild.name.trim() !== "") {
+          guildName = guild.name.trim();
+        }
+      } catch (error) {
+        this.logService.warn(
+          error,
+          new Map([
+            ["guildId", guildStats.GuildId],
+            ["reason", "Failed to resolve player stats guild name"],
+          ]),
+        );
+      }
+    }
+
+    const queueChannelIds = await this.databaseService.getLeaderboardQueueChannelIds(guildStats.GuildId);
+    let channels: APIChannel[] = [];
+    if (queueChannelIds.length > 0 && this.discordService != null) {
+      try {
+        channels = await this.discordService.getGuildChannels(guildStats.GuildId);
+      } catch (error) {
+        this.logService.warn(
+          error,
+          new Map([
+            ["guildId", guildStats.GuildId],
+            ["reason", "Failed to resolve player stats queue names"],
+          ]),
+        );
+      }
+    }
+    const channelsById = new Map(channels.map((channel) => [channel.id, channel]));
+    const queueOptions = queueChannelIds.map((channelId) => {
+      const channel = channelsById.get(channelId);
+      return {
+        channelId,
+        label: channel?.name == null || channel.name === "" ? `Queue ${channelId}` : `#${channel.name}`,
+      };
+    });
+
+    return { guildId: guildStats.GuildId, guildName, gamesPlayed: guildStats.GamesPlayed, queueOptions };
+  }
+
   async getLeaderboardPlayerStats({
     guildId,
     xboxXuid,
@@ -159,7 +376,7 @@ export class LeaderboardService {
           window: resolvedWindow,
           resetAt,
           startEpochSeconds,
-          minGamesPlayed: config.MinGamesPlayed,
+          minGamesPlayed: this.clampMinGamesPlayed(config.MinGamesPlayed),
           defaultAggregation: getLeaderboardMetricAggregation(config.DefaultMetric),
         };
   }
@@ -612,7 +829,7 @@ export class LeaderboardService {
             : (window ?? resolvedConfig.DefaultWindow),
         resetAt: null,
         metric: metric ?? resolvedConfig.DefaultMetric,
-        minGamesPlayed: minGamesPlayed ?? resolvedConfig.MinGamesPlayed,
+        minGamesPlayed: this.clampMinGamesPlayed(minGamesPlayed ?? resolvedConfig.MinGamesPlayed),
         page: Math.max(1, page ?? 1),
         pageSize: Math.min(LEADERBOARD_MAX_PAGE_SIZE, Math.max(1, pageSize ?? 25)),
         total: 0,
@@ -636,7 +853,7 @@ export class LeaderboardService {
     const resolvedResetAt =
       resolvedWindow === LeaderboardWindow.LastReset ? Preconditions.checkExists(resetMarkerResetAt) : null;
     const resolvedMetric = metric ?? resolvedConfig.DefaultMetric;
-    const resolvedMinGamesPlayed = minGamesPlayed ?? resolvedConfig.MinGamesPlayed;
+    const resolvedMinGamesPlayed = this.clampMinGamesPlayed(minGamesPlayed ?? resolvedConfig.MinGamesPlayed);
     const resolvedPage = Math.max(1, page ?? 1);
     const resolvedPageSize = Math.min(LEADERBOARD_MAX_PAGE_SIZE, Math.max(1, pageSize ?? 25));
     const offset = (resolvedPage - 1) * resolvedPageSize;

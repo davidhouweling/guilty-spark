@@ -20,9 +20,12 @@ function aLeaderboardViewModelWith(rows: LeaderboardViewModel["rows"]): Leaderbo
     selectedQueueChannelId: null,
     selectedWindow: LeaderboardWindow.TwelveMonths,
     selectedMetric: LeaderboardMetric.Kills,
+    selectedMinGamesPlayed: 5,
+    minGamesPlayedOptions: [{ value: "5", label: "5" }],
     onQueueChange: (): void => void 0,
     onWindowChange: (): void => void 0,
     onMetricChange: (): void => void 0,
+    onMinGamesPlayedChange: (): void => void 0,
   };
 }
 

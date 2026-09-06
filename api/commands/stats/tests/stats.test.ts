@@ -31,7 +31,7 @@ import {
   LeaderboardMetricAggregation,
   LeaderboardWindow,
 } from "@guilty-spark/shared/halo/leaderboard";
-import { LeaderboardPlayerRelationshipMetric } from "../../../services/database/types/leaderboard_player_relationship";
+import { LeaderboardPlayerRelationshipMetric } from "@guilty-spark/shared/halo/leaderboard-formatting";
 import { StatsCommand } from "../stats";
 import type { Services } from "../../../services/install";
 import { installFakeServicesWith } from "../../../services/fakes/services";

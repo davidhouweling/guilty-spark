@@ -34,9 +34,12 @@ export interface LeaderboardViewModel {
   readonly selectedQueueChannelId: string | null;
   readonly selectedWindow: LeaderboardWindow;
   readonly selectedMetric: LeaderboardMetric;
+  readonly selectedMinGamesPlayed: number;
+  readonly minGamesPlayedOptions: readonly LeaderboardOption[];
   readonly onQueueChange: (value: string) => void;
   readonly onWindowChange: (value: string) => void;
   readonly onMetricChange: (value: string) => void;
+  readonly onMinGamesPlayedChange: (value: string) => void;
 }
 
 export interface LeaderboardPresentableSnapshot extends LeaderboardSnapshot {

@@ -34,7 +34,7 @@ import {
   LeaderboardMetricAggregation,
   LeaderboardWindow,
 } from "@guilty-spark/shared/halo/leaderboard";
-import type { LeaderboardPlayerRelationshipMetric } from "../../services/database/types/leaderboard_player_relationship";
+import type { LeaderboardPlayerRelationshipMetric } from "@guilty-spark/shared/halo/leaderboard-formatting";
 import type { BaseInteraction, ExecuteResponse, ApplicationCommandData, CommandData } from "../base/base-command";
 import { BaseCommand } from "../base/base-command";
 import { NEAT_QUEUE_BOT_USER_ID } from "../../services/discord/discord";

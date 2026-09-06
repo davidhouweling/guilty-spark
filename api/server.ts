@@ -1,5 +1,5 @@
-import type { AutoRouterType } from "itty-router";
 import type { installServices } from "./services/install";
+import type { ApiRouter } from "./base/router";
 import { authRoutesRegisterHandler } from "./routes/auth/auth";
 import { discordInteractionsRoute } from "./routes/discord/interactions";
 import { individualTrackerRoutesRegisterHandler } from "./routes/individual-tracker/individual-tracker";
@@ -9,12 +9,12 @@ import { statsRoutesRegisterHandler } from "./routes/stats/stats";
 import { leaderboardRoutesRegisterHandler } from "./routes/leaderboard/leaderboard";
 
 interface ServerOpts {
-  router: AutoRouterType;
+  router: ApiRouter;
   installServices: typeof installServices;
 }
 
 export class Server {
-  readonly router: AutoRouterType;
+  readonly router: ApiRouter;
   private readonly installServices: typeof installServices;
 
   constructor({ router, installServices }: ServerOpts) {
