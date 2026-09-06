@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { Alert } from "../alert/alert";
 import { Heading } from "../heading/heading";
 import { LoadingState } from "../loading-state/loading-state";
 import { Select } from "../select/select";
@@ -13,17 +14,6 @@ import type {
   PlayerStatsViewModel,
 } from "./types";
 import styles from "./player-stats.module.css";
-
-function ErrorContent({ message }: { readonly message: string }): React.ReactElement {
-  return (
-    <div className={styles.error}>
-      <Heading tagName="h2" variant="display">
-        Player stats unavailable
-      </Heading>
-      <p>{message}</p>
-    </div>
-  );
-}
 
 function EmptyContent({ message }: { readonly message?: string | undefined }): React.ReactElement {
   return (
@@ -196,7 +186,7 @@ export function PlayerStats({
   if (state === "error") {
     return (
       <div className={styles.page}>
-        <ErrorContent message={errorMessage ?? "Unable to load player stats."} />
+        <Alert variant="error">{errorMessage ?? "Unable to load player stats."}</Alert>
       </div>
     );
   }

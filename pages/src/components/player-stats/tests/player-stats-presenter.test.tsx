@@ -167,6 +167,36 @@ describe("PlayerStatsPresenter", () => {
     expect(screen.getByText("Min games: 5 | Total players: 10")).not.toBeNull();
   });
 
+  it("renders load errors with the shared error alert", () => {
+    render(
+      <PlayerStats
+        state="error"
+        gamertag="Master Chief"
+        scopeLabel=""
+        servers={[]}
+        queueOptions={[]}
+        windowOptions={[]}
+        selectedGuildId=""
+        selectedQueueChannelId={null}
+        selectedWindow={LeaderboardWindow.ThreeMonths}
+        selectedMinGamesPlayed={5}
+        minGamesPlayedOptions={[]}
+        selectedTabId="stats"
+        statsRows={[]}
+        headToHeadRows={[]}
+        errorMessage="Unable to load player stats."
+        onGuildChange={vi.fn()}
+        onQueueChange={vi.fn()}
+        onWindowChange={vi.fn()}
+        onMinGamesPlayedChange={vi.fn()}
+        onTabChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("alert")).not.toBeNull();
+    expect(screen.getByText("Unable to load player stats.")).not.toBeNull();
+  });
+
   it("renders head to head tab when selected and responds to tab click", () => {
     const onTabChange = vi.fn();
     render(

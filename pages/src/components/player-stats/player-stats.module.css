@@ -73,17 +73,6 @@
   text-align: right;
 }
 
-.error {
-  border-left: 3px solid var(--color-warning);
-  margin: var(--space-12) auto;
-  max-width: 38rem;
-  padding: var(--space-6);
-}
-
-.error p {
-  color: var(--halo-gray);
-}
-
 .empty {
   padding: var(--space-8) var(--space-4);
   text-align: center;
