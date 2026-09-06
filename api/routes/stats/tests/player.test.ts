@@ -9,14 +9,15 @@ import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeLeaderboardPlayerStatsRow } from "../../../services/database/fakes/database.fake";
 import { statsRoutesRegisterHandler } from "../stats";
 
-const env = aFakeEnvWith();
-let router: AutoRouterType;
-
-beforeEach(() => {
-  router = createApiRouter();
-});
-
 describe("/api/stats/player/:gamertag", () => {
+  let env: Env;
+  let router: AutoRouterType;
+
+  beforeEach(() => {
+    env = aFakeEnvWith();
+    router = createApiRouter();
+  });
+
   it("returns the resolved player and selected server discovery data", async () => {
     const services = installFakeServicesWith({ env });
     const playerStats: PlayerStatsResponse = {
