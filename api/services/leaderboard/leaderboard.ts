@@ -205,10 +205,13 @@ export class LeaderboardService {
       return null;
     }
 
+    const queueChannelIds =
+      queueChannelId == null ? discovery.queueOptions.map((queueOption) => queueOption.channelId) : undefined;
     const selectedStats = await this.getLeaderboardPlayerStats({
       guildId: discovery.selectedGuildId,
       xboxXuid: player.xuid,
       queueChannelId: queueChannelId ?? null,
+      ...(queueChannelIds == null ? {} : { queueChannelIds }),
       ...(window == null ? {} : { window }),
     });
 
@@ -226,6 +229,7 @@ export class LeaderboardService {
         guildId: discovery.selectedGuildId,
         xboxXuid: player.xuid,
         queueChannelId: queueChannelId ?? null,
+        ...(queueChannelIds == null ? {} : { queueChannelIds }),
         startEpochSeconds: selectedStats.startEpochSeconds,
         minGamesPlayed: resolvedMinGamesPlayed,
         metrics: allMetrics,
@@ -244,6 +248,7 @@ export class LeaderboardService {
           guildId: discovery.selectedGuildId,
           xboxXuid: player.xuid,
           queueChannelId: queueChannelId ?? null,
+          ...(queueChannelIds == null ? {} : { queueChannelIds }),
           startEpochSeconds: selectedStats.startEpochSeconds,
           minGamesPlayed: resolvedMinGamesPlayed,
           limit: 50,

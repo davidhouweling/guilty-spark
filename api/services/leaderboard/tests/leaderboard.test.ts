@@ -1193,8 +1193,10 @@ describe("LeaderboardService", () => {
     vi.spyOn(databaseService, "getLeaderboardPlayerGuildStats").mockResolvedValue([
       { GuildId: "guild-1", GamesPlayed: 10 },
     ]);
-    vi.spyOn(databaseService, "getLeaderboardQueueChannelIds").mockResolvedValue(["queue-1"]);
-    vi.spyOn(service, "getLeaderboardPlayerStats").mockResolvedValue({
+    const getQueueChannelIdsSpy = vi
+      .spyOn(databaseService, "getLeaderboardQueueChannelIds")
+      .mockResolvedValue(["queue-1"]);
+    const getPlayerStatsSpy = vi.spyOn(service, "getLeaderboardPlayerStats").mockResolvedValue({
       stats: aFakeLeaderboardPlayerStatsRow({ XboxXuid: "xuid-1", Gamertag: "Master Chief" }),
       window: LeaderboardWindow.ThreeMonths,
       resetAt: null,
@@ -1202,34 +1204,36 @@ describe("LeaderboardService", () => {
       minGamesPlayed: 5,
       defaultAggregation: LeaderboardMetricAggregation.Total,
     });
-    vi.spyOn(service, "getLeaderboardPlayerMetricRanks").mockResolvedValue(
+    const getMetricRanksSpy = vi.spyOn(service, "getLeaderboardPlayerMetricRanks").mockResolvedValue(
       new Map([
         [LeaderboardMetric.Kills, { rank: 1, total: 10 }],
         [LeaderboardMetric.GamesPlayed, { rank: 2, total: 10 }],
       ]),
     );
-    vi.spyOn(databaseService, "getLeaderboardPlayerHeadToHeadSummaries").mockResolvedValue([
-      {
-        XboxXuid: "xuid-2",
-        DiscordUserId: null,
-        Gamertag: "Opponent",
-        Kills: 8,
-        KillsPerfects: 2,
-        Deaths: 4,
-        DeathsPerfects: 1,
-        HeadToHeadGames: 2,
-        GamesWith: 4,
-        GameWinsWith: 3,
-        GamesAgainst: 5,
-        GameWinsAgainst: 3,
-        OpponentGameWins: 2,
-        SeriesWith: 2,
-        SeriesWinsWith: 2,
-        SeriesAgainst: 2,
-        SeriesWinsAgainst: 1,
-        OpponentSeriesWins: 1,
-      },
-    ]);
+    const getHeadToHeadSummariesSpy = vi
+      .spyOn(databaseService, "getLeaderboardPlayerHeadToHeadSummaries")
+      .mockResolvedValue([
+        {
+          XboxXuid: "xuid-2",
+          DiscordUserId: null,
+          Gamertag: "Opponent",
+          Kills: 8,
+          KillsPerfects: 2,
+          Deaths: 4,
+          DeathsPerfects: 1,
+          HeadToHeadGames: 2,
+          GamesWith: 4,
+          GameWinsWith: 3,
+          GamesAgainst: 5,
+          GameWinsAgainst: 3,
+          OpponentGameWins: 2,
+          SeriesWith: 2,
+          SeriesWinsWith: 2,
+          SeriesAgainst: 2,
+          SeriesWinsAgainst: 1,
+          OpponentSeriesWins: 1,
+        },
+      ]);
 
     const result = await service.getLeaderboardPlayerStatsForGamertag("Master Chief", "guild-1", undefined, undefined);
 
@@ -1240,5 +1244,24 @@ describe("LeaderboardService", () => {
     expect(result?.headToHeadSummaries).toHaveLength(1);
     expect(result?.headToHeadSummaries[0]?.gamertag).toBe("Opponent");
     expect(result?.totalPlayers).toBe(10);
+    expect(getQueueChannelIdsSpy).toHaveBeenCalledWith("guild-1");
+    expect(getPlayerStatsSpy).toHaveBeenCalledWith({
+      guildId: "guild-1",
+      xboxXuid: "xuid-1",
+      queueChannelId: null,
+      queueChannelIds: ["queue-1"],
+    });
+    expect(getMetricRanksSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queueChannelId: null,
+        queueChannelIds: ["queue-1"],
+      }),
+    );
+    expect(getHeadToHeadSummariesSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queueChannelId: null,
+        queueChannelIds: ["queue-1"],
+      }),
+    );
   });
 });
