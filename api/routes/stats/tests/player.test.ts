@@ -136,6 +136,22 @@ describe("/api/stats/player/:gamertag", () => {
     expect(payload.headToHeadSummaries[0]?.gamertag).toBe("Opponent");
   });
 
+  it("rejects invalid minGamesPlayed values before fetching stats", async () => {
+    const services = installFakeServicesWith({ env });
+    const discoverySpy = vi.spyOn(services.leaderboardService, "getLeaderboardPlayerStatsForGamertag");
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      new Request("http://localhost/api/stats/player/Master%20Chief?minGamesPlayed=0"),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Invalid player stats query parameters" });
+    expect(discoverySpy).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["no data", null],
     ["an invalid requested server", null],

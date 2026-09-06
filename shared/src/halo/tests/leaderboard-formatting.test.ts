@@ -3,6 +3,7 @@ import { LeaderboardMetric } from "../leaderboard";
 import {
   LeaderboardPlayerRelationshipMetric,
   formatMetricValue,
+  formatPerfects,
   formatRank,
   formatRelationshipValue,
   getPlayerStatMetricLabel,
@@ -19,6 +20,14 @@ describe("leaderboard-formatting", () => {
       expect(formatRank(3)).toBe("🥉");
       expect(formatRank(4)).toBe("#4");
       expect(formatRank(10)).toBe("#10");
+    });
+  });
+
+  describe("formatPerfects()", () => {
+    it("uses singular and plural forms for perfect counts", () => {
+      expect(formatPerfects(1)).toBe("1 perfect");
+      expect(formatPerfects(2)).toBe("2 perfects");
+      expect(formatPerfects(0)).toBe("0 perfects");
     });
   });
 
