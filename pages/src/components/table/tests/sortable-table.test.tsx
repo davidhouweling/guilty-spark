@@ -274,4 +274,104 @@ describe("SortableTable", () => {
     expect(secondSort).toMatch(/ascending|descending/);
     expect(secondSort).not.toBe(firstSort);
   });
+
+  it("cycles through ascending, descending, and unsorted (removing sort) on repeated clicks", async () => {
+    const user = userEvent.setup();
+
+    render(<SortableTable data={testData} columns={columns} ariaLabel="Test table" />);
+
+    const nameHeaders = screen.getAllByText("Name");
+    const [nameHeader] = nameHeaders;
+    const headerCell = nameHeader.closest("th");
+
+    expect(headerCell).toHaveAttribute("aria-sort", "none");
+
+    // Click 1: Ascending
+    await user.click(nameHeader);
+    expect(headerCell).toHaveAttribute("aria-sort", "ascending");
+    let rows = screen.getAllByRole("row").slice(1);
+    expect(within(rows[0]).getByText("Alice")).toBeInTheDocument();
+    expect(within(rows[2]).getByText("Charlie")).toBeInTheDocument();
+
+    // Click 2: Descending
+    await user.click(nameHeader);
+    expect(headerCell).toHaveAttribute("aria-sort", "descending");
+    rows = screen.getAllByRole("row").slice(1);
+    expect(within(rows[0]).getByText("Charlie")).toBeInTheDocument();
+    expect(within(rows[2]).getByText("Alice")).toBeInTheDocument();
+
+    // Click 3: Unsorted (back to original array order)
+    await user.click(nameHeader);
+    expect(headerCell).toHaveAttribute("aria-sort", "none");
+    rows = screen.getAllByRole("row").slice(1);
+    expect(within(rows[0]).getByText("Alice")).toBeInTheDocument();
+    expect(within(rows[1]).getByText("Bob")).toBeInTheDocument();
+    expect(within(rows[2]).getByText("Charlie")).toBeInTheDocument();
+  });
+
+  it("respects sortDescFirst: false on numeric columns to start ascending", async () => {
+    const user = userEvent.setup();
+    const customColumns: SortableTableColumn<TestRow>[] = [
+      {
+        id: "score",
+        header: "Score",
+        accessorFn: (row) => row.score,
+        sortDescFirst: false,
+      },
+    ];
+
+    render(<SortableTable data={testData} columns={customColumns} ariaLabel="Test table" />);
+
+    const scoreHeaders = screen.getAllByText("Score");
+    const [scoreHeader] = scoreHeaders;
+    const headerCell = scoreHeader.closest("th");
+
+    await user.click(scoreHeader);
+    expect(headerCell).toHaveAttribute("aria-sort", "ascending");
+
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(within(rows[0]).getByText("85")).toBeInTheDocument();
+  });
+
+  it("sorts undefined values to the end with sortUndefined: 'last'", async () => {
+    const user = userEvent.setup();
+    interface RowWithOptional {
+      id: number;
+      rank?: number | undefined;
+    }
+    const data: RowWithOptional[] = [
+      { id: 1, rank: 3 },
+      { id: 2, rank: undefined },
+      { id: 3, rank: 1 },
+    ];
+    const customColumns: SortableTableColumn<RowWithOptional>[] = [
+      {
+        id: "rank",
+        header: "Rank",
+        accessorFn: (row) => row.rank,
+        cell: (val: unknown) =>
+          val == null ? "Unranked" : `#${typeof val === "number" || typeof val === "string" ? val.toString() : ""}`,
+        sortDescFirst: false,
+        sortUndefined: "last",
+      },
+    ];
+
+    render(<SortableTable data={data} columns={customColumns} ariaLabel="Test table" />);
+
+    const rankHeader = screen.getByText("Rank");
+
+    // Click 1: Ascending -> 1, 3, Unranked
+    await user.click(rankHeader);
+    let rows = screen.getAllByRole("row").slice(1);
+    expect(within(rows[0]).getByText("#1")).toBeInTheDocument();
+    expect(within(rows[1]).getByText("#3")).toBeInTheDocument();
+    expect(within(rows[2]).getByText("Unranked")).toBeInTheDocument();
+
+    // Click 2: Descending -> 3, 1, Unranked (Unranked remains at bottom)
+    await user.click(rankHeader);
+    rows = screen.getAllByRole("row").slice(1);
+    expect(within(rows[0]).getByText("#3")).toBeInTheDocument();
+    expect(within(rows[1]).getByText("#1")).toBeInTheDocument();
+    expect(within(rows[2]).getByText("Unranked")).toBeInTheDocument();
+  });
 });

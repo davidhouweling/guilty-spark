@@ -7,6 +7,8 @@ import {
   createSortedRowModel,
   sortFn_alphanumeric,
   sortFn_basic,
+  sortFn_text,
+  sortFn_datetime,
   flexRender,
 } from "@tanstack/react-table";
 import type { ColumnDef, SortingState, SortDirection, RowData } from "@tanstack/react-table";
@@ -17,7 +19,12 @@ const sortableTableFeatures = tableFeatures({
   rowSortingFeature,
   columnVisibilityFeature,
   sortedRowModel: createSortedRowModel(),
-  sortFns: { alphanumeric: sortFn_alphanumeric, basic: sortFn_basic },
+  sortFns: {
+    alphanumeric: sortFn_alphanumeric,
+    basic: sortFn_basic,
+    text: sortFn_text,
+    datetime: sortFn_datetime,
+  },
 });
 
 type SortableTableFeatures = typeof sortableTableFeatures;
@@ -33,7 +40,7 @@ export interface SortableTableColumn<TData extends RowData> extends Omit<
   /** Function to extract cell value from row data */
   accessorFn: (row: TData) => unknown;
   /** Function to render cell content (optional, defaults to displaying the value) */
-  cell?: (value: unknown, row: TData) => React.ReactNode;
+  cell?: (value: unknown, row: TData, rowIndex: number) => React.ReactNode;
   /** Optional CSS class for header cells */
   headerClassName?: string;
   /** Optional inline style for header cells */
@@ -46,6 +53,10 @@ export interface SortableTableColumn<TData extends RowData> extends Omit<
   enableSorting?: boolean;
   /** Sorting function name used by the table */
   sortFn?: ColumnDef<SortableTableFeatures, TData>["sortFn"];
+  /** Whether the first sort direction should be descending (default: auto) */
+  sortDescFirst?: boolean | undefined;
+  /** Behavior for sorting undefined values (default: "last") */
+  sortUndefined?: false | -1 | 1 | "first" | "last" | undefined;
 }
 
 export interface SortableTableProps<TData extends RowData> {
@@ -103,10 +114,12 @@ export function SortableTable<TData extends RowData>({
         header: (): React.ReactNode => col.header,
         cell: (info): React.ReactNode => {
           const value = info.getValue();
-          return col.cell != null ? col.cell(value, info.row.original) : (value as React.ReactNode);
+          return col.cell != null ? col.cell(value, info.row.original, info.row.index) : (value as React.ReactNode);
         },
         enableSorting: col.enableSorting !== false,
         sortFn: col.sortFn ?? "auto",
+        sortDescFirst: col.sortDescFirst,
+        sortUndefined: col.sortUndefined ?? "last",
       })),
     [columns],
   );

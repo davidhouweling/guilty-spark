@@ -6,6 +6,7 @@ export interface LeaderboardRequest {
   readonly queueChannelId: string | null;
   readonly window?: LeaderboardWindow | undefined;
   readonly metric?: LeaderboardMetric | undefined;
+  readonly minGamesPlayed?: number | undefined;
 }
 
 export interface LeaderboardService {

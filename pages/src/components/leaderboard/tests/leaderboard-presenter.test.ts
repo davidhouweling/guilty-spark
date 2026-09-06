@@ -64,7 +64,7 @@ describe("LeaderboardPresenter", () => {
     presenter.present(store.getSnapshot()).onWindowChange(LeaderboardWindow.SixMonths);
 
     expect(window.location.pathname).toBe("/leaderboard/guild-1");
-    expect(window.location.search).toBe("?window=6m&metric=kills");
+    expect(window.location.search).toBe("?window=6m&metric=kills&minGamesPlayed=5");
   });
 
   it("changes to a queue route without a full page navigation", async () => {
