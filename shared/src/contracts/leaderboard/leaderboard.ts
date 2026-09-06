@@ -37,7 +37,7 @@ export const leaderboardContract = defineContract(
     window: z.enum(LeaderboardWindow),
     resetAt: z.number().int().nonnegative().nullable().optional(),
     metric: z.enum(LeaderboardMetric),
-    minGamesPlayed: z.number().int().nonnegative(),
+    minGamesPlayed: z.number().int().min(1).max(10),
     page: z.number().int().positive(),
     pageSize: z.number().int().positive(),
     total: z.number().int().nonnegative(),

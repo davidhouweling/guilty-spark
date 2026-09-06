@@ -63,25 +63,6 @@
   gap: var(--space-4);
 }
 
-.relationshipControls {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-}
-
-.relationshipControls label {
-  color: var(--halo-gray);
-  display: grid;
-  font-size: var(--text-xs);
-  gap: var(--space-2);
-  text-transform: uppercase;
-}
-
-.relationshipControls select {
-  text-transform: none;
-}
-
 .footer {
   border-top: 1px solid color-mix(in srgb, var(--halo-teal-primary) 15%, transparent);
   color: var(--halo-gray);

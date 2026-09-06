@@ -155,7 +155,7 @@ export function PlayerStats({
                 <SortableTable
                   data={statsRows}
                   columns={statColumns}
-                  getRowKey={(row, index): string => `${row.stat}-${index.toString()}`}
+                  getRowKey={(row): string => row.stat}
                   ariaLabel="Player stats table"
                 />
                 {statsFooter != null && <p className={styles.footer}>{statsFooter}</p>}
@@ -176,7 +176,7 @@ export function PlayerStats({
                 <SortableTable
                   data={headToHeadRows}
                   columns={headToHeadColumns}
-                  getRowKey={(row, index): string => `${row.player}-${index.toString()}`}
+                  getRowKey={(row): string => row.player}
                   ariaLabel="Player head to head table"
                 />
                 {headToHeadFooter != null && <p className={styles.footer}>{headToHeadFooter}</p>}
