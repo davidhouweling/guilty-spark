@@ -1,28 +1,229 @@
-import type { ReactElement } from "react";
+import React, { useMemo } from "react";
+import { Alert } from "../alert/alert";
 import { Heading } from "../heading/heading";
+import { LoadingState } from "../loading-state/loading-state";
+import { Select } from "../select/select";
+import { TabbedSection } from "../tabbed-section/tabbed-section";
+import type { TabbedSectionTab } from "../tabbed-section/types";
+import { SortableTable } from "../table/sortable-table";
+import type { SortableTableColumn } from "../table/sortable-table";
+import type { PlayerCompareStatRow, PlayerCompareTabId, PlayerCompareValueCell, PlayerCompareViewModel } from "./types";
 import styles from "./player-compare.module.css";
 
-interface PlayerCompareProps {
-  readonly apiHost: string;
-  readonly gamertags: readonly string[];
+function EmptyContent(): React.ReactElement {
+  return (
+    <div className={styles.empty}>
+      <Heading tagName="h2" variant="display">
+        Add players to compare
+      </Heading>
+      <p>Enter at least two gamertags to compare leaderboard stats.</p>
+    </div>
+  );
 }
 
-export function PlayerCompare({ gamertags }: PlayerCompareProps): ReactElement {
+function getCompareValue(row: PlayerCompareStatRow, gamertag: string): PlayerCompareValueCell | undefined {
+  return row.values.find((value) => value.gamertag === gamertag);
+}
+
+function createPlayerColumn(gamertag: string): SortableTableColumn<PlayerCompareStatRow> {
+  return {
+    id: gamertag,
+    header: gamertag,
+    accessorFn: (row): number | undefined => getCompareValue(row, gamertag)?.sortValue,
+    cell: (_value, row): React.ReactNode => getCompareValue(row, gamertag)?.text ?? "-",
+    sortDescFirst: true,
+    sortUndefined: "last",
+  };
+}
+
+export function PlayerCompare({
+  state,
+  errorMessage,
+  gamertags,
+  title,
+  scopeLabel,
+  servers,
+  queueOptions,
+  windowOptions,
+  selectedGuildId,
+  selectedQueueChannelId,
+  selectedWindow,
+  selectedMinGamesPlayed,
+  minGamesPlayedOptions,
+  selectedTabId,
+  statsRows,
+  addPlayerValue,
+  canAddPlayer,
+  statusText,
+  onAddPlayerValueChange,
+  onAddPlayer,
+  onGuildChange,
+  onQueueChange,
+  onWindowChange,
+  onMinGamesPlayedChange,
+  onTabChange,
+}: PlayerCompareViewModel): React.ReactElement {
+  const statColumns = useMemo<readonly SortableTableColumn<PlayerCompareStatRow>[]>(
+    () => [
+      {
+        id: "stat",
+        header: "Stat",
+        accessorFn: (row): string => row.stat,
+        sortDescFirst: false,
+      },
+      ...gamertags.map((gamertag) => createPlayerColumn(gamertag)),
+    ],
+    [gamertags],
+  );
+
+  const tabs = useMemo<readonly TabbedSectionTab<PlayerCompareTabId>[]>(
+    () => [
+      {
+        id: "stats",
+        label: "Leaderboard stats",
+        content: (
+          <div className={styles.tabContent}>
+            {statsRows.length === 0 ? (
+              <EmptyContent />
+            ) : (
+              <SortableTable
+                data={statsRows}
+                columns={statColumns}
+                getRowKey={(row): string => row.stat}
+                ariaLabel="Player comparison table"
+              />
+            )}
+          </div>
+        ),
+      },
+      {
+        id: "head-to-head",
+        label: "Head to head",
+        content: (
+          <div className={styles.tabContent}>
+            <EmptyContent />
+          </div>
+        ),
+      },
+    ],
+    [statColumns, statsRows],
+  );
+
+  if (state === "error") {
+    return (
+      <div className={styles.page}>
+        <Alert variant="error">{errorMessage ?? "Unable to load player comparison."}</Alert>
+      </div>
+    );
+  }
+
   return (
     <main className={styles.page}>
       <div className={styles.header}>
-        <Heading tagName="h1" variant="display">
-          Compare players
-        </Heading>
-        <p className={styles.subtitle}>Comparing {gamertags.length.toString()} players</p>
+        <div>
+          <Heading tagName="h1" variant="display">
+            {title}
+          </Heading>
+          <p className={styles.scope}>{scopeLabel}</p>
+        </div>
+        <div className={styles.status} data-loading={state === "loading"}>
+          {statusText}
+        </div>
       </div>
-      <ul className={styles.list}>
-        {gamertags.map((gamertag) => (
-          <li key={gamertag} className={styles.item}>
-            {gamertag}
-          </li>
-        ))}
-      </ul>
+
+      <div className={styles.addPlayer}>
+        <label>
+          <span>Gamertag</span>
+          <input
+            value={addPlayerValue}
+            placeholder="Add player"
+            onChange={(event): void => {
+              onAddPlayerValueChange(event.target.value);
+            }}
+          />
+        </label>
+        <button type="button" disabled={!canAddPlayer} onClick={onAddPlayer}>
+          Add player
+        </button>
+      </div>
+
+      {servers.length > 0 && (
+        <div className={styles.controls} aria-label="Player comparison filters">
+          <label>
+            <span>Discord server</span>
+            <Select
+              value={selectedGuildId}
+              onChange={(event): void => {
+                onGuildChange(event.target.value);
+              }}
+            >
+              {servers.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label>
+            <span>Queue</span>
+            <Select
+              value={selectedQueueChannelId ?? "all"}
+              onChange={(event): void => {
+                onQueueChange(event.target.value);
+              }}
+            >
+              {queueOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label>
+            <span>Window</span>
+            <Select
+              value={selectedWindow}
+              onChange={(event): void => {
+                onWindowChange(event.target.value);
+              }}
+            >
+              {windowOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label>
+            <span>Minimum games</span>
+            <Select
+              value={selectedMinGamesPlayed.toString()}
+              onChange={(event): void => {
+                onMinGamesPlayedChange(event.target.value);
+              }}
+            >
+              {minGamesPlayedOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </label>
+        </div>
+      )}
+
+      <section className={styles.tableSection}>
+        {state === "loading" ? (
+          <LoadingState text="Loading player comparison..." />
+        ) : (
+          <TabbedSection
+            tabs={tabs}
+            selectedTabId={selectedTabId}
+            tabListAriaLabel="Player comparison tabs"
+            onTabChange={onTabChange}
+          />
+        )}
+      </section>
     </main>
   );
 }

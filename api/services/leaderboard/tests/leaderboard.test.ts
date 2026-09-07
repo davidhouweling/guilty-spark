@@ -1310,7 +1310,7 @@ describe("LeaderboardService", () => {
     ]);
     const getPlayerStatsForGamertagSpy = vi
       .spyOn(service, "getLeaderboardPlayerStatsForGamertag")
-      .mockImplementation(async (gamertag, requestedGuildId, queueChannelId, window, minGamesPlayed) => ({
+      .mockImplementation(async (gamertag, requestedGuildId, _queueChannelId, window, minGamesPlayed) => ({
         player: { xboxXuid: gamertag === "Alpha" ? "xuid-1" : "xuid-2", gamertag },
         servers: [],
         selectedGuildId: requestedGuildId ?? "guild-b",
