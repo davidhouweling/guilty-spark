@@ -317,7 +317,7 @@ function createPlayerStatsLinkButtonRow(
     components: [
       {
         type: ComponentType.Button,
-        label: "View player stats",
+        label: "View player stats in browser",
         style: ButtonStyle.Link,
         emoji: { name: "👤" },
         url: getWebPlayerStatsUrl(pagesUrl, gamertag, guildId, queueChannelId),

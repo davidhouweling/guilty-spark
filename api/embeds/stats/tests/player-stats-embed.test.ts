@@ -238,7 +238,7 @@ describe("createPlayerStatsEmbeds()", () => {
     if (linkRow?.type === ComponentType.ActionRow && linkRow.components[0]?.type === ComponentType.Button) {
       expect(linkRow.components[0]).toMatchObject({
         style: ButtonStyle.Link,
-        label: "View player stats",
+        label: "View player stats in browser",
         url: "https://pages.example/stats/player/Master%20Chief?guildId=guild-123&queueChannelId=queue-123",
       });
     }
@@ -288,7 +288,7 @@ describe("getPlayerStatsStateFromMessage()", () => {
             {
               type: ComponentType.Button,
               style: ButtonStyle.Link,
-              label: "View player stats",
+              label: "View player stats in browser",
               url: "https://pages.example/stats/player/Master%20Chief?guildId=guild-123",
             },
           ],
