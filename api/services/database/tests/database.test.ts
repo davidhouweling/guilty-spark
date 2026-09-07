@@ -1509,6 +1509,39 @@ describe("Database Service", () => {
       ]);
     });
 
+    it("finds XboxXuid by GamertagSnapshot in game players", async () => {
+      const fakePreparedStatement = new FakePreparedStatement<{ XboxXuid: string } | null>();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      const firstSpy = vi.spyOn(fakePreparedStatement, "first").mockResolvedValue({ XboxXuid: "xuid-soundman" });
+
+      const result = await databaseService.findLeaderboardPlayerXuidByGamertag("soundmanD", "guild-1");
+
+      expect(result).toBe("xuid-soundman");
+      expect(prepareSpy).toHaveBeenCalledWith(expect.stringContaining("FROM LeaderboardGamePlayers"));
+      expect(prepareSpy).toHaveBeenCalledWith(expect.stringContaining("GamertagSnapshot COLLATE NOCASE = ?"));
+      expect(firstSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("falls back to series players when no game-player GamertagSnapshot matches", async () => {
+      const gamePlayersStatement = new FakePreparedStatement<{ XboxXuid: string } | null>();
+      const seriesPlayersStatement = new FakePreparedStatement<{ XboxXuid: string } | null>();
+      const prepareSpy = vi
+        .spyOn(env.DB, "prepare")
+        .mockReturnValueOnce(gamePlayersStatement)
+        .mockReturnValueOnce(seriesPlayersStatement);
+      vi.spyOn(gamePlayersStatement, "bind").mockReturnThis();
+      vi.spyOn(seriesPlayersStatement, "bind").mockReturnThis();
+      vi.spyOn(gamePlayersStatement, "first").mockResolvedValue(null);
+      vi.spyOn(seriesPlayersStatement, "first").mockResolvedValue({ XboxXuid: "xuid-series-only" });
+
+      const result = await databaseService.findLeaderboardPlayerXuidByGamertag("soundmanD", "guild-1");
+
+      expect(result).toBe("xuid-series-only");
+      expect(prepareSpy).toHaveBeenNthCalledWith(2, expect.stringContaining("FROM LeaderboardSeriesPlayers"));
+      expect(prepareSpy).toHaveBeenNthCalledWith(2, expect.stringContaining("GamertagSnapshot COLLATE NOCASE = ?"));
+    });
+
     it("returns false when no leaderboard data exists", async () => {
       const fakePreparedStatement = new FakePreparedStatement<{ "1": number } | null>();
       vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);

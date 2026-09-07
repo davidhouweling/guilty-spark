@@ -664,7 +664,7 @@ describe("LeaderboardCommand", () => {
           {
             type: ComponentType.Button,
             style: ButtonStyle.Link,
-            label: "View leaderboard",
+            label: "View leaderboard in browser",
             emoji: { name: "🏆" },
             url: "http://localhost:4321/leaderboard/guild-123",
           },

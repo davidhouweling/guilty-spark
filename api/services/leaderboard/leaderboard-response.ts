@@ -466,7 +466,7 @@ function createLeaderboardLinkButtonRow(
     components: [
       {
         type: ComponentType.Button,
-        label: "View leaderboard",
+        label: "View leaderboard in browser",
         style: ButtonStyle.Link,
         emoji: { name: "🏆" },
         url: getLeaderboardWebUrl(pagesUrl, guildId, queueChannelId),

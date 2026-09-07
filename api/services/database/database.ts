@@ -1700,6 +1700,66 @@ export class DatabaseService {
     return response.results.map((row) => row.QueueChannelId);
   }
 
+  async findLeaderboardPlayerXuidByGamertag(gamertag: string, guildId: string | undefined): Promise<string | null> {
+    const gamePlayersStmt =
+      guildId != null
+        ? this.DB.prepare(
+            `SELECT gamePlayers.XboxXuid
+             FROM LeaderboardGamePlayers gamePlayers
+             INNER JOIN LeaderboardGames games
+               ON games.GuildId = gamePlayers.GuildId
+               AND games.QueueNumber = gamePlayers.QueueNumber
+               AND games.MatchId = gamePlayers.MatchId
+             WHERE gamePlayers.GamertagSnapshot COLLATE NOCASE = ?
+               AND gamePlayers.GuildId = ?
+             ORDER BY games.EndedAt DESC, games.MatchId DESC
+             LIMIT 1`,
+          ).bind(gamertag, guildId)
+        : this.DB.prepare(
+            `SELECT gamePlayers.XboxXuid
+             FROM LeaderboardGamePlayers gamePlayers
+             INNER JOIN LeaderboardGames games
+               ON games.GuildId = gamePlayers.GuildId
+               AND games.QueueNumber = gamePlayers.QueueNumber
+               AND games.MatchId = gamePlayers.MatchId
+             WHERE gamePlayers.GamertagSnapshot COLLATE NOCASE = ?
+             ORDER BY games.EndedAt DESC, games.MatchId DESC
+             LIMIT 1`,
+          ).bind(gamertag);
+
+    const gamePlayersRow = await gamePlayersStmt.first<{ XboxXuid: string }>();
+    if (gamePlayersRow != null) {
+      return gamePlayersRow.XboxXuid;
+    }
+
+    const seriesPlayersStmt =
+      guildId != null
+        ? this.DB.prepare(
+            `SELECT seriesPlayers.XboxXuid
+             FROM LeaderboardSeriesPlayers seriesPlayers
+             INNER JOIN LeaderboardSeries series
+               ON series.GuildId = seriesPlayers.GuildId
+               AND series.QueueNumber = seriesPlayers.QueueNumber
+             WHERE seriesPlayers.GamertagSnapshot COLLATE NOCASE = ?
+               AND seriesPlayers.GuildId = ?
+             ORDER BY series.CompletedAt DESC, series.QueueNumber DESC
+             LIMIT 1`,
+          ).bind(gamertag, guildId)
+        : this.DB.prepare(
+            `SELECT seriesPlayers.XboxXuid
+             FROM LeaderboardSeriesPlayers seriesPlayers
+             INNER JOIN LeaderboardSeries series
+               ON series.GuildId = seriesPlayers.GuildId
+               AND series.QueueNumber = seriesPlayers.QueueNumber
+             WHERE seriesPlayers.GamertagSnapshot COLLATE NOCASE = ?
+             ORDER BY series.CompletedAt DESC, series.QueueNumber DESC
+             LIMIT 1`,
+          ).bind(gamertag);
+
+    const seriesPlayersRow = await seriesPlayersStmt.first<{ XboxXuid: string }>();
+    return seriesPlayersRow?.XboxXuid ?? null;
+  }
+
   async getLeaderboardPlayerGuildStats(xboxXuid: string): Promise<LeaderboardPlayerGuildStatsRow[]> {
     const stmt = this.DB.prepare(
       `SELECT gamePlayers.GuildId, COUNT(*) AS GamesPlayed

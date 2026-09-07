@@ -5,7 +5,7 @@ import type {
   APIMessageTopLevelComponent,
   APISelectMenuOption,
 } from "discord-api-types/v10";
-import { ComponentType } from "discord-api-types/v10";
+import { ButtonStyle, ComponentType } from "discord-api-types/v10";
 import { GameVariantCategory } from "halo-infinite-api";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { LeaderboardResponse } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
@@ -34,7 +34,6 @@ export const PLAYER_STATS_TEMPORARY_ERROR_FOOTER = "Temporary player stats error
 
 export const ALL_QUEUES_VALUE = "-";
 const DISCORD_EMBED_FIELD_VALUE_LIMIT = 1024;
-const PLAYER_STATS_STATE_URL_PREFIX = "https://guilty-spark.app/stats/player/";
 
 export interface PlayerStatsQueueOption {
   label: string;
@@ -42,7 +41,7 @@ export interface PlayerStatsQueueOption {
 }
 
 interface PlayerStatsViewStateBase {
-  xboxXuid: string;
+  gamertag: string;
   queueChannelId: string | null;
   window: LeaderboardWindow;
 }
@@ -292,6 +291,41 @@ export function createWindowSelectOptions(
   }));
 }
 
+export function getWebPlayerStatsUrl(
+  pagesUrl: string,
+  gamertag: string,
+  guildId: string,
+  queueChannelId: string | null = null,
+): string {
+  const normalizedPagesUrl = pagesUrl.replace(/\/$/, "");
+  const baseUrl = `${normalizedPagesUrl}/stats/player/${encodeURIComponent(gamertag)}`;
+  const params = new URLSearchParams({ guildId });
+  if (queueChannelId != null) {
+    params.set("queueChannelId", queueChannelId);
+  }
+  return `${baseUrl}?${params.toString()}`;
+}
+
+function createPlayerStatsLinkButtonRow(
+  pagesUrl: string,
+  gamertag: string,
+  guildId: string,
+  queueChannelId: string | null,
+): APIMessageTopLevelComponent {
+  return {
+    type: ComponentType.ActionRow,
+    components: [
+      {
+        type: ComponentType.Button,
+        label: "View player stats in browser",
+        style: ButtonStyle.Link,
+        emoji: { name: "👤" },
+        url: getWebPlayerStatsUrl(pagesUrl, gamertag, guildId, queueChannelId),
+      },
+    ],
+  };
+}
+
 function shouldShowQueueSelect(state: PlayerStatsViewState, queueOptions: readonly PlayerStatsQueueOption[]): boolean {
   // Showing the select only when there's a real choice would hide it for single-queue players,
   // dropping their explicit queue selection on later interactions (the select's absence is read as
@@ -304,6 +338,9 @@ function createViewControls(
   state: PlayerStatsViewState,
   queueOptions: readonly PlayerStatsQueueOption[],
   resetAt: number | null,
+  pagesUrl: string | null | undefined,
+  targetGamertag: string | undefined,
+  guildId: string | undefined,
 ): APIMessageTopLevelComponent[] {
   const controls: APIMessageTopLevelComponent[] = [];
 
@@ -351,6 +388,10 @@ function createViewControls(
       ],
     },
   );
+
+  if (pagesUrl != null && targetGamertag != null && guildId != null) {
+    controls.push(createPlayerStatsLinkButtonRow(pagesUrl, targetGamertag, guildId, state.queueChannelId));
+  }
 
   return controls;
 }
@@ -504,18 +545,55 @@ function createFooterText(minGamesPlayed: number, totalPlayers: number | null, l
   return `Min games: ${minGamesPlayed.toString()} | Total players: ${totalPlayersText}`;
 }
 
-function getXboxXuidFromEmbedUrl(embeds: readonly APIEmbed[]): string | null {
-  const url = embeds[0]?.url;
-  if (url == null) {
+function getGamertagFromMessageComponents(components: readonly APIMessageTopLevelComponent[]): string | null {
+  for (const row of components) {
+    if (row.type !== ComponentType.ActionRow) {
+      continue;
+    }
+
+    for (const component of row.components) {
+      if (component.type !== ComponentType.Button || component.style !== ButtonStyle.Link) {
+        continue;
+      }
+
+      try {
+        const parsedUrl = new URL(component.url);
+        const pathSegments = parsedUrl.pathname.split("/").filter((segment) => segment !== "");
+        if (pathSegments[0] === "stats" && pathSegments[1] === "player" && pathSegments[2] != null) {
+          const gamertag = decodeURIComponent(pathSegments[2]);
+          if (gamertag !== "") {
+            return gamertag;
+          }
+        }
+      } catch {
+        // Ignore invalid URL string
+      }
+    }
+  }
+
+  return null;
+}
+
+function getGamertagFromEmbedTitle(embeds: readonly APIEmbed[]): string | null {
+  const title = embeds[0]?.title;
+  if (title == null || title === "") {
     return null;
   }
 
-  if (!url.startsWith(PLAYER_STATS_STATE_URL_PREFIX)) {
-    return null;
+  const separatorIndex = title.lastIndexOf(" - ");
+  const candidate = (separatorIndex === -1 ? title : title.slice(0, separatorIndex)).trim();
+  return candidate === "" ? null : candidate;
+}
+
+function getGamertagFromMessage(message: APIMessage): string | null {
+  if (message.components != null) {
+    const gamertagFromComponents = getGamertagFromMessageComponents(message.components);
+    if (gamertagFromComponents != null) {
+      return gamertagFromComponents;
+    }
   }
 
-  const xboxXuid = url.slice(PLAYER_STATS_STATE_URL_PREFIX.length);
-  return xboxXuid === "" ? null : xboxXuid;
+  return getGamertagFromEmbedTitle(message.embeds);
 }
 
 function getSelectedValueForState(controlId: string, state: PlayerStatsViewState): string | null {
@@ -550,6 +628,26 @@ export function createLoadingFields(fields: APIEmbedField[] | undefined, loading
   });
 }
 
+function updatePlayerStatsLinkUrl(urlString: string, queueChannelId: string | null): string {
+  try {
+    const url = new URL(urlString);
+    const pathSegments = url.pathname.split("/").filter((segment) => segment !== "");
+    if (pathSegments[0] !== "stats" || pathSegments[1] !== "player" || pathSegments[2] == null) {
+      return urlString;
+    }
+
+    if (queueChannelId == null) {
+      url.searchParams.delete("queueChannelId");
+    } else {
+      url.searchParams.set("queueChannelId", queueChannelId);
+    }
+
+    return url.toString();
+  } catch {
+    return urlString;
+  }
+}
+
 function createComponentsForState(
   components: readonly APIMessageTopLevelComponent[],
   state: PlayerStatsViewState,
@@ -564,6 +662,10 @@ function createComponentsForState(
       ...actionRow,
       components: actionRow.components.map((component) => {
         if (component.type !== ComponentType.StringSelect) {
+          if (component.type === ComponentType.Button && component.style === ButtonStyle.Link) {
+            return { ...component, url: updatePlayerStatsLinkUrl(component.url, state.queueChannelId) };
+          }
+
           return component;
         }
 
@@ -582,6 +684,17 @@ function createComponentsForState(
   });
 }
 
+function createLoadingEmbed(embed: APIEmbed, index: number, loadingEmoji: string): APIEmbed {
+  const embedWithoutUrl = { ...embed };
+  delete embedWithoutUrl.url;
+
+  return {
+    ...embedWithoutUrl,
+    fields: createLoadingFields(embed.fields, loadingEmoji),
+    ...(index === 0 ? { description: "Updating stats...", footer: { text: "This may take a few seconds" } } : {}),
+  };
+}
+
 /**
  * Immediate acknowledgement shown while the selected filter change is recomputed, since some
  * relationship views (e.g. head-to-head) can take noticeably longer than the aggregate pages.
@@ -595,18 +708,13 @@ export function createPlayerStatsLoadingResponse(
 ): { embeds: APIEmbed[]; components: APIMessageTopLevelComponent[] } {
   const embeds: APIEmbed[] =
     message.embeds.length > 0
-      ? message.embeds.map((embed, index) => ({
-          ...embed,
-          fields: createLoadingFields(embed.fields, loadingEmoji),
-          ...(index === 0 ? { description: "Updating stats...", footer: { text: "This may take a few seconds" } } : {}),
-        }))
+      ? message.embeds.map((embed, index) => createLoadingEmbed(embed, index, loadingEmoji))
       : [
           {
             color: 0xf5b642,
             title: "Player stats",
             description: "Updating stats...",
             footer: { text: "This may take a few seconds" },
-            url: `${PLAYER_STATS_STATE_URL_PREFIX}${state.xboxXuid}`,
           },
         ];
 
@@ -630,7 +738,6 @@ export function createPlayerStatsNoQualifyingGamesResponse(
         description: `No games played in ${windowLabel} for the selected queue scope.`,
         footer: { text: "No games played" },
         title: existingEmbed?.title ?? "Player stats",
-        url: `${PLAYER_STATS_STATE_URL_PREFIX}${state.xboxXuid}`,
       },
     ],
     components: createComponentsForState(message.components ?? [], state),
@@ -774,17 +881,21 @@ export function createPlayerStatsRelationshipEmbeds({
   rows,
   state,
   locale,
+  guildId,
   queueLabel,
   queueOptions,
   resetAt,
+  pagesUrl,
 }: {
   targetGamertag: string;
   rows: readonly LeaderboardPlayerRelationshipRow[];
   state: PlayerStatsRelationshipViewState;
   locale: string;
+  guildId?: string | undefined;
   queueLabel: string;
   queueOptions: readonly PlayerStatsQueueOption[];
   resetAt: number | null;
+  pagesUrl?: string | null | undefined;
 }): { embeds: APIEmbed[]; components: APIMessageTopLevelComponent[] } {
   const windowLabel = state.window === LeaderboardWindow.LastReset ? "Last reset" : state.window;
   const metricLabel = getPlayerStatsRelationshipMetricLabel(state.relationshipMetric);
@@ -811,13 +922,12 @@ export function createPlayerStatsRelationshipEmbeds({
       fields,
       ...(footerText == null ? {} : { footer: { text: footerText } }),
       title: `${targetGamertag} - ${metricLabel}`,
-      url: `${PLAYER_STATS_STATE_URL_PREFIX}${state.xboxXuid}`,
     },
   ];
 
   return {
     embeds,
-    components: createViewControls(state, queueOptions, resetAt),
+    components: createViewControls(state, queueOptions, resetAt, pagesUrl, targetGamertag, guildId),
   };
 }
 
@@ -826,19 +936,23 @@ export function createPlayerStatsEmbeds({
   ranks,
   state,
   locale,
+  guildId,
   queueLabel,
   queueOptions,
   resetAt,
   minGamesPlayed,
+  pagesUrl,
 }: {
   stats: LeaderboardPlayerStatsRow;
   ranks: Map<LeaderboardMetric, LeaderboardPlayerMetricRank | null>;
   state: PlayerStatsAggregateViewState;
   locale: string;
+  guildId?: string | undefined;
   queueLabel: string;
   queueOptions: readonly PlayerStatsQueueOption[];
   resetAt: number | null;
   minGamesPlayed: number;
+  pagesUrl?: string | null | undefined;
 }): { embeds: APIEmbed[]; components: APIMessageTopLevelComponent[] } {
   const windowLabel = state.window === LeaderboardWindow.LastReset ? "Last reset" : state.window;
   const metrics = getPlayerStatsMetricsForAggregation(state.aggregation);
@@ -854,7 +968,6 @@ export function createPlayerStatsEmbeds({
       color: 0xf5b642,
       fields,
       footer: { text: footerText },
-      url: `${PLAYER_STATS_STATE_URL_PREFIX}${state.xboxXuid}`,
     };
 
     if (index === 0) {
@@ -867,7 +980,7 @@ export function createPlayerStatsEmbeds({
 
   return {
     embeds,
-    components: createViewControls(state, queueOptions, resetAt),
+    components: createViewControls(state, queueOptions, resetAt, pagesUrl, stats.Gamertag, guildId),
   };
 }
 
@@ -875,10 +988,10 @@ export function createPlayerStatsEmbeds({
  * Derives the current filter state from a rendered `/stats player` message, matching the
  * leaderboard's approach of reading state from the message itself rather than encoding it in
  * every control's custom ID. The window, aggregation, and queue are read from their selects'
- * currently-selected option; the target player has no select, so it is read from the embed URL.
+ * currently-selected option; the target player has no select, so it is read from the embed or link button.
  */
 export function getPlayerStatsStateFromMessage(message: APIMessage): PlayerStatsViewState | null {
-  const { components, embeds } = message;
+  const { components } = message;
   if (components == null) {
     return null;
   }
@@ -886,19 +999,18 @@ export function getPlayerStatsStateFromMessage(message: APIMessage): PlayerStats
   const windowValue = getSelectedStringSelectValue(components, PLAYER_STATS_WINDOW_SELECT_CONTROL_ID);
   const aggregationValue = getSelectedStringSelectValue(components, PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID);
   const queueValue = getSelectedStringSelectValue(components, PLAYER_STATS_QUEUE_SELECT_CONTROL_ID);
-  const xboxXuid = getXboxXuidFromEmbedUrl(embeds);
+
+  const gamertag = getGamertagFromMessage(message);
 
   const window = windowValue == null ? null : parseLeaderboardWindow(windowValue);
   const aggregation = aggregationValue == null ? null : parseLeaderboardAggregation(aggregationValue);
   const relationshipMetric = aggregationValue == null ? null : parsePlayerStatsRelationshipMetric(aggregationValue);
-  if (window == null || (aggregation == null && relationshipMetric == null) || xboxXuid == null) {
+  if (window == null || (aggregation == null && relationshipMetric == null) || gamertag == null) {
     return null;
   }
 
   const state = {
-    xboxXuid,
-    // Absent when the queue selector is hidden (player has played at most one configured queue and
-    // the view was scoped to "all queues").
+    gamertag,
     queueChannelId: queueValue == null || queueValue === ALL_QUEUES_VALUE ? null : queueValue,
     window,
   };

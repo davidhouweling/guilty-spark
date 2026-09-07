@@ -1180,6 +1180,20 @@ describe("LeaderboardService", () => {
     );
   });
 
+  it("resolves XboxXuid from database first before falling back to HaloService", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+
+    vi.spyOn(databaseService, "findLeaderboardPlayerXuidByGamertag").mockResolvedValue("xuid-db");
+    const getUserByGamertagSpy = vi.spyOn(haloService, "getUserByGamertag");
+
+    const xuid = await service.resolveXboxXuidForGamertag("Master Chief", "guild-1");
+    expect(xuid).toBe("xuid-db");
+    expect(getUserByGamertagSpy).not.toHaveBeenCalled();
+  });
+
   it("resolves player stats, ranks, and relationship pages in getLeaderboardPlayerStatsForGamertag", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });

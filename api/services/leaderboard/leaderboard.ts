@@ -157,6 +157,16 @@ export class LeaderboardService {
     return Math.min(10, Math.max(1, Math.trunc(candidate)));
   }
 
+  async resolveXboxXuidForGamertag(gamertag: string, guildId: string | undefined): Promise<string> {
+    const xuidFromDb = await this.databaseService.findLeaderboardPlayerXuidByGamertag(gamertag, guildId);
+    if (xuidFromDb != null) {
+      return xuidFromDb;
+    }
+
+    const player = await this.haloService.getUserByGamertag(gamertag);
+    return player.xuid;
+  }
+
   async getLeaderboardPlayerDiscovery(
     gamertag: string,
     requestedGuildId: string | undefined,

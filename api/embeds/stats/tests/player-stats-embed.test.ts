@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ComponentType } from "discord-api-types/v10";
+import { ButtonStyle, ComponentType } from "discord-api-types/v10";
+import type { APIMessage } from "discord-api-types/v10";
 import {
   LeaderboardMetric,
   LeaderboardMetricAggregation,
@@ -8,8 +9,14 @@ import {
 import { LeaderboardPlayerRelationshipMetric } from "@guilty-spark/shared/halo/leaderboard-formatting";
 import {
   PLAYER_STATS_QUEUE_SELECT_CONTROL_ID,
+  PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+  PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
   createPlayerStatsEmbeds,
   createPlayerStatsRelationshipEmbeds,
+  createPlayerStatsLoadingResponse,
+  createPlayerStatsNoQualifyingGamesResponse,
+  getWebPlayerStatsUrl,
+  getPlayerStatsStateFromMessage,
 } from "../player-stats-embed";
 import {
   aFakeLeaderboardPlayerRelationshipRow,
@@ -29,7 +36,7 @@ describe("createPlayerStatsRelationshipEmbeds()", () => {
       state: {
         aggregation: null,
         relationshipMetric: LeaderboardPlayerRelationshipMetric.TotalHeadToHeadKills,
-        xboxXuid: "2533274000000001",
+        gamertag: "target-player",
         queueChannelId: null,
         window: LeaderboardWindow.ThreeMonths,
       },
@@ -60,7 +67,7 @@ describe("createPlayerStatsRelationshipEmbeds()", () => {
       state: {
         aggregation: null,
         relationshipMetric: LeaderboardPlayerRelationshipMetric.GamesWinRateAgainst,
-        xboxXuid: "2533274000000001",
+        gamertag: "target-player",
         queueChannelId: "queue-1",
         window: LeaderboardWindow.OneMonth,
       },
@@ -95,7 +102,7 @@ describe("createPlayerStatsEmbeds()", () => {
       state: {
         aggregation: LeaderboardMetricAggregation.AvgPerGame,
         relationshipMetric: null,
-        xboxXuid: "2533274000000001",
+        gamertag: "player-1",
         queueChannelId: null,
         window: LeaderboardWindow.ThreeMonths,
       },
@@ -123,7 +130,7 @@ describe("createPlayerStatsEmbeds()", () => {
       state: {
         aggregation: LeaderboardMetricAggregation.AvgPerGame,
         relationshipMetric: null,
-        xboxXuid: "2533274000000001",
+        gamertag: "player-1",
         queueChannelId: null,
         window: LeaderboardWindow.ThreeMonths,
       },
@@ -158,7 +165,7 @@ describe("createPlayerStatsEmbeds()", () => {
         state: {
           aggregation,
           relationshipMetric: null,
-          xboxXuid: "2533274000000001",
+          gamertag: "player-1",
           queueChannelId: null,
           window: LeaderboardWindow.ThreeMonths,
         },
@@ -184,7 +191,7 @@ describe("createPlayerStatsEmbeds()", () => {
       state: {
         aggregation: LeaderboardMetricAggregation.Total,
         relationshipMetric: null,
-        xboxXuid: "2533274000000001",
+        gamertag: "player-1",
         queueChannelId: null,
         window: LeaderboardWindow.ThreeMonths,
       },
@@ -198,5 +205,231 @@ describe("createPlayerStatsEmbeds()", () => {
     const rowValues = response.embeds.flatMap((embed) => embed.fields ?? []).flatMap((field) => field.value);
     expect(rowValues.join("\n")).toContain("#5");
     expect(rowValues.join("\n")).not.toContain("#5 / 12");
+  });
+
+  it("omits url from embed and adds a View player stats link button when pagesUrl is provided", () => {
+    const stats = aFakeLeaderboardPlayerStatsRow({ Gamertag: "Master Chief" });
+
+    const response = createPlayerStatsEmbeds({
+      stats,
+      ranks: new Map(),
+      state: {
+        aggregation: LeaderboardMetricAggregation.Total,
+        relationshipMetric: null,
+        gamertag: "Master Chief",
+        queueChannelId: "queue-123",
+        window: LeaderboardWindow.ThreeMonths,
+      },
+      locale: "en-US",
+      guildId: "guild-123",
+      queueLabel: "Queue queue-123",
+      queueOptions: [],
+      resetAt: null,
+      minGamesPlayed: 1,
+      pagesUrl: "https://pages.example/",
+    });
+
+    expect(response.embeds[0]?.url).toBeUndefined();
+
+    const linkRow = response.components.find(
+      (row) =>
+        row.type === ComponentType.ActionRow &&
+        row.components.some((c) => c.type === ComponentType.Button && c.style === ButtonStyle.Link),
+    );
+    expect(linkRow).toBeDefined();
+    if (linkRow?.type === ComponentType.ActionRow && linkRow.components[0]?.type === ComponentType.Button) {
+      expect(linkRow.components[0]).toMatchObject({
+        style: ButtonStyle.Link,
+        label: "View player stats in browser",
+        url: "https://pages.example/stats/player/Master%20Chief?guildId=guild-123&queueChannelId=queue-123",
+      });
+    }
+  });
+});
+
+describe("getWebPlayerStatsUrl()", () => {
+  it("constructs a normalized player stats web URL with query params", () => {
+    const url = getWebPlayerStatsUrl("https://pages.example/", "Master Chief", "guild-123", "queue-456");
+    expect(url).toBe("https://pages.example/stats/player/Master%20Chief?guildId=guild-123&queueChannelId=queue-456");
+  });
+});
+
+describe("getPlayerStatsStateFromMessage()", () => {
+  it("parses gamertag from message components containing a link button", () => {
+    const message = {
+      embeds: [
+        {
+          title: "Master Chief - Total",
+          description: "Leaderboard stats for 3M (All queues)",
+        },
+      ],
+      components: [
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.StringSelect,
+              custom_id: PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
+              options: [{ label: "Total", value: "TOTAL", default: true }],
+            },
+          ],
+        },
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.StringSelect,
+              custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+              options: [{ label: "3 months", value: "3M", default: true }],
+            },
+          ],
+        },
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.Button,
+              style: ButtonStyle.Link,
+              label: "View player stats in browser",
+              url: "https://pages.example/stats/player/Master%20Chief?guildId=guild-123",
+            },
+          ],
+        },
+      ],
+    } as unknown as APIMessage;
+
+    const state = getPlayerStatsStateFromMessage(message);
+    expect(state).toEqual({
+      gamertag: "Master Chief",
+      queueChannelId: null,
+      window: LeaderboardWindow.ThreeMonths,
+      aggregation: LeaderboardMetricAggregation.Total,
+      relationshipMetric: null,
+    });
+  });
+
+  it("parses gamertag from embed title when link button is absent", () => {
+    const message = {
+      embeds: [
+        {
+          title: "soundmanD - Total",
+          description: "Leaderboard stats for 1M (All queues)",
+        },
+      ],
+      components: [
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.StringSelect,
+              custom_id: PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
+              options: [{ label: "Total", value: "TOTAL", default: true }],
+            },
+          ],
+        },
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.StringSelect,
+              custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+              options: [{ label: "1 month", value: "1M", default: true }],
+            },
+          ],
+        },
+      ],
+    } as unknown as APIMessage;
+
+    const state = getPlayerStatsStateFromMessage(message);
+    expect(state).toEqual({
+      gamertag: "soundmanD",
+      queueChannelId: null,
+      window: LeaderboardWindow.OneMonth,
+      aggregation: LeaderboardMetricAggregation.Total,
+      relationshipMetric: null,
+    });
+  });
+
+  it("parses gamertags containing a separator from an older embed title", () => {
+    const message = {
+      embeds: [{ title: "Foo - Bar - Total" }],
+      components: [
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.StringSelect,
+              custom_id: PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
+              options: [{ label: "Total", value: "TOTAL", default: true }],
+            },
+          ],
+        },
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.StringSelect,
+              custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+              options: [{ label: "3 months", value: "3M", default: true }],
+            },
+          ],
+        },
+      ],
+    } as unknown as APIMessage;
+
+    expect(getPlayerStatsStateFromMessage(message)?.gamertag).toBe("Foo - Bar");
+  });
+
+  describe("player stats transitional responses", () => {
+    const state = {
+      aggregation: LeaderboardMetricAggregation.Total,
+      relationshipMetric: null,
+      gamertag: "Master Chief",
+      queueChannelId: "queue-456",
+      window: LeaderboardWindow.ThreeMonths,
+    };
+    const message = {
+      embeds: [
+        { title: "Master Chief - Total", url: "https://old.example/stats/player/Master%20Chief?guildId=guild-123" },
+      ],
+      components: [
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.Button,
+              style: ButtonStyle.Link,
+              label: "View player stats in browser",
+              url: "https://pages.example/stats/player/Master%20Chief?guildId=guild-123&queueChannelId=queue-123",
+            },
+          ],
+        },
+      ],
+    } as unknown as APIMessage;
+
+    it("clears legacy title URLs and updates the browser link while loading", () => {
+      const response = createPlayerStatsLoadingResponse(message, state, "⌛");
+
+      expect(response.embeds[0]?.url).toBeUndefined();
+      expect(response.components[0]).toMatchObject({
+        components: [
+          {
+            url: "https://pages.example/stats/player/Master%20Chief?guildId=guild-123&queueChannelId=queue-456",
+          },
+        ],
+      });
+    });
+
+    it("updates the browser link for no-qualifying-games responses", () => {
+      const response = createPlayerStatsNoQualifyingGamesResponse(message, state);
+
+      expect(response.components[0]).toMatchObject({
+        components: [
+          {
+            url: "https://pages.example/stats/player/Master%20Chief?guildId=guild-123&queueChannelId=queue-456",
+          },
+        ],
+      });
+    });
   });
 });
