@@ -1700,6 +1700,37 @@ export class DatabaseService {
     return response.results.map((row) => row.QueueChannelId);
   }
 
+  async findLeaderboardPlayerXuidByGamertag(gamertag: string, guildId?: string): Promise<string | null> {
+    const stmt =
+      guildId != null
+        ? this.DB.prepare(
+            `SELECT gamePlayers.XboxXuid
+             FROM LeaderboardGamePlayers gamePlayers
+             INNER JOIN LeaderboardGames games
+               ON games.GuildId = gamePlayers.GuildId
+               AND games.QueueNumber = gamePlayers.QueueNumber
+               AND games.MatchId = gamePlayers.MatchId
+             WHERE LOWER(gamePlayers.GamertagSnapshot) = LOWER(?)
+               AND gamePlayers.GuildId = ?
+             ORDER BY games.EndedAt DESC, games.MatchId DESC
+             LIMIT 1`,
+          ).bind(gamertag, guildId)
+        : this.DB.prepare(
+            `SELECT gamePlayers.XboxXuid
+             FROM LeaderboardGamePlayers gamePlayers
+             INNER JOIN LeaderboardGames games
+               ON games.GuildId = gamePlayers.GuildId
+               AND games.QueueNumber = gamePlayers.QueueNumber
+               AND games.MatchId = gamePlayers.MatchId
+             WHERE LOWER(gamePlayers.GamertagSnapshot) = LOWER(?)
+             ORDER BY games.EndedAt DESC, games.MatchId DESC
+             LIMIT 1`,
+          ).bind(gamertag);
+
+    const row = await stmt.first<{ XboxXuid: string }>();
+    return row?.XboxXuid ?? null;
+  }
+
   async getLeaderboardPlayerGuildStats(xboxXuid: string): Promise<LeaderboardPlayerGuildStatsRow[]> {
     const stmt = this.DB.prepare(
       `SELECT gamePlayers.GuildId, COUNT(*) AS GamesPlayed

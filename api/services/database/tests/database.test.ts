@@ -1509,6 +1509,17 @@ describe("Database Service", () => {
       ]);
     });
 
+    it("finds XboxXuid by GamertagSnapshot in game players or series players", async () => {
+      const fakePreparedStatement = new FakePreparedStatement<{ XboxXuid: string } | null>();
+      vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+      vi.spyOn(fakePreparedStatement, "first").mockResolvedValue({ XboxXuid: "xuid-soundman" });
+
+      const result = await databaseService.findLeaderboardPlayerXuidByGamertag("soundmanD", "guild-1");
+
+      expect(result).toBe("xuid-soundman");
+    });
+
     it("returns false when no leaderboard data exists", async () => {
       const fakePreparedStatement = new FakePreparedStatement<{ "1": number } | null>();
       vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);

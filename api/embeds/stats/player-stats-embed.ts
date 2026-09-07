@@ -34,7 +34,6 @@ export const PLAYER_STATS_TEMPORARY_ERROR_FOOTER = "Temporary player stats error
 
 export const ALL_QUEUES_VALUE = "-";
 const DISCORD_EMBED_FIELD_VALUE_LIMIT = 1024;
-const PLAYER_STATS_STATE_URL_PREFIX = "https://guilty-spark.app/stats/player/";
 
 export interface PlayerStatsQueueOption {
   label: string;
@@ -42,7 +41,7 @@ export interface PlayerStatsQueueOption {
 }
 
 interface PlayerStatsViewStateBase {
-  xboxXuid: string;
+  gamertag: string;
   queueChannelId: string | null;
   window: LeaderboardWindow;
 }
@@ -296,12 +295,11 @@ export function getWebPlayerStatsUrl(
   pagesUrl: string,
   gamertag: string,
   guildId: string,
-  xboxXuid: string,
   queueChannelId: string | null = null,
 ): string {
   const normalizedPagesUrl = pagesUrl.replace(/\/$/, "");
   const baseUrl = `${normalizedPagesUrl}/stats/player/${encodeURIComponent(gamertag)}`;
-  const params = new URLSearchParams({ guildId, xboxXuid });
+  const params = new URLSearchParams({ guildId });
   if (queueChannelId != null) {
     params.set("queueChannelId", queueChannelId);
   }
@@ -312,7 +310,6 @@ function createPlayerStatsLinkButtonRow(
   pagesUrl: string,
   gamertag: string,
   guildId: string,
-  xboxXuid: string,
   queueChannelId: string | null,
 ): APIMessageTopLevelComponent {
   return {
@@ -323,7 +320,7 @@ function createPlayerStatsLinkButtonRow(
         label: "View player stats",
         style: ButtonStyle.Link,
         emoji: { name: "👤" },
-        url: getWebPlayerStatsUrl(pagesUrl, gamertag, guildId, xboxXuid, queueChannelId),
+        url: getWebPlayerStatsUrl(pagesUrl, gamertag, guildId, queueChannelId),
       },
     ],
   };
@@ -393,9 +390,7 @@ function createViewControls(
   );
 
   if (pagesUrl != null && targetGamertag != null && guildId != null) {
-    controls.push(
-      createPlayerStatsLinkButtonRow(pagesUrl, targetGamertag, guildId, state.xboxXuid, state.queueChannelId),
-    );
+    controls.push(createPlayerStatsLinkButtonRow(pagesUrl, targetGamertag, guildId, state.queueChannelId));
   }
 
   return controls;
@@ -550,7 +545,7 @@ function createFooterText(minGamesPlayed: number, totalPlayers: number | null, l
   return `Min games: ${minGamesPlayed.toString()} | Total players: ${totalPlayersText}`;
 }
 
-function getXboxXuidFromMessageComponents(components: readonly APIMessageTopLevelComponent[]): string | null {
+function getGamertagFromMessageComponents(components: readonly APIMessageTopLevelComponent[]): string | null {
   for (const row of components) {
     if (row.type !== ComponentType.ActionRow) {
       continue;
@@ -563,15 +558,12 @@ function getXboxXuidFromMessageComponents(components: readonly APIMessageTopLeve
 
       try {
         const parsedUrl = new URL(component.url);
-        const queryXuid = parsedUrl.searchParams.get("xboxXuid");
-        if (queryXuid != null && queryXuid !== "") {
-          return queryXuid;
-        }
-
         const pathSegments = parsedUrl.pathname.split("/").filter((segment) => segment !== "");
-        const lastSegment = pathSegments[pathSegments.length - 1];
-        if (lastSegment != null && /^\d+$/.test(lastSegment)) {
-          return lastSegment;
+        if (pathSegments[0] === "stats" && pathSegments[1] === "player" && pathSegments[2] != null) {
+          const gamertag = decodeURIComponent(pathSegments[2]);
+          if (gamertag !== "") {
+            return gamertag;
+          }
         }
       } catch {
         // Ignore invalid URL string
@@ -582,29 +574,26 @@ function getXboxXuidFromMessageComponents(components: readonly APIMessageTopLeve
   return null;
 }
 
-function getXboxXuidFromEmbedUrl(embeds: readonly APIEmbed[]): string | null {
-  const url = embeds[0]?.url;
-  if (url == null) {
+function getGamertagFromEmbedTitle(embeds: readonly APIEmbed[]): string | null {
+  const title = embeds[0]?.title;
+  if (title == null || title === "") {
     return null;
   }
 
-  if (!url.startsWith(PLAYER_STATS_STATE_URL_PREFIX)) {
-    return null;
-  }
-
-  const xboxXuid = url.slice(PLAYER_STATS_STATE_URL_PREFIX.length);
-  return xboxXuid === "" ? null : xboxXuid;
+  const parts = title.split(" - ");
+  const candidate = parts[0]?.trim();
+  return candidate != null && candidate !== "" ? candidate : null;
 }
 
-function getXboxXuidFromMessage(message: APIMessage): string | null {
+function getGamertagFromMessage(message: APIMessage): string | null {
   if (message.components != null) {
-    const xuidFromComponents = getXboxXuidFromMessageComponents(message.components);
-    if (xuidFromComponents != null) {
-      return xuidFromComponents;
+    const gamertagFromComponents = getGamertagFromMessageComponents(message.components);
+    if (gamertagFromComponents != null) {
+      return gamertagFromComponents;
     }
   }
 
-  return getXboxXuidFromEmbedUrl(message.embeds);
+  return getGamertagFromEmbedTitle(message.embeds);
 }
 
 function getSelectedValueForState(controlId: string, state: PlayerStatsViewState): string | null {
@@ -979,19 +968,18 @@ export function getPlayerStatsStateFromMessage(message: APIMessage): PlayerStats
   const windowValue = getSelectedStringSelectValue(components, PLAYER_STATS_WINDOW_SELECT_CONTROL_ID);
   const aggregationValue = getSelectedStringSelectValue(components, PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID);
   const queueValue = getSelectedStringSelectValue(components, PLAYER_STATS_QUEUE_SELECT_CONTROL_ID);
-  const xboxXuid = getXboxXuidFromMessage(message);
+
+  const gamertag = getGamertagFromMessage(message);
 
   const window = windowValue == null ? null : parseLeaderboardWindow(windowValue);
   const aggregation = aggregationValue == null ? null : parseLeaderboardAggregation(aggregationValue);
   const relationshipMetric = aggregationValue == null ? null : parsePlayerStatsRelationshipMetric(aggregationValue);
-  if (window == null || (aggregation == null && relationshipMetric == null) || xboxXuid == null) {
+  if (window == null || (aggregation == null && relationshipMetric == null) || gamertag == null) {
     return null;
   }
 
   const state = {
-    xboxXuid,
-    // Absent when the queue selector is hidden (player has played at most one configured queue and
-    // the view was scoped to "all queues").
+    gamertag,
     queueChannelId: queueValue == null || queueValue === ALL_QUEUES_VALUE ? null : queueValue,
     window,
   };

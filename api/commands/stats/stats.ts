@@ -837,9 +837,12 @@ export class StatsCommand extends BaseCommand {
       const state = resolveState();
       const guildId = Preconditions.checkExists(interaction.guild_id, "No guild ID found in interaction");
       const configuredQueues = await this.services.databaseService.findNeatQueueConfig({ GuildId: guildId });
+
+      const xboxXuid = await this.services.leaderboardService.resolveXboxXuidForGamertag(state.gamertag, guildId);
+
       const response = await this.createPlayerStatsResponse({
         guildId,
-        xboxXuid: state.xboxXuid,
+        xboxXuid,
         queueChannelId: state.queueChannelId,
         configuredQueues,
         aggregation: state.aggregation,
@@ -910,7 +913,7 @@ export class StatsCommand extends BaseCommand {
         state: {
           aggregation: null,
           relationshipMetric,
-          xboxXuid: relationshipResult.stats.XboxXuid,
+          gamertag: relationshipResult.stats.Gamertag,
           queueChannelId,
           window: relationshipResult.window,
         },
@@ -961,7 +964,7 @@ export class StatsCommand extends BaseCommand {
       state: {
         aggregation: selectedAggregation,
         relationshipMetric: null,
-        xboxXuid: result.stats.XboxXuid,
+        gamertag: result.stats.Gamertag,
         queueChannelId,
         window: result.window,
       },

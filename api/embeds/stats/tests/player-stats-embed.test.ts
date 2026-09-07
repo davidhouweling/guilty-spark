@@ -34,7 +34,7 @@ describe("createPlayerStatsRelationshipEmbeds()", () => {
       state: {
         aggregation: null,
         relationshipMetric: LeaderboardPlayerRelationshipMetric.TotalHeadToHeadKills,
-        xboxXuid: "2533274000000001",
+        gamertag: "target-player",
         queueChannelId: null,
         window: LeaderboardWindow.ThreeMonths,
       },
@@ -65,7 +65,7 @@ describe("createPlayerStatsRelationshipEmbeds()", () => {
       state: {
         aggregation: null,
         relationshipMetric: LeaderboardPlayerRelationshipMetric.GamesWinRateAgainst,
-        xboxXuid: "2533274000000001",
+        gamertag: "target-player",
         queueChannelId: "queue-1",
         window: LeaderboardWindow.OneMonth,
       },
@@ -100,7 +100,7 @@ describe("createPlayerStatsEmbeds()", () => {
       state: {
         aggregation: LeaderboardMetricAggregation.AvgPerGame,
         relationshipMetric: null,
-        xboxXuid: "2533274000000001",
+        gamertag: "player-1",
         queueChannelId: null,
         window: LeaderboardWindow.ThreeMonths,
       },
@@ -128,7 +128,7 @@ describe("createPlayerStatsEmbeds()", () => {
       state: {
         aggregation: LeaderboardMetricAggregation.AvgPerGame,
         relationshipMetric: null,
-        xboxXuid: "2533274000000001",
+        gamertag: "player-1",
         queueChannelId: null,
         window: LeaderboardWindow.ThreeMonths,
       },
@@ -163,7 +163,7 @@ describe("createPlayerStatsEmbeds()", () => {
         state: {
           aggregation,
           relationshipMetric: null,
-          xboxXuid: "2533274000000001",
+          gamertag: "player-1",
           queueChannelId: null,
           window: LeaderboardWindow.ThreeMonths,
         },
@@ -189,7 +189,7 @@ describe("createPlayerStatsEmbeds()", () => {
       state: {
         aggregation: LeaderboardMetricAggregation.Total,
         relationshipMetric: null,
-        xboxXuid: "2533274000000001",
+        gamertag: "player-1",
         queueChannelId: null,
         window: LeaderboardWindow.ThreeMonths,
       },
@@ -214,7 +214,7 @@ describe("createPlayerStatsEmbeds()", () => {
       state: {
         aggregation: LeaderboardMetricAggregation.Total,
         relationshipMetric: null,
-        xboxXuid: "2533274844642438",
+        gamertag: "Master Chief",
         queueChannelId: "queue-123",
         window: LeaderboardWindow.ThreeMonths,
       },
@@ -238,7 +238,7 @@ describe("createPlayerStatsEmbeds()", () => {
       expect(linkRow.components[0]).toMatchObject({
         style: ButtonStyle.Link,
         label: "View player stats",
-        url: "https://pages.example/stats/player/Master%20Chief?guildId=guild-123&xboxXuid=2533274844642438&queueChannelId=queue-123",
+        url: "https://pages.example/stats/player/Master%20Chief?guildId=guild-123&queueChannelId=queue-123",
       });
     }
   });
@@ -250,17 +250,16 @@ describe("getWebPlayerStatsUrl()", () => {
       "https://pages.example/",
       "Master Chief",
       "guild-123",
-      "2533274844642438",
       "queue-456",
     );
     expect(url).toBe(
-      "https://pages.example/stats/player/Master%20Chief?guildId=guild-123&xboxXuid=2533274844642438&queueChannelId=queue-456",
+      "https://pages.example/stats/player/Master%20Chief?guildId=guild-123&queueChannelId=queue-456",
     );
   });
 });
 
 describe("getPlayerStatsStateFromMessage()", () => {
-  it("parses state from message components containing a link button", () => {
+  it("parses gamertag from message components containing a link button", () => {
     const message = {
       embeds: [
         {
@@ -296,7 +295,7 @@ describe("getPlayerStatsStateFromMessage()", () => {
               type: ComponentType.Button,
               style: ButtonStyle.Link,
               label: "View player stats",
-              url: "https://pages.example/stats/player/Master%20Chief?guildId=guild-123&xboxXuid=2533274844642438",
+              url: "https://pages.example/stats/player/Master%20Chief?guildId=guild-123",
             },
           ],
         },
@@ -305,9 +304,51 @@ describe("getPlayerStatsStateFromMessage()", () => {
 
     const state = getPlayerStatsStateFromMessage(message);
     expect(state).toEqual({
-      xboxXuid: "2533274844642438",
+      gamertag: "Master Chief",
       queueChannelId: null,
       window: LeaderboardWindow.ThreeMonths,
+      aggregation: LeaderboardMetricAggregation.Total,
+      relationshipMetric: null,
+    });
+  });
+
+  it("parses gamertag from embed title when link button is absent", () => {
+    const message = {
+      embeds: [
+        {
+          title: "soundmanD - Total",
+          description: "Leaderboard stats for 1M (All queues)",
+        },
+      ],
+      components: [
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.StringSelect,
+              custom_id: PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
+              options: [{ label: "Total", value: "TOTAL", default: true }],
+            },
+          ],
+        },
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.StringSelect,
+              custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
+              options: [{ label: "1 month", value: "1M", default: true }],
+            },
+          ],
+        },
+      ],
+    } as unknown as APIMessage;
+
+    const state = getPlayerStatsStateFromMessage(message);
+    expect(state).toEqual({
+      gamertag: "soundmanD",
+      queueChannelId: null,
+      window: LeaderboardWindow.OneMonth,
       aggregation: LeaderboardMetricAggregation.Total,
       relationshipMetric: null,
     });

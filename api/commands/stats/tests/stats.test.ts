@@ -3384,7 +3384,7 @@ describe("StatsCommand", () => {
               ],
             },
           ],
-          embeds: [{ url: "https://guilty-spark.app/stats/player/2533274000000001" }],
+          embeds: [{ title: "gamertag01 - Total" }],
         },
       };
 
@@ -3435,8 +3435,8 @@ describe("StatsCommand", () => {
           ],
           embeds: [
             {
+              title: "gamertag01 - Total",
               footer: { text: "Min games: 5 | Total players: 10" },
-              url: "https://guilty-spark.app/stats/player/2533274000000001",
             },
           ],
         },
