@@ -608,7 +608,7 @@ describe("createLeaderboardResponse", () => {
         {
           type: ComponentType.Button,
           style: ButtonStyle.Link,
-          label: "View leaderboard",
+          label: "View leaderboard in browser",
           emoji: { name: "🏆" },
           url: "https://pages.example/leaderboard/guild-123",
         },
@@ -677,7 +677,7 @@ describe("createLeaderboardResponse", () => {
           {
             type: ComponentType.Button,
             style: ButtonStyle.Link,
-            label: "View leaderboard",
+            label: "View leaderboard in browser",
             emoji: { name: "🏆" },
             url: "https://pages.example/leaderboard/guild-123",
           },
