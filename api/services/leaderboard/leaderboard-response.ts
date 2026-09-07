@@ -565,6 +565,15 @@ export function createLeaderboardResponse(
   const scopeLabel =
     leaderboard.queueChannelId != null ? `Queue <#${leaderboard.queueChannelId}>` : "Server-wide (all queues)";
 
+  const components: APIMessageTopLevelComponent[] = [];
+  if (locked) {
+    if (pagesUrl != null) {
+      components.push(createLeaderboardLinkButtonRow(pagesUrl, leaderboard.guildId, leaderboard.queueChannelId));
+    }
+  } else {
+    components.push(...createComponents(leaderboard, pagesUrl));
+  }
+
   return {
     embeds: [
       {
@@ -577,14 +586,6 @@ export function createLeaderboardResponse(
         },
       },
     ],
-    ...(locked
-      ? {
-          ...(pagesUrl != null
-            ? {
-                components: [createLeaderboardLinkButtonRow(pagesUrl, leaderboard.guildId, leaderboard.queueChannelId)],
-              }
-            : {}),
-        }
-      : { components: createComponents(leaderboard, pagesUrl) }),
+    ...(components.length > 0 ? { components } : {}),
   };
 }
