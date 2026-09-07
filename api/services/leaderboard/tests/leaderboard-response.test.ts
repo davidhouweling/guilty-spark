@@ -602,7 +602,7 @@ describe("createLeaderboardResponse", () => {
       "https://pages.example/",
     );
 
-    expect(response.components?.[4]).toEqual({
+    expect(response.components?.at(-1)).toEqual({
       type: ComponentType.ActionRow,
       components: [
         {
@@ -639,7 +639,7 @@ describe("createLeaderboardResponse", () => {
       "https://pages.example",
     );
 
-    const linkRow = response.components?.[4];
+    const linkRow = response.components?.at(-1);
     if (linkRow?.type !== ComponentType.ActionRow) {
       throw new Error("Expected link button row to be an action row");
     }

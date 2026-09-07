@@ -43,10 +43,10 @@ import { serializeObjectiveStats } from "./objective-stats";
 
 export interface LeaderboardServiceOpts {
   databaseService: DatabaseService;
-  discordService?: DiscordService;
+  discordService?: DiscordService | undefined;
   haloService: HaloService;
   logService: LogService;
-  pagesUrl?: string;
+  pagesUrl?: string | undefined;
 }
 
 interface GetLeaderboardOpts {
