@@ -1278,4 +1278,74 @@ describe("LeaderboardService", () => {
       }),
     );
   });
+
+  it("compares players using the first shared server when no server is requested", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+
+    vi.spyOn(haloService, "getUserByGamertag").mockImplementation(async (gamertag) => {
+      if (gamertag === "Alpha") {
+        return { xuid: "xuid-1", gamertag: "Alpha" };
+      }
+
+      return { xuid: "xuid-2", gamertag: "Bravo" };
+    });
+    vi.spyOn(databaseService, "getLeaderboardPlayerGuildStats").mockImplementation(async (xboxXuid) => {
+      if (xboxXuid === "xuid-1") {
+        return [
+          { GuildId: "guild-a", GamesPlayed: 12 },
+          { GuildId: "guild-b", GamesPlayed: 8 },
+        ];
+      }
+
+      return [
+        { GuildId: "guild-b", GamesPlayed: 10 },
+        { GuildId: "guild-c", GamesPlayed: 6 },
+      ];
+    });
+    vi.spyOn(databaseService, "getLeaderboardQueueChannelIds").mockImplementation(async (guildId) => [
+      `${guildId}-queue`,
+    ]);
+    const getPlayerStatsForGamertagSpy = vi
+      .spyOn(service, "getLeaderboardPlayerStatsForGamertag")
+      .mockImplementation(async (gamertag, requestedGuildId, queueChannelId, window, minGamesPlayed) => ({
+        player: { xboxXuid: gamertag === "Alpha" ? "xuid-1" : "xuid-2", gamertag },
+        servers: [],
+        selectedGuildId: requestedGuildId ?? "guild-b",
+        selectedGuildName: "Guild guild-b",
+        queueOptions: [{ channelId: "guild-b-queue", label: "Queue guild-b-queue" }],
+        window: window ?? LeaderboardWindow.ThreeMonths,
+        resetAt: null,
+        stats: aFakeLeaderboardPlayerStatsRow({
+          XboxXuid: gamertag === "Alpha" ? "xuid-1" : "xuid-2",
+          Gamertag: gamertag,
+        }),
+        ranks: {},
+        relationships: {},
+        headToHeadSummaries: [],
+        minGamesPlayed: minGamesPlayed ?? 5,
+        totalPlayers: 10,
+      }));
+
+    const result = await service.getLeaderboardPlayerCompareForGamertags(
+      ["Alpha", "Bravo"],
+      undefined,
+      undefined,
+      undefined,
+    );
+
+    expect(result?.selectedGuildId).toBe("guild-b");
+    expect(result?.servers.map((server) => server.guildId)).toEqual(["guild-b"]);
+    expect(result?.players.map((player) => player.player.gamertag)).toEqual(["Alpha", "Bravo"]);
+    expect(getPlayerStatsForGamertagSpy).toHaveBeenCalledWith("Alpha", "guild-b", undefined, undefined, undefined);
+    expect(getPlayerStatsForGamertagSpy).toHaveBeenCalledWith(
+      "Bravo",
+      "guild-b",
+      undefined,
+      LeaderboardWindow.ThreeMonths,
+      undefined,
+    );
+  });
 });

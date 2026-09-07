@@ -16,7 +16,7 @@ import {
   getLeaderboardMetricAggregation,
 } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardMetricAggregation } from "@guilty-spark/shared/halo/leaderboard";
-import type { PlayerStatsResponse } from "@guilty-spark/shared/contracts/stats/player";
+import type { PlayerCompareResponse, PlayerStatsResponse } from "@guilty-spark/shared/contracts/stats/player";
 import type { LeaderboardPlayerRelationshipMetric } from "@guilty-spark/shared/halo/leaderboard-formatting";
 import type { DatabaseService } from "../database/database";
 import type { DiscordService } from "../discord/discord";
@@ -91,6 +91,11 @@ export interface LeaderboardPlayerDiscoveryResponse {
   selectedGuildId: string;
   selectedGuildName: string;
   queueOptions: readonly { channelId: string; label: string }[];
+}
+
+interface LeaderboardCompareDiscovery {
+  player: UserInfo;
+  discovery: LeaderboardPlayerDiscoveryResponse;
 }
 
 export interface LeaderboardPlayerPageResponse {
@@ -301,6 +306,109 @@ export class LeaderboardService {
       minGamesPlayed: resolvedMinGamesPlayed,
       totalPlayers,
     };
+  }
+
+  async getLeaderboardPlayerCompareForGamertags(
+    gamertags: readonly string[],
+    requestedGuildId: string | undefined,
+    queueChannelId: string | undefined,
+    window: LeaderboardWindow | undefined,
+    minGamesPlayed?: number,
+  ): Promise<PlayerCompareResponse | null> {
+    const discoveries = await this.getCompareDiscoveries(gamertags);
+    if (discoveries == null) {
+      return null;
+    }
+
+    const sharedServers = this.getSharedCompareServers(discoveries.map((entry) => entry.discovery));
+    const selectedServer = this.getSelectedCompareServer(sharedServers, requestedGuildId);
+    if (selectedServer == null) {
+      return null;
+    }
+
+    const playerResponses: PlayerStatsResponse[] = [];
+    let resolvedWindow = window;
+    for (const entry of discoveries) {
+      const response = await this.getLeaderboardPlayerStatsForGamertag(
+        entry.player.gamertag,
+        selectedServer.guildId,
+        queueChannelId,
+        resolvedWindow,
+        minGamesPlayed,
+      );
+      if (response == null) {
+        return null;
+      }
+
+      resolvedWindow = response.window;
+      playerResponses.push(response);
+    }
+
+    const firstResponse = playerResponses[0];
+    if (firstResponse == null) {
+      return null;
+    }
+
+    return {
+      players: playerResponses.map((response) => ({
+        player: response.player,
+        stats: response.stats,
+        ranks: response.ranks,
+      })),
+      servers: sharedServers.map((server) => ({ ...server, queueOptions: [...server.queueOptions] })),
+      selectedGuildId: selectedServer.guildId,
+      selectedGuildName: selectedServer.guildName,
+      queueOptions: [...selectedServer.queueOptions],
+      window: firstResponse.window,
+      resetAt: firstResponse.resetAt,
+      minGamesPlayed: firstResponse.minGamesPlayed,
+      totalPlayers: firstResponse.totalPlayers,
+      pairSummaries: [],
+    };
+  }
+
+  private async getCompareDiscoveries(
+    gamertags: readonly string[],
+  ): Promise<LeaderboardCompareDiscovery[] | null> {
+    const discoveries: LeaderboardCompareDiscovery[] = [];
+    for (const gamertag of gamertags) {
+      const player = await this.haloService.getUserByGamertag(gamertag);
+      const discovery = await this.getLeaderboardPlayerDiscoveryForPlayer(player, undefined);
+      if (discovery == null) {
+        return null;
+      }
+
+      discoveries.push({ player, discovery });
+    }
+
+    return discoveries;
+  }
+
+  private getSharedCompareServers(
+    discoveries: readonly LeaderboardPlayerDiscoveryResponse[],
+  ): LeaderboardPlayerServerOption[] {
+    const firstDiscovery = discoveries[0];
+    if (firstDiscovery == null) {
+      return [];
+    }
+
+    const remainingDiscoveries = discoveries.slice(1);
+    return firstDiscovery.servers.filter((server) =>
+      remainingDiscoveries.every((discovery) =>
+        discovery.servers.some((candidate) => candidate.guildId === server.guildId),
+      ),
+    );
+  }
+
+  private getSelectedCompareServer(
+    sharedServers: readonly LeaderboardPlayerServerOption[],
+    requestedGuildId: string | undefined,
+  ): LeaderboardPlayerServerOption | null {
+    if (requestedGuildId == null) {
+      return sharedServers[0] ?? null;
+    }
+
+    return sharedServers.find((server) => server.guildId === requestedGuildId) ?? null;
   }
 
   private async getPlayerServerOption(
