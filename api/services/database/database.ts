@@ -1710,7 +1710,7 @@ export class DatabaseService {
                ON games.GuildId = gamePlayers.GuildId
                AND games.QueueNumber = gamePlayers.QueueNumber
                AND games.MatchId = gamePlayers.MatchId
-             WHERE LOWER(gamePlayers.GamertagSnapshot) = LOWER(?)
+             WHERE gamePlayers.GamertagSnapshot COLLATE NOCASE = ?
                AND gamePlayers.GuildId = ?
              ORDER BY games.EndedAt DESC, games.MatchId DESC
              LIMIT 1`,
@@ -1722,7 +1722,7 @@ export class DatabaseService {
                ON games.GuildId = gamePlayers.GuildId
                AND games.QueueNumber = gamePlayers.QueueNumber
                AND games.MatchId = gamePlayers.MatchId
-             WHERE LOWER(gamePlayers.GamertagSnapshot) = LOWER(?)
+             WHERE gamePlayers.GamertagSnapshot COLLATE NOCASE = ?
              ORDER BY games.EndedAt DESC, games.MatchId DESC
              LIMIT 1`,
           ).bind(gamertag);
@@ -1740,7 +1740,7 @@ export class DatabaseService {
              INNER JOIN LeaderboardSeries series
                ON series.GuildId = seriesPlayers.GuildId
                AND series.QueueNumber = seriesPlayers.QueueNumber
-             WHERE LOWER(seriesPlayers.GamertagSnapshot) = LOWER(?)
+             WHERE seriesPlayers.GamertagSnapshot COLLATE NOCASE = ?
                AND seriesPlayers.GuildId = ?
              ORDER BY series.CompletedAt DESC, series.QueueNumber DESC
              LIMIT 1`,
@@ -1751,7 +1751,7 @@ export class DatabaseService {
              INNER JOIN LeaderboardSeries series
                ON series.GuildId = seriesPlayers.GuildId
                AND series.QueueNumber = seriesPlayers.QueueNumber
-             WHERE LOWER(seriesPlayers.GamertagSnapshot) = LOWER(?)
+             WHERE seriesPlayers.GamertagSnapshot COLLATE NOCASE = ?
              ORDER BY series.CompletedAt DESC, series.QueueNumber DESC
              LIMIT 1`,
           ).bind(gamertag);

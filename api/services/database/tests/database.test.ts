@@ -1519,6 +1519,7 @@ describe("Database Service", () => {
 
       expect(result).toBe("xuid-soundman");
       expect(prepareSpy).toHaveBeenCalledWith(expect.stringContaining("FROM LeaderboardGamePlayers"));
+      expect(prepareSpy).toHaveBeenCalledWith(expect.stringContaining("GamertagSnapshot COLLATE NOCASE = ?"));
       expect(firstSpy).toHaveBeenCalledTimes(1);
     });
 
@@ -1538,6 +1539,7 @@ describe("Database Service", () => {
 
       expect(result).toBe("xuid-series-only");
       expect(prepareSpy).toHaveBeenNthCalledWith(2, expect.stringContaining("FROM LeaderboardSeriesPlayers"));
+      expect(prepareSpy).toHaveBeenNthCalledWith(2, expect.stringContaining("GamertagSnapshot COLLATE NOCASE = ?"));
     });
 
     it("returns false when no leaderboard data exists", async () => {
