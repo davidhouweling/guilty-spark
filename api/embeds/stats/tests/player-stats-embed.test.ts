@@ -229,9 +229,10 @@ describe("createPlayerStatsEmbeds()", () => {
 
     expect(response.embeds[0]?.url).toBeUndefined();
 
-    const linkRow = response.components.find((row) =>
-      row.type === ComponentType.ActionRow &&
-      row.components.some((c) => c.type === ComponentType.Button && c.style === ButtonStyle.Link),
+    const linkRow = response.components.find(
+      (row) =>
+        row.type === ComponentType.ActionRow &&
+        row.components.some((c) => c.type === ComponentType.Button && c.style === ButtonStyle.Link),
     );
     expect(linkRow).toBeDefined();
     if (linkRow?.type === ComponentType.ActionRow && linkRow.components[0]?.type === ComponentType.Button) {
@@ -246,15 +247,8 @@ describe("createPlayerStatsEmbeds()", () => {
 
 describe("getWebPlayerStatsUrl()", () => {
   it("constructs a normalized player stats web URL with query params", () => {
-    const url = getWebPlayerStatsUrl(
-      "https://pages.example/",
-      "Master Chief",
-      "guild-123",
-      "queue-456",
-    );
-    expect(url).toBe(
-      "https://pages.example/stats/player/Master%20Chief?guildId=guild-123&queueChannelId=queue-456",
-    );
+    const url = getWebPlayerStatsUrl("https://pages.example/", "Master Chief", "guild-123", "queue-456");
+    expect(url).toBe("https://pages.example/stats/player/Master%20Chief?guildId=guild-123&queueChannelId=queue-456");
   });
 });
 
