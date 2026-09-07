@@ -157,7 +157,7 @@ export class LeaderboardService {
     return Math.min(10, Math.max(1, Math.trunc(candidate)));
   }
 
-  async resolveXboxXuidForGamertag(gamertag: string, guildId?: string): Promise<string> {
+  async resolveXboxXuidForGamertag(gamertag: string, guildId: string | undefined): Promise<string> {
     const xuidFromDb = await this.databaseService.findLeaderboardPlayerXuidByGamertag(gamertag, guildId);
     if (xuidFromDb != null) {
       return xuidFromDb;

@@ -580,9 +580,9 @@ function getGamertagFromEmbedTitle(embeds: readonly APIEmbed[]): string | null {
     return null;
   }
 
-  const parts = title.split(" - ");
-  const candidate = parts[0]?.trim();
-  return candidate != null && candidate !== "" ? candidate : null;
+  const separatorIndex = title.lastIndexOf(" - ");
+  const candidate = (separatorIndex === -1 ? title : title.slice(0, separatorIndex)).trim();
+  return candidate === "" ? null : candidate;
 }
 
 function getGamertagFromMessage(message: APIMessage): string | null {
@@ -628,6 +628,26 @@ export function createLoadingFields(fields: APIEmbedField[] | undefined, loading
   });
 }
 
+function updatePlayerStatsLinkUrl(urlString: string, queueChannelId: string | null): string {
+  try {
+    const url = new URL(urlString);
+    const pathSegments = url.pathname.split("/").filter((segment) => segment !== "");
+    if (pathSegments[0] !== "stats" || pathSegments[1] !== "player" || pathSegments[2] == null) {
+      return urlString;
+    }
+
+    if (queueChannelId == null) {
+      url.searchParams.delete("queueChannelId");
+    } else {
+      url.searchParams.set("queueChannelId", queueChannelId);
+    }
+
+    return url.toString();
+  } catch {
+    return urlString;
+  }
+}
+
 function createComponentsForState(
   components: readonly APIMessageTopLevelComponent[],
   state: PlayerStatsViewState,
@@ -642,6 +662,10 @@ function createComponentsForState(
       ...actionRow,
       components: actionRow.components.map((component) => {
         if (component.type !== ComponentType.StringSelect) {
+          if (component.type === ComponentType.Button && component.style === ButtonStyle.Link) {
+            return { ...component, url: updatePlayerStatsLinkUrl(component.url, state.queueChannelId) };
+          }
+
           return component;
         }
 
@@ -660,6 +684,17 @@ function createComponentsForState(
   });
 }
 
+function createLoadingEmbed(embed: APIEmbed, index: number, loadingEmoji: string): APIEmbed {
+  const embedWithoutUrl = { ...embed };
+  delete embedWithoutUrl.url;
+
+  return {
+    ...embedWithoutUrl,
+    fields: createLoadingFields(embed.fields, loadingEmoji),
+    ...(index === 0 ? { description: "Updating stats...", footer: { text: "This may take a few seconds" } } : {}),
+  };
+}
+
 /**
  * Immediate acknowledgement shown while the selected filter change is recomputed, since some
  * relationship views (e.g. head-to-head) can take noticeably longer than the aggregate pages.
@@ -673,11 +708,7 @@ export function createPlayerStatsLoadingResponse(
 ): { embeds: APIEmbed[]; components: APIMessageTopLevelComponent[] } {
   const embeds: APIEmbed[] =
     message.embeds.length > 0
-      ? message.embeds.map((embed, index) => ({
-          ...embed,
-          fields: createLoadingFields(embed.fields, loadingEmoji),
-          ...(index === 0 ? { description: "Updating stats...", footer: { text: "This may take a few seconds" } } : {}),
-        }))
+      ? message.embeds.map((embed, index) => createLoadingEmbed(embed, index, loadingEmoji))
       : [
           {
             color: 0xf5b642,

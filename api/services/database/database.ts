@@ -1700,7 +1700,7 @@ export class DatabaseService {
     return response.results.map((row) => row.QueueChannelId);
   }
 
-  async findLeaderboardPlayerXuidByGamertag(gamertag: string, guildId?: string): Promise<string | null> {
+  async findLeaderboardPlayerXuidByGamertag(gamertag: string, guildId: string | undefined): Promise<string | null> {
     const gamePlayersStmt =
       guildId != null
         ? this.DB.prepare(
