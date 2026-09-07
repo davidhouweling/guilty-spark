@@ -338,9 +338,9 @@ function createViewControls(
   state: PlayerStatsViewState,
   queueOptions: readonly PlayerStatsQueueOption[],
   resetAt: number | null,
-  pagesUrl?: string | null,
-  targetGamertag?: string,
-  guildId?: string,
+  pagesUrl: string | null | undefined,
+  targetGamertag: string | undefined,
+  guildId: string | undefined,
 ): APIMessageTopLevelComponent[] {
   const controls: APIMessageTopLevelComponent[] = [];
 
@@ -860,11 +860,11 @@ export function createPlayerStatsRelationshipEmbeds({
   rows: readonly LeaderboardPlayerRelationshipRow[];
   state: PlayerStatsRelationshipViewState;
   locale: string;
-  guildId?: string;
+  guildId?: string | undefined;
   queueLabel: string;
   queueOptions: readonly PlayerStatsQueueOption[];
   resetAt: number | null;
-  pagesUrl?: string | null;
+  pagesUrl?: string | null | undefined;
 }): { embeds: APIEmbed[]; components: APIMessageTopLevelComponent[] } {
   const windowLabel = state.window === LeaderboardWindow.LastReset ? "Last reset" : state.window;
   const metricLabel = getPlayerStatsRelationshipMetricLabel(state.relationshipMetric);
@@ -916,12 +916,12 @@ export function createPlayerStatsEmbeds({
   ranks: Map<LeaderboardMetric, LeaderboardPlayerMetricRank | null>;
   state: PlayerStatsAggregateViewState;
   locale: string;
-  guildId?: string;
+  guildId?: string | undefined;
   queueLabel: string;
   queueOptions: readonly PlayerStatsQueueOption[];
   resetAt: number | null;
   minGamesPlayed: number;
-  pagesUrl?: string | null;
+  pagesUrl?: string | null | undefined;
 }): { embeds: APIEmbed[]; components: APIMessageTopLevelComponent[] } {
   const windowLabel = state.window === LeaderboardWindow.LastReset ? "Last reset" : state.window;
   const metrics = getPlayerStatsMetricsForAggregation(state.aggregation);

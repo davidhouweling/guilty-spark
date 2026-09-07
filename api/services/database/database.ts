@@ -1701,7 +1701,7 @@ export class DatabaseService {
   }
 
   async findLeaderboardPlayerXuidByGamertag(gamertag: string, guildId?: string): Promise<string | null> {
-    const stmt =
+    const gamePlayersStmt =
       guildId != null
         ? this.DB.prepare(
             `SELECT gamePlayers.XboxXuid
@@ -1727,8 +1727,37 @@ export class DatabaseService {
              LIMIT 1`,
           ).bind(gamertag);
 
-    const row = await stmt.first<{ XboxXuid: string }>();
-    return row?.XboxXuid ?? null;
+    const gamePlayersRow = await gamePlayersStmt.first<{ XboxXuid: string }>();
+    if (gamePlayersRow != null) {
+      return gamePlayersRow.XboxXuid;
+    }
+
+    const seriesPlayersStmt =
+      guildId != null
+        ? this.DB.prepare(
+            `SELECT seriesPlayers.XboxXuid
+             FROM LeaderboardSeriesPlayers seriesPlayers
+             INNER JOIN LeaderboardSeries series
+               ON series.GuildId = seriesPlayers.GuildId
+               AND series.QueueNumber = seriesPlayers.QueueNumber
+             WHERE LOWER(seriesPlayers.GamertagSnapshot) = LOWER(?)
+               AND seriesPlayers.GuildId = ?
+             ORDER BY series.CompletedAt DESC, series.QueueNumber DESC
+             LIMIT 1`,
+          ).bind(gamertag, guildId)
+        : this.DB.prepare(
+            `SELECT seriesPlayers.XboxXuid
+             FROM LeaderboardSeriesPlayers seriesPlayers
+             INNER JOIN LeaderboardSeries series
+               ON series.GuildId = seriesPlayers.GuildId
+               AND series.QueueNumber = seriesPlayers.QueueNumber
+             WHERE LOWER(seriesPlayers.GamertagSnapshot) = LOWER(?)
+             ORDER BY series.CompletedAt DESC, series.QueueNumber DESC
+             LIMIT 1`,
+          ).bind(gamertag);
+
+    const seriesPlayersRow = await seriesPlayersStmt.first<{ XboxXuid: string }>();
+    return seriesPlayersRow?.XboxXuid ?? null;
   }
 
   async getLeaderboardPlayerGuildStats(xboxXuid: string): Promise<LeaderboardPlayerGuildStatsRow[]> {
