@@ -589,6 +589,7 @@ describe("createLeaderboardResponse", () => {
       page: 1,
       pageSize: 10,
       total: 0,
+      hasLeaderboardData: true,
       rows: [],
     };
 
@@ -598,7 +599,7 @@ describe("createLeaderboardResponse", () => {
       "<t:1733483139:R>",
       false,
       null,
-      "https://pages.example",
+      "https://pages.example/",
     );
 
     expect(response.components?.[4]).toEqual({
@@ -625,6 +626,7 @@ describe("createLeaderboardResponse", () => {
       page: 1,
       pageSize: 10,
       total: 0,
+      hasLeaderboardData: true,
       rows: [],
     };
 
@@ -655,6 +657,7 @@ describe("createLeaderboardResponse", () => {
       page: 1,
       pageSize: 10,
       total: 0,
+      hasLeaderboardData: true,
       rows: [],
     };
 

@@ -450,9 +450,10 @@ function createRankingFields(
 }
 
 function getLeaderboardWebUrl(pagesUrl: string, guildId: string, queueChannelId: string | null): string {
+  const normalizedPagesUrl = pagesUrl.replace(/\/$/, "");
   return queueChannelId != null
-    ? `${pagesUrl}/leaderboard/${guildId}/${queueChannelId}`
-    : `${pagesUrl}/leaderboard/${guildId}`;
+    ? `${normalizedPagesUrl}/leaderboard/${guildId}/${queueChannelId}`
+    : `${normalizedPagesUrl}/leaderboard/${guildId}`;
 }
 
 function createLeaderboardLinkButtonRow(
