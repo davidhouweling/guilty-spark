@@ -915,9 +915,11 @@ export class StatsCommand extends BaseCommand {
           window: relationshipResult.window,
         },
         locale,
+        guildId,
         queueLabel: this.getPlayerStatsQueueLabel(queueChannelId, queueOptions),
         queueOptions,
         resetAt: relationshipResult.resetAt,
+        pagesUrl: this.env.PAGES_URL,
       });
     }
 
@@ -964,10 +966,12 @@ export class StatsCommand extends BaseCommand {
         window: result.window,
       },
       locale,
+      guildId,
       queueLabel: this.getPlayerStatsQueueLabel(queueChannelId, queueOptions),
       queueOptions,
       resetAt: result.resetAt,
       minGamesPlayed: result.minGamesPlayed,
+      pagesUrl: this.env.PAGES_URL,
     });
   }
 
