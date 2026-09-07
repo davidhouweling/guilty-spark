@@ -449,7 +449,33 @@ function createRankingFields(
   ];
 }
 
-function createComponents(leaderboard: LeaderboardResponse): APIMessageTopLevelComponent[] {
+function getLeaderboardWebUrl(pagesUrl: string, guildId: string, queueChannelId: string | null): string {
+  const normalizedPagesUrl = pagesUrl.replace(/\/$/, "");
+  return queueChannelId != null
+    ? `${normalizedPagesUrl}/leaderboard/${guildId}/${queueChannelId}`
+    : `${normalizedPagesUrl}/leaderboard/${guildId}`;
+}
+
+function createLeaderboardLinkButtonRow(
+  pagesUrl: string,
+  guildId: string,
+  queueChannelId: string | null,
+): APIMessageTopLevelComponent {
+  return {
+    type: ComponentType.ActionRow,
+    components: [
+      {
+        type: ComponentType.Button,
+        label: "View leaderboard",
+        style: ButtonStyle.Link,
+        emoji: { name: "🏆" },
+        url: getLeaderboardWebUrl(pagesUrl, guildId, queueChannelId),
+      },
+    ],
+  };
+}
+
+function createComponents(leaderboard: LeaderboardResponse, pagesUrl: string | null): APIMessageTopLevelComponent[] {
   const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
   const selectedFamily = getLeaderboardMetricFamily(leaderboard.metric);
   const selectedAggregation = getLeaderboardMetricAggregation(leaderboard.metric);
@@ -517,6 +543,10 @@ function createComponents(leaderboard: LeaderboardResponse): APIMessageTopLevelC
     ],
   });
 
+  if (pagesUrl != null) {
+    rows.push(createLeaderboardLinkButtonRow(pagesUrl, leaderboard.guildId, leaderboard.queueChannelId));
+  }
+
   return rows;
 }
 
@@ -526,6 +556,7 @@ export function createLeaderboardResponse(
   updatedTimestamp: string,
   locked = false,
   resetTimestamp: string | null = null,
+  pagesUrl: string | null = null,
 ): RESTPostAPIChannelMessageJSONBody {
   const rows = leaderboard.rows.slice(0, MAX_ROWS_IN_DISCORD_EMBED);
   const totalPages = Math.max(1, Math.ceil(leaderboard.total / leaderboard.pageSize));
@@ -533,6 +564,15 @@ export function createLeaderboardResponse(
   const windowLabel = getWindowLabel(leaderboard.window, resetTimestamp);
   const scopeLabel =
     leaderboard.queueChannelId != null ? `Queue <#${leaderboard.queueChannelId}>` : "Server-wide (all queues)";
+
+  const components: APIMessageTopLevelComponent[] = [];
+  if (locked) {
+    if (pagesUrl != null) {
+      components.push(createLeaderboardLinkButtonRow(pagesUrl, leaderboard.guildId, leaderboard.queueChannelId));
+    }
+  } else {
+    components.push(...createComponents(leaderboard, pagesUrl));
+  }
 
   return {
     embeds: [
@@ -546,6 +586,6 @@ export function createLeaderboardResponse(
         },
       },
     ],
-    ...(locked ? {} : { components: createComponents(leaderboard) }),
+    ...(components.length > 0 ? { components } : {}),
   };
 }
