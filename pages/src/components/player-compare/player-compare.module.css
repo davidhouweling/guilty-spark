@@ -99,6 +99,16 @@
   gap: var(--space-4);
 }
 
+.bestValue {
+  background: color-mix(in srgb, var(--halo-success) 18%, transparent);
+  color: var(--halo-text);
+}
+
+.worstValue {
+  background: color-mix(in srgb, var(--halo-danger) 14%, transparent);
+  color: var(--halo-text);
+}
+
 .empty {
   padding: var(--space-8) var(--space-4);
   text-align: center;

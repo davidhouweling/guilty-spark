@@ -31,6 +31,17 @@ function createPlayerColumn(gamertag: string): SortableTableColumn<PlayerCompare
     header: gamertag,
     accessorFn: (row): number | undefined => getCompareValue(row, gamertag)?.sortValue,
     cell: (_value, row): React.ReactNode => getCompareValue(row, gamertag)?.text ?? "-",
+    cellClassName: (row): string => {
+      const comparison = getCompareValue(row, gamertag)?.comparison;
+      if (comparison === "best") {
+        return styles.bestValue;
+      }
+      if (comparison === "worst") {
+        return styles.worstValue;
+      }
+
+      return "";
+    },
     sortDescFirst: true,
     sortUndefined: "last",
   };

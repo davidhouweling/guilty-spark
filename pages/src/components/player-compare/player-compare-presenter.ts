@@ -1,4 +1,8 @@
-import { LeaderboardMetric, LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import {
+  LeaderboardMetric,
+  LeaderboardWindow,
+  getLeaderboardMetricComparisonDirection,
+} from "@guilty-spark/shared/halo/leaderboard";
 import {
   formatMetricValue,
   getObjectiveGamesPlayedForMetric,
@@ -8,7 +12,13 @@ import {
 import type { PlayerCompareResponse } from "@guilty-spark/shared/contracts/stats/player";
 import type { PlayerCompareService } from "../../services/player-compare/player-compare-types";
 import type { PlayerCompareSnapshot, PlayerCompareStore } from "./player-compare-store";
-import type { CreatePlayerCompareConfig, PlayerCompareStatRow, PlayerCompareTabId, PlayerCompareViewModel } from "./types";
+import type {
+  CreatePlayerCompareConfig,
+  PlayerCompareStatRow,
+  PlayerCompareTabId,
+  PlayerCompareValueCell,
+  PlayerCompareViewModel,
+} from "./types";
 
 const COMPARE_METRICS: readonly LeaderboardMetric[] = [
   LeaderboardMetric.SeriesWinRate,
@@ -241,9 +251,8 @@ export class PlayerComparePresenter {
       return [];
     }
 
-    return COMPARE_METRICS.map((metric) => ({
-      stat: getPlayerStatMetricLabel(metric),
-      values: response.players.map((player) => {
+    return COMPARE_METRICS.map((metric) => {
+      const values: PlayerCompareValueCell[] = response.players.map((player) => {
         const stats = player.stats;
         if (stats == null) {
           return { gamertag: player.player.gamertag, text: "-", sortValue: undefined };
@@ -262,8 +271,44 @@ export class PlayerComparePresenter {
           }),
           sortValue: metricValue,
         };
-      }),
-    }));
+      });
+
+      return {
+        stat: getPlayerStatMetricLabel(metric),
+        values: this.applyValueComparison(metric, values),
+      };
+    });
+  }
+
+  private applyValueComparison(
+    metric: LeaderboardMetric,
+    values: readonly PlayerCompareValueCell[],
+  ): readonly PlayerCompareValueCell[] {
+    const numericValues = values.filter((value) => value.sortValue != null);
+    if (numericValues.length < 2) {
+      return values;
+    }
+
+    const sortValues = numericValues.map((value) => value.sortValue ?? 0);
+    const bestValue =
+      getLeaderboardMetricComparisonDirection(metric) === "asc" ? Math.min(...sortValues) : Math.max(...sortValues);
+    const worstValue =
+      getLeaderboardMetricComparisonDirection(metric) === "asc" ? Math.max(...sortValues) : Math.min(...sortValues);
+
+    if (bestValue === worstValue) {
+      return values;
+    }
+
+    return values.map((value) => {
+      if (value.sortValue === bestValue) {
+        return { ...value, comparison: "best" };
+      }
+      if (value.sortValue === worstValue) {
+        return { ...value, comparison: "worst" };
+      }
+
+      return value;
+    });
   }
 
   private findWindow(value: string | null): LeaderboardWindow | undefined {

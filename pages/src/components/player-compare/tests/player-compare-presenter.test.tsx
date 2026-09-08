@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
-import { aFakePlayerCompareServiceWith } from "../../../services/player-compare/fakes/player-compare.fake";
+import {
+  aFakePlayerCompareServiceWith,
+  createFakePlayerCompareStats,
+} from "../../../services/player-compare/fakes/player-compare.fake";
 import { PlayerComparePresenter } from "../player-compare-presenter";
 import { PlayerCompareStore } from "../player-compare-store";
 
@@ -69,5 +72,35 @@ describe("PlayerComparePresenter", () => {
     expect(getPlayerCompareSpy).toHaveBeenCalledWith(
       expect.objectContaining({ gamertags: ["Alpha", "Bravo"] }),
     );
+  });
+
+  it("highlights higher kills and lower deaths as the best aggregate values", async () => {
+    const service = aFakePlayerCompareServiceWith({
+      players: [
+        {
+          player: { xboxXuid: "xuid-1", gamertag: "Alpha" },
+          stats: { ...createFakePlayerCompareStats("Alpha", "xuid-1"), Kills: 20, Deaths: 8 },
+          ranks: {},
+        },
+        {
+          player: { xboxXuid: "xuid-2", gamertag: "Bravo" },
+          stats: { ...createFakePlayerCompareStats("Bravo", "xuid-2"), Kills: 15, Deaths: 4 },
+          ranks: {},
+        },
+      ],
+    });
+    const store = new PlayerCompareStore();
+    const presenter = new PlayerComparePresenter({ service, store, gamertags: ["Alpha", "Bravo"] });
+
+    presenter.start();
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().status).toBe("loaded");
+    });
+    const model = presenter.present(store.getSnapshot());
+    const killsRow = model.statsRows.find((row) => row.stat === "Kills");
+    const deathsRow = model.statsRows.find((row) => row.stat === "Deaths");
+
+    expect(killsRow?.values.map((value) => value.comparison)).toEqual(["best", "worst"]);
+    expect(deathsRow?.values.map((value) => value.comparison)).toEqual(["worst", "best"]);
   });
 });

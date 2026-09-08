@@ -3,6 +3,7 @@ import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import {
   LeaderboardWindow,
   LeaderboardMetric,
+  getLeaderboardMetricComparisonDirection,
   getLeaderboardObjectiveDescriptorByMetric,
   isObjectiveLeaderboardMetric,
 } from "@guilty-spark/shared/halo/leaderboard";
@@ -230,14 +231,6 @@ function getPlayerObjectiveSumSql(category: GameVariantCategory, path: string): 
   return `SUM(CASE WHEN g.GameVariantCategory = ${category.toString()} THEN COALESCE(CAST(json_extract(gp.ObjectiveStatsJson, '$.${path}') AS REAL), 0) ELSE 0 END)`;
 }
 
-function isAscendingMetric(metric: LeaderboardMetric): boolean {
-  return (
-    metric === LeaderboardMetric.Deaths ||
-    metric === LeaderboardMetric.AvgDeathsPerSeries ||
-    metric === LeaderboardMetric.AvgDeathsPerGame
-  );
-}
-
 interface StatMetricRankSqlParts {
   metric: LeaderboardMetric;
   valueSql: string;
@@ -263,7 +256,7 @@ function getStatMetricRankSqlParts(metric: LeaderboardMetric, minGamesPlayed: nu
       valueSql,
       gamesPlayedSql,
       minGamesPlayed: Math.max(minGamesPlayed, 1),
-      sortDirection: isAscendingMetric(metric) ? "ASC" : "DESC",
+      sortDirection: getLeaderboardMetricComparisonDirection(metric) === "asc" ? "ASC" : "DESC",
     };
   }
 
@@ -278,7 +271,7 @@ function getStatMetricRankSqlParts(metric: LeaderboardMetric, minGamesPlayed: nu
       valueSql,
       gamesPlayedSql: "COUNT(gp.ObjectiveTimeSeconds)",
       minGamesPlayed: Math.max(minGamesPlayed, 1),
-      sortDirection: isAscendingMetric(metric) ? "ASC" : "DESC",
+      sortDirection: getLeaderboardMetricComparisonDirection(metric) === "asc" ? "ASC" : "DESC",
     };
   }
 
@@ -288,7 +281,7 @@ function getStatMetricRankSqlParts(metric: LeaderboardMetric, minGamesPlayed: nu
       valueSql,
       gamesPlayedSql: "COUNT(gp.ObjectiveTeamContribution)",
       minGamesPlayed: Math.max(minGamesPlayed, 1),
-      sortDirection: isAscendingMetric(metric) ? "ASC" : "DESC",
+      sortDirection: getLeaderboardMetricComparisonDirection(metric) === "asc" ? "ASC" : "DESC",
     };
   }
 
@@ -297,7 +290,7 @@ function getStatMetricRankSqlParts(metric: LeaderboardMetric, minGamesPlayed: nu
     valueSql,
     gamesPlayedSql: "COUNT(*)",
     minGamesPlayed,
-    sortDirection: isAscendingMetric(metric) ? "ASC" : "DESC",
+    sortDirection: getLeaderboardMetricComparisonDirection(metric) === "asc" ? "ASC" : "DESC",
   };
 }
 
@@ -2200,7 +2193,7 @@ export class DatabaseService {
     const countStmt = this.DB.prepare(`SELECT COUNT(*) AS Total FROM (${aggregateSql}) agg`).bind(...bindings);
     const countRow = await countStmt.first<{ Total: number }>();
 
-    const metricSortDirection = isAscendingMetric(metric) ? "ASC" : "DESC";
+    const metricSortDirection = getLeaderboardMetricComparisonDirection(metric) === "asc" ? "ASC" : "DESC";
     const rowsStmt = this.DB.prepare(
       `
         SELECT * FROM (${aggregateSql}) agg

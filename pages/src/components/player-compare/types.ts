@@ -14,6 +14,7 @@ export interface PlayerCompareValueCell {
   readonly gamertag: string;
   readonly text: string;
   readonly sortValue?: number | undefined;
+  readonly comparison?: "best" | "worst" | undefined;
 }
 
 export interface PlayerCompareStatRow {

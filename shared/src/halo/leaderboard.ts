@@ -101,6 +101,23 @@ export enum LeaderboardMetric {
   AvgBallCarrierKillsPerObjective = "AVG_BALL_CARRIER_KILLS_PER_OBJECTIVE",
 }
 
+export type LeaderboardMetricComparisonDirection = "asc" | "desc";
+
+export function getLeaderboardMetricComparisonDirection(
+  metric: LeaderboardMetric,
+): LeaderboardMetricComparisonDirection {
+  switch (metric) {
+    case LeaderboardMetric.Deaths:
+    case LeaderboardMetric.AvgDeathsPerSeries:
+    case LeaderboardMetric.AvgDeathsPerGame: {
+      return "asc";
+    }
+    default: {
+      return "desc";
+    }
+  }
+}
+
 /**
  * Stat family groups leaderboard metrics for the two-step Discord picker (family -> aggregation).
  * Every `LeaderboardMetric` belongs to exactly one family; families with one or more valid

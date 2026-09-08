@@ -2,7 +2,12 @@ import { LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import type { PlayerCompareResponse } from "@guilty-spark/shared/contracts/stats/player";
 import type { PlayerCompareService } from "../player-compare-types";
 
-function createStats(gamertag: string, xboxXuid: string): PlayerCompareResponse["players"][number]["stats"] {
+type PlayerCompareStats = NonNullable<PlayerCompareResponse["players"][number]["stats"]>;
+
+export function createFakePlayerCompareStats(
+  gamertag: string,
+  xboxXuid: string,
+): PlayerCompareStats {
   return {
     XboxXuid: xboxXuid,
     DiscordUserId: null,
@@ -72,8 +77,8 @@ function createStats(gamertag: string, xboxXuid: string): PlayerCompareResponse[
 
 const defaultResponse: PlayerCompareResponse = {
   players: [
-    { player: { xboxXuid: "xuid-1", gamertag: "Alpha" }, stats: createStats("Alpha", "xuid-1"), ranks: {} },
-    { player: { xboxXuid: "xuid-2", gamertag: "Bravo" }, stats: createStats("Bravo", "xuid-2"), ranks: {} },
+    { player: { xboxXuid: "xuid-1", gamertag: "Alpha" }, stats: createFakePlayerCompareStats("Alpha", "xuid-1"), ranks: {} },
+    { player: { xboxXuid: "xuid-2", gamertag: "Bravo" }, stats: createFakePlayerCompareStats("Bravo", "xuid-2"), ranks: {} },
   ],
   servers: [
     {
