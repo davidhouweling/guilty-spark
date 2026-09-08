@@ -1,9 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import {
   aFakePlayerCompareServiceWith,
   createFakePlayerCompareStats,
 } from "../../../services/player-compare/fakes/player-compare.fake";
+import { PlayerCompare } from "../player-compare";
 import { PlayerComparePresenter } from "../player-compare-presenter";
 import { PlayerCompareStore } from "../player-compare-store";
 import { PlayerCompareHeadToHeadMetric } from "../types";
@@ -11,6 +13,10 @@ import { PlayerCompareHeadToHeadMetric } from "../types";
 describe("PlayerComparePresenter", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/stats/compare");
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it("renders an empty add-player state without fetching when no gamertags are supplied", () => {
@@ -140,5 +146,61 @@ describe("PlayerComparePresenter", () => {
         ],
       },
     ]);
+  });
+
+  it("renders the head-to-head matrix tab and metric selector", () => {
+    const onHeadToHeadMetricChange = vi.fn();
+
+    render(
+      <PlayerCompare
+        state="loaded"
+        gamertags={["Alpha", "Bravo"]}
+        title="Alpha vs Bravo"
+        scopeLabel="Test Server / All queues / 3M"
+        servers={[{ value: "guild-1", label: "Test Server" }]}
+        queueOptions={[{ value: "all", label: "All configured queues" }]}
+        windowOptions={[{ value: LeaderboardWindow.ThreeMonths, label: "3 months" }]}
+        selectedGuildId="guild-1"
+        selectedQueueChannelId={null}
+        selectedWindow={LeaderboardWindow.ThreeMonths}
+        selectedMinGamesPlayed={5}
+        minGamesPlayedOptions={[{ value: "5", label: "5" }]}
+        selectedTabId="head-to-head"
+        statsRows={[]}
+        headToHeadMetricOptions={[
+          { value: PlayerCompareHeadToHeadMetric.SeriesWinRateAgainst, label: "Series win % vs" },
+          { value: PlayerCompareHeadToHeadMetric.KillsAgainst, label: "Kills vs" },
+        ]}
+        selectedHeadToHeadMetric={PlayerCompareHeadToHeadMetric.KillsAgainst}
+        headToHeadRows={[
+          {
+            playerGamertag: "Alpha",
+            values: [
+              { opponentGamertag: "Alpha", text: "-", sortValue: undefined },
+              { opponentGamertag: "Bravo", text: "20 (2 perfects)", sortValue: 20 },
+            ],
+          },
+        ]}
+        addPlayerValue=""
+        canAddPlayer={false}
+        statusText="2 PLAYERS"
+        onAddPlayerValueChange={vi.fn()}
+        onAddPlayer={vi.fn()}
+        onGuildChange={vi.fn()}
+        onQueueChange={vi.fn()}
+        onWindowChange={vi.fn()}
+        onMinGamesPlayedChange={vi.fn()}
+        onHeadToHeadMetricChange={onHeadToHeadMetricChange}
+        onTabChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("table", { name: "Player head-to-head comparison matrix" })).not.toBeNull();
+    expect(screen.getByText("20 (2 perfects)")).not.toBeNull();
+
+    fireEvent.change(screen.getByLabelText("Metric"), {
+      target: { value: PlayerCompareHeadToHeadMetric.SeriesWinRateAgainst },
+    });
+    expect(onHeadToHeadMetricChange).toHaveBeenCalledWith(PlayerCompareHeadToHeadMetric.SeriesWinRateAgainst);
   });
 });
