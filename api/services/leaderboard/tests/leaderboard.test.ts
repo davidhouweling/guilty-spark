@@ -1301,6 +1301,7 @@ describe("LeaderboardService", () => {
       }
 
       return [
+        { GuildId: "guild-a", GamesPlayed: 1 },
         { GuildId: "guild-b", GamesPlayed: 10 },
         { GuildId: "guild-c", GamesPlayed: 6 },
       ];
@@ -1362,7 +1363,10 @@ describe("LeaderboardService", () => {
     );
 
     expect(result?.selectedGuildId).toBe("guild-b");
-    expect(result?.servers.map((server) => server.guildId)).toEqual(["guild-b"]);
+    expect(result?.servers.map((server) => [server.guildId, server.gamesPlayed])).toEqual([
+      ["guild-b", 18],
+      ["guild-a", 13],
+    ]);
     expect(result?.players.map((player) => player.player.gamertag)).toEqual(["Alpha", "Bravo"]);
     expect(getPlayerStatsForGamertagSpy).toHaveBeenCalledWith("Alpha", "guild-b", undefined, undefined, undefined);
     expect(getPlayerStatsForGamertagSpy).toHaveBeenCalledWith(

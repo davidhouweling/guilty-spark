@@ -462,11 +462,27 @@ export class LeaderboardService {
     }
 
     const remainingDiscoveries = discoveries.slice(1);
-    return firstDiscovery.servers.filter((server) =>
-      remainingDiscoveries.every((discovery) =>
-        discovery.servers.some((candidate) => candidate.guildId === server.guildId),
-      ),
-    );
+    return firstDiscovery.servers
+      .map((server) => this.getSharedCompareServer(server, remainingDiscoveries))
+      .filter((server) => server != null)
+      .sort((a, b) => b.gamesPlayed - a.gamesPlayed || a.guildName.localeCompare(b.guildName));
+  }
+
+  private getSharedCompareServer(
+    server: LeaderboardPlayerServerOption,
+    remainingDiscoveries: readonly LeaderboardPlayerDiscoveryResponse[],
+  ): LeaderboardPlayerServerOption | null {
+    let gamesPlayed = server.gamesPlayed;
+    for (const discovery of remainingDiscoveries) {
+      const candidate = discovery.servers.find((candidateServer) => candidateServer.guildId === server.guildId);
+      if (candidate == null) {
+        return null;
+      }
+
+      gamesPlayed += candidate.gamesPlayed;
+    }
+
+    return { ...server, gamesPlayed };
   }
 
   private getSelectedCompareServer(
