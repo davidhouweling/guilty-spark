@@ -12,7 +12,7 @@ describe("parseCompareGamertags()", () => {
     const gamertags = parseCompareGamertags([
       "  soundmanD  ",
       "Master Chief",
-      "soundmanD",
+      "SOUNDMAND",
       "   Master Chief   ",
       "bravo",
     ]);

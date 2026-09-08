@@ -59,6 +59,10 @@ function getOptionalQueryParam(url: URL, name: string): string | undefined {
   return value === "" ? undefined : value;
 }
 
+function containsGamertag(gamertags: readonly string[], value: string): boolean {
+  return gamertags.some((gamertag) => gamertag.toLowerCase() === value.toLowerCase());
+}
+
 export class PlayerComparePresenter {
   private readonly store: PlayerCompareStore;
   private readonly service: PlayerCompareService;
@@ -142,12 +146,25 @@ export class PlayerComparePresenter {
 
   addPlayer(): void {
     const value = this.store.getSnapshot().addPlayerValue.trim();
-    if (value === "" || this.currentGamertags.includes(value) || this.currentGamertags.length >= 8) {
+    if (value === "" || containsGamertag(this.currentGamertags, value) || this.currentGamertags.length >= 8) {
       return;
     }
 
     this.currentGamertags = [...this.currentGamertags, value];
     this.store.setAddPlayerValue("");
+    this.updateUrl();
+    this.load();
+  }
+
+  removePlayer(gamertag: string): void {
+    const nextGamertags = this.currentGamertags.filter(
+      (currentGamertag) => currentGamertag.toLowerCase() !== gamertag.toLowerCase(),
+    );
+    if (nextGamertags.length === this.currentGamertags.length) {
+      return;
+    }
+
+    this.currentGamertags = nextGamertags;
     this.updateUrl();
     this.load();
   }
@@ -245,13 +262,19 @@ export class PlayerComparePresenter {
       selectedHeadToHeadMetric: snapshot.headToHeadMetric,
       headToHeadRows: this.getHeadToHeadRows(response, snapshot.headToHeadMetric),
       addPlayerValue: snapshot.addPlayerValue,
-      canAddPlayer: snapshot.addPlayerValue.trim() !== "" && gamertags.length < 8,
+      canAddPlayer:
+        snapshot.addPlayerValue.trim() !== "" &&
+        !containsGamertag(gamertags, snapshot.addPlayerValue.trim()) &&
+        gamertags.length < 8,
       statusText: snapshot.status === "loading" ? "LOADING" : `${gamertags.length.toString()} PLAYERS`,
       onAddPlayerValueChange: (value): void => {
         this.changeAddPlayerValue(value);
       },
       onAddPlayer: (): void => {
         this.addPlayer();
+      },
+      onRemovePlayer: (gamertag): void => {
+        this.removePlayer(gamertag);
       },
       onGuildChange: (value): void => {
         this.changeGuild(value);
@@ -463,6 +486,16 @@ export class PlayerComparePresenter {
     for (const gamertag of this.currentGamertags) {
       url.searchParams.append("gamertag", gamertag);
     }
+
+    if (this.currentGamertags.length < 2) {
+      url.searchParams.delete("guildId");
+      url.searchParams.delete("queueChannelId");
+      url.searchParams.delete("window");
+      url.searchParams.delete("minGamesPlayed");
+      window.history.pushState({}, "", url);
+      return;
+    }
+
     if (this.currentGuildId == null) {
       url.searchParams.delete("guildId");
     } else {

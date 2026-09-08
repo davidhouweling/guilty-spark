@@ -108,6 +108,7 @@ export function PlayerCompare({
   statusText,
   onAddPlayerValueChange,
   onAddPlayer,
+  onRemovePlayer,
   onGuildChange,
   onQueueChange,
   onWindowChange,
@@ -229,7 +230,13 @@ export function PlayerCompare({
           <div className={styles.status} data-loading={state === "loading"}>
             {statusText}
           </div>
-          <div className={styles.addPlayer}>
+          <form
+            className={styles.addPlayer}
+            onSubmit={(event): void => {
+              event.preventDefault();
+              onAddPlayer();
+            }}
+          >
             <label>
               <span>Gamertag</span>
               <input
@@ -240,10 +247,28 @@ export function PlayerCompare({
                 }}
               />
             </label>
-            <button type="button" disabled={!canAddPlayer} onClick={onAddPlayer}>
+            <button type="submit" disabled={!canAddPlayer}>
               Add player
             </button>
-          </div>
+          </form>
+          {gamertags.length > 0 && (
+            <ul className={styles.selectedPlayers} aria-label="Selected players">
+              {gamertags.map((gamertag) => (
+                <li key={gamertag}>
+                  <span>{gamertag}</span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${gamertag}`}
+                    onClick={(): void => {
+                      onRemovePlayer(gamertag);
+                    }}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 

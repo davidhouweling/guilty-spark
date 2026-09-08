@@ -16,7 +16,7 @@ export function parseCompareGamertags(rawGamertags: readonly string[]): string[]
 
   const uniqueGamertags: string[] = [];
   for (const gamertag of cleanGamertags) {
-    if (!uniqueGamertags.includes(gamertag)) {
+    if (!uniqueGamertags.some((existingGamertag) => existingGamertag.toLowerCase() === gamertag.toLowerCase())) {
       uniqueGamertags.push(gamertag);
     }
   }

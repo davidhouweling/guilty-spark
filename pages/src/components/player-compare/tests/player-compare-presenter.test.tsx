@@ -81,6 +81,40 @@ describe("PlayerComparePresenter", () => {
     );
   });
 
+  it("does not add a duplicate gamertag with different casing", () => {
+    const service = aFakePlayerCompareServiceWith();
+    const getPlayerCompareSpy = vi.spyOn(service, "getPlayerCompare");
+    const store = new PlayerCompareStore();
+    const presenter = new PlayerComparePresenter({ service, store, gamertags: ["Alpha", "Bravo"] });
+
+    presenter.start();
+    presenter.changeAddPlayerValue("alpha");
+    const duplicateModel = presenter.present(store.getSnapshot());
+    duplicateModel.onAddPlayer();
+
+    expect(duplicateModel.canAddPlayer).toBe(false);
+    expect(window.location.search).toBe("");
+    expect(getPlayerCompareSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("removes a player and clears loaded comparison data when fewer than two players remain", async () => {
+    const service = aFakePlayerCompareServiceWith();
+    const store = new PlayerCompareStore();
+    const presenter = new PlayerComparePresenter({ service, store, gamertags: ["Alpha", "Bravo"] });
+
+    presenter.start();
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().status).toBe("loaded");
+    });
+
+    presenter.removePlayer("Bravo");
+    const model = presenter.present(store.getSnapshot());
+
+    expect(window.location.search).toBe("?gamertag=Alpha");
+    expect(model.gamertags).toEqual(["Alpha"]);
+    expect(model.statsRows).toHaveLength(0);
+  });
+
   it("highlights higher kills and lower deaths as the best aggregate values", async () => {
     const service = aFakePlayerCompareServiceWith({
       players: [
@@ -186,6 +220,7 @@ describe("PlayerComparePresenter", () => {
         statusText="2 PLAYERS"
         onAddPlayerValueChange={vi.fn()}
         onAddPlayer={vi.fn()}
+        onRemovePlayer={vi.fn()}
         onGuildChange={vi.fn()}
         onQueueChange={vi.fn()}
         onWindowChange={vi.fn()}
@@ -202,5 +237,50 @@ describe("PlayerComparePresenter", () => {
       target: { value: PlayerCompareHeadToHeadMetric.SeriesWinRateAgainst },
     });
     expect(onHeadToHeadMetricChange).toHaveBeenCalledWith(PlayerCompareHeadToHeadMetric.SeriesWinRateAgainst);
+  });
+
+  it("renders selected-player remove controls and submits add-player input", () => {
+    const onAddPlayer = vi.fn();
+    const onRemovePlayer = vi.fn();
+
+    render(
+      <PlayerCompare
+        state="loaded"
+        gamertags={["Alpha", "Bravo"]}
+        title="Alpha vs Bravo"
+        scopeLabel="Test Server / All queues / 3M"
+        servers={[]}
+        queueOptions={[]}
+        windowOptions={[{ value: LeaderboardWindow.ThreeMonths, label: "3 months" }]}
+        selectedGuildId=""
+        selectedQueueChannelId={null}
+        selectedWindow={LeaderboardWindow.ThreeMonths}
+        selectedMinGamesPlayed={5}
+        minGamesPlayedOptions={[{ value: "5", label: "5" }]}
+        selectedTabId="stats"
+        statsRows={[]}
+        headToHeadMetricOptions={[]}
+        selectedHeadToHeadMetric={PlayerCompareHeadToHeadMetric.KillsAgainst}
+        headToHeadRows={[]}
+        addPlayerValue="Charlie"
+        canAddPlayer={true}
+        statusText="2 PLAYERS"
+        onAddPlayerValueChange={vi.fn()}
+        onAddPlayer={onAddPlayer}
+        onRemovePlayer={onRemovePlayer}
+        onGuildChange={vi.fn()}
+        onQueueChange={vi.fn()}
+        onWindowChange={vi.fn()}
+        onMinGamesPlayedChange={vi.fn()}
+        onHeadToHeadMetricChange={vi.fn()}
+        onTabChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Bravo" }));
+    expect(onRemovePlayer).toHaveBeenCalledWith("Bravo");
+
+    fireEvent.submit(screen.getByRole("button", { name: "Add player" }));
+    expect(onAddPlayer).toHaveBeenCalled();
   });
 });

@@ -65,6 +65,7 @@ export interface PlayerCompareViewModel {
   readonly statusText: string;
   readonly onAddPlayerValueChange: (value: string) => void;
   readonly onAddPlayer: () => void;
+  readonly onRemovePlayer: (gamertag: string) => void;
   readonly onGuildChange: (value: string) => void;
   readonly onQueueChange: (value: string) => void;
   readonly onWindowChange: (value: string) => void;
