@@ -7,7 +7,14 @@ import { TabbedSection } from "../tabbed-section/tabbed-section";
 import type { TabbedSectionTab } from "../tabbed-section/types";
 import { SortableTable } from "../table/sortable-table";
 import type { SortableTableColumn } from "../table/sortable-table";
-import type { PlayerCompareStatRow, PlayerCompareTabId, PlayerCompareValueCell, PlayerCompareViewModel } from "./types";
+import type {
+  PlayerCompareHeadToHeadCell,
+  PlayerCompareHeadToHeadRow,
+  PlayerCompareStatRow,
+  PlayerCompareTabId,
+  PlayerCompareValueCell,
+  PlayerCompareViewModel,
+} from "./types";
 import styles from "./player-compare.module.css";
 
 function EmptyContent(): React.ReactElement {
@@ -23,6 +30,13 @@ function EmptyContent(): React.ReactElement {
 
 function getCompareValue(row: PlayerCompareStatRow, gamertag: string): PlayerCompareValueCell | undefined {
   return row.values.find((value) => value.gamertag === gamertag);
+}
+
+function getHeadToHeadValue(
+  row: PlayerCompareHeadToHeadRow,
+  opponentGamertag: string,
+): PlayerCompareHeadToHeadCell | undefined {
+  return row.values.find((value) => value.opponentGamertag === opponentGamertag);
 }
 
 function createPlayerColumn(gamertag: string): SortableTableColumn<PlayerCompareStatRow> {
@@ -47,6 +61,29 @@ function createPlayerColumn(gamertag: string): SortableTableColumn<PlayerCompare
   };
 }
 
+function getComparisonClass(comparison: "best" | "worst" | undefined): string {
+  if (comparison === "best") {
+    return styles.bestValue;
+  }
+  if (comparison === "worst") {
+    return styles.worstValue;
+  }
+
+  return "";
+}
+
+function createHeadToHeadColumn(gamertag: string): SortableTableColumn<PlayerCompareHeadToHeadRow> {
+  return {
+    id: gamertag,
+    header: gamertag,
+    accessorFn: (row): number | undefined => getHeadToHeadValue(row, gamertag)?.sortValue,
+    cell: (_value, row): React.ReactNode => getHeadToHeadValue(row, gamertag)?.text ?? "-",
+    cellClassName: (row): string => getComparisonClass(getHeadToHeadValue(row, gamertag)?.comparison),
+    sortDescFirst: true,
+    sortUndefined: "last",
+  };
+}
+
 export function PlayerCompare({
   state,
   errorMessage,
@@ -63,6 +100,9 @@ export function PlayerCompare({
   minGamesPlayedOptions,
   selectedTabId,
   statsRows,
+  headToHeadMetricOptions,
+  selectedHeadToHeadMetric,
+  headToHeadRows,
   addPlayerValue,
   canAddPlayer,
   statusText,
@@ -72,6 +112,7 @@ export function PlayerCompare({
   onQueueChange,
   onWindowChange,
   onMinGamesPlayedChange,
+  onHeadToHeadMetricChange,
   onTabChange,
 }: PlayerCompareViewModel): React.ReactElement {
   const statColumns = useMemo<readonly SortableTableColumn<PlayerCompareStatRow>[]>(
@@ -83,6 +124,19 @@ export function PlayerCompare({
         sortDescFirst: false,
       },
       ...gamertags.map((gamertag) => createPlayerColumn(gamertag)),
+    ],
+    [gamertags],
+  );
+
+  const headToHeadColumns = useMemo<readonly SortableTableColumn<PlayerCompareHeadToHeadRow>[]>(
+    () => [
+      {
+        id: "player",
+        header: "Player",
+        accessorFn: (row): string => row.playerGamertag,
+        sortDescFirst: false,
+      },
+      ...gamertags.map((gamertag) => createHeadToHeadColumn(gamertag)),
     ],
     [gamertags],
   );
@@ -112,12 +166,46 @@ export function PlayerCompare({
         label: "Head to head",
         content: (
           <div className={styles.tabContent}>
-            <EmptyContent />
+            {headToHeadRows.length === 0 ? (
+              <EmptyContent />
+            ) : (
+              <>
+                <label className={styles.metricSelect}>
+                  <span>Metric</span>
+                  <Select
+                    value={selectedHeadToHeadMetric}
+                    onChange={(event): void => {
+                      onHeadToHeadMetricChange(event.target.value);
+                    }}
+                  >
+                    {headToHeadMetricOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+                <SortableTable
+                  data={headToHeadRows}
+                  columns={headToHeadColumns}
+                  getRowKey={(row): string => row.playerGamertag}
+                  ariaLabel="Player head-to-head comparison matrix"
+                />
+              </>
+            )}
           </div>
         ),
       },
     ],
-    [statColumns, statsRows],
+    [
+      headToHeadColumns,
+      headToHeadMetricOptions,
+      headToHeadRows,
+      onHeadToHeadMetricChange,
+      selectedHeadToHeadMetric,
+      statColumns,
+      statsRows,
+    ],
   );
 
   if (state === "error") {

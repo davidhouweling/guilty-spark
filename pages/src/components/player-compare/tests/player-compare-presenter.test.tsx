@@ -6,6 +6,7 @@ import {
 } from "../../../services/player-compare/fakes/player-compare.fake";
 import { PlayerComparePresenter } from "../player-compare-presenter";
 import { PlayerCompareStore } from "../player-compare-store";
+import { PlayerCompareHeadToHeadMetric } from "../types";
 
 describe("PlayerComparePresenter", () => {
   beforeEach(() => {
@@ -102,5 +103,42 @@ describe("PlayerComparePresenter", () => {
 
     expect(killsRow?.values.map((value) => value.comparison)).toEqual(["best", "worst"]);
     expect(deathsRow?.values.map((value) => value.comparison)).toEqual(["worst", "best"]);
+  });
+
+  it("builds a metric-selected head-to-head matrix", async () => {
+    const service = aFakePlayerCompareServiceWith();
+    const store = new PlayerCompareStore();
+    const presenter = new PlayerComparePresenter({ service, store, gamertags: ["Alpha", "Bravo"] });
+
+    presenter.start();
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().status).toBe("loaded");
+    });
+    presenter.changeHeadToHeadMetric(PlayerCompareHeadToHeadMetric.KillsAgainst);
+    const model = presenter.present(store.getSnapshot());
+
+    expect(model.selectedHeadToHeadMetric).toBe(PlayerCompareHeadToHeadMetric.KillsAgainst);
+    expect(model.headToHeadMetricOptions.map((option) => option.label)).toEqual([
+      "Series win % vs",
+      "Games win % vs",
+      "Kills vs",
+      "Avg kills/game vs",
+    ]);
+    expect(model.headToHeadRows).toEqual([
+      {
+        playerGamertag: "Alpha",
+        values: [
+          { opponentGamertag: "Alpha", text: "-", sortValue: undefined },
+          { opponentGamertag: "Bravo", text: "20 (2 perfects)", sortValue: 20 },
+        ],
+      },
+      {
+        playerGamertag: "Bravo",
+        values: [
+          { opponentGamertag: "Alpha", text: "15 (1 perfect)", sortValue: 15 },
+          { opponentGamertag: "Bravo", text: "-", sortValue: undefined },
+        ],
+      },
+    ]);
   });
 });

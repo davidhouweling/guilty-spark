@@ -99,6 +99,19 @@
   gap: var(--space-4);
 }
 
+.metricSelect {
+  color: var(--halo-gray);
+  display: grid;
+  font-size: var(--text-xs);
+  gap: var(--space-2);
+  max-width: 18rem;
+  text-transform: uppercase;
+}
+
+.metricSelect select {
+  text-transform: none;
+}
+
 .bestValue {
   background: color-mix(in srgb, var(--halo-success) 18%, transparent);
   color: var(--halo-text);

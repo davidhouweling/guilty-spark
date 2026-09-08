@@ -3,8 +3,10 @@ import {
   LeaderboardWindow,
   getLeaderboardMetricComparisonDirection,
 } from "@guilty-spark/shared/halo/leaderboard";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import {
   formatMetricValue,
+  formatPerfects,
   getObjectiveGamesPlayedForMetric,
   getPlayerMetricValue,
   getPlayerStatMetricLabel,
@@ -14,11 +16,15 @@ import type { PlayerCompareService } from "../../services/player-compare/player-
 import type { PlayerCompareSnapshot, PlayerCompareStore } from "./player-compare-store";
 import type {
   CreatePlayerCompareConfig,
+  PlayerCompareHeadToHeadCell,
+  PlayerCompareHeadToHeadMetric,
+  PlayerCompareHeadToHeadRow,
   PlayerCompareStatRow,
   PlayerCompareTabId,
   PlayerCompareValueCell,
   PlayerCompareViewModel,
 } from "./types";
+import { PlayerCompareHeadToHeadMetric as HeadToHeadMetric } from "./types";
 
 const COMPARE_METRICS: readonly LeaderboardMetric[] = [
   LeaderboardMetric.SeriesWinRate,
@@ -40,6 +46,13 @@ const COMPARE_METRICS: readonly LeaderboardMetric[] = [
 ];
 
 const MIN_GAMES_PLAYED_OPTIONS = Array.from({ length: 10 }, (_, index) => index + 1);
+
+const HEAD_TO_HEAD_METRIC_OPTIONS: readonly { value: HeadToHeadMetric; label: string }[] = [
+  { value: HeadToHeadMetric.SeriesWinRateAgainst, label: "Series win % vs" },
+  { value: HeadToHeadMetric.GamesWinRateAgainst, label: "Games win % vs" },
+  { value: HeadToHeadMetric.KillsAgainst, label: "Kills vs" },
+  { value: HeadToHeadMetric.AvgKillsAgainst, label: "Avg kills/game vs" },
+];
 
 function getOptionalQueryParam(url: URL, name: string): string | undefined {
   const value = url.searchParams.get(name)?.trim();
@@ -172,6 +185,15 @@ export class PlayerComparePresenter {
     this.store.setTab(tabId);
   }
 
+  changeHeadToHeadMetric(value: string): void {
+    const metric = this.findHeadToHeadMetric(value);
+    if (metric == null) {
+      return;
+    }
+
+    this.store.setHeadToHeadMetric(metric);
+  }
+
   dispose(): void {
     this.isDisposed = true;
     this.requestNumber += 1;
@@ -219,6 +241,9 @@ export class PlayerComparePresenter {
       })),
       selectedTabId: snapshot.tabId,
       statsRows: this.getStatsRows(response),
+      headToHeadMetricOptions: HEAD_TO_HEAD_METRIC_OPTIONS,
+      selectedHeadToHeadMetric: snapshot.headToHeadMetric,
+      headToHeadRows: this.getHeadToHeadRows(response, snapshot.headToHeadMetric),
       addPlayerValue: snapshot.addPlayerValue,
       canAddPlayer: snapshot.addPlayerValue.trim() !== "" && gamertags.length < 8,
       statusText: snapshot.status === "loading" ? "LOADING" : `${gamertags.length.toString()} PLAYERS`,
@@ -239,6 +264,9 @@ export class PlayerComparePresenter {
       },
       onMinGamesPlayedChange: (value): void => {
         this.changeMinGamesPlayed(value);
+      },
+      onHeadToHeadMetricChange: (value): void => {
+        this.changeHeadToHeadMetric(value);
       },
       onTabChange: (tab): void => {
         this.changeTab(tab);
@@ -311,6 +339,111 @@ export class PlayerComparePresenter {
     });
   }
 
+  private getHeadToHeadRows(
+    response: PlayerCompareResponse | null,
+    metric: PlayerCompareHeadToHeadMetric,
+  ): readonly PlayerCompareHeadToHeadRow[] {
+    if (response == null) {
+      return [];
+    }
+
+    return response.players.map((player) => ({
+      playerGamertag: player.player.gamertag,
+      values: this.applyHeadToHeadValueComparison(
+        response.players.map((opponent) =>
+          this.getHeadToHeadCell(response, player.player.xboxXuid, opponent.player.xboxXuid, opponent.player.gamertag, metric),
+        ),
+      ),
+    }));
+  }
+
+  private getHeadToHeadCell(
+    response: PlayerCompareResponse,
+    playerXboxXuid: string,
+    opponentXboxXuid: string,
+    opponentGamertag: string,
+    metric: PlayerCompareHeadToHeadMetric,
+  ): PlayerCompareHeadToHeadCell {
+    if (playerXboxXuid === opponentXboxXuid) {
+      return { opponentGamertag, text: "-", sortValue: undefined };
+    }
+
+    const pair = response.pairSummaries.find(
+      (summary) => summary.playerXboxXuid === playerXboxXuid && summary.opponentXboxXuid === opponentXboxXuid,
+    );
+    if (pair == null) {
+      return { opponentGamertag, text: "-", sortValue: undefined };
+    }
+
+    switch (metric) {
+      case HeadToHeadMetric.SeriesWinRateAgainst: {
+        return {
+          opponentGamertag,
+          text: this.formatWinRate(pair.playerSeriesWinsAgainst, pair.seriesPlayedAgainst),
+          sortValue: pair.seriesPlayedAgainst === 0 ? undefined : pair.playerSeriesWinsAgainst / pair.seriesPlayedAgainst,
+        };
+      }
+      case HeadToHeadMetric.GamesWinRateAgainst: {
+        return {
+          opponentGamertag,
+          text: this.formatWinRate(pair.playerGameWinsAgainst, pair.gamesPlayedAgainst),
+          sortValue: pair.gamesPlayedAgainst === 0 ? undefined : pair.playerGameWinsAgainst / pair.gamesPlayedAgainst,
+        };
+      }
+      case HeadToHeadMetric.KillsAgainst: {
+        return {
+          opponentGamertag,
+          text: `${pair.playerKills.toLocaleString()} (${formatPerfects(pair.playerPerfects)})`,
+          sortValue: pair.playerKills,
+        };
+      }
+      case HeadToHeadMetric.AvgKillsAgainst: {
+        return {
+          opponentGamertag,
+          text:
+            pair.headToHeadGamesPlayed === 0
+              ? "-"
+              : `${(pair.playerKills / pair.headToHeadGamesPlayed).toLocaleString(undefined, { maximumFractionDigits: 1 })} (${formatPerfects(pair.playerPerfects)})`,
+          sortValue: pair.headToHeadGamesPlayed === 0 ? undefined : pair.playerKills / pair.headToHeadGamesPlayed,
+        };
+      }
+      default: {
+        throw new UnreachableError(metric);
+      }
+    }
+  }
+
+  private formatWinRate(wins: number, total: number): string {
+    return total === 0 ? "-" : `${((wins / total) * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}% (${wins.toLocaleString()}/${total.toLocaleString()})`;
+  }
+
+  private applyHeadToHeadValueComparison(
+    values: readonly PlayerCompareHeadToHeadCell[],
+  ): readonly PlayerCompareHeadToHeadCell[] {
+    const numericValues = values.filter((value) => value.sortValue != null);
+    if (numericValues.length < 2) {
+      return values;
+    }
+
+    const sortValues = numericValues.map((value) => value.sortValue ?? 0);
+    const bestValue = Math.max(...sortValues);
+    const worstValue = Math.min(...sortValues);
+    if (bestValue === worstValue) {
+      return values;
+    }
+
+    return values.map((value) => {
+      if (value.sortValue === bestValue) {
+        return { ...value, comparison: "best" };
+      }
+      if (value.sortValue === worstValue) {
+        return { ...value, comparison: "worst" };
+      }
+
+      return value;
+    });
+  }
+
   private findWindow(value: string | null): LeaderboardWindow | undefined {
     return Object.values(LeaderboardWindow).find((candidate) => candidate.toLowerCase() === value?.toLowerCase());
   }
@@ -318,6 +451,10 @@ export class PlayerComparePresenter {
   private findMinGamesPlayed(value: string | null): number | undefined {
     const parsedValue = value == null ? undefined : Number(value);
     return parsedValue != null && MIN_GAMES_PLAYED_OPTIONS.includes(parsedValue) ? parsedValue : undefined;
+  }
+
+  private findHeadToHeadMetric(value: string): PlayerCompareHeadToHeadMetric | null {
+    return HEAD_TO_HEAD_METRIC_OPTIONS.find((option) => option.value === value)?.value ?? null;
   }
 
   private updateUrl(): void {

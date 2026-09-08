@@ -1328,6 +1328,31 @@ describe("LeaderboardService", () => {
         minGamesPlayed: minGamesPlayed ?? 5,
         totalPlayers: 10,
       }));
+    vi.spyOn(service, "getLeaderboardPlayerStats").mockResolvedValue({
+      stats: aFakeLeaderboardPlayerStatsRow({ XboxXuid: "xuid-1", Gamertag: "Alpha" }),
+      window: LeaderboardWindow.ThreeMonths,
+      resetAt: null,
+      startEpochSeconds: 1234,
+      minGamesPlayed: 5,
+      defaultAggregation: LeaderboardMetricAggregation.Total,
+    });
+    const getPairRelationshipSpy = vi.spyOn(service, "getLeaderboardPlayerPairRelationship").mockResolvedValue({
+      SeriesPlayedWith: 1,
+      Player1SeriesWinsWith: 1,
+      SeriesPlayedAgainst: 2,
+      Player1SeriesWinsAgainst: 1,
+      Player2SeriesWinsAgainst: 1,
+      GamesPlayedWith: 3,
+      Player1GameWinsWith: 2,
+      GamesPlayedAgainst: 4,
+      Player1GameWinsAgainst: 3,
+      Player2GameWinsAgainst: 1,
+      HeadToHeadGamesPlayed: 4,
+      Player1Kills: 20,
+      Player1Perfects: 2,
+      Player2Kills: 15,
+      Player2Perfects: 1,
+    });
 
     const result = await service.getLeaderboardPlayerCompareForGamertags(
       ["Alpha", "Bravo"],
@@ -1347,5 +1372,53 @@ describe("LeaderboardService", () => {
       LeaderboardWindow.ThreeMonths,
       undefined,
     );
+    expect(getPairRelationshipSpy).toHaveBeenCalledWith({
+      guildId: "guild-b",
+      xboxXuid1: "xuid-1",
+      xboxXuid2: "xuid-2",
+      queueChannelId: null,
+      queueChannelIds: ["guild-b-queue"],
+      startEpochSeconds: 1234,
+    });
+    expect(result?.pairSummaries).toEqual([
+      {
+        playerXboxXuid: "xuid-1",
+        opponentXboxXuid: "xuid-2",
+        seriesPlayedWith: 1,
+        playerSeriesWinsWith: 1,
+        seriesPlayedAgainst: 2,
+        playerSeriesWinsAgainst: 1,
+        opponentSeriesWinsAgainst: 1,
+        gamesPlayedWith: 3,
+        playerGameWinsWith: 2,
+        gamesPlayedAgainst: 4,
+        playerGameWinsAgainst: 3,
+        opponentGameWinsAgainst: 1,
+        headToHeadGamesPlayed: 4,
+        playerKills: 20,
+        playerPerfects: 2,
+        opponentKills: 15,
+        opponentPerfects: 1,
+      },
+      {
+        playerXboxXuid: "xuid-2",
+        opponentXboxXuid: "xuid-1",
+        seriesPlayedWith: 1,
+        playerSeriesWinsWith: 1,
+        seriesPlayedAgainst: 2,
+        playerSeriesWinsAgainst: 1,
+        opponentSeriesWinsAgainst: 1,
+        gamesPlayedWith: 3,
+        playerGameWinsWith: 2,
+        gamesPlayedAgainst: 4,
+        playerGameWinsAgainst: 3,
+        opponentGameWinsAgainst: 1,
+        headToHeadGamesPlayed: 4,
+        playerKills: 20,
+        playerPerfects: 2,
+        opponentKills: 15,
+        opponentPerfects: 1,
+      },
+    ]);
   });
 });

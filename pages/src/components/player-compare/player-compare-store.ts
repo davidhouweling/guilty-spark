@@ -1,4 +1,5 @@
 import type { PlayerCompareResponse } from "@guilty-spark/shared/contracts/stats/player";
+import { PlayerCompareHeadToHeadMetric } from "./types";
 import type { PlayerCompareTabId } from "./types";
 
 export type PlayerCompareLoadStatus = "loading" | "loaded" | "error";
@@ -9,6 +10,7 @@ export interface PlayerCompareSnapshot {
   readonly response: PlayerCompareResponse | null;
   readonly errorMessage: string | null;
   readonly tabId: PlayerCompareTabId;
+  readonly headToHeadMetric: PlayerCompareHeadToHeadMetric;
   readonly addPlayerValue: string;
 }
 
@@ -19,6 +21,7 @@ export class PlayerCompareStore {
     response: null,
     errorMessage: null,
     tabId: "stats",
+    headToHeadMetric: PlayerCompareHeadToHeadMetric.SeriesWinRateAgainst,
     addPlayerValue: "",
   };
   private readonly listeners = new Set<() => void>();
@@ -62,6 +65,14 @@ export class PlayerCompareStore {
       return;
     }
     this.snapshot = { ...this.snapshot, addPlayerValue: value };
+    this.emit();
+  }
+
+  setHeadToHeadMetric(metric: PlayerCompareHeadToHeadMetric): void {
+    if (this.snapshot.headToHeadMetric === metric) {
+      return;
+    }
+    this.snapshot = { ...this.snapshot, headToHeadMetric: metric };
     this.emit();
   }
 

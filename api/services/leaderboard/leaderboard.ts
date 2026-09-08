@@ -349,6 +349,27 @@ export class LeaderboardService {
       return null;
     }
 
+    const queueChannelIds =
+      queueChannelId == null ? selectedServer.queueOptions.map((queueOption) => queueOption.channelId) : undefined;
+    const firstPlayerStats = await this.getLeaderboardPlayerStats({
+      guildId: selectedServer.guildId,
+      xboxXuid: firstResponse.player.xboxXuid,
+      queueChannelId: queueChannelId ?? null,
+      ...(queueChannelIds == null ? {} : { queueChannelIds }),
+      window: firstResponse.window,
+    });
+    if (firstPlayerStats == null) {
+      return null;
+    }
+
+    const pairSummaries = await this.getComparePairSummaries(
+      playerResponses,
+      selectedServer.guildId,
+      queueChannelId ?? null,
+      queueChannelIds,
+      firstPlayerStats.startEpochSeconds,
+    );
+
     return {
       players: playerResponses.map((response) => ({
         player: response.player,
@@ -363,8 +384,56 @@ export class LeaderboardService {
       resetAt: firstResponse.resetAt,
       minGamesPlayed: firstResponse.minGamesPlayed,
       totalPlayers: firstResponse.totalPlayers,
-      pairSummaries: [],
+      pairSummaries,
     };
+  }
+
+  private async getComparePairSummaries(
+    playerResponses: readonly PlayerStatsResponse[],
+    guildId: string,
+    queueChannelId: string | null,
+    queueChannelIds: readonly string[] | undefined,
+    startEpochSeconds: number,
+  ): Promise<PlayerCompareResponse["pairSummaries"]> {
+    const pairs: PlayerCompareResponse["pairSummaries"] = [];
+    for (const player of playerResponses) {
+      for (const opponent of playerResponses) {
+        if (player.player.xboxXuid === opponent.player.xboxXuid) {
+          continue;
+        }
+
+        const relationship = await this.getLeaderboardPlayerPairRelationship({
+          guildId,
+          xboxXuid1: player.player.xboxXuid,
+          xboxXuid2: opponent.player.xboxXuid,
+          queueChannelId,
+          ...(queueChannelIds == null ? {} : { queueChannelIds: [...queueChannelIds] }),
+          startEpochSeconds,
+        });
+
+        pairs.push({
+          playerXboxXuid: player.player.xboxXuid,
+          opponentXboxXuid: opponent.player.xboxXuid,
+          seriesPlayedWith: relationship.SeriesPlayedWith,
+          playerSeriesWinsWith: relationship.Player1SeriesWinsWith,
+          seriesPlayedAgainst: relationship.SeriesPlayedAgainst,
+          playerSeriesWinsAgainst: relationship.Player1SeriesWinsAgainst,
+          opponentSeriesWinsAgainst: relationship.Player2SeriesWinsAgainst,
+          gamesPlayedWith: relationship.GamesPlayedWith,
+          playerGameWinsWith: relationship.Player1GameWinsWith,
+          gamesPlayedAgainst: relationship.GamesPlayedAgainst,
+          playerGameWinsAgainst: relationship.Player1GameWinsAgainst,
+          opponentGameWinsAgainst: relationship.Player2GameWinsAgainst,
+          headToHeadGamesPlayed: relationship.HeadToHeadGamesPlayed,
+          playerKills: relationship.Player1Kills,
+          playerPerfects: relationship.Player1Perfects,
+          opponentKills: relationship.Player2Kills,
+          opponentPerfects: relationship.Player2Perfects,
+        });
+      }
+    }
+
+    return pairs;
   }
 
   private async getCompareDiscoveries(

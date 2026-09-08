@@ -5,6 +5,13 @@ import type { PlayerCompareSnapshot } from "./player-compare-store";
 
 export type PlayerCompareTabId = "stats" | "head-to-head";
 
+export enum PlayerCompareHeadToHeadMetric {
+  SeriesWinRateAgainst = "series-win-rate-against",
+  GamesWinRateAgainst = "games-win-rate-against",
+  KillsAgainst = "kills-against",
+  AvgKillsAgainst = "avg-kills-against",
+}
+
 export interface PlayerCompareOption {
   readonly value: string;
   readonly label: string;
@@ -20,6 +27,18 @@ export interface PlayerCompareValueCell {
 export interface PlayerCompareStatRow {
   readonly stat: string;
   readonly values: readonly PlayerCompareValueCell[];
+}
+
+export interface PlayerCompareHeadToHeadCell {
+  readonly opponentGamertag: string;
+  readonly text: string;
+  readonly sortValue?: number | undefined;
+  readonly comparison?: "best" | "worst" | undefined;
+}
+
+export interface PlayerCompareHeadToHeadRow {
+  readonly playerGamertag: string;
+  readonly values: readonly PlayerCompareHeadToHeadCell[];
 }
 
 export interface PlayerCompareViewModel {
@@ -38,6 +57,9 @@ export interface PlayerCompareViewModel {
   readonly minGamesPlayedOptions: readonly PlayerCompareOption[];
   readonly selectedTabId: PlayerCompareTabId;
   readonly statsRows: readonly PlayerCompareStatRow[];
+  readonly headToHeadMetricOptions: readonly PlayerCompareOption[];
+  readonly selectedHeadToHeadMetric: PlayerCompareHeadToHeadMetric;
+  readonly headToHeadRows: readonly PlayerCompareHeadToHeadRow[];
   readonly addPlayerValue: string;
   readonly canAddPlayer: boolean;
   readonly statusText: string;
@@ -47,6 +69,7 @@ export interface PlayerCompareViewModel {
   readonly onQueueChange: (value: string) => void;
   readonly onWindowChange: (value: string) => void;
   readonly onMinGamesPlayedChange: (value: string) => void;
+  readonly onHeadToHeadMetricChange: (value: string) => void;
   readonly onTabChange: (tabId: PlayerCompareTabId) => void;
 }
 
