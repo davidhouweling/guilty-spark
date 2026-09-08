@@ -80,6 +80,7 @@ import {
   createPlayerCompareHeadToHeadEmbeds,
   createPlayerCompareLoadingResponse,
   createPlayerCompareNoQualifyingGamesResponse,
+  getPlayerCompareControlIdBase,
   getPlayerCompareStateFromMessage,
   parsePlayerCompareAggregation,
 } from "../../embeds/stats/player-compare-embed";
@@ -449,6 +450,15 @@ export class StatsCommand extends BaseCommand {
       }
       case InteractionType.MessageComponent: {
         const { custom_id } = interaction.data;
+        const compareCustomId = getPlayerCompareControlIdBase(custom_id);
+        if (
+          compareCustomId === PLAYER_COMPARE_QUEUE_SELECT_CONTROL_ID ||
+          compareCustomId === PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID ||
+          compareCustomId === PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID
+        ) {
+          return this.handleCompareSelect(interaction as APIMessageComponentSelectMenuInteraction);
+        }
+
         switch (custom_id) {
           case PLAYER_STATS_QUEUE_SELECT_CONTROL_ID: {
             return this.handlePlayerStatsSelect(interaction as APIMessageComponentSelectMenuInteraction);
@@ -458,15 +468,6 @@ export class StatsCommand extends BaseCommand {
           }
           case PLAYER_STATS_WINDOW_SELECT_CONTROL_ID: {
             return this.handlePlayerStatsSelect(interaction as APIMessageComponentSelectMenuInteraction);
-          }
-          case PLAYER_COMPARE_QUEUE_SELECT_CONTROL_ID: {
-            return this.handleCompareSelect(interaction as APIMessageComponentSelectMenuInteraction);
-          }
-          case PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID: {
-            return this.handleCompareSelect(interaction as APIMessageComponentSelectMenuInteraction);
-          }
-          case PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID: {
-            return this.handleCompareSelect(interaction as APIMessageComponentSelectMenuInteraction);
           }
           case InteractionButton.Retry.toString(): {
             return {
@@ -1194,7 +1195,7 @@ export class StatsCommand extends BaseCommand {
       };
     }
 
-    switch (interaction.data.custom_id) {
+    switch (getPlayerCompareControlIdBase(interaction.data.custom_id)) {
       case PLAYER_COMPARE_QUEUE_SELECT_CONTROL_ID: {
         return this.handleCompareQueueSelect(interaction);
       }

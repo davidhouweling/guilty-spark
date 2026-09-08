@@ -33,7 +33,9 @@ export const PLAYER_COMPARE_TEMPORARY_ERROR_FOOTER = "Temporary player compare e
 export const PLAYER_COMPARE_HEAD_TO_HEAD_VALUE = "head-to-head";
 
 const DISCORD_EMBED_FIELD_VALUE_LIMIT = 1024;
-const PLAYER_COMPARE_STATE_URL_PREFIX = "https://guilty-spark.app/stats/compare/";
+const PLAYER_COMPARE_WEB_URL = "https://guilty-spark.app/stats/compare";
+const LEGACY_PLAYER_COMPARE_STATE_URL_PREFIX = "https://guilty-spark.app/stats/compare/";
+const PLAYER_COMPARE_CONTROL_STATE_SEPARATOR = ":";
 
 const LEADERBOARD_AGGREGATION_BY_VALUE = new Map<string, LeaderboardMetricAggregation>(
   Object.values(LeaderboardMetricAggregation).map((aggregation) => [aggregation, aggregation]),
@@ -69,6 +71,21 @@ interface PlayerCompareTableRow {
 
 export function parsePlayerCompareAggregation(value: string): LeaderboardMetricAggregation | null {
   return LEADERBOARD_AGGREGATION_BY_VALUE.get(value) ?? null;
+}
+
+export function getPlayerCompareControlIdBase(customId: string): string {
+  return customId.split(PLAYER_COMPARE_CONTROL_STATE_SEPARATOR)[0] ?? customId;
+}
+
+function createPlayerCompareControlId(controlId: string, state: PlayerCompareViewState): string {
+  return [controlId, state.xboxXuid1, state.xboxXuid2].join(PLAYER_COMPARE_CONTROL_STATE_SEPARATOR);
+}
+
+function createPlayerCompareWebUrl(gamertag1: string, gamertag2: string): string {
+  const url = new URL(PLAYER_COMPARE_WEB_URL);
+  url.searchParams.append("gamertag", gamertag1);
+  url.searchParams.append("gamertag", gamertag2);
+  return url.toString();
 }
 
 function getCompareValueText(
@@ -202,7 +219,7 @@ function createCompareViewControls(
       components: [
         {
           type: ComponentType.StringSelect,
-          custom_id: PLAYER_COMPARE_QUEUE_SELECT_CONTROL_ID,
+          custom_id: createPlayerCompareControlId(PLAYER_COMPARE_QUEUE_SELECT_CONTROL_ID, state),
           placeholder: "Select queue",
           min_values: 1,
           max_values: 1,
@@ -218,7 +235,7 @@ function createCompareViewControls(
       components: [
         {
           type: ComponentType.StringSelect,
-          custom_id: PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID,
+          custom_id: createPlayerCompareControlId(PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID, state),
           placeholder: "Select type",
           min_values: 1,
           max_values: 1,
@@ -231,7 +248,7 @@ function createCompareViewControls(
       components: [
         {
           type: ComponentType.StringSelect,
-          custom_id: PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
+          custom_id: createPlayerCompareControlId(PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID, state),
           placeholder: "Select window",
           min_values: 1,
           max_values: 1,
@@ -245,7 +262,7 @@ function createCompareViewControls(
 }
 
 function getCompareSelectedValueForState(controlId: string, state: PlayerCompareViewState): string | null {
-  switch (controlId) {
+  switch (getPlayerCompareControlIdBase(controlId)) {
     case PLAYER_COMPARE_QUEUE_SELECT_CONTROL_ID: {
       return state.queueChannelId ?? ALL_QUEUES_VALUE;
     }
@@ -282,6 +299,7 @@ function createComponentsForCompareState(
 
         return {
           ...component,
+          custom_id: createPlayerCompareControlId(getPlayerCompareControlIdBase(component.custom_id), state),
           disabled,
           options:
             selectedValue == null
@@ -303,7 +321,7 @@ function getSelectedStringSelectValue(
     }
 
     for (const component of actionRow.components) {
-      if (component.type !== ComponentType.StringSelect || component.custom_id !== customId) {
+      if (component.type !== ComponentType.StringSelect || getPlayerCompareControlIdBase(component.custom_id) !== customId) {
         continue;
       }
 
@@ -314,13 +332,34 @@ function getSelectedStringSelectValue(
   return undefined;
 }
 
-function getXboxXuidsFromEmbedUrl(embeds: readonly APIEmbed[]): [string, string] | null {
+function getXboxXuidsFromComponents(components: readonly APIMessageTopLevelComponent[]): [string, string] | null {
+  for (const actionRow of components) {
+    if (actionRow.type !== ComponentType.ActionRow) {
+      continue;
+    }
+
+    for (const component of actionRow.components) {
+      if (component.type !== ComponentType.StringSelect) {
+        continue;
+      }
+
+      const [_controlId, xboxXuid1, xboxXuid2] = component.custom_id.split(PLAYER_COMPARE_CONTROL_STATE_SEPARATOR);
+      if (xboxXuid1 != null && xboxXuid1 !== "" && xboxXuid2 != null && xboxXuid2 !== "") {
+        return [xboxXuid1, xboxXuid2];
+      }
+    }
+  }
+
+  return null;
+}
+
+function getXboxXuidsFromLegacyEmbedUrl(embeds: readonly APIEmbed[]): [string, string] | null {
   const url = embeds[0]?.url;
-  if (url?.startsWith(PLAYER_COMPARE_STATE_URL_PREFIX) !== true) {
+  if (url?.startsWith(LEGACY_PLAYER_COMPARE_STATE_URL_PREFIX) !== true) {
     return null;
   }
 
-  const [xboxXuid1, xboxXuid2] = url.slice(PLAYER_COMPARE_STATE_URL_PREFIX.length).split("/");
+  const [xboxXuid1, xboxXuid2] = url.slice(LEGACY_PLAYER_COMPARE_STATE_URL_PREFIX.length).split("/");
   return xboxXuid1 == null || xboxXuid1 === "" || xboxXuid2 == null || xboxXuid2 === "" ? null : [xboxXuid1, xboxXuid2];
 }
 
@@ -338,7 +377,7 @@ export function getPlayerCompareStateFromMessage(message: APIMessage): PlayerCom
   const windowValue = getSelectedStringSelectValue(components, PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID);
   const aggregationValue = getSelectedStringSelectValue(components, PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID);
   const queueValue = getSelectedStringSelectValue(components, PLAYER_COMPARE_QUEUE_SELECT_CONTROL_ID);
-  const xboxXuids = getXboxXuidsFromEmbedUrl(embeds);
+  const xboxXuids = getXboxXuidsFromComponents(components) ?? getXboxXuidsFromLegacyEmbedUrl(embeds);
 
   const window = windowValue == null ? null : (LEADERBOARD_WINDOW_BY_VALUE.get(windowValue) ?? null);
   const isHeadToHead = aggregationValue === PLAYER_COMPARE_HEAD_TO_HEAD_VALUE;
@@ -395,7 +434,7 @@ export function createPlayerCompareEmbeds({
     const embed: APIEmbed = {
       color: 0xf5b642,
       fields,
-      url: `${PLAYER_COMPARE_STATE_URL_PREFIX}${state.xboxXuid1}/${state.xboxXuid2}`,
+      url: createPlayerCompareWebUrl(stats1.Gamertag, stats2.Gamertag),
     };
 
     if (index === 0) {
@@ -513,7 +552,7 @@ export function createPlayerCompareHeadToHeadEmbeds({
     const embed: APIEmbed = {
       color: 0xf5b642,
       fields: isLastEmbed ? [...fields, createHeadToHeadMatchupField(pair, locale)] : fields,
-      url: `${PLAYER_COMPARE_STATE_URL_PREFIX}${state.xboxXuid1}/${state.xboxXuid2}`,
+      url: createPlayerCompareWebUrl(stats1.Gamertag, stats2.Gamertag),
     };
 
     if (index === 0) {
@@ -548,7 +587,6 @@ export function createPlayerCompareLoadingResponse(
             title: "Player compare",
             description: "Updating stats...",
             footer: { text: "This may take a few seconds" },
-            url: `${PLAYER_COMPARE_STATE_URL_PREFIX}${state.xboxXuid1}/${state.xboxXuid2}`,
           },
         ];
 
@@ -572,7 +610,7 @@ export function createPlayerCompareNoQualifyingGamesResponse(
         description: `No games played by one or both players in ${windowLabel} for the selected queue scope.`,
         footer: { text: "No games played" },
         title: existingEmbed?.title ?? "Player compare",
-        url: `${PLAYER_COMPARE_STATE_URL_PREFIX}${state.xboxXuid1}/${state.xboxXuid2}`,
+        ...(existingEmbed?.url == null ? {} : { url: existingEmbed.url }),
       },
     ],
     components: createComponentsForCompareState(message.components ?? [], state),

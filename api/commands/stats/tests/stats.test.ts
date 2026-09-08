@@ -64,6 +64,7 @@ import {
   PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID,
   PLAYER_COMPARE_QUEUE_SELECT_CONTROL_ID,
   PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
+  getPlayerCompareControlIdBase,
 } from "../../../embeds/stats/player-compare-embed";
 import type { MatchPlayer } from "../../../services/halo/types";
 import {
@@ -265,7 +266,10 @@ describe("StatsCommand", () => {
       }
 
       for (const component of actionRow.components) {
-        if (component.type === ComponentType.StringSelect && component.custom_id === customId) {
+        if (
+          component.type === ComponentType.StringSelect &&
+          (component.custom_id === customId || getPlayerCompareControlIdBase(component.custom_id) === customId)
+        ) {
           return component.options.map((option) => option.label);
         }
       }
@@ -3545,12 +3549,18 @@ describe("StatsCommand", () => {
         components: [
           expect.objectContaining({
             components: [
-              expect.objectContaining({ custom_id: PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID, disabled: false }),
+              expect.objectContaining({
+                custom_id: expect.stringContaining(PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID),
+                disabled: false,
+              }),
             ],
           }),
           expect.objectContaining({
             components: [
-              expect.objectContaining({ custom_id: PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID, disabled: false }),
+              expect.objectContaining({
+                custom_id: expect.stringContaining(PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID),
+                disabled: false,
+              }),
             ],
           }),
         ],

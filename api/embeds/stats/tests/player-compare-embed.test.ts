@@ -42,7 +42,7 @@ describe("createPlayerCompareEmbeds()", () => {
 
     const [embed] = response.embeds;
     expect(embed?.title).toBe("player-one vs player-two - Total");
-    expect(embed?.url).toBe("https://guilty-spark.app/stats/compare/xuid-1/xuid-2");
+    expect(embed?.url).toBe("https://guilty-spark.app/stats/compare?gamertag=player-one&gamertag=player-two");
 
     const [statField, player1Field, player2Field] = embed?.fields ?? [];
     expect(statField?.name).toBe("Stat");
