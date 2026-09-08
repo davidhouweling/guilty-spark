@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { parseCompareGamertags } from "./compare-gamertag-input";
+import { cleanCompareGamertags, parseCompareGamertags } from "./compare-gamertag-input";
+
+describe("cleanCompareGamertags()", () => {
+  it("trims entries and removes blank values before routing decisions", () => {
+    expect(cleanCompareGamertags(["", "  Alpha  ", "   "])).toEqual(["Alpha"]);
+  });
+});
 
 describe("parseCompareGamertags()", () => {
   it("returns the trimmed unique gamertags in the order they were supplied", () => {

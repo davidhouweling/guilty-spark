@@ -225,25 +225,26 @@ export function PlayerCompare({
           </Heading>
           <p className={styles.scope}>{scopeLabel}</p>
         </div>
-        <div className={styles.status} data-loading={state === "loading"}>
-          {statusText}
+        <div className={styles.headerActions}>
+          <div className={styles.status} data-loading={state === "loading"}>
+            {statusText}
+          </div>
+          <div className={styles.addPlayer}>
+            <label>
+              <span>Gamertag</span>
+              <input
+                value={addPlayerValue}
+                placeholder="Add player"
+                onChange={(event): void => {
+                  onAddPlayerValueChange(event.target.value);
+                }}
+              />
+            </label>
+            <button type="button" disabled={!canAddPlayer} onClick={onAddPlayer}>
+              Add player
+            </button>
+          </div>
         </div>
-      </div>
-
-      <div className={styles.addPlayer}>
-        <label>
-          <span>Gamertag</span>
-          <input
-            value={addPlayerValue}
-            placeholder="Add player"
-            onChange={(event): void => {
-              onAddPlayerValueChange(event.target.value);
-            }}
-          />
-        </label>
-        <button type="button" disabled={!canAddPlayer} onClick={onAddPlayer}>
-          Add player
-        </button>
       </div>
 
       {servers.length > 0 && (

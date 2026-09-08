@@ -5,21 +5,22 @@ import { API_HOST } from "../../constants";
 import Layout from "../../layouts/layout.astro";
 import ErrorState from "../../components/error-state/error-state.astro";
 import { PlayerCompareApp } from "../../apps/player-compare/create";
-import { parseCompareGamertags } from "./compare/compare-gamertag-input";
+import { cleanCompareGamertags, parseCompareGamertags } from "./compare/compare-gamertag-input";
 
 const rawGamertags = Astro.url.searchParams.getAll("gamertag");
+const cleanedGamertags = cleanCompareGamertags(rawGamertags);
 let gamertags: readonly string[] = [];
 let hasError = false;
 
-if (rawGamertags.length === 1) {
-  Astro.redirect(`/stats/player/${encodeURIComponent(rawGamertags[0] ?? "")}`);
+if (cleanedGamertags.length === 1) {
+  return Astro.redirect(`/stats/player/${encodeURIComponent(cleanedGamertags[0] ?? "")}`);
 }
 
-if (rawGamertags.length === 0) {
+if (cleanedGamertags.length === 0) {
   gamertags = [];
 } else {
   try {
-    gamertags = parseCompareGamertags(rawGamertags);
+    gamertags = parseCompareGamertags(cleanedGamertags);
   } catch {
     hasError = true;
     Astro.response.status = 400;
