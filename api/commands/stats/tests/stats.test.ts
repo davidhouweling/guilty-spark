@@ -3702,11 +3702,13 @@ describe("StatsCommand", () => {
         .mockResolvedValue({
           SeriesPlayedWith: 1,
           Player1SeriesWinsWith: 1,
+          Player2SeriesWinsWith: 1,
           SeriesPlayedAgainst: 2,
           Player1SeriesWinsAgainst: 1,
           Player2SeriesWinsAgainst: 1,
           GamesPlayedWith: 2,
           Player1GameWinsWith: 2,
+          Player2GameWinsWith: 2,
           GamesPlayedAgainst: 4,
           Player1GameWinsAgainst: 2,
           Player2GameWinsAgainst: 2,

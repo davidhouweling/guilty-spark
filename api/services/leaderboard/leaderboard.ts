@@ -395,30 +395,39 @@ export class LeaderboardService {
     queueChannelIds: readonly string[] | undefined,
     startEpochSeconds: number,
   ): Promise<PlayerCompareResponse["pairSummaries"]> {
-    const pairRequests: Promise<PlayerCompareResponse["pairSummaries"][number]>[] = [];
-    for (const player of playerResponses) {
-      for (const opponent of playerResponses) {
-        if (player.player.xboxXuid === opponent.player.xboxXuid) {
-          continue;
-        }
+    const pairs: PlayerCompareResponse["pairSummaries"] = [];
+    for (let playerIndex = 0; playerIndex < playerResponses.length; playerIndex += 1) {
+      const player = playerResponses[playerIndex];
+      if (player == null) {
+        continue;
+      }
 
-        pairRequests.push(
-          this.getComparePairSummary(player, opponent, guildId, queueChannelId, queueChannelIds, startEpochSeconds),
+      for (const opponent of playerResponses.slice(playerIndex + 1)) {
+        const pair = await this.getComparePairSummariesForPlayers(
+          player,
+          opponent,
+          guildId,
+          queueChannelId,
+          queueChannelIds,
+          startEpochSeconds,
         );
+        pairs.push(...pair);
       }
     }
 
-    return await Promise.all(pairRequests);
+    return pairs;
   }
 
-  private async getComparePairSummary(
+  private async getComparePairSummariesForPlayers(
     player: PlayerStatsResponse,
     opponent: PlayerStatsResponse,
     guildId: string,
     queueChannelId: string | null,
     queueChannelIds: readonly string[] | undefined,
     startEpochSeconds: number,
-  ): Promise<PlayerCompareResponse["pairSummaries"][number]> {
+  ): Promise<
+    readonly [PlayerCompareResponse["pairSummaries"][number], PlayerCompareResponse["pairSummaries"][number]]
+  > {
     const relationship = await this.getLeaderboardPlayerPairRelationship({
       guildId,
       xboxXuid1: player.player.xboxXuid,
@@ -428,25 +437,46 @@ export class LeaderboardService {
       startEpochSeconds,
     });
 
-    return {
-      playerXboxXuid: player.player.xboxXuid,
-      opponentXboxXuid: opponent.player.xboxXuid,
-      seriesPlayedWith: relationship.SeriesPlayedWith,
-      playerSeriesWinsWith: relationship.Player1SeriesWinsWith,
-      seriesPlayedAgainst: relationship.SeriesPlayedAgainst,
-      playerSeriesWinsAgainst: relationship.Player1SeriesWinsAgainst,
-      opponentSeriesWinsAgainst: relationship.Player2SeriesWinsAgainst,
-      gamesPlayedWith: relationship.GamesPlayedWith,
-      playerGameWinsWith: relationship.Player1GameWinsWith,
-      gamesPlayedAgainst: relationship.GamesPlayedAgainst,
-      playerGameWinsAgainst: relationship.Player1GameWinsAgainst,
-      opponentGameWinsAgainst: relationship.Player2GameWinsAgainst,
-      headToHeadGamesPlayed: relationship.HeadToHeadGamesPlayed,
-      playerKills: relationship.Player1Kills,
-      playerPerfects: relationship.Player1Perfects,
-      opponentKills: relationship.Player2Kills,
-      opponentPerfects: relationship.Player2Perfects,
-    };
+    return [
+      {
+        playerXboxXuid: player.player.xboxXuid,
+        opponentXboxXuid: opponent.player.xboxXuid,
+        seriesPlayedWith: relationship.SeriesPlayedWith,
+        playerSeriesWinsWith: relationship.Player1SeriesWinsWith,
+        seriesPlayedAgainst: relationship.SeriesPlayedAgainst,
+        playerSeriesWinsAgainst: relationship.Player1SeriesWinsAgainst,
+        opponentSeriesWinsAgainst: relationship.Player2SeriesWinsAgainst,
+        gamesPlayedWith: relationship.GamesPlayedWith,
+        playerGameWinsWith: relationship.Player1GameWinsWith,
+        gamesPlayedAgainst: relationship.GamesPlayedAgainst,
+        playerGameWinsAgainst: relationship.Player1GameWinsAgainst,
+        opponentGameWinsAgainst: relationship.Player2GameWinsAgainst,
+        headToHeadGamesPlayed: relationship.HeadToHeadGamesPlayed,
+        playerKills: relationship.Player1Kills,
+        playerPerfects: relationship.Player1Perfects,
+        opponentKills: relationship.Player2Kills,
+        opponentPerfects: relationship.Player2Perfects,
+      },
+      {
+        playerXboxXuid: opponent.player.xboxXuid,
+        opponentXboxXuid: player.player.xboxXuid,
+        seriesPlayedWith: relationship.SeriesPlayedWith,
+        playerSeriesWinsWith: relationship.Player2SeriesWinsWith,
+        seriesPlayedAgainst: relationship.SeriesPlayedAgainst,
+        playerSeriesWinsAgainst: relationship.Player2SeriesWinsAgainst,
+        opponentSeriesWinsAgainst: relationship.Player1SeriesWinsAgainst,
+        gamesPlayedWith: relationship.GamesPlayedWith,
+        playerGameWinsWith: relationship.Player2GameWinsWith,
+        gamesPlayedAgainst: relationship.GamesPlayedAgainst,
+        playerGameWinsAgainst: relationship.Player2GameWinsAgainst,
+        opponentGameWinsAgainst: relationship.Player1GameWinsAgainst,
+        headToHeadGamesPlayed: relationship.HeadToHeadGamesPlayed,
+        playerKills: relationship.Player2Kills,
+        playerPerfects: relationship.Player2Perfects,
+        opponentKills: relationship.Player1Kills,
+        opponentPerfects: relationship.Player1Perfects,
+      },
+    ];
   }
 
   private async getCompareDiscoveries(gamertags: readonly string[]): Promise<LeaderboardCompareDiscovery[] | null> {

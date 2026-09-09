@@ -223,7 +223,7 @@ export class PlayerComparePresenter {
 
   present(snapshot: PlayerCompareSnapshot): PlayerCompareViewModel {
     const { response } = snapshot;
-    const {gamertags} = snapshot;
+    const { gamertags } = snapshot;
     const selectedGuildId = this.currentGuildId ?? response?.selectedGuildId ?? "";
     const selectedServer = response?.servers.find((server) => server.guildId === selectedGuildId);
     const selectedQueueOption = selectedServer?.queueOptions.find(
@@ -563,12 +563,12 @@ export class PlayerComparePresenter {
         };
       }
       case HeadToHeadMetric.AvgKillsAgainst: {
+        const averageKills = (pair.playerKills / pair.headToHeadGamesPlayed).toLocaleString(undefined, {
+          maximumFractionDigits: 1,
+        });
         return {
           opponentGamertag,
-          text:
-            pair.headToHeadGamesPlayed === 0
-              ? "-"
-              : `${(pair.playerKills / pair.headToHeadGamesPlayed).toLocaleString(undefined, { maximumFractionDigits: 1 })} (${formatPerfects(pair.playerPerfects)})`,
+          text: pair.headToHeadGamesPlayed === 0 ? "-" : `${averageKills} (${formatPerfects(pair.playerPerfects)})`,
           sortValue: pair.headToHeadGamesPlayed === 0 ? undefined : pair.playerKills / pair.headToHeadGamesPlayed,
         };
       }

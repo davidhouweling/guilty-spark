@@ -128,7 +128,9 @@ describe("PlayerComparePresenter", () => {
     await vi.waitFor(() => {
       expect(store.getSnapshot().status).toBe("loaded");
     });
-    vi.spyOn(service, "getPlayerCompare").mockImplementation(async () => new Promise<PlayerCompareResponse>(() => undefined));
+    vi.spyOn(service, "getPlayerCompare").mockImplementation(
+      async () => new Promise<PlayerCompareResponse>(() => undefined),
+    );
     presenter.changeAddPlayerValue("Charlie");
     presenter.addPlayer();
     presenter.changeGuild("guild-2");
@@ -431,7 +433,7 @@ describe("PlayerComparePresenter", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove Bravo" }));
     expect(onRemovePlayer).toHaveBeenCalledWith("Bravo");
 
-    fireEvent.submit(screen.getByRole("button", { name: "Add player" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add player" }));
     expect(onAddPlayer).toHaveBeenCalled();
   });
 });

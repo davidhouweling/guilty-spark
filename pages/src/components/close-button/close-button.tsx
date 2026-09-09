@@ -4,11 +4,11 @@ import styles from "./close-button.module.css";
 
 interface CloseButtonProps {
   readonly ariaLabel: string;
-  readonly onClick: React.MouseEventHandler<HTMLButtonElement>;
   readonly className?: string;
+  readonly onClick: React.MouseEventHandler<HTMLButtonElement>;
 }
 
-export function CloseButton({ ariaLabel, onClick, className }: CloseButtonProps): React.ReactElement {
+export function CloseButton({ ariaLabel, className, onClick }: CloseButtonProps): React.ReactElement {
   return (
     <button
       type="button"

@@ -1,11 +1,13 @@
 export interface LeaderboardPlayerPairRelationshipRow {
   SeriesPlayedWith: number;
   Player1SeriesWinsWith: number;
+  Player2SeriesWinsWith: number;
   SeriesPlayedAgainst: number;
   Player1SeriesWinsAgainst: number;
   Player2SeriesWinsAgainst: number;
   GamesPlayedWith: number;
   Player1GameWinsWith: number;
+  Player2GameWinsWith: number;
   GamesPlayedAgainst: number;
   Player1GameWinsAgainst: number;
   Player2GameWinsAgainst: number;
