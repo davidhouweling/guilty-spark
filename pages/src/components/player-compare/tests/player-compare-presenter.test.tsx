@@ -191,6 +191,36 @@ describe("PlayerComparePresenter", () => {
     expect(model.statsRows.length).toBeGreaterThan(0);
   });
 
+  it("clears retained filters after removing all players", async () => {
+    const service = aFakePlayerCompareServiceWith();
+    const getPlayerCompareSpy = vi.spyOn(service, "getPlayerCompare");
+    const store = new PlayerCompareStore();
+    const presenter = new PlayerComparePresenter({ service, store, gamertags: ["Alpha", "Bravo"] });
+
+    presenter.start();
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().status).toBe("loaded");
+    });
+
+    presenter.removePlayer("Alpha");
+    presenter.removePlayer("Bravo");
+    presenter.changeAddPlayerValue("Charlie");
+    presenter.addPlayer();
+
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().status).toBe("loaded");
+    });
+
+    expect(window.location.search).toBe("?gamertag=Charlie");
+    expect(getPlayerCompareSpy).toHaveBeenLastCalledWith({
+      gamertags: ["Charlie"],
+      guildId: undefined,
+      queueChannelId: undefined,
+      window: undefined,
+      minGamesPlayed: undefined,
+    });
+  });
+
   it("highlights higher kills and lower deaths as the best aggregate values", async () => {
     const service = aFakePlayerCompareServiceWith({
       players: [

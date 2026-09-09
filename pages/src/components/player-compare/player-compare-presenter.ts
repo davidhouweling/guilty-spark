@@ -639,6 +639,7 @@ export class PlayerComparePresenter {
     }
 
     if (this.currentGamertags.length === 0) {
+      this.resetFilters();
       url.searchParams.delete("guildId");
       url.searchParams.delete("queueChannelId");
       url.searchParams.delete("window");
@@ -668,5 +669,12 @@ export class PlayerComparePresenter {
       url.searchParams.set("minGamesPlayed", this.currentMinGamesPlayed.toString());
     }
     window.history.pushState({}, "", url);
+  }
+
+  private resetFilters(): void {
+    this.currentGuildId = undefined;
+    this.currentQueueChannelId = undefined;
+    this.currentWindow = undefined;
+    this.currentMinGamesPlayed = undefined;
   }
 }
