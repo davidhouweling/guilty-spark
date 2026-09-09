@@ -40,6 +40,12 @@ describe("parseCompareGamertags()", () => {
     );
   });
 
+  it("accepts more than eight entries when duplicates reduce the valid player count", () => {
+    expect(
+      parseCompareGamertags(["Alpha", "alpha", "ALPHA", "Bravo", "bravo", "Charlie", "Delta", "Echo", "Foxtrot"]),
+    ).toEqual(["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"]);
+  });
+
   it("ignores blank gamertag entries before validating the count", () => {
     expect(() => parseCompareGamertags(["", "  ", "alpha", "beta"])).not.toThrow();
     expect(parseCompareGamertags(["", "  ", "alpha", "beta"])).toEqual(["alpha", "beta"]);

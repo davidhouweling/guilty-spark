@@ -223,8 +223,8 @@ export class PlayerComparePresenter {
 
   present(snapshot: PlayerCompareSnapshot): PlayerCompareViewModel {
     const { response } = snapshot;
-    const gamertags = response?.players.map((player) => player.player.gamertag) ?? snapshot.gamertags;
-    const selectedGuildId = response?.selectedGuildId ?? this.currentGuildId ?? "";
+    const {gamertags} = snapshot;
+    const selectedGuildId = this.currentGuildId ?? response?.selectedGuildId ?? "";
     const selectedServer = response?.servers.find((server) => server.guildId === selectedGuildId);
     const selectedQueueOption = selectedServer?.queueOptions.find(
       (option) => option.channelId === this.currentQueueChannelId,
@@ -234,7 +234,7 @@ export class PlayerComparePresenter {
     const scopeLabel =
       response == null
         ? "Add players to compare."
-        : `${response.selectedGuildName} / ${queueLabel} / ${selectedWindow}`;
+        : `${selectedServer?.guildName ?? response.selectedGuildName} / ${queueLabel} / ${selectedWindow}`;
     const selectedMinGamesPlayed = this.currentMinGamesPlayed ?? response?.minGamesPlayed ?? 5;
 
     return {

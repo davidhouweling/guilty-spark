@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
+import type { PlayerCompareResponse } from "@guilty-spark/shared/contracts/stats/player";
 import {
   aFakePlayerCompareServiceWith,
   createFakePlayerCompareStats,
@@ -111,6 +112,33 @@ describe("PlayerComparePresenter", () => {
 
     expect(window.location.search).toBe("?gamertag=Alpha&gamertag=Bravo");
     expect(getPlayerCompareSpy).toHaveBeenCalledWith(expect.objectContaining({ gamertags: ["Alpha", "Bravo"] }));
+  });
+
+  it("uses pending players and filters while a new comparison is loading", async () => {
+    const service = aFakePlayerCompareServiceWith({
+      servers: [
+        { guildId: "guild-1", guildName: "First Server", gamesPlayed: 12, queueOptions: [] },
+        { guildId: "guild-2", guildName: "Second Server", gamesPlayed: 10, queueOptions: [] },
+      ],
+    });
+    const store = new PlayerCompareStore();
+    const presenter = new PlayerComparePresenter({ service, store, gamertags: ["Alpha", "Bravo"] });
+
+    presenter.start();
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().status).toBe("loaded");
+    });
+    vi.spyOn(service, "getPlayerCompare").mockImplementation(async () => new Promise<PlayerCompareResponse>(() => undefined));
+    presenter.changeAddPlayerValue("Charlie");
+    presenter.addPlayer();
+    presenter.changeGuild("guild-2");
+
+    const model = presenter.present(store.getSnapshot());
+
+    expect(model.state).toBe("loading");
+    expect(model.gamertags).toEqual(["Alpha", "Bravo", "Charlie"]);
+    expect(model.selectedGuildId).toBe("guild-2");
+    expect(model.scopeLabel).toBe("Second Server / All queues / 3M");
   });
 
   it("does not add a duplicate gamertag with different casing", () => {

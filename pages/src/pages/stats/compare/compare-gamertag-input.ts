@@ -7,11 +7,6 @@ export function cleanCompareGamertags(rawGamertags: readonly string[]): string[]
 
 export function parseCompareGamertags(rawGamertags: readonly string[]): string[] {
   const cleanGamertags = cleanCompareGamertags(rawGamertags);
-
-  if (cleanGamertags.length < MIN_COMPARE_PLAYERS || cleanGamertags.length > MAX_COMPARE_PLAYERS) {
-    throw new Error("Provide 1 to 8 gamertags to compare.");
-  }
-
   const uniqueGamertags: string[] = [];
   for (const gamertag of cleanGamertags) {
     if (!uniqueGamertags.some((existingGamertag) => existingGamertag.toLowerCase() === gamertag.toLowerCase())) {
