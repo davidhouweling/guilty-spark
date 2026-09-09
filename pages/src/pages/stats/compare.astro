@@ -5,7 +5,7 @@ import { API_HOST } from "../../constants";
 import Layout from "../../layouts/layout.astro";
 import ErrorState from "../../components/error-state/error-state.astro";
 import { PlayerCompareApp } from "../../apps/player-compare/create";
-import { cleanCompareGamertags, parseCompareGamertags } from "./compare/compare-gamertag-input";
+import { cleanCompareGamertags, parseCompareGamertags } from "../../components/player-compare/compare-gamertag-input";
 
 const rawGamertags = Astro.url.searchParams.getAll("gamertag");
 const cleanedGamertags = cleanCompareGamertags(rawGamertags);

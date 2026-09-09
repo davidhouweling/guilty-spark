@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanCompareGamertags, parseCompareGamertags } from "./compare-gamertag-input";
+import { cleanCompareGamertags, parseCompareGamertags } from "../compare-gamertag-input";
 
 describe("cleanCompareGamertags()", () => {
   it("trims entries and removes blank values before routing decisions", () => {
@@ -38,12 +38,6 @@ describe("parseCompareGamertags()", () => {
     expect(() => parseCompareGamertags(Array.from({ length: 9 }, (_, index) => `player-${String(index + 1)}`))).toThrow(
       "Provide 1 to 8 gamertags to compare.",
     );
-  });
-
-  it("accepts more than eight entries when duplicates reduce the valid player count", () => {
-    expect(
-      parseCompareGamertags(["Alpha", "alpha", "ALPHA", "Bravo", "bravo", "Charlie", "Delta", "Echo", "Foxtrot"]),
-    ).toEqual(["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"]);
   });
 
   it("ignores blank gamertag entries before validating the count", () => {

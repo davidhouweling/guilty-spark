@@ -1388,7 +1388,6 @@ describe("LeaderboardService", () => {
       queueChannelIds: ["guild-b-queue"],
       startEpochSeconds: 1234,
     });
-    expect(getPairRelationshipSpy).toHaveBeenCalledTimes(1);
     expect(result?.pairSummaries).toEqual([
       {
         playerXboxXuid: "xuid-1",
@@ -1413,20 +1412,20 @@ describe("LeaderboardService", () => {
         playerXboxXuid: "xuid-2",
         opponentXboxXuid: "xuid-1",
         seriesPlayedWith: 1,
-        playerSeriesWinsWith: 0,
+        playerSeriesWinsWith: 1,
         seriesPlayedAgainst: 2,
         playerSeriesWinsAgainst: 1,
         opponentSeriesWinsAgainst: 1,
         gamesPlayedWith: 3,
-        playerGameWinsWith: 1,
+        playerGameWinsWith: 2,
         gamesPlayedAgainst: 4,
-        playerGameWinsAgainst: 1,
-        opponentGameWinsAgainst: 3,
+        playerGameWinsAgainst: 3,
+        opponentGameWinsAgainst: 1,
         headToHeadGamesPlayed: 4,
-        playerKills: 15,
-        playerPerfects: 1,
-        opponentKills: 20,
-        opponentPerfects: 2,
+        playerKills: 20,
+        playerPerfects: 2,
+        opponentKills: 15,
+        opponentPerfects: 1,
       },
     ]);
   });

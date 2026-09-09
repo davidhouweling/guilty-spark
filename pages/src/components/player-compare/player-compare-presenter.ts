@@ -223,8 +223,8 @@ export class PlayerComparePresenter {
 
   present(snapshot: PlayerCompareSnapshot): PlayerCompareViewModel {
     const { response } = snapshot;
-    const { gamertags } = snapshot;
-    const selectedGuildId = this.currentGuildId ?? response?.selectedGuildId ?? "";
+    const gamertags = response?.players.map((player) => player.player.gamertag) ?? snapshot.gamertags;
+    const selectedGuildId = response?.selectedGuildId ?? this.currentGuildId ?? "";
     const selectedServer = response?.servers.find((server) => server.guildId === selectedGuildId);
     const selectedQueueOption = selectedServer?.queueOptions.find(
       (option) => option.channelId === this.currentQueueChannelId,
@@ -234,7 +234,7 @@ export class PlayerComparePresenter {
     const scopeLabel =
       response == null
         ? "Add players to compare."
-        : `${selectedServer?.guildName ?? response.selectedGuildName} / ${queueLabel} / ${selectedWindow}`;
+        : `${response.selectedGuildName} / ${queueLabel} / ${selectedWindow}`;
     const selectedMinGamesPlayed = this.currentMinGamesPlayed ?? response?.minGamesPlayed ?? 5;
 
     return {
@@ -563,17 +563,13 @@ export class PlayerComparePresenter {
         };
       }
       case HeadToHeadMetric.AvgKillsAgainst: {
-        if (pair.headToHeadGamesPlayed === 0) {
-          return { opponentGamertag, text: "-", sortValue: undefined };
-        }
-
-        const averageKills = (pair.playerKills / pair.headToHeadGamesPlayed).toLocaleString(undefined, {
-          maximumFractionDigits: 1,
-        });
         return {
           opponentGamertag,
-          text: `${averageKills} (${formatPerfects(pair.playerPerfects)})`,
-          sortValue: pair.playerKills / pair.headToHeadGamesPlayed,
+          text:
+            pair.headToHeadGamesPlayed === 0
+              ? "-"
+              : `${(pair.playerKills / pair.headToHeadGamesPlayed).toLocaleString(undefined, { maximumFractionDigits: 1 })} (${formatPerfects(pair.playerPerfects)})`,
+          sortValue: pair.headToHeadGamesPlayed === 0 ? undefined : pair.playerKills / pair.headToHeadGamesPlayed,
         };
       }
       default: {
@@ -639,7 +635,6 @@ export class PlayerComparePresenter {
     }
 
     if (this.currentGamertags.length === 0) {
-      this.resetFilters();
       url.searchParams.delete("guildId");
       url.searchParams.delete("queueChannelId");
       url.searchParams.delete("window");
@@ -669,12 +664,5 @@ export class PlayerComparePresenter {
       url.searchParams.set("minGamesPlayed", this.currentMinGamesPlayed.toString());
     }
     window.history.pushState({}, "", url);
-  }
-
-  private resetFilters(): void {
-    this.currentGuildId = undefined;
-    this.currentQueueChannelId = undefined;
-    this.currentWindow = undefined;
-    this.currentMinGamesPlayed = undefined;
   }
 }

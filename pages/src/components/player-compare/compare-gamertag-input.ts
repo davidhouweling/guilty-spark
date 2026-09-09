@@ -7,16 +7,16 @@ export function cleanCompareGamertags(rawGamertags: readonly string[]): string[]
 
 export function parseCompareGamertags(rawGamertags: readonly string[]): string[] {
   const cleanGamertags = cleanCompareGamertags(rawGamertags);
-  const gamertagKeys = new Set<string>();
+
+  if (cleanGamertags.length < MIN_COMPARE_PLAYERS || cleanGamertags.length > MAX_COMPARE_PLAYERS) {
+    throw new Error("Provide 1 to 8 gamertags to compare.");
+  }
+
   const uniqueGamertags: string[] = [];
   for (const gamertag of cleanGamertags) {
-    const gamertagKey = gamertag.toLowerCase();
-    if (gamertagKeys.has(gamertagKey)) {
-      continue;
+    if (!uniqueGamertags.some((existingGamertag) => existingGamertag.toLowerCase() === gamertag.toLowerCase())) {
+      uniqueGamertags.push(gamertag);
     }
-
-    gamertagKeys.add(gamertagKey);
-    uniqueGamertags.push(gamertag);
   }
 
   if (uniqueGamertags.length < MIN_COMPARE_PLAYERS || uniqueGamertags.length > MAX_COMPARE_PLAYERS) {

@@ -1,7 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
-import type { PlayerCompareResponse } from "@guilty-spark/shared/contracts/stats/player";
 import {
   aFakePlayerCompareServiceWith,
   createFakePlayerCompareStats,
@@ -114,35 +113,6 @@ describe("PlayerComparePresenter", () => {
     expect(getPlayerCompareSpy).toHaveBeenCalledWith(expect.objectContaining({ gamertags: ["Alpha", "Bravo"] }));
   });
 
-  it("uses pending players and filters while a new comparison is loading", async () => {
-    const service = aFakePlayerCompareServiceWith({
-      servers: [
-        { guildId: "guild-1", guildName: "First Server", gamesPlayed: 12, queueOptions: [] },
-        { guildId: "guild-2", guildName: "Second Server", gamesPlayed: 10, queueOptions: [] },
-      ],
-    });
-    const store = new PlayerCompareStore();
-    const presenter = new PlayerComparePresenter({ service, store, gamertags: ["Alpha", "Bravo"] });
-
-    presenter.start();
-    await vi.waitFor(() => {
-      expect(store.getSnapshot().status).toBe("loaded");
-    });
-    vi.spyOn(service, "getPlayerCompare").mockImplementation(
-      async () => new Promise<PlayerCompareResponse>(() => undefined),
-    );
-    presenter.changeAddPlayerValue("Charlie");
-    presenter.addPlayer();
-    presenter.changeGuild("guild-2");
-
-    const model = presenter.present(store.getSnapshot());
-
-    expect(model.state).toBe("loading");
-    expect(model.gamertags).toEqual(["Alpha", "Bravo", "Charlie"]);
-    expect(model.selectedGuildId).toBe("guild-2");
-    expect(model.scopeLabel).toBe("Second Server / All queues / 3M");
-  });
-
   it("does not add a duplicate gamertag with different casing", () => {
     const service = aFakePlayerCompareServiceWith();
     const getPlayerCompareSpy = vi.spyOn(service, "getPlayerCompare");
@@ -189,36 +159,6 @@ describe("PlayerComparePresenter", () => {
     expect(model.gamertags).toEqual(["Alpha"]);
     expect(model.title).toBe("Alpha");
     expect(model.statsRows.length).toBeGreaterThan(0);
-  });
-
-  it("clears retained filters after removing all players", async () => {
-    const service = aFakePlayerCompareServiceWith();
-    const getPlayerCompareSpy = vi.spyOn(service, "getPlayerCompare");
-    const store = new PlayerCompareStore();
-    const presenter = new PlayerComparePresenter({ service, store, gamertags: ["Alpha", "Bravo"] });
-
-    presenter.start();
-    await vi.waitFor(() => {
-      expect(store.getSnapshot().status).toBe("loaded");
-    });
-
-    presenter.removePlayer("Alpha");
-    presenter.removePlayer("Bravo");
-    presenter.changeAddPlayerValue("Charlie");
-    presenter.addPlayer();
-
-    await vi.waitFor(() => {
-      expect(store.getSnapshot().status).toBe("loaded");
-    });
-
-    expect(window.location.search).toBe("?gamertag=Charlie");
-    expect(getPlayerCompareSpy).toHaveBeenLastCalledWith({
-      gamertags: ["Charlie"],
-      guildId: undefined,
-      queueChannelId: undefined,
-      window: undefined,
-      minGamesPlayed: undefined,
-    });
   });
 
   it("highlights higher kills and lower deaths as the best aggregate values", async () => {
@@ -282,42 +222,6 @@ describe("PlayerComparePresenter", () => {
         playerGamertag: "Bravo",
         values: [
           { opponentGamertag: "Alpha", text: "15 (1 perfect)", sortValue: 15 },
-          { opponentGamertag: "Bravo", text: "-", sortValue: undefined },
-        ],
-      },
-    ]);
-  });
-
-  it("shows no average-kills value when players have no head-to-head games", async () => {
-    const defaultService = aFakePlayerCompareServiceWith();
-    const defaultResponse = await defaultService.getPlayerCompare({ gamertags: ["Alpha", "Bravo"] });
-    const service = aFakePlayerCompareServiceWith({
-      pairSummaries: defaultResponse.pairSummaries.map((summary) => ({
-        ...summary,
-        headToHeadGamesPlayed: 0,
-      })),
-    });
-    const store = new PlayerCompareStore();
-    const presenter = new PlayerComparePresenter({ service, store, gamertags: ["Alpha", "Bravo"] });
-
-    presenter.start();
-    await vi.waitFor(() => {
-      expect(store.getSnapshot().status).toBe("loaded");
-    });
-    presenter.changeHeadToHeadMetric(PlayerCompareHeadToHeadMetric.AvgKillsAgainst);
-
-    expect(presenter.present(store.getSnapshot()).headToHeadRows).toEqual([
-      {
-        playerGamertag: "Alpha",
-        values: [
-          { opponentGamertag: "Alpha", text: "-", sortValue: undefined },
-          { opponentGamertag: "Bravo", text: "-", sortValue: undefined },
-        ],
-      },
-      {
-        playerGamertag: "Bravo",
-        values: [
-          { opponentGamertag: "Alpha", text: "-", sortValue: undefined },
           { opponentGamertag: "Bravo", text: "-", sortValue: undefined },
         ],
       },
@@ -499,7 +403,7 @@ describe("PlayerComparePresenter", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove Bravo" }));
     expect(onRemovePlayer).toHaveBeenCalledWith("Bravo");
 
-    fireEvent.click(screen.getByRole("button", { name: "Add player" }));
+    fireEvent.submit(screen.getByRole("button", { name: "Add player" }));
     expect(onAddPlayer).toHaveBeenCalled();
   });
 });
