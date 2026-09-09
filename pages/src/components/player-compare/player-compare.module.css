@@ -48,69 +48,28 @@
   padding: var(--space-4);
 }
 
-.addPlayer label,
-.controls label {
+.formLabel {
   color: var(--halo-gray);
-  display: grid;
   font-size: var(--text-xs);
-  gap: var(--space-2);
   text-transform: uppercase;
 }
 
-.addPlayer input {
-  background: var(--halo-bg-card);
-  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 28%, transparent);
-  color: var(--halo-text);
-  font: inherit;
-  min-height: 2.5rem;
-  padding: 0 var(--space-3);
-}
-
-.addPlayer button {
-  background: var(--halo-accent);
-  border: 0;
-  color: var(--halo-bg-primary);
-  cursor: pointer;
-  font-family: var(--font-mono);
-  min-height: 2.5rem;
-  padding: 0 var(--space-4);
-  text-transform: uppercase;
-}
-
-.addPlayer button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.selectedPlayers {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  justify-content: flex-start;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.selectedPlayers li {
+.playerHeader {
   align-items: center;
-  background: color-mix(in srgb, var(--halo-bg-card) 86%, transparent);
-  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
   display: flex;
   gap: var(--space-2);
-  min-height: 2rem;
-  padding: 0 var(--space-2);
+  line-height: 1.5rem;
 }
 
-.selectedPlayers button {
-  background: transparent;
-  border: 0;
-  color: var(--halo-accent);
-  cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
+.playerHeaderCell {
+  vertical-align: middle;
+}
+
+.playerHeaderRemoveButton {
+  height: 1.5rem;
+  flex-shrink: 0;
   padding: 0;
-  text-transform: uppercase;
+  width: 1.5rem;
 }
 
 .controls {
@@ -120,6 +79,14 @@
   gap: var(--space-3);
   margin-bottom: var(--space-6);
   padding: var(--space-4);
+}
+
+.controls label {
+  color: var(--halo-gray);
+  display: grid;
+  font-size: var(--text-xs);
+  gap: var(--space-2);
+  text-transform: uppercase;
 }
 
 .controls select {
@@ -145,10 +112,6 @@
   gap: var(--space-2);
   max-width: 18rem;
   text-transform: uppercase;
-}
-
-.metricSelect select {
-  text-transform: none;
 }
 
 .bestValue {

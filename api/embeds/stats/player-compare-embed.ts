@@ -321,7 +321,10 @@ function getSelectedStringSelectValue(
     }
 
     for (const component of actionRow.components) {
-      if (component.type !== ComponentType.StringSelect || getPlayerCompareControlIdBase(component.custom_id) !== customId) {
+      if (
+        component.type !== ComponentType.StringSelect ||
+        getPlayerCompareControlIdBase(component.custom_id) !== customId
+      ) {
         continue;
       }
 

@@ -75,7 +75,12 @@ export class PlayerComparePresenter {
   private requestNumber = 0;
   private isDisposed = false;
 
-  constructor({ store, service, gamertags, initialResponse }: CreatePlayerCompareConfig & { store: PlayerCompareStore }) {
+  constructor({
+    store,
+    service,
+    gamertags,
+    initialResponse,
+  }: CreatePlayerCompareConfig & { store: PlayerCompareStore }) {
     this.store = store;
     this.service = service;
     this.currentGamertags = gamertags;
@@ -96,7 +101,7 @@ export class PlayerComparePresenter {
       return;
     }
 
-    if (this.currentGamertags.length < 2) {
+    if (this.currentGamertags.length === 0) {
       this.store.setLoaded(this.currentGamertags, null);
       return;
     }
@@ -105,7 +110,7 @@ export class PlayerComparePresenter {
   }
 
   load(): void {
-    if (this.currentGamertags.length < 2) {
+    if (this.currentGamertags.length === 0) {
       this.store.setLoaded(this.currentGamertags, null);
       return;
     }
@@ -226,7 +231,10 @@ export class PlayerComparePresenter {
     );
     const queueLabel = selectedQueueOption?.label ?? "All queues";
     const selectedWindow = response?.window ?? this.currentWindow ?? LeaderboardWindow.ThreeMonths;
-    const scopeLabel = response == null ? "Add at least two players to compare." : `${response.selectedGuildName} / ${queueLabel} / ${selectedWindow}`;
+    const scopeLabel =
+      response == null
+        ? "Add players to compare."
+        : `${response.selectedGuildName} / ${queueLabel} / ${selectedWindow}`;
     const selectedMinGamesPlayed = this.currentMinGamesPlayed ?? response?.minGamesPlayed ?? 5;
 
     return {
@@ -258,6 +266,7 @@ export class PlayerComparePresenter {
       })),
       selectedTabId: snapshot.tabId,
       statsRows: this.getStatsRows(response),
+      headToHeadSummaryRows: this.getHeadToHeadSummaryRows(response),
       headToHeadMetricOptions: HEAD_TO_HEAD_METRIC_OPTIONS,
       selectedHeadToHeadMetric: snapshot.headToHeadMetric,
       headToHeadRows: this.getHeadToHeadRows(response, snapshot.headToHeadMetric),
@@ -362,6 +371,87 @@ export class PlayerComparePresenter {
     });
   }
 
+  private getHeadToHeadSummaryRows(response: PlayerCompareResponse | null): readonly PlayerCompareStatRow[] {
+    if (response == null || response.players.length !== 2) {
+      return [];
+    }
+
+    const [playerA, playerB] = response.players;
+    const pair = response.pairSummaries.find(
+      (summary) =>
+        (summary.playerXboxXuid === playerA.player.xboxXuid && summary.opponentXboxXuid === playerB.player.xboxXuid) ||
+        (summary.playerXboxXuid === playerB.player.xboxXuid && summary.opponentXboxXuid === playerA.player.xboxXuid),
+    );
+    if (pair == null) {
+      return [];
+    }
+
+    const rows: PlayerCompareStatRow[] = [
+      {
+        stat: "Series win %",
+        values: [
+          {
+            gamertag: playerA.player.gamertag,
+            text: this.formatWinRate(pair.playerSeriesWinsAgainst, pair.seriesPlayedAgainst),
+            sortValue: pair.seriesPlayedAgainst === 0 ? undefined : pair.playerSeriesWinsAgainst / pair.seriesPlayedAgainst,
+          },
+          {
+            gamertag: playerB.player.gamertag,
+            text: this.formatWinRate(pair.opponentSeriesWinsAgainst, pair.seriesPlayedAgainst),
+            sortValue: pair.seriesPlayedAgainst === 0 ? undefined : pair.opponentSeriesWinsAgainst / pair.seriesPlayedAgainst,
+          },
+        ],
+      },
+      {
+        stat: "Games win %",
+        values: [
+          {
+            gamertag: playerA.player.gamertag,
+            text: this.formatWinRate(pair.playerGameWinsAgainst, pair.gamesPlayedAgainst),
+            sortValue: pair.gamesPlayedAgainst === 0 ? undefined : pair.playerGameWinsAgainst / pair.gamesPlayedAgainst,
+          },
+          {
+            gamertag: playerB.player.gamertag,
+            text: this.formatWinRate(pair.opponentGameWinsAgainst, pair.gamesPlayedAgainst),
+            sortValue: pair.gamesPlayedAgainst === 0 ? undefined : pair.opponentGameWinsAgainst / pair.gamesPlayedAgainst,
+          },
+        ],
+      },
+      {
+        stat: "Kills",
+        values: [
+          {
+            gamertag: playerA.player.gamertag,
+            text: pair.playerKills.toLocaleString(),
+            sortValue: pair.playerKills,
+          },
+          {
+            gamertag: playerB.player.gamertag,
+            text: pair.opponentKills.toLocaleString(),
+            sortValue: pair.opponentKills,
+          },
+        ],
+      },
+      {
+        stat: "Avg kills/game",
+        values: [
+          {
+            gamertag: playerA.player.gamertag,
+            text: pair.headToHeadGamesPlayed === 0 ? "-" : (pair.playerKills / pair.headToHeadGamesPlayed).toLocaleString(undefined, { maximumFractionDigits: 1 }),
+            sortValue: pair.headToHeadGamesPlayed === 0 ? undefined : pair.playerKills / pair.headToHeadGamesPlayed,
+          },
+          {
+            gamertag: playerB.player.gamertag,
+            text: pair.headToHeadGamesPlayed === 0 ? "-" : (pair.opponentKills / pair.headToHeadGamesPlayed).toLocaleString(undefined, { maximumFractionDigits: 1 }),
+            sortValue: pair.headToHeadGamesPlayed === 0 ? undefined : pair.opponentKills / pair.headToHeadGamesPlayed,
+          },
+        ],
+      },
+    ];
+
+    return rows.map((row) => ({ ...row, values: this.applyValueComparison(LeaderboardMetric.Kills, row.values) }));
+  }
+
   private getHeadToHeadRows(
     response: PlayerCompareResponse | null,
     metric: PlayerCompareHeadToHeadMetric,
@@ -374,7 +464,13 @@ export class PlayerComparePresenter {
       playerGamertag: player.player.gamertag,
       values: this.applyHeadToHeadValueComparison(
         response.players.map((opponent) =>
-          this.getHeadToHeadCell(response, player.player.xboxXuid, opponent.player.xboxXuid, opponent.player.gamertag, metric),
+          this.getHeadToHeadCell(
+            response,
+            player.player.xboxXuid,
+            opponent.player.xboxXuid,
+            opponent.player.gamertag,
+            metric,
+          ),
         ),
       ),
     }));
@@ -403,7 +499,8 @@ export class PlayerComparePresenter {
         return {
           opponentGamertag,
           text: this.formatWinRate(pair.playerSeriesWinsAgainst, pair.seriesPlayedAgainst),
-          sortValue: pair.seriesPlayedAgainst === 0 ? undefined : pair.playerSeriesWinsAgainst / pair.seriesPlayedAgainst,
+          sortValue:
+            pair.seriesPlayedAgainst === 0 ? undefined : pair.playerSeriesWinsAgainst / pair.seriesPlayedAgainst,
         };
       }
       case HeadToHeadMetric.GamesWinRateAgainst: {
@@ -437,7 +534,9 @@ export class PlayerComparePresenter {
   }
 
   private formatWinRate(wins: number, total: number): string {
-    return total === 0 ? "-" : `${((wins / total) * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}% (${wins.toLocaleString()}/${total.toLocaleString()})`;
+    return total === 0
+      ? "-"
+      : `${((wins / total) * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}% (${wins.toLocaleString()}/${total.toLocaleString()})`;
   }
 
   private applyHeadToHeadValueComparison(
@@ -487,7 +586,7 @@ export class PlayerComparePresenter {
       url.searchParams.append("gamertag", gamertag);
     }
 
-    if (this.currentGamertags.length < 2) {
+    if (this.currentGamertags.length === 0) {
       url.searchParams.delete("guildId");
       url.searchParams.delete("queueChannelId");
       url.searchParams.delete("window");

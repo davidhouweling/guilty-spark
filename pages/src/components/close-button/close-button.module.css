@@ -1,0 +1,29 @@
+.closeButton {
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--halo-gray);
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2);
+  transition:
+    background-color var(--transition-fast) ease,
+    color var(--transition-fast) ease;
+}
+
+.closeButton:hover {
+  background-color: var(--halo-bg-card);
+  color: var(--halo-white);
+}
+
+.closeButton:focus-visible {
+  outline: 2px solid currentcolor;
+  outline-offset: 2px;
+}
+
+.closeIcon {
+  height: 24px;
+  width: 24px;
+}

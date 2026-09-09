@@ -14,6 +14,7 @@ interface ButtonProps {
   readonly className?: string;
   readonly icon?: ImageMetadata | React.ReactNode;
   readonly iconAlt?: string;
+  readonly ariaLabel?: string;
   readonly children: React.ReactNode;
 }
 
@@ -28,6 +29,7 @@ export function Button({
   className,
   icon,
   iconAlt = "",
+  ariaLabel,
   children,
 }: ButtonProps): React.ReactElement {
   const isImageIcon = icon !== null && icon !== undefined && typeof icon === "object" && "src" in icon;
@@ -67,7 +69,7 @@ export function Button({
 
   if (href !== undefined) {
     return (
-      <a href={href} className={buttonClassName}>
+      <a href={href} className={buttonClassName} aria-label={ariaLabel}>
         {content}
       </a>
     );
@@ -80,6 +82,7 @@ export function Button({
       disabled={disabled || loading}
       className={buttonClassName}
       aria-busy={loading}
+      aria-label={ariaLabel}
     >
       {content}
     </button>

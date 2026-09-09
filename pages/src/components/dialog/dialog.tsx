@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useRef } from "react";
 import classNames from "classnames";
+import { CloseButton } from "../close-button/close-button";
 import { Heading } from "../heading/heading";
 import styles from "./dialog.module.css";
 
@@ -68,11 +69,7 @@ export function Dialog({
         tabIndex={-1}
         className={classNames(styles.panel, panelClassName)}
       >
-        <button type="button" className={styles.closeButton} onClick={onClose} aria-label={`Close ${title}`}>
-          <svg className={styles.closeIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M18 6L6 18M6 6l12 12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
+        <CloseButton ariaLabel={`Close ${title}`} className={styles.closeButton} onClick={onClose} />
         <Heading tagName="h2" className={styles.title} id={titleId}>
           {title}
         </Heading>

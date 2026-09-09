@@ -128,7 +128,7 @@ const playerCompareGamertagsSchema = z
 
     return gamertags;
   })
-  .pipe(z.array(z.string().min(1)).min(2).max(8));
+  .pipe(z.array(z.string().min(1)).min(1).max(8));
 
 const playerComparePairSummarySchema = z.object({
   playerXboxXuid: z.string(),
@@ -211,7 +211,7 @@ export const playerStatsContract = defineContract(
 
 export const playerCompareContract = defineContract(
   z.object({
-    players: z.array(playerComparePlayerSchema).min(2).max(8),
+    players: z.array(playerComparePlayerSchema).min(1).max(8),
     servers: z.array(playerServerOptionSchema).min(1),
     selectedGuildId: z.string(),
     selectedGuildName: z.string(),

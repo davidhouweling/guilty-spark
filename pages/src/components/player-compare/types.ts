@@ -57,6 +57,7 @@ export interface PlayerCompareViewModel {
   readonly minGamesPlayedOptions: readonly PlayerCompareOption[];
   readonly selectedTabId: PlayerCompareTabId;
   readonly statsRows: readonly PlayerCompareStatRow[];
+  readonly headToHeadSummaryRows?: readonly PlayerCompareStatRow[] | undefined;
   readonly headToHeadMetricOptions: readonly PlayerCompareOption[];
   readonly selectedHeadToHeadMetric: PlayerCompareHeadToHeadMetric;
   readonly headToHeadRows: readonly PlayerCompareHeadToHeadRow[];

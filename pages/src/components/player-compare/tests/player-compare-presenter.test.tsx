@@ -30,9 +30,43 @@ describe("PlayerComparePresenter", () => {
 
     expect(model.state).toBe("loaded");
     expect(model.title).toBe("Compare players");
-    expect(model.scopeLabel).toBe("Add at least two players to compare.");
+    expect(model.scopeLabel).toBe("Add players to compare.");
     expect(model.statsRows).toHaveLength(0);
     expect(getPlayerCompareSpy).not.toHaveBeenCalled();
+  });
+
+  it("loads comparison data when a single gamertag is supplied", async () => {
+    const service = aFakePlayerCompareServiceWith({
+      players: [
+        {
+          player: { xboxXuid: "xuid-1", gamertag: "Alpha" },
+          stats: createFakePlayerCompareStats("Alpha", "xuid-1"),
+          ranks: {},
+        },
+      ],
+    });
+    const getPlayerCompareSpy = vi.spyOn(service, "getPlayerCompare");
+    const store = new PlayerCompareStore();
+    const presenter = new PlayerComparePresenter({ service, store, gamertags: ["Alpha"] });
+
+    presenter.start();
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().status).toBe("loaded");
+    });
+    const model = presenter.present(store.getSnapshot());
+
+    expect(model.title).toBe("Alpha");
+    expect(model.selectedGuildId).toBe("guild-1");
+    expect(model.selectedWindow).toBe(LeaderboardWindow.ThreeMonths);
+    expect(model.statsRows.length).toBeGreaterThan(0);
+    expect(model.statsRows[0]?.values).toHaveLength(1);
+    expect(getPlayerCompareSpy).toHaveBeenCalledWith({
+      gamertags: ["Alpha"],
+      guildId: undefined,
+      queueChannelId: undefined,
+      window: undefined,
+      minGamesPlayed: undefined,
+    });
   });
 
   it("loads comparison data when at least two gamertags are supplied", async () => {
@@ -76,9 +110,7 @@ describe("PlayerComparePresenter", () => {
     });
 
     expect(window.location.search).toBe("?gamertag=Alpha&gamertag=Bravo");
-    expect(getPlayerCompareSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ gamertags: ["Alpha", "Bravo"] }),
-    );
+    expect(getPlayerCompareSpy).toHaveBeenCalledWith(expect.objectContaining({ gamertags: ["Alpha", "Bravo"] }));
   });
 
   it("does not add a duplicate gamertag with different casing", () => {
@@ -97,8 +129,16 @@ describe("PlayerComparePresenter", () => {
     expect(getPlayerCompareSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("removes a player and clears loaded comparison data when fewer than two players remain", async () => {
-    const service = aFakePlayerCompareServiceWith();
+  it("removes a player and keeps the one-player comparison state with existing filters", async () => {
+    const service = aFakePlayerCompareServiceWith({
+      players: [
+        {
+          player: { xboxXuid: "xuid-1", gamertag: "Alpha" },
+          stats: createFakePlayerCompareStats("Alpha", "xuid-1"),
+          ranks: {},
+        },
+      ],
+    });
     const store = new PlayerCompareStore();
     const presenter = new PlayerComparePresenter({ service, store, gamertags: ["Alpha", "Bravo"] });
 
@@ -108,11 +148,17 @@ describe("PlayerComparePresenter", () => {
     });
 
     presenter.removePlayer("Bravo");
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().status).toBe("loaded");
+      expect(store.getSnapshot().gamertags).toEqual(["Alpha"]);
+    });
+
     const model = presenter.present(store.getSnapshot());
 
-    expect(window.location.search).toBe("?gamertag=Alpha");
+    expect(window.location.search).toBe("?gamertag=Alpha&guildId=guild-1&window=3M&minGamesPlayed=5");
     expect(model.gamertags).toEqual(["Alpha"]);
-    expect(model.statsRows).toHaveLength(0);
+    expect(model.title).toBe("Alpha");
+    expect(model.statsRows.length).toBeGreaterThan(0);
   });
 
   it("highlights higher kills and lower deaths as the best aggregate values", async () => {
@@ -182,14 +228,14 @@ describe("PlayerComparePresenter", () => {
     ]);
   });
 
-  it("renders the head-to-head matrix tab and metric selector", () => {
+  it("renders the head-to-head matrix tab and metric selector for more than two players", () => {
     const onHeadToHeadMetricChange = vi.fn();
 
     render(
       <PlayerCompare
         state="loaded"
-        gamertags={["Alpha", "Bravo"]}
-        title="Alpha vs Bravo"
+        gamertags={["Alpha", "Bravo", "Charlie"]}
+        title="Alpha vs Bravo vs Charlie"
         scopeLabel="Test Server / All queues / 3M"
         servers={[{ value: "guild-1", label: "Test Server" }]}
         queueOptions={[{ value: "all", label: "All configured queues" }]}
@@ -212,12 +258,21 @@ describe("PlayerComparePresenter", () => {
             values: [
               { opponentGamertag: "Alpha", text: "-", sortValue: undefined },
               { opponentGamertag: "Bravo", text: "20 (2 perfects)", sortValue: 20 },
+              { opponentGamertag: "Charlie", text: "10 (1 perfect)", sortValue: 10 },
+            ],
+          },
+          {
+            playerGamertag: "Bravo",
+            values: [
+              { opponentGamertag: "Alpha", text: "15 (1 perfect)", sortValue: 15 },
+              { opponentGamertag: "Bravo", text: "-", sortValue: undefined },
+              { opponentGamertag: "Charlie", text: "12 (1 perfect)", sortValue: 12 },
             ],
           },
         ]}
         addPlayerValue=""
         canAddPlayer={false}
-        statusText="2 PLAYERS"
+        statusText="3 PLAYERS"
         onAddPlayerValueChange={vi.fn()}
         onAddPlayer={vi.fn()}
         onRemovePlayer={vi.fn()}
@@ -239,7 +294,55 @@ describe("PlayerComparePresenter", () => {
     expect(onHeadToHeadMetricChange).toHaveBeenCalledWith(PlayerCompareHeadToHeadMetric.SeriesWinRateAgainst);
   });
 
-  it("renders selected-player remove controls and submits add-player input", () => {
+  it("renders all head-to-head stats in a leaderboard-style table when exactly two players are selected", () => {
+    render(
+      <PlayerCompare
+        state="loaded"
+        gamertags={["Alpha", "Bravo"]}
+        title="Alpha vs Bravo"
+        scopeLabel="Test Server / All queues / 3M"
+        servers={[{ value: "guild-1", label: "Test Server" }]}
+        queueOptions={[{ value: "all", label: "All configured queues" }]}
+        windowOptions={[{ value: LeaderboardWindow.ThreeMonths, label: "3 months" }]}
+        selectedGuildId="guild-1"
+        selectedQueueChannelId={null}
+        selectedWindow={LeaderboardWindow.ThreeMonths}
+        selectedMinGamesPlayed={5}
+        minGamesPlayedOptions={[{ value: "5", label: "5" }]}
+        selectedTabId="head-to-head"
+        statsRows={[]}
+        headToHeadMetricOptions={[
+          { value: PlayerCompareHeadToHeadMetric.SeriesWinRateAgainst, label: "Series win % vs" },
+          { value: PlayerCompareHeadToHeadMetric.KillsAgainst, label: "Kills vs" },
+        ]}
+        selectedHeadToHeadMetric={PlayerCompareHeadToHeadMetric.KillsAgainst}
+        headToHeadRows={[]}
+        headToHeadSummaryRows={[
+          { stat: "Series win %", values: [{ gamertag: "Alpha", text: "50% (1/2)" }, { gamertag: "Bravo", text: "50% (1/2)" }] },
+          { stat: "Kills", values: [{ gamertag: "Alpha", text: "20" }, { gamertag: "Bravo", text: "15" }] },
+        ]}
+        addPlayerValue=""
+        canAddPlayer={false}
+        statusText="2 PLAYERS"
+        onAddPlayerValueChange={vi.fn()}
+        onAddPlayer={vi.fn()}
+        onRemovePlayer={vi.fn()}
+        onGuildChange={vi.fn()}
+        onQueueChange={vi.fn()}
+        onWindowChange={vi.fn()}
+        onMinGamesPlayedChange={vi.fn()}
+        onHeadToHeadMetricChange={vi.fn()}
+        onTabChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByLabelText("Metric")).toBeNull();
+    expect(screen.getByRole("table", { name: "Player comparison table" })).not.toBeNull();
+    expect(screen.getByText("Series win %")).not.toBeNull();
+    expect(screen.getByText("Kills")).not.toBeNull();
+  });
+
+  it("renders a remove control in the leaderboard column header and submits add-player input", () => {
     const onAddPlayer = vi.fn();
     const onRemovePlayer = vi.fn();
 
@@ -258,7 +361,15 @@ describe("PlayerComparePresenter", () => {
         selectedMinGamesPlayed={5}
         minGamesPlayedOptions={[{ value: "5", label: "5" }]}
         selectedTabId="stats"
-        statsRows={[]}
+        statsRows={[
+          {
+            stat: "Kills",
+            values: [
+              { gamertag: "Alpha", text: "20", sortValue: 20 },
+              { gamertag: "Bravo", text: "15", sortValue: 15 },
+            ],
+          },
+        ]}
         headToHeadMetricOptions={[]}
         selectedHeadToHeadMetric={PlayerCompareHeadToHeadMetric.KillsAgainst}
         headToHeadRows={[]}

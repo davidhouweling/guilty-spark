@@ -2,9 +2,7 @@ const MAX_COMPARE_PLAYERS = 8;
 const MIN_COMPARE_PLAYERS = 2;
 
 export function cleanCompareGamertags(rawGamertags: readonly string[]): string[] {
-  return rawGamertags
-    .map((gamertag) => gamertag.trim())
-    .filter((gamertag) => gamertag !== "");
+  return rawGamertags.map((gamertag) => gamertag.trim()).filter((gamertag) => gamertag !== "");
 }
 
 export function parseCompareGamertags(rawGamertags: readonly string[]): string[] {

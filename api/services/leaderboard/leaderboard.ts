@@ -436,9 +436,7 @@ export class LeaderboardService {
     return pairs;
   }
 
-  private async getCompareDiscoveries(
-    gamertags: readonly string[],
-  ): Promise<LeaderboardCompareDiscovery[] | null> {
+  private async getCompareDiscoveries(gamertags: readonly string[]): Promise<LeaderboardCompareDiscovery[] | null> {
     const discoveries: LeaderboardCompareDiscovery[] = [];
     for (const gamertag of gamertags) {
       const player = await this.haloService.getUserByGamertag(gamertag);

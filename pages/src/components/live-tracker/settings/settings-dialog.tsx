@@ -1,6 +1,7 @@
 import React from "react";
 import classNames from "classnames";
 import { Heading } from "../../heading/heading";
+import { CloseButton } from "../../close-button/close-button";
 import type { ViewMode } from "../../view-mode/view-mode-selector";
 import { Checkbox } from "../../checkbox/checkbox";
 import type {
@@ -196,11 +197,7 @@ export function SettingsDialog({
           <Heading tagName="h2" id="settings-dialog-title" className={styles.title}>
             Overlay Settings
           </Heading>
-          <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close settings">
-            <svg className={styles.closeIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M18 6L6 18M6 6l12 12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
+          <CloseButton ariaLabel="Close settings" className={styles.closeButton} onClick={onClose} />
         </div>
 
         {/* Content */}

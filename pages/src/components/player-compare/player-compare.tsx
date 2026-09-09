@@ -1,6 +1,9 @@
 import React, { useMemo } from "react";
 import { Alert } from "../alert/alert";
+import { Button } from "../button/button";
+import { CloseButton } from "../close-button/close-button";
 import { Heading } from "../heading/heading";
+import { Input } from "../input/input";
 import { LoadingState } from "../loading-state/loading-state";
 import { Select } from "../select/select";
 import { TabbedSection } from "../tabbed-section/tabbed-section";
@@ -23,7 +26,7 @@ function EmptyContent(): React.ReactElement {
       <Heading tagName="h2" variant="display">
         Add players to compare
       </Heading>
-      <p>Enter at least two gamertags to compare leaderboard stats.</p>
+      <p>Enter a gamertag to compare leaderboard stats.</p>
     </div>
   );
 }
@@ -39,10 +42,26 @@ function getHeadToHeadValue(
   return row.values.find((value) => value.opponentGamertag === opponentGamertag);
 }
 
-function createPlayerColumn(gamertag: string): SortableTableColumn<PlayerCompareStatRow> {
+function createPlayerColumn(
+  gamertag: string,
+  onRemovePlayer: (value: string) => void,
+): SortableTableColumn<PlayerCompareStatRow> {
   return {
     id: gamertag,
-    header: gamertag,
+    headerClassName: styles.playerHeaderCell,
+    header: (
+      <div className={styles.playerHeader}>
+        <span>{gamertag}</span>
+        <CloseButton
+          ariaLabel={`Remove ${gamertag}`}
+          className={styles.playerHeaderRemoveButton}
+          onClick={(event): void => {
+            event.stopPropagation();
+            onRemovePlayer(gamertag);
+          }}
+        />
+      </div>
+    ),
     accessorFn: (row): number | undefined => getCompareValue(row, gamertag)?.sortValue,
     cell: (_value, row): React.ReactNode => getCompareValue(row, gamertag)?.text ?? "-",
     cellClassName: (row): string => {
@@ -100,6 +119,7 @@ export function PlayerCompare({
   minGamesPlayedOptions,
   selectedTabId,
   statsRows,
+  headToHeadSummaryRows = [],
   headToHeadMetricOptions,
   selectedHeadToHeadMetric,
   headToHeadRows,
@@ -124,9 +144,9 @@ export function PlayerCompare({
         accessorFn: (row): string => row.stat,
         sortDescFirst: false,
       },
-      ...gamertags.map((gamertag) => createPlayerColumn(gamertag)),
+      ...gamertags.map((gamertag) => createPlayerColumn(gamertag, onRemovePlayer)),
     ],
-    [gamertags],
+    [gamertags, onRemovePlayer],
   );
 
   const headToHeadColumns = useMemo<readonly SortableTableColumn<PlayerCompareHeadToHeadRow>[]>(
@@ -167,7 +187,18 @@ export function PlayerCompare({
         label: "Head to head",
         content: (
           <div className={styles.tabContent}>
-            {headToHeadRows.length === 0 ? (
+            {gamertags.length === 2 ? (
+              headToHeadSummaryRows.length === 0 ? (
+                <EmptyContent />
+              ) : (
+                <SortableTable
+                  data={headToHeadSummaryRows}
+                  columns={statColumns}
+                  getRowKey={(row): string => row.stat}
+                  ariaLabel="Player comparison table"
+                />
+              )
+            ) : headToHeadRows.length === 0 ? (
               <EmptyContent />
             ) : (
               <>
@@ -199,9 +230,11 @@ export function PlayerCompare({
       },
     ],
     [
+      gamertags.length,
       headToHeadColumns,
       headToHeadMetricOptions,
       headToHeadRows,
+      headToHeadSummaryRows,
       onHeadToHeadMetricChange,
       selectedHeadToHeadMetric,
       statColumns,
@@ -219,57 +252,34 @@ export function PlayerCompare({
 
   return (
     <main className={styles.page}>
-      <div className={styles.header}>
-        <div>
-          <Heading tagName="h1" variant="display">
-            {title}
-          </Heading>
-          <p className={styles.scope}>{scopeLabel}</p>
+      <Heading tagName="h1" variant="display">
+        {title}
+      </Heading>
+      <p className={styles.scope}>{scopeLabel}</p>
+      <div className={styles.headerActions}>
+        <div className={styles.status} data-loading={state === "loading"}>
+          {statusText}
         </div>
-        <div className={styles.headerActions}>
-          <div className={styles.status} data-loading={state === "loading"}>
-            {statusText}
-          </div>
-          <form
-            className={styles.addPlayer}
-            onSubmit={(event): void => {
-              event.preventDefault();
-              onAddPlayer();
+        <form
+          className={styles.addPlayer}
+          onSubmit={(event): void => {
+            event.preventDefault();
+            onAddPlayer();
+          }}
+        >
+          <Input
+            label="Gamertag"
+            labelClassName={styles.formLabel}
+            value={addPlayerValue}
+            placeholder="Add player"
+            onChange={(event): void => {
+              onAddPlayerValueChange(event.target.value);
             }}
-          >
-            <label>
-              <span>Gamertag</span>
-              <input
-                value={addPlayerValue}
-                placeholder="Add player"
-                onChange={(event): void => {
-                  onAddPlayerValueChange(event.target.value);
-                }}
-              />
-            </label>
-            <button type="submit" disabled={!canAddPlayer}>
-              Add player
-            </button>
-          </form>
-          {gamertags.length > 0 && (
-            <ul className={styles.selectedPlayers} aria-label="Selected players">
-              {gamertags.map((gamertag) => (
-                <li key={gamertag}>
-                  <span>{gamertag}</span>
-                  <button
-                    type="button"
-                    aria-label={`Remove ${gamertag}`}
-                    onClick={(): void => {
-                      onRemovePlayer(gamertag);
-                    }}
-                  >
-                    Remove
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+          />
+          <Button type="submit" disabled={!canAddPlayer}>
+            Add player
+          </Button>
+        </form>
       </div>
 
       {servers.length > 0 && (

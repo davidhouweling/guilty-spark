@@ -85,7 +85,10 @@ describe("/api/stats/compare", () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
     statsRoutesRegisterHandler(router, localInstallServices);
 
-    const response = await router.fetch(new Request("http://localhost/api/stats/compare?gamertag=Alpha&gamertag=Bravo"), env);
+    const response = await router.fetch(
+      new Request("http://localhost/api/stats/compare?gamertag=Alpha&gamertag=Bravo"),
+      env,
+    );
 
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "Player comparison data not found" });

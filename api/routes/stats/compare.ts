@@ -16,7 +16,10 @@ export const statsCompareRoute: RoutesRegisterHandler = (router, installServices
     });
 
     if (!parsedQuery.success) {
-      return errorContract.toResponse({ error: "Invalid player compare query parameters" }, { status: 400, noStore: true });
+      return errorContract.toResponse(
+        { error: "Invalid player compare query parameters" },
+        { status: 400, noStore: true },
+      );
     }
 
     try {

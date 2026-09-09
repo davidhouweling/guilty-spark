@@ -4,10 +4,7 @@ import type { PlayerCompareService } from "../player-compare-types";
 
 type PlayerCompareStats = NonNullable<PlayerCompareResponse["players"][number]["stats"]>;
 
-export function createFakePlayerCompareStats(
-  gamertag: string,
-  xboxXuid: string,
-): PlayerCompareStats {
+export function createFakePlayerCompareStats(gamertag: string, xboxXuid: string): PlayerCompareStats {
   return {
     XboxXuid: xboxXuid,
     DiscordUserId: null,
@@ -77,8 +74,16 @@ export function createFakePlayerCompareStats(
 
 const defaultResponse: PlayerCompareResponse = {
   players: [
-    { player: { xboxXuid: "xuid-1", gamertag: "Alpha" }, stats: createFakePlayerCompareStats("Alpha", "xuid-1"), ranks: {} },
-    { player: { xboxXuid: "xuid-2", gamertag: "Bravo" }, stats: createFakePlayerCompareStats("Bravo", "xuid-2"), ranks: {} },
+    {
+      player: { xboxXuid: "xuid-1", gamertag: "Alpha" },
+      stats: createFakePlayerCompareStats("Alpha", "xuid-1"),
+      ranks: {},
+    },
+    {
+      player: { xboxXuid: "xuid-2", gamertag: "Bravo" },
+      stats: createFakePlayerCompareStats("Bravo", "xuid-2"),
+      ranks: {},
+    },
   ],
   servers: [
     {

@@ -34,20 +34,12 @@
 }
 
 .alertDismiss {
-  align-items: center;
-  background: none;
-  border: none;
   color: inherit;
-  cursor: pointer;
-  display: flex;
   flex-shrink: 0;
-  font-size: var(--text-2xl);
   height: 1.5rem;
-  justify-content: center;
   line-height: 1;
   opacity: 0.7;
   padding: 0;
-  transition: opacity var(--transition-fast) ease;
   width: 1.5rem;
 }
 
@@ -56,10 +48,7 @@
 }
 
 .alertDismiss:focus-visible {
-  border-radius: var(--radius-sm);
   opacity: 1;
-  outline: 2px solid currentcolor;
-  outline-offset: 2px;
 }
 
 /* Variant Styles */
