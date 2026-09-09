@@ -197,7 +197,7 @@ export function SettingsDialog({
           <Heading tagName="h2" id="settings-dialog-title" className={styles.title}>
             Overlay Settings
           </Heading>
-          <CloseButton ariaLabel="Close settings" className={styles.closeButton} onClick={onClose} />
+          <CloseButton ariaLabel="Close settings" onClick={onClose} />
         </div>
 
         {/* Content */}

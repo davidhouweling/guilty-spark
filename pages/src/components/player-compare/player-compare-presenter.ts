@@ -563,13 +563,17 @@ export class PlayerComparePresenter {
         };
       }
       case HeadToHeadMetric.AvgKillsAgainst: {
+        if (pair.headToHeadGamesPlayed === 0) {
+          return { opponentGamertag, text: "-", sortValue: undefined };
+        }
+
         const averageKills = (pair.playerKills / pair.headToHeadGamesPlayed).toLocaleString(undefined, {
           maximumFractionDigits: 1,
         });
         return {
           opponentGamertag,
-          text: pair.headToHeadGamesPlayed === 0 ? "-" : `${averageKills} (${formatPerfects(pair.playerPerfects)})`,
-          sortValue: pair.headToHeadGamesPlayed === 0 ? undefined : pair.playerKills / pair.headToHeadGamesPlayed,
+          text: `${averageKills} (${formatPerfects(pair.playerPerfects)})`,
+          sortValue: pair.playerKills / pair.headToHeadGamesPlayed,
         };
       }
       default: {

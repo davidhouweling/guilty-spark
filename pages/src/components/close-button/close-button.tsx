@@ -4,7 +4,7 @@ import styles from "./close-button.module.css";
 
 interface CloseButtonProps {
   readonly ariaLabel: string;
-  readonly className?: string;
+  readonly className?: string | undefined;
   readonly onClick: React.MouseEventHandler<HTMLButtonElement>;
 }
 

@@ -14,7 +14,7 @@ interface ButtonProps {
   readonly className?: string;
   readonly icon?: ImageMetadata | React.ReactNode;
   readonly iconAlt?: string;
-  readonly ariaLabel?: string;
+  readonly ariaLabel?: string | undefined;
   readonly children: React.ReactNode;
 }
 

@@ -258,6 +258,42 @@ describe("PlayerComparePresenter", () => {
     ]);
   });
 
+  it("shows no average-kills value when players have no head-to-head games", async () => {
+    const defaultService = aFakePlayerCompareServiceWith();
+    const defaultResponse = await defaultService.getPlayerCompare({ gamertags: ["Alpha", "Bravo"] });
+    const service = aFakePlayerCompareServiceWith({
+      pairSummaries: defaultResponse.pairSummaries.map((summary) => ({
+        ...summary,
+        headToHeadGamesPlayed: 0,
+      })),
+    });
+    const store = new PlayerCompareStore();
+    const presenter = new PlayerComparePresenter({ service, store, gamertags: ["Alpha", "Bravo"] });
+
+    presenter.start();
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().status).toBe("loaded");
+    });
+    presenter.changeHeadToHeadMetric(PlayerCompareHeadToHeadMetric.AvgKillsAgainst);
+
+    expect(presenter.present(store.getSnapshot()).headToHeadRows).toEqual([
+      {
+        playerGamertag: "Alpha",
+        values: [
+          { opponentGamertag: "Alpha", text: "-", sortValue: undefined },
+          { opponentGamertag: "Bravo", text: "-", sortValue: undefined },
+        ],
+      },
+      {
+        playerGamertag: "Bravo",
+        values: [
+          { opponentGamertag: "Alpha", text: "-", sortValue: undefined },
+          { opponentGamertag: "Bravo", text: "-", sortValue: undefined },
+        ],
+      },
+    ]);
+  });
+
   it("renders the head-to-head matrix tab and metric selector for more than two players", () => {
     const onHeadToHeadMetricChange = vi.fn();
 
