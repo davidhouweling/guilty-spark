@@ -106,16 +106,11 @@ export type LeaderboardMetricComparisonDirection = "asc" | "desc";
 export function getLeaderboardMetricComparisonDirection(
   metric: LeaderboardMetric,
 ): LeaderboardMetricComparisonDirection {
-  switch (metric) {
-    case LeaderboardMetric.Deaths:
-    case LeaderboardMetric.AvgDeathsPerSeries:
-    case LeaderboardMetric.AvgDeathsPerGame: {
-      return "asc";
-    }
-    default: {
-      return "desc";
-    }
-  }
+  return metric === LeaderboardMetric.Deaths ||
+    metric === LeaderboardMetric.AvgDeathsPerSeries ||
+    metric === LeaderboardMetric.AvgDeathsPerGame
+    ? "asc"
+    : "desc";
 }
 
 /**

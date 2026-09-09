@@ -1287,48 +1287,50 @@ describe("LeaderboardService", () => {
 
     vi.spyOn(haloService, "getUserByGamertag").mockImplementation(async (gamertag) => {
       if (gamertag === "Alpha") {
-        return { xuid: "xuid-1", gamertag: "Alpha" };
+        return Promise.resolve({ xuid: "xuid-1", gamertag: "Alpha" });
       }
 
-      return { xuid: "xuid-2", gamertag: "Bravo" };
+      return Promise.resolve({ xuid: "xuid-2", gamertag: "Bravo" });
     });
     vi.spyOn(databaseService, "getLeaderboardPlayerGuildStats").mockImplementation(async (xboxXuid) => {
       if (xboxXuid === "xuid-1") {
-        return [
+        return Promise.resolve([
           { GuildId: "guild-a", GamesPlayed: 12 },
           { GuildId: "guild-b", GamesPlayed: 8 },
-        ];
+        ]);
       }
 
-      return [
+      return Promise.resolve([
         { GuildId: "guild-a", GamesPlayed: 1 },
         { GuildId: "guild-b", GamesPlayed: 10 },
         { GuildId: "guild-c", GamesPlayed: 6 },
-      ];
+      ]);
     });
-    vi.spyOn(databaseService, "getLeaderboardQueueChannelIds").mockImplementation(async (guildId) => [
-      `${guildId}-queue`,
-    ]);
+    vi.spyOn(databaseService, "getLeaderboardQueueChannelIds").mockImplementation(async (guildId) =>
+      Promise.resolve([`${guildId}-queue`]),
+    );
     const getPlayerStatsForGamertagSpy = vi
       .spyOn(service, "getLeaderboardPlayerStatsForGamertag")
-      .mockImplementation(async (gamertag, requestedGuildId, _queueChannelId, window, minGamesPlayed) => ({
-        player: { xboxXuid: gamertag === "Alpha" ? "xuid-1" : "xuid-2", gamertag },
-        servers: [],
-        selectedGuildId: requestedGuildId ?? "guild-b",
-        selectedGuildName: "Guild guild-b",
-        queueOptions: [{ channelId: "guild-b-queue", label: "Queue guild-b-queue" }],
-        window: window ?? LeaderboardWindow.ThreeMonths,
-        resetAt: null,
-        stats: aFakeLeaderboardPlayerStatsRow({
-          XboxXuid: gamertag === "Alpha" ? "xuid-1" : "xuid-2",
-          Gamertag: gamertag,
+      .mockImplementation(async (gamertag, requestedGuildId, _queueChannelId, window, minGamesPlayed) =>
+        Promise.resolve({
+          player: { xboxXuid: gamertag === "Alpha" ? "xuid-1" : "xuid-2", gamertag },
+          servers: [],
+          selectedGuildId: requestedGuildId ?? "guild-b",
+          selectedGuildName: "Guild guild-b",
+          queueOptions: [{ channelId: "guild-b-queue", label: "Queue guild-b-queue" }],
+          window: window ?? LeaderboardWindow.ThreeMonths,
+          resetAt: null,
+          stats: aFakeLeaderboardPlayerStatsRow({
+            XboxXuid: gamertag === "Alpha" ? "xuid-1" : "xuid-2",
+            Gamertag: gamertag,
+          }),
+          ranks: {},
+          relationships: {},
+          headToHeadSummaries: [],
+          minGamesPlayed: minGamesPlayed ?? 5,
+          totalPlayers: 10,
         }),
-        ranks: {},
-        relationships: {},
-        headToHeadSummaries: [],
-        minGamesPlayed: minGamesPlayed ?? 5,
-        totalPlayers: 10,
-      }));
+      );
     vi.spyOn(service, "getLeaderboardPlayerStats").mockResolvedValue({
       stats: aFakeLeaderboardPlayerStatsRow({ XboxXuid: "xuid-1", Gamertag: "Alpha" }),
       window: LeaderboardWindow.ThreeMonths,

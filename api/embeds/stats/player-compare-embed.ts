@@ -346,7 +346,7 @@ function getXboxXuidsFromComponents(components: readonly APIMessageTopLevelCompo
         continue;
       }
 
-      const [_controlId, xboxXuid1, xboxXuid2] = component.custom_id.split(PLAYER_COMPARE_CONTROL_STATE_SEPARATOR);
+      const [, xboxXuid1, xboxXuid2] = component.custom_id.split(PLAYER_COMPARE_CONTROL_STATE_SEPARATOR);
       if (xboxXuid1 != null && xboxXuid1 !== "" && xboxXuid2 != null && xboxXuid2 !== "") {
         return [xboxXuid1, xboxXuid2];
       }

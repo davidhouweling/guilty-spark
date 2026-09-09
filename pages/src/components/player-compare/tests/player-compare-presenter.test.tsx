@@ -129,7 +129,7 @@ describe("PlayerComparePresenter", () => {
     expect(getPlayerCompareSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("removes a player and keeps the one-player comparison state with existing filters", async () => {
+  it("removes a player locally and keeps the one-player comparison state with existing filters", async () => {
     const service = aFakePlayerCompareServiceWith({
       players: [
         {
@@ -139,6 +139,7 @@ describe("PlayerComparePresenter", () => {
         },
       ],
     });
+    const getPlayerCompareSpy = vi.spyOn(service, "getPlayerCompare");
     const store = new PlayerCompareStore();
     const presenter = new PlayerComparePresenter({ service, store, gamertags: ["Alpha", "Bravo"] });
 
@@ -148,10 +149,9 @@ describe("PlayerComparePresenter", () => {
     });
 
     presenter.removePlayer("Bravo");
-    await vi.waitFor(() => {
-      expect(store.getSnapshot().status).toBe("loaded");
-      expect(store.getSnapshot().gamertags).toEqual(["Alpha"]);
-    });
+    expect(store.getSnapshot().status).toBe("loaded");
+    expect(store.getSnapshot().gamertags).toEqual(["Alpha"]);
+    expect(getPlayerCompareSpy).toHaveBeenCalledTimes(1);
 
     const model = presenter.present(store.getSnapshot());
 
@@ -318,8 +318,20 @@ describe("PlayerComparePresenter", () => {
         selectedHeadToHeadMetric={PlayerCompareHeadToHeadMetric.KillsAgainst}
         headToHeadRows={[]}
         headToHeadSummaryRows={[
-          { stat: "Series win %", values: [{ gamertag: "Alpha", text: "50% (1/2)" }, { gamertag: "Bravo", text: "50% (1/2)" }] },
-          { stat: "Kills", values: [{ gamertag: "Alpha", text: "20" }, { gamertag: "Bravo", text: "15" }] },
+          {
+            stat: "Series win %",
+            values: [
+              { gamertag: "Alpha", text: "50% (1/2)" },
+              { gamertag: "Bravo", text: "50% (1/2)" },
+            ],
+          },
+          {
+            stat: "Kills",
+            values: [
+              { gamertag: "Alpha", text: "20" },
+              { gamertag: "Bravo", text: "15" },
+            ],
+          },
         ]}
         addPlayerValue=""
         canAddPlayer={false}

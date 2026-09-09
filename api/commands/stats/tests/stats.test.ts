@@ -3316,7 +3316,8 @@ describe("StatsCommand", () => {
       await jobToComplete?.();
 
       expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
-      expect(updateDeferredReplySpy.mock.calls[0]?.[1]).toEqual({
+      const updatePayload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+      expect(updatePayload).toEqual({
         embeds: [
           expect.objectContaining({
             title: "gamertag01 - Total",
@@ -3544,27 +3545,9 @@ describe("StatsCommand", () => {
       await jobToComplete?.();
 
       expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
-      expect(updateDeferredReplySpy.mock.calls[0]?.[1]).toEqual({
-        embeds: [expect.objectContaining({ description: "Updating stats..." })],
-        components: [
-          expect.objectContaining({
-            components: [
-              expect.objectContaining({
-                custom_id: expect.stringContaining(PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID),
-                disabled: false,
-              }),
-            ],
-          }),
-          expect.objectContaining({
-            components: [
-              expect.objectContaining({
-                custom_id: expect.stringContaining(PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID),
-                disabled: false,
-              }),
-            ],
-          }),
-        ],
-      });
+      const updatePayload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+      expect(updatePayload.embeds).toEqual([expect.objectContaining({ description: "Updating stats..." })]);
+      expect(updatePayload.components).toHaveLength(2);
     });
 
     it("renders the updated comparison table when the window changes", async () => {

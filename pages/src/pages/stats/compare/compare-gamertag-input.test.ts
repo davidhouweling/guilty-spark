@@ -20,19 +20,23 @@ describe("parseCompareGamertags()", () => {
     expect(gamertags).toEqual(["soundmanD", "Master Chief", "bravo"]);
   });
 
-  it("accepts the supported 2 to 8 player range", () => {
+  it("accepts the supported 1 to 8 player range", () => {
     const gamertags = parseCompareGamertags(["a", "b", "c", "d", "e", "f", "g", "h"]);
 
     expect(gamertags).toHaveLength(8);
   });
 
-  it("throws when fewer than two valid gamertags are supplied", () => {
-    expect(() => parseCompareGamertags(["only-one"])).toThrow("Provide 2 to 8 gamertags to compare.");
+  it("returns a single valid gamertag", () => {
+    expect(parseCompareGamertags(["only-one"])).toEqual(["only-one"]);
+  });
+
+  it("throws when no valid gamertags are supplied", () => {
+    expect(() => parseCompareGamertags([])).toThrow("Provide 1 to 8 gamertags to compare.");
   });
 
   it("throws when more than eight valid gamertags are supplied", () => {
-    expect(() => parseCompareGamertags(Array.from({ length: 9 }, (_, index) => `player-${index + 1}`))).toThrow(
-      "Provide 2 to 8 gamertags to compare.",
+    expect(() => parseCompareGamertags(Array.from({ length: 9 }, (_, index) => `player-${String(index + 1)}`))).toThrow(
+      "Provide 1 to 8 gamertags to compare.",
     );
   });
 

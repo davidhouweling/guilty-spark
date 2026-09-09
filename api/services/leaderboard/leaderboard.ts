@@ -344,7 +344,7 @@ export class LeaderboardService {
       playerResponses.push(response);
     }
 
-    const firstResponse = playerResponses[0];
+    const [firstResponse] = playerResponses;
     if (firstResponse == null) {
       return null;
     }
@@ -454,7 +454,7 @@ export class LeaderboardService {
   private getSharedCompareServers(
     discoveries: readonly LeaderboardPlayerDiscoveryResponse[],
   ): LeaderboardPlayerServerOption[] {
-    const firstDiscovery = discoveries[0];
+    const [firstDiscovery] = discoveries;
     if (firstDiscovery == null) {
       return [];
     }
@@ -470,7 +470,7 @@ export class LeaderboardService {
     server: LeaderboardPlayerServerOption,
     remainingDiscoveries: readonly LeaderboardPlayerDiscoveryResponse[],
   ): LeaderboardPlayerServerOption | null {
-    let gamesPlayed = server.gamesPlayed;
+    let { gamesPlayed } = server;
     for (const discovery of remainingDiscoveries) {
       const candidate = discovery.servers.find((candidateServer) => candidateServer.guildId === server.guildId);
       if (candidate == null) {

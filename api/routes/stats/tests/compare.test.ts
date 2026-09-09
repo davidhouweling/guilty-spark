@@ -66,17 +66,19 @@ describe("/api/stats/compare", () => {
     expect(compareSpy).toHaveBeenCalledWith(["Alpha", "Bravo"], undefined, undefined, LeaderboardWindow.OneMonth, 3);
   });
 
-  it("rejects requests outside the 2 to 8 player range", async () => {
+  it("accepts a single-player request", async () => {
     const services = installFakeServicesWith({ env });
-    const compareSpy = vi.spyOn(services.leaderboardService, "getLeaderboardPlayerCompareForGamertags");
+    const compareSpy = vi
+      .spyOn(services.leaderboardService, "getLeaderboardPlayerCompareForGamertags")
+      .mockResolvedValue(null);
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
     statsRoutesRegisterHandler(router, localInstallServices);
 
     const response = await router.fetch(new Request("http://localhost/api/stats/compare?gamertag=Alpha"), env);
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: "Invalid player compare query parameters" });
-    expect(compareSpy).not.toHaveBeenCalled();
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "Player comparison data not found" });
+    expect(compareSpy).toHaveBeenCalledWith(["Alpha"], undefined, undefined, undefined, undefined);
   });
 
   it("returns 404 when the players do not share comparable leaderboard data", async () => {

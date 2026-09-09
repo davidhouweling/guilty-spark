@@ -171,7 +171,7 @@ export class PlayerComparePresenter {
 
     this.currentGamertags = nextGamertags;
     this.updateUrl();
-    this.load();
+    this.store.setLoaded(nextGamertags, this.getResponseAfterRemovingPlayer(gamertag));
   }
 
   changeGuild(value: string): void {
@@ -222,7 +222,7 @@ export class PlayerComparePresenter {
   }
 
   present(snapshot: PlayerCompareSnapshot): PlayerCompareViewModel {
-    const response = snapshot.response;
+    const { response } = snapshot;
     const gamertags = response?.players.map((player) => player.player.gamertag) ?? snapshot.gamertags;
     const selectedGuildId = response?.selectedGuildId ?? this.currentGuildId ?? "";
     const selectedServer = response?.servers.find((server) => server.guildId === selectedGuildId);
@@ -313,7 +313,7 @@ export class PlayerComparePresenter {
 
     return COMPARE_METRICS.map((metric) => {
       const values: PlayerCompareValueCell[] = response.players.map((player) => {
-        const stats = player.stats;
+        const { stats } = player;
         if (stats == null) {
           return { gamertag: player.player.gamertag, text: "-", sortValue: undefined };
         }
@@ -338,6 +338,38 @@ export class PlayerComparePresenter {
         values: this.applyValueComparison(metric, values),
       };
     });
+  }
+
+  private getResponseAfterRemovingPlayer(gamertag: string): PlayerCompareResponse | null {
+    const { response } = this.store.getSnapshot();
+    if (response == null) {
+      return null;
+    }
+
+    const removedPlayer = response.players.find(
+      (player) => player.player.gamertag.toLowerCase() === gamertag.toLowerCase(),
+    );
+    if (removedPlayer == null) {
+      return response;
+    }
+
+    const remainingXuids = new Set(
+      response.players
+        .filter((player) => player.player.xboxXuid !== removedPlayer.player.xboxXuid)
+        .map((player) => player.player.xboxXuid),
+    );
+    const players = response.players.filter((player) => remainingXuids.has(player.player.xboxXuid));
+    if (players.length === 0) {
+      return null;
+    }
+
+    return {
+      ...response,
+      players,
+      pairSummaries: response.pairSummaries.filter(
+        (summary) => remainingXuids.has(summary.playerXboxXuid) && remainingXuids.has(summary.opponentXboxXuid),
+      ),
+    };
   }
 
   private applyValueComparison(
@@ -372,7 +404,7 @@ export class PlayerComparePresenter {
   }
 
   private getHeadToHeadSummaryRows(response: PlayerCompareResponse | null): readonly PlayerCompareStatRow[] {
-    if (response == null || response.players.length !== 2) {
+    if (response?.players.length !== 2) {
       return [];
     }
 
@@ -393,12 +425,14 @@ export class PlayerComparePresenter {
           {
             gamertag: playerA.player.gamertag,
             text: this.formatWinRate(pair.playerSeriesWinsAgainst, pair.seriesPlayedAgainst),
-            sortValue: pair.seriesPlayedAgainst === 0 ? undefined : pair.playerSeriesWinsAgainst / pair.seriesPlayedAgainst,
+            sortValue:
+              pair.seriesPlayedAgainst === 0 ? undefined : pair.playerSeriesWinsAgainst / pair.seriesPlayedAgainst,
           },
           {
             gamertag: playerB.player.gamertag,
             text: this.formatWinRate(pair.opponentSeriesWinsAgainst, pair.seriesPlayedAgainst),
-            sortValue: pair.seriesPlayedAgainst === 0 ? undefined : pair.opponentSeriesWinsAgainst / pair.seriesPlayedAgainst,
+            sortValue:
+              pair.seriesPlayedAgainst === 0 ? undefined : pair.opponentSeriesWinsAgainst / pair.seriesPlayedAgainst,
           },
         ],
       },
@@ -413,7 +447,8 @@ export class PlayerComparePresenter {
           {
             gamertag: playerB.player.gamertag,
             text: this.formatWinRate(pair.opponentGameWinsAgainst, pair.gamesPlayedAgainst),
-            sortValue: pair.gamesPlayedAgainst === 0 ? undefined : pair.opponentGameWinsAgainst / pair.gamesPlayedAgainst,
+            sortValue:
+              pair.gamesPlayedAgainst === 0 ? undefined : pair.opponentGameWinsAgainst / pair.gamesPlayedAgainst,
           },
         ],
       },
@@ -437,12 +472,22 @@ export class PlayerComparePresenter {
         values: [
           {
             gamertag: playerA.player.gamertag,
-            text: pair.headToHeadGamesPlayed === 0 ? "-" : (pair.playerKills / pair.headToHeadGamesPlayed).toLocaleString(undefined, { maximumFractionDigits: 1 }),
+            text:
+              pair.headToHeadGamesPlayed === 0
+                ? "-"
+                : (pair.playerKills / pair.headToHeadGamesPlayed).toLocaleString(undefined, {
+                    maximumFractionDigits: 1,
+                  }),
             sortValue: pair.headToHeadGamesPlayed === 0 ? undefined : pair.playerKills / pair.headToHeadGamesPlayed,
           },
           {
             gamertag: playerB.player.gamertag,
-            text: pair.headToHeadGamesPlayed === 0 ? "-" : (pair.opponentKills / pair.headToHeadGamesPlayed).toLocaleString(undefined, { maximumFractionDigits: 1 }),
+            text:
+              pair.headToHeadGamesPlayed === 0
+                ? "-"
+                : (pair.opponentKills / pair.headToHeadGamesPlayed).toLocaleString(undefined, {
+                    maximumFractionDigits: 1,
+                  }),
             sortValue: pair.headToHeadGamesPlayed === 0 ? undefined : pair.opponentKills / pair.headToHeadGamesPlayed,
           },
         ],
@@ -567,16 +612,19 @@ export class PlayerComparePresenter {
   }
 
   private findWindow(value: string | null): LeaderboardWindow | undefined {
-    return Object.values(LeaderboardWindow).find((candidate) => candidate.toLowerCase() === value?.toLowerCase());
+    const normalizedValue = value?.toLowerCase();
+    return Object.values(LeaderboardWindow).find(
+      (candidate) => candidate.toLowerCase().localeCompare(normalizedValue ?? "") === 0,
+    );
   }
 
   private findMinGamesPlayed(value: string | null): number | undefined {
     const parsedValue = value == null ? undefined : Number(value);
-    return parsedValue != null && MIN_GAMES_PLAYED_OPTIONS.includes(parsedValue) ? parsedValue : undefined;
+    return parsedValue !== undefined && MIN_GAMES_PLAYED_OPTIONS.includes(parsedValue) ? parsedValue : undefined;
   }
 
   private findHeadToHeadMetric(value: string): PlayerCompareHeadToHeadMetric | null {
-    return HEAD_TO_HEAD_METRIC_OPTIONS.find((option) => option.value === value)?.value ?? null;
+    return HEAD_TO_HEAD_METRIC_OPTIONS.find((option) => option.value.localeCompare(value) === 0)?.value ?? null;
   }
 
   private updateUrl(): void {
