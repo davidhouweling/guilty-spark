@@ -66,7 +66,7 @@ describe("/api/stats/compare", () => {
     expect(compareSpy).toHaveBeenCalledWith(["Alpha", "Bravo"], undefined, undefined, LeaderboardWindow.OneMonth, 3);
   });
 
-  it("accepts a single-player request", async () => {
+  it("returns not found when a single player has no comparison data", async () => {
     const services = installFakeServicesWith({ env });
     const compareSpy = vi
       .spyOn(services.leaderboardService, "getLeaderboardPlayerCompareForGamertags")
@@ -79,6 +79,22 @@ describe("/api/stats/compare", () => {
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "Player comparison data not found" });
     expect(compareSpy).toHaveBeenCalledWith(["Alpha"], undefined, undefined, undefined, undefined);
+  });
+
+  it("de-duplicates gamertag query params case-insensitively", async () => {
+    const services = installFakeServicesWith({ env });
+    const compareSpy = vi
+      .spyOn(services.leaderboardService, "getLeaderboardPlayerCompareForGamertags")
+      .mockResolvedValue(null);
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    await router.fetch(
+      new Request("http://localhost/api/stats/compare?gamertag=Alpha&gamertag=alpha&gamertag=Bravo"),
+      env,
+    );
+
+    expect(compareSpy).toHaveBeenCalledWith(["Alpha", "Bravo"], undefined, undefined, undefined, undefined);
   });
 
   it("returns 404 when the players do not share comparable leaderboard data", async () => {

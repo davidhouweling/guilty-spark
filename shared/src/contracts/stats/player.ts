@@ -120,9 +120,12 @@ const playerCompareGamertagsSchema = z
   .array(z.string().trim())
   .transform((values) => {
     const gamertags: string[] = [];
+    const gamertagsByLowercase = new Set<string>();
     for (const value of values) {
-      if (value !== "" && !gamertags.includes(value)) {
+      const lowercaseGamertag = value.toLowerCase();
+      if (value !== "" && !gamertagsByLowercase.has(lowercaseGamertag)) {
         gamertags.push(value);
+        gamertagsByLowercase.add(lowercaseGamertag);
       }
     }
 
