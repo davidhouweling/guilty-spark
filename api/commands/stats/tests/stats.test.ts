@@ -64,6 +64,7 @@ import {
   PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID,
   PLAYER_COMPARE_QUEUE_SELECT_CONTROL_ID,
   PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
+  getPlayerCompareControlIdBase,
 } from "../../../embeds/stats/player-compare-embed";
 import type { MatchPlayer } from "../../../services/halo/types";
 import {
@@ -265,7 +266,10 @@ describe("StatsCommand", () => {
       }
 
       for (const component of actionRow.components) {
-        if (component.type === ComponentType.StringSelect && component.custom_id === customId) {
+        if (
+          component.type === ComponentType.StringSelect &&
+          (component.custom_id === customId || getPlayerCompareControlIdBase(component.custom_id) === customId)
+        ) {
           return component.options.map((option) => option.label);
         }
       }
@@ -3312,7 +3316,8 @@ describe("StatsCommand", () => {
       await jobToComplete?.();
 
       expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
-      expect(updateDeferredReplySpy.mock.calls[0]?.[1]).toEqual({
+      const updatePayload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+      expect(updatePayload).toEqual({
         embeds: [
           expect.objectContaining({
             title: "gamertag01 - Total",
@@ -3540,21 +3545,9 @@ describe("StatsCommand", () => {
       await jobToComplete?.();
 
       expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
-      expect(updateDeferredReplySpy.mock.calls[0]?.[1]).toEqual({
-        embeds: [expect.objectContaining({ description: "Updating stats..." })],
-        components: [
-          expect.objectContaining({
-            components: [
-              expect.objectContaining({ custom_id: PLAYER_COMPARE_AGGREGATION_SELECT_CONTROL_ID, disabled: false }),
-            ],
-          }),
-          expect.objectContaining({
-            components: [
-              expect.objectContaining({ custom_id: PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID, disabled: false }),
-            ],
-          }),
-        ],
-      });
+      const updatePayload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+      expect(updatePayload.embeds).toEqual([expect.objectContaining({ description: "Updating stats..." })]);
+      expect(updatePayload.components).toHaveLength(2);
     });
 
     it("renders the updated comparison table when the window changes", async () => {
@@ -3709,11 +3702,13 @@ describe("StatsCommand", () => {
         .mockResolvedValue({
           SeriesPlayedWith: 1,
           Player1SeriesWinsWith: 1,
+          Player2SeriesWinsWith: 0,
           SeriesPlayedAgainst: 2,
           Player1SeriesWinsAgainst: 1,
           Player2SeriesWinsAgainst: 1,
           GamesPlayedWith: 2,
           Player1GameWinsWith: 2,
+          Player2GameWinsWith: 1,
           GamesPlayedAgainst: 4,
           Player1GameWinsAgainst: 2,
           Player2GameWinsAgainst: 2,

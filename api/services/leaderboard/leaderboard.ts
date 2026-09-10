@@ -16,7 +16,7 @@ import {
   getLeaderboardMetricAggregation,
 } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardMetricAggregation } from "@guilty-spark/shared/halo/leaderboard";
-import type { PlayerStatsResponse } from "@guilty-spark/shared/contracts/stats/player";
+import type { PlayerCompareResponse, PlayerStatsResponse } from "@guilty-spark/shared/contracts/stats/player";
 import type { LeaderboardPlayerRelationshipMetric } from "@guilty-spark/shared/halo/leaderboard-formatting";
 import type { DatabaseService } from "../database/database";
 import type { DiscordService } from "../discord/discord";
@@ -93,6 +93,11 @@ export interface LeaderboardPlayerDiscoveryResponse {
   queueOptions: readonly { channelId: string; label: string }[];
 }
 
+interface LeaderboardCompareDiscovery {
+  player: UserInfo;
+  discovery: LeaderboardPlayerDiscoveryResponse;
+}
+
 export interface LeaderboardPlayerPageResponse {
   guildId: string;
   guildName: string;
@@ -131,6 +136,14 @@ export interface GetLeaderboardPlayerPairRelationshipOpts {
   queueChannelId: string | null;
   queueChannelIds?: string[];
   startEpochSeconds: number;
+}
+
+export interface GetLeaderboardPlayerCompareOpts {
+  gamertags: readonly string[];
+  requestedGuildId: string | undefined;
+  queueChannelId: string | undefined;
+  window: LeaderboardWindow | undefined;
+  minGamesPlayed?: number | undefined;
 }
 
 export class LeaderboardService {
@@ -301,6 +314,192 @@ export class LeaderboardService {
       minGamesPlayed: resolvedMinGamesPlayed,
       totalPlayers,
     };
+  }
+
+  async getLeaderboardPlayerCompareForGamertags({
+    gamertags,
+    requestedGuildId,
+    queueChannelId,
+    window,
+    minGamesPlayed,
+  }: GetLeaderboardPlayerCompareOpts): Promise<PlayerCompareResponse | null> {
+    const discoveries = await this.getCompareDiscoveries(gamertags);
+    if (discoveries == null) {
+      return null;
+    }
+
+    const sharedServers = this.getSharedCompareServers(discoveries.map((entry) => entry.discovery));
+    const selectedServer = this.getSelectedCompareServer(sharedServers, requestedGuildId);
+    if (selectedServer == null) {
+      return null;
+    }
+
+    const playerResponses: PlayerStatsResponse[] = [];
+    let resolvedWindow = window;
+    for (const entry of discoveries) {
+      const response = await this.getLeaderboardPlayerStatsForGamertag(
+        entry.player.gamertag,
+        selectedServer.guildId,
+        queueChannelId,
+        resolvedWindow,
+        minGamesPlayed,
+      );
+      if (response == null) {
+        return null;
+      }
+
+      resolvedWindow = response.window;
+      playerResponses.push(response);
+    }
+
+    const [firstResponse] = playerResponses;
+    if (firstResponse == null) {
+      return null;
+    }
+
+    const queueChannelIds =
+      queueChannelId == null ? selectedServer.queueOptions.map((queueOption) => queueOption.channelId) : undefined;
+    const firstPlayerStats = await this.getLeaderboardPlayerStats({
+      guildId: selectedServer.guildId,
+      xboxXuid: firstResponse.player.xboxXuid,
+      queueChannelId: queueChannelId ?? null,
+      ...(queueChannelIds == null ? {} : { queueChannelIds }),
+      window: firstResponse.window,
+    });
+    if (firstPlayerStats == null) {
+      return null;
+    }
+
+    const pairSummaries = await this.getComparePairSummaries(
+      playerResponses,
+      selectedServer.guildId,
+      queueChannelId ?? null,
+      queueChannelIds,
+      firstPlayerStats.startEpochSeconds,
+    );
+
+    return {
+      players: playerResponses.map((response) => ({
+        player: response.player,
+        stats: response.stats,
+        ranks: response.ranks,
+      })),
+      servers: sharedServers.map((server) => ({ ...server, queueOptions: [...server.queueOptions] })),
+      selectedGuildId: selectedServer.guildId,
+      selectedGuildName: selectedServer.guildName,
+      queueOptions: [...selectedServer.queueOptions],
+      window: firstResponse.window,
+      resetAt: firstResponse.resetAt,
+      minGamesPlayed: firstResponse.minGamesPlayed,
+      totalPlayers: firstResponse.totalPlayers,
+      pairSummaries,
+    };
+  }
+
+  private async getComparePairSummaries(
+    playerResponses: readonly PlayerStatsResponse[],
+    guildId: string,
+    queueChannelId: string | null,
+    queueChannelIds: readonly string[] | undefined,
+    startEpochSeconds: number,
+  ): Promise<PlayerCompareResponse["pairSummaries"]> {
+    const pairs: PlayerCompareResponse["pairSummaries"] = [];
+    for (const player of playerResponses) {
+      for (const opponent of playerResponses) {
+        if (player.player.xboxXuid === opponent.player.xboxXuid) {
+          continue;
+        }
+
+        const relationship = await this.getLeaderboardPlayerPairRelationship({
+          guildId,
+          xboxXuid1: player.player.xboxXuid,
+          xboxXuid2: opponent.player.xboxXuid,
+          queueChannelId,
+          ...(queueChannelIds == null ? {} : { queueChannelIds: [...queueChannelIds] }),
+          startEpochSeconds,
+        });
+
+        pairs.push({
+          playerXboxXuid: player.player.xboxXuid,
+          opponentXboxXuid: opponent.player.xboxXuid,
+          seriesPlayedWith: relationship.SeriesPlayedWith,
+          playerSeriesWinsWith: relationship.Player1SeriesWinsWith,
+          seriesPlayedAgainst: relationship.SeriesPlayedAgainst,
+          playerSeriesWinsAgainst: relationship.Player1SeriesWinsAgainst,
+          opponentSeriesWinsAgainst: relationship.Player2SeriesWinsAgainst,
+          gamesPlayedWith: relationship.GamesPlayedWith,
+          playerGameWinsWith: relationship.Player1GameWinsWith,
+          gamesPlayedAgainst: relationship.GamesPlayedAgainst,
+          playerGameWinsAgainst: relationship.Player1GameWinsAgainst,
+          opponentGameWinsAgainst: relationship.Player2GameWinsAgainst,
+          headToHeadGamesPlayed: relationship.HeadToHeadGamesPlayed,
+          playerKills: relationship.Player1Kills,
+          playerPerfects: relationship.Player1Perfects,
+          opponentKills: relationship.Player2Kills,
+          opponentPerfects: relationship.Player2Perfects,
+        });
+      }
+    }
+
+    return pairs;
+  }
+
+  private async getCompareDiscoveries(gamertags: readonly string[]): Promise<LeaderboardCompareDiscovery[] | null> {
+    const discoveries: LeaderboardCompareDiscovery[] = [];
+    for (const gamertag of gamertags) {
+      const player = await this.haloService.getUserByGamertag(gamertag);
+      const discovery = await this.getLeaderboardPlayerDiscoveryForPlayer(player, undefined);
+      if (discovery == null) {
+        return null;
+      }
+
+      discoveries.push({ player, discovery });
+    }
+
+    return discoveries;
+  }
+
+  private getSharedCompareServers(
+    discoveries: readonly LeaderboardPlayerDiscoveryResponse[],
+  ): LeaderboardPlayerServerOption[] {
+    const [firstDiscovery] = discoveries;
+    if (firstDiscovery == null) {
+      return [];
+    }
+
+    const remainingDiscoveries = discoveries.slice(1);
+    return firstDiscovery.servers
+      .map((server) => this.getSharedCompareServer(server, remainingDiscoveries))
+      .filter((server) => server != null)
+      .sort((a, b) => b.gamesPlayed - a.gamesPlayed || a.guildName.localeCompare(b.guildName));
+  }
+
+  private getSharedCompareServer(
+    server: LeaderboardPlayerServerOption,
+    remainingDiscoveries: readonly LeaderboardPlayerDiscoveryResponse[],
+  ): LeaderboardPlayerServerOption | null {
+    let { gamesPlayed } = server;
+    for (const discovery of remainingDiscoveries) {
+      const candidate = discovery.servers.find((candidateServer) => candidateServer.guildId === server.guildId);
+      if (candidate == null) {
+        return null;
+      }
+
+      gamesPlayed += candidate.gamesPlayed;
+    }
+
+    return { ...server, gamesPlayed };
+  }
+
+  private getSelectedCompareServer(
+    sharedServers: readonly LeaderboardPlayerServerOption[],
+    requestedGuildId: string | undefined,
+  ): LeaderboardPlayerServerOption | null {
+    if (requestedGuildId == null) {
+      return sharedServers[0] ?? null;
+    }
+
+    return sharedServers.find((server) => server.guildId === requestedGuildId) ?? null;
   }
 
   private async getPlayerServerOption(

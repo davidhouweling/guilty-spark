@@ -5,6 +5,7 @@ import {
   LeaderboardMetricFamily,
   getDefaultLeaderboardAggregation,
   getLeaderboardFamilyAggregations,
+  getLeaderboardMetricComparisonDirection,
   getLeaderboardMetricAggregationLabel,
   getLeaderboardMetricFamily,
   getLeaderboardMetricFamilyLabel,
@@ -131,6 +132,19 @@ const metricResolutionCases = [
 describe("getLeaderboardMetricFamily", () => {
   it.each(Object.values(LeaderboardMetric))("resolves a family for every LeaderboardMetric member (%s)", (metric) => {
     expect(() => getLeaderboardMetricFamily(metric)).not.toThrow();
+  });
+});
+
+describe("getLeaderboardMetricComparisonDirection", () => {
+  it("treats deaths metrics as lower-is-better", () => {
+    expect(getLeaderboardMetricComparisonDirection(LeaderboardMetric.Deaths)).toBe("asc");
+    expect(getLeaderboardMetricComparisonDirection(LeaderboardMetric.AvgDeathsPerSeries)).toBe("asc");
+    expect(getLeaderboardMetricComparisonDirection(LeaderboardMetric.AvgDeathsPerGame)).toBe("asc");
+  });
+
+  it("treats non-deaths metrics as higher-is-better", () => {
+    expect(getLeaderboardMetricComparisonDirection(LeaderboardMetric.Kills)).toBe("desc");
+    expect(getLeaderboardMetricComparisonDirection(LeaderboardMetric.SeriesWinRate)).toBe("desc");
   });
 });
 

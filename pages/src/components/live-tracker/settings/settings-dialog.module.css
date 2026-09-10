@@ -62,29 +62,6 @@
   margin: 0;
 }
 
-.closeButton {
-  align-items: center;
-  background: none;
-  border: none;
-  border-radius: var(--radius-sm);
-  color: var(--halo-gray);
-  cursor: pointer;
-  display: flex;
-  justify-content: center;
-  padding: var(--space-2);
-  transition: background-color 0.2s ease;
-}
-
-.closeButton:hover {
-  background-color: var(--halo-bg-secondary);
-  color: var(--halo-white);
-}
-
-.closeIcon {
-  height: 24px;
-  width: 24px;
-}
-
 .content {
   flex: 1;
   overflow-y: auto;

@@ -2029,6 +2029,7 @@ describe("Database Service", () => {
           .mockResolvedValueOnce({
             SeriesPlayedWith: 2,
             Player1SeriesWinsWith: 1,
+            Player2SeriesWinsWith: 2,
             SeriesPlayedAgainst: 3,
             Player1SeriesWinsAgainst: 1,
             Player2SeriesWinsAgainst: 2,
@@ -2036,6 +2037,7 @@ describe("Database Service", () => {
           .mockResolvedValueOnce({
             GamesPlayedWith: 5,
             Player1GameWinsWith: 3,
+            Player2GameWinsWith: 4,
             GamesPlayedAgainst: 7,
             Player1GameWinsAgainst: 3,
             Player2GameWinsAgainst: 4,
@@ -2059,11 +2061,13 @@ describe("Database Service", () => {
         expect(result).toEqual({
           SeriesPlayedWith: 2,
           Player1SeriesWinsWith: 1,
+          Player2SeriesWinsWith: 2,
           SeriesPlayedAgainst: 3,
           Player1SeriesWinsAgainst: 1,
           Player2SeriesWinsAgainst: 2,
           GamesPlayedWith: 5,
           Player1GameWinsWith: 3,
+          Player2GameWinsWith: 4,
           GamesPlayedAgainst: 7,
           Player1GameWinsAgainst: 3,
           Player2GameWinsAgainst: 4,
@@ -2101,11 +2105,13 @@ describe("Database Service", () => {
         expect(result).toEqual({
           SeriesPlayedWith: 0,
           Player1SeriesWinsWith: 0,
+          Player2SeriesWinsWith: 0,
           SeriesPlayedAgainst: 0,
           Player1SeriesWinsAgainst: 0,
           Player2SeriesWinsAgainst: 0,
           GamesPlayedWith: 0,
           Player1GameWinsWith: 0,
+          Player2GameWinsWith: 0,
           GamesPlayedAgainst: 0,
           Player1GameWinsAgainst: 0,
           Player2GameWinsAgainst: 0,

@@ -1278,4 +1278,155 @@ describe("LeaderboardService", () => {
       }),
     );
   });
+
+  it("compares players using the first shared server when no server is requested", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+
+    vi.spyOn(haloService, "getUserByGamertag").mockImplementation(async (gamertag) => {
+      if (gamertag === "Alpha") {
+        return Promise.resolve({ xuid: "xuid-1", gamertag: "Alpha" });
+      }
+
+      return Promise.resolve({ xuid: "xuid-2", gamertag: "Bravo" });
+    });
+    vi.spyOn(databaseService, "getLeaderboardPlayerGuildStats").mockImplementation(async (xboxXuid) => {
+      if (xboxXuid === "xuid-1") {
+        return Promise.resolve([
+          { GuildId: "guild-a", GamesPlayed: 12 },
+          { GuildId: "guild-b", GamesPlayed: 8 },
+        ]);
+      }
+
+      return Promise.resolve([
+        { GuildId: "guild-a", GamesPlayed: 1 },
+        { GuildId: "guild-b", GamesPlayed: 10 },
+        { GuildId: "guild-c", GamesPlayed: 6 },
+      ]);
+    });
+    vi.spyOn(databaseService, "getLeaderboardQueueChannelIds").mockImplementation(async (guildId) =>
+      Promise.resolve([`${guildId}-queue`]),
+    );
+    const getPlayerStatsForGamertagSpy = vi
+      .spyOn(service, "getLeaderboardPlayerStatsForGamertag")
+      .mockImplementation(async (gamertag, requestedGuildId, _queueChannelId, window, minGamesPlayed) =>
+        Promise.resolve({
+          player: { xboxXuid: gamertag === "Alpha" ? "xuid-1" : "xuid-2", gamertag },
+          servers: [],
+          selectedGuildId: requestedGuildId ?? "guild-b",
+          selectedGuildName: "Guild guild-b",
+          queueOptions: [{ channelId: "guild-b-queue", label: "Queue guild-b-queue" }],
+          window: window ?? LeaderboardWindow.ThreeMonths,
+          resetAt: null,
+          stats: aFakeLeaderboardPlayerStatsRow({
+            XboxXuid: gamertag === "Alpha" ? "xuid-1" : "xuid-2",
+            Gamertag: gamertag,
+          }),
+          ranks: {},
+          relationships: {},
+          headToHeadSummaries: [],
+          minGamesPlayed: minGamesPlayed ?? 5,
+          totalPlayers: 10,
+        }),
+      );
+    vi.spyOn(service, "getLeaderboardPlayerStats").mockResolvedValue({
+      stats: aFakeLeaderboardPlayerStatsRow({ XboxXuid: "xuid-1", Gamertag: "Alpha" }),
+      window: LeaderboardWindow.ThreeMonths,
+      resetAt: null,
+      startEpochSeconds: 1234,
+      minGamesPlayed: 5,
+      defaultAggregation: LeaderboardMetricAggregation.Total,
+    });
+    const getPairRelationshipSpy = vi.spyOn(service, "getLeaderboardPlayerPairRelationship").mockResolvedValue({
+      SeriesPlayedWith: 1,
+      Player1SeriesWinsWith: 1,
+      Player2SeriesWinsWith: 0,
+      SeriesPlayedAgainst: 2,
+      Player1SeriesWinsAgainst: 1,
+      Player2SeriesWinsAgainst: 1,
+      GamesPlayedWith: 3,
+      Player1GameWinsWith: 2,
+      Player2GameWinsWith: 1,
+      GamesPlayedAgainst: 4,
+      Player1GameWinsAgainst: 3,
+      Player2GameWinsAgainst: 1,
+      HeadToHeadGamesPlayed: 4,
+      Player1Kills: 20,
+      Player1Perfects: 2,
+      Player2Kills: 15,
+      Player2Perfects: 1,
+    });
+
+    const result = await service.getLeaderboardPlayerCompareForGamertags({
+      gamertags: ["Alpha", "Bravo"],
+      requestedGuildId: undefined,
+      queueChannelId: undefined,
+      window: undefined,
+    });
+
+    expect(result?.selectedGuildId).toBe("guild-b");
+    expect(result?.servers.map((server) => [server.guildId, server.gamesPlayed])).toEqual([
+      ["guild-b", 18],
+      ["guild-a", 13],
+    ]);
+    expect(result?.players.map((player) => player.player.gamertag)).toEqual(["Alpha", "Bravo"]);
+    expect(getPlayerStatsForGamertagSpy).toHaveBeenCalledWith("Alpha", "guild-b", undefined, undefined, undefined);
+    expect(getPlayerStatsForGamertagSpy).toHaveBeenCalledWith(
+      "Bravo",
+      "guild-b",
+      undefined,
+      LeaderboardWindow.ThreeMonths,
+      undefined,
+    );
+    expect(getPairRelationshipSpy).toHaveBeenCalledWith({
+      guildId: "guild-b",
+      xboxXuid1: "xuid-1",
+      xboxXuid2: "xuid-2",
+      queueChannelId: null,
+      queueChannelIds: ["guild-b-queue"],
+      startEpochSeconds: 1234,
+    });
+    expect(result?.pairSummaries).toEqual([
+      {
+        playerXboxXuid: "xuid-1",
+        opponentXboxXuid: "xuid-2",
+        seriesPlayedWith: 1,
+        playerSeriesWinsWith: 1,
+        seriesPlayedAgainst: 2,
+        playerSeriesWinsAgainst: 1,
+        opponentSeriesWinsAgainst: 1,
+        gamesPlayedWith: 3,
+        playerGameWinsWith: 2,
+        gamesPlayedAgainst: 4,
+        playerGameWinsAgainst: 3,
+        opponentGameWinsAgainst: 1,
+        headToHeadGamesPlayed: 4,
+        playerKills: 20,
+        playerPerfects: 2,
+        opponentKills: 15,
+        opponentPerfects: 1,
+      },
+      {
+        playerXboxXuid: "xuid-2",
+        opponentXboxXuid: "xuid-1",
+        seriesPlayedWith: 1,
+        playerSeriesWinsWith: 1,
+        seriesPlayedAgainst: 2,
+        playerSeriesWinsAgainst: 1,
+        opponentSeriesWinsAgainst: 1,
+        gamesPlayedWith: 3,
+        playerGameWinsWith: 2,
+        gamesPlayedAgainst: 4,
+        playerGameWinsAgainst: 3,
+        opponentGameWinsAgainst: 1,
+        headToHeadGamesPlayed: 4,
+        playerKills: 20,
+        playerPerfects: 2,
+        opponentKills: 15,
+        opponentPerfects: 1,
+      },
+    ]);
+  });
 });

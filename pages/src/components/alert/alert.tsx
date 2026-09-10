@@ -1,6 +1,7 @@
 import React from "react";
 import classNames from "classnames";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
+import { CloseButton } from "../close-button/close-button";
 import styles from "./alert.module.css";
 
 export type AlertVariant = "info" | "success" | "warning" | "error";
@@ -58,9 +59,7 @@ export function Alert({ variant, children, className, icon, onDismiss }: AlertPr
         <div className={styles.alertMessage}>{children}</div>
       </div>
       {onDismiss != null && (
-        <button type="button" className={styles.alertDismiss} onClick={onDismiss} aria-label="Dismiss alert">
-          ×
-        </button>
+        <CloseButton ariaLabel="Dismiss alert" className={styles.alertDismiss} onClick={onDismiss} />
       )}
     </div>
   );

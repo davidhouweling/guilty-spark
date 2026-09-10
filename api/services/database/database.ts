@@ -3,6 +3,7 @@ import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import {
   LeaderboardWindow,
   LeaderboardMetric,
+  getLeaderboardMetricComparisonDirection,
   getLeaderboardObjectiveDescriptorByMetric,
   isObjectiveLeaderboardMetric,
 } from "@guilty-spark/shared/halo/leaderboard";
@@ -230,14 +231,6 @@ function getPlayerObjectiveSumSql(category: GameVariantCategory, path: string): 
   return `SUM(CASE WHEN g.GameVariantCategory = ${category.toString()} THEN COALESCE(CAST(json_extract(gp.ObjectiveStatsJson, '$.${path}') AS REAL), 0) ELSE 0 END)`;
 }
 
-function isAscendingMetric(metric: LeaderboardMetric): boolean {
-  return (
-    metric === LeaderboardMetric.Deaths ||
-    metric === LeaderboardMetric.AvgDeathsPerSeries ||
-    metric === LeaderboardMetric.AvgDeathsPerGame
-  );
-}
-
 interface StatMetricRankSqlParts {
   metric: LeaderboardMetric;
   valueSql: string;
@@ -263,7 +256,7 @@ function getStatMetricRankSqlParts(metric: LeaderboardMetric, minGamesPlayed: nu
       valueSql,
       gamesPlayedSql,
       minGamesPlayed: Math.max(minGamesPlayed, 1),
-      sortDirection: isAscendingMetric(metric) ? "ASC" : "DESC",
+      sortDirection: getLeaderboardMetricComparisonDirection(metric) === "asc" ? "ASC" : "DESC",
     };
   }
 
@@ -278,7 +271,7 @@ function getStatMetricRankSqlParts(metric: LeaderboardMetric, minGamesPlayed: nu
       valueSql,
       gamesPlayedSql: "COUNT(gp.ObjectiveTimeSeconds)",
       minGamesPlayed: Math.max(minGamesPlayed, 1),
-      sortDirection: isAscendingMetric(metric) ? "ASC" : "DESC",
+      sortDirection: getLeaderboardMetricComparisonDirection(metric) === "asc" ? "ASC" : "DESC",
     };
   }
 
@@ -288,7 +281,7 @@ function getStatMetricRankSqlParts(metric: LeaderboardMetric, minGamesPlayed: nu
       valueSql,
       gamesPlayedSql: "COUNT(gp.ObjectiveTeamContribution)",
       minGamesPlayed: Math.max(minGamesPlayed, 1),
-      sortDirection: isAscendingMetric(metric) ? "ASC" : "DESC",
+      sortDirection: getLeaderboardMetricComparisonDirection(metric) === "asc" ? "ASC" : "DESC",
     };
   }
 
@@ -297,7 +290,7 @@ function getStatMetricRankSqlParts(metric: LeaderboardMetric, minGamesPlayed: nu
     valueSql,
     gamesPlayedSql: "COUNT(*)",
     minGamesPlayed,
-    sortDirection: isAscendingMetric(metric) ? "ASC" : "DESC",
+    sortDirection: getLeaderboardMetricComparisonDirection(metric) === "asc" ? "ASC" : "DESC",
   };
 }
 
@@ -619,6 +612,7 @@ function getPairSeriesRelationshipAggregateSql({
       SELECT
         SUM(CASE WHEN related.TeamId = player.TeamId THEN 1 ELSE 0 END) AS SeriesPlayedWith,
         SUM(CASE WHEN related.TeamId = player.TeamId THEN player.SeriesWon ELSE 0 END) AS Player1SeriesWinsWith,
+        SUM(CASE WHEN related.TeamId = player.TeamId THEN related.SeriesWon ELSE 0 END) AS Player2SeriesWinsWith,
         SUM(CASE WHEN related.TeamId != player.TeamId THEN 1 ELSE 0 END) AS SeriesPlayedAgainst,
         SUM(CASE WHEN related.TeamId != player.TeamId THEN player.SeriesWon ELSE 0 END) AS Player1SeriesWinsAgainst,
         SUM(CASE WHEN related.TeamId != player.TeamId THEN related.SeriesWon ELSE 0 END) AS Player2SeriesWinsAgainst
@@ -662,6 +656,7 @@ function getPairGameRelationshipAggregateSql({
       SELECT
         SUM(CASE WHEN related.TeamId = player.TeamId THEN 1 ELSE 0 END) AS GamesPlayedWith,
         SUM(CASE WHEN related.TeamId = player.TeamId THEN player.GameWon ELSE 0 END) AS Player1GameWinsWith,
+        SUM(CASE WHEN related.TeamId = player.TeamId THEN related.GameWon ELSE 0 END) AS Player2GameWinsWith,
         SUM(CASE WHEN related.TeamId != player.TeamId THEN 1 ELSE 0 END) AS GamesPlayedAgainst,
         SUM(CASE WHEN related.TeamId != player.TeamId THEN player.GameWon ELSE 0 END) AS Player1GameWinsAgainst,
         SUM(CASE WHEN related.TeamId != player.TeamId THEN related.GameWon ELSE 0 END) AS Player2GameWinsAgainst
@@ -2200,7 +2195,7 @@ export class DatabaseService {
     const countStmt = this.DB.prepare(`SELECT COUNT(*) AS Total FROM (${aggregateSql}) agg`).bind(...bindings);
     const countRow = await countStmt.first<{ Total: number }>();
 
-    const metricSortDirection = isAscendingMetric(metric) ? "ASC" : "DESC";
+    const metricSortDirection = getLeaderboardMetricComparisonDirection(metric) === "asc" ? "ASC" : "DESC";
     const rowsStmt = this.DB.prepare(
       `
         SELECT * FROM (${aggregateSql}) agg
@@ -2462,11 +2457,13 @@ export class DatabaseService {
     const emptyRow: LeaderboardPlayerPairRelationshipRow = {
       SeriesPlayedWith: 0,
       Player1SeriesWinsWith: 0,
+      Player2SeriesWinsWith: 0,
       SeriesPlayedAgainst: 0,
       Player1SeriesWinsAgainst: 0,
       Player2SeriesWinsAgainst: 0,
       GamesPlayedWith: 0,
       Player1GameWinsWith: 0,
+      Player2GameWinsWith: 0,
       GamesPlayedAgainst: 0,
       Player1GameWinsAgainst: 0,
       Player2GameWinsAgainst: 0,
@@ -2493,6 +2490,7 @@ export class DatabaseService {
             LeaderboardPlayerPairRelationshipRow,
             | "SeriesPlayedWith"
             | "Player1SeriesWinsWith"
+            | "Player2SeriesWinsWith"
             | "SeriesPlayedAgainst"
             | "Player1SeriesWinsAgainst"
             | "Player2SeriesWinsAgainst"
@@ -2505,6 +2503,7 @@ export class DatabaseService {
             LeaderboardPlayerPairRelationshipRow,
             | "GamesPlayedWith"
             | "Player1GameWinsWith"
+            | "Player2GameWinsWith"
             | "GamesPlayedAgainst"
             | "Player1GameWinsAgainst"
             | "Player2GameWinsAgainst"
@@ -2523,11 +2522,13 @@ export class DatabaseService {
     return {
       SeriesPlayedWith: seriesRow?.SeriesPlayedWith ?? 0,
       Player1SeriesWinsWith: seriesRow?.Player1SeriesWinsWith ?? 0,
+      Player2SeriesWinsWith: seriesRow?.Player2SeriesWinsWith ?? 0,
       SeriesPlayedAgainst: seriesRow?.SeriesPlayedAgainst ?? 0,
       Player1SeriesWinsAgainst: seriesRow?.Player1SeriesWinsAgainst ?? 0,
       Player2SeriesWinsAgainst: seriesRow?.Player2SeriesWinsAgainst ?? 0,
       GamesPlayedWith: gameRow?.GamesPlayedWith ?? 0,
       Player1GameWinsWith: gameRow?.Player1GameWinsWith ?? 0,
+      Player2GameWinsWith: gameRow?.Player2GameWinsWith ?? 0,
       GamesPlayedAgainst: gameRow?.GamesPlayedAgainst ?? 0,
       Player1GameWinsAgainst: gameRow?.Player1GameWinsAgainst ?? 0,
       Player2GameWinsAgainst: gameRow?.Player2GameWinsAgainst ?? 0,

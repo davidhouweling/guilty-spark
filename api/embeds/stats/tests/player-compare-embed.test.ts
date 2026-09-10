@@ -42,7 +42,7 @@ describe("createPlayerCompareEmbeds()", () => {
 
     const [embed] = response.embeds;
     expect(embed?.title).toBe("player-one vs player-two - Total");
-    expect(embed?.url).toBe("https://guilty-spark.app/stats/compare/xuid-1/xuid-2");
+    expect(embed?.url).toBe("https://guilty-spark.app/stats/compare?gamertag=player-one&gamertag=player-two");
 
     const [statField, player1Field, player2Field] = embed?.fields ?? [];
     expect(statField?.name).toBe("Stat");
@@ -133,11 +133,13 @@ describe("createPlayerCompareHeadToHeadEmbeds()", () => {
       pair: {
         SeriesPlayedWith: 2,
         Player1SeriesWinsWith: 1,
+        Player2SeriesWinsWith: 1,
         SeriesPlayedAgainst: 4,
         Player1SeriesWinsAgainst: 1,
         Player2SeriesWinsAgainst: 3,
         GamesPlayedWith: 5,
         Player1GameWinsWith: 3,
+        Player2GameWinsWith: 2,
         GamesPlayedAgainst: 10,
         Player1GameWinsAgainst: 4,
         Player2GameWinsAgainst: 6,
@@ -196,11 +198,13 @@ describe("createPlayerCompareHeadToHeadEmbeds()", () => {
       pair: {
         SeriesPlayedWith: 1,
         Player1SeriesWinsWith: 0,
+        Player2SeriesWinsWith: 0,
         SeriesPlayedAgainst: 0,
         Player1SeriesWinsAgainst: 0,
         Player2SeriesWinsAgainst: 0,
         GamesPlayedWith: 2,
         Player1GameWinsWith: 1,
+        Player2GameWinsWith: 1,
         GamesPlayedAgainst: 0,
         Player1GameWinsAgainst: 0,
         Player2GameWinsAgainst: 0,
@@ -349,11 +353,13 @@ describe("getPlayerCompareStateFromMessage()", () => {
       pair: {
         SeriesPlayedWith: 2,
         Player1SeriesWinsWith: 1,
+        Player2SeriesWinsWith: 1,
         SeriesPlayedAgainst: 3,
         Player1SeriesWinsAgainst: 1,
         Player2SeriesWinsAgainst: 2,
         GamesPlayedWith: 5,
         Player1GameWinsWith: 3,
+        Player2GameWinsWith: 2,
         GamesPlayedAgainst: 7,
         Player1GameWinsAgainst: 3,
         Player2GameWinsAgainst: 4,

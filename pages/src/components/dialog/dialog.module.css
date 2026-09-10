@@ -30,29 +30,9 @@
 }
 
 .closeButton {
-  align-items: center;
-  background: none;
-  border: none;
-  border-radius: var(--radius-sm);
-  color: var(--halo-gray);
-  cursor: pointer;
-  display: flex;
-  justify-content: center;
-  padding: var(--space-2);
   position: absolute;
   right: var(--space-4);
   top: var(--space-4);
-  transition: background-color 0.2s ease;
-}
-
-.closeButton:hover {
-  background-color: var(--halo-bg-card);
-  color: var(--halo-white);
-}
-
-.closeIcon {
-  height: 24px;
-  width: 24px;
 }
 
 .title {

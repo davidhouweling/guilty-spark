@@ -1,0 +1,38 @@
+---
+export const prerender = false;
+
+import { API_HOST } from "../../constants";
+import Layout from "../../layouts/layout.astro";
+import ErrorState from "../../components/error-state/error-state.astro";
+import { PlayerCompareApp } from "../../apps/player-compare/create";
+import { cleanCompareGamertags, parseCompareGamertags } from "../../components/player-compare/compare-gamertag-input";
+
+const rawGamertags = Astro.url.searchParams.getAll("gamertag");
+const cleanedGamertags = cleanCompareGamertags(rawGamertags);
+let gamertags: readonly string[] = [];
+let hasError = false;
+
+if (cleanedGamertags.length === 0) {
+  gamertags = [];
+} else {
+  try {
+    gamertags = parseCompareGamertags(cleanedGamertags);
+  } catch {
+    hasError = true;
+    Astro.response.status = 400;
+  }
+}
+---
+
+<Layout title="Compare players - Guilty Spark" description="Public Halo Infinite player comparison">
+  {
+    hasError ? (
+      <ErrorState
+        title="Player comparison requires 1 to 8 players"
+        message="Use repeated gamertag query params to compare players, for example: ?gamertag=Alpha&gamertag=Bravo"
+      />
+    ) : (
+      <PlayerCompareApp client:only="react" apiHost={API_HOST} gamertags={gamertags} />
+    )
+  }
+</Layout>
