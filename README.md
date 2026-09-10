@@ -27,6 +27,10 @@ For the latest UI flows and capability details, use the website as the source of
 
 - `/setup` configures server behavior and NeatQueue integration
 - `/connect` links a Discord user to an Xbox gamertag
+- `/leaderboard show` posts a ranked leaderboard with queue, window, stat, and minimum-games filters
+- `/leaderboard reset` sets a non-destructive leaderboard reset marker for a server or queue
+- `/stats player` shows accumulated leaderboard stats and player relationships
+- `/stats compare` compares two players' accumulated stats and head-to-head results
 - `/stats neatqueue` resolves recent NeatQueue series stats
 - `/stats match` retrieves a single match by match ID
 - `/maps` generates HCS map sets
@@ -34,10 +38,16 @@ For the latest UI flows and capability details, use the website as the source of
 
 ## Web Experiences
 
+- `/leaderboard/:guildId` public server leaderboard
+- `/leaderboard/:guildId/:queueId` public queue-scoped leaderboard
+- `/stats/player/:gamertag` public player stats and relationship views
+- `/stats/compare?gamertag=...` public comparison for one to eight players using repeated `gamertag` parameters
 - `/tracker` live series view
 - `/individual-tracker` tracker management and overlay setup
 - `/individual-tracker/:trackerId` public tracker viewer
 - `/u/:gamertag` player follow view
+
+Public stats pages use gamertags for display and URLs. Leaderboard pages support rolling windows, queue scope, stat selection, and minimum-games filtering. The compare page supports one player for aggregate stats, two-player head-to-head summaries, and multi-player head-to-head matrices.
 
 These experiences evolve frequently. Refer to [guilty-spark.app](https://guilty-spark.app) for current screenshots, copy, and usage guidance.
 

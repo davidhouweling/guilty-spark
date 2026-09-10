@@ -21,6 +21,26 @@ const commandGroups = [
     title: "Statistics and Match Resolution",
     commands: [
       {
+        command: "/leaderboard show",
+        description:
+          "Post a ranked NeatQueue leaderboard for the server or a configured queue, with window, stat, and minimum-games filters.",
+      },
+      {
+        command: "/leaderboard reset",
+        description:
+          "Set an administrator-only, non-destructive reset marker for a server or queue before confirming the new leaderboard boundary.",
+      },
+      {
+        command: "/stats player",
+        description:
+          "View accumulated leaderboard stats and player relationships with optional player, queue, window, and visibility settings.",
+      },
+      {
+        command: "/stats compare",
+        description:
+          "Compare two players' accumulated leaderboard stats and head-to-head results with optional public or private visibility.",
+      },
+      {
         command: "/stats neatqueue",
         description:
           "Resolve completed NeatQueue series statistics from queue results, with optional channel and queue-number targeting.",
