@@ -138,6 +138,14 @@ export interface GetLeaderboardPlayerPairRelationshipOpts {
   startEpochSeconds: number;
 }
 
+export interface GetLeaderboardPlayerCompareOpts {
+  gamertags: readonly string[];
+  requestedGuildId: string | undefined;
+  queueChannelId: string | undefined;
+  window: LeaderboardWindow | undefined;
+  minGamesPlayed?: number | undefined;
+}
+
 export class LeaderboardService {
   private readonly databaseService: DatabaseService;
   private readonly discordService: DiscordService | undefined;
@@ -308,13 +316,13 @@ export class LeaderboardService {
     };
   }
 
-  async getLeaderboardPlayerCompareForGamertags(
-    gamertags: readonly string[],
-    requestedGuildId: string | undefined,
-    queueChannelId: string | undefined,
-    window: LeaderboardWindow | undefined,
-    minGamesPlayed?: number,
-  ): Promise<PlayerCompareResponse | null> {
+  async getLeaderboardPlayerCompareForGamertags({
+    gamertags,
+    requestedGuildId,
+    queueChannelId,
+    window,
+    minGamesPlayed,
+  }: GetLeaderboardPlayerCompareOpts): Promise<PlayerCompareResponse | null> {
     const discoveries = await this.getCompareDiscoveries(gamertags);
     if (discoveries == null) {
       return null;

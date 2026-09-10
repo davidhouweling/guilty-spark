@@ -63,7 +63,13 @@ describe("/api/stats/compare", () => {
 
     expect(response.status).toBe(200);
     expect(await playerCompareContract.fromResponse(response)).toEqual(playerCompare);
-    expect(compareSpy).toHaveBeenCalledWith(["Alpha", "Bravo"], undefined, undefined, LeaderboardWindow.OneMonth, 3);
+    expect(compareSpy).toHaveBeenCalledWith({
+      gamertags: ["Alpha", "Bravo"],
+      requestedGuildId: undefined,
+      queueChannelId: undefined,
+      window: LeaderboardWindow.OneMonth,
+      minGamesPlayed: 3,
+    });
   });
 
   it("accepts a single-player request", async () => {
@@ -78,7 +84,13 @@ describe("/api/stats/compare", () => {
 
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "Player comparison data not found" });
-    expect(compareSpy).toHaveBeenCalledWith(["Alpha"], undefined, undefined, undefined, undefined);
+    expect(compareSpy).toHaveBeenCalledWith({
+      gamertags: ["Alpha"],
+      requestedGuildId: undefined,
+      queueChannelId: undefined,
+      window: undefined,
+      minGamesPlayed: undefined,
+    });
   });
 
   it("returns 404 when the players do not share comparable leaderboard data", async () => {

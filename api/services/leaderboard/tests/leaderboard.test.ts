@@ -1359,12 +1359,12 @@ describe("LeaderboardService", () => {
       Player2Perfects: 1,
     });
 
-    const result = await service.getLeaderboardPlayerCompareForGamertags(
-      ["Alpha", "Bravo"],
-      undefined,
-      undefined,
-      undefined,
-    );
+    const result = await service.getLeaderboardPlayerCompareForGamertags({
+      gamertags: ["Alpha", "Bravo"],
+      requestedGuildId: undefined,
+      queueChannelId: undefined,
+      window: undefined,
+    });
 
     expect(result?.selectedGuildId).toBe("guild-b");
     expect(result?.servers.map((server) => [server.guildId, server.gamesPlayed])).toEqual([

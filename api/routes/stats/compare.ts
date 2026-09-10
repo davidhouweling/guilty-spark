@@ -23,13 +23,13 @@ export const statsCompareRoute: RoutesRegisterHandler = (router, installServices
     }
 
     try {
-      const playerCompare = await services.leaderboardService.getLeaderboardPlayerCompareForGamertags(
-        parsedQuery.data.gamertag,
-        parsedQuery.data.guildId,
-        parsedQuery.data.queueChannelId,
-        parsedQuery.data.window,
-        parsedQuery.data.minGamesPlayed,
-      );
+      const playerCompare = await services.leaderboardService.getLeaderboardPlayerCompareForGamertags({
+        gamertags: parsedQuery.data.gamertag,
+        requestedGuildId: parsedQuery.data.guildId,
+        queueChannelId: parsedQuery.data.queueChannelId,
+        window: parsedQuery.data.window,
+        minGamesPlayed: parsedQuery.data.minGamesPlayed,
+      });
       if (playerCompare == null) {
         return errorContract.toResponse({ error: "Player comparison data not found" }, { status: 404, noStore: true });
       }
