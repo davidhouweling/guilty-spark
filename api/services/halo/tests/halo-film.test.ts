@@ -2134,7 +2134,7 @@ describe("HaloFilmService", () => {
 
       // multi-credit capture groups (forced captures): team 0 at 10s and 60s, team 1 at 30s;
       // the first capture takes the neutral zone (no attempt window), team 1's capture pauses
-      // team 0 for 6.5s, and team 0's 60s capture pauses team 1 — integrating to 56.5 : 23.5
+      // team 0 for 6.5s, and team 0's 60s capture pauses team 1 — integrating to 53.5 : 23.5
       // points, which reconciliation scales onto the API scores of 54 : 24.
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
         modeEvent(team0Xuid, 10000),

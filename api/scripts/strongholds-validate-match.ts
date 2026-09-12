@@ -3,9 +3,9 @@
  *
  * Run: DOTENV_CONFIG_PATH=api/.dev.vars npx tsx api/scripts/strongholds-validate-match.ts <matchId>
  */
-import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
-import { buildStrongholdsProgression, sampleScoreAt } from "../services/halo/modes/strongholds/strongholds-progression";
+import { sampleScoreAt } from "../services/halo/modes/strongholds/strongholds-progression";
+import { STRONGHOLDS_2104_THEATRE_WAYPOINTS } from "../services/halo/modes/strongholds/fakes/strongholds-match-2104.fake";
 import { createScriptServices, fmtMs } from "./script-services";
 
 const MATCH_ID = process.argv[2] ?? "2104a978-6965-4ea2-831a-f5eb661ae1ea";
@@ -32,14 +32,7 @@ for (const team of matchStats.Teams) {
   );
 }
 
-const xuidToTeamId = new Map<string, number>();
-for (const player of matchStats.Players) {
-  xuidToTeamId.set(unwrapXuid(player.PlayerId), player.LastTeamId);
-}
-const rawEvents = await haloFilmService.getHighlightEventsForMatch(MATCH_ID);
-const events = rawEvents.map((event) => ({ ...event, teamId: xuidToTeamId.get(event.xuid) ?? null }));
-
-const progression = buildStrongholdsProgression(events, matchStats, durationMs);
+const progression = await haloFilmService.buildStrongholdsProgression(matchStats, durationMs);
 
 const teamIds = matchStats.Teams.map((t) => t.TeamId).sort((a, b) => a - b);
 
@@ -51,15 +44,22 @@ for (let minute = 1; minute * 60000 <= durationMs; minute++) {
 const finals = teamIds.map((id) => String(Math.round(sampleScoreAt(progression.events, id, durationMs))));
 console.log(`  @end (${fmtMs(durationMs)})  ${finals.join(":")}`);
 
-const EXPECTED: Record<string, string[]> = {
-  "2104a978-6965-4ea2-831a-f5eb661ae1ea": [
-    "Theatre-verified (full log). Eagle(T0) 250 : Cobra(T1) 188 at 11:23.",
-    "Waypoints: 2:00 ~8:45, 3:05 66:45, 4:34 67:104, 5:50 80:136, 6:32 103:137, 7:46 150:147,",
-    "8:14 153:157, 9:37 202:157, 10:16 211:176, 11:04 219:188. Team totals must be exact.",
-  ],
+const THEATRE_WAYPOINTS_BY_MATCH: Record<string, readonly (readonly [number, number, number])[]> = {
+  "2104a978-6965-4ea2-831a-f5eb661ae1ea": STRONGHOLDS_2104_THEATRE_WAYPOINTS,
 };
-const expected = EXPECTED[MATCH_ID] ?? ["(no expected data for this match ID — blind test)"];
-console.log("\n=== EXPECTED (from user) ===");
-for (const line of expected) {
-  console.log(line);
+const waypoints = THEATRE_WAYPOINTS_BY_MATCH[MATCH_ID];
+console.log("\n=== EXPECTED (theatre waypoints) ===");
+if (waypoints == null) {
+  console.log("(no expected data for this match ID — blind test)");
+} else {
+  let totalError = 0;
+  for (const [seconds, team0Expected, team1Expected] of waypoints) {
+    const team0 = sampleScoreAt(progression.events, teamIds[0] ?? 0, seconds * 1000);
+    const team1 = sampleScoreAt(progression.events, teamIds[1] ?? 1, seconds * 1000);
+    totalError += Math.abs(team0 - team0Expected) + Math.abs(team1 - team1Expected);
+    console.log(
+      `  @${fmtMs(seconds * 1000)}  model ${String(Math.round(team0))}:${String(Math.round(team1))}  theatre ${String(team0Expected)}:${String(team1Expected)}`,
+    );
+  }
+  console.log(`  MAE: ${(totalError / (waypoints.length * 2)).toFixed(2)}`);
 }

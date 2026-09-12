@@ -3,13 +3,13 @@ import type {
   KillRaceDeathEvent,
   KillRaceEvent,
   MatchAnalytics,
-  StrongholdsEvent,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import { buildKothHills } from "./modes/koth/koth-view-model";
 import { buildOddballRounds } from "./modes/oddball/oddball-view-model";
+import { buildStrongholdsTeamLines } from "./modes/strongholds/strongholds-view-model";
 import type {
   PlayerAdvantageData,
   ScoreDeltaData,
@@ -18,10 +18,16 @@ import type {
   ScoreProgressionViewData,
 } from "./types";
 
+interface ScoreSample {
+  readonly timestampMs: number;
+  readonly runningScores: Record<string, number>;
+}
+
 function buildScoreDelta(
   teamIds: readonly number[],
-  events: readonly KillRaceEvent[],
+  events: readonly ScoreSample[],
   durationMs: number,
+  lineType: ScoreDeltaData["lineType"],
 ): ScoreDeltaData | null {
   if (teamIds.length !== 2) {
     return null;
@@ -54,7 +60,7 @@ function buildScoreDelta(
     return null;
   }
 
-  return { points, minScore, maxScore };
+  return { points, minScore, maxScore, lineType };
 }
 
 function buildPlayerAdvantage(
@@ -164,33 +170,6 @@ function buildTeamLines(
   return teamLines;
 }
 
-// Strongholds scores accrue continuously (1-2 points per second while holding zones), so its
-// lines are ramps between rate boundaries rather than the stepped lines kill events produce.
-function buildRampTeamLines(
-  events: readonly StrongholdsEvent[],
-  teamIds: readonly number[],
-  teamColorByTeamId: Map<number, string>,
-  durationMs: number,
-): ScoreProgressionTeamLine[] {
-  return teamIds.map((teamId, slotIndex) => {
-    const key = String(teamId);
-    const points: ScoreProgressionPoint[] = [{ timestampMs: 0, score: 0 }];
-    for (const event of events) {
-      points.push({ timestampMs: event.timestampMs, score: event.runningScores[key] ?? 0 });
-    }
-    const last = points.at(-1);
-    if (last != null && last.timestampMs < durationMs) {
-      points.push({ timestampMs: durationMs, score: last.score });
-    }
-    return {
-      teamId,
-      name: getTeamName(teamId),
-      color: teamColorByTeamId.get(teamId) ?? getTeamColorOrDefault(undefined, slotIndex).hex,
-      points,
-    };
-  });
-}
-
 interface ResolvedTeams {
   readonly teamIds: number[];
   readonly teamColorByTeamId: Map<number, string>;
@@ -249,7 +228,7 @@ export function formatScoreProgression(
         kind: "score-lines",
         durationMs,
         teamLines: buildTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs),
-        scoreDelta: buildScoreDelta(teams.teamIds, timeline.events, durationMs),
+        scoreDelta: buildScoreDelta(teams.teamIds, timeline.events, durationMs, "step"),
         playerAdvantage,
       };
     }
@@ -283,9 +262,8 @@ export function formatScoreProgression(
       return {
         kind: "score-lines",
         durationMs,
-        teamLines: buildRampTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs),
-        // the delta chart renders stepped, which misreads sparse ramp vertices — deferred
-        scoreDelta: null,
+        teamLines: buildStrongholdsTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs),
+        scoreDelta: buildScoreDelta(teams.teamIds, timeline.events, durationMs, "linear"),
         playerAdvantage: null,
       };
     }

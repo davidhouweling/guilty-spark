@@ -3,10 +3,9 @@
  *
  * Run: DOTENV_CONFIG_PATH=api/.dev.vars npx tsx api/scripts/oddball-validate-match.ts <matchId>
  */
-import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { buildOddballProgression } from "../services/halo/modes/oddball/oddball-progression";
-import { createScriptServices, fmtMs } from "./script-services";
+import { createScriptServices, enrichEventsWithTeamIds, fmtMs } from "./script-services";
 
 const MATCH_ID = process.argv[2] ?? "3a8dab3d-63c0-46b1-9041-5a5b4ef9eeb4";
 
@@ -28,12 +27,8 @@ for (const team of matchStats.Teams) {
   );
 }
 
-const xuidToTeamId = new Map<string, number>();
-for (const player of matchStats.Players) {
-  xuidToTeamId.set(unwrapXuid(player.PlayerId), player.LastTeamId);
-}
 const rawEvents = await haloFilmService.getHighlightEventsForMatch(MATCH_ID);
-const events = rawEvents.map((event) => ({ ...event, teamId: xuidToTeamId.get(event.xuid) ?? null }));
+const events = enrichEventsWithTeamIds(rawEvents, matchStats);
 
 const progression = buildOddballProgression(events, matchStats, durationMs);
 

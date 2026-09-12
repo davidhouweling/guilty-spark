@@ -2,6 +2,30 @@ import type { ParsedHighlightEvent } from "../../../types";
 
 export const STRONGHOLDS_2104_DURATION_MS = 684_000;
 
+// In-game seconds -> Eagle(team 0):Cobra(team 1) points read from the theatre HUD.
+export const STRONGHOLDS_2104_THEATRE_WAYPOINTS: readonly (readonly [number, number, number])[] = [
+  [42, 3, 0],
+  [72, 6, 15],
+  [113, 6, 45],
+  [185, 66, 45],
+  [233, 67, 63],
+  [274, 67, 104],
+  [314, 80, 112],
+  [350, 80, 136],
+  [392, 103, 137],
+  [427, 114, 147],
+  [466, 150, 147],
+  [494, 153, 157],
+  [527, 176, 157],
+  [548, 189, 157],
+  [577, 202, 157],
+  [597, 211, 157],
+  [616, 211, 176],
+  [648, 213, 186],
+  [664, 219, 188],
+  [683, 250, 188],
+];
+
 // [timeMs, teamId] of every mode event (per-player capture/secure credit) parsed from the
 // film of theatre-verified match 2104a978-6965-4ea2-831a-f5eb661ae1ea (Eagle 250 : Cobra 188).
 const EVENT_TUPLES: readonly (readonly [number, number])[] = [

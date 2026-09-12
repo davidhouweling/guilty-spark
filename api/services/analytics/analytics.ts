@@ -204,18 +204,24 @@ export class AnalyticsService {
   private async buildKillMatrixAnalyticsWithRetries(
     matchStats: Parameters<HaloFilmService["buildKillMatrixAnalytics"]>[0],
   ): Promise<Awaited<ReturnType<HaloFilmService["buildKillMatrixAnalytics"]>>> {
+    return this.withFilmRetries("build kill matrix analytics", matchStats.MatchId, async () =>
+      this.haloFilmService.buildKillMatrixAnalytics(matchStats),
+    );
+  }
+
+  private async withFilmRetries<T>(context: string, matchId: string, build: () => Promise<T>): Promise<T> {
     let lastError: Error = new Error("Film extraction failed");
     for (let attempt = 1; attempt <= FILM_EXTRACTION_MAX_ATTEMPTS; attempt += 1) {
       try {
-        return await this.haloFilmService.buildKillMatrixAnalytics(matchStats);
+        return await build();
       } catch (error) {
         const normalizedError = toError(error);
         lastError = normalizedError;
         this.logService.warn(
           normalizedError,
           new Map([
-            ["context", "build kill matrix analytics"],
-            ["matchId", matchStats.MatchId],
+            ["context", context],
+            ["matchId", matchId],
             ["filmAttempt", attempt.toString()],
           ]),
         );
@@ -256,19 +262,22 @@ export class AnalyticsService {
     }
   }
 
-  // A film failure (expired blob, fetch error) must not take down the rest of the match's
-  // analytics — the kill matrix may be served from cache without touching film at all.
+  // Transient film errors retry like the kill matrix build; a persistent failure (expired
+  // blob) must not take down the rest of the match's analytics — the kill matrix may be
+  // served from cache without touching film at all.
   private async buildScoreProgressionAnalyticsSafely(
     matchStats: MatchStats,
   ): Promise<MatchAnalytics["scoreProgression"]> {
     try {
-      return await this.buildScoreProgressionAnalytics(matchStats);
+      return await this.withFilmRetries("build score progression", matchStats.MatchId, async () =>
+        this.buildScoreProgressionAnalytics(matchStats),
+      );
     } catch (error) {
       this.logService.warn(
         toError(error),
         new Map([
           ["matchId", matchStats.MatchId],
-          ["context", "build score progression"],
+          ["context", "score progression degraded to null"],
         ]),
       );
       return null;

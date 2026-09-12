@@ -3,7 +3,7 @@ import { formatScoreProgression } from "../score-progression-formatter";
 import { aFakeScoreProgressionWith } from "../fakes/score-progression.fake";
 import { aFakeKothTimelineWith } from "../modes/koth/fakes/koth-timeline.fake";
 import { aFakeOddballTimelineWith } from "../modes/oddball/fakes/oddball-timeline.fake";
-import { aFakeStrongholdsTimelineWith } from "../fakes/strongholds-timeline.fake";
+import { aFakeStrongholdsTimelineWith } from "../modes/strongholds/fakes/strongholds-timeline.fake";
 import type { KothViewData, OddballViewData, ScoreLinesViewData, ScoreProgressionViewData } from "../types";
 
 const TEAM_COLORS = [
@@ -153,6 +153,11 @@ describe("formatScoreProgression", () => {
       const result = asScoreLines(formatScoreProgression(aFakeScoreProgressionWith(), TEAM_COLORS));
       expect(result.scoreDelta?.minScore).toBe(0);
       expect(result.scoreDelta?.maxScore).toBe(1);
+    });
+
+    it("marks kill-race deltas as stepped", () => {
+      const result = asScoreLines(formatScoreProgression(aFakeScoreProgressionWith(), TEAM_COLORS));
+      expect(result.scoreDelta?.lineType).toBe("step");
     });
 
     it("sets minScore and maxScore for mixed positive and negative deltas", () => {
@@ -460,6 +465,12 @@ describe("formatScoreProgression", () => {
       expect(formatScoreProgression(data, TEAM_COLORS)).toBeNull();
     });
 
+    it("builds a linear score delta for continuous zone scoring", () => {
+      const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
+      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      expect(result.scoreDelta?.lineType).toBe("linear");
+    });
+
     it("builds ramp team lines with one point per event and no step duplication", () => {
       const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
       const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
@@ -475,11 +486,10 @@ describe("formatScoreProgression", () => {
       ]);
     });
 
-    it("builds no score delta and no player advantage", () => {
-      // the delta chart renders stepped, which misreads sparse ramp vertices — deferred
+    it("builds a score delta and no player advantage", () => {
       const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
       const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
-      expect(result.scoreDelta).toBeNull();
+      expect(result.scoreDelta).not.toBeNull();
       expect(result.playerAdvantage).toBeNull();
     });
   });

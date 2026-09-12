@@ -3,9 +3,8 @@
  *
  * Run: DOTENV_CONFIG_PATH=api/.dev.vars npx tsx api/scripts/strongholds-analysis.ts <matchId> [--events] [--byte2] [--raw]
  */
-import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
-import { createScriptServices, fmtMs } from "./script-services";
+import { createScriptServices, enrichEventsWithTeamIds, fmtMs } from "./script-services";
 
 const MATCH_ID = process.argv[2] ?? "9b15b756-0daa-446d-908e-b16a17925d9b";
 const SHOW_EVENTS = process.argv.includes("--events");
@@ -61,19 +60,14 @@ for (const team of matchStats.Teams) {
   }
 }
 
-const xuidToTeamId = new Map<string, number>();
-for (const player of matchStats.Players) {
-  xuidToTeamId.set(unwrapXuid(player.PlayerId), player.LastTeamId);
-}
-
 const [events, byte2Transitions] = await Promise.all([
   haloFilmService.getHighlightEventsForMatch(MATCH_ID),
   haloFilmService.getStateByte2Transitions(MATCH_ID),
 ]);
 
-const modeEvents = events
-  .map((event) => ({ ...event, teamId: xuidToTeamId.get(event.xuid) ?? null }))
-  .filter((event) => event.eventType === "mode" && event.teamId != null);
+const modeEvents = enrichEventsWithTeamIds(events, matchStats).filter(
+  (event) => event.eventType === "mode" && event.teamId != null,
+);
 
 console.log(`\nMode events: ${String(modeEvents.length)} total`);
 {

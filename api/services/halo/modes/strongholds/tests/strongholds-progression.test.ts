@@ -4,7 +4,11 @@ import { getMatchStats } from "../../../fakes/data";
 import { buildStrongholdsProgression, sampleScoreAt } from "../strongholds-progression";
 import type { StrongholdsProgression } from "../strongholds-progression";
 import { aFakeStrongholdsMatchStatsWith } from "../fakes/strongholds-match-stats.fake";
-import { strongholds2104Events, STRONGHOLDS_2104_DURATION_MS } from "../fakes/strongholds-match-2104.fake";
+import {
+  strongholds2104Events,
+  STRONGHOLDS_2104_DURATION_MS,
+  STRONGHOLDS_2104_THEATRE_WAYPOINTS,
+} from "../fakes/strongholds-match-2104.fake";
 
 // Theatre-verified match 2104a978 (Eagle=team 0 250 : Cobra=team 1 188).
 function build2104(): StrongholdsProgression {
@@ -16,30 +20,6 @@ function build2104(): StrongholdsProgression {
   );
   return buildStrongholdsProgression(strongholds2104Events(), matchStats, STRONGHOLDS_2104_DURATION_MS);
 }
-
-// In-game seconds -> Eagle:Cobra points read from the theatre HUD.
-const THEATRE_WAYPOINTS: readonly (readonly [number, number, number])[] = [
-  [42, 3, 0],
-  [72, 6, 15],
-  [113, 6, 45],
-  [185, 66, 45],
-  [233, 67, 63],
-  [274, 67, 104],
-  [314, 80, 112],
-  [350, 80, 136],
-  [392, 103, 137],
-  [427, 114, 147],
-  [466, 150, 147],
-  [494, 153, 157],
-  [527, 176, 157],
-  [548, 189, 157],
-  [577, 202, 157],
-  [597, 211, 157],
-  [616, 211, 176],
-  [648, 213, 186],
-  [664, 219, 188],
-  [683, 250, 188],
-];
 
 describe("buildStrongholdsProgression", () => {
   it("reports the team count from match stats", () => {
@@ -66,20 +46,20 @@ describe("buildStrongholdsProgression", () => {
   it("tracks the theatre waypoints within a mean absolute error of 3 points", () => {
     const progression = build2104();
     let totalError = 0;
-    const errors = THEATRE_WAYPOINTS.map(([seconds, eagle, cobra]) => {
+    const errors = STRONGHOLDS_2104_THEATRE_WAYPOINTS.map(([seconds, eagle, cobra]) => {
       const errorEagle = Math.abs(sampleScoreAt(progression.events, 0, seconds * 1000) - eagle);
       const errorCobra = Math.abs(sampleScoreAt(progression.events, 1, seconds * 1000) - cobra);
       totalError += errorEagle + errorCobra;
       return [seconds, errorEagle, errorCobra];
     });
-    const meanError = totalError / (THEATRE_WAYPOINTS.length * 2);
+    const meanError = totalError / (STRONGHOLDS_2104_THEATRE_WAYPOINTS.length * 2);
     expect(meanError, JSON.stringify(errors)).toBeLessThanOrEqual(3);
   });
 
   it("stays within 8 points of the theatre reading at every waypoint", () => {
-    expect.assertions(THEATRE_WAYPOINTS.length * 2);
+    expect.assertions(STRONGHOLDS_2104_THEATRE_WAYPOINTS.length * 2);
     const progression = build2104();
-    for (const [seconds, eagle, cobra] of THEATRE_WAYPOINTS) {
+    for (const [seconds, eagle, cobra] of STRONGHOLDS_2104_THEATRE_WAYPOINTS) {
       expect(Math.abs(sampleScoreAt(progression.events, 0, seconds * 1000) - eagle)).toBeLessThanOrEqual(8);
       expect(Math.abs(sampleScoreAt(progression.events, 1, seconds * 1000) - cobra)).toBeLessThanOrEqual(8);
     }

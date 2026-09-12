@@ -14,6 +14,8 @@ export interface ScoreDeltaData {
   readonly points: readonly ScoreProgressionPoint[];
   readonly minScore: number;
   readonly maxScore: number;
+  // kill events step the score; zone scoring accrues continuously and renders as ramps
+  readonly lineType: "step" | "linear";
 }
 
 export interface PlayerAdvantageData {
