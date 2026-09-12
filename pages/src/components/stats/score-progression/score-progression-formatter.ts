@@ -223,6 +223,8 @@ export function formatScoreProgression(
       if (teams == null) {
         return null;
       }
+      // a trailing film event past the match end would push the lines beyond the x-axis
+      const inMatchEvents = timeline.events.filter((event) => event.timestampMs <= durationMs);
       const playerAdvantage =
         timeline.respawnDurationMs != null
           ? buildPlayerAdvantage(
@@ -236,8 +238,8 @@ export function formatScoreProgression(
       return {
         kind: "score-lines",
         durationMs,
-        teamLines: buildTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs),
-        scoreDelta: buildScoreDelta(teams.teamIds, timeline.events, durationMs, "step"),
+        teamLines: buildTeamLines(inMatchEvents, teams.teamIds, teams.teamColorByTeamId, durationMs),
+        scoreDelta: buildScoreDelta(teams.teamIds, inMatchEvents, durationMs, "step"),
         playerAdvantage,
       };
     }
