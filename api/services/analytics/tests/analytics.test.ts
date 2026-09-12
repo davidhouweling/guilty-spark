@@ -427,7 +427,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       perfectCounts: { total: 0, byXuid: {} },
     });
     vi.spyOn(haloFilmService, "buildStrongholdsProgression").mockResolvedValue({
-      events: [{ timestampMs: 60000, teamId: 0, runningScores: { "0": 50, "1": 20 } }],
+      events: [{ timestampMs: 60000, runningScores: { "0": 50, "1": 20 } }],
       teamCount: 2,
     });
 
@@ -437,7 +437,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     const timeline = results["match-1"]?.scoreProgression?.timeline;
     expect(timeline?.type).toBe("strongholds");
     expect(timeline?.type === "strongholds" ? timeline.events : undefined).toEqual([
-      { timestampMs: 60000, teamId: 0, runningScores: { "0": 50, "1": 20 } },
+      { timestampMs: 60000, runningScores: { "0": 50, "1": 20 } },
     ]);
   });
 

@@ -11,15 +11,22 @@ import type { ParsedHighlightEvent } from "../../types";
 // no zone identity and no capture/secure flag. A secure credits exactly one player, so any
 // multi-credit event group is certainly a capture; the solver enumerates which single-credit
 // groups are the secures, keeps zone-count-legal assignments, and picks the labeling whose
-// integrated points/ticks/triple-seconds best match the API totals.
+// integrated points/ticks/triple-seconds best match the API totals. When the space overflows
+// MAX_CANDIDATES the best of the (deterministic) explored slice is kept.
 const ATTEMPT_WINDOW_MS = 6_500;
 const TRIPLE_SECONDS_WEIGHT = 2;
 const MAX_CANDIDATES = 150_000;
 const ZONE_COUNT = 3;
+// Ranked Strongholds spawns each team owning its home zone with the middle zone neutral —
+// observed on every theatre-verified film.
+const NEUTRAL_ZONE_COUNT = 1;
+// Players credited on the same capture usually share a byte-identical film timestamp; the
+// tolerance absorbs sub-second replication jitter without merging distinct events (the
+// closest distinct same-team groups observed sit several seconds apart).
+const GROUP_TOLERANCE_MS = 1_000;
 
 export interface StrongholdsScorePoint {
   timestampMs: number;
-  teamId: number;
   runningScores: Record<string, number>;
 }
 
@@ -28,9 +35,11 @@ export interface StrongholdsProgression {
   teamCount: number;
 }
 
+type TeamSlot = 0 | 1;
+
 interface EventGroup {
   timestampMs: number;
-  teamId: number;
+  teamSlot: TeamSlot;
   credits: number;
 }
 
@@ -41,106 +50,81 @@ interface TeamTargets {
   ticks: number;
 }
 
-type Label = "capture" | "secure";
-
-interface Boundary {
-  timestampMs: number;
-  // end-of-window decrements sort before start-of-window increments at the same instant
-  order: number;
-  attackDelta: Map<number, number>;
-  flipTeamId: number | null;
+interface TeamQuota {
+  captures: number;
+  secures: number;
 }
 
-interface IntegrationTotals {
-  points: Map<number, number>;
-  ticks: Map<number, number>;
-  tripleSeconds: Map<number, number>;
+type Label = "capture" | "secure";
+
+// end-of-window decrements sort before the flip, which sorts before start-of-window increments
+const BOUNDARY_ORDER = { windowEnd: 0, flip: 1, windowStart: 2 } as const;
+
+interface SkeletonBoundary {
+  timestampMs: number;
+  kind: keyof typeof BOUNDARY_ORDER;
+  groupIndex: number;
+}
+
+interface SweepTotals {
+  points: [number, number];
+  ticks: [number, number];
+  tripleSeconds: [number, number];
 }
 
 interface CurveSample {
   timestampMs: number;
-  points: Map<number, number>;
+  points: [number, number];
 }
 
-interface Candidate {
-  labels: Label[];
-  deviation: number;
-}
-
-function groupCarryEvents(events: readonly ParsedHighlightEvent[], knownTeamIds: ReadonlySet<number>): EventGroup[] {
-  const groups = new Map<string, EventGroup>();
-  for (const event of events) {
-    if (event.eventType !== "mode" || event.teamId == null || !knownTeamIds.has(event.teamId)) {
+function groupCarryEvents(events: readonly ParsedHighlightEvent[], teamIds: readonly number[]): EventGroup[] {
+  const slotByTeamId = new Map<number, TeamSlot>(teamIds.map((id, slot) => [id, slot === 0 ? 0 : 1]));
+  const carryEvents = events
+    .filter((event) => event.eventType === "mode" && event.teamId != null && slotByTeamId.has(event.teamId))
+    .sort((a, b) => a.timeMs - b.timeMs);
+  const groups: EventGroup[] = [];
+  for (const event of carryEvents) {
+    const teamSlot = Preconditions.checkExists(slotByTeamId.get(Preconditions.checkExists(event.teamId)));
+    const current = groups.at(-1);
+    if (current?.teamSlot === teamSlot && event.timeMs - current.timestampMs <= GROUP_TOLERANCE_MS) {
+      current.credits += 1;
       continue;
     }
-    const key = `${String(event.timeMs)}:${String(event.teamId)}`;
-    const existing = groups.get(key);
-    if (existing == null) {
-      groups.set(key, { timestampMs: event.timeMs, teamId: event.teamId, credits: 1 });
-    } else {
-      existing.credits += 1;
-    }
+    groups.push({ timestampMs: event.timeMs, teamSlot, credits: 1 });
   }
-  return [...groups.values()].sort((a, b) => a.timestampMs - b.timestampMs || a.teamId - b.teamId);
+  return groups;
 }
 
 // Quotas come from the API; when the film misses events (or credits drift) the group count can
-// disagree — clamp so every group still gets a label and secures never exceed the single-credit
-// groups they can occupy.
-function resolveQuotas(
-  groups: readonly EventGroup[],
-  teamIds: readonly number[],
-  targets: Map<number, TeamTargets>,
-): Map<number, { captures: number; secures: number }> {
-  const quotas = new Map<number, { captures: number; secures: number }>();
-  for (const teamId of teamIds) {
-    const target = Preconditions.checkExists(targets.get(teamId));
-    const teamGroups = groups.filter((g) => g.teamId === teamId);
+// disagree — every group still gets a label, and secures never exceed the single-credit groups
+// they can occupy (a secure credits exactly one player, so secures <= singles <= group count).
+function resolveQuotas(groups: readonly EventGroup[], targets: readonly TeamTargets[]): TeamQuota[] {
+  return targets.map((target, teamSlot) => {
+    const teamGroups = groups.filter((g) => g.teamSlot === teamSlot);
     const singles = teamGroups.filter((g) => g.credits === 1).length;
-    let secures = Math.min(target.secures, singles);
-    let captures = teamGroups.length - secures;
-    if (captures < 0) {
-      captures = 0;
-      secures = teamGroups.length;
-    }
-    quotas.set(teamId, { captures, secures });
-  }
-  return quotas;
+    const secures = Math.min(target.secures, singles);
+    return { captures: teamGroups.length - secures, secures };
+  });
 }
 
-function buildBoundaries(
-  groups: readonly EventGroup[],
-  labels: readonly Label[],
-  teamIds: readonly number[],
-): Boundary[] {
-  const [teamA, teamB] = teamIds;
-  const boundaries: Boundary[] = [];
-  for (const [index, group] of groups.entries()) {
-    const label = Preconditions.checkExists(labels[index]);
-    const attackedTeamId =
-      label === "capture"
-        ? group.teamId === teamA
-          ? Preconditions.checkExists(teamB)
-          : Preconditions.checkExists(teamA)
-        : group.teamId;
-    const windowStartMs = Math.max(0, group.timestampMs - ATTEMPT_WINDOW_MS);
+// Boundary times never depend on the labeling (only which team a window attacks does), so the
+// skeleton is built and sorted once per match rather than per candidate.
+function buildSkeleton(groups: readonly EventGroup[]): SkeletonBoundary[] {
+  const boundaries: SkeletonBoundary[] = [];
+  for (const [groupIndex, group] of groups.entries()) {
     boundaries.push({
-      timestampMs: windowStartMs,
-      order: 2,
-      attackDelta: new Map([[attackedTeamId, 1]]),
-      flipTeamId: null,
+      timestampMs: Math.max(0, group.timestampMs - ATTEMPT_WINDOW_MS),
+      kind: "windowStart",
+      groupIndex,
     });
-    boundaries.push({
-      timestampMs: group.timestampMs,
-      order: 0,
-      attackDelta: new Map([[attackedTeamId, -1]]),
-      flipTeamId: null,
-    });
-    if (label === "capture") {
-      boundaries.push({ timestampMs: group.timestampMs, order: 1, attackDelta: new Map(), flipTeamId: group.teamId });
-    }
+    boundaries.push({ timestampMs: group.timestampMs, kind: "windowEnd", groupIndex });
+    boundaries.push({ timestampMs: group.timestampMs, kind: "flip", groupIndex });
   }
-  return boundaries.sort((a, b) => a.timestampMs - b.timestampMs || a.order - b.order);
+  return boundaries.sort((a, b) => a.timestampMs - b.timestampMs || BOUNDARY_ORDER[a.kind] - BOUNDARY_ORDER[b.kind]);
+}
+
+function enemyOf(teamSlot: TeamSlot): TeamSlot {
+  return teamSlot === 0 ? 1 : 0;
 }
 
 function scoreRatePerSecond(effectiveZones: number): number {
@@ -150,23 +134,30 @@ function scoreRatePerSecond(effectiveZones: number): number {
   return effectiveZones === 2 ? 1 : 0;
 }
 
-// Sweeps the piecewise-constant rate function over the match. Ranked Strongholds spawns each
-// team owning its home zone with the middle zone neutral (observed on every theatre-verified
-// film); a capture takes the neutral zone while it remains, otherwise an enemy zone.
-function integrate(
+// Sweeps the piecewise-constant rate function over the match. The first capture takes the
+// neutral middle zone, so its attempt window contests nobody's owned zone; every later capture
+// contests an enemy zone and every secure marks a cleared enemy attempt on the securing team's
+// own zone.
+function sweep(
   groups: readonly EventGroup[],
+  skeleton: readonly SkeletonBoundary[],
   labels: readonly Label[],
-  teamIds: readonly number[],
   durationMs: number,
   onSample: ((sample: CurveSample) => void) | null,
-): IntegrationTotals {
-  const boundaries = buildBoundaries(groups, labels, teamIds);
-  const owned = new Map<number, number>(teamIds.map((id) => [id, 1]));
-  let neutral = ZONE_COUNT - teamIds.length;
-  const attacks = new Map<number, number>(teamIds.map((id) => [id, 0]));
-  const points = new Map<number, number>(teamIds.map((id) => [id, 0]));
-  const ticks = new Map<number, number>(teamIds.map((id) => [id, 0]));
-  const tripleSeconds = new Map<number, number>(teamIds.map((id) => [id, 0]));
+): SweepTotals {
+  const firstCaptureIndex = labels.indexOf("capture");
+  const attackedSlotFor = (groupIndex: number): TeamSlot | null => {
+    const group = Preconditions.checkExists(groups[groupIndex]);
+    if (labels[groupIndex] === "secure") {
+      return group.teamSlot;
+    }
+    return groupIndex === firstCaptureIndex ? null : enemyOf(group.teamSlot);
+  };
+
+  const owned: [number, number] = [1, 1];
+  let neutral = NEUTRAL_ZONE_COUNT;
+  const attacks: [number, number] = [0, 0];
+  const totals: SweepTotals = { points: [0, 0], ticks: [0, 0], tripleSeconds: [0, 0] };
 
   let cursorMs = 0;
   const advanceTo = (timestampMs: number): void => {
@@ -175,58 +166,82 @@ function integrate(
       return;
     }
     const seconds = (clamped - cursorMs) / 1000;
-    for (const teamId of teamIds) {
-      const effective = Math.max((owned.get(teamId) ?? 0) - (attacks.get(teamId) ?? 0), 0);
+    for (const teamSlot of [0, 1] as const) {
+      const effective = Math.max(owned[teamSlot] - attacks[teamSlot], 0);
       const rate = scoreRatePerSecond(effective);
-      points.set(teamId, (points.get(teamId) ?? 0) + rate * seconds);
+      totals.points[teamSlot] += rate * seconds;
       if (rate > 0) {
-        ticks.set(teamId, (ticks.get(teamId) ?? 0) + seconds);
+        totals.ticks[teamSlot] += seconds;
       }
       if (effective >= ZONE_COUNT) {
-        tripleSeconds.set(teamId, (tripleSeconds.get(teamId) ?? 0) + seconds);
+        totals.tripleSeconds[teamSlot] += seconds;
       }
     }
     cursorMs = clamped;
-    onSample?.({ timestampMs: cursorMs, points: new Map(points) });
+    onSample?.({ timestampMs: cursorMs, points: [totals.points[0], totals.points[1]] });
   };
 
-  for (const boundary of boundaries) {
-    advanceTo(boundary.timestampMs);
-    for (const [teamId, delta] of boundary.attackDelta) {
-      attacks.set(teamId, (attacks.get(teamId) ?? 0) + delta);
-    }
-    if (boundary.flipTeamId != null) {
-      const capturer = boundary.flipTeamId;
+  for (const boundary of skeleton) {
+    if (boundary.kind === "flip") {
+      if (labels[boundary.groupIndex] !== "capture") {
+        continue;
+      }
+      advanceTo(boundary.timestampMs);
+      const capturer = Preconditions.checkExists(groups[boundary.groupIndex]).teamSlot;
       if (neutral > 0) {
         neutral -= 1;
-      } else {
-        const enemyId = teamIds.find((id) => id !== capturer && (owned.get(id) ?? 0) > 0);
-        if (enemyId != null) {
-          owned.set(enemyId, (owned.get(enemyId) ?? 0) - 1);
-        }
+      } else if (owned[enemyOf(capturer)] > 0) {
+        owned[enemyOf(capturer)] -= 1;
       }
-      owned.set(capturer, Math.min((owned.get(capturer) ?? 0) + 1, ZONE_COUNT));
+      owned[capturer] = Math.min(owned[capturer] + 1, ZONE_COUNT);
+      continue;
     }
+    const attackedSlot = attackedSlotFor(boundary.groupIndex);
+    if (attackedSlot == null) {
+      continue;
+    }
+    advanceTo(boundary.timestampMs);
+    attacks[attackedSlot] += boundary.kind === "windowStart" ? 1 : -1;
   }
   advanceTo(durationMs);
 
-  return { points, ticks, tripleSeconds };
+  return totals;
 }
 
-function deviationFromTargets(
-  totals: IntegrationTotals,
-  teamIds: readonly number[],
-  targets: Map<number, TeamTargets>,
-): number {
+function deviationFromTargets(totals: SweepTotals, targets: readonly TeamTargets[]): number {
   let deviation = 0;
-  for (const teamId of teamIds) {
-    const target = Preconditions.checkExists(targets.get(teamId));
+  for (const [teamSlot, target] of targets.entries()) {
     const tripleTarget = Math.max(target.points - target.ticks, 0);
-    deviation += Math.abs((totals.points.get(teamId) ?? 0) - target.points);
-    deviation += Math.abs((totals.ticks.get(teamId) ?? 0) - target.ticks);
-    deviation += TRIPLE_SECONDS_WEIGHT * Math.abs((totals.tripleSeconds.get(teamId) ?? 0) - tripleTarget);
+    deviation += Math.abs((totals.points[teamSlot] ?? 0) - target.points);
+    deviation += Math.abs((totals.ticks[teamSlot] ?? 0) - target.ticks);
+    deviation += TRIPLE_SECONDS_WEIGHT * Math.abs((totals.tripleSeconds[teamSlot] ?? 0) - tripleTarget);
   }
   return deviation;
+}
+
+// When no zone-count-legal labeling exists (heavily degraded film data), label greedily so a
+// curve is still produced; reconciliation absorbs the resulting error.
+function greedyLabeling(groups: readonly EventGroup[], quotas: readonly TeamQuota[]): Label[] {
+  const owned: [number, number] = [1, 1];
+  let neutral = NEUTRAL_ZONE_COUNT;
+  const capturesUsed: [number, number] = [0, 0];
+  return groups.map((group) => {
+    const quota = Preconditions.checkExists(quotas[group.teamSlot]);
+    const me = group.teamSlot;
+    const enemy = enemyOf(me);
+    const captureLegal = owned[me] < ZONE_COUNT && (neutral > 0 || owned[enemy] > 0);
+    if (capturesUsed[me] < quota.captures && captureLegal) {
+      capturesUsed[me] += 1;
+      if (neutral > 0) {
+        neutral -= 1;
+      } else {
+        owned[enemy] -= 1;
+      }
+      owned[me] += 1;
+      return "capture";
+    }
+    return "secure";
+  });
 }
 
 // DFS over the single-credit groups (multi-credit groups are forced captures): prunes label
@@ -234,169 +249,165 @@ function deviationFromTargets(
 // evaluates every complete labeling against the API totals, keeping the best.
 function findBestLabeling(
   groups: readonly EventGroup[],
-  teamIds: readonly number[],
-  targets: Map<number, TeamTargets>,
+  skeleton: readonly SkeletonBoundary[],
+  targets: readonly TeamTargets[],
+  quotas: readonly TeamQuota[],
   durationMs: number,
-): Candidate | null {
-  const quotas = resolveQuotas(groups, teamIds, targets);
-  const [teamA, teamB] = teamIds;
-  const remainingSingles = new Map<number, number[]>(
-    teamIds.map((id) => [id, new Array<number>(groups.length + 1).fill(0)]),
-  );
-  const remainingGroups = new Map<number, number[]>(
-    teamIds.map((id) => [id, new Array<number>(groups.length + 1).fill(0)]),
-  );
+): Label[] {
+  const remainingSingles = [new Array<number>(groups.length + 1).fill(0), new Array<number>(groups.length + 1).fill(0)];
+  const remainingGroups = [new Array<number>(groups.length + 1).fill(0), new Array<number>(groups.length + 1).fill(0)];
   for (let index = groups.length - 1; index >= 0; index -= 1) {
     const group = Preconditions.checkExists(groups[index]);
-    for (const teamId of teamIds) {
-      const singlesSuffix = Preconditions.checkExists(remainingSingles.get(teamId));
-      const groupsSuffix = Preconditions.checkExists(remainingGroups.get(teamId));
-      const isTeam = group.teamId === teamId;
+    for (const teamSlot of [0, 1] as const) {
+      const singlesSuffix = Preconditions.checkExists(remainingSingles[teamSlot]);
+      const groupsSuffix = Preconditions.checkExists(remainingGroups[teamSlot]);
+      const isTeam = group.teamSlot === teamSlot;
       singlesSuffix[index] = (singlesSuffix[index + 1] ?? 0) + (isTeam && group.credits === 1 ? 1 : 0);
       groupsSuffix[index] = (groupsSuffix[index + 1] ?? 0) + (isTeam ? 1 : 0);
     }
   }
 
-  let best: Candidate | null = null;
+  const best: { value: { labels: Label[]; deviation: number } | null } = { value: null };
   let candidateCount = 0;
+  const labels: Label[] = new Array<Label>(groups.length).fill("capture");
+  const owned: [number, number] = [1, 1];
+  const capturesUsed: [number, number] = [0, 0];
+  const securesUsed: [number, number] = [0, 0];
+  let neutral = NEUTRAL_ZONE_COUNT;
 
-  {
-    const labels: Label[] = new Array<Label>(groups.length).fill("capture");
-    const owned = new Map<number, number>(teamIds.map((id) => [id, 1]));
-    const capturesUsed = new Map<number, number>(teamIds.map((id) => [id, 0]));
-    const securesUsed = new Map<number, number>(teamIds.map((id) => [id, 0]));
-    let neutral = ZONE_COUNT - teamIds.length;
+  const visit = (index: number): void => {
+    if (candidateCount >= MAX_CANDIDATES) {
+      return;
+    }
+    if (index === groups.length) {
+      candidateCount += 1;
+      const totals = sweep(groups, skeleton, labels, durationMs, null);
+      const deviation = deviationFromTargets(totals, targets);
+      if (best.value == null || deviation < best.value.deviation) {
+        best.value = { labels: [...labels], deviation };
+      }
+      return;
+    }
+    const group = Preconditions.checkExists(groups[index]);
+    const me = group.teamSlot;
+    const enemy = enemyOf(me);
+    const quota = Preconditions.checkExists(quotas[me]);
+    const singlesSuffix = Preconditions.checkExists(remainingSingles[me]);
+    const groupsSuffix = Preconditions.checkExists(remainingGroups[me]);
 
-    const visit = (index: number): void => {
-      if (candidateCount >= MAX_CANDIDATES) {
+    const tryCapture = (): void => {
+      if (capturesUsed[me] >= quota.captures || owned[me] >= ZONE_COUNT || (neutral === 0 && owned[enemy] === 0)) {
         return;
       }
-      if (index === groups.length) {
-        candidateCount += 1;
-        const totals = integrate(groups, labels, teamIds, durationMs, null);
-        const deviation = deviationFromTargets(totals, teamIds, targets);
-        if (best == null || deviation < best.deviation) {
-          best = { labels: [...labels], deviation };
-        }
+      const securesLeft = quota.secures - securesUsed[me];
+      if (securesLeft > (singlesSuffix[index + 1] ?? 0)) {
         return;
       }
-      const group = Preconditions.checkExists(groups[index]);
-      const { teamId } = group;
-      const enemyId = teamId === teamA ? Preconditions.checkExists(teamB) : Preconditions.checkExists(teamA);
-      const quota = Preconditions.checkExists(quotas.get(teamId));
-      const singlesSuffix = Preconditions.checkExists(remainingSingles.get(teamId));
-      const groupsSuffix = Preconditions.checkExists(remainingGroups.get(teamId));
-
-      const tryCapture = (): void => {
-        const own = owned.get(teamId) ?? 0;
-        const enemyOwned = owned.get(enemyId) ?? 0;
-        if (
-          (capturesUsed.get(teamId) ?? 0) >= quota.captures ||
-          own >= ZONE_COUNT ||
-          (neutral === 0 && enemyOwned === 0)
-        ) {
-          return;
-        }
-        const securesLeft = quota.secures - (securesUsed.get(teamId) ?? 0);
-        if (securesLeft > (singlesSuffix[index + 1] ?? 0)) {
-          return;
-        }
-        const tookNeutral = neutral > 0;
-        if (tookNeutral) {
-          neutral -= 1;
-        } else {
-          owned.set(enemyId, enemyOwned - 1);
-        }
-        owned.set(teamId, own + 1);
-        capturesUsed.set(teamId, (capturesUsed.get(teamId) ?? 0) + 1);
-        labels[index] = "capture";
-        visit(index + 1);
-        capturesUsed.set(teamId, (capturesUsed.get(teamId) ?? 0) - 1);
-        owned.set(teamId, own);
-        if (tookNeutral) {
-          neutral += 1;
-        } else {
-          owned.set(enemyId, enemyOwned);
-        }
-      };
-
-      const trySecure = (): void => {
-        if (group.credits > 1 || (securesUsed.get(teamId) ?? 0) >= quota.secures || (owned.get(teamId) ?? 0) < 1) {
-          return;
-        }
-        const capturesLeft = quota.captures - (capturesUsed.get(teamId) ?? 0);
-        if (capturesLeft > (groupsSuffix[index + 1] ?? 0)) {
-          return;
-        }
-        securesUsed.set(teamId, (securesUsed.get(teamId) ?? 0) + 1);
-        labels[index] = "secure";
-        visit(index + 1);
-        securesUsed.set(teamId, (securesUsed.get(teamId) ?? 0) - 1);
-        labels[index] = "capture";
-      };
-
-      tryCapture();
-      trySecure();
+      const tookNeutral = neutral > 0;
+      if (tookNeutral) {
+        neutral -= 1;
+      } else {
+        owned[enemy] -= 1;
+      }
+      owned[me] += 1;
+      capturesUsed[me] += 1;
+      labels[index] = "capture";
+      visit(index + 1);
+      capturesUsed[me] -= 1;
+      owned[me] -= 1;
+      if (tookNeutral) {
+        neutral += 1;
+      } else {
+        owned[enemy] += 1;
+      }
     };
 
-    visit(0);
-  }
+    const trySecure = (): void => {
+      if (group.credits > 1 || securesUsed[me] >= quota.secures || owned[me] < 1) {
+        return;
+      }
+      const capturesLeft = quota.captures - capturesUsed[me];
+      if (capturesLeft > (groupsSuffix[index + 1] ?? 0)) {
+        return;
+      }
+      securesUsed[me] += 1;
+      labels[index] = "secure";
+      visit(index + 1);
+      securesUsed[me] -= 1;
+      labels[index] = "capture";
+    };
 
-  return best;
+    tryCapture();
+    trySecure();
+  };
+
+  visit(0);
+
+  return best.value?.labels ?? greedyLabeling(groups, quotas);
 }
 
 // Scales each team's raw curve so its final value lands exactly on the API Score, rounding
-// monotonically; one point is emitted per rate boundary where a rounded value changed, and
-// the chart draws straight ramps between them (scoring is continuous, not stepped).
+// monotonically. Every rate boundary emits a point, so scoreless stretches render as flat
+// segments and scoring stretches as ramps. A team the model never gets scoring (degraded film
+// data) falls back to a uniform ramp rather than a flat zero line jumping at the buzzer.
 function buildScorePoints(
   groups: readonly EventGroup[],
-  candidate: Candidate,
+  skeleton: readonly SkeletonBoundary[],
+  labels: readonly Label[],
   teamIds: readonly number[],
-  targets: Map<number, TeamTargets>,
+  targets: readonly TeamTargets[],
   durationMs: number,
 ): StrongholdsScorePoint[] {
   const samples: CurveSample[] = [];
-  const totals = integrate(groups, candidate.labels, teamIds, durationMs, (sample) => {
+  const totals = sweep(groups, skeleton, labels, durationMs, (sample) => {
     samples.push(sample);
   });
-  const scale = new Map<number, number>();
-  for (const teamId of teamIds) {
-    const raw = totals.points.get(teamId) ?? 0;
-    const target = Preconditions.checkExists(targets.get(teamId));
-    scale.set(teamId, raw > 0 ? target.points / raw : 0);
-  }
+
+  const valueAt = (teamSlot: number, sample: CurveSample): number => {
+    const target = Preconditions.checkExists(targets[teamSlot]);
+    if (sample.timestampMs >= durationMs) {
+      return target.points;
+    }
+    const raw = totals.points[teamSlot] ?? 0;
+    if (raw <= 0) {
+      return Math.round((target.points * sample.timestampMs) / durationMs);
+    }
+    return Math.round(((sample.points[teamSlot] ?? 0) * target.points) / raw);
+  };
 
   const points: StrongholdsScorePoint[] = [];
-  const lastEmitted = new Map<number, number>(teamIds.map((id) => [id, 0]));
   for (const sample of samples) {
-    let changedTeamId: number | null = null;
-    let changedDelta = 0;
     const runningScores: Record<string, number> = {};
-    for (const teamId of teamIds) {
-      const value =
-        sample.timestampMs >= durationMs
-          ? Preconditions.checkExists(targets.get(teamId)).points
-          : Math.round((sample.points.get(teamId) ?? 0) * (scale.get(teamId) ?? 0));
-      runningScores[String(teamId)] = value;
-      const delta = value - (lastEmitted.get(teamId) ?? 0);
-      if (delta > changedDelta) {
-        changedDelta = delta;
-        changedTeamId = teamId;
-      }
+    for (const [teamSlot, teamId] of teamIds.entries()) {
+      runningScores[String(teamId)] = valueAt(teamSlot, sample);
     }
-    if (changedTeamId == null && sample.timestampMs < durationMs) {
+    const previous = points.at(-1);
+    if (previous?.timestampMs === sample.timestampMs) {
+      previous.runningScores = runningScores;
       continue;
     }
-    for (const teamId of teamIds) {
-      lastEmitted.set(teamId, runningScores[String(teamId)] ?? 0);
-    }
-    points.push({
-      timestampMs: sample.timestampMs,
-      teamId: changedTeamId ?? Preconditions.checkExists(teamIds[0]),
-      runningScores,
-    });
+    points.push({ timestampMs: sample.timestampMs, runningScores });
   }
   return points;
+}
+
+// Samples the reconstructed curve at a timestamp; scoring is continuous, so values between
+// emitted points interpolate linearly.
+export function sampleScoreAt(points: readonly StrongholdsScorePoint[], teamId: number, timestampMs: number): number {
+  const key = String(teamId);
+  let previous = { timestampMs: 0, value: 0 };
+  for (const point of points) {
+    const value = point.runningScores[key] ?? 0;
+    if (point.timestampMs >= timestampMs) {
+      const span = point.timestampMs - previous.timestampMs;
+      if (span === 0) {
+        return value;
+      }
+      return previous.value + ((value - previous.value) * (timestampMs - previous.timestampMs)) / span;
+    }
+    previous = { timestampMs: point.timestampMs, value };
+  }
+  return previous.value;
 }
 
 export function buildStrongholdsProgression(
@@ -405,34 +416,34 @@ export function buildStrongholdsProgression(
   durationMs: number,
 ): StrongholdsProgression {
   const teamIds = matchStats.Teams.map((team) => team.TeamId).sort((a, b) => a - b);
-  const targets = new Map<number, TeamTargets>();
+  const targetsByTeamId = new Map<number, TeamTargets>();
   for (const team of matchStats.Teams) {
     if (!("ZonesStats" in team.Stats)) {
       continue;
     }
-    targets.set(team.TeamId, {
+    targetsByTeamId.set(team.TeamId, {
       captures: team.Stats.ZonesStats.StrongholdCaptures,
       secures: team.Stats.ZonesStats.StrongholdSecures,
       points: team.Stats.CoreStats.Score,
       ticks: team.Stats.ZonesStats.StrongholdScoringTicks,
     });
   }
-  if (teamIds.length !== 2 || targets.size !== 2) {
+  if (teamIds.length !== 2 || targetsByTeamId.size !== 2 || durationMs <= 0) {
     return { events: [], teamCount: teamIds.length };
   }
+  const targets = teamIds.map((teamId) => Preconditions.checkExists(targetsByTeamId.get(teamId)));
 
-  const groups = groupCarryEvents(events, new Set(teamIds));
+  const groups = groupCarryEvents(events, teamIds);
   if (groups.length === 0) {
     return { events: [], teamCount: teamIds.length };
   }
 
-  const candidate = findBestLabeling(groups, teamIds, targets, durationMs);
-  if (candidate == null) {
-    return { events: [], teamCount: teamIds.length };
-  }
+  const skeleton = buildSkeleton(groups);
+  const quotas = resolveQuotas(groups, targets);
+  const labels = findBestLabeling(groups, skeleton, targets, quotas, durationMs);
 
   return {
-    events: buildScorePoints(groups, candidate, teamIds, targets, durationMs),
+    events: buildScorePoints(groups, skeleton, labels, teamIds, targets, durationMs),
     teamCount: teamIds.length,
   };
 }

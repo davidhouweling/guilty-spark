@@ -1,11 +1,11 @@
 import { deflateSync } from "node:zlib";
-import { GameVariantCategory } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { getMatchStats } from "../fakes/data";
+import { aFakeStrongholdsMatchStatsWith } from "../modes/strongholds/fakes/strongholds-match-stats.fake";
 import { CustomSpartanTokenProvider } from "../custom-spartan-token-provider";
 import { HaloFilmService } from "../halo-film";
 import type { ParsedHighlightEvent } from "../types";
@@ -2123,40 +2123,19 @@ describe("HaloFilmService", () => {
       const xboxService = aFakeXboxServiceWith({ env });
       const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
       const service = new HaloFilmService({ env, spartanTokenProvider });
-      const baseMatch = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
-      const overrides = new Map([
-        [0, { score: 54, ticks: 54, captures: 2, secures: 0 }],
-        [1, { score: 24, ticks: 24, captures: 1, secures: 0 }],
-      ]);
-      const match = {
-        ...baseMatch,
-        MatchInfo: { ...baseMatch.MatchInfo, GameVariantCategory: GameVariantCategory.MultiplayerStrongholds },
-        Teams: baseMatch.Teams.map((team) => {
-          const override = Preconditions.checkExists(overrides.get(team.TeamId));
-          if (!("ZonesStats" in team.Stats)) {
-            throw new Error("expected zones stats on the koth fixture");
-          }
-          return {
-            ...team,
-            Stats: {
-              ...team.Stats,
-              CoreStats: { ...team.Stats.CoreStats, Score: override.score },
-              ZonesStats: {
-                ...team.Stats.ZonesStats,
-                StrongholdCaptures: override.captures,
-                StrongholdSecures: override.secures,
-                StrongholdScoringTicks: override.ticks,
-              },
-            },
-          };
-        }),
-      };
+      const match = aFakeStrongholdsMatchStatsWith(
+        new Map([
+          [0, { score: 54, ticks: 54, captures: 2, secures: 0 }],
+          [1, { score: 24, ticks: 24, captures: 1, secures: 0 }],
+        ]),
+      );
       const team0Xuid = "0100000000000000";
       const team1Xuid = "0400000000000000";
 
       // multi-credit capture groups (forced captures): team 0 at 10s and 60s, team 1 at 30s;
-      // with the 6.5s attempt windows this integrates to exactly 53.5 : 23.5 points, which
-      // reconciliation scales onto the API scores of 54 : 24.
+      // the first capture takes the neutral zone (no attempt window), team 1's capture pauses
+      // team 0 for 6.5s, and team 0's 60s capture pauses team 1 — integrating to 56.5 : 23.5
+      // points, which reconciliation scales onto the API scores of 54 : 24.
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
         modeEvent(team0Xuid, 10000),
         modeEvent(team0Xuid, 10000),

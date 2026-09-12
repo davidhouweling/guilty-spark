@@ -131,7 +131,7 @@ export class AnalyticsService {
     // that score-progression reads; running both concurrently on a cold cache can duplicate film
     // fetch work instead of sharing it.
     const scoreProgression = modules.includes("scoreProgression")
-      ? await this.buildScoreProgressionAnalytics(matchStats)
+      ? await this.buildScoreProgressionAnalyticsSafely(matchStats)
       : null;
 
     return {
@@ -253,6 +253,25 @@ export class AnalyticsService {
         ]),
       );
       throw normalizedError;
+    }
+  }
+
+  // A film failure (expired blob, fetch error) must not take down the rest of the match's
+  // analytics — the kill matrix may be served from cache without touching film at all.
+  private async buildScoreProgressionAnalyticsSafely(
+    matchStats: MatchStats,
+  ): Promise<MatchAnalytics["scoreProgression"]> {
+    try {
+      return await this.buildScoreProgressionAnalytics(matchStats);
+    } catch (error) {
+      this.logService.warn(
+        toError(error),
+        new Map([
+          ["matchId", matchStats.MatchId],
+          ["context", "build score progression"],
+        ]),
+      );
+      return null;
     }
   }
 

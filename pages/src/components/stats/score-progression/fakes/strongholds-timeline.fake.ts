@@ -5,10 +5,10 @@ export function aFakeStrongholdsTimelineWith(overrides: Partial<StrongholdsTimel
   return {
     type: "strongholds",
     events: [
-      { timestampMs: 10000, teamId: 0, runningScores: { "0": 0, "1": 0 } },
-      { timestampMs: 40000, teamId: 0, runningScores: { "0": 30, "1": 0 } },
-      { timestampMs: 60000, teamId: 1, runningScores: { "0": 30, "1": 20 } },
-      { timestampMs: 90000, teamId: 0, runningScores: { "0": 60, "1": 25 } },
+      { timestampMs: 10000, runningScores: { "0": 0, "1": 0 } },
+      { timestampMs: 40000, runningScores: { "0": 30, "1": 0 } },
+      { timestampMs: 60000, runningScores: { "0": 30, "1": 20 } },
+      { timestampMs: 90000, runningScores: { "0": 60, "1": 25 } },
     ],
     ...overrides,
   };

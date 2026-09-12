@@ -475,10 +475,11 @@ describe("formatScoreProgression", () => {
       ]);
     });
 
-    it("builds a score delta and no player advantage", () => {
+    it("builds no score delta and no player advantage", () => {
+      // the delta chart renders stepped, which misreads sparse ramp vertices — deferred
       const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
       const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
-      expect(result.scoreDelta).not.toBeNull();
+      expect(result.scoreDelta).toBeNull();
       expect(result.playerAdvantage).toBeNull();
     });
   });

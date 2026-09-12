@@ -284,7 +284,8 @@ export function formatScoreProgression(
         kind: "score-lines",
         durationMs,
         teamLines: buildRampTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs),
-        scoreDelta: buildScoreDelta(teams.teamIds, timeline.events, durationMs),
+        // the delta chart renders stepped, which misreads sparse ramp vertices — deferred
+        scoreDelta: null,
         playerAdvantage: null,
       };
     }

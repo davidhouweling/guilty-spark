@@ -67,7 +67,12 @@ export type OddballCarrySegment = z.infer<typeof oddballCarrySegmentSchema>;
 export type OddballRound = z.infer<typeof oddballRoundSchema>;
 export type OddballTimeline = z.infer<typeof oddballTimelineSchema>;
 
-const strongholdsEventSchema = progressionEventSchema;
+// Strongholds scoring accrues continuously for both teams at once, so a sample carries no
+// scoring team — only the running totals at a rate boundary.
+const strongholdsEventSchema = z.object({
+  timestampMs: z.number().int().nonnegative(),
+  runningScores: z.record(z.string().regex(/^\d+$/), z.number().int().nonnegative()),
+});
 
 const strongholdsTimelineSchema = z.object({
   type: z.literal("strongholds"),
