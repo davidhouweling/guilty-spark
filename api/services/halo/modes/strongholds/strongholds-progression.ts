@@ -60,6 +60,13 @@ interface TeamQuota {
 
 type Label = "capture" | "secure";
 
+interface Candidate {
+  labels: Label[];
+  // index of the capture that consumed the neutral middle zone (-1 if never consumed)
+  neutralCaptureIndex: number;
+  deviation: number;
+}
+
 // end-of-window decrements sort before the flip, which sorts before start-of-window increments
 const BOUNDARY_ORDER = { windowEnd: 0, flip: 1, windowStart: 2 } as const;
 
@@ -159,16 +166,20 @@ function isCaptureLegal(state: ZoneState, capturer: TeamSlot): boolean {
   return state.owned[capturer] < ZONE_COUNT && (state.neutral > 0 || state.owned[enemyOf(capturer)] > 0);
 }
 
-// A capture takes the neutral zone while one remains, otherwise an enemy zone; returns what was
-// taken so the DFS can undo it.
-function applyCapture(state: ZoneState, capturer: TeamSlot): "neutral" | "enemy" | "none" {
+// A capture may take the still-neutral middle zone or an enemy zone — both are legal while both
+// exist (a team can rush the enemy home zone before anyone touches mid), so the choice is part
+// of the search rather than hard-coded; returns what was taken so the DFS can undo it.
+function applyCapture(state: ZoneState, capturer: TeamSlot, takeNeutral: boolean): "neutral" | "enemy" | "none" {
   let taken: "neutral" | "enemy" | "none" = "none";
-  if (state.neutral > 0) {
+  if (takeNeutral && state.neutral > 0) {
     state.neutral -= 1;
     taken = "neutral";
   } else if (state.owned[enemyOf(capturer)] > 0) {
     state.owned[enemyOf(capturer)] -= 1;
     taken = "enemy";
+  } else if (state.neutral > 0) {
+    state.neutral -= 1;
+    taken = "neutral";
   }
   state.owned[capturer] = Math.min(state.owned[capturer] + 1, ZONE_COUNT);
   return taken;
@@ -190,29 +201,27 @@ function scoreRatePerSecond(effectiveZones: number): number {
   return effectiveZones === 2 ? 1 : 0;
 }
 
-// Sweeps the piecewise-constant rate function over the match. The first capture takes the
-// neutral middle zone, so its attempt window contests nobody's owned zone; every later capture
-// contests an enemy zone and every secure marks a cleared enemy attempt on the securing team's
-// own zone.
+// Sweeps the piecewise-constant rate function over the match. The capture that takes the
+// neutral middle zone contests nobody's owned zone, so it carries no attempt window; every
+// other capture contests an enemy zone and every secure marks a cleared enemy attempt on the
+// securing team's own zone.
 function sweep(
   groups: readonly EventGroup[],
   skeleton: readonly SkeletonBoundary[],
   labels: readonly Label[],
+  neutralCaptureIndex: number,
   durationMs: number,
   onSample?: (sample: CurveSample) => void,
 ): SweepTotals {
-  // one flat pass resolves which team each group's attempt window attacks (null = the first
-  // capture, which takes the neutral zone and contests nobody)
+  // one flat pass resolves which team each group's attempt window attacks
   const attackedSlots: (TeamSlot | null)[] = new Array<TeamSlot | null>(groups.length);
-  let firstCaptureSeen = false;
   for (const [index, group] of groups.entries()) {
     if (labels[index] === "secure") {
       attackedSlots[index] = group.teamSlot;
-    } else if (firstCaptureSeen) {
-      attackedSlots[index] = enemyOf(group.teamSlot);
-    } else {
-      firstCaptureSeen = true;
+    } else if (index === neutralCaptureIndex) {
       attackedSlots[index] = null;
+    } else {
+      attackedSlots[index] = enemyOf(group.teamSlot);
     }
   }
 
@@ -248,7 +257,11 @@ function sweep(
         continue;
       }
       advanceTo(boundary.timestampMs);
-      applyCapture(zones, Preconditions.checkExists(groups[boundary.groupIndex]).teamSlot);
+      applyCapture(
+        zones,
+        Preconditions.checkExists(groups[boundary.groupIndex]).teamSlot,
+        boundary.groupIndex === neutralCaptureIndex,
+      );
       continue;
     }
     const attackedSlot = attackedSlots[boundary.groupIndex];
@@ -276,20 +289,24 @@ function deviationFromTargets(totals: SweepTotals, targets: readonly TeamTargets
 
 // When no zone-count-legal labeling exists (heavily degraded film data), label greedily so a
 // curve is still produced; reconciliation absorbs the resulting error.
-function greedyLabeling(groups: readonly EventGroup[], quotas: readonly TeamQuota[]): Label[] {
+function greedyLabeling(groups: readonly EventGroup[], quotas: readonly TeamQuota[]): Candidate {
   const zones: ZoneState = { owned: [1, 1], neutral: NEUTRAL_ZONE_COUNT };
   const capturesUsed: [number, number] = [0, 0];
-  return groups.map((group) => {
+  let neutralCaptureIndex = -1;
+  const labels = groups.map((group, index): Label => {
     const quota = Preconditions.checkExists(quotas[group.teamSlot]);
     const me = group.teamSlot;
     // a multi-credit group is certainly a capture even when quotas disagree with the film
     if (group.credits > 1 || (capturesUsed[me] < quota.captures && isCaptureLegal(zones, me))) {
       capturesUsed[me] += 1;
-      applyCapture(zones, me);
+      if (applyCapture(zones, me, true) === "neutral") {
+        neutralCaptureIndex = index;
+      }
       return "capture";
     }
     return "secure";
   });
+  return { labels, neutralCaptureIndex, deviation: Number.POSITIVE_INFINITY };
 }
 
 // DFS over the single-credit groups (multi-credit groups are forced captures): prunes label
@@ -301,7 +318,7 @@ function findBestLabeling(
   targets: readonly TeamTargets[],
   quotas: readonly TeamQuota[],
   durationMs: number,
-): Label[] {
+): Candidate {
   const remainingSingles: [number[], number[]] = [
     new Array<number>(groups.length + 1).fill(0),
     new Array<number>(groups.length + 1).fill(0),
@@ -322,13 +339,14 @@ function findBestLabeling(
 
   // holder object rather than a plain `let`: TypeScript does not track assignments made inside
   // the visit closure, so a direct variable narrows to null at the final read
-  const best: { value: { labels: Label[]; deviation: number } | null } = { value: null };
+  const best: { value: Candidate | null } = { value: null };
   let candidateCount = 0;
   let nodeCount = 0;
   const labels: Label[] = new Array<Label>(groups.length).fill("capture");
   const zones: ZoneState = { owned: [1, 1], neutral: NEUTRAL_ZONE_COUNT };
   const capturesUsed: [number, number] = [0, 0];
   const securesUsed: [number, number] = [0, 0];
+  let neutralCaptureIndex = -1;
 
   const visit = (index: number): void => {
     nodeCount += 1;
@@ -337,10 +355,10 @@ function findBestLabeling(
     }
     if (index === groups.length) {
       candidateCount += 1;
-      const totals = sweep(groups, skeleton, labels, durationMs);
+      const totals = sweep(groups, skeleton, labels, neutralCaptureIndex, durationMs);
       const deviation = deviationFromTargets(totals, targets);
       if (best.value == null || deviation < best.value.deviation) {
-        best.value = { labels: [...labels], deviation };
+        best.value = { labels: [...labels], neutralCaptureIndex, deviation };
       }
       return;
     }
@@ -348,17 +366,32 @@ function findBestLabeling(
     const me = group.teamSlot;
     const quota = Preconditions.checkExists(quotas[me]);
 
-    const canCapture =
+    const quotaAllowsCapture =
       capturesUsed[me] < quota.captures &&
-      isCaptureLegal(zones, me) &&
+      zones.owned[me] < ZONE_COUNT &&
       quota.secures - securesUsed[me] <= (remainingSingles[me][index + 1] ?? 0);
-    if (canCapture) {
-      const taken = applyCapture(zones, me);
+    const captureAs = (takeNeutral: boolean): void => {
+      const taken = applyCapture(zones, me, takeNeutral);
+      if (taken === "neutral") {
+        neutralCaptureIndex = index;
+      }
       capturesUsed[me] += 1;
       labels[index] = "capture";
       visit(index + 1);
       capturesUsed[me] -= 1;
+      if (taken === "neutral") {
+        neutralCaptureIndex = -1;
+      }
       undoCapture(zones, me, taken);
+    };
+    if (quotaAllowsCapture) {
+      // a capture may take the still-neutral middle zone or an enemy home zone — explore both
+      if (zones.neutral > 0) {
+        captureAs(true);
+      }
+      if (zones.owned[enemyOf(me)] > 0) {
+        captureAs(false);
+      }
     }
 
     const canSecure =
@@ -377,7 +410,7 @@ function findBestLabeling(
 
   visit(0);
 
-  return best.value?.labels ?? greedyLabeling(groups, quotas);
+  return best.value ?? greedyLabeling(groups, quotas);
 }
 
 // Scales each team's raw curve so its final value lands exactly on the API Score, rounding
@@ -387,13 +420,13 @@ function findBestLabeling(
 function buildScorePoints(
   groups: readonly EventGroup[],
   skeleton: readonly SkeletonBoundary[],
-  labels: readonly Label[],
+  candidate: Candidate,
   teamIds: readonly number[],
   targets: readonly TeamTargets[],
   durationMs: number,
 ): StrongholdsScorePoint[] {
   const samples: CurveSample[] = [];
-  const totals = sweep(groups, skeleton, labels, durationMs, (sample) => {
+  const totals = sweep(groups, skeleton, candidate.labels, candidate.neutralCaptureIndex, durationMs, (sample) => {
     samples.push(sample);
   });
 
@@ -470,10 +503,10 @@ export function buildStrongholdsProgression(
 
   const skeleton = buildSkeleton(groups);
   const quotas = resolveQuotas(groups, targets);
-  const labels = findBestLabeling(groups, skeleton, targets, quotas, durationMs);
+  const candidate = findBestLabeling(groups, skeleton, targets, quotas, durationMs);
 
   return {
-    events: buildScorePoints(groups, skeleton, labels, teamIds, targets, durationMs),
+    events: buildScorePoints(groups, skeleton, candidate, teamIds, targets, durationMs),
     teamCount: teamIds.length,
   };
 }

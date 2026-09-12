@@ -178,6 +178,33 @@ describe("buildStrongholdsProgression", () => {
     expect(sampleScoreAt(points, 1, 25000)).toBeCloseTo(11.5, 5);
   });
 
+  it("recovers an enemy-first opening where the middle zone stays neutral", () => {
+    // team 0 rushes team 1's home zone at 20s (2 zones, mid still neutral), team 1 takes the
+    // neutral at 40s — a neutral capture contests nobody, so team 0 scores uninterrupted
+    // 20s→100s for exactly 80 points; a neutral-first model could not reach these totals
+    const matchStats = aFakeStrongholdsMatchStatsWith(
+      new Map([
+        [0, { score: 80, ticks: 80, captures: 1, secures: 0 }],
+        [1, { score: 0, ticks: 0, captures: 1, secures: 0 }],
+      ]),
+    );
+    const event = (timeMs: number, teamId: number, index: number): ParsedHighlightEvent => ({
+      xuid: `21000000000300${String(index)}`,
+      gamertag: `player-${String(teamId)}-${String(index)}`,
+      typeHint: 10,
+      isMedal: false,
+      eventType: "mode",
+      timeMs,
+      medalValue: 33554432,
+      teamId,
+    });
+    const events = [event(20000, 0, 0), event(20000, 0, 1), event(40000, 1, 2), event(40000, 1, 3)];
+    const progression = buildStrongholdsProgression(events, matchStats, 100000);
+    const last = Preconditions.checkExists(progression.events.at(-1));
+    expect(last.runningScores).toEqual({ "0": 80, "1": 0 });
+    expect(sampleScoreAt(progression.events, 0, 60000)).toBeCloseTo(40, 0);
+  });
+
   it("returns no events when the match has no zone stats", () => {
     const base = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     const progression = buildStrongholdsProgression(strongholds2104Events(), base, STRONGHOLDS_2104_DURATION_MS);
