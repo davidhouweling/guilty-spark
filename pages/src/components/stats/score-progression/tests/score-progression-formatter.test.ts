@@ -465,6 +465,20 @@ describe("formatScoreProgression", () => {
       expect(formatScoreProgression(data, TEAM_COLORS)).toBeNull();
     });
 
+    it("resolves both teams when the first sample omits one", () => {
+      const data = aFakeScoreProgressionWith({
+        durationMs: 100000,
+        timeline: aFakeStrongholdsTimelineWith({
+          events: [
+            { timestampMs: 10000, runningScores: { "0": 5 } },
+            { timestampMs: 40000, runningScores: { "0": 20, "1": 8 } },
+          ],
+        }),
+      });
+      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      expect(result.teamLines.map((line) => line.teamId)).toEqual([0, 1]);
+    });
+
     it("builds a linear score delta for continuous zone scoring", () => {
       const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
       const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));

@@ -104,13 +104,16 @@ function groupCarryEvents(events: readonly ParsedHighlightEvent[], teamIds: read
 }
 
 // Quotas come from the API; when the film misses events (or credits drift) the group count can
-// disagree — every group still gets a label, and secures never exceed the single-credit groups
-// they can occupy (a secure credits exactly one player, so secures <= singles <= group count).
+// disagree — every group still gets a label. Groups beyond the API capture quota become secures
+// (a spurious secure never flips a zone; a spurious capture corrupts the whole ownership
+// trajectory), and secures never exceed the single-credit groups they can occupy (a secure
+// credits exactly one player, so secures <= singles <= group count).
 function resolveQuotas(groups: readonly EventGroup[], targets: readonly TeamTargets[]): TeamQuota[] {
   return targets.map((target, teamSlot) => {
     const teamGroups = groups.filter((g) => g.teamSlot === teamSlot);
     const singles = teamGroups.filter((g) => g.credits === 1).length;
-    const secures = Math.min(target.secures, singles);
+    const minimumSecures = Math.max(teamGroups.length - target.captures, 0);
+    const secures = Math.min(Math.max(target.secures, minimumSecures), singles);
     return { captures: teamGroups.length - secures, secures };
   });
 }

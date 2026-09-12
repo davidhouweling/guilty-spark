@@ -261,7 +261,13 @@ export function formatScoreProgression(
       };
     }
     case "strongholds": {
-      const teams = resolveTeams(timeline.events.at(0)?.runningScores, teamColors);
+      // strongholds records may be sparse, so a team missing from the first sample must still
+      // resolve — union the scores across all samples
+      const mergedScores: Record<string, number> = {};
+      for (const event of timeline.events) {
+        Object.assign(mergedScores, event.runningScores);
+      }
+      const teams = resolveTeams(timeline.events.length > 0 ? mergedScores : undefined, teamColors);
       if (teams == null) {
         return null;
       }

@@ -88,6 +88,34 @@ describe("buildStrongholdsProgression", () => {
     expect(last.runningScores["1"]).toBe(100);
   });
 
+  it("labels film groups beyond the API capture quota as secures instead of fabricating flips", () => {
+    // three single-credit groups against a capture quota of 2: captures at 10s and 40s take
+    // the neutral then the enemy zone, the 70s group is a cleared enemy attempt (secure) whose
+    // window pauses the triple rate for 6.5s — integrating to 143.5 points / 90 ticks
+    const matchStats = aFakeStrongholdsMatchStatsWith(
+      new Map([
+        [0, { score: 144, ticks: 90, captures: 2, secures: 0 }],
+        [1, { score: 0, ticks: 0, captures: 0, secures: 0 }],
+      ]),
+    );
+    const events = [10000, 40000, 70000].map((timeMs, index) => ({
+      xuid: `21000000000100${String(index)}`,
+      gamertag: `player-0-${String(index)}`,
+      typeHint: 10,
+      isMedal: false,
+      eventType: "mode" as const,
+      timeMs,
+      medalValue: 33554432,
+      teamId: 0,
+    }));
+    const progression = buildStrongholdsProgression(events, matchStats, 100000);
+    const last = Preconditions.checkExists(progression.events.at(-1));
+    expect(last.runningScores).toEqual({ "0": 144, "1": 0 });
+    // a third flip would have collapsed the mid-match rate; the secure labeling holds ~79 at 65s
+    expect(sampleScoreAt(progression.events, 0, 65000)).toBeGreaterThan(74);
+    expect(sampleScoreAt(progression.events, 0, 65000)).toBeLessThan(84);
+  });
+
   it("returns no events when the match has no zone stats", () => {
     const base = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     const progression = buildStrongholdsProgression(strongholds2104Events(), base, STRONGHOLDS_2104_DURATION_MS);
