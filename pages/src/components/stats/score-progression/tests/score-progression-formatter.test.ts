@@ -178,6 +178,25 @@ describe("formatScoreProgression", () => {
       expect(result.scoreDelta?.maxScore).toBe(1);
     });
 
+    it("clamps delta points to the match duration when a trailing event overruns it", () => {
+      const data = aFakeScoreProgressionWith({
+        durationMs: 600000,
+        timeline: {
+          type: "kill-race",
+          events: [
+            { timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+            { timestampMs: 10000, teamId: 1, runningScores: { "0": 1, "1": 3 } },
+            { timestampMs: 605000, teamId: 0, runningScores: { "0": 2, "1": 3 } },
+          ],
+          deathTimeline: [],
+          respawnDurationMs: 8000,
+        },
+      });
+      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      const last = result.scoreDelta?.points.at(-1);
+      expect(last).toEqual({ timestampMs: 600000, score: -2 });
+    });
+
     it("returns null scoreDelta when only one team is present", () => {
       const data = aFakeScoreProgressionWith({
         timeline: {

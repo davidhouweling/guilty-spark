@@ -441,6 +441,33 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     ]);
   });
 
+  it("retries a transient score-progression film failure and returns the second attempt", async () => {
+    const matchStats = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+    const strongholdsMatchStats = {
+      ...matchStats,
+      MatchInfo: { ...matchStats.MatchInfo, GameVariantCategory: GameVariantCategory.MultiplayerStrongholds },
+    };
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([strongholdsMatchStats]);
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+    vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
+      entries: [],
+      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+      perfectCounts: { total: 0, byXuid: {} },
+    });
+    const buildSpy = vi
+      .spyOn(haloFilmService, "buildStrongholdsProgression")
+      .mockRejectedValueOnce(new Error("transient film blip"))
+      .mockResolvedValue({
+        events: [{ timestampMs: 60000, runningScores: { "0": 50, "1": 20 } }],
+        teamCount: 2,
+      });
+
+    const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
+
+    expect(buildSpy).toHaveBeenCalledTimes(2);
+    expect(results["match-1"]?.scoreProgression?.timeline.type).toBe("strongholds");
+  });
+
   it("degrades scoreProgression to null when film extraction for it fails", async () => {
     const logWarnSpy = vi.spyOn(logService, "warn");
     const matchStats = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
