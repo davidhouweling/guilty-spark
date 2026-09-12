@@ -3,6 +3,7 @@ import { formatScoreProgression } from "../score-progression-formatter";
 import { aFakeScoreProgressionWith } from "../fakes/score-progression.fake";
 import { aFakeKothTimelineWith } from "../modes/koth/fakes/koth-timeline.fake";
 import { aFakeOddballTimelineWith } from "../modes/oddball/fakes/oddball-timeline.fake";
+import { aFakeStrongholdsTimelineWith } from "../modes/strongholds/fakes/strongholds-timeline.fake";
 import type { KothViewData, OddballViewData, ScoreLinesViewData, ScoreProgressionViewData } from "../types";
 
 const TEAM_COLORS = [
@@ -154,6 +155,11 @@ describe("formatScoreProgression", () => {
       expect(result.scoreDelta?.maxScore).toBe(1);
     });
 
+    it("marks kill-race deltas as stepped", () => {
+      const result = asScoreLines(formatScoreProgression(aFakeScoreProgressionWith(), TEAM_COLORS));
+      expect(result.scoreDelta?.lineType).toBe("step");
+    });
+
     it("sets minScore and maxScore for mixed positive and negative deltas", () => {
       const data = aFakeScoreProgressionWith({
         timeline: {
@@ -170,6 +176,44 @@ describe("formatScoreProgression", () => {
       const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
       expect(result.scoreDelta?.minScore).toBe(-1);
       expect(result.scoreDelta?.maxScore).toBe(1);
+    });
+
+    it("clamps team lines to the match duration when a trailing event overruns it", () => {
+      const data = aFakeScoreProgressionWith({
+        durationMs: 600000,
+        timeline: {
+          type: "kill-race",
+          events: [
+            { timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+            { timestampMs: 605000, teamId: 0, runningScores: { "0": 2, "1": 0 } },
+          ],
+          deathTimeline: [],
+          respawnDurationMs: 8000,
+        },
+      });
+      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      const timestamps = result.teamLines[0]?.points.map((point) => point.timestampMs) ?? [];
+      expect(Math.max(...timestamps)).toBe(600000);
+      expect(result.teamLines[0]?.points.at(-1)).toEqual({ timestampMs: 600000, score: 1 });
+    });
+
+    it("clamps delta points to the match duration when a trailing event overruns it", () => {
+      const data = aFakeScoreProgressionWith({
+        durationMs: 600000,
+        timeline: {
+          type: "kill-race",
+          events: [
+            { timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+            { timestampMs: 10000, teamId: 1, runningScores: { "0": 1, "1": 3 } },
+            { timestampMs: 605000, teamId: 0, runningScores: { "0": 2, "1": 3 } },
+          ],
+          deathTimeline: [],
+          respawnDurationMs: 8000,
+        },
+      });
+      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      const last = result.scoreDelta?.points.at(-1);
+      expect(last).toEqual({ timestampMs: 600000, score: -2 });
     });
 
     it("returns null scoreDelta when only one team is present", () => {
@@ -310,6 +354,28 @@ describe("formatScoreProgression", () => {
       ]);
     });
 
+    it("clamps advantage points to the match duration when a trailing death overruns it", () => {
+      const data = aFakeScoreProgressionWith({
+        durationMs: 30000,
+        timeline: {
+          type: "kill-race",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+          deathTimeline: [
+            { timestampMs: 5001, teamId: 1 },
+            { timestampMs: 30500, teamId: 0 },
+          ],
+          respawnDurationMs: 8000,
+        },
+      });
+      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      expect(result.playerAdvantage?.points).toEqual([
+        { timestampMs: 0, score: 0 },
+        { timestampMs: 5001, score: 1 },
+        { timestampMs: 13001, score: 0 },
+        { timestampMs: 30000, score: 0 },
+      ]);
+    });
+
     it("omits respawn completion points past durationMs", () => {
       const data = aFakeScoreProgressionWith({
         durationMs: 10000,
@@ -444,6 +510,61 @@ describe("formatScoreProgression", () => {
       const result = asOddball(formatScoreProgression(data, TEAM_COLORS));
       expect(result.rounds[0]?.winnerColor).toBe("#0000ff");
       expect(result.rounds[1]?.winnerColor).toBe("#ff0000");
+    });
+  });
+
+  describe("strongholds dispatch", () => {
+    it("returns score-lines view data for a strongholds timeline", () => {
+      const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.kind).toBe("score-lines");
+    });
+
+    it("returns null when a strongholds timeline has no events", () => {
+      const data = aFakeScoreProgressionWith({ timeline: aFakeStrongholdsTimelineWith({ events: [] }) });
+      expect(formatScoreProgression(data, TEAM_COLORS)).toBeNull();
+    });
+
+    it("resolves both teams when the first sample omits one", () => {
+      const data = aFakeScoreProgressionWith({
+        durationMs: 100000,
+        timeline: aFakeStrongholdsTimelineWith({
+          events: [
+            { timestampMs: 10000, runningScores: { "0": 5 } },
+            { timestampMs: 40000, runningScores: { "0": 20, "1": 8 } },
+          ],
+        }),
+      });
+      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      expect(result.teamLines.map((line) => line.teamId)).toEqual([0, 1]);
+    });
+
+    it("builds a linear score delta for continuous zone scoring", () => {
+      const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
+      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      expect(result.scoreDelta?.lineType).toBe("linear");
+    });
+
+    it("builds ramp team lines with one point per event and no step duplication", () => {
+      const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
+      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      const [team0] = result.teamLines;
+      // origin + 4 events + extension to match duration
+      expect(team0.points).toEqual([
+        { timestampMs: 0, score: 0 },
+        { timestampMs: 10000, score: 0 },
+        { timestampMs: 40000, score: 30 },
+        { timestampMs: 60000, score: 30 },
+        { timestampMs: 90000, score: 60 },
+        { timestampMs: 100000, score: 60 },
+      ]);
+    });
+
+    it("builds a score delta and no player advantage", () => {
+      const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
+      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      expect(result.scoreDelta).not.toBeNull();
+      expect(result.playerAdvantage).toBeNull();
     });
   });
 });

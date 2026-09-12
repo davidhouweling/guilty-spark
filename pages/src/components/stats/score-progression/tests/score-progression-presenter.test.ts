@@ -24,6 +24,7 @@ const aFakeScoreDeltaData = (): ScoreDeltaData => ({
   ],
   minScore: 0,
   maxScore: 1,
+  lineType: "step",
 });
 
 const aFakeTeamLine = (name: string, color: string, teamId = 0): ScoreProgressionTeamLine => ({

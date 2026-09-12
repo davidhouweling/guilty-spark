@@ -23,6 +23,8 @@ import {
 import { buildKothProgression } from "./modes/koth/koth-progression";
 import { buildOddballProgression } from "./modes/oddball/oddball-progression";
 import type { OddballProgression } from "./modes/oddball/oddball-progression";
+import { buildStrongholdsProgression } from "./modes/strongholds/strongholds-progression";
+import type { StrongholdsProgression } from "./modes/strongholds/strongholds-progression";
 import type {
   FilmMetadataResponse,
   ParsedHighlightEvent,
@@ -168,6 +170,11 @@ export class HaloFilmService {
   async buildOddballProgression(matchStats: MatchStats, durationMs: number): Promise<OddballProgression> {
     const events = await this.loadEnrichedEventsForMatch(matchStats);
     return buildOddballProgression(events, matchStats, durationMs);
+  }
+
+  async buildStrongholdsProgression(matchStats: MatchStats, durationMs: number): Promise<StrongholdsProgression> {
+    const events = await this.loadEnrichedEventsForMatch(matchStats);
+    return buildStrongholdsProgression(events, matchStats, durationMs);
   }
 
   async getStateByte2Transitions(matchId: string): Promise<StateByte2Transition[]> {
