@@ -354,6 +354,28 @@ describe("formatScoreProgression", () => {
       ]);
     });
 
+    it("clamps advantage points to the match duration when a trailing death overruns it", () => {
+      const data = aFakeScoreProgressionWith({
+        durationMs: 30000,
+        timeline: {
+          type: "kill-race",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+          deathTimeline: [
+            { timestampMs: 5001, teamId: 1 },
+            { timestampMs: 30500, teamId: 0 },
+          ],
+          respawnDurationMs: 8000,
+        },
+      });
+      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      expect(result.playerAdvantage?.points).toEqual([
+        { timestampMs: 0, score: 0 },
+        { timestampMs: 5001, score: 1 },
+        { timestampMs: 13001, score: 0 },
+        { timestampMs: 30000, score: 0 },
+      ]);
+    });
+
     it("omits respawn completion points past durationMs", () => {
       const data = aFakeScoreProgressionWith({
         durationMs: 10000,

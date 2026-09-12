@@ -79,7 +79,9 @@ function buildPlayerAdvantage(
   durationMs: number,
   teamSize: number | null,
 ): PlayerAdvantageData | null {
-  if (teamIds.length !== 2 || deathTimeline.length === 0) {
+  // a trailing film death past the match end would push advantage points beyond the x-axis
+  const inMatchDeaths = deathTimeline.filter((death) => death.timestampMs <= durationMs);
+  if (teamIds.length !== 2 || inMatchDeaths.length === 0) {
     return null;
   }
 
@@ -91,7 +93,7 @@ function buildPlayerAdvantage(
     delta: 1 | -1;
   }
   const events: AdvantageEvent[] = [];
-  for (const death of deathTimeline) {
+  for (const death of inMatchDeaths) {
     events.push({ timestampMs: death.timestampMs, teamId: death.teamId, delta: 1 });
     const respawnTs = death.timestampMs + respawnDurationMs;
     if (respawnTs < durationMs) {
