@@ -16,8 +16,9 @@ import type { ParsedHighlightEvent } from "../../types";
 const ATTEMPT_WINDOW_MS = 6_500;
 const TRIPLE_SECONDS_WEIGHT = 2;
 const MAX_CANDIDATES = 150_000;
-// bounds DFS work including dead-end traversal (mirrors koth-capture-search's node cap)
-const MAX_SEARCH_NODES = 2_000_000;
+// bounds DFS work including dead-end traversal (mirrors koth-capture-search's node cap);
+// ~250k visits ≈ 0.1s on Workers hardware, and the calibration match needs ~137k
+const MAX_SEARCH_NODES = 250_000;
 const ZONE_COUNT = 3;
 // Ranked Strongholds spawns each team owning its home zone with the middle zone neutral —
 // observed on every theatre-verified film.
@@ -185,14 +186,20 @@ function sweep(
   durationMs: number,
   onSample?: (sample: CurveSample) => void,
 ): SweepTotals {
-  const firstCaptureIndex = labels.indexOf("capture");
-  const attackedSlotFor = (groupIndex: number): TeamSlot | null => {
-    const group = Preconditions.checkExists(groups[groupIndex]);
-    if (labels[groupIndex] === "secure") {
-      return group.teamSlot;
+  // one flat pass resolves which team each group's attempt window attacks (null = the first
+  // capture, which takes the neutral zone and contests nobody)
+  const attackedSlots: (TeamSlot | null)[] = new Array<TeamSlot | null>(groups.length);
+  let firstCaptureSeen = false;
+  for (const [index, group] of groups.entries()) {
+    if (labels[index] === "secure") {
+      attackedSlots[index] = group.teamSlot;
+    } else if (firstCaptureSeen) {
+      attackedSlots[index] = enemyOf(group.teamSlot);
+    } else {
+      firstCaptureSeen = true;
+      attackedSlots[index] = null;
     }
-    return groupIndex === firstCaptureIndex ? null : enemyOf(group.teamSlot);
-  };
+  }
 
   const zones: ZoneState = { owned: [1, 1], neutral: NEUTRAL_ZONE_COUNT };
   const attacks: [number, number] = [0, 0];
@@ -229,7 +236,7 @@ function sweep(
       applyCapture(zones, Preconditions.checkExists(groups[boundary.groupIndex]).teamSlot);
       continue;
     }
-    const attackedSlot = attackedSlotFor(boundary.groupIndex);
+    const attackedSlot = attackedSlots[boundary.groupIndex];
     if (attackedSlot == null) {
       continue;
     }
@@ -260,7 +267,8 @@ function greedyLabeling(groups: readonly EventGroup[], quotas: readonly TeamQuot
   return groups.map((group) => {
     const quota = Preconditions.checkExists(quotas[group.teamSlot]);
     const me = group.teamSlot;
-    if (capturesUsed[me] < quota.captures && isCaptureLegal(zones, me)) {
+    // a multi-credit group is certainly a capture even when quotas disagree with the film
+    if (group.credits > 1 || (capturesUsed[me] < quota.captures && isCaptureLegal(zones, me))) {
       capturesUsed[me] += 1;
       applyCapture(zones, me);
       return "capture";
@@ -323,42 +331,33 @@ function findBestLabeling(
     }
     const group = Preconditions.checkExists(groups[index]);
     const me = group.teamSlot;
-
     const quota = Preconditions.checkExists(quotas[me]);
 
-    const tryCapture = (): void => {
-      if (capturesUsed[me] >= quota.captures || !isCaptureLegal(zones, me)) {
-        return;
-      }
-      const securesLeft = quota.secures - securesUsed[me];
-      if (securesLeft > (remainingSingles[me][index + 1] ?? 0)) {
-        return;
-      }
+    const canCapture =
+      capturesUsed[me] < quota.captures &&
+      isCaptureLegal(zones, me) &&
+      quota.secures - securesUsed[me] <= (remainingSingles[me][index + 1] ?? 0);
+    if (canCapture) {
       const taken = applyCapture(zones, me);
       capturesUsed[me] += 1;
       labels[index] = "capture";
       visit(index + 1);
       capturesUsed[me] -= 1;
       undoCapture(zones, me, taken);
-    };
+    }
 
-    const trySecure = (): void => {
-      if (group.credits > 1 || securesUsed[me] >= quota.secures || zones.owned[me] < 1) {
-        return;
-      }
-      const capturesLeft = quota.captures - capturesUsed[me];
-      if (capturesLeft > (remainingGroups[me][index + 1] ?? 0)) {
-        return;
-      }
+    const canSecure =
+      group.credits === 1 &&
+      securesUsed[me] < quota.secures &&
+      zones.owned[me] >= 1 &&
+      quota.captures - capturesUsed[me] <= (remainingGroups[me][index + 1] ?? 0);
+    if (canSecure) {
       securesUsed[me] += 1;
       labels[index] = "secure";
       visit(index + 1);
       securesUsed[me] -= 1;
       labels[index] = "capture";
-    };
-
-    tryCapture();
-    trySecure();
+    }
   };
 
   visit(0);
@@ -400,11 +399,6 @@ function buildScorePoints(
     const runningScores: Record<string, number> = {};
     for (const [teamSlot, teamId] of teamIds.entries()) {
       runningScores[String(teamId)] = valueAt(teamSlot, sample);
-    }
-    const previous = points.at(-1);
-    if (previous?.timestampMs === sample.timestampMs) {
-      previous.runningScores = runningScores;
-      continue;
     }
     points.push({ timestampMs: sample.timestampMs, runningScores });
   }

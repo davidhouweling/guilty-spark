@@ -40,10 +40,13 @@ function buildScoreDelta(
   const points: ScoreProgressionPoint[] = [{ timestampMs: 0, score: 0 }];
   let minScore = 0;
   let maxScore = 0;
+  let score0 = 0;
+  let score1 = 0;
 
   for (const event of events) {
-    const score0 = event.runningScores[key0] ?? 0;
-    const score1 = event.runningScores[key1] ?? 0;
+    // a team omitted from a sparse record carries its previous score forward (scores never drop)
+    score0 = key0 in event.runningScores ? event.runningScores[key0] : score0;
+    score1 = key1 in event.runningScores ? event.runningScores[key1] : score1;
     const score = score0 - score1;
     points.push({ timestampMs: event.timestampMs, score });
     if (score < minScore) {
@@ -54,7 +57,10 @@ function buildScoreDelta(
     }
   }
 
-  points.push({ timestampMs: durationMs, score: points.at(-1)?.score ?? 0 });
+  const lastEvent = events.at(-1);
+  if (lastEvent == null || lastEvent.timestampMs < durationMs) {
+    points.push({ timestampMs: durationMs, score: points.at(-1)?.score ?? 0 });
+  }
   const range = maxScore - minScore;
   if (range === 0) {
     return null;
