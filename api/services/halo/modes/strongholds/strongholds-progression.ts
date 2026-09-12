@@ -421,12 +421,13 @@ function buildScorePoints(
 }
 
 // Samples the reconstructed curve at a timestamp; scoring is continuous, so values between
-// emitted points interpolate linearly.
+// emitted points interpolate linearly, and a team omitted from a sparse record carries its
+// previous score forward (matching the view-model semantics).
 export function sampleScoreAt(points: readonly StrongholdsScorePoint[], teamId: number, timestampMs: number): number {
   const key = String(teamId);
   let previous = { timestampMs: 0, value: 0 };
   for (const point of points) {
-    const value = point.runningScores[key] ?? 0;
+    const value = key in point.runningScores ? (point.runningScores[key] ?? 0) : previous.value;
     if (point.timestampMs >= timestampMs) {
       const span = point.timestampMs - previous.timestampMs;
       if (span === 0) {

@@ -168,6 +168,16 @@ describe("buildStrongholdsProgression", () => {
     expect(last.runningScores).toEqual({ "0": 90, "1": 0 });
   });
 
+  it("carries a team's previous score forward when sampling across a sparse record", () => {
+    const points = [
+      { timestampMs: 10000, runningScores: { "0": 20, "1": 8 } },
+      { timestampMs: 20000, runningScores: { "0": 30 } },
+      { timestampMs: 30000, runningScores: { "0": 40, "1": 15 } },
+    ];
+    expect(sampleScoreAt(points, 1, 20000)).toBe(8);
+    expect(sampleScoreAt(points, 1, 25000)).toBeCloseTo(11.5, 5);
+  });
+
   it("returns no events when the match has no zone stats", () => {
     const base = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     const progression = buildStrongholdsProgression(strongholds2104Events(), base, STRONGHOLDS_2104_DURATION_MS);
