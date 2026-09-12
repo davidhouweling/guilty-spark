@@ -441,6 +441,30 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     ]);
   });
 
+  it("degrades scoreProgression to null when film extraction for it fails", async () => {
+    const logWarnSpy = vi.spyOn(logService, "warn");
+    const matchStats = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+    const strongholdsMatchStats = {
+      ...matchStats,
+      MatchInfo: { ...matchStats.MatchInfo, GameVariantCategory: GameVariantCategory.MultiplayerStrongholds },
+    };
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([strongholdsMatchStats]);
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+    vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
+      entries: [{ killerXuid: "1", victimXuid: "2", count: 2, headshotKills: 0, perfects: 1, weapons: [] }],
+      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+      perfectCounts: { total: 0, byXuid: {} },
+    });
+    vi.spyOn(haloFilmService, "buildStrongholdsProgression").mockRejectedValue(new Error("film expired"));
+
+    const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
+
+    expect(results["match-1"]).not.toBeNull();
+    expect(results["match-1"]?.killMatrix).toEqual({ "1:2": { count: 2, perfects: 1 } });
+    expect(results["match-1"]?.scoreProgression).toBeNull();
+    expect(logWarnSpy).toHaveBeenCalled();
+  });
+
   it("returns scoreProgression null for unsupported game modes when scoreProgression is requested", async () => {
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     const ctfMatchStats = {
