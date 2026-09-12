@@ -39,6 +39,21 @@ describe("buildStrongholdsTeamLines", () => {
     ]);
   });
 
+  it("drops samples recorded after the match duration", () => {
+    const timeline = aFakeStrongholdsTimelineWith({
+      events: [
+        { timestampMs: 10000, runningScores: { "0": 5, "1": 2 } },
+        { timestampMs: 35000, runningScores: { "0": 30, "1": 12 } },
+      ],
+    });
+    const [team0] = buildStrongholdsTeamLines(timeline.events, TEAM_IDS, TEAM_COLORS, 30000);
+    expect(team0.points).toEqual([
+      { timestampMs: 0, score: 0 },
+      { timestampMs: 10000, score: 5 },
+      { timestampMs: 30000, score: 5 },
+    ]);
+  });
+
   it("assigns names and colors by team with slot-index fallback colors", () => {
     const timeline = aFakeStrongholdsTimelineWith();
     const lines = buildStrongholdsTeamLines(timeline.events, TEAM_IDS, new Map(), 100000);

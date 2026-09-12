@@ -12,10 +12,12 @@ export function buildStrongholdsTeamLines(
   teamColorByTeamId: Map<number, string>,
   durationMs: number,
 ): ScoreProgressionTeamLine[] {
+  // the contract permits samples past the match end; keep the line inside the chart's x-axis
+  const inMatchEvents = events.filter((event) => event.timestampMs <= durationMs);
   return teamIds.map((teamId, slotIndex) => {
     const key = String(teamId);
     const points: ScoreProgressionPoint[] = [{ timestampMs: 0, score: 0 }];
-    for (const event of events) {
+    for (const event of inMatchEvents) {
       const previous = points.at(-1);
       const score = key in event.runningScores ? event.runningScores[key] : (previous?.score ?? 0);
       points.push({ timestampMs: event.timestampMs, score });
