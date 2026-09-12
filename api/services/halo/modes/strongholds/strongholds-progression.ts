@@ -19,6 +19,10 @@ const MAX_CANDIDATES = 150_000;
 // bounds DFS work including dead-end traversal (mirrors koth-capture-search's node cap);
 // ~250k visits ≈ 0.1s on Workers hardware, and the calibration match needs ~137k
 const MAX_SEARCH_NODES = 250_000;
+// bounds total integration work (candidates × boundaries swept) so a single match can never
+// spend more than ~0.3s of Worker CPU even in the leaf-heavy regime; the calibration match
+// uses ~1.6M units
+const MAX_SWEEP_WORK_UNITS = 5_000_000;
 const ZONE_COUNT = 3;
 // Ranked Strongholds spawns each team owning its home zone with the middle zone neutral —
 // observed on every theatre-verified film.
@@ -342,6 +346,7 @@ function findBestLabeling(
   const best: { value: Candidate | null } = { value: null };
   let candidateCount = 0;
   let nodeCount = 0;
+  let sweepWorkUnits = 0;
   const labels: Label[] = new Array<Label>(groups.length).fill("capture");
   const zones: ZoneState = { owned: [1, 1], neutral: NEUTRAL_ZONE_COUNT };
   const capturesUsed: [number, number] = [0, 0];
@@ -350,11 +355,12 @@ function findBestLabeling(
 
   const visit = (index: number): void => {
     nodeCount += 1;
-    if (candidateCount >= MAX_CANDIDATES || nodeCount >= MAX_SEARCH_NODES) {
+    if (candidateCount >= MAX_CANDIDATES || nodeCount >= MAX_SEARCH_NODES || sweepWorkUnits >= MAX_SWEEP_WORK_UNITS) {
       return;
     }
     if (index === groups.length) {
       candidateCount += 1;
+      sweepWorkUnits += skeleton.length;
       const totals = sweep(groups, skeleton, labels, neutralCaptureIndex, durationMs);
       const deviation = deviationFromTargets(totals, targets);
       if (best.value == null || deviation < best.value.deviation) {

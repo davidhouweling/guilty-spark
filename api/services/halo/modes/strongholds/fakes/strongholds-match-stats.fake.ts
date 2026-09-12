@@ -17,7 +17,7 @@ export function aFakeStrongholdsMatchStatsWith(overridesByTeamId: Map<number, St
   match.Teams = match.Teams.map((team) => {
     const override = Preconditions.checkExists(overridesByTeamId.get(team.TeamId));
     if (!("ZonesStats" in team.Stats)) {
-      throw new Error("expected zones stats on the koth fixture");
+      throw new Error("expected zones stats on the koth match fixture used as the strongholds base");
     }
     return {
       ...team,
