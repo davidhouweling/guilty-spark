@@ -1,4 +1,5 @@
 import { deflateSync } from "node:zlib";
+import { GameVariantCategory } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -2113,6 +2114,64 @@ describe("HaloFilmService", () => {
       expect(round?.endedByCap).toBe(false);
       expect(round?.winnerTeamId).toBe(0);
       expect(round?.scores).toEqual({ "0": 60, "1": 25 });
+    });
+  });
+
+  describe("buildStrongholdsProgression", () => {
+    it("reconstructs a hand-computed two-team scenario reconciled to the API totals", async () => {
+      const env = aFakeCacheBackedEnvWith();
+      const xboxService = aFakeXboxServiceWith({ env });
+      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const baseMatch = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+      const overrides = new Map([
+        [0, { score: 54, ticks: 54, captures: 2, secures: 0 }],
+        [1, { score: 24, ticks: 24, captures: 1, secures: 0 }],
+      ]);
+      const match = {
+        ...baseMatch,
+        MatchInfo: { ...baseMatch.MatchInfo, GameVariantCategory: GameVariantCategory.MultiplayerStrongholds },
+        Teams: baseMatch.Teams.map((team) => {
+          const override = Preconditions.checkExists(overrides.get(team.TeamId));
+          if (!("ZonesStats" in team.Stats)) {
+            throw new Error("expected zones stats on the koth fixture");
+          }
+          return {
+            ...team,
+            Stats: {
+              ...team.Stats,
+              CoreStats: { ...team.Stats.CoreStats, Score: override.score },
+              ZonesStats: {
+                ...team.Stats.ZonesStats,
+                StrongholdCaptures: override.captures,
+                StrongholdSecures: override.secures,
+                StrongholdScoringTicks: override.ticks,
+              },
+            },
+          };
+        }),
+      };
+      const team0Xuid = "0100000000000000";
+      const team1Xuid = "0400000000000000";
+
+      // multi-credit capture groups (forced captures): team 0 at 10s and 60s, team 1 at 30s;
+      // with the 6.5s attempt windows this integrates to exactly 53.5 : 23.5 points, which
+      // reconciliation scales onto the API scores of 54 : 24.
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
+        modeEvent(team0Xuid, 10000),
+        modeEvent(team0Xuid, 10000),
+        modeEvent(team1Xuid, 30000),
+        modeEvent(team1Xuid, 30000),
+        modeEvent(team0Xuid, 60000),
+        modeEvent(team0Xuid, 60000),
+      ]);
+
+      const result = await service.buildStrongholdsProgression(match, 100000);
+
+      expect(result.teamCount).toBe(2);
+      const last = Preconditions.checkExists(result.events.at(-1));
+      expect(last.timestampMs).toBe(100000);
+      expect(last.runningScores).toEqual({ "0": 54, "1": 24 });
     });
   });
 

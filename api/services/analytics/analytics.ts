@@ -291,6 +291,18 @@ export class AnalyticsService {
         },
       };
     }
+    if (mode === GameVariantCategory.MultiplayerStrongholds) {
+      const progression = await this.haloFilmService.buildStrongholdsProgression(matchStats, durationMs);
+      return {
+        mode,
+        durationMs,
+        teamCount: progression.teamCount,
+        timeline: {
+          type: "strongholds",
+          events: progression.events,
+        },
+      };
+    }
     if (mode === GameVariantCategory.MultiplayerOddball) {
       const progression = await this.haloFilmService.buildOddballProgression(matchStats, durationMs);
       return {

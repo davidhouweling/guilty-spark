@@ -3,6 +3,7 @@ import { formatScoreProgression } from "../score-progression-formatter";
 import { aFakeScoreProgressionWith } from "../fakes/score-progression.fake";
 import { aFakeKothTimelineWith } from "../modes/koth/fakes/koth-timeline.fake";
 import { aFakeOddballTimelineWith } from "../modes/oddball/fakes/oddball-timeline.fake";
+import { aFakeStrongholdsTimelineWith } from "../fakes/strongholds-timeline.fake";
 import type { KothViewData, OddballViewData, ScoreLinesViewData, ScoreProgressionViewData } from "../types";
 
 const TEAM_COLORS = [
@@ -444,6 +445,41 @@ describe("formatScoreProgression", () => {
       const result = asOddball(formatScoreProgression(data, TEAM_COLORS));
       expect(result.rounds[0]?.winnerColor).toBe("#0000ff");
       expect(result.rounds[1]?.winnerColor).toBe("#ff0000");
+    });
+  });
+
+  describe("strongholds dispatch", () => {
+    it("returns score-lines view data for a strongholds timeline", () => {
+      const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      expect(result?.kind).toBe("score-lines");
+    });
+
+    it("returns null when a strongholds timeline has no events", () => {
+      const data = aFakeScoreProgressionWith({ timeline: aFakeStrongholdsTimelineWith({ events: [] }) });
+      expect(formatScoreProgression(data, TEAM_COLORS)).toBeNull();
+    });
+
+    it("builds ramp team lines with one point per event and no step duplication", () => {
+      const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
+      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      const [team0] = result.teamLines;
+      // origin + 4 events + extension to match duration
+      expect(team0.points).toEqual([
+        { timestampMs: 0, score: 0 },
+        { timestampMs: 10000, score: 0 },
+        { timestampMs: 40000, score: 30 },
+        { timestampMs: 60000, score: 30 },
+        { timestampMs: 90000, score: 60 },
+        { timestampMs: 100000, score: 60 },
+      ]);
+    });
+
+    it("builds a score delta and no player advantage", () => {
+      const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
+      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      expect(result.scoreDelta).not.toBeNull();
+      expect(result.playerAdvantage).toBeNull();
     });
   });
 });

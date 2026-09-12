@@ -413,6 +413,34 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     });
   });
 
+  it("returns scoreProgression with strongholds timeline for Strongholds when scoreProgression is requested", async () => {
+    const matchStats = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+    const strongholdsMatchStats = {
+      ...matchStats,
+      MatchInfo: { ...matchStats.MatchInfo, GameVariantCategory: GameVariantCategory.MultiplayerStrongholds },
+    };
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([strongholdsMatchStats]);
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+    vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
+      entries: [],
+      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+      perfectCounts: { total: 0, byXuid: {} },
+    });
+    vi.spyOn(haloFilmService, "buildStrongholdsProgression").mockResolvedValue({
+      events: [{ timestampMs: 60000, teamId: 0, runningScores: { "0": 50, "1": 20 } }],
+      teamCount: 2,
+    });
+
+    const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
+
+    expect(results["match-1"]?.scoreProgression).not.toBeNull();
+    const timeline = results["match-1"]?.scoreProgression?.timeline;
+    expect(timeline?.type).toBe("strongholds");
+    expect(timeline?.type === "strongholds" ? timeline.events : undefined).toEqual([
+      { timestampMs: 60000, teamId: 0, runningScores: { "0": 50, "1": 20 } },
+    ]);
+  });
+
   it("returns scoreProgression null for unsupported game modes when scoreProgression is requested", async () => {
     const matchStats = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     const ctfMatchStats = {

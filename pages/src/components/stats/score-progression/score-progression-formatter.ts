@@ -3,6 +3,7 @@ import type {
   KillRaceDeathEvent,
   KillRaceEvent,
   MatchAnalytics,
+  StrongholdsEvent,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
@@ -163,6 +164,33 @@ function buildTeamLines(
   return teamLines;
 }
 
+// Strongholds scores accrue continuously (1-2 points per second while holding zones), so its
+// lines are ramps between rate boundaries rather than the stepped lines kill events produce.
+function buildRampTeamLines(
+  events: readonly StrongholdsEvent[],
+  teamIds: readonly number[],
+  teamColorByTeamId: Map<number, string>,
+  durationMs: number,
+): ScoreProgressionTeamLine[] {
+  return teamIds.map((teamId, slotIndex) => {
+    const key = String(teamId);
+    const points: ScoreProgressionPoint[] = [{ timestampMs: 0, score: 0 }];
+    for (const event of events) {
+      points.push({ timestampMs: event.timestampMs, score: event.runningScores[key] ?? 0 });
+    }
+    const last = points.at(-1);
+    if (last != null && last.timestampMs < durationMs) {
+      points.push({ timestampMs: durationMs, score: last.score });
+    }
+    return {
+      teamId,
+      name: getTeamName(teamId),
+      color: teamColorByTeamId.get(teamId) ?? getTeamColorOrDefault(undefined, slotIndex).hex,
+      points,
+    };
+  });
+}
+
 interface ResolvedTeams {
   readonly teamIds: number[];
   readonly teamColorByTeamId: Map<number, string>;
@@ -245,6 +273,19 @@ export function formatScoreProgression(
         kind: "oddball",
         durationMs,
         rounds: buildOddballRounds(timeline, teams.teamIds, teams.teamColorByTeamId),
+      };
+    }
+    case "strongholds": {
+      const teams = resolveTeams(timeline.events.at(0)?.runningScores, teamColors);
+      if (teams == null) {
+        return null;
+      }
+      return {
+        kind: "score-lines",
+        durationMs,
+        teamLines: buildRampTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs),
+        scoreDelta: buildScoreDelta(teams.teamIds, timeline.events, durationMs),
+        playerAdvantage: null,
       };
     }
     default: {
