@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getMatchStats } from "../../../fakes/data";
+import type { ParsedHighlightEvent } from "../../../types";
 import { buildStrongholdsProgression, sampleScoreAt } from "../strongholds-progression";
 import type { StrongholdsProgression } from "../strongholds-progression";
 import { aFakeStrongholdsMatchStatsWith } from "../fakes/strongholds-match-stats.fake";
@@ -114,6 +115,57 @@ describe("buildStrongholdsProgression", () => {
     // a third flip would have collapsed the mid-match rate; the secure labeling holds ~79 at 65s
     expect(sampleScoreAt(progression.events, 0, 65000)).toBeGreaterThan(74);
     expect(sampleScoreAt(progression.events, 0, 65000)).toBeLessThan(84);
+  });
+
+  it("ignores film events recorded after the match duration", () => {
+    const matchStats = aFakeStrongholdsMatchStatsWith(
+      new Map([
+        [0, { score: 250, ticks: 237, captures: 23, secures: 7 }],
+        [1, { score: 188, ticks: 185, captures: 21, secures: 3 }],
+      ]),
+    );
+    const spuriousTail = {
+      xuid: "2100000000009999",
+      gamertag: "player-0-tail",
+      typeHint: 10,
+      isMedal: false,
+      eventType: "mode" as const,
+      timeMs: STRONGHOLDS_2104_DURATION_MS + 5000,
+      medalValue: 33554432,
+      teamId: 0,
+    };
+    const withTail = buildStrongholdsProgression(
+      [...strongholds2104Events(), spuriousTail],
+      matchStats,
+      STRONGHOLDS_2104_DURATION_MS,
+    );
+    expect(withTail.events).toEqual(build2104().events);
+  });
+
+  it("does not leave a team permanently contested by a group at the match start", () => {
+    // a secure at t=0 has a zero-length attempt window; the multi-credit capture at 10s then
+    // puts team 0 on two zones, so the curve must stay flat to 10s and ramp afterwards
+    const matchStats = aFakeStrongholdsMatchStatsWith(
+      new Map([
+        [0, { score: 90, ticks: 90, captures: 1, secures: 1 }],
+        [1, { score: 0, ticks: 0, captures: 0, secures: 0 }],
+      ]),
+    );
+    const event = (timeMs: number, index: number): ParsedHighlightEvent => ({
+      xuid: `21000000000200${String(index)}`,
+      gamertag: `player-0-${String(index)}`,
+      typeHint: 10,
+      isMedal: false,
+      eventType: "mode",
+      timeMs,
+      medalValue: 33554432,
+      teamId: 0,
+    });
+    const spuriousEvents = [event(0, 0), event(10000, 1), event(10000, 2)];
+    const progression = buildStrongholdsProgression(spuriousEvents, matchStats, 100000);
+    expect(sampleScoreAt(progression.events, 0, 10000)).toBeLessThanOrEqual(2);
+    const last = Preconditions.checkExists(progression.events.at(-1));
+    expect(last.runningScores).toEqual({ "0": 90, "1": 0 });
   });
 
   it("returns no events when the match has no zone stats", () => {

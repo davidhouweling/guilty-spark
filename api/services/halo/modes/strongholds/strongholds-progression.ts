@@ -82,10 +82,21 @@ interface CurveSample {
 
 // Grouping is per team so an opposing event interleaved at the same timestamp cannot split one
 // capture's credits into separate groups.
-function groupCarryEvents(events: readonly ParsedHighlightEvent[], teamIds: readonly number[]): EventGroup[] {
+function groupCarryEvents(
+  events: readonly ParsedHighlightEvent[],
+  teamIds: readonly number[],
+  durationMs: number,
+): EventGroup[] {
   const slotByTeamId = new Map<number, TeamSlot>(teamIds.map((id, slot) => [id, slot === 0 ? 0 : 1]));
+  // trailing film data past the match end must not consume quotas or relabel in-match groups
   const carryEvents = events
-    .filter((event) => event.eventType === "mode" && event.teamId != null && slotByTeamId.has(event.teamId))
+    .filter(
+      (event) =>
+        event.eventType === "mode" &&
+        event.teamId != null &&
+        slotByTeamId.has(event.teamId) &&
+        event.timeMs <= durationMs,
+    )
     .sort((a, b) => a.timeMs - b.timeMs);
   const groups: EventGroup[] = [];
   const lastByTeam: [EventGroup | null, EventGroup | null] = [null, null];
@@ -123,12 +134,13 @@ function resolveQuotas(groups: readonly EventGroup[], targets: readonly TeamTarg
 function buildSkeleton(groups: readonly EventGroup[]): SkeletonBoundary[] {
   const boundaries: SkeletonBoundary[] = [];
   for (const [groupIndex, group] of groups.entries()) {
-    boundaries.push({
-      timestampMs: Math.max(0, group.timestampMs - ATTEMPT_WINDOW_MS),
-      kind: "windowStart",
-      groupIndex,
-    });
-    boundaries.push({ timestampMs: group.timestampMs, kind: "windowEnd", groupIndex });
+    const windowStartMs = Math.max(0, group.timestampMs - ATTEMPT_WINDOW_MS);
+    // a zero-length window (group at t=0) would sort its end before its start and leave the
+    // team permanently contested — emit no window at all
+    if (windowStartMs < group.timestampMs) {
+      boundaries.push({ timestampMs: windowStartMs, kind: "windowStart", groupIndex });
+      boundaries.push({ timestampMs: group.timestampMs, kind: "windowEnd", groupIndex });
+    }
     boundaries.push({ timestampMs: group.timestampMs, kind: "flip", groupIndex });
   }
   return boundaries.sort((a, b) => a.timestampMs - b.timestampMs || BOUNDARY_ORDER[a.kind] - BOUNDARY_ORDER[b.kind]);
@@ -450,7 +462,7 @@ export function buildStrongholdsProgression(
   }
   const targets = teamIds.map((teamId) => Preconditions.checkExists(targetsByTeamId.get(teamId)));
 
-  const groups = groupCarryEvents(events, teamIds);
+  const groups = groupCarryEvents(events, teamIds, durationMs);
   if (groups.length === 0) {
     return { events: [], teamCount: teamIds.length };
   }
