@@ -1,5 +1,5 @@
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import { TICK_FILL } from "./chart-constants";
+import { PLAYER_ADVANTAGE_SERIES, TICK_FILL, ZONE_ADVANTAGE_SERIES } from "./chart-constants";
 import type { ScoreProgressionSnapshot, ScoreProgressionStore } from "./score-progression-store";
 import type {
   ChartType,
@@ -85,8 +85,10 @@ export class ScoreProgressionPresenter {
       chartType === "delta" && viewData.scoreDelta == null ? "progression" : chartType;
     const effectivePlayerAdvantage = showPlayerAdvantage ? viewData.playerAdvantage : null;
     const effectiveZoneAdvantage = showZoneAdvantage ? viewData.zoneAdvantage : null;
-    const effectiveMarkers =
-      showMarkers && viewData.markers != null && viewData.markers.length > 0 ? viewData.markers : null;
+    // markers only draw on the progression chart, so the toggle hides on the delta view rather
+    // than sitting inert
+    const hasMarkers = viewData.markers != null && effectiveChartType === "progression";
+    const effectiveMarkers = hasMarkers && showMarkers ? viewData.markers : null;
     const advantageDomain = this.buildAdvantageDomain(effectivePlayerAdvantage, effectiveZoneAdvantage);
 
     const team0Name = viewData.teamLines[0]?.name ?? "Team 1";
@@ -105,20 +107,15 @@ export class ScoreProgressionPresenter {
             playerAdvantage: effectivePlayerAdvantage,
             zoneAdvantage: effectiveZoneAdvantage,
             advantageDomain,
-            tooltipFormatter: (value: number | string | readonly (number | string)[] | undefined): [string, string] =>
-              this.formatDeltaTooltip(value, team0Name, team1Name),
-            advantageTooltipFormatter: (
+            tooltipFormatter: (
               value: number | string | readonly (number | string)[] | undefined,
-            ): [string, string] => this.formatAdvantageTooltip(value, team0Name, team1Name),
-            zoneAdvantageTooltipFormatter: (
-              value: number | string | readonly (number | string)[] | undefined,
-            ): [string, string] => this.formatZoneAdvantageTooltip(value, team0Name, team1Name),
+              name: string | number | undefined,
+            ): [string, string] => this.formatDeltaChartTooltip(value, name, team0Name, team1Name),
           }
         : null;
 
     const hasDelta = viewData.scoreDelta != null;
     const hasPlayerAdvantage = viewData.playerAdvantage != null;
-    const hasMarkers = viewData.markers != null && viewData.markers.length > 0;
     const hasZoneAdvantage = viewData.zoneAdvantage != null;
 
     return {
@@ -247,13 +244,28 @@ export class ScoreProgressionPresenter {
     team0Name: string,
     team1Name: string,
   ): [string, string] {
-    if (name === "Player Advantage") {
+    if (name === PLAYER_ADVANTAGE_SERIES) {
       return this.formatAdvantageTooltip(value, team0Name, team1Name);
     }
-    if (name === "Zone Advantage") {
+    if (name === ZONE_ADVANTAGE_SERIES) {
       return this.formatZoneAdvantageTooltip(value, team0Name, team1Name);
     }
     return [String(value ?? ""), typeof name === "string" ? name : String(name ?? "")];
+  }
+
+  private formatDeltaChartTooltip(
+    value: number | string | readonly (number | string)[] | undefined,
+    name: string | number | undefined,
+    team0Name: string,
+    team1Name: string,
+  ): [string, string] {
+    if (name === PLAYER_ADVANTAGE_SERIES) {
+      return this.formatAdvantageTooltip(value, team0Name, team1Name);
+    }
+    if (name === ZONE_ADVANTAGE_SERIES) {
+      return this.formatZoneAdvantageTooltip(value, team0Name, team1Name);
+    }
+    return this.formatDeltaTooltip(value, team0Name, team1Name);
   }
 
   private formatZoneAdvantageTooltip(
@@ -261,12 +273,25 @@ export class ScoreProgressionPresenter {
     team0Name: string,
     team1Name: string,
   ): [string, string] {
+    return this.formatLeaderTooltip(value, team0Name, team1Name, ZONE_ADVANTAGE_SERIES, "Even", (lead) => {
+      return `+${String(lead)} ${lead === 1 ? "zone" : "zones"}`;
+    });
+  }
+
+  // the shared leader/even shape of every signed-series tooltip: positive means team 0 leads
+  private formatLeaderTooltip(
+    value: number | string | readonly (number | string)[] | undefined,
+    team0Name: string,
+    team1Name: string,
+    label: string,
+    evenText: string,
+    formatLead: (lead: number) => string,
+  ): [string, string] {
     if (typeof value !== "number" || value === 0 || Number.isNaN(value)) {
-      return ["Even", "Zone Advantage"];
+      return [evenText, label];
     }
     const leader = value > 0 ? team0Name : team1Name;
-    const zones = Math.abs(value);
-    return [`${leader} +${String(zones)} ${zones === 1 ? "zone" : "zones"}`, "Zone Advantage"];
+    return [`${leader} ${formatLead(Math.abs(value))}`, label];
   }
 
   private formatAdvantageTooltip(
@@ -274,11 +299,9 @@ export class ScoreProgressionPresenter {
     team0Name: string,
     team1Name: string,
   ): [string, string] {
-    if (typeof value !== "number" || value === 0 || Number.isNaN(value)) {
-      return ["Even", "Player Advantage"];
-    }
-    const leader = value > 0 ? team0Name : team1Name;
-    return [`${leader} +${String(Math.abs(value))}`, "Player Advantage"];
+    return this.formatLeaderTooltip(value, team0Name, team1Name, PLAYER_ADVANTAGE_SERIES, "Even", (lead) => {
+      return `+${String(lead)}`;
+    });
   }
 
   private formatDeltaTooltip(
@@ -286,10 +309,8 @@ export class ScoreProgressionPresenter {
     team0Name: string,
     team1Name: string,
   ): [string, string] {
-    if (typeof value !== "number" || value === 0 || Number.isNaN(value)) {
-      return ["Tied", DELTA_LABEL];
-    }
-    const leader = value > 0 ? team0Name : team1Name;
-    return [`${leader} +${String(Math.abs(value))}`, DELTA_LABEL];
+    return this.formatLeaderTooltip(value, team0Name, team1Name, DELTA_LABEL, "Tied", (lead) => {
+      return `+${String(lead)}`;
+    });
   }
 }

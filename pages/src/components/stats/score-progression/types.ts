@@ -129,12 +129,9 @@ export interface ScoreProgressionDeltaViewModel {
   readonly playerAdvantage: PlayerAdvantageData | null;
   readonly zoneAdvantage: PlayerAdvantageData | null;
   readonly advantageDomain: readonly [number, number] | null;
-  readonly tooltipFormatter: (value: number | string | readonly (number | string)[] | undefined) => [string, string];
-  readonly advantageTooltipFormatter: (
+  readonly tooltipFormatter: (
     value: number | string | readonly (number | string)[] | undefined,
-  ) => [string, string];
-  readonly zoneAdvantageTooltipFormatter: (
-    value: number | string | readonly (number | string)[] | undefined,
+    name: string | number | undefined,
   ) => [string, string];
 }
 

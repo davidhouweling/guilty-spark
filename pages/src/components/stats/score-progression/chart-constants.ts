@@ -5,6 +5,10 @@ export const AXIS_STROKE = "rgba(93, 212, 216, 0.3)";
 export const TICK_FILL = "#8fa3b0";
 export const ADVANTAGE_STROKE = "#e8f4f8";
 export const ZONE_ADVANTAGE_STROKE = "#f0b849";
+// series names double as the tooltip-dispatch keys in the presenter, so they live here rather
+// than inline in each chart
+export const PLAYER_ADVANTAGE_SERIES = "Player Advantage";
+export const ZONE_ADVANTAGE_SERIES = "Zone Advantage";
 export const TICK_FONT_SIZE = 11;
 
 export const tooltipContentStyle = {
@@ -60,5 +64,56 @@ export function timeAxisProps(durationMs: number): {
     tickFormatter: formatTime,
     stroke: AXIS_STROKE,
     tick: TICK_STYLE,
+  };
+}
+
+export function advantageAxisProps(domain: readonly [number, number]): {
+  yAxisId: string;
+  orientation: "right";
+  allowDecimals: false;
+  width: number;
+  domain: [number, number];
+  stroke: string;
+  tick: { fill: string; fontSize: number };
+  tickFormatter: (value: number) => string;
+} {
+  return {
+    yAxisId: "advantage",
+    orientation: "right",
+    allowDecimals: false,
+    width: 28,
+    domain: [domain[0], domain[1]],
+    stroke: AXIS_STROKE,
+    tick: TICK_STYLE,
+    tickFormatter: formatAdvantage,
+  };
+}
+
+export function advantageAreaProps(
+  name: string,
+  stroke: string,
+): {
+  yAxisId: string;
+  dataKey: "score";
+  name: string;
+  fill: "none";
+  stroke: string;
+  strokeWidth: number;
+  strokeDasharray: number;
+  dot: false;
+  type: "stepAfter";
+  baseValue: number;
+} {
+  return {
+    yAxisId: "advantage",
+    dataKey: "score",
+    name,
+    fill: "none",
+    stroke,
+    strokeWidth: 1,
+    strokeDasharray: 2,
+    dot: false,
+    type: "stepAfter",
+    baseValue: 0,
   };
 }

@@ -15,6 +15,13 @@ import type {
 // Every ranked strongholds map plays three zones, so the advantage axis is fixed at ±3.
 const ZONE_ADVANTAGE_DOMAIN = 3;
 
+function extendToDuration(points: ScoreProgressionPoint[], durationMs: number): void {
+  const last = points.at(-1);
+  if (last != null && last.timestampMs < durationMs) {
+    points.push({ timestampMs: durationMs, score: last.score });
+  }
+}
+
 // Strongholds scores accrue continuously (1-2 points per second while holding zones), so its
 // lines are ramps between rate boundaries rather than the stepped lines kill events produce.
 // A team missing from an event's record carries its previous score forward (scores never drop).
@@ -34,10 +41,7 @@ export function buildStrongholdsTeamLines(
       const score = key in event.runningScores ? event.runningScores[key] : (previous?.score ?? 0);
       points.push({ timestampMs: event.timestampMs, score });
     }
-    const last = points.at(-1);
-    if (last != null && last.timestampMs < durationMs) {
-      points.push({ timestampMs: durationMs, score: last.score });
-    }
+    extendToDuration(points, durationMs);
     return {
       teamId,
       name: getTeamName(teamId),
@@ -105,7 +109,9 @@ export function buildZoneAdvantage(
     return null;
   }
 
-  const points: ScoreProgressionPoint[] = [];
+  // both teams spawn owning one zone, so the series is even until the first sample
+  const points: ScoreProgressionPoint[] =
+    (inMatchSamples.at(0)?.timestampMs ?? 0) > 0 ? [{ timestampMs: 0, score: 0 }] : [];
   let hasAdvantage = false;
   for (const sample of inMatchSamples) {
     const score = (sample.zoneCounts[key0] ?? 0) - (sample.zoneCounts[key1] ?? 0);
@@ -117,9 +123,6 @@ export function buildZoneAdvantage(
   if (!hasAdvantage) {
     return null;
   }
-  const last = points.at(-1);
-  if (last != null && last.timestampMs < durationMs) {
-    points.push({ timestampMs: durationMs, score: last.score });
-  }
+  extendToDuration(points, durationMs);
   return { points, minScore: -ZONE_ADVANTAGE_DOMAIN, maxScore: ZONE_ADVANTAGE_DOMAIN };
 }

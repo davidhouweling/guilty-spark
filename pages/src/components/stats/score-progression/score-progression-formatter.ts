@@ -284,6 +284,8 @@ export function formatScoreProgression(
         return null;
       }
       const teamLines = buildStrongholdsTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs);
+      // null rather than an empty array so "no markers" reads the same as modes without markers
+      const markers = buildStrongholdsMarkers(timeline.zoneEvents, teamLines, durationMs);
       return {
         kind: "score-lines",
         durationMs,
@@ -296,7 +298,7 @@ export function formatScoreProgression(
           durationMs,
           teamSize,
         ),
-        markers: buildStrongholdsMarkers(timeline.zoneEvents, teamLines, durationMs),
+        markers: markers.length > 0 ? markers : null,
         zoneAdvantage: buildZoneAdvantage(timeline.zoneTimeline, teams.teamIds, durationMs),
       };
     }

@@ -16,9 +16,12 @@ import {
   CHART_HEIGHT,
   CHART_MARGIN,
   GRID_STROKE,
+  PLAYER_ADVANTAGE_SERIES,
   TICK_STYLE,
+  ZONE_ADVANTAGE_SERIES,
   ZONE_ADVANTAGE_STROKE,
-  formatAdvantage,
+  advantageAreaProps,
+  advantageAxisProps,
   timeAxisProps,
   tooltipContentStyle,
   tooltipLabelStyle,
@@ -43,18 +46,7 @@ export function ProgressionChart({
         <CartesianGrid strokeDasharray="4 4" stroke={GRID_STROKE} />
         <XAxis {...timeAxisProps(durationMs)} />
         <YAxis allowDecimals={false} width={36} stroke={AXIS_STROKE} tick={TICK_STYLE} />
-        {advantageDomain != null && (
-          <YAxis
-            yAxisId="advantage"
-            orientation="right"
-            allowDecimals={false}
-            width={28}
-            domain={[advantageDomain[0], advantageDomain[1]]}
-            stroke={AXIS_STROKE}
-            tick={TICK_STYLE}
-            tickFormatter={formatAdvantage}
-          />
-        )}
+        {advantageDomain != null && <YAxis {...advantageAxisProps(advantageDomain)} />}
         <Tooltip
           contentStyle={tooltipContentStyle}
           labelStyle={tooltipLabelStyle}
@@ -79,38 +71,14 @@ export function ProgressionChart({
           <ReferenceLine y={0} yAxisId="advantage" stroke={AXIS_STROKE} strokeDasharray="3 3" />
         )}
         {playerAdvantage != null && (
-          <Area
-            yAxisId="advantage"
-            data={playerAdvantage.points}
-            dataKey="score"
-            name="Player Advantage"
-            fill="none"
-            stroke={ADVANTAGE_STROKE}
-            strokeWidth={1}
-            strokeDasharray={2}
-            dot={false}
-            type="stepAfter"
-            baseValue={0}
-          />
+          <Area {...advantageAreaProps(PLAYER_ADVANTAGE_SERIES, ADVANTAGE_STROKE)} data={playerAdvantage.points} />
         )}
         {zoneAdvantage != null && (
-          <Area
-            yAxisId="advantage"
-            data={zoneAdvantage.points}
-            dataKey="score"
-            name="Zone Advantage"
-            fill="none"
-            stroke={ZONE_ADVANTAGE_STROKE}
-            strokeWidth={1}
-            strokeDasharray={2}
-            dot={false}
-            type="stepAfter"
-            baseValue={0}
-          />
+          <Area {...advantageAreaProps(ZONE_ADVANTAGE_SERIES, ZONE_ADVANTAGE_STROKE)} data={zoneAdvantage.points} />
         )}
-        {markers?.map((marker) => (
+        {markers?.map((marker, index) => (
           <ReferenceDot
-            key={`${String(marker.teamId)}-${String(marker.timestampMs)}-${marker.kind}`}
+            key={`${String(index)}-${String(marker.timestampMs)}`}
             x={marker.timestampMs}
             y={marker.score}
             r={4}
