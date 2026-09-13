@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-// counts keyed by stringified team id
 const teamKeyedCountsSchema = z.record(z.string().regex(/^\d+$/), z.number().int().nonnegative());
 
 const progressionEventSchema = z.object({
