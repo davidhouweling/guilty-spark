@@ -8,7 +8,7 @@ import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import { extendToDuration } from "./extend-to-duration";
-import { buildKothHills } from "./modes/koth/koth-view-model";
+import { buildKothCaptureEvents, buildKothHills } from "./modes/koth/koth-view-model";
 import { buildOddballRounds, buildOddballScoreSeries } from "./modes/oddball/oddball-view-model";
 import { buildStrongholdsMarkers, buildZoneAdvantage } from "./modes/strongholds/strongholds-view-model";
 import { buildSampledTeamLines } from "./sampled-team-lines";
@@ -248,10 +248,31 @@ export function formatScoreProgression(
       if (teams == null) {
         return null;
       }
+      const captureEvents = buildKothCaptureEvents(timeline, teams.teamIds, durationMs);
+      const scoreLines: ScoreLinesViewData | null =
+        captureEvents.length > 0
+          ? {
+              kind: "score-lines",
+              durationMs,
+              teamLines: buildTeamLines(captureEvents, teams.teamIds, teams.teamColorByTeamId, durationMs),
+              scoreDelta: buildScoreDelta(teams.teamIds, captureEvents, durationMs, "step"),
+              playerAdvantage: buildPlayerAdvantage(
+                teams.teamIds,
+                timeline.deathTimeline,
+                timeline.respawnDurationMs,
+                durationMs,
+                teamSize,
+              ),
+              markers: null,
+              zoneAdvantage: null,
+              roundBoundaries: [],
+            }
+          : null;
       return {
         kind: "koth",
         durationMs,
         hills: buildKothHills(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs),
+        scoreLines,
       };
     }
     case "oddball": {

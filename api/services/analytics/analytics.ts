@@ -316,6 +316,8 @@ export class AnalyticsService {
           events: progression.events,
           controlPeriods: progression.controlPeriods,
           hillCaptureTimestamps: progression.hillCaptureTimestamps,
+          deathTimeline: progression.deathTimeline,
+          respawnDurationMs: RESPAWN_DURATION_MS[mode] ?? null,
         },
       };
     }

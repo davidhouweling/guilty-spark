@@ -7,6 +7,7 @@ import type {
   ParsedHighlightEvent,
   StateByte2Transition,
 } from "../../types";
+import { buildDeathTimeline } from "../death-timeline";
 import { findBestKothCaptureAssignment } from "./koth-capture-search";
 
 const OBJECTIVE_TICK_DEDUP_MS = 2_500;
@@ -109,18 +110,21 @@ function buildKothControlPeriods(
 }
 
 export function buildKothProgression(
-  modeEvents: ParsedHighlightEvent[],
+  allEvents: readonly ParsedHighlightEvent[],
   byte2Transitions: StateByte2Transition[],
   matchStats: MatchStats,
   durationMs: number,
 ): KothProgression {
   const knownTeamIds = new Set<number>(matchStats.Teams.map((team) => team.TeamId));
+  const modeEvents = allEvents.filter((event) => event.eventType === "mode");
   const events = buildKothScoreEvents(modeEvents, knownTeamIds);
   const controlPeriods = buildKothControlPeriods(byte2Transitions, modeEvents, durationMs);
   return {
     events,
     controlPeriods,
     hillCaptureTimestamps: findBestKothCaptureAssignment(events, buildTeamCaptureTargets(matchStats), controlPeriods),
+    // trailing film deaths past the match end are dropped like everywhere else in the pipeline
+    deathTimeline: buildDeathTimeline(allEvents, knownTeamIds).filter((death) => death.timestampMs <= durationMs),
     teamCount: knownTeamIds.size,
   };
 }

@@ -153,8 +153,7 @@ export class HaloFilmService {
       this.loadEnrichedEventsForMatch(matchStats),
       this.getStateByte2Transitions(matchStats.MatchId),
     ]);
-    const modeEvents = events.filter((e) => e.eventType === "mode");
-    return buildKothProgression(modeEvents, byte2Transitions, matchStats, durationMs);
+    return buildKothProgression(events, byte2Transitions, matchStats, durationMs);
   }
 
   async buildOddballProgression(matchStats: MatchStats, durationMs: number): Promise<OddballProgression> {

@@ -22,6 +22,19 @@ function tickBurst(teamId: number, startMs: number, count: number): ParsedHighli
   return Array.from({ length: count }, (_, tickIndex) => modeEvent(teamId, startMs + tickIndex * 5000));
 }
 
+function deathEvent(teamId: number | null, timeMs: number): ParsedHighlightEvent {
+  return {
+    xuid: "0100000000000009",
+    gamertag: "victim",
+    typeHint: 0,
+    isMedal: false,
+    eventType: "death",
+    timeMs,
+    medalValue: 0,
+    teamId,
+  };
+}
+
 function transition(timeMs: number, fromValue: number, toValue: number): StateByte2Transition {
   return { timeMs, fromValue, toValue };
 }
@@ -231,5 +244,33 @@ describe("buildKothProgression", () => {
 
     expect(result.hillCaptureTimestamps).toEqual([]);
     expect(result.events).toHaveLength(0);
+  });
+
+  it("builds a death timeline from death events, dropping unattributed, unknown-team, and post-match deaths", () => {
+    const allEvents = [
+      modeEvent(0, 5000),
+      deathEvent(1, 12000),
+      deathEvent(null, 15000), // unattributed — dropped
+      deathEvent(7, 18000), // team not in match stats — dropped
+      deathEvent(0, 20000),
+      deathEvent(0, 305000), // past match duration — dropped
+    ];
+
+    const result = buildKothProgression(allEvents, [], kothMatchStats(), 300000);
+
+    expect(result.deathTimeline).toEqual([
+      { timestampMs: 12000, teamId: 1 },
+      { timestampMs: 20000, teamId: 0 },
+    ]);
+  });
+
+  it("ignores death events when building score events and capture timestamps", () => {
+    const allEvents = [...tickBurst(0, 5000, 5), deathEvent(1, 7000), deathEvent(0, 12000)];
+    const byte2Transitions = [transition(25001, 0x40, 0x41), transition(30000, 0x41, 0x42)];
+
+    const result = buildKothProgression(allEvents, byte2Transitions, kothMatchStats(), 300000);
+
+    expect(result.events).toHaveLength(5);
+    expect(result.hillCaptureTimestamps).toEqual([25000]);
   });
 });

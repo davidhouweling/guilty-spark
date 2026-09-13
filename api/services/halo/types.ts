@@ -237,6 +237,7 @@ export interface KothControlPeriod {
 
 export interface KothProgression {
   events: KothProgressionEvent[];
+  deathTimeline: TeamDeathEvent[];
   controlPeriods: KothControlPeriod[];
   hillCaptureTimestamps: number[];
   teamCount: number;

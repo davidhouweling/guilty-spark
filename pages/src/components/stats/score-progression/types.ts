@@ -116,6 +116,7 @@ export interface KothViewData {
   readonly kind: "koth";
   readonly durationMs: number;
   readonly hills: readonly KothHillData[];
+  readonly scoreLines: ScoreLinesViewData | null;
 }
 
 export interface OddballViewData {

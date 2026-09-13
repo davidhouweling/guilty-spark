@@ -50,6 +50,7 @@ const kothTimelineSchema = z.object({
   events: z.array(kothEventSchema),
   controlPeriods: z.array(kothControlPeriodSchema),
   hillCaptureTimestamps: z.array(z.number().int().nonnegative()),
+  ...deathOverlayFields,
 });
 
 export type KothEvent = z.infer<typeof kothEventSchema>;

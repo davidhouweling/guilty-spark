@@ -476,6 +476,33 @@ describe("formatScoreProgression", () => {
     });
   });
 
+  describe("koth score lines", () => {
+    it("builds hills-won step lines with a step delta and player advantage", () => {
+      const data = aFakeScoreProgressionWith({ durationMs: 60000, timeline: aFakeKothTimelineWith() });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      if (result?.kind !== "koth") {
+        throw new Error("expected koth view data");
+      }
+      expect(result.scoreLines?.teamLines[0]?.points.at(-1)).toEqual({ timestampMs: 60000, score: 1 });
+      expect(result.scoreLines?.teamLines[1]?.points.at(-1)).toEqual({ timestampMs: 60000, score: 1 });
+      expect(result.scoreLines?.scoreDelta?.lineType).toBe("step");
+      expect(result.scoreLines?.playerAdvantage).not.toBeNull();
+      expect(result.scoreLines?.roundBoundaries).toEqual([]);
+    });
+
+    it("returns null koth score lines when no captures are identifiable", () => {
+      const data = aFakeScoreProgressionWith({
+        durationMs: 60000,
+        timeline: aFakeKothTimelineWith({ hillCaptureTimestamps: [] }),
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      if (result?.kind !== "koth") {
+        throw new Error("expected koth view data");
+      }
+      expect(result.scoreLines).toBeNull();
+    });
+  });
+
   describe("oddball dispatch", () => {
     it("returns oddball view data for an oddball timeline", () => {
       const data = aFakeScoreProgressionWith({ durationMs: 460000, timeline: aFakeOddballTimelineWith() });

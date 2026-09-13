@@ -1,8 +1,36 @@
-import type { KothTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { KillRaceEvent, KothTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { TICK_FILL } from "../../chart-constants";
 import { tileSegments } from "../../timeline-segments";
 import type { KothHillData, KothHillTeamProgress, TimelineGanttSegment } from "../../types";
+
+// The match score for King of the Hill is hills won, so the competitive score line steps by one
+// at each capture. A capture timestamp is the capturing team's last score-event timestamp, so
+// the co-timestamped event identifies the winner.
+export function buildKothCaptureEvents(
+  timeline: KothTimeline,
+  teamIds: readonly number[],
+  durationMs: number,
+): KillRaceEvent[] {
+  const runningScores = new Map<number, number>(teamIds.map((teamId) => [teamId, 0]));
+  const captureEvents: KillRaceEvent[] = [];
+  for (const captureTs of [...timeline.hillCaptureTimestamps].sort((a, b) => a - b)) {
+    if (captureTs > durationMs) {
+      continue;
+    }
+    const winnerTeamId = timeline.events.findLast((event) => event.timestampMs === captureTs)?.teamId;
+    if (winnerTeamId == null || !runningScores.has(winnerTeamId)) {
+      continue;
+    }
+    runningScores.set(winnerTeamId, (runningScores.get(winnerTeamId) ?? 0) + 1);
+    captureEvents.push({
+      timestampMs: captureTs,
+      teamId: winnerTeamId,
+      runningScores: Object.fromEntries([...runningScores.entries()].map(([id, score]) => [String(id), score])),
+    });
+  }
+  return captureEvents;
+}
 
 const MIN_TRAILING_HILL_MS = 2_000;
 
