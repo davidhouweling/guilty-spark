@@ -70,43 +70,11 @@ describe("buildStrongholdsMarkers", () => {
     const teamLines = buildStrongholdsTeamLines(timeline.events, TEAM_IDS, TEAM_COLORS, 100000);
     const markers = buildStrongholdsMarkers(timeline.zoneEvents, teamLines, 100000);
     expect(markers).toEqual([
-      {
-        timestampMs: 10000,
-        score: 0,
-        teamId: 0,
-        teamName: "Eagle",
-        color: "#0000ff",
-        kind: "capture",
-        label: "Eagle captured a zone · 0:10",
-      },
-      {
-        timestampMs: 40000,
-        score: 0,
-        teamId: 1,
-        teamName: "Cobra",
-        color: "#ff0000",
-        kind: "capture",
-        label: "Cobra captured a zone · 0:40",
-      },
-      {
-        timestampMs: 60000,
-        score: 30,
-        teamId: 0,
-        teamName: "Eagle",
-        color: "#0000ff",
-        kind: "capture",
-        label: "Eagle captured a zone · 1:00",
-      },
+      { timestampMs: 10000, score: 0, teamId: 0, teamName: "Eagle", color: "#0000ff", kind: "capture" },
+      { timestampMs: 40000, score: 0, teamId: 1, teamName: "Cobra", color: "#ff0000", kind: "capture" },
+      { timestampMs: 60000, score: 30, teamId: 0, teamName: "Eagle", color: "#0000ff", kind: "capture" },
       // 70s sits a third of the way along the 60s→90s ramp from 30 to 60
-      {
-        timestampMs: 70000,
-        score: 40,
-        teamId: 0,
-        teamName: "Eagle",
-        color: "#0000ff",
-        kind: "secure",
-        label: "Eagle secured a zone · 1:10",
-      },
+      { timestampMs: 70000, score: 40, teamId: 0, teamName: "Eagle", color: "#0000ff", kind: "secure" },
     ]);
   });
 
@@ -123,15 +91,7 @@ describe("buildStrongholdsMarkers", () => {
       100000,
     );
     expect(markers).toEqual([
-      {
-        timestampMs: 20000,
-        score: 0,
-        teamId: 1,
-        teamName: "Cobra",
-        color: "#ff0000",
-        kind: "secure",
-        label: "Cobra secured a zone · 0:20",
-      },
+      { timestampMs: 20000, score: 0, teamId: 1, teamName: "Cobra", color: "#ff0000", kind: "secure" },
     ]);
   });
 });

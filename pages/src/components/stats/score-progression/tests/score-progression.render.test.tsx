@@ -29,7 +29,6 @@ const aFakeMarker = (): ScoreMarkerData => ({
   teamName: "Eagle",
   color: "#f00",
   kind: "capture",
-  label: "Eagle captured a zone · 0:30",
 });
 
 function aScoreLinesViewModelWith(overrides: Partial<ScoreLinesViewModel> = {}): ScoreLinesViewModel {

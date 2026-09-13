@@ -26,29 +26,6 @@ import {
 } from "../chart-constants";
 import type { ScoreProgressionProgressionViewModel } from "../types";
 
-interface MarkerDotProps {
-  readonly markerLabel: string;
-  readonly cx?: number | undefined;
-  readonly cy?: number | undefined;
-  readonly r?: number | undefined;
-  readonly fill?: string | undefined;
-  readonly stroke?: string | undefined;
-  readonly strokeWidth?: number | undefined;
-}
-
-// ReferenceDot alone renders a mute circle; an svg <title> gives each marker a native hover
-// description ("Cobra captured a zone · 4:10")
-function MarkerDot({ markerLabel, cx, cy, r, fill, stroke, strokeWidth }: MarkerDotProps): React.ReactElement | null {
-  if (cx == null || cy == null) {
-    return null;
-  }
-  return (
-    <circle cx={cx} cy={cy} r={r} fill={fill} stroke={stroke} strokeWidth={strokeWidth}>
-      <title>{markerLabel}</title>
-    </circle>
-  );
-}
-
 export function ProgressionChart({
   durationMs,
   teamLines,
@@ -101,7 +78,6 @@ export function ProgressionChart({
             fill={marker.kind === "capture" ? marker.color : "transparent"}
             stroke={marker.color}
             strokeWidth={1.5}
-            shape={<MarkerDot markerLabel={marker.label} />}
           />
         ))}
       </AreaChart>

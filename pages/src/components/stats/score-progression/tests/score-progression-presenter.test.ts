@@ -332,15 +332,7 @@ describe("ScoreProgressionPresenter", () => {
       maxScore: 3,
     });
     const aFakeMarkers = (): ScoreMarkerData[] => [
-      {
-        timestampMs: 30000,
-        score: 10,
-        teamId: 0,
-        teamName: "Eagle",
-        color: "#f00",
-        kind: "capture",
-        label: "Eagle captured a zone · 0:30",
-      },
+      { timestampMs: 30000, score: 10, teamId: 0, teamName: "Eagle", color: "#f00", kind: "capture" },
     ];
 
     it("reports hasZoneAdvantage and hasMarkers from the view data", () => {
