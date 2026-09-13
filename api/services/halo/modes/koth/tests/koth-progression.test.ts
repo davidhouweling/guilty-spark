@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getMatchStats } from "../../../fakes/data";
+import { aFakeParsedHighlightEventWith } from "../../../fakes/parsed-highlight-event.fake";
 import { buildKothProgression } from "../koth-progression";
 import type { ParsedHighlightEvent, StateByte2Transition } from "../../../types";
 
@@ -20,19 +21,6 @@ function modeEvent(teamId: number, timeMs: number): ParsedHighlightEvent {
 
 function tickBurst(teamId: number, startMs: number, count: number): ParsedHighlightEvent[] {
   return Array.from({ length: count }, (_, tickIndex) => modeEvent(teamId, startMs + tickIndex * 5000));
-}
-
-function deathEvent(teamId: number | null, timeMs: number): ParsedHighlightEvent {
-  return {
-    xuid: "0100000000000009",
-    gamertag: "victim",
-    typeHint: 0,
-    isMedal: false,
-    eventType: "death",
-    timeMs,
-    medalValue: 0,
-    teamId,
-  };
 }
 
 function transition(timeMs: number, fromValue: number, toValue: number): StateByte2Transition {
@@ -249,11 +237,11 @@ describe("buildKothProgression", () => {
   it("builds a death timeline from death events, dropping unattributed, unknown-team, and post-match deaths", () => {
     const allEvents = [
       modeEvent(0, 5000),
-      deathEvent(1, 12000),
-      deathEvent(null, 15000), // unattributed — dropped
-      deathEvent(7, 18000), // team not in match stats — dropped
-      deathEvent(0, 20000),
-      deathEvent(0, 305000), // past match duration — dropped
+      aFakeParsedHighlightEventWith({ teamId: 1, timeMs: 12000 }),
+      aFakeParsedHighlightEventWith({ teamId: null, timeMs: 15000 }), // unattributed — dropped
+      aFakeParsedHighlightEventWith({ teamId: 7, timeMs: 18000 }), // team not in match stats — dropped
+      aFakeParsedHighlightEventWith({ teamId: 0, timeMs: 20000 }),
+      aFakeParsedHighlightEventWith({ teamId: 0, timeMs: 305000 }), // past match duration — dropped
     ];
 
     const result = buildKothProgression(allEvents, [], kothMatchStats(), 300000);
@@ -265,7 +253,11 @@ describe("buildKothProgression", () => {
   });
 
   it("ignores death events when building score events and capture timestamps", () => {
-    const allEvents = [...tickBurst(0, 5000, 5), deathEvent(1, 7000), deathEvent(0, 12000)];
+    const allEvents = [
+      ...tickBurst(0, 5000, 5),
+      aFakeParsedHighlightEventWith({ teamId: 1, timeMs: 7000 }),
+      aFakeParsedHighlightEventWith({ teamId: 0, timeMs: 12000 }),
+    ];
     const byte2Transitions = [transition(25001, 0x40, 0x41), transition(30000, 0x41, 0x42)];
 
     const result = buildKothProgression(allEvents, byte2Transitions, kothMatchStats(), 300000);

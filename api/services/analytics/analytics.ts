@@ -287,6 +287,7 @@ export class AnalyticsService {
   private async buildScoreProgressionAnalytics(matchStats: MatchStats): Promise<MatchAnalytics["scoreProgression"]> {
     const mode = matchStats.MatchInfo.GameVariantCategory;
     const durationMs = Math.round(getDurationInSeconds(matchStats.MatchInfo.Duration) * 1000);
+    const respawnDurationMs = RESPAWN_DURATION_MS[mode] ?? null;
     if (matchStats.Teams.length === 0) {
       return null;
     }
@@ -300,7 +301,7 @@ export class AnalyticsService {
           type: "kill-race",
           events: progression.events,
           deathTimeline: progression.deathTimeline,
-          respawnDurationMs: RESPAWN_DURATION_MS[mode] ?? null,
+          respawnDurationMs,
         },
       };
     }
@@ -317,7 +318,7 @@ export class AnalyticsService {
           controlPeriods: progression.controlPeriods,
           hillCaptureTimestamps: progression.hillCaptureTimestamps,
           deathTimeline: progression.deathTimeline,
-          respawnDurationMs: RESPAWN_DURATION_MS[mode] ?? null,
+          respawnDurationMs,
         },
       };
     }
@@ -333,7 +334,7 @@ export class AnalyticsService {
           zoneEvents: progression.zoneEvents,
           zoneTimeline: progression.zoneTimeline,
           deathTimeline: progression.deathTimeline,
-          respawnDurationMs: RESPAWN_DURATION_MS[mode] ?? null,
+          respawnDurationMs,
         },
       };
     }
@@ -356,7 +357,7 @@ export class AnalyticsService {
             points: round.points,
           })),
           deathTimeline: progression.deathTimeline,
-          respawnDurationMs: RESPAWN_DURATION_MS[mode] ?? null,
+          respawnDurationMs,
         },
       };
     }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildKothCaptureEvents, buildKothHills } from "../koth-view-model";
 import { aFakeKothTimelineWith } from "../fakes/koth-timeline.fake";
+import { aFakeKothHillDataWith } from "../../../fakes/koth-hill-data.fake";
 
 const TEAM_IDS = [0, 1] as const;
 const TEAM_COLOR_BY_TEAM_ID = new Map<number, string>([
@@ -198,36 +199,47 @@ describe("buildKothHills", () => {
     expect(hills[0]?.endMs).toBe(60000);
     expect(hills[0]?.winnerTeamId).toBeNull();
   });
-});
 
-describe("buildKothCaptureEvents", () => {
-  it("steps the winning team's hill count at each capture timestamp", () => {
-    const events = buildKothCaptureEvents(aFakeKothTimelineWith(), [0, 1], 60000);
-    expect(events).toEqual([
-      { timestampMs: 30000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
-      { timestampMs: 55000, teamId: 1, runningScores: { "0": 1, "1": 1 } },
-    ]);
-  });
-
-  it("drops captures with no identifiable winner", () => {
-    // 42000 matches no score event
-    const timeline = aFakeKothTimelineWith({ hillCaptureTimestamps: [30000, 42000] });
-    const events = buildKothCaptureEvents(timeline, [0, 1], 60000);
-    expect(events).toEqual([{ timestampMs: 30000, teamId: 0, runningScores: { "0": 1, "1": 0 } }]);
-  });
-
-  it("clamps a capture past the match duration instead of dropping it", () => {
+  it("clamps a capture past the match duration to the axis while the raw timestamp still names the winner", () => {
     const timeline = aFakeKothTimelineWith({
       events: [
         { timestampMs: 30000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
         { timestampMs: 60350, teamId: 1, runningScores: { "0": 1, "1": 1 } },
       ],
+      controlPeriods: [
+        { startMs: 0, endMs: 30000, controllingTeamId: 0 },
+        { startMs: 30000, endMs: 60000, controllingTeamId: 1 },
+      ],
       hillCaptureTimestamps: [30000, 60350],
     });
-    const events = buildKothCaptureEvents(timeline, [0, 1], 60000);
-    expect(events).toEqual([
+    const hills = buildHills(timeline);
+    // the clamped final hill leaves no room for a trailing uncaptured hill
+    expect(hills).toHaveLength(2);
+    expect(hills[1]?.endMs).toBe(60000);
+    expect(hills[1]?.winnerTeamId).toBe(1);
+  });
+});
+
+describe("buildKothCaptureEvents", () => {
+  it("steps the winning team's hill count at each captured hill", () => {
+    const hills = [
+      aFakeKothHillDataWith({ hillIndex: 1, startMs: 0, endMs: 30000, winnerTeamId: 0 }),
+      aFakeKothHillDataWith({ hillIndex: 2, startMs: 30000, endMs: 55000, winnerTeamId: 1 }),
+    ];
+    expect(buildKothCaptureEvents(hills, [0, 1])).toEqual([
       { timestampMs: 30000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
-      { timestampMs: 60000, teamId: 1, runningScores: { "0": 1, "1": 1 } },
+      { timestampMs: 55000, teamId: 1, runningScores: { "0": 1, "1": 1 } },
+    ]);
+  });
+
+  it("skips uncaptured hills and winners outside the team list", () => {
+    const hills = [
+      aFakeKothHillDataWith({ hillIndex: 1, startMs: 0, endMs: 30000, winnerTeamId: 0 }),
+      aFakeKothHillDataWith({ hillIndex: 2, startMs: 30000, endMs: 45000, winnerTeamId: null }),
+      aFakeKothHillDataWith({ hillIndex: 3, startMs: 45000, endMs: 55000, winnerTeamId: 7 }),
+    ];
+    expect(buildKothCaptureEvents(hills, [0, 1])).toEqual([
+      { timestampMs: 30000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
     ]);
   });
 });

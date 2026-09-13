@@ -68,10 +68,14 @@ function buildScoreDelta(
   return { points, minScore, maxScore, lineType };
 }
 
+interface DeathOverlaySource {
+  readonly deathTimeline: readonly TeamDeathEvent[];
+  readonly respawnDurationMs: number | null;
+}
+
 function buildPlayerAdvantage(
   teamIds: readonly number[],
-  deathTimeline: readonly TeamDeathEvent[],
-  respawnDurationMs: number | null,
+  { deathTimeline, respawnDurationMs }: DeathOverlaySource,
   durationMs: number,
   teamSize: number | null,
 ): PlayerAdvantageData | null {
@@ -185,11 +189,6 @@ interface ResolvedTeams {
   readonly teamColorByTeamId: Map<number, string>;
 }
 
-interface DeathOverlaySource {
-  readonly deathTimeline: readonly TeamDeathEvent[];
-  readonly respawnDurationMs: number | null;
-}
-
 // kill-race and koth share the same event-stepped score-lines shape; only the event source differs
 function buildStepScoreLines(
   events: readonly KillRaceEvent[],
@@ -203,13 +202,7 @@ function buildStepScoreLines(
     durationMs,
     teamLines: buildTeamLines(events, teams.teamIds, teams.teamColorByTeamId, durationMs),
     scoreDelta: buildScoreDelta(teams.teamIds, events, durationMs, "step"),
-    playerAdvantage: buildPlayerAdvantage(
-      teams.teamIds,
-      overlaySource.deathTimeline,
-      overlaySource.respawnDurationMs,
-      durationMs,
-      teamSize,
-    ),
+    playerAdvantage: buildPlayerAdvantage(teams.teamIds, overlaySource, durationMs, teamSize),
     markers: null,
     zoneAdvantage: null,
     roundBoundaries: [],
@@ -264,13 +257,14 @@ export function formatScoreProgression(
       if (teams == null) {
         return null;
       }
-      const captureEvents = buildKothCaptureEvents(timeline, teams.teamIds, durationMs);
+      const hills = buildKothHills(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs);
+      const captureEvents = buildKothCaptureEvents(hills, teams.teamIds);
       const scoreLines: ScoreLinesViewData | null =
         captureEvents.length > 0 ? buildStepScoreLines(captureEvents, teams, timeline, durationMs, teamSize) : null;
       return {
         kind: "koth",
         durationMs,
-        hills: buildKothHills(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs),
+        hills,
         scoreLines,
       };
     }
@@ -293,13 +287,7 @@ export function formatScoreProgression(
               durationMs,
               teamLines: buildSampledTeamLines(samples, teams.teamIds, teams.teamColorByTeamId, durationMs),
               scoreDelta: buildScoreDelta(teams.teamIds, samples, durationMs, "linear"),
-              playerAdvantage: buildPlayerAdvantage(
-                teams.teamIds,
-                timeline.deathTimeline,
-                timeline.respawnDurationMs,
-                durationMs,
-                teamSize,
-              ),
+              playerAdvantage: buildPlayerAdvantage(teams.teamIds, timeline, durationMs, teamSize),
               markers: null,
               zoneAdvantage: null,
               roundBoundaries,
@@ -331,13 +319,7 @@ export function formatScoreProgression(
         durationMs,
         teamLines,
         scoreDelta: buildScoreDelta(teams.teamIds, timeline.events, durationMs, "linear"),
-        playerAdvantage: buildPlayerAdvantage(
-          teams.teamIds,
-          timeline.deathTimeline,
-          timeline.respawnDurationMs,
-          durationMs,
-          teamSize,
-        ),
+        playerAdvantage: buildPlayerAdvantage(teams.teamIds, timeline, durationMs, teamSize),
         markers: markers.length > 0 ? markers : null,
         zoneAdvantage: buildZoneAdvantage(timeline.zoneTimeline, teams.teamIds, durationMs),
         roundBoundaries: [],
