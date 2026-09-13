@@ -5,6 +5,7 @@ import { ScoreProgressionStore } from "../score-progression-store";
 import { aFakeKothHillDataWith } from "../fakes/koth-hill-data.fake";
 import { aFakeOddballRoundDataWith } from "../fakes/oddball-round-data.fake";
 import { aFakeScoreLinesViewDataWith } from "../fakes/score-lines-view-data.fake";
+import { aFakeZoneStripDataWith } from "../fakes/zone-strip-data.fake";
 import type {
   KothHillData,
   OddballRoundData,
@@ -16,6 +17,7 @@ import type {
   ScoreProgressionTeamLine,
   ScoreProgressionViewModel,
   TimelineGanttChartViewModel,
+  ZoneStripData,
 } from "../types";
 
 const aFakeScoreDeltaData = (): ScoreDeltaData => ({
@@ -64,6 +66,21 @@ function aScoreLinesInput(overrides: Partial<Omit<ScoreLinesViewData, "kind">> =
       zoneAdvantage: null,
       roundBoundaries: [],
       ...overrides,
+    },
+    ariaLabel: "test chart",
+  };
+}
+
+function aStrongholdsInput(zoneStrip: ZoneStripData | null): ScoreProgressionInput {
+  return {
+    viewData: {
+      kind: "strongholds",
+      durationMs: 600000,
+      zoneStrip,
+      scoreLines: aFakeScoreLinesViewDataWith({
+        teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
+        scoreDelta: aFakeScoreDeltaData(),
+      }),
     },
     ariaLabel: "test chart",
   };
@@ -675,6 +692,39 @@ describe("ScoreProgressionPresenter", () => {
       );
       expect(model.effectiveChartType).toBe("progression");
       expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["timeline", "progression", "delta"]);
+    });
+  });
+
+  describe("strongholds mode", () => {
+    it("presents score lines by default with the zone timeline as a trailing chart type", () => {
+      const { store, presenter } = makePresenter();
+      const model = asScoreLines(presenter.present(store.getSnapshot(), aStrongholdsInput(aFakeZoneStripDataWith())));
+      expect(model.effectiveChartType).toBe("progression");
+      expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["progression", "delta", "timeline"]);
+    });
+
+    it("presents the zone strip as a single gantt row when the timeline chart type is selected", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ chartType: "timeline" });
+      const model = asTimelineGantt(
+        presenter.present(store.getSnapshot(), aStrongholdsInput(aFakeZoneStripDataWith())),
+      );
+      expect(model.timeline.rows).toHaveLength(1);
+      expect(model.timeline.rows[0]?.label).toBe("Zones");
+      expect(model.timeline.rows[0]?.subLabel).toBe("Eagle 70% · Cobra 20%");
+      expect(model.timeline.rows[0]?.segments).toEqual(aFakeZoneStripDataWith().segments);
+      expect(model.timeline.rows[0]?.tooltipEntries.map((entry) => entry.text)).toEqual([
+        "Eagle: ahead 70%",
+        "Cobra: ahead 20%",
+      ]);
+    });
+
+    it("omits the timeline chart type and stays on score lines when there is no zone strip", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ chartType: "timeline" });
+      const model = asScoreLines(presenter.present(store.getSnapshot(), aStrongholdsInput(null)));
+      expect(model.effectiveChartType).toBe("progression");
+      expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["progression", "delta"]);
     });
   });
 

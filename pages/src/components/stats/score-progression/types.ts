@@ -112,6 +112,26 @@ export interface ScoreLinesViewData {
   readonly roundBoundaries: readonly number[];
 }
 
+export interface ZoneStripTeamShare {
+  readonly teamId: number;
+  readonly name: string;
+  readonly color: string;
+  // share of the match this team held more zones than the opponent
+  readonly leadPercentage: number;
+}
+
+export interface ZoneStripData {
+  readonly segments: readonly TimelineGanttSegment[];
+  readonly teamShares: readonly ZoneStripTeamShare[];
+}
+
+export interface StrongholdsViewData {
+  readonly kind: "strongholds";
+  readonly durationMs: number;
+  readonly zoneStrip: ZoneStripData | null;
+  readonly scoreLines: ScoreLinesViewData;
+}
+
 export interface KothViewData {
   readonly kind: "koth";
   readonly durationMs: number;
@@ -126,7 +146,7 @@ export interface OddballViewData {
   readonly scoreLines: ScoreLinesViewData | null;
 }
 
-export type ScoreProgressionViewData = ScoreLinesViewData | KothViewData | OddballViewData;
+export type ScoreProgressionViewData = ScoreLinesViewData | StrongholdsViewData | KothViewData | OddballViewData;
 
 export type ChartType = "timeline" | "progression" | "delta";
 

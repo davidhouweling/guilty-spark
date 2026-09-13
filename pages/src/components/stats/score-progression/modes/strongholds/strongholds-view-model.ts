@@ -2,12 +2,16 @@ import type {
   StrongholdsZoneCountSample,
   StrongholdsZoneEvent,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { extendToDuration } from "../../extend-to-duration";
 import type {
   PlayerAdvantageData,
   ScoreMarkerData,
   ScoreProgressionPoint,
   ScoreProgressionTeamLine,
+  TimelineGanttSegment,
+  ZoneStripData,
+  ZoneStripTeamShare,
 } from "../../types";
 
 // Every ranked strongholds map plays three zones, so the advantage axis is fixed at ±3.
@@ -51,6 +55,95 @@ export function buildStrongholdsMarkers(
     });
   }
   return markers;
+}
+
+// The strip encodes the leader's grip as colour intensity: a 3-cap paints the full team colour,
+// a 2-zone hold a dimmer one, a single zone dimmer still, and a tie stays neutral.
+const ZONE_LEAD_ALPHA: Record<number, string> = { 1: "66", 2: "B3" };
+
+function zoneLeadColor(baseColor: string, zoneCount: number): string {
+  return `${baseColor}${ZONE_LEAD_ALPHA[zoneCount] ?? ""}`;
+}
+
+function pushZoneSegment(segments: TimelineGanttSegment[], segment: TimelineGanttSegment): void {
+  const last = segments.at(-1);
+  if (last == null) {
+    segments.push(segment);
+    return;
+  }
+  if (last.teamId !== segment.teamId || last.color !== segment.color) {
+    segments.push(segment);
+    return;
+  }
+  segments[segments.length - 1] = { ...last, endMs: segment.endMs };
+}
+
+function buildZoneStripShares(
+  segments: readonly TimelineGanttSegment[],
+  teamIds: readonly number[],
+  teamColorByTeamId: Map<number, string>,
+  durationMs: number,
+): ZoneStripTeamShare[] {
+  return teamIds.map((teamId) => {
+    const leadMs = segments
+      .filter((segment) => segment.teamId === teamId)
+      .reduce((total, segment) => total + (segment.endMs - segment.startMs), 0);
+    return {
+      teamId,
+      name: getTeamName(teamId),
+      color: teamColorByTeamId.get(teamId) ?? "",
+      leadPercentage: Math.round((leadMs / durationMs) * 100),
+    };
+  });
+}
+
+// One gantt strip coloured by whoever holds more zones at each moment; ties stay neutral. Zone
+// ownership is a step function, so each sample's counts hold until the next sample.
+export function buildZoneControlStrip(
+  zoneTimeline: readonly StrongholdsZoneCountSample[],
+  teamIds: readonly number[],
+  teamColorByTeamId: Map<number, string>,
+  durationMs: number,
+): ZoneStripData | null {
+  if (teamIds.length !== 2 || durationMs <= 0) {
+    return null;
+  }
+  const [teamId0, teamId1] = teamIds;
+  const key0 = String(teamId0);
+  const key1 = String(teamId1);
+  const inMatchSamples = zoneTimeline.filter((sample) => sample.timestampMs <= durationMs);
+  if (inMatchSamples.length === 0) {
+    return null;
+  }
+
+  const segments: TimelineGanttSegment[] = [];
+  // both teams spawn owning one zone, so the strip is neutral until the first sample
+  if ((inMatchSamples.at(0)?.timestampMs ?? 0) > 0) {
+    segments.push({ startMs: 0, endMs: inMatchSamples[0].timestampMs, teamId: null, color: null });
+  }
+  for (const [sampleIndex, sample] of inMatchSamples.entries()) {
+    const startMs = sample.timestampMs;
+    const endMs = inMatchSamples[sampleIndex + 1]?.timestampMs ?? durationMs;
+    if (endMs <= startMs) {
+      continue;
+    }
+    const count0 = sample.zoneCounts[key0] ?? 0;
+    const count1 = sample.zoneCounts[key1] ?? 0;
+    if (count0 === count1) {
+      pushZoneSegment(segments, { startMs, endMs, teamId: null, color: null });
+      continue;
+    }
+    const leaderTeamId = count0 > count1 ? teamId0 : teamId1;
+    const leaderColor = teamColorByTeamId.get(leaderTeamId);
+    pushZoneSegment(segments, {
+      startMs,
+      endMs,
+      teamId: leaderTeamId,
+      color: leaderColor != null ? zoneLeadColor(leaderColor, Math.max(count0, count1)) : null,
+    });
+  }
+
+  return { segments, teamShares: buildZoneStripShares(segments, teamIds, teamColorByTeamId, durationMs) };
 }
 
 // Zones owned is a step function that only changes at captures; a match where the counts never
