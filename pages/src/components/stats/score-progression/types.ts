@@ -43,7 +43,7 @@ export interface TimelineGanttSegment {
   readonly endMs: number;
   readonly teamId: number | null;
   readonly color: string | null;
-  // scales the renderer's base segment opacity; 1 when omitted
+  // rendered opacity of an occupied segment; the renderer's default when omitted
   readonly opacity?: number | undefined;
 }
 
@@ -119,7 +119,7 @@ export interface ZoneStripTeamShare {
   readonly name: string;
   readonly color: string;
   // share of the match this team held more zones than the opponent
-  readonly leadPercentage: number;
+  readonly percentage: number;
 }
 
 export interface ZoneStripData {
@@ -129,7 +129,6 @@ export interface ZoneStripData {
 
 export interface StrongholdsViewData {
   readonly kind: "strongholds";
-  readonly durationMs: number;
   readonly zoneStrip: ZoneStripData | null;
   readonly scoreLines: ScoreLinesViewData;
 }

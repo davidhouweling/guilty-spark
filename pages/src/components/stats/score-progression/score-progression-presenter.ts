@@ -64,24 +64,24 @@ export class ScoreProgressionPresenter {
       }
       case "strongholds": {
         const { zoneStrip } = viewData;
-        return this.presentMode(snapshot, ariaLabel, viewData.durationMs, {
+        return this.presentMode(snapshot, ariaLabel, viewData.scoreLines.durationMs, {
           buildRows: zoneStrip != null ? (): TimelineGanttRowViewModel[] => [this.buildZoneStripRow(zoneStrip)] : null,
           scoreLines: viewData.scoreLines,
-          ganttIsDefault: false,
+          defaultChartType: "progression",
         });
       }
       case "koth": {
         return this.presentMode(snapshot, ariaLabel, viewData.durationMs, {
           buildRows: (): TimelineGanttRowViewModel[] => viewData.hills.map((hill) => this.buildKothRow(hill)),
           scoreLines: viewData.scoreLines,
-          ganttIsDefault: true,
+          defaultChartType: "timeline",
         });
       }
       case "oddball": {
         return this.presentMode(snapshot, ariaLabel, viewData.durationMs, {
           buildRows: (): TimelineGanttRowViewModel[] => viewData.rounds.map((round) => this.buildOddballRow(round)),
           scoreLines: viewData.scoreLines,
-          ganttIsDefault: true,
+          defaultChartType: "timeline",
         });
       }
       default: {
@@ -90,8 +90,8 @@ export class ScoreProgressionPresenter {
     }
   }
 
-  // One resolution rule for every mode that can carry both a gantt timeline and score lines: the
-  // default view is the mode's primary chart, and the other appears through the chart-type select.
+  // One resolution rule for every mode that can carry both a gantt timeline and score lines: an
+  // unset chart type resolves to the mode's default, whose options also lead the select.
   private presentMode(
     snapshot: ScoreProgressionSnapshot,
     ariaLabel: string,
@@ -99,16 +99,15 @@ export class ScoreProgressionPresenter {
     mode: {
       buildRows: (() => readonly TimelineGanttRowViewModel[]) | null;
       scoreLines: ScoreLinesViewData | null;
-      ganttIsDefault: boolean;
+      defaultChartType: ChartType;
     },
   ): ScoreProgressionViewModel {
-    const { buildRows, scoreLines, ganttIsDefault } = mode;
+    const { buildRows, scoreLines, defaultChartType } = mode;
     const scoreOptions = this.buildChartTypeOptions(scoreLines, []);
     const timelineOptions = buildRows != null ? [TIMELINE_OPTION] : [];
-    const chartTypeOptions = ganttIsDefault
-      ? [...timelineOptions, ...scoreOptions]
-      : [...scoreOptions, ...timelineOptions];
-    const wantsTimeline = snapshot.chartType === "timeline" || (snapshot.chartType == null && ganttIsDefault);
+    const chartTypeOptions =
+      defaultChartType === "timeline" ? [...timelineOptions, ...scoreOptions] : [...scoreOptions, ...timelineOptions];
+    const wantsTimeline = (snapshot.chartType ?? defaultChartType) === "timeline";
     if (buildRows != null && (scoreLines == null || wantsTimeline)) {
       return this.presentTimelineGantt(ariaLabel, durationMs, buildRows(), chartTypeOptions);
     }
@@ -124,7 +123,7 @@ export class ScoreProgressionPresenter {
     return {
       rowIndex: 1,
       label: "Zones",
-      subLabel: zoneStrip.teamShares.map((share) => `${share.name} ${String(share.leadPercentage)}%`).join(" · "),
+      subLabel: this.buildPercentSubLabel(zoneStrip.teamShares),
       segments: zoneStrip.segments,
       winnerColor: null,
       tooltipTitle: "Zone control — share of the match ahead",
@@ -132,11 +131,15 @@ export class ScoreProgressionPresenter {
         this.buildTooltipEntry(
           share.teamId,
           share.color,
-          share.leadPercentage,
-          `${share.name}: ahead ${String(share.leadPercentage)}%`,
+          share.percentage,
+          `${share.name}: ahead ${String(share.percentage)}%`,
         ),
       ),
     };
+  }
+
+  private buildPercentSubLabel(entries: readonly { name: string; percentage: number }[]): string {
+    return entries.map((entry) => `${entry.name} ${String(entry.percentage)}%`).join(" · ");
   }
 
   private buildChartTypeOptions(
@@ -272,7 +275,7 @@ export class ScoreProgressionPresenter {
     return {
       rowIndex: hill.hillIndex,
       label: `Hill ${String(hill.hillIndex)}`,
-      subLabel: hill.teamCaptureProgress.map((o) => `${o.name} ${String(o.percentage)}%`).join(" · "),
+      subLabel: this.buildPercentSubLabel(hill.teamCaptureProgress),
       segments: hill.segments,
       winnerColor: hill.winnerColor,
       tooltipTitle: `Hill ${String(hill.hillIndex)}`,

@@ -318,7 +318,6 @@ export function formatScoreProgression(
       const markers = buildStrongholdsMarkers(timeline.zoneEvents, teamLines, durationMs);
       return {
         kind: "strongholds",
-        durationMs,
         zoneStrip: buildZoneControlStrip(timeline.zoneTimeline, teamLines, durationMs),
         scoreLines: {
           kind: "score-lines",
