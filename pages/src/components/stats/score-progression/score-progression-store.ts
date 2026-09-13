@@ -1,17 +1,16 @@
 import type { ChartType } from "./types";
 
 export interface ScoreProgressionSnapshot {
-  readonly chartType: ChartType;
+  // null means the user has not chosen yet; each mode resolves its own default
+  readonly chartType: ChartType | null;
   readonly showPlayerAdvantage: boolean;
   readonly showMarkers: boolean;
   readonly showZoneAdvantage: boolean;
 }
 
 export class ScoreProgressionStore {
-  // "timeline" resolves per mode: gantt modes show their timeline, score-line modes fall
-  // back to the progression chart
   private _snapshot: ScoreProgressionSnapshot = {
-    chartType: "timeline",
+    chartType: null,
     showPlayerAdvantage: false,
     showMarkers: true,
     showZoneAdvantage: false,

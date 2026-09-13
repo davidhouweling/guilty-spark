@@ -3,6 +3,11 @@ export interface ScoreProgressionPoint {
   readonly score: number;
 }
 
+export interface ScoreSample {
+  readonly timestampMs: number;
+  readonly runningScores: Record<string, number>;
+}
+
 export interface ScoreProgressionTeamLine {
   readonly teamId: number;
   readonly name: string;
@@ -104,7 +109,7 @@ export interface ScoreLinesViewData {
   readonly markers: readonly ScoreMarkerData[] | null;
   readonly zoneAdvantage: PlayerAdvantageData | null;
   // round starts after the first, for modes whose score resets per round
-  readonly roundBoundaries: readonly number[] | null;
+  readonly roundBoundaries?: readonly number[] | undefined;
 }
 
 export interface KothViewData {
@@ -131,7 +136,7 @@ export interface ChartTypeOption {
 
 export interface ScoreProgressionDeltaViewModel {
   readonly durationMs: number;
-  readonly roundBoundaries: readonly number[] | null;
+  readonly roundBoundaries?: readonly number[] | undefined;
   readonly scoreDelta: ScoreDeltaData;
   readonly team0Color: string;
   readonly team1Color: string;
@@ -146,7 +151,7 @@ export interface ScoreProgressionDeltaViewModel {
 
 export interface ScoreProgressionProgressionViewModel {
   readonly durationMs: number;
-  readonly roundBoundaries: readonly number[] | null;
+  readonly roundBoundaries?: readonly number[] | undefined;
   readonly teamLines: readonly ScoreProgressionTeamLine[];
   readonly playerAdvantage: PlayerAdvantageData | null;
   readonly zoneAdvantage: PlayerAdvantageData | null;
@@ -163,6 +168,7 @@ export interface ScoreLinesViewModel {
   readonly ariaLabel: string;
   readonly effectiveChartType: ChartType;
   readonly chartTypeOptions: readonly ChartTypeOption[];
+  readonly showChartTypeSelect: boolean;
   readonly hasPlayerAdvantage: boolean;
   readonly hasMarkers: boolean;
   readonly hasZoneAdvantage: boolean;
@@ -181,7 +187,9 @@ export interface ScoreLinesViewModel {
 export interface TimelineGanttChartViewModel {
   readonly kind: "timeline-gantt";
   readonly ariaLabel: string;
+  readonly effectiveChartType: ChartType;
   readonly chartTypeOptions: readonly ChartTypeOption[];
+  readonly showChartTypeSelect: boolean;
   readonly timeline: TimelineGanttViewModel;
   readonly onChartTypeChange: (value: string) => void;
 }

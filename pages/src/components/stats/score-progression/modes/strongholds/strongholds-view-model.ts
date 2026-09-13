@@ -1,10 +1,7 @@
 import type {
-  StrongholdsEvent,
   StrongholdsZoneCountSample,
   StrongholdsZoneEvent,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
-import { getTeamName } from "@guilty-spark/shared/halo/team";
-import { getTeamColorOrDefault } from "../../../../team-colors/team-colors";
 import { extendToDuration } from "../../extend-to-duration";
 import type {
   PlayerAdvantageData,
@@ -15,35 +12,6 @@ import type {
 
 // Every ranked strongholds map plays three zones, so the advantage axis is fixed at ±3.
 const ZONE_ADVANTAGE_DOMAIN = 3;
-
-// Strongholds scores accrue continuously (1-2 points per second while holding zones), so its
-// lines are ramps between rate boundaries rather than the stepped lines kill events produce.
-// A team missing from an event's record carries its previous score forward (scores never drop).
-export function buildStrongholdsTeamLines(
-  events: readonly StrongholdsEvent[],
-  teamIds: readonly number[],
-  teamColorByTeamId: Map<number, string>,
-  durationMs: number,
-): ScoreProgressionTeamLine[] {
-  // the contract permits samples past the match end; keep the line inside the chart's x-axis
-  const inMatchEvents = events.filter((event) => event.timestampMs <= durationMs);
-  return teamIds.map((teamId, slotIndex) => {
-    const key = String(teamId);
-    const points: ScoreProgressionPoint[] = [{ timestampMs: 0, score: 0 }];
-    for (const event of inMatchEvents) {
-      const previous = points.at(-1);
-      const score = key in event.runningScores ? event.runningScores[key] : (previous?.score ?? 0);
-      points.push({ timestampMs: event.timestampMs, score });
-    }
-    extendToDuration(points, durationMs);
-    return {
-      teamId,
-      name: getTeamName(teamId),
-      color: teamColorByTeamId.get(teamId) ?? getTeamColorOrDefault(undefined, slotIndex).hex,
-      points,
-    };
-  });
-}
 
 // Scoring is continuous, so a marker between two line points sits on the linear interpolation.
 function sampleLineAt(points: readonly ScoreProgressionPoint[], timestampMs: number): number {

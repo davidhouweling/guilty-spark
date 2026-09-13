@@ -2,6 +2,14 @@ import { z } from "zod";
 
 const teamKeyedCountsSchema = z.record(z.string().regex(/^\d+$/), z.number().int().nonnegative());
 
+// a point on a reconstructed score curve: running totals per team at one timestamp
+const scoreSampleSchema = z.object({
+  timestampMs: z.number().int().nonnegative(),
+  runningScores: teamKeyedCountsSchema,
+});
+
+export type ScoreSamplePoint = z.infer<typeof scoreSampleSchema>;
+
 const progressionEventSchema = z.object({
   timestampMs: z.number().int().nonnegative(),
   teamId: z.number().int().nonnegative(),
@@ -64,6 +72,9 @@ const oddballRoundSchema = z.object({
   winnerTeamId: z.number().int().nonnegative().nullable(),
   scores: teamKeyedCountsSchema,
   carrySegments: z.array(oddballCarrySegmentSchema),
+  // the solver's reconciled per-round score curve — the authoritative source for score-line
+  // charts (carrySegments are display-padded and lossy by comparison)
+  points: z.array(scoreSampleSchema),
 });
 
 const oddballTimelineSchema = z.object({
@@ -77,10 +88,7 @@ export type OddballTimeline = z.infer<typeof oddballTimelineSchema>;
 
 // Strongholds scoring accrues continuously for both teams at once, so a sample carries no
 // scoring team — only the running totals at a rate boundary.
-const strongholdsEventSchema = z.object({
-  timestampMs: z.number().int().nonnegative(),
-  runningScores: teamKeyedCountsSchema,
-});
+const strongholdsEventSchema = scoreSampleSchema;
 
 // Capture/secure identities come from the solver's best labeling: the deduped event groups
 // match the API totals exactly, but which single-credit groups are the secures is inferred.

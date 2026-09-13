@@ -351,6 +351,7 @@ export class AnalyticsService {
             winnerTeamId: round.winnerTeamId,
             scores: round.scores,
             carrySegments: round.carrySegments,
+            points: round.points,
           })),
         },
       };

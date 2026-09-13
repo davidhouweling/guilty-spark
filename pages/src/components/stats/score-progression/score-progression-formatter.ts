@@ -9,16 +9,9 @@ import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import { extendToDuration } from "./extend-to-duration";
 import { buildKothHills } from "./modes/koth/koth-view-model";
-import {
-  buildOddballRounds,
-  buildOddballScoreSamples,
-  buildOddballTeamLines,
-} from "./modes/oddball/oddball-view-model";
-import {
-  buildStrongholdsMarkers,
-  buildStrongholdsTeamLines,
-  buildZoneAdvantage,
-} from "./modes/strongholds/strongholds-view-model";
+import { buildOddballRounds, buildOddballScoreSeries } from "./modes/oddball/oddball-view-model";
+import { buildStrongholdsMarkers, buildZoneAdvantage } from "./modes/strongholds/strongholds-view-model";
+import { buildSampledTeamLines } from "./sampled-team-lines";
 import type {
   PlayerAdvantageData,
   ScoreDeltaData,
@@ -26,12 +19,8 @@ import type {
   ScoreProgressionPoint,
   ScoreProgressionTeamLine,
   ScoreProgressionViewData,
+  ScoreSample,
 } from "./types";
-
-interface ScoreSample {
-  readonly timestampMs: number;
-  readonly runningScores: Record<string, number>;
-}
 
 function buildScoreDelta(
   teamIds: readonly number[],
@@ -251,7 +240,6 @@ export function formatScoreProgression(
         ),
         markers: null,
         zoneAdvantage: null,
-        roundBoundaries: null,
       };
     }
     case "koth": {
@@ -270,22 +258,18 @@ export function formatScoreProgression(
       if (teams == null) {
         return null;
       }
-      const samples = buildOddballScoreSamples(timeline, teams.teamIds, durationMs);
-      const roundBoundaries = timeline.rounds
-        .slice(1)
-        .map((round) => round.startMs)
-        .filter((startMs) => startMs <= durationMs);
+      const { samples, roundBoundaries } = buildOddballScoreSeries(timeline, teams.teamIds, durationMs);
       const scoreLines: ScoreLinesViewData | null =
         samples.length > 0
           ? {
               kind: "score-lines",
               durationMs,
-              teamLines: buildOddballTeamLines(samples, teams.teamIds, teams.teamColorByTeamId, durationMs),
+              teamLines: buildSampledTeamLines(samples, teams.teamIds, teams.teamColorByTeamId, durationMs),
               scoreDelta: buildScoreDelta(teams.teamIds, samples, durationMs, "linear"),
               playerAdvantage: null,
               markers: null,
               zoneAdvantage: null,
-              roundBoundaries: roundBoundaries.length > 0 ? roundBoundaries : null,
+              roundBoundaries,
             }
           : null;
       return {
@@ -306,7 +290,7 @@ export function formatScoreProgression(
       if (teams == null) {
         return null;
       }
-      const teamLines = buildStrongholdsTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs);
+      const teamLines = buildSampledTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs);
       // null rather than an empty array so "no markers" reads the same as modes without markers
       const markers = buildStrongholdsMarkers(timeline.zoneEvents, teamLines, durationMs);
       return {
@@ -323,7 +307,6 @@ export function formatScoreProgression(
         ),
         markers: markers.length > 0 ? markers : null,
         zoneAdvantage: buildZoneAdvantage(timeline.zoneTimeline, teams.teamIds, durationMs),
-        roundBoundaries: null,
       };
     }
     default: {

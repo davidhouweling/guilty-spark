@@ -61,7 +61,6 @@ function aScoreLinesInput(overrides: Partial<Omit<ScoreLinesViewData, "kind">> =
       playerAdvantage: null,
       markers: null,
       zoneAdvantage: null,
-      roundBoundaries: null,
       ...overrides,
     },
     ariaLabel: "test chart",
@@ -490,7 +489,7 @@ describe("ScoreProgressionPresenter", () => {
     it("ignores invalid values", () => {
       const { store, presenter } = makePresenter();
       presenter.onChartTypeChange("invalid");
-      expect(store.getSnapshot().chartType).toBe("timeline");
+      expect(store.getSnapshot().chartType).toBeNull();
     });
   });
 

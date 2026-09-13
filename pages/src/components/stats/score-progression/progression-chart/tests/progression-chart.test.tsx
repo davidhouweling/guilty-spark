@@ -46,7 +46,6 @@ function aProgressionViewModelWith(
 ): ScoreProgressionProgressionViewModel {
   return {
     durationMs: 600000,
-    roundBoundaries: null,
     teamLines,
     playerAdvantage: null,
     zoneAdvantage: null,

@@ -1,45 +1,37 @@
 import type { OddballTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
-import { getTeamColorOrDefault } from "../../../../team-colors/team-colors";
 import { TICK_FILL } from "../../chart-constants";
-import { extendToDuration } from "../../extend-to-duration";
 import { tileSegments } from "../../timeline-segments";
-import type {
-  OddballRoundData,
-  OddballRoundTeamScore,
-  ScoreProgressionPoint,
-  ScoreProgressionTeamLine,
-} from "../../types";
+import type { OddballRoundData, OddballRoundTeamScore, ScoreSample } from "../../types";
 
-export interface OddballScoreSample {
-  readonly timestampMs: number;
-  readonly runningScores: Record<string, number>;
+export interface OddballScoreSeries {
+  readonly samples: readonly ScoreSample[];
+  readonly roundBoundaries: readonly number[];
 }
 
-interface ClampedSegment {
-  readonly startMs: number;
-  readonly endMs: number;
-}
-
-function carrySecondsAt(segments: readonly ClampedSegment[], timestampMs: number): number {
-  let seconds = 0;
-  for (const segment of segments) {
-    seconds += Math.max(0, Math.min(segment.endMs, timestampMs) - segment.startMs) / 1000;
-  }
-  return seconds;
-}
-
-// Oddball scores one point per second of skull carry and resets each round, so the score curve
-// is rebuilt per round from the carry segments and scaled so each team's round total lands
-// exactly on the API round score (a team with a score but no attributable segments falls back
-// to a uniform ramp across the round, mirroring the strongholds degraded-data behaviour).
-export function buildOddballScoreSamples(
+// Stitches the solver's authoritative per-round score curves (round.points) into one
+// match-long series: scores hold flat between rounds and reset vertically at each round start.
+// A round with a score but no curve points falls back to a uniform ramp sloped against the
+// round's true end, so a duration-truncated round shows only the fraction earned by the cut.
+export function buildOddballScoreSeries(
   timeline: OddballTimeline,
   teamIds: readonly number[],
   durationMs: number,
-): OddballScoreSample[] {
-  const samples: OddballScoreSample[] = [];
+): OddballScoreSeries {
+  const samples: ScoreSample[] = [];
+  const roundBoundaries: number[] = [];
   const rounds = [...timeline.rounds].sort((a, b) => a.startMs - b.startMs);
+
+  const fillScores = (running: Record<string, number>, previous: ScoreSample | undefined): Record<string, number> => {
+    const filled: Record<string, number> = {};
+    for (const teamId of teamIds) {
+      const key = String(teamId);
+      filled[key] = key in running ? (running[key] ?? 0) : (previous?.runningScores[key] ?? 0);
+    }
+    return filled;
+  };
+
+  let emittedRounds = 0;
   for (const round of rounds) {
     const startMs = Math.max(0, round.startMs);
     const endMs = Math.min(round.endMs, durationMs);
@@ -47,81 +39,44 @@ export function buildOddballScoreSamples(
       continue;
     }
 
-    const segmentsByTeamId = new Map<number, ClampedSegment[]>(teamIds.map((teamId) => [teamId, []]));
-    const boundaries = new Set<number>([startMs, endMs]);
-    for (const segment of round.carrySegments) {
-      const teamSegments = segmentsByTeamId.get(segment.teamId);
-      const clampedStart = Math.max(segment.startMs, startMs);
-      const clampedEnd = Math.min(segment.endMs, endMs);
-      if (teamSegments == null || clampedEnd <= clampedStart) {
-        continue;
-      }
-      teamSegments.push({ startMs: clampedStart, endMs: clampedEnd });
-      boundaries.add(clampedStart);
-      boundaries.add(clampedEnd);
-    }
-
-    const scaleByTeamId = new Map<number, { target: number; rawSeconds: number }>(
-      teamIds.map((teamId) => [
-        teamId,
-        {
-          target: round.scores[String(teamId)] ?? 0,
-          rawSeconds: carrySecondsAt(segmentsByTeamId.get(teamId) ?? [], endMs),
-        },
-      ]),
-    );
-
     // carry the previous round's final scores flat to the new round start so the reset renders
     // as a vertical drop rather than a slope across the between-round break
     const previous = samples.at(-1);
     if (previous != null && previous.timestampMs < startMs) {
       samples.push({ timestampMs: startMs, runningScores: { ...previous.runningScores } });
     }
+    if (emittedRounds > 0 && roundBoundaries.at(-1) !== startMs) {
+      roundBoundaries.push(startMs);
+    }
+    samples.push({ timestampMs: startMs, runningScores: fillScores({}, undefined) });
 
-    for (const timestampMs of [...boundaries].sort((a, b) => a - b)) {
-      const runningScores: Record<string, number> = {};
-      for (const teamId of teamIds) {
-        const { target, rawSeconds } = scaleByTeamId.get(teamId) ?? { target: 0, rawSeconds: 0 };
-        if (rawSeconds > 0) {
-          const raw = carrySecondsAt(segmentsByTeamId.get(teamId) ?? [], timestampMs);
-          runningScores[String(teamId)] = Math.round((raw * target) / rawSeconds);
-        } else if (target > 0) {
-          runningScores[String(teamId)] = Math.round((target * (timestampMs - startMs)) / (endMs - startMs));
-        } else {
-          runningScores[String(teamId)] = 0;
+    const inRoundPoints = round.points.filter((point) => point.timestampMs >= startMs && point.timestampMs <= endMs);
+    if (inRoundPoints.length > 0) {
+      for (const point of inRoundPoints) {
+        const last = samples.at(-1);
+        if (last != null && point.timestampMs < last.timestampMs) {
+          continue;
         }
+        samples.push({ timestampMs: point.timestampMs, runningScores: fillScores(point.runningScores, last) });
       }
-      samples.push({ timestampMs, runningScores });
+    } else {
+      const trueEndMs = Math.max(round.endMs, startMs + 1);
+      const rampScores: Record<string, number> = {};
+      for (const teamId of teamIds) {
+        const target = round.scores[String(teamId)] ?? 0;
+        rampScores[String(teamId)] = Math.round((target * (endMs - startMs)) / (trueEndMs - startMs));
+      }
+      samples.push({ timestampMs: endMs, runningScores: rampScores });
     }
-  }
-  return samples;
-}
 
-export function buildOddballTeamLines(
-  samples: readonly OddballScoreSample[],
-  teamIds: readonly number[],
-  teamColorByTeamId: Map<number, string>,
-  durationMs: number,
-): ScoreProgressionTeamLine[] {
-  return teamIds.map((teamId, slotIndex) => {
-    const key = String(teamId);
-    const points: ScoreProgressionPoint[] = [{ timestampMs: 0, score: 0 }];
-    for (const sample of samples) {
-      const score = sample.runningScores[key] ?? 0;
-      const last = points.at(-1);
-      if (last?.timestampMs === sample.timestampMs && last.score === score) {
-        continue;
-      }
-      points.push({ timestampMs: sample.timestampMs, score });
+    const last = samples.at(-1);
+    if (last != null && last.timestampMs < endMs) {
+      samples.push({ timestampMs: endMs, runningScores: { ...last.runningScores } });
     }
-    extendToDuration(points, durationMs);
-    return {
-      teamId,
-      name: getTeamName(teamId),
-      color: teamColorByTeamId.get(teamId) ?? getTeamColorOrDefault(undefined, slotIndex).hex,
-      points,
-    };
-  });
+    emittedRounds += 1;
+  }
+
+  return { samples, roundBoundaries };
 }
 
 export function buildOddballRounds(

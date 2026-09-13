@@ -37,6 +37,7 @@ function aScoreLinesViewModelWith(overrides: Partial<ScoreLinesViewModel> = {}):
     ariaLabel: "test chart",
     effectiveChartType: "progression",
     chartTypeOptions: [{ value: "progression", label: "Score Progression" }],
+    showChartTypeSelect: false,
     hasPlayerAdvantage: false,
     hasMarkers: false,
     hasZoneAdvantage: false,
@@ -47,7 +48,6 @@ function aScoreLinesViewModelWith(overrides: Partial<ScoreLinesViewModel> = {}):
     deltaViewModel: null,
     progressionViewModel: {
       durationMs: 600000,
-      roundBoundaries: null,
       teamLines: [],
       playerAdvantage: null,
       zoneAdvantage: null,
@@ -87,10 +87,12 @@ describe("ScoreProgression", () => {
       <ScoreProgression
         kind="timeline-gantt"
         ariaLabel="test chart"
+        effectiveChartType="timeline"
         chartTypeOptions={[
           { value: "timeline", label: "Objective Timeline" },
           { value: "progression", label: "Score Progression" },
         ]}
+        showChartTypeSelect={true}
         timeline={{ durationMs: 600000, rows: [] }}
         onChartTypeChange={vi.fn<(value: string) => void>()}
       />,
@@ -104,7 +106,9 @@ describe("ScoreProgression", () => {
       <ScoreProgression
         kind="timeline-gantt"
         ariaLabel="test chart"
+        effectiveChartType="timeline"
         chartTypeOptions={[{ value: "timeline", label: "Objective Timeline" }]}
+        showChartTypeSelect={false}
         timeline={{ durationMs: 600000, rows: [] }}
         onChartTypeChange={vi.fn<(value: string) => void>()}
       />,

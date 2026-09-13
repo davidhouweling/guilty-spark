@@ -77,37 +77,44 @@ export class ScoreProgressionPresenter {
     }
   }
 
-  // Oddball defaults to its rounds timeline and offers the score-lines charts through the
-  // chart-type select; the score-lines presentation itself is shared with kill-race/strongholds.
   private presentOddball(
     snapshot: ScoreProgressionSnapshot,
     viewData: Extract<ScoreProgressionViewData, { kind: "oddball" }>,
     ariaLabel: string,
   ): ScoreProgressionViewModel {
-    const chartTypeOptions: ChartTypeOption[] =
-      viewData.scoreLines != null
-        ? [TIMELINE_OPTION, PROGRESSION_OPTION, ...(viewData.scoreLines.scoreDelta != null ? [DELTA_OPTION] : [])]
-        : [TIMELINE_OPTION];
-    if (viewData.scoreLines != null && snapshot.chartType !== "timeline") {
-      return this.presentScoreLines(snapshot, viewData.scoreLines, ariaLabel, chartTypeOptions);
+    // the rounds timeline is oddball's default; an unset chart type resolves to it
+    if (viewData.scoreLines == null || snapshot.chartType == null || snapshot.chartType === "timeline") {
+      return this.presentTimelineGantt(
+        ariaLabel,
+        viewData.durationMs,
+        viewData.rounds.map((round) => this.buildOddballRow(round)),
+        viewData.scoreLines != null
+          ? this.buildChartTypeOptions(viewData.scoreLines, [TIMELINE_OPTION])
+          : [TIMELINE_OPTION],
+      );
     }
-    return this.presentTimelineGantt(
-      ariaLabel,
-      viewData.durationMs,
-      viewData.rounds.map((round) => this.buildOddballRow(round)),
-      chartTypeOptions,
-    );
+    return this.presentScoreLines(snapshot, viewData.scoreLines, ariaLabel, [TIMELINE_OPTION]);
+  }
+
+  // the mode's capability list: an optional leading option (the gantt timeline), then the
+  // score-lines charts, with delta offered only when delta data exists
+  private buildChartTypeOptions(
+    viewData: ScoreLinesViewData,
+    leadingOptions: readonly ChartTypeOption[],
+  ): ChartTypeOption[] {
+    return [...leadingOptions, PROGRESSION_OPTION, ...(viewData.scoreDelta != null ? [DELTA_OPTION] : [])];
   }
 
   private presentScoreLines(
     snapshot: ScoreProgressionSnapshot,
     viewData: ScoreLinesViewData,
     ariaLabel: string,
-    chartTypeOptions: readonly ChartTypeOption[] = [PROGRESSION_OPTION, DELTA_OPTION],
+    leadingOptions: readonly ChartTypeOption[] = [],
   ): ScoreLinesViewModel {
     const { chartType, showPlayerAdvantage, showMarkers, showZoneAdvantage } = snapshot;
-    // "timeline" belongs to the gantt modes; score-lines rendering resolves it (and a delta
-    // request without delta data) to the progression chart
+    const chartTypeOptions = this.buildChartTypeOptions(viewData, leadingOptions);
+    // an unset or unavailable chart type (timeline on a score-lines mode, delta without delta
+    // data) resolves to the progression chart
     const effectiveChartType: ChartType =
       chartType === "delta" && viewData.scoreDelta != null ? "delta" : "progression";
     const effectivePlayerAdvantage = showPlayerAdvantage ? viewData.playerAdvantage : null;
@@ -144,21 +151,21 @@ export class ScoreProgressionPresenter {
 
     const hasPlayerAdvantage = viewData.playerAdvantage != null;
     const hasZoneAdvantage = viewData.zoneAdvantage != null;
-    const resolvedOptions =
-      viewData.scoreDelta == null ? chartTypeOptions.filter((option) => option.value !== "delta") : chartTypeOptions;
+    const showChartTypeSelect = chartTypeOptions.length > 1;
 
     return {
       kind: "score-lines",
       ariaLabel,
       effectiveChartType,
-      chartTypeOptions: resolvedOptions,
+      chartTypeOptions,
+      showChartTypeSelect,
       hasPlayerAdvantage,
       hasMarkers,
       hasZoneAdvantage,
       showPlayerAdvantage,
       showMarkers,
       showZoneAdvantage,
-      showToolbar: resolvedOptions.length > 1 || hasPlayerAdvantage || hasMarkers || hasZoneAdvantage,
+      showToolbar: showChartTypeSelect || hasPlayerAdvantage || hasMarkers || hasZoneAdvantage,
       deltaViewModel,
       progressionViewModel: {
         durationMs: viewData.durationMs,
@@ -202,7 +209,9 @@ export class ScoreProgressionPresenter {
     return {
       kind: "timeline-gantt",
       ariaLabel,
+      effectiveChartType: "timeline",
       chartTypeOptions,
+      showChartTypeSelect: chartTypeOptions.length > 1,
       timeline: {
         durationMs,
         rows: this.orderRowsForVerticalChart(rows),

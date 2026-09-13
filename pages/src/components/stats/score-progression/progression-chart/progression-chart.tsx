@@ -17,6 +17,7 @@ import {
   TICK_STYLE,
   advantageAxisProps,
   chartMargin,
+  roundBoundaryLineProps,
   playerAdvantageAreaProps,
   timeAxisProps,
   tooltipContentStyle,
@@ -46,7 +47,7 @@ export function ProgressionChart({
         <YAxis allowDecimals={false} width={36} stroke={AXIS_STROKE} tick={TICK_STYLE} />
         {advantageDomain != null && <YAxis {...advantageAxisProps(advantageDomain)} />}
         {roundBoundaries?.map((boundaryMs) => (
-          <ReferenceLine key={boundaryMs} x={boundaryMs} stroke={AXIS_STROKE} strokeDasharray="3 3" />
+          <ReferenceLine key={boundaryMs} {...roundBoundaryLineProps(boundaryMs)} />
         ))}
         <Tooltip
           contentStyle={tooltipContentStyle}

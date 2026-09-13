@@ -18,6 +18,7 @@ import {
   TICK_STYLE,
   advantageAxisProps,
   chartMargin,
+  roundBoundaryLineProps,
   playerAdvantageAreaProps,
   timeAxisProps,
   tooltipContentStyle,
@@ -98,7 +99,7 @@ export function DeltaChart({
         {advantageDomain != null && <YAxis {...advantageAxisProps(advantageDomain)} />}
         <ReferenceLine y={0} stroke={AXIS_STROKE} strokeDasharray="3 3" />
         {roundBoundaries?.map((boundaryMs) => (
-          <ReferenceLine key={boundaryMs} x={boundaryMs} stroke={AXIS_STROKE} strokeDasharray="3 3" />
+          <ReferenceLine key={boundaryMs} {...roundBoundaryLineProps(boundaryMs)} />
         ))}
         <Tooltip
           contentStyle={tooltipContentStyle}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildOddballRounds, buildOddballScoreSamples, buildOddballTeamLines } from "../oddball-view-model";
+import { buildOddballRounds, buildOddballScoreSeries } from "../oddball-view-model";
 import { aFakeOddballTimelineWith } from "../fakes/oddball-timeline.fake";
 
 const TEAM_IDS = [0, 1] as const;
@@ -66,20 +66,20 @@ describe("buildOddballRounds", () => {
   });
 });
 
-describe("buildOddballScoreSamples", () => {
-  it("ramps each team through its carry segments and holds flat between them", () => {
-    const samples = buildOddballScoreSamples(aFakeOddballTimelineWith(), [...TEAM_IDS], 470000);
-    const at = (timestampMs: number): Record<string, number> | undefined =>
-      samples.find((sample) => sample.timestampMs === timestampMs)?.runningScores;
-    expect(at(5000)).toEqual({ "0": 0, "1": 0 });
-    expect(at(20000)).toEqual({ "0": 15, "1": 0 });
-    expect(at(30000)).toEqual({ "0": 20, "1": 0 });
-    expect(at(50000)).toEqual({ "0": 20, "1": 10 });
-    expect(at(330000)).toEqual({ "0": 20, "1": 10 });
+describe("buildOddballScoreSeries", () => {
+  it("stitches the API round points into the series with a reset at each round start", () => {
+    const { samples } = buildOddballScoreSeries(aFakeOddballTimelineWith(), [...TEAM_IDS], 470000);
+    const at = (timestampMs: number): Record<string, number>[] =>
+      samples.filter((sample) => sample.timestampMs === timestampMs).map((sample) => sample.runningScores);
+    expect(at(0)).toEqual([{ "0": 0, "1": 0 }]);
+    expect(at(20000)).toEqual([{ "0": 15, "1": 0 }]);
+    expect(at(50000)).toEqual([{ "0": 20, "1": 10 }]);
+    // held flat to the round end
+    expect(at(330000)).toEqual([{ "0": 20, "1": 10 }]);
   });
 
   it("carries the previous round's totals to the next round start and then resets to zero", () => {
-    const samples = buildOddballScoreSamples(aFakeOddballTimelineWith(), [...TEAM_IDS], 470000);
+    const { samples } = buildOddballScoreSeries(aFakeOddballTimelineWith(), [...TEAM_IDS], 470000);
     const atRoundTwoStart = samples.filter((sample) => sample.timestampMs === 342000);
     expect(atRoundTwoStart).toEqual([
       { timestampMs: 342000, runningScores: { "0": 20, "1": 10 } },
@@ -87,14 +87,36 @@ describe("buildOddballScoreSamples", () => {
     ]);
   });
 
-  it("scales a round's carry so the final value lands exactly on the API round score", () => {
-    // round 2: 115 carried seconds against a 100-point round score
-    const samples = buildOddballScoreSamples(aFakeOddballTimelineWith(), [...TEAM_IDS], 470000);
-    const last = samples.at(-1);
-    expect(last).toEqual({ timestampMs: 460000, runningScores: { "0": 0, "1": 100 } });
+  it("reports the boundaries of the rounds it actually emitted", () => {
+    const { roundBoundaries } = buildOddballScoreSeries(aFakeOddballTimelineWith(), [...TEAM_IDS], 470000);
+    expect(roundBoundaries).toEqual([342000]);
   });
 
-  it("falls back to a uniform ramp for a team with a round score but no carry segments", () => {
+  it("orders rounds by start time so boundaries and resets stay aligned for unsorted input", () => {
+    const timeline = aFakeOddballTimelineWith();
+    const { samples, roundBoundaries } = buildOddballScoreSeries(
+      aFakeOddballTimelineWith({ rounds: [...timeline.rounds].reverse() }),
+      [...TEAM_IDS],
+      470000,
+    );
+    expect(roundBoundaries).toEqual([342000]);
+    expect(samples.at(0)?.timestampMs).toBe(0);
+  });
+
+  it("drops round points past the match duration without inflating the round", () => {
+    const { samples } = buildOddballScoreSeries(aFakeOddballTimelineWith(), [...TEAM_IDS], 410000);
+    const last = samples.at(-1);
+    // the 460000 completion point is cut; the curve holds the last in-range value to the cut
+    expect(last).toEqual({ timestampMs: 410000, runningScores: { "0": 0, "1": 50 } });
+  });
+
+  it("skips rounds entirely past the match duration and emits no boundary for them", () => {
+    const { samples, roundBoundaries } = buildOddballScoreSeries(aFakeOddballTimelineWith(), [...TEAM_IDS], 330000);
+    expect(roundBoundaries).toEqual([]);
+    expect(samples.at(-1)?.timestampMs).toBe(330000);
+  });
+
+  it("falls back to a uniform ramp sloped against the round's true end when a round has no points", () => {
     const timeline = aFakeOddballTimelineWith({
       rounds: [
         {
@@ -105,34 +127,15 @@ describe("buildOddballScoreSamples", () => {
           winnerTeamId: 0,
           scores: { "0": 50, "1": 0 },
           carrySegments: [],
+          points: [],
         },
       ],
     });
-    const samples = buildOddballScoreSamples(timeline, [...TEAM_IDS], 100000);
+    // duration cuts the round in half, so only half the round score is shown at the cut
+    const { samples } = buildOddballScoreSeries(timeline, [...TEAM_IDS], 50000);
     expect(samples).toEqual([
       { timestampMs: 0, runningScores: { "0": 0, "1": 0 } },
-      { timestampMs: 100000, runningScores: { "0": 50, "1": 0 } },
+      { timestampMs: 50000, runningScores: { "0": 25, "1": 0 } },
     ]);
-  });
-
-  it("skips rounds entirely past the match duration and clamps segments to it", () => {
-    const samples = buildOddballScoreSamples(aFakeOddballTimelineWith(), [...TEAM_IDS], 330000);
-    expect(samples.at(-1)?.timestampMs).toBe(330000);
-  });
-});
-
-describe("buildOddballTeamLines", () => {
-  it("builds reset ramp lines from the samples with an origin and duration extension", () => {
-    const samples = buildOddballScoreSamples(aFakeOddballTimelineWith(), [...TEAM_IDS], 470000);
-    const lines = buildOddballTeamLines(samples, [...TEAM_IDS], TEAM_COLORS, 470000);
-    const [team0, team1] = lines;
-    expect(team0.name).toBe("Eagle");
-    expect(team0.points.at(0)).toEqual({ timestampMs: 0, score: 0 });
-    // vertical drop at the round-two reset
-    expect(team0.points.filter((point) => point.timestampMs === 342000)).toEqual([
-      { timestampMs: 342000, score: 20 },
-      { timestampMs: 342000, score: 0 },
-    ]);
-    expect(team1.points.at(-1)).toEqual({ timestampMs: 470000, score: 100 });
   });
 });
