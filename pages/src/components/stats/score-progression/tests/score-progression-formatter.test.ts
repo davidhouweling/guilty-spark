@@ -11,6 +11,13 @@ const TEAM_COLORS = [
   { id: "cobra", hex: "#ff0000", name: "Cobra" },
 ] as const;
 
+function asStrongholdsScoreLines(result: ScoreProgressionViewData | null): ScoreLinesViewData {
+  if (result?.kind !== "strongholds") {
+    throw new Error("expected strongholds view data");
+  }
+  return result.scoreLines;
+}
+
 function asScoreLines(result: ScoreProgressionViewData | null): ScoreLinesViewData {
   if (result?.kind !== "score-lines") {
     throw new Error("expected score-lines view data");
@@ -609,10 +616,26 @@ describe("formatScoreProgression", () => {
   });
 
   describe("strongholds dispatch", () => {
-    it("returns score-lines view data for a strongholds timeline", () => {
+    it("returns strongholds view data wrapping score lines and the zone strip", () => {
       const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
       const result = formatScoreProgression(data, TEAM_COLORS);
-      expect(result?.kind).toBe("score-lines");
+      if (result?.kind !== "strongholds") {
+        throw new Error("expected strongholds view data");
+      }
+      expect(result.scoreLines.kind).toBe("score-lines");
+      expect(result.zoneStrip).not.toBeNull();
+    });
+
+    it("returns a null zone strip when the zone timeline is empty", () => {
+      const data = aFakeScoreProgressionWith({
+        durationMs: 100000,
+        timeline: aFakeStrongholdsTimelineWith({ zoneTimeline: [] }),
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      if (result?.kind !== "strongholds") {
+        throw new Error("expected strongholds view data");
+      }
+      expect(result.zoneStrip).toBeNull();
     });
 
     it("returns null when a strongholds timeline has no events", () => {
@@ -630,19 +653,19 @@ describe("formatScoreProgression", () => {
           ],
         }),
       });
-      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      const result = asStrongholdsScoreLines(formatScoreProgression(data, TEAM_COLORS));
       expect(result.teamLines.map((line) => line.teamId)).toEqual([0, 1]);
     });
 
     it("builds a linear score delta for continuous zone scoring", () => {
       const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
-      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      const result = asStrongholdsScoreLines(formatScoreProgression(data, TEAM_COLORS));
       expect(result.scoreDelta?.lineType).toBe("linear");
     });
 
     it("builds ramp team lines with one point per event and no step duplication", () => {
       const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
-      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      const result = asStrongholdsScoreLines(formatScoreProgression(data, TEAM_COLORS));
       const [team0] = result.teamLines;
       // origin + 4 events + extension to match duration
       expect(team0.points).toEqual([
@@ -663,7 +686,7 @@ describe("formatScoreProgression", () => {
           respawnDurationMs: 8000,
         }),
       });
-      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      const result = asStrongholdsScoreLines(formatScoreProgression(data, TEAM_COLORS));
       expect(result.scoreDelta).not.toBeNull();
       expect(result.playerAdvantage?.points).toEqual([
         { timestampMs: 0, score: 0 },
@@ -678,13 +701,13 @@ describe("formatScoreProgression", () => {
         durationMs: 100000,
         timeline: aFakeStrongholdsTimelineWith({ respawnDurationMs: null }),
       });
-      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      const result = asStrongholdsScoreLines(formatScoreProgression(data, TEAM_COLORS));
       expect(result.playerAdvantage).toBeNull();
     });
 
     it("builds capture and secure markers on the team lines", () => {
       const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
-      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      const result = asStrongholdsScoreLines(formatScoreProgression(data, TEAM_COLORS));
       expect(result.markers?.map((marker) => [marker.timestampMs, marker.teamId, marker.kind])).toEqual([
         [10000, 0, "capture"],
         [40000, 1, "capture"],
@@ -695,7 +718,7 @@ describe("formatScoreProgression", () => {
 
     it("builds a zone advantage overlay from the zone timeline", () => {
       const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
-      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      const result = asStrongholdsScoreLines(formatScoreProgression(data, TEAM_COLORS));
       expect(result.zoneAdvantage?.points.at(0)).toEqual({ timestampMs: 0, score: 0 });
       expect(result.zoneAdvantage?.points.at(-1)).toEqual({ timestampMs: 100000, score: 1 });
       expect(result.zoneAdvantage?.minScore).toBe(-3);

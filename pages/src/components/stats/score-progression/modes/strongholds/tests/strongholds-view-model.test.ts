@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildSampledTeamLines } from "../../../sampled-team-lines";
-import { buildStrongholdsMarkers, buildZoneAdvantage } from "../strongholds-view-model";
+import { buildStrongholdsMarkers, buildZoneAdvantage, buildZoneControlStrip } from "../strongholds-view-model";
 import { aFakeStrongholdsTimelineWith } from "../fakes/strongholds-timeline.fake";
 
 const TEAM_IDS = [0, 1] as const;
@@ -95,5 +95,78 @@ describe("buildZoneAdvantage", () => {
 
   it("returns null when the match is not a two-team match", () => {
     expect(buildZoneAdvantage([{ timestampMs: 0, zoneCounts: { "0": 1 } }], [0], 100000)).toBeNull();
+  });
+});
+
+describe("buildZoneControlStrip", () => {
+  it("colors each window by the leading team with intensity from their zone count", () => {
+    const strip = buildZoneControlStrip(aFakeStrongholdsTimelineWith().zoneTimeline, TEAM_IDS, TEAM_COLORS, 100000);
+    expect(strip?.segments).toEqual([
+      { startMs: 0, endMs: 10000, teamId: null, color: null },
+      { startMs: 10000, endMs: 40000, teamId: 0, color: "#0000ffB3" },
+      { startMs: 40000, endMs: 60000, teamId: 1, color: "#ff0000B3" },
+      { startMs: 60000, endMs: 100000, teamId: 0, color: "#0000ffB3" },
+    ]);
+  });
+
+  it("computes each team's share of the match spent leading", () => {
+    const strip = buildZoneControlStrip(aFakeStrongholdsTimelineWith().zoneTimeline, TEAM_IDS, TEAM_COLORS, 100000);
+    expect(strip?.teamShares).toEqual([
+      { teamId: 0, name: "Eagle", color: "#0000ff", leadPercentage: 70 },
+      { teamId: 1, name: "Cobra", color: "#ff0000", leadPercentage: 20 },
+    ]);
+  });
+
+  it("paints a 3-cap at full color and a one-zone lead at the dimmest intensity", () => {
+    const strip = buildZoneControlStrip(
+      [
+        { timestampMs: 0, zoneCounts: { "0": 3, "1": 0 } },
+        { timestampMs: 20000, zoneCounts: { "0": 1, "1": 0 } },
+      ],
+      TEAM_IDS,
+      TEAM_COLORS,
+      60000,
+    );
+    expect(strip?.segments).toEqual([
+      { startMs: 0, endMs: 20000, teamId: 0, color: "#0000ff" },
+      { startMs: 20000, endMs: 60000, teamId: 0, color: "#0000ff66" },
+    ]);
+  });
+
+  it("merges consecutive windows with the same leader and intensity", () => {
+    const strip = buildZoneControlStrip(
+      [
+        { timestampMs: 0, zoneCounts: { "0": 2, "1": 1 } },
+        { timestampMs: 20000, zoneCounts: { "0": 2, "1": 1 } },
+        { timestampMs: 30000, zoneCounts: { "0": 1, "1": 2 } },
+      ],
+      TEAM_IDS,
+      TEAM_COLORS,
+      60000,
+    );
+    expect(strip?.segments).toEqual([
+      { startMs: 0, endMs: 30000, teamId: 0, color: "#0000ffB3" },
+      { startMs: 30000, endMs: 60000, teamId: 1, color: "#ff0000B3" },
+    ]);
+  });
+
+  it("drops samples past the match duration", () => {
+    const strip = buildZoneControlStrip(
+      [
+        { timestampMs: 0, zoneCounts: { "0": 2, "1": 1 } },
+        { timestampMs: 70000, zoneCounts: { "0": 0, "1": 3 } },
+      ],
+      TEAM_IDS,
+      TEAM_COLORS,
+      60000,
+    );
+    expect(strip?.segments).toEqual([{ startMs: 0, endMs: 60000, teamId: 0, color: "#0000ffB3" }]);
+  });
+
+  it("returns null without exactly two teams or without samples", () => {
+    expect(
+      buildZoneControlStrip(aFakeStrongholdsTimelineWith().zoneTimeline, [0, 1, 2], TEAM_COLORS, 100000),
+    ).toBeNull();
+    expect(buildZoneControlStrip([], TEAM_IDS, TEAM_COLORS, 100000)).toBeNull();
   });
 });

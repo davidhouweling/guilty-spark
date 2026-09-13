@@ -13,9 +13,11 @@ import type {
   ScoreProgressionDeltaViewModel,
   ScoreProgressionViewData,
   ScoreProgressionViewModel,
+  StrongholdsViewData,
   TimelineGanttChartViewModel,
   TimelineGanttRowViewModel,
   TimelineGanttTooltipEntry,
+  ZoneStripData,
 } from "./types";
 
 export interface ScoreProgressionPresenterConfig {
@@ -60,6 +62,9 @@ export class ScoreProgressionPresenter {
       case "score-lines": {
         return this.presentScoreLines(snapshot, viewData, ariaLabel, this.buildChartTypeOptions(viewData, []));
       }
+      case "strongholds": {
+        return this.presentStrongholdsMode(snapshot, ariaLabel, viewData);
+      }
       case "koth": {
         return this.presentGanttMode(
           snapshot,
@@ -96,6 +101,47 @@ export class ScoreProgressionPresenter {
       return this.presentTimelineGantt(ariaLabel, durationMs, buildRows(), chartTypeOptions);
     }
     return this.presentScoreLines(snapshot, scoreLines, ariaLabel, chartTypeOptions);
+  }
+
+  // Strongholds is score-lines-first: the zone-control strip is a trailing chart-type option
+  // rather than the default, unlike the gantt-first modes.
+  private presentStrongholdsMode(
+    snapshot: ScoreProgressionSnapshot,
+    ariaLabel: string,
+    viewData: StrongholdsViewData,
+  ): ScoreProgressionViewModel {
+    const chartTypeOptions = [
+      ...this.buildChartTypeOptions(viewData.scoreLines, []),
+      ...(viewData.zoneStrip != null ? [TIMELINE_OPTION] : []),
+    ];
+    if (viewData.zoneStrip != null && snapshot.chartType === "timeline") {
+      return this.presentTimelineGantt(
+        ariaLabel,
+        viewData.durationMs,
+        [this.buildZoneStripRow(viewData.zoneStrip)],
+        chartTypeOptions,
+      );
+    }
+    return this.presentScoreLines(snapshot, viewData.scoreLines, ariaLabel, chartTypeOptions);
+  }
+
+  private buildZoneStripRow(zoneStrip: ZoneStripData): TimelineGanttRowViewModel {
+    return {
+      rowIndex: 1,
+      label: "Zones",
+      subLabel: zoneStrip.teamShares.map((share) => `${share.name} ${String(share.leadPercentage)}%`).join(" · "),
+      segments: zoneStrip.segments,
+      winnerColor: null,
+      tooltipTitle: "Zone control — share of the match ahead",
+      tooltipEntries: zoneStrip.teamShares.map((share) =>
+        this.buildTooltipEntry(
+          share.teamId,
+          share.color,
+          share.leadPercentage,
+          `${share.name}: ahead ${String(share.leadPercentage)}%`,
+        ),
+      ),
+    };
   }
 
   private buildChartTypeOptions(
