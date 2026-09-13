@@ -1,10 +1,14 @@
 import "@testing-library/jest-dom/vitest";
 
 import React from "react";
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import { ProgressionChart } from "../progression-chart";
 import type { ScoreProgressionProgressionViewModel } from "../../types";
+
+afterEach(() => {
+  cleanup();
+});
 
 vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }): React.ReactElement => <div>{children}</div>,
@@ -25,7 +29,9 @@ vi.mock("recharts", () => ({
     <div data-testid="reference-dot" data-x={x} data-y={y} data-fill={fill} data-stroke={stroke} />
   ),
   XAxis: (): null => null,
-  YAxis: (): null => null,
+  YAxis: ({ yAxisId, domain }: { yAxisId?: string; domain?: readonly [number, number] }): React.ReactElement => (
+    <div data-testid="y-axis" data-axis={yAxisId} data-domain={domain?.join(",")} />
+  ),
   Tooltip: (): null => null,
   Area: ({ name }: { name: string }): React.ReactElement => <div data-testid="area">{name}</div>,
 }));
@@ -102,5 +108,18 @@ describe("ProgressionChart", () => {
     const areaNames = screen.getAllByTestId("area").map((area) => area.textContent);
     expect(areaNames).toContain("Player Advantage");
     expect(areaNames).toContain("Zone Advantage");
+    const advantageAxes = screen
+      .getAllByTestId("y-axis")
+      .filter((axis) => axis.getAttribute("data-axis") === "advantage");
+    expect(advantageAxes).toHaveLength(1);
+    expect(advantageAxes[0]).toHaveAttribute("data-domain", "-3,3");
+  });
+
+  it("renders no advantage axis when no overlay is enabled", () => {
+    render(<ProgressionChart {...aProgressionViewModelWith()} />);
+    const advantageAxes = screen
+      .getAllByTestId("y-axis")
+      .filter((axis) => axis.getAttribute("data-axis") === "advantage");
+    expect(advantageAxes).toHaveLength(0);
   });
 });
