@@ -35,7 +35,6 @@ describe("buildOddballProgression death timeline", () => {
     ): ReturnType<typeof aFakeParsedHighlightEventWith> =>
       aFakeParsedHighlightEventWith({ xuid: `21000000000700${String(index)}`, timeMs, teamId });
     const events = [
-      ...oddball3a8dEvents(),
       death(15000, 1, 0),
       death(30000, 0, 1),
       death(45000, null, 2),
