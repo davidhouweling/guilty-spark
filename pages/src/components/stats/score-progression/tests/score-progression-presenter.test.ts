@@ -10,6 +10,7 @@ import type {
   PlayerAdvantageData,
   ScoreDeltaData,
   ScoreLinesViewData,
+  ScoreMarkerData,
   ScoreLinesViewModel,
   ScoreProgressionTeamLine,
   ScoreProgressionViewModel,
@@ -58,6 +59,8 @@ function aScoreLinesInput(overrides: Partial<Omit<ScoreLinesViewData, "kind">> =
       teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
       scoreDelta: null,
       playerAdvantage: null,
+      markers: null,
+      zoneAdvantage: null,
       ...overrides,
     },
     ariaLabel: "test chart",
@@ -161,7 +164,7 @@ describe("ScoreProgressionPresenter", () => {
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData() })),
       );
-      expect(model.deltaViewModel?.tooltipFormatter(3)).toEqual(["Eagle +3", "Score Delta"]);
+      expect(model.deltaViewModel?.tooltipFormatter(3, undefined)).toEqual(["Eagle +3", "Score Delta"]);
     });
 
     it("deltaViewModel.tooltipFormatter returns team1Name leading on negative delta", () => {
@@ -170,7 +173,7 @@ describe("ScoreProgressionPresenter", () => {
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData() })),
       );
-      expect(model.deltaViewModel?.tooltipFormatter(-2)).toEqual(["Cobra +2", "Score Delta"]);
+      expect(model.deltaViewModel?.tooltipFormatter(-2, undefined)).toEqual(["Cobra +2", "Score Delta"]);
     });
 
     it("deltaViewModel.tooltipFormatter returns Tied when value is 0", () => {
@@ -179,7 +182,7 @@ describe("ScoreProgressionPresenter", () => {
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData() })),
       );
-      expect(model.deltaViewModel?.tooltipFormatter(0)).toEqual(["Tied", "Score Delta"]);
+      expect(model.deltaViewModel?.tooltipFormatter(0, undefined)).toEqual(["Tied", "Score Delta"]);
     });
 
     it("deltaViewModel.tooltipFormatter returns Tied when value is a string", () => {
@@ -188,7 +191,7 @@ describe("ScoreProgressionPresenter", () => {
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData() })),
       );
-      expect(model.deltaViewModel?.tooltipFormatter("unknown")).toEqual(["Tied", "Score Delta"]);
+      expect(model.deltaViewModel?.tooltipFormatter("unknown", undefined)).toEqual(["Tied", "Score Delta"]);
     });
 
     it("deltaViewModel.tooltipFormatter returns Tied when value is NaN", () => {
@@ -197,34 +200,34 @@ describe("ScoreProgressionPresenter", () => {
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData() })),
       );
-      expect(model.deltaViewModel?.tooltipFormatter(NaN)).toEqual(["Tied", "Score Delta"]);
+      expect(model.deltaViewModel?.tooltipFormatter(NaN, undefined)).toEqual(["Tied", "Score Delta"]);
     });
 
-    it("deltaViewModel.advantageTooltipFormatter returns team0Name leading on positive advantage", () => {
+    it("deltaViewModel.tooltipFormatter routes Player Advantage to team0Name leading on positive advantage", () => {
       const { store, presenter } = makePresenter();
       store.update({ chartType: "delta" });
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData() })),
       );
-      expect(model.deltaViewModel?.advantageTooltipFormatter(2)).toEqual(["Eagle +2", "Player Advantage"]);
+      expect(model.deltaViewModel?.tooltipFormatter(2, "Player Advantage")).toEqual(["Eagle +2", "Player Advantage"]);
     });
 
-    it("deltaViewModel.advantageTooltipFormatter returns team1Name leading on negative advantage", () => {
+    it("deltaViewModel.tooltipFormatter routes Player Advantage to team1Name leading on negative advantage", () => {
       const { store, presenter } = makePresenter();
       store.update({ chartType: "delta" });
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData() })),
       );
-      expect(model.deltaViewModel?.advantageTooltipFormatter(-1)).toEqual(["Cobra +1", "Player Advantage"]);
+      expect(model.deltaViewModel?.tooltipFormatter(-1, "Player Advantage")).toEqual(["Cobra +1", "Player Advantage"]);
     });
 
-    it("deltaViewModel.advantageTooltipFormatter returns Even when value is 0", () => {
+    it("deltaViewModel.tooltipFormatter routes Player Advantage to Even when value is 0", () => {
       const { store, presenter } = makePresenter();
       store.update({ chartType: "delta" });
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData() })),
       );
-      expect(model.deltaViewModel?.advantageTooltipFormatter(0)).toEqual(["Even", "Player Advantage"]);
+      expect(model.deltaViewModel?.tooltipFormatter(0, "Player Advantage")).toEqual(["Even", "Player Advantage"]);
     });
   });
 
@@ -315,6 +318,124 @@ describe("ScoreProgressionPresenter", () => {
       );
       expect(model.deltaViewModel?.scoreDelta.minScore).toBe(-1);
       expect(model.deltaViewModel?.scoreDelta.maxScore).toBe(3);
+    });
+  });
+
+  describe("zone advantage and markers", () => {
+    const aFakeZoneAdvantageData = (): PlayerAdvantageData => ({
+      points: [
+        { timestampMs: 0, score: 0 },
+        { timestampMs: 30000, score: 1 },
+        { timestampMs: 600000, score: 1 },
+      ],
+      minScore: -3,
+      maxScore: 3,
+    });
+    const aFakeMarkers = (): ScoreMarkerData[] => [
+      { timestampMs: 30000, score: 10, teamId: 0, teamName: "Eagle", color: "#f00", kind: "capture" },
+    ];
+
+    it("reports hasZoneAdvantage and hasMarkers from the view data", () => {
+      const { store, presenter } = makePresenter();
+      const model = asScoreLines(
+        presenter.present(
+          store.getSnapshot(),
+          aScoreLinesInput({ zoneAdvantage: aFakeZoneAdvantageData(), markers: aFakeMarkers() }),
+        ),
+      );
+      expect(model.hasZoneAdvantage).toBe(true);
+      expect(model.hasMarkers).toBe(true);
+      expect(model.showToolbar).toBe(true);
+    });
+
+    it("passes null zoneAdvantage to the charts until the toggle is enabled", () => {
+      const { store, presenter } = makePresenter();
+      const input = aScoreLinesInput({ zoneAdvantage: aFakeZoneAdvantageData() });
+      const hidden = asScoreLines(presenter.present(store.getSnapshot(), input));
+      expect(hidden.progressionViewModel.zoneAdvantage).toBeNull();
+      expect(hidden.progressionViewModel.advantageDomain).toBeNull();
+
+      store.update({ showZoneAdvantage: true });
+      const shown = asScoreLines(presenter.present(store.getSnapshot(), input));
+      expect(shown.progressionViewModel.zoneAdvantage).not.toBeNull();
+      expect(shown.progressionViewModel.advantageDomain).toEqual([-3, 3]);
+    });
+
+    it("hides the markers toggle while the delta chart is active since markers only draw on the progression chart", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ chartType: "delta" });
+      const model = asScoreLines(
+        presenter.present(
+          store.getSnapshot(),
+          aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData(), markers: aFakeMarkers() }),
+        ),
+      );
+      expect(model.hasMarkers).toBe(false);
+      expect(model.progressionViewModel.markers).toBeNull();
+    });
+
+    it("routes Zone Advantage through the delta chart tooltip formatter", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ chartType: "delta", showZoneAdvantage: true });
+      const model = asScoreLines(
+        presenter.present(
+          store.getSnapshot(),
+          aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData(), zoneAdvantage: aFakeZoneAdvantageData() }),
+        ),
+      );
+      expect(model.deltaViewModel?.tooltipFormatter(2, "Zone Advantage")).toEqual(["Eagle +2 zones", "Zone Advantage"]);
+    });
+
+    it("passes markers through by default and hides them when toggled off", () => {
+      const { store, presenter } = makePresenter();
+      const markers = aFakeMarkers();
+      const input = aScoreLinesInput({ markers });
+      const shown = asScoreLines(presenter.present(store.getSnapshot(), input));
+      expect(shown.progressionViewModel.markers).toBe(markers);
+
+      store.update({ showMarkers: false });
+      const hidden = asScoreLines(presenter.present(store.getSnapshot(), input));
+      expect(hidden.progressionViewModel.markers).toBeNull();
+    });
+
+    it("unions the advantage axis domain across enabled overlays", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ showPlayerAdvantage: true, showZoneAdvantage: true });
+      const model = asScoreLines(
+        presenter.present(
+          store.getSnapshot(),
+          aScoreLinesInput({
+            playerAdvantage: aFakePlayerAdvantageData(),
+            zoneAdvantage: aFakeZoneAdvantageData(),
+          }),
+        ),
+      );
+      expect(model.progressionViewModel.advantageDomain).toEqual([-3, 3]);
+    });
+
+    it("formats Zone Advantage tooltips with the leading team and zone count", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ showZoneAdvantage: true });
+      const model = asScoreLines(
+        presenter.present(store.getSnapshot(), aScoreLinesInput({ zoneAdvantage: aFakeZoneAdvantageData() })),
+      );
+      expect(model.progressionViewModel.tooltipFormatter(2, "Zone Advantage")).toEqual([
+        "Eagle +2 zones",
+        "Zone Advantage",
+      ]);
+      expect(model.progressionViewModel.tooltipFormatter(-1, "Zone Advantage")).toEqual([
+        "Cobra +1 zone",
+        "Zone Advantage",
+      ]);
+      expect(model.progressionViewModel.tooltipFormatter(0, "Zone Advantage")).toEqual(["Even", "Zone Advantage"]);
+    });
+
+    it("updates the store through the marker and zone advantage callbacks", () => {
+      const { store, presenter } = makePresenter();
+      presenter.onMarkersChange(false);
+      expect(store.getSnapshot().showMarkers).toBe(false);
+      presenter.onZoneAdvantageChange(true);
+      expect(store.getSnapshot().showZoneAdvantage).toBe(true);
     });
   });
 

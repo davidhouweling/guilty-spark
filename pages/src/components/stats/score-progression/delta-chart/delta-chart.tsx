@@ -12,17 +12,18 @@ import {
   useYAxisScale,
 } from "recharts";
 import {
-  ADVANTAGE_STROKE,
   AXIS_STROKE,
   CHART_HEIGHT,
-  CHART_MARGIN,
   GRID_STROKE,
   TICK_STYLE,
-  formatAdvantage,
+  advantageAxisProps,
+  chartMargin,
+  playerAdvantageAreaProps,
   timeAxisProps,
   tooltipContentStyle,
   tooltipLabelStyle,
   formatTooltipLabel,
+  zoneAdvantageAreaProps,
 } from "../chart-constants";
 import type { ScoreProgressionDeltaViewModel } from "../types";
 
@@ -72,22 +73,14 @@ export function DeltaChart({
   team0Color,
   team1Color,
   playerAdvantage,
+  zoneAdvantage,
+  advantageDomain,
   tooltipFormatter,
-  advantageTooltipFormatter,
 }: ScoreProgressionDeltaViewModel): React.ReactElement {
   const { points, minScore, maxScore } = scoreDelta;
   const gradientId = useId();
   const strokeGradientId = `${gradientId}-stroke`;
-  const margin = playerAdvantage != null ? { ...CHART_MARGIN, right: 36 } : CHART_MARGIN;
-  const wrappedTooltipFormatter = (
-    value: number | string | readonly (number | string)[] | undefined,
-    name: string | number | undefined,
-  ): [string, string] => {
-    if (name === "Player Advantage") {
-      return advantageTooltipFormatter(value);
-    }
-    return tooltipFormatter(value);
-  };
+  const margin = chartMargin(advantageDomain);
 
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
@@ -101,24 +94,13 @@ export function DeltaChart({
         <CartesianGrid strokeDasharray="4 4" stroke={GRID_STROKE} />
         <XAxis {...timeAxisProps(durationMs)} />
         <YAxis allowDecimals={false} width={36} domain={[minScore, maxScore]} stroke={AXIS_STROKE} tick={TICK_STYLE} />
-        {playerAdvantage != null && (
-          <YAxis
-            yAxisId="advantage"
-            orientation="right"
-            allowDecimals={false}
-            width={28}
-            domain={[playerAdvantage.minScore, playerAdvantage.maxScore]}
-            stroke={AXIS_STROKE}
-            tick={TICK_STYLE}
-            tickFormatter={formatAdvantage}
-          />
-        )}
+        {advantageDomain != null && <YAxis {...advantageAxisProps(advantageDomain)} />}
         <ReferenceLine y={0} stroke={AXIS_STROKE} strokeDasharray="3 3" />
         <Tooltip
           contentStyle={tooltipContentStyle}
           labelStyle={tooltipLabelStyle}
           labelFormatter={formatTooltipLabel}
-          formatter={wrappedTooltipFormatter}
+          formatter={tooltipFormatter}
         />
         <Area
           dataKey="score"
@@ -129,24 +111,11 @@ export function DeltaChart({
           dot={false}
           type={scoreDelta.lineType === "linear" ? "linear" : "stepAfter"}
         />
-        {playerAdvantage != null && (
-          <>
-            <ReferenceLine y={0} yAxisId="advantage" stroke={AXIS_STROKE} strokeDasharray="3 3" />
-            <Area
-              yAxisId="advantage"
-              data={playerAdvantage.points}
-              dataKey="score"
-              name="Player Advantage"
-              fill="none"
-              stroke={ADVANTAGE_STROKE}
-              strokeWidth={1}
-              strokeDasharray={2}
-              dot={false}
-              type="stepAfter"
-              baseValue={0}
-            />
-          </>
+        {advantageDomain != null && (
+          <ReferenceLine y={0} yAxisId="advantage" stroke={AXIS_STROKE} strokeDasharray="3 3" />
         )}
+        {playerAdvantage != null && <Area {...playerAdvantageAreaProps()} data={playerAdvantage.points} />}
+        {zoneAdvantage != null && <Area {...zoneAdvantageAreaProps()} data={zoneAdvantage.points} />}
       </AreaChart>
     </ResponsiveContainer>
   );

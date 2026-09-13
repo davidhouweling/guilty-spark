@@ -7,9 +7,14 @@ import type {
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
+import { extendToDuration } from "./extend-to-duration";
 import { buildKothHills } from "./modes/koth/koth-view-model";
 import { buildOddballRounds } from "./modes/oddball/oddball-view-model";
-import { buildStrongholdsTeamLines } from "./modes/strongholds/strongholds-view-model";
+import {
+  buildStrongholdsMarkers,
+  buildStrongholdsTeamLines,
+  buildZoneAdvantage,
+} from "./modes/strongholds/strongholds-view-model";
 import type {
   PlayerAdvantageData,
   ScoreDeltaData,
@@ -60,10 +65,7 @@ function buildScoreDelta(
     }
   }
 
-  const lastEvent = inMatchEvents.at(-1);
-  if (lastEvent == null || lastEvent.timestampMs < durationMs) {
-    points.push({ timestampMs: durationMs, score: points.at(-1)?.score ?? 0 });
-  }
+  extendToDuration(points, durationMs);
   const range = maxScore - minScore;
   if (range === 0) {
     return null;
@@ -131,7 +133,7 @@ function buildPlayerAdvantage(
     }
   }
 
-  points.push({ timestampMs: durationMs, score: points.at(-1)?.score ?? 0 });
+  extendToDuration(points, durationMs);
 
   const range = maxScore - minScore;
   if (range === 0) {
@@ -178,7 +180,7 @@ function buildTeamLines(
 
   const teamLines: ScoreProgressionTeamLine[] = [];
   for (const [teamId, state] of teamState) {
-    state.points.push({ timestampMs: durationMs, score: state.prevScore });
+    extendToDuration(state.points, durationMs);
     teamLines.push({ teamId, name: state.name, color: state.color, points: state.points });
   }
   return teamLines;
@@ -242,6 +244,8 @@ export function formatScoreProgression(
           durationMs,
           teamSize,
         ),
+        markers: null,
+        zoneAdvantage: null,
       };
     }
     case "koth": {
@@ -277,10 +281,13 @@ export function formatScoreProgression(
       if (teams == null) {
         return null;
       }
+      const teamLines = buildStrongholdsTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs);
+      // null rather than an empty array so "no markers" reads the same as modes without markers
+      const markers = buildStrongholdsMarkers(timeline.zoneEvents, teamLines, durationMs);
       return {
         kind: "score-lines",
         durationMs,
-        teamLines: buildStrongholdsTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs),
+        teamLines,
         scoreDelta: buildScoreDelta(teams.teamIds, timeline.events, durationMs, "linear"),
         playerAdvantage: buildPlayerAdvantage(
           teams.teamIds,
@@ -289,6 +296,8 @@ export function formatScoreProgression(
           durationMs,
           teamSize,
         ),
+        markers: markers.length > 0 ? markers : null,
+        zoneAdvantage: buildZoneAdvantage(timeline.zoneTimeline, teams.teamIds, durationMs),
       };
     }
     default: {

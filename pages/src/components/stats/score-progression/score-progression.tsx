@@ -13,12 +13,18 @@ function ScoreLinesCharts({
   effectiveChartType,
   hasDelta,
   hasPlayerAdvantage,
+  hasMarkers,
+  hasZoneAdvantage,
   showPlayerAdvantage,
+  showMarkers,
+  showZoneAdvantage,
   showToolbar,
   deltaViewModel,
   progressionViewModel,
   onChartTypeChange,
   onPlayerAdvantageChange,
+  onMarkersChange,
+  onZoneAdvantageChange,
 }: ScoreLinesViewModel): React.ReactElement {
   return (
     <div className={styles.container}>
@@ -42,13 +48,16 @@ function ScoreLinesCharts({
               </Select>
             </>
           )}
-          {hasPlayerAdvantage && (
-            <Checkbox
-              checked={showPlayerAdvantage}
-              onChange={onPlayerAdvantageChange}
-              label="Player Advantage"
-              className={styles.toolbarCheckbox}
-            />
+          {(hasPlayerAdvantage || hasZoneAdvantage || hasMarkers) && (
+            <div className={styles.toolbarToggles}>
+              {hasPlayerAdvantage && (
+                <Checkbox checked={showPlayerAdvantage} onChange={onPlayerAdvantageChange} label="Player Advantage" />
+              )}
+              {hasZoneAdvantage && (
+                <Checkbox checked={showZoneAdvantage} onChange={onZoneAdvantageChange} label="Zone Advantage" />
+              )}
+              {hasMarkers && <Checkbox checked={showMarkers} onChange={onMarkersChange} label="Captures & Secures" />}
+            </div>
           )}
         </div>
       )}
@@ -59,6 +68,22 @@ function ScoreLinesCharts({
           <ProgressionChart {...progressionViewModel} />
         )}
       </div>
+      {progressionViewModel.markers != null && (
+        <div className={styles.markerLegend}>
+          <span className={styles.markerLegendItem}>
+            <svg width="10" height="10" aria-hidden="true">
+              <circle cx="5" cy="5" r="4" fill="currentColor" />
+            </svg>
+            Capture
+          </span>
+          <span className={styles.markerLegendItem}>
+            <svg width="10" height="10" aria-hidden="true">
+              <circle cx="5" cy="5" r="4" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+            Secure
+          </span>
+        </div>
+      )}
     </div>
   );
 }
