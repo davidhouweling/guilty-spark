@@ -60,15 +60,25 @@ export function buildKothScoreSeries(
   const hillBoundaries: number[] = [];
   const keys = teamIds.map(String);
   const { events } = timeline;
+  const cumulative: Record<string, number> = {};
+  // an event may omit a team whose score is unchanged, so the running totals fold each event
+  // into a carried snapshot instead of trusting any single record to be complete
+  const absorbEvent = (event: ScoreSample): void => {
+    for (const key of keys) {
+      if (key in event.runningScores) {
+        cumulative[key] = event.runningScores[key];
+      }
+    }
+  };
   let cursor = 0;
-  let baseline: Record<string, number> = {};
   let hasEventSamples = false;
 
   for (const period of buildKothHillPeriods(timeline.hillCaptureTimestamps, durationMs)) {
     while (cursor < events.length && events[cursor].timestampMs < period.startMs) {
-      baseline = events[cursor].runningScores;
+      absorbEvent(events[cursor]);
       cursor++;
     }
+    const baseline = { ...cumulative };
     if (period.startMs > 0) {
       hillBoundaries.push(period.startMs);
     }
@@ -78,17 +88,14 @@ export function buildKothScoreSeries(
     // so they land on the axis edge rather than being dropped
     const attributionEndMs = period.captureTs ?? period.endMs;
     while (cursor < events.length && events[cursor].timestampMs <= attributionEndMs) {
-      const event = events[cursor];
+      absorbEvent(events[cursor]);
       const hillTicks: Record<string, number> = {};
       for (const key of keys) {
-        hillTicks[key] = (event.runningScores[key] ?? 0) - (baseline[key] ?? 0);
+        hillTicks[key] = (cumulative[key] ?? 0) - (baseline[key] ?? 0);
       }
-      samples.push({ timestampMs: Math.min(event.timestampMs, durationMs), runningScores: hillTicks });
+      samples.push({ timestampMs: Math.min(events[cursor].timestampMs, durationMs), runningScores: hillTicks });
       hasEventSamples = true;
       cursor++;
-    }
-    if (cursor > 0) {
-      baseline = events[cursor - 1].runningScores;
     }
   }
 

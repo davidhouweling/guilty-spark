@@ -275,6 +275,24 @@ describe("buildKothScoreSeries", () => {
     ]);
   });
 
+  it("carries a team's score forward across a sparse event that omits it", () => {
+    const timeline = aFakeKothTimelineWith({
+      events: [
+        { timestampMs: 5000, teamId: 0, runningScores: { "0": 2, "1": 1 } },
+        { timestampMs: 30000, teamId: 1, runningScores: { "1": 3 } },
+      ],
+      hillCaptureTimestamps: [30000],
+    });
+    const { samples } = buildKothScoreSeries(timeline, [0, 1], 60000);
+
+    expect(samples).toEqual([
+      { timestampMs: 0, runningScores: { "0": 0, "1": 0 } },
+      { timestampMs: 5000, runningScores: { "0": 2, "1": 1 } },
+      { timestampMs: 30000, runningScores: { "0": 2, "1": 3 } },
+      { timestampMs: 30000, runningScores: { "0": 0, "1": 0 } },
+    ]);
+  });
+
   it("returns an empty series when every event lands past the match duration", () => {
     const timeline = aFakeKothTimelineWith({
       events: [
