@@ -12,13 +12,15 @@ export function aFakeStrongholdsTimelineWith(overrides: Partial<StrongholdsTimel
     ],
     zoneEvents: [
       { timestampMs: 10000, teamId: 0, kind: "capture" },
-      { timestampMs: 50000, teamId: 1, kind: "capture" },
+      { timestampMs: 40000, teamId: 1, kind: "capture" },
+      { timestampMs: 60000, teamId: 0, kind: "capture" },
       { timestampMs: 70000, teamId: 0, kind: "secure" },
     ],
     zoneTimeline: [
       { timestampMs: 0, zoneCounts: { "0": 1, "1": 1 } },
       { timestampMs: 10000, zoneCounts: { "0": 2, "1": 1 } },
-      { timestampMs: 50000, zoneCounts: { "0": 1, "1": 2 } },
+      { timestampMs: 40000, zoneCounts: { "0": 1, "1": 2 } },
+      { timestampMs: 60000, zoneCounts: { "0": 2, "1": 1 } },
     ],
     deathTimeline: [
       { timestampMs: 20000, teamId: 1 },

@@ -278,12 +278,22 @@ export function formatScoreProgression(
       if (teams == null) {
         return null;
       }
+      const playerAdvantage =
+        timeline.respawnDurationMs != null
+          ? buildPlayerAdvantage(
+              teams.teamIds,
+              timeline.deathTimeline,
+              timeline.respawnDurationMs,
+              durationMs,
+              teamSize,
+            )
+          : null;
       return {
         kind: "score-lines",
         durationMs,
         teamLines: buildStrongholdsTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs),
         scoreDelta: buildScoreDelta(teams.teamIds, timeline.events, durationMs, "linear"),
-        playerAdvantage: null,
+        playerAdvantage,
       };
     }
     default: {

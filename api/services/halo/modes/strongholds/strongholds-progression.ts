@@ -181,6 +181,10 @@ interface ZoneState {
   neutral: number;
 }
 
+function initialZoneState(): ZoneState {
+  return { owned: [1, 1], neutral: NEUTRAL_ZONE_COUNT };
+}
+
 function isCaptureLegal(state: ZoneState, capturer: TeamSlot): boolean {
   return state.owned[capturer] < ZONE_COUNT && (state.neutral > 0 || state.owned[enemyOf(capturer)] > 0);
 }
@@ -224,13 +228,18 @@ function scoreRatePerSecond(effectiveZones: number): number {
 // neutral middle zone contests nobody's owned zone, so it carries no attempt window; every
 // other capture contests an enemy zone and every secure marks a cleared enemy attempt on the
 // securing team's own zone.
+interface SweepCallbacks {
+  onSample?: ((sample: CurveSample) => void) | undefined;
+  onCapture?: ((timestampMs: number, owned: readonly number[]) => void) | undefined;
+}
+
 function sweep(
   groups: readonly EventGroup[],
   skeleton: readonly SkeletonBoundary[],
   labels: readonly Label[],
   neutralCaptureIndex: number,
   durationMs: number,
-  onSample?: (sample: CurveSample) => void,
+  callbacks?: SweepCallbacks,
 ): SweepTotals {
   // one flat pass resolves which team each group's attempt window attacks
   const attackedSlots: (TeamSlot | null)[] = new Array<TeamSlot | null>(groups.length);
@@ -244,7 +253,7 @@ function sweep(
     }
   }
 
-  const zones: ZoneState = { owned: [1, 1], neutral: NEUTRAL_ZONE_COUNT };
+  const zones = initialZoneState();
   const attacks: [number, number] = [0, 0];
   const totals: SweepTotals = { points: [0, 0], ticks: [0, 0], tripleSeconds: [0, 0] };
 
@@ -267,7 +276,7 @@ function sweep(
       }
     }
     cursorMs = clamped;
-    onSample?.({ timestampMs: cursorMs, points: [totals.points[0], totals.points[1]] });
+    callbacks?.onSample?.({ timestampMs: cursorMs, points: [totals.points[0], totals.points[1]] });
   };
 
   for (const boundary of skeleton) {
@@ -281,6 +290,7 @@ function sweep(
         Preconditions.checkExists(groups[boundary.groupIndex]).teamSlot,
         boundary.groupIndex === neutralCaptureIndex,
       );
+      callbacks?.onCapture?.(boundary.timestampMs, zones.owned);
       continue;
     }
     const attackedSlot = attackedSlots[boundary.groupIndex];
@@ -309,7 +319,7 @@ function deviationFromTargets(totals: SweepTotals, targets: readonly TeamTargets
 // When no zone-count-legal labeling exists (heavily degraded film data), label greedily so a
 // curve is still produced; reconciliation absorbs the resulting error.
 function greedyLabeling(groups: readonly EventGroup[], quotas: readonly TeamQuota[]): Candidate {
-  const zones: ZoneState = { owned: [1, 1], neutral: NEUTRAL_ZONE_COUNT };
+  const zones = initialZoneState();
   const capturesUsed: [number, number] = [0, 0];
   let neutralCaptureIndex = -1;
   const labels = groups.map((group, index): Label => {
@@ -363,7 +373,7 @@ function findBestLabeling(
   let nodeCount = 0;
   let sweepWorkUnits = 0;
   const labels: Label[] = new Array<Label>(groups.length).fill("capture");
-  const zones: ZoneState = { owned: [1, 1], neutral: NEUTRAL_ZONE_COUNT };
+  const zones = initialZoneState();
   const capturesUsed: [number, number] = [0, 0];
   const securesUsed: [number, number] = [0, 0];
   let neutralCaptureIndex = -1;
@@ -434,21 +444,60 @@ function findBestLabeling(
   return best.value ?? greedyLabeling(groups, quotas);
 }
 
+// One marker per event group carrying the winning labeling; no zone state is needed.
+function buildZoneEvents(
+  groups: readonly EventGroup[],
+  labels: readonly Label[],
+  teamIds: readonly number[],
+): StrongholdsZoneEvent[] {
+  return groups.map((group, index) => ({
+    timestampMs: group.timestampMs,
+    teamId: Preconditions.checkExists(teamIds[group.teamSlot]),
+    kind: Preconditions.checkExists(labels[index]),
+  }));
+}
+
+function zoneCountSample(
+  timestampMs: number,
+  owned: readonly number[],
+  teamIds: readonly number[],
+): StrongholdsZoneCountSample {
+  const zoneCounts: Record<string, number> = {};
+  for (const [teamSlot, teamId] of teamIds.entries()) {
+    zoneCounts[String(teamId)] = owned[teamSlot] ?? 0;
+  }
+  return { timestampMs, zoneCounts };
+}
+
 // Scales each team's raw curve so its final value lands exactly on the API Score, rounding
 // monotonically. Every rate boundary emits a point, so scoreless stretches render as flat
 // segments and scoring stretches as ramps. A team the model never gets scoring (degraded film
 // data) falls back to a uniform ramp rather than a flat zero line jumping at the buzzer.
-function buildScorePoints(
+// The zone-ownership step series comes out of the same sweep that produces the curve, so the
+// overlay can never drift from the simulation the score line was integrated from; simultaneous
+// captures collapse onto one sample holding the settled state.
+function buildReconstructedSeries(
   groups: readonly EventGroup[],
   skeleton: readonly SkeletonBoundary[],
   candidate: Candidate,
   teamIds: readonly number[],
   targets: readonly TeamTargets[],
   durationMs: number,
-): StrongholdsScorePoint[] {
+): Pick<StrongholdsProgression, "events" | "zoneTimeline"> {
   const samples: CurveSample[] = [];
-  const totals = sweep(groups, skeleton, candidate.labels, candidate.neutralCaptureIndex, durationMs, (sample) => {
-    samples.push(sample);
+  const zoneTimeline: StrongholdsZoneCountSample[] = [zoneCountSample(0, initialZoneState().owned, teamIds)];
+  const totals = sweep(groups, skeleton, candidate.labels, candidate.neutralCaptureIndex, durationMs, {
+    onSample: (sample) => {
+      samples.push(sample);
+    },
+    onCapture: (timestampMs, owned) => {
+      const sample = zoneCountSample(timestampMs, owned, teamIds);
+      if (zoneTimeline.at(-1)?.timestampMs === timestampMs) {
+        zoneTimeline[zoneTimeline.length - 1] = sample;
+      } else {
+        zoneTimeline.push(sample);
+      }
+    },
   });
 
   const valueAt = (teamSlot: number, sample: CurveSample): number => {
@@ -471,41 +520,7 @@ function buildScorePoints(
     }
     points.push({ timestampMs: sample.timestampMs, runningScores });
   }
-  return points;
-}
-
-// Replays the winning labeling to expose the chart overlays: one marker per event group and a
-// step series of zones owned per team (captures are the only boundaries — a secure clears an
-// attempt without changing ownership).
-function buildZoneOverlays(
-  groups: readonly EventGroup[],
-  candidate: Candidate,
-  teamIds: readonly number[],
-): Pick<StrongholdsProgression, "zoneEvents" | "zoneTimeline"> {
-  const zones: ZoneState = { owned: [1, 1], neutral: NEUTRAL_ZONE_COUNT };
-  const zoneCountsFrom = (timestampMs: number): StrongholdsZoneCountSample => {
-    const zoneCounts: Record<string, number> = {};
-    for (const [teamSlot, teamId] of teamIds.entries()) {
-      zoneCounts[String(teamId)] = zones.owned[teamSlot === 0 ? 0 : 1];
-    }
-    return { timestampMs, zoneCounts };
-  };
-
-  const zoneEvents: StrongholdsZoneEvent[] = [];
-  const zoneTimeline: StrongholdsZoneCountSample[] = [zoneCountsFrom(0)];
-  for (const [index, group] of groups.entries()) {
-    const kind = Preconditions.checkExists(candidate.labels[index]);
-    zoneEvents.push({
-      timestampMs: group.timestampMs,
-      teamId: Preconditions.checkExists(teamIds[group.teamSlot]),
-      kind,
-    });
-    if (kind === "capture") {
-      applyCapture(zones, group.teamSlot, index === candidate.neutralCaptureIndex);
-      zoneTimeline.push(zoneCountsFrom(group.timestampMs));
-    }
-  }
-  return { zoneEvents, zoneTimeline };
+  return { events: points, zoneTimeline };
 }
 
 // Samples the reconstructed curve at a timestamp; scoring is continuous, so values between
@@ -528,6 +543,10 @@ export function sampleScoreAt(points: readonly StrongholdsScorePoint[], teamId: 
   return previous.value;
 }
 
+function emptyProgression(teamCount: number, deathTimeline: TeamDeathEvent[]): StrongholdsProgression {
+  return { events: [], zoneEvents: [], zoneTimeline: [], deathTimeline, teamCount };
+}
+
 export function buildStrongholdsProgression(
   events: readonly ParsedHighlightEvent[],
   matchStats: MatchStats,
@@ -546,15 +565,17 @@ export function buildStrongholdsProgression(
       ticks: team.Stats.ZonesStats.StrongholdScoringTicks,
     });
   }
+  // trailing film deaths past the match end are dropped for the same reason groupCarryEvents
+  // drops trailing mode events
+  const deathTimeline = buildDeathTimeline(events, new Set(teamIds)).filter((death) => death.timestampMs <= durationMs);
   if (teamIds.length !== 2 || targetsByTeamId.size !== 2 || durationMs <= 0) {
-    return { events: [], zoneEvents: [], zoneTimeline: [], deathTimeline: [], teamCount: teamIds.length };
+    return emptyProgression(teamIds.length, deathTimeline);
   }
   const targets = teamIds.map((teamId) => Preconditions.checkExists(targetsByTeamId.get(teamId)));
-  const deathTimeline = buildDeathTimeline(events, new Set(teamIds));
 
   const groups = groupCarryEvents(events, teamIds, durationMs);
   if (groups.length === 0) {
-    return { events: [], zoneEvents: [], zoneTimeline: [], deathTimeline, teamCount: teamIds.length };
+    return emptyProgression(teamIds.length, deathTimeline);
   }
 
   const skeleton = buildSkeleton(groups);
@@ -562,8 +583,8 @@ export function buildStrongholdsProgression(
   const candidate = findBestLabeling(groups, skeleton, targets, quotas, durationMs);
 
   return {
-    events: buildScorePoints(groups, skeleton, candidate, teamIds, targets, durationMs),
-    ...buildZoneOverlays(groups, candidate, teamIds),
+    ...buildReconstructedSeries(groups, skeleton, candidate, teamIds, targets, durationMs),
+    zoneEvents: buildZoneEvents(groups, candidate.labels, teamIds),
     deathTimeline,
     teamCount: teamIds.length,
   };

@@ -259,6 +259,31 @@ describe("buildStrongholdsProgression", () => {
     ]);
   });
 
+  it("collapses a capture at the match start onto the seeded zone timeline sample", () => {
+    const matchStats = aFakeStrongholdsMatchStatsWith(
+      new Map([
+        [0, { score: 100, ticks: 60, captures: 2, secures: 0 }],
+        [1, { score: 0, ticks: 0, captures: 0, secures: 0 }],
+      ]),
+    );
+    const event = (timeMs: number, index: number): ParsedHighlightEvent => ({
+      xuid: `21000000000600${String(index)}`,
+      gamertag: `player-0-${String(index)}`,
+      typeHint: 10,
+      isMedal: false,
+      eventType: "mode",
+      timeMs,
+      medalValue: 33554432,
+      teamId: 0,
+    });
+    const events = [event(0, 0), event(0, 1), event(20000, 2), event(20000, 3)];
+    const progression = buildStrongholdsProgression(events, matchStats, 60000);
+    expect(progression.zoneTimeline).toEqual([
+      { timestampMs: 0, zoneCounts: { "0": 2, "1": 1 } },
+      { timestampMs: 20000, zoneCounts: { "0": 3, "1": 0 } },
+    ]);
+  });
+
   it("extracts the death timeline even when the film has no mode events", () => {
     const matchStats = aFakeStrongholdsMatchStatsWith(
       new Map([
@@ -277,7 +302,7 @@ describe("buildStrongholdsProgression", () => {
       teamId,
     });
     const progression = buildStrongholdsProgression(
-      [death(15000, 1, 0), death(30000, 0, 1), death(45000, null, 2)],
+      [death(15000, 1, 0), death(30000, 0, 1), death(45000, null, 2), death(STRONGHOLDS_2104_DURATION_MS + 5000, 1, 3)],
       matchStats,
       STRONGHOLDS_2104_DURATION_MS,
     );
