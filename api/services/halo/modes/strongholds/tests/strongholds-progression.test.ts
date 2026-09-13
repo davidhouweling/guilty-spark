@@ -4,6 +4,7 @@ import { getMatchStats } from "../../../fakes/data";
 import type { ParsedHighlightEvent } from "../../../types";
 import { buildStrongholdsProgression, sampleScoreAt } from "../strongholds-progression";
 import type { StrongholdsProgression } from "../strongholds-progression";
+import { aFakeParsedHighlightEventWith } from "../../../fakes/parsed-highlight-event.fake";
 import { aFakeStrongholdsMatchStatsWith } from "../fakes/strongholds-match-stats.fake";
 import {
   strongholds2104Events,
@@ -236,16 +237,15 @@ describe("buildStrongholdsProgression", () => {
         [1, { score: 0, ticks: 0, captures: 1, secures: 0 }],
       ]),
     );
-    const event = (timeMs: number, teamId: number, index: number): ParsedHighlightEvent => ({
-      xuid: `21000000000400${String(index)}`,
-      gamertag: `player-${String(teamId)}-${String(index)}`,
-      typeHint: 10,
-      isMedal: false,
-      eventType: "mode",
-      timeMs,
-      medalValue: 33554432,
-      teamId,
-    });
+    const event = (timeMs: number, teamId: number, index: number): ParsedHighlightEvent =>
+      aFakeParsedHighlightEventWith({
+        xuid: `21000000000400${String(index)}`,
+        typeHint: 10,
+        eventType: "mode",
+        timeMs,
+        medalValue: 33554432,
+        teamId,
+      });
     const events = [event(20000, 0, 0), event(20000, 0, 1), event(40000, 1, 2), event(40000, 1, 3)];
     const progression = buildStrongholdsProgression(events, matchStats, 100000);
     expect(progression.zoneEvents).toEqual([
@@ -266,16 +266,15 @@ describe("buildStrongholdsProgression", () => {
         [1, { score: 0, ticks: 0, captures: 0, secures: 0 }],
       ]),
     );
-    const event = (timeMs: number, index: number): ParsedHighlightEvent => ({
-      xuid: `21000000000600${String(index)}`,
-      gamertag: `player-0-${String(index)}`,
-      typeHint: 10,
-      isMedal: false,
-      eventType: "mode",
-      timeMs,
-      medalValue: 33554432,
-      teamId: 0,
-    });
+    const event = (timeMs: number, index: number): ParsedHighlightEvent =>
+      aFakeParsedHighlightEventWith({
+        xuid: `21000000000600${String(index)}`,
+        typeHint: 10,
+        eventType: "mode",
+        timeMs,
+        medalValue: 33554432,
+        teamId: 0,
+      });
     const events = [event(0, 0), event(0, 1), event(20000, 2), event(20000, 3)];
     const progression = buildStrongholdsProgression(events, matchStats, 60000);
     expect(progression.zoneTimeline).toEqual([
@@ -291,16 +290,8 @@ describe("buildStrongholdsProgression", () => {
         [1, { score: 188, ticks: 185, captures: 21, secures: 3 }],
       ]),
     );
-    const death = (timeMs: number, teamId: number | null, index: number): ParsedHighlightEvent => ({
-      xuid: `21000000000500${String(index)}`,
-      gamertag: `victim-${String(index)}`,
-      typeHint: 3,
-      isMedal: false,
-      eventType: "death",
-      timeMs,
-      medalValue: 0,
-      teamId,
-    });
+    const death = (timeMs: number, teamId: number | null, index: number): ParsedHighlightEvent =>
+      aFakeParsedHighlightEventWith({ xuid: `21000000000500${String(index)}`, timeMs, teamId });
     const progression = buildStrongholdsProgression(
       [death(15000, 1, 0), death(30000, 0, 1), death(45000, null, 2), death(STRONGHOLDS_2104_DURATION_MS + 5000, 1, 3)],
       matchStats,
