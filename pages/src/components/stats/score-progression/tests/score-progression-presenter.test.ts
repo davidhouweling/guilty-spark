@@ -5,6 +5,7 @@ import { ScoreProgressionStore } from "../score-progression-store";
 import { aFakeKothHillDataWith } from "../fakes/koth-hill-data.fake";
 import { aFakeOddballRoundDataWith } from "../fakes/oddball-round-data.fake";
 import { aFakeScoreLinesViewDataWith } from "../fakes/score-lines-view-data.fake";
+import { aFakeTeamLineWith } from "../fakes/team-line.fake";
 import { aFakeZoneStripDataWith } from "../fakes/zone-strip-data.fake";
 import type {
   KothHillData,
@@ -31,12 +32,8 @@ const aFakeScoreDeltaData = (): ScoreDeltaData => ({
   lineType: "step",
 });
 
-const aFakeTeamLine = (name: string, color: string, teamId = 0): ScoreProgressionTeamLine => ({
-  teamId,
-  name,
-  color,
-  points: [],
-});
+const aFakeTeamLine = (name: string, color: string, teamId = 0): ScoreProgressionTeamLine =>
+  aFakeTeamLineWith({ teamId, name, color });
 
 function makePresenter(): { store: ScoreProgressionStore; presenter: ScoreProgressionPresenter } {
   const store = new ScoreProgressionStore();
@@ -712,11 +709,11 @@ describe("ScoreProgressionPresenter", () => {
       const model = asTimelineGantt(presenter.present(store.getSnapshot(), aStrongholdsInput(zoneStrip)));
       expect(model.timeline.rows).toHaveLength(1);
       expect(model.timeline.rows[0]?.label).toBe("Zones");
-      expect(model.timeline.rows[0]?.subLabel).toBe("Eagle 70% · Cobra 20%");
+      expect(model.timeline.rows[0]?.subLabel).toBe("Eagle 20% · Cobra 40%");
       expect(model.timeline.rows[0]?.segments).toBe(zoneStrip.segments);
       expect(model.timeline.rows[0]?.tooltipEntries.map((entry) => entry.text)).toEqual([
-        "Eagle: ahead 70%",
-        "Cobra: ahead 20%",
+        "Eagle: ahead 20%",
+        "Cobra: ahead 40%",
       ]);
     });
 
