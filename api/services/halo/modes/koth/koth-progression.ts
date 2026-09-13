@@ -109,6 +109,13 @@ function buildKothControlPeriods(
   return periods;
 }
 
+// The match-ending capture can interpolate slightly past MatchInfo.Duration (film-clock drift),
+// but any capture after that one is trailing film data, not a hill the match awarded.
+function dropCapturesPastMatchEnd(timestamps: number[], durationMs: number): number[] {
+  const firstOvershoot = timestamps.findIndex((ts) => ts > durationMs);
+  return firstOvershoot === -1 ? timestamps : timestamps.slice(0, firstOvershoot + 1);
+}
+
 export function buildKothProgression(
   allEvents: readonly ParsedHighlightEvent[],
   byte2Transitions: StateByte2Transition[],
@@ -122,7 +129,10 @@ export function buildKothProgression(
   return {
     events,
     controlPeriods,
-    hillCaptureTimestamps: findBestKothCaptureAssignment(events, buildTeamCaptureTargets(matchStats), controlPeriods),
+    hillCaptureTimestamps: dropCapturesPastMatchEnd(
+      findBestKothCaptureAssignment(events, buildTeamCaptureTargets(matchStats), controlPeriods),
+      durationMs,
+    ),
     deathTimeline: buildDeathTimeline(allEvents, knownTeamIds, durationMs),
     teamCount: knownTeamIds.size,
   };

@@ -234,6 +234,18 @@ describe("buildKothProgression", () => {
     expect(result.events).toHaveLength(0);
   });
 
+  it("keeps the match-ending capture past the duration but drops later trailing-film captures", () => {
+    const modeEvents = [
+      ...tickBurst(0, 5000, 5), // capture at 25000, past durationMs 20000 (film-clock overshoot)
+      ...tickBurst(0, 40000, 5), // trailing film only — capture at 60000 must be dropped
+    ];
+    const byte2Transitions = [transition(15000, 0x40, 0x41), transition(18000, 0x41, 0x42)];
+
+    const result = buildKothProgression(modeEvents, byte2Transitions, kothMatchStats(), 20000);
+
+    expect(result.hillCaptureTimestamps).toEqual([25000]);
+  });
+
   it("builds a death timeline from death events, dropping unattributed, unknown-team, and post-match deaths", () => {
     const allEvents = [
       modeEvent(0, 5000),
